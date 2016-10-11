@@ -7,21 +7,16 @@ import {
 } from './types'
 
 
-export class DomicControllerEvent<T extends Controller> extends CustomEvent {
-  detail: {
-    answer: T
-    query: Instantiator<T>
-  }
-
-  constructor(query: Instantiator<T>) {
-    super('domic:controller-query', {
-      detail: {
-        query,
-        answer: null
-      },
-      bubbles: true,
-      cancelable: true
-    })
+/**
+ *
+ */
+export function ctrl(ctrls: Instantiator<Controller>[]) {
+  return function (node: Node): void {
+    for (var c of ctrls) {
+      var instance = new c
+      node._domic_ctrl.push(instance)
+      instance.setNode(node)
+    }
   }
 }
 
@@ -29,29 +24,35 @@ export class DomicControllerEvent<T extends Controller> extends CustomEvent {
 export class Controller {
 
   node: Node
+  mounted: boolean
+
+  onMount(): void {
+    // observe
+  }
+
+  onUnmount(): void {
+    // stop observing
+  }
 
   setNode(node: Node) {
     this.node = node
   }
 
   /**
-   * Send a message event into our DOM to get the corresponding controller.
+   * Recursively find the asked for controller.
    */
   getController<C extends Controller>(kls: Instantiator<C>): C {
-    let e = new DomicControllerEvent(kls)
-    this.node.dispatchEvent(e)
-    return e.detail.answer
-  }
+    let iter = this.node
 
-  /**
-   * Answer a controller query, filling the answer.
-   */
-  protected onGetController(ev: DomicControllerEvent<any>): void {
-    if (this instanceof ev.detail.query) {
-      ev.detail.answer = this
-      ev.stopPropagation()
-      ev.preventDefault()
+    while (iter._domic_ctrl) {
+      for (var c of iter._domic_ctrl) {
+        if (c instanceof kls)
+          return c as C
+      }
+      iter = iter.parentNode
     }
+
+    return null
   }
 
 }

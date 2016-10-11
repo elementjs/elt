@@ -17,6 +17,50 @@ import {
 } from './controller'
 
 
+declare global {
+  interface Node {
+    _domic_ctrl?: Controller[]
+  }
+}
+
+function _mount(node: Node) {
+  if (!node._domic_ctrl) return
+
+  for (var c of node._domic_ctrl)
+    c.onMount()
+
+  var ch = node.firstChild
+  while (ch) {
+    _mount(ch)
+    ch = ch.nextSibling
+  }
+}
+
+function _unmount(node: Node) {
+  if (!node._domic_ctrl) return
+
+  for (var c of node._domic_ctrl)
+    c.onUnmount()
+
+  var ch = node.firstChild
+  while (ch) {
+    _unmount(ch)
+    ch = ch.nextSibling
+  }
+}
+
+function applyMutations(record: MutationRecord) {
+  var i = 0
+
+  var added = record.addedNodes
+  for (i = 0; i < added.length; i++)
+    _mount(added[i])
+
+  var removed = record.removedNodes
+  for (i = 0; i < removed.length; i++)
+    _unmount(removed[i])
+}
+
 function applyClass(node: Element, c: ClassDefinition) {
 
 }
@@ -48,6 +92,8 @@ function d(elt: any, attrs: BasicAttributes, children: Children): Node {
 
   if (typeof elt === 'string') {
     node = document.createElement(elt)
+    node._domic_ctrl = []
+
     for (var x in attrs as any) {
       applyAttribute(node, x, (attrs as any)[x])
     }
@@ -85,6 +131,8 @@ function d(elt: any, attrs: BasicAttributes, children: Children): Node {
     }
   }
 
+  // Class attributes and Style attributes are special and forwarded accross nodes and are thus
+  // always added (unlike other attributes which are simply passed forward)
   if (cls) {
     if (Array.isArray(cls)) {
       for (var cl of cls)
@@ -103,8 +151,6 @@ function d(elt: any, attrs: BasicAttributes, children: Children): Node {
       applyStyle(node as Element, st)
     }
   }
-  // Class attributes and Style attributes are special and forwarded accross nodes and are thus
-  // always added (unlike other attributes which are simply passed forward)
 
   return node
 }
