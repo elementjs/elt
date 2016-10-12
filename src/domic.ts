@@ -76,17 +76,42 @@ function _unmount(node: Node) {
   }
 }
 
-function applyMutations(record: MutationRecord) {
+
+/**
+ * Call mount and unmount on the node controllers.
+ */
+function applyMutations(records: MutationRecord[]) {
   var i = 0
 
-  var added = record.addedNodes
-  for (i = 0; i < added.length; i++)
-    _mount(added[i])
+  for (var record of records) {
+    var added = record.addedNodes
+    for (i = 0; i < added.length; i++)
+      _mount(added[i])
 
-  var removed = record.removedNodes
-  for (i = 0; i < removed.length; i++)
-    _unmount(removed[i])
+    var removed = record.removedNodes
+    for (i = 0; i < removed.length; i++)
+      _unmount(removed[i])
+  }
 }
+
+
+/**
+ * Set up the mounting mechanism.
+ *
+ * @param node: the root node from which we will listen to the document
+ *    mutations.
+ */
+export function setupMounting(node: Node): void {
+
+  var mutator = new MutationObserver(applyMutations)
+
+  mutator.observe(node, {
+    subtree: true,
+    childList: true
+  })
+
+}
+
 
 function applyClass(node: Element, c: ClassDefinition) {
 
