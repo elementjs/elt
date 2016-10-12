@@ -1,11 +1,29 @@
 
 import {
+  O
+} from 'stalkr'
+
+import {
   Instantiator,
   ArrayOrSingle,
   Children,
   BasicAttributes
 } from './types'
 
+
+export const controllerMap = new WeakMap<Node, Controller[]>()
+
+
+export class NodeMeta {
+  controllers: Controller[]
+  mountfn: (node?: Node) => void
+  unmountfn: (node?: Node) => void
+
+  addController(ctrl: Controller) {
+    this.controllers.push(ctrl)
+  }
+
+}
 
 
 export class Controller {
@@ -25,24 +43,71 @@ export class Controller {
     this.node = node
   }
 
+  observe<A, B, C, D, E, F>(a: O<A>, b: O<B>, c: O<C>, d: O<D>, e: O<E>, f: O<F>, cbk: (a: A, b: B, c: C, d: D, e: E, f: F) => any): this;
+  observe<A, B, C, D, E>(a: O<A>, b: O<B>, c: O<C>, d: O<D>, e: O<E>, cbk: (a: A, b: B, c: C, d: D, e: E) => any): this;
+  observe<A, B, C, D>(a: O<A>, b: O<B>, c: O<C>, d: O<D>, cbk: (a: A, b: B, c: C, d: D) => any): this;
+  observe<A, B, C>(a: O<A>, b: O<B>, c: O<C>, cbk: (a: A, b: B, c: C) => any): this;
+  observe<A, B>(a: O<A>, b: O<B>, cbk: (a: A, b: B) => any): this;
+  observe<A>(a: O<A>, cbk: (a: A, prop: string) => any): this;
+
+  /**
+   * Observe an observer whenever it is mounted. Stop observing when
+   * unmounted. Reobserve when mounted again.
+   */
+  observe(...a: any[]): this {
+    return this
+  }
+
+  /**
+   * Observe an observer but only when it changes, do not call the callback
+   * right away like observe. (?)
+   */
+  observeChanges(): this {
+    return this
+  }
+
   /**
    * Recursively find the asked for controller.
    */
   getController<C extends Controller>(kls: Instantiator<C>): C {
     let iter = this.node
+    let lst = controllerMap.get(iter)
 
-    while (iter._domic_ctrl) {
-      for (var c of iter._domic_ctrl) {
+    while (lst) {
+      for (var c of lst) {
         if (c instanceof kls)
           return c as C
       }
       iter = iter.parentNode
+      lst = controllerMap.get(iter)
     }
 
     return null
   }
 
 }
+
+
+/**
+ *
+ */
+export function ctrl(ctrls: (Instantiator<Controller>|Controller)[]) {
+  return function (node: Node): void {
+    var instance: Controller = null
+    var lst = controllerMap.get(node)
+
+    for (var c of ctrls) {
+      if (c instanceof Controller) {
+        instance = c
+      } else {
+        instance = new c
+      }
+      instance.setNode(node)
+      lst.push(instance)
+    }
+  }
+}
+
 
 
 /**

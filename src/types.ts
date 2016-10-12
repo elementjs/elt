@@ -1,7 +1,17 @@
 
 import {O} from 'stalkr'
 
+import {NodeMeta} from './controller'
+
 export type ArrayOrSingle<T> = T | T[]
+
+
+export interface ListenerObject<EventType extends Event> {
+  handleEvent(ev: EventType): void
+}
+export type ListenerFn<EventType extends Event> = (ev: EventType) => void
+export type Listener<EventType extends Event> = ListenerFn<EventType>
+
 
 export interface Instantiator<T> {
   new (...a: any[]): T
@@ -10,7 +20,7 @@ export interface Instantiator<T> {
 /**
  * Decorators used on Nodes
  */
-export type Decorator = (n: Node) => ( Node | void )
+export type Decorator = (n: Node, meta: NodeMeta) => void
 /**
  * Classes.
  */

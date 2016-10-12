@@ -13,33 +13,9 @@ import {
 } from './types'
 
 import {
-  Component, Controller
+  Component, Controller, controllerMap
 } from './controller'
 
-
-export const controllerMap = new WeakMap<Node, Controller[]>()
-
-
-
-/**
- *
- */
-export function ctrl(ctrls: (Instantiator<Controller>|Controller)[]) {
-  return function (node: Node): void {
-    var instance: Controller = null
-    var lst = controllerMap.get(node)
-
-    for (var c of ctrls) {
-      if (c instanceof Controller) {
-        instance = c
-      } else {
-        instance = new c
-      }
-      instance.setNode(node)
-      lst.push(instance)
-    }
-  }
-}
 
 /**
  * Call controller's mount() functions recursively
