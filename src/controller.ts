@@ -11,10 +11,16 @@ import {
 } from './types'
 
 
-export const controllerMap = new WeakMap<Node, Controller[]>()
-
-
+/**
+ *
+ */
 export class NodeMeta {
+
+  static map = new WeakMap<Node, NodeMeta>()
+
+  static get(node:Node) { return this.map.get(node) }
+  static set(node:Node, meta: NodeMeta) { this.map.set(node, meta) }
+
   controllers: Controller[]
   mountfn: (node?: Node) => void
   unmountfn: (node?: Node) => void
@@ -71,15 +77,15 @@ export class Controller {
    */
   getController<C extends Controller>(kls: Instantiator<C>): C {
     let iter = this.node
-    let lst = controllerMap.get(iter)
+    let meta = NodeMeta.get(iter)
 
-    while (lst) {
-      for (var c of lst) {
+    while (meta) {
+      for (var c of meta.controllers) {
         if (c instanceof kls)
           return c as C
       }
       iter = iter.parentNode
-      lst = controllerMap.get(iter)
+      meta = NodeMeta.get(iter)
     }
 
     return null
@@ -94,7 +100,7 @@ export class Controller {
 export function ctrl(ctrls: (Instantiator<Controller>|Controller)[]) {
   return function (node: Node): void {
     var instance: Controller = null
-    var lst = controllerMap.get(node)
+    var meta = NodeMeta.get(node)
 
     for (var c of ctrls) {
       if (c instanceof Controller) {
@@ -103,7 +109,7 @@ export function ctrl(ctrls: (Instantiator<Controller>|Controller)[]) {
         instance = new c
       }
       instance.setNode(node)
-      lst.push(instance)
+      meta.addController(instance)
     }
   }
 }

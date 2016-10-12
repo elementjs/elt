@@ -8,7 +8,8 @@ import {
 } from './types'
 
 import {
-  Controller, NodeMeta
+  Controller,
+  NodeMeta
 } from './controller'
 
 
@@ -38,56 +39,53 @@ export class BindController extends Controller {
     if (node.contentEditable) this.linkToHTML5Editable(node)
   }
 
-  linkToTextArea(element: HTMLTextAreaElement) {
+  linkToTextArea(node: HTMLTextAreaElement) {
     let obs = this.obs
-    let atom = this.atom
 
     function upd(evt: Event) {
-      obs.set(element.value)
+      obs.set(node.value)
     }
 
-    atom.listen('input', upd)
-    atom.listen('change', upd)
-    atom.listen('propertychange', upd)
+    node.addEventListener('input', upd)
+    node.addEventListener('change', upd)
+    node.addEventListener('propertychange', upd)
 
-    atom.observe(obs, val => {
-      element.value = val||''
+    this.observe(obs, val => {
+      node.value = val||''
     })
   }
 
-  linkToSelect(element: HTMLSelectElement) {
+  linkToSelect(node: HTMLSelectElement) {
     let obs = this.obs
-    let atom = this.atom
 
-    atom.listen('change', function(evt) {
+    node.addEventListener('change', function(evt) {
       obs.set(this.value)
     })
 
-    atom.observe(obs, (val) => {
-      element.value = val
+    this.observe(obs, val => {
+      node.value = val
     })
   }
 
-  linkToInput(element: HTMLInputElement) {
+  linkToInput(node: HTMLInputElement) {
 
     let obs = this.obs
-    let atom = this.atom
     let value_set_from_event = false
 
     let fromObservable = (val: string) => {
       if (value_set_from_event)
         return
-      element.value = val == null ? '' : val
+      node.value = val == null ? '' : val
     }
 
     let fromEvent = (evt: Event) => {
-      let val = element.value
+      let val = node.value
       value_set_from_event = true
       obs.set(val)
       value_set_from_event = false
     }
 
-    let type = element.type.toLowerCase() || 'text'
+    let type = node.type.toLowerCase() || 'text'
 
     switch (type) {
       case 'color':
@@ -98,29 +96,30 @@ export class BindController extends Controller {
       case 'month':
       case 'time':
       case 'datetime-local':
-        atom.observe(obs, fromObservable)
-        atom.listen('input', fromEvent)
+        this.observe(obs, fromObservable)
+        node.addEventListener('input', fromEvent)
         break
       case 'radio':
-        atom.observe(obs, (val) => {
-          element.checked = element.value === val
+        this.observe(obs, (val) => {
+          // !!!? ??
+          node.checked = node.value === val
         })
-        atom.listen('change', fromEvent)
+        node.addEventListener('change', fromEvent)
         break
       case 'checkbox':
         // FIXME ugly hack because we specified string
-        atom.observe(obs, (val: any) => element.checked = val == true)
-        atom.listen('change', () => (obs as Observable<any>).set(element.checked))
+        this.observe(obs, (val: any) => node.checked = val == true)
+        node.addEventListener('change', () => (obs as Observable<any>).set(node.checked))
         break
       // case 'number':
       // case 'text':
       // case 'password':
       // case 'search':
       default:
-        atom.observe(obs, fromObservable)
-        atom.listen('keyup', fromEvent)
-        atom.listen('input', fromEvent)
-        atom.listen('change', fromEvent)
+        this.observe(obs, fromObservable)
+        node.addEventListener('keyup', fromEvent)
+        node.addEventListener('input', fromEvent)
+        node.addEventListener('change', fromEvent)
     }
 
   }
@@ -280,15 +279,16 @@ export function on(event: string, listener: Listener<Event>, useCapture = false)
 }
 
 
-export function observe<A, B, C, D, E, F>(a: O<A>, b: O<B>, c: O<C>, d: O<D>, e: O<E>, f: O<F>, cbk: (a: A, b: B, c: C, d: D, e: E, f: F) => any): (a: Atom) => Atom;
-export function observe<A, B, C, D, E>(a: O<A>, b: O<B>, c: O<C>, d: O<D>, e: O<E>, cbk: (a: A, b: B, c: C, d: D, e: E) => any): (a: Atom) => Atom;
-export function observe<A, B, C, D>(a: O<A>, b: O<B>, c: O<C>, d: O<D>, cbk: (a: A, b: B, c: C, d: D) => any): (a: Atom) => Atom;
-export function observe<A, B, C>(a: O<A>, b: O<B>, c: O<C>, cbk: (a: A, b: B, c: C) => any): (a: Atom) => Atom;
-export function observe<A, B>(a: O<A>, b: O<B>, cbk: (a: A, b: B) => any): (a: Atom) => Atom;
-export function observe<A>(a: O<A>, cbk: (a: A, prop: string) => any): (a: Atom) => Atom;
+export function observe<A, B, C, D, E, F>(a: O<A>, b: O<B>, c: O<C>, d: O<D>, e: O<E>, f: O<F>, cbk: (a: A, b: B, c: C, d: D, e: E, f: F) => any): Decorator;
+export function observe<A, B, C, D, E>(a: O<A>, b: O<B>, c: O<C>, d: O<D>, e: O<E>, cbk: (a: A, b: B, c: C, d: D, e: E) => any): Decorator;
+export function observe<A, B, C, D>(a: O<A>, b: O<B>, c: O<C>, d: O<D>, cbk: (a: A, b: B, c: C, d: D) => any): Decorator;
+export function observe<A, B, C>(a: O<A>, b: O<B>, c: O<C>, cbk: (a: A, b: B, c: C) => any): Decorator;
+export function observe<A, B>(a: O<A>, b: O<B>, cbk: (a: A, b: B) => any): Decorator;
+export function observe<A>(a: O<A>, cbk: (a: A, prop: string) => any): Decorator;
 export function observe(...params: any[]) {
-  return function(atom: Atom): Atom {
-    return atom.observe.apply(atom, params)
+  return function(node: Node): void {
+    // ???
+    atom.observe.apply(atom, params)
   }
 }
 

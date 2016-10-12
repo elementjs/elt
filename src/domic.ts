@@ -2,18 +2,21 @@
 import {O} from 'stalkr'
 
 import {
-  BasicAttributes,
   ArrayOrSingle,
-  Children, Child,
-  Instantiator,
-  CreatorFn,
+  BasicAttributes,
+  Child,
+  Children,
   ClassDefinition,
+  CreatorFn,
+  Decorator,
+  Instantiator,
   StyleDefinition,
-  Decorator
 } from './types'
 
 import {
-  Component, Controller, controllerMap
+  Component,
+  Controller,
+  NodeMeta,
 } from './controller'
 
 
@@ -21,10 +24,10 @@ import {
  * Call controller's mount() functions recursively
  */
 function _mount(node: Node) {
-  let ctrls = controllerMap.get(node)
-  if (!ctrls) return
+  let meta = NodeMeta.get(node)
+  if (!meta) return
 
-  for (var c of ctrls)
+  for (var c of meta.controllers)
     c.onMount()
 
   var ch = node.firstChild
@@ -39,10 +42,10 @@ function _mount(node: Node) {
  * Call controller's unmount functions recursively
  */
 function _unmount(node: Node) {
-  let ctrls = controllerMap.get(node)
-  if (!ctrls) return
+  let meta = NodeMeta.get(node)
+  if (!meta) return
 
-  for (var c of ctrls)
+  for (var c of meta.controllers)
     c.onUnmount()
 
   var ch = node.firstChild
@@ -108,6 +111,7 @@ function d(elt: string, attrs: BasicAttributes, children: Children): Node
 function d(elt: any, attrs: BasicAttributes, children: Children): Node {
 
   let node: Node = null
+  let meta: NodeMeta = null
 
   // Classes and style are applied at the end of this function and are thus
   // never passed to other node definitions.
@@ -121,7 +125,8 @@ function d(elt: any, attrs: BasicAttributes, children: Children): Node {
 
   if (typeof elt === 'string') {
     node = document.createElement(elt)
-    controllerMap.set(node, controllers)
+    meta = new NodeMeta()
+    NodeMeta.set(node, meta)
 
     for (var x in attrs as any) {
       applyAttribute(node, x, (attrs as any)[x])
@@ -156,7 +161,7 @@ function d(elt: any, attrs: BasicAttributes, children: Children): Node {
   if (decorators) {
     if (!Array.isArray(decorators)) decorators = [decorators]
     for (var d of decorators as Decorator[]) {
-      node = d(node) || node
+      d(node, meta)
     }
   }
 
