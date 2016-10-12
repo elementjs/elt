@@ -25,6 +25,10 @@ export class NodeMeta {
   mountfn: (node?: Node) => void
   unmountfn: (node?: Node) => void
 
+  observe(...a: any[]): void {
+
+  }
+
   addController(ctrl: Controller) {
     this.controllers.push(ctrl)
   }
@@ -61,6 +65,8 @@ export class Controller {
    * unmounted. Reobserve when mounted again.
    */
   observe(...a: any[]): this {
+    let meta = NodeMeta.get(this.node)
+
     return this
   }
 
