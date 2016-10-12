@@ -7,19 +7,6 @@ import {
 } from './types'
 
 
-/**
- *
- */
-export function ctrl(ctrls: Instantiator<Controller>[]) {
-  return function (node: Node): void {
-    for (var c of ctrls) {
-      var instance = new c
-      node._domic_ctrl.push(instance)
-      instance.setNode(node)
-    }
-  }
-}
-
 
 export class Controller {
 

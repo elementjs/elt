@@ -17,16 +17,38 @@ import {
 } from './controller'
 
 
-declare global {
-  interface Node {
-    _domic_ctrl?: Controller[]
+export const controllerMap = new WeakMap<Node, Controller[]>()
+
+
+
+/**
+ *
+ */
+export function ctrl(ctrls: (Instantiator<Controller>|Controller)[]) {
+  return function (node: Node): void {
+    var instance: Controller = null
+    var lst = controllerMap.get(node)
+
+    for (var c of ctrls) {
+      if (c instanceof Controller) {
+        instance = c
+      } else {
+        instance = new c
+      }
+      instance.setNode(node)
+      lst.push(instance)
+    }
   }
 }
 
+/**
+ * Call controller's mount() functions recursively
+ */
 function _mount(node: Node) {
-  if (!node._domic_ctrl) return
+  let ctrls = controllerMap.get(node)
+  if (!ctrls) return
 
-  for (var c of node._domic_ctrl)
+  for (var c of ctrls)
     c.onMount()
 
   var ch = node.firstChild
@@ -36,10 +58,15 @@ function _mount(node: Node) {
   }
 }
 
-function _unmount(node: Node) {
-  if (!node._domic_ctrl) return
 
-  for (var c of node._domic_ctrl)
+/**
+ * Call controller's unmount functions recursively
+ */
+function _unmount(node: Node) {
+  let ctrls = controllerMap.get(node)
+  if (!ctrls) return
+
+  for (var c of ctrls)
     c.onUnmount()
 
   var ch = node.firstChild
@@ -86,13 +113,14 @@ function d(elt: any, attrs: BasicAttributes, children: Children): Node {
   let decorators = attrs.$$
   let style = attrs.style
   let cls = attrs.class
+  let controllers: Controller[] = []
   if (cls) delete attrs.class
   if (style) delete attrs.style
   if (decorators) delete attrs.$$
 
   if (typeof elt === 'string') {
     node = document.createElement(elt)
-    node._domic_ctrl = []
+    controllerMap.set(node, controllers)
 
     for (var x in attrs as any) {
       applyAttribute(node, x, (attrs as any)[x])
