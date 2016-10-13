@@ -1,11 +1,15 @@
 
-import {O} from 'stalkr'
+import {
+  O,
+  Observable
+} from 'stalkr'
 
 import {
   ArrayOrSingle,
   BasicAttributes,
   Child,
   Children,
+  ClassObject,
   ClassDefinition,
   CreatorFn,
   Decorator,
@@ -16,6 +20,7 @@ import {
 import {
   Component,
   Controller,
+  DefaultController,
   NodeControllerMap,
 } from './controller'
 
@@ -94,15 +99,78 @@ export function setupMounting(node: Node): void {
 }
 
 
-function applyClass(node: Element, c: ClassDefinition) {
+/**
+ *
+ */
+function applyClass(node: Element, c: ClassDefinition, ct: DefaultController): DefaultController {
+  if (typeof c === 'string') {
+    node.classList.add(c)
+  } else if (c instanceof Observable) {
+    if (!ct) ct = new DefaultController()
+    let old_class: string = null
+    ct.observe(c, str => {
+      if (old_class) node.classList.remove(old_class)
+      node.classList.add(str)
+      old_class = str
+    })
+  } else {
+    // c is an object
+    for (let x in c) {
+      if (c[x] instanceof Observable) {
+        if (!ct) ct = new DefaultController()
+        ct.observe(c[x], applied => applied ? node.classList.add(x) : node.classList.remove(x))
+      } else {
+        if (c[x])
+          node.classList.add(x)
+      }
+    }
+  }
 
+  return ct
 }
 
-function applyStyle(node: Element, c: StyleDefinition) {
+function applyStyle(node: HTMLElement, c: StyleDefinition, ct: DefaultController): DefaultController {
+  if (typeof c === 'string') {
+    node.setAttribute('style', c)
+  } else if (c instanceof Observable) {
+    if (!ct) ct = new DefaultController()
+    ct.observe(c, str => {
+      node.setAttribute('style', str)
+    })
+  } else {
+    // c is an object
+    for (let x in c) {
+      if (c[x] instanceof Observable) {
+        if (!ct) ct = new DefaultController()
+        ct.observe(c[x], value => {
+          (node.style as any)[x] = value
+        })
+      } else {
+        if (c[x])
+          (node.style as any)[x] = c[x]
+      }
+    }
+  }
 
+  return ct
 }
 
-function applyAttribute(node: Node, name: string, value: O<any>) {
+
+/**
+ * Apply attribute to the node
+ */
+function applyAttribute(node: Element, name: string, value: O<any>, ct: DefaultController): DefaultController {
+
+  if (value instanceof Observable) {
+    if (!ct) ct = new DefaultController()
+    ct.observe(value, val => {
+      node.setAttribute(name, val)
+    })
+  } else {
+    node.setAttribute(name, value)
+  }
+
+  return ct
 
 }
 
@@ -120,6 +188,8 @@ export function d(elt: any, attrs: BasicAttributes, children: Children): Node {
   let style = attrs.style
   let cls = attrs.class
   let controllers: Controller[] = null
+  let ct: DefaultController = null
+
   if (cls) delete attrs.class
   if (style) delete attrs.style
   if (decorators) delete attrs.$$
@@ -130,7 +200,7 @@ export function d(elt: any, attrs: BasicAttributes, children: Children): Node {
     NodeControllerMap.set(node, controllers)
 
     for (var x in attrs as any) {
-      applyAttribute(node, x, (attrs as any)[x])
+      ct = applyAttribute(node as Element, x, (attrs as any)[x], ct)
     }
 
     // Append children to the node.
@@ -175,18 +245,18 @@ export function d(elt: any, attrs: BasicAttributes, children: Children): Node {
     if (Array.isArray(cls)) {
       for (var cl of cls)
         // oooo, ugly cast !
-        applyClass(node as Element, cl)
+        ct = applyClass(node as Element, cl, ct)
     } else {
-      applyClass(node as Element, elt)
+      ct = applyClass(node as Element, elt, ct)
     }
   }
 
   if (style) {
     if (Array.isArray(style)) {
       for (var st of style)
-        applyStyle(node as Element, st)
+        ct = applyStyle(node as HTMLElement, st, ct)
     } else {
-      applyStyle(node as Element, st)
+      ct = applyStyle(node as HTMLElement, st, ct)
     }
   }
 

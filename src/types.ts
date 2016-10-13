@@ -28,7 +28,8 @@ export type ClassDefinition = ClassObject | O<string>
 /**
  * Styles
  */
-export type StyleDefinition = {[name: string]: O<string>}
+export type StyleObject = {[name: string]: O<string>}
+export type StyleDefinition = StyleObject | O<string>
 
 
 export type DirectionValues = 'ltr' | 'rtl'
