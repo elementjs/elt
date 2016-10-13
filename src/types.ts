@@ -1,8 +1,6 @@
 
 import {O} from 'stalkr'
 
-import {NodeMeta} from './controller'
-
 export type ArrayOrSingle<T> = T | T[]
 
 
@@ -20,7 +18,7 @@ export interface Instantiator<T> {
 /**
  * Decorators used on Nodes
  */
-export type Decorator = (n: Node, meta: NodeMeta) => void
+export type Decorator = (n: Node) => void
 /**
  * Classes.
  */

@@ -1,5 +1,6 @@
 
 import {
+  o,
   O
 } from 'stalkr'
 
@@ -11,43 +12,15 @@ import {
 } from './types'
 
 
-/**
- *
- */
-export class NodeMeta {
-
-  static map = new WeakMap<Node, NodeMeta>()
-
-  static get(node:Node) { return this.map.get(node) }
-  static set(node:Node, meta: NodeMeta) { this.map.set(node, meta) }
-
-  controllers: Controller[]
-  mountfn: (node?: Node) => void
-  unmountfn: (node?: Node) => void
-
-  observe(...a: any[]): void {
-
-  }
-
-  addController(ctrl: Controller) {
-    this.controllers.push(ctrl)
-  }
-
-}
+export const NodeControllerMap = new WeakMap<Node, Controller[]>()
 
 
 export class Controller {
 
   node: Node
   mounted: boolean
-
-  onMount(): void {
-    // observe
-  }
-
-  onUnmount(): void {
-    // stop observing
-  }
+  mountfns: (() => void)[]
+  unmountfns: (() => void)[]
 
   setNode(node: Node) {
     this.node = node
@@ -64,8 +37,17 @@ export class Controller {
    * Observe an observer whenever it is mounted. Stop observing when
    * unmounted. Reobserve when mounted again.
    */
-  observe(...a: any[]): this {
-    let meta = NodeMeta.get(this.node)
+  observe(...args: any[]): this {
+    let unload: any
+
+    this.mountfns.push(function () {
+      unload = (o.observe as any)(...args)
+    })
+
+    this.unmountfns.push(function () {
+      unload()
+      unload = null
+    })
 
     return this
   }
@@ -83,15 +65,15 @@ export class Controller {
    */
   getController<C extends Controller>(kls: Instantiator<C>): C {
     let iter = this.node
-    let meta = NodeMeta.get(iter)
+    let controllers = NodeControllerMap.get(iter)
 
-    while (meta) {
-      for (var c of meta.controllers) {
+    while (controllers) {
+      for (var c of controllers) {
         if (c instanceof kls)
           return c as C
       }
       iter = iter.parentNode
-      meta = NodeMeta.get(iter)
+      controllers = NodeControllerMap.get(iter)
     }
 
     return null
@@ -101,12 +83,21 @@ export class Controller {
 
 
 /**
+ * Useless controller just used to register observables used by class or style
+ */
+export class DefaultController extends Controller {
+
+}
+
+
+
+/**
  *
  */
 export function ctrl(ctrls: (Instantiator<Controller>|Controller)[]) {
   return function (node: Node): void {
     var instance: Controller = null
-    var meta = NodeMeta.get(node)
+    var controllers = NodeControllerMap.get(node)
 
     for (var c of ctrls) {
       if (c instanceof Controller) {
@@ -115,7 +106,7 @@ export function ctrl(ctrls: (Instantiator<Controller>|Controller)[]) {
         instance = new c
       }
       instance.setNode(node)
-      meta.addController(instance)
+      controllers.push(instance)
     }
   }
 }

@@ -1,6 +1,35 @@
 
-export * from './domic'
-export * from './types'
+export {
+  setupMounting,
+  d
+} from './domic'
+
+export {
+  ArrayOrSingle,
+  BasicAttributes,
+  Child,
+  Children,
+  ClassDefinition,
+  ClassObject,
+  CreatorFn,
+  Decorator,
+  DirectionValues,
+  DraggableValues,
+  DropZoneValues,
+  Instantiator,
+  Listener,
+  ListenerFn,
+  ListenerObject,
+  StyleDefinition
+} from './types'
+
+export {
+  bind,
+  BindController,
+  BindControllerOptions,
+  click,
+  on
+} from './decorators'
 
 import {
   Component

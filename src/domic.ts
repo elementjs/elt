@@ -16,7 +16,7 @@ import {
 import {
   Component,
   Controller,
-  NodeMeta,
+  NodeControllerMap,
 } from './controller'
 
 
@@ -24,11 +24,12 @@ import {
  * Call controller's mount() functions recursively
  */
 function _mount(node: Node) {
-  let meta = NodeMeta.get(node)
-  if (!meta) return
+  let controllers = NodeControllerMap.get(node)
+  if (!controllers) return
 
-  for (var c of meta.controllers)
-    c.onMount()
+  for (var c of controllers)
+    for (var f of c.mountfns)
+      f()
 
   var ch = node.firstChild
   while (ch) {
@@ -42,11 +43,12 @@ function _mount(node: Node) {
  * Call controller's unmount functions recursively
  */
 function _unmount(node: Node) {
-  let meta = NodeMeta.get(node)
-  if (!meta) return
+  let controllers = NodeControllerMap.get(node)
+  if (!controllers) return
 
-  for (var c of meta.controllers)
-    c.onUnmount()
+  for (var c of controllers)
+    for (var f of c.unmountfns)
+      f()
 
   var ch = node.firstChild
   while (ch) {
@@ -105,28 +107,27 @@ function applyAttribute(node: Node, name: string, value: O<any>) {
 }
 
 
-function d(elt: CreatorFn, attrs: BasicAttributes, children: Children): Node
-function d(elt: Instantiator<Component>, attrs: BasicAttributes, children: Children): Node
-function d(elt: string, attrs: BasicAttributes, children: Children): Node
-function d(elt: any, attrs: BasicAttributes, children: Children): Node {
+export function d(elt: CreatorFn, attrs: BasicAttributes, children: Children): Node
+export function d(elt: Instantiator<Component>, attrs: BasicAttributes, children: Children): Node
+export function d(elt: string, attrs: BasicAttributes, children: Children): Node
+export function d(elt: any, attrs: BasicAttributes, children: Children): Node {
 
   let node: Node = null
-  let meta: NodeMeta = null
 
   // Classes and style are applied at the end of this function and are thus
   // never passed to other node definitions.
   let decorators = attrs.$$
   let style = attrs.style
   let cls = attrs.class
-  let controllers: Controller[] = []
+  let controllers: Controller[] = null
   if (cls) delete attrs.class
   if (style) delete attrs.style
   if (decorators) delete attrs.$$
 
   if (typeof elt === 'string') {
     node = document.createElement(elt)
-    meta = new NodeMeta()
-    NodeMeta.set(node, meta)
+    controllers = []
+    NodeControllerMap.set(node, controllers)
 
     for (var x in attrs as any) {
       applyAttribute(node, x, (attrs as any)[x])
@@ -150,10 +151,13 @@ function d(elt: any, attrs: BasicAttributes, children: Children): Node {
     let c = new kls()
     c.attrs = attrs
     node = c.render(children)
+    controllers = NodeControllerMap.get(node)
+    controllers.push(c)
 
   } else if (typeof elt === 'function') {
     // elt is just a creator function
     node = elt(attrs, children)
+    controllers = NodeControllerMap.get(node)
   }
 
   // decorators are run now. If class and style were defined, they will be applied to the
@@ -161,7 +165,7 @@ function d(elt: any, attrs: BasicAttributes, children: Children): Node {
   if (decorators) {
     if (!Array.isArray(decorators)) decorators = [decorators]
     for (var d of decorators as Decorator[]) {
-      d(node, meta)
+      d(node)
     }
   }
 
