@@ -32,9 +32,12 @@ function _mount(node: Node) {
   let controllers = NodeControllerMap.get(node)
   if (!controllers) return
 
-  for (var c of controllers)
-    for (var f of c.mountfns)
+  for (var c of controllers) {
+    c.mounted = true
+    for (var f of c.mountfns) {
       f()
+    }
+  }
 
   var ch = node.firstChild
   while (ch) {
@@ -51,9 +54,12 @@ function _unmount(node: Node) {
   let controllers = NodeControllerMap.get(node)
   if (!controllers) return
 
-  for (var c of controllers)
-    for (var f of c.unmountfns)
+  for (var c of controllers) {
+    c.mounted = false
+    for (var f of c.unmountfns) {
       f()
+    }
+  }
 
   var ch = node.firstChild
   while (ch) {
