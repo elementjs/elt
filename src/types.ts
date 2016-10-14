@@ -392,5 +392,6 @@ export interface BasicAttributes {
   $$?: ArrayOrSingle<Decorator>
 }
 
-export type Child = Node | string | number
+export type SingleChild = Node | string | number
+export type Child = SingleChild | SingleChild[]
 export type CreatorFn = (attrs: BasicAttributes, children: Child[]) => Node

@@ -13,6 +13,7 @@ import {
   CreatorFn,
   Decorator,
   Instantiator,
+  SingleChild,
   StyleDefinition,
 } from './types'
 
@@ -183,6 +184,14 @@ export interface D {
 }
 
 
+function append(node: Node, c: SingleChild) {
+  if (!(c instanceof Node)) {
+    node.appendChild(document.createTextNode(typeof c === 'number' ? c.toString() : c))
+  } else {
+    node.appendChild(c)
+  }
+}
+
 export const d: D = <D>function d(elt: any, attrs: BasicAttributes, ...children: Child[]): Node {
 
   let node: Node = null
@@ -216,12 +225,12 @@ export const d: D = <D>function d(elt: any, attrs: BasicAttributes, ...children:
 
     // Append children to the node.
     if (children) {
-      if (!Array.isArray(children)) children = [children]
       for (var c of children as Child[]) {
-        if (!(c instanceof Node)) {
-          node.appendChild(document.createTextNode(typeof c === 'number' ? c.toString() : c))
+        if (Array.isArray(c)) {
+          for (var _ch of c)
+            append(node, _ch)
         } else {
-          node.appendChild(c)
+          append(node, c)
         }
       }
     }
