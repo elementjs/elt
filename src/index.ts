@@ -8,7 +8,6 @@ export {
   ArrayOrSingle,
   BasicAttributes,
   Child,
-  Children,
   ClassDefinition,
   ClassObject,
   CreatorFn,
@@ -31,24 +30,30 @@ export {
   on
 } from './decorators'
 
+export {
+  Component,
+  Controller,
+  ctrl
+} from './controller'
+
 import {
   Component
 } from './controller'
 
 import {
-  Child, Children, BasicAttributes
+  Child, BasicAttributes
 } from './types'
 
 declare global {
   namespace JSX {
-    export type Element = Child
+    export type Element = Node
 
     export interface ElementAttributesProperty {
       attrs: any
     }
 
     export interface ElementClassFn {
-      (attrs: BasicAttributes, children: Children): Child
+      (attrs: BasicAttributes, children: Child[]): Node
     }
 
     export type ElementClass = ElementClassFn | Component

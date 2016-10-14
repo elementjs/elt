@@ -8,7 +8,6 @@ import {
   ArrayOrSingle,
   BasicAttributes,
   Child,
-  Children,
   ClassObject,
   ClassDefinition,
   CreatorFn,
@@ -139,15 +138,15 @@ function applyStyle(node: HTMLElement, c: StyleDefinition, ct: DefaultController
     })
   } else {
     // c is an object
-    for (let x in c) {
-      if (c[x] instanceof Observable) {
+    for (let x in c as any) {
+      if ((c as any)[x] instanceof Observable) {
         if (!ct) ct = new DefaultController()
-        ct.observe(c[x], value => {
+        ct.observe((c as any)[x], value => {
           (node.style as any)[x] = value
         })
       } else {
-        if (c[x])
-          (node.style as any)[x] = c[x]
+        if ((c as any)[x])
+          (node.style as any)[x] = (c as any)[x]
       }
     }
   }
@@ -175,24 +174,36 @@ function applyAttribute(node: Element, name: string, value: O<any>, ct: DefaultC
 }
 
 
-export function d(elt: CreatorFn, attrs: BasicAttributes, children: Children): Node
-export function d(elt: Instantiator<Component>, attrs: BasicAttributes, children: Children): Node
-export function d(elt: string, attrs: BasicAttributes, children: Children): Node
-export function d(elt: any, attrs: BasicAttributes, children: Children): Node {
+export interface D {
+  (elt: CreatorFn, attrs: BasicAttributes, ...children: Child[]): Node
+  (elt: Instantiator<Component>, attrs: BasicAttributes, ...children: Child[]): Node
+  (elt: string, attrs: BasicAttributes, ...children: Child[]): Node
+
+  createElement(elt: CreatorFn, attrs: BasicAttributes, ...children: Child[]): Node
+}
+
+
+export const d: D = <D>function d(elt: any, attrs: BasicAttributes, ...children: Child[]): Node {
 
   let node: Node = null
 
   // Classes and style are applied at the end of this function and are thus
   // never passed to other node definitions.
-  let decorators = attrs.$$
-  let style = attrs.style
-  let cls = attrs.class
-  let controllers: Controller[] = null
   let ct: DefaultController = null
+  let controllers: Controller[] = null
 
-  if (cls) delete attrs.class
-  if (style) delete attrs.style
-  if (decorators) delete attrs.$$
+  let decorators: ArrayOrSingle<Decorator> = null
+  let style: ArrayOrSingle<StyleDefinition> = null
+  let cls: ArrayOrSingle<ClassDefinition> = null
+
+  if (attrs) {
+    decorators = attrs.$$
+    style = attrs.style
+    cls = attrs.class
+    if (cls) delete attrs.class
+    if (style) delete attrs.style
+    if (decorators) delete attrs.$$
+  }
 
   if (typeof elt === 'string') {
     node = document.createElement(elt)
@@ -224,6 +235,7 @@ export function d(elt: any, attrs: BasicAttributes, children: Children): Node {
     controllers = NodeControllerMap.get(node)
     controllers.push(c)
 
+
   } else if (typeof elt === 'function') {
     // elt is just a creator function
     node = elt(attrs, children)
@@ -247,7 +259,7 @@ export function d(elt: any, attrs: BasicAttributes, children: Children): Node {
         // oooo, ugly cast !
         ct = applyClass(node as Element, cl, ct)
     } else {
-      ct = applyClass(node as Element, elt, ct)
+      ct = applyClass(node as Element, cls, ct)
     }
   }
 
@@ -256,9 +268,11 @@ export function d(elt: any, attrs: BasicAttributes, children: Children): Node {
       for (var st of style)
         ct = applyStyle(node as HTMLElement, st, ct)
     } else {
-      ct = applyStyle(node as HTMLElement, st, ct)
+      ct = applyStyle(node as HTMLElement, style, ct)
     }
   }
 
   return node
 }
+
+d.createElement = d

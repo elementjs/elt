@@ -7,7 +7,7 @@ import {
 import {
   Instantiator,
   ArrayOrSingle,
-  Children,
+  Child,
   BasicAttributes
 } from './types'
 
@@ -19,8 +19,8 @@ export class Controller {
 
   node: Node
   mounted: boolean
-  mountfns: (() => void)[]
-  unmountfns: (() => void)[]
+  mountfns: (() => void)[] = []
+  unmountfns: (() => void)[] = []
 
   setNode(node: Node) {
     this.node = node
@@ -120,7 +120,7 @@ export class Component extends Controller {
 
   attrs: BasicAttributes
 
-  render(children: Children): Node {
+  render(children: Child[]): Node {
     return null
   }
 
