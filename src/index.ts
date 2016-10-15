@@ -36,6 +36,12 @@ export {
   ctrl
 } from './controller'
 
+export {
+  Observe
+} from './control'
+
+////////////////////////////////////////////////////////
+
 import {
   Component
 } from './controller'
