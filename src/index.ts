@@ -57,6 +57,7 @@ export {
 
 export {
   If,
+  Fragment,
   Observe,
   ObserverAttributes,
   Repeat
