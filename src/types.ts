@@ -1,5 +1,5 @@
 
-import {O} from 'stalkr'
+import {O} from './observable'
 
 export type ArrayOrSingle<T> = T | T[]
 

@@ -37,7 +37,29 @@ export {
 } from './controller'
 
 export {
-  Observe
+  Ancestry,
+  DependentObservable,
+  Extractor,
+  isObservable,
+  o,
+  O,
+  Observable,
+  Observer,
+  ObsFn,
+  pathget,
+  pathjoin,
+  pathset,
+  PropObservable,
+  Transformer,
+  TransformFn,
+  TransformObservable
+} from './observable'
+
+export {
+  If,
+  Observe,
+  ObserverAttributes,
+  Repeat
 } from './control'
 
 ////////////////////////////////////////////////////////

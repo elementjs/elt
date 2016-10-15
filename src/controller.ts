@@ -2,7 +2,7 @@
 import {
   o,
   O
-} from 'stalkr'
+} from './observable'
 
 import {
   Instantiator,

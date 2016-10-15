@@ -4,10 +4,11 @@
 import {
   O,
   Observable
-} from 'stalkr'
+} from './observable'
 
 import {
-  d
+  d,
+  getChildren
 } from './domic'
 
 import {
@@ -20,24 +21,70 @@ import {
 } from './types'
 
 
+export class VirtualHolder extends Component {
+
+  prev_node: Comment
+  next_children: Child[]
+  waiting: boolean
+
+  render(children: Child[]): Node {
+    this.prev_node = document.createComment(`!`)
+
+    this.mountfns.push(() => {
+      this.node.parentNode.insertBefore(this.prev_node, this.node)
+    })
+
+    this.unmountfns.push(() => {
+      this.prev_node.remove()
+    })
+
+    return document.createComment('virt')
+  }
+
+  updateChildren(children: Child[]) {
+    this.next_children = children
+
+    if (this.waiting) return
+
+    this.waiting = true
+
+    requestAnimationFrame(() => {
+      let iter = this.prev_node.nextSibling
+      let end = this.node
+      let next: Node = null
+      while (iter !== end) {
+        next = iter.nextSibling
+        iter.parentNode.removeChild(iter)
+        iter = next
+      }
+
+      let fragment = getChildren(children)
+      end.parentNode.insertBefore(fragment, end)
+      this.waiting = false
+    })
+
+  }
+
+}
+
+
 export interface ObserverAttributes {
   obs: Observable<Child>
 }
 
-export class Observer extends Component {
+export class Observer extends VirtualHolder {
 
   attrs: ObserverAttributes
-  next_node: Comment
 
   render(children: Child[]): Node {
+
     this.observe(this.attrs.obs, value => {
-      console.log('the value')
-      console.log(value)
+      this.updateChildren([value])
     })
 
-    this.next_node = document.createComment('!observable')
-    return document.createComment('observable')
+    return super.render(children)
   }
+
 }
 
 

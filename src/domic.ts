@@ -2,7 +2,7 @@
 import {
   O,
   Observable
-} from 'stalkr'
+} from './observable'
 
 import {
   ArrayOrSingle,
@@ -198,6 +198,21 @@ function append(node: Node, c: SingleChild) {
   }
 }
 
+export function getChildren(children: Child[]) {
+  var result = document.createDocumentFragment()
+
+  for (var c of children) {
+    if (Array.isArray(c)) {
+      for (var _ch of c)
+        append(result, _ch)
+    } else {
+      append(result, c)
+    }
+  }
+
+  return result
+}
+
 export const d: D = <D>function d(elt: any, attrs: BasicAttributes, ...children: Child[]): Node {
 
   let node: Node = null
@@ -231,14 +246,7 @@ export const d: D = <D>function d(elt: any, attrs: BasicAttributes, ...children:
 
     // Append children to the node.
     if (children) {
-      for (var c of children as Child[]) {
-        if (Array.isArray(c)) {
-          for (var _ch of c)
-            append(node, _ch)
-        } else {
-          append(node, c)
-        }
-      }
+      node.appendChild(getChildren(children))
     }
 
   } else if (typeof elt === 'function' && elt.prototype.render) {
@@ -247,7 +255,12 @@ export const d: D = <D>function d(elt: any, attrs: BasicAttributes, ...children:
     let c = new kls()
     c.attrs = attrs
     node = c.render(children)
+    c.setNode(node)
     controllers = NodeControllerMap.get(node)
+    if (!controllers) {
+      controllers = []
+      NodeControllerMap.set(node, controllers)
+    }
     controllers.push(c)
 
 

@@ -1,7 +1,7 @@
 
 import {
   Observable, O
-} from 'stalkr'
+} from './observable'
 
 import {
   Decorator, Listener
@@ -29,14 +29,14 @@ export class BindController extends Controller {
     this.opts = opts
   }
 
-  onCreate() {
-    let node = this.node as HTMLElement
+  setNode(node: Node) {
+    super.setNode(node)
 
     if (node instanceof HTMLInputElement) this.linkToInput(node)
     if (node instanceof HTMLSelectElement) this.linkToSelect(node)
     if (node instanceof HTMLTextAreaElement) this.linkToTextArea(node)
 
-    if (node.contentEditable) this.linkToHTML5Editable(node)
+    if (node instanceof HTMLElement && node.contentEditable) this.linkToHTML5Editable(node)
   }
 
   linkToTextArea(node: HTMLTextAreaElement) {
@@ -68,7 +68,6 @@ export class BindController extends Controller {
   }
 
   linkToInput(node: HTMLInputElement) {
-
     let obs = this.obs
     let value_set_from_event = false
 
@@ -135,7 +134,9 @@ export function bind(obs: Observable<string>, opts: BindControllerOptions = {}) 
 
   return function bindDecorator(node: Node): void {
     let controllers = NodeControllerMap.get(node)
-    controllers.push(new BindController(obs, opts))
+    let c = new BindController(obs, opts)
+    c.setNode(node)
+    controllers.push(c)
   }
 
 }
