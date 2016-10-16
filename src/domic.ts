@@ -180,11 +180,20 @@ function applyAttribute(node: Element, name: string, value: O<any>, ct: DefaultC
 
 }
 
+export interface ComponentInterface<A> {
+  attrs: A
+  render(children: Child[]): Node
+}
+
+export interface ComponentInstanciator<A> {
+  new (...a: any[]): ComponentInterface<A>
+}
+
 
 export interface D {
   (elt: ComponentFn, attrs: BasicAttributes, ...children: Child[]): Node
-  (elt: Instantiator<Component>, attrs: BasicAttributes, ...children: Child[]): Node
   (elt: string, attrs: BasicAttributes, ...children: Child[]): Node
+  <A>(elt: ComponentInstanciator<A>, attrs: A, ...children: Child[]): Node
 
   createElement(elt: ComponentFn, attrs: BasicAttributes, ...children: Child[]): Node
 }

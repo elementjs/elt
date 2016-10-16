@@ -28,7 +28,7 @@ export class VirtualHolder extends Component {
   name = 'virtual'
   begin: Comment
   end: Comment
-  next_children: Child[]
+  next_node: Node
 
   // Note : this should only be done when this node is a
   // direct target for removal instead of being unmounted
@@ -76,8 +76,8 @@ export class VirtualHolder extends Component {
     return document.createComment(` ${this.name}: `)
   }
 
-  updateChildren(children: Child[]) {
-    this.next_children = children
+  updateChildren(node: Node) {
+    this.next_node = node
 
     if (this.waiting) return
 
@@ -94,8 +94,9 @@ export class VirtualHolder extends Component {
         iter = next
       }
 
-      let fragment = getChildren(children)
-      end.parentNode.insertBefore(fragment, end)
+      if (this.next_node)
+        end.parentNode.insertBefore(this.next_node, end)
+      this.next_node = null
       this.waiting = false
     })
 
@@ -105,7 +106,7 @@ export class VirtualHolder extends Component {
 
 
 export interface ObserverAttributes {
-  obs: Observable<Child>
+  obs: Observable<NodeCreatorFn>
 }
 
 export class Observer extends VirtualHolder {
@@ -115,8 +116,8 @@ export class Observer extends VirtualHolder {
 
   render(children: Child[]): Node {
 
-    this.observe(this.attrs.obs, value => {
-      this.updateChildren([value])
+    this.observe(this.attrs.obs, fn => {
+      this.updateChildren(fn())
     })
 
     return super.render(children)
@@ -128,8 +129,8 @@ export class Observer extends VirtualHolder {
 /**
  * Put the result of an observable into the DOM.
  */
-export function Observe(obs: Observable<Child>): Node {
-  return d(Observer, {obs} as BasicAttributes)
+export function Observe(obs: Observable<NodeCreatorFn>): Node {
+  return d(Observer, {obs})
 }
 
 
@@ -158,14 +159,14 @@ export class Writer extends Component {
 
 
 export function Write(obs: Observable<HasToString>): Node {
-  return d(Writer, {obs} as BasicAttributes)
+  return d(Writer, {obs})
 }
 
 
 export interface IfComponentAttributes extends BasicAttributes {
   condition: O<any>
-  then: () => Child
-  otherwise: () => Child
+  then: NodeCreatorFn
+  otherwise: NodeCreatorFn
 }
 
 export class IfComponent extends VirtualHolder {
@@ -174,7 +175,7 @@ export class IfComponent extends VirtualHolder {
 
   render(children: Child[]): Node {
     this.observe(this.attrs.condition, value => {
-      this.updateChildren([value ? this.attrs.then() || [] : this.attrs.otherwise() || []])
+      this.updateChildren(value ? this.attrs.then() : this.attrs.otherwise())
     })
     return super.render(children)
   }
