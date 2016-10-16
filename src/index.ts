@@ -10,7 +10,8 @@ export {
   Child,
   ClassDefinition,
   ClassObject,
-  CreatorFn,
+  ComponentFn,
+  NodeCreatorFn,
   Decorator,
   DirectionValues,
   DraggableValues,
@@ -60,7 +61,8 @@ export {
   Fragment,
   Observe,
   ObserverAttributes,
-  Repeat
+  Repeat,
+  Write
 } from './control'
 
 ////////////////////////////////////////////////////////

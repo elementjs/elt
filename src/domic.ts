@@ -10,7 +10,7 @@ import {
   Child,
   ClassObject,
   ClassDefinition,
-  CreatorFn,
+  ComponentFn,
   Decorator,
   Instantiator,
   SingleChild,
@@ -182,11 +182,11 @@ function applyAttribute(node: Element, name: string, value: O<any>, ct: DefaultC
 
 
 export interface D {
-  (elt: CreatorFn, attrs: BasicAttributes, ...children: Child[]): Node
+  (elt: ComponentFn, attrs: BasicAttributes, ...children: Child[]): Node
   (elt: Instantiator<Component>, attrs: BasicAttributes, ...children: Child[]): Node
   (elt: string, attrs: BasicAttributes, ...children: Child[]): Node
 
-  createElement(elt: CreatorFn, attrs: BasicAttributes, ...children: Child[]): Node
+  createElement(elt: ComponentFn, attrs: BasicAttributes, ...children: Child[]): Node
 }
 
 

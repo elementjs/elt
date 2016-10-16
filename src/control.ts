@@ -18,7 +18,8 @@ import {
 
 import {
   BasicAttributes,
-  Child
+  Child,
+  NodeCreatorFn
 } from './types'
 
 
@@ -128,7 +129,7 @@ export class Observer extends VirtualHolder {
  * Put the result of an observable into the DOM.
  */
 export function Observe(obs: Observable<Child>): Node {
-  return d(Observer as any, {obs} as BasicAttributes)
+  return d(Observer, {obs} as BasicAttributes)
 }
 
 
@@ -139,17 +140,14 @@ export interface HasToString {
 
 export class Writer extends Component {
 
-  obs: Observable<HasToString>
-
-  constructor(obs: Observable<HasToString>) {
-    super()
-    this.obs = obs
+  attrs: {
+    obs: Observable<HasToString>
   }
 
   render(children: Child[]) {
     let node = document.createTextNode('')
 
-    this.observe(this.obs, value => {
+    this.observe(this.attrs.obs, value => {
       node.nodeValue = value.toString()
     })
 
@@ -159,12 +157,8 @@ export class Writer extends Component {
 }
 
 
-export function Write(obs: Observable<Child>): Node {
-  let w = new Writer(obs)
-
-  let node = w.render([])
-
-  return node
+export function Write(obs: Observable<HasToString>): Node {
+  return d(Writer, {obs} as BasicAttributes)
 }
 
 
@@ -194,7 +188,7 @@ export class IfComponent extends VirtualHolder {
 export function If(condition: O<any>, then: () => Child, otherwise?: () => Child) {
   if (!otherwise) otherwise = function (){ return null }
 
-  return d(IfComponent as any, {condition, then, otherwise} as BasicAttributes)
+  return d(IfComponent, {condition, then, otherwise} as BasicAttributes)
 }
 
 
