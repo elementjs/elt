@@ -12,7 +12,8 @@ import {
 } from './domic'
 
 import {
-  Component
+  Component,
+  NodeControllerMap
 } from './controller'
 
 import {
@@ -24,22 +25,54 @@ import {
 export class VirtualHolder extends Component {
 
   name = 'virtual'
-  prev_node: Comment
+  begin: Comment
+  end: Comment
   next_children: Child[]
+
+  // Note : this should only be done when this node is a
+  // direct target for removal instead of being unmounted
+  saved_children: DocumentFragment
   waiting: boolean
 
   render(children: Child[]): Node {
-    this.prev_node = document.createComment(`( ${this.name}`)
+    this.begin = document.createComment(` (( `)
+    this.end = document.createComment(` ))`)
 
     this.mountfns.push(() => {
-      this.node.parentNode.insertBefore(this.prev_node, this.node)
+      let parent = this.node.parentNode
+      let next = this.node.nextSibling
+
+      if (this.saved_children) {
+
+        parent.insertBefore(this.saved_children, next)
+        this.saved_children = null
+
+      } else if (!this.begin.parentNode) {
+        parent.insertBefore(this.begin, next)
+        parent.insertBefore(this.end, next)
+      }
+
     })
 
     this.unmountfns.push(() => {
-      this.prev_node.remove()
+      if (!this.node.parentNode) {
+        let fragment = document.createDocumentFragment()
+
+        let iter: Node = this.begin
+        let next: Node = null
+
+        while (iter) {
+          next = iter.nextSibling
+          fragment.appendChild(iter)
+          if (iter === this.end) break
+          iter = next
+        }
+
+        this.saved_children = fragment
+      }
     })
 
-    return document.createComment(`) > ${this.name}`)
+    return document.createComment(` ${this.name}: `)
   }
 
   updateChildren(children: Child[]) {
@@ -50,9 +83,10 @@ export class VirtualHolder extends Component {
     this.waiting = true
 
     requestAnimationFrame(() => {
-      let iter = this.prev_node.nextSibling
-      let end = this.node
+      let iter = this.begin.nextSibling
+      let end = this.end
       let next: Node = null
+
       while (iter !== end) {
         next = iter.nextSibling
         iter.parentNode.removeChild(iter)
@@ -95,6 +129,42 @@ export class Observer extends VirtualHolder {
  */
 export function Observe(obs: Observable<Child>): Node {
   return d(Observer as any, {obs} as BasicAttributes)
+}
+
+
+export interface HasToString {
+  toString(): string
+}
+
+
+export class Writer extends Component {
+
+  obs: Observable<HasToString>
+
+  constructor(obs: Observable<HasToString>) {
+    super()
+    this.obs = obs
+  }
+
+  render(children: Child[]) {
+    let node = document.createTextNode('')
+
+    this.observe(this.obs, value => {
+      node.nodeValue = value.toString()
+    })
+
+    return node
+  }
+
+}
+
+
+export function Write(obs: Observable<Child>): Node {
+  let w = new Writer(obs)
+
+  let node = w.render([])
+
+  return node
 }
 
 
