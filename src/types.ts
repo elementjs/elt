@@ -69,6 +69,16 @@ export type ComponentFn = (attrs: BasicAttributes, children: DocumentFragment) =
 
 export type NodeCreatorFn = () => Node
 
+export interface ComponentInterface<A> {
+  attrs: A
+  render(children?: DocumentFragment): Node
+}
+
+export interface ComponentInstanciator<A> {
+  new (...a: any[]): ComponentInterface<A>
+}
+
+
 
 ///////////////////////////////////////////////////////////////////
 //  Lengthy declarations follow.
