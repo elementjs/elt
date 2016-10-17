@@ -221,6 +221,16 @@ export function _foreach<T>(maybe_array: ArrayOrSingle<T>, fn: (a: T) => any): v
 }
 
 
+function getCtrls(node: Node): Controller[] {
+  let c = NodeControllerMap.get(node)
+  if (!c) {
+    c = []
+    NodeControllerMap.set(node, c)
+  }
+  return c
+}
+
+
 /**
  * The main instantiation function, used throughout all of Domic.
  */
@@ -248,8 +258,7 @@ export const d: D = <D>function d(elt: any, attrs: BasicAttributes, ...children:
 
   if (typeof elt === 'string') {
     node = document.createElement(elt)
-    controllers = []
-    NodeControllerMap.set(node, controllers)
+    controllers = getCtrls(node)
 
     for (var x in attrs as any) {
       ct = applyAttribute(node as Element, x, (attrs as any)[x], ct)
@@ -267,18 +276,15 @@ export const d: D = <D>function d(elt: any, attrs: BasicAttributes, ...children:
     c.attrs = attrs
     node = c.render(getDocumentFragment(children))
     c.setNode(node)
-    controllers = NodeControllerMap.get(node)
-    if (!controllers) {
-      controllers = []
-      NodeControllerMap.set(node, controllers)
-    }
+    controllers = getCtrls(node)
     controllers.push(c)
 
+    c.renderfns.forEach(r => r())
 
   } else if (typeof elt === 'function') {
     // elt is just a creator function
     node = elt(attrs, children)
-    controllers = NodeControllerMap.get(node)
+    controllers = getCtrls(node)
   }
 
   // decorators are run now. If class and style were defined, they will be applied to the

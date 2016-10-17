@@ -14,7 +14,7 @@ import {
 
 import {
   Component,
-  NodeControllerMap
+  NodeControllerMap,
 } from './controller'
 
 import {

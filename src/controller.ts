@@ -21,6 +21,7 @@ export class Controller {
   mounted: boolean
   mountfns: (() => void)[] = []
   unmountfns: (() => void)[] = []
+  renderfns: (() => void)[] = []
 
   setNode(node: Node) {
     this.node = node
