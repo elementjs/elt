@@ -8,6 +8,7 @@ import {
   ArrayOrSingle,
   BasicAttributes,
   Child,
+  ComponentInstanciator,
   ClassObject,
   ClassDefinition,
   ComponentFn,
@@ -180,15 +181,6 @@ function applyAttribute(node: Element, name: string, value: O<any>, ct: DefaultC
 
 }
 
-export interface ComponentInterface<A> {
-  attrs: A
-  render(children: Child[]): Node
-}
-
-export interface ComponentInstanciator<A> {
-  new (...a: any[]): ComponentInterface<A>
-}
-
 
 export interface D {
   (elt: ComponentFn, attrs: BasicAttributes, ...children: Child[]): Node
@@ -202,7 +194,7 @@ export interface D {
 /**
  *
  */
-export function getChildren(children: Child[]) {
+export function getDocumentFragment(children: Child[]) {
   var result = document.createDocumentFragment()
 
   for (var c of children) {
@@ -273,7 +265,7 @@ export const d: D = <D>function d(elt: any, attrs: BasicAttributes, ...children:
 
     // Append children to the node.
     if (children) {
-      node.appendChild(getChildren(children))
+      node.appendChild(getDocumentFragment(children))
     }
 
   } else if (typeof elt === 'function' && elt.prototype.render) {
@@ -281,7 +273,7 @@ export const d: D = <D>function d(elt: any, attrs: BasicAttributes, ...children:
     let kls = elt as Instantiator<Component>
     let c = new kls()
     c.attrs = attrs
-    node = c.render(getChildren(children))
+    node = c.render(getDocumentFragment(children))
     c.setNode(node)
     controllers = NodeControllerMap.get(node)
     if (!controllers) {

@@ -9,7 +9,7 @@ import {
 
 import {
   d,
-  getChildren
+  getDocumentFragment
 } from './domic'
 
 import {
@@ -146,7 +146,7 @@ export class Writer extends Component {
     obs: Observable<HasToString>
   }
 
-  render(children: DocumentFragment) {
+  render() {
     let node = document.createTextNode('')
 
     this.observe(this.attrs.obs, value => {
@@ -164,16 +164,25 @@ export function Write(obs: Observable<HasToString>): Node {
 }
 
 
-export class ShowComponent extends VirtualHolder {
+export class DisplayComponent extends VirtualHolder {
   name = 'if'
+
   attrs: {
-    condition: O<any>
-    show: O<NodeCreatorFn>
+    condition?: O<any>
+    display: O<NodeCreatorFn>
   }
 
   render(): Node {
-    this.observe(this.attrs.condition, value => {
-      this.updateChildren(value ? this.attrs.show() : this.attrs.otherwise())
+
+    this.observe(
+      this.attrs.condition || true,
+      this.attrs.display,
+      (condition, display) => {
+
+      if (!condition)
+        return this.updateChildren(null)
+
+      this.updateChildren(display())
     })
     return super.render()
   }
@@ -181,21 +190,21 @@ export class ShowComponent extends VirtualHolder {
 }
 
 
-export function Show(child: O<NodeCreatorFn>): Node {
-
+export function Display(display: O<NodeCreatorFn>): Node {
+  return d(DisplayComponent, {display})
 }
 
 
 /**
  *
  */
-export function ShowIf(condition: O<any>, then: NodeCreatorFn): Node {
-  return d(ShowComponent, {condition, then})
+export function DisplayIf(condition: O<any>, display: O<NodeCreatorFn>): Node {
+  return d(DisplayComponent, {condition, display})
 }
 
 
-export function ShowUnless(condition: O<any>, then: NodeCreatorFn) {
-  return d(ShowComponent, {condition: o(condition).isFalsy(), then})
+export function DisplayUnless(condition: O<any>, display: O<NodeCreatorFn>) {
+  return d(DisplayComponent, {condition: o(condition).isFalsy(), display})
 }
 
 
@@ -210,6 +219,6 @@ export function Repeat() {
 /**
  *
  */
-export function Fragment(attrs: BasicAttributes, children: Child[]): Node {
-  return getChildren(children)
+export function Fragment(attrs: BasicAttributes, children: DocumentFragment): Node {
+  return children
 }
