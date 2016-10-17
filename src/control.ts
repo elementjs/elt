@@ -2,6 +2,7 @@
  * Control structures to help with readability.
  */
 import {
+  o,
   O,
   Observable
 } from './observable'
@@ -163,15 +164,13 @@ export function Write(obs: Observable<HasToString>): Node {
 }
 
 
-export interface IfComponentAttributes extends BasicAttributes {
-  condition: O<any>
-  then: NodeCreatorFn
-  otherwise: NodeCreatorFn
-}
-
 export class IfComponent extends VirtualHolder {
   name = 'if'
-  attrs: IfComponentAttributes
+  attrs: {
+    condition: O<any>
+    then: NodeCreatorFn
+    otherwise?: NodeCreatorFn
+  }
 
   render(children: Child[]): Node {
     this.observe(this.attrs.condition, value => {
@@ -186,10 +185,15 @@ export class IfComponent extends VirtualHolder {
 /**
  *
  */
-export function If(condition: O<any>, then: () => Child, otherwise?: () => Child) {
+export function ShowIf(condition: O<any>, then: () => Child, otherwise?: () => Child) {
   if (!otherwise) otherwise = function (){ return null }
 
-  return d(IfComponent, {condition, then, otherwise} as BasicAttributes)
+  return d(IfComponent, {condition, then, otherwise})
+}
+
+
+export function ShowUnless(condition: O<any>, then: () => Child) {
+  return d(IfComponent, {condition: o(condition).isFalsy(), then})
 }
 
 

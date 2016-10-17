@@ -57,11 +57,11 @@ export {
 } from './observable'
 
 export {
-  If,
   Fragment,
   Observe,
   ObserverAttributes,
   Repeat,
+  ShowIf,
   Write
 } from './control'
 
