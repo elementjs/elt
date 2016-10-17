@@ -26,6 +26,53 @@ export type ClassObject = {[name: string]: O<boolean>}
 export type ClassDefinition = ClassObject | O<string>
 
 
+
+
+/**
+ * Styles
+ */
+export type StyleDefinition = DomicCSSStyleDeclaration | O<string>
+
+
+export type DirectionValues = 'ltr' | 'rtl'
+export type DropZoneValues = 'copy' | 'move' | 'link'
+export type DraggableValues = boolean | 'true' | 'false' | 'auto'
+
+
+/**
+ * Basic attributes used on all nodes.
+ */
+export interface BasicAttributes {
+  id?: O<string>
+
+  tabindex?: O<string>
+  accesskey?: O<string>
+  contenteditable?: O<boolean>
+  contextmenu?: O<string>
+  dropzone?: O<DropZoneValues>
+  draggable?: O<DraggableValues>
+  dir?: O<DirectionValues>
+  hidden?: O<boolean>
+
+  class?: ArrayOrSingle<ClassDefinition> // special attributes
+  style?: ArrayOrSingle<StyleDefinition>
+  $$?: ArrayOrSingle<Decorator>
+}
+
+export type SingleChild = Node | string | number
+export type Child = SingleChild | SingleChild[]
+
+/**
+ *
+ */
+export type ComponentFn = (attrs: BasicAttributes, children: DocumentFragment) => Node
+
+export type NodeCreatorFn = () => Node
+
+
+///////////////////////////////////////////////////////////////////
+//  Lengthy declarations follow.
+
 export interface DomicCSSStyleDeclaration {
     alignContent: O<string | null>
     alignItems: O<string | null>
@@ -359,41 +406,3 @@ export interface DomicCSSStyleDeclaration {
     zIndex: O<string | null>
     zoom: O<string | null>
 }
-
-
-/**
- * Styles
- */
-export type StyleDefinition = DomicCSSStyleDeclaration | O<string>
-
-
-export type DirectionValues = 'ltr' | 'rtl'
-export type DropZoneValues = 'copy' | 'move' | 'link'
-export type DraggableValues = boolean | 'true' | 'false' | 'auto'
-
-
-/**
- * Basic attributes used on all nodes.
- */
-export interface BasicAttributes {
-  id?: O<string>
-
-  tabindex?: O<string>
-  accesskey?: O<string>
-  contenteditable?: O<boolean>
-  contextmenu?: O<string>
-  dropzone?: O<DropZoneValues>
-  draggable?: O<DraggableValues>
-  dir?: O<DirectionValues>
-  hidden?: O<boolean>
-
-  class?: ArrayOrSingle<ClassDefinition> // special attributes
-  style?: ArrayOrSingle<StyleDefinition>
-  $$?: ArrayOrSingle<Decorator>
-}
-
-export type SingleChild = Node | string | number
-export type Child = SingleChild | SingleChild[]
-export type ComponentFn = (attrs: BasicAttributes, children: Child[]) => Node
-
-export type NodeCreatorFn = () => Node

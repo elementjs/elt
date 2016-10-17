@@ -36,7 +36,7 @@ export class VirtualHolder extends Component {
   saved_children: DocumentFragment
   waiting: boolean
 
-  render(children: Child[]): Node {
+  render(): Node {
     this.begin = document.createComment(` (( `)
     this.end = document.createComment(` ))`)
 
@@ -115,13 +115,13 @@ export class Observer extends VirtualHolder {
   name = 'observer'
   attrs: ObserverAttributes
 
-  render(children: Child[]): Node {
+  render(): Node {
 
     this.observe(this.attrs.obs, fn => {
       this.updateChildren(fn())
     })
 
-    return super.render(children)
+    return super.render()
   }
 
 }
@@ -146,7 +146,7 @@ export class Writer extends Component {
     obs: Observable<HasToString>
   }
 
-  render(children: Child[]) {
+  render(children: DocumentFragment) {
     let node = document.createTextNode('')
 
     this.observe(this.attrs.obs, value => {
@@ -164,20 +164,24 @@ export function Write(obs: Observable<HasToString>): Node {
 }
 
 
-export class IfComponent extends VirtualHolder {
+export class ShowComponent extends VirtualHolder {
   name = 'if'
   attrs: {
     condition: O<any>
-    then: NodeCreatorFn
-    otherwise?: NodeCreatorFn
+    show: O<NodeCreatorFn>
   }
 
-  render(children: Child[]): Node {
+  render(): Node {
     this.observe(this.attrs.condition, value => {
-      this.updateChildren(value ? this.attrs.then() : this.attrs.otherwise())
+      this.updateChildren(value ? this.attrs.show() : this.attrs.otherwise())
     })
-    return super.render(children)
+    return super.render()
   }
+
+}
+
+
+export function Show(child: O<NodeCreatorFn>): Node {
 
 }
 
@@ -185,15 +189,13 @@ export class IfComponent extends VirtualHolder {
 /**
  *
  */
-export function ShowIf(condition: O<any>, then: () => Child, otherwise?: () => Child) {
-  if (!otherwise) otherwise = function (){ return null }
-
-  return d(IfComponent, {condition, then, otherwise})
+export function ShowIf(condition: O<any>, then: NodeCreatorFn): Node {
+  return d(ShowComponent, {condition, then})
 }
 
 
-export function ShowUnless(condition: O<any>, then: () => Child) {
-  return d(IfComponent, {condition: o(condition).isFalsy(), then})
+export function ShowUnless(condition: O<any>, then: NodeCreatorFn) {
+  return d(ShowComponent, {condition: o(condition).isFalsy(), then})
 }
 
 

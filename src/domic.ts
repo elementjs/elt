@@ -199,29 +199,47 @@ export interface D {
 }
 
 
-function append(node: Node, c: SingleChild) {
-  if (!(c instanceof Node)) {
-    node.appendChild(document.createTextNode(typeof c === 'number' ? c.toString() : c))
-  } else {
-    node.appendChild(c)
-  }
-}
-
+/**
+ *
+ */
 export function getChildren(children: Child[]) {
   var result = document.createDocumentFragment()
 
   for (var c of children) {
-    if (Array.isArray(c)) {
-      for (var _ch of c)
-        append(result, _ch)
-    } else {
-      append(result, c)
-    }
+    _foreach(c, c => {
+      if (!(c instanceof Node)) {
+        result.appendChild(document.createTextNode(typeof c === 'number' ? c.toString() : c))
+      } else {
+        result.appendChild(c)
+      }
+    })
   }
 
   return result
 }
 
+
+/**
+ * Apply a function to each element of the provided array if
+ * it is an array or to the single element if it was not.
+ *
+ * Does nothing if null was supplied.
+ */
+export function _foreach<T>(maybe_array: ArrayOrSingle<T>, fn: (a: T) => any): void {
+  if (!maybe_array) return
+
+  if (Array.isArray(maybe_array)) {
+    for (var e of maybe_array)
+      fn(e)
+  } else {
+    fn(maybe_array)
+  }
+}
+
+
+/**
+ * The main instantiation function, used throughout all of Domic.
+ */
 export const d: D = <D>function d(elt: any, attrs: BasicAttributes, ...children: Child[]): Node {
 
   let node: Node = null
@@ -263,7 +281,7 @@ export const d: D = <D>function d(elt: any, attrs: BasicAttributes, ...children:
     let kls = elt as Instantiator<Component>
     let c = new kls()
     c.attrs = attrs
-    node = c.render(children)
+    node = c.render(getChildren(children))
     c.setNode(node)
     controllers = NodeControllerMap.get(node)
     if (!controllers) {
@@ -281,33 +299,17 @@ export const d: D = <D>function d(elt: any, attrs: BasicAttributes, ...children:
 
   // decorators are run now. If class and style were defined, they will be applied to the
   // final node.
-  if (decorators) {
-    if (!Array.isArray(decorators)) decorators = [decorators]
-    for (var d of decorators as Decorator[]) {
-      d(node)
-    }
-  }
+  _foreach(decorators, d => d(node))
 
   // Class attributes and Style attributes are special and forwarded accross nodes and are thus
   // always added (unlike other attributes which are simply passed forward)
-  if (cls) {
-    if (Array.isArray(cls)) {
-      for (var cl of cls)
-        // oooo, ugly cast !
-        ct = applyClass(node as Element, cl, ct)
-    } else {
-      ct = applyClass(node as Element, cls, ct)
-    }
-  }
+  _foreach(cls, cl => {
+    ct = applyClass(node as Element, cl, ct)
+  })
 
-  if (style) {
-    if (Array.isArray(style)) {
-      for (var st of style)
-        ct = applyStyle(node as HTMLElement, st, ct)
-    } else {
-      ct = applyStyle(node as HTMLElement, style, ct)
-    }
-  }
+  _foreach(style, st => {
+    ct = applyStyle(node as HTMLElement, st, ct)
+  })
 
   return node
 }

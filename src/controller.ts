@@ -120,7 +120,7 @@ export class Component extends Controller {
 
   attrs: BasicAttributes
 
-  render(children: Child[]): Node {
+  render(children: DocumentFragment): Node {
     return null
   }
 
