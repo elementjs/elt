@@ -277,6 +277,11 @@ export class Observable<T> {
 
   // Some basic modification functions
   // **These methods are *not* type safe !**
+
+  toggle(this: Observable<boolean>) {
+    this.set(!this._value)
+  }
+
   add(this: Observable<number>, inc: number) {
     this.set(this._value + inc)
     return this
