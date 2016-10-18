@@ -80,7 +80,7 @@ export class Controller {
     let res = nodeControllerMap.get(node)
     if (!res) {
       res = []
-      nodeControllerMap.set(node)
+      nodeControllerMap.set(node, res)
     }
     return res
   }
