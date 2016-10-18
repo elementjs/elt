@@ -67,7 +67,9 @@ export {
   Observe,
   ObserverAttributes,
   Repeat,
-  Write
+  VirtualHolder,
+  Write,
+  Writer,
 } from './control'
 
 ////////////////////////////////////////////////////////
