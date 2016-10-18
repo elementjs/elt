@@ -34,7 +34,10 @@ export {
 export {
   Component,
   Controller,
-  ctrl
+  ctrl,
+  onmount,
+  onrender,
+  onunmount
 } from './controller'
 
 export {

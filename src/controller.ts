@@ -16,6 +16,27 @@ import {
 export const NodeControllerMap = new WeakMap<Node, Controller[]>()
 
 
+/**
+ *
+ */
+export function onmount(target: any, key: string) {
+  target.onmount = target.onmount || (target.constructor.prototype.onmount||[]).concat([])
+  target.onmount.push(target[key])
+}
+
+
+export function onunmount(target: any, key: string) {
+  target.onunmount = target.onunmount || (target.constructor.prototype.onmount||[]).concat([])
+  target.onunmount.push(target[key])
+}
+
+
+export function onrender(target: any, key: string) {
+  target.onrender = target.onrender || (target.constructor.prototype.onmount||[]).concat([])
+  target.onrender.push(target[key])
+}
+
+
 export class Controller {
 
   node: Node
@@ -27,9 +48,9 @@ export class Controller {
   constructor() {
 
     let proto = this.constructor.prototype
-    this.onmount = (proto.onmount||[]).concat([])
-    this.onunmount = (proto.onmount||[]).concat([])
-    this.onrender = (proto.onmount||[]).concat([])
+    this.onmount = proto.onmount ? proto.onmount.concat([]) : []
+    this.onunmount = proto.onunmount ? proto.onunmount.concat([]) : []
+    this.onrender = proto.onrender ? proto.onrender.concat([]) : []
 
   }
 
