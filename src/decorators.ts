@@ -9,7 +9,8 @@ import {
 
 import {
   Controller,
-  NodeControllerMap
+  NodeControllerMap,
+  onrender
 } from './controller'
 
 
@@ -29,8 +30,8 @@ export class BindController extends Controller {
     this.opts = opts
   }
 
-  setNode(node: Node) {
-    super.setNode(node)
+  @onrender
+  link(node: Node) {
 
     if (node instanceof HTMLInputElement) this.linkToInput(node)
     if (node instanceof HTMLSelectElement) this.linkToSelect(node)
@@ -135,7 +136,6 @@ export function bind(obs: Observable<string>, opts: BindControllerOptions = {}) 
   return function bindDecorator(node: Node): void {
     let controllers = NodeControllerMap.get(node)
     let c = new BindController(obs, opts)
-    c.setNode(node)
     controllers.push(c)
   }
 

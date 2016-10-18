@@ -35,7 +35,6 @@ function _mount(node: Node) {
   if (!controllers) return
 
   for (var c of controllers) {
-    c.mounted = true
     for (var f of c.onmount) {
       f.call(c, node)
     }
@@ -57,7 +56,6 @@ function _unmount(node: Node) {
   if (!controllers) return
 
   for (var c of controllers) {
-    c.mounted = false
     for (var f of c.onunmount) {
       f.call(c, node)
     }
@@ -240,6 +238,7 @@ export const d: D = <D>function d(elt: any, attrs: BasicAttributes, ...children:
 
   // Classes and style are applied at the end of this function and are thus
   // never passed to other node definitions.
+  let comp: Component = null
   let ct: DefaultController = null
   let controllers: Controller[] = null
 
@@ -272,14 +271,11 @@ export const d: D = <D>function d(elt: any, attrs: BasicAttributes, ...children:
   } else if (typeof elt === 'function' && elt.prototype.render) {
     // elt is an instantiator
     let kls = elt as Instantiator<Component>
-    let c = new kls()
-    c.attrs = attrs
-    node = c.render(getDocumentFragment(children))
-    c.setNode(node)
+    comp = new kls()
+    comp.attrs = attrs
+    node = comp.render(getDocumentFragment(children))
     controllers = getCtrls(node)
-    controllers.push(c)
-
-    c.onrender.forEach(r => r.call(c, node))
+    controllers.push(comp)
 
   } else if (typeof elt === 'function') {
     // elt is just a creator function
@@ -300,6 +296,9 @@ export const d: D = <D>function d(elt: any, attrs: BasicAttributes, ...children:
   _foreach(style, st => {
     ct = applyStyle(node as HTMLElement, st, ct)
   })
+
+  // Call onrender on component now that all the linking is done.
+  controllers.forEach(c => c.onrender.forEach(r => r.call(c, node)))
 
   return node
 }

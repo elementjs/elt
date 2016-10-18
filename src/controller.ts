@@ -39,8 +39,6 @@ export function onrender(target: any, key: string) {
 
 export class Controller {
 
-  node: Node
-  mounted: boolean
   onmount: ControllerCallback[]
   onunmount: ControllerCallback[]
   onrender: ControllerCallback[]
@@ -52,10 +50,6 @@ export class Controller {
     this.onunmount = proto.onunmount ? proto.onunmount.concat([]) : []
     this.onrender = proto.onrender ? proto.onrender.concat([]) : []
 
-  }
-
-  setNode(node: Node) {
-    this.node = node
   }
 
   observe<A, B, C, D, E, F>(a: O<A>, b: O<B>, c: O<C>, d: O<D>, e: O<E>, f: O<F>, cbk: (a: A, b: B, c: C, d: D, e: E, f: F) => any): this;
@@ -95,8 +89,8 @@ export class Controller {
   /**
    * Recursively find the asked for controller.
    */
-  getController<C extends Controller>(kls: Instantiator<C>): C {
-    let iter = this.node
+  getController<C extends Controller>(node: Node, kls: Instantiator<C>): C {
+    let iter = node
     let controllers = NodeControllerMap.get(iter)
 
     while (controllers) {
@@ -137,7 +131,6 @@ export function ctrl(ctrls: (Instantiator<Controller>|Controller)[]) {
       } else {
         instance = new c
       }
-      instance.setNode(node)
       controllers.push(instance)
     }
   }
