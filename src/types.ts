@@ -19,6 +19,8 @@ export interface Instantiator<T> {
  * Decorators used on Nodes
  */
 export type Decorator = (n: Node) => void
+
+export type ControllerCallback = (n?: Node) => void
 /**
  * Classes.
  */

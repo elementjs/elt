@@ -36,8 +36,8 @@ function _mount(node: Node) {
 
   for (var c of controllers) {
     c.mounted = true
-    for (var f of c.mountfns) {
-      f()
+    for (var f of c.onmount) {
+      f(node)
     }
   }
 
@@ -58,8 +58,8 @@ function _unmount(node: Node) {
 
   for (var c of controllers) {
     c.mounted = false
-    for (var f of c.unmountfns) {
-      f()
+    for (var f of c.onunmount) {
+      f(node)
     }
   }
 
@@ -279,7 +279,7 @@ export const d: D = <D>function d(elt: any, attrs: BasicAttributes, ...children:
     controllers = getCtrls(node)
     controllers.push(c)
 
-    c.renderfns.forEach(r => r())
+    c.onrender.forEach(r => r(node))
 
   } else if (typeof elt === 'function') {
     // elt is just a creator function

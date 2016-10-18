@@ -7,8 +7,9 @@ import {
 import {
   Instantiator,
   ArrayOrSingle,
+  BasicAttributes,
   Child,
-  BasicAttributes
+  ControllerCallback,
 } from './types'
 
 
@@ -19,9 +20,18 @@ export class Controller {
 
   node: Node
   mounted: boolean
-  mountfns: (() => void)[] = []
-  unmountfns: (() => void)[] = []
-  renderfns: (() => void)[] = []
+  onmount: ControllerCallback[]
+  onunmount: ControllerCallback[]
+  onrender: ControllerCallback[]
+
+  constructor() {
+
+    let proto = this.constructor.prototype
+    this.onmount = (proto.onmount||[]).concat([])
+    this.onunmount = (proto.onmount||[]).concat([])
+    this.onrender = (proto.onmount||[]).concat([])
+
+  }
 
   setNode(node: Node) {
     this.node = node
@@ -41,11 +51,11 @@ export class Controller {
   observe(...args: any[]): this {
     let unload: any
 
-    this.mountfns.push(function () {
+    this.onmount.push(function () {
       unload = (o.observe as any)(...args)
     })
 
-    this.unmountfns.push(function () {
+    this.onunmount.push(function () {
       unload()
       unload = null
     })

@@ -1,9 +1,6 @@
 
+# What is Domic
 
-# Todo
-
-* Cleanup d() as it is pretty messy
-* Figure out how to use the whole Child creating stuff
 
 # Controllers
 
@@ -11,21 +8,31 @@
 * Know when mounted or unmounted
 * Have an observe() method for convenience
 
+
 # Components
+
+* Can be created by a function or by extending a class. The `d()` function
+  is in charge of properly instanciating them, handling controllers, classes and
+  styles.
+
+## Component Function
+
+
+
+## The Component Class
 
 * Are controllers
 * Have attributes
 * Return a Node through a render() function
 
-# Observables
-
-Well there's a lot to talk about.
 
 # Verbs
 
-If, Show, Write, Repeat
-ShowIf ? ShowUnless ??
+* Display, DisplayIf, DisplayUnless
+* Write
+* Repeat
 
-# Children
 
-Domic understands appending string, number, Node and ChildCreator functions.
+# Observables
+
+Well there's a lot to talk about.
