@@ -246,7 +246,6 @@ export const d: D = <D>function d(elt: any, attrs: BasicAttributes, ...children:
 
   if (typeof elt === 'string') {
     node = document.createElement(elt)
-    controllers = Controller.init(node)
 
     for (var x in attrs as any) {
       ct = applyAttribute(node as Element, x, (attrs as any)[x], ct)
@@ -263,14 +262,12 @@ export const d: D = <D>function d(elt: any, attrs: BasicAttributes, ...children:
     comp = new kls()
     comp.attrs = attrs
     node = comp.render(getDocumentFragment(children))
-    controllers = Controller.init(node)
-    controllers.push(comp)
 
   } else if (typeof elt === 'function') {
     // elt is just a creator function
     node = elt(attrs, children)
-    controllers = Controller.init(node)
   }
+  controllers = Controller.init(node)
 
   // decorators are run now. If class and style were defined, they will be applied to the
   // final node.
@@ -287,6 +284,7 @@ export const d: D = <D>function d(elt: any, attrs: BasicAttributes, ...children:
   })
 
   // Call onrender on component now that all the linking is done.
+  if (comp) controllers.push(comp)
   controllers.forEach(c => c.onrender.forEach(r => r.call(c, node)))
 
   return node
