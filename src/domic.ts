@@ -23,7 +23,6 @@ import {
   Component,
   Controller,
   DefaultController,
-  NodeControllerMap,
 } from './controller'
 
 
@@ -31,7 +30,7 @@ import {
  * Call controller's mount() functions recursively
  */
 function _mount(node: Node) {
-  let controllers = NodeControllerMap.get(node)
+  let controllers = Controller.all(node)
   if (!controllers) return
 
   for (var c of controllers) {
@@ -52,7 +51,7 @@ function _mount(node: Node) {
  * Call controller's unmount functions recursively
  */
 function _unmount(node: Node) {
-  let controllers = NodeControllerMap.get(node)
+  let controllers = Controller.all(node)
   if (!controllers) return
 
   for (var c of controllers) {
@@ -219,16 +218,6 @@ export function _foreach<T>(maybe_array: ArrayOrSingle<T>, fn: (a: T) => any): v
 }
 
 
-function getCtrls(node: Node): Controller[] {
-  let c = NodeControllerMap.get(node)
-  if (!c) {
-    c = []
-    NodeControllerMap.set(node, c)
-  }
-  return c
-}
-
-
 /**
  * The main instantiation function, used throughout all of Domic.
  */
@@ -257,7 +246,7 @@ export const d: D = <D>function d(elt: any, attrs: BasicAttributes, ...children:
 
   if (typeof elt === 'string') {
     node = document.createElement(elt)
-    controllers = getCtrls(node)
+    controllers = Controller.init(node)
 
     for (var x in attrs as any) {
       ct = applyAttribute(node as Element, x, (attrs as any)[x], ct)
@@ -274,13 +263,13 @@ export const d: D = <D>function d(elt: any, attrs: BasicAttributes, ...children:
     comp = new kls()
     comp.attrs = attrs
     node = comp.render(getDocumentFragment(children))
-    controllers = getCtrls(node)
+    controllers = Controller.init(node)
     controllers.push(comp)
 
   } else if (typeof elt === 'function') {
     // elt is just a creator function
     node = elt(attrs, children)
-    controllers = getCtrls(node)
+    controllers = Controller.init(node)
   }
 
   // decorators are run now. If class and style were defined, they will be applied to the

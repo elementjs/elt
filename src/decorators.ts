@@ -9,7 +9,6 @@ import {
 
 import {
   Controller,
-  NodeControllerMap,
   onrender
 } from './controller'
 
@@ -134,9 +133,8 @@ export class BindController extends Controller {
 export function bind(obs: Observable<string>, opts: BindControllerOptions = {}) {
 
   return function bindDecorator(node: Node): void {
-    let controllers = NodeControllerMap.get(node)
     let c = new BindController(obs, opts)
-    controllers.push(c)
+    c.bindToNode(node)
   }
 
 }
@@ -279,20 +277,6 @@ export function on(event: string, listener: Listener<Event>, useCapture = false)
   }
 
 }
-
-
-// export function observe<A, B, C, D, E, F>(a: O<A>, b: O<B>, c: O<C>, d: O<D>, e: O<E>, f: O<F>, cbk: (a: A, b: B, c: C, d: D, e: E, f: F) => any): Decorator;
-// export function observe<A, B, C, D, E>(a: O<A>, b: O<B>, c: O<C>, d: O<D>, e: O<E>, cbk: (a: A, b: B, c: C, d: D, e: E) => any): Decorator;
-// export function observe<A, B, C, D>(a: O<A>, b: O<B>, c: O<C>, d: O<D>, cbk: (a: A, b: B, c: C, d: D) => any): Decorator;
-// export function observe<A, B, C>(a: O<A>, b: O<B>, c: O<C>, cbk: (a: A, b: B, c: C) => any): Decorator;
-// export function observe<A, B>(a: O<A>, b: O<B>, cbk: (a: A, b: B) => any): Decorator;
-// export function observe<A>(a: O<A>, cbk: (a: A, prop: string) => any): Decorator;
-// export function observe(...params: any[]) {
-//   return function(node: Node): void {
-//     // ???
-//     atom.observe.apply(atom, params)
-//   }
-// }
 
 
 let on_mobile = typeof(window) !== 'undefined' ? /iPad|iPhone|iPod/.test(window.navigator.userAgent) && !(window as any).MSStream : false

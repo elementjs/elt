@@ -14,7 +14,6 @@ import {
 
 import {
   Component,
-  NodeControllerMap,
   onmount,
   onunmount
 } from './controller'
