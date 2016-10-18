@@ -15,6 +15,8 @@ import {
 import {
   Component,
   NodeControllerMap,
+  onmount,
+  onunmount
 } from './controller'
 
 import {
@@ -40,41 +42,44 @@ export class VirtualHolder extends Component {
     this.begin = document.createComment(` (( `)
     this.end = document.createComment(` ))`)
 
-    this.onmount.push(() => {
-      let parent = this.node.parentNode
-      let next = this.node.nextSibling
-
-      if (this.saved_children) {
-
-        parent.insertBefore(this.saved_children, next)
-        this.saved_children = null
-
-      } else if (!this.begin.parentNode) {
-        parent.insertBefore(this.begin, next)
-        parent.insertBefore(this.end, next)
-      }
-
-    })
-
-    this.onunmount.push(() => {
-      if (!this.node.parentNode) {
-        let fragment = document.createDocumentFragment()
-
-        let iter: Node = this.begin
-        let next: Node = null
-
-        while (iter) {
-          next = iter.nextSibling
-          fragment.appendChild(iter)
-          if (iter === this.end) break
-          iter = next
-        }
-
-        this.saved_children = fragment
-      }
-    })
-
     return document.createComment(` ${this.name}: `)
+  }
+
+  @onmount
+  createOrAppendChildren(node: Node) {
+    let parent = node.parentNode
+    let next = node.nextSibling
+
+    if (this.saved_children) {
+
+      parent.insertBefore(this.saved_children, next)
+      this.saved_children = null
+
+    } else if (!this.begin.parentNode) {
+      parent.insertBefore(this.begin, next)
+      parent.insertBefore(this.end, next)
+    }
+  }
+
+  @onunmount
+  unmountChildrenIfNeeded(node: Node) {
+
+    if (!node.parentNode) {
+      let fragment = document.createDocumentFragment()
+
+      let iter: Node = this.begin
+      let next: Node = null
+
+      while (iter) {
+        next = iter.nextSibling
+        fragment.appendChild(iter)
+        if (iter === this.end) break
+        iter = next
+      }
+
+      this.saved_children = fragment
+    }
+
   }
 
   updateChildren(node: Node) {
