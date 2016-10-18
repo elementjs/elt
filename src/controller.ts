@@ -13,7 +13,7 @@ import {
 } from './types'
 
 
-export const NodeControllerMap = new WeakMap<Node, Controller[]>()
+const nodeControllerMap = new WeakMap<Node, Controller[]>()
 
 
 /**
@@ -42,6 +42,55 @@ export class Controller {
   onmount: ControllerCallback[]
   onunmount: ControllerCallback[]
   onrender: ControllerCallback[]
+
+  /**
+   * Recursively find a controller starting at a node and making its
+   * way up.
+   */
+  static get<C extends Controller>(this: Instantiator<C>, node: Node): C {
+    let iter = node
+    let controllers = nodeControllerMap.get(iter)
+
+    while (controllers) {
+      for (var c of controllers) {
+        if (c instanceof this)
+          return c as C
+      }
+      iter = iter.parentNode
+      controllers = nodeControllerMap.get(iter)
+    }
+
+    return null
+  }
+
+  /**
+   * Get all the controllers for a given node.
+   *
+   * @returns undefined if the node was not associated with a controller array
+   */
+  static all(node: Node): Controller[] {
+    return nodeControllerMap.get(node)
+  }
+
+  /**
+   * Get all the controllers for a Node. If there was no controller array,
+   * setup a new one.
+   */
+  static init(node: Node): Controller[] {
+    let res = nodeControllerMap.get(node)
+    if (!res) {
+      res = []
+      nodeControllerMap.set(node)
+    }
+    return res
+  }
+
+  /**
+   * Associate a Controller to a Node.
+   */
+  bindToNode(node: Node): void {
+    nodeControllerMap.get(node).push(this)
+  }
 
   constructor() {
 
@@ -86,25 +135,6 @@ export class Controller {
     return this
   }
 
-  /**
-   * Recursively find the asked for controller.
-   */
-  getController<C extends Controller>(node: Node, kls: Instantiator<C>): C {
-    let iter = node
-    let controllers = NodeControllerMap.get(iter)
-
-    while (controllers) {
-      for (var c of controllers) {
-        if (c instanceof kls)
-          return c as C
-      }
-      iter = iter.parentNode
-      controllers = NodeControllerMap.get(iter)
-    }
-
-    return null
-  }
-
 }
 
 
@@ -123,7 +153,7 @@ export class DefaultController extends Controller {
 export function ctrl(ctrls: (Instantiator<Controller>|Controller)[]) {
   return function (node: Node): void {
     var instance: Controller = null
-    var controllers = NodeControllerMap.get(node)
+    var controllers = nodeControllerMap.get(node)
 
     for (var c of ctrls) {
       if (c instanceof Controller) {
