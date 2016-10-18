@@ -40,7 +40,7 @@ export class VirtualHolder extends Component {
     this.begin = document.createComment(` (( `)
     this.end = document.createComment(` ))`)
 
-    this.mountfns.push(() => {
+    this.onmount.push(() => {
       let parent = this.node.parentNode
       let next = this.node.nextSibling
 
@@ -56,7 +56,7 @@ export class VirtualHolder extends Component {
 
     })
 
-    this.unmountfns.push(() => {
+    this.onunmount.push(() => {
       if (!this.node.parentNode) {
         let fragment = document.createDocumentFragment()
 
