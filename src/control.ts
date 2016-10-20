@@ -168,25 +168,27 @@ export function Write(obs: Observable<HasToString>): Node {
 }
 
 
-export class DisplayComponent extends VirtualHolder {
+export type DisplayCreator<T> = (a: T) => Node
+
+export class DisplayComponent<T> extends VirtualHolder {
   name = 'if'
 
   attrs: {
-    condition?: O<any>
-    display: O<NodeCreatorFn>
+    condition?: O<T>
+    display: O<DisplayCreator<T>>
   }
 
   render(): Node {
 
     this.observe(
-      this.attrs.condition || true,
+      this.attrs.condition,
       this.attrs.display,
       (condition, display) => {
 
-      if (!condition)
+      if (typeof condition !== 'undefined' && !condition)
         return this.updateChildren(null)
 
-      this.updateChildren(display())
+      this.updateChildren(display(condition))
     })
     return super.render()
   }
@@ -202,12 +204,12 @@ export function Display(display: O<NodeCreatorFn>): Node {
 /**
  *
  */
-export function DisplayIf(condition: O<any>, display: O<NodeCreatorFn>): Node {
+export function DisplayIf<T>(condition: O<T>, display: O<DisplayCreator<T>>): Node {
   return d(DisplayComponent, {condition, display})
 }
 
 
-export function DisplayUnless(condition: O<any>, display: O<NodeCreatorFn>) {
+export function DisplayUnless<T>(condition: O<any>, display: O<DisplayCreator<T>>) {
   return d(DisplayComponent, {condition: o(condition).isFalsy(), display})
 }
 

@@ -83,11 +83,11 @@ export interface ComponentInstanciator<A> {
 
 export interface D {
   (elt: ComponentFn, attrs: BasicAttributes, ...children: Child[]): Node
-  (elt: string, attrs: BasicAttributes, ...children: Child[]): Node
+  (elt: string, attrs: BasicAttributes, ...children: Child[]): HTMLElement
   <A>(elt: ComponentInstanciator<A>, attrs: A, ...children: Child[]): Node
 
   createElement(elt: ComponentFn, attrs: BasicAttributes, ...children: Child[]): Node
-  createElement(elt: string, attrs: BasicAttributes, ...children: Child[]): Node
+  createElement(elt: string, attrs: BasicAttributes, ...children: Child[]): HTMLElement
   createElement<A>(elt: ComponentInstanciator<A>, attrs: A, ...children: Child[]): Node
 }
 
