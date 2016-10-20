@@ -175,6 +175,11 @@ export class Component extends Controller {
 
   attrs: BasicAttributes
 
+  constructor(attrs: BasicAttributes) {
+    super()
+    this.attrs = attrs
+  }
+
   render(children: DocumentFragment): Node {
     return null
   }

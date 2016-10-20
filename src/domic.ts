@@ -259,8 +259,7 @@ export const d: D = <D>function d(elt: any, attrs: BasicAttributes, ...children:
   } else if (typeof elt === 'function' && elt.prototype.render) {
     // elt is an instantiator
     let kls = elt as Instantiator<Component>
-    comp = new kls()
-    comp.attrs = attrs
+    comp = new kls(attrs)
     node = comp.render(getDocumentFragment(children))
 
   } else if (typeof elt === 'function') {
