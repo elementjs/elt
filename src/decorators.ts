@@ -279,82 +279,13 @@ export function on(event: string, listener: Listener<Event>, useCapture = false)
 }
 
 
-let on_mobile = typeof(window) !== 'undefined' ? /iPad|iPhone|iPod/.test(window.navigator.userAgent) && !(window as any).MSStream : false
-export var THRESHOLD = 300 // 10 milliseconds
-export var DISTANCE_THRESHOLD = 10
-
 /**
  * Add a callback on the click event, or touchend if we are on a mobile
  * device.
  */
 export function click(cbk: Listener<MouseEvent>) {
 
-  return on_mobile ? clickTapDecorator : clickDecorator;
-
-  function clickTapDecorator(node: HTMLElement): void {
-
-    let last_touch: Touch = null
-
-    node.addEventListener('touchstart', ev => {
-      if (ev.touches.length !== 1) return
-      last_touch = ev.touches[0]
-    })
-
-    node.addEventListener('touchend', ev => {
-      let now = Date.now()
-
-      // Multiple touch ain't a click
-      if (ev.touches.length !== 1) return
-
-      let touch = ev.touches[0]
-
-      let dx = touch.pageX - last_touch.pageX
-      let dy = touch.pageY - last_touch.pageY
-
-      if (last_touch.target !== ev.target
-        || now - last_call > THRESHOLD
-        || (dx * dx + dy * dy) > DISTANCE_THRESHOLD * DISTANCE_THRESHOLD
-      ) {
-        // do nothing if the target is not the same
-      } else {
-        // If we got here, we can safely call the callback.
-        last_call = now
-        let event = new MouseEvent('click', {
-          clientX: touch.clientX,
-          clientY: touch.clientY,
-          // x: touch.clientX,
-          // y: touch.clientY,
-          screenX: touch.screenX,
-          screenY: touch.screenY,
-          bubbles: true,
-          cancelable: true
-        })
-        node.dispatchEvent(event)
-        // cbk(ev) // should I trigger the click event with a CustomEvent ?
-      }
-
-      last_touch = null
-    })
-
-    let last_call: number = 0
-    /**
-     * Capture click event and send it to hell if it is spurious.
-     */
-    node.addEventListener('click', ev => {
-      // prevent ghost click...
-      let now = Date.now()
-      if (now - last_call < THRESHOLD) {
-        ev.preventDefault()
-        ev.stopPropagation()
-      }
-      last_call = Date.now()
-    }, true)
-
-    node.addEventListener('click', cbk)
-
-  }
-
-  function clickDecorator(node: Node): void {
+  return function clickDecorator(node: Node): void {
     node.addEventListener('click', cbk)
   }
 
