@@ -10,6 +10,7 @@
     "build:dts": "dts-bundle --name domic --main build/index.d.ts --out ../lib/domic.d.ts && sed -i 's/^global/declare global/' ./lib/domic.d.ts",
     "build:js": "tsc && webpack",
     "build": "npm run build:js && npm run build:dts",
+    "prepublish": "npm run build",
     "watch": "parallel -u ::: 'ls build/*.d.ts | entr -d npm run build:dts' 'tscc -w' 'webpack -w'"
   },
   "devDependencies": {
