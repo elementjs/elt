@@ -39,6 +39,7 @@ export function onrender(target: any, key: string) {
 
 export class Controller {
 
+  node: Node
   onmount: ControllerCallback[]
   onunmount: ControllerCallback[]
   onrender: ControllerCallback[]
@@ -89,6 +90,7 @@ export class Controller {
    * Associate a Controller to a Node.
    */
   bindToNode(node: Node): void {
+    this.node = node
     nodeControllerMap.get(node).push(this)
   }
 
