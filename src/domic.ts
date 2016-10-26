@@ -123,7 +123,9 @@ function applyClass(node: Element, c: ClassDefinition, ct: DefaultController): D
     for (let x in c) {
       if (c[x] instanceof Observable) {
         if (!ct) ct = new DefaultController()
-        ct.observe(c[x], applied => applied ? node.classList.add(x) : node.classList.remove(x))
+        ct.observe(c[x], applied => {
+          applied ? node.classList.add(x) : node.classList.remove(x)
+        })
       } else {
         if (c[x])
           node.classList.add(x)
@@ -169,10 +171,14 @@ function applyAttribute(node: Element, name: string, value: O<any>, ct: DefaultC
   if (value instanceof Observable) {
     if (!ct) ct = new DefaultController()
     ct.observe(value, val => {
-      node.setAttribute(name, val)
+      if (val != null)
+        node.setAttribute(name, val)
+      else {
+        node.removeAttribute(name)
+      }
     })
   } else {
-    node.setAttribute(name, value)
+    if (value != null) node.setAttribute(name, value)
   }
 
   return ct
@@ -285,6 +291,8 @@ export const d: D = <D>function d(elt: any, attrs: BasicAttributes, ...children:
   _foreach(style, st => {
     ct = applyStyle(node as HTMLElement, st, ct)
   })
+
+  if (ct) ct.bindToNode(node)
 
   // Call onrender on component now that all the linking is done.
   if (comp) controllers.push(comp)
