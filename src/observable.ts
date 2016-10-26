@@ -255,11 +255,11 @@ export class Observable<T> {
   }
 
   isFalsy(): Observable<boolean> {
-    return this.tf(val => val as any == false)
+    return this.tf(val => !val)
   }
 
   isTruthy(): Observable<boolean> {
-    return this.tf(val => val as any == true)
+    return this.tf(val => !!val)
   }
 
   // FIXME should we do reduce ?

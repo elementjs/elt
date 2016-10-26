@@ -223,6 +223,8 @@ export function _foreach<T>(maybe_array: ArrayOrSingle<T>, fn: (a: T) => any): v
  */
 export const d: D = <D>function d(elt: any, attrs: BasicAttributes, ...children: Child[]): Node {
 
+  if (!elt) throw new Error(`d() needs at least a string, a function or a Component`)
+
   let node: Node = null
 
   // Classes and style are applied at the end of this function and are thus
@@ -242,6 +244,8 @@ export const d: D = <D>function d(elt: any, attrs: BasicAttributes, ...children:
     if (cls) delete attrs.class
     if (style) delete attrs.style
     if (decorators) delete attrs.$$
+  } else {
+    attrs = {}
   }
 
   if (typeof elt === 'string') {
