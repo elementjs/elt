@@ -185,7 +185,7 @@ export class DisplayComponent<T> extends VirtualHolder {
       this.attrs.display,
       (condition, display) => {
 
-      if (typeof condition !== 'undefined' && !condition)
+      if (typeof condition === 'undefined' || !condition)
         return this.updateChildren(null)
 
       this.updateChildren(display(condition))
