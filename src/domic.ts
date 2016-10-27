@@ -274,7 +274,7 @@ export const d: D = <D>function d(elt: any, attrs: BasicAttributes, ...children:
 
   } else if (typeof elt === 'function') {
     // elt is just a creator function
-    node = elt(attrs, children)
+    node = elt(attrs, getDocumentFragment(children))
   }
   controllers = Controller.init(node)
 

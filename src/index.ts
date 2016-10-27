@@ -1,6 +1,7 @@
 
 export {
   setupMounting,
+  getDocumentFragment,
   d
 } from './domic'
 
