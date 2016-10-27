@@ -7,7 +7,7 @@ export type ArrayOrSingle<T> = T | T[]
 export interface ListenerObject<EventType extends Event> {
   handleEvent(ev: EventType): void
 }
-export type ListenerFn<EventType extends Event> = (ev: EventType) => void
+export type ListenerFn<EventType extends Event> = (this: Node, ev: EventType) => void
 export type Listener<EventType extends Event> = ListenerFn<EventType>
 
 
