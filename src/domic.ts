@@ -295,7 +295,7 @@ export const d: D = <D>function d(elt: any, attrs: BasicAttributes, ...children:
   if (ct) ct.bindToNode(node)
 
   // Call onrender on component now that all the linking is done.
-  if (comp) controllers.push(comp)
+  if (comp) comp.bindToNode(node)
   controllers.forEach(c => c.onrender.forEach(r => r.call(c, node)))
 
   return node
