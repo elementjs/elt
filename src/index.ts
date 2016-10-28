@@ -36,6 +36,7 @@ export {
   Component,
   Controller,
   ctrl,
+  HTMLComponent,
   onmount,
   onrender,
   onunmount

@@ -187,3 +187,9 @@ export class Component extends Controller {
   }
 
 }
+
+export class HTMLComponent extends Component {
+
+  node: HTMLElement
+
+}
