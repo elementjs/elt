@@ -1,7 +1,7 @@
 {
   "name": "domic",
-  "version": "1.0.0-alpha3",
-  "repository": "https://github.com/ceymard/carbyne",
+  "version": "1.0.0-alpha5",
+  "repository": "https://github.com/domicjs/domic",
   "description": "some description",
   "license": "MIT",
   "main": "./lib/domic.js",
