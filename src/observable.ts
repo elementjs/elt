@@ -246,11 +246,11 @@ export class Observable<T> {
     return this.tf(val => val !== undefined)
   }
 
-  isFalse(): Observable<boolean> {
+  isFalse(this: Observable<boolean>): Observable<boolean> {
     return this.tf(val => val as any === false)
   }
 
-  isTrue(): Observable<boolean> {
+  isTrue(this: Observable<boolean>): Observable<boolean> {
     return this.tf(val => val as any === true)
   }
 
@@ -426,6 +426,22 @@ export class PropObservable<T, U> extends Observable<U> {
 
     for (let ob of this._observers)
       ob(new_val, '')
+  }
+
+  oHasNext<T>(this: PropObservable<T[], T>): Observable<boolean> {
+    return o(this._obs.p<number>('length'), len => parseInt(this._prop) < len)
+  }
+
+  oHasPrev<T>(this: PropObservable<T[], T>): Observable<boolean> {
+    return o(this._obs.p<number>('length'), len => parseInt(this._prop) >= 0 && len > 0)
+  }
+
+  next<T>(this: PropObservable<T[], T>): PropObservable<T[], T> {
+    return new PropObservable<T[], T>(this._obs, parseInt(this._prop) + 1)
+  }
+
+  prev<T>(this: PropObservable<T[], T>): PropObservable<T[], T> {
+    return new PropObservable<T[], T>(this._obs, parseInt(this._prop) - 1)
   }
 
   addObserver(fn: Observer<U>) {
