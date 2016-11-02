@@ -26,13 +26,13 @@ export function onmount(target: any, key: string) {
 
 
 export function onunmount(target: any, key: string) {
-  target.onunmount = target.onunmount || (target.constructor.prototype.onmount||[]).concat([])
+  target.onunmount = target.onunmount || (target.constructor.prototype.onunmount||[]).concat([])
   target.onunmount.push(target[key])
 }
 
 
 export function onrender(target: any, key: string) {
-  target.onrender = target.onrender || (target.constructor.prototype.onmount||[]).concat([])
+  target.onrender = target.onrender || (target.constructor.prototype.onrender||[]).concat([])
   target.onrender.push(target[key])
 }
 
