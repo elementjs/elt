@@ -25,6 +25,10 @@ import {
   DefaultController,
 } from './controller'
 
+import {
+  Write
+} from './control'
+
 
 /**
  * Call controller's mount() functions recursively
@@ -105,10 +109,12 @@ export function setupMounting(node: Node): void {
 
 
 function _apply_class(node: Element, c: string) {
+  if (!c) return
   c.split(/\s+/g).forEach(c => node.classList.add(c))
 }
 
 function _remove_class(node: Element, c: string) {
+  if (!c) return
   c.split(/\s+/g).forEach(c => node.classList.remove(c))
 }
 
@@ -202,7 +208,9 @@ export function getDocumentFragment(children: Child[]) {
 
   for (var c of children) {
     _foreach(c, c => {
-      if (!(c instanceof Node)) {
+      if (c instanceof Observable) {
+        result.appendChild(Write(c))
+      } else if (!(c instanceof Node)) {
         result.appendChild(document.createTextNode(typeof c === 'number' ? c.toString() : c))
       } else {
         result.appendChild(c)
