@@ -104,18 +104,26 @@ export function setupMounting(node: Node): void {
 }
 
 
+function _apply_class(node: Element, c: string) {
+  c.split(/\s+/g).forEach(c => node.classList.add(c))
+}
+
+function _remove_class(node: Element, c: string) {
+  c.split(/\s+/g).forEach(c => node.classList.remove(c))
+}
+
 /**
  *
  */
 function applyClass(node: Element, c: ClassDefinition, ct: DefaultController): DefaultController {
   if (typeof c === 'string') {
-    node.classList.add(c)
+    _apply_class(node, c)
   } else if (c instanceof Observable) {
     if (!ct) ct = new DefaultController()
     let old_class: string = null
     ct.observe(c, str => {
-      if (old_class) node.classList.remove(old_class)
-      node.classList.add(str)
+      if (old_class) _remove_class(node, old_class)
+      _apply_class(node, str)
       old_class = str
     })
   } else {
@@ -124,11 +132,11 @@ function applyClass(node: Element, c: ClassDefinition, ct: DefaultController): D
       if (c[x] instanceof Observable) {
         if (!ct) ct = new DefaultController()
         ct.observe(c[x], applied => {
-          applied ? node.classList.add(x) : node.classList.remove(x)
+          applied ? _apply_class(node, x) : _remove_class(node, x)
         })
       } else {
         if (c[x])
-          node.classList.add(x)
+          _apply_class(node, x)
       }
     }
   }
