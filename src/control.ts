@@ -4,7 +4,8 @@
 import {
   o,
   O,
-  Observable
+  Observable,
+  PropObservable
 } from './observable'
 
 import {
@@ -111,7 +112,7 @@ export class VirtualHolder extends Component {
 
 
 export interface ObserverAttributes {
-  obs: Observable<NodeCreatorFn>
+  obs: Observable<Node>
 }
 
 export class Observer extends VirtualHolder {
@@ -121,8 +122,8 @@ export class Observer extends VirtualHolder {
 
   render(): Node {
 
-    this.observe(this.attrs.obs, fn => {
-      this.updateChildren(fn())
+    this.observe(this.attrs.obs, node => {
+      this.updateChildren(node)
     })
 
     return super.render()
@@ -134,7 +135,7 @@ export class Observer extends VirtualHolder {
 /**
  * Put the result of an observable into the DOM.
  */
-export function Observe(obs: Observable<NodeCreatorFn>): Node {
+export function Observe(obs: Observable<Node>): Node {
   return d(Observer, {obs})
 }
 
@@ -154,7 +155,7 @@ export class Writer extends Component {
     let node = document.createTextNode('')
 
     this.observe(this.attrs.obs, value => {
-      node.nodeValue = value.toString()
+      node.nodeValue = value ? value.toString() : ''
     })
 
     return node
@@ -214,11 +215,80 @@ export function DisplayUnless<T>(condition: O<any>, display: O<DisplayCreator<T>
 }
 
 
+
+export type RepeatNode = {node: Node, index: Observable<number>}
+
+export class RepeatComponent<T> extends VirtualHolder {
+
+  attrs: {
+    ob: O<T[]>,
+    render: (e: PropObservable<T[], T>, oi?: Observable<number>) => Node
+  }
+
+  obs: Observable<T[]>
+  map: WeakMap<T, RepeatNode> = new WeakMap<T, RepeatNode>()
+  last_id: number
+
+  redrawList(lst: T[]) {
+
+    let obs = this.obs
+    let last_drawn = -1
+    let fn = this.attrs.render
+    let res = document.createDocumentFragment()
+    let map = this.map
+    var n: Node
+    var id: Observable<number>
+
+    for (var i = 0; i < lst.length; i++) {
+      // var prev = map.get(lst[i])
+
+      // if (typeof lst[i] === 'object') {
+      //   var prev = map.get(lst[i])
+      //   if (prev) {
+      //     prev.index.set(i)
+      //     res.appendChild(prev.node)
+      //     continue
+      //   }
+      // }
+
+      id = o(i)
+      n = fn(obs.p(i) as PropObservable<T[], T>, o(i))
+      res.appendChild(n)
+      // if (typeof lst[i] === 'object') map.set(lst[i], {node: n, index: id})
+    }
+
+    this.updateChildren(res)
+
+    // if (this.last_id) cancelAnimationFrame(this.last_id)
+
+    // this.last_id = requestAnimationFrame(() => {
+
+    //   while (last_drawn < lst.length - 1) {
+    //     last_drawn += 1
+
+    //   }
+
+    // })
+
+  }
+
+  render(): Node {
+    this.obs = o(this.attrs.ob)
+
+    this.observe(this.attrs.ob, lst => {
+      this.redrawList(lst)
+    })
+
+    return super.render()
+  }
+
+}
+
 /**
  *
  */
-export function Repeat() {
-
+export function Repeat<T>(ob: O<T[]>, render: (e: PropObservable<T[], T>, oi?: Observable<number>) => Node): Node {
+  return d(RepeatComponent, {ob, render})
 }
 
 
