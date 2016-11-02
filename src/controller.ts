@@ -152,7 +152,7 @@ export class DefaultController extends Controller {
 /**
  *
  */
-export function ctrl(ctrls: (Instantiator<Controller>|Controller)[]) {
+export function ctrl(...ctrls: (Instantiator<Controller>|Controller)[]) {
   return function (node: Node): void {
     var instance: Controller = null
     var controllers = nodeControllerMap.get(node)
