@@ -33,7 +33,7 @@ export type ClassDefinition = ClassObject | O<string>
 /**
  * Styles
  */
-export type StyleDefinition = DomicCSSStyleDeclaration | O<string>
+export type StyleDefinition = DomicCSSStyleDeclaration
 
 
 export type DirectionValues = 'ltr' | 'rtl'
