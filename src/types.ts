@@ -1,7 +1,7 @@
 
 import {O} from './observable'
 
-export type ArrayOrSingle<T> = T | T[]
+export type ArrayOrSingle<T> = T[] | T
 
 
 export interface ListenerObject<EventType extends Event> {
@@ -97,335 +97,335 @@ export interface D {
 //  Lengthy declarations follow.
 
 export interface DomicCSSStyleDeclaration {
-    alignContent: O<string | null>
-    alignItems: O<string | null>
-    alignSelf: O<string | null>
-    alignmentBaseline: O<string | null>
-    animation: O<string | null>
-    animationDelay: O<string | null>
-    animationDirection: O<string | null>
-    animationDuration: O<string | null>
-    animationFillMode: O<string | null>
-    animationIterationCount: O<string | null>
-    animationName: O<string | null>
-    animationPlayState: O<string | null>
-    animationTimingFunction: O<string | null>
-    backfaceVisibility: O<string | null>
-    background: O<string | null>
-    backgroundAttachment: O<string | null>
-    backgroundClip: O<string | null>
-    backgroundColor: O<string | null>
-    backgroundImage: O<string | null>
-    backgroundOrigin: O<string | null>
-    backgroundPosition: O<string | null>
-    backgroundPositionX: O<string | null>
-    backgroundPositionY: O<string | null>
-    backgroundRepeat: O<string | null>
-    backgroundSize: O<string | null>
-    baselineShift: O<string | null>
-    border: O<string | null>
-    borderBottom: O<string | null>
-    borderBottomColor: O<string | null>
-    borderBottomLeftRadius: O<string | null>
-    borderBottomRightRadius: O<string | null>
-    borderBottomStyle: O<string | null>
-    borderBottomWidth: O<string | null>
-    borderCollapse: O<string | null>
-    borderColor: O<string | null>
-    borderImage: O<string | null>
-    borderImageOutset: O<string | null>
-    borderImageRepeat: O<string | null>
-    borderImageSlice: O<string | null>
-    borderImageSource: O<string | null>
-    borderImageWidth: O<string | null>
-    borderLeft: O<string | null>
-    borderLeftColor: O<string | null>
-    borderLeftStyle: O<string | null>
-    borderLeftWidth: O<string | null>
-    borderRadius: O<string | null>
-    borderRight: O<string | null>
-    borderRightColor: O<string | null>
-    borderRightStyle: O<string | null>
-    borderRightWidth: O<string | null>
-    borderSpacing: O<string | null>
-    borderStyle: O<string | null>
-    borderTop: O<string | null>
-    borderTopColor: O<string | null>
-    borderTopLeftRadius: O<string | null>
-    borderTopRightRadius: O<string | null>
-    borderTopStyle: O<string | null>
-    borderTopWidth: O<string | null>
-    borderWidth: O<string | null>
-    bottom: O<string | null>
-    boxShadow: O<string | null>
-    boxSizing: O<string | null>
-    breakAfter: O<string | null>
-    breakBefore: O<string | null>
-    breakInside: O<string | null>
-    captionSide: O<string | null>
-    clear: O<string | null>
-    clip: O<string | null>
-    clipPath: O<string | null>
-    clipRule: O<string | null>
-    color: O<string | null>
-    colorInterpolationFilters: O<string | null>
-    columnCount: O<any>
-    columnFill: O<string | null>
-    columnGap: O<any>
-    columnRule: O<string | null>
-    columnRuleColor: O<any>
-    columnRuleStyle: O<string | null>
-    columnRuleWidth: O<any>
-    columnSpan: O<string | null>
-    columnWidth: O<any>
-    columns: O<string | null>
-    content: O<string | null>
-    counterIncrement: O<string | null>
-    counterReset: O<string | null>
-    cssFloat: O<string | null>
-    cssText: string
-    cursor: O<string | null>
-    direction: O<string | null>
-    display: O<string | null>
-    dominantBaseline: O<string | null>
-    emptyCells: O<string | null>
-    enableBackground: O<string | null>
-    fill: O<string | null>
-    fillOpacity: O<string | null>
-    fillRule: O<string | null>
-    filter: O<string | null>
-    flex: O<string | null>
-    flexBasis: O<string | null>
-    flexDirection: O<string | null>
-    flexFlow: O<string | null>
-    flexGrow: O<string | null>
-    flexShrink: O<string | null>
-    flexWrap: O<string | null>
-    floodColor: O<string | null>
-    floodOpacity: O<string | null>
-    font: O<string | null>
-    fontFamily: O<string | null>
-    fontFeatureSettings: O<string | null>
-    fontSize: O<string | null>
-    fontSizeAdjust: O<string | null>
-    fontStretch: O<string | null>
-    fontStyle: O<string | null>
-    fontVariant: O<string | null>
-    fontWeight: O<string | null>
-    glyphOrientationHorizontal: O<string | null>
-    glyphOrientationVertical: O<string | null>
-    height: O<string | null>
-    imeMode: O<string | null>
-    justifyContent: O<string | null>
-    kerning: O<string | null>
-    left: O<string | null>
-    letterSpacing: O<string | null>
-    lightingColor: O<string | null>
-    lineHeight: O<string | null>
-    listStyle: O<string | null>
-    listStyleImage: O<string | null>
-    listStylePosition: O<string | null>
-    listStyleType: O<string | null>
-    margin: O<string | null>
-    marginBottom: O<string | null>
-    marginLeft: O<string | null>
-    marginRight: O<string | null>
-    marginTop: O<string | null>
-    marker: O<string | null>
-    markerEnd: O<string | null>
-    markerMid: O<string | null>
-    markerStart: O<string | null>
-    mask: O<string | null>
-    maxHeight: O<string | null>
-    maxWidth: O<string | null>
-    minHeight: O<string | null>
-    minWidth: O<string | null>
-    msContentZoomChaining: O<string | null>
-    msContentZoomLimit: O<string | null>
-    msContentZoomLimitMax: O<any>
-    msContentZoomLimitMin: O<any>
-    msContentZoomSnap: O<string | null>
-    msContentZoomSnapPoints: O<string | null>
-    msContentZoomSnapType: O<string | null>
-    msContentZooming: O<string | null>
-    msFlowFrom: O<string | null>
-    msFlowInto: O<string | null>
-    msFontFeatureSettings: O<string | null>
-    msGridColumn: O<any>
-    msGridColumnAlign: O<string | null>
-    msGridColumnSpan: O<any>
-    msGridColumns: O<string | null>
-    msGridRow: O<any>
-    msGridRowAlign: O<string | null>
-    msGridRowSpan: O<any>
-    msGridRows: O<string | null>
-    msHighContrastAdjust: O<string | null>
-    msHyphenateLimitChars: O<string | null>
-    msHyphenateLimitLines: O<any>
-    msHyphenateLimitZone: O<any>
-    msHyphens: O<string | null>
-    msImeAlign: O<string | null>
-    msOverflowStyle: O<string | null>
-    msScrollChaining: O<string | null>
-    msScrollLimit: O<string | null>
-    msScrollLimitXMax: O<any>
-    msScrollLimitXMin: O<any>
-    msScrollLimitYMax: O<any>
-    msScrollLimitYMin: O<any>
-    msScrollRails: O<string | null>
-    msScrollSnapPointsX: O<string | null>
-    msScrollSnapPointsY: O<string | null>
-    msScrollSnapType: O<string | null>
-    msScrollSnapX: O<string | null>
-    msScrollSnapY: O<string | null>
-    msScrollTranslation: O<string | null>
-    msTextCombineHorizontal: O<string | null>
-    msTextSizeAdjust: O<any>
-    msTouchAction: O<string | null>
-    msTouchSelect: O<string | null>
-    msUserSelect: O<string | null>
-    msWrapFlow: string
-    msWrapMargin: O<any>
-    msWrapThrough: string
-    opacity: O<string | null>
-    order: O<string | null>
-    orphans: O<string | null>
-    outline: O<string | null>
-    outlineColor: O<string | null>
-    outlineStyle: O<string | null>
-    outlineWidth: O<string | null>
-    overflow: O<string | null>
-    overflowX: O<string | null>
-    overflowY: O<string | null>
-    padding: O<string | null>
-    paddingBottom: O<string | null>
-    paddingLeft: O<string | null>
-    paddingRight: O<string | null>
-    paddingTop: O<string | null>
-    pageBreakAfter: O<string | null>
-    pageBreakBefore: O<string | null>
-    pageBreakInside: O<string | null>
-    readonly parentRule: CSSRule
-    perspective: O<string | null>
-    perspectiveOrigin: O<string | null>
-    pointerEvents: O<string | null>
-    position: O<string | null>
-    quotes: O<string | null>
-    right: O<string | null>
-    rubyAlign: O<string | null>
-    rubyOverhang: O<string | null>
-    rubyPosition: O<string | null>
-    stopColor: O<string | null>
-    stopOpacity: O<string | null>
-    stroke: O<string | null>
-    strokeDasharray: O<string | null>
-    strokeDashoffset: O<string | null>
-    strokeLinecap: O<string | null>
-    strokeLinejoin: O<string | null>
-    strokeMiterlimit: O<string | null>
-    strokeOpacity: O<string | null>
-    strokeWidth: O<string | null>
-    tableLayout: O<string | null>
-    textAlign: O<string | null>
-    textAlignLast: O<string | null>
-    textAnchor: O<string | null>
-    textDecoration: O<string | null>
-    textIndent: O<string | null>
-    textJustify: O<string | null>
-    textKashida: O<string | null>
-    textKashidaSpace: O<string | null>
-    textOverflow: O<string | null>
-    textShadow: O<string | null>
-    textTransform: O<string | null>
-    textUnderlinePosition: O<string | null>
-    top: O<string | null>
-    touchAction: O<string | null>
-    transform: O<string | null>
-    transformOrigin: O<string | null>
-    transformStyle: O<string | null>
-    transition: O<string | null>
-    transitionDelay: O<string | null>
-    transitionDuration: O<string | null>
-    transitionProperty: O<string | null>
-    transitionTimingFunction: O<string | null>
-    unicodeBidi: O<string | null>
-    verticalAlign: O<string | null>
-    visibility: O<string | null>
-    webkitAlignContent: O<string | null>
-    webkitAlignItems: O<string | null>
-    webkitAlignSelf: O<string | null>
-    webkitAnimation: O<string | null>
-    webkitAnimationDelay: O<string | null>
-    webkitAnimationDirection: O<string | null>
-    webkitAnimationDuration: O<string | null>
-    webkitAnimationFillMode: O<string | null>
-    webkitAnimationIterationCount: O<string | null>
-    webkitAnimationName: O<string | null>
-    webkitAnimationPlayState: O<string | null>
-    webkitAnimationTimingFunction: O<string | null>
-    webkitAppearance: O<string | null>
-    webkitBackfaceVisibility: O<string | null>
-    webkitBackgroundClip: O<string | null>
-    webkitBackgroundOrigin: O<string | null>
-    webkitBackgroundSize: O<string | null>
-    webkitBorderBottomLeftRadius: O<string | null>
-    webkitBorderBottomRightRadius: O<string | null>
-    webkitBorderImage: O<string | null>
-    webkitBorderRadius: O<string | null>
-    webkitBorderTopLeftRadius: O<string | null>
-    webkitBorderTopRightRadius: O<string | null>
-    webkitBoxAlign: O<string | null>
-    webkitBoxDirection: O<string | null>
-    webkitBoxFlex: O<string | null>
-    webkitBoxOrdinalGroup: O<string | null>
-    webkitBoxOrient: O<string | null>
-    webkitBoxPack: O<string | null>
-    webkitBoxSizing: O<string | null>
-    webkitColumnBreakAfter: O<string | null>
-    webkitColumnBreakBefore: O<string | null>
-    webkitColumnBreakInside: O<string | null>
-    webkitColumnCount: O<any>
-    webkitColumnGap: O<any>
-    webkitColumnRule: O<string | null>
-    webkitColumnRuleColor: O<any>
-    webkitColumnRuleStyle: O<string | null>
-    webkitColumnRuleWidth: O<any>
-    webkitColumnSpan: O<string | null>
-    webkitColumnWidth: O<any>
-    webkitColumns: O<string | null>
-    webkitFilter: O<string | null>
-    webkitFlex: O<string | null>
-    webkitFlexBasis: O<string | null>
-    webkitFlexDirection: O<string | null>
-    webkitFlexFlow: O<string | null>
-    webkitFlexGrow: O<string | null>
-    webkitFlexShrink: O<string | null>
-    webkitFlexWrap: O<string | null>
-    webkitJustifyContent: O<string | null>
-    webkitOrder: O<string | null>
-    webkitPerspective: O<string | null>
-    webkitPerspectiveOrigin: O<string | null>
-    webkitTapHighlightColor: O<string | null>
-    webkitTextFillColor: O<string | null>
-    webkitTextSizeAdjust: O<any>
-    webkitTransform: O<string | null>
-    webkitTransformOrigin: O<string | null>
-    webkitTransformStyle: O<string | null>
-    webkitTransition: O<string | null>
-    webkitTransitionDelay: O<string | null>
-    webkitTransitionDuration: O<string | null>
-    webkitTransitionProperty: O<string | null>
-    webkitTransitionTimingFunction: O<string | null>
-    webkitUserModify: O<string | null>
-    webkitUserSelect: O<string | null>
-    webkitWritingMode: O<string | null>
-    whiteSpace: O<string | null>
-    widows: O<string | null>
-    width: O<string | null>
-    wordBreak: O<string | null>
-    wordSpacing: O<string | null>
-    wordWrap: O<string | null>
-    writingMode: O<string | null>
-    zIndex: O<string | null>
-    zoom: O<string | null>
+    alignContent?: O<string>
+    alignItems?: O<string>
+    alignSelf?: O<string>
+    alignmentBaseline?: O<string>
+    animation?: O<string>
+    animationDelay?: O<string>
+    animationDirection?: O<string>
+    animationDuration?: O<string>
+    animationFillMode?: O<string>
+    animationIterationCount?: O<string>
+    animationName?: O<string>
+    animationPlayState?: O<string>
+    animationTimingFunction?: O<string>
+    backfaceVisibility?: O<string>
+    background?: O<string>
+    backgroundAttachment?: O<string>
+    backgroundClip?: O<string>
+    backgroundColor?: O<string>
+    backgroundImage?: O<string>
+    backgroundOrigin?: O<string>
+    backgroundPosition?: O<string>
+    backgroundPositionX?: O<string>
+    backgroundPositionY?: O<string>
+    backgroundRepeat?: O<string>
+    backgroundSize?: O<string>
+    baselineShift?: O<string>
+    border?: O<string>
+    borderBottom?: O<string>
+    borderBottomColor?: O<string>
+    borderBottomLeftRadius?: O<string>
+    borderBottomRightRadius?: O<string>
+    borderBottomStyle?: O<string>
+    borderBottomWidth?: O<string>
+    borderCollapse?: O<string>
+    borderColor?: O<string>
+    borderImage?: O<string>
+    borderImageOutset?: O<string>
+    borderImageRepeat?: O<string>
+    borderImageSlice?: O<string>
+    borderImageSource?: O<string>
+    borderImageWidth?: O<string>
+    borderLeft?: O<string>
+    borderLeftColor?: O<string>
+    borderLeftStyle?: O<string>
+    borderLeftWidth?: O<string>
+    borderRadius?: O<string>
+    borderRight?: O<string>
+    borderRightColor?: O<string>
+    borderRightStyle?: O<string>
+    borderRightWidth?: O<string>
+    borderSpacing?: O<string>
+    borderStyle?: O<string>
+    borderTop?: O<string>
+    borderTopColor?: O<string>
+    borderTopLeftRadius?: O<string>
+    borderTopRightRadius?: O<string>
+    borderTopStyle?: O<string>
+    borderTopWidth?: O<string>
+    borderWidth?: O<string>
+    bottom?: O<string>
+    boxShadow?: O<string>
+    boxSizing?: O<string>
+    breakAfter?: O<string>
+    breakBefore?: O<string>
+    breakInside?: O<string>
+    captionSide?: O<string>
+    clear?: O<string>
+    clip?: O<string>
+    clipPath?: O<string>
+    clipRule?: O<string>
+    color?: O<string>
+    colorInterpolationFilters?: O<string>
+    columnCount?: O<any>
+    columnFill?: O<string>
+    columnGap?: O<any>
+    columnRule?: O<string>
+    columnRuleColor?: O<any>
+    columnRuleStyle?: O<string>
+    columnRuleWidth?: O<any>
+    columnSpan?: O<string>
+    columnWidth?: O<any>
+    columns?: O<string>
+    content?: O<string>
+    counterIncrement?: O<string>
+    counterReset?: O<string>
+    cssFloat?: O<string>
+    cssText?: O<string>
+    cursor?: O<string>
+    direction?: O<string>
+    display?: O<string>
+    dominantBaseline?: O<string>
+    emptyCells?: O<string>
+    enableBackground?: O<string>
+    fill?: O<string>
+    fillOpacity?: O<string>
+    fillRule?: O<string>
+    filter?: O<string>
+    flex?: O<string>
+    flexBasis?: O<string>
+    flexDirection?: O<string>
+    flexFlow?: O<string>
+    flexGrow?: O<string>
+    flexShrink?: O<string>
+    flexWrap?: O<string>
+    floodColor?: O<string>
+    floodOpacity?: O<string>
+    font?: O<string>
+    fontFamily?: O<string>
+    fontFeatureSettings?: O<string>
+    fontSize?: O<string>
+    fontSizeAdjust?: O<string>
+    fontStretch?: O<string>
+    fontStyle?: O<string>
+    fontVariant?: O<string>
+    fontWeight?: O<string>
+    glyphOrientationHorizontal?: O<string>
+    glyphOrientationVertical?: O<string>
+    height?: O<string>
+    imeMode?: O<string>
+    justifyContent?: O<string>
+    kerning?: O<string>
+    left?: O<string>
+    letterSpacing?: O<string>
+    lightingColor?: O<string>
+    lineHeight?: O<string>
+    listStyle?: O<string>
+    listStyleImage?: O<string>
+    listStylePosition?: O<string>
+    listStyleType?: O<string>
+    margin?: O<string>
+    marginBottom?: O<string>
+    marginLeft?: O<string>
+    marginRight?: O<string>
+    marginTop?: O<string>
+    marker?: O<string>
+    markerEnd?: O<string>
+    markerMid?: O<string>
+    markerStart?: O<string>
+    mask?: O<string>
+    maxHeight?: O<string>
+    maxWidth?: O<string>
+    minHeight?: O<string>
+    minWidth?: O<string>
+    msContentZoomChaining?: O<string>
+    msContentZoomLimit?: O<string>
+    msContentZoomLimitMax?: O<any>
+    msContentZoomLimitMin?: O<any>
+    msContentZoomSnap?: O<string>
+    msContentZoomSnapPoints?: O<string>
+    msContentZoomSnapType?: O<string>
+    msContentZooming?: O<string>
+    msFlowFrom?: O<string>
+    msFlowInto?: O<string>
+    msFontFeatureSettings?: O<string>
+    msGridColumn?: O<any>
+    msGridColumnAlign?: O<string>
+    msGridColumnSpan?: O<any>
+    msGridColumns?: O<string>
+    msGridRow?: O<any>
+    msGridRowAlign?: O<string>
+    msGridRowSpan?: O<any>
+    msGridRows?: O<string>
+    msHighContrastAdjust?: O<string>
+    msHyphenateLimitChars?: O<string>
+    msHyphenateLimitLines?: O<any>
+    msHyphenateLimitZone?: O<any>
+    msHyphens?: O<string>
+    msImeAlign?: O<string>
+    msOverflowStyle?: O<string>
+    msScrollChaining?: O<string>
+    msScrollLimit?: O<string>
+    msScrollLimitXMax?: O<any>
+    msScrollLimitXMin?: O<any>
+    msScrollLimitYMax?: O<any>
+    msScrollLimitYMin?: O<any>
+    msScrollRails?: O<string>
+    msScrollSnapPointsX?: O<string>
+    msScrollSnapPointsY?: O<string>
+    msScrollSnapType?: O<string>
+    msScrollSnapX?: O<string>
+    msScrollSnapY?: O<string>
+    msScrollTranslation?: O<string>
+    msTextCombineHorizontal?: O<string>
+    msTextSizeAdjust?: O<any>
+    msTouchAction?: O<string>
+    msTouchSelect?: O<string>
+    msUserSelect?: O<string>
+    msWrapFlow?: O<string>
+    msWrapMargin?: O<any>
+    msWrapThrough?: O<string>
+    opacity?: O<string>
+    order?: O<string>
+    orphans?: O<string>
+    outline?: O<string>
+    outlineColor?: O<string>
+    outlineStyle?: O<string>
+    outlineWidth?: O<string>
+    overflow?: O<string>
+    overflowX?: O<string>
+    overflowY?: O<string>
+    padding?: O<string>
+    paddingBottom?: O<string>
+    paddingLeft?: O<string>
+    paddingRight?: O<string>
+    paddingTop?: O<string>
+    pageBreakAfter?: O<string>
+    pageBreakBefore?: O<string>
+    pageBreakInside?: O<string>
+    // readonly parentRule?: CSSRule
+    perspective?: O<string>
+    perspectiveOrigin?: O<string>
+    pointerEvents?: O<string>
+    position?: O<string>
+    quotes?: O<string>
+    right?: O<string>
+    rubyAlign?: O<string>
+    rubyOverhang?: O<string>
+    rubyPosition?: O<string>
+    stopColor?: O<string>
+    stopOpacity?: O<string>
+    stroke?: O<string>
+    strokeDasharray?: O<string>
+    strokeDashoffset?: O<string>
+    strokeLinecap?: O<string>
+    strokeLinejoin?: O<string>
+    strokeMiterlimit?: O<string>
+    strokeOpacity?: O<string>
+    strokeWidth?: O<string>
+    tableLayout?: O<string>
+    textAlign?: O<string>
+    textAlignLast?: O<string>
+    textAnchor?: O<string>
+    textDecoration?: O<string>
+    textIndent?: O<string>
+    textJustify?: O<string>
+    textKashida?: O<string>
+    textKashidaSpace?: O<string>
+    textOverflow?: O<string>
+    textShadow?: O<string>
+    textTransform?: O<string>
+    textUnderlinePosition?: O<string>
+    top?: O<string>
+    touchAction?: O<string>
+    transform?: O<string>
+    transformOrigin?: O<string>
+    transformStyle?: O<string>
+    transition?: O<string>
+    transitionDelay?: O<string>
+    transitionDuration?: O<string>
+    transitionProperty?: O<string>
+    transitionTimingFunction?: O<string>
+    unicodeBidi?: O<string>
+    verticalAlign?: O<string>
+    visibility?: O<string>
+    webkitAlignContent?: O<string>
+    webkitAlignItems?: O<string>
+    webkitAlignSelf?: O<string>
+    webkitAnimation?: O<string>
+    webkitAnimationDelay?: O<string>
+    webkitAnimationDirection?: O<string>
+    webkitAnimationDuration?: O<string>
+    webkitAnimationFillMode?: O<string>
+    webkitAnimationIterationCount?: O<string>
+    webkitAnimationName?: O<string>
+    webkitAnimationPlayState?: O<string>
+    webkitAnimationTimingFunction?: O<string>
+    webkitAppearance?: O<string>
+    webkitBackfaceVisibility?: O<string>
+    webkitBackgroundClip?: O<string>
+    webkitBackgroundOrigin?: O<string>
+    webkitBackgroundSize?: O<string>
+    webkitBorderBottomLeftRadius?: O<string>
+    webkitBorderBottomRightRadius?: O<string>
+    webkitBorderImage?: O<string>
+    webkitBorderRadius?: O<string>
+    webkitBorderTopLeftRadius?: O<string>
+    webkitBorderTopRightRadius?: O<string>
+    webkitBoxAlign?: O<string>
+    webkitBoxDirection?: O<string>
+    webkitBoxFlex?: O<string>
+    webkitBoxOrdinalGroup?: O<string>
+    webkitBoxOrient?: O<string>
+    webkitBoxPack?: O<string>
+    webkitBoxSizing?: O<string>
+    webkitColumnBreakAfter?: O<string>
+    webkitColumnBreakBefore?: O<string>
+    webkitColumnBreakInside?: O<string>
+    webkitColumnCount?: O<any>
+    webkitColumnGap?: O<any>
+    webkitColumnRule?: O<string>
+    webkitColumnRuleColor?: O<any>
+    webkitColumnRuleStyle?: O<string>
+    webkitColumnRuleWidth?: O<any>
+    webkitColumnSpan?: O<string>
+    webkitColumnWidth?: O<any>
+    webkitColumns?: O<string>
+    webkitFilter?: O<string>
+    webkitFlex?: O<string>
+    webkitFlexBasis?: O<string>
+    webkitFlexDirection?: O<string>
+    webkitFlexFlow?: O<string>
+    webkitFlexGrow?: O<string>
+    webkitFlexShrink?: O<string>
+    webkitFlexWrap?: O<string>
+    webkitJustifyContent?: O<string>
+    webkitOrder?: O<string>
+    webkitPerspective?: O<string>
+    webkitPerspectiveOrigin?: O<string>
+    webkitTapHighlightColor?: O<string>
+    webkitTextFillColor?: O<string>
+    webkitTextSizeAdjust?: O<any>
+    webkitTransform?: O<string>
+    webkitTransformOrigin?: O<string>
+    webkitTransformStyle?: O<string>
+    webkitTransition?: O<string>
+    webkitTransitionDelay?: O<string>
+    webkitTransitionDuration?: O<string>
+    webkitTransitionProperty?: O<string>
+    webkitTransitionTimingFunction?: O<string>
+    webkitUserModify?: O<string>
+    webkitUserSelect?: O<string>
+    webkitWritingMode?: O<string>
+    whiteSpace?: O<string>
+    widows?: O<string>
+    width?: O<string>
+    wordBreak?: O<string>
+    wordSpacing?: O<string>
+    wordWrap?: O<string>
+    writingMode?: O<string>
+    zIndex?: O<string>
+    zoom?: O<string>
 }
