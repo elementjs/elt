@@ -93,7 +93,7 @@ declare global {
     }
 
     export interface ElementClassFn {
-      (attrs: BasicAttributes, children: Child[]): Node
+      (attrs: BasicAttributes, children: DocumentFragment): Node
     }
 
     export type ElementClass = ElementClassFn | Component
