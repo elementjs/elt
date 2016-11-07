@@ -119,6 +119,7 @@ export class Observable<T> {
     this._observers = []
   }
 
+  get<K extends keyof T>(p: K): T[K];
   get<U>(p: string): U;
   get<V>(this: Observable<V[]>, idx: number): V;
   get<U>(p: Extractor<T, U>): U;
@@ -128,10 +129,11 @@ export class Observable<T> {
     return pathget(this._value, _getprop(p))
   }
 
-  set<U>(prop: Extractor<T, U>, value: U): boolean;
-  set<U>(prop: string, value: U): boolean;
-  set<V>(this: Observable<V[]>, idx: number, value: V): boolean;
-  set(value: T): boolean;
+  set<K extends keyof T>(prop: K, value: T[K]): boolean
+  set<U>(prop: Extractor<T, U>, value: U): boolean
+  set<U>(prop: string, value: U): boolean
+  set<V>(this: Observable<V[]>, idx: number, value: V): boolean
+  set(value: T): boolean
   set(prop: any, value?: any): boolean {
     let changed = false
     if (arguments.length > 1) {
@@ -170,13 +172,15 @@ export class Observable<T> {
     }
   }
 
-  prop<U>(prop: string): Observable<U>;
-  prop<U>(extractor: Extractor<T, U>): Observable<U>;
-  prop<U>(this: Observable<U[]>, prop: number): Observable<U>;
+  prop<K extends keyof T>(prop: K): Observable<T[K]>
+  prop<U>(prop: string): Observable<U>
+  prop<U>(extractor: Extractor<T, U>): Observable<U>
+  prop<U>(this: Observable<U[]>, prop: number): Observable<U>
   prop<U>(prop : string|number|Extractor<T, U>) : Observable<U> {
     return new PropObservable<T, U>(this, _getprop(prop))
   }
 
+  p<K extends keyof T>(prop: K): Observable<T[K]>
   p<U>(extractor: Extractor<T,U>): Observable<U>;
   p<U>(this: Observable<U[]>, prop: number): Observable<U>;
   p<U>(prop: string): Observable<U>;
@@ -185,9 +189,9 @@ export class Observable<T> {
   }
 
   tf<U>(transformer : Transformer<T, U> | TransformFn<T, U>) : Observable<U>;
-  tf<U, V>(prop: string, transformer : Transformer<U, V> | TransformFn<U, V>) : Observable<V>;
-  tf<U, V>(prop: Extractor<T, U>, transformer : Transformer<U, V> | TransformFn<U, V>) : Observable<V>;
-  tf<U, V>(this: Observable<U[]>, prop: number, transformer : Transformer<U, V> | TransformFn<U, V>) : Observable<V>;
+  // tf<U, V>(prop: string, transformer : Transformer<U, V> | TransformFn<U, V>) : Observable<V>;
+  // tf<U, V>(prop: Extractor<T, U>, transformer : Transformer<U, V> | TransformFn<U, V>) : Observable<V>;
+  // tf<U, V>(this: Observable<U[]>, prop: number, transformer : Transformer<U, V> | TransformFn<U, V>) : Observable<V>;
   tf<U>(prop: any, transformer?: any) : Observable<U> {
     let obs: Observable<any> = this
     if (arguments.length > 1) {
@@ -382,9 +386,10 @@ export class PropObservable<T, U> extends Observable<U> {
     this._unregister = null
   }
 
-  get<A>(p: string): A;
-  get<A>(this: Observable<A[]>, idx: number): A;
-  get<U>(prop: Extractor<T, U>): U;
+  get<K extends keyof U>(p: K): U[K]
+  get<A>(p: string): A
+  get<A>(this: Observable<A[]>, idx: number): A
+  get<U>(prop: Extractor<T, U>): U
   get(): U;
   get(prop?: any): any {
     if (!this._unregister) {
@@ -394,10 +399,11 @@ export class PropObservable<T, U> extends Observable<U> {
     return prop ? pathget(this._value, _getprop(prop)) : this._value
   }
 
-  set<A>(prop: string, value: A): boolean;
-  set<V>(prop: Extractor<U, V>, value: V): boolean;
-  set<A>(this: Observable<A[]>, idx: number, value: A): boolean;
-  set(value: U): boolean;
+  set<K extends keyof U>(prop: K, value: U[K]): boolean
+  set<A>(prop: string, value: A): boolean
+  set<V>(prop: Extractor<U, V>, value: V): boolean
+  set<A>(this: Observable<A[]>, idx: number, value: A): boolean
+  set(value: U): boolean
   set(prop: any, value?: any): boolean {
     if (arguments.length > 1) {
       return this._obs.set(pathjoin(this._prop, _getprop(prop)), value)
@@ -412,6 +418,7 @@ export class PropObservable<T, U> extends Observable<U> {
    * We just want to avoid handling PropObservable based on other
    * PropObservables.
    */
+  prop<K extends keyof U>(p: K): Observable<U[K]>
   prop<V>(prop: string): Observable<V>;
   prop<V>(extractor: Extractor<U, V>): Observable<V>;
   prop<V>(this: Observable<V[]>, prop: number): Observable<V>;
@@ -474,10 +481,11 @@ export class TransformObservable<T, U> extends Observable<U> {
     this._unregister = null
   }
 
-  get<U>(p: string): U;
-  get<V>(this: Observable<V[]>, idx: number): V;
-  get<V>(p: Extractor<U, V>): V;
-  get(): U;
+  get<K extends keyof U>(p: K): U[K]
+  get<U>(p: string): U
+  get<V>(this: Observable<V[]>, idx: number): V
+  get<V>(p: Extractor<U, V>): V
+  get(): U
   get(p?: any) : any {
 
     if (!this._unregister) {
