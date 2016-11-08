@@ -119,21 +119,23 @@ export class Observable<T> {
     this._observers = []
   }
 
-  get<K extends keyof T>(p: K): T[K];
-  get<U>(p: string): U;
+  // get<U>(p: string): U;
   get<V>(this: Observable<V[]>, idx: number): V;
   get<U>(p: Extractor<T, U>): U;
   get(): T;
+  get<K extends keyof T>(p: K): T[K];
+
   get(p?: any) : any {
     if (p == null || p === '') return this._value
     return pathget(this._value, _getprop(p))
   }
 
-  set<K extends keyof T>(prop: K, value: T[K]): boolean
   set<U>(prop: Extractor<T, U>, value: U): boolean
-  set<U>(prop: string, value: U): boolean
+  // set<U>(prop: string, value: U): boolean
   set<V>(this: Observable<V[]>, idx: number, value: V): boolean
+  set<K extends keyof T>(prop: K, value: T[K]): boolean
   set(value: T): boolean
+
   set(prop: any, value?: any): boolean {
     let changed = false
     if (arguments.length > 1) {
@@ -172,18 +174,26 @@ export class Observable<T> {
     }
   }
 
-  prop<K extends keyof T>(prop: K): Observable<T[K]>
-  prop<U>(prop: string): Observable<U>
+  /**
+   *
+   */
+  // prop<U>(prop: string): Observable<U>
   prop<U>(extractor: Extractor<T, U>): Observable<U>
   prop<U>(this: Observable<U[]>, prop: number): Observable<U>
+  prop<K extends keyof T>(prop: K): Observable<T[K]>
+
   prop<U>(prop : string|number|Extractor<T, U>) : Observable<U> {
     return new PropObservable<T, U>(this, _getprop(prop))
   }
 
-  p<K extends keyof T>(prop: K): Observable<T[K]>
+  /**
+   *
+   */
   p<U>(extractor: Extractor<T,U>): Observable<U>;
   p<U>(this: Observable<U[]>, prop: number): Observable<U>;
-  p<U>(prop: string): Observable<U>;
+  p<K extends keyof T>(prop: K): Observable<T[K]>
+  // p<U>(prop: string): Observable<U>;
+
   p<U>(prop: string|number|Extractor<T, U>): Observable<U> {
     return this.prop(prop as any) as PropObservable<T, U>
   }
@@ -387,7 +397,7 @@ export class PropObservable<T, U> extends Observable<U> {
   }
 
   get<K extends keyof U>(p: K): U[K]
-  get<A>(p: string): A
+  // get<A>(p: string): A
   get<A>(this: Observable<A[]>, idx: number): A
   get<U>(prop: Extractor<T, U>): U
   get(): U;
@@ -400,7 +410,7 @@ export class PropObservable<T, U> extends Observable<U> {
   }
 
   set<K extends keyof U>(prop: K, value: U[K]): boolean
-  set<A>(prop: string, value: A): boolean
+  // set<A>(prop: string, value: A): boolean
   set<V>(prop: Extractor<U, V>, value: V): boolean
   set<A>(this: Observable<A[]>, idx: number, value: A): boolean
   set(value: U): boolean
@@ -419,7 +429,7 @@ export class PropObservable<T, U> extends Observable<U> {
    * PropObservables.
    */
   prop<K extends keyof U>(p: K): Observable<U[K]>
-  prop<V>(prop: string): Observable<V>;
+  // prop<V>(prop: string): Observable<V>;
   prop<V>(extractor: Extractor<U, V>): Observable<V>;
   prop<V>(this: Observable<V[]>, prop: number): Observable<V>;
   prop<V>(prop : string|number|Extractor<U, V>) : Observable<V> {
@@ -482,7 +492,7 @@ export class TransformObservable<T, U> extends Observable<U> {
   }
 
   get<K extends keyof U>(p: K): U[K]
-  get<U>(p: string): U
+  // get<U>(p: string): U
   get<V>(this: Observable<V[]>, idx: number): V
   get<V>(p: Extractor<U, V>): V
   get(): U
