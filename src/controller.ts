@@ -16,7 +16,6 @@ import {
 
 const nodeControllerMap = new WeakMap<Node, Controller[]>()
 
-
 /**
  *
  */
@@ -24,7 +23,9 @@ export function onmount(fn: ControllerCallback): Decorator;
 export function onmount(target: any, key: string): void;
 
 export function onmount(target: any, key?: string): any {
-  if (typeof target === 'function') return target
+  if (typeof target === 'function') {
+    return function (n: Node) { DefaultController.get(n).onmount.push(target) }
+  }
 
   target.onmount = target.onmount || (target.constructor.prototype.onmount||[]).concat([])
   target.onmount.push(target[key])
@@ -38,16 +39,17 @@ export function onfirstmount(fn: ControllerCallback): Decorator;
 export function onfirstmount(target: any, key: string): void;
 
 export function onfirstmount(target: any, key?: string): any {
-  if (typeof target === 'function') return target
-
-  target.onmount = target.onmount || (target.constructor.prototype.onmount||[]).slice()
-
-  let fn = target[key]
+  let fn = typeof target === 'function' ? target : target[key]
   function first_mount(node: any) {
     this.onmount = this.onmount.filter((f: any) => f !== first_mount)
     fn.call(this, node)
   }
 
+  if (typeof target === 'function') {
+    return function (n: Node) { DefaultController.get(n).onmount.push(first_mount) }
+  }
+
+  target.onmount = target.onmount || (target.constructor.prototype.onmount||[]).slice()
   target.onmount.push(first_mount)
 }
 
@@ -56,7 +58,7 @@ export function onunmount(fn: ControllerCallback): Decorator;
 export function onunmount(target: any, key: string): void;
 
 export function onunmount(target: any, key?: string): any {
-  if (typeof target === 'function') return target
+  if (typeof target === 'function') return function (n: Node) { DefaultController.get(n).onunmount.push(target) }
 
   target.onunmount = target.onunmount || (target.constructor.prototype.onunmount||[]).slice()
   target.onunmount.push(target[key])
@@ -67,7 +69,7 @@ export function onrender(fn: ControllerCallback): Decorator;
 export function onrender(target: any, key: string): void;
 
 export function onrender(target: any, key?: string): any {
-  if (typeof target === 'function') return target
+  if (typeof target === 'function') return function (n: Node) { DefaultController.get(n).onrender.push(target) }
 
   target.onrender = target.onrender || (target.constructor.prototype.onrender||[]).slice()
   target.onrender.push(target[key])
@@ -181,6 +183,17 @@ export class Controller {
  * Useless controller just used to register observables used by class or style
  */
 export class DefaultController extends Controller {
+
+  static get(n: Node): DefaultController {
+
+    let d = super.get.call(this, n) as DefaultController
+    if (!d) {
+      d = new DefaultController()
+      d.bindToNode(n)
+    }
+
+    return d
+  }
 
 }
 
