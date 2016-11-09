@@ -38,6 +38,7 @@ export {
   ctrl,
   HTMLComponent,
   onmount,
+  onfirstmount,
   onrender,
   onunmount
 } from './controller'

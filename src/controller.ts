@@ -25,14 +25,30 @@ export function onmount(target: any, key: string) {
 }
 
 
+/**
+ *
+ */
+export function onfirstmount(target: any, key: string) {
+  target.onmount = target.onmount || (target.constructor.prototype.onmount||[]).slice()
+
+  let fn = target[key]
+  function first_mount(node: any) {
+    this.onmount = this.onmount.filter((f: any) => f !== first_mount)
+    fn.call(this, node)
+  }
+
+  target.onmount.push(first_mount)
+}
+
+
 export function onunmount(target: any, key: string) {
-  target.onunmount = target.onunmount || (target.constructor.prototype.onunmount||[]).concat([])
+  target.onunmount = target.onunmount || (target.constructor.prototype.onunmount||[]).slice()
   target.onunmount.push(target[key])
 }
 
 
 export function onrender(target: any, key: string) {
-  target.onrender = target.onrender || (target.constructor.prototype.onrender||[]).concat([])
+  target.onrender = target.onrender || (target.constructor.prototype.onrender||[]).slice()
   target.onrender.push(target[key])
 }
 
