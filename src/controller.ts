@@ -10,6 +10,7 @@ import {
   BasicAttributes,
   Child,
   ControllerCallback,
+  Decorator
 } from './types'
 
 
@@ -19,7 +20,12 @@ const nodeControllerMap = new WeakMap<Node, Controller[]>()
 /**
  *
  */
-export function onmount(target: any, key: string) {
+export function onmount(fn: ControllerCallback): Decorator;
+export function onmount(target: any, key: string): void;
+
+export function onmount(target: any, key?: string): any {
+  if (typeof target === 'function') return target
+
   target.onmount = target.onmount || (target.constructor.prototype.onmount||[]).concat([])
   target.onmount.push(target[key])
 }
@@ -28,7 +34,12 @@ export function onmount(target: any, key: string) {
 /**
  *
  */
-export function onfirstmount(target: any, key: string) {
+export function onfirstmount(fn: ControllerCallback): Decorator;
+export function onfirstmount(target: any, key: string): void;
+
+export function onfirstmount(target: any, key?: string): any {
+  if (typeof target === 'function') return target
+
   target.onmount = target.onmount || (target.constructor.prototype.onmount||[]).slice()
 
   let fn = target[key]
@@ -41,13 +52,23 @@ export function onfirstmount(target: any, key: string) {
 }
 
 
-export function onunmount(target: any, key: string) {
+export function onunmount(fn: ControllerCallback): Decorator;
+export function onunmount(target: any, key: string): void;
+
+export function onunmount(target: any, key?: string): any {
+  if (typeof target === 'function') return target
+
   target.onunmount = target.onunmount || (target.constructor.prototype.onunmount||[]).slice()
   target.onunmount.push(target[key])
 }
 
 
-export function onrender(target: any, key: string) {
+export function onrender(fn: ControllerCallback): Decorator;
+export function onrender(target: any, key: string): void;
+
+export function onrender(target: any, key?: string): any {
+  if (typeof target === 'function') return target
+
   target.onrender = target.onrender || (target.constructor.prototype.onrender||[]).slice()
   target.onrender.push(target[key])
 }
