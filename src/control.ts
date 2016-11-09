@@ -275,8 +275,9 @@ export class RepeatComponent<T> extends VirtualHolder {
   render(): Node {
     this.obs = o(this.attrs.ob)
 
-    this.observe(this.attrs.ob, lst => {
-      this.redrawList(lst)
+    this.observe(this.attrs.ob, (lst, prop) => {
+      if (!prop)
+        this.redrawList(lst)
     })
 
     return super.render()
