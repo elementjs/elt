@@ -46,9 +46,10 @@ export function pathset(obj : any, path : string|number, value : any) : boolean 
  * @param  {[string]} ...args [description]
  * @return {string}           [description]
  */
-export function pathjoin(...args : string[]) : string {
+export function pathjoin(...args : any[]) : string {
   const pathes: string[] = []
   for (let pth of args) {
+    pth = '' + pth
     if (!pth) continue
     if (pth) pathes.push(pth)
   }
@@ -70,7 +71,7 @@ export type Ancestry = 'C' | 'A' | 'U'
 /**
  * Returns p1 is Child|Ancestor of p2
  */
-function _get_ancestry(p1: string, p2: string): Ancestry {
+function _get_ancestry(p1: keyof any, p2: keyof any): Ancestry {
   p1 = '' + (p1 || '')
   p2 = '' + (p2 || '')
 
@@ -177,22 +178,19 @@ export class Observable<T> {
   /**
    *
    */
-  // prop<U>(prop: string): Observable<U>
   prop<U>(extractor: Extractor<T, U>): Observable<U>
-  prop<U>(this: Observable<U[]>, prop: number): Observable<U>
   prop<K extends keyof T>(prop: K): Observable<T[K]>
 
-  prop<U>(prop : string|number|Extractor<T, U>) : Observable<U> {
-    return new PropObservable<T, U>(this, _getprop(prop))
+  prop<U>(prop : keyof T|Extractor<T, U>) : Observable<U> {
+    // we cheat here.
+    return new PropObservable<T, U>(this, _getprop(prop) as any)
   }
 
   /**
    *
    */
   p<U>(extractor: Extractor<T,U>): Observable<U>;
-  p<U>(this: Observable<U[]>, prop: number): Observable<U>;
   p<K extends keyof T>(prop: K): Observable<T[K]>
-  // p<U>(prop: string): Observable<U>;
 
   p<U>(prop: string|number|Extractor<T, U>): Observable<U> {
     return this.prop(prop as any) as PropObservable<T, U>
@@ -385,13 +383,13 @@ export class Observable<T> {
  */
 export class PropObservable<T, U> extends Observable<U> {
 
-  protected _prop : string
+  protected _prop : keyof T
   protected _obs : Observable<T>
   protected _unregister: () => void
 
-  constructor(obs : Observable<T>, prop : string|number) {
+  constructor(obs : Observable<T>, prop : keyof T) {
     super(undefined)
-    this._prop = "" + prop // force prop as a string
+    this._prop = prop // force prop as a string
     this._obs = obs
     this._unregister = null
   }
@@ -416,10 +414,10 @@ export class PropObservable<T, U> extends Observable<U> {
   set(value: U): boolean
   set(prop: any, value?: any): boolean {
     if (arguments.length > 1) {
-      return this._obs.set(pathjoin(this._prop, _getprop(prop)), value)
+      return this._obs.set(pathjoin(this._prop, _getprop(prop)) as any, value)
     } else {
       // value = prop, since there is only one argument
-      return this._obs.set(this._prop, prop)
+      return this._obs.set(this._prop as any, prop)
     }
   }
 
@@ -433,39 +431,39 @@ export class PropObservable<T, U> extends Observable<U> {
   prop<V>(extractor: Extractor<U, V>): Observable<V>;
   prop<V>(this: Observable<V[]>, prop: number): Observable<V>;
   prop<V>(prop : string|number|Extractor<U, V>) : Observable<V> {
-    return new PropObservable<T, V>(this._obs, pathjoin(this._prop, _getprop(prop)))
+    return new PropObservable<T, V>(this._obs, pathjoin(this._prop, _getprop(prop)) as any)
   }
 
 
   protected _refresh() {
     const old_val = this._value
-    const new_val = this._value = this._obs.get<U>(this._prop)
+    const new_val = this._value = this._obs.get(this._prop)
 
     for (let ob of this._observers)
       ob(new_val, '')
   }
 
   oHasNext<T>(this: PropObservable<T[], T>): Observable<boolean> {
-    return o(this._obs.p<number>('length'), len => parseInt(this._prop) < len)
+    return o(this._obs.p('length'), len => this._prop < len)
   }
 
   oHasPrev<T>(this: PropObservable<T[], T>): Observable<boolean> {
-    return o(this._obs.p<number>('length'), len => parseInt(this._prop) >= 0 && len > 0)
+    return o(this._obs.p('length'), len => this._prop >= 0 && len > 0)
   }
 
   next<T>(this: PropObservable<T[], T>): PropObservable<T[], T> {
-    return new PropObservable<T[], T>(this._obs, parseInt(this._prop) + 1)
+    return new PropObservable<T[], T>(this._obs, this._prop as number + 1)
   }
 
   prev<T>(this: PropObservable<T[], T>): PropObservable<T[], T> {
-    return new PropObservable<T[], T>(this._obs, parseInt(this._prop) - 1)
+    return new PropObservable<T[], T>(this._obs, this._prop as number - 1)
   }
 
   addObserver(fn: Observer<U>) {
     if (!this._unregister) {
       this._unregister = this._obs.addObserver((value, prop) => {
         // if changed_prop has nothing to do with us, then just ignore the set.
-        let ancestry = _get_ancestry(this._prop, prop)
+        let ancestry = _get_ancestry(this._prop as any, prop)
         if (ancestry === Unrelated) return
 
         this._refresh()
