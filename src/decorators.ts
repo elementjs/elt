@@ -290,3 +290,94 @@ export function click(cbk: Listener<MouseEvent>) {
   }
 
 }
+
+
+let on_mobile = typeof(window) !== 'undefined' ? /iPad|iPhone|iPod/.test(window.navigator.userAgent) && !(window as any).MSStream : false
+export var THRESHOLD = 300 // 10 milliseconds
+export var DISTANCE_THRESHOLD = 10
+
+var _ghost_done = new WeakMap<Document, boolean>()
+function _disable_ghost_click(n: Node) {
+  if (_ghost_done.get(n.ownerDocument)) return
+
+  _ghost_done.set(n.ownerDocument, true)
+
+  let last_fake = Date.now()
+
+  n.ownerDocument.body.addEventListener('click', (ev: MouseEvent) => {
+    if (ev.detail === -1) {
+      last_fake = Date.now()
+      // alert('fake !')
+    }
+
+    if (Date.now() - last_fake < THRESHOLD*2 && ev.detail !== -1) {
+      ev.preventDefault()
+      ev.stopPropagation()
+      // alert('canceled !')
+    }
+
+  }, true)
+}
+
+export function clickfix(node: Node): void {
+
+  let last_ev: TouchEvent = null
+  let last_call: number = 0
+
+  node.addEventListener('touchstart', (ev: TouchEvent) => {
+    last_ev = ev
+    last_call = Date.now()
+  })
+
+  node.addEventListener('touchend', (ev: TouchEvent) => {
+    let now = Date.now()
+    // alert(JSON.stringify(ev))
+    // alert(JSON.stringify(last_ev))
+
+    let dx = ev.changedTouches[0].pageX - last_ev.touches[0].pageX
+    let dy = ev.changedTouches[0].pageY - last_ev.touches[0].pageY
+
+    if (last_ev.target !== ev.target
+      || now - last_call > THRESHOLD
+      || (dx * dx + dy * dy) > DISTANCE_THRESHOLD * DISTANCE_THRESHOLD
+    ) {
+      // do nothing if the target is not the same
+    } else {
+      // If we got here, we can safely call the callback.
+      last_call = now
+
+      // alert(JSON.stringify(ev))
+      var init: MouseEventInit = {
+        altKey: ev.altKey,
+        shiftKey: ev.shiftKey,
+        ctrlKey: ev.ctrlKey,
+        clientX: ev.changedTouches[0].clientX,
+        clientY: ev.changedTouches[0].clientY,
+        detail: -1,
+        bubbles: ev.bubbles,
+        button: 0,
+        cancelable: ev.cancelable,
+        metaKey: ev.metaKey,
+        screenX: ev.changedTouches[0].screenX,
+        screenY: ev.changedTouches[0].screenY,
+      }
+      // alert(JSON.stringify(init))
+      node.dispatchEvent(new MouseEvent('click', init))
+      // cbk(ev, atom)
+    }
+
+    last_ev = null
+  })
+
+  _disable_ghost_click(node)
+
+  // node.addEventListener('click', (ev: MouseEvent) => {
+  //   // prevent ghost click...
+  //   let now = Date.now()
+  //   if (now - last_call < THRESHOLD) {
+  //     ev.preventDefault()
+  //     ev.stopPropagation()
+  //   }
+  // }, true)
+
+}
