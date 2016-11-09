@@ -473,6 +473,14 @@ export class PropObservable<T, U> extends Observable<U> {
     return super.addObserver(fn)
   }
 
+  removeObserver(fn: Observer<U>) {
+    super.removeObserver(fn)
+    if (this._observers.length === 0) {
+      this._unregister()
+      this._unregister = null
+    }
+  }
+
 }
 
 

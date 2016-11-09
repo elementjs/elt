@@ -35,11 +35,11 @@ import {
  */
 function _mount(node: Node) {
   let controllers = Controller.all(node)
-  if (!controllers) return
-
-  for (var c of controllers) {
-    for (var f of c.onmount) {
-      f.call(c, node)
+  if (controllers) {
+    for (var c of controllers) {
+      for (var f of c.onmount) {
+        f.call(c, node)
+      }
     }
   }
 
@@ -56,13 +56,14 @@ function _mount(node: Node) {
  */
 function _unmount(node: Node) {
   let controllers = Controller.all(node)
-  if (!controllers) return
-
-  for (var c of controllers) {
-    for (var f of c.onunmount) {
-      f.call(c, node)
+  if (controllers) {
+    for (var c of controllers) {
+      for (var f of c.onunmount) {
+        f.call(c, node)
+      }
     }
   }
+
 
   var ch = node.firstChild
   while (ch) {
