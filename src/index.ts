@@ -29,6 +29,7 @@ export {
   BindController,
   BindControllerOptions,
   click,
+  clickfix,
   on
 } from './decorators'
 
