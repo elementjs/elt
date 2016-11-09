@@ -321,11 +321,15 @@ function _disable_ghost_click(n: Node) {
 
 export function clickfix(node: Node): void {
 
-  let last_ev: TouchEvent = null
+  let lasttarget: EventTarget = null
+  let lastx = 0
+  let lasty = 0
   let last_call: number = 0
 
   node.addEventListener('touchstart', (ev: TouchEvent) => {
-    last_ev = ev
+    lasttarget = ev.target
+    lastx = ev.touches[0].pageX
+    lasty = ev.touches[0].pageY
     last_call = Date.now()
   })
 
@@ -334,10 +338,10 @@ export function clickfix(node: Node): void {
     // alert(JSON.stringify(ev))
     // alert(JSON.stringify(last_ev))
 
-    let dx = ev.changedTouches[0].pageX - last_ev.touches[0].pageX
-    let dy = ev.changedTouches[0].pageY - last_ev.touches[0].pageY
+    let dx = ev.changedTouches[0].pageX - lastx
+    let dy = ev.changedTouches[0].pageY - lasty
 
-    if (last_ev.target !== ev.target
+    if (lasttarget !== ev.target
       || now - last_call > THRESHOLD
       || (dx * dx + dy * dy) > DISTANCE_THRESHOLD * DISTANCE_THRESHOLD
     ) {
@@ -364,9 +368,10 @@ export function clickfix(node: Node): void {
       // alert(JSON.stringify(init))
       node.dispatchEvent(new MouseEvent('click', init))
       // cbk(ev, atom)
+      lasttarget = null
     }
 
-    last_ev = null
+
   })
 
   _disable_ghost_click(node)
