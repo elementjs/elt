@@ -526,15 +526,28 @@ export class TransformObservable<T, U> extends Observable<U> {
    * The transform observable does not set itself directly. Instead, it
    * forwards the set to its observed.
    */
-  set<A>(prop: string, value: A): boolean;
+  set<K extends keyof T>(prop: K, value: T[K]): boolean;
   set<V>(prop: Extractor<U, V>, value: V): boolean;
-  set<A>(this: Observable<A[]>, idx: number, value: A): boolean;
   set(value: U): boolean;
-  set(value: any, error?: any): boolean {
-    if (arguments.length > 1)
-      throw new Error('transformers cannot set subpath')
-    return this._obs.set(this._transformer.set(value))
+  set(value: any, value2?: any): boolean {
+    let final_value = value
 
+    if (arguments.length > 1) {
+
+      if (!this._unregister) {
+        // Nobody is watching this observable, so it is not up to date.
+        // we refresh it before applying the pathset.
+        this._value = this._transformer.get(this._obs.get())
+      }
+
+      // do the pathset internally, before writing back the value
+      // into the parent observable
+      pathset(this._value, value, value2)
+      final_value = this._value
+    }
+
+    // this set should trigger _refresh() if this observable was being watched.
+    return this._obs.set(this._transformer.set(final_value))
   }
 
   addObserver(fn: Observer<U>) {
