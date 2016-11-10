@@ -578,17 +578,12 @@ export class DependentObservable<T> extends Observable<T> {
     this._ignore_updates = false
   }
 
-  get(): T {
+  get(): T
+  get<U>(fn?: Extractor<T, U>): U
+  get<K extends keyof T>(path?: K): T[K]
+  get(path?: any): T {
     if (this._observers.length === 0) this._refresh()
-    return this._value
-  }
-
-  /**
-   * @deprecated
-   */
-  getp<U>(prop: string): U {
-    if (this._observers.length === 0) this._refresh()
-    return pathget(this._value, prop) as U
+    return path ? pathget<T>(this._value, path) : this._value
   }
 
   set(...a: any[]): boolean {
