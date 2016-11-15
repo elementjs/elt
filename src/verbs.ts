@@ -14,9 +14,12 @@ import {
 } from './domic'
 
 import {
-  Component,
   onmount,
-  onunmount
+  onunmount,
+} from './decorators'
+
+import {
+  Component,
 } from './controller'
 
 import {

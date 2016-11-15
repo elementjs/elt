@@ -30,6 +30,10 @@ export {
   BindControllerOptions,
   click,
   clickfix,
+  onmount,
+  onfirstmount,
+  onrender,
+  onunmount,
   on
 } from './decorators'
 
@@ -38,10 +42,6 @@ export {
   Controller,
   ctrl,
   HTMLComponent,
-  onmount,
-  onfirstmount,
-  onrender,
-  onunmount
 } from './controller'
 
 export {
