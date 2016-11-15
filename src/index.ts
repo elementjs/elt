@@ -74,7 +74,7 @@ export {
   VirtualHolder,
   Write,
   Writer,
-} from './control'
+} from './verbs'
 
 ////////////////////////////////////////////////////////
 
