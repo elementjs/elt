@@ -27,7 +27,7 @@ import {
 
 import {
   Write
-} from './control'
+} from './verbs'
 
 
 /**
