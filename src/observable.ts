@@ -196,22 +196,12 @@ export class Observable<T> {
     return this.prop(prop as any)
   }
 
-  tf<U>(transformer : Transformer<T, U> | TransformFn<T, U>) : Observable<U>;
-  // tf<U, V>(prop: string, transformer : Transformer<U, V> | TransformFn<U, V>) : Observable<V>;
-  // tf<U, V>(prop: Extractor<T, U>, transformer : Transformer<U, V> | TransformFn<U, V>) : Observable<V>;
-  // tf<U, V>(this: Observable<U[]>, prop: number, transformer : Transformer<U, V> | TransformFn<U, V>) : Observable<V>;
-  tf<U>(prop: any, transformer?: any) : Observable<U> {
-    let obs: Observable<any> = this
-    if (arguments.length > 1) {
-      obs = this.p(prop)
-    } else {
-      transformer = prop
-    }
+  tf<U>(transformer: Transformer<T, U> | TransformFn<T, U>) : TransformObservable<T, U> {
 
     if (typeof transformer === 'function') {
-      return new TransformObservable<T, U>(obs, {get: transformer as TransformFn<T, U>})
+      return new TransformObservable<T, U>(this, {get: transformer as TransformFn<T, U>})
     }
-    return new TransformObservable<T, U>(obs, transformer as Transformer<T, U>)
+    return new TransformObservable<T, U>(this, transformer as Transformer<T, U>)
   }
 
   /*
