@@ -162,12 +162,22 @@ export class Observable<T> {
       obss[i](val, final_prop)
   }
 
+  /**
+   * Add an observer function to this observable. Returns a function
+   * that performs the reverse operation.
+   *
+   * Note: Avoid using this method directly. Prefer the observe() method
+   * available on Controller.
+   */
   addObserver(fn : Observer<T>) : () => void {
     this._observers.push(fn)
     fn(this._value, '')
     return () => this.removeObserver(fn)
   }
 
+  /**
+   * Remove an observer function from this observable.
+   */
   removeObserver(fn : Observer<T>) : void {
     const index = this._observers.indexOf(fn)
     if (index > -1) {
