@@ -178,10 +178,10 @@ export class Observable<T> {
   /**
    *
    */
-  prop<U>(extractor: Extractor<T, U>): Observable<U>
-  prop<K extends keyof T>(prop: K): Observable<T[K]>
+  prop<U>(extractor: Extractor<T, U>): PropObservable<T, U>
+  prop<K extends keyof T>(prop: K): PropObservable<T, T[K]>
 
-  prop<U>(prop : keyof T|Extractor<T, U>) : Observable<U> {
+  prop<U>(prop : keyof T|Extractor<T, U>) : PropObservable<T, U> {
     // we cheat here.
     return new PropObservable<T, U>(this, _getprop(prop) as any)
   }
@@ -189,11 +189,11 @@ export class Observable<T> {
   /**
    *
    */
-  p<U>(extractor: Extractor<T,U>): Observable<U>;
-  p<K extends keyof T>(prop: K): Observable<T[K]>
+  p<U>(extractor: Extractor<T, U>): PropObservable<T, U>;
+  p<K extends keyof T>(prop: K): PropObservable<T, T[K]>
 
-  p<U>(prop: string|number|Extractor<T, U>): Observable<U> {
-    return this.prop(prop as any) as PropObservable<T, U>
+  p<U>(prop: keyof T|Extractor<T, U>): PropObservable<T, U> {
+    return this.prop(prop as any)
   }
 
   tf<U>(transformer : Transformer<T, U> | TransformFn<T, U>) : Observable<U>;
@@ -203,7 +203,7 @@ export class Observable<T> {
   tf<U>(prop: any, transformer?: any) : Observable<U> {
     let obs: Observable<any> = this
     if (arguments.length > 1) {
-      obs = this.p<any>(prop)
+      obs = this.p(prop)
     } else {
       transformer = prop
     }
@@ -214,82 +214,130 @@ export class Observable<T> {
     return new TransformObservable<T, U>(obs, transformer as Transformer<T, U>)
   }
 
-  /**
+  /*
    *  Boolean methods
    */
 
+  /**
+   * true when this._value > value
+   */
   gt(value: O<T>): Observable<boolean> {
     return o(this, value, (v1, v2) => v1 > v2)
   }
 
+  /**
+   * true when this._value < value
+   */
   lt(value: O<T>): Observable<boolean> {
     return o(this, value, (v1, v2) => v1 < v2)
   }
 
+  /**
+   * true when this._value === value
+   */
   eq(value: O<T>): Observable<boolean> {
     return o(this, value, (v1, v2) => v1 === v2)
   }
 
+  /**
+   * true when this._value !== value
+   */
   ne(value: O<T>): Observable<boolean> {
     return o(this, value, (v1, v2) => v1 !== v2)
   }
 
+  /**
+   * true when this._value >= value
+   */
   gte(value: O<T>): Observable<boolean> {
     return o(this, value, (v1, v2) => v1 >= v2)
   }
 
+  /**
+   * true when this._value <= value
+   */
   lte(value: O<T>): Observable<boolean> {
     return o(this, value, (v1, v2) => v1 <= v2)
   }
 
+  /**
+   * true when this._value is null or undefined
+   */
   isNull(): Observable<boolean> {
     return this.tf(val => val == null)
   }
 
+  /**
+   * true when this._value is neither null nor undefined
+   */
   isNotNull(): Observable<boolean> {
     return this.tf(val => val != null)
   }
 
+  /**
+   * true when this._value is strictly undefined
+   */
   isUndefined(): Observable<boolean> {
     return this.tf(val => val === undefined)
   }
 
+  /**
+   * true when this._value is strictly not undefined
+   */
   isDefined(): Observable<boolean> {
     return this.tf(val => val !== undefined)
   }
 
+  /**
+   * true when this._value is === false
+   */
   isFalse(this: Observable<boolean>): Observable<boolean> {
     return this.tf(val => val as any === false)
   }
 
+  /**
+   * true when this._value === true
+   */
   isTrue(this: Observable<boolean>): Observable<boolean> {
     return this.tf(val => val as any === true)
   }
 
+  /**
+   * true when this._value would be false in an if condition
+   */
   isFalsy(): Observable<boolean> {
     return this.tf(val => !val)
   }
 
+  /**
+   * true when this._value would be true in an if condition
+   */
   isTruthy(): Observable<boolean> {
     return this.tf(val => !!val)
   }
 
-  // FIXME should we do reduce ?
-
-  // ?
-
+  /**
+   * Set up an observable that is true when this observable or
+   * any of the provided observables is true.
+   */
   or(...args : O<any>[]) : Observable<boolean> {
     return o.or(...[this, ...args])
   }
 
+  /**
+   * True when this and all the values provided in args are true.
+   */
   and(...args: O<any>[]) : Observable<boolean> {
 
     return o.and(...[this, ...args])
   }
 
-  // Some basic modification functions
-  // **These methods are *not* type safe !**
-
+  /**
+   * Set the value of this observable to "not" its value.
+   *
+   * Will trigger a compilation error if used with something else than
+   * a boolean Observable.
+   */
   toggle(this: Observable<boolean>) {
     this.set(!this._value)
   }
@@ -426,12 +474,12 @@ export class PropObservable<T, U> extends Observable<U> {
    * We just want to avoid handling PropObservable based on other
    * PropObservables.
    */
-  prop<K extends keyof U>(p: K): Observable<U[K]>
+  prop<K extends keyof U>(p: K): PropObservable<U, U[K]>
   // prop<V>(prop: string): Observable<V>;
-  prop<V>(extractor: Extractor<U, V>): Observable<V>;
-  prop<V>(this: Observable<V[]>, prop: number): Observable<V>;
-  prop<V>(prop : string|number|Extractor<U, V>) : Observable<V> {
-    return new PropObservable<T, V>(this._obs, pathjoin(this._prop, _getprop(prop)) as any)
+  prop<V>(extractor: Extractor<U, V>): PropObservable<U, V>;
+  // prop<V>(this: Observable<V[]>, prop: number): PropObservable<U, V>;
+  prop<V>(prop : keyof T|Extractor<U, V>) : PropObservable<U, V> {
+    return new PropObservable<any, V>(this._obs, pathjoin(this._prop, _getprop(prop)) as any)
   }
 
 
