@@ -244,7 +244,10 @@ export function _foreach<T>(maybe_array: ArrayOrSingle<T>, fn: (a: T) => any): v
 
 
 /**
- * The main instantiation function, used throughout all of Domic.
+ * Create Nodes with a twist.
+ *
+ * This function is the base of domic ; it creates Nodes and glues together
+ * Controllers, decorators, classes and style.
  */
 export const d: D = <D>function d(elt: any, attrs: BasicAttributes, ...children: Child[]): Node {
 

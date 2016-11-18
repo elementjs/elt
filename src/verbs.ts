@@ -29,17 +29,49 @@ import {
 } from './types'
 
 
+/**
+ * Base Component for components not using DOM Elements.
+ *
+ * Rendered as a several Comment nodes, it keeps its children
+ * between a starting and an ending Comment (called `begin` and
+ * `end` internally) which are kept immediately *after* `this.node`
+ */
 export class VirtualHolder extends Component {
 
+  /**
+   * A string used to keep track in the DOM of who we are.
+   */
   name = 'virtual'
-  begin: Comment
-  end: Comment
-  next_node: Node
 
-  // Note : this should only be done when this node is a
-  // direct target for removal instead of being unmounted
-  saved_children: DocumentFragment
-  waiting: boolean
+  /**
+   * The Comment after which all children will be appended.
+   */
+  begin: Comment
+
+  /**
+   * The Comment before which all children will be inserted
+   */
+  end: Comment
+
+  /**
+   * An internal variable used to hold the next node that will be appended,
+   * as since we wait for an Animation Frame to execute, updateChildren
+   * can be thus called multiple times before actually adding anything into
+   * the DOM
+   */
+  protected next_node: Node
+
+  /**
+   * A DocumentFragment in which manually removed children are stored
+   * for later remounting if needed.
+   */
+  protected saved_children: DocumentFragment
+
+  /**
+   * True if updateChildren() was called but the new children
+   * are still waiting for the AnimationFrame
+   */
+  protected waiting: boolean
 
   render(): Node {
     this.begin = document.createComment(` (( `)
@@ -67,6 +99,11 @@ export class VirtualHolder extends Component {
   @onunmount
   unmountChildrenIfNeeded(node: Node) {
 
+    // If we have a parentNode in an unmount() method, it means
+    // that we were not unmounted directly.
+    // If there is no parentNode, `this.node` was specifically
+    // removed from the DOM and since we keep our children
+    // after `this.node`, we need to remove them as well.
     if (!node.parentNode) {
       let fragment = document.createDocumentFragment()
 
@@ -136,7 +173,8 @@ export class Observer extends VirtualHolder {
 
 
 /**
- * Put the result of an observable into the DOM.
+ * Put the value of an observable into the DOM.
+ * Be careful with DocumentFragments ; they can only be inserted once.
  */
 export function Observe(obs: Observable<Node>): Node {
   return d(Observer, {obs})
@@ -167,6 +205,10 @@ export class Writer extends Component {
 }
 
 
+/**
+ * Write and update the string value of an observable value into
+ * a Text node.
+ */
 export function Write(obs: Observable<HasToString>): Node {
   return d(Writer, {obs})
 }
@@ -174,7 +216,7 @@ export function Write(obs: Observable<HasToString>): Node {
 
 export type DisplayCreator<T> = (a: T) => Node
 
-export class DisplayComponent<T> extends VirtualHolder {
+export class Displayer<T> extends VirtualHolder {
   name = 'if'
 
   attrs: {
@@ -201,7 +243,7 @@ export class DisplayComponent<T> extends VirtualHolder {
 
 
 export function Display(display: O<NodeCreatorFn>): Node {
-  return d(DisplayComponent, {display})
+  return d(Displayer, {display})
 }
 
 
@@ -209,19 +251,19 @@ export function Display(display: O<NodeCreatorFn>): Node {
  *
  */
 export function DisplayIf<T>(condition: O<T>, display: O<DisplayCreator<T>>): Node {
-  return d(DisplayComponent, {condition, display})
+  return d(Displayer, {condition, display})
 }
 
 
 export function DisplayUnless<T>(condition: O<any>, display: O<DisplayCreator<T>>) {
-  return d(DisplayComponent, {condition: o(condition).isFalsy(), display})
+  return d(Displayer, {condition: o(condition).isFalsy(), display})
 }
 
 
 
 export type RepeatNode = {node: Node, index: Observable<number>}
 
-export class RepeatComponent<T> extends VirtualHolder {
+export class Repeater<T> extends VirtualHolder {
 
   attrs: {
     ob: O<T[]>,
@@ -243,35 +285,12 @@ export class RepeatComponent<T> extends VirtualHolder {
     var id: Observable<number>
 
     for (var i = 0; i < lst.length; i++) {
-      // var prev = map.get(lst[i])
-
-      // if (typeof lst[i] === 'object') {
-      //   var prev = map.get(lst[i])
-      //   if (prev) {
-      //     prev.index.set(i)
-      //     res.appendChild(prev.node)
-      //     continue
-      //   }
-      // }
-
       id = o(i)
       n = fn(obs.p(i) as PropObservable<T[], T>, o(i))
       res.appendChild(n)
-      // if (typeof lst[i] === 'object') map.set(lst[i], {node: n, index: id})
     }
 
     this.updateChildren(res)
-
-    // if (this.last_id) cancelAnimationFrame(this.last_id)
-
-    // this.last_id = requestAnimationFrame(() => {
-
-    //   while (last_drawn < lst.length - 1) {
-    //     last_drawn += 1
-
-    //   }
-
-    // })
 
   }
 
@@ -292,7 +311,7 @@ export class RepeatComponent<T> extends VirtualHolder {
  *
  */
 export function Repeat<T>(ob: O<T[]>, render: (e: PropObservable<T[], T>, oi?: Observable<number>) => Node): Node {
-  return d(RepeatComponent, {ob, render})
+  return d(Repeater, {ob, render})
 }
 
 
