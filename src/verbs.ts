@@ -222,6 +222,7 @@ export class Displayer<T> extends VirtualHolder {
   attrs: {
     condition?: O<T>
     display: O<DisplayCreator<T>>
+    display_otherwise?: O<DisplayCreator<T>>
   }
 
   render(): Node {
@@ -229,10 +230,14 @@ export class Displayer<T> extends VirtualHolder {
     this.observe(
       this.attrs.condition,
       this.attrs.display,
-      (condition, display) => {
+      this.attrs.display_otherwise,
+      (condition, display, otherwise) => {
 
-      if (typeof condition === 'undefined' || !condition)
+      if (typeof condition === 'undefined' || !condition) {
+        if (otherwise)
+          return this.updateChildren(otherwise(condition))
         return this.updateChildren(null)
+      }
 
       this.updateChildren(display(condition))
     })
@@ -250,13 +255,13 @@ export function Display(display: O<NodeCreatorFn>): Node {
 /**
  *
  */
-export function DisplayIf<T>(condition: O<T>, display: O<DisplayCreator<T>>): Node {
-  return d(Displayer, {condition, display})
+export function DisplayIf<T>(condition: O<T>, display: O<DisplayCreator<T>>, display_otherwise?: O<DisplayCreator<T>>): Node {
+  return d(Displayer, {condition, display, display_otherwise})
 }
 
 
-export function DisplayUnless<T>(condition: O<any>, display: O<DisplayCreator<T>>) {
-  return d(Displayer, {condition: o(condition).isFalsy(), display})
+export function DisplayUnless<T>(condition: O<any>, display: O<DisplayCreator<T>>, display_otherwise?: O<DisplayCreator<T>>) {
+  return d(Displayer, {condition: o(condition).isFalsy(), display, display_otherwise})
 }
 
 
