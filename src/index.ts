@@ -30,6 +30,7 @@ export {
   BindControllerOptions,
   click,
   clickfix,
+  observe,
   onmount,
   onfirstmount,
   onrender,

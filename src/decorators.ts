@@ -140,6 +140,23 @@ export function bind(obs: Observable<string>, opts: BindControllerOptions = {}) 
 }
 
 
+export function observe<A, B, C, D, E, F, G, H, I>(a: O<A>, b: O<B>, c: O<C>, d: O<D>, e: O<E>, f: O<F>, g: O<G>, h: O<H>, i: O<I>, cbk: (a: A, b: B, c: C, d: D, e: E, f: F, g: G, h: H, i: I) => any): Decorator;
+export function observe<A, B, C, D, E, F, G, H>(a: O<A>, b: O<B>, c: O<C>, d: O<D>, e: O<E>, f: O<F>, g: O<G>, h: O<H>, cbk: (a: A, b: B, c: C, d: D, e: E, f: F, g: G, h: H) => any): Decorator;
+export function observe<A, B, C, D, E, F, G>(a: O<A>, b: O<B>, c: O<C>, d: O<D>, e: O<E>, f: O<F>, g: O<G>, cbk: (a: A, b: B, c: C, d: D, e: E, f: F, g: G) => any): Decorator;
+export function observe<A, B, C, D, E, F>(a: O<A>, b: O<B>, c: O<C>, d: O<D>, e: O<E>, f: O<F>, cbk: (a: A, b: B, c: C, d: D, e: E, f: F) => any): Decorator;
+export function observe<A, B, C, D, E>(a: O<A>, b: O<B>, c: O<C>, d: O<D>, e: O<E>, cbk: (a: A, b: B, c: C, d: D, e: E) => any): Decorator;
+export function observe<A, B, C, D>(a: O<A>, b: O<B>, c: O<C>, d: O<D>, cbk: (a: A, b: B, c: C, d: D) => any): Decorator;
+export function observe<A, B, C>(a: O<A>, b: O<B>, c: O<C>, cbk: (a: A, b: B, c: C) => any): Decorator;
+export function observe<A, B>(a: O<A>, b: O<B>, cbk: (a: A, b: B) => any): Decorator;
+export function observe<A>(a: O<A>, cbk: (a: A, prop: string) => any): Decorator;
+export function observe(...a: any[]) {
+  return function observeDecorator(node: Node): void {
+    let c = DefaultController.get(node);
+    (c.observe as any)(...a)
+  }
+}
+
+
 /**
  * Use to bind to an event directly in the jsx phase.
  *
