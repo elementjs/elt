@@ -134,6 +134,15 @@ export class VirtualHolder extends Component {
       let end = this.end
       let next: Node = null
 
+      if (!iter) {
+        // If we're here, we're most likely not mounted, so we will
+        // put the next node into saved_children instead.
+        this.saved_children = this.next_node as DocumentFragment
+        this.next_node = null
+        this.waiting = false
+        return
+      }
+
       while (iter !== end) {
         next = iter.nextSibling
         iter.parentNode.removeChild(iter)
