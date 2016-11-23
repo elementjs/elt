@@ -324,6 +324,8 @@ export class Repeater<T> extends VirtualHolder {
 /**
  *
  */
+export function Repeat<T>(ob: T[], render: (e: PropObservable<T[], T>, oi?: Observable<number>) => Node): Node
+export function Repeat<T>(ob: Observable<T[]>, render: (e: PropObservable<T[], T>, oi?: Observable<number>) => Node): Node
 export function Repeat<T>(ob: O<T[]>, render: (e: PropObservable<T[], T>, oi?: Observable<number>) => Node): Node {
   return d(Repeater, {ob, render})
 }
