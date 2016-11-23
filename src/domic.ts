@@ -207,19 +207,18 @@ function applyAttribute(node: Element, name: string, value: O<any>, ct: DefaultC
 export function getDocumentFragment(children: Child[]) {
   var result = document.createDocumentFragment()
 
-  for (var c of children) {
-    _foreach(c, c => {
-      if (Array.isArray(c)) {
-        result.appendChild(getDocumentFragment(c))
-      } else if (c instanceof Observable) {
-        result.appendChild(Write(c))
-      } else if (!(c instanceof Node)) {
-        result.appendChild(document.createTextNode(typeof c === 'number' ? c.toString() : c))
-      } else {
-        result.appendChild(c)
-      }
-    })
-  }
+  _foreach(children, c => {
+    if (Array.isArray(c)) {
+      result.appendChild(getDocumentFragment(c))
+    } else if (c instanceof Observable) {
+      result.appendChild(Write(c))
+    } else if (!(c instanceof Node)) {
+      result.appendChild(document.createTextNode(c.toString()))
+    } else {
+      result.appendChild(c)
+    }
+  })
+
 
   return result
 }
