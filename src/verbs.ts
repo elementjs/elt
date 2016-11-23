@@ -205,7 +205,7 @@ export class Writer extends Component {
     let node = document.createTextNode('')
 
     this.observe(this.attrs.obs, value => {
-      node.nodeValue = value ? value.toString() : ''
+      node.nodeValue = value != null ? value.toString() : ''
     })
 
     return node
