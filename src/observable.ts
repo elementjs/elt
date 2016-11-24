@@ -92,7 +92,7 @@ export type Observer<T> = (obj : T, prop? : string) => any
 export type TransformFn<T, U> = (a: T) => U
 export type Transformer<T, U> = {
   get: TransformFn<T, U>
-  set?: (a: U) => T
+  set?: (a: U, p?: string|number) => T
 }
 
 function _getprop(prop: any) {
@@ -423,6 +423,10 @@ export class Observable<T> {
     return this.tf(arr => Array.isArray(arr) ? arr.filter(fn) : [])
   }
 
+  join(this: Observable<any[]>, separator: string) {
+    return this.tf(arr => Array.isArray(arr) ? arr.join(separator) : '')
+  }
+
 }
 
 
@@ -580,6 +584,9 @@ export class TransformObservable<T, U> extends Observable<U> {
   set(value: any, value2?: any): boolean {
     let final_value = value
 
+    if (!this._transformer.set)
+      throw new Error('this transformer has no set method.')
+
     if (arguments.length > 1) {
 
       if (!this._unregister) {
@@ -592,10 +599,11 @@ export class TransformObservable<T, U> extends Observable<U> {
       // into the parent observable
       pathset(this._value, value, value2)
       final_value = this._value
+      return this._obs.set(this._transformer.set(final_value, value))
     }
 
     // this set should trigger _refresh() if this observable was being watched.
-    return this._obs.set(this._transformer.set(final_value))
+    return this._obs.set(this._transformer.set(final_value, ''))
   }
 
   addObserver(fn: Observer<U>) {
