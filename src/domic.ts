@@ -208,6 +208,9 @@ export function getDocumentFragment(children: Child[]) {
   var result = document.createDocumentFragment()
 
   _foreach(children, c => {
+    // Do not do anything with null
+    if (c == null) return
+
     if (Array.isArray(c)) {
       result.appendChild(getDocumentFragment(c))
     } else if (c instanceof Observable) {
@@ -299,6 +302,8 @@ export const d: D = <D>function d(elt: any, attrs: BasicAttributes, ...children:
   }
   controllers = Controller.init(node)
 
+  if (comp) comp.bindToNode(node)
+
   // decorators are run now. If class and style were defined, they will be applied to the
   // final node.
   _foreach(decorators, d => d(node))
@@ -316,7 +321,6 @@ export const d: D = <D>function d(elt: any, attrs: BasicAttributes, ...children:
   if (ct) ct.bindToNode(node)
 
   // Call onrender on component now that all the linking is done.
-  if (comp) comp.bindToNode(node)
   controllers.forEach(c => c.onrender.forEach(r => r.call(c, node)))
 
   return node
