@@ -487,28 +487,28 @@ export class PropObservable<T, U> extends Observable<U> {
   }
 
 
-  protected _refresh() {
+  protected _refresh(prop: string = '') {
     const old_val = this._value
     const new_val = this._value = this._obs.get(this._prop)
 
     for (let ob of this._observers)
-      ob(new_val, '')
+      ob(new_val, prop)
   }
 
   oHasNext<T>(this: PropObservable<T[], T>): Observable<boolean> {
-    return o(this._obs.p('length'), len => this._prop < len)
+    return o(this._obs.p('length'), len => parseInt(this._prop as string) < len - 1)
   }
 
   oHasPrev<T>(this: PropObservable<T[], T>): Observable<boolean> {
-    return o(this._obs.p('length'), len => this._prop >= 0 && len > 0)
+    return o(this._obs.p('length'), len => parseInt(this._prop as string) > 0 && len > 0)
   }
 
   next<T>(this: PropObservable<T[], T>): PropObservable<T[], T> {
-    return new PropObservable<T[], T>(this._obs, this._prop as number + 1)
+    return new PropObservable<T[], T>(this._obs, parseInt(this._prop as string) + 1)
   }
 
   prev<T>(this: PropObservable<T[], T>): PropObservable<T[], T> {
-    return new PropObservable<T[], T>(this._obs, this._prop as number - 1)
+    return new PropObservable<T[], T>(this._obs, parseInt(this._prop as string) - 1)
   }
 
   addObserver(fn: Observer<U>) {
@@ -518,7 +518,7 @@ export class PropObservable<T, U> extends Observable<U> {
         let ancestry = _get_ancestry(this._prop as any, prop)
         if (ancestry === Unrelated) return
 
-        this._refresh()
+        this._refresh(prop.replace(this._prop.toString() + '.', ''))
       })
     }
 
