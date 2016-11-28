@@ -58,17 +58,16 @@ function _unmount(node: Node) {
   let controllers = Controller.all(node)
   if (!controllers) return
 
-  for (var c of controllers) {
-    for (var f of c.onunmount) {
-      f.call(c, node)
-    }
-  }
-
-
   var ch = node.firstChild
   while (ch) {
     _unmount(ch)
     ch = ch.nextSibling
+  }
+
+  for (var c of controllers) {
+    for (var f of c.onunmount) {
+      f.call(c, node)
+    }
   }
 }
 
