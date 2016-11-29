@@ -55,6 +55,7 @@ export interface BasicAttributes {
   draggable?: O<DraggableValues>
   dir?: O<DirectionValues>
   hidden?: O<boolean>
+  xmlns?: string
 
   class?: ArrayOrSingle<ClassDefinition> // special attributes
   style?: ArrayOrSingle<StyleDefinition>
