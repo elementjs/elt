@@ -278,7 +278,7 @@ export const d: D = <D>function d(elt: any, attrs: BasicAttributes, ...children:
   }
 
   if (typeof elt === 'string') {
-    node = document.createElement(elt)
+    node = attrs.xmlns ? document.createElementNS(attrs.xmlns, elt) : document.createElement(elt)
 
     for (var x in attrs as any) {
       ct = applyAttribute(node as Element, x, (attrs as any)[x], ct)
