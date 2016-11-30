@@ -76,10 +76,10 @@ export class Controller {
 
   constructor() {
 
-    let proto = this.constructor.prototype
-    this.onmount = proto.onmount ? proto.onmount.concat([]) : []
-    this.onunmount = proto.onunmount ? proto.onunmount.concat([]) : []
-    this.onrender = proto.onrender ? proto.onrender.concat([]) : []
+    let proto = Object.getPrototypeOf(this)
+    this.onmount = proto.onmount ? proto.onmount.slice() : []
+    this.onunmount = proto.onunmount ? proto.onunmount.slice() : []
+    this.onrender = proto.onrender ? proto.onrender.slice() : []
 
   }
 
