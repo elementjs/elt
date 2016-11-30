@@ -73,9 +73,15 @@ export class VirtualHolder extends Component {
    */
   protected waiting: boolean
 
-  render(): Node {
+  render(children?: DocumentFragment): Node {
     this.begin = document.createComment(` (( `)
     this.end = document.createComment(` ))`)
+
+    if (children) {
+      children.insertBefore(this.begin, children.firstChild)
+      children.appendChild(this.end)
+      this.saved_children = children
+    }
 
     return document.createComment(` ${this.name}: `)
   }
