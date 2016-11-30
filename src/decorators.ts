@@ -393,15 +393,6 @@ export function clickfix(node: Node): void {
 
   _disable_ghost_click(node)
 
-  // node.addEventListener('click', (ev: MouseEvent) => {
-  //   // prevent ghost click...
-  //   let now = Date.now()
-  //   if (now - last_call < THRESHOLD) {
-  //     ev.preventDefault()
-  //     ev.stopPropagation()
-  //   }
-  // }, true)
-
 }
 
 
@@ -416,7 +407,10 @@ export function onmount(target: any, key?: string): any {
     return function (n: Node) { DefaultController.get(n).onmount.push(target) }
   }
 
-  target.onmount = target.onmount || (target.constructor.prototype.onmount||[]).concat([])
+  const proto = Object.getPrototypeOf(target)
+  if (target.onmount === proto.onmount)
+    target.onmount = (Object.getPrototypeOf(target).onmount||[]).slice()
+
   target.onmount.push(target[key])
 }
 
@@ -438,7 +432,10 @@ export function onfirstmount(target: any, key?: string): any {
     return function (n: Node) { DefaultController.get(n).onmount.push(first_mount) }
   }
 
-  target.onmount = target.onmount || (target.constructor.prototype.onmount||[]).slice()
+  const proto = Object.getPrototypeOf(target)
+  if (target.onmount === proto.onmount)
+    target.onmount = (Object.getPrototypeOf(target).onmount||[]).slice()
+
   target.onmount.push(first_mount)
 }
 
@@ -449,7 +446,9 @@ export function onunmount(target: any, key: string): void;
 export function onunmount(target: any, key?: string): any {
   if (typeof target === 'function') return function (n: Node) { DefaultController.get(n).onunmount.push(target) }
 
-  target.onunmount = target.onunmount || (target.constructor.prototype.onunmount||[]).slice()
+  const proto = Object.getPrototypeOf(target)
+  if (target.onunmount === proto.onunmount)
+    target.onunmount = (Object.getPrototypeOf(target).onunmount||[]).slice()
   target.onunmount.push(target[key])
 }
 
@@ -460,6 +459,8 @@ export function onrender(target: any, key: string): void;
 export function onrender(target: any, key?: string): any {
   if (typeof target === 'function') return function (n: Node) { DefaultController.get(n).onrender.push(target) }
 
-  target.onrender = target.onrender || (target.constructor.prototype.onrender||[]).slice()
+  const proto = Object.getPrototypeOf(target)
+  if (target.onrender === proto.onrender)
+    target.onrender = (Object.getPrototypeOf(target).onrender||[]).slice()
   target.onrender.push(target[key])
 }
