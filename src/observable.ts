@@ -488,7 +488,6 @@ export class PropObservable<T, U> extends Observable<U> {
 
 
   protected _refresh(prop: string = '') {
-    const old_val = this._value
     const new_val = this._value = this._obs.get(this._prop)
 
     for (let ob of this._observers)

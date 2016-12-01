@@ -292,12 +292,10 @@ export class Repeater<T> extends VirtualHolder {
 
   obs: Observable<T[]>
   map: WeakMap<T, RepeatNode> = new WeakMap<T, RepeatNode>()
-  last_id: number
 
   redrawList(lst: T[]) {
 
     let obs = this.obs
-    let last_drawn = -1
     let fn = this.attrs.render
     let res = document.createDocumentFragment()
     let map = this.map
