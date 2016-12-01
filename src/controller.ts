@@ -20,9 +20,9 @@ const nodeControllerMap = new WeakMap<Node, Controller[]>()
 export class Controller {
 
   node: Node
-  onmount: ControllerCallback[]
-  onunmount: ControllerCallback[]
-  onrender: ControllerCallback[]
+  onmount: ControllerCallback[] = this.onmount ? this.onmount.slice() : []
+  onunmount: ControllerCallback[] = this.onunmount ? this.onunmount.slice() : []
+  onrender: ControllerCallback[] = this.onrender ? this.onrender.slice() : []
 
   /**
    * Recursively find a controller starting at a node and making its
@@ -72,15 +72,6 @@ export class Controller {
   bindToNode(node: Node): void {
     this.node = node
     nodeControllerMap.get(node).push(this)
-  }
-
-  constructor() {
-
-    let proto = Object.getPrototypeOf(this)
-    this.onmount = proto.onmount ? proto.onmount.slice() : []
-    this.onunmount = proto.onunmount ? proto.onunmount.slice() : []
-    this.onrender = proto.onrender ? proto.onrender.slice() : []
-
   }
 
   observe<A, B, C, D, E, F, G, H, I>(a: O<A>, b: O<B>, c: O<C>, d: O<D>, e: O<E>, f: O<F>, g: O<G>, h: O<H>, i: O<I>, cbk: (a: A, b: B, c: C, d: D, e: E, f: F, g: G, h: H, i: I) => any): this;
