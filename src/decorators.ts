@@ -107,7 +107,7 @@ export class BindController extends Controller {
         break
       case 'checkbox':
         // FIXME ugly hack because we specified string
-        this.observe(obs, (val: any) => node.checked = val == true)
+        this.observe(obs, (val: any) => node.checked = !!val)
         node.addEventListener('change', () => (obs as Observable<any>).set(node.checked))
         break
       // case 'number':
@@ -309,7 +309,7 @@ export function click(cbk: Listener<MouseEvent>) {
 }
 
 
-let on_mobile = typeof(window) !== 'undefined' ? /iPad|iPhone|iPod/.test(window.navigator.userAgent) && !(window as any).MSStream : false
+// let on_mobile = typeof(window) !== 'undefined' ? /iPad|iPhone|iPod/.test(window.navigator.userAgent) && !(window as any).MSStream : false
 export var THRESHOLD = 300 // 10 milliseconds
 export var DISTANCE_THRESHOLD = 10
 
