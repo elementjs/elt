@@ -221,6 +221,18 @@ export function getDocumentFragment(children: Child[]) {
     }
   })
 
+  return result
+}
+
+
+export function getChildren(node: Node): Node[] {
+  const result: Node[] = []
+  let iter = node.firstChild
+
+  while (iter) {
+    result.push(iter)
+    iter = iter.nextSibling
+  }
 
   return result
 }
