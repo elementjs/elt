@@ -46,24 +46,7 @@ export {
   HTMLComponent,
 } from './controller'
 
-export {
-  Ancestry,
-  DependentObservable,
-  Extractor,
-  isObservable,
-  o,
-  O,
-  Observable,
-  Observer,
-  ObsFn,
-  pathget,
-  pathjoin,
-  pathset,
-  PropObservable,
-  Transformer,
-  TransformFn,
-  TransformObservable
-} from './observable'
+export * from 'domic-observable'
 
 export {
   Display,
