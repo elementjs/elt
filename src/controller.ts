@@ -2,7 +2,7 @@
 import {
   o,
   O
-} from './observable'
+} from 'domic-observable'
 
 import {
   Instantiator,

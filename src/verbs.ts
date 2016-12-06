@@ -6,7 +6,7 @@ import {
   O,
   Observable,
   PropObservable
-} from './observable'
+} from 'domic-observable'
 
 import {
   d,
