@@ -87,12 +87,12 @@ function _get_ancestry(p1: keyof any, p2: keyof any): Ancestry {
 export type O<T> = T | Observable<T>
 export type Extractor<T, U> = (a: T) => U
 
-export type Observer<T> = (obj : T, prop? : string) => any
+export type Observer<T> = (obj: T, prop? : string, old_value?: T) => any
 
-export type TransformFn<T, U> = (a: T) => U
+export type TransformFn<T, U> = (a: T, old_value?: T, old_transform?: U) => U
 export type Transformer<T, U> = {
   get: TransformFn<T, U>
-  set?: (a: U, p?: string|number) => T
+  set?: (a: U, p?: string|number, old_value?: U) => T
 }
 
 function _getprop(prop: any) {
@@ -139,27 +139,29 @@ export class Observable<T> {
 
   set(prop: any, value?: any): boolean {
     let changed = false
+    const old_value = this._value
+
     if (arguments.length > 1) {
       prop = _getprop(prop)
       changed = pathset(this._value, prop, value)
-      if (changed) this._change(prop)
+      if (changed) this._change(prop, old_value)
     } else {
       value = prop
       changed = this._value !== value
       this._value = value
       if (changed) {
-        this._change('')
+        this._change('', old_value)
       }
     }
     return changed
   }
 
-  protected _change(prop : string | number) : void {
+  protected _change(prop : string | number, old_value: T) : void {
     const val = this._value
     const obss = this._observers
     const final_prop = (prop||'').toString()
     for (var i = 0; i < obss.length; i++)
-      obss[i](val, final_prop)
+      obss[i](val, final_prop, old_value)
   }
 
   /**
@@ -371,45 +373,45 @@ export class Observable<T> {
 
   push<U>(this: Observable<U[]>, v: U) {
     let res = this._value.push(v)
-    this._change(this._value.length - 1)
+    this._change(this._value.length - 1, this._value)
     return res
   }
 
   pop<U>(this: Observable<U[]>): U {
     let res = this._value.pop()
-    this._change(this._value.length)
+    this._change(this._value.length, this._value)
     return res
   }
 
   shift<U>(this: Observable<U[]>): U {
     let res = this._value.shift()
-    this._change('')
+    this._change('', this._value)
     return res
   }
 
   unshift<U>(this: Observable<U[]>, v: U) {
     let res = this._value.unshift(v)
-    this._change('')
+    this._change('', this._value)
     return res
   }
 
   sort<U>(this: Observable<U[]>, fn: (a: U, b: U) => number) {
     // FIXME sort function type
     let res = this._value.sort(fn)
-    this._change('')
+    this._change('', this._value)
     return res
   }
 
   splice<U>(this: Observable<U[]>, start: number, deleteCount: number, ...items: U[]) {
     // FIXME arguments
     let res = this._value.splice(start, deleteCount, ...items)
-    this._change('')
+    this._change('', this._value)
     return res
   }
 
   reverse<U>(this: Observable<U[]>) {
     let res = this._value.reverse()
-    this._change('')
+    this._change('', this._value)
     return res
   }
 
@@ -488,10 +490,11 @@ export class PropObservable<T, U> extends Observable<U> {
 
 
   protected _refresh(prop: string = '') {
+    const old_val = this._value
     const new_val = this._value = this._obs.get(this._prop)
 
     for (let ob of this._observers)
-      ob(new_val, prop)
+      ob(new_val, prop, old_val)
   }
 
   oHasNext<T>(this: PropObservable<T[], T>): Observable<boolean> {
@@ -508,6 +511,36 @@ export class PropObservable<T, U> extends Observable<U> {
 
   prev<T>(this: PropObservable<T[], T>): PropObservable<T[], T> {
     return new PropObservable<T[], T>(this._obs, parseInt(this._prop as string) - 1)
+  }
+
+  getProp() {
+    return this._prop
+  }
+
+  /**
+   * Change the property being watched
+   */
+  setProp(p: keyof T) {
+    this._prop = p
+
+    // If we're being observed, notify the change.
+    if (this._unregister) {
+      this._refresh()
+    }
+  }
+
+  /**
+   * If the underlying observable is an array, go to the next item.
+   */
+  nextProp<T>(this: PropObservable<T[], T>) {
+    this.setProp(parseInt(this._prop as string) + 1)
+  }
+
+  /**
+   * If the underlying observable is an array, go to the previous item.
+   */
+  prevProp<T>(this: PropObservable<T[], T>) {
+    this.setProp(parseInt(this._prop as string) - 1)
   }
 
   addObserver(fn: Observer<U>) {
@@ -556,20 +589,20 @@ export class TransformObservable<T, U> extends Observable<U> {
   get(p?: any) : any {
 
     if (!this._unregister) {
+      const old = this._obs.get()
       // Nobody is watching this observable, so it is not up to date.
-      this._value = this._transformer.get(this._obs.get())
+      this._value = this._transformer.get(old, old)
     }
 
     return p ? pathget(this._value, p) : this._value
   }
 
-  _refresh(value: T) {
+  _refresh(value: T, old_original_value: T) {
     const old_val = this._value
-    const new_val = this._value = this._transformer.get(value)
-    const changed = old_val !== new_val
+    const new_val = this._value = this._transformer.get(value, old_original_value, old_val)
 
-    if (changed) {
-      for (let ob of this._observers) ob(new_val, '')
+    if (old_val !== new_val) {
+      for (let ob of this._observers) ob(new_val, '', old_val)
     }
   }
 
@@ -589,25 +622,27 @@ export class TransformObservable<T, U> extends Observable<U> {
     if (arguments.length > 1) {
 
       if (!this._unregister) {
+        const old_orig = this._obs.get()
         // Nobody is watching this observable, so it is not up to date.
         // we refresh it before applying the pathset.
-        this._value = this._transformer.get(this._obs.get())
+        this._value = this._transformer.get(old_orig, old_orig)
       }
 
       // do the pathset internally, before writing back the value
       // into the parent observable
       pathset(this._value, value, value2)
       final_value = this._value
-      return this._obs.set(this._transformer.set(final_value, value))
+      return this._obs.set(this._transformer.set(final_value, value, final_value))
     }
 
+    const old = this._value
     // this set should trigger _refresh() if this observable was being watched.
-    return this._obs.set(this._transformer.set(final_value, ''))
+    return this._obs.set(this._transformer.set(final_value, '', old))
   }
 
   addObserver(fn: Observer<U>) {
     if (!this._unregister) {
-      this._unregister = this._obs.addObserver(value => this._refresh(value))
+      this._unregister = this._obs.addObserver((value, prop, old) => this._refresh(value, old))
     }
     return super.addObserver(fn)
   }
@@ -668,7 +703,7 @@ export class DependentObservable<T> extends Observable<T> {
 
     if (old_val === new_val) return
 
-    for (i = 0; i < obs.length; i++) obs[i](new_val, '')
+    for (i = 0; i < obs.length; i++) obs[i](new_val, '', old_val)
   }
 
   addObserver(fn: Observer<T>) {
