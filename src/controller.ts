@@ -20,6 +20,7 @@ const nodeControllerMap = new WeakMap<Node, Controller[]>()
 export class Controller {
 
   node: Node
+  state: 'mounted' | 'unmounted' = 'unmounted'
   onmount: ControllerCallback[] = this.onmount ? this.onmount.slice() : []
   onunmount: ControllerCallback[] = this.onunmount ? this.onunmount.slice() : []
   onrender: ControllerCallback[] = this.onrender ? this.onrender.slice() : []

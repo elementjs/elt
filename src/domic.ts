@@ -33,19 +33,26 @@ import {
 /**
  * Call controller's mount() functions recursively
  */
-function _mount(node: Node) {
+function _mount(node: Node, target?: Node) {
   let controllers = Controller.all(node)
-  if (!controllers) return
+  if (controllers) {
+    for (var c of controllers) {
+      // ignore spurious mounts.
+      // as it turns out, the DOM can sometimes tell several times that a node
+      // was added to the dom without having a corresponding removedNodes.
+      if (c.state === 'mounted') continue
 
-  for (var c of controllers) {
-    for (var f of c.onmount) {
-      f.call(c, node)
+      for (var f of c.onmount) {
+        f.call(c, node, target)
+      }
+
+      c.state = 'mounted'
     }
   }
 
   var ch = node.firstChild
   while (ch) {
-    _mount(ch)
+    _mount(ch, node)
     ch = ch.nextSibling
   }
 }
@@ -54,20 +61,25 @@ function _mount(node: Node) {
 /**
  * Call controller's unmount functions recursively
  */
-function _unmount(node: Node) {
-  let controllers = Controller.all(node)
-  if (!controllers) return
+function _unmount(node: Node, target?: Node) {
 
   var ch = node.firstChild
   while (ch) {
-    _unmount(ch)
+    _unmount(ch, node)
     ch = ch.nextSibling
   }
 
+  let controllers = Controller.all(node)
+  if (!controllers) return
   for (var c of controllers) {
+    // ignore spurious unmounts (should not happen though, unlike spurious mounts)
+    if (c.state === 'unmounted') continue
+
     for (var f of c.onunmount) {
-      f.call(c, node)
+      f.call(c, node, target)
     }
+
+    c.state = 'unmounted'
   }
 }
 
@@ -79,13 +91,14 @@ function applyMutations(records: MutationRecord[]) {
   var i = 0
 
   for (var record of records) {
+    var target = record.target
     var added = record.addedNodes
     for (i = 0; i < added.length; i++)
-      _mount(added[i])
+      _mount(added[i], target)
 
     var removed = record.removedNodes
     for (i = 0; i < removed.length; i++)
-      _unmount(removed[i])
+      _unmount(removed[i], target)
   }
 }
 

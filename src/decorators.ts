@@ -464,3 +464,11 @@ export function onrender(target: any, key?: string): any {
     target.onrender = (Object.getPrototypeOf(target).onrender||[]).slice()
   target.onrender.push(target[key])
 }
+
+
+/**
+ * Focus the element when mounted.
+ */
+export function focusOnMount(node: HTMLInputElement): void {
+  onmount((node: HTMLInputElement) => node.focus())(node)
+}

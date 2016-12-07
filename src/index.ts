@@ -31,6 +31,7 @@ export {
   BindControllerOptions,
   click,
   clickfix,
+  focusOnMount,
   observe,
   onmount,
   onfirstmount,
