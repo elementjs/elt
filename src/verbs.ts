@@ -295,6 +295,8 @@ export class Repeater<T> extends VirtualHolder {
 
   redrawList(lst: T[]) {
 
+    if (!lst) lst = []
+
     let obs = this.obs
     let fn = this.attrs.render
     let res = document.createDocumentFragment()
