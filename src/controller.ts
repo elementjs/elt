@@ -6,11 +6,8 @@ import {
 
 import {
   Instantiator,
-  ArrayOrSingle,
   BasicAttributes,
-  Child,
   ControllerCallback,
-  Decorator
 } from './types'
 
 
