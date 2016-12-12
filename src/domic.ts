@@ -8,14 +8,10 @@ import {
   ArrayOrSingle,
   BasicAttributes,
   Child,
-  ComponentInstanciator,
-  ClassObject,
   ClassDefinition,
-  ComponentFn,
   D,
   Decorator,
   Instantiator,
-  SingleChild,
   StyleDefinition,
 } from './types'
 

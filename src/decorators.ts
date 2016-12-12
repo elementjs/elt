@@ -59,7 +59,7 @@ export class BindController extends Controller {
     let obs = this.obs
 
     node.addEventListener('change', function(evt) {
-      obs.set(this.value)
+      obs.set(node.value)
     })
 
     this.observe(obs, val => {
@@ -423,7 +423,8 @@ export function onfirstmount(target: any, key: string): void;
 
 export function onfirstmount(target: any, key?: string): any {
   let fn = typeof target === 'function' ? target : target[key]
-  function first_mount(node: any) {
+
+  function first_mount(this: Controller, node: any) {
     this.onmount = this.onmount.filter((f: any) => f !== first_mount)
     fn.call(this, node)
   }

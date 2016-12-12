@@ -72,7 +72,7 @@ import {
 } from './controller'
 
 import {
-  Child, BasicAttributes
+  BasicAttributes
 } from './types'
 
 declare global {

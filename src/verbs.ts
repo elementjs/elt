@@ -10,7 +10,6 @@ import {
 
 import {
   d,
-  getDocumentFragment
 } from './domic'
 
 import {
@@ -24,7 +23,6 @@ import {
 
 import {
   BasicAttributes,
-  Child,
   NodeCreatorFn
 } from './types'
 
@@ -302,7 +300,6 @@ export class Repeater<T> extends VirtualHolder {
     let obs = this.obs
     let fn = this.attrs.render
     let res = document.createDocumentFragment()
-    let map = this.map
     var n: Node
     var id: Observable<number>
 
