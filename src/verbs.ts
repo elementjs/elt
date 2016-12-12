@@ -111,19 +111,21 @@ export class VirtualHolder extends Component {
     // removed from the DOM and since we keep our children
     // after `this.node`, we need to remove them as well.
     if (!node.parentNode) {
-      let fragment = document.createDocumentFragment()
+      requestAnimationFrame(() => {
+        let fragment = document.createDocumentFragment()
 
-      let iter: Node = this.begin
-      let next: Node = null
+        let iter: Node = this.begin
+        let next: Node = null
 
-      while (iter) {
-        next = iter.nextSibling
-        fragment.appendChild(iter)
-        if (iter === this.end) break
-        iter = next
-      }
+        while (iter) {
+          next = iter.nextSibling
+          fragment.appendChild(iter)
+          if (iter === this.end) break
+          iter = next
+        }
 
-      this.saved_children = fragment
+        this.saved_children = fragment
+      })
     }
 
   }
