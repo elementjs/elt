@@ -125,7 +125,7 @@ function _unmount(node: Node, target: Node, prev: Node, next: Node) {
       iter = iter.firstChild
     }
 
-    unmount.push([iter, iter.parentNode, null, null])
+    unmount.push([iter, iter.parentNode || target, null, null])
 
     // When we're here, we're on a terminal node, so
     // we're going to have to process it.
@@ -333,6 +333,65 @@ export function _foreach<T>(maybe_array: ArrayOrSingle<T>, fn: (a: T) => any): v
 }
 
 
+const SVG = "http://www.w3.org/2000/svg"
+const NS = {
+  // SVG nodes, shamelessly stolen from React.
+  svg: SVG,
+
+  circle: SVG,
+  clipPath: SVG,
+  defs: SVG,
+  desc: SVG,
+  ellipse: SVG,
+  feBlend: SVG,
+  feColorMatrix: SVG,
+  feComponentTransfer: SVG,
+  feComposite: SVG,
+  feConvolveMatrix: SVG,
+  feDiffuseLighting: SVG,
+  feDisplacementMap: SVG,
+  feDistantLight: SVG,
+  feFlood: SVG,
+  feFuncA: SVG,
+  feFuncB: SVG,
+  feFuncG: SVG,
+  feFuncR: SVG,
+  feGaussianBlur: SVG,
+  feImage: SVG,
+  feMerge: SVG,
+  feMergeNode: SVG,
+  feMorphology: SVG,
+  feOffset: SVG,
+  fePointLight: SVG,
+  feSpecularLighting: SVG,
+  feSpotLight: SVG,
+  feTile: SVG,
+  feTurbulence: SVG,
+  filter: SVG,
+  foreignObject: SVG,
+  g: SVG,
+  image: SVG,
+  line: SVG,
+  linearGradient: SVG,
+  marker: SVG,
+  mask: SVG,
+  metadata: SVG,
+  path: SVG,
+  pattern: SVG,
+  polygon: SVG,
+  polyline: SVG,
+  radialGradient: SVG,
+  rect: SVG,
+  stop: SVG,
+  switch: SVG,
+  symbol: SVG,
+  text: SVG,
+  textPath: SVG,
+  tspan: SVG,
+  use: SVG,
+  view: SVG,
+} as {[name: string]: string}
+
 /**
  * Create Nodes with a twist.
  *
@@ -367,7 +426,8 @@ export const d: D = <D>function d(elt: any, attrs: BasicAttributes, ...children:
   }
 
   if (typeof elt === 'string') {
-    node = attrs.xmlns ? document.createElementNS(attrs.xmlns, elt) : document.createElement(elt)
+    var ns = NS[elt] || attrs.xmlns
+    node = ns ? document.createElementNS(ns, elt) : document.createElement(elt)
 
     for (var x in attrs as any) {
       ct = applyAttribute(node as Element, x, (attrs as any)[x], ct)
