@@ -30,30 +30,74 @@ import {
 } from './verbs'
 
 
-/**
- * Call controller's mount() functions recursively
- */
-function _mount(node: Node, target?: Node) {
-  let controllers = Controller.all(node)
-  if (controllers) {
-    for (var c of controllers) {
-      // ignore spurious mounts.
-      // as it turns out, the DOM can sometimes tell several times that a node
-      // was added to the dom without having a corresponding removedNodes.
-      if (c.state === 'mounted') continue
+function _apply_mount(node: Node) {
+  var controllers = Controller.all(node)
 
-      for (var f of c.onmount) {
-        f.call(c, node, target)
-      }
+  if (!controllers) return
 
-      c.state = 'mounted'
+  for (var c of controllers) {
+    // ignore spurious unmounts (should not happen, but let's be cautious)
+    if (c.state === 'mounted') continue
+
+    for (var f of c.onmount) {
+      f.call(c, node)
     }
+
+    c.state = 'mounted'
   }
 
-  var ch = node.firstChild
-  while (ch) {
-    _mount(ch, node)
-    ch = ch.nextSibling
+}
+
+/**
+ * Call controllers' mount() functions.
+ */
+function _mount(node: Node, target?: Node) {
+  var iter = node
+  var node_stack: Node[] = []
+
+  // Iterative tree traversal
+  do {
+
+    _apply_mount(iter)
+
+    // Push firstChildren first
+    while (iter.firstChild) {
+      node_stack.push(iter)
+      iter = iter.firstChild
+      _apply_mount(iter)
+    }
+
+    while (!iter.nextSibling) {
+      iter = node_stack.pop()
+      if (!iter) break
+    }
+
+    // So now we're going to traverse the next node.
+    if (iter) iter = iter.nextSibling
+
+  } while (iter)
+
+}
+
+
+/**
+ * Apply unmount to a node.
+ */
+function _apply_unmount(tuple: Node[]) {
+  var node = tuple[0]
+  var controllers = Controller.all(node)
+
+  if (!controllers) return
+
+  for (var c of controllers) {
+    // ignore spurious unmounts (should not happen, but let's be cautious)
+    if (c.state === 'unmounted') continue
+
+    for (var f of c.onunmount) {
+      f.apply(c, tuple)
+    }
+
+    c.state = 'unmounted'
   }
 }
 
@@ -61,26 +105,46 @@ function _mount(node: Node, target?: Node) {
 /**
  * Call controller's unmount functions recursively
  */
-function _unmount(node: Node, target?: Node) {
+function _unmount(node: Node, target: Node, prev: Node, next: Node) {
 
-  var ch = node.firstChild
-  while (ch) {
-    _unmount(ch, node)
-    ch = ch.nextSibling
-  }
+  const unmount: [Node, Node, Node, Node][] = []
+  const node_stack: Node[] = []
+  var iter: Node = node
 
-  let controllers = Controller.all(node)
-  if (!controllers) return
-  for (var c of controllers) {
-    // ignore spurious unmounts (should not happen though, unlike spurious mounts)
-    if (c.state === 'unmounted') continue
+  // We need to store all the nodes for which we'll call unmount() beforehand,
+  // as an unmount() handler may further remove nodes that were already
+  // unmounted from the DOM and which could be missed if we naively traversed
+  // the unmounted children.
+  //
+  // The array construction is done iteratively for performance considerations.
+  do {
 
-    for (var f of c.onunmount) {
-      f.call(c, node, target)
+    // Push firstChildren first
+    while (iter.firstChild) {
+      node_stack.push(iter)
+      iter = iter.firstChild
     }
 
-    c.state = 'unmounted'
+    unmount.push([iter, iter.parentNode, null, null])
+
+    // When we're here, we're on a terminal node, so
+    // we're going to have to process it.
+
+    while (!iter.nextSibling) {
+      iter = node_stack.pop()
+      if (!iter) break
+      unmount.push([iter, iter.parentNode || target, null, null])
+    }
+
+    // So now we're going to traverse the next node.
+    if (iter) iter = iter.nextSibling
+
+  } while (iter)
+
+  for (var tuple of unmount) {
+    _apply_unmount(tuple)
   }
+
 }
 
 
@@ -98,7 +162,7 @@ function applyMutations(records: MutationRecord[]) {
 
     var removed = record.removedNodes
     for (i = 0; i < removed.length; i++)
-      _unmount(removed[i], target)
+      _unmount(removed[i], target, record.previousSibling, record.nextSibling)
   }
 }
 
