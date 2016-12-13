@@ -1,7 +1,7 @@
 
 import {Controller} from './controller'
 
-function _apply_mount(node: Node) {
+export function _apply_mount(node: Node) {
   var controllers = Controller.all(node)
 
   if (!controllers) return
@@ -9,12 +9,12 @@ function _apply_mount(node: Node) {
   for (var c of controllers) {
     // ignore spurious unmounts (should not happen, but let's be cautious)
     if (c.state === 'mounted') continue
+    c.state = 'mounted'
 
     for (var f of c.onmount) {
       f.call(c, node)
     }
 
-    c.state = 'mounted'
   }
 
 }
@@ -22,7 +22,7 @@ function _apply_mount(node: Node) {
 /**
  * Call controllers' mount() functions.
  */
-function _mount(node: Node, target?: Node) {
+export function _mount(node: Node, target?: Node) {
   var iter = node
   var node_stack: Node[] = []
 
@@ -54,7 +54,7 @@ function _mount(node: Node, target?: Node) {
 /**
  * Apply unmount to a node.
  */
-function _apply_unmount(tuple: Node[]) {
+export function _apply_unmount(tuple: Node[]) {
   var node = tuple[0]
   var controllers = Controller.all(node)
 
@@ -63,12 +63,12 @@ function _apply_unmount(tuple: Node[]) {
   for (var c of controllers) {
     // ignore spurious unmounts (should not happen, but let's be cautious)
     if (c.state === 'unmounted') continue
+    c.state = 'unmounted'
 
     for (var f of c.onunmount) {
       f.apply(c, tuple)
     }
 
-    c.state = 'unmounted'
   }
 }
 
@@ -76,7 +76,7 @@ function _apply_unmount(tuple: Node[]) {
 /**
  * Call controller's unmount functions recursively
  */
-function _unmount(node: Node, target: Node, prev: Node, next: Node) {
+export function _unmount(node: Node, target: Node, prev: Node, next: Node) {
 
   const unmount: [Node, Node, Node, Node][] = []
   const node_stack: Node[] = []
@@ -122,7 +122,7 @@ function _unmount(node: Node, target: Node, prev: Node, next: Node) {
 /**
  * Call mount and unmount on the node controllers.
  */
-function applyMutations(records: MutationRecord[]) {
+export function applyMutations(records: MutationRecord[]) {
   var i = 0
 
   for (var record of records) {
