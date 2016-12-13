@@ -9,10 +9,11 @@ import {
   BasicAttributes,
   Child,
   ClassDefinition,
-  D,
   Decorator,
   Instantiator,
   StyleDefinition,
+  ComponentFn,
+  ComponentInstanciator
 } from './types'
 
 import {
@@ -239,7 +240,11 @@ const NS = {
  * This function is the base of domic ; it creates Nodes and glues together
  * Controllers, decorators, classes and style.
  */
-export const d: D = <D>function d(elt: any, attrs: BasicAttributes, ...children: Child[]): Node {
+
+export function d(elt: ComponentFn, attrs: BasicAttributes, ...children: Child[]): Node
+export function d(elt: string, attrs: BasicAttributes, ...children: Child[]): HTMLElement
+export function d<A>(elt: ComponentInstanciator<A>, attrs: A, ...children: Child[]): Node
+export function d(elt: any, attrs: BasicAttributes, ...children: Child[]): Node {
 
   if (!elt) throw new Error(`d() needs at least a string, a function or a Component`)
 
@@ -314,5 +319,3 @@ export const d: D = <D>function d(elt: any, attrs: BasicAttributes, ...children:
 
   return node
 }
-
-d.createElement = d
