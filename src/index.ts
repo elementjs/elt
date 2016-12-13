@@ -57,8 +57,6 @@ export {
   DisplayIf,
   DisplayUnless,
   Fragment,
-  Observe,
-  ObserverAttributes,
   Repeat,
   VirtualHolder,
   Write,
