@@ -158,36 +158,6 @@ export class VirtualHolder extends Component {
 }
 
 
-export interface ObserverAttributes {
-  obs: Observable<Node>
-}
-
-export class Observer extends VirtualHolder {
-
-  name = 'observer'
-  attrs: ObserverAttributes
-
-  render(): Node {
-
-    this.observe(this.attrs.obs, node => {
-      this.updateChildren(node)
-    })
-
-    return super.render()
-  }
-
-}
-
-
-/**
- * Put the value of an observable into the DOM.
- * Be careful with DocumentFragments ; they can only be inserted once.
- */
-export function Observe(obs: Observable<Node>): Node {
-  return d(Observer, {obs})
-}
-
-
 export interface HasToString {
   toString(): string
 }
@@ -228,8 +198,8 @@ export class Displayer<T> extends VirtualHolder {
 
   attrs: {
     condition?: O<T>
-    display: O<DisplayCreator<T>>
-    display_otherwise?: O<DisplayCreator<T>>
+    display: O<DisplayCreator<T>|Node>
+    display_otherwise?: O<DisplayCreator<T>|Node>
   }
 
   render(): Node {
@@ -240,13 +210,13 @@ export class Displayer<T> extends VirtualHolder {
       this.attrs.display_otherwise,
       (condition, display, otherwise) => {
 
-      if (typeof condition === 'undefined' || !condition) {
+      if ((typeof this.attrs.condition) !== 'undefined' && !condition) {
         if (otherwise)
-          return this.updateChildren(otherwise(condition))
+          return this.updateChildren(typeof otherwise === 'function' ? otherwise(condition) : otherwise)
         return this.updateChildren(null)
       }
 
-      this.updateChildren(display(condition))
+      this.updateChildren(typeof display === 'function' ? display(condition) : display)
     })
     return super.render()
   }
@@ -254,7 +224,7 @@ export class Displayer<T> extends VirtualHolder {
 }
 
 
-export function Display(display: O<NodeCreatorFn>): Node {
+export function Display(display: O<NodeCreatorFn|Node>): Node {
   return d(Displayer, {display})
 }
 
@@ -263,7 +233,7 @@ export function Display(display: O<NodeCreatorFn>): Node {
  *
  */
 export function DisplayIf<T>(condition: O<T>, display: O<DisplayCreator<T>>, display_otherwise?: O<DisplayCreator<T>>): Node {
-  return d(Displayer, {condition, display, display_otherwise})
+  return d(Displayer, {condition: o(condition), display, display_otherwise})
 }
 
 
