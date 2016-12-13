@@ -8,8 +8,8 @@ export function _apply_mount(node: Node) {
 
   for (var c of controllers) {
     // ignore spurious unmounts (should not happen, but let's be cautious)
-    if (c.state === 'mounted') continue
-    c.state = 'mounted'
+    if (c.mounted) continue
+    c.mounted = true
 
     for (var f of c.onmount) {
       f.call(c, node)
@@ -62,8 +62,8 @@ export function _apply_unmount(tuple: Node[]) {
 
   for (var c of controllers) {
     // ignore spurious unmounts (should not happen, but let's be cautious)
-    if (c.state === 'unmounted') continue
-    c.state = 'unmounted'
+    if (!c.mounted) continue
+    c.mounted = false
 
     for (var f of c.onunmount) {
       f.apply(c, tuple)
