@@ -254,20 +254,25 @@ export class Repeater<T> extends VirtualHolder {
 
   obs: Observable<T[]>
   map: WeakMap<T, RepeatNode> = new WeakMap<T, RepeatNode>()
+  positions: Node[]
 
   redrawList(lst: T[]) {
 
     if (!lst) lst = []
 
+    this.positions = []
     let obs = this.obs
     let fn = this.attrs.render
     let res = document.createDocumentFragment()
     var n: Node
-    var id: Observable<number>
 
     for (var i = 0; i < lst.length; i++) {
-      id = o(i)
       n = fn(obs.p(i) as PropObservable<T[], T>, o(i))
+
+      var comment = document.createComment('' + i)
+      this.positions.push(comment)
+
+      res.appendChild(comment)
       res.appendChild(n)
     }
 
@@ -275,12 +280,50 @@ export class Repeater<T> extends VirtualHolder {
 
   }
 
+  amendList(lst: T[], diff: number) {
+
+    var fr = document.createDocumentFragment()
+
+    if (diff > 0) {
+      for (var i = lst.length - diff ; i < lst.length; i++) {
+        var n = this.attrs.render(this.obs.p(i), o(i))
+        var comment = document.createComment('' + i)
+        this.positions.push(comment)
+        fr.appendChild(comment)
+        fr.appendChild(n)
+      }
+
+      this.end.parentNode.insertBefore(fr, this.end)
+
+    } else {
+      // Détruire jusqu'à la position concernée...
+      let iter = this.positions[lst.length]
+      let next: Node = null
+      let parent = iter.parentNode
+      let end = this.end
+
+      while (iter && iter !== end) {
+        next = iter.nextSibling
+        parent.removeChild(iter)
+        iter = next
+      }
+
+      this.positions = this.positions.slice(0, lst.length)
+    }
+
+  }
+
   render(): Node {
     this.obs = o(this.attrs.ob)
 
-    this.observe(this.attrs.ob, (lst, prop) => {
-      if (!prop)
-        this.redrawList(lst)
+    this.observe(this.obs, (lst, prop) => {
+      if (!prop) this.redrawList(lst)
+    })
+
+    this.observe(this.obs.p('length'), (len, prop, previous) => {
+      if (len - previous) {
+        this.amendList(this.obs.get(), len - previous)
+      }
     })
 
     return super.render()

@@ -80,7 +80,7 @@ export class Controller {
   observe<A, B, C, D>(a: O<A>, b: O<B>, c: O<C>, d: O<D>, cbk: (a: A, b: B, c: C, d: D) => any): this;
   observe<A, B, C>(a: O<A>, b: O<B>, c: O<C>, cbk: (a: A, b: B, c: C) => any): this;
   observe<A, B>(a: O<A>, b: O<B>, cbk: (a: A, b: B) => any): this;
-  observe<A>(a: O<A>, cbk: (a: A, prop: string) => any): this;
+  observe<A>(a: O<A>, cbk: (a: A, prop: string, prev: A) => any): this;
 
   /**
    * Observe an observer whenever it is mounted. Stop observing when
