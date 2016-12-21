@@ -282,9 +282,11 @@ export class Repeater<T> extends VirtualHolder {
 
   amendList(lst: T[], diff: number) {
 
-    var fr = document.createDocumentFragment()
+    if (!this.node.parentNode) return
 
     if (diff > 0) {
+      var fr = document.createDocumentFragment()
+
       for (var i = lst.length - diff ; i < lst.length; i++) {
         var n = this.attrs.render(this.obs.p(i), o(i))
         var comment = document.createComment('' + i)
@@ -297,7 +299,7 @@ export class Repeater<T> extends VirtualHolder {
 
     } else {
       // Détruire jusqu'à la position concernée...
-      let iter = this.positions[lst.length]
+      let iter = this.positions[lst.length - 1]
       let next: Node = null
       let parent = iter.parentNode
       let end = this.end

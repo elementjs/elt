@@ -6,6 +6,7 @@ module.exports = {
   cache: true,
   entry: "./build/index.js",
   stats: {children: false},
+  externals: ["tslib"],
   output: {
     path: "./lib",
     publicPath: "/",
