@@ -3,7 +3,7 @@
  */
 import {
   o,
-  O,
+  MaybeObservable,
   Observable,
   PropObservable
 } from 'domic-observable'
@@ -197,9 +197,9 @@ export class Displayer<T> extends VirtualHolder {
   name = 'if'
 
   attrs: {
-    condition?: O<T>
-    display: O<DisplayCreator<T>|Node>
-    display_otherwise?: O<DisplayCreator<T>|Node>
+    condition?: MaybeObservable<T>
+    display: MaybeObservable<DisplayCreator<T>|Node>
+    display_otherwise?: MaybeObservable<DisplayCreator<T>|Node>
   }
 
   render(): Node {
@@ -224,7 +224,7 @@ export class Displayer<T> extends VirtualHolder {
 }
 
 
-export function Display(display: O<NodeCreatorFn|Node>): Node {
+export function Display(display: MaybeObservable<NodeCreatorFn|Node>): Node {
   return d(Displayer, {display})
 }
 
@@ -232,12 +232,12 @@ export function Display(display: O<NodeCreatorFn|Node>): Node {
 /**
  *
  */
-export function DisplayIf<T>(condition: O<T>, display: O<DisplayCreator<T>>, display_otherwise?: O<DisplayCreator<T>>): Node {
+export function DisplayIf<T>(condition: MaybeObservable<T>, display: MaybeObservable<DisplayCreator<T>>, display_otherwise?: MaybeObservable<DisplayCreator<T>>): Node {
   return d(Displayer, {condition: o(condition), display, display_otherwise})
 }
 
 
-export function DisplayUnless<T>(condition: O<any>, display: O<DisplayCreator<T>>, display_otherwise?: O<DisplayCreator<T>>) {
+export function DisplayUnless<T>(condition: MaybeObservable<any>, display: MaybeObservable<DisplayCreator<T>>, display_otherwise?: MaybeObservable<DisplayCreator<T>>) {
   return d(Displayer, {condition: o(condition).isFalsy(), display, display_otherwise})
 }
 
@@ -245,10 +245,10 @@ export function DisplayUnless<T>(condition: O<any>, display: O<DisplayCreator<T>
 
 export type RepeatNode = {node: Node, index: Observable<number>}
 
-export class Repeater<T> extends VirtualHolder {
+export class Repeater<T extends object> extends VirtualHolder {
 
   attrs: {
-    ob: O<T[]>,
+    ob: MaybeObservable<T[]>,
     render: (e: PropObservable<T[], T>, oi?: Observable<number>) => Node
   }
 
@@ -338,7 +338,7 @@ export class Repeater<T> extends VirtualHolder {
  */
 export function Repeat<T>(ob: T[], render: (e: PropObservable<T[], T>, oi?: Observable<number>) => Node): Node
 export function Repeat<T>(ob: Observable<T[]>, render: (e: PropObservable<T[], T>, oi?: Observable<number>) => Node): Node
-export function Repeat<T>(ob: O<T[]>, render: (e: PropObservable<T[], T>, oi?: Observable<number>) => Node): Node {
+export function Repeat<T>(ob: MaybeObservable<T[]>, render: (e: PropObservable<T[], T>, oi?: Observable<number>) => Node): Node {
   return d(Repeater, {ob, render})
 }
 
