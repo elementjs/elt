@@ -1,6 +1,6 @@
 
 import {
-  O,
+  MaybeObservable,
   Observable
 } from 'domic-observable'
 
@@ -99,7 +99,7 @@ function applyStyle(node: HTMLElement, c: StyleDefinition, ct: DefaultController
 /**
  * Apply attribute to the node
  */
-function applyAttribute(node: Element, name: string, value: O<any>, ct: DefaultController): DefaultController {
+function applyAttribute(node: Element, name: string, value: MaybeObservable<any>, ct: DefaultController): DefaultController {
 
   if (value instanceof Observable) {
     if (!ct) ct = new DefaultController()
