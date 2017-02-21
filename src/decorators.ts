@@ -1,6 +1,6 @@
 
 import {
-  Observable, MaybeObservable
+  Observable, MaybeObservable, Observer, ObserveOptions
 } from 'domic-observable'
 
 import {
@@ -107,7 +107,9 @@ export class BindController extends Controller {
         break
       case 'checkbox':
         // FIXME ugly hack because we specified string
-        this.observe(obs, (val: any) => node.checked = !!val)
+        this.observe(obs, (val: any) => {
+          node.checked = !!val
+        })
         node.addEventListener('change', () => (obs as Observable<any>).set(node.checked))
         break
       // case 'number':
@@ -140,19 +142,10 @@ export function bind(obs: Observable<string>, opts: BindControllerOptions = {}) 
 }
 
 
-export function observe<A, B, C, D, E, F, G, H, I>(a: MaybeObservable<A>, b: MaybeObservable<B>, c: MaybeObservable<C>, d: MaybeObservable<D>, e: MaybeObservable<E>, f: MaybeObservable<F>, g: MaybeObservable<G>, h: MaybeObservable<H>, i: MaybeObservable<I>, cbk: (a: A, b: B, c: C, d: D, e: E, f: F, g: G, h: H, i: I) => any): Decorator;
-export function observe<A, B, C, D, E, F, G, H>(a: MaybeObservable<A>, b: MaybeObservable<B>, c: MaybeObservable<C>, d: MaybeObservable<D>, e: MaybeObservable<E>, f: MaybeObservable<F>, g: MaybeObservable<G>, h: MaybeObservable<H>, cbk: (a: A, b: B, c: C, d: D, e: E, f: F, g: G, h: H) => any): Decorator;
-export function observe<A, B, C, D, E, F, G>(a: MaybeObservable<A>, b: MaybeObservable<B>, c: MaybeObservable<C>, d: MaybeObservable<D>, e: MaybeObservable<E>, f: MaybeObservable<F>, g: MaybeObservable<G>, cbk: (a: A, b: B, c: C, d: D, e: E, f: F, g: G) => any): Decorator;
-export function observe<A, B, C, D, E, F>(a: MaybeObservable<A>, b: MaybeObservable<B>, c: MaybeObservable<C>, d: MaybeObservable<D>, e: MaybeObservable<E>, f: MaybeObservable<F>, cbk: (a: A, b: B, c: C, d: D, e: E, f: F) => any): Decorator;
-export function observe<A, B, C, D, E>(a: MaybeObservable<A>, b: MaybeObservable<B>, c: MaybeObservable<C>, d: MaybeObservable<D>, e: MaybeObservable<E>, cbk: (a: A, b: B, c: C, d: D, e: E) => any): Decorator;
-export function observe<A, B, C, D>(a: MaybeObservable<A>, b: MaybeObservable<B>, c: MaybeObservable<C>, d: MaybeObservable<D>, cbk: (a: A, b: B, c: C, d: D) => any): Decorator;
-export function observe<A, B, C>(a: MaybeObservable<A>, b: MaybeObservable<B>, c: MaybeObservable<C>, cbk: (a: A, b: B, c: C) => any): Decorator;
-export function observe<A, B>(a: MaybeObservable<A>, b: MaybeObservable<B>, cbk: (a: A, b: B) => any): Decorator;
-export function observe<A>(a: MaybeObservable<A>, cbk: (a: A, prop: string) => any): Decorator;
-export function observe(...a: any[]) {
+export function observe<T>(a: MaybeObservable<T>, cbk: Observer<T>, options?: ObserveOptions<T>) {
   return function observeDecorator(node: Node): void {
     let c = DefaultController.get(node);
-    (c.observe as any)(...a)
+    c.observe(a, cbk, options)
   }
 }
 
@@ -472,4 +465,50 @@ export function onrender(target: any, key?: string): any {
  */
 export function focusOnMount(node: HTMLInputElement): void {
   onmount((node: HTMLInputElement) => node.focus())(node)
+}
+
+var _noscrollsetup = false
+
+
+function _setUpNoscroll() {
+
+	document.body.addEventListener('touchmove', function event(ev) {
+		// If no div marked as scrollable set the moving attribute, then simply don't scroll.
+		if (!(ev as any).scrollable) ev.preventDefault()
+	}, false)
+
+	_noscrollsetup = true
+}
+
+
+/**
+ * Setup scroll on an atom so that touchstart and touchmove events don't
+ * trigger the ugly scroll band.
+ *
+ * Calling this functions makes anything not marked scrollable as non-scrollable.
+ */
+export function scrollable(nod: Node): void {
+	if (!(nod instanceof HTMLElement)) throw new Error(`scrollable() only works on HTMLElement`)
+
+	let node = nod as HTMLElement
+
+	if (!_noscrollsetup) _setUpNoscroll()
+
+  node.style.overflowY = 'auto'
+  node.style.overflowX = 'auto';
+  // seems like typescript doesn't have this property yet
+  (node.style as any).webkitOverflowScrolling = 'touch'
+
+	node.addEventListener('touchstart', function (ev: TouchEvent) {
+		if (node.scrollTop == 0) {
+			node.scrollTop = 1
+		} else if (node.scrollTop + node.offsetHeight >= node.scrollHeight - 1) node.scrollTop -= 1
+	}, true)
+
+	node.addEventListener('touchmove', function event (ev: TouchEvent) {
+		if (node.offsetHeight < node.scrollHeight)
+			(ev as any).scrollable = true
+	}, true)
+
+
 }

@@ -40,7 +40,8 @@ export {
   onfirstmount,
   onrender,
   onunmount,
-  on
+  on,
+  scrollable
 } from './decorators'
 
 export {
@@ -58,6 +59,10 @@ export {
   DisplayUnless,
   Fragment,
   Repeat,
+  RepeatObservable,
+  RepeatScroll,
+  RepeatScrollObservable,
+  Repeater,
   VirtualHolder,
   Write,
   Writer,
