@@ -12,7 +12,7 @@ export function _apply_mount(node: Node) {
     c.mounted = true
 
     for (var f of c.onmount) {
-      f.call(c, node)
+      f.call(c, node, node.parentNode)
     }
 
   }

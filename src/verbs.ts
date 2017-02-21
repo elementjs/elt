@@ -204,11 +204,11 @@ export class Displayer<T> extends VirtualHolder {
 
   render(): Node {
 
-    this.observe(
-      this.attrs.condition,
-      this.attrs.display,
-      this.attrs.display_otherwise,
-      (condition, display, otherwise) => {
+    this.observe(o.merge({
+      condition: this.attrs.condition,
+      display: this.attrs.display,
+      otherwise: this.attrs.display_otherwise
+    }), ({condition, display, otherwise}) => {
 
       if ((typeof this.attrs.condition) !== 'undefined' && !condition) {
         if (otherwise)
@@ -245,61 +245,86 @@ export function DisplayUnless<T>(condition: MaybeObservable<any>, display: Maybe
 
 export type RepeatNode = {node: Node, index: Observable<number>}
 
-export class Repeater<T extends object> extends VirtualHolder {
+
+/**
+ *
+ */
+export class Repeater<T> extends VirtualHolder {
 
   attrs: {
     ob: MaybeObservable<T[]>,
-    render: (e: PropObservable<T[], T>, oi?: Observable<number>) => Node
+    render: (e: PropObservable<T[], T>|T, oi?: number) => Node
+    scroll?: boolean
+    scroll_buffer_size?: number // default 10
+    use_prop_observable?: boolean
   }
 
-  obs: Observable<T[]>
-  map: WeakMap<T, RepeatNode> = new WeakMap<T, RepeatNode>()
-  positions: Node[]
+  protected obs: Observable<T[]>
+  protected positions: Node[]
+  protected index: number = -1
+  protected renderfn: (e: PropObservable<T[], T>|T, oi?: number) => Node
+  protected lst: T[] = []
+  protected prop_obs: boolean = false
+  protected parent: HTMLElement|undefined
 
-  redrawList(lst: T[]) {
-
-    if (!lst) lst = []
-
+  reset(lst: T[]) {
+    this.lst = lst
+    this.index = -1
     this.positions = []
-    let obs = this.obs
-    let fn = this.attrs.render
-    let res = document.createDocumentFragment()
-    var n: Node
-
-    for (var i = 0; i < lst.length; i++) {
-      n = fn(obs.p(i) as PropObservable<T[], T>, o(i))
-
-      var comment = document.createComment('' + i)
-      this.positions.push(comment)
-
-      res.appendChild(comment)
-      res.appendChild(n)
-    }
-
-    this.updateChildren(res)
-
+    this.updateChildren(null)
   }
 
-  amendList(lst: T[], diff: number) {
+  /**
+   * If we are dependant to the scroll, return false
+   */
+  next(): Node|null {
+    if (this.index >= this.lst.length - 1)
+      return null
+
+    this.index++
+    const comment = document.createComment('repeat-' + this.index)
+    this.positions.push(comment)
+    return this.renderfn(this.prop_obs ?
+      this.obs.p(this.index) : this.lst[this.index], this.index)
+  }
+
+  draw() {
 
     if (!this.node.parentNode) return
 
-    if (diff > 0) {
-      var fr = document.createDocumentFragment()
+    const diff = this.lst.length - this.positions.length
+    var next: Node = null
 
-      for (var i = lst.length - diff ; i < lst.length; i++) {
-        var n = this.attrs.render(this.obs.p(i), o(i))
-        var comment = document.createComment('' + i)
-        this.positions.push(comment)
-        fr.appendChild(comment)
-        fr.appendChild(n)
+    if (diff > 0) {
+      if (!this.attrs.scroll) {
+        var fr = document.createDocumentFragment()
+
+        while (next = this.next()) {
+          fr.appendChild(next)
+        }
+
+        this.end.parentNode.insertBefore(fr, this.end)
+      } else {
+
+        const bufsize = this.attrs.scroll_buffer_size || 10
+        var count = 0
+        const p = this.parent as HTMLElement
+
+        while (p.scrollHeight - (p.clientHeight + p.scrollTop) < 500) {
+          var fr = document.createDocumentFragment()
+          while ((next = this.next()) && count++ < bufsize) {
+            fr.appendChild(next)
+          }
+          this.end.parentNode.insertBefore(fr, this.end)
+          count = 0
+
+          if (!next) break
+        }
       }
 
-      this.end.parentNode.insertBefore(fr, this.end)
-
-    } else {
+    } else if (diff < 0) {
       // Détruire jusqu'à la position concernée...
-      let iter = this.positions[lst.length - 1]
+      let iter = this.positions[this.lst.length - 1]
       let next: Node = null
       let parent = iter.parentNode
       let end = this.end
@@ -310,23 +335,59 @@ export class Repeater<T extends object> extends VirtualHolder {
         iter = next
       }
 
-      this.positions = this.positions.slice(0, lst.length)
+      this.positions = this.positions.slice(0, this.lst.length)
     }
 
   }
 
+  @onmount
+  setupScrolling() {
+    if (!this.attrs.scroll) return
+
+    // Find parent with the overflow-y
+    var iter = this.node.parentElement
+    while (iter) {
+      var over = getComputedStyle(iter).overflowY
+      if (over === 'auto') {
+        this.parent = iter
+        break
+      }
+      iter = iter.parentElement
+    }
+
+    if (!this.parent)
+      throw new Error(`Scroll repeat needs a parent with overflow-y: auto`)
+
+    this.parent.addEventListener('scroll', this.draw)
+  }
+
+  @onunmount
+  removeScrolling() {
+    if (!this.attrs.scroll) return
+
+    this.parent.removeEventListener('scroll', this.draw)
+    this.parent = null
+  }
+
   render(): Node {
     this.obs = o(this.attrs.ob)
+    this.renderfn = this.attrs.render
+    // Bind draw so that we can unregister it
+    this.draw = this.draw.bind(this)
+    this.prop_obs = this.attrs.use_prop_observable
 
-    this.observe(this.obs, (lst, prop) => {
-      if (!prop) this.redrawList(lst)
+    this.observe(this.obs, (lst, change) => {
+      // if (change.valueChanged())
+      if (!change.valueChanged()) return
+      this.reset(lst)
+      this.draw()
     })
 
-    this.observe(this.obs.p('length'), (len, prop, previous) => {
-      if (len - previous) {
-        this.amendList(this.obs.get(), len - previous)
+    this.observe(this.obs.p('length'), (len, change) => {
+      if (change.valueChanged()) {
+        this.draw()
       }
-    })
+    }, {updatesOnly: true})
 
     return super.render()
   }
@@ -336,12 +397,46 @@ export class Repeater<T extends object> extends VirtualHolder {
 /**
  *
  */
-export function Repeat<T>(ob: T[], render: (e: PropObservable<T[], T>, oi?: Observable<number>) => Node): Node
-export function Repeat<T>(ob: Observable<T[]>, render: (e: PropObservable<T[], T>, oi?: Observable<number>) => Node): Node
-export function Repeat<T>(ob: MaybeObservable<T[]>, render: (e: PropObservable<T[], T>, oi?: Observable<number>) => Node): Node {
+
+export function Repeat<T>(
+  ob: MaybeObservable<T[]>,
+  render: (e: T, oi?: number) => Node,
+): Node {
   return d(Repeater, {ob, render})
 }
 
+
+export function RepeatObservable<T>(
+  ob: MaybeObservable<T[]>,
+  render: (e: PropObservable<T[], T>, oi?: number) => Node
+): Node {
+  return d(Repeater, {ob, render, use_prop_observable: true})
+}
+
+export function RepeatScroll<T>(
+  ob: MaybeObservable<T[]>,
+  render: (e: T, oi?: number) => Node,
+  options: {
+    scroll_buffer_size?: number // default 10
+  } = {}
+): Node {
+  return d(Repeater, {ob, render, scroll: true, scroll_buffer_size: options.scroll_buffer_size})
+}
+
+
+export function RepeatScrollObservable<T>(
+  ob: MaybeObservable<T[]>,
+  render: (e: PropObservable<T[], T>, oi?: number) => Node,
+  options: {
+    scroll_buffer_size?: number // default 10
+  } = {}
+): Node {
+  return d(Repeater, {ob, render,
+    use_prop_observable: true,
+    scroll: true,
+    scroll_buffer_size: options.scroll_buffer_size
+  })
+}
 
 /**
  *
