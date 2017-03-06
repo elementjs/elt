@@ -319,3 +319,15 @@ export function d(elt: any, attrs: BasicAttributes, ...children: Child[]): Node 
 
   return node
 }
+
+
+declare global {
+  function D(elt: ComponentFn, attrs: BasicAttributes, ...children: Child[]): Node
+  function D(elt: string, attrs: BasicAttributes, ...children: Child[]): HTMLElement
+  function D<A>(elt: ComponentInstanciator<A>, attrs: A, ...children: Child[]): Node
+}
+
+
+if (typeof window !== 'undefined' && typeof (window as any).D === 'undefined') {
+  (window as any).D = d
+}

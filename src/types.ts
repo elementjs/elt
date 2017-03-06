@@ -15,6 +15,7 @@ export interface Instantiator<T> {
   new (...a: any[]): T
 }
 
+
 /**
  * Decorators used on Nodes
  */
