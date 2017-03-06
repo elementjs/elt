@@ -1,38 +1,19 @@
-
 # What is Domic
 
 
-# Controllers
+Domic is a [typescript](https://typescriptlang.org) library intended to build user interfaces in a web environment.
+It tries to embrace the DOM as much as possible while still providing powerful constructs
+that allow for complex application creation.
 
-* Are bound to a Node
-* Know when mounted or unmounted
-* Have an observe() method for convenience
+It helps you accomplish this goal by providing the following ;
 
+- A controller system which binds objects to DOM nodes, notifying them whenever
+  the node is added or removed from the document
+- An observable library for all that reactive bindings goodness
+- A react compatible build function meant to be used with jsx/tsx
 
-# Components
+Domic is typescript-first. As such, its API is meant to accomodate the type checker
+and its inference as much as possible.
 
-* Can be created by a function or by extending a class. The `d()` function
-  is in charge of properly instanciating them, handling controllers, classes and
-  styles.
-
-## Component Function
-
-
-
-## The Component Class
-
-* Are controllers
-* Have attributes
-* Return a Node through a render() function
-
-
-# Verbs
-
-* Display, DisplayIf, DisplayUnless
-* Write
-* Repeat
-
-
-# Observables
-
-Well there's a lot to talk about.
+Note that it is not meant to be used for website creation ; only the latest browsers
+are targeted. It is however ideal for mobile applications or environments such as [nwjs](https://nwjs.io).
