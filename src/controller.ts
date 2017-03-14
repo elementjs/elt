@@ -78,7 +78,7 @@ export class Controller {
    * Observe an observer whenever it is mounted. Stop observing when
    * unmounted. Reobserve when mounted again.
    */
-  observe<T>(a: MaybeObservable<T>, cbk: Observer<T>, options?: ObserveOptions<T>): this {
+  observe<T>(a: MaybeObservable<T>, cbk: Observer<T>, options?: ObserveOptions): this {
     var unload: UnregisterFn
     const obs = o(a)
 

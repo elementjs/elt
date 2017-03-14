@@ -12,7 +12,7 @@ export {
 export {
   ArrayOrSingle,
   BasicAttributes,
-  Child,
+  Insertable,
   ClassDefinition,
   ClassObject,
   ComponentFn,

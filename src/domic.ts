@@ -7,7 +7,7 @@ import {
 import {
   ArrayOrSingle,
   BasicAttributes,
-  Child,
+  Insertable,
   ClassDefinition,
   Decorator,
   Instantiator,
@@ -122,7 +122,7 @@ function applyAttribute(node: Element, name: string, value: MaybeObservable<any>
 /**
  *
  */
-export function getDocumentFragment(children: Child[]) {
+export function getDocumentFragment(children: Insertable|Insertable[]) {
   var result = document.createDocumentFragment()
 
   _foreach(children, c => {
@@ -241,10 +241,10 @@ const NS = {
  * Controllers, decorators, classes and style.
  */
 
-export function d(elt: ComponentFn, attrs: BasicAttributes, ...children: Child[]): Node
-export function d(elt: string, attrs: BasicAttributes, ...children: Child[]): HTMLElement
-export function d<A>(elt: ComponentInstanciator<A>, attrs: A, ...children: Child[]): Node
-export function d(elt: any, attrs: BasicAttributes, ...children: Child[]): Node {
+export function d(elt: ComponentFn, attrs: BasicAttributes, ...children: Insertable[]): Node
+export function d(elt: string, attrs: BasicAttributes, ...children: Insertable[]): HTMLElement
+export function d<A>(elt: ComponentInstanciator<A>, attrs: A, ...children: Insertable[]): Node
+export function d(elt: any, attrs: BasicAttributes, ...children: Insertable[]): Node {
 
   if (!elt) throw new Error(`d() needs at least a string, a function or a Component`)
 
@@ -322,9 +322,9 @@ export function d(elt: any, attrs: BasicAttributes, ...children: Child[]): Node 
 
 
 declare global {
-  function D(elt: ComponentFn, attrs: BasicAttributes, ...children: Child[]): Node
-  function D(elt: string, attrs: BasicAttributes, ...children: Child[]): HTMLElement
-  function D<A>(elt: ComponentInstanciator<A>, attrs: A, ...children: Child[]): Node
+  function D(elt: ComponentFn, attrs: BasicAttributes, ...children: Insertable[]): Node
+  function D(elt: string, attrs: BasicAttributes, ...children: Insertable[]): HTMLElement
+  function D<A>(elt: ComponentInstanciator<A>, attrs: A, ...children: Insertable[]): Node
 }
 
 

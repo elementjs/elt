@@ -260,7 +260,7 @@ export class Repeater<T> extends VirtualHolder {
   }
 
   protected obs: Observable<T[]>
-  protected positions: Node[]
+  protected positions: Node[] = []
   protected index: number = -1
   protected renderfn: (e: PropObservable<T[], T>|T, oi?: number) => Node
   protected lst: T[] = []
@@ -377,7 +377,6 @@ export class Repeater<T> extends VirtualHolder {
     this.prop_obs = this.attrs.use_prop_observable
 
     this.observe(this.obs, (lst, change) => {
-      // if (change.valueChanged())
       if (!change.valueChanged()) return
       this.reset(lst)
       this.draw()
@@ -399,7 +398,7 @@ export class Repeater<T> extends VirtualHolder {
  */
 
 export function Repeat<T>(
-  ob: MaybeObservable<T[]>,
+  ob: Observable<T[]>,
   render: (e: T, oi?: number) => Node,
 ): Node {
   return d(Repeater, {ob, render})
@@ -407,14 +406,14 @@ export function Repeat<T>(
 
 
 export function RepeatObservable<T>(
-  ob: MaybeObservable<T[]>,
+  ob: Observable<T[]>,
   render: (e: PropObservable<T[], T>, oi?: number) => Node
 ): Node {
   return d(Repeater, {ob, render, use_prop_observable: true})
 }
 
 export function RepeatScroll<T>(
-  ob: MaybeObservable<T[]>,
+  ob: Observable<T[]>,
   render: (e: T, oi?: number) => Node,
   options: {
     scroll_buffer_size?: number // default 10
@@ -425,7 +424,7 @@ export function RepeatScroll<T>(
 
 
 export function RepeatScrollObservable<T>(
-  ob: MaybeObservable<T[]>,
+  ob: Observable<T[]>,
   render: (e: PropObservable<T[], T>, oi?: number) => Node,
   options: {
     scroll_buffer_size?: number // default 10
