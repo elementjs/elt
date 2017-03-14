@@ -40,12 +40,12 @@ function _remove_class(node: Element, c: string) {
 /**
  *
  */
-function applyClass(node: Element, c: ClassDefinition, ct: DefaultController): DefaultController {
+function applyClass(node: Element, c: ClassDefinition, ct: DefaultController|null): DefaultController|null {
   if (typeof c === 'string') {
     _apply_class(node, c)
   } else if (c instanceof Observable) {
     if (!ct) ct = new DefaultController()
-    let old_class: string = null
+    let old_class: string|null = null
     ct.observe(c, str => {
       if (old_class) _remove_class(node, old_class)
       _apply_class(node, str)
@@ -69,7 +69,8 @@ function applyClass(node: Element, c: ClassDefinition, ct: DefaultController): D
   return ct
 }
 
-function applyStyle(node: HTMLElement, c: StyleDefinition, ct: DefaultController): DefaultController {
+function applyStyle(node: HTMLElement, c: StyleDefinition, ct: DefaultController|null): DefaultController|null {
+
   if (typeof c === 'string') {
     node.setAttribute('style', c)
   } else if (c instanceof Observable) {
@@ -99,7 +100,7 @@ function applyStyle(node: HTMLElement, c: StyleDefinition, ct: DefaultController
 /**
  * Apply attribute to the node
  */
-function applyAttribute(node: Element, name: string, value: MaybeObservable<any>, ct: DefaultController): DefaultController {
+function applyAttribute(node: Element, name: string, value: MaybeObservable<any>, ct: DefaultController|null): DefaultController|null {
 
   if (value instanceof Observable) {
     if (!ct) ct = new DefaultController()
@@ -163,7 +164,7 @@ export function getChildren(node: Node): Node[] {
  *
  * Does nothing if null was supplied.
  */
-export function _foreach<T>(maybe_array: ArrayOrSingle<T>, fn: (a: T) => any): void {
+export function _foreach<T>(maybe_array: ArrayOrSingle<T>|undefined|null, fn: (a: T) => any): void {
   if (!maybe_array) return
 
   if (Array.isArray(maybe_array)) {
@@ -248,17 +249,15 @@ export function d(elt: any, attrs: BasicAttributes, ...children: Insertable[]): 
 
   if (!elt) throw new Error(`d() needs at least a string, a function or a Component`)
 
-  let node: Node = null
+  let node: Node|null = null
 
   // Classes and style are applied at the end of this function and are thus
   // never passed to other node definitions.
-  let comp: Component = null
-  let ct: DefaultController = null
-  let controllers: Controller[] = null
+  let ct: DefaultController|null = null
 
-  let decorators: ArrayOrSingle<Decorator> = null
-  let style: ArrayOrSingle<StyleDefinition> = null
-  let cls: ArrayOrSingle<ClassDefinition> = null
+  let decorators: ArrayOrSingle<Decorator>|undefined
+  let style: ArrayOrSingle<StyleDefinition>|undefined
+  let cls: ArrayOrSingle<ClassDefinition>|undefined
 
   if (attrs) {
     decorators = attrs.$$
@@ -286,21 +285,21 @@ export function d(elt: any, attrs: BasicAttributes, ...children: Insertable[]): 
 
   } else if (typeof elt === 'function' && elt.prototype.render) {
     // elt is an instantiator / Component
-    let kls = elt as Instantiator<Component>
-    comp = new kls(attrs)
+    var kls = elt as Instantiator<Component>
+    var comp = new kls(attrs)
     node = comp.render(getDocumentFragment(children))
+    comp.bindToNode(node)
 
   } else if (typeof elt === 'function') {
     // elt is just a creator function
     node = elt(attrs, getDocumentFragment(children))
   }
-  controllers = Controller.init(node)
 
-  if (comp) comp.bindToNode(node)
+  var defined_node = node as Node
 
   // decorators are run now. If class and style were defined, they will be applied to the
   // final node.
-  _foreach(decorators, d => d(node))
+  _foreach(decorators, dec => dec(defined_node))
 
   // Class attributes and Style attributes are special and forwarded accross nodes and are thus
   // always added (unlike other attributes which are simply passed forward)
@@ -312,12 +311,13 @@ export function d(elt: any, attrs: BasicAttributes, ...children: Insertable[]): 
     ct = applyStyle(node as HTMLElement, st, ct)
   })
 
-  if (ct) ct.bindToNode(node)
+  if (ct) ct.bindToNode(defined_node)
 
   // Call onrender on component now that all the linking is done.
-  controllers.forEach(c => c.onrender.forEach(r => r.call(c, node)))
 
-  return node
+  _foreach(Controller.all(defined_node), ctrl => ctrl.onrender.forEach(r => r.call(ctrl, node)))
+
+  return defined_node
 }
 
 
