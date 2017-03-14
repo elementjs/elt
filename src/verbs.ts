@@ -57,13 +57,13 @@ export class VirtualHolder extends Component {
    * can be thus called multiple times before actually adding anything into
    * the DOM
    */
-  protected next_node: Node
+  protected next_node: Node|null
 
   /**
    * A DocumentFragment in which manually removed children are stored
    * for later remounting if needed.
    */
-  protected saved_children: DocumentFragment
+  protected saved_children: DocumentFragment|null
 
   /**
    * True if updateChildren() was called but the new children
@@ -86,7 +86,9 @@ export class VirtualHolder extends Component {
 
   @onmount
   createOrAppendChildren(node: Node) {
-    let parent = node.parentNode
+    // we force the type to Node as in theory when @onmount is called
+    // the parent is guaranteed to be defined
+    let parent = node.parentNode as Node
     let next = node.nextSibling
 
     if (this.saved_children) {
@@ -112,8 +114,8 @@ export class VirtualHolder extends Component {
       requestAnimationFrame(() => {
         let fragment = document.createDocumentFragment()
 
-        let iter: Node = this.begin
-        let next: Node = null
+        let iter: Node|null = this.begin
+        let next: Node|null = null
 
         while (iter) {
           next = iter.nextSibling
@@ -128,12 +130,12 @@ export class VirtualHolder extends Component {
 
   }
 
-  updateChildren(node: Node) {
+  updateChildren(node: Node|null) {
     this.next_node = node
 
     let iter = this.begin.nextSibling
     let end = this.end
-    let next: Node = null
+    let next: Node|null = null
 
     if (!iter) {
       // If we're here, we're most likely not mounted, so we will
@@ -143,14 +145,18 @@ export class VirtualHolder extends Component {
       return
     }
 
-    while (iter !== end) {
+    const parent = iter.parentNode
+    if (!parent) return
+
+    while (iter && iter !== end) {
       next = iter.nextSibling
-      iter.parentNode.removeChild(iter)
+      parent.removeChild(iter)
       iter = next
     }
 
     if (this.next_node)
-      end.parentNode.insertBefore(this.next_node, end)
+      parent.insertBefore(this.next_node, end)
+
     this.next_node = null
 
   }
@@ -205,18 +211,18 @@ export class Displayer<T> extends VirtualHolder {
   render(): Node {
 
     this.observe(o.merge({
-      condition: this.attrs.condition,
+      condition: this.attrs.condition as MaybeObservable<T|undefined>,
       display: this.attrs.display,
-      otherwise: this.attrs.display_otherwise
+      otherwise: this.attrs.display_otherwise as MaybeObservable<DisplayCreator<T>|Node|undefined>
     }), ({condition, display, otherwise}) => {
 
       if ((typeof this.attrs.condition) !== 'undefined' && !condition) {
         if (otherwise)
-          return this.updateChildren(typeof otherwise === 'function' ? otherwise(condition) : otherwise)
+          return this.updateChildren(typeof otherwise === 'function' ? otherwise(condition as any) : otherwise)
         return this.updateChildren(null)
       }
 
-      this.updateChildren(typeof display === 'function' ? display(condition) : display)
+      this.updateChildren(typeof display === 'function' ? display(condition as any) : display)
     })
     return super.render()
   }
@@ -265,7 +271,7 @@ export class Repeater<T> extends VirtualHolder {
   protected renderfn: (e: PropObservable<T[], T>|T, oi?: number) => Node
   protected lst: T[] = []
   protected prop_obs: boolean = false
-  protected parent: HTMLElement|undefined
+  protected parent: HTMLElement|null = null
 
   reset(lst: T[]) {
     this.lst = lst
@@ -293,7 +299,8 @@ export class Repeater<T> extends VirtualHolder {
     if (!this.node.parentNode) return
 
     const diff = this.lst.length - this.positions.length
-    var next: Node = null
+    var next: Node|null = null
+    var parent: Node = this.end.parentNode as Node
 
     if (diff > 0) {
       if (!this.attrs.scroll) {
@@ -303,7 +310,7 @@ export class Repeater<T> extends VirtualHolder {
           fr.appendChild(next)
         }
 
-        this.end.parentNode.insertBefore(fr, this.end)
+        parent.insertBefore(fr, this.end)
       } else {
 
         const bufsize = this.attrs.scroll_buffer_size || 10
@@ -315,7 +322,7 @@ export class Repeater<T> extends VirtualHolder {
           while ((next = this.next()) && count++ < bufsize) {
             fr.appendChild(next)
           }
-          this.end.parentNode.insertBefore(fr, this.end)
+          parent.insertBefore(fr, this.end)
           count = 0
 
           if (!next) break
@@ -324,9 +331,7 @@ export class Repeater<T> extends VirtualHolder {
 
     } else if (diff < 0) {
       // Détruire jusqu'à la position concernée...
-      let iter = this.positions[this.lst.length - 1]
-      let next: Node = null
-      let parent = iter.parentNode
+      var iter: Node|null = this.positions[this.lst.length - 1]
       let end = this.end
 
       while (iter && iter !== end) {
@@ -363,7 +368,7 @@ export class Repeater<T> extends VirtualHolder {
 
   @onunmount
   removeScrolling() {
-    if (!this.attrs.scroll) return
+    if (!this.attrs.scroll || !this.parent) return
 
     this.parent.removeEventListener('scroll', this.draw)
     this.parent = null
@@ -374,7 +379,7 @@ export class Repeater<T> extends VirtualHolder {
     this.renderfn = this.attrs.render
     // Bind draw so that we can unregister it
     this.draw = this.draw.bind(this)
-    this.prop_obs = this.attrs.use_prop_observable
+    this.prop_obs = this.attrs.use_prop_observable || false
 
     this.observe(this.obs, (lst, change) => {
       if (!change.valueChanged()) return

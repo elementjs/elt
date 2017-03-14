@@ -331,7 +331,7 @@ function _disable_ghost_click(n: Node) {
 
 export function clickfix(node: Node): void {
 
-  let lasttarget: EventTarget = null
+  let lasttarget: EventTarget|null = null
   let lastx = 0
   let lasty = 0
   let last_call: number = 0
@@ -394,8 +394,7 @@ export function clickfix(node: Node): void {
  */
 export function onmount(fn: ControllerCallback): Decorator;
 export function onmount(target: any, key: string): void;
-
-export function onmount(target: any, key?: string): any {
+export function onmount(target: any, key?: any): any {
   if (typeof target === 'function') {
     return function (n: Node) { DefaultController.get(n).onmount.push(target) }
   }
@@ -413,8 +412,7 @@ export function onmount(target: any, key?: string): any {
  */
 export function onfirstmount(fn: ControllerCallback): Decorator;
 export function onfirstmount(target: any, key: string): void;
-
-export function onfirstmount(target: any, key?: string): any {
+export function onfirstmount(target: any, key?: any): any {
   let fn = typeof target === 'function' ? target : target[key]
 
   function first_mount(this: Controller, node: any) {
@@ -436,8 +434,7 @@ export function onfirstmount(target: any, key?: string): any {
 
 export function onunmount(fn: ControllerCallback): Decorator;
 export function onunmount(target: any, key: string): void;
-
-export function onunmount(target: any, key?: string): any {
+export function onunmount(target: any, key?: any): any {
   if (typeof target === 'function') return function (n: Node) { DefaultController.get(n).onunmount.push(target) }
 
   const proto = Object.getPrototypeOf(target)
@@ -449,8 +446,7 @@ export function onunmount(target: any, key?: string): any {
 
 export function onrender(fn: ControllerCallback): Decorator;
 export function onrender(target: any, key: string): void;
-
-export function onrender(target: any, key?: string): any {
+export function onrender(target: any, key?: any): any {
   if (typeof target === 'function') return function (n: Node) { DefaultController.get(n).onrender.push(target) }
 
   const proto = Object.getPrototypeOf(target)

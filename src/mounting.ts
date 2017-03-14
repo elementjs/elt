@@ -1,6 +1,10 @@
 
 import {Controller} from './controller'
 
+export type MaybeNode = Node | null | undefined
+// node, parent, previous, next
+export type MountTuple = [Node, MaybeNode, MaybeNode, MaybeNode]
+
 export function _apply_mount(node: Node) {
   var controllers = Controller.all(node)
 
@@ -23,7 +27,7 @@ export function _apply_mount(node: Node) {
  * Call controllers' mount() functions.
  */
 export function _mount(node: Node, target?: Node) {
-  var iter = node
+  var iter: Node | null | undefined = node
   var node_stack: Node[] = []
 
   // Iterative tree traversal
@@ -54,7 +58,7 @@ export function _mount(node: Node, target?: Node) {
 /**
  * Apply unmount to a node.
  */
-export function _apply_unmount(tuple: Node[]) {
+export function _apply_unmount(tuple: MountTuple) {
   var node = tuple[0]
   var controllers = Controller.all(node)
 
@@ -72,15 +76,14 @@ export function _apply_unmount(tuple: Node[]) {
   }
 }
 
-
 /**
  * Call controller's unmount functions recursively
  */
-export function _unmount(node: Node, target: Node, prev: Node, next: Node) {
+export function _unmount(node: Node, target: Node, prev: MaybeNode, next: MaybeNode) {
 
-  const unmount: [Node, Node, Node, Node][] = []
+  const unmount: MountTuple[] = []
   const node_stack: Node[] = []
-  var iter: Node = node
+  var iter: MaybeNode = node
 
   // We need to store all the nodes for which we'll call unmount() beforehand,
   // as an unmount() handler may further remove nodes that were already

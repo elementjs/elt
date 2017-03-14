@@ -33,11 +33,11 @@ export class Controller {
    * Recursively find a controller starting at a node and making its
    * way up.
    */
-  static get<C extends Controller>(this: Instantiator<C>, node: Node): C {
-    let iter = node
+  static get<C extends Controller>(this: Instantiator<C>, node: Node): C|null {
+    let iter: Node|null = node
 
-    while (iter && iter._domic_controllers) {
-      for (var c of iter._domic_controllers) {
+    while (iter) {
+      for (var c of iter._domic_controllers||[]) {
         if (c instanceof this)
           return c as C
       }
@@ -52,7 +52,7 @@ export class Controller {
    *
    * @returns undefined if the node was not associated with a controller array
    */
-  static all(node: Node): Controller[] {
+  static all(node: Node): Controller[]|undefined {
     return node._domic_controllers
   }
 
@@ -71,7 +71,7 @@ export class Controller {
    */
   bindToNode(node: Node): void {
     this.node = node
-    node._domic_controllers.push(this)
+    Controller.init(node).push(this)
   }
 
   /**
@@ -79,7 +79,7 @@ export class Controller {
    * unmounted. Reobserve when mounted again.
    */
   observe<T>(a: MaybeObservable<T>, cbk: Observer<T>, options?: ObserveOptions): this {
-    var unload: UnregisterFn
+    var unload: UnregisterFn|null
     const obs = o(a)
 
     this.onmount.push(function () {
@@ -87,7 +87,7 @@ export class Controller {
     })
 
     this.onunmount.push(function () {
-      unload()
+      if (unload) unload()
       unload = null
     })
 
@@ -130,7 +130,7 @@ export class DefaultController extends Controller {
  */
 export function ctrl(...ctrls: (Instantiator<Controller>|Controller)[]) {
   return function (node: Node): void {
-    var instance: Controller = null
+    var instance: Controller|null = null
 
     for (var c of ctrls) {
       if (c instanceof Controller) {
@@ -138,7 +138,7 @@ export function ctrl(...ctrls: (Instantiator<Controller>|Controller)[]) {
       } else {
         instance = new c
       }
-      node._domic_controllers.push(instance)
+      Controller.init(node).push(instance)
     }
   }
 }
@@ -148,7 +148,7 @@ export function ctrl(...ctrls: (Instantiator<Controller>|Controller)[]) {
 /**
  * attrs is not set in the constructor, but will be in render()
  */
-export class Component extends Controller {
+export abstract class Component extends Controller {
 
   attrs: BasicAttributes
 
@@ -157,13 +157,11 @@ export class Component extends Controller {
     this.attrs = attrs
   }
 
-  render(children: DocumentFragment): Node {
-    return null
-  }
+  abstract render(children: DocumentFragment): Node
 
 }
 
-export class HTMLComponent extends Component {
+export abstract class HTMLComponent extends Component {
 
   node: HTMLElement
 
