@@ -142,7 +142,7 @@ export function bind(obs: Observable<string>, opts: BindControllerOptions = {}) 
 }
 
 
-export function observe<T>(a: MaybeObservable<T>, cbk: Observer<T>, options?: ObserveOptions<T>) {
+export function observe<T>(a: MaybeObservable<T>, cbk: Observer<T>, options?: ObserveOptions) {
   return function observeDecorator(node: Node): void {
     let c = DefaultController.get(node);
     c.observe(a, cbk, options)
@@ -179,7 +179,7 @@ export function on(event: "MSPointerUp", listener: Listener<MSPointerEvent>, use
 export function on(event: "abort", listener: Listener<UIEvent>, useCapture?: boolean): Decorator;
 export function on(event: "activate", listener: Listener<UIEvent>, useCapture?: boolean): Decorator;
 export function on(event: "afterprint", listener: Listener<Event>, useCapture?: boolean): Decorator;
-export function on(event: "ariarequest", listener: Listener<AriaRequestEvent>, useCapture?: boolean): Decorator;
+// export function on(event: "ariarequest", listener: Listener<AriaRequestEvent>, useCapture?: boolean): Decorator;
 export function on(event: "beforeactivate", listener: Listener<UIEvent>, useCapture?: boolean): Decorator;
 export function on(event: "beforecopy", listener: Listener<ClipboardEvent>, useCapture?: boolean): Decorator;
 export function on(event: "beforecut", listener: Listener<ClipboardEvent>, useCapture?: boolean): Decorator;
@@ -193,7 +193,7 @@ export function on(event: "canplay", listener: Listener<Event>, useCapture?: boo
 export function on(event: "canplaythrough", listener: Listener<Event>, useCapture?: boolean): Decorator;
 export function on(event: "change", listener: Listener<Event>, useCapture?: boolean): Decorator;
 export function on(event: "click", listener: Listener<MouseEvent>, useCapture?: boolean): Decorator;
-export function on(event: "command", listener: Listener<CommandEvent>, useCapture?: boolean): Decorator;
+// export function on(event: "command", listener: Listener<CommandEvent>, useCapture?: boolean): Decorator;
 export function on(event: "contextmenu", listener: Listener<PointerEvent>, useCapture?: boolean): Decorator;
 export function on(event: "copy", listener: Listener<ClipboardEvent>, useCapture?: boolean): Decorator;
 export function on(event: "cuechange", listener: Listener<Event>, useCapture?: boolean): Decorator;

@@ -63,8 +63,7 @@ export interface BasicAttributes {
   $$?: ArrayOrSingle<Decorator>
 }
 
-export type SingleChild = Node | string | number
-export type Child = SingleChild | SingleChild[]
+export type Insertable = Node | MaybeObservable<string> | MaybeObservable<number>
 
 /**
  *
