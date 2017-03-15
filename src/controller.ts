@@ -33,7 +33,7 @@ export class Controller {
    * Recursively find a controller starting at a node and making its
    * way up.
    */
-  static get<C extends Controller>(this: Instantiator<C>, node: Node): C|null {
+  static get<C extends Controller>(this: Instantiator<C>, node: Node): C {
     let iter: Node|null = node
 
     while (iter) {
@@ -44,7 +44,7 @@ export class Controller {
       iter = iter.parentNode
     }
 
-    return null
+    throw new Error(`Controller ${this.constructor.name} was not found on this node`)
   }
 
   /**

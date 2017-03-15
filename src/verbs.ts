@@ -238,7 +238,11 @@ export function Display<T>(display: Displayable<T>): Node {
 /**
  *
  */
-export function DisplayIf<T>(condition: MaybeObservable<T>, display: Displayable<T>, display_otherwise?: Displayable<T>): Node {
+export function DisplayIf<T>(
+  condition: MaybeObservable<T> | null | undefined,
+  display: Displayable<T>,
+  display_otherwise?: Displayable<T>
+): Node {
   return d(Displayer, {condition: o(condition), display, display_otherwise})
 }
 
