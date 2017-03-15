@@ -91,6 +91,9 @@ export class Controller {
       unload = null
     })
 
+    // Add the observer right now if it turns out we're already mounted.
+    if (this.mounted) unload = obs.addObserver(cbk, options)
+
     return this
   }
 

@@ -243,7 +243,7 @@ const NS = {
  */
 
 export function d(elt: ComponentFn, attrs: BasicAttributes, ...children: Insertable[]): Node
-export function d(elt: string, attrs: BasicAttributes, ...children: Insertable[]): HTMLElement
+export function d(elt: string, attrs: BasicAttributes|null, ...children: Insertable[]): HTMLElement
 export function d<A>(elt: ComponentInstanciator<A>, attrs: A, ...children: Insertable[]): Node
 export function d(elt: any, attrs: BasicAttributes, ...children: Insertable[]): Node {
 
@@ -256,8 +256,8 @@ export function d(elt: any, attrs: BasicAttributes, ...children: Insertable[]): 
   let ct: DefaultController|null = null
 
   let decorators: ArrayOrSingle<Decorator>|undefined
-  let style: ArrayOrSingle<StyleDefinition>|undefined
-  let cls: ArrayOrSingle<ClassDefinition>|undefined
+  let style: ArrayOrSingle<StyleDefinition>|undefined|null
+  let cls: ArrayOrSingle<ClassDefinition>|undefined|null
 
   if (attrs) {
     decorators = attrs.$$
