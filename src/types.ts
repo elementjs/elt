@@ -21,11 +21,11 @@ export interface Instantiator<T> {
  */
 export type Decorator = (n: Node) => void
 
-export type ControllerCallback = (n?: Node, parent?: Node) => void
+export type ControllerCallback = (n: Node, parent: Node) => void
 /**
  * Classes.
  */
-export type ClassObject = {[name: string]: MaybeObservable<boolean>}
+export type ClassObject = {[name: string]: MaybeObservable<any>}
 export type ClassDefinition = ClassObject | MaybeObservable<string>
 
 
@@ -58,8 +58,8 @@ export interface BasicAttributes {
   hidden?: MaybeObservable<boolean>
   xmlns?: string
 
-  class?: ArrayOrSingle<ClassDefinition> // special attributes
-  style?: ArrayOrSingle<StyleDefinition>
+  class?: ArrayOrSingle<ClassDefinition>|null // special attributes
+  style?: ArrayOrSingle<StyleDefinition>|null
   $$?: ArrayOrSingle<Decorator>
 }
 
