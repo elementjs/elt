@@ -23,7 +23,6 @@ import {
 
 import {
   BasicAttributes,
-  NodeCreatorFn
 } from './types'
 
 
@@ -197,15 +196,16 @@ export function Write(obs: Observable<HasToString>): Node {
 }
 
 
-export type DisplayCreator<T> = (a: T) => Node
+export type DisplayCreator<T> = (a: T) => (Node|null)
+export type Displayable<T> = MaybeObservable<DisplayCreator<T> | Node | null>
 
 export class Displayer<T> extends VirtualHolder {
   name = 'if'
 
   attrs: {
     condition?: MaybeObservable<T>
-    display: MaybeObservable<DisplayCreator<T>|Node>
-    display_otherwise?: MaybeObservable<DisplayCreator<T>|Node>
+    display: Displayable<T>
+    display_otherwise?: Displayable<T>
   }
 
   render(): Node {
@@ -230,7 +230,7 @@ export class Displayer<T> extends VirtualHolder {
 }
 
 
-export function Display(display: MaybeObservable<NodeCreatorFn|Node>): Node {
+export function Display<T>(display: Displayable<T>): Node {
   return d(Displayer, {display})
 }
 
@@ -238,12 +238,12 @@ export function Display(display: MaybeObservable<NodeCreatorFn|Node>): Node {
 /**
  *
  */
-export function DisplayIf<T>(condition: MaybeObservable<T>, display: MaybeObservable<DisplayCreator<T>>, display_otherwise?: MaybeObservable<DisplayCreator<T>>): Node {
+export function DisplayIf<T>(condition: MaybeObservable<T>, display: Displayable<T>, display_otherwise?: Displayable<T>): Node {
   return d(Displayer, {condition: o(condition), display, display_otherwise})
 }
 
 
-export function DisplayUnless<T>(condition: MaybeObservable<any>, display: MaybeObservable<DisplayCreator<T>>, display_otherwise?: MaybeObservable<DisplayCreator<T>>) {
+export function DisplayUnless<T>(condition: MaybeObservable<any>, display: Displayable<T>, display_otherwise?: Displayable<T>) {
   return d(Displayer, {condition: o(condition).isFalsy(), display, display_otherwise})
 }
 
