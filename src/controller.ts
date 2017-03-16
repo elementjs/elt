@@ -29,11 +29,7 @@ export class Controller {
   onunmount: ControllerCallback[] = this.onunmount ? this.onunmount.slice() : []
   onrender: ControllerCallback[] = this.onrender ? this.onrender.slice() : []
 
-  /**
-   * Recursively find a controller starting at a node and making its
-   * way up.
-   */
-  static get<C extends Controller>(this: Instantiator<C>, node: Node): C {
+  static getIfExists<C extends Controller>(this: Instantiator<C>, node: Node): C|null {
     let iter: Node|null = node
 
     while (iter) {
@@ -44,7 +40,18 @@ export class Controller {
       iter = iter.parentNode
     }
 
-    throw new Error(`Controller ${this.constructor.name} was not found on this node`)
+    return null
+  }
+
+  /**
+   * Recursively find a controller starting at a node and making its
+   * way up.
+   */
+  static get<C extends Controller>(this: Instantiator<C>, node: Node): C {
+    var res = (this as any).getIfExists(node)
+    if (!res)
+      throw new Error(`Controller ${this.name} was not found on this node`)
+    return res
   }
 
   /**
@@ -78,12 +85,15 @@ export class Controller {
    * Observe an observer whenever it is mounted. Stop observing when
    * unmounted. Reobserve when mounted again.
    */
+  observe<T>(a: MaybeObservable<T>, cbk: Observer<T>, options?: ObserveOptions): this
+  observe<T>(a: MaybeObservable<T>|null, cbk: Observer<T|null>, options?: ObserveOptions): this
+  observe<T>(a: MaybeObservable<T>|undefined, cbk: Observer<T|undefined>, options?: ObserveOptions): this
   observe<T>(a: MaybeObservable<T>, cbk: Observer<T>, options?: ObserveOptions): this {
     var unload: UnregisterFn|null
     const obs = o(a)
 
     this.onmount.push(function () {
-      unload = obs.addObserver(cbk, options)
+      if (!unload) unload = obs.addObserver(cbk, options)
     })
 
     this.onunmount.push(function () {
@@ -115,7 +125,7 @@ export class DefaultController extends Controller {
 
   static get(n: Node): DefaultController {
 
-    let d = super.get.call(this, n) as DefaultController
+    let d = super.getIfExists.call(this, n) as DefaultController
     if (!d) {
       d = new DefaultController()
       d.bindToNode(n)

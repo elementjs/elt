@@ -132,7 +132,7 @@ export function applyMutations(records: MutationRecord[]) {
     var target = record.target
     var added = record.addedNodes
     for (i = 0; i < added.length; i++)
-      _mount(added[i], target)
+      if (added[i].parentNode) _mount(added[i], target)
 
     var removed = record.removedNodes
     for (i = 0; i < removed.length; i++)
