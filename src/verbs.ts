@@ -389,7 +389,7 @@ export class Repeater<T> extends VirtualHolder {
       if (!change.valueChanged()) return
       this.reset(lst)
       this.draw()
-    })
+    }, {ignoreChildren: true})
 
     this.observe(this.obs.p('length'), (len, change) => {
       if (change.valueChanged()) {
