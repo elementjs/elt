@@ -14,7 +14,7 @@
     "watch": "parallel -u ::: 'ls build/*.d.ts | entr -d npm run build:dts' 'tscc -w' 'webpack -w'"
   },
   "dependencies": {
-    "domic-observable": "1.0.0-beta3",
+    "domic-observable": "1.0.0-beta5",
     "tslib": "*"
   },
   "devDependencies": {
