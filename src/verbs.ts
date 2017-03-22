@@ -277,10 +277,18 @@ export class Repeater<T> extends VirtualHolder {
   protected prop_obs: boolean = false
   protected parent: HTMLElement|null = null
 
+  protected child_obs: PropObservable<T[], T>[] = []
+
   reset(lst: T[]) {
     this.lst = lst
     this.index = -1
     this.positions = []
+
+    for (var ob of this.child_obs) {
+      ob._unregister!()
+      ob._unregister = null
+    }
+    this.child_obs = []
     this.updateChildren(null)
   }
 
@@ -293,9 +301,15 @@ export class Repeater<T> extends VirtualHolder {
 
     this.index++
     const comment = document.createComment('repeat-' + this.index)
+    var fr = document.createDocumentFragment()
+    var ob = this.prop_obs ? this.obs.p(this.index) : this.lst[this.index]
+    if (this.prop_obs)
+      this.child_obs.push(ob as PropObservable<T[], T>)
+
+    fr.appendChild(comment)
+    fr.appendChild(this.renderfn(ob, this.index))
     this.positions.push(comment)
-    return this.renderfn(this.prop_obs ?
-      this.obs.p(this.index) : this.lst[this.index], this.index)
+    return fr
   }
 
   draw() {
@@ -335,8 +349,18 @@ export class Repeater<T> extends VirtualHolder {
 
     } else if (diff < 0) {
       // Détruire jusqu'à la position concernée...
-      var iter: Node|null = this.positions[this.lst.length - 1]
+      var iter: Node|null = this.positions[this.lst.length]
       let end = this.end
+
+      if (this.prop_obs) {
+        for (var k = this.lst.length; k < this.child_obs.length; k++) {
+          var ob = this.child_obs[k]
+          ob._unregister!()
+          ob._unregister = null
+        }
+
+        this.child_obs = this.child_obs.slice(0, this.lst.length)
+      }
 
       while (iter && iter !== end) {
         next = iter.nextSibling
@@ -346,7 +370,6 @@ export class Repeater<T> extends VirtualHolder {
 
       this.positions = this.positions.slice(0, this.lst.length)
     }
-
   }
 
   @onmount
@@ -385,17 +408,14 @@ export class Repeater<T> extends VirtualHolder {
     this.draw = this.draw.bind(this)
     this.prop_obs = this.attrs.use_prop_observable || false
 
-    this.observe(this.obs, (lst, change) => {
-      if (!change.valueChanged()) return
-      this.reset(lst)
-      this.draw()
-    }, {ignoreChildren: true})
+    var old_value: T[] | null = null
 
-    this.observe(this.obs.p('length'), (len, change) => {
-      if (change.valueChanged()) {
-        this.draw()
-      }
-    }, {updatesOnly: true})
+    this.observe(this.obs, (lst, change) => {
+      if (lst !== old_value)
+        this.reset(lst)
+      old_value = lst
+      this.draw()
+    })
 
     return super.render()
   }
