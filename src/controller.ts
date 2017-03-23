@@ -91,7 +91,6 @@ export class Controller {
   observe<T>(a: MaybeObservable<T>, cbk: Observer<T>, options?: ObserveOptions): this {
     var unload: UnregisterFn|null
     const obs = o(a)
-
     this.onmount.push(function () {
       if (!unload) unload = obs.addObserver(cbk, options)
     })
