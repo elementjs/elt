@@ -13,17 +13,12 @@ import {
 } from './controller'
 
 
-export type BindControllerOptions = {
-  debounce?: number // number of milliseconds before observable update.
-}
-
-
 export class BindController extends Controller {
 
   obs: Observable<string>
-  opts: BindControllerOptions
+  opts: ObserveOptions
 
-  constructor(obs: Observable<string>, opts: BindControllerOptions = {}) {
+  constructor(obs: Observable<string>, opts: ObserveOptions = {}) {
     super()
     this.obs = obs
     this.opts = opts
@@ -52,7 +47,7 @@ export class BindController extends Controller {
 
     this.observe(obs, val => {
       node.value = val||''
-    })
+    }, this.opts)
   }
 
   linkToSelect(node: HTMLSelectElement) {
@@ -64,7 +59,7 @@ export class BindController extends Controller {
 
     this.observe(obs, val => {
       node.value = val
-    })
+    }, this.opts)
   }
 
   linkToInput(node: HTMLInputElement) {
@@ -95,21 +90,21 @@ export class BindController extends Controller {
       case 'month':
       case 'time':
       case 'datetime-local':
-        this.observe(obs, fromObservable)
+        this.observe(obs, fromObservable, this.opts)
         node.addEventListener('input', fromEvent)
         break
       case 'radio':
         this.observe(obs, (val) => {
           // !!!? ??
           node.checked = node.value === val
-        })
+        }, this.opts)
         node.addEventListener('change', fromEvent)
         break
       case 'checkbox':
         // FIXME ugly hack because we specified string
         this.observe(obs, (val: any) => {
           node.checked = !!val
-        })
+        }, this.opts)
         node.addEventListener('change', () => (obs as Observable<any>).set(node.checked))
         break
       // case 'number':
@@ -117,7 +112,7 @@ export class BindController extends Controller {
       // case 'password':
       // case 'search':
       default:
-        this.observe(obs, fromObservable)
+        this.observe(obs, fromObservable, this.opts)
         node.addEventListener('keyup', fromEvent)
         node.addEventListener('input', fromEvent)
         node.addEventListener('change', fromEvent)
@@ -132,7 +127,7 @@ export class BindController extends Controller {
 }
 
 
-export function bind(obs: Observable<string>, opts: BindControllerOptions = {}) {
+export function bind(obs: Observable<string>, opts: ObserveOptions = {}) {
 
   return function bindDecorator(node: Node): void {
     let c = new BindController(obs, opts)

@@ -411,6 +411,7 @@ export class Repeater<T> extends VirtualHolder {
     var old_value: T[] | null = null
 
     this.observe(this.obs, (lst, change) => {
+      lst = lst || []
       if (lst !== old_value)
         this.reset(lst)
       old_value = lst

@@ -31,7 +31,6 @@ export {
 export {
   bind,
   BindController,
-  BindControllerOptions,
   click,
   clickfix,
   focusOnMount,
