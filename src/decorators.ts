@@ -278,7 +278,7 @@ export function on(event: string, listener: Listener<Event>, useCapture?: boolea
 export function on(event: string, listener: Listener<Event>, useCapture = false) {
 
   return function (node: Node) {
-    node.addEventListener(event, listener)
+    node.addEventListener(event, function (this: Node, ev) { return listener.call(this, ev, node) })
   }
 
 }
@@ -291,7 +291,7 @@ export function on(event: string, listener: Listener<Event>, useCapture = false)
 export function click(cbk: Listener<MouseEvent>) {
 
   return function clickDecorator(node: Node): void {
-    node.addEventListener('click', cbk)
+    node.addEventListener('click', function (this: Node, ev) { return cbk.call(this, ev, node) })
   }
 
 }

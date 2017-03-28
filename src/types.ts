@@ -3,12 +3,7 @@ import {MaybeObservable} from 'domic-observable'
 
 export type ArrayOrSingle<T> = T[] | T
 
-
-export interface ListenerObject<EventType extends Event> {
-  handleEvent(ev: EventType): void
-}
-export type ListenerFn<EventType extends Event> = (this: Node, ev: EventType) => void
-export type Listener<EventType extends Event> = ListenerFn<EventType>
+export type Listener<EventType extends Event> = (this: Node, ev: EventType, node: Node) => void
 
 
 export interface Instantiator<T> {

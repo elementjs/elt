@@ -23,8 +23,6 @@ export {
   DropZoneValues,
   Instantiator,
   Listener,
-  ListenerFn,
-  ListenerObject,
   StyleDefinition
 } from './types'
 
