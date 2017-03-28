@@ -1,6 +1,6 @@
 {
   "name": "domic",
-  "version": "1.0.0-beta14",
+  "version": "1.0.0-beta15",
   "repository": "https://github.com/domicjs/domic",
   "description": "some description",
   "license": "MIT",
@@ -14,7 +14,7 @@
     "watch": "parallel -u ::: 'ls build/*.d.ts | entr -d npm run build:dts' 'tscc -w' 'webpack -w'"
   },
   "dependencies": {
-    "domic-observable": "1.0.0-beta9",
+    "domic-observable": "1.0.0-beta10",
     "tslib": "*"
   },
   "devDependencies": {
