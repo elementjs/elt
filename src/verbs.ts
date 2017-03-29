@@ -285,8 +285,10 @@ export class Repeater<T> extends VirtualHolder {
     this.positions = []
 
     for (var ob of this.child_obs) {
-      ob._unregister!()
-      ob._unregister = null
+      if (ob._unregister) {
+        ob._unregister()
+        ob._unregister = null
+      }
     }
     this.child_obs = []
     this.updateChildren(null)
