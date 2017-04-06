@@ -10,6 +10,7 @@ import {
 
 import {
   d,
+  getDocumentFragment
 } from './domic'
 
 import {
@@ -168,20 +169,34 @@ export interface HasToString {
 }
 
 
-export class Writer extends Component {
+export class Writer extends VirtualHolder {
 
   attrs: {
     obs: Observable<HasToString>
   }
 
-  render() {
-    let node = document.createTextNode('')
+  name = 'displayer'
 
+  txt: Node
+
+  render() {
     this.observe(this.attrs.obs, value => {
-      node.nodeValue = value != null ? value.toString() : ''
+      var txt = this.txt
+
+      if (!(value instanceof Node)) {
+        var val = value != null ? value.toString() : ''
+        if (txt) {
+          txt.nodeValue = val
+          return
+        } else {
+          value = this.txt = document.createTextNode(val)
+        }
+      }
+
+      this.updateChildren(value as Node)
     })
 
-    return node
+    return super.render()
   }
 
 }
@@ -196,8 +211,31 @@ export function Write(obs: Observable<HasToString>): Node {
 }
 
 
-export type DisplayCreator<T> = (a: T) => (Node|null)
-export type Displayable<T> = MaybeObservable<DisplayCreator<T> | Node | null>
+/**
+ * Get a node array from a given node. If it is a document fragment, get
+ * all its children.
+ *
+ * @param node The source node
+ */
+function getNodes(node: Node | null): Node[] {
+  if (node === null) return []
+
+  if (node instanceof DocumentFragment) {
+    var iter = node.firstChild
+    var result: Node[] = []
+    while (iter != null) {
+      result.push(iter)
+      iter = iter.nextSibling
+    }
+    return result
+  }
+
+  return [node]
+}
+
+
+export type DisplayCreator<T> = (a: Observable<T>) => (Node|null)
+export type Displayable<T> = DisplayCreator<T> | null
 
 export class Displayer<T> extends VirtualHolder {
   name = 'if'
@@ -208,21 +246,37 @@ export class Displayer<T> extends VirtualHolder {
     display_otherwise?: Displayable<T>
   }
 
+  rendered_display: Node[] | null = null
+  rendered_otherwise: Node[] | null = null
+
   render(): Node {
 
-    this.observe(o.merge({
-      condition: this.attrs.condition as MaybeObservable<T|undefined>,
-      display: this.attrs.display,
-      otherwise: this.attrs.display_otherwise as MaybeObservable<DisplayCreator<T>|Node|undefined>
-    }), ({condition, display, otherwise}) => {
+    var o_cond = o(this.attrs.condition) as Observable<T>
 
-      if ((typeof this.attrs.condition) !== 'undefined' && !condition) {
-        if (otherwise)
-          return this.updateChildren(typeof otherwise === 'function' ? otherwise(condition as any) : otherwise)
-        return this.updateChildren(null)
+    this.observe(o_cond, condition => {
+
+      if (!condition) {
+
+        if (this.attrs.display_otherwise) {
+          if (this.rendered_otherwise === null)
+            this.rendered_otherwise = getNodes(
+              typeof this.attrs.display_otherwise === 'function' ?
+                this.attrs.display_otherwise(o_cond) :
+                this.attrs.display_otherwise
+            )
+          this.updateChildren(getDocumentFragment(this.rendered_otherwise))
+        } else {
+          this.updateChildren(null)
+        }
+
+      } else {
+        if (this.rendered_display === null)
+          this.rendered_display = getNodes(typeof this.attrs.display === 'function' ?
+            this.attrs.display(o_cond) : this.attrs.display
+          )
+        this.updateChildren(getDocumentFragment(this.rendered_display))
       }
 
-      this.updateChildren(typeof display === 'function' ? display(condition as any) : display)
     })
     return super.render()
   }
@@ -230,30 +284,21 @@ export class Displayer<T> extends VirtualHolder {
 }
 
 
-export function Display<T>(display: Displayable<T>): Node {
-  return d(Displayer, {display})
-}
-
-
 /**
  *
  */
+
 export function DisplayIf<T>(
-  condition: MaybeObservable<T> | null | undefined,
+  condition: MaybeObservable<T> | undefined | null,
   display: Displayable<T>,
   display_otherwise?: Displayable<T>
 ): Node {
-  return d(Displayer, {condition: o(condition), display, display_otherwise})
+  return d(Displayer, {
+    condition,
+    display: display as Displayable<any>,
+    display_otherwise: display_otherwise as Displayable<any>
+  })
 }
-
-
-export function DisplayUnless<T>(condition: MaybeObservable<any>, display: Displayable<T>, display_otherwise?: Displayable<T>) {
-  return d(Displayer, {condition: o(condition).isFalsy(), display, display_otherwise})
-}
-
-
-
-export type RepeatNode = {node: Node, index: Observable<number>}
 
 
 /**
@@ -266,7 +311,6 @@ export class Repeater<T> extends VirtualHolder {
     render: (e: PropObservable<T[], T>|T, oi?: number) => Node
     scroll?: boolean
     scroll_buffer_size?: number // default 10
-    use_prop_observable?: boolean
   }
 
   protected obs: Observable<T[]>
@@ -274,7 +318,6 @@ export class Repeater<T> extends VirtualHolder {
   protected index: number = -1
   protected renderfn: (e: PropObservable<T[], T>|T, oi?: number) => Node
   protected lst: T[] = []
-  protected prop_obs: boolean = false
   protected parent: HTMLElement|null = null
 
   protected child_obs: PropObservable<T[], T>[] = []
@@ -304,9 +347,8 @@ export class Repeater<T> extends VirtualHolder {
     this.index++
     const comment = document.createComment('repeat-' + this.index)
     var fr = document.createDocumentFragment()
-    var ob = this.prop_obs ? this.obs.p(this.index) : this.lst[this.index]
-    if (this.prop_obs)
-      this.child_obs.push(ob as PropObservable<T[], T>)
+    var ob = this.obs.p(this.index)
+    this.child_obs.push(ob as PropObservable<T[], T>)
 
     fr.appendChild(comment)
     fr.appendChild(this.renderfn(ob, this.index))
@@ -354,15 +396,13 @@ export class Repeater<T> extends VirtualHolder {
       var iter: Node|null = this.positions[this.lst.length]
       let end = this.end
 
-      if (this.prop_obs) {
-        for (var k = this.lst.length; k < this.child_obs.length; k++) {
-          var ob = this.child_obs[k]
-          ob._unregister!()
-          ob._unregister = null
-        }
-
-        this.child_obs = this.child_obs.slice(0, this.lst.length)
+      for (var k = this.lst.length; k < this.child_obs.length; k++) {
+        var ob = this.child_obs[k]
+        ob._unregister!()
+        ob._unregister = null
       }
+
+      this.child_obs = this.child_obs.slice(0, this.lst.length)
 
       while (iter && iter !== end) {
         next = iter.nextSibling
@@ -393,6 +433,7 @@ export class Repeater<T> extends VirtualHolder {
       throw new Error(`Scroll repeat needs a parent with overflow-y: auto`)
 
     this.parent.addEventListener('scroll', this.draw)
+
   }
 
   @onunmount
@@ -408,7 +449,6 @@ export class Repeater<T> extends VirtualHolder {
     this.renderfn = this.attrs.render
     // Bind draw so that we can unregister it
     this.draw = this.draw.bind(this)
-    this.prop_obs = this.attrs.use_prop_observable || false
 
     var old_value: T[] | null = null
 
@@ -425,37 +465,14 @@ export class Repeater<T> extends VirtualHolder {
 
 }
 
-/**
- *
- */
-
 export function Repeat<T>(
   ob: Observable<T[]>,
-  render: (e: T, oi?: number) => Node,
+  render: (e: PropObservable<T[], T>, oi?: number) => Node
 ): Node {
   return d(Repeater, {ob, render})
 }
 
-
-export function RepeatObservable<T>(
-  ob: Observable<T[]>,
-  render: (e: PropObservable<T[], T>, oi?: number) => Node
-): Node {
-  return d(Repeater, {ob, render, use_prop_observable: true})
-}
-
 export function RepeatScroll<T>(
-  ob: Observable<T[]>,
-  render: (e: T, oi?: number) => Node,
-  options: {
-    scroll_buffer_size?: number // default 10
-  } = {}
-): Node {
-  return d(Repeater, {ob, render, scroll: true, scroll_buffer_size: options.scroll_buffer_size})
-}
-
-
-export function RepeatScrollObservable<T>(
   ob: Observable<T[]>,
   render: (e: PropObservable<T[], T>, oi?: number) => Node,
   options: {
@@ -463,7 +480,6 @@ export function RepeatScrollObservable<T>(
   } = {}
 ): Node {
   return d(Repeater, {ob, render,
-    use_prop_observable: true,
     scroll: true,
     scroll_buffer_size: options.scroll_buffer_size
   })
