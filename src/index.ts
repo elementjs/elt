@@ -51,14 +51,10 @@ export {
 export * from 'domic-observable'
 
 export {
-  Display,
   DisplayIf,
-  DisplayUnless,
   Fragment,
   Repeat,
-  RepeatObservable,
   RepeatScroll,
-  RepeatScrollObservable,
   Repeater,
   VirtualHolder,
   Write,
