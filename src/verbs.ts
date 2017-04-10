@@ -177,7 +177,7 @@ export class Writer extends VirtualHolder {
 
   name = 'displayer'
 
-  txt: Node
+  txt: Node | null
 
   render() {
     this.observe(this.attrs.obs, value => {
@@ -191,6 +191,8 @@ export class Writer extends VirtualHolder {
         } else {
           value = this.txt = document.createTextNode(val)
         }
+      } else {
+        this.txt = null
       }
 
       this.updateChildren(value as Node)
