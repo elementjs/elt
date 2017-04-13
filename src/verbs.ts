@@ -249,7 +249,7 @@ function getNodes(node: Node | null): Node[] {
 
 
 export type DisplayCreator<T> = (a: Observable<T>) => (Node|null)
-export type Displayable<T> = DisplayCreator<T> | null
+export type Displayable<T> = Node | DisplayCreator<T> | null
 
 export class Displayer<T> extends VirtualHolder {
   name = 'if'
