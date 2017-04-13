@@ -168,7 +168,6 @@ export interface HasToString {
   toString(): string
 }
 
-
 export class Writer extends VirtualHolder {
 
   attrs: {
@@ -178,6 +177,7 @@ export class Writer extends VirtualHolder {
   name = 'displayer'
 
   txt: Node | null
+  backup: WeakMap<DocumentFragment, Node[]> | null = null
 
   render() {
     this.observe(this.attrs.obs, value => {
@@ -192,6 +192,18 @@ export class Writer extends VirtualHolder {
           value = this.txt = document.createTextNode(val)
         }
       } else {
+        if (value instanceof DocumentFragment) {
+          if (this.backup === null)
+            this.backup = new WeakMap<DocumentFragment, Node[]>()
+
+          var previous = this.backup.get(value)
+          if (!previous) {
+            this.backup.set(value, getNodes(value))
+          } else {
+            value = getDocumentFragment(previous)
+          }
+        }
+
         this.txt = null
       }
 
