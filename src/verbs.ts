@@ -480,14 +480,14 @@ export class Repeater<T> extends VirtualHolder {
 }
 
 export function Repeat<T>(
-  ob: Observable<T[]>,
+  ob: MaybeObservable<T[]>,
   render: (e: PropObservable<T[], T>, oi?: number) => Node
 ): Node {
   return d(Repeater, {ob, render})
 }
 
 export function RepeatScroll<T>(
-  ob: Observable<T[]>,
+  ob: MaybeObservable<T[]>,
   render: (e: PropObservable<T[], T>, oi?: number) => Node,
   options: {
     scroll_buffer_size?: number // default 10
