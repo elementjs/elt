@@ -436,7 +436,6 @@ export class Repeater<T> extends VirtualHolder {
     var iter = this.node.parentElement
     while (iter) {
       var style = getComputedStyle(iter) as any
-      console.log(style)
       if (style.overflowY === 'auto' || style.msOverflowY === 'auto' || style.msOverflowY === 'scrollbar') {
         this.parent = iter
         break
