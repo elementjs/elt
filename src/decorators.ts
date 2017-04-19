@@ -485,10 +485,12 @@ export function scrollable(nod: Node): void {
 
 	if (!_noscrollsetup) _setUpNoscroll()
 
-  node.style.overflowY = 'auto'
-  node.style.overflowX = 'auto';
+  var style = node.style as any
+  style.overflowY = 'auto'
+  style.overflowX = 'auto'
+
   // seems like typescript doesn't have this property yet
-  (node.style as any).webkitOverflowScrolling = 'touch'
+  style.webkitOverflowScrolling = 'touch'
 
 	node.addEventListener('touchstart', function (ev: TouchEvent) {
 		if (node.scrollTop == 0) {
