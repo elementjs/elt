@@ -14,6 +14,7 @@ export function _apply_mount(node: Node) {
     // ignore spurious unmounts (should not happen, but let's be cautious)
     if (c.mounted) continue
     c.mounted = true
+    c.node = node
 
     for (var f of c.onmount) {
       f.call(c, node, node.parentNode)
@@ -73,6 +74,7 @@ export function _apply_unmount(tuple: MountTuple) {
       f.apply(c, tuple)
     }
 
+    c.node = null!
   }
 }
 

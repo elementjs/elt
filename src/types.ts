@@ -58,7 +58,7 @@ export interface BasicAttributes {
   $$?: ArrayOrSingle<Decorator>
 }
 
-export type Insertable = Node | MaybeObservable<string> | MaybeObservable<number> | MaybeObservable<Node>
+export type Insertable = MaybeObservable<string> | MaybeObservable<number> | MaybeObservable<Node>
 
 /**
  *
