@@ -150,6 +150,7 @@ export function ctrl(...ctrls: (Instantiator<Controller>|Controller)[]) {
       } else {
         instance = new c
       }
+      instance.bindToNode(node)
       Controller.init(node).push(instance)
     }
   }
