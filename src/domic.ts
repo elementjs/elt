@@ -254,6 +254,7 @@ export function d(elt: any, attrs: BasicAttributes, ...children: Insertable[]): 
   // Classes and style are applied at the end of this function and are thus
   // never passed to other node definitions.
   let ct: DefaultController|null = null
+  var data_attrs: {[name: string]: MaybeObservable<string>} | null = null
 
   let decorators: ArrayOrSingle<Decorator>|undefined
   let style: ArrayOrSingle<StyleDefinition>|undefined|null
@@ -266,6 +267,15 @@ export function d(elt: any, attrs: BasicAttributes, ...children: Insertable[]): 
     if (cls) delete attrs.class
     if (style) delete attrs.style
     if (decorators) delete attrs.$$
+
+    for (var x in attrs) {
+      if (x.indexOf('data-') === 0 || x.indexOf('x-') === 0) {
+        data_attrs = data_attrs || {}
+        data_attrs[x] = (attrs as any)[x] as MaybeObservable<string>
+        delete (attrs as any)[x]
+      }
+    }
+
   } else {
     attrs = {}
   }
@@ -296,6 +306,13 @@ export function d(elt: any, attrs: BasicAttributes, ...children: Insertable[]): 
   }
 
   var defined_node = node as Node
+
+  if (data_attrs) {
+    for (var x in data_attrs as any) {
+      ct = applyAttribute(node as Element, x, (data_attrs as any)[x], ct)
+    }
+  }
+
 
   // decorators are run now. If class and style were defined, they will be applied to the
   // final node.
