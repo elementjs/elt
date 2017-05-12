@@ -44,8 +44,7 @@ export {
 export {
   Component,
   Controller,
-  ctrl,
-  HTMLComponent,
+  ctrl
 } from './controller'
 
 export * from 'domic-observable'
@@ -84,7 +83,7 @@ declare global {
     }
 
     export interface ElementClassFn {
-      (attrs: BasicAttributes, children: DocumentFragment): Node
+      (attrs: BasicAttributes, children: DocumentFragment): HTMLElement
     }
 
     export type ElementClass = ElementClassFn | Component

@@ -313,10 +313,9 @@ export function d(elt: any, attrs: BasicAttributes, ...children: Insertable[]): 
     }
   }
 
-
   // decorators are run now. If class and style were defined, they will be applied to the
   // final node.
-  _foreach(decorators, dec => dec(defined_node))
+  _foreach(decorators, dec => dec(defined_node as HTMLElement))
 
   // Class attributes and Style attributes are special and forwarded accross nodes and are thus
   // always added (unlike other attributes which are simply passed forward)

@@ -164,6 +164,7 @@ export function ctrl(...ctrls: (Instantiator<Controller>|Controller)[]) {
 export abstract class Component extends Controller {
 
   attrs: BasicAttributes
+  node: HTMLElement
 
   constructor(attrs: BasicAttributes) {
     super()
@@ -171,11 +172,5 @@ export abstract class Component extends Controller {
   }
 
   abstract render(children: DocumentFragment): Node
-
-}
-
-export abstract class HTMLComponent extends Component {
-
-  node: HTMLElement
 
 }

@@ -14,9 +14,9 @@ export interface Instantiator<T> {
 /**
  * Decorators used on Nodes
  */
-export type Decorator = (n: Node) => void
+export type Decorator = (n: HTMLElement) => void
 
-export type ControllerCallback = (n: Node, parent: Node) => void
+export type ControllerCallback = (n: HTMLElement, parent: Node) => void
 /**
  * Classes.
  */
@@ -60,8 +60,8 @@ export interface BasicAttributes {
   children?: Insertable | Insertable[]
 }
 
-export type InsertableSingle = MaybeObservable<string> | MaybeObservable<number> | MaybeObservable<Node>
-export type Insertable = (InsertableSingle | InsertableSingle[])
+export type InsertableSingle = MaybeObservable<string|number|Node|null|undefined>
+export type Insertable = InsertableSingle | InsertableSingle[]
 
 /**
  *
