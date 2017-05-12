@@ -37,7 +37,7 @@ export type DropZoneValues = 'copy' | 'move' | 'link'
 export type DraggableValues = boolean | 'true' | 'false' | 'auto'
 
 export interface EmptyAttributes {
-  $$children?: Insertable | Insertable[]
+  $$children?: MaybeObservable<Insertable> | MaybeObservable<Insertable>[]
 }
 
 
