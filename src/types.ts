@@ -36,11 +36,15 @@ export type DirectionValues = 'ltr' | 'rtl'
 export type DropZoneValues = 'copy' | 'move' | 'link'
 export type DraggableValues = boolean | 'true' | 'false' | 'auto'
 
+export interface EmptyAttributes {
+  $$children?: Insertable | Insertable[]
+}
+
 
 /**
  * Basic attributes used on all nodes.
  */
-export interface BasicAttributes {
+export interface BasicAttributes extends EmptyAttributes {
   id?: MaybeObservable<string>
 
   tabindex?: MaybeObservable<string>
@@ -56,8 +60,6 @@ export interface BasicAttributes {
   class?: ArrayOrSingle<ClassDefinition>|null // special attributes
   style?: ArrayOrSingle<StyleDefinition>|null
   $$?: ArrayOrSingle<Decorator>
-
-  children?: Insertable | Insertable[]
 }
 
 export type InsertableSingle = MaybeObservable<string|number|Node|null|undefined>

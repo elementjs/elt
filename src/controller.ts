@@ -16,12 +16,12 @@ import {
 
 declare global {
   interface Node {
-    _domic_controllers: Controller[] | undefined
+    _domic_controllers: BaseController[] | undefined
   }
 }
 
 
-export class Controller {
+export class BaseController {
 
   node: Node
   mounted = false
@@ -29,7 +29,7 @@ export class Controller {
   onunmount: ControllerCallback[] = this.onunmount ? this.onunmount.slice() : []
   onrender: ControllerCallback[] = this.onrender ? this.onrender.slice() : []
 
-  static getIfExists<C extends Controller>(this: Instantiator<C>, node: Node): C|null {
+  static getIfExists<C extends BaseController>(this: Instantiator<C>, node: Node): C|null {
     let iter: Node|null = node
 
     while (iter) {
@@ -47,7 +47,7 @@ export class Controller {
    * Recursively find a controller starting at a node and making its
    * way up.
    */
-  static get<C extends Controller>(this: Instantiator<C>, node: Node): C {
+  static get<C extends BaseController>(this: Instantiator<C>, node: Node): C {
     var res = (this as any).getIfExists(node)
     if (!res)
       throw new Error(`Controller ${this.name} was not found on this node`)
@@ -59,7 +59,7 @@ export class Controller {
    *
    * @returns undefined if the node was not associated with a controller array
    */
-  static all(node: Node): Controller[]|undefined {
+  static all(node: Node): BaseController[]|undefined {
     return node._domic_controllers
   }
 
@@ -67,7 +67,7 @@ export class Controller {
    * Get all the controllers for a Node. If there was no controller array,
    * setup a new one.
    */
-  static init(node: Node): Controller[] {
+  static init(node: Node): BaseController[] {
     if (!node._domic_controllers)
       node._domic_controllers = []
     return node._domic_controllers
@@ -78,7 +78,7 @@ export class Controller {
    */
   bindToNode(node: Node): void {
     this.node = node
-    Controller.init(node).push(this)
+    BaseController.init(node).push(this)
   }
 
   /**
@@ -120,7 +120,7 @@ export class Controller {
 /**
  * Useless controller just used to register observables used by class or style
  */
-export class DefaultController extends Controller {
+export class DefaultController extends BaseController {
 
   static get(n: Node): DefaultController {
 
@@ -140,22 +140,26 @@ export class DefaultController extends Controller {
 /**
  *
  */
-export function ctrl(...ctrls: (Instantiator<Controller>|Controller)[]) {
+export function ctrl(...ctrls: (Instantiator<BaseController>|BaseController)[]) {
   return function (node: Node): void {
-    var instance: Controller|null = null
+    var instance: BaseController|null = null
 
     for (var c of ctrls) {
-      if (c instanceof Controller) {
+      if (c instanceof BaseController) {
         instance = c
       } else {
         instance = new c
       }
       instance.bindToNode(node)
-      Controller.init(node).push(instance)
+      BaseController.init(node).push(instance)
     }
   }
 }
 
+
+export class Controller extends BaseController {
+  node: HTMLElement
+}
 
 
 /**
@@ -164,13 +168,12 @@ export function ctrl(...ctrls: (Instantiator<Controller>|Controller)[]) {
 export abstract class Component extends Controller {
 
   attrs: BasicAttributes
-  node: HTMLElement
 
   constructor(attrs: BasicAttributes) {
     super()
     this.attrs = attrs
   }
 
-  abstract render(children: DocumentFragment): Node
+  abstract render(children: DocumentFragment): HTMLElement
 
 }
