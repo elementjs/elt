@@ -1,5 +1,5 @@
 
-import {MaybeObservable, Observable} from 'domic-observable'
+import {MaybeObservable} from 'domic-observable'
 
 export type ArrayOrSingle<T> = T[] | T
 
@@ -60,7 +60,7 @@ export interface BasicAttributes {
   children?: Insertable | Insertable[]
 }
 
-export type InsertableSingle = string | number | Node | Observable<string> | Observable<Node> | Observable<number>
+export type InsertableSingle = MaybeObservable<string> | MaybeObservable<number> | MaybeObservable<Node>
 export type Insertable = (InsertableSingle | InsertableSingle[])
 
 /**
