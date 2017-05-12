@@ -236,7 +236,11 @@ export class Displayer<T> extends VirtualHolder {
   rendered_display: Node[] | null = null
   rendered_otherwise: Node[] | null = null
 
-  constructor(display: Displayable<T>, condition?: MaybeObservable<T>, display_otherwise?: Displayable<T>) {
+  constructor(
+    display: Displayable<T>,
+    condition?: MaybeObservable<T> | undefined | null,
+    display_otherwise?: Displayable<T>
+  ) {
     super()
 
     var o_cond = o(condition) as Observable<T>
