@@ -66,24 +66,22 @@ import {
   Component
 } from './controller'
 
-import {
-  BasicAttributes
-} from './types'
+import {EmptyAttributes} from './types'
 
 declare global {
   namespace JSX {
-    export type Element = Node
+    export type Element = HTMLElement
 
     export interface ElementAttributesProperty {
       attrs: any
     }
 
     export interface ElementChildrenAttribute {
-      children: any
+      $$children: any
     }
 
     export interface ElementClassFn {
-      (attrs: BasicAttributes, children: DocumentFragment): HTMLElement
+      (attrs: EmptyAttributes, children: DocumentFragment): HTMLElement
     }
 
     export type ElementClass = ElementClassFn | Component

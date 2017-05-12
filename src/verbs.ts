@@ -9,7 +9,6 @@ import {
 } from 'domic-observable'
 
 import {
-  d,
   getDocumentFragment
 } from './domic'
 
@@ -19,11 +18,11 @@ import {
 } from './decorators'
 
 import {
-  Component,
+  BaseController,
 } from './controller'
 
 import {
-  BasicAttributes,
+  EmptyAttributes,
 } from './types'
 
 
@@ -34,22 +33,17 @@ import {
  * between a starting and an ending Comment (called `begin` and
  * `end` internally) which are kept immediately *after* `this.node`
  */
-export class VirtualHolder extends Component {
-
-  /**
-   * A string used to keep track in the DOM of who we are.
-   */
-  name = 'virtual'
+export class VirtualHolder extends BaseController {
 
   /**
    * The Comment after which all children will be appended.
    */
-  begin: Comment
+  begin = document.createComment(` (( `)
 
   /**
    * The Comment before which all children will be inserted
    */
-  end: Comment
+  end = document.createComment(` )) `)
 
   /**
    * An internal variable used to hold the next node that will be appended,
@@ -63,26 +57,18 @@ export class VirtualHolder extends Component {
    * A DocumentFragment in which manually removed children are stored
    * for later remounting if needed.
    */
-  protected saved_children: DocumentFragment|null
+  protected saved_children: DocumentFragment|null = null
 
-  /**
-   * True if updateChildren() was called but the new children
-   * are still waiting for the AnimationFrame
-   */
-  protected waiting: boolean
+  // render(children?: DocumentFragment): Node {
 
-  render(children?: DocumentFragment): Node {
-    this.begin = document.createComment(` (( `)
-    this.end = document.createComment(` ))`)
+  //   if (children) {
+  //     children.insertBefore(this.begin, children.firstChild)
+  //     children.appendChild(this.end)
+  //     this.saved_children = children
+  //   }
 
-    if (children) {
-      children.insertBefore(this.begin, children.firstChild)
-      children.appendChild(this.end)
-      this.saved_children = children
-    }
-
-    return document.createComment(` ${this.name}: `)
-  }
+  //   return document.createComment(` ${this.name}: `)
+  // }
 
   @onmount
   createOrAppendChildren(node: Node) {
@@ -164,23 +150,15 @@ export class VirtualHolder extends Component {
 }
 
 
-export interface HasToString {
-  toString(): string
-}
-
 export class Writer extends VirtualHolder {
-
-  attrs: {
-    obs: Observable<HasToString>
-  }
-
-  name = 'displayer'
 
   txt: Node | null
   backup: WeakMap<DocumentFragment, Node[]> | null = null
 
-  render() {
-    this.observe(this.attrs.obs, value => {
+  constructor(obs: Observable<null|undefined|string|number|Node>) {
+    super()
+
+    this.observe(obs, value => {
       var txt = this.txt
 
       if (!(value instanceof Node)) {
@@ -209,8 +187,6 @@ export class Writer extends VirtualHolder {
 
       this.updateChildren(value as Node)
     })
-
-    return super.render()
   }
 
 }
@@ -220,8 +196,12 @@ export class Writer extends VirtualHolder {
  * Write and update the string value of an observable value into
  * a Text node.
  */
-export function Write(obs: Observable<HasToString>): Node {
-  return d(Writer, {obs})
+export function Write(obs: Observable<null|undefined|string|number|Node>): Node {
+  var comment = document.createComment('Writer')
+  var wr = new Writer(obs)
+  wr.bindToNode(comment)
+  return comment
+  // return d(Writer, {obs})
 }
 
 
@@ -252,31 +232,25 @@ export type DisplayCreator<T> = (a: Observable<T>) => (Node|null)
 export type Displayable<T> = Node | DisplayCreator<T> | null
 
 export class Displayer<T> extends VirtualHolder {
-  name = 'if'
-
-  attrs: {
-    condition?: MaybeObservable<T>
-    display: Displayable<T>
-    display_otherwise?: Displayable<T>
-  }
 
   rendered_display: Node[] | null = null
   rendered_otherwise: Node[] | null = null
 
-  render(): Node {
+  constructor(display: Displayable<T>, condition?: MaybeObservable<T>, display_otherwise?: Displayable<T>) {
+    super()
 
-    var o_cond = o(this.attrs.condition) as Observable<T>
+    var o_cond = o(condition) as Observable<T>
 
     this.observe(o_cond, condition => {
 
       if (!condition) {
 
-        if (this.attrs.display_otherwise) {
+        if (display_otherwise) {
           if (this.rendered_otherwise === null)
             this.rendered_otherwise = getNodes(
-              typeof this.attrs.display_otherwise === 'function' ?
-                this.attrs.display_otherwise(o_cond) :
-                this.attrs.display_otherwise
+              typeof display_otherwise === 'function' ?
+                display_otherwise(o_cond) :
+                display_otherwise
             )
           this.updateChildren(getDocumentFragment(this.rendered_otherwise))
         } else {
@@ -285,14 +259,13 @@ export class Displayer<T> extends VirtualHolder {
 
       } else {
         if (this.rendered_display === null)
-          this.rendered_display = getNodes(typeof this.attrs.display === 'function' ?
-            this.attrs.display(o_cond) : this.attrs.display
+          this.rendered_display = getNodes(typeof display === 'function' ?
+            display(o_cond) : display
           )
         this.updateChildren(getDocumentFragment(this.rendered_display))
       }
 
     })
-    return super.render()
   }
 
 }
@@ -307,11 +280,10 @@ export function DisplayIf<T>(
   display: Displayable<T>,
   display_otherwise?: Displayable<T>
 ): Node {
-  return d(Displayer, {
-    condition,
-    display: display as Displayable<any>,
-    display_otherwise: display_otherwise as Displayable<any>
-  })
+  var comment = document.createComment('  DisplayIf  ')
+  var disp = new Displayer(display, condition, display_otherwise)
+  disp.bindToNode(comment)
+  return comment
 }
 
 
@@ -320,21 +292,37 @@ export function DisplayIf<T>(
  */
 export class Repeater<T> extends VirtualHolder {
 
-  attrs: {
-    ob: MaybeObservable<T[]>,
-    render: (e: PropObservable<T[], T>|T, oi?: number) => Node
-    scroll?: boolean
-    scroll_buffer_size?: number // default 10
-  }
-
   protected obs: Observable<T[]>
   protected positions: Node[] = []
   protected index: number = -1
-  protected renderfn: (e: PropObservable<T[], T>|T, oi?: number) => Node
   protected lst: T[] = []
   protected parent: HTMLElement|null = null
 
   protected child_obs: PropObservable<T[], T>[] = []
+
+  constructor(
+    ob: MaybeObservable<T[]>,
+    public renderfn: (e: PropObservable<T[], T>|T, oi?: number) => Node,
+    public options: {scroll?: boolean, scroll_buffer_size?: number}
+  ) {
+    super()
+
+    this.obs = o(ob)
+
+    // Bind draw so that we can unregister it
+    this.draw = this.draw.bind(this)
+
+    var old_value: T[] | null = null
+
+    this.observe(this.obs, (lst, change) => {
+      lst = lst || []
+      if (lst !== old_value)
+        this.reset(lst)
+      old_value = lst
+      this.draw()
+    })
+  }
+
 
   reset(lst: T[]) {
     this.lst = lst
@@ -379,7 +367,7 @@ export class Repeater<T> extends VirtualHolder {
     var parent: Node = this.end.parentNode as Node
 
     if (diff > 0) {
-      if (!this.attrs.scroll) {
+      if (!this.options.scroll) {
         var fr = document.createDocumentFragment()
 
         while (next = this.next()) {
@@ -389,7 +377,7 @@ export class Repeater<T> extends VirtualHolder {
         parent.insertBefore(fr, this.end)
       } else {
 
-        const bufsize = this.attrs.scroll_buffer_size || 10
+        const bufsize = this.options.scroll_buffer_size || 10
         var count = 0
         const p = this.parent as HTMLElement
 
@@ -430,7 +418,7 @@ export class Repeater<T> extends VirtualHolder {
 
   @onmount
   setupScrolling() {
-    if (!this.attrs.scroll) return
+    if (!this.options.scroll) return
 
     // Find parent with the overflow-y
     var iter = this.node.parentElement
@@ -452,29 +440,10 @@ export class Repeater<T> extends VirtualHolder {
 
   @onunmount
   removeScrolling() {
-    if (!this.attrs.scroll || !this.parent) return
+    if (!this.options.scroll || !this.parent) return
 
     this.parent.removeEventListener('scroll', this.draw)
     this.parent = null
-  }
-
-  render(): Node {
-    this.obs = o(this.attrs.ob)
-    this.renderfn = this.attrs.render
-    // Bind draw so that we can unregister it
-    this.draw = this.draw.bind(this)
-
-    var old_value: T[] | null = null
-
-    this.observe(this.obs, (lst, change) => {
-      lst = lst || []
-      if (lst !== old_value)
-        this.reset(lst)
-      old_value = lst
-      this.draw()
-    })
-
-    return super.render()
   }
 
 }
@@ -483,7 +452,10 @@ export function Repeat<T>(
   ob: Observable<T[]>,
   render: (e: PropObservable<T[], T>, oi?: number) => Node
 ): Node {
-  return d(Repeater, {ob, render})
+  var comment = document.createComment('  Repeat  ')
+  var repeater = new Repeater(ob, render, {})
+  repeater.bindToNode(comment)
+  return comment
 }
 
 export function RepeatScroll<T>(
@@ -493,15 +465,18 @@ export function RepeatScroll<T>(
     scroll_buffer_size?: number // default 10
   } = {}
 ): Node {
-  return d(Repeater, {ob, render,
-    scroll: true,
-    scroll_buffer_size: options.scroll_buffer_size
-  })
+  var comment = document.createComment('  Repeat  ')
+  var repeater = new Repeater(ob, render, {scroll: true, scroll_buffer_size: options.scroll_buffer_size})
+  repeater.bindToNode(comment)
+  return comment
 }
 
 /**
- *
+ *  Fragment wraps everything into a DocumentFragment.
+ *  Beware that because of typescript's imprecisions with the JSX namespace,
+ *  we had to tell this function that it returns an HTMLElement while this
+ *  completely false !
  */
-export function Fragment(attrs: BasicAttributes, children: DocumentFragment): Node {
-  return children
+export function Fragment(attrs: EmptyAttributes, children: DocumentFragment): HTMLElement {
+  return (children as any) as HTMLElement
 }
