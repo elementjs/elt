@@ -79,6 +79,10 @@ declare global {
       attrs: any
     }
 
+    export interface ElementChildrenAttribute {
+      children: any
+    }
+
     export interface ElementClassFn {
       (attrs: BasicAttributes, children: DocumentFragment): Node
     }
