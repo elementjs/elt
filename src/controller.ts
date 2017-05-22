@@ -73,6 +73,12 @@ export class BaseController {
     return node._domic_controllers
   }
 
+  getController<C extends BaseController>(cls: Instantiator<C>): C {
+    if (this.node == null)
+      throw new Error('cannot get controllers on unmounted nodes')
+    return (cls as any).get(this.node)
+  }
+
   /**
    * Associate a Controller to a Node.
    */
@@ -103,14 +109,6 @@ export class BaseController {
     // Add the observer right now if it turns out we're already mounted.
     if (this.mounted) unload = obs.addObserver(cbk, options)
 
-    return this
-  }
-
-  /**
-   * Observe an observer but only when it changes, do not call the callback
-   * right away like observe. (?)
-   */
-  observeChanges(): this {
     return this
   }
 

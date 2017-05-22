@@ -201,7 +201,6 @@ export function Write(obs: Observable<null|undefined|string|number|Node>): Node 
   var wr = new Writer(obs)
   wr.bindToNode(comment)
   return comment
-  // return d(Writer, {obs})
 }
 
 
