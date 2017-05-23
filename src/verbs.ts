@@ -305,7 +305,7 @@ export class Repeater<T> extends VirtualHolder {
 
   constructor(
     ob: MaybeObservable<T[]>,
-    public renderfn: (e: PropObservable<T[], T>|T, oi?: number) => Node,
+    public renderfn: (e: PropObservable<T[], T>|T, oi?: number) => Node | null,
     public options: {scroll?: boolean, scroll_buffer_size?: number}
   ) {
     super()
@@ -356,7 +356,8 @@ export class Repeater<T> extends VirtualHolder {
     this.child_obs.push(ob as PropObservable<T[], T>)
 
     fr.appendChild(comment)
-    fr.appendChild(this.renderfn(ob, this.index))
+    var res = this.renderfn(ob, this.index)
+    if (res) fr.appendChild(res)
     this.positions.push(comment)
     return fr
   }
@@ -453,7 +454,7 @@ export class Repeater<T> extends VirtualHolder {
 
 export function Repeat<T>(
   ob: Observable<T[]>,
-  render: (e: PropObservable<T[], T>, oi?: number) => Node
+  render: (e: PropObservable<T[], T>, oi?: number) => Node | null
 ): Node {
   var comment = document.createComment('  Repeat  ')
   var repeater = new Repeater(ob, render, {})
@@ -463,7 +464,7 @@ export function Repeat<T>(
 
 export function RepeatScroll<T>(
   ob: Observable<T[]>,
-  render: (e: PropObservable<T[], T>, oi?: number) => Node,
+  render: (e: PropObservable<T[], T>, oi?: number) => Node | null,
   options: {
     scroll_buffer_size?: number // default 10
   } = {}
