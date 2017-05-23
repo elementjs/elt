@@ -172,6 +172,19 @@ export abstract class Component extends Controller {
     this.attrs = attrs
   }
 
-  abstract render(children: DocumentFragment): HTMLElement
+  abstract render(children: DocumentFragment): Element
 
+}
+
+
+export abstract class SVGComponent extends BaseController {
+  node: SVGElement
+  attrs: BasicAttributes
+
+  constructor(attrs: BasicAttributes) {
+    super()
+    this.attrs = attrs
+  }
+
+  abstract render(children: DocumentFragment): Element
 }
