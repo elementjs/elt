@@ -261,7 +261,7 @@ export function d(elt: any, attrs: BasicAttributes, ...children: Insertable[]): 
   var data_attrs: {[name: string]: MaybeObservable<string>} | null = null
 
   let decorators: ArrayOrSingle<Decorator>|undefined
-  let style: ArrayOrSingle<StyleDefinition>|undefined|null
+  let style: MaybeObservable<string>|ArrayOrSingle<StyleDefinition>|undefined|null
   let cls: ArrayOrSingle<ClassDefinition>|undefined|null
 
   if (attrs) {

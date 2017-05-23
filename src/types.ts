@@ -46,7 +46,7 @@ export interface EmptyAttributes {
 export interface BasicAttributes extends EmptyAttributes {
   id?: MaybeObservable<string>
   class?: ArrayOrSingle<ClassDefinition>|null // special attributes
-  style?: ArrayOrSingle<StyleDefinition>|null
+  style?: MaybeObservable<string>|ArrayOrSingle<StyleDefinition>|null
 
   $$?: ArrayOrSingle<Decorator>
   xmlns?: string

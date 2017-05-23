@@ -161,7 +161,9 @@ export class Writer extends VirtualHolder {
     this.observe(obs, value => {
       var txt = this.txt
 
-      if (!(value instanceof Node)) {
+      if (value instanceof Array) {
+        value = getDocumentFragment(value)
+      } else if (!(value instanceof Node)) {
         var val = value != null ? value.toString() : ''
         if (txt) {
           txt.nodeValue = val
