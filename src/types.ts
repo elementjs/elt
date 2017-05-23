@@ -14,9 +14,9 @@ export interface Instantiator<T> {
 /**
  * Decorators used on Nodes
  */
-export type Decorator = (n: HTMLElement) => void
+export type Decorator = (n: Element) => void
 
-export type ControllerCallback = (n: HTMLElement, parent: Node) => void
+export type ControllerCallback = (n: Node, parent: Node) => void
 /**
  * Classes.
  */

@@ -65,7 +65,7 @@ export {
 ////////////////////////////////////////////////////////
 
 import {
-  Component
+  Component, SVGComponent
 } from './controller'
 
 import {
@@ -74,9 +74,11 @@ import {
 
 import {EmptyAttributes} from './types'
 
+export type ElementAlias = Element
+
 declare global {
   namespace JSX {
-    export type Element = HTMLElement
+    export type Element = ElementAlias
 
     export interface ElementAttributesProperty {
       attrs: any
@@ -87,10 +89,10 @@ declare global {
     }
 
     export interface ElementClassFn {
-      (attrs: EmptyAttributes, children: DocumentFragment): HTMLElement
+      (attrs: EmptyAttributes, children: DocumentFragment): Element
     }
 
-    export type ElementClass = ElementClassFn | Component
+    export type ElementClass = ElementClassFn | Component | SVGComponent
 
     export interface IntrinsicElements {
       a: HTMLAttributes
