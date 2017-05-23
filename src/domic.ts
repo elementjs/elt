@@ -105,14 +105,18 @@ function applyAttribute(node: Element, name: string, value: MaybeObservable<any>
   if (value instanceof Observable) {
     if (!ct) ct = new DefaultController()
     ct.observe(value, val => {
-      if (val != null)
+      if (val === true)
+        node.setAttribute(name, '')
+      else if (val != null && val !== false)
         node.setAttribute(name, val)
       else {
         node.removeAttribute(name)
       }
     })
   } else {
-    if (value != null) node.setAttribute(name, value)
+    if (value === true)
+      node.setAttribute(name, '')
+    if (value != null && value !== false) node.setAttribute(name, value)
   }
 
   return ct

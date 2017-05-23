@@ -49,9 +49,11 @@ export interface BasicAttributes extends EmptyAttributes {
   style?: ArrayOrSingle<StyleDefinition>|null
 
   $$?: ArrayOrSingle<Decorator>
+  xmlns?: string
 }
 
 export interface HTMLAttributes extends BasicAttributes {
+
   // Attributes shamelessly stolen from React's type definitions.
   // Standard HTML Attributes
   accept?: MaybeObservable<string>
@@ -90,6 +92,7 @@ export interface HTMLAttributes extends BasicAttributes {
   download?: MaybeObservable<any>
   draggable?: MaybeObservable<boolean>
   enctype?: MaybeObservable<string>
+  for?: MaybeObservable<string>
   form?: MaybeObservable<string>
   formaction?: MaybeObservable<string>
   formenctype?: MaybeObservable<string>
@@ -184,7 +187,7 @@ export interface HTMLAttributes extends BasicAttributes {
   vocab?: MaybeObservable<string>
 
   // Non-standard Attributes
-  autocapitalize?: MaybeObservable<boolean>
+  autocapitalize?: MaybeObservable<'word' | 'words' | 'sentences' | 'sentence' | 'characters' | 'character' | 'off'>
   autocorrect?: MaybeObservable<string>
   autosave?: MaybeObservable<string>
   color?: MaybeObservable<string>
