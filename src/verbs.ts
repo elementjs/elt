@@ -292,6 +292,9 @@ export function DisplayIf<T>(
 }
 
 
+export type RenderFn<T> = (e: PropObservable<T[], T>, oi?: number) => Node | null
+
+
 /**
  *
  */
@@ -307,7 +310,7 @@ export class Repeater<T> extends VirtualHolder {
 
   constructor(
     ob: MaybeObservable<T[]>,
-    public renderfn: (e: PropObservable<T[], T>|T, oi?: number) => Node | null,
+    public renderfn: RenderFn<T>,
     public options: {scroll?: boolean, scroll_buffer_size?: number}
   ) {
     super()
@@ -454,9 +457,22 @@ export class Repeater<T> extends VirtualHolder {
 
 }
 
+
+/**
+ * @verb
+ *
+ * Repeats a render function for each element of an array.
+ *
+ * @param ob The array to observe
+ * @param render The render function that will be called for
+ * @returns a Comment node with the Repeater controller bound
+ *  on it.
+ */
+export function Repeat<T>(ob: Observable<T[]>, render: RenderFn<T>): Node;
+export function Repeat<T>(ob: T[], render: RenderFn<T>): Node;
 export function Repeat<T>(
-  ob: Observable<T[]>,
-  render: (e: PropObservable<T[], T>, oi?: number) => Node | null
+  ob: MaybeObservable<T[]>,
+  render: RenderFn<T>
 ): Node {
   var comment = document.createComment('  Repeat  ')
   var repeater = new Repeater(ob, render, {})
@@ -464,9 +480,16 @@ export function Repeat<T>(
   return comment
 }
 
+
+export function RepeatScroll<T>(ob: Observable<T[]>, render: RenderFn<T>, options?: {
+    scroll_buffer_size?: number // default 10
+  }): Node;
+export function RepeatScroll<T>(ob: T[], render: RenderFn<T>, options?: {
+    scroll_buffer_size?: number // default 10
+  }): Node;
 export function RepeatScroll<T>(
-  ob: Observable<T[]>,
-  render: (e: PropObservable<T[], T>, oi?: number) => Node | null,
+  ob: MaybeObservable<T[]>,
+  render: RenderFn<T>,
   options: {
     scroll_buffer_size?: number // default 10
   } = {}
