@@ -79,6 +79,12 @@ export class BaseController {
     return (cls as any).get(this.node)
   }
 
+  getControllerIfExists<C extends BaseController>(cls: Instantiator<C>): C|null {
+    if (this.node == null)
+      throw new Error('cannot get controllers on unmounted nodes')
+    return (cls as any).getIfExists(this.node)
+  }
+
   /**
    * Associate a Controller to a Node.
    */
