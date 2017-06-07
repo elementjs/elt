@@ -13,7 +13,8 @@ module.exports = {
     filename: "domic.js",
     sourceMapFilename: "[file].map",
     library: 'domic',
-    libraryTarget: 'umd'
+    libraryTarget: 'umd',
+    umdNamedDefine: true
   },
   resolveLoader: { root: path.join(__dirname, "node_modules") },
   resolve: {extensions: ["", ".webpack.js", ".web.js", ".js"]},
