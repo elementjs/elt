@@ -27,13 +27,33 @@ import {
 
 
 /**
+ * Extend this class when writing a verb.
+ * 
+ * This is a very short class declaration which only purpose
+ * is to help create shorter verb functions.
+ */
+export class Verb extends BaseController {
+
+  node: Comment
+
+  constructor(name: string) {
+    super()
+    this.node = document.createComment(`  ${name}  `)
+    this.bindToNode(this.node)
+  }
+
+}
+
+
+
+/**
  * Base Component for components not using DOM Elements.
  *
  * Rendered as a several Comment nodes, it keeps its children
  * between a starting and an ending Comment (called `begin` and
  * `end` internally) which are kept immediately *after* `this.node`
  */
-export class VirtualHolder extends BaseController {
+export class VirtualHolder extends Verb {
 
   /**
    * The Comment after which all children will be appended.
@@ -58,17 +78,6 @@ export class VirtualHolder extends BaseController {
    * for later remounting if needed.
    */
   protected saved_children: DocumentFragment|null = null
-
-  // render(children?: DocumentFragment): Node {
-
-  //   if (children) {
-  //     children.insertBefore(this.begin, children.firstChild)
-  //     children.appendChild(this.end)
-  //     this.saved_children = children
-  //   }
-
-  //   return document.createComment(` ${this.name}: `)
-  // }
 
   @onmount
   createOrAppendChildren(node: Node) {
@@ -156,7 +165,7 @@ export class Writer extends VirtualHolder {
   backup: WeakMap<DocumentFragment, Node[]> | null = null
 
   constructor(obs: Observable<null|undefined|string|number|Node>) {
-    super()
+    super('writer')
 
     this.observe(obs, value => {
       var txt = this.txt
@@ -199,10 +208,8 @@ export class Writer extends VirtualHolder {
  * a Text node.
  */
 export function Write(obs: Observable<null|undefined|string|number|Node>): Node {
-  var comment = document.createComment('Writer')
   var wr = new Writer(obs)
-  wr.bindToNode(comment)
-  return comment
+  return wr.node
 }
 
 
@@ -242,7 +249,7 @@ export class Displayer<T> extends VirtualHolder {
     condition?: MaybeObservable<T> | undefined | null,
     display_otherwise?: Displayable<T>
   ) {
-    super()
+    super('displayer')
 
     var o_cond = o(condition) as Observable<T>
 
@@ -285,10 +292,8 @@ export function DisplayIf<T>(
   display: Displayable<T>,
   display_otherwise?: Displayable<T>
 ): Node {
-  var comment = document.createComment('  DisplayIf  ')
   var disp = new Displayer(display, condition, display_otherwise)
-  disp.bindToNode(comment)
-  return comment
+  return disp.node
 }
 
 
@@ -313,7 +318,7 @@ export class Repeater<T> extends VirtualHolder {
     public renderfn: RenderFn<T>,
     public options: {scroll?: boolean, scroll_buffer_size?: number}
   ) {
-    super()
+    super('repeater')
 
     this.obs = o(ob)
 
@@ -474,10 +479,8 @@ export function Repeat<T>(
   ob: MaybeObservable<T[]>,
   render: RenderFn<T>
 ): Node {
-  var comment = document.createComment('  Repeat  ')
   var repeater = new Repeater(ob, render, {})
-  repeater.bindToNode(comment)
-  return comment
+  return repeater.node
 }
 
 
@@ -494,10 +497,8 @@ export function RepeatScroll<T>(
     scroll_buffer_size?: number // default 10
   } = {}
 ): Node {
-  var comment = document.createComment('  Repeat  ')
   var repeater = new Repeater(ob, render, {scroll: true, scroll_buffer_size: options.scroll_buffer_size})
-  repeater.bindToNode(comment)
-  return comment
+  return repeater.node
 }
 
 /**

@@ -57,6 +57,7 @@ export {
   Repeat,
   RepeatScroll,
   Repeater,
+  Verb,
   VirtualHolder,
   Write,
   Writer,
