@@ -275,7 +275,7 @@ export function on(event: "webkitfullscreenerror", listener: Listener<Event>, us
 export function on(event: "wheel", listener: Listener<WheelEvent>, useCapture?: boolean): Decorator;
 export function on(event: 'click', listener: Listener<MouseEvent>, useCapture?: boolean): Decorator
 export function on(event: string, listener: Listener<Event>, useCapture?: boolean): Decorator
-export function on(event: string, listener: Listener<Event>, useCapture = false) {
+export function on<E extends Event>(event: string, listener: Listener<E>, useCapture = false) {
 
   return function (node: Node) {
     node.addEventListener(event, function (this: Node, ev) { return listener.call(this, ev, node) })
