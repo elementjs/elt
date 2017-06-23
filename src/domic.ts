@@ -2,7 +2,7 @@
 import {
   MaybeObservable,
   Observable
-} from 'domic-observable'
+} from './observable'
 
 import {
   ArrayOrSingle,

@@ -5,7 +5,7 @@ import {
   ObserveOptions,
   Observer,
   UnregisterFn
-} from 'domic-observable'
+} from './observable'
 
 import {
   Instantiator,

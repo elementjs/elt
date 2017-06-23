@@ -1,7 +1,7 @@
 
 import {
   Observable, MaybeObservable, Observer, ObserveOptions
-} from 'domic-observable'
+} from './observable'
 
 import {
   Decorator, Listener, ControllerCallback

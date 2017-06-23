@@ -6,7 +6,7 @@ import {
   MaybeObservable,
   Observable,
   PropObservable
-} from 'domic-observable'
+} from './observable'
 
 import {
   getDocumentFragment
