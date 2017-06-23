@@ -49,7 +49,7 @@ export {
   ctrl
 } from './controller'
 
-export * from 'domic-observable'
+export * from './observable'
 
 export {
   DisplayIf,

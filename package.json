@@ -14,11 +14,10 @@
     "watch": "parallel -u ::: 'ls build/*.d.ts | entr -d npm run build:dts' 'tscc -w' 'webpack -w'"
   },
   "dependencies": {
-    "domic-observable": "1.0.0-beta17",
     "tslib": "*"
   },
   "devDependencies": {
-    "dts-bundle": "^0.5.0",
+    "dts-bundle": "^0.7.3",
     "source-map-loader": "^0.1.5",
     "webpack": "^1.13.2"
   }

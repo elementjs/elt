@@ -1,5 +1,5 @@
 
-import {MaybeObservable} from 'domic-observable'
+import {MaybeObservable} from './observable'
 
 export type ArrayOrSingle<T> = T[] | T
 
