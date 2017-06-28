@@ -71,7 +71,7 @@ export class VirtualHolder extends Verb {
    * can be thus called multiple times before actually adding anything into
    * the DOM
    */
-  protected next_node: Node|null
+  // protected next_node: Node|null
 
   /**
    * A DocumentFragment in which manually removed children are stored
@@ -87,61 +87,52 @@ export class VirtualHolder extends Verb {
     let next = node.nextSibling
 
     if (this.saved_children) {
-
       parent.insertBefore(this.saved_children, next)
       this.saved_children = null
-
     } else if (!this.begin.parentNode) {
       parent.insertBefore(this.begin, next)
       parent.insertBefore(this.end, next)
     }
+
   }
 
   @onunmount
-  unmountChildrenIfNeeded(node: Node) {
-
+  unmountChildren(node: Node) {
     // If we have a parentNode in an unmount() method, it means
     // that we were not unmounted directly.
     // If there is no parentNode, `this.node` was specifically
     // removed from the DOM and since we keep our children
     // after `this.node`, we need to remove them as well.
-    if (!node.parentNode) {
-      requestAnimationFrame(() => {
-        let fragment = document.createDocumentFragment()
+    let fragment = document.createDocumentFragment()
 
-        let iter: Node|null = this.begin
-        let next: Node|null = null
+    let iter: Node|null = this.begin
+    let next: Node|null = null
 
-        while (iter) {
-          next = iter.nextSibling
-          fragment.appendChild(iter)
-          if (iter === this.end) break
-          iter = next
-        }
-
-        this.saved_children = fragment
-      })
+    if (!iter.nextSibling) {
+      fragment.appendChild(this.begin)
+      fragment.appendChild(this.end)
+    } else {
+      while (iter) {
+        next = iter.nextSibling
+        fragment.appendChild(iter)
+        if (iter === this.end) break
+        iter = next
+      }
     }
 
+    this.saved_children = fragment
   }
 
   updateChildren(node: Node|null) {
-    this.next_node = node
-
     let iter = this.begin.nextSibling
     let end = this.end
     let next: Node|null = null
 
-    if (!iter) {
-      // If we're here, we're most likely not mounted, so we will
-      // put the next node into saved_children instead.
-      this.saved_children = this.next_node as DocumentFragment
-      this.next_node = null
-      return
+    if (!iter || !iter.parentNode) {
+      throw new Error('inconsistent VirtualHolder state')
     }
 
     const parent = iter.parentNode
-    if (!parent) return
 
     while (iter && iter !== end) {
       next = iter.nextSibling
@@ -149,11 +140,8 @@ export class VirtualHolder extends Verb {
       iter = next
     }
 
-    if (this.next_node)
-      parent.insertBefore(this.next_node, end)
-
-    this.next_node = null
-
+    if (node)
+      parent.insertBefore(node, end)
   }
 
 }
@@ -494,6 +482,9 @@ export function RepeatScroll<T>(
   ob: MaybeObservable<T[]>,
   render: RenderFn<T>,
   options: {
+    /**
+     * Test comment
+     */
     scroll_buffer_size?: number // default 10
   } = {}
 ): Node {
