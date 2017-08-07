@@ -128,11 +128,9 @@ export class VirtualHolder extends Verb {
     let end = this.end
     let next: Node|null = null
 
-    if (!iter || !iter.parentNode) {
-      throw new Error('inconsistent VirtualHolder state')
-    }
+    if (!iter || !iter.parentNode) return
 
-    const parent = iter.parentNode
+    const parent = iter.parentNode!
 
     while (iter && iter !== end) {
       next = iter.nextSibling
