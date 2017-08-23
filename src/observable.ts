@@ -717,7 +717,7 @@ export class Observable<T> {
     this.change(
       C.create(value, value)
         .set('length', C.create(value.length, value.length + 1))
-        .set(value.length, C.create())
+        .set(value.length, C.create() as Change<U>)
     )
 
     return res
