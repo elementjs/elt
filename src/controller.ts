@@ -126,7 +126,7 @@ export class BaseController {
  */
 export class DefaultController extends BaseController {
 
-  static get(n: Node): DefaultController {
+  static get<C extends BaseController>(this: Instantiator<C>, n: Node): C {
 
     let d = super.getIfExists.call(this, n) as DefaultController
     if (!d) {
@@ -134,7 +134,7 @@ export class DefaultController extends BaseController {
       d.bindToNode(n)
     }
 
-    return d
+    return d as C
   }
 
 }
