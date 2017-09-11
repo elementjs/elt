@@ -2,8 +2,6 @@
 import {Controller} from './controller'
 
 export type MaybeNode = Node | null | undefined
-// node, parent, previous, next
-export type MountTuple = [Node, MaybeNode, MaybeNode, MaybeNode]
 
 export function _apply_mount(node: Node) {
   var controllers = Controller.all(node)
@@ -13,13 +11,8 @@ export function _apply_mount(node: Node) {
   for (var c of controllers) {
     // ignore spurious unmounts (should not happen, but let's be cautious)
     if (c.mounted) continue
-    c.mounted = true
     c.node = node
-
-    for (var f of c.onmount) {
-      f.call(c, node, node.parentNode)
-    }
-
+    c.onmount(node as Element)
   }
 
 }
@@ -56,6 +49,10 @@ export function _mount(node: Node, target?: Node) {
 }
 
 
+// node, parent, previous, next
+export type MountTuple = [Node, MaybeNode, MaybeNode, MaybeNode]
+
+
 /**
  * Apply unmount to a node.
  */
@@ -68,12 +65,7 @@ export function _apply_unmount(tuple: MountTuple) {
   for (var c of controllers) {
     // ignore spurious unmounts (should not happen, but let's be cautious)
     if (!c.mounted) continue
-    c.mounted = false
-
-    for (var f of c.onunmount) {
-      f.apply(c, tuple)
-    }
-
+    c.onunmount(tuple[0] as Element, tuple[1]!, tuple[2]!, tuple[3]!)
     c.node = null!
   }
 }

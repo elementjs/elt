@@ -4,9 +4,8 @@
 import {
   o,
   MaybeObservable,
-  Observable,
-  PropObservable
-} from './observable'
+  Observable
+} from 'domic-observable'
 
 import {
   getDocumentFragment
@@ -28,7 +27,7 @@ import {
 
 /**
  * Extend this class when writing a verb.
- * 
+ *
  * This is a very short class declaration which only purpose
  * is to help create shorter verb functions.
  */
@@ -223,7 +222,7 @@ function getNodes(node: Node | null): Node[] {
 
 
 export type DisplayCreator<T> = (a: Observable<T>) => (Node|null)
-export type Displayable<T> = Node | DisplayCreator<T> | null
+export type Displayable<T> = Node | DisplayCreator<T>
 
 export class Displayer<T> extends VirtualHolder {
 
@@ -232,12 +231,12 @@ export class Displayer<T> extends VirtualHolder {
 
   constructor(
     display: Displayable<T>,
-    condition?: MaybeObservable<T> | undefined | null,
+    condition: MaybeObservable<T>,
     display_otherwise?: Displayable<T>
   ) {
     super('displayer')
 
-    var o_cond = o(condition) as Observable<T>
+    var o_cond = o(condition)
 
     this.observe(o_cond, condition => {
 
@@ -274,7 +273,7 @@ export class Displayer<T> extends VirtualHolder {
  */
 
 export function DisplayIf<T>(
-  condition: MaybeObservable<T> | undefined | null,
+  condition: MaybeObservable<T>,
   display: Displayable<T>,
   display_otherwise?: Displayable<T>
 ): Node {
@@ -283,7 +282,7 @@ export function DisplayIf<T>(
 }
 
 
-export type RenderFn<T> = (e: PropObservable<T[], T>, oi?: number) => Node | null
+export type RenderFn<T> = (e: Observable<T>, oi?: number) => Element | null
 
 
 /**
@@ -297,7 +296,7 @@ export class Repeater<T> extends VirtualHolder {
   protected lst: T[] = []
   protected parent: HTMLElement|null = null
 
-  protected child_obs: PropObservable<T[], T>[] = []
+  protected child_obs: Observable<T>[] = []
 
   constructor(
     ob: MaybeObservable<T[]>,
@@ -329,10 +328,7 @@ export class Repeater<T> extends VirtualHolder {
     this.positions = []
 
     for (var ob of this.child_obs) {
-      if (ob._unregister) {
-        ob._unregister()
-        ob._unregister = null
-      }
+      ob.stopObservers()
     }
     this.child_obs = []
     this.updateChildren(null)
@@ -349,10 +345,10 @@ export class Repeater<T> extends VirtualHolder {
     const comment = document.createComment('repeat-' + this.index)
     var fr = document.createDocumentFragment()
     var ob = this.obs.p(this.index)
-    this.child_obs.push(ob as PropObservable<T[], T>)
+    this.child_obs.push(ob as Observable<T>)
 
     fr.appendChild(comment)
-    var res = this.renderfn(ob, this.index)
+    var res = this.renderfn(ob as Observable<T>, this.index)
     if (res) fr.appendChild(res)
     this.positions.push(comment)
     return fr
@@ -400,8 +396,7 @@ export class Repeater<T> extends VirtualHolder {
 
       for (var k = this.lst.length; k < this.child_obs.length; k++) {
         var ob = this.child_obs[k]
-        ob._unregister!()
-        ob._unregister = null
+        ob.stopObservers()
       }
 
       this.child_obs = this.child_obs.slice(0, this.lst.length)
@@ -459,7 +454,7 @@ export class Repeater<T> extends VirtualHolder {
  * @returns a Comment node with the Repeater controller bound
  *  on it.
  */
-export function Repeat<T>(ob: Observable<T[]>, render: RenderFn<T>): Node;
+export function Repeat<T>(ob: Observable<T[]>, render: RenderFn<T>): Node
 export function Repeat<T>(ob: T[], render: RenderFn<T>): Node;
 export function Repeat<T>(
   ob: MaybeObservable<T[]>,

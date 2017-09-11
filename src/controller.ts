@@ -1,16 +1,17 @@
 
 import {
   o,
+  Observable,
+  make_observer,
   MaybeObservable,
-  ObserveOptions,
+  ObserverOptions,
   Observer,
-  UnregisterFn
-} from './observable'
+  ObserverFunction
+} from 'domic-observable'
 
 import {
   Instantiator,
   BasicAttributes,
-  ControllerCallback,
 } from './types'
 
 
@@ -22,12 +23,6 @@ declare global {
 
 
 export class BaseController {
-
-  node: Node
-  mounted = false
-  onmount: ControllerCallback[] = this.onmount ? this.onmount.slice() : []
-  onunmount: ControllerCallback[] = this.onunmount ? this.onunmount.slice() : []
-  onrender: ControllerCallback[] = this.onrender ? this.onrender.slice() : []
 
   static getIfExists<C extends BaseController>(this: Instantiator<C>, node: Node): C|null {
     let iter: Node|null = node
@@ -73,6 +68,28 @@ export class BaseController {
     return node._domic_controllers
   }
 
+  node: Node
+  mounted = false
+  protected observers: Observer<any, any>[] = []
+
+  onmount(node: Element) {
+    this.mounted = true
+    for (var o of this.observers) {
+      o.startObserving()
+    }
+  }
+
+  onunmount(node: Element, parent: Node, next: Node, prev: Node) {
+    this.mounted = false
+    for (var o of this.observers) {
+      o.stopObserving()
+    }
+  }
+
+  onrender(node: Element) {
+
+  }
+
   getController<C extends BaseController>(cls: Instantiator<C>): C {
     if (this.node == null)
       throw new Error('cannot get controllers on unmounted nodes')
@@ -97,23 +114,14 @@ export class BaseController {
    * Observe an observer whenever it is mounted. Stop observing when
    * unmounted. Reobserve when mounted again.
    */
-  observe<T>(a: MaybeObservable<T>, cbk: Observer<T>, options?: ObserveOptions): this
-  observe<T>(a: MaybeObservable<T>|null, cbk: Observer<T|null>, options?: ObserveOptions): this
-  observe<T>(a: MaybeObservable<T>|undefined, cbk: Observer<T|undefined>, options?: ObserveOptions): this
-  observe<T>(a: MaybeObservable<T>, cbk: Observer<T>, options?: ObserveOptions): this {
-    var unload: UnregisterFn|null
-    const obs = o(a)
-    this.onmount.push(function () {
-      if (!unload) unload = obs.addObserver(cbk, options)
-    })
+  observe<T>(a: MaybeObservable<T>, cbk: Observer<T, any> | ObserverFunction<T, any>, options?: ObserverOptions): this {
 
-    this.onunmount.push(function () {
-      if (unload) unload()
-      unload = null
-    })
+    const observable = a instanceof Observable ? a : o(a)
+    const observer = typeof cbk === 'function' ?  make_observer(observable, cbk, options) : cbk
+    this.observers.push(observer)
 
-    // Add the observer right now if it turns out we're already mounted.
-    if (this.mounted) unload = obs.addObserver(cbk, options)
+    if (this.mounted)
+      observer.call(o.get(observable))
 
     return this
   }
@@ -126,6 +134,9 @@ export class BaseController {
  */
 export class DefaultController extends BaseController {
 
+  onmount_callback: ((node: Element) => any)[]
+  onunmount_callbacks: ((node: Element) => any)[]
+
   static get<C extends BaseController>(this: Instantiator<C>, n: Node): C {
 
     let d = super.getIfExists.call(this, n) as DefaultController
@@ -134,7 +145,21 @@ export class DefaultController extends BaseController {
       d.bindToNode(n)
     }
 
-    return d as C
+    return d as any
+  }
+
+  onmount(node: Element) {
+    super.onmount.apply(this, arguments)
+    for (var m of this.onmount_callback) {
+      m.apply(this, arguments)
+    }
+  }
+
+  onunmount(node: Element) {
+    super.onunmount.apply(this, arguments)
+    for (var m of this.onunmount_callbacks) {
+      m.apply(this, arguments)
+    }
   }
 
 }

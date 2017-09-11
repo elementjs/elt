@@ -1,55 +1,16 @@
 
-export {
-  getDocumentFragment,
-  getChildren,
-  d
-} from './domic'
+export * from './domic'
 
 export {
   setupMounting
 } from './mounting'
 
-export {
-  ArrayOrSingle,
-  BasicAttributes,
-  Insertable,
-  ClassDefinition,
-  ClassObject,
-  ComponentFn,
-  HTMLAttributes,
-  NodeCreatorFn,
-  Decorator,
-  DirectionValues,
-  DraggableValues,
-  DropZoneValues,
-  Instantiator,
-  Listener,
-  StyleDefinition,
-  SVGAttributes
-} from './types'
+export * from './types'
+export * from './decorators'
 
-export {
-  bind,
-  BindController,
-  click,
-  clickfix,
-  focusOnMount,
-  observe,
-  onmount,
-  onfirstmount,
-  onrender,
-  onunmount,
-  on,
-  scrollable
-} from './decorators'
+export * from './controller'
 
-export {
-  Component,
-  Controller,
-  ctrl
-} from './controller'
-
-export * from './observable'
+export * from 'domic-observable'
 
 export {
   DisplayIf,
