@@ -1,10 +1,11 @@
 
-import {MaybeObservable} from './observable'
+import {MaybeObservable} from 'domic-observable'
 
 export type ArrayOrSingle<T> = T[] | T
 
 export type Listener<EventType extends Event> = (this: Node, ev: EventType, node: Node) => void
 
+export type ControllerCallback = (e: Element) => any
 
 export interface Instantiator<T> {
   new (...a: any[]): T
@@ -16,7 +17,6 @@ export interface Instantiator<T> {
  */
 export type Decorator = (n: Element) => void
 
-export type ControllerCallback = (n: Node, parent: Node) => void
 /**
  * Classes.
  */

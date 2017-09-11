@@ -1,7 +1,7 @@
 
 import {
-  Observable, MaybeObservable, Observer, ObserveOptions
-} from './observable'
+  Observable, MaybeObservable, Observer, ObserverOptions, ObserverFunction
+} from 'domic-observable'
 
 import {
   Decorator, Listener, ControllerCallback
@@ -16,16 +16,15 @@ import {
 export class BindController extends Controller {
 
   obs: Observable<string>
-  opts: ObserveOptions
+  opts: ObserverOptions
 
-  constructor(obs: Observable<string>, opts: ObserveOptions = {}) {
+  constructor(obs: Observable<string>, opts: ObserverOptions = {}) {
     super()
     this.obs = obs
     this.opts = opts
   }
 
-  @onrender
-  link(node: Node) {
+  onrender(node: Node) {
 
     if (node instanceof HTMLInputElement) this.linkToInput(node)
     if (node instanceof HTMLSelectElement) this.linkToSelect(node)
@@ -127,7 +126,7 @@ export class BindController extends Controller {
 }
 
 
-export function bind(obs: Observable<string>, opts: ObserveOptions = {}) {
+export function bind(obs: Observable<string>, opts: ObserverOptions = {}) {
 
   return function bindDecorator(node: Node): void {
     let c = new BindController(obs, opts)
@@ -137,7 +136,7 @@ export function bind(obs: Observable<string>, opts: ObserveOptions = {}) {
 }
 
 
-export function observe<T>(a: MaybeObservable<T>, cbk: Observer<T>, options?: ObserveOptions) {
+export function observe<T>(a: MaybeObservable<T>, cbk: Observer<T, any> | ObserverFunction<T, any>, options?: ObserverOptions) {
   return function observeDecorator(node: Node): void {
     let c = DefaultController.get(node);
     c.observe(a, cbk, options)
@@ -391,7 +390,7 @@ export function onmount(fn: ControllerCallback): Decorator;
 export function onmount(target: any, key: string): void;
 export function onmount(target: any, key?: any): any {
   if (typeof target === 'function') {
-    return function (n: Node) { DefaultController.get(n).onmount.push(target) }
+    return function (n: Node) { DefaultController.get(n).onmount_callback.push(target) }
   }
 
   const proto = Object.getPrototypeOf(target)
@@ -410,13 +409,13 @@ export function onfirstmount(target: any, key: string): void;
 export function onfirstmount(target: any, key?: any): any {
   let fn = typeof target === 'function' ? target : target[key]
 
-  function first_mount(this: Controller, node: any) {
-    this.onmount = this.onmount.filter((f: any) => f !== first_mount)
+  function first_mount(this: DefaultController, node: any) {
+    this.onmount_callback = this.onmount_callback.filter((f: any) => f !== first_mount)
     fn.call(this, node)
   }
 
   if (typeof target === 'function') {
-    return function (n: Node) { DefaultController.get(n).onmount.push(first_mount) }
+    return function (n: Node) { DefaultController.get(n).onmount_callback.push(first_mount) }
   }
 
   const proto = Object.getPrototypeOf(target)
@@ -430,24 +429,12 @@ export function onfirstmount(target: any, key?: any): any {
 export function onunmount(fn: ControllerCallback): Decorator;
 export function onunmount(target: any, key: string): void;
 export function onunmount(target: any, key?: any): any {
-  if (typeof target === 'function') return function (n: Node) { DefaultController.get(n).onunmount.push(target) }
+  if (typeof target === 'function') return function (n: Node) { DefaultController.get(n).onunmount_callbacks.push(target) }
 
   const proto = Object.getPrototypeOf(target)
   if (target.onunmount === proto.onunmount)
     target.onunmount = (Object.getPrototypeOf(target).onunmount||[]).slice()
   target.onunmount.push(target[key])
-}
-
-
-export function onrender(fn: ControllerCallback): Decorator;
-export function onrender(target: any, key: string): void;
-export function onrender(target: any, key?: any): any {
-  if (typeof target === 'function') return function (n: Node) { DefaultController.get(n).onrender.push(target) }
-
-  const proto = Object.getPrototypeOf(target)
-  if (target.onrender === proto.onrender)
-    target.onrender = (Object.getPrototypeOf(target).onrender||[]).slice()
-  target.onrender.push(target[key])
 }
 
 

@@ -2,7 +2,7 @@
 import {
   MaybeObservable,
   Observable
-} from './observable'
+} from 'domic-observable'
 
 import {
   ArrayOrSingle,
@@ -18,7 +18,6 @@ import {
 
 import {
   Component,
-  Controller,
   DefaultController,
 } from './controller'
 
@@ -168,7 +167,7 @@ export function getChildren(node: Node): Node[] {
  *
  * Does nothing if null was supplied.
  */
-export function _foreach<T>(maybe_array: ArrayOrSingle<T>|undefined|null, fn: (a: T) => any): void {
+export function _foreach<T>(maybe_array: ArrayOrSingle<T> | undefined | null, fn: (a: T) => any): void {
   if (!maybe_array) return
 
   if (Array.isArray(maybe_array)) {
@@ -246,14 +245,14 @@ const NS = {
  * Controllers, decorators, classes and style.
  */
 
-export function d(elt: ComponentFn, attrs: BasicAttributes, ...children: Insertable[]): Node
+export function d(elt: ComponentFn, attrs: BasicAttributes, ...children: Insertable[]): Element
 export function d(elt: string, attrs: BasicAttributes|null, ...children: Insertable[]): HTMLElement
-export function d<A>(elt: ComponentInstanciator<A>, attrs: A, ...children: Insertable[]): Node
-export function d(elt: any, attrs: BasicAttributes, ...children: Insertable[]): Node {
+export function d<A>(elt: ComponentInstanciator<A>, attrs: A, ...children: Insertable[]): Element
+export function d(elt: any, attrs: BasicAttributes, ...children: Insertable[]): Element {
 
   if (!elt) throw new Error(`d() needs at least a string, a function or a Component`)
 
-  let node: Node|null = null
+  let node: Element = null!
 
   // Classes and style are applied at the end of this function and are thus
   // never passed to other node definitions.
@@ -289,7 +288,7 @@ export function d(elt: any, attrs: BasicAttributes, ...children: Insertable[]): 
     node = ns ? document.createElementNS(ns, elt) : document.createElement(elt)
 
     for (var x in attrs as any) {
-      ct = applyAttribute(node as Element, x, (attrs as any)[x], ct)
+      ct = applyAttribute(node, x, (attrs as any)[x], ct)
     }
 
     // Append children to the node.
@@ -309,35 +308,33 @@ export function d(elt: any, attrs: BasicAttributes, ...children: Insertable[]): 
     node = elt(attrs, getDocumentFragment(children))
   }
 
-  var defined_node = node as Node
-
   if (data_attrs) {
     for (var x in data_attrs as any) {
-      ct = applyAttribute(node as Element, x, (data_attrs as any)[x], ct)
+      ct = applyAttribute(node, x, (data_attrs as any)[x], ct)
     }
   }
 
   // decorators are run now. If class and style were defined, they will be applied to the
   // final node.
-  _foreach(decorators, dec => dec(defined_node as HTMLElement))
+  _foreach(decorators, dec => dec(node))
 
   // Class attributes and Style attributes are special and forwarded accross nodes and are thus
   // always added (unlike other attributes which are simply passed forward)
   _foreach(cls, cl => {
-    ct = applyClass(node as Element, cl, ct)
+    ct = applyClass(node, cl, ct)
   })
 
-  _foreach(style, st => {
+  _foreach(style as any, st => {
     ct = applyStyle(node as HTMLElement, st, ct)
   })
 
-  if (ct) ct.bindToNode(defined_node)
+  if (ct) ct.bindToNode(node)
 
-  // Call onrender on component now that all the linking is done.
+  for (var c of node._domic_controllers||[]) {
+    c.onrender(node)
+  }
 
-  _foreach(Controller.all(defined_node), ctrl => ctrl.onrender.forEach(r => r.call(ctrl, node)))
-
-  return defined_node
+  return node
 }
 
 
