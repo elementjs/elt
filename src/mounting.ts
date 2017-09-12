@@ -1,7 +1,7 @@
 
 import {Controller} from './controller'
 
-export type MaybeNode = Node | null | undefined
+export type MaybeNode = Node | null
 
 export function _apply_mount(node: Node) {
   var controllers = Controller.all(node)
@@ -12,7 +12,7 @@ export function _apply_mount(node: Node) {
     // ignore spurious unmounts (should not happen, but let's be cautious)
     if (c.mounted) continue
     c.node = node
-    c.mount(node as Element)
+    c.mount(node as Element, node.parentNode!)
   }
 
 }
@@ -65,7 +65,7 @@ export function _apply_unmount(tuple: MountTuple) {
   for (var c of controllers) {
     // ignore spurious unmounts (should not happen, but let's be cautious)
     if (!c.mounted) continue
-    c.unmount(tuple[0] as Element, tuple[1]!, tuple[2]!, tuple[3]!)
+    c.unmount(tuple[0] as Element, tuple[1]!, tuple[2], tuple[3])
     c.node = null!
   }
 }
@@ -99,7 +99,7 @@ export function _unmount(node: Node, target: Node, prev: MaybeNode, next: MaybeN
     // we're going to have to process it.
 
     while (!iter.nextSibling) {
-      iter = node_stack.pop()
+      iter = node_stack.pop()!
       if (!iter) break
       unmount.push([iter, iter.parentNode || target, null, null])
     }
