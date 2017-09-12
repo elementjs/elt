@@ -277,12 +277,12 @@ export function DisplayIf<T>(
   display: Displayable<T>,
   display_otherwise?: Displayable<T>
 ): Node {
-  var disp = new Displayer(display, condition, display_otherwise)
+  var disp = new Displayer(display, condition as MaybeObservable<T>, display_otherwise)
   return disp.node
 }
 
 
-export type RenderFn<T> = (e: Observable<T>, oi?: number) => Element | null
+export type RenderFn<T> = (e: Observable<T>, oi?: number) => Node | null
 
 
 /**
@@ -454,8 +454,8 @@ export class Repeater<T> extends VirtualHolder {
  * @returns a Comment node with the Repeater controller bound
  *  on it.
  */
-export function Repeat<T>(ob: Observable<T[]>, render: RenderFn<T>): Node
 export function Repeat<T>(ob: T[], render: RenderFn<T>): Node;
+export function Repeat<T>(ob: Observable<T[]>, render: RenderFn<T>): Node
 export function Repeat<T>(
   ob: MaybeObservable<T[]>,
   render: RenderFn<T>
@@ -465,10 +465,10 @@ export function Repeat<T>(
 }
 
 
-export function RepeatScroll<T>(ob: Observable<T[]>, render: RenderFn<T>, options?: {
-    scroll_buffer_size?: number // default 10
-  }): Node;
 export function RepeatScroll<T>(ob: T[], render: RenderFn<T>, options?: {
+  scroll_buffer_size?: number // default 10
+}): Node;
+export function RepeatScroll<T>(ob: Observable<T[]>, render: RenderFn<T>, options?: {
     scroll_buffer_size?: number // default 10
   }): Node;
 export function RepeatScroll<T>(
