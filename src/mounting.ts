@@ -12,7 +12,7 @@ export function _apply_mount(node: Node) {
     // ignore spurious unmounts (should not happen, but let's be cautious)
     if (c.mounted) continue
     c.node = node
-    c.onmount(node as Element)
+    c.mount(node as Element)
   }
 
 }
@@ -65,7 +65,7 @@ export function _apply_unmount(tuple: MountTuple) {
   for (var c of controllers) {
     // ignore spurious unmounts (should not happen, but let's be cautious)
     if (!c.mounted) continue
-    c.onunmount(tuple[0] as Element, tuple[1]!, tuple[2]!, tuple[3]!)
+    c.unmount(tuple[0] as Element, tuple[1]!, tuple[2]!, tuple[3]!)
     c.node = null!
   }
 }
