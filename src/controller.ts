@@ -72,27 +72,27 @@ export class BaseController {
   mounted = false
   protected observers: Observer<any, any>[] = []
 
-  mount(node: Element) {
+  mount(node: Element, parent: Node) {
     this.mounted = true
     for (var o of this.observers) {
       o.startObserving()
     }
-    this.onmount(node)
+    this.onmount(node, parent)
   }
 
-  unmount(node: Element, parent: Node, next: Node, prev: Node) {
+  unmount(node: Element, parent: Node, next: Node | null, prev: Node | null) {
     this.mounted = false
     for (var o of this.observers) {
       o.stopObserving()
     }
-    this.onunmount(node)
+    this.onunmount(node, parent, next, prev)
   }
 
-  onmount(node: Element) {
+  onmount(node: Element, parent: Node) {
 
   }
 
-  onunmount(node: Element) {
+  onunmount(node: Element, parent: Node, next: Node | null, prev: Node | null) {
 
   }
 
