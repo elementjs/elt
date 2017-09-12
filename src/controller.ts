@@ -72,18 +72,28 @@ export class BaseController {
   mounted = false
   protected observers: Observer<any, any>[] = []
 
-  onmount(node: Element) {
+  mount(node: Element) {
     this.mounted = true
     for (var o of this.observers) {
       o.startObserving()
     }
+    this.onmount(node)
   }
 
-  onunmount(node: Element, parent: Node, next: Node, prev: Node) {
+  unmount(node: Element, parent: Node, next: Node, prev: Node) {
     this.mounted = false
     for (var o of this.observers) {
       o.stopObserving()
     }
+    this.onunmount(node)
+  }
+
+  onmount(node: Element) {
+
+  }
+
+  onunmount(node: Element) {
+
   }
 
   onrender(node: Element) {
@@ -150,21 +160,14 @@ export class DefaultController extends BaseController {
   }
 
   onmount(node: Element) {
-    super.onmount.apply(this, arguments)
-    for (var m of this.onmount_callbacks) {
-      m.apply(this, arguments)
-    }
+    for (var m of this.onmount_callbacks) { m.apply(this, arguments) }
   }
 
   onunmount(node: Element) {
-    super.onunmount.apply(this, arguments)
-    for (var m of this.onunmount_callbacks) {
-      m.apply(this, arguments)
-    }
+    for (var m of this.onunmount_callbacks) { m.apply(this, arguments) }
   }
 
   onrender(node: Element) {
-    super.onrender(node)
     for (var m of this.onrender_callbacks) { m.apply(this, arguments) }
   }
 
