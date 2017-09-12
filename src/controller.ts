@@ -134,8 +134,9 @@ export class BaseController {
  */
 export class DefaultController extends BaseController {
 
-  onmount_callback: ((node: Element) => any)[]
+  onmount_callbacks: ((node: Element) => any)[]
   onunmount_callbacks: ((node: Element) => any)[]
+  onrender_callbacks: ((node: Element) => any)[]
 
   static get<C extends BaseController>(this: Instantiator<C>, n: Node): C {
 
@@ -150,7 +151,7 @@ export class DefaultController extends BaseController {
 
   onmount(node: Element) {
     super.onmount.apply(this, arguments)
-    for (var m of this.onmount_callback) {
+    for (var m of this.onmount_callbacks) {
       m.apply(this, arguments)
     }
   }
@@ -160,6 +161,11 @@ export class DefaultController extends BaseController {
     for (var m of this.onunmount_callbacks) {
       m.apply(this, arguments)
     }
+  }
+
+  onrender(node: Element) {
+    super.onrender(node)
+    for (var m of this.onrender_callbacks) { m.apply(this, arguments) }
   }
 
 }

@@ -386,55 +386,34 @@ export function clickfix(node: Node): void {
 /**
  *
  */
-export function onmount(fn: ControllerCallback): Decorator;
-export function onmount(target: any, key: string): void;
-export function onmount(target: any, key?: any): any {
-  if (typeof target === 'function') {
-    return function (n: Node) { DefaultController.get(n).onmount_callback.push(target) }
-  }
-
-  const proto = Object.getPrototypeOf(target)
-  if (target.onmount === proto.onmount)
-    target.onmount = (Object.getPrototypeOf(target).onmount||[]).slice()
-
-  target.onmount.push(target[key])
+export function onmount(fn: ControllerCallback): Decorator {
+  return function (n: Node) { DefaultController.get(n).onmount_callbacks.push(fn) }
 }
 
 
 /**
  *
  */
-export function onfirstmount(fn: ControllerCallback): Decorator;
-export function onfirstmount(target: any, key: string): void;
-export function onfirstmount(target: any, key?: any): any {
-  let fn = typeof target === 'function' ? target : target[key]
-
+export function onfirstmount(fn: ControllerCallback): Decorator {
   function first_mount(this: DefaultController, node: any) {
-    this.onmount_callback = this.onmount_callback.filter((f: any) => f !== first_mount)
+    this.onmount_callbacks = this.onmount_callbacks.filter(f => f !== first_mount)
     fn.call(this, node)
   }
 
-  if (typeof target === 'function') {
-    return function (n: Node) { DefaultController.get(n).onmount_callback.push(first_mount) }
-  }
-
-  const proto = Object.getPrototypeOf(target)
-  if (target.onmount === proto.onmount)
-    target.onmount = (Object.getPrototypeOf(target).onmount||[]).slice()
-
-  target.onmount.push(first_mount)
+  return function (n: Node) { DefaultController.get(n).onmount_callbacks.push(first_mount) }
 }
 
 
-export function onunmount(fn: ControllerCallback): Decorator;
-export function onunmount(target: any, key: string): void;
-export function onunmount(target: any, key?: any): any {
-  if (typeof target === 'function') return function (n: Node) { DefaultController.get(n).onunmount_callbacks.push(target) }
+export function onunmount(fn: ControllerCallback): Decorator {
+  return function (n: Node) { DefaultController.get(n).onunmount_callbacks.push(fn) }
+}
 
-  const proto = Object.getPrototypeOf(target)
-  if (target.onunmount === proto.onunmount)
-    target.onunmount = (Object.getPrototypeOf(target).onunmount||[]).slice()
-  target.onunmount.push(target[key])
+
+/**
+ *
+ */
+export function onrender(fn: ControllerCallback): Decorator {
+  return function (n: Node) { DefaultController.get(n).onrender_callbacks.push(fn) }
 }
 
 
