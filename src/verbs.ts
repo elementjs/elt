@@ -12,11 +12,6 @@ import {
 } from './domic'
 
 import {
-  onmount,
-  onunmount,
-} from './decorators'
-
-import {
   BaseController,
 } from './controller'
 
@@ -78,8 +73,7 @@ export class VirtualHolder extends Verb {
    */
   protected saved_children: DocumentFragment|null = null
 
-  @onmount
-  createOrAppendChildren(node: Node) {
+  onmount(node: Node) {
     // we force the type to Node as in theory when @onmount is called
     // the parent is guaranteed to be defined
     let parent = node.parentNode as Node
@@ -95,8 +89,7 @@ export class VirtualHolder extends Verb {
 
   }
 
-  @onunmount
-  unmountChildren(node: Node) {
+  onunmount(node: Node) {
     // If we have a parentNode in an unmount() method, it means
     // that we were not unmounted directly.
     // If there is no parentNode, `this.node` was specifically
@@ -411,8 +404,8 @@ export class Repeater<T> extends VirtualHolder {
     }
   }
 
-  @onmount
-  setupScrolling() {
+  onmount(node: Element) {
+
     if (!this.options.scroll) return
 
     // Find parent with the overflow-y
@@ -430,11 +423,11 @@ export class Repeater<T> extends VirtualHolder {
       throw new Error(`Scroll repeat needs a parent with overflow-y: auto`)
 
     this.parent.addEventListener('scroll', this.draw)
-
   }
 
-  @onunmount
-  removeScrolling() {
+  onunmount() {
+
+    // remove Scrolling
     if (!this.options.scroll || !this.parent) return
 
     this.parent.removeEventListener('scroll', this.draw)
