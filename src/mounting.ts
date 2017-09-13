@@ -3,14 +3,19 @@ import {Controller} from './controller'
 
 export type MaybeNode = Node | null
 
+
 export function _apply_mount(node: Node) {
-  var controllers = Controller.all(node)
+  var controllers = node._domic_controllers
+
+  node._domic_mounted = true
 
   if (!controllers) return
 
   for (var c of controllers) {
     // ignore spurious unmounts (should not happen, but let's be cautious)
-    if (c.mounted) continue
+    if (c.mounted) {
+      break
+    }
     c.mount(node as Element, node.parentNode!)
   }
 
@@ -20,19 +25,25 @@ export function _apply_mount(node: Node) {
  * Call controllers' mount() functions.
  */
 export function _mount(node: Node, target?: Node) {
-  var iter: Node | null | undefined = node
   var node_stack: Node[] = []
+  // var mount: Node[] = [node]
+  var iter: Node | null | undefined = node.firstChild!
+
+  _apply_mount(node)
+  if (!node.firstChild) return
 
   // Iterative tree traversal
   do {
 
     _apply_mount(iter)
+    // mount.push(iter)
 
     // Push firstChildren first
     while (iter.firstChild) {
       node_stack.push(iter)
       iter = iter.firstChild
       _apply_mount(iter)
+      // mount.push(iter)
     }
 
     while (!iter.nextSibling) {
@@ -44,6 +55,11 @@ export function _mount(node: Node, target?: Node) {
     if (iter) iter = iter.nextSibling
 
   } while (iter)
+
+  // console.log(mount)
+  // var len = mount.length
+  // for (var i = 0; i < len; i++)
+  //   _apply_mount(mount[i])
 
 }
 
@@ -57,13 +73,16 @@ export type MountTuple = [Node, MaybeNode, MaybeNode, MaybeNode]
  */
 export function _apply_unmount(tuple: MountTuple) {
   var node = tuple[0]
+  node._domic_mounted = false
   var controllers = Controller.all(node)
 
   if (!controllers) return
 
   for (var c of controllers) {
     // ignore spurious unmounts (should not happen, but let's be cautious)
-    if (!c.mounted) continue
+    if (!c.mounted) {
+      continue
+    }
     c.unmount(tuple[0] as Element, tuple[1]!, tuple[2], tuple[3])
   }
 }
@@ -113,7 +132,6 @@ export function _unmount(node: Node, target: Node, prev: MaybeNode, next: MaybeN
 
 }
 
-
 /**
  * Call mount and unmount on the node controllers.
  */
@@ -123,12 +141,21 @@ export function applyMutations(records: MutationRecord[]) {
   for (var record of records) {
     var target = record.target
     var added = record.addedNodes
-    for (i = 0; i < added.length; i++)
+    for (i = 0; i < added.length; i++) {
+      // console.log(added[i])
+      if (added[i]._domic_mounted) continue
+
+      // We check for parentNode as sometimes the node is added and removed
+      // very fast and thus still gets put in the added records and immediately
+      // in the removed record.
       if (added[i].parentNode) _mount(added[i], target)
+    }
 
     var removed = record.removedNodes
-    for (i = 0; i < removed.length; i++)
+    for (i = 0; i < removed.length; i++) {
+      if (!removed[i]._domic_mounted) continue
       _unmount(removed[i], target, record.previousSibling, record.nextSibling)
+    }
   }
 }
 
