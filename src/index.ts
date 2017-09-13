@@ -39,6 +39,7 @@ import {EmptyAttributes} from './types'
 export type ElementAlias = Element
 
 declare global {
+
   namespace JSX {
     export type Element = ElementAlias
 

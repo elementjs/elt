@@ -300,33 +300,77 @@ export class Repeater<T> extends VirtualHolder {
 
     this.obs = o(ob)
 
-    // Bind draw so that we can unregister it
+    // Bind draw so that we can unregister it from event handlers
     this.draw = this.draw.bind(this)
 
     this.observe(this.obs, (lst, old_value) => {
       this.lst = lst || []
-      this.draw()
+      old_value = old_value || []
+      const diff = lst.length - this.index
+      if (diff > 0)
+        this.appendChildren(diff)
+      else
+        this.removeChildren(-diff)
     })
   }
 
   /**
-   * If we are dependant to the scroll, return false
+   * Generate the next element to append to the list.
    */
-  next(): Node|null {
+  next(): DocumentFragment | null {
     if (this.index >= this.lst.length - 1)
       return null
 
     this.index++
-    const comment = document.createComment('repeat-' + this.index)
-    var fr = document.createDocumentFragment()
-    var ob = this.obs.p(this.index)
-    this.child_obs.push(ob as Observable<T>)
 
-    fr.appendChild(comment)
-    var res = this.renderfn(ob as Observable<T>, this.index)
-    if (res) fr.appendChild(res)
+    const comment = document.createComment('repeat-' + this.index)
     this.positions.push(comment)
+
+    var fr = document.createDocumentFragment()
+    fr.appendChild(comment)
+
+    var ob = this.obs.p(this.index)
+    this.child_obs.push(ob)
+
+    var res = this.renderfn(ob, this.index)
+    if (res) fr.appendChild(res)
     return fr
+  }
+
+  appendChildren(count: number) {
+    var next: DocumentFragment | null
+    var parent = this.node.parentNode!
+
+    var fr = document.createDocumentFragment()
+
+    while ((next = this.next()) && count-- > 0) {
+      fr.appendChild(next)
+    }
+
+    parent.insertBefore(fr, this.end)
+
+  }
+
+  removeChildren(count: number) {
+    // Détruire jusqu'à la position concernée...
+    this.index = this.index - count
+
+    var parent = this.node.parentNode!
+    var end = this.end
+    var next: Node | null
+    var iter: Node|null = this.positions[this.index]
+
+    this.child_obs = this.child_obs.slice(0, this.index)
+    this.positions = this.positions.slice(0, this.index)
+
+    // From the position that we're going to remove to the end, remove
+    // all children.
+    while (iter && iter !== end) {
+      next = iter.nextSibling
+      parent.removeChild(iter)
+      iter = next
+    }
+
   }
 
   draw() {

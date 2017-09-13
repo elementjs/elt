@@ -18,6 +18,7 @@ import {
 declare global {
   interface Node {
     _domic_controllers: BaseController[] | undefined
+    _domic_mounted: boolean
   }
 }
 
