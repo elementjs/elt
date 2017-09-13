@@ -303,28 +303,10 @@ export class Repeater<T> extends VirtualHolder {
     // Bind draw so that we can unregister it
     this.draw = this.draw.bind(this)
 
-    var old_value: T[] | null = null
-
-    this.observe(this.obs, (lst, change) => {
-      lst = lst || []
-      if (lst !== old_value)
-        this.reset(lst)
-      old_value = lst
+    this.observe(this.obs, (lst, old_value) => {
+      this.lst = lst || []
       this.draw()
     })
-  }
-
-
-  reset(lst: T[]) {
-    this.lst = lst
-    this.index = -1
-    this.positions = []
-
-    for (var ob of this.child_obs) {
-      ob.stopObservers()
-    }
-    this.child_obs = []
-    this.updateChildren(null)
   }
 
   /**
