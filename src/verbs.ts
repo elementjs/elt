@@ -30,6 +30,14 @@ export class Verb extends BaseController {
 
   node: Comment
 
+  static create<V extends Verb, A, B, C, D>(this: new (a: A, b: B, c: C, d: D) => V, a: A, b: B, c: C, d: D): Node
+  static create<V extends Verb, A, B, C>(this: new (a: A, b: B, c: C) => V, a: A, b: B, c: C): Node
+  static create<V extends Verb, A, B>(this: new (a: A, b: B) => V, a: A, b: B): Node
+  static create<V extends Verb, A>(this: new (a: A) => V, a: A): Node
+  static create<V extends Verb>(this: new (...a: any[]) => V, ...args: any[]): Node {
+    return (new this(...args)).node
+  }
+
   constructor(name: string) {
     super()
     this.node = document.createComment(`  ${name}  `)
@@ -287,25 +295,19 @@ export class Repeater<T> extends VirtualHolder {
   protected positions: Node[] = []
   protected index: number = -1
   protected lst: T[] = []
-  protected parent: HTMLElement|null = null
 
   protected child_obs: Observable<T>[] = []
 
   constructor(
     ob: MaybeObservable<T[]>,
-    public renderfn: RenderFn<T>,
-    public options: {scroll?: boolean, scroll_buffer_size?: number}
+    public renderfn: RenderFn<T>
   ) {
     super('repeater')
 
     this.obs = o(ob)
 
-    // Bind draw so that we can unregister it from event handlers
-    this.draw = this.draw.bind(this)
-
     this.observe(this.obs, (lst, old_value) => {
       this.lst = lst || []
-      old_value = old_value || []
       const diff = lst.length - this.index
       if (diff > 0)
         this.appendChildren(diff)
@@ -348,7 +350,6 @@ export class Repeater<T> extends VirtualHolder {
     }
 
     parent.insertBefore(fr, this.end)
-
   }
 
   removeChildren(count: number) {
@@ -373,7 +374,7 @@ export class Repeater<T> extends VirtualHolder {
 
   }
 
-  draw() {
+  /* draw() {
 
     if (!this.node.parentNode) return
 
@@ -428,12 +429,45 @@ export class Repeater<T> extends VirtualHolder {
 
       this.positions = this.positions.slice(0, this.lst.length)
     }
+  } */
+
+}
+
+
+export class ScrollRepeater<T> extends Repeater<T> {
+
+  protected parent: HTMLElement|null = null
+
+  constructor(
+    ob: MaybeObservable<T[]>,
+    renderfn: RenderFn<T>,
+    public scroll_buffer_size: number = 10,
+    public threshold_height: number = 500
+  ) {
+    super(ob, renderfn)
+    this.onscroll = this.onscroll.bind(this)
+  }
+
+  appendChildren(count: number) {
+    if (!this.parent)
+      // if we have no scrollable parent, just act like a regular repeater.
+      return super.appendChildren(count)
+
+    // Instead of appending all the count, break it down to bufsize packets.
+    const bufsize = this.scroll_buffer_size
+    const p = this.parent
+
+    while (this.index < this.lst.length - 1 && p.scrollHeight - (p.clientHeight + p.scrollTop) < this.threshold_height) {
+      super.appendChildren(bufsize)
+    }
+  }
+
+  onscroll() {
+    if (!this.parent) return
   }
 
   onmount(node: Element) {
     super.onmount.apply(this, arguments)
-
-    if (!this.options.scroll) return
 
     // Find parent with the overflow-y
     var iter = this.node.parentElement
@@ -446,19 +480,21 @@ export class Repeater<T> extends VirtualHolder {
       iter = iter.parentElement
     }
 
-    if (!this.parent)
-      throw new Error(`Scroll repeat needs a parent with overflow-y: auto`)
+    if (!this.parent) {
+      console.warn(`Scroll repeat needs a parent with overflow-y: auto`)
+      return
+    }
 
-    this.parent.addEventListener('scroll', this.draw)
+    this.parent.addEventListener('scroll', this.onscroll)
   }
 
   onunmount() {
     super.onunmount.apply(this, arguments)
 
     // remove Scrolling
-    if (!this.options.scroll || !this.parent) return
+    if (!this.parent) return
 
-    this.parent.removeEventListener('scroll', this.draw)
+    this.parent.removeEventListener('scroll', this.onscroll)
     this.parent = null
   }
 
@@ -481,29 +517,18 @@ export function Repeat<T>(
   ob: MaybeObservable<T[]>,
   render: RenderFn<T>
 ): Node {
-  var repeater = new Repeater(ob, render, {})
-  return repeater.node
+  return Repeater.create(ob, render)
 }
 
 
-export function RepeatScroll<T>(ob: T[], render: RenderFn<T>, options?: {
-  scroll_buffer_size?: number // default 10
-}): Node;
-export function RepeatScroll<T>(ob: Observable<T[]>, render: RenderFn<T>, options?: {
-    scroll_buffer_size?: number // default 10
-  }): Node;
+export function RepeatScroll<T>(ob: T[], render: RenderFn<T>, scroll_buffer_size?: number): Node;
+export function RepeatScroll<T>(ob: Observable<T[]>, render: RenderFn<T>, scroll_buffer_size?: number): Node;
 export function RepeatScroll<T>(
   ob: MaybeObservable<T[]>,
   render: RenderFn<T>,
-  options: {
-    /**
-     * Test comment
-     */
-    scroll_buffer_size?: number // default 10
-  } = {}
+  scroll_buffer_size = 10
 ): Node {
-  var repeater = new Repeater(ob, render, {scroll: true, scroll_buffer_size: options.scroll_buffer_size})
-  return repeater.node
+  return ScrollRepeater.create(ob, render, scroll_buffer_size)
 }
 
 /**
@@ -512,6 +537,6 @@ export function RepeatScroll<T>(
  *  we had to tell this function that it returns an HTMLElement while this
  *  completely false !
  */
-export function Fragment(attrs: EmptyAttributes, children: DocumentFragment): HTMLElement {
-  return (children as any) as HTMLElement
+export function Fragment(attrs: EmptyAttributes, children: DocumentFragment): Element {
+  return (children as any) as Element
 }
