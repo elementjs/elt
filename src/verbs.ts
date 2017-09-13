@@ -73,10 +73,9 @@ export class VirtualHolder extends Verb {
    */
   protected saved_children: DocumentFragment|null = null
 
-  onmount(node: Node) {
+  onmount(node: Node, parent: Node) {
     // we force the type to Node as in theory when @onmount is called
     // the parent is guaranteed to be defined
-    let parent = node.parentNode as Node
     let next = node.nextSibling
 
     if (this.saved_children) {
@@ -232,7 +231,6 @@ export class Displayer<T> extends VirtualHolder {
     var o_cond = o(condition)
 
     this.observe(o_cond, condition => {
-
       if (!condition) {
 
         if (display_otherwise) {
@@ -248,10 +246,12 @@ export class Displayer<T> extends VirtualHolder {
         }
 
       } else {
-        if (this.rendered_display === null)
+        if (this.rendered_display === null) {
           this.rendered_display = getNodes(typeof display === 'function' ?
             display(o_cond) : display
           )
+        }
+
         this.updateChildren(getDocumentFragment(this.rendered_display))
       }
 
@@ -405,6 +405,7 @@ export class Repeater<T> extends VirtualHolder {
   }
 
   onmount(node: Element) {
+    super.onmount.apply(this, arguments)
 
     if (!this.options.scroll) return
 
@@ -426,6 +427,7 @@ export class Repeater<T> extends VirtualHolder {
   }
 
   onunmount() {
+    super.onunmount.apply(this, arguments)
 
     // remove Scrolling
     if (!this.options.scroll || !this.parent) return

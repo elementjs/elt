@@ -68,37 +68,37 @@ export class BaseController {
     return node._domic_controllers
   }
 
-  node: Node
-  mounted = false
+  /////////////////////////////////////
+
+  readonly node: Node
+  readonly mounted = false
   protected observers: Observer<any, any>[] = []
 
   mount(node: Element, parent: Node) {
-    this.mounted = true
-    for (var o of this.observers) {
-      o.startObserving()
-    }
+    (this.mounted as any) = true;
+    (this.node as any) = node
+
     this.onmount(node, parent)
+
+    for (var obs of this.observers) {
+      obs.startObserving()
+    }
   }
 
   unmount(node: Element, parent: Node, next: Node | null, prev: Node | null) {
-    this.mounted = false
+    (this.mounted as any) = false
     for (var o of this.observers) {
       o.stopObserving()
     }
-    this.onunmount(node, parent, next, prev)
+    this.onunmount(node, parent, next, prev);
+    (this.node as any) = null
   }
 
-  onmount(node: Element, parent: Node) {
+  onmount(node: Element, parent: Node) { }
 
-  }
+  onunmount(node: Element, parent: Node, next: Node | null, prev: Node | null) { }
 
-  onunmount(node: Element, parent: Node, next: Node | null, prev: Node | null) {
-
-  }
-
-  onrender(node: Element) {
-
-  }
+  onrender(node: Element) { }
 
   getController<C extends BaseController>(cls: Instantiator<C>): C {
     if (this.node == null)
@@ -116,7 +116,7 @@ export class BaseController {
    * Associate a Controller to a Node.
    */
   bindToNode(node: Node): void {
-    this.node = node
+    (this.node as any) = node
     BaseController.init(node).push(this)
   }
 
@@ -130,8 +130,9 @@ export class BaseController {
     const observer = typeof cbk === 'function' ?  make_observer(observable, cbk, options) : cbk
     this.observers.push(observer)
 
-    if (this.mounted)
-      observer.call(o.get(observable))
+    if (this.mounted) {
+      observer.startObserving()
+    }
 
     return this
   }
@@ -144,9 +145,9 @@ export class BaseController {
  */
 export class DefaultController extends BaseController {
 
-  onmount_callbacks: ((node: Element) => any)[]
-  onunmount_callbacks: ((node: Element) => any)[]
-  onrender_callbacks: ((node: Element) => any)[]
+  onmount_callbacks: ((node: Element) => any)[] = []
+  onunmount_callbacks: ((node: Element) => any)[] = []
+  onrender_callbacks: ((node: Element) => any)[] = []
 
   static get<C extends BaseController>(this: Instantiator<C>, n: Node): C {
 
