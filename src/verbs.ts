@@ -374,63 +374,6 @@ export class Repeater<T> extends VirtualHolder {
 
   }
 
-  /* draw() {
-
-    if (!this.node.parentNode) return
-
-    const diff = this.lst.length - this.positions.length
-    var next: Node|null = null
-    var parent: Node = this.end.parentNode as Node
-
-    if (diff > 0) {
-      if (!this.options.scroll) {
-        var fr = document.createDocumentFragment()
-
-        while (next = this.next()) {
-          fr.appendChild(next)
-        }
-
-        parent.insertBefore(fr, this.end)
-      } else {
-
-        const bufsize = this.options.scroll_buffer_size || 10
-        var count = 0
-        const p = this.parent as HTMLElement
-
-        while (p.scrollHeight - (p.clientHeight + p.scrollTop) < 500) {
-          var fr = document.createDocumentFragment()
-          while ((next = this.next()) && count++ < bufsize) {
-            fr.appendChild(next)
-          }
-          parent.insertBefore(fr, this.end)
-          count = 0
-
-          if (!next) break
-        }
-      }
-
-    } else if (diff < 0) {
-      // Détruire jusqu'à la position concernée...
-      var iter: Node|null = this.positions[this.lst.length]
-      let end = this.end
-
-      for (var k = this.lst.length; k < this.child_obs.length; k++) {
-        var ob = this.child_obs[k]
-        ob.stopObservers()
-      }
-
-      this.child_obs = this.child_obs.slice(0, this.lst.length)
-
-      while (iter && iter !== end) {
-        next = iter.nextSibling
-        parent.removeChild(iter)
-        iter = next
-      }
-
-      this.positions = this.positions.slice(0, this.lst.length)
-    }
-  } */
-
 }
 
 
@@ -464,6 +407,7 @@ export class ScrollRepeater<T> extends Repeater<T> {
 
   onscroll() {
     if (!this.parent) return
+    this.appendChildren(0)
   }
 
   onmount(node: Element) {
