@@ -4,7 +4,8 @@
 import {
   o,
   MaybeObservable,
-  Observable
+  Observable,
+  ObservableProxy
 } from 'domic-observable'
 
 import {
@@ -283,7 +284,8 @@ export function DisplayIf<T>(
 }
 
 
-export type RenderFn<T> = (e: Observable<T>, oi?: number) => Node | null
+export type RenderFn<T> = (e: Observable<T>, oi: number) => Node | null
+export type RenderFnProxy<T> = (e: ObservableProxy<T>, oi: number) => Node | null
 
 
 /**
@@ -293,7 +295,7 @@ export class Repeater<T> extends VirtualHolder {
 
   protected obs: Observable<T[]>
   protected positions: Node[] = []
-  protected index: number = -1
+  protected next_index: number = 0
   protected lst: T[] = []
 
   protected child_obs: Observable<T>[] = []
@@ -308,7 +310,8 @@ export class Repeater<T> extends VirtualHolder {
 
     this.observe(this.obs, (lst, old_value) => {
       this.lst = lst || []
-      const diff = lst.length - this.index
+      const diff = lst.length - this.next_index
+
       if (diff > 0)
         this.appendChildren(diff)
       else
@@ -320,22 +323,22 @@ export class Repeater<T> extends VirtualHolder {
    * Generate the next element to append to the list.
    */
   next(): DocumentFragment | null {
-    if (this.index >= this.lst.length - 1)
+    if (this.next_index >= this.lst.length)
       return null
 
-    this.index++
-
-    const comment = document.createComment('repeat-' + this.index)
+    const comment = document.createComment('repeat-' + this.next_index)
     this.positions.push(comment)
 
     var fr = document.createDocumentFragment()
     fr.appendChild(comment)
 
-    var ob = this.obs.p(this.index)
+    var ob = this.obs.p(this.next_index)
     this.child_obs.push(ob)
 
-    var res = this.renderfn(ob, this.index)
+    var res = this.renderfn(ob, this.next_index)
     if (res) fr.appendChild(res)
+
+    this.next_index++
     return fr
   }
 
@@ -354,15 +357,15 @@ export class Repeater<T> extends VirtualHolder {
 
   removeChildren(count: number) {
     // Détruire jusqu'à la position concernée...
-    this.index = this.index - count
+    this.next_index = this.next_index - count
 
     var parent = this.node.parentNode!
     var end = this.end
     var next: Node | null
-    var iter: Node|null = this.positions[this.index]
+    var iter: Node|null = this.positions[this.next_index]
 
-    this.child_obs = this.child_obs.slice(0, this.index)
-    this.positions = this.positions.slice(0, this.index)
+    this.child_obs = this.child_obs.slice(0, this.next_index)
+    this.positions = this.positions.slice(0, this.next_index)
 
     // From the position that we're going to remove to the end, remove
     // all children.
@@ -400,7 +403,7 @@ export class ScrollRepeater<T> extends Repeater<T> {
     const bufsize = this.scroll_buffer_size
     const p = this.parent
 
-    while (this.index < this.lst.length - 1 && p.scrollHeight - (p.clientHeight + p.scrollTop) < this.threshold_height) {
+    while (this.next_index < this.lst.length - 1 && p.scrollHeight - (p.clientHeight + p.scrollTop) < this.threshold_height) {
       super.appendChildren(bufsize)
     }
   }
@@ -456,6 +459,7 @@ export class ScrollRepeater<T> extends Repeater<T> {
  *  on it.
  */
 export function Repeat<T>(ob: T[], render: RenderFn<T>): Node;
+export function Repeat<T>(ob: ObservableProxy<T[]>, render: RenderFnProxy<T>): Node
 export function Repeat<T>(ob: Observable<T[]>, render: RenderFn<T>): Node
 export function Repeat<T>(
   ob: MaybeObservable<T[]>,
@@ -466,6 +470,7 @@ export function Repeat<T>(
 
 
 export function RepeatScroll<T>(ob: T[], render: RenderFn<T>, scroll_buffer_size?: number): Node;
+export function RepeatScroll<T>(ob: ObservableProxy<T[]>, render: RenderFnProxy<T>, scroll_buffer_size?: number): Node;
 export function RepeatScroll<T>(ob: Observable<T[]>, render: RenderFn<T>, scroll_buffer_size?: number): Node;
 export function RepeatScroll<T>(
   ob: MaybeObservable<T[]>,
