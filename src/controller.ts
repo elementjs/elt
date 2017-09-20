@@ -191,7 +191,6 @@ export function ctrl(...ctrls: (Instantiator<BaseController>|BaseController)[]) 
         instance = new c
       }
       instance.bindToNode(node)
-      BaseController.init(node).push(instance)
     }
   }
 }
