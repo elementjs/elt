@@ -8,7 +8,7 @@ export {
 export * from './types'
 export * from './decorators'
 
-export * from './controller'
+export * from './mixins'
 
 export * from 'domic-observable'
 
@@ -28,7 +28,7 @@ export {
 
 import {
   Component, SVGComponent
-} from './controller'
+} from './mixins'
 
 import {
   HTMLAttributes, SVGAttributes

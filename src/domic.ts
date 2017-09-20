@@ -6,7 +6,7 @@ import {
 
 import {
   ArrayOrSingle,
-  BasicAttributes,
+  Attrs,
   Insertable,
   ClassDefinition,
   Decorator,
@@ -18,8 +18,9 @@ import {
 
 import {
   Component,
-  DefaultController,
-} from './controller'
+  Mixin,
+  MixinHolder
+} from './mixins'
 
 import {
   Write
@@ -39,13 +40,11 @@ function _remove_class(node: Element, c: string) {
 /**
  *
  */
-function applyClass(node: Element, c: ClassDefinition, ct: DefaultController|null): DefaultController|null {
+function applyClass(node: Element, c: ClassDefinition, mh: MixinHolder): void {
   if (typeof c === 'string') {
     _apply_class(node, c)
   } else if (c instanceof Observable) {
-    if (!ct) ct = new DefaultController()
-    let old_class: string|null = null
-    ct.observe(c, str => {
+    mh.observe(c, (str, old_class) => {
       if (old_class) _remove_class(node, old_class)
       _apply_class(node, str)
       old_class = str
@@ -54,8 +53,7 @@ function applyClass(node: Element, c: ClassDefinition, ct: DefaultController|nul
     // c is an object
     for (let x in c) {
       if (c[x] instanceof Observable) {
-        if (!ct) ct = new DefaultController()
-        ct.observe(c[x], applied => {
+        mh.observe(c[x], applied => {
           applied ? _apply_class(node, x) : _remove_class(node, x)
         })
       } else {
@@ -64,25 +62,21 @@ function applyClass(node: Element, c: ClassDefinition, ct: DefaultController|nul
       }
     }
   }
-
-  return ct
 }
 
-function applyStyle(node: HTMLElement, c: StyleDefinition, ct: DefaultController|null): DefaultController|null {
+function applyStyle(node: HTMLElement, c: StyleDefinition, mh: MixinHolder): void {
 
   if (typeof c === 'string') {
     node.setAttribute('style', c)
   } else if (c instanceof Observable) {
-    if (!ct) ct = new DefaultController()
-    ct.observe(c, str => {
+    mh.observe(c, str => {
       node.setAttribute('style', str)
     })
   } else {
     // c is an object
     for (let x in c as any) {
       if ((c as any)[x] instanceof Observable) {
-        if (!ct) ct = new DefaultController()
-        ct.observe((c as any)[x], value => {
+        mh.observe((c as any)[x], value => {
           (node.style as any)[x] = value
         })
       } else {
@@ -92,18 +86,16 @@ function applyStyle(node: HTMLElement, c: StyleDefinition, ct: DefaultController
     }
   }
 
-  return ct
 }
 
 
 /**
  * Apply attribute to the node
  */
-function applyAttribute(node: Element, name: string, value: MaybeObservable<any>, ct: DefaultController|null): DefaultController|null {
+function applyAttribute(node: Element, name: string, value: MaybeObservable<any>, mh: MixinHolder): void {
 
   if (value instanceof Observable) {
-    if (!ct) ct = new DefaultController()
-    ct.observe(value, val => {
+    mh.observe(value, val => {
       if (val === true)
         node.setAttribute(name, '')
       else if (val != null && val !== false)
@@ -117,8 +109,6 @@ function applyAttribute(node: Element, name: string, value: MaybeObservable<any>
       node.setAttribute(name, '')
     if (value != null && value !== false) node.setAttribute(name, value)
   }
-
-  return ct
 
 }
 
@@ -245,10 +235,10 @@ const NS = {
  * Controllers, decorators, classes and style.
  */
 
-export function d(elt: ComponentFn, attrs: BasicAttributes, ...children: Insertable[]): Element
-export function d(elt: string, attrs: BasicAttributes|null, ...children: Insertable[]): HTMLElement
+export function d(elt: ComponentFn, attrs: Attrs, ...children: Insertable[]): Element
+export function d(elt: string, attrs: Attrs|null, ...children: Insertable[]): HTMLElement
 export function d<A>(elt: ComponentInstanciator<A>, attrs: A, ...children: Insertable[]): Element
-export function d(elt: any, attrs: BasicAttributes, ...children: Insertable[]): Element {
+export function d(elt: any, attrs: Attrs, ...children: Insertable[]): Element {
 
   if (!elt) throw new Error(`d() needs at least a string, a function or a Component`)
 
@@ -256,10 +246,10 @@ export function d(elt: any, attrs: BasicAttributes, ...children: Insertable[]): 
 
   // Classes and style are applied at the end of this function and are thus
   // never passed to other node definitions.
-  let ct: DefaultController|null = null
+  let mh: MixinHolder
   var data_attrs: {[name: string]: MaybeObservable<string>} | null = null
 
-  let decorators: ArrayOrSingle<Decorator>|undefined
+  let decorators: ArrayOrSingle<Decorator|Mixin>|undefined
   let style: MaybeObservable<string>|ArrayOrSingle<StyleDefinition>|undefined|null
   let cls: ArrayOrSingle<ClassDefinition>|undefined|null
 
@@ -287,10 +277,6 @@ export function d(elt: any, attrs: BasicAttributes, ...children: Insertable[]): 
     var ns = NS[elt] || attrs.xmlns
     node = ns ? document.createElementNS(ns, elt) : document.createElement(elt)
 
-    for (var x in attrs as any) {
-      ct = applyAttribute(node, x, (attrs as any)[x], ct)
-    }
-
     // Append children to the node.
     if (children) {
       node.appendChild(getDocumentFragment(children))
@@ -301,46 +287,48 @@ export function d(elt: any, attrs: BasicAttributes, ...children: Insertable[]): 
     var kls = elt as Instantiator<Component>
     var comp = new kls(attrs)
     node = comp.render(getDocumentFragment(children))
-    comp.bindToNode(node)
+    comp.addToNode(node)
 
   } else if (typeof elt === 'function') {
     // elt is just a creator function
     node = elt(attrs, getDocumentFragment(children))
   }
 
+  mh = MixinHolder.get(node)
+
+  if (typeof elt === 'string') {
+    for (var x in attrs as any) {
+      applyAttribute(node, x, (attrs as any)[x], mh)
+    }
+  }
+
   if (data_attrs) {
     for (var x in data_attrs as any) {
-      ct = applyAttribute(node, x, (data_attrs as any)[x], ct)
+      applyAttribute(node, x, (data_attrs as any)[x], mh)
     }
   }
 
   // decorators are run now. If class and style were defined, they will be applied to the
   // final node.
-  _foreach(decorators, dec => dec(node))
+  _foreach(decorators, dec => dec instanceof Mixin ? mh.addMixin(dec) : dec(node))
 
   // Class attributes and Style attributes are special and forwarded accross nodes and are thus
   // always added (unlike other attributes which are simply passed forward)
   _foreach(cls, cl => {
-    ct = applyClass(node, cl, ct)
+    applyClass(node, cl, mh)
   })
 
   _foreach(style as any, st => {
-    ct = applyStyle(node as HTMLElement, st, ct)
+    applyStyle(node as HTMLElement, st, mh)
   })
-
-  if (ct) ct.bindToNode(node)
-
-  for (var c of node._domic_controllers||[]) {
-    c.onrender(node)
-  }
 
   return node
 }
 
 
 declare global {
-  function D(elt: ComponentFn, attrs: BasicAttributes, ...children: Insertable[]): Node
-  function D(elt: string, attrs: BasicAttributes, ...children: Insertable[]): HTMLElement
+  function D(elt: ComponentFn, attrs: Attrs, ...children: Insertable[]): Node
+  function D(elt: string, attrs: Attrs, ...children: Insertable[]): HTMLElement
   function D<A>(elt: ComponentInstanciator<A>, attrs: A, ...children: Insertable[]): Node
 }
 

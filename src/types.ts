@@ -5,8 +5,6 @@ export type ArrayOrSingle<T> = T[] | T
 
 export type Listener<EventType extends Event> = (this: Node, ev: EventType, node: Node) => void
 
-export type ControllerCallback = (e: Element) => any
-
 export interface Instantiator<T> {
   new (...a: any[]): T
 }
@@ -43,7 +41,7 @@ export interface EmptyAttributes {
 /**
  * Basic attributes used on all nodes.
  */
-export interface BasicAttributes extends EmptyAttributes {
+export interface Attrs extends EmptyAttributes {
   id?: MaybeObservable<string>
   class?: ArrayOrSingle<ClassDefinition>|null // special attributes
   style?: MaybeObservable<string>|ArrayOrSingle<StyleDefinition>|null
@@ -52,7 +50,7 @@ export interface BasicAttributes extends EmptyAttributes {
   xmlns?: string
 }
 
-export interface HTMLAttributes extends BasicAttributes {
+export interface HTMLAttributes extends Attrs {
 
   // Attributes shamelessly stolen from React's type definitions.
   // Standard HTML Attributes
@@ -201,7 +199,7 @@ export interface HTMLAttributes extends BasicAttributes {
   unselectable?: MaybeObservable<boolean>
 }
 
-export interface SVGAttributes extends BasicAttributes {
+export interface SVGAttributes extends Attrs {
   'clip-path'?: string;
   cx?: MaybeObservable<number | string>
   cy?: MaybeObservable<number | string>
@@ -257,7 +255,7 @@ export type Insertable = InsertableSingle | InsertableSingle[]
 /**
  *
  */
-export type ComponentFn = (attrs: BasicAttributes, children: DocumentFragment) => Node
+export type ComponentFn = (attrs: Attrs, children: DocumentFragment) => Node
 
 export type NodeCreatorFn = () => Node
 

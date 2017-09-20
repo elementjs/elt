@@ -4,16 +4,15 @@ import {
 } from 'domic-observable'
 
 import {
-  Decorator, Listener, ControllerCallback
+  Decorator, Listener
 } from './types'
 
 import {
-  Controller,
-  DefaultController
-} from './controller'
+  Mixin, MixinHolder
+} from './mixins'
 
 
-export class BindController extends Controller {
+export class BindMixin extends Mixin {
 
   obs: Observable<string>
   opts: ObserverOptions
@@ -129,8 +128,8 @@ export class BindController extends Controller {
 export function bind(obs: Observable<string>, opts: ObserverOptions = {}) {
 
   return function bindDecorator(node: Node): void {
-    let c = new BindController(obs, opts)
-    c.bindToNode(node)
+    let c = new BindMixin(obs, opts)
+    c.addToNode(node)
   }
 
 }
@@ -138,7 +137,7 @@ export function bind(obs: Observable<string>, opts: ObserverOptions = {}) {
 
 export function observe<T>(a: MaybeObservable<T>, cbk: Observer<T, any> | ObserverFunction<T, any>, options?: ObserverOptions) {
   return function observeDecorator(node: Node): void {
-    let c = DefaultController.get(node);
+    let c = MixinHolder.get(node)
     c.observe(a, cbk, options)
   }
 }
@@ -299,34 +298,46 @@ export function click(cbk: Listener<MouseEvent>) {
 /**
  *
  */
-export function onmount(fn: ControllerCallback): Decorator {
-  return function (n: Node) { DefaultController.get(n).onmount_callbacks.push(fn) }
+export function onmount(fn: (elt: Element, parent: Node) => void): Decorator {
+  class OnmountMixin extends Mixin { }
+  OnmountMixin.prototype.onmount = fn
+
+  return function (n: Node) { MixinHolder.get(n).addMixin(new OnmountMixin) }
 }
 
 
 /**
  *
  */
-export function onfirstmount(fn: ControllerCallback): Decorator {
-  function first_mount(this: DefaultController, node: any) {
-    this.onmount_callbacks = this.onmount_callbacks.filter(f => f !== first_mount)
-    fn.call(this, node)
+export function onfirstmount(fn: (elt: Element, parent: Node) => void): Decorator {
+
+  class OnFirstmountMixin extends Mixin {
+    onmount(elt: Element, parent: Node) {
+      fn && fn(elt, parent)
+      fn = null! // Ugly hack, but functional.
+    }
   }
 
-  return function (n: Node) { DefaultController.get(n).onmount_callbacks.push(first_mount) }
+  return function (n: Node) { MixinHolder.get(n).addMixin(new OnFirstmountMixin) }
 }
 
 
-export function onunmount(fn: ControllerCallback): Decorator {
-  return function (n: Node) { DefaultController.get(n).onunmount_callbacks.push(fn) }
+export function onunmount(fn: (node: Element, parent: Node, next: Node | null, prev: Node | null) => void): Decorator {
+  class OnunmountMixin extends Mixin { }
+  OnunmountMixin.prototype.onunmount = fn
+
+  return function (n: Node) { MixinHolder.get(n).addMixin(new OnunmountMixin) }
 }
 
 
 /**
  *
  */
-export function onrender(fn: ControllerCallback): Decorator {
-  return function (n: Node) { DefaultController.get(n).onrender_callbacks.push(fn) }
+export function onrender(fn: (node: Element) => void): Decorator {
+  class OnrenderMixin extends Mixin { }
+  OnrenderMixin.prototype.onrender = fn
+
+  return function (n: Node) { MixinHolder.get(n).addMixin(new OnrenderMixin) }
 }
 
 

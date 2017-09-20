@@ -13,8 +13,8 @@ import {
 } from './domic'
 
 import {
-  BaseController,
-} from './controller'
+  Mixin,
+} from './mixins'
 
 import {
   EmptyAttributes,
@@ -27,7 +27,7 @@ import {
  * This is a very short class declaration which only purpose
  * is to help create shorter verb functions.
  */
-export class Verb extends BaseController {
+export class Verb extends Mixin {
 
   node: Comment
 
@@ -42,7 +42,7 @@ export class Verb extends BaseController {
   constructor(name: string) {
     super()
     this.node = document.createComment(`  ${name}  `)
-    this.bindToNode(this.node)
+    this.addToNode(this.node)
   }
 
 }
