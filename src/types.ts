@@ -1,5 +1,6 @@
 
 import {MaybeObservable} from 'domic-observable'
+import {Mixin} from './mixins'
 
 export type ArrayOrSingle<T> = T[] | T
 
@@ -46,7 +47,7 @@ export interface Attrs extends EmptyAttributes {
   class?: ArrayOrSingle<ClassDefinition>|null // special attributes
   style?: MaybeObservable<string>|ArrayOrSingle<StyleDefinition>|null
 
-  $$?: ArrayOrSingle<Decorator>
+  $$?: ArrayOrSingle<Decorator | Mixin>
   xmlns?: string
 }
 
