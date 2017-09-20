@@ -10,10 +10,8 @@ export function _apply_mount(node: Node) {
 
   (node as any)[mnsym] = true
 
-  if (!mh) return
-
-  if (mh.mounted) return
-  mh.mount(node as Element, node.parentNode!)
+  if (mh && !mh.mounted)
+    mh.mount(node as Element, node.parentNode!)
 }
 
 /**

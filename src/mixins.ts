@@ -58,6 +58,7 @@ export class MixinHolder {
     (m.node as any) = this.node;
     (m.holder as any) = this
     m.onrender(this.node as Element)
+    this.mixins.push(m)
   }
 
   mount(node: Element, parent: Node) {
@@ -65,6 +66,8 @@ export class MixinHolder {
     (this.node as any) = node
 
     for (var m of this.mixins) {
+      (m.node as any) = node;
+      (m.mounted as any) = true
       m.onmount(node, parent)
     }
 
@@ -82,6 +85,8 @@ export class MixinHolder {
     }
 
     for (var m of this.mixins) {
+      (m.node as any) = null;
+      (m.mounted as any) = false
       m.onunmount(node, parent, next, prev)
     }
 
