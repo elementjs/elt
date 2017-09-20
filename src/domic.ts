@@ -29,12 +29,14 @@ import {
 
 function _apply_class(node: Element, c: string) {
   if (!c) return
-  c.split(/\s+/g).forEach(c => node.classList.add(c))
+  for (var _ of c.split(/\s+/g))
+    node.classList.add(_)
 }
 
 function _remove_class(node: Element, c: string) {
   if (!c) return
-  c.split(/\s+/g).forEach(c => node.classList.remove(c))
+  for (var _ of c.split(/\s+/g))
+    node.classList.remove(_)
 }
 
 /**
