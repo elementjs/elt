@@ -82,7 +82,7 @@ export class VirtualHolder extends Verb {
    */
   protected saved_children: DocumentFragment|null = null
 
-  onmount(node: Node, parent: Node) {
+  inserted(node: Node, parent: Node) {
     // we force the type to Node as in theory when @onmount is called
     // the parent is guaranteed to be defined
     let next = node.nextSibling
@@ -97,7 +97,7 @@ export class VirtualHolder extends Verb {
 
   }
 
-  onunmount(node: Node) {
+  removed(node: Node) {
     // If we have a parentNode in an unmount() method, it means
     // that we were not unmounted directly.
     // If there is no parentNode, `this.node` was specifically
@@ -413,8 +413,8 @@ export class ScrollRepeater<T> extends Repeater<T> {
     this.appendChildren(0)
   }
 
-  onmount(node: Element) {
-    super.onmount.apply(this, arguments)
+  inserted(node: Element) {
+    super.inserted.apply(this, arguments)
 
     // Find parent with the overflow-y
     var iter = this.node.parentElement
@@ -435,8 +435,8 @@ export class ScrollRepeater<T> extends Repeater<T> {
     this.parent.addEventListener('scroll', this.onscroll)
   }
 
-  onunmount() {
-    super.onunmount.apply(this, arguments)
+  removed() {
+    super.removed.apply(this, arguments)
 
     // remove Scrolling
     if (!this.parent) return

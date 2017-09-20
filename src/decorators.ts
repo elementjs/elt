@@ -23,7 +23,7 @@ export class BindMixin extends Mixin {
     this.opts = opts
   }
 
-  onrender(node: Node) {
+  init(node: Node) {
 
     if (node instanceof HTMLInputElement) this.linkToInput(node)
     if (node instanceof HTMLSelectElement) this.linkToSelect(node)
@@ -298,55 +298,32 @@ export function click(cbk: Listener<MouseEvent>) {
 /**
  *
  */
-export function onmount(fn: (elt: Element, parent: Node) => void): Decorator {
-  class OnmountMixin extends Mixin { }
-  OnmountMixin.prototype.onmount = fn
+export function inserted(fn: (elt: Element, parent: Node) => void): Decorator {
+  class InsertedMixin extends Mixin { }
+  InsertedMixin.prototype.inserted = fn
 
-  return function (n: Node) { MixinHolder.get(n).addMixin(new OnmountMixin) }
+  return function (n: Node) { MixinHolder.get(n).addMixin(new InsertedMixin) }
+}
+
+
+export function removed(fn: (node: Element, parent: Node, next: Node | null, prev: Node | null) => void): Decorator {
+  class RemovedMixin extends Mixin { }
+  RemovedMixin.prototype.removed = fn
+
+  return function (n: Node) { MixinHolder.get(n).addMixin(new RemovedMixin) }
 }
 
 
 /**
  *
  */
-export function onfirstmount(fn: (elt: Element, parent: Node) => void): Decorator {
+export function init(fn: (node: Element) => void): Decorator {
+  class InitMixin extends Mixin { }
+  InitMixin.prototype.init = fn
 
-  class OnFirstmountMixin extends Mixin {
-    onmount(elt: Element, parent: Node) {
-      fn && fn(elt, parent)
-      fn = null! // Ugly hack, but functional.
-    }
-  }
-
-  return function (n: Node) { MixinHolder.get(n).addMixin(new OnFirstmountMixin) }
+  return function (n: Node) { MixinHolder.get(n).addMixin(new InitMixin) }
 }
 
-
-export function onunmount(fn: (node: Element, parent: Node, next: Node | null, prev: Node | null) => void): Decorator {
-  class OnunmountMixin extends Mixin { }
-  OnunmountMixin.prototype.onunmount = fn
-
-  return function (n: Node) { MixinHolder.get(n).addMixin(new OnunmountMixin) }
-}
-
-
-/**
- *
- */
-export function onrender(fn: (node: Element) => void): Decorator {
-  class OnrenderMixin extends Mixin { }
-  OnrenderMixin.prototype.onrender = fn
-
-  return function (n: Node) { MixinHolder.get(n).addMixin(new OnrenderMixin) }
-}
-
-
-/**
- * Focus the element when mounted.
- */
-export function focusOnMount(node: HTMLInputElement): void {
-  onmount((node: HTMLInputElement) => node.focus())(node)
-}
 
 var _noscrollsetup = false
 
@@ -363,8 +340,8 @@ function _setUpNoscroll() {
 
 
 /**
- * Setup scroll on an atom so that touchstart and touchmove events don't
- * trigger the ugly scroll band.
+ * Setup scroll so that touchstart and touchmove events don't
+ * trigger the ugly scroll band on mobile devices.
  *
  * Calling this functions makes anything not marked scrollable as non-scrollable.
  */

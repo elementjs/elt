@@ -57,7 +57,7 @@ export class MixinHolder {
   addMixin(m: Mixin) {
     (m.node as any) = this.node;
     (m.holder as any) = this
-    m.onrender(this.node as Element)
+    m.init(this.node as Element)
     this.mixins.push(m)
   }
 
@@ -68,7 +68,7 @@ export class MixinHolder {
     for (var m of this.mixins) {
       (m.node as any) = node;
       (m.mounted as any) = true
-      m.onmount(node, parent)
+      m.inserted(node, parent)
     }
 
     for (var obs of this.observers) {
@@ -87,7 +87,7 @@ export class MixinHolder {
     for (var m of this.mixins) {
       (m.node as any) = null;
       (m.mounted as any) = false
-      m.onunmount(node, parent, next, prev)
+      m.removed(node, parent, next, prev)
     }
 
     (this.node as any) = null
@@ -149,9 +149,9 @@ export abstract class Mixin {
     this.holder.observe(a, cbk, options)
   }
 
-  onmount(node: Element, parent: Node): void { }
-  onunmount(node: Element, parent: Node, next: Node | null, prev: Node | null): void { }
-  onrender(node: Element): void { }
+  inserted(node: Element, parent: Node): void { }
+  removed(node: Element, parent: Node, next: Node | null, prev: Node | null): void { }
+  init(node: Element): void { }
 
 }
 
