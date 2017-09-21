@@ -10,7 +10,6 @@ import {
   Insertable,
   ClassDefinition,
   Decorator,
-  Instantiator,
   StyleDefinition,
   ComponentFn,
   ComponentInstanciator
@@ -298,11 +297,13 @@ export function d(elt: any, attrs: Attrs, ...children: Insertable[]): Element {
 
   } else if (typeof elt === 'function' && elt.prototype.render) {
     // elt is an instantiator / Component
-    var kls = elt as Instantiator<Component>
-    var comp = new kls(attrs)
-    node = comp.render(getDocumentFragment(children))
-    comp.addToNode(node)
+    var kls = elt as new () => Component<Element>
+    var comp = new kls()
+    comp.attrs = attrs
 
+    var comp_elt = comp.render(getDocumentFragment(children))
+    comp.addToNode(comp_elt)
+    node = elt
   } else if (typeof elt === 'function') {
     // elt is just a creator function
     node = elt(attrs, getDocumentFragment(children))

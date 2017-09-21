@@ -27,7 +27,7 @@ export {
 ////////////////////////////////////////////////////////
 
 import {
-  Component, SVGComponent
+  Component
 } from './mixins'
 
 import {
@@ -55,7 +55,7 @@ declare global {
       (attrs: EmptyAttributes, children: DocumentFragment): Element
     }
 
-    export type ElementClass = ElementClassFn | Component | SVGComponent
+    export type ElementClass = ElementClassFn | Component
 
     export interface IntrinsicElements {
       a: HTMLAttributes

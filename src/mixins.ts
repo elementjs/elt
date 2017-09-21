@@ -9,7 +9,6 @@ import {
 } from 'domic-observable'
 
 import {
-  Instantiator,
   Attrs,
 } from './types'
 
@@ -41,7 +40,7 @@ export function removeMixin(node: any, mixin: Mixin): void {
 }
 
 
-export class Mixin {
+export class Mixin<N extends Node = Node> {
 
   readonly mounted: boolean = false
   protected observers: Observer<any, any>[] = []
@@ -49,7 +48,7 @@ export class Mixin {
   /**
    * Get a Mixin by its class on the given node.
    */
-  static get<M extends Mixin>(this: Instantiator<M>, node: Node | EventTarget, recursive = true): M | null {
+  static get<M extends Mixin>(this: new (...a: any[]) => M, node: Node | EventTarget, recursive = true): M | null {
     let iter: Node | null = node as Node // yeah yeah, I know, it's an EventTarget as well but hey.
 
     while (iter) {
@@ -70,11 +69,11 @@ export class Mixin {
     return null
   }
 
-  addToNode(node: Node) {
+  addToNode(node: N) {
     addMixin(node, this)
   }
 
-  removeFromNode(node: Node) {
+  removeFromNode(node: N) {
     if (this.mounted) {
       for (var ob of this.observers) ob.stopObserving()
     }
@@ -107,7 +106,7 @@ export class Mixin {
     }
   }
 
-  mount(node: Element, parent: Node) {
+  mount(node: N, parent: Node) {
     (this.mounted as any) = true
 
     this.inserted(node, parent)
@@ -117,7 +116,7 @@ export class Mixin {
     }
   }
 
-  unmount(node: Element, parent: Node, next: Node | null, prev: Node | null) {
+  unmount(node: N, parent: Node, next: Node | null, prev: Node | null) {
     (this.mounted as any) = false
 
     for (var o of this.observers) {
@@ -128,39 +127,14 @@ export class Mixin {
   }
 
 
-  inserted(node: Element, parent: Node): void { }
-  removed(node: Element, parent: Node, next: Node | null, prev: Node | null): void { }
-  init(node: Element): void { }
+  init(node: N): void { }
+  inserted(node: N, parent: Node): void { }
+  removed(node: N, parent: Node, next: Node | null, prev: Node | null): void { }
 
 }
 
 
-/**
- * attrs is not set in the constructor, but will be in render()
- */
-export abstract class Component extends Mixin {
-
-  node: HTMLElement
+export abstract class Component<N extends Element = Element> extends Mixin<N> {
   attrs: Attrs
-
-  constructor(attrs: Attrs) {
-    super()
-    this.attrs = attrs
-  }
-
-  abstract render(children: DocumentFragment): Element
-
-}
-
-
-export abstract class SVGComponent extends Mixin {
-  node: SVGElement
-  attrs: Attrs
-
-  constructor(attrs: Attrs) {
-    super()
-    this.attrs = attrs
-  }
-
-  abstract render(children: DocumentFragment): Element
+  abstract render(children: DocumentFragment): N
 }

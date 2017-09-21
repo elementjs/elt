@@ -6,11 +6,6 @@ export type ArrayOrSingle<T> = T[] | T
 
 export type Listener<EventType extends Event> = (this: Node, ev: EventType, node: Node) => void
 
-export interface Instantiator<T> {
-  new (...a: any[]): T
-}
-
-
 /**
  * Decorators used on Nodes
  */
