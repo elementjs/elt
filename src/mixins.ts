@@ -1,6 +1,5 @@
 
 import {
-  o,
   Observable,
   make_observer,
   MaybeObservable,
@@ -15,107 +14,37 @@ import {
 } from './types'
 
 
-export const mxsym = Symbol('domic_mixin')
+const mxsym = Symbol('domic_mixin')
 
-
-export class MixinHolder {
-
-  readonly node: Node
-  readonly mounted = false
-  protected mixins: Mixin[] = []
-  protected observers: Observer<any, any>[] = []
-
-  static getIfExists(node: Node): MixinHolder | undefined {
-    return (node as any)[mxsym]
-  }
-
-  static get(node: Node): MixinHolder {
-    var n = node as any
-    var m = n[mxsym] as MixinHolder
-    if (!m) {
-      m = new MixinHolder(node)
-      n[mxsym] = m
-    }
-    return m
-  }
-
-  constructor(node: Node) {
-    this.node = node
-  }
-
-  getMixin<M extends Mixin>(kls: Instantiator<M>): M | null {
-    for (var mx of this.mixins) {
-      if (mx instanceof kls)
-        return mx as M
-    }
-    return null
-  }
-
-  /**
-   *
-   */
-  addMixin(m: Mixin) {
-    (m.node as any) = this.node;
-    (m.holder as any) = this
-    m.init(this.node as Element)
-    this.mixins.push(m)
-  }
-
-  mount(node: Element, parent: Node) {
-    (this.mounted as any) = true;
-    (this.node as any) = node
-
-    for (var m of this.mixins) {
-      (m.node as any) = node;
-      (m.mounted as any) = true
-      m.inserted(node, parent)
-    }
-
-    for (var obs of this.observers) {
-      obs.startObserving()
-    }
-
-  }
-
-  unmount(node: Element, parent: Node, next: Node | null, prev: Node | null) {
-    (this.mounted as any) = false
-
-    for (var o of this.observers) {
-      o.stopObserving()
-    }
-
-    for (var m of this.mixins) {
-      (m.node as any) = null;
-      (m.mounted as any) = false
-      m.removed(node, parent, next, prev)
-    }
-
-    (this.node as any) = null
-  }
-
-  /**
-   * Observe an observer whenever it is mounted. Stop observing when
-   * unmounted. Reobserve when mounted again.
-   */
-  observe<T>(a: MaybeObservable<T>, cbk: Observer<T, any> | ObserverFunction<T, any>, options?: ObserverOptions): void {
-    const observable = a instanceof Observable ? a : o(a)
-    const observer = typeof cbk === 'function' ?  make_observer(observable, cbk, options) : cbk
-    this.observers.push(observer)
-
-    if (this.mounted) {
-      observer.startObserving()
-    }
-  }
-
-
+export function getMixins(node: Node): Mixin[] | undefined
+export function getMixins(node: any, no_create?: boolean): Mixin[] | undefined {
+  return node[mxsym]
 }
 
 
-export abstract class Mixin {
+export function addMixin(node: Node, mixin: Mixin): void
+export function addMixin(node: any, mixin: Mixin) {
+  var mx: Mixin[] = node[mxsym]
+  if (!mx) {
+    mx = node[mxsym] = []
+  }
+  mx.push(mixin)
+}
 
-  readonly holder: MixinHolder
-  readonly node: Node
+export function removeMixin(node: Node, mixin: Mixin): void
+export function removeMixin(node: any, mixin: Mixin): void {
+  var mx: Mixin[] = node[mxsym]
+  if (!mx) return
+  var res: Mixin[] = []
+  for (var m of mx) if (mixin !== m) res.push(m)
+  node[mxsym] = res
+}
+
+
+export class Mixin {
+
   readonly mounted: boolean = false
+  protected observers: Observer<any, any>[] = []
 
   /**
    * Get a Mixin by its class on the given node.
@@ -124,11 +53,12 @@ export abstract class Mixin {
     let iter: Node | null = node as Node // yeah yeah, I know, it's an EventTarget as well but hey.
 
     while (iter) {
-      var holder = MixinHolder.get(iter)
+      var mixins = getMixins(iter)
 
-      if (holder) {
-        var m = holder.getMixin(this)
-        if (m) return m
+      if (mixins) {
+        for (var m of mixins)
+          if (m instanceof this)
+            return m as M
       }
 
       if (!recursive)
@@ -141,13 +71,62 @@ export abstract class Mixin {
   }
 
   addToNode(node: Node) {
-    var mh = MixinHolder.get(node)
-    mh.addMixin(this)
+    addMixin(node, this)
   }
 
-  observe<T>(a: MaybeObservable<T>, cbk: Observer<T, any> | ObserverFunction<T, any>, options?: ObserverOptions): void {
-    this.holder.observe(a, cbk, options)
+  removeFromNode(node: Node) {
+    if (this.mounted) {
+      for (var ob of this.observers) ob.stopObserving()
+    }
+    removeMixin(node, this)
   }
+
+  /**
+   * Observe an observer whenever it is mounted. Stop observing when
+   * unmounted. Reobserve when mounted again.
+   *
+   * If the value was not an observable then the callback is called immediately.
+   */
+  observe<T>(a: MaybeObservable<T>, cbk: Observer<T, any> | ObserverFunction<T, any>, options?: ObserverOptions): void {
+    // If a is not observable, just call the observer directly and do
+    // not bother with creating useless structures.
+    if (!(a instanceof Observable)) {
+      if (cbk instanceof Observer) {
+        cbk.call(a)
+      } else {
+        cbk(a, undefined)
+      }
+      return
+    }
+
+    const observer = typeof cbk === 'function' ?  make_observer(a, cbk, options) : cbk
+    this.observers.push(observer)
+
+    if (this.mounted) {
+      observer.startObserving()
+    }
+  }
+
+  mount(node: Element, parent: Node) {
+    (this.mounted as any) = true
+
+    this.inserted(node, parent)
+
+    for (var obs of this.observers) {
+      obs.startObserving()
+    }
+  }
+
+  unmount(node: Element, parent: Node, next: Node | null, prev: Node | null) {
+    (this.mounted as any) = false
+
+    for (var o of this.observers) {
+      o.stopObserving()
+    }
+
+    this.removed(node, parent, next, prev)
+  }
+
 
   inserted(node: Element, parent: Node): void { }
   removed(node: Element, parent: Node, next: Node | null, prev: Node | null): void { }

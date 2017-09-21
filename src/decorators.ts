@@ -8,7 +8,7 @@ import {
 } from './types'
 
 import {
-  Mixin, MixinHolder
+  Mixin
 } from './mixins'
 
 
@@ -135,11 +135,14 @@ export function bind(obs: Observable<string>, opts: ObserverOptions = {}) {
 }
 
 
+export class ObserveMixin extends Mixin {
+
+}
+
 export function observe<T>(a: MaybeObservable<T>, cbk: Observer<T, any> | ObserverFunction<T, any>, options?: ObserverOptions) {
-  return function observeDecorator(node: Node): void {
-    let c = MixinHolder.get(node)
-    c.observe(a, cbk, options)
-  }
+  var m = new ObserveMixin()
+  m.observe(a, cbk, options)
+  return m
 }
 
 
@@ -298,30 +301,27 @@ export function click(cbk: Listener<MouseEvent>) {
 /**
  *
  */
-export function inserted(fn: (elt: Element, parent: Node) => void): Decorator {
+export function inserted(fn: (elt: Element, parent: Node) => void): Mixin {
   class InsertedMixin extends Mixin { }
   InsertedMixin.prototype.inserted = fn
-
-  return function (n: Node) { MixinHolder.get(n).addMixin(new InsertedMixin) }
+  return new InsertedMixin()
 }
 
 
-export function removed(fn: (node: Element, parent: Node, next: Node | null, prev: Node | null) => void): Decorator {
+export function removed(fn: (node: Element, parent: Node, next: Node | null, prev: Node | null) => void): Mixin {
   class RemovedMixin extends Mixin { }
   RemovedMixin.prototype.removed = fn
-
-  return function (n: Node) { MixinHolder.get(n).addMixin(new RemovedMixin) }
+  return new RemovedMixin()
 }
 
 
 /**
  *
  */
-export function init(fn: (node: Element) => void): Decorator {
+export function init(fn: (node: Element) => void): Mixin {
   class InitMixin extends Mixin { }
   InitMixin.prototype.init = fn
-
-  return function (n: Node) { MixinHolder.get(n).addMixin(new InitMixin) }
+  return new InitMixin()
 }
 
 
