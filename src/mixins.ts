@@ -1,5 +1,6 @@
 
 import {
+  o,
   Observable,
   make_observer,
   MaybeObservable,
@@ -88,18 +89,8 @@ export class Mixin<N extends Node = Node> {
    * If the value was not an observable then the callback is called immediately.
    */
   observe<T>(a: MaybeObservable<T>, cbk: Observer<T, any> | ObserverFunction<T, any>, options?: ObserverOptions): void {
-    // If a is not observable, just call the observer directly and do
-    // not bother with creating useless structures.
-    if (!(a instanceof Observable)) {
-      if (cbk instanceof Observer) {
-        cbk.call(a)
-      } else {
-        cbk(a, undefined)
-      }
-      return
-    }
-
-    const observer = typeof cbk === 'function' ?  make_observer(a, cbk, options) : cbk
+    const ob = a instanceof Observable ? a : o(a)
+    const observer = typeof cbk === 'function' ?  make_observer(ob, cbk, options) : cbk
     this.observers.push(observer)
 
     if (this.mounted) {

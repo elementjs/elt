@@ -36,13 +36,14 @@ export class Verb extends Mixin {
   static create<V extends Verb, A, B>(this: new (a: A, b: B) => V, a: A, b: B): Node
   static create<V extends Verb, A>(this: new (a: A) => V, a: A): Node
   static create<V extends Verb>(this: new (...a: any[]) => V, ...args: any[]): Node {
-    return (new this(...args)).node
+    var mixin = (new this(...args))
+    mixin.addToNode(mixin.node)
+    return mixin.node
   }
 
   constructor(name: string) {
     super()
     this.node = document.createComment(`  ${name}  `)
-    this.addToNode(this.node)
   }
 
 }
@@ -150,10 +151,12 @@ export class Writer extends VirtualHolder {
   txt: Node | null
   backup: WeakMap<DocumentFragment, Node[]> | null = null
 
-  constructor(obs: Observable<null|undefined|string|number|Node>) {
+  constructor(public _obs: Observable<null|undefined|string|number|Node>) {
     super('writer')
+  }
 
-    this.observe(obs, value => {
+  init(node: Node) {
+    this.observe(this._obs, value => {
       var txt = this.txt
 
       if (value instanceof Array) {
@@ -194,8 +197,7 @@ export class Writer extends VirtualHolder {
  * a Text node.
  */
 export function Write(obs: Observable<null|undefined|string|number|Node>): Node {
-  var wr = new Writer(obs)
-  return wr.node
+  return Writer.create(obs)
 }
 
 
@@ -231,23 +233,25 @@ export class Displayer<T> extends VirtualHolder {
   rendered_otherwise: Node[] | null = null
 
   constructor(
-    display: Displayable<T>,
-    condition: MaybeObservable<T>,
-    display_otherwise?: Displayable<T>
+    protected display: Displayable<T>,
+    protected condition: MaybeObservable<T>,
+    protected display_otherwise?: Displayable<T>
   ) {
     super('displayer')
+  }
 
-    var o_cond = o(condition)
+  init() {
+    var o_cond = o(this.condition)
 
     this.observe(o_cond, condition => {
       if (!condition) {
 
-        if (display_otherwise) {
+        if (this.display_otherwise) {
           if (this.rendered_otherwise === null)
             this.rendered_otherwise = getNodes(
-              typeof display_otherwise === 'function' ?
-                display_otherwise(o_cond) :
-                display_otherwise
+              typeof this.display_otherwise === 'function' ?
+                this.display_otherwise(o_cond) :
+                this.display_otherwise
             )
           this.updateChildren(getDocumentFragment(this.rendered_otherwise))
         } else {
@@ -256,8 +260,8 @@ export class Displayer<T> extends VirtualHolder {
 
       } else {
         if (this.rendered_display === null) {
-          this.rendered_display = getNodes(typeof display === 'function' ?
-            display(o_cond) : display
+          this.rendered_display = getNodes(typeof this.display === 'function' ?
+            this.display(o_cond) : this.display
           )
         }
 
@@ -279,8 +283,7 @@ export function DisplayIf<T>(
   display: Displayable<T>,
   display_otherwise?: Displayable<T>
 ): Node {
-  var disp = new Displayer(display, condition as MaybeObservable<T>, display_otherwise)
-  return disp.node
+  return Displayer.create(display, condition as MaybeObservable<T>, display_otherwise)
 }
 
 
@@ -307,7 +310,9 @@ export class Repeater<T> extends VirtualHolder {
     super('repeater')
 
     this.obs = o(ob)
+  }
 
+  init() {
     this.observe(this.obs, (lst, old_value) => {
       this.lst = lst || []
       const diff = lst.length - this.next_index
