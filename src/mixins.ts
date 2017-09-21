@@ -28,6 +28,7 @@ export function addMixin(node: any, mixin: Mixin) {
     mx = node[mxsym] = []
   }
   mx.push(mixin)
+  mixin.init(node)
 }
 
 export function removeMixin(node: Node, mixin: Mixin): void

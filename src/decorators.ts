@@ -24,7 +24,6 @@ export class BindMixin extends Mixin {
   }
 
   init(node: Node) {
-
     if (node instanceof HTMLInputElement) this.linkToInput(node)
     if (node instanceof HTMLSelectElement) this.linkToSelect(node)
     if (node instanceof HTMLTextAreaElement) this.linkToTextArea(node)
@@ -126,12 +125,7 @@ export class BindMixin extends Mixin {
 
 
 export function bind(obs: Observable<string>, opts: ObserverOptions = {}) {
-
-  return function bindDecorator(node: Node): void {
-    let c = new BindMixin(obs, opts)
-    c.addToNode(node)
-  }
-
+  return new BindMixin(obs, opts)
 }
 
 
