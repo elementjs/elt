@@ -5,18 +5,15 @@ import {
 } from 'domic-observable'
 
 import {
-  ArrayOrSingle,
   Attrs,
   Insertable,
   ClassDefinition,
-  Decorator,
   StyleDefinition,
   ComponentFn,
   ComponentInstanciator
 } from './types'
 
 import {
-  Component,
   Mixin
 } from './mixins'
 
@@ -37,90 +34,60 @@ function _remove_class(node: Element, c: string) {
     node.classList.remove(_)
 }
 
-/**
- *
- */
-function applyClass(node: Element, c: ClassDefinition, mh: Mixin): void {
-  if (typeof c === 'string') {
-    _apply_class(node, c)
-  } else if (c instanceof Observable) {
-    mh.observe(c, (str, old_class) => {
-      if (old_class) _remove_class(node, old_class)
-      _apply_class(node, str)
-      old_class = str
-    })
-  } else {
-    // c is an object
-    for (let x in c) {
-      if (c[x] instanceof Observable) {
-        mh.observe(c[x], applied => {
-          applied ? _apply_class(node, x) : _remove_class(node, x)
-        })
-      } else {
-        if (c[x])
-          _apply_class(node, x)
-      }
-    }
-  }
-}
-
-function applyStyle(node: HTMLElement, c: StyleDefinition, mh: Mixin): void {
-
-  if (typeof c === 'string') {
-    node.setAttribute('style', c)
-  } else if (c instanceof Observable) {
-    mh.observe(c, str => {
-      node.setAttribute('style', str)
-    })
-  } else {
-    // c is an object
-    for (let x in c as any) {
-      if ((c as any)[x] instanceof Observable) {
-        mh.observe((c as any)[x], value => {
-          (node.style as any)[x] = value
-        })
-      } else {
-        if ((c as any)[x])
-          (node.style as any)[x] = (c as any)[x]
-      }
-    }
-  }
-
-}
-
-function _set_attribute(node: Element, name: string, value: any) {
-  if (value === true)
-    node.setAttribute(name, '')
-  else if (value)
-    node.setAttribute(name, value)
-  else
-    // We can remove safely even if it doesn't exist as it won't raise an exception
-    node.removeAttribute(name)
-}
 
 /**
- * Apply attribute to the node
+ * Private mixin used by the d() function when binding on
  */
-function applyAttribute(node: Element, name: string, value: MaybeObservable<any>, mh: Mixin): void {
-  mh.observe(value, val => _set_attribute(node, name, val))
-}
-
-
 export class AttrsMixin extends Mixin {
 
-  setAttribute() {
-
+  /**
+   *
+   */
+  observeAttribute(node: Element, name: string, value: MaybeObservable<any>) {
+    this.observe(value, val => {
+      if (val === true)
+        node.setAttribute(name, '')
+      else if (val)
+        node.setAttribute(name, val)
+      else
+        // We can remove safely even if it doesn't exist as it won't raise an exception
+        node.removeAttribute(name)
+    })
   }
 
-  setClass() {
-
+  observeStyle(node: HTMLElement, style: StyleDefinition) {
+    if (style instanceof Observable) {
+      this.observe(style, st => {
+        for (var x in st) {
+          (node.style as any)[x] = (st as any)[x]
+        }
+      })
+    } else {
+      // c is a MaybeObservableObject
+      var st = style as any
+      for (var x in st) {
+        this.observe(st[x], value => {
+          (node.style as any)[x] = value
+        })
+      }
+    }
   }
 
-  setStyle() {
-
-  }
-
-  init(node: Element) {
+  observeClass(node: Element, c: ClassDefinition) {
+    if (typeof c === 'string') {
+      _apply_class(node, c)
+    } else if (c instanceof Observable) {
+      // c is an Observable<string>
+      this.observe(c, (str, old_class) => {
+        if (old_class) _remove_class(node, old_class)
+        _apply_class(node, str)
+      })
+    } else {
+      // c is a MaybeObservableObject
+      for (let x in c) {
+        this.observe(c[x], applied => applied ? _apply_class(node, x) : _remove_class(node, x))
+      }
+    }
 
   }
 
@@ -132,12 +99,15 @@ export class AttrsMixin extends Mixin {
 /**
  *
  */
-export function getDocumentFragment(children: Insertable|Insertable[]) {
+export function getDocumentFragment(ch: Insertable|Insertable[]) {
   var result = document.createDocumentFragment()
+  if (!ch) return result
 
-  _foreach(children, c => {
-    // Do not do anything with null
-    if (c == null) return
+  var children = Array.isArray(ch) ? ch : [ch]
+
+  for (var c of children) {
+    // Do not do anything with null or undefined
+    if (c == null) continue
 
     if (Array.isArray(c)) {
       result.appendChild(getDocumentFragment(c))
@@ -148,7 +118,7 @@ export function getDocumentFragment(children: Insertable|Insertable[]) {
     } else {
       result.appendChild(c)
     }
-  })
+  }
 
   return result
 }
@@ -164,24 +134,6 @@ export function getChildren(node: Node): Node[] {
   }
 
   return result
-}
-
-
-/**
- * Apply a function to each element of the provided array if
- * it is an array or to the single element if it was not.
- *
- * Does nothing if null was supplied.
- */
-export function _foreach<T>(maybe_array: ArrayOrSingle<T> | undefined | null, fn: (a: T) => any): void {
-  if (!maybe_array) return
-
-  if (Array.isArray(maybe_array)) {
-    for (var e of maybe_array)
-      fn(e)
-  } else {
-    fn(maybe_array)
-  }
 }
 
 
@@ -251,42 +203,19 @@ const NS = {
  * Controllers, decorators, classes and style.
  */
 
-export function d(elt: ComponentFn, attrs: Attrs, ...children: Insertable[]): Element
-export function d(elt: string, attrs: Attrs|null, ...children: Insertable[]): HTMLElement
-export function d<A>(elt: ComponentInstanciator<A>, attrs: A, ...children: Insertable[]): Element
-export function d(elt: any, attrs: Attrs, ...children: Insertable[]): Element {
+export function d(elt: ComponentFn, attrs: Attrs | null, ...children: Insertable[]): Element
+export function d(elt: string, attrs: Attrs | null, ...children: Insertable[]): HTMLElement
+export function d<A>(elt: ComponentInstanciator<A>, attrs: A | null, ...children: Insertable[]): Element
+export function d(elt: any, _attrs: Attrs | null, ...children: Insertable[]): Element {
 
   if (!elt) throw new Error(`d() needs at least a string, a function or a Component`)
 
-  let node: Element = null!
+  let node: Element = null! // just to prevent the warnings later
 
-  var data_attrs: {[name: string]: MaybeObservable<string>} | null = null
-
-  let decorators: ArrayOrSingle<Decorator|Mixin>|undefined
-  let style: MaybeObservable<string>|ArrayOrSingle<StyleDefinition>|undefined|null
-  let cls: ArrayOrSingle<ClassDefinition>|undefined|null
-
-  if (attrs) {
-    decorators = attrs.$$
-    style = attrs.style
-    cls = attrs.class
-    if (cls) delete attrs.class
-    if (style) delete attrs.style
-    if (decorators) delete attrs.$$
-
-    for (var x in attrs) {
-      if (x.indexOf('data-') === 0 || x.indexOf('x-') === 0) {
-        data_attrs = data_attrs || {}
-        data_attrs[x] = (attrs as any)[x] as MaybeObservable<string>
-        delete (attrs as any)[x]
-      }
-    }
-
-  } else {
-    attrs = {}
-  }
+  var attrs = _attrs || {} as Attrs
 
   if (typeof elt === 'string') {
+    // create a simple DOM node
     var ns = NS[elt] || attrs.xmlns
     node = ns ? document.createElementNS(ns, elt) : document.createElement(elt)
 
@@ -296,54 +225,60 @@ export function d(elt: any, attrs: Attrs, ...children: Insertable[]): Element {
     }
 
   } else if (typeof elt === 'function' && elt.prototype.render) {
+
     // elt is an instantiator / Component
-    var kls = elt as new () => Component<Element>
-    var comp = new kls()
+    var comp = new elt()
     comp.attrs = attrs
 
-    var comp_elt = comp.render(getDocumentFragment(children))
-    comp.addToNode(comp_elt)
-    node = elt
+    node = comp.render(getDocumentFragment(children))
+    comp.addToNode(node)
+
   } else if (typeof elt === 'function') {
     // elt is just a creator function
     node = elt(attrs, getDocumentFragment(children))
   }
 
+  const {class: cls, style, $$, id, ...rest} = attrs
 
   // Classes and style are applied at the end of this function and are thus
   // never passed to other node definitions.
-  if (attrs || data_attrs || cls || style) {
+  if (_attrs || cls || style || id) {
     var mx = new AttrsMixin()
     mx.addToNode(node)
 
     if (typeof elt === 'string') {
-      for (var x in attrs as any) {
-        applyAttribute(node, x, (attrs as any)[x], mx)
+      // when building a simple DOM node, then all the attributes
+      // are meant to be applied.
+      for (var x in rest) {
+        mx.observeAttribute(node, x, (rest as any)[x])
       }
     }
 
-    if (data_attrs) {
-      for (var x in data_attrs as any) {
-        applyAttribute(node, x, (data_attrs as any)[x], mx)
+    if (id) mx.observeAttribute(node, 'id', id)
+
+    if (cls) {
+      var classes = Array.isArray(cls) ? cls : [cls]
+      for (var c of classes) {
+        mx.observeClass(node, c)
       }
     }
 
-    // Class attributes and Style attributes are special and forwarded accross nodes and are thus
-    // always added (unlike other attributes which are simply passed forward)
-    _foreach(cls, cl => {
-      applyClass(node, cl, mx)
-    })
-
-    _foreach(style as any, st => {
-      applyStyle(node as HTMLElement, st, mx)
-    })
+    if (style) {
+      mx.observeStyle(node as HTMLElement, style)
+    }
   }
-
 
   // decorators are run now. If class and style were defined, they will be applied to the
   // final node.
-  _foreach(decorators, dec => dec instanceof Mixin ? dec.addToNode(node) : dec(node))
-
+  if ($$) {
+    var decorators = Array.isArray($$) ? $$ : [$$]
+    for (var d of decorators) {
+      if (d instanceof Mixin)
+        d.addToNode(node)
+      else
+        d(node)
+    }
+  }
 
   return node
 }
