@@ -1,17 +1,17 @@
 
-import {MixinHolder} from './mixins'
+import {getMixins} from './mixins'
 
 export type MaybeNode = Node | null
 
 const mnsym = Symbol('mounted')
 
-export function _apply_mount(node: Node) {
-  var mh = MixinHolder.getIfExists(node);
-
-  (node as any)[mnsym] = true
-
-  if (mh && !mh.mounted)
-    mh.mount(node as Element, node.parentNode!)
+export function _apply_mount(node: Node): void
+export function _apply_mount(node: any) {
+  node[mnsym] = true
+  var mx = getMixins(node)
+  if (!mx) return
+  for (var m of mx)
+    m.mount(node, node.parentNode)
 }
 
 /**
@@ -29,14 +29,12 @@ export function _mount(node: Node, target?: Node) {
   do {
 
     _apply_mount(iter)
-    // mount.push(iter)
 
     // Push firstChildren first
     while (iter.firstChild) {
       node_stack.push(iter)
       iter = iter.firstChild
       _apply_mount(iter)
-      // mount.push(iter)
     }
 
     while (!iter.nextSibling) {
@@ -59,13 +57,12 @@ export type MountTuple = [Node, MaybeNode, MaybeNode, MaybeNode]
  * Apply unmount to a node.
  */
 export function _apply_unmount(tuple: MountTuple) {
-  var node = tuple[0];
-  (node as any)[mnsym] = false
+  var node = tuple[0] as any;
+  node[mnsym] = false
+  var mx = getMixins(node)
 
-  var mh = MixinHolder.getIfExists(node)
-
-  if (!mh || !mh.mounted) return
-  mh.unmount(tuple[0] as Element, tuple[1]!, tuple[2], tuple[3])
+  if (!mx) return
+  for (var m of mx) m.unmount(tuple[0] as Element, tuple[1]!, tuple[2], tuple[3])
 }
 
 /**

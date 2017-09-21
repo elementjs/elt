@@ -18,8 +18,7 @@ import {
 
 import {
   Component,
-  Mixin,
-  MixinHolder
+  Mixin
 } from './mixins'
 
 import {
@@ -42,7 +41,7 @@ function _remove_class(node: Element, c: string) {
 /**
  *
  */
-function applyClass(node: Element, c: ClassDefinition, mh: MixinHolder): void {
+function applyClass(node: Element, c: ClassDefinition, mh: Mixin): void {
   if (typeof c === 'string') {
     _apply_class(node, c)
   } else if (c instanceof Observable) {
@@ -66,7 +65,7 @@ function applyClass(node: Element, c: ClassDefinition, mh: MixinHolder): void {
   }
 }
 
-function applyStyle(node: HTMLElement, c: StyleDefinition, mh: MixinHolder): void {
+function applyStyle(node: HTMLElement, c: StyleDefinition, mh: Mixin): void {
 
   if (typeof c === 'string') {
     node.setAttribute('style', c)
@@ -90,30 +89,46 @@ function applyStyle(node: HTMLElement, c: StyleDefinition, mh: MixinHolder): voi
 
 }
 
+function _set_attribute(node: Element, name: string, value: any) {
+  if (value === true)
+    node.setAttribute(name, '')
+  else if (value)
+    node.setAttribute(name, value)
+  else
+    // We can remove safely even if it doesn't exist as it won't raise an exception
+    node.removeAttribute(name)
+}
 
 /**
  * Apply attribute to the node
  */
-function applyAttribute(node: Element, name: string, value: MaybeObservable<any>, mh: MixinHolder): void {
+function applyAttribute(node: Element, name: string, value: MaybeObservable<any>, mh: Mixin): void {
+  mh.observe(value, val => _set_attribute(node, name, val))
+}
 
-  if (value instanceof Observable) {
-    mh.observe(value, val => {
-      if (val === true)
-        node.setAttribute(name, '')
-      else if (val != null && val !== false)
-        node.setAttribute(name, val)
-      else {
-        node.removeAttribute(name)
-      }
-    })
-  } else {
-    if (value === true)
-      node.setAttribute(name, '')
-    if (value != null && value !== false) node.setAttribute(name, value)
+
+export class AttrsMixin extends Mixin {
+
+  setAttribute() {
+
+  }
+
+  setClass() {
+
+  }
+
+  setStyle() {
+
+  }
+
+  init(node: Element) {
+
   }
 
 }
 
+
+////////////////////////////////////////////////////////
 
 /**
  *
@@ -246,9 +261,6 @@ export function d(elt: any, attrs: Attrs, ...children: Insertable[]): Element {
 
   let node: Element = null!
 
-  // Classes and style are applied at the end of this function and are thus
-  // never passed to other node definitions.
-  let mh: MixinHolder
   var data_attrs: {[name: string]: MaybeObservable<string>} | null = null
 
   let decorators: ArrayOrSingle<Decorator|Mixin>|undefined
@@ -296,33 +308,41 @@ export function d(elt: any, attrs: Attrs, ...children: Insertable[]): Element {
     node = elt(attrs, getDocumentFragment(children))
   }
 
-  mh = MixinHolder.get(node)
 
-  if (typeof elt === 'string') {
-    for (var x in attrs as any) {
-      applyAttribute(node, x, (attrs as any)[x], mh)
+  // Classes and style are applied at the end of this function and are thus
+  // never passed to other node definitions.
+  if (attrs || data_attrs || cls || style) {
+    var mx = new AttrsMixin()
+    mx.addToNode(node)
+
+    if (typeof elt === 'string') {
+      for (var x in attrs as any) {
+        applyAttribute(node, x, (attrs as any)[x], mx)
+      }
     }
+
+    if (data_attrs) {
+      for (var x in data_attrs as any) {
+        applyAttribute(node, x, (data_attrs as any)[x], mx)
+      }
+    }
+
+    // Class attributes and Style attributes are special and forwarded accross nodes and are thus
+    // always added (unlike other attributes which are simply passed forward)
+    _foreach(cls, cl => {
+      applyClass(node, cl, mx)
+    })
+
+    _foreach(style as any, st => {
+      applyStyle(node as HTMLElement, st, mx)
+    })
   }
 
-  if (data_attrs) {
-    for (var x in data_attrs as any) {
-      applyAttribute(node, x, (data_attrs as any)[x], mh)
-    }
-  }
 
   // decorators are run now. If class and style were defined, they will be applied to the
   // final node.
-  _foreach(decorators, dec => dec instanceof Mixin ? mh.addMixin(dec) : dec(node))
+  _foreach(decorators, dec => dec instanceof Mixin ? dec.addToNode(node) : dec(node))
 
-  // Class attributes and Style attributes are special and forwarded accross nodes and are thus
-  // always added (unlike other attributes which are simply passed forward)
-  _foreach(cls, cl => {
-    applyClass(node, cl, mh)
-  })
-
-  _foreach(style as any, st => {
-    applyStyle(node as HTMLElement, st, mh)
-  })
 
   return node
 }
