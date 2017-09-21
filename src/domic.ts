@@ -47,7 +47,7 @@ export class AttrsMixin extends Mixin {
     this.observe(value, val => {
       if (val === true)
         node.setAttribute(name, '')
-      else if (val)
+      else if (val != null && val !== false)
         node.setAttribute(name, val)
       else
         // We can remove safely even if it doesn't exist as it won't raise an exception
