@@ -2,7 +2,6 @@
 import {
   o,
   Observable,
-  make_observer,
   MaybeObservable,
   ObserverOptions,
   Observer,
@@ -90,7 +89,7 @@ export class Mixin<N extends Node = Node> {
    */
   observe<T>(a: MaybeObservable<T>, cbk: Observer<T, any> | ObserverFunction<T, any>, options?: ObserverOptions): void {
     const ob = a instanceof Observable ? a : o(a)
-    const observer = typeof cbk === 'function' ?  make_observer(ob, cbk, options) : cbk
+    const observer = typeof cbk === 'function' ?  ob.makeObserver(cbk, options) : cbk
     this.observers.push(observer)
 
     if (this.mounted) {
