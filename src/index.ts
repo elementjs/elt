@@ -1,28 +1,14 @@
 
-export * from './domic'
-
-export {
-  setupMounting
-} from './mounting'
-
+// Export everything.
+// domic-observable is re-rexported to avoid having to import from
+// different modules.
+export * from 'domic-observable'
 export * from './types'
 export * from './decorators'
-
 export * from './mixins'
-
-export * from 'domic-observable'
-
-export {
-  DisplayIf,
-  Fragment,
-  Repeat,
-  RepeatScroll,
-  Repeater,
-  Verb,
-  VirtualHolder,
-  Write,
-  Writer,
-} from './verbs'
+export * from './domic'
+export * from './mounting'
+export * from './verbs'
 
 ////////////////////////////////////////////////////////
 
@@ -40,6 +26,9 @@ export type ElementAlias = Element
 
 declare global {
 
+  /**
+   * Extend the JSX namespace to be able to use .tsx code.
+   */
   namespace JSX {
     export type Element = ElementAlias
 
