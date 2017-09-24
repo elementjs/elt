@@ -6,6 +6,7 @@ export type ArrayOrSingle<T> = T[] | T
 
 export type Listener<EventType extends Event> = (this: Node, ev: EventType, node: Node) => void
 
+
 /**
  * Decorators used on Nodes
  */
@@ -20,13 +21,30 @@ export type StyleDefinition =
   MaybeObservable<Partial<CSSStyleDeclaration>>
   | MaybeObservableObject<Partial<CSSStyleDeclaration>>
 
-export type DirectionValues = 'ltr' | 'rtl'
-export type DropZoneValues = 'copy' | 'move' | 'link'
-export type DraggableValues = boolean | 'true' | 'false' | 'auto'
 
 export interface EmptyAttributes {
   $$children?: MaybeObservable<Insertable> | MaybeObservable<Insertable>[]
 }
+
+export interface ComponentFn {
+  (attrs: EmptyAttributes, children: DocumentFragment): Element
+}
+
+export type InsertableSingle = MaybeObservable<string|number|Node|null|undefined>
+export type Insertable = InsertableSingle | InsertableSingle[]
+
+
+export type NodeCreatorFn = () => Node
+
+export interface ComponentInterface<A> {
+  attrs: A
+  render(children?: DocumentFragment): Node
+}
+
+export interface ComponentInstanciator<A> {
+  new (...a: any[]): ComponentInterface<A>
+}
+
 
 /**
  * Basic attributes used on all nodes.
@@ -237,23 +255,4 @@ export interface SVGAttributes extends Attrs {
   y1?: MaybeObservable<number | string>
   y2?: MaybeObservable<number | string>
   y?: MaybeObservable<number | string>
-}
-
-export type InsertableSingle = MaybeObservable<string|number|Node|null|undefined>
-export type Insertable = InsertableSingle | InsertableSingle[]
-
-/**
- *
- */
-export type ComponentFn = (attrs: Attrs, children: DocumentFragment) => Node
-
-export type NodeCreatorFn = () => Node
-
-export interface ComponentInterface<A> {
-  attrs: A
-  render(children?: DocumentFragment): Node
-}
-
-export interface ComponentInstanciator<A> {
-  new (...a: any[]): ComponentInterface<A>
 }
