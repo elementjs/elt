@@ -65,7 +65,7 @@ export class AttrsMixin extends Mixin {
     } else {
       // c is a MaybeObservableObject
       var st = style as any
-      for (var x in st) {
+      for (let x in st) {
         this.observe(st[x], value => {
           (node.style as any)[x] = value
         })
