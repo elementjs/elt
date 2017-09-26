@@ -369,6 +369,11 @@ export class Repeater<T> extends VirtualHolder {
     var next: Node | null
     var iter: Node|null = this.positions[this.next_index]
 
+    var co = this.child_obs
+    var l = co.length
+    for (var i = this.next_index; i < l; i++)
+      co[i].stopObservers()
+
     this.child_obs = this.child_obs.slice(0, this.next_index)
     this.positions = this.positions.slice(0, this.next_index)
 
