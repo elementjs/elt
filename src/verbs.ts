@@ -403,7 +403,7 @@ export class ScrollRepeater<T> extends Repeater<T> {
     public threshold_height: number = 500
   ) {
     super(ob, renderfn)
-    this.onscroll = this.onscroll.bind(this)
+    this.onscroll = () => this.onscroll()
   }
 
   appendChildren(count: number) {

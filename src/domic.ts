@@ -271,12 +271,9 @@ export function d(elt: any, _attrs: Attrs | null, ...children: Insertable[]): El
   // decorators are run now. If class and style were defined, they will be applied to the
   // final node.
   if ($$) {
-    var decorators = Array.isArray($$) ? $$ : [$$]
-    for (var d of decorators) {
-      if (d instanceof Mixin)
-        d.addToNode(node)
-      else
-        d(node)
+    var mixins = Array.isArray($$) ? $$ : [$$]
+    for (var d of mixins) {
+      d.addToNode(node)
     }
   }
 
