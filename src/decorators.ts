@@ -367,3 +367,21 @@ export class ScrollableMixin extends Mixin<HTMLElement> {
 export function scrollable() {
   return new ScrollableMixin()
 }
+
+
+/**
+ * A simple decorator to bind a method to its object instance. Useful for callbacks
+ * and event listeners.
+ */
+export function bound(target: any, method_name: string, descriptor: PropertyDescriptor) {
+  var original = descriptor.value
+
+  return {
+    get() {
+      var _this = this
+      return function () {
+        return original.apply(_this, arguments)
+      }
+    }
+  }
+}

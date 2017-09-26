@@ -20,6 +20,10 @@ import {
   EmptyAttributes,
 } from './types'
 
+import {
+  bound
+} from './decorators'
+
 
 /**
  * Extend this class when writing a verb.
@@ -403,7 +407,6 @@ export class ScrollRepeater<T> extends Repeater<T> {
     public threshold_height: number = 500
   ) {
     super(ob, renderfn)
-    this.onscroll = () => this.onscroll()
   }
 
   appendChildren(count: number) {
@@ -420,6 +423,7 @@ export class ScrollRepeater<T> extends Repeater<T> {
     }
   }
 
+  @bound
   onscroll() {
     if (!this.parent) return
     this.appendChildren(0)
