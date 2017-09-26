@@ -4,13 +4,7 @@ import {Mixin} from './mixins'
 
 export type ArrayOrSingle<T> = T[] | T
 
-export type Listener<EventType extends Event> = (this: Node, ev: EventType, node: Node) => void
-
-
-/**
- * Decorators used on Nodes
- */
-export type Decorator = (n: Element) => void
+export type Listener<EventType extends Event, N extends Node = Node> = (this: N, ev: EventType, node: N) => void
 
 /**
  * Classes.
@@ -54,7 +48,7 @@ export interface Attrs extends EmptyAttributes {
   class?: ArrayOrSingle<ClassDefinition> // special attributes
   style?: StyleDefinition
 
-  $$?: ArrayOrSingle<Decorator | Mixin>
+  $$?: ArrayOrSingle<Mixin>
   xmlns?: string
 }
 

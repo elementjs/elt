@@ -9,7 +9,7 @@ import {
 } from 'domic-observable'
 
 import {
-  Attrs,
+  Attrs, Listener
 } from './types'
 
 
@@ -93,6 +93,7 @@ export class Mixin<N extends Node = Node> {
 
   /** An array of observers tied to the Node for observing. Populated by `observe()` calls. */
   protected observers: Observer<any, any>[] = []
+  protected listeners: {event: string, listener: Listener<Event>, live_listener: null | ((e: Event) => void), useCapture?: boolean}[] | undefined
 
   /**
    * Get a Mixin by its class on the given node or its parents.
@@ -189,6 +190,7 @@ export class Mixin<N extends Node = Node> {
     for (var obs of this.observers) {
       obs.startObserving()
     }
+    this.addListeners(node)
   }
 
   /**
@@ -202,6 +204,7 @@ export class Mixin<N extends Node = Node> {
   unmount(node: N, parent: Node, next: Node | null, prev: Node | null) {
     (this.mounted as any) = false
 
+    this.removeListeners(node)
     for (var o of this.observers) {
       o.stopObserving()
     }
@@ -234,6 +237,161 @@ export class Mixin<N extends Node = Node> {
    */
   removed(node: N, parent: Node, next: Node | null, prev: Node | null): void { }
 
+
+  listen(event: "MSContentZoom", listener: Listener<UIEvent, N>, useCapture?: boolean): void
+  listen(event: "MSGestureChange", listener: Listener<MSGestureEvent, N>, useCapture?: boolean): void
+  listen(event: "MSGestureDoubleTap", listener: Listener<MSGestureEvent, N>, useCapture?: boolean): void
+  listen(event: "MSGestureEnd", listener: Listener<MSGestureEvent, N>, useCapture?: boolean): void
+  listen(event: "MSGestureHold", listener: Listener<MSGestureEvent, N>, useCapture?: boolean): void
+  listen(event: "MSGestureStart", listener: Listener<MSGestureEvent, N>, useCapture?: boolean): void
+  listen(event: "MSGestureTap", listener: Listener<MSGestureEvent, N>, useCapture?: boolean): void
+  listen(event: "MSGotPointerCapture", listener: Listener<MSPointerEvent, N>, useCapture?: boolean): void
+  listen(event: "MSInertiaStart", listener: Listener<MSGestureEvent, N>, useCapture?: boolean): void
+  listen(event: "MSLostPointerCapture", listener: Listener<MSPointerEvent, N>, useCapture?: boolean): void
+  listen(event: "MSManipulationStateChanged", listener: Listener<MSManipulationEvent, N>, useCapture?: boolean): void
+  listen(event: "MSPointerCancel", listener: Listener<MSPointerEvent, N>, useCapture?: boolean): void
+  listen(event: "MSPointerDown", listener: Listener<MSPointerEvent, N>, useCapture?: boolean): void
+  listen(event: "MSPointerEnter", listener: Listener<MSPointerEvent, N>, useCapture?: boolean): void
+  listen(event: "MSPointerLeave", listener: Listener<MSPointerEvent, N>, useCapture?: boolean): void
+  listen(event: "MSPointerMove", listener: Listener<MSPointerEvent, N>, useCapture?: boolean): void
+  listen(event: "MSPointerOut", listener: Listener<MSPointerEvent, N>, useCapture?: boolean): void
+  listen(event: "MSPointerOver", listener: Listener<MSPointerEvent, N>, useCapture?: boolean): void
+  listen(event: "MSPointerUp", listener: Listener<MSPointerEvent, N>, useCapture?: boolean): void
+  listen(event: "abort", listener: Listener<UIEvent, N>, useCapture?: boolean): void
+  listen(event: "activate", listener: Listener<UIEvent, N>, useCapture?: boolean): void
+  listen(event: "afterprint", listener: Listener<Event, N>, useCapture?: boolean): void
+  // listen(event: "ariarequest", listener: Listener<AriaRequestEvent, N>, useCapture?: boolean): void
+  listen(event: "beforeactivate", listener: Listener<UIEvent, N>, useCapture?: boolean): void
+  listen(event: "beforecopy", listener: Listener<ClipboardEvent, N>, useCapture?: boolean): void
+  listen(event: "beforecut", listener: Listener<ClipboardEvent, N>, useCapture?: boolean): void
+  listen(event: "beforedeactivate", listener: Listener<UIEvent, N>, useCapture?: boolean): void
+  listen(event: "beforepaste", listener: Listener<ClipboardEvent, N>, useCapture?: boolean): void
+  listen(event: "beforeprint", listener: Listener<Event, N>, useCapture?: boolean): void
+  listen(event: "beforeunload", listener: Listener<BeforeUnloadEvent, N>, useCapture?: boolean): void
+  listen(event: "blur", listener: Listener<FocusEvent, N>, useCapture?: boolean): void
+  listen(event: "blur", listener: Listener<FocusEvent, N>, useCapture?: boolean): void
+  listen(event: "canplay", listener: Listener<Event, N>, useCapture?: boolean): void
+  listen(event: "canplaythrough", listener: Listener<Event, N>, useCapture?: boolean): void
+  listen(event: "change", listener: Listener<Event, N>, useCapture?: boolean): void
+  listen(event: "click", listener: Listener<MouseEvent, N>, useCapture?: boolean): void
+  // listen(event: "command", listener: Listener<CommandEvent, N>, useCapture?: boolean): void
+  listen(event: "contextmenu", listener: Listener<PointerEvent, N>, useCapture?: boolean): void
+  listen(event: "copy", listener: Listener<ClipboardEvent, N>, useCapture?: boolean): void
+  listen(event: "cuechange", listener: Listener<Event, N>, useCapture?: boolean): void
+  listen(event: "cut", listener: Listener<ClipboardEvent, N>, useCapture?: boolean): void
+  listen(event: "dblclick", listener: Listener<MouseEvent, N>, useCapture?: boolean): void
+  listen(event: "deactivate", listener: Listener<UIEvent, N>, useCapture?: boolean): void
+  listen(event: "drag", listener: Listener<DragEvent, N>, useCapture?: boolean): void
+  listen(event: "dragend", listener: Listener<DragEvent, N>, useCapture?: boolean): void
+  listen(event: "dragenter", listener: Listener<DragEvent, N>, useCapture?: boolean): void
+  listen(event: "dragleave", listener: Listener<DragEvent, N>, useCapture?: boolean): void
+  listen(event: "dragover", listener: Listener<DragEvent, N>, useCapture?: boolean): void
+  listen(event: "dragstart", listener: Listener<DragEvent, N>, useCapture?: boolean): void
+  listen(event: "drop", listener: Listener<DragEvent, N>, useCapture?: boolean): void
+  listen(event: "durationchange", listener: Listener<Event, N>, useCapture?: boolean): void
+  listen(event: "emptied", listener: Listener<Event, N>, useCapture?: boolean): void
+  listen(event: "ended", listener: Listener<MediaStreamErrorEvent, N>, useCapture?: boolean): void
+  listen(event: "error", listener: Listener<ErrorEvent, N>, useCapture?: boolean): void
+  listen(event: "error", listener: Listener<ErrorEvent, N>, useCapture?: boolean): void
+  listen(event: "focus", listener: Listener<FocusEvent, N>, useCapture?: boolean): void
+  listen(event: "focus", listener: Listener<FocusEvent, N>, useCapture?: boolean): void
+  listen(event: "gotpointercapture", listener: Listener<PointerEvent, N>, useCapture?: boolean): void
+  listen(event: "hashchange", listener: Listener<HashChangeEvent, N>, useCapture?: boolean): void
+  listen(event: "input", listener: Listener<Event, N>, useCapture?: boolean): void
+  listen(event: "invalid", listener: Listener<Event, N>, useCapture?: boolean): void
+  listen(event: "keydown", listener: Listener<KeyboardEvent, N>, useCapture?: boolean): void
+  listen(event: "keypress", listener: Listener<KeyboardEvent, N>, useCapture?: boolean): void
+  listen(event: "keyup", listener: Listener<KeyboardEvent, N>, useCapture?: boolean): void
+  listen(event: "load", listener: Listener<Event, N>, useCapture?: boolean): void
+  listen(event: "load", listener: Listener<Event, N>, useCapture?: boolean): void
+  listen(event: "loadeddata", listener: Listener<Event, N>, useCapture?: boolean): void
+  listen(event: "loadedmetadata", listener: Listener<Event, N>, useCapture?: boolean): void
+  listen(event: "loadstart", listener: Listener<Event, N>, useCapture?: boolean): void
+  listen(event: "lostpointercapture", listener: Listener<PointerEvent, N>, useCapture?: boolean): void
+  listen(event: "message", listener: Listener<MessageEvent, N>, useCapture?: boolean): void
+  listen(event: "mousedown", listener: Listener<MouseEvent, N>, useCapture?: boolean): void
+  listen(event: "mouseenter", listener: Listener<MouseEvent, N>, useCapture?: boolean): void
+  listen(event: "mouseleave", listener: Listener<MouseEvent, N>, useCapture?: boolean): void
+  listen(event: "mousemove", listener: Listener<MouseEvent, N>, useCapture?: boolean): void
+  listen(event: "mouseout", listener: Listener<MouseEvent, N>, useCapture?: boolean): void
+  listen(event: "mouseover", listener: Listener<MouseEvent, N>, useCapture?: boolean): void
+  listen(event: "mouseup", listener: Listener<MouseEvent, N>, useCapture?: boolean): void
+  listen(event: "mousewheel", listener: Listener<WheelEvent, N>, useCapture?: boolean): void
+  listen(event: "offline", listener: Listener<Event, N>, useCapture?: boolean): void
+  listen(event: "online", listener: Listener<Event, N>, useCapture?: boolean): void
+  listen(event: "orientationchange", listener: Listener<Event, N>, useCapture?: boolean): void
+  listen(event: "pagehide", listener: Listener<PageTransitionEvent, N>, useCapture?: boolean): void
+  listen(event: "pageshow", listener: Listener<PageTransitionEvent, N>, useCapture?: boolean): void
+  listen(event: "paste", listener: Listener<ClipboardEvent, N>, useCapture?: boolean): void
+  listen(event: "pause", listener: Listener<Event, N>, useCapture?: boolean): void
+  listen(event: "play", listener: Listener<Event, N>, useCapture?: boolean): void
+  listen(event: "playing", listener: Listener<Event, N>, useCapture?: boolean): void
+  listen(event: "pointercancel", listener: Listener<PointerEvent, N>, useCapture?: boolean): void
+  listen(event: "pointerdown", listener: Listener<PointerEvent, N>, useCapture?: boolean): void
+  listen(event: "pointerenter", listener: Listener<PointerEvent, N>, useCapture?: boolean): void
+  listen(event: "pointerleave", listener: Listener<PointerEvent, N>, useCapture?: boolean): void
+  listen(event: "pointermove", listener: Listener<PointerEvent, N>, useCapture?: boolean): void
+  listen(event: "pointerout", listener: Listener<PointerEvent, N>, useCapture?: boolean): void
+  listen(event: "pointerover", listener: Listener<PointerEvent, N>, useCapture?: boolean): void
+  listen(event: "pointerup", listener: Listener<PointerEvent, N>, useCapture?: boolean): void
+  listen(event: "popstate", listener: Listener<PopStateEvent, N>, useCapture?: boolean): void
+  listen(event: "progress", listener: Listener<ProgressEvent, N>, useCapture?: boolean): void
+  listen(event: "ratechange", listener: Listener<Event, N>, useCapture?: boolean): void
+  listen(event: "reset", listener: Listener<Event, N>, useCapture?: boolean): void
+  listen(event: "resize", listener: Listener<UIEvent, N>, useCapture?: boolean): void
+  listen(event: "scroll", listener: Listener<UIEvent, N>, useCapture?: boolean): void
+  listen(event: "seeked", listener: Listener<Event, N>, useCapture?: boolean): void
+  listen(event: "seeking", listener: Listener<Event, N>, useCapture?: boolean): void
+  listen(event: "select", listener: Listener<UIEvent, N>, useCapture?: boolean): void
+  listen(event: "selectstart", listener: Listener<Event, N>, useCapture?: boolean): void
+  listen(event: "stalled", listener: Listener<Event, N>, useCapture?: boolean): void
+  listen(event: "storage", listener: Listener<StorageEvent, N>, useCapture?: boolean): void
+  listen(event: "submit", listener: Listener<Event, N>, useCapture?: boolean): void
+  listen(event: "suspend", listener: Listener<Event, N>, useCapture?: boolean): void
+  listen(event: "timeupdate", listener: Listener<Event, N>, useCapture?: boolean): void
+  listen(event: "touchcancel", listener: Listener<TouchEvent, N>, useCapture?: boolean): void
+  listen(event: "touchend", listener: Listener<TouchEvent, N>, useCapture?: boolean): void
+  listen(event: "touchmove", listener: Listener<TouchEvent, N>, useCapture?: boolean): void
+  listen(event: "touchstart", listener: Listener<TouchEvent, N>, useCapture?: boolean): void
+  listen(event: "unload", listener: Listener<Event, N>, useCapture?: boolean): void
+  listen(event: "volumechange", listener: Listener<Event, N>, useCapture?: boolean): void
+  listen(event: "waiting", listener: Listener<Event, N>, useCapture?: boolean): void
+  listen(event: "webkitfullscreenchange", listener: Listener<Event, N>, useCapture?: boolean): void
+  listen(event: "webkitfullscreenerror", listener: Listener<Event, N>, useCapture?: boolean): void
+  listen(event: "wheel", listener: Listener<WheelEvent, N>, useCapture?: boolean): void
+  listen(event: 'click', listener: Listener<MouseEvent, N>, useCapture?: boolean): void
+  listen(event: string, listener: Listener<Event, N>, useCapture?: boolean): void
+  listen<E extends Event>(name: string, listener: Listener<E, N>, useCapture?: boolean) {
+    if (!this.listeners)
+      this.listeners = []
+
+    this.listeners.push({
+      event: name,
+      listener: listener,
+      useCapture: useCapture,
+      live_listener: null
+    })
+
+  }
+
+  protected addListeners(node: Node) {
+    if (!this.listeners) return
+
+    for (let l of this.listeners) {
+      l.live_listener = function (this: Node, ev: Event) {
+        return l.listener.call(this, ev, node)
+      }
+      node.addEventListener(l.event, l.live_listener, l.useCapture)
+    }
+  }
+
+  protected removeListeners(node: Node) {
+    if (!this.listeners) return
+    for (let l of this.listeners) {
+      node.removeEventListener(l.event, l.live_listener!, l.useCapture)
+      l.live_listener = null
+    }
+  }
 }
 
 
