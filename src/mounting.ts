@@ -3,7 +3,7 @@ import {getMixins} from './mixins'
 
 export type MaybeNode = Node | null
 
-const mnsym = Symbol('mounted')
+const mnsym = Symbol('domic-mounted')
 
 export function _apply_mount(node: Node): void
 export function _apply_mount(node: any) {
@@ -72,7 +72,7 @@ export function _unmount(node: Node, target: Node, prev: MaybeNode, next: MaybeN
 
   const unmount: MountTuple[] = []
   const node_stack: Node[] = []
-  var iter: MaybeNode = node
+  var iter: MaybeNode = node.firstChild
 
   // We need to store all the nodes for which we'll call unmount() beforehand,
   // as an unmount() handler may further remove nodes that were already
@@ -80,7 +80,7 @@ export function _unmount(node: Node, target: Node, prev: MaybeNode, next: MaybeN
   // the unmounted children.
   //
   // The array construction is done iteratively for performance considerations.
-  do {
+  while (iter) {
 
     // Push firstChildren first
     while (iter.firstChild) {
@@ -88,7 +88,7 @@ export function _unmount(node: Node, target: Node, prev: MaybeNode, next: MaybeN
       iter = iter.firstChild
     }
 
-    unmount.push([iter, iter.parentNode || target, null, null])
+    unmount.push([iter, iter.parentNode || target, iter.previousSibling, iter.nextSibling])
 
     // When we're here, we're on a terminal node, so
     // we're going to have to process it.
@@ -96,13 +96,14 @@ export function _unmount(node: Node, target: Node, prev: MaybeNode, next: MaybeN
     while (!iter.nextSibling) {
       iter = node_stack.pop()!
       if (!iter) break
-      unmount.push([iter, iter.parentNode || target, null, null])
+      unmount.push([iter, iter.parentNode || target, iter.previousSibling, iter.nextSibling])
     }
 
     // So now we're going to traverse the next node.
     if (iter) iter = iter.nextSibling
+  }
 
-  } while (iter)
+  unmount.push([node, node.parentNode || target, prev, next])
 
   for (var tuple of unmount) {
     _apply_unmount(tuple)

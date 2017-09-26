@@ -21,7 +21,7 @@ import {
  * a WeakSet, but since the performance is not terrific (especially
  * when the number of elements gets high), the symbol solution was retained.
  */
-const mxsym = Symbol('domic_mixin')
+const mxsym = Symbol('domic-mixins')
 
 
 /**
