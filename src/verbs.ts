@@ -353,7 +353,9 @@ export class Repeater<T> extends VirtualHolder {
 
     var fr = document.createDocumentFragment()
 
-    while ((next = this.next()) && count-- > 0) {
+    while (count-- > 0) {
+      next = this.next()
+      if (!next) break
       fr.appendChild(next)
     }
 
