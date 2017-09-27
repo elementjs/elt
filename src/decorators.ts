@@ -1,6 +1,6 @@
 
 import {
-  Observable, MaybeObservable, Observer, ObserverOptions, ObserverFunction
+  Observable, MaybeObservable, Observer, ObserverFunction
 } from 'domic-observable'
 
 import {
@@ -15,12 +15,10 @@ import {
 export class BindMixin extends Mixin {
 
   obs: Observable<string>
-  opts: ObserverOptions
 
-  constructor(obs: Observable<string>, opts: ObserverOptions = {}) {
+  constructor(obs: Observable<string>) {
     super()
     this.obs = obs
-    this.opts = opts
   }
 
   init(node: Node) {
@@ -44,7 +42,7 @@ export class BindMixin extends Mixin {
 
     this.observe(obs, val => {
       node.value = val||''
-    }, this.opts)
+    })
   }
 
   linkToSelect(node: HTMLSelectElement) {
@@ -56,7 +54,7 @@ export class BindMixin extends Mixin {
 
     this.observe(obs, val => {
       node.value = val
-    }, this.opts)
+    })
   }
 
   linkToInput(node: HTMLInputElement) {
@@ -87,21 +85,21 @@ export class BindMixin extends Mixin {
       case 'month':
       case 'time':
       case 'datetime-local':
-        this.observe(obs, fromObservable, this.opts)
+        this.observe(obs, fromObservable)
         this.listen('input', fromEvent)
         break
       case 'radio':
         this.observe(obs, (val) => {
           // !!!? ??
           node.checked = node.value === val
-        }, this.opts)
+        })
         this.listen('change', fromEvent)
         break
       case 'checkbox':
         // FIXME ugly hack because we specified string
         this.observe(obs, (val: any) => {
           node.checked = !!val
-        }, this.opts)
+        })
         this.listen('change', () => (obs as Observable<any>).set(node.checked))
         break
       // case 'number':
@@ -109,7 +107,7 @@ export class BindMixin extends Mixin {
       // case 'password':
       // case 'search':
       default:
-        this.observe(obs, fromObservable, this.opts)
+        this.observe(obs, fromObservable)
         this.listen('keyup', fromEvent)
         this.listen('input', fromEvent)
         this.listen('change', fromEvent)
@@ -124,8 +122,8 @@ export class BindMixin extends Mixin {
 }
 
 
-export function bind(obs: Observable<string>, opts: ObserverOptions = {}) {
-  return new BindMixin(obs, opts)
+export function bind(obs: Observable<string>) {
+  return new BindMixin(obs)
 }
 
 
@@ -133,9 +131,9 @@ export class ObserveMixin extends Mixin {
 
 }
 
-export function observe<T>(a: MaybeObservable<T>, cbk: Observer<T, any> | ObserverFunction<T, any>, options?: ObserverOptions) {
+export function observe<T>(a: MaybeObservable<T>, cbk: Observer<T, any> | ObserverFunction<T, any>) {
   var m = new ObserveMixin()
-  m.observe(a, cbk, options)
+  m.observe(a, cbk)
   return m
 }
 

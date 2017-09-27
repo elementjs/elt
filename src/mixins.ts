@@ -3,7 +3,6 @@ import {
   o,
   Observable,
   MaybeObservable,
-  ObserverOptions,
   Observer,
   ObserverFunction
 } from 'domic-observable'
@@ -162,9 +161,9 @@ export class Mixin<N extends Node = Node> {
    * @param options options for the observer creation
    * @returns The Observer instance
    */
-  observe<T, U = void>(a: MaybeObservable<T>, cbk: Observer<T, U> | ObserverFunction<T, U>, options?: ObserverOptions): Observer<T, U> {
+  observe<T, U = void>(a: MaybeObservable<T>, cbk: Observer<T, U> | ObserverFunction<T, U>): Observer<T, U> {
     const ob = a instanceof Observable ? a : o(a)
-    const observer = typeof cbk === 'function' ?  ob.createObserver(cbk, options) : cbk
+    const observer = typeof cbk === 'function' ?  ob.createObserver(cbk) : cbk
     this.observers.push(observer)
 
     if (this.mounted) {
