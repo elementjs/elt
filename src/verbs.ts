@@ -31,7 +31,7 @@ import {
  * This is a very short class declaration which only purpose
  * is to help create shorter verb functions.
  */
-export class Verb extends Mixin {
+export class Verb extends Mixin<Comment> {
 
   node: Comment
 
@@ -45,9 +45,9 @@ export class Verb extends Mixin {
     return mixin.node
   }
 
-  constructor(name: string) {
+  constructor() {
     super()
-    this.node = document.createComment(`  ${name}  `)
+    this.node = document.createComment(`  ${this.constructor.name}  `)
   }
 
 }
@@ -156,7 +156,7 @@ export class Writer extends VirtualHolder {
   backup: WeakMap<DocumentFragment, Node[]> | null = null
 
   constructor(public _obs: Observable<null|undefined|string|number|Node>) {
-    super('writer')
+    super()
   }
 
   init(node: Node) {
@@ -241,7 +241,7 @@ export class Displayer<T> extends VirtualHolder {
     protected condition: MaybeObservable<T>,
     protected display_otherwise?: Displayable<T>
   ) {
-    super('displayer')
+    super()
   }
 
   init() {
@@ -311,7 +311,7 @@ export class Repeater<T> extends VirtualHolder {
     ob: MaybeObservable<T[]>,
     public renderfn: RenderFn<T>
   ) {
-    super('repeater')
+    super()
 
     this.obs = o(ob)
   }
@@ -429,7 +429,7 @@ export class ScrollRepeater<T> extends Repeater<T> {
     this.appendChildren(0)
   }
 
-  inserted(node: Element) {
+  inserted(node: Comment) {
     super.inserted.apply(this, arguments)
 
     // Find parent with the overflow-y
@@ -496,6 +496,38 @@ export function RepeatScroll<T>(
   return ScrollRepeater.create(ob, render, scroll_buffer_size)
 }
 
+
+/**
+ *
+ */
+export class FragmentHolder extends Verb {
+
+  child_nodes: Node[]
+
+  constructor(public fragment: DocumentFragment) {
+    super()
+    var iter: Node | null = fragment.firstChild
+    var nodes: Node[] = []
+    while (iter) {
+      nodes.push(iter)
+      iter = iter.nextSibling
+    }
+    this.child_nodes = nodes
+  }
+
+  inserted(node: Comment) {
+    node.parentNode!.insertBefore(this.fragment, node.nextSibling)
+  }
+
+  removed(node: Comment) {
+    for (var c of this.child_nodes) {
+      this.fragment.appendChild(c)
+    }
+  }
+
+}
+
+
 /**
  *  Fragment wraps everything into a DocumentFragment.
  *  Beware that because of typescript's imprecisions with the JSX namespace,
@@ -503,5 +535,6 @@ export function RepeatScroll<T>(
  *  completely false !
  */
 export function Fragment(attrs: EmptyAttributes, children: DocumentFragment): Element {
-  return (children as any) as Element
+  // This is a trick !
+  return FragmentHolder.create(children) as Element
 }
