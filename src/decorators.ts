@@ -12,7 +12,7 @@ import {
 } from './mixins'
 
 
-export class BindMixin extends Mixin {
+export class BindMixin extends Mixin<HTMLInputElement> {
 
   obs: Observable<string>
 
@@ -22,18 +22,18 @@ export class BindMixin extends Mixin {
   }
 
   init(node: Node) {
-    if (node instanceof HTMLInputElement) this.linkToInput(node)
-    if (node instanceof HTMLSelectElement) this.linkToSelect(node)
-    if (node instanceof HTMLTextAreaElement) this.linkToTextArea(node)
+    if (node instanceof HTMLInputElement) this.linkToInput()
+    if (node instanceof HTMLSelectElement) this.linkToSelect()
+    if (node instanceof HTMLTextAreaElement) this.linkToTextArea()
 
-    if (node instanceof HTMLElement && node.contentEditable) this.linkToHTML5Editable(node)
+    if (node instanceof HTMLElement && node.contentEditable) this.linkToHTML5Editable()
   }
 
-  linkToTextArea(node: HTMLTextAreaElement) {
+  linkToTextArea() {
     let obs = this.obs
 
-    function upd(evt: Event) {
-      obs.set(node.value)
+    var upd = (evt: Event) => {
+      obs.set(this.node.value)
     }
 
     this.listen('input', upd)
@@ -41,40 +41,40 @@ export class BindMixin extends Mixin {
     this.listen('propertychange', upd)
 
     this.observe(obs, val => {
-      node.value = val||''
+      this.node.value = val||''
     })
   }
 
-  linkToSelect(node: HTMLSelectElement) {
+  linkToSelect() {
     let obs = this.obs
 
-    this.listen('change', function(evt) {
-      obs.set(node.value)
+    this.listen('change', (evt) => {
+      obs.set(this.node.value)
     })
 
     this.observe(obs, val => {
-      node.value = val
+      this.node.value = val
     })
   }
 
-  linkToInput(node: HTMLInputElement) {
+  linkToInput() {
     let obs = this.obs
     let value_set_from_event = false
 
     let fromObservable = (val: string) => {
       if (value_set_from_event)
         return
-      node.value = val == null ? '' : val
+      this.node.value = val == null ? '' : val
     }
 
     let fromEvent = (evt: Event) => {
-      let val = node.value
+      let val = this.node.value
       value_set_from_event = true
       obs.set(val)
       value_set_from_event = false
     }
 
-    let type = node.type.toLowerCase() || 'text'
+    let type = this.node.type.toLowerCase() || 'text'
 
     switch (type) {
       case 'color':
@@ -91,16 +91,16 @@ export class BindMixin extends Mixin {
       case 'radio':
         this.observe(obs, (val) => {
           // !!!? ??
-          node.checked = node.value === val
+          this.node.checked = this.node.value === val
         })
         this.listen('change', fromEvent)
         break
       case 'checkbox':
         // FIXME ugly hack because we specified string
         this.observe(obs, (val: any) => {
-          node.checked = !!val
+          this.node.checked = !!val
         })
-        this.listen('change', () => (obs as Observable<any>).set(node.checked))
+        this.listen('change', () => (obs as Observable<any>).set(this.node.checked))
         break
       // case 'number':
       // case 'text':
@@ -115,7 +115,7 @@ export class BindMixin extends Mixin {
 
   }
 
-  linkToHTML5Editable(element: HTMLElement) {
+  linkToHTML5Editable() {
     // FIXME
   }
 

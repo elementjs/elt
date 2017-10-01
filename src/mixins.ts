@@ -87,6 +87,7 @@ export function removeMixin(node: any, mixin: Mixin): void {
  */
 export class Mixin<N extends Node = Node> {
 
+  readonly node: N
   /** true when the associated Node is inside the DOM */
   readonly mounted: boolean = false
 
@@ -137,7 +138,7 @@ export class Mixin<N extends Node = Node> {
    * @param node The node that will receive this mixin.
    */
   addToNode(node: N) {
-    addMixin(node, this)
+    addMixin(node, this);
     this.init(node)
   }
 
@@ -149,6 +150,7 @@ export class Mixin<N extends Node = Node> {
   removeFromNode(node: N) {
     if (this.mounted) {
       for (var ob of this.observers) ob.stopObserving()
+      this.removeListeners(node)
     }
     removeMixin(node, this)
   }
@@ -182,14 +184,15 @@ export class Mixin<N extends Node = Node> {
    */
   mount(node: N, parent: Node) {
     // We cheat the readonly here.
-    (this.mounted as any) = true
+    (this.mounted as any) = true;
+    (this.node as any) = node;
 
     this.inserted(node, parent)
 
     for (var obs of this.observers) {
       obs.startObserving()
     }
-    this.addListeners(node)
+    this.addListeners()
   }
 
   /**
@@ -201,7 +204,8 @@ export class Mixin<N extends Node = Node> {
    * @param prev Its former prevSibling
    */
   unmount(node: N, parent: Node, next: Node | null, prev: Node | null) {
-    (this.mounted as any) = false
+    (this.mounted as any) = false;
+    (this.node as any) = null; // we force the node to null to help with garbage collection.
 
     this.removeListeners(node)
     for (var o of this.observers) {
@@ -215,6 +219,10 @@ export class Mixin<N extends Node = Node> {
    * Stub method. Overload it if you want to run code right after the creation of the
    * associated node by the d() function (or more generally whenever this mixin is added
    * to a node.)
+   *
+   * Note that it is discouraged to manipulate too much the node here, unless it is just
+   * to set some attribute value. Avoid especially creating closures with the node in it.
+   *
    * @param node The associated node.
    */
   init(node: N): void { }
@@ -373,14 +381,14 @@ export class Mixin<N extends Node = Node> {
 
   }
 
-  protected addListeners(node: Node) {
+  protected addListeners() {
     if (!this.listeners) return
 
     for (let l of this.listeners) {
-      l.live_listener = function (this: Node, ev: Event) {
-        return l.listener.call(this, ev, node)
+      l.live_listener = (ev: Event) => {
+        return l.listener.call(this, ev, this.node)
       }
-      node.addEventListener(l.event, l.live_listener, l.useCapture)
+      this.node.addEventListener(l.event, l.live_listener, l.useCapture)
     }
   }
 
