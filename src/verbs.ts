@@ -53,144 +53,56 @@ export class Verb extends Mixin<Comment> {
 }
 
 
-
 /**
- * Base Component for components not using DOM Elements.
- *
- * Rendered as a several Comment nodes, it keeps its children
- * between a starting and an ending Comment (called `begin` and
- * `end` internally) which are kept immediately *after* `this.node`
+ * Writer displays a node or a string next to itself.
  */
-export class VirtualHolder extends Verb {
+export class Writer extends Verb {
 
-  /**
-   * The Comment after which all children will be appended.
-   */
-  begin = document.createComment(` (( `)
-
-  /**
-   * The Comment before which all children will be inserted
-   */
-  end = document.createComment(` )) `)
-
-  /**
-   * An internal variable used to hold the next node that will be appended,
-   * as since we wait for an Animation Frame to execute, updateChildren
-   * can be thus called multiple times before actually adding anything into
-   * the DOM
-   */
-  // protected next_node: Node|null
-
-  /**
-   * A DocumentFragment in which manually removed children are stored
-   * for later remounting if needed.
-   */
-  protected saved_children: DocumentFragment|null = null
-
-  inserted(node: Node, parent: Node) {
-    // we force the type to Node as in theory when @onmount is called
-    // the parent is guaranteed to be defined
-    let next = node.nextSibling
-
-    if (this.saved_children) {
-      parent.insertBefore(this.saved_children, next)
-      this.saved_children = null
-    } else if (!this.begin.parentNode) {
-      parent.insertBefore(this.begin, next)
-      parent.insertBefore(this.end, next)
-    }
-
-  }
-
-  removed(node: Node) {
-    // If we have a parentNode in an unmount() method, it means
-    // that we were not unmounted directly.
-    // If there is no parentNode, `this.node` was specifically
-    // removed from the DOM and since we keep our children
-    // after `this.node`, we need to remove them as well.
-    let fragment = document.createDocumentFragment()
-
-    let iter: Node|null = this.begin
-    let next: Node|null = null
-
-    if (!iter.nextSibling) {
-      fragment.appendChild(this.begin)
-      fragment.appendChild(this.end)
-    } else {
-      while (iter) {
-        next = iter.nextSibling
-        fragment.appendChild(iter)
-        if (iter === this.end) break
-        iter = next
-      }
-    }
-
-    this.saved_children = fragment
-  }
-
-  updateChildren(node: Node|null) {
-    let iter = this.begin.nextSibling
-    let end = this.end
-    let next: Node|null = null
-
-    if (!iter || !iter.parentNode) return
-
-    const parent = iter.parentNode!
-
-    while (iter && iter !== end) {
-      next = iter.nextSibling
-      parent.removeChild(iter)
-      iter = next
-    }
-
-    if (node)
-      parent.insertBefore(node, end)
-  }
-
-}
-
-
-export class Writer extends VirtualHolder {
-
-  txt: Node | null
+  next_node: Node | null
   backup: WeakMap<DocumentFragment, Node[]> | null = null
 
   constructor(public _obs: Observable<null|undefined|string|number|Node>) {
     super()
   }
 
-  init(node: Node) {
+  init() {
     this.observe(this._obs, value => {
-      var txt = this.txt
 
       if (value instanceof Array) {
+        // This case should not happen, but oh well.
         value = getDocumentFragment(value)
       } else if (!(value instanceof Node)) {
         var val = value != null ? value.toString() : ''
-        if (txt) {
-          txt.nodeValue = val
+
+        var next = this.next_node
+        if (next && next instanceof Text) {
+          next.nodeValue = val
           return
         } else {
-          value = this.txt = document.createTextNode(val)
+          value = document.createTextNode(val)
         }
-      } else {
-        if (value instanceof DocumentFragment) {
-          if (this.backup === null)
-            this.backup = new WeakMap<DocumentFragment, Node[]>()
-
-          var previous = this.backup.get(value)
-          if (!previous) {
-            this.backup.set(value, getNodes(value))
-          } else {
-            value = getDocumentFragment(previous)
-          }
-        }
-
-        this.txt = null
       }
 
-      this.updateChildren(value as Node)
+      var parent = this.node.parentNode!
+      if (this.next_node) {
+        parent.removeChild(this.next_node)
+      }
+      this.next_node = value
+      parent.insertBefore(value, this.node)
     })
+  }
+
+  inserted(node: Comment, parent: Node) {
+    if (this.next_node) {
+      parent.insertBefore(this.next_node, this.node)
+    }
+  }
+
+  removed(node: Comment, parent: Node) {
+    if (this.next_node) {
+      // can this err ?
+      parent.removeChild(this.next_node)
+    }
   }
 
 }
@@ -205,74 +117,31 @@ export function Write(obs: Observable<null|undefined|string|number|Node>): Node 
 }
 
 
-/**
- * Get a node array from a given node. If it is a document fragment, get
- * all its children.
- *
- * @param node The source node
- */
-function getNodes(node: Node | null): Node[] {
-  if (node === null) return []
 
-  if (node instanceof DocumentFragment) {
-    var iter = node.firstChild
-    var result: Node[] = []
-    while (iter != null) {
-      result.push(iter)
-      iter = iter.nextSibling
-    }
-    return result
-  }
-
-  return [node]
-}
-
-
-export type DisplayCreator<T> = (a: Observable<T>) => (Node|null)
+export type DisplayCreator<T> = (a: Observable<T>) => Node
 export type Displayable<T> = Node | DisplayCreator<T>
 
-export class Displayer<T> extends VirtualHolder {
+export class Displayer<T> extends Writer {
 
-  rendered_display: Node[] | null = null
-  rendered_otherwise: Node[] | null = null
+  rendered_display: Node | undefined
+  rendered_otherwise: Node | undefined
 
   constructor(
     protected display: Displayable<T>,
     protected condition: MaybeObservable<T>,
     protected display_otherwise?: Displayable<T>
   ) {
-    super()
-  }
-
-  init() {
-    var o_cond = o(this.condition)
-
-    this.observe(o_cond, condition => {
-      if (!condition) {
-
-        if (this.display_otherwise) {
-          if (this.rendered_otherwise === null)
-            this.rendered_otherwise = getNodes(
-              typeof this.display_otherwise === 'function' ?
-                this.display_otherwise(o_cond) :
-                this.display_otherwise
-            )
-          this.updateChildren(getDocumentFragment(this.rendered_otherwise))
-        } else {
-          this.updateChildren(null)
-        }
-
+    super(o(condition).tf(cond => {
+      if (cond) {
+        if (!this.rendered_display)
+          this.rendered_display = typeof display === 'function' ? display(o(condition)) : display
+        return this.rendered_display
       } else {
-        if (this.rendered_display === null) {
-          this.rendered_display = getNodes(typeof this.display === 'function' ?
-            this.display(o_cond) : this.display
-          )
-        }
-
-        this.updateChildren(getDocumentFragment(this.rendered_display))
+        if (!this.rendered_otherwise)
+          this.rendered_otherwise = typeof display_otherwise === 'function' ? display_otherwise(o(condition)) : display_otherwise
+        return this.rendered_otherwise
       }
-
-    })
+    }))
   }
 
 }
@@ -291,14 +160,14 @@ export function DisplayIf<T>(
 }
 
 
-export type RenderFn<T> = (e: Observable<T>, oi: number) => Node | null
-export type RenderFnProxy<T> = (e: ObservableProxy<T>, oi: number) => Node | null
+export type RenderFn<T> = (e: Observable<T>, oi: number) => Node
+export type RenderFnProxy<T> = (e: ObservableProxy<T>, oi: number) => Node
 
 
 /**
  *
  */
-export class Repeater<T> extends VirtualHolder {
+export class Repeater<T> extends Verb {
 
   protected obs: Observable<T[]>
   protected positions: Node[] = []
@@ -331,28 +200,22 @@ export class Repeater<T> extends VirtualHolder {
   /**
    * Generate the next element to append to the list.
    */
-  next(): DocumentFragment | null {
+  next(): Node | null {
     if (this.next_index >= this.lst.length)
       return null
-
-    const comment = document.createComment('repeat-' + this.next_index)
-    this.positions.push(comment)
-
-    var fr = document.createDocumentFragment()
-    fr.appendChild(comment)
 
     var ob = this.obs.p(this.next_index)
     this.child_obs.push(ob)
 
     var res = this.renderfn(ob, this.next_index)
-    if (res) fr.appendChild(res)
+    this.positions.push(res)
 
     this.next_index++
-    return fr
+    return res
   }
 
   appendChildren(count: number) {
-    var next: DocumentFragment | null
+    var next: Node | null
     var parent = this.node.parentNode!
 
     var fr = document.createDocumentFragment()
@@ -363,7 +226,7 @@ export class Repeater<T> extends VirtualHolder {
       fr.appendChild(next)
     }
 
-    parent.insertBefore(fr, this.end)
+    parent.insertBefore(fr, this.node)
   }
 
   removeChildren(count: number) {
@@ -371,24 +234,33 @@ export class Repeater<T> extends VirtualHolder {
     this.next_index = this.next_index - count
 
     var parent = this.node.parentNode!
-    var end = this.end
-    var next: Node | null
-    var iter: Node|null = this.positions[this.next_index]
 
     var co = this.child_obs
+    var po = this.positions
     var l = co.length
-    for (var i = this.next_index; i < l; i++)
+
+    // Remove the excess nodes
+    for (var i = this.next_index; i < l; i++) {
+      // We preemptively stop the observers to avoid them triggering with
+      // the new values (which are often undefined), since anyway their corresponding
+      // nodes will be removed immediately.
       co[i].stopObservers()
+      parent.removeChild(po[i])
+    }
 
     this.child_obs = this.child_obs.slice(0, this.next_index)
     this.positions = this.positions.slice(0, this.next_index)
+  }
 
-    // From the position that we're going to remove to the end, remove
-    // all children.
-    while (iter && iter !== end) {
-      next = iter.nextSibling
-      parent.removeChild(iter)
-      iter = next
+  inserted(node: Comment, parent: Node) {
+    for (var n of this.positions) {
+      parent.insertBefore(n, node)
+    }
+  }
+
+  removed() {
+    for (var n of this.positions) {
+      if (n.parentNode) n.parentNode.removeChild(n)
     }
 
   }
@@ -429,7 +301,7 @@ export class ScrollRepeater<T> extends Repeater<T> {
     this.appendChildren(0)
   }
 
-  inserted(node: Comment) {
+  inserted() {
     super.inserted.apply(this, arguments)
 
     // Find parent with the overflow-y
@@ -519,7 +391,7 @@ export class FragmentHolder extends Verb {
     node.parentNode!.insertBefore(this.fragment, node.nextSibling)
   }
 
-  removed(node: Comment) {
+  removed() {
     for (var c of this.child_nodes) {
       this.fragment.appendChild(c)
     }
