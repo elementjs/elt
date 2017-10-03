@@ -94,7 +94,14 @@ export class AttrsMixin extends Mixin {
     } else {
       // c is a MaybeObservableObject
       for (let x in c) {
-        this.observe(c[x], applied => applied ? _apply_class(node, x) : _remove_class(node, x))
+        if (c[x] instanceof Observable) {
+          this.observe(c[x], applied => applied ? _apply_class(node, x) : _remove_class(node, x))
+        } else {
+          if (c[x]) 
+            _apply_class(node, x) 
+          else 
+            _remove_class(node, x)
+        }
       }
     }
 
