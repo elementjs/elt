@@ -35,6 +35,17 @@ function _remove_class(node: Element, c: string) {
 }
 
 
+function _set_attribute(node: Element, name: string, val: string|boolean|undefined) {
+  if (val === true)
+  node.setAttribute(name, '')
+  else if (val != null && val !== false)
+    node.setAttribute(name, val)
+  else
+    // We can remove safely even if it doesn't exist as it won't raise an exception
+    node.removeAttribute(name)
+
+}
+
 /**
  * Private mixin used by the d() function when binding on
  */
@@ -44,15 +55,13 @@ export class AttrsMixin extends Mixin {
    *
    */
   observeAttribute(node: Element, name: string, value: MaybeObservable<any>) {
-    this.observe(value, val => {
-      if (val === true)
-        node.setAttribute(name, '')
-      else if (val != null && val !== false)
-        node.setAttribute(name, val)
-      else
-        // We can remove safely even if it doesn't exist as it won't raise an exception
-        node.removeAttribute(name)
-    })
+    if (value instanceof Observable) {
+      this.observe(value, val => {
+        _set_attribute(node, name, val)
+      })
+    } else {
+      _set_attribute(node, name, value)
+    }
   }
 
   observeStyle(node: HTMLElement, style: StyleDefinition) {

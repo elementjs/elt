@@ -139,6 +139,7 @@ export class Mixin<N extends Node = Node> {
    */
   addToNode(node: N) {
     addMixin(node, this);
+    (this.node as any) = node;
     this.init(node)
   }
 
