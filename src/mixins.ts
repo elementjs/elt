@@ -159,15 +159,31 @@ export class Mixin<N extends Node = Node> {
   /**
    * Observe an observable whenever it is mounted. Stop observing when
    * unmounted. Reobserve when mounted again.
+   * 
+   * If the MaybeObservable is not an observable and immediate is set to true, no
+   * observer is created and the callback is called immediately. observe()
+   * returns null in that case.
    *
+   * @param a the value to observe
    * @param cbk The observer instance or the function called when observing
-   * @param options options for the observer creation
+   * @param immediate Pass true if you do not want the observer to wait to be mounted
+   *   before being called.
    * @returns The Observer instance
    */
-  observe<T, U = void>(a: MaybeObservable<T>, cbk: Observer<T, U> | ObserverFunction<T, U>): Observer<T, U> {
+  observe<T, U = void>(a: MaybeObservable<T>, cbk: Observer<T, U> | ObserverFunction<T, U>): Observer<T, U>
+  observe<T, U = void>(a: MaybeObservable<T>, cbk: Observer<T, U> | ObserverFunction<T, U>, immediate: true): Observer<T, U> | null
+  observe<T, U = void>(a: MaybeObservable<T>, cbk: Observer<T, U> | ObserverFunction<T, U>, immediate = false): Observer<T, U> | null {
+    if (immediate && !(a instanceof Observable)) {
+      typeof cbk === 'function' ? cbk(a, undefined) : cbk.call(a)
+      return null
+    }
     const ob = a instanceof Observable ? a : o(a)
     const observer = typeof cbk === 'function' ?  ob.createObserver(cbk) : cbk
     this.observers.push(observer)
+
+    if (immediate) {
+      observer.call(o.get(ob))
+    }
 
     if (this.mounted) {
       observer.startObserving()
