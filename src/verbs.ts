@@ -9,10 +9,6 @@ import {
 } from 'domic-observable'
 
 import {
-  getDocumentFragment
-} from './domic'
-
-import {
   Mixin,
 } from './mixins'
 
