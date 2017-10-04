@@ -35,17 +35,6 @@ function _remove_class(node: Element, c: string) {
 }
 
 
-function _set_attribute(node: Element, name: string, val: string|boolean|undefined) {
-  if (val === true)
-  node.setAttribute(name, '')
-  else if (val != null && val !== false)
-    node.setAttribute(name, val)
-  else
-    // We can remove safely even if it doesn't exist as it won't raise an exception
-    node.removeAttribute(name)
-
-}
-
 /**
  * Private mixin used by the d() function when binding on
  */
@@ -55,13 +44,15 @@ export class AttrsMixin extends Mixin {
    *
    */
   observeAttribute(node: Element, name: string, value: MaybeObservable<any>) {
-    if (value instanceof Observable) {
-      this.observe(value, val => {
-        _set_attribute(node, name, val)
-      })
-    } else {
-      _set_attribute(node, name, value)
-    }
+    this.observe(value, val => {
+      if (val === true)
+      node.setAttribute(name, '')
+      else if (val != null && val !== false)
+        node.setAttribute(name, val)
+      else
+        // We can remove safely even if it doesn't exist as it won't raise an exception
+        node.removeAttribute(name)    
+    }, true)
   }
 
   observeStyle(node: HTMLElement, style: StyleDefinition) {
@@ -70,41 +61,31 @@ export class AttrsMixin extends Mixin {
         for (var x in st) {
           (node.style as any)[x] = (st as any)[x]
         }
-      })
+      }, true)
     } else {
       // c is a MaybeObservableObject
       var st = style as any
       for (let x in st) {
         this.observe(st[x], value => {
           (node.style as any)[x] = value
-        })
+        }, true)
       }
     }
   }
 
   observeClass(node: Element, c: ClassDefinition) {
-    if (typeof c === 'string') {
-      _apply_class(node, c)
-    } else if (c instanceof Observable) {
+    if (c instanceof Observable || typeof c === 'string') {
       // c is an Observable<string>
       this.observe(c, (str, old_class) => {
         if (old_class) _remove_class(node, old_class)
         _apply_class(node, str)
-      })
+      }, true)
     } else {
       // c is a MaybeObservableObject
       for (let x in c) {
-        if (c[x] instanceof Observable) {
-          this.observe(c[x], applied => applied ? _apply_class(node, x) : _remove_class(node, x))
-        } else {
-          if (c[x]) 
-            _apply_class(node, x) 
-          else 
-            _remove_class(node, x)
-        }
+        this.observe(c[x], applied => applied ? _apply_class(node, x) : _remove_class(node, x), true)
       }
     }
-
   }
 
 }
