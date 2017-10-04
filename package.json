@@ -7,7 +7,7 @@
   "main": "./lib/elt.js",
   "typings": "./lib/elt.d.ts",
   "scripts": {
-    "build:dts": "dts-bundle --name element --main build/index.d.ts --out ../lib/elt.d.ts && sed -i 's/^global/declare global/' ./lib/elt.d.ts",
+    "build:dts": "dts-bundle --name elt --main build/index.d.ts --out ../lib/elt.d.ts && sed -i 's/^global/declare global/' ./lib/elt.d.ts",
     "build:js": "tsc && webpack",
     "build": "npm run build:js && npm run build:dts",
     "prepublish": "npm run build",
