@@ -56,7 +56,7 @@ export class Verb extends Mixin<Comment> {
 /**
  * Writer displays a node or a string next to itself.
  */
-export class Writer extends Verb {
+export class Displayer extends Verb {
 
   next_node: Node | null
   backup: WeakMap<DocumentFragment, Node[]> | null = null
@@ -112,8 +112,8 @@ export class Writer extends Verb {
  * Write and update the string value of an observable value into
  * a Text node.
  */
-export function Write(obs: Observable<null|undefined|string|number|Node>): Node {
-  return Writer.create(obs)
+export function Display(obs: Observable<null|undefined|string|number|Node>): Node {
+  return Displayer.create(obs)
 }
 
 
@@ -121,7 +121,7 @@ export function Write(obs: Observable<null|undefined|string|number|Node>): Node 
 export type DisplayCreator<T> = (a: Observable<T>) => Node
 export type Displayable<T> = Node | DisplayCreator<T>
 
-export class Displayer<T> extends Writer {
+export class ConditionalDisplayer<T> extends Displayer {
 
   rendered_display: Node | undefined
   rendered_otherwise: Node | undefined
@@ -156,7 +156,7 @@ export function DisplayIf<T>(
   display: Displayable<T>,
   display_otherwise?: Displayable<T>
 ): Node {
-  return Displayer.create(display, condition as MaybeObservable<T>, display_otherwise)
+  return ConditionalDisplayer.create(display, condition as MaybeObservable<T>, display_otherwise)
 }
 
 
