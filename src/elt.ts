@@ -1,14 +1,11 @@
 
 import {
-  MaybeObservable,
   Observable
 } from 'elt-observable'
 
 import {
   Attrs,
   Insertable,
-  ClassDefinition,
-  StyleDefinition,
   ComponentFn,
   ComponentInstanciator
 } from './types'
@@ -22,73 +19,11 @@ import {
 } from './verbs'
 
 
-function _apply_class(node: Element, c: string) {
-  if (!c) return
-  for (var _ of c.split(/\s+/g))
-    node.classList.add(_)
-}
-
-function _remove_class(node: Element, c: string) {
-  if (!c) return
-  for (var _ of c.split(/\s+/g))
-    node.classList.remove(_)
-}
-
 
 /**
  * Private mixin used by the d() function when binding on
  */
-export class AttrsMixin extends Mixin {
-
-  /**
-   *
-   */
-  observeAttribute(node: Element, name: string, value: MaybeObservable<any>) {
-    this.observe(value, val => {
-      if (val === true)
-      node.setAttribute(name, '')
-      else if (val != null && val !== false)
-        node.setAttribute(name, val)
-      else
-        // We can remove safely even if it doesn't exist as it won't raise an exception
-        node.removeAttribute(name)    
-    }, true)
-  }
-
-  observeStyle(node: HTMLElement, style: StyleDefinition) {
-    if (style instanceof Observable) {
-      this.observe(style, st => {
-        for (var x in st) {
-          (node.style as any)[x] = (st as any)[x]
-        }
-      }, true)
-    } else {
-      // c is a MaybeObservableObject
-      var st = style as any
-      for (let x in st) {
-        this.observe(st[x], value => {
-          (node.style as any)[x] = value
-        }, true)
-      }
-    }
-  }
-
-  observeClass(node: Element, c: ClassDefinition) {
-    if (c instanceof Observable || typeof c === 'string') {
-      // c is an Observable<string>
-      this.observe(c, (str, old_class) => {
-        if (old_class) _remove_class(node, old_class)
-        _apply_class(node, str)
-      }, true)
-    } else {
-      // c is a MaybeObservableObject
-      for (let x in c) {
-        this.observe(c[x], applied => applied ? _apply_class(node, x) : _remove_class(node, x), true)
-      }
-    }
-  }
-
-}
+export class AttrsMixin extends Mixin<HTMLElement> { }
 
 
 ////////////////////////////////////////////////////////
@@ -241,27 +176,27 @@ export function e(elt: any, _attrs: Attrs | null, ...children: Insertable[]): El
   // never passed to other node definitions.
   if (_attrs || cls || style || id) {
     var mx = new AttrsMixin()
-    mx.addToNode(node)
+    mx.addToNode(node as HTMLElement) // we're cheating on the type.
 
     if (typeof elt === 'string') {
       // when building a simple DOM node, then all the attributes
       // are meant to be applied.
       for (var x in rest) {
-        mx.observeAttribute(node, x, (rest as any)[x])
+        mx.observeAttribute(x, (rest as any)[x])
       }
     }
 
-    if (id) mx.observeAttribute(node, 'id', id)
+    if (id) mx.observeAttribute('id', id)
 
     if (cls) {
       var classes = Array.isArray(cls) ? cls : [cls]
       for (var c of classes) {
-        mx.observeClass(node, c)
+        mx.observeClass(c)
       }
     }
 
     if (style) {
-      mx.observeStyle(node as HTMLElement, style)
+      mx.observeStyle(style)
     }
   }
 
