@@ -6,7 +6,7 @@ import {
   MaybeObservable,
   Observable,
   ObservableProxy
-} from 'domic-observable'
+} from 'elt-observable'
 
 import {
   Mixin,
