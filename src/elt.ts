@@ -200,10 +200,10 @@ const NS = {
  * Controllers, decorators, classes and style.
  */
 
-export function d(elt: ComponentFn, attrs: Attrs | null, ...children: Insertable[]): Element
-export function d(elt: string, attrs: Attrs | null, ...children: Insertable[]): HTMLElement
-export function d<A>(elt: ComponentInstanciator<A>, attrs: A | null, ...children: Insertable[]): Element
-export function d(elt: any, _attrs: Attrs | null, ...children: Insertable[]): Element {
+export function e(elt: ComponentFn, attrs: Attrs | null, ...children: Insertable[]): Element
+export function e(elt: string, attrs: Attrs | null, ...children: Insertable[]): HTMLElement
+export function e<A>(elt: ComponentInstanciator<A>, attrs: A | null, ...children: Insertable[]): Element
+export function e(elt: any, _attrs: Attrs | null, ...children: Insertable[]): Element {
 
   if (!elt) throw new Error(`d() needs at least a string, a function or a Component`)
 
@@ -279,12 +279,12 @@ export function d(elt: any, _attrs: Attrs | null, ...children: Insertable[]): El
 
 
 declare global {
-  function D(elt: ComponentFn, attrs: Attrs, ...children: Insertable[]): Node
-  function D(elt: string, attrs: Attrs, ...children: Insertable[]): HTMLElement
-  function D<A>(elt: ComponentInstanciator<A>, attrs: A, ...children: Insertable[]): Node
+  function E(elt: ComponentFn, attrs: Attrs, ...children: Insertable[]): Node
+  function E(elt: string, attrs: Attrs, ...children: Insertable[]): HTMLElement
+  function E<A>(elt: ComponentInstanciator<A>, attrs: A, ...children: Insertable[]): Node
 }
 
 
 if (typeof window !== 'undefined' && typeof (window as any).D === 'undefined') {
-  (window as any).D = d
+  (window as any).E = e
 }
