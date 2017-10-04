@@ -16,9 +16,9 @@ module.exports = {
   output: {
     path: "./lib",
     publicPath: "/",
-    filename: "domic.js",
+    filename: "elt.js",
     sourceMapFilename: "[file].map",
-    library: 'domic',
+    library: 'elt',
     libraryTarget: 'umd',
     umdNamedDefine: true
   },

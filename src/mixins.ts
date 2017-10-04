@@ -5,7 +5,7 @@ import {
   MaybeObservable,
   Observer,
   ObserverFunction
-} from 'domic-observable'
+} from 'elt-observable'
 
 import {
   Attrs, Listener
