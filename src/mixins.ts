@@ -8,7 +8,7 @@ import {
 } from 'elt-observable'
 
 import {
-  Attrs, Listener
+  Attrs, Listener, StyleDefinition, ClassDefinition
 } from './types'
 
 
@@ -416,6 +416,55 @@ export class Mixin<N extends Node = Node> {
       l.live_listener = null
     }
   }
+
+  /**
+   *
+   */
+  observeAttribute<N extends Element>(this: Mixin<N>, name: string, value: MaybeObservable<any>) {
+    this.observe(value, val => {
+      if (val === true)
+      this.node.setAttribute(name, '')
+      else if (val != null && val !== false)
+        this.node.setAttribute(name, val)
+      else
+        // We can remove safely even if it doesn't exist as it won't raise an exception
+        this.node.removeAttribute(name)    
+    }, true)
+  }
+
+  observeStyle<N extends HTMLElement|SVGElement>(this: Mixin<N>, style: StyleDefinition) {
+    if (style instanceof Observable) {
+      this.observe(style, st => {
+        for (var x in st) {
+          (this.node.style as any)[x] = (st as any)[x]
+        }
+      }, true)
+    } else {
+      // c is a MaybeObservableObject
+      var st = style as any
+      for (let x in st) {
+        this.observe(st[x], value => {
+          (this.node.style as any)[x] = value
+        }, true)
+      }
+    }
+  }
+
+  observeClass<N extends Element>(this: Mixin<N>, c: ClassDefinition) {
+    if (c instanceof Observable || typeof c === 'string') {
+      // c is an Observable<string>
+      this.observe(c, (str, old_class) => {
+        if (old_class) _remove_class(this.node, old_class)
+        _apply_class(this.node, str)
+      }, true)
+    } else {
+      // c is a MaybeObservableObject
+      for (let x in c) {
+        this.observe(c[x], applied => applied ? _apply_class(this.node, x) : _remove_class(this.node, x), true)
+      }
+    }
+  }
+
 }
 
 
@@ -429,4 +478,17 @@ export class Mixin<N extends Node = Node> {
 export abstract class Component<N extends Element = Element> extends Mixin<N> {
   attrs: Attrs
   abstract render(children: DocumentFragment): N
+}
+
+
+function _apply_class(node: Element, c: string) {
+  if (!c) return
+  for (var _ of c.split(/\s+/g))
+    node.classList.add(_)
+}
+
+function _remove_class(node: Element, c: string) {
+  if (!c) return
+  for (var _ of c.split(/\s+/g))
+    node.classList.remove(_)
 }
