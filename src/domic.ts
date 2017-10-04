@@ -18,7 +18,7 @@ import {
 } from './mixins'
 
 import {
-  Write
+  Display
 } from './verbs'
 
 
@@ -128,7 +128,7 @@ export function getDocumentFragment(ch: Insertable|Insertable[]) {
     if (Array.isArray(c)) {
       result.appendChild(getDocumentFragment(c))
     } else if (c instanceof Observable) {
-      result.appendChild(Write(c))
+      result.appendChild(Display(c))
     } else if (!(c instanceof Node)) {
       result.appendChild(document.createTextNode(c.toString()))
     } else {
