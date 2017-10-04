@@ -67,11 +67,7 @@ export class Displayer extends Verb {
 
   init() {
     this.observe(this._obs, value => {
-
-      if (value instanceof Array) {
-        // This case should not happen, but oh well.
-        value = getDocumentFragment(value)
-      } else if (!(value instanceof Node)) {
+      if (!(value instanceof Node)) {
         var val = value != null ? value.toString() : ''
 
         var next = this.next_node
