@@ -37,9 +37,8 @@ export function _mount(node: Node, target?: Node) {
       _apply_mount(iter)
     }
 
-    while (!iter.nextSibling) {
+    while (iter && !iter.nextSibling) {
       iter = node_stack.pop()
-      if (!iter) break
     }
 
     // So now we're going to traverse the next node.
@@ -93,14 +92,14 @@ export function _unmount(node: Node, target: Node, prev: MaybeNode, next: MaybeN
     // When we're here, we're on a terminal node, so
     // we're going to have to process it.
 
-    while (!iter.nextSibling) {
+    while (iter && !iter.nextSibling) {
       iter = node_stack.pop()!
-      if (!iter) break
-      unmount.push([iter, iter.parentNode || target, iter.previousSibling, iter.nextSibling])
+      if (iter)
+        unmount.push([iter, iter.parentNode || target, iter.previousSibling, iter.nextSibling])
     }
 
     // So now we're going to traverse the next node.
-    if (iter) iter = iter.nextSibling
+    iter = iter && iter.nextSibling
   }
 
   unmount.push([node, node.parentNode || target, prev, next])
