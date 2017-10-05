@@ -20,7 +20,7 @@ import {
  * a WeakSet, but since the performance is not terrific (especially
  * when the number of elements gets high), the symbol solution was retained.
  */
-const mxsym = Symbol('domic-mixins')
+const mxsym = Symbol('element-mixins')
 
 
 /**
@@ -28,7 +28,7 @@ const mxsym = Symbol('domic-mixins')
  * @param node The node that holds the mixins
  */
 export function getMixins(node: Node): Mixin[] | undefined
-export function getMixins(node: any, no_create?: boolean): Mixin[] | undefined {
+export function getMixins(node: any): Mixin[] | undefined {
   return node[mxsym]
 }
 
@@ -42,7 +42,8 @@ export function addMixin(node: Node, mixin: Mixin): void
 export function addMixin(node: any, mixin: Mixin) {
   var mx: Mixin[] = node[mxsym]
   if (!mx) {
-    mx = node[mxsym] = []
+    node[mxsym] = []
+    mx = node[mxsym]
   }
   mx.push(mixin)
 }
@@ -159,7 +160,7 @@ export class Mixin<N extends Node = Node> {
   /**
    * Observe an observable whenever it is mounted. Stop observing when
    * unmounted. Reobserve when mounted again.
-   * 
+   *
    * If the MaybeObservable is not an observable and immediate is set to true, no
    * observer is created and the callback is called immediately. observe()
    * returns null in that case.
@@ -172,11 +173,12 @@ export class Mixin<N extends Node = Node> {
    */
   observe<T, U = void>(a: MaybeObservable<T>, cbk: Observer<T, U> | ObserverFunction<T, U>): Observer<T, U>
   observe<T, U = void>(a: MaybeObservable<T>, cbk: Observer<T, U> | ObserverFunction<T, U>, immediate: true): Observer<T, U> | null
-  observe<T, U = void>(a: MaybeObservable<T>, cbk: Observer<T, U> | ObserverFunction<T, U>, immediate = false): Observer<T, U> | null {
+  observe<T, U = void>(a: MaybeObservable<T>, cbk: Observer<T, U> | ObserverFunction<T, U>, immediate?: boolean): Observer<T, U> | null {
     if (immediate && !(a instanceof Observable)) {
       typeof cbk === 'function' ? cbk(a, undefined) : cbk.call(a)
       return null
     }
+
     const ob = a instanceof Observable ? a : o(a)
     const observer = typeof cbk === 'function' ?  ob.createObserver(cbk) : cbk
     this.observers.push(observer)
@@ -428,7 +430,7 @@ export class Mixin<N extends Node = Node> {
         this.node.setAttribute(name, val)
       else
         // We can remove safely even if it doesn't exist as it won't raise an exception
-        this.node.removeAttribute(name)    
+        this.node.removeAttribute(name)
     }, true)
   }
 
