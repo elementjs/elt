@@ -3,7 +3,7 @@ import {getMixins} from './mixins'
 
 export type MaybeNode = Node | null
 
-const mnsym = Symbol('domic-mounted')
+const mnsym = Symbol('element-mounted')
 
 export function _apply_mount(node: Node): void
 export function _apply_mount(node: any) {
@@ -11,7 +11,7 @@ export function _apply_mount(node: any) {
   var mx = getMixins(node)
   if (!mx) return
   for (var m of mx)
-    m.mount(node, node.parentNode)
+    if (!m.mounted) m.mount(node, node.parentNode)
 }
 
 /**
@@ -62,7 +62,7 @@ export function _apply_unmount(tuple: MountTuple) {
   var mx = getMixins(node)
 
   if (!mx) return
-  for (var m of mx) m.unmount(tuple[0] as Element, tuple[1]!, tuple[2], tuple[3])
+  for (var m of mx) if (m.mounted) m.unmount(tuple[0] as Element, tuple[1]!, tuple[2], tuple[3])
 }
 
 /**
