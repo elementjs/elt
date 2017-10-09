@@ -163,3 +163,22 @@ export function setupMounting(node: Node): void {
   })
 
 }
+
+
+/**
+ * A node.remove() alternative that synchronously calls _unmount
+ * on it, to avoid situations where some observables that would trigger
+ * a removal also trigger an error (like on .p() on a now inexistant property).
+ *
+ * It is advised though not mandatory to use this function instead of using
+ * parent.removeChild() when possible.
+ *
+ * @param node The node to remove from the DOM
+ */
+export function removeNode(node: Node): void {
+  const parent = node.parentNode!
+  const prev = node.previousSibling
+  const next = node.nextSibling
+  if (parent) parent.removeChild(node)
+  _unmount(node, parent, prev, next)
+}

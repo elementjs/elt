@@ -20,6 +20,10 @@ import {
   bound
 } from './decorators'
 
+import {
+  removeNode
+} from './mounting'
+
 
 /**
  * Extend this class when writing a verb.
@@ -76,8 +80,9 @@ export class Displayer extends Verb {
       }
 
       var parent = this.node.parentNode!
-      if (this.next_node) {
-        parent.removeChild(this.next_node)
+      var next = this.next_node
+      if (next) {
+        removeNode(next)
       }
       this.next_node = value
       parent.insertBefore(value, this.node)
@@ -93,7 +98,7 @@ export class Displayer extends Verb {
   removed(node: Comment, parent: Node) {
     if (this.next_node) {
       // can this err ?
-      parent.removeChild(this.next_node)
+      removeNode(this.next_node)
     }
   }
 
@@ -225,19 +230,14 @@ export class Repeater<T> extends Verb {
     // Détruire jusqu'à la position concernée...
     this.next_index = this.next_index - count
 
-    var parent = this.node.parentNode!
-
     var co = this.child_obs
     var po = this.positions
     var l = co.length
 
     // Remove the excess nodes
     for (var i = this.next_index; i < l; i++) {
-      // We preemptively stop the observers to avoid them triggering with
-      // the new values (which are often undefined), since anyway their corresponding
-      // nodes will be removed immediately.
       co[i].stopObservers()
-      parent.removeChild(po[i])
+      removeNode(po[i])
     }
 
     this.child_obs = this.child_obs.slice(0, this.next_index)
@@ -252,7 +252,7 @@ export class Repeater<T> extends Verb {
 
   removed() {
     for (var n of this.positions) {
-      if (n.parentNode) n.parentNode.removeChild(n)
+      removeNode(n)
     }
 
   }
@@ -383,8 +383,9 @@ export class FragmentHolder extends Verb {
     node.parentNode!.insertBefore(this.fragment, node.nextSibling)
   }
 
-  removed() {
+  removed(n: Node, p: Node, pre: Node, next: Node) {
     for (var c of this.child_nodes) {
+      removeNode(c)
       this.fragment.appendChild(c)
     }
   }
