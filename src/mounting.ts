@@ -131,7 +131,7 @@ export function applyMutations(records: MutationRecord[]) {
 
     var removed = record.removedNodes
     for (i = 0; i < removed.length; i++) {
-      if (!(removed[i] as any)[mnsym]) continue
+      if ((removed[i] as any)[mnsym] === false) continue
       _unmount(removed[i], target, record.previousSibling, record.nextSibling)
     }
   }
