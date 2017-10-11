@@ -283,7 +283,7 @@ export class ScrollRepeater<T> extends Repeater<T> {
     const p = this.parent
 
     const append = () => {
-      if (this.next_index < this.lst.length - 1 && p.scrollHeight - (p.clientHeight + p.scrollTop) < this.threshold_height) {
+      if (this.next_index < this.lst.length && p.scrollHeight - (p.clientHeight + p.scrollTop) < this.threshold_height) {
         super.appendChildren(bufsize)
         requestAnimationFrame(append)
       }
