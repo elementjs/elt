@@ -1,7 +1,7 @@
 
 import {
   Observable, MaybeObservable, Observer, ObserverFunction
-} from 'elt-observable'
+} from './observable'
 
 import {
   Listener

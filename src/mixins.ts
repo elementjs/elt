@@ -5,7 +5,7 @@ import {
   MaybeObservable,
   Observer,
   ObserverFunction
-} from 'elt-observable'
+} from './observable'
 
 import {
   Attrs, Listener, StyleDefinition, ClassDefinition
