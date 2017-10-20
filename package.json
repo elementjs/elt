@@ -4,21 +4,19 @@
   "repository": "https://github.com/elementjs/elt",
   "description": "",
   "license": "MIT",
-  "main": "./lib/elt.js",
-  "typings": "./lib/elt.d.ts",
+  "main": "./dist/elt.js",
+  "typings": "./dist/elt.d.ts",
   "scripts": {
-    "build:dts": "dts-bundle --name elt --main build/index.d.ts --out ../lib/elt.d.ts && sed -i 's/^global/declare global/' ./lib/elt.d.ts",
-    "build:js": "tsc && webpack",
+    "build:dts": "dts-bundle --name elt --main module/index.d.ts --out ../dist/elt.d.ts && sed -i 's/^global/declare global/' ./lib/elt.d.ts",
+    "build:js": "tsc && rollup -c",
     "build": "npm run build:js && npm run build:dts",
     "prepublish": "npm run build",
-    "watch": "parallel -u ::: 'ls build/*.d.ts | entr -d npm run build:dts' 'tscc -w' 'webpack -w'"
-  },
-  "dependencies": {
-    "tslib": "*"
+    "watch": "parallel -u ::: 'ls module/*.d.ts | entr -d npm run build:dts' 'tscc -w' 'rollup -c -w'"
   },
   "devDependencies": {
     "dts-bundle": "^0.7.3",
-    "source-map-loader": "^0.1.5",
-    "webpack": "^1.13.2"
+    "rollup-plugin-node-resolve": "^3.0.0",
+    "rollup-plugin-sourcemaps": "^0.4.2",
+    "tslib": "^1.8.0"
   }
 }

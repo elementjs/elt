@@ -1,4 +1,4 @@
 src/*.d.ts
 node_modules
-build
+module
 lib
