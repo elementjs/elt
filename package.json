@@ -8,7 +8,7 @@
   "typings": "./dist/elt.d.ts",
   "scripts": {
     "build:dts": "dts-bundle --name elt --main module/index.d.ts --out ../dist/elt.d.ts && sed -i 's/^global/declare global/' ./lib/elt.d.ts",
-    "build:js": "tsc && rollup -c",
+    "build:js": "tsc ; rollup -c",
     "build": "npm run build:js && npm run build:dts",
     "prepublish": "npm run build",
     "watch": "parallel -u ::: 'ls module/*.d.ts | entr -d npm run build:dts' 'tscc -w' 'rollup -c -w'"
