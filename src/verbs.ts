@@ -6,7 +6,7 @@ import {
   MaybeObservable,
   Observable,
   ObservableProxy
-} from 'elt-observable'
+} from './observable'
 
 import {
   Mixin,

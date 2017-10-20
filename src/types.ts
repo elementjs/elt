@@ -1,5 +1,5 @@
 
-import {MaybeObservable, MaybeObservableObject} from 'elt-observable'
+import {MaybeObservable, MaybeObservableObject} from './observable'
 import {Mixin} from './mixins'
 
 export type ArrayOrSingle<T> = T[] | T

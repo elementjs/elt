@@ -1,7 +1,7 @@
 
 import {
   Observable
-} from 'elt-observable'
+} from './observable'
 
 import {
   Attrs,

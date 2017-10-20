@@ -2,7 +2,7 @@
 // Export everything.
 // domic-observable is re-rexported to avoid having to import from
 // different modules.
-export * from 'elt-observable'
+export * from './observable'
 export * from './types'
 export * from './decorators'
 export * from './mixins'
