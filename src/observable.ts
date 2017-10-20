@@ -963,7 +963,7 @@ export namespace o {
       self = this
       _args = args
       if (!timer) {
-        timer = setTimeout(function () {
+        timer = window.setTimeout(function () {
           if (!lead) {
             prev_res = fn.apply(self, _args)
             last_call = Date.now().valueOf()
