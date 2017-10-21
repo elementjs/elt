@@ -1,4 +1,5 @@
 src/*.d.ts
+dist
 node_modules
 module
 lib
