@@ -143,11 +143,11 @@ export function applyMutations(records: MutationRecord[]) {
  * will have their mixins called accordingly whenever they get added to or removed
  * from the DOM.
  *
- * This is generally the first domic function you should call, before adding any
+ * This is generally the first element function you should call, before adding any
  * node created by `d()` to the DOM.
  *
  * Behind the scenes, it uses the DOM MutationObserver to accomplish its magic, so
- * the browser will need to implement it for domic to work (as of typing this in september
+ * the browser will need to implement it for element to work (as of typing this in september
  * 2017, they almost all do, at least all the current big browsers)
  *
  * @param node: the root node from which we will listen to the document

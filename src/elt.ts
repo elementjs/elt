@@ -131,7 +131,7 @@ const NS = {
 /**
  * Create Nodes with a twist.
  *
- * This function is the base of domic ; it creates Nodes and glues together
+ * This function is the base of element ; it creates Nodes and glues together
  * Controllers, decorators, classes and style.
  */
 
