@@ -1,6 +1,6 @@
 
 // Export everything.
-// domic-observable is re-rexported to avoid having to import from
+// element-observable is re-rexported to avoid having to import from
 // different modules.
 export * from './observable'
 export * from './types'
