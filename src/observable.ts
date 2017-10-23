@@ -417,10 +417,10 @@ export class Observable<T> {
    * @param props An array with property names of the original object
    * @returns
    */
-  partial<K extends keyof T, R = {[P in K]: T[K]}>(...props: K[]): Observable<R> {
-    var previous: R
+  partial<K extends keyof T>(...props: K[]): Observable<Pick<T, K>> {
+    var previous: any
     return this.tf((obj, prev) => {
-      var res = {} as R
+      var res = {} as any
       var unchanged = true
       for (var p of props) {
         (res as any)[p] = obj[p]
