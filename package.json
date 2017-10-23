@@ -5,8 +5,8 @@
   "description": "",
   "license": "MIT",
   "browser": "./dist/elt.js",
-  "main": "./module/elt.js",
-  "jsnext:main": "./module/elt.js",
+  "main": "./dist/index.js",
+  "jsnext:main": "./module/index.js",
   "typings": "./dist/elt.d.ts",
   "scripts": {
     "build:dts": "dts-bundle --name elt --main module/index.d.ts --out ../dist/elt.d.ts && sed -i 's/^global/declare global/' ./module/elt.d.ts",
