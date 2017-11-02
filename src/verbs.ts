@@ -4,8 +4,7 @@
 import {
   o,
   MaybeObservable,
-  Observable,
-  ObservableProxy
+  Observable
 } from './observable'
 
 import {
@@ -158,7 +157,6 @@ export function DisplayIf<T>(
 
 
 export type RenderFn<T> = (e: Observable<T>, oi: number) => Node
-export type RenderFnProxy<T> = (e: ObservableProxy<T>, oi: number) => Node
 
 
 /**
@@ -344,7 +342,6 @@ export class ScrollRepeater<T> extends Repeater<T> {
  *  on it.
  */
 export function Repeat<T>(ob: T[], render: RenderFn<T>): Node;
-export function Repeat<T>(ob: ObservableProxy<T[]>, render: RenderFnProxy<T>): Node
 export function Repeat<T>(ob: Observable<T[]>, render: RenderFn<T>): Node
 export function Repeat<T>(
   ob: MaybeObservable<T[]>,
@@ -355,7 +352,6 @@ export function Repeat<T>(
 
 
 export function RepeatScroll<T>(ob: T[], render: RenderFn<T>, scroll_buffer_size?: number): Node;
-export function RepeatScroll<T>(ob: ObservableProxy<T[]>, render: RenderFnProxy<T>, scroll_buffer_size?: number): Node;
 export function RepeatScroll<T>(ob: Observable<T[]>, render: RenderFn<T>, scroll_buffer_size?: number): Node;
 export function RepeatScroll<T>(
   ob: MaybeObservable<T[]>,
