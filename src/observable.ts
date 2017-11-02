@@ -9,8 +9,6 @@ export type RecursivePartial<T> = {
   [P in keyof T]?: RecursivePartial<T[P]>;
 };
 
-export type ObservableProxy<T> = Observable<T> & {[P in keyof T]: ObservableProxy<T[P]>}
-
 
 export class Observer<A, B = void> {
 
@@ -117,9 +115,9 @@ export class Observable<T> {
     this.notify()
   }
 
-  assign<T>(this: Observable<T[]>, partial: {[index: number]: RecursivePartial<T>}): void
+  assign<U>(this: Observable<U[]>, partial: {[index: number]: RecursivePartial<U>}): void
   assign(partial: RecursivePartial<T>): void
-  assign(partial: RecursivePartial<T>): void {
+  assign(partial: any): void {
     this.set(o.assign(this.get(), partial))
   }
 
@@ -363,7 +361,7 @@ export class Observable<T> {
    * @tag transform-readonly
    */
   and(value: MaybeObservable<any>): VirtualObservable<boolean> {
-    return o.merge({lhs: this, rhs: value}).tf(({lhs, rhs}) => lhs && rhs)
+    return o.merge({lhs: this, rhs: value}).tf(({lhs, rhs}) => lhs && !!rhs)
   }
 
   /**
@@ -553,23 +551,6 @@ export class Observable<T> {
   mod(this: Observable<number>, m: number) {
     this.set(this.get() % m)
     return this
-  }
-
-  /**
-   * Return a proxy instance that allows using this observable
-   * (almost) like if it were the original object.
-   */
-  proxy(): ObservableProxy<T> {
-    return new Proxy(this, {
-      get(target: any, name) {
-        if (typeof target[name] === 'function')
-          return function () {
-            var res = target[name].apply(target, arguments)
-            return res instanceof Observable ? res.proxy() : res
-          }
-        return target[name] || target.p(name).proxy()
-      }
-    }) as any
   }
 
 }
