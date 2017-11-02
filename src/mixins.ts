@@ -171,8 +171,8 @@ export class Mixin<N extends Node = Node> {
    *   before being called.
    * @returns The Observer instance
    */
-  observe<T, U = void>(a: MaybeObservable<T>, cbk: Observer<T, U> | ObserverFunction<T, U>): Observer<T, U>
-  observe<T, U = void>(a: MaybeObservable<T>, cbk: Observer<T, U> | ObserverFunction<T, U>, immediate: true): Observer<T, U> | null
+  observe<T, U = void>(a: MaybeObservable<T>, cbk: ObserverFunction<T, U>): Observer<T, U>
+  observe<T, U = void>(a: MaybeObservable<T>, cbk: ObserverFunction<T, U>, immediate: true): Observer<T, U> | null
   observe<T, U = void>(a: MaybeObservable<T>, cbk: Observer<T, U> | ObserverFunction<T, U>, immediate?: boolean): Observer<T, U> | null {
     if (immediate && !(a instanceof Observable)) {
       typeof cbk === 'function' ? cbk(a, undefined) : cbk.call(a)
