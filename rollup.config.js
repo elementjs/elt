@@ -30,8 +30,8 @@ export default {
                 .replace('o || (o = {})', 'o /* (o = {*/')
                 .replace(/\/\/# (.*)/g, '//__$1')
 
-              if (id.match(/observable/))
-                console.log(res.code)
+              // if (id.match(/observable/))
+              //   console.log(res.code)
             }
             return res
           })

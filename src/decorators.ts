@@ -131,7 +131,7 @@ export class ObserveMixin extends Mixin {
 
 }
 
-export function observe<T>(a: MaybeObservable<T>, cbk: Observer<T, any> | ObserverFunction<T, any>) {
+export function observe<T>(a: MaybeObservable<T>, cbk: ObserverFunction<T, any>) {
   var m = new ObserveMixin()
   m.observe(a, cbk)
   return m

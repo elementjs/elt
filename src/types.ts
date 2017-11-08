@@ -220,7 +220,7 @@ export interface SVGAttributes extends Attrs {
   fy?: NullableMaybeObservable<number | string>
   gradientTransform?: NullableMaybeObservable<string>
   gradientUnits?: NullableMaybeObservable<string>
-  height?: NullableMaybeObservable<number>
+  height?: NullableMaybeObservable<number | string>
   'marker-end'?: NullableMaybeObservable<string>
   'marker-mid'?: NullableMaybeObservable<string>
   'marker-start'?: NullableMaybeObservable<string>
@@ -246,7 +246,7 @@ export interface SVGAttributes extends Attrs {
   transform?: NullableMaybeObservable<string>
   version?: NullableMaybeObservable<string>
   viewBox?: NullableMaybeObservable<string>
-  width?: NullableMaybeObservable<number>
+  width?: NullableMaybeObservable<number | string>
   x1?: NullableMaybeObservable<number | string>
   x2?: NullableMaybeObservable<number | string>
   x?: NullableMaybeObservable<number | string>
