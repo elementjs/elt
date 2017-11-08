@@ -177,7 +177,13 @@ export class Observable<T> {
   addObserver<U = void>(obs: Observer<T, U>): Observer<T, U>
   addObserver<U = void>(_ob: ObserverFunction<T, U> | Observer<T, U>): Observer<T, U> {
 
-    const ob = typeof _ob === 'function' ? this.createObserver(_ob) : _ob
+    if (typeof _ob === 'function') {
+      _ob = this.createObserver(_ob)
+      _ob.startObserving()
+      return _ob
+    }
+
+    const ob = _ob
 
     this.__observers.push(ob)
 
