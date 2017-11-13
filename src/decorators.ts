@@ -1,6 +1,6 @@
 
 import {
-  Observable, MaybeObservable, Observer, ObserverFunction
+  Observable, MaybeObservable, ObserverFunction
 } from './observable'
 
 import {
