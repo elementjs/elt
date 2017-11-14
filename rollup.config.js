@@ -28,10 +28,6 @@ export default {
               res.code = res.code
                 .replace('o = o || (o = {})', 'o /*o || (o = {*/')
                 .replace('o || (o = {})', 'o /* (o = {*/')
-                .replace(/\/\/# (.*)/g, '//__$1')
-
-              // if (id.match(/observable/))
-              //   console.log(res.code)
             }
             return res
           })
