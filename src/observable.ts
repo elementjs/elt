@@ -1030,11 +1030,13 @@ export namespace o {
 
     for (key of Object.getOwnPropertyNames(obj)) {
       // should we check for writability ? enumerability ?
-      clone[key] = obj[key]
+      if ((obj as Object).propertyIsEnumerable(key))
+        clone[key] = obj[key]
     }
 
     for (var sym of Object.getOwnPropertySymbols(obj)) {
-      clone[sym] = obj[sym]
+      if ((obj as Object).propertyIsEnumerable(sym))
+        clone[sym] = obj[sym]
     }
 
     return clone
