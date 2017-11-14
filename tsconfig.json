@@ -4,7 +4,7 @@
         "module": "esnext",
 	"moduleResolution": "node",
         "declaration": true,
-        "sourceMap": true,
+        "inlineSourceMap": true,
         "experimentalDecorators": true,
 	"importHelpers": true,
 	"strictNullChecks": true,
