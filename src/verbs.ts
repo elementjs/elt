@@ -27,13 +27,16 @@ import {
 /**
  * Extend this class when writing a verb.
  *
- * This is a very short class declaration which only purpose
+ * This is a very short class declaration whose only purpose
  * is to help create shorter verb functions.
  */
 export class Verb extends Mixin<Comment> {
 
   node: Comment
 
+  /**
+   * Create a Verb, bind it to its rendered node, and return it.
+   */
   static create<V extends Verb, A, B, C, D>(this: new (a: A, b: B, c: C, d: D) => V, a: A, b: B, c: C, d: D): Node
   static create<V extends Verb, A, B, C>(this: new (a: A, b: B, c: C) => V, a: A, b: B, c: C): Node
   static create<V extends Verb, A, B>(this: new (a: A, b: B) => V, a: A, b: B): Node
@@ -53,12 +56,12 @@ export class Verb extends Mixin<Comment> {
 
 
 /**
- * Writer displays a node or a string next to itself.
+ * Displays and actualises the content of an Observable containing
+ * Node, string or number into the DOM.
  */
 export class Displayer extends Verb {
 
   next_node: Node | null
-  backup: WeakMap<DocumentFragment, Node[]> | null = null
 
   constructor(public _obs: Observable<null|undefined|string|number|Node>) {
     super()
@@ -160,7 +163,7 @@ export type RenderFn<T> = (e: Observable<T>, oi: number) => Node
 
 
 /**
- *
+ *  Repeats content.
  */
 export class Repeater<T> extends Verb {
 
@@ -258,6 +261,10 @@ export class Repeater<T> extends Verb {
 }
 
 
+/**
+ * Repeats content and append it to the DOM until a certain threshold
+ * is meant. Use it with `scrollable()` on the parent..
+ */
 export class ScrollRepeater<T> extends Repeater<T> {
 
   protected parent: HTMLElement|null = null
@@ -271,6 +278,10 @@ export class ScrollRepeater<T> extends Repeater<T> {
     super(ob, renderfn)
   }
 
+  /**
+   * Append `count` children if the parent was not scrollable (just like Repeater),
+   * or append elements until we've added past the bottom of the container.
+   */
   appendChildren(count: number) {
     if (!this.parent)
       // if we have no scrollable parent, just act like a regular repeater.
@@ -363,7 +374,7 @@ export function RepeatScroll<T>(
 
 
 /**
- *
+ *  A comment node that holds a document fragment.
  */
 export class FragmentHolder extends Verb {
 
