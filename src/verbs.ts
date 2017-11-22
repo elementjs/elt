@@ -152,7 +152,7 @@ export class ConditionalDisplayer<T> extends Displayer {
  */
 
 export function DisplayIf<T>(
-  condition: MaybeObservable<T | null | undefined>,
+  condition: MaybeObservable<T | null | undefined> | MaybeObservable<T> | null | undefined,
   display: Displayable<T>,
   display_otherwise?: Displayable<T>
 ): Node {

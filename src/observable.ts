@@ -58,7 +58,7 @@ export class Observer<A, B = void> {
 
 
 export class Observable<T> {
-  protected __observers: Observer<T, any>[] = []
+  protected __observers: Observer<any, any>[] = []
   protected __observed: Observer<any, any>[] = []
   protected __paused_notify = -1
 
