@@ -113,7 +113,7 @@ export class Mixin<N extends Node = Node> {
    * @param recursive Set to false if you do not want the mixin to be searched on the
    *   node parent's if it was not found.
    */
-  static get<M extends Mixin>(this: new (...a: any[]) => M, node: Node | EventTarget, recursive = true): M | null {
+  static get<N extends Node, M extends Mixin<N>>(this: new (...a: any[]) => M, node: N | EventTarget, recursive = true): M | null {
     let iter: Node | null = node as Node // yeah yeah, I know, it's an EventTarget as well but hey.
 
     while (iter) {
