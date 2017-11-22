@@ -54,7 +54,7 @@ export interface Attrs extends EmptyAttributes {
 }
 
 
-export type NullableMaybeObservable<T> = MaybeObservable<T | null>
+export type NullableMaybeObservable<T> = MaybeObservable<T | null> | MaybeObservable<T>
 
 
 export interface HTMLAttributes extends Attrs {
