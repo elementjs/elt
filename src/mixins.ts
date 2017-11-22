@@ -94,7 +94,7 @@ export class Mixin<N extends Node = Node> {
 
   /** An array of observers tied to the Node for observing. Populated by `observe()` calls. */
   protected observers: Observer<any, any>[] = []
-  protected listeners: {event: string, listener: Listener<Event, N>, live_listener: null | ((e: Event) => void), useCapture?: boolean}[] | undefined
+  protected listeners: {event: string, listener: Listener<Event, Node>, live_listener: null | ((e: Event) => void), useCapture?: boolean}[] | undefined
 
   /**
    * Get a Mixin by its class on the given node or its parents.
@@ -388,13 +388,13 @@ export class Mixin<N extends Node = Node> {
   listen(event: 'click', listener: Listener<MouseEvent, N>, useCapture?: boolean): void
   listen(event: string, listener: Listener<Event, N>, useCapture?: boolean): void
   listen<E extends Event>(name: string, listener: Listener<E, N>, useCapture?: boolean): void
-  listen<E extends Event>(name: string, listener: Listener<E, N>, useCapture?: boolean) {
+  listen<E extends Event>(name: string, listener: Listener<E, any>, useCapture?: boolean) {
     if (!this.listeners)
       this.listeners = []
 
     this.listeners.push({
       event: name,
-      listener: listener as Listener<Event, N>,
+      listener: listener as Listener<Event, Node>,
       useCapture: useCapture,
       live_listener: null
     })
