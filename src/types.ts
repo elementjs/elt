@@ -24,7 +24,8 @@ export interface ComponentFn {
   (attrs: EmptyAttributes, children: DocumentFragment): Element
 }
 
-export type InsertableSingle = MaybeObservable<string|number|Node|null|undefined>
+export type Renderable = string | number | Node | null | undefined
+export type InsertableSingle = MaybeObservable<Renderable>
 export type Insertable = InsertableSingle | InsertableSingle[]
 
 

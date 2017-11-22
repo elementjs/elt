@@ -13,6 +13,7 @@ import {
 
 import {
   EmptyAttributes,
+  Renderable
 } from './types'
 
 import {
@@ -63,7 +64,7 @@ export class Displayer extends Verb {
 
   next_node: Node | null
 
-  constructor(public _obs: Observable<null|undefined|string|number|Node>) {
+  constructor(public _obs: Observable<Renderable>) {
     super()
   }
 
@@ -111,19 +112,19 @@ export class Displayer extends Verb {
  * Write and update the string value of an observable value into
  * a Text node.
  */
-export function Display(obs: Observable<null|undefined|string|number|Node>): Node {
+export function Display(obs: Observable<Renderable>): Node {
   return Displayer.create(obs)
 }
 
 
 
-export type DisplayCreator<T> = (a: Observable<T>) => Node
-export type Displayable<T> = Node | DisplayCreator<T>
+export type DisplayCreator<T> = (a: Observable<T>) => Renderable
+export type Displayable<T> = Renderable | DisplayCreator<T>
 
 export class ConditionalDisplayer<T> extends Displayer {
 
-  rendered_display: Node | undefined
-  rendered_otherwise: Node | undefined
+  rendered_display: Renderable
+  rendered_otherwise: Renderable
 
   constructor(
     protected display: Displayable<T>,
