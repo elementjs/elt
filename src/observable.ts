@@ -5,6 +5,8 @@ export type ObserverFunction<T, U = void> = (newval: T, oldval?: T) => U
 
 export type MaybeObservable<T> = T | Observable<T>
 
+export type ArrayTransformer<A> = number[] | ((lst: A[]) => number[])
+
 export type RecursivePartial<T> = {
   [P in keyof T]?: RecursivePartial<T[P]>;
 };
@@ -412,8 +414,8 @@ export class Observable<T> {
   p<A extends object, K extends keyof A>(this: Observable<A>, key: K): PropObservable<A, A[K]>
   p<A extends {[key: string]: B}, B>(this: Observable<A>, key: MaybeObservable<string>): PropObservable<A, B>
   p<A>(this: Observable<A[]>, key: MaybeObservable<number>): PropObservable<A[], A>
-  p(this: Observable<any>, key: MaybeObservable<number|string>): PropObservable<any, any> {
-    return new PropObservable(this, key as any)
+  p(this: Observable<any>, key: MaybeObservable<any>): PropObservable<any, any> {
+    return new PropObservable(this, key)
   }
 
   /**
@@ -448,7 +450,7 @@ export class Observable<T> {
    * @param fn The transform function that returns numeric indices of the elements
    *   it wishes to keep of the list.
    */
-  arrayTransform<A>(this: Observable<A[]>, fn: MaybeObservable<number[]> | MaybeObservable<(lst: A[]) => number[]>): ArrayTransformObservable<A> {
+  arrayTransform<A>(this: Observable<A[]>, fn: MaybeObservable<ArrayTransformer<A>>): ArrayTransformObservable<A> {
     return new ArrayTransformObservable<A>(this, fn)
   }
 
@@ -458,7 +460,7 @@ export class Observable<T> {
    * @param fn
    */
   filtered<U>(this: Observable<U[]>, fn: MaybeObservable<(item: U, index: number, array: U[]) => boolean>): ArrayTransformObservable<U> {
-    function make_filter(fn: (item: U, index: number, array: U[]) => boolean): (lst: U[]) => number[] {
+    function make_filter(fn: (item: U, index: number, array: U[]) => boolean): ArrayTransformer<U> {
       return function (arr: U[]) {
         var res: number[] = []
         var len = arr.length
@@ -468,11 +470,11 @@ export class Observable<T> {
         return res
       }
     }
-    return this.arrayTransform(fn instanceof Observable ? fn.tf(fn => make_filter(fn)): make_filter(fn))
+    return this.arrayTransform(fn instanceof Observable ? fn.tf(fn => make_filter(fn)) : make_filter(fn))
   }
 
   sorted<U> (this: Observable<U[]>, fn: MaybeObservable<(a: U, b: U) => (1 | 0 | -1)>): ArrayTransformObservable<U> {
-    function make_sortfn(fn: (a: U, b: U) => (1 | 0 | -1)) {
+    function make_sortfn(fn: (a: U, b: U) => (1 | 0 | -1)): ArrayTransformer<U> {
       return function (arr: U[]) {
         var indices = []
         var l = arr.length
@@ -700,11 +702,11 @@ export class MergeObservable<A> extends VirtualObservable<A> {
 
 export class ArrayTransformObservable<A> extends VirtualObservable<A[]> {
 
-  public indices: Observable<number[]> = o([])
+  public indices = o([] as number[])
 
   constructor(
     public list: Observable<A[]>,
-    public fn: MaybeObservable<number[] | ((lst: A[]) => number[])>
+    public fn: MaybeObservable<ArrayTransformer<A>>
   ) {
     super()
     this.dependsOn(list)
