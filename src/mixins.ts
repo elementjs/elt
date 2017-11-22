@@ -27,7 +27,7 @@ const mxsym = Symbol('element-mixins')
  * Get an array of all the mixins associated with that node.
  * @param node The node that holds the mixins
  */
-export function getMixins(node: Node): Mixin[] | undefined
+export function getMixins<N extends Node>(node: N): Mixin<N>[] | undefined
 export function getMixins(node: any): Mixin[] | undefined {
   return node[mxsym]
 }
@@ -38,7 +38,7 @@ export function getMixins(node: any): Mixin[] | undefined {
  * @param node The node the mixin will be added to
  * @param mixin The mixin to add
  */
-export function addMixin(node: Node, mixin: Mixin): void
+export function addMixin<N extends Node>(node: N, mixin: Mixin<N>): void
 export function addMixin(node: any, mixin: Mixin) {
   var mx: Mixin[] = node[mxsym]
   if (!mx) {
@@ -54,7 +54,7 @@ export function addMixin(node: any, mixin: Mixin) {
  * @param node The node the mixin will be removed from
  * @param mixin The mixin object we want to remove
  */
-export function removeMixin(node: Node, mixin: Mixin): void
+export function removeMixin<N extends Node>(node: N, mixin: Mixin<N>): void
 export function removeMixin(node: any, mixin: Mixin): void {
   var mx: Mixin[] = node[mxsym]
   if (!mx) return
@@ -94,7 +94,7 @@ export class Mixin<N extends Node = Node> {
 
   /** An array of observers tied to the Node for observing. Populated by `observe()` calls. */
   protected observers: Observer<any, any>[] = []
-  protected listeners: {event: string, listener: Listener<Event>, live_listener: null | ((e: Event) => void), useCapture?: boolean}[] | undefined
+  protected listeners: {event: string, listener: Listener<Event, N>, live_listener: null | ((e: Event) => void), useCapture?: boolean}[] | undefined
 
   /**
    * Get a Mixin by its class on the given node or its parents.
@@ -387,13 +387,14 @@ export class Mixin<N extends Node = Node> {
   listen(event: "wheel", listener: Listener<WheelEvent, N>, useCapture?: boolean): void
   listen(event: 'click', listener: Listener<MouseEvent, N>, useCapture?: boolean): void
   listen(event: string, listener: Listener<Event, N>, useCapture?: boolean): void
+  listen<E extends Event>(name: string, listener: Listener<E, N>, useCapture?: boolean): void
   listen<E extends Event>(name: string, listener: Listener<E, N>, useCapture?: boolean) {
     if (!this.listeners)
       this.listeners = []
 
     this.listeners.push({
       event: name,
-      listener: listener,
+      listener: listener as Listener<Event, N>,
       useCapture: useCapture,
       live_listener: null
     })
