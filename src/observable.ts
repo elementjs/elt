@@ -12,7 +12,15 @@ export type RecursivePartial<T> = {
 };
 
 
-export class Observer<A, B = void> {
+export interface ReadonlyObserver<A, B = void> {
+  call(new_value: A): B
+  debounce(ms: number, leading?: boolean): ReadonlyObserver<A, B>
+  throttle(ms: number, leading?: boolean): ReadonlyObserver<A, B>
+  startObserving(): void
+  stopObserving(): void
+}
+
+export class Observer<A, B = void> implements ReadonlyObserver<A, B> {
 
   protected old_value: A = undefined!
   // saved value exists solely to
@@ -57,7 +65,20 @@ export class Observer<A, B = void> {
 }
 
 
-export class Observable<T> {
+export interface ReadonlyObservable<A> {
+  get(): A
+  pause(): void
+  resume(): void
+  stopObservers(): void
+  startObservers(): void
+  stopObserved(): void
+  startObserved(): void
+  addObserver<B = void>(fn: ObserverFunction<A, B>): ReadonlyObserver<A, B>
+  removeObserver<B = void>(ob: ReadonlyObserver<A, B>): void
+}
+
+
+export class Observable<T> implements ReadonlyObservable<T> {
   protected __observers: Observer<any, any>[] = []
   protected __observed: Observer<any, any>[] = []
   protected __paused_notify = -1
@@ -158,7 +179,7 @@ export class Observable<T> {
    * Create an observer bound to this observable, but do not start it.
    * For it to start observing, one needs to call its `startObserving()` method.
    *
-   * @param fn The function to be called by the observer when the value changes
+   * @param fn The function to be called by the obseaddObserver()rver when the value changes
    * @param options
    */
   createObserver<U = void>(fn: ObserverFunction<T, U>): Observer<T, U> {
@@ -202,7 +223,7 @@ export class Observable<T> {
    * be called anymore when this Observable changes.
    * @param ob The observer
    */
-  removeObserver(ob: Observer<T, any>): void {
+  removeObserver<U = void>(ob: Observer<T, U>): void {
     var _new_obs: Observer<T, any>[] = []
     for (var _o of this.__observers)
       if (_o !== ob)
@@ -1045,3 +1066,7 @@ export namespace o {
   }
 
 }
+
+declare let o1: ReadonlyObservable<string | null>
+o1 = o('toto')
+o1.addObserver(zobi => zobi)
