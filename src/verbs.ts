@@ -4,7 +4,8 @@
 import {
   o,
   MaybeObservable,
-  Observable
+  Observable,
+  ReadonlyObservable
 } from './observable'
 
 import {
@@ -64,7 +65,7 @@ export class Displayer extends Verb {
 
   next_node: Node | null
 
-  constructor(public _obs: Observable<Renderable>) {
+  constructor(public _obs: ReadonlyObservable<Renderable>) {
     super()
   }
 
@@ -112,7 +113,7 @@ export class Displayer extends Verb {
  * Write and update the string value of an observable value into
  * a Text node.
  */
-export function Display(obs: Observable<Renderable>): Node {
+export function Display(obs: ReadonlyObservable<Renderable>): Node {
   return Displayer.create(obs)
 }
 
