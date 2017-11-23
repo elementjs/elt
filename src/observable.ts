@@ -3,7 +3,7 @@ export type UnregisterFunction = () => void
 
 export type ObserverFunction<T, U = void> = (newval: T, oldval?: T) => U
 
-export type MaybeObservable<T> = T | Observable<T>
+export type MaybeObservable<T> = Observable<T> | T
 
 export type ArrayTransformer<A> = number[] | ((lst: A[]) => number[])
 
@@ -802,9 +802,9 @@ export class ArrayTransformObservable<A> extends VirtualObservable<A[]> {
  */
 export function o<T>(arg: MaybeObservable<T>): Observable<T>
 export function o<T>(arg: MaybeObservable<T> | undefined): Observable<T | undefined>
-export function o<T>(arg: MRO<T>): RO<T>
-export function o<T>(arg: MRO<T> | undefined): RO<T | undefined>
-export function o<T>(arg: MaybeObservable<T>): Observable<T> {
+// export function o<T>(arg: MaybeReadonlyObservable<T>): ReadonlyObservable<T>
+// export function o<T>(arg: MaybeReadonlyObservable<T> | undefined): ReadonlyObservable<T | undefined>
+export function o(arg: any): any {
   return arg instanceof Observable ? arg : new Observable(arg)
 }
 
@@ -824,6 +824,12 @@ export namespace o {
   export function get<A>(arg: undefined | MRO<A>): A | undefined
   export function get<A>(arg: MRO<A>): A {
     return arg instanceof Observable ? arg.get() : arg
+  }
+
+  export function ro<A>(arg: A | RO<A>): RO<A>
+  export function ro<A>(arg: A | RO<A> | undefined): RO<A | undefined>
+  export function ro<A>(arg: MRO<A>): RO<A> {
+    return arg instanceof Observable ? arg : new Observable(arg) as any
   }
 
 
