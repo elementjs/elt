@@ -107,9 +107,10 @@ export interface ReadonlyObservable<A> {
   partial<K extends keyof A>(...props: K[]): RO<Pick<A, K>>
 }
 
-export type RO<A> = ReadonlyObservable<A>
 export type MaybeReadonlyObservable<A> = A | ReadonlyObservable<A>
 
+export type O<A> = Observable<A>
+export type RO<A> = ReadonlyObservable<A>
 export type MO<A> = MaybeObservable<A>
 export type MRO<A> = MaybeReadonlyObservable<A>
 
@@ -800,10 +801,13 @@ export class ArrayTransformObservable<A> extends VirtualObservable<A[]> {
  * @returns The original observable if `arg` already was one, or a new
  *   Observable holding the value of `arg` if it wasn't.
  */
-export function o<T>(arg: MaybeObservable<T>): Observable<T>
-export function o<T>(arg: MaybeObservable<T> | undefined): Observable<T | undefined>
-// export function o<T>(arg: MaybeReadonlyObservable<T>): ReadonlyObservable<T>
-// export function o<T>(arg: MaybeReadonlyObservable<T> | undefined): ReadonlyObservable<T | undefined>
+export function o<T>(arg: Observable<T>): Observable<T>
+export function o<T>(arg: ReadonlyObservable<T>): ReadonlyObservable<T>
+export function o<T>(arg: T | Observable<T>): Observable<T>
+export function o<T>(arg: T | ReadonlyObservable<T>): ReadonlyObservable<T>
+export function o<T>(arg: T | Observable<T> | undefined): Observable<T | undefined>
+export function o<T>(arg: T | ReadonlyObservable<T> | undefined): ReadonlyObservable<T | undefined>
+export function o<T>(arg: T): Observable<T>
 export function o(arg: any): any {
   return arg instanceof Observable ? arg : new Observable(arg)
 }
