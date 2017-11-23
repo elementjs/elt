@@ -137,7 +137,7 @@ export function applyMutations(records: MutationRecord[]) {
   }
 }
 
-
+export const symmount = Symbol('mounting')
 /**
  * Set up the mounting mechanism. All nodes added as children to the `node` parameter
  * will have their mixins called accordingly whenever they get added to or removed
@@ -155,6 +155,9 @@ export function applyMutations(records: MutationRecord[]) {
  */
 export function setupMounting(node: Node): void {
 
+  const n = node as any
+  if (n[symmount]) return
+
   var mutator = new MutationObserver(applyMutations)
 
   mutator.observe(node, {
@@ -162,8 +165,13 @@ export function setupMounting(node: Node): void {
     childList: true
   })
 
+  n[symmount] = true
 }
 
+
+if (window.document && !(window as any).ELEMENT_NO_AUTO_SETUP_MOUNTING) {
+  setupMounting(document)
+}
 
 /**
  * A node.remove() alternative that synchronously calls _unmount
