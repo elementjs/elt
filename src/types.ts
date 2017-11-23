@@ -1,5 +1,5 @@
 
-import {MaybeObservable, MaybeObservableObject} from './observable'
+import {MaybeObservable, MaybeObservableObject, ReadonlyObservable} from './observable'
 import {Mixin} from './mixins'
 
 export type ArrayOrSingle<T> = T[] | T
@@ -25,7 +25,7 @@ export interface ComponentFn {
 }
 
 export type Renderable = string | number | Node | null | undefined
-export type InsertableSingle = MaybeObservable<Renderable>
+export type InsertableSingle = Renderable | ReadonlyObservable<Renderable>
 export type Insertable = InsertableSingle | InsertableSingle[]
 
 
