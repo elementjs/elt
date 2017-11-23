@@ -1,5 +1,5 @@
 
-import {MaybeObservable, MaybeObservableObject, ReadonlyObservable} from './observable'
+import {MaybeObservable, MaybeObservableObject, ReadonlyObservable, MaybeReadonlyObservable} from './observable'
 import {Mixin} from './mixins'
 
 export type ArrayOrSingle<T> = T[] | T
@@ -54,7 +54,7 @@ export interface Attrs extends EmptyAttributes {
 }
 
 
-export type NullableMaybeObservable<T> = MaybeObservable<T | null> | MaybeObservable<T>
+export type NullableMaybeObservable<T> = MaybeReadonlyObservable<T | null | undefined>
 
 
 export interface HTMLAttributes extends Attrs {

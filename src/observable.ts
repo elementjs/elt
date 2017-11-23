@@ -20,6 +20,7 @@ export interface ReadonlyObserver<A, B = void> {
   stopObserving(): void
 }
 
+
 export class Observer<A, B = void> implements ReadonlyObserver<A, B> {
 
   protected old_value: A = undefined!
@@ -75,7 +76,40 @@ export interface ReadonlyObservable<A> {
   startObserved(): void
   addObserver<B = void>(fn: ObserverFunction<A, B>): ReadonlyObserver<A, B>
   removeObserver<B = void>(ob: ReadonlyObserver<A, B>): void
+
+  isGreaterThan(rhs: MRO<A>): RO<boolean>
+  isLesserThan(rhs: MRO<A>): RO<boolean>
+  equals(rhs: MRO<A>): RO<boolean>
+  differs(rhs: MRO<A>): RO<boolean>
+  isGreaterOrEqual(rhs: MRO<A>): RO<boolean>
+  isLesserOrEqual(rhs: MRO<A>): RO<boolean>
+  isNull(): RO<boolean>
+  isNotNull(): RO<boolean>
+  isUndefined(): RO<boolean>
+  isDefined(): RO<boolean>
+  isFalse(this: RO<boolean>): RO<boolean>
+  isTrue(this: RO<boolean>): RO<boolean>
+  isFalsy(): RO<boolean>
+  isTruthy(): RO<boolean>
+  or(rhs: RO<any>): RO<boolean>
+  and(rhs: RO<any>): RO<boolean>
+  plus(this: RO<number>, pl: MRO<number>): RO<number>
+  minus(this: RO<number>, pl: MRO<number>): RO<number>
+  times(this: RO<number>, pl: MRO<number>): RO<number>
+  dividedBy(this: RO<number>, pl: MRO<number>): RO<number>
+
+  tf<U>(fnget: (nval: A, oval: A | undefined, curval: U | undefined) => U): RO<U>
+
+  p<A extends object, K extends keyof A>(this: RO<A>, key: MRO<K>): RO<A[K]>
+  p<A extends {[key: string]: B}, B>(this: RO<A>, key: MRO<string>): RO<B>
+  p<A>(this: RO<A[]>, key: MRO<number>): RO<A>
+
+  partial<K extends keyof A>(...props: K[]): RO<Pick<A, K>>
 }
+
+export type RO<A> = ReadonlyObservable<A>
+export type MaybeReadonlyObservable<A> = A | ReadonlyObservable<A>
+export type MRO<A> = MaybeReadonlyObservable<A>
 
 
 export class Observable<T> implements ReadonlyObservable<T> {
@@ -267,7 +301,7 @@ export class Observable<T> implements ReadonlyObservable<T> {
    * true when this.get() > value
    * @tag transform-readonly
    */
-  isGreaterThan(value: MaybeObservable<T>): VirtualObservable<boolean> {
+  isGreaterThan(value: MRO<T>): RO<boolean> {
     return o.merge({lhs: this, rhs: value}).tf(v => v.lhs > v.rhs)
   }
 
@@ -275,7 +309,7 @@ export class Observable<T> implements ReadonlyObservable<T> {
    * true when this.get() < value
    * @tag transform-readonly
    */
-  isLesserThan(value: MaybeObservable<T>): VirtualObservable<boolean> {
+  isLesserThan(value: MRO<T>): RO<boolean> {
     return o.merge({lhs: this, rhs: value}).tf(v => v.lhs < v.rhs)
   }
 
@@ -283,7 +317,7 @@ export class Observable<T> implements ReadonlyObservable<T> {
    * true when this.get() === value
    * @tag transform-readonly
    */
-  equals(value: MaybeObservable<T>): VirtualObservable<boolean> {
+  equals(value: MRO<T>): RO<boolean> {
     return o.merge({lhs: this, rhs: value}).tf(v => v.lhs === v.rhs)
   }
 
@@ -292,7 +326,7 @@ export class Observable<T> implements ReadonlyObservable<T> {
    * true when this.get() !== value
    * @tag transform-readonly
    */
-  differs(value: MaybeObservable<T>): VirtualObservable<boolean> {
+  differs(value: MRO<T>): RO<boolean> {
     return o.merge({lhs: this, rhs: value},).tf(v => v.lhs !== v.rhs)
   }
 
@@ -300,7 +334,7 @@ export class Observable<T> implements ReadonlyObservable<T> {
    * true when this.get() >= value
    * @tag transform-readonly
    */
-  isGreaterOrEqual(value: MaybeObservable<T>): VirtualObservable<boolean> {
+  isGreaterOrEqual(value: MRO<T>): RO<boolean> {
     return o.merge({lhs: this, rhs: value}).tf(v => v.lhs >= v.rhs)
   }
 
@@ -308,7 +342,7 @@ export class Observable<T> implements ReadonlyObservable<T> {
    * true when this.get() <= value
    * @tag transform-readonly
    */
-  isLesserOrEqual(value: MaybeObservable<T>): VirtualObservable<boolean> {
+  isLesserOrEqual(value: MRO<T>): RO<boolean> {
     return o.merge({lhs: this, rhs: value}).tf(v => v.lhs <= v.rhs)
   }
 
@@ -381,7 +415,7 @@ export class Observable<T> implements ReadonlyObservable<T> {
    * any of the provided observables is true.
    * @tag transform-readonly
    */
-  or(value: MaybeObservable<any>): VirtualObservable<boolean> {
+  or(value: MRO<any>): RO<boolean> {
     return o.merge({lhs: this, rhs: value}).tf(({lhs, rhs}) => !!lhs || !!rhs)
   }
 
@@ -389,35 +423,35 @@ export class Observable<T> implements ReadonlyObservable<T> {
    * True when this and all the values provided in args are true.
    * @tag transform-readonly
    */
-  and(value: MaybeObservable<any>): VirtualObservable<boolean> {
+  and(value: MRO<any>): RO<boolean> {
     return o.merge({lhs: this, rhs: value}).tf(({lhs, rhs}) => lhs && !!rhs)
   }
 
   /**
    * @tag transform-readonly
    */
-  plus(this: Observable<number>, pl: MaybeObservable<number>) {
+  plus(this: RO<number>, pl: MRO<number>): RO<number> {
     return o.merge({lhs: this, rhs: pl}).tf(({lhs, rhs}) => lhs + rhs)
   }
 
   /**
    * @tag transform-readonly
    */
-  minus(this: Observable<number>, pl: MaybeObservable<number>) {
+  minus(this: RO<number>, pl: MRO<number>): RO<number> {
     return o.merge({lhs: this, rhs: pl}).tf(({lhs, rhs}) => lhs - rhs)
   }
 
   /**
    * @tag transform-readonly
    */
-  times(this: Observable<number>, pl: MaybeObservable<number>) {
+  times(this: RO<number>, pl: MRO<number>): RO<number> {
     return o.merge({lhs: this, rhs: pl}).tf(({lhs, rhs}) => lhs * rhs)
   }
 
   /**
    * @tag transform-readonly
    */
-  dividedBy(this: Observable<number>, pl: MaybeObservable<number>) {
+  dividedBy(this: RO<number>, pl: MRO<number>): RO<number> {
     return o.merge({lhs: this, rhs: pl}).tf(({lhs, rhs}) => lhs / rhs)
   }
 
@@ -426,7 +460,7 @@ export class Observable<T> implements ReadonlyObservable<T> {
    * @param fnget
    * @param fnset
    */
-  tf<U>(fnget: (nval: T, oval: T | undefined, curval: U | undefined) => U): TransformObservable<T, U>
+  tf<U>(fnget: (nval: T, oval: T | undefined, curval: U | undefined) => U): ReadonlyObservable<U>
   tf<U>(fnget: (nval: T, oval: T | undefined, curval: U | undefined) => U, fnset: (nval: U, oval: U | undefined, obs: Observable<T>) => void): TransformObservable<T, U>
   tf<U>(fnget: (nval: T, oval: T | undefined, curval: U | undefined) => U, fnset?: (nval: U, oval: U | undefined, obs: Observable<T>) => void): TransformObservable<T, U> {
     return new TransformObservable(this, fnget, fnset)
@@ -471,7 +505,7 @@ export class Observable<T> implements ReadonlyObservable<T> {
    * @param fn The transform function that returns numeric indices of the elements
    *   it wishes to keep of the list.
    */
-  arrayTransform<A>(this: Observable<A[]>, fn: MaybeObservable<ArrayTransformer<A>>): ArrayTransformObservable<A> {
+  arrayTransform<A>(this: Observable<A[]>, fn: MRO<ArrayTransformer<A>>): ArrayTransformObservable<A> {
     return new ArrayTransformObservable<A>(this, fn)
   }
 
@@ -727,7 +761,7 @@ export class ArrayTransformObservable<A> extends VirtualObservable<A[]> {
 
   constructor(
     public list: Observable<A[]>,
-    public fn: MaybeObservable<ArrayTransformer<A>>
+    public fn: MRO<ArrayTransformer<A>>
   ) {
     super()
     this.dependsOn(list)
@@ -772,6 +806,7 @@ export function o<T>(arg: MaybeObservable<T>): Observable<T> {
 
 
 export type MaybeObservableObject<T> = { [P in keyof T]:  MaybeObservable<T[P]>}
+export type MaybeObservableReadonlyObject<T> = { [P in keyof T]:  MRO<T[P]>}
 
 
 export namespace o {
@@ -781,9 +816,9 @@ export namespace o {
    * @param arg The MaybeObservable
    * @returns `arg.get()` if it was an Observable or `arg` itself if it was not.
    */
-  export function get<A>(arg: MaybeObservable<A>): A
-  export function get<A>(arg?: undefined | MaybeObservable<A>): A | undefined
-  export function get<A>(arg: MaybeObservable<A>): A {
+  export function get<A>(arg: MRO<A>): A
+  export function get<A>(arg: undefined | MRO<A>): A | undefined
+  export function get<A>(arg: MRO<A>): A {
     return arg instanceof Observable ? arg.get() : arg
   }
 
@@ -794,7 +829,7 @@ export namespace o {
    * @returns A boolean Observable that is true when all of them are true, false
    *   otherwise.
    */
-  export function and(...args: MaybeObservable<any>[]): Observable<boolean> {
+  export function and(...args: MaybeObservable<any>[]): RO<boolean> {
     if (args.length === 1)
       return o(args[0]).isTruthy()
     return args.slice(1).reduce((lhs, rhs) =>
@@ -809,7 +844,7 @@ export namespace o {
    * @returns A boolean Observable that is true when any of them is true, false
    *   otherwise.
    */
-  export function or(...args: MaybeObservable<any>[]): Observable<boolean> {
+  export function or(...args: MaybeObservable<any>[]): RO<boolean> {
     if (args.length === 1)
       return o(args[0]).isTruthy()
     return args.slice(1).reduce((lhs, rhs) =>
@@ -1067,6 +1102,7 @@ export namespace o {
 
 }
 
-declare let o1: ReadonlyObservable<string | null>
-o1 = o('toto')
-o1.addObserver(zobi => zobi)
+// function onlyhereforcompile() {
+//   let o1: ReadonlyObservable<string | null> = o('toto')
+//   o1.addObserver(zobi => zobi)
+// }
