@@ -5,7 +5,8 @@ import {
   o,
   MaybeObservable,
   Observable,
-  ReadonlyObservable
+  ReadonlyObservable,
+  MRO, RO
 } from './observable'
 
 import {
@@ -361,11 +362,12 @@ export class ScrollRepeater<T> extends Repeater<T> {
  * @returns a Comment node with the Repeater controller bound
  *  on it.
  */
+export function Repeat<T>(ob: MRO<T[]>, render: (ob: RO<T>, idx: number) => Node): Node
 export function Repeat<T>(ob: T[], render: RenderFn<T>): Node;
 export function Repeat<T>(ob: Observable<T[]>, render: RenderFn<T>): Node
-export function Repeat<T>(
-  ob: MaybeObservable<T[]>,
-  render: RenderFn<T>
+export function Repeat(
+  ob: any,
+  render: any
 ): Node {
   return Repeater.create(ob, render)
 }

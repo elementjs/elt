@@ -109,6 +109,8 @@ export interface ReadonlyObservable<A> {
 
 export type RO<A> = ReadonlyObservable<A>
 export type MaybeReadonlyObservable<A> = A | ReadonlyObservable<A>
+
+export type MO<A> = MaybeObservable<A>
 export type MRO<A> = MaybeReadonlyObservable<A>
 
 
@@ -800,6 +802,8 @@ export class ArrayTransformObservable<A> extends VirtualObservable<A[]> {
  */
 export function o<T>(arg: MaybeObservable<T>): Observable<T>
 export function o<T>(arg: MaybeObservable<T> | undefined): Observable<T | undefined>
+export function o<T>(arg: MRO<T>): RO<T>
+export function o<T>(arg: MRO<T> | undefined): RO<T | undefined>
 export function o<T>(arg: MaybeObservable<T>): Observable<T> {
   return arg instanceof Observable ? arg : new Observable(arg)
 }
@@ -829,7 +833,7 @@ export namespace o {
    * @returns A boolean Observable that is true when all of them are true, false
    *   otherwise.
    */
-  export function and(...args: MaybeObservable<any>[]): RO<boolean> {
+  export function and(...args: MRO<any>[]): RO<boolean> {
     if (args.length === 1)
       return o(args[0]).isTruthy()
     return args.slice(1).reduce((lhs, rhs) =>
@@ -844,7 +848,7 @@ export namespace o {
    * @returns A boolean Observable that is true when any of them is true, false
    *   otherwise.
    */
-  export function or(...args: MaybeObservable<any>[]): RO<boolean> {
+  export function or(...args: MRO<any>[]): RO<boolean> {
     if (args.length === 1)
       return o(args[0]).isTruthy()
     return args.slice(1).reduce((lhs, rhs) =>
@@ -860,6 +864,8 @@ export namespace o {
    * @returns An observable which properties are the ones given in `obj` and values
    *   are the resolved values of their respective observables.
    */
+  export function merge<A extends object>(obj: MaybeObservableReadonlyObject<A>): MergeObservable<A>
+  export function merge<A extends object>(obj: MaybeObservableObject<A>): MergeObservable<A>
   export function merge<A extends object>(obj: MaybeObservableObject<A>): MergeObservable<A> {
     return new MergeObservable(obj)
   }

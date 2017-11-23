@@ -1,5 +1,10 @@
 
-import {MaybeObservable, MaybeObservableObject, ReadonlyObservable, MaybeReadonlyObservable} from './observable'
+import {
+  MaybeObservable,
+  ReadonlyObservable,
+  MaybeReadonlyObservable,
+  MaybeObservableReadonlyObject
+} from './observable'
 import {Mixin} from './mixins'
 
 export type ArrayOrSingle<T> = T[] | T
@@ -12,8 +17,8 @@ export type Listener<EventType extends Event, N extends Node = Node> = (this: N,
 export type ClassObject = {[name: string]: MaybeObservable<any>}
 export type ClassDefinition = ClassObject | MaybeObservable<string>
 export type StyleDefinition =
-  MaybeObservable<Partial<CSSStyleDeclaration>>
-  | MaybeObservableObject<Partial<CSSStyleDeclaration>>
+  MaybeReadonlyObservable<Partial<CSSStyleDeclaration>>
+  | MaybeObservableReadonlyObject<Partial<CSSStyleDeclaration>>
 
 
 export interface EmptyAttributes {
