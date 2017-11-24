@@ -2,7 +2,7 @@
 import {
   MaybeObservable,
   ReadonlyObservable,
-  MaybeReadonlyObservable,
+  RO,
   MaybeObservableReadonlyObject
 } from './observable'
 import {Mixin} from './mixins'
@@ -17,7 +17,7 @@ export type Listener<EventType extends Event, N extends Node = Node> = (this: N,
 export type ClassObject = {[name: string]: MaybeObservable<any>}
 export type ClassDefinition = ClassObject | MaybeObservable<string>
 export type StyleDefinition =
-  MaybeReadonlyObservable<Partial<CSSStyleDeclaration>>
+  RO<Partial<CSSStyleDeclaration>>
   | MaybeObservableReadonlyObject<Partial<CSSStyleDeclaration>>
 
 
@@ -59,7 +59,7 @@ export interface Attrs extends EmptyAttributes {
 }
 
 
-export type NullableMaybeObservable<T> = MaybeReadonlyObservable<T | null | undefined>
+export type NullableMaybeObservable<T> = RO<T | null | undefined>
 
 
 export interface HTMLAttributes extends Attrs {

@@ -3,10 +3,10 @@
  */
 import {
   o,
-  MaybeObservable,
+  O,
   Observable,
   ReadonlyObservable,
-  MRO, RO
+  RO
 } from './observable'
 
 import {
@@ -130,7 +130,7 @@ export class ConditionalDisplayer<T> extends Displayer {
 
   constructor(
     protected display: Displayable<T>,
-    protected condition: MaybeObservable<T>,
+    protected condition: O<T>,
     protected display_otherwise?: Displayable<T>
   ) {
     super(o(condition).tf(cond => {
@@ -153,19 +153,19 @@ export class ConditionalDisplayer<T> extends Displayer {
  *
  */
 export function DisplayIf<T>(
-  condition: null | undefined | MaybeObservable<T | null | undefined>,
+  condition: null | undefined | RO<T | null | undefined>,
   display: Displayable<T>, display_otherwise?: Displayable<T>
 ): Node
 export function DisplayIf<T>(
-  condition: MaybeObservable<T>,
+  condition: O<T>,
   display: Displayable<T>, display_otherwise?: Displayable<T>
 ): Node
 export function DisplayIf<T>(
-  condition: null | undefined | MaybeObservable<T | null | undefined>,
+  condition: null | undefined | O<T | null | undefined>,
   display: Displayable<T>,
   display_otherwise?: Displayable<T>
 ): Node {
-  return ConditionalDisplayer.create(display, condition as MaybeObservable<T>, display_otherwise)
+  return ConditionalDisplayer.create(display, condition as O<T>, display_otherwise)
 }
 
 
@@ -185,7 +185,7 @@ export class Repeater<T> extends Verb {
   protected child_obs: Observable<T>[] = []
 
   constructor(
-    ob: MaybeObservable<T[]>,
+    ob: O<T[]>,
     public renderfn: RenderFn<T>
   ) {
     super()
@@ -280,7 +280,7 @@ export class ScrollRepeater<T> extends Repeater<T> {
   protected parent: HTMLElement|null = null
 
   constructor(
-    ob: MaybeObservable<T[]>,
+    ob: O<T[]>,
     renderfn: RenderFn<T>,
     public scroll_buffer_size: number = 10,
     public threshold_height: number = 500
@@ -364,7 +364,7 @@ export class ScrollRepeater<T> extends Repeater<T> {
  */
 export function Repeat<T>(ob: T[], render: RenderFn<T>): Node;
 export function Repeat<T>(ob: Observable<T[]>, render: RenderFn<T>): Node
-export function Repeat<T>(ob: MRO<T[]>, render: (ob: RO<T>, idx: number) => Node): Node
+export function Repeat<T>(ob: RO<T[]>, render: (ob: ReadonlyObservable<T>, idx: number) => Node): Node
 export function Repeat(
   ob: any,
   render: any
@@ -376,7 +376,7 @@ export function Repeat(
 export function RepeatScroll<T>(ob: T[], render: RenderFn<T>, scroll_buffer_size?: number): Node;
 export function RepeatScroll<T>(ob: Observable<T[]>, render: RenderFn<T>, scroll_buffer_size?: number): Node;
 export function RepeatScroll<T>(
-  ob: MaybeObservable<T[]>,
+  ob: O<T[]>,
   render: RenderFn<T>,
   scroll_buffer_size = 10
 ): Node {

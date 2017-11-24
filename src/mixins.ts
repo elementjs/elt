@@ -3,7 +3,8 @@ import {
   o,
   Observable,
   MaybeObservable,
-  Observer,
+  ReadonlyObserver,
+  RO,
   ObserverFunction
 } from './observable'
 
@@ -93,7 +94,7 @@ export class Mixin<N extends Node = Node> {
   readonly mounted: boolean = false
 
   /** An array of observers tied to the Node for observing. Populated by `observe()` calls. */
-  protected observers: Observer<any, any>[] = []
+  protected observers: ReadonlyObserver<any, any>[] = []
   protected listeners: {event: string, listener: Listener<Event, Node>, live_listener: null | ((e: Event) => void), useCapture?: boolean}[] | undefined
 
   /**
@@ -171,11 +172,11 @@ export class Mixin<N extends Node = Node> {
    *   before being called.
    * @returns The Observer instance
    */
-  observe<T, U = void>(a: MaybeObservable<T>, cbk: ObserverFunction<T, U>): Observer<T, U>
-  observe<T, U = void>(a: MaybeObservable<T>, cbk: ObserverFunction<T, U>, immediate: true): Observer<T, U> | null
-  observe<T, U = void>(a: MaybeObservable<T>, cbk: Observer<T, U> | ObserverFunction<T, U>, immediate?: boolean): Observer<T, U> | null {
+  observe<T, U = void>(a: RO<T>, cbk: ObserverFunction<T, U>): ReadonlyObserver<T, U>
+  observe<T, U = void>(a: RO<T>, cbk: ObserverFunction<T, U>, immediate: true): ReadonlyObserver<T, U> | null
+  observe<T, U = void>(a: RO<T>, cbk: ReadonlyObserver<T, U> | ObserverFunction<T, U>, immediate?: boolean): ReadonlyObserver<T, U> | null {
     if (immediate && !(a instanceof Observable)) {
-      typeof cbk === 'function' ? cbk(a, undefined) : cbk.call(a)
+      typeof cbk === 'function' ? cbk(a as T, undefined) : cbk.call(a as T)
       return null
     }
 
