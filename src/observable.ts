@@ -874,7 +874,7 @@ export namespace o {
    * @returns An observable which properties are the ones given in `obj` and values
    *   are the resolved values of their respective observables.
    */
-  export function merge<A extends object>(obj: MaybeObservableReadonlyObject<A>): MergeObservable<A>
+  export function merge<A extends object>(obj: MaybeObservableReadonlyObject<A>): ReadonlyObservable<A>
   export function merge<A extends object>(obj: MaybeObservableObject<A>): MergeObservable<A>
   export function merge<A extends object>(obj: MaybeObservableObject<A>): MergeObservable<A> {
     return new MergeObservable(obj)
