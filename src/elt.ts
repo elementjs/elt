@@ -220,6 +220,6 @@ declare global {
 }
 
 
-if (typeof window !== 'undefined' && typeof (window as any).D === 'undefined') {
+if (typeof window !== 'undefined' && typeof (window as any).E === 'undefined') {
   (window as any).E = e
 }
