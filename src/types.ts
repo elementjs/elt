@@ -1,7 +1,6 @@
 
 import {
   MaybeObservable,
-  ReadonlyObservable,
   RO,
   MaybeObservableReadonlyObject
 } from './observable'
@@ -30,8 +29,13 @@ export interface ComponentFn {
 }
 
 export type Renderable = string | number | Node | null | undefined
-export type InsertableSingle = Renderable | ReadonlyObservable<Renderable>
-export type Insertable = InsertableSingle | InsertableSingle[]
+
+/**
+ * The Insertable type is anything that can be appended to the document
+ * by the e() function. Anything of the Insertable type can be put
+ * in <tag>{insertable}</tag>
+ */
+export type Insertable = RO<Renderable> | RO<Renderable>[]
 
 
 export type NodeCreatorFn = () => Node
