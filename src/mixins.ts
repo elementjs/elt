@@ -1,8 +1,8 @@
 
 import {
   o,
+  O,
   Observable,
-  MaybeObservable,
   ReadonlyObserver,
   RO,
   ObserverFunction
@@ -424,7 +424,7 @@ export class Mixin<N extends Node = Node> {
   /**
    *
    */
-  observeAttribute<N extends Element>(this: Mixin<N>, name: string, value: MaybeObservable<any>) {
+  observeAttribute<N extends Element>(this: Mixin<N>, name: string, value: O<any>) {
     this.observe(value, val => {
       if (val === true)
       this.node.setAttribute(name, '')

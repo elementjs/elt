@@ -3,7 +3,6 @@ export type UnregisterFunction = () => void
 
 export type ObserverFunction<T, U = void> = (newval: T, oldval?: T) => U
 
-export type MaybeObservable<T> = Observable<T> | T
 
 export type ArrayTransformer<A> = number[] | ((lst: A[]) => number[])
 
@@ -109,10 +108,9 @@ export interface ReadonlyObservable<A> {
   partial<K extends keyof A>(...props: K[]): ReadonlyObservable<Pick<A, K>>
 }
 
-export type MaybeReadonlyObservable<A> = A | ReadonlyObservable<A>
 
-export type O<A> = MaybeObservable<A>
-export type RO<A> = MaybeReadonlyObservable<A>
+export type O<A> = Observable<A> | A
+export type RO<A> = ReadonlyObservable<A> | A
 
 
 export class Observable<T> implements ReadonlyObservable<T> {
@@ -470,9 +468,9 @@ export class Observable<T> implements ReadonlyObservable<T> {
   }
 
   p<A extends object, K extends keyof A>(this: Observable<A>, key: K): PropObservable<A, A[K]>
-  p<A extends {[key: string]: B}, B>(this: Observable<A>, key: MaybeObservable<string>): PropObservable<A, B>
-  p<A>(this: Observable<A[]>, key: MaybeObservable<number>): PropObservable<A[], A>
-  p(this: Observable<any>, key: MaybeObservable<any>): PropObservable<any, any> {
+  p<A extends {[key: string]: B}, B>(this: Observable<A>, key: O<string>): PropObservable<A, B>
+  p<A>(this: Observable<A[]>, key: O<number>): PropObservable<A[], A>
+  p(this: Observable<any>, key: O<any>): PropObservable<any, any> {
     return new PropObservable(this, key)
   }
 
@@ -517,7 +515,7 @@ export class Observable<T> implements ReadonlyObservable<T> {
    * @param this
    * @param fn
    */
-  filtered<U>(this: Observable<U[]>, fn: MaybeObservable<(item: U, index: number, array: U[]) => boolean>): ArrayTransformObservable<U> {
+  filtered<U>(this: Observable<U[]>, fn: O<(item: U, index: number, array: U[]) => boolean>): ArrayTransformObservable<U> {
     function make_filter(fn: (item: U, index: number, array: U[]) => boolean): ArrayTransformer<U> {
       return function (arr: U[]) {
         var res: number[] = []
@@ -531,7 +529,7 @@ export class Observable<T> implements ReadonlyObservable<T> {
     return this.arrayTransform(fn instanceof Observable ? fn.tf(fn => make_filter(fn)) : make_filter(fn))
   }
 
-  sorted<U> (this: Observable<U[]>, fn: MaybeObservable<(a: U, b: U) => (1 | 0 | -1)>): ArrayTransformObservable<U> {
+  sorted<U> (this: Observable<U[]>, fn: O<(a: U, b: U) => (1 | 0 | -1)>): ArrayTransformObservable<U> {
     function make_sortfn(fn: (a: U, b: U) => (1 | 0 | -1)): ArrayTransformer<U> {
       return function (arr: U[]) {
         var indices = []
@@ -545,7 +543,7 @@ export class Observable<T> implements ReadonlyObservable<T> {
     return this.arrayTransform(fn instanceof Observable ? fn.tf(make_sortfn) : make_sortfn(fn))
   }
 
-  sliced<A>(this: Observable<A[]>, start?: MaybeObservable<number>, end?: MaybeObservable<number>): ArrayTransformObservable<A> {
+  sliced<A>(this: Observable<A[]>, start?: O<number>, end?: O<number>): ArrayTransformObservable<A> {
     return this.arrayTransform(arr => {
       var indices = []
       var l = o.get(end) || arr.length
@@ -664,7 +662,7 @@ export abstract class VirtualObservable<T> extends Observable<T> {
     return super.addObserver(ob)
   }
 
-  dependsOn(ob: MaybeObservable<any>) {
+  dependsOn(ob: O<any>) {
     if (ob instanceof Observable) {
       this.observe(ob, () => this.refresh())
     }
@@ -708,7 +706,7 @@ export class PropObservable<A, B> extends VirtualObservable<B> {
 
   constructor(
     public original: Observable<A>,
-    public prop: MaybeObservable<string|number>
+    public prop: O<string|number>
   ) {
     super()
     this.dependsOn(original)
@@ -813,7 +811,7 @@ export function o(arg: any): any {
 }
 
 
-export type MaybeObservableObject<T> = { [P in keyof T]:  MaybeObservable<T[P]>}
+export type MaybeObservableObject<T> = { [P in keyof T]:  O<T[P]>}
 export type MaybeObservableReadonlyObject<T> = { [P in keyof T]:  RO<T[P]>}
 
 
