@@ -101,11 +101,30 @@ export interface ReadonlyObservable<A> {
   tf<B>(fnget: (nval: A, oval: A | undefined, curval: B | undefined) => B): ReadonlyObservable<B>
   tf<B>(fnget: (nval: A, oval: A | undefined, curval: B | undefined) => B, fnset: (nval: B, oval: B | undefined, obs: ReadonlyObservable<A>) => void): Observable<B>
 
-  p<A extends object, K extends keyof A>(this: ReadonlyObservable<A>, key: RO<K>): ReadonlyObservable<A[K]>
-  p<A extends {[key: string]: B}, B>(this: ReadonlyObservable<A>, key: RO<string>): ReadonlyObservable<B>
-  p<A>(this: ReadonlyObservable<A[]>, key: RO<number>): ReadonlyObservable<A>
+  p<A extends object, K extends keyof A>(this: ReadonlyObservable<A>, key: RO<K>): ReadonlyPropObservable<A, A[K]>
+  p<A extends {[key: string]: B}, B>(this: ReadonlyObservable<A>, key: RO<string>): ReadonlyPropObservable<A, B>
+  p<A>(this: ReadonlyObservable<A[]>, key: RO<number>): ReadonlyPropObservable<A[], A>
 
   partial<K extends keyof A>(...props: K[]): ReadonlyObservable<Pick<A, K>>
+
+  arrayTransform<A>(this: RO<A[]>, fn: RO<ArrayTransformer<A>>): ReadonlyArrayTransformObservable<A>
+  filtered<A>(this: RO<A[]>, fn: RO<(item: A, index: number, array: A[]) => boolean>): ReadonlyArrayTransformObservable<A>
+  sorted<A> (this: RO<A[]>, fn: RO<(a: A, b: A) => (1 | 0 | -1)>): ReadonlyArrayTransformObservable<A>
+  sliced<A>(this: RO<A[]>, start?: RO<number>, end?: RO<number>): ReadonlyArrayTransformObservable<A>
+}
+
+export interface ReadonlyArrayTransformObservable<A> extends ReadonlyObservable<A[]> {
+  indices: ReadonlyObservable<number[]>
+}
+
+export interface ReadonlyPropObservable<A, B> extends ReadonlyObservable<B> {
+  original: ReadonlyObservable<A>
+  prop: RO<number | string>
+}
+
+
+export function isReadonlyObservable<T>(ro: RO<T>): ro is ReadonlyObservable<T> {
+  return ro instanceof Observable
 }
 
 
@@ -113,12 +132,12 @@ export type O<A> = Observable<A> | A
 export type RO<A> = ReadonlyObservable<A> | A
 
 
-export class Observable<T> implements ReadonlyObservable<T> {
-  protected __observers: Observer<any, any>[] = []
+export class Observable<A> implements ReadonlyObservable<A> {
+  protected __observers: Observer<A, any>[] = []
   protected __observed: Observer<any, any>[] = []
   protected __paused_notify = -1
 
-  constructor(protected readonly __value: T) { }
+  constructor(protected readonly __value: A) { }
 
   stopObservers() {
     for (var observer of this.__observers) {
@@ -152,7 +171,7 @@ export class Observable<T> implements ReadonlyObservable<T> {
    *
    * NOTE: treat this value as being entirely readonly !
    */
-  get(): T {
+  get(): A {
     return this.__value
   }
 
@@ -160,7 +179,7 @@ export class Observable<T> implements ReadonlyObservable<T> {
    * Get a shallow copy of the current value. Used for transforms.
    * Prototypes and constructor should be kept in the cloned object.
    */
-  getShallowClone(): T {
+  getShallowClone(): A {
     return o.clone(this.get())
   }
 
@@ -168,13 +187,13 @@ export class Observable<T> implements ReadonlyObservable<T> {
    *
    * @param value
    */
-  set(value: T): void {
+  set(value: A): void {
     (this.__value as any) = value
     this.notify()
   }
 
   assign<U>(this: Observable<U[]>, partial: {[index: number]: RecursivePartial<U>}): void
-  assign(partial: RecursivePartial<T>): void
+  assign(partial: RecursivePartial<A>): void
   assign(partial: any): void {
     this.set(o.assign(this.get(), partial))
   }
@@ -217,7 +236,7 @@ export class Observable<T> implements ReadonlyObservable<T> {
    * @param fn The function to be called by the obseaddObserver()rver when the value changes
    * @param options
    */
-  createObserver<U = void>(fn: ObserverFunction<T, U>): Observer<T, U> {
+  createObserver<U = void>(fn: ObserverFunction<A, U>): Observer<A, U> {
     return new Observer(fn, this)
   }
 
@@ -231,9 +250,9 @@ export class Observable<T> implements ReadonlyObservable<T> {
    * @returns The newly created observer if a function was given to this method or
    *   the observable that was passed.
    */
-  addObserver<U = void>(fn: ObserverFunction<T, U>): Observer<T, U>
-  addObserver<U = void>(obs: Observer<T, U>): Observer<T, U>
-  addObserver<U = void>(_ob: ObserverFunction<T, U> | Observer<T, U>): Observer<T, U> {
+  addObserver<U = void>(fn: ObserverFunction<A, U>): Observer<A, U>
+  addObserver<U = void>(obs: Observer<A, U>): Observer<A, U>
+  addObserver<U = void>(_ob: ObserverFunction<A, U> | Observer<A, U>): Observer<A, U> {
 
     if (typeof _ob === 'function') {
       _ob = this.createObserver(_ob)
@@ -258,8 +277,8 @@ export class Observable<T> implements ReadonlyObservable<T> {
    * be called anymore when this Observable changes.
    * @param ob The observer
    */
-  removeObserver<U = void>(ob: Observer<T, U>): void {
-    var _new_obs: Observer<T, any>[] = []
+  removeObserver<U = void>(ob: Observer<A, U>): void {
+    var _new_obs: Observer<A, any>[] = []
     for (var _o of this.__observers)
       if (_o !== ob)
         _new_obs.push(_o)
@@ -302,7 +321,7 @@ export class Observable<T> implements ReadonlyObservable<T> {
    * true when this.get() > value
    * @tag transform-readonly
    */
-  isGreaterThan(value: RO<T>): ReadonlyObservable<boolean> {
+  isGreaterThan(value: RO<A>): ReadonlyObservable<boolean> {
     return o.merge({lhs: this, rhs: value}).tf(v => v.lhs > v.rhs)
   }
 
@@ -310,7 +329,7 @@ export class Observable<T> implements ReadonlyObservable<T> {
    * true when this.get() < value
    * @tag transform-readonly
    */
-  isLesserThan(value: RO<T>): ReadonlyObservable<boolean> {
+  isLesserThan(value: RO<A>): ReadonlyObservable<boolean> {
     return o.merge({lhs: this, rhs: value}).tf(v => v.lhs < v.rhs)
   }
 
@@ -318,7 +337,7 @@ export class Observable<T> implements ReadonlyObservable<T> {
    * true when this.get() === value
    * @tag transform-readonly
    */
-  equals(value: RO<T>): ReadonlyObservable<boolean> {
+  equals(value: RO<A>): ReadonlyObservable<boolean> {
     return o.merge({lhs: this, rhs: value}).tf(v => v.lhs === v.rhs)
   }
 
@@ -327,7 +346,7 @@ export class Observable<T> implements ReadonlyObservable<T> {
    * true when this.get() !== value
    * @tag transform-readonly
    */
-  differs(value: RO<T>): ReadonlyObservable<boolean> {
+  differs(value: RO<A>): ReadonlyObservable<boolean> {
     return o.merge({lhs: this, rhs: value},).tf(v => v.lhs !== v.rhs)
   }
 
@@ -335,7 +354,7 @@ export class Observable<T> implements ReadonlyObservable<T> {
    * true when this.get() >= value
    * @tag transform-readonly
    */
-  isGreaterOrEqual(value: RO<T>): ReadonlyObservable<boolean> {
+  isGreaterOrEqual(value: RO<A>): ReadonlyObservable<boolean> {
     return o.merge({lhs: this, rhs: value}).tf(v => v.lhs >= v.rhs)
   }
 
@@ -343,7 +362,7 @@ export class Observable<T> implements ReadonlyObservable<T> {
    * true when this.get() <= value
    * @tag transform-readonly
    */
-  isLesserOrEqual(value: RO<T>): ReadonlyObservable<boolean> {
+  isLesserOrEqual(value: RO<A>): ReadonlyObservable<boolean> {
     return o.merge({lhs: this, rhs: value}).tf(v => v.lhs <= v.rhs)
   }
 
@@ -461,9 +480,9 @@ export class Observable<T> implements ReadonlyObservable<T> {
    * @param fnget
    * @param fnset
    */
-  tf<U>(fnget: (nval: T, oval: T | undefined, curval: U | undefined) => U): ReadonlyObservable<U>
-  tf<U>(fnget: (nval: T, oval: T | undefined, curval: U | undefined) => U, fnset: (nval: U, oval: U | undefined, obs: Observable<T>) => void): TransformObservable<T, U>
-  tf<U>(fnget: (nval: T, oval: T | undefined, curval: U | undefined) => U, fnset?: (nval: U, oval: U | undefined, obs: Observable<T>) => void): TransformObservable<T, U> {
+  tf<B>(fnget: (nval: A, oval: A | undefined, curval: B | undefined) => B): ReadonlyObservable<B>
+  tf<B>(fnget: (nval: A, oval: A | undefined, curval: B | undefined) => B, fnset: (nval: B, oval: B | undefined, obs: Observable<A>) => void): TransformObservable<A, B>
+  tf<B>(fnget: (nval: A, oval: A | undefined, curval: B | undefined) => B, fnset?: (nval: B, oval: B | undefined, obs: Observable<A>) => void): TransformObservable<A, B> {
     return new TransformObservable(this, fnget, fnset)
   }
 
@@ -479,7 +498,7 @@ export class Observable<T> implements ReadonlyObservable<T> {
    * @param props An array with property names of the original object
    * @returns
    */
-  partial<K extends keyof T>(...props: K[]): Observable<Pick<T, K>> {
+  partial<K extends keyof A>(...props: K[]): Observable<Pick<A, K>> {
     var previous: any
     return this.tf((obj, prev) => {
       var res = {} as any
@@ -515,7 +534,7 @@ export class Observable<T> implements ReadonlyObservable<T> {
    * @param this
    * @param fn
    */
-  filtered<U>(this: Observable<U[]>, fn: O<(item: U, index: number, array: U[]) => boolean>): ArrayTransformObservable<U> {
+  filtered<U>(this: Observable<U[]>, fn: RO<(item: U, index: number, array: U[]) => boolean>): ArrayTransformObservable<U> {
     function make_filter(fn: (item: U, index: number, array: U[]) => boolean): ArrayTransformer<U> {
       return function (arr: U[]) {
         var res: number[] = []
@@ -526,10 +545,10 @@ export class Observable<T> implements ReadonlyObservable<T> {
         return res
       }
     }
-    return this.arrayTransform(fn instanceof Observable ? fn.tf(fn => make_filter(fn)) : make_filter(fn))
+    return this.arrayTransform(isReadonlyObservable(fn) ? fn.tf(fn => make_filter(fn)) : make_filter(fn))
   }
 
-  sorted<U> (this: Observable<U[]>, fn: O<(a: U, b: U) => (1 | 0 | -1)>): ArrayTransformObservable<U> {
+  sorted<U> (this: Observable<U[]>, fn: RO<(a: U, b: U) => (1 | 0 | -1)>): ArrayTransformObservable<U> {
     function make_sortfn(fn: (a: U, b: U) => (1 | 0 | -1)): ArrayTransformer<U> {
       return function (arr: U[]) {
         var indices = []
@@ -540,10 +559,10 @@ export class Observable<T> implements ReadonlyObservable<T> {
         return indices
       }
     }
-    return this.arrayTransform(fn instanceof Observable ? fn.tf(make_sortfn) : make_sortfn(fn))
+    return this.arrayTransform(isReadonlyObservable(fn) ? fn.tf(make_sortfn) : make_sortfn(fn))
   }
 
-  sliced<A>(this: Observable<A[]>, start?: O<number>, end?: O<number>): ArrayTransformObservable<A> {
+  sliced<A>(this: Observable<A[]>, start?: RO<number>, end?: RO<number>): ArrayTransformObservable<A> {
     return this.arrayTransform(arr => {
       var indices = []
       var l = o.get(end) || arr.length
@@ -706,7 +725,7 @@ export class PropObservable<A, B> extends VirtualObservable<B> {
 
   constructor(
     public original: Observable<A>,
-    public prop: O<string|number>
+    public prop: RO<string|number>
   ) {
     super()
     this.dependsOn(original)
@@ -799,13 +818,10 @@ export class ArrayTransformObservable<A> extends VirtualObservable<A[]> {
  * @returns The original observable if `arg` already was one, or a new
  *   Observable holding the value of `arg` if it wasn't.
  */
-export function o<T>(arg: Observable<T>): Observable<T>
-export function o<T>(arg: ReadonlyObservable<T>): ReadonlyObservable<T>
-export function o<T>(arg: T | Observable<T>): Observable<T>
-export function o<T>(arg: T | ReadonlyObservable<T>): ReadonlyObservable<T>
-export function o<T>(arg: T | Observable<T> | undefined): Observable<T | undefined>
-export function o<T>(arg: T | ReadonlyObservable<T> | undefined): ReadonlyObservable<T | undefined>
-export function o<T>(arg: T): Observable<T>
+export function o<T>(arg: O<T>): Observable<T>
+export function o<T>(arg: RO<T>): ReadonlyObservable<T>
+export function o<T>(arg: O<T> | undefined): Observable<T | undefined>
+export function o<T>(arg: RO<T> | undefined): ReadonlyObservable<T | undefined>
 export function o(arg: any): any {
   return arg instanceof Observable ? arg : new Observable(arg)
 }
