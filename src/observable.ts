@@ -13,8 +13,8 @@ export type RecursivePartial<T> = {
 
 export interface ReadonlyObserver<A, B = void> {
   call(new_value: A): B
-  debounce(ms: number, leading?: boolean): ReadonlyObserver<A, B>
-  throttle(ms: number, leading?: boolean): ReadonlyObserver<A, B>
+  debounce(ms: number, leading?: boolean): this
+  throttle(ms: number, leading?: boolean): this
   startObserving(): void
   stopObserving(): void
 }
@@ -69,12 +69,13 @@ export interface ReadonlyObservable<A> {
   get(): A
   pause(): void
   resume(): void
-  stopObservers(): void
   startObservers(): void
-  stopObserved(): void
+  stopObservers(): void
   startObserved(): void
-  addObserver<B = void>(fn: ObserverFunction<A, B>): ReadonlyObserver<A, B>
+  stopObserved(): void
   createObserver<B = void>(fn: ObserverFunction<A, B>): ReadonlyObserver<A, B>
+  addObserver<B = void>(fn: ObserverFunction<A, B>): ReadonlyObserver<A, B>
+  addObserver<B = void>(obs: ReadonlyObserver<A, B>): ReadonlyObserver<A, B>
   removeObserver<B = void>(ob: ReadonlyObserver<A, B>): void
 
   isGreaterThan(rhs: RO<A>): ReadonlyObservable<boolean>
@@ -139,16 +140,18 @@ export class Observable<A> implements ReadonlyObservable<A> {
 
   constructor(protected readonly __value: A) { }
 
+  startObservers() {
+    for (var observer of this.__observers) {
+      observer.startObserving()
+    }
+    this.startObserved()
+  }
+
   stopObservers() {
     for (var observer of this.__observers) {
       observer.stopObserving()
     }
     this.stopObserved()
-  }
-
-  stopObserved() {
-    for (var observer of this.__observed)
-      observer.stopObserving()
   }
 
   startObserved() {
@@ -159,11 +162,9 @@ export class Observable<A> implements ReadonlyObservable<A> {
       observer.startObserving()
   }
 
-  startObservers() {
-    for (var observer of this.__observers) {
-      observer.startObserving()
-    }
-    this.startObserved()
+  stopObserved() {
+    for (var observer of this.__observed)
+      observer.stopObserving()
   }
 
   /**
@@ -236,7 +237,7 @@ export class Observable<A> implements ReadonlyObservable<A> {
    * @param fn The function to be called by the obseaddObserver()rver when the value changes
    * @param options
    */
-  createObserver<U = void>(fn: ObserverFunction<A, U>): Observer<A, U> {
+  createObserver<B = void>(fn: ObserverFunction<A, B>): Observer<A, B> {
     return new Observer(fn, this)
   }
 
@@ -250,9 +251,9 @@ export class Observable<A> implements ReadonlyObservable<A> {
    * @returns The newly created observer if a function was given to this method or
    *   the observable that was passed.
    */
-  addObserver<U = void>(fn: ObserverFunction<A, U>): Observer<A, U>
-  addObserver<U = void>(obs: Observer<A, U>): Observer<A, U>
-  addObserver<U = void>(_ob: ObserverFunction<A, U> | Observer<A, U>): Observer<A, U> {
+  addObserver<B = void>(fn: ObserverFunction<A, B>): Observer<A, B>
+  addObserver<B = void>(obs: Observer<A, B>): Observer<A, B>
+  addObserver<B = void>(_ob: ObserverFunction<A, B> | Observer<A, B>): Observer<A, B> {
 
     if (typeof _ob === 'function') {
       _ob = this.createObserver(_ob)
@@ -277,7 +278,7 @@ export class Observable<A> implements ReadonlyObservable<A> {
    * be called anymore when this Observable changes.
    * @param ob The observer
    */
-  removeObserver<U = void>(ob: Observer<A, U>): void {
+  removeObserver<B = void>(ob: Observer<A, B>): void {
     var _new_obs: Observer<A, any>[] = []
     for (var _o of this.__observers)
       if (_o !== ob)
@@ -300,9 +301,9 @@ export class Observable<A> implements ReadonlyObservable<A> {
    * Observe another observable only when this observer itself
    * is being observed.
    */
-  observe<U, V = void>(observable: Observable<U>, observer: Observer<U, V>): Observer<U, V>
-  observe<U, V = void>(observable: Observable<U>, observer: ObserverFunction<U, V>): Observer<U, V>
-  observe<U, V = void>(observable: Observable<U>, _observer: ObserverFunction<U, V> | Observer<U, V>) {
+  observe<A, B = void>(observable: Observable<A>, observer: Observer<A, B>): Observer<A, B>
+  observe<A, B = void>(observable: Observable<A>, observer: ObserverFunction<A, B>): Observer<A, B>
+  observe<A, B = void>(observable: Observable<A>, _observer: ObserverFunction<A, B> | Observer<A, B>) {
     const obs = typeof _observer === 'function' ? observable.createObserver(_observer) : _observer
     this.__observed.push(obs)
 
