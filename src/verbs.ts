@@ -153,7 +153,7 @@ export class ConditionalDisplayer<T> extends Displayer {
  *
  */
 export function DisplayIf<T>(
-  condition: null | undefined | RO<T | null | undefined>,
+  condition: null | undefined | RO<T | null | undefined> | RO<T> | RO<T | null> | RO<T | undefined>,
   display: Displayable<T>, display_otherwise?: Displayable<T>
 ): Node
 export function DisplayIf<T>(
