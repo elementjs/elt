@@ -78,6 +78,7 @@ export interface ReadonlyObservable<A> {
   addObserver<B = void>(obs: ReadonlyObserver<A, B>): ReadonlyObserver<A, B>
   removeObserver<B = void>(ob: ReadonlyObserver<A, B>): void
 
+  debounce(getms: number, setms?: number): ReadonlyObservable<A>
   isGreaterThan(rhs: RO<A>): ReadonlyObservable<boolean>
   isLesserThan(rhs: RO<A>): ReadonlyObservable<boolean>
   equals(rhs: RO<A>): ReadonlyObservable<boolean>
@@ -182,6 +183,17 @@ export class Observable<A> implements ReadonlyObservable<A> {
    */
   getShallowClone(): A {
     return o.clone(this.get())
+  }
+
+  debounce(getms: number, setms?: number): Observable<A> {
+    if (setms === undefined)
+      setms = getms
+
+    const obs = this.tf(v => v, (n, o, ob) => ob.set(n))
+    obs.set = o.debounce(obs.set, setms)
+    obs.assign = o.debounce(obs.assign, setms)
+    obs.notify = o.debounce(obs.notify, getms)
+    return obs
   }
 
   /**
@@ -844,13 +856,6 @@ export namespace o {
   export function get<A>(arg: RO<A>): A {
     return arg instanceof Observable ? arg.get() : arg
   }
-
-  export function ro<A>(arg: A | ReadonlyObservable<A>): ReadonlyObservable<A>
-  export function ro<A>(arg: A | ReadonlyObservable<A> | undefined): ReadonlyObservable<A | undefined>
-  export function ro<A>(arg: RO<A>): ReadonlyObservable<A> {
-    return arg instanceof Observable ? arg : new Observable(arg) as any
-  }
-
 
   /**
    * Combine several MaybeObservables into an Observable<boolean>
