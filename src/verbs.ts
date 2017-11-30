@@ -157,7 +157,11 @@ export function DisplayIf<T>(
   display: Displayable<T>, display_otherwise?: Displayable<T>
 ): Node
 export function DisplayIf<T>(
-  condition: O<T>,
+  condition: Observable<T | null> | Observable<T | null | undefined> | T | null | undefined,
+  display: Displayable<T>, display_otherwise?: Displayable<T>
+): Node
+export function DisplayIf<T>(
+  condition: Observable<T> | T,
   display: Displayable<T>, display_otherwise?: Displayable<T>
 ): Node
 export function DisplayIf<T>(
