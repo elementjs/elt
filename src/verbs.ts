@@ -173,7 +173,8 @@ export function DisplayIf<T>(
 }
 
 
-export type RenderFn<T> = (e: Observable<T>, oi: number) => Node
+export type RenderFn<T> = (e: Observable<T>, oi: number) => Renderable
+export type SeparatorFn = (oi: number) => Renderable
 
 
 /**
@@ -220,6 +221,7 @@ export class Repeater<T> extends Verb {
     this.child_obs.push(ob)
 
     var res = this.renderfn(ob, this.next_index)
+    if (!(res instanceof Node)) res = document.createTextNode(res ? '' + res : '')
     this.positions.push(res)
 
     this.next_index++
