@@ -40,6 +40,7 @@ export class Verb extends Mixin<Comment> {
   /**
    * Create a Verb, bind it to its rendered node, and return it.
    */
+  static create<V extends Verb, A, B, C, D, E>(this: new (a: A, b: B, c: C, d: D, e: E) => V, a: A, b: B, c: C, d: D, e: E): Node
   static create<V extends Verb, A, B, C, D>(this: new (a: A, b: B, c: C, d: D) => V, a: A, b: B, c: C, d: D): Node
   static create<V extends Verb, A, B, C>(this: new (a: A, b: B, c: C) => V, a: A, b: B, c: C): Node
   static create<V extends Verb, A, B>(this: new (a: A, b: B) => V, a: A, b: B): Node
@@ -191,7 +192,8 @@ export class Repeater<T> extends Verb {
 
   constructor(
     ob: O<T[]>,
-    public renderfn: RenderFn<T>
+    public renderfn: RenderFn<T>,
+    public separator?: SeparatorFn
   ) {
     super()
 
@@ -222,8 +224,13 @@ export class Repeater<T> extends Verb {
 
     var res = this.renderfn(ob, this.next_index)
     if (!(res instanceof Node)) res = document.createTextNode(res ? '' + res : '')
-    this.positions.push(res)
 
+    if (this.separator && this.next_index > 0) {
+      const sep = this.separator(this.next_index)
+      res = E(Fragment, {}, sep, res)
+    }
+
+    this.positions.push(res)
     this.next_index++
     return res
   }
@@ -289,7 +296,8 @@ export class ScrollRepeater<T> extends Repeater<T> {
     ob: O<T[]>,
     renderfn: RenderFn<T>,
     public scroll_buffer_size: number = 10,
-    public threshold_height: number = 500
+    public threshold_height: number = 500,
+    public separator?: SeparatorFn,
   ) {
     super(ob, renderfn)
   }
@@ -368,25 +376,27 @@ export class ScrollRepeater<T> extends Repeater<T> {
  * @returns a Comment node with the Repeater controller bound
  *  on it.
  */
-export function Repeat<T>(ob: T[], render: RenderFn<T>): Node;
-export function Repeat<T>(ob: Observable<T[]>, render: RenderFn<T>): Node
-export function Repeat<T>(ob: RO<T[]>, render: (ob: ReadonlyObservable<T>, idx: number) => Node): Node
+export function Repeat<T>(ob: T[], render: RenderFn<T>, separator?: SeparatorFn): Node;
+export function Repeat<T>(ob: Observable<T[]>, render: RenderFn<T>, separator?: SeparatorFn): Node
+export function Repeat<T>(ob: RO<T[]>, render: RenderFn<T>, separator?: SeparatorFn): Node
 export function Repeat(
   ob: any,
-  render: any
+  render: any,
+  separator?: SeparatorFn
 ): Node {
-  return Repeater.create(ob, render)
+  return Repeater.create(ob, render, separator)
 }
 
 
-export function RepeatScroll<T>(ob: T[], render: RenderFn<T>, scroll_buffer_size?: number): Node;
-export function RepeatScroll<T>(ob: Observable<T[]>, render: RenderFn<T>, scroll_buffer_size?: number): Node;
+export function RepeatScroll<T>(ob: T[], render: RenderFn<T>, separator?: SeparatorFn, scroll_buffer_size?: number): Node;
+export function RepeatScroll<T>(ob: Observable<T[]>, render: RenderFn<T>, separator?: SeparatorFn, scroll_buffer_size?: number): Node;
 export function RepeatScroll<T>(
   ob: O<T[]>,
   render: RenderFn<T>,
+  separator?: SeparatorFn,
   scroll_buffer_size = 10
 ): Node {
-  return ScrollRepeater.create(ob, render, scroll_buffer_size)
+  return ScrollRepeater.create(ob, render, scroll_buffer_size, 500, separator)
 }
 
 
