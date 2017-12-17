@@ -1,7 +1,7 @@
 
 export type UnregisterFunction = () => void
 
-export type ObserverFunction<T, U = void> = (newval: T, oldval?: T) => U
+export type ObserverFunction<T, U = void> = (newval: T, oldval: T | NoValue) => U
 
 
 export type ArrayTransformer<A> = number[] | ((lst: A[]) => number[])
@@ -20,11 +20,19 @@ export interface ReadonlyObserver<A, B = void> {
 }
 
 
+/**
+ * We need a default uninitialized value to allow the first call to
+ * call() to trigger the function, even if something like undefined
+ * is passed.
+ */
+export class NoValue { private constructor() { }}
+export const NOVALUE = new (NoValue as any)() as any
+
 export class Observer<A, B = void> implements ReadonlyObserver<A, B> {
 
-  protected old_value: A = undefined!
+  protected old_value: A = NOVALUE
   // saved value exists solely to
-  protected last_result: B = undefined!
+  protected last_result: B = NOVALUE
   readonly observing = false
 
   constructor(public fn: ObserverFunction<A, B>, public observable: Observable<A>) { }
@@ -659,7 +667,7 @@ export class Observable<A> implements ReadonlyObservable<A> {
 export abstract class VirtualObservable<T> extends Observable<T> {
 
   constructor() {
-    super(undefined!)
+    super(NOVALUE)
   }
 
   refresh() {
@@ -705,7 +713,7 @@ export abstract class VirtualObservable<T> extends Observable<T> {
 
 export class TransformObservable<A, B> extends VirtualObservable<B> {
 
-  prev_a: A
+  prev_a: A = NOVALUE
 
   constructor(
     public original: Observable<A>,
@@ -717,9 +725,10 @@ export class TransformObservable<A, B> extends VirtualObservable<B> {
 
   getter() {
     var onew = this.original.get()
+    const old = this.prev_a
 
-    if (onew !== this.prev_a) {
-      const res = this.transformer(onew, this.prev_a, this.__value)
+    if (onew !== old) {
+      const res = this.transformer(onew, old, this.__value)
       this.prev_a = onew
       return res
     } else {
@@ -845,6 +854,14 @@ export type MaybeObservableReadonlyObject<T> = { [P in keyof T]:  RO<T[P]>}
 
 
 export namespace o {
+
+  export function isValue<T>(val: NoValue | T): val is T {
+    return val !== NOVALUE
+  }
+
+  export function isNoValue(val: any): val is NoValue {
+    return val === NOVALUE
+  }
 
   /**
    * Get a MaybeObservable's value
