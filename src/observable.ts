@@ -37,10 +37,15 @@ export class Changes<A> {
     const old = this.o
     const n = this.n
     if (old === NOVALUE) return true
-    for (var e of ex) {
-      if (e(n) !== e(old as A)) return true
+
+    if (ex.length > 0) {
+      for (var e of ex) {
+        if (e(n) !== e(old as A)) return true
+      }
+      return false
     }
-    return false
+
+    return true
   }
 
   hasOldValue() {
