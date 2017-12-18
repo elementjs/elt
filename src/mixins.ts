@@ -6,7 +6,7 @@ import {
   ReadonlyObserver,
   RO,
   ObserverFunction,
-  NOVALUE
+  Changes
 } from './observable'
 
 import {
@@ -177,7 +177,7 @@ export class Mixin<N extends Node = Node> {
   observe<T, U = void>(a: RO<T>, cbk: ObserverFunction<T, U>, immediate: true): ReadonlyObserver<T, U> | null
   observe<T, U = void>(a: RO<T>, cbk: ReadonlyObserver<T, U> | ObserverFunction<T, U>, immediate?: boolean): ReadonlyObserver<T, U> | null {
     if (immediate && !(a instanceof Observable)) {
-      typeof cbk === 'function' ? cbk(a as T, NOVALUE) : cbk.call(a as T)
+      typeof cbk === 'function' ? cbk(a as T, new Changes(a as T)) : cbk.call(a as T)
       return null
     }
 
@@ -458,8 +458,8 @@ export class Mixin<N extends Node = Node> {
   observeClass<N extends Element>(this: Mixin<N>, c: ClassDefinition) {
     if (c instanceof Observable || typeof c === 'string') {
       // c is an Observable<string>
-      this.observe(c, (str, old_class) => {
-        if (o.isValue(old_class)) _remove_class(this.node, old_class)
+      this.observe(c, (str, chg) => {
+        if (chg.hasOldValue()) _remove_class(this.node, chg.oldValue())
         _apply_class(this.node, str)
       }, true)
     } else {

@@ -1,7 +1,7 @@
 
 export type UnregisterFunction = () => void
 
-export type ObserverFunction<T, U = void> = (newval: T, oldval: T | NoValue) => U
+export type ObserverFunction<T, U = void> = (newval: T, changes: Changes<T>) => U
 
 
 export type ArrayTransformer<A> = number[] | ((lst: A[]) => number[])
@@ -28,6 +28,36 @@ export interface ReadonlyObserver<A, B = void> {
 export class NoValue { private constructor() { }}
 export const NOVALUE = new (NoValue as any)() as any
 
+export class Changes<A> {
+  constructor(protected n: A, protected o: A | NoValue = NOVALUE) {
+
+  }
+
+  changed(...ex: ((a: A) => any)[]) {
+    const old = this.o
+    const n = this.n
+    if (old === NOVALUE) return true
+    for (var e of ex) {
+      if (e(n) !== e(old as A)) return true
+    }
+    return false
+  }
+
+  hasOldValue() {
+    return this.o !== NOVALUE
+  }
+
+  oldValue(def?: A) {
+    if (this.o === NOVALUE) {
+      if (arguments.length === 0)
+        throw new Error('there is no old value')
+      return def!
+    }
+    return this.o as A
+  }
+
+}
+
 export class Observer<A, B = void> implements ReadonlyObserver<A, B> {
 
   protected old_value: A = NOVALUE
@@ -42,7 +72,7 @@ export class Observer<A, B = void> implements ReadonlyObserver<A, B> {
 
     if (old !== new_value) {
       this.old_value = new_value
-      const res = this.fn(new_value, old)
+      const res = this.fn(new_value, new Changes(new_value, old))
       this.last_result = res
       return res
     }
@@ -854,14 +884,6 @@ export type MaybeObservableReadonlyObject<T> = { [P in keyof T]:  RO<T[P]>}
 
 
 export namespace o {
-
-  export function isValue<T>(val: NoValue | T): val is T {
-    return val !== NOVALUE
-  }
-
-  export function isNoValue(val: any): val is NoValue {
-    return val === NOVALUE
-  }
 
   /**
    * Get a MaybeObservable's value
