@@ -176,15 +176,15 @@ export function DisplayIf<T>(
 ): Node
 export function DisplayIf<T>(
   condition: ReadonlyObservable<T | undefined>,
-  display: Displayable<T>, display_otherwise?: Displayable<T>
+  display: ReadonlyDisplayable<T>, display_otherwise?: ReadonlyDisplayable<T>
 ): Node
 export function DisplayIf<T>(
   condition: ReadonlyObservable<T | null>,
-  display: Displayable<T>, display_otherwise?: Displayable<T>
+  display: ReadonlyDisplayable<T>, display_otherwise?: ReadonlyDisplayable<T>
 ): Node
 export function DisplayIf<T>(
   condition: ReadonlyObservable<T>,
-  display: Displayable<T>, display_otherwise?: Displayable<T>
+  display: ReadonlyDisplayable<T>, display_otherwise?: ReadonlyDisplayable<T>
 ): Node
 export function DisplayIf<T>(
   condition: null | undefined | O<T | null | undefined>,
