@@ -13,7 +13,7 @@
     "build:js": "tsc ; rollup -c",
     "build": "npm run build:js && npm run build:dts",
     "prepublish": "npm run build",
-    "watch": "concurrently -c green,blue,red -n dtsbundle,tsc,rollup 'onchange \"./module/*.js\" -- npm run build:dts' 'tscc -w' 'rollup -c -w'"
+    "watch": "concurrently -c green,blue,red -n dtsbundle,tsc,rollup 'onchange \"./module/*.js\" -- npm run build:dts' 'wtsc -w' 'rollup -c -w'"
   },
   "devDependencies": {
     "concurrently": "^3.5.0",

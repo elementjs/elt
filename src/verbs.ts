@@ -123,6 +123,7 @@ export function Display(obs: ReadonlyObservable<Renderable>): Node {
 
 export type DisplayCreator<T> = (a: Observable<T>) => Renderable
 export type Displayable<T> = Renderable | DisplayCreator<T>
+export type ReadonlyDisplayable<T> = Renderable | ((a: ReadonlyObservable<T>) => Renderable)
 
 export class ConditionalDisplayer<T> extends Displayer {
 
@@ -154,15 +155,35 @@ export class ConditionalDisplayer<T> extends Displayer {
  *
  */
 export function DisplayIf<T>(
-  condition: null | undefined | RO<T | null | undefined> | RO<T> | RO<T | null> | RO<T | undefined>,
+  condition: Observable<T | undefined | null>,
   display: Displayable<T>, display_otherwise?: Displayable<T>
 ): Node
 export function DisplayIf<T>(
-  condition: Observable<T | null> | Observable<T | null | undefined> | T | null | undefined,
+  condition: Observable<T | undefined>,
   display: Displayable<T>, display_otherwise?: Displayable<T>
 ): Node
 export function DisplayIf<T>(
-  condition: Observable<T> | T,
+  condition: Observable<T | null>,
+  display: Displayable<T>, display_otherwise?: Displayable<T>
+): Node
+export function DisplayIf<T>(
+  condition: Observable<T>,
+  display: Displayable<T>, display_otherwise?: Displayable<T>
+): Node
+export function DisplayIf<T>(
+  condition: ReadonlyObservable<T | undefined | null>,
+  display: Displayable<T>, display_otherwise?: Displayable<T>
+): Node
+export function DisplayIf<T>(
+  condition: ReadonlyObservable<T | undefined>,
+  display: Displayable<T>, display_otherwise?: Displayable<T>
+): Node
+export function DisplayIf<T>(
+  condition: ReadonlyObservable<T | null>,
+  display: Displayable<T>, display_otherwise?: Displayable<T>
+): Node
+export function DisplayIf<T>(
+  condition: ReadonlyObservable<T>,
   display: Displayable<T>, display_otherwise?: Displayable<T>
 ): Node
 export function DisplayIf<T>(
