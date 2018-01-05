@@ -1104,6 +1104,8 @@ export namespace o {
     }
   }
 
+  export const clone_symbol = Symbol('o.clone_symbol')
+
   /**
    * Shallow clone an object. If you want to perform deep operations, use assign instead.
    * Not all types are safely cloned.
@@ -1161,6 +1163,9 @@ export namespace o {
       obj.forEach(val => clone.add(val))
       return clone
     }
+
+    if (clone_symbol in obj)
+      return obj[clone_symbol]()
 
     // If we got here, then we're cloning an object
     var prototype = Object.getPrototypeOf(obj)
