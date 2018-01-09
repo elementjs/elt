@@ -36,7 +36,7 @@ export class Changes<A> {
   changed(...ex: ((a: A) => any)[]) {
     const old = this.o
     const n = this.n
-    if (old === NOVALUE) return true
+    if (old === NOVALUE) return false
 
     if (ex.length > 0) {
       for (var e of ex) {
