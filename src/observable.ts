@@ -33,10 +33,18 @@ export class Changes<A> {
 
   }
 
+  /**
+   * Return true if the object changed compared to its previous value.
+   * If there was no previous value, return true
+   *
+   * @param ex Extractors to check for sub properties. If any of them
+   *  changes, the function will return true.
+   *
+   */
   changed(...ex: ((a: A) => any)[]) {
     const old = this.o
     const n = this.n
-    if (old === NOVALUE) return false
+    if (old === NOVALUE) return true
 
     if (ex.length > 0) {
       for (var e of ex) {
@@ -46,6 +54,17 @@ export class Changes<A> {
     }
 
     return true
+  }
+
+  /**
+   * Does the same as changed, except that if there was no previous value,
+   * return false.
+   *
+   * @param ex Same than for changed
+   */
+  updated(...ex: ((a: A) => any)[]) {
+    if (this.o === NOVALUE) return false
+    return this.changed(...ex)
   }
 
   hasOldValue() {
