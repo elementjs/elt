@@ -211,15 +211,3 @@ export function e(elt: any, _attrs: Attrs | null, ...children: Insertable[]): El
 
   return node
 }
-
-
-declare global {
-  function E(elt: ComponentFn, attrs: Attrs, ...children: Insertable[]): Node
-  function E(elt: string, attrs: Attrs, ...children: Insertable[]): HTMLElement
-  function E<A>(elt: ComponentInstanciator<A>, attrs: A, ...children: Insertable[]): Node
-}
-
-
-if (typeof window !== 'undefined' && typeof (window as any).E === 'undefined') {
-  (window as any).E = e
-}
