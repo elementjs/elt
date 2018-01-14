@@ -12,6 +12,18 @@ export * from './verbs'
 
 ////////////////////////////////////////////////////////
 
+import {Fragment} from './verbs'
+import {e} from './elt'
+import {ComponentFn, Attrs, Insertable, ComponentInstanciator} from './types'
+
+const glb: any = typeof window !== 'undefined' ? window :
+  typeof global !== 'undefined' ? global : null
+if (glb && typeof glb.E === 'undefined') {
+  glb.E = e
+  glb.E.createElement = e
+  glb.E.Fragment = Fragment
+}
+
 import {
   Component
 } from './mixins'
@@ -25,6 +37,17 @@ import {EmptyAttributes} from './types'
 export type ElementAlias = Element
 
 declare global {
+
+  interface E {
+    createElement(elt: ComponentFn, attrs: Attrs, ...children: Insertable[]): Node
+    createElement(elt: string, attrs: Attrs, ...children: Insertable[]): HTMLElement
+    createElement<A>(elt: ComponentInstanciator<A>, attrs: A, ...children: Insertable[]): Node
+    Fragment(at: Attrs, ch: DocumentFragment): JSX.Element
+  }
+
+  function E(elt: ComponentFn, attrs: Attrs, ...children: Insertable[]): Node
+  function E(elt: string, attrs: Attrs, ...children: Insertable[]): HTMLElement
+  function E<A>(elt: ComponentInstanciator<A>, attrs: A, ...children: Insertable[]): Node
 
   /**
    * Extend the JSX namespace to be able to use .tsx code.
