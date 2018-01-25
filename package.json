@@ -13,7 +13,7 @@
     "build:js": "tsc ; rollup -c",
     "build": "npm run build:js && npm run build:dts",
     "prepublish": "npm run build",
-    "watch": "concurrently -c green,blue,red -n dtsbundle,rollup,tsc 'chokidar \"./module/*.js\" -c \"npm run build:dts\"' 'chokidar \"./module/*.js\" -c \"rollup -c\"' 'wtsc -w'"
+    "watch": "concurrently -c green,blue,red -n dtsbundle,rollup,tsc 'chokidar --silent \"./module/*.js\" -c \"npm run build:dts\"' 'chokidar --silent \"./module/*.js\" -c \"rollup -c\"' 'wtsc -w'"
   },
   "devDependencies": {
     "chokidar-cli": "^1.2.0",
