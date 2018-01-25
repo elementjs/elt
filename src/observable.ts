@@ -972,7 +972,7 @@ export namespace o {
   export function assign<A>(value: A[], partial: {[index: number]: RecursivePartial<A>}): A[]
   export function assign<A>(value: A, mutator: RecursivePartial<A>): A
   export function assign<A>(value: A, mutator: RecursivePartial<A>): A {
-    if (mutator == null || typeof mutator !== 'object' || mutator.constructor !== Object)
+    if (mutator == null || typeof mutator !== 'object' || Object.getPrototypeOf(mutator) !== Object.prototype)
       return mutator as any
 
     if (typeof mutator === 'object') {
@@ -1146,6 +1146,10 @@ export namespace o {
     var len: number
     var key: number | string
 
+    if (obj[clone_symbol]) {
+      return obj[clone_symbol]()
+    }
+
     if (Array.isArray(obj)) {
       len = obj.length
       clone = new Array(len)
@@ -1182,9 +1186,6 @@ export namespace o {
       obj.forEach(val => clone.add(val))
       return clone
     }
-
-    if (clone_symbol in obj)
-      return obj[clone_symbol]()
 
     // If we got here, then we're cloning an object
     var prototype = Object.getPrototypeOf(obj)
