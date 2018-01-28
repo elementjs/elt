@@ -23,7 +23,9 @@ import {
 } from './decorators'
 
 import {
-  removeNode
+  remove_and_unmount,
+  mount,
+  insert_before_and_mount
 } from './mounting'
 
 
@@ -88,23 +90,23 @@ export class Displayer extends Verb {
       var parent = this.node.parentNode!
       var next = this.next_node
       if (next) {
-        removeNode(next)
+        remove_and_unmount(next)
       }
       this.next_node = value
-      parent.insertBefore(value, this.node)
+      insert_before_and_mount(parent, value, this.node)
     })
   }
 
   inserted(node: Comment, parent: Node) {
     if (this.next_node) {
-      parent.insertBefore(this.next_node, this.node)
+      insert_before_and_mount(parent, this.next_node, this.node)
     }
   }
 
   removed(node: Comment, parent: Node) {
     if (this.next_node) {
       // can this err ?
-      removeNode(this.next_node)
+      remove_and_unmount(this.next_node)
     }
   }
 
@@ -261,14 +263,18 @@ export class Repeater<T> extends Verb {
     var parent = this.node.parentNode!
 
     var fr = document.createDocumentFragment()
+    var to_mount = []
 
     while (count-- > 0) {
       next = this.next()
       if (!next) break
+      to_mount.push(next)
       fr.appendChild(next)
     }
 
     parent.insertBefore(fr, this.node)
+    for (var n of to_mount) mount(n, parent)
+
   }
 
   removeChildren(count: number) {
@@ -282,7 +288,7 @@ export class Repeater<T> extends Verb {
     // Remove the excess nodes
     for (var i = this.next_index; i < l; i++) {
       co[i].stopObservers()
-      removeNode(po[i])
+      remove_and_unmount(po[i])
     }
 
     this.child_obs = this.child_obs.slice(0, this.next_index)
@@ -291,13 +297,13 @@ export class Repeater<T> extends Verb {
 
   inserted(node: Comment, parent: Node) {
     for (var n of this.positions) {
-      parent.insertBefore(n, node)
+      insert_before_and_mount(parent, n, node)
     }
   }
 
   removed() {
     for (var n of this.positions) {
-      removeNode(n)
+      remove_and_unmount(n)
     }
 
   }
@@ -439,13 +445,16 @@ export class FragmentHolder extends Verb {
     this.child_nodes = nodes
   }
 
-  inserted(node: Comment) {
-    node.parentNode!.insertBefore(this.fragment, node.nextSibling)
+  inserted(node: Comment, parent: Node) {
+    parent.insertBefore(this.fragment, node.nextSibling)
+    for (var c of this.child_nodes) {
+      mount(c, parent)
+    }
   }
 
   removed(n: Node, p: Node, pre: Node, next: Node) {
     for (var c of this.child_nodes) {
-      removeNode(c)
+      remove_and_unmount(c)
       this.fragment.appendChild(c)
     }
   }

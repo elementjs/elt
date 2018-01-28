@@ -17,7 +17,11 @@ export function _apply_mount(node: any) {
 /**
  * Call controllers' mount() functions.
  */
-export function _mount(node: Node, target?: Node) {
+export function mount(node: Node, target?: Node) {
+
+  // mount was already applied
+  if ((node as any)[mnsym] === true) return
+
   var node_stack: Node[] = []
   // var mount: Node[] = [node]
   var iter: Node | null | undefined = node.firstChild!
@@ -67,7 +71,10 @@ export function _apply_unmount(tuple: MountTuple) {
 /**
  * Call controller's unmount functions recursively
  */
-export function _unmount(node: Node, target: Node, prev: MaybeNode, next: MaybeNode) {
+export function unmount(node: Node, target: Node, prev: MaybeNode, next: MaybeNode) {
+
+  // The node is already unmounted
+  if ((node as any)[mnsym] !== true) return
 
   const unmount: MountTuple[] = []
   const node_stack: Node[] = []
@@ -113,26 +120,22 @@ export function _unmount(node: Node, target: Node, prev: MaybeNode, next: MaybeN
 /**
  * Call mount and unmount on the node controllers.
  */
-export function applyMutations(records: MutationRecord[]) {
+export function apply_mutations(records: MutationRecord[]) {
   var i = 0
 
   for (var record of records) {
     var target = record.target
     var added = record.addedNodes
     for (i = 0; i < added.length; i++) {
-      // console.log(added[i])
-      if ((added[i] as any)[mnsym]) continue
-
       // We check for parentNode as sometimes the node is added and removed
       // very fast and thus still gets put in the added records and immediately
       // in the removed record.
-      if (added[i].parentNode) _mount(added[i], target)
+      if (added[i].parentNode) mount(added[i], target)
     }
 
     var removed = record.removedNodes
     for (i = 0; i < removed.length; i++) {
-      if ((removed[i] as any)[mnsym] === false) continue
-      _unmount(removed[i], target, record.previousSibling, record.nextSibling)
+      unmount(removed[i], target, record.previousSibling, record.nextSibling)
     }
   }
 }
@@ -153,12 +156,12 @@ export const symmount = Symbol('mounting')
  * @param node: the root node from which we will listen to the document
  *    mutations.
  */
-export function setupMounting(node: Node): void {
+export function setup_mounting(node: Node): void {
 
   const n = node as any
   if (n[symmount]) return
 
-  var mutator = new MutationObserver(applyMutations)
+  var mutator = new MutationObserver(apply_mutations)
 
   mutator.observe(node, {
     subtree: true,
@@ -168,10 +171,6 @@ export function setupMounting(node: Node): void {
   n[symmount] = true
 }
 
-
-if (window.document && !(window as any).ELEMENT_NO_AUTO_SETUP_MOUNTING) {
-  setupMounting(document)
-}
 
 /**
  * A node.remove() alternative that synchronously calls _unmount
@@ -183,10 +182,30 @@ if (window.document && !(window as any).ELEMENT_NO_AUTO_SETUP_MOUNTING) {
  *
  * @param node The node to remove from the DOM
  */
-export function removeNode(node: Node): void {
+export function remove_and_unmount(node: Node): void {
   const parent = node.parentNode!
   const prev = node.previousSibling
   const next = node.nextSibling
   if (parent) parent.removeChild(node)
-  _unmount(node, parent, prev, next)
+  unmount(node, parent, prev, next)
 }
+
+
+/**
+ * An alternative way of inserting a child into the DOM that immediately calls
+ * mount() on the node and its children.
+ *
+ * @param parent
+ * @param node
+ * @param refchild
+ */
+export function insert_before_and_mount(parent: Node, node: Node, refchild: Node | null = null) {
+  parent.insertBefore(node, refchild)
+  mount(node, parent)
+}
+
+
+/**
+ * Alias for insert_before_and_mount
+ */
+export const append_child_and_mount = insert_before_and_mount as (parent: Node, child: Node) => void
