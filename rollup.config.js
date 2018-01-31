@@ -17,7 +17,7 @@ export default {
     {
       name: 'custom-transform',
       load(id) {
-        // We don't try to load our files.
+        // We don't try to load files that are not ours.
         if (!id.match(/\/module\//))
           return null
 
@@ -30,15 +30,17 @@ export default {
         // console.log(res)
         if (res && res[0]) {
           const comment = res[0]
-          // console.log(id)
-          const map = convert.fromComment(comment).toJSON()
-          // console.log(map)
+          const map = convert.fromComment(comment)
+          const src = map.getProperty('sources')[0]
+          // console.log(src, id)
+          const src_file = path.join(path.dirname(id), src)
+          map.setProperty('sourcesContent', [fs.readFileSync(src_file, 'utf-8')])
+
           return {
             code: code.replace(comment, ''),
-            map
+            map: map.toJSON()
           }
         }
-
         return code
       }
     },
