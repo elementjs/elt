@@ -8,7 +8,6 @@
         "experimentalDecorators": true,
         "importHelpers": true,
         "strict": true,
-        "noStrictGenericChecks": true,
         "noUnusedLocals": true,
         "outDir": "./module",
         "lib": ["es6", "dom"]
