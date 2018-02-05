@@ -190,7 +190,7 @@ export function DisplayIf<T>(
 ): Node
 export function DisplayIf<T>(
   condition: null | undefined | O<T | null | undefined>,
-  display: Displayable<T>,
+  display: Displayable<any>,
   display_otherwise?: Displayable<T>
 ): Node {
   return ConditionalDisplayer.create(display, condition as O<T>, display_otherwise)
@@ -418,7 +418,7 @@ export function Repeat(
 export function RepeatScroll<T>(ob: T[], render: RenderFn<T>, separator?: SeparatorFn, scroll_buffer_size?: number): Node;
 export function RepeatScroll<T>(ob: Observable<T[]>, render: RenderFn<T>, separator?: SeparatorFn, scroll_buffer_size?: number): Node;
 export function RepeatScroll<T>(
-  ob: O<T[]>,
+  ob: O<any[]>,
   render: RenderFn<T>,
   separator?: SeparatorFn,
   scroll_buffer_size = 10
