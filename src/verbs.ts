@@ -67,7 +67,7 @@ export class Verb extends Mixin<Comment> {
  */
 export class Displayer extends Verb {
 
-  next_node: Node | null
+  next_node: Node | null = null
 
   constructor(public _obs: ReadonlyObservable<Renderable>) {
     super()

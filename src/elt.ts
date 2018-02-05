@@ -11,7 +11,8 @@ import {
 } from './types'
 
 import {
-  Mixin
+  Mixin,
+  Component
 } from './mixins'
 
 import {
@@ -128,6 +129,11 @@ const NS = {
   view: SVG,
 } as {[name: string]: string}
 
+
+function isComponent(kls: any): kls is new (attrs: Attrs) => Component<any> {
+  return kls.prototype instanceof Component
+}
+
 /**
  * Create Nodes with a twist.
  *
@@ -156,11 +162,10 @@ export function e(elt: any, _attrs: Attrs | null, ...children: Insertable[]): El
       node.appendChild(getDocumentFragment(children))
     }
 
-  } else if (typeof elt === 'function' && elt.prototype.render) {
+  } else if (isComponent(elt)) {
 
     // elt is an instantiator / Component
-    var comp = new elt()
-    comp.attrs = attrs
+    var comp = new elt(attrs)
 
     node = comp.render(getDocumentFragment(children))
     comp.addToNode(node)

@@ -8,9 +8,7 @@
         "experimentalDecorators": true,
         "importHelpers": true,
         "strict": true,
-        "noImplicitAny": true,
-        "noImplicitReturns": true,
-        "noImplicitThis": true,
+        "noStrictGenericChecks": true,
         "noUnusedLocals": true,
         "outDir": "./module",
         "lib": ["es6", "dom"]

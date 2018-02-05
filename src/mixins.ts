@@ -6,7 +6,8 @@ import {
   ReadonlyObserver,
   RO,
   ObserverFunction,
-  Changes
+  Changes,
+  ReadonlyObservable
 } from './observable'
 
 import {
@@ -90,7 +91,7 @@ export function removeMixin(node: any, mixin: Mixin): void {
  */
 export class Mixin<N extends Node = Node> {
 
-  readonly node: N
+  readonly node: N = null!
   /** true when the associated Node is inside the DOM */
   readonly mounted: boolean = false
 
@@ -181,7 +182,7 @@ export class Mixin<N extends Node = Node> {
       return null
     }
 
-    const ob = a instanceof Observable ? a : o(a)
+    const ob: ReadonlyObservable<T> = a instanceof Observable ? a : o(a)
     const observer = typeof cbk === 'function' ?  ob.createObserver(cbk) : cbk
     this.observers.push(observer)
 
@@ -480,8 +481,9 @@ export class Mixin<N extends Node = Node> {
  * property which will restrict what attributes the component can be created with.
  * All attributes must extend the base `Attrs` class.
  */
-export abstract class Component<N extends Element = Element> extends Mixin<N> {
-  attrs: Attrs
+export abstract class Component<A extends Attrs = Attrs, N extends Element = Element> extends Mixin<N> {
+  // attrs: Attrs
+  constructor(public attrs: A) { super() }
   abstract render(children: DocumentFragment): N
 }
 
