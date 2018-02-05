@@ -10,7 +10,7 @@
   "typings": "./dist/elt.d.ts",
   "scripts": {
     "build:dts": "dts-bundle --name elt --main module/index.d.ts --out ../dist/elt.d.ts && sed -i 's/^global/declare global/' ./module/elt.d.ts",
-    "build:js": "tsc ; rollup -c",
+    "build:js": "wtsc ; rollup -c",
     "build": "npm run build:js && npm run build:dts",
     "prepublish": "npm run build",
     "watch": "concurrently -c green,blue,red -n dtsbundle,rollup,tsc 'chokidar --silent \"./module/*.js\" -c \"npm run build:dts\"' 'chokidar --silent \"./module/*.js\" -c \"rollup -c\"' 'wtsc -w'"

@@ -328,8 +328,8 @@ function _setUpNoscroll() {
 
 export class ScrollableMixin extends Mixin<HTMLElement> {
 
-    _touchStart: (ev: TouchEvent) => void
-    _touchMove: (ev: TouchEvent) => void
+    _touchStart: (ev: TouchEvent) => void = () => null
+    _touchMove: (ev: TouchEvent) => void = () => null
 
     init(node: HTMLElement) {
       if (!(node instanceof HTMLElement)) throw new Error(`scrollable() only works on HTMLElement`)
