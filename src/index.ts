@@ -185,13 +185,43 @@ declare global {
 
       svg: SVGAttributes
       circle: SVGAttributes
+      clipPath: SVGAttributes
       defs: SVGAttributes
+      desc: SVGAttributes
       ellipse: SVGAttributes
+      feBlend: SVGAttributes
+      feColorMatrix: SVGAttributes
+      feComponentTransfer: SVGAttributes
+      feComposite: SVGAttributes
+      feConvolveMatrix: SVGAttributes
+      feDiffuseLighting: SVGAttributes
+      feDisplacementMap: SVGAttributes
+      feDistantLight: SVGAttributes
+      feFlood: SVGAttributes
+      feFuncA: SVGAttributes
+      feFuncB: SVGAttributes
+      feFuncG: SVGAttributes
+      feFuncR: SVGAttributes
+      feGaussianBlur: SVGAttributes
+      feImage: SVGAttributes
+      feMerge: SVGAttributes
+      feMergeNode: SVGAttributes
+      feMorphology: SVGAttributes
+      feOffset: SVGAttributes
+      fePointLight: SVGAttributes
+      feSpecularLighting: SVGAttributes
+      feSpotLight: SVGAttributes
+      feTile: SVGAttributes
+      feTurbulence: SVGAttributes
+      filter: SVGAttributes
+      foreignObject: SVGAttributes
       g: SVGAttributes
       image: SVGAttributes
       line: SVGAttributes
       linearGradient: SVGAttributes
+      marker: SVGAttributes
       mask: SVGAttributes
+      metadata: SVGAttributes
       path: SVGAttributes
       pattern: SVGAttributes
       polygon: SVGAttributes
@@ -199,8 +229,13 @@ declare global {
       radialGradient: SVGAttributes
       rect: SVGAttributes
       stop: SVGAttributes
+      switch: SVGAttributes
+      symbol: SVGAttributes
       text: SVGAttributes
+      textPath: SVGAttributes
       tspan: SVGAttributes
+      use: SVGAttributes
+      view: SVGAttributes
 
     }
   }

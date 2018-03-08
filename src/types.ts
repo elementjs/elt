@@ -230,6 +230,7 @@ export interface SVGAttributes extends Attrs {
   gradientTransform?: NRO<string>
   gradientUnits?: NRO<string>
   height?: NRO<number | string>
+  href?: NRO<string>
   'marker-end'?: NRO<string>
   'marker-mid'?: NRO<string>
   'marker-start'?: NRO<string>
@@ -242,7 +243,9 @@ export interface SVGAttributes extends Attrs {
   r?: NRO<number | string>
   rx?: NRO<number | string>
   ry?: NRO<number | string>
+  space?: NRO<string>
   spreadMethod?: NRO<string>
+  startOffset?: NRO<string>
   'stop-color'?: NRO<string>
   'stop-opacity'?: NRO<number | string>
   stroke?: NRO<string>
