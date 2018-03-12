@@ -27,7 +27,7 @@ export function mount(node: Node, target?: Node) {
   var iter: Node | null | undefined = node.firstChild!
 
   _apply_mount(node)
-  if (!node.firstChild) return
+  if (!iter) return
 
   // Iterative tree traversal
   do {
