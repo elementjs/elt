@@ -491,11 +491,11 @@ export abstract class Component<A extends Attrs = Attrs, N extends Element = Ele
 function _apply_class(node: Element, c: string) {
   if (!c) return
   for (var _ of c.split(/\s+/g))
-    node.classList.add(_)
+    if (_) node.classList.add(_)
 }
 
 function _remove_class(node: Element, c: string) {
   if (!c) return
   for (var _ of c.split(/\s+/g))
-    node.classList.remove(_)
+    if (_) node.classList.remove(_)
 }
