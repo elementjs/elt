@@ -349,7 +349,13 @@ export class ScrollRepeater<T> extends Repeater<T> {
       }
     }
 
-    append()
+    // We do not try appending immediately ; some observables may modify current
+    // items height right after this function ends, which can lead to a situation
+    // where we had few elements that were very high and went past the threshold
+    // that would get very small suddenly, but since they didn't get the chance
+    // to do that, append stops because it is past the threshold right now and
+    // thus leaves a lot of blank space.
+    requestAnimationFrame(append)
   }
 
   @bound
