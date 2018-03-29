@@ -29,35 +29,10 @@ import {
 } from './mounting'
 
 
-/**
- * Extend this class when writing a verb.
- *
- * This is a very short class declaration whose only purpose
- * is to help create shorter verb functions.
- */
-export class Verb extends Mixin<Comment> {
-
-  node: Comment
-
-  /**
-   * Create a Verb, bind it to its rendered node, and return it.
-   */
-  static create<V extends Verb, A, B, C, D, E>(this: new (a: A, b: B, c: C, d: D, e: E) => V, a: A, b: B, c: C, d: D, e: E): Node
-  static create<V extends Verb, A, B, C, D>(this: new (a: A, b: B, c: C, d: D) => V, a: A, b: B, c: C, d: D): Node
-  static create<V extends Verb, A, B, C>(this: new (a: A, b: B, c: C) => V, a: A, b: B, c: C): Node
-  static create<V extends Verb, A, B>(this: new (a: A, b: B) => V, a: A, b: B): Node
-  static create<V extends Verb, A>(this: new (a: A) => V, a: A): Node
-  static create<V extends Verb>(this: new (...a: any[]) => V, ...args: any[]): Node {
-    var mixin = (new this(...args))
-    mixin.addToNode(mixin.node)
-    return mixin.node
-  }
-
-  constructor() {
-    super()
-    this.node = document.createComment(`  ${this.constructor.name}  `)
-  }
-
+export function instanciate_verb(m: Mixin<Comment>): Node {
+  const node = document.createComment(`  ${m.constructor.name} `)
+  m.addToNode(node)
+  return node
 }
 
 
@@ -65,7 +40,7 @@ export class Verb extends Mixin<Comment> {
  * Displays and actualises the content of an Observable containing
  * Node, string or number into the DOM.
  */
-export class Displayer extends Verb {
+export class Displayer extends Mixin<Comment> {
 
   next_node: Node | null = null
 
@@ -118,7 +93,7 @@ export class Displayer extends Verb {
  * a Text node.
  */
 export function Display(obs: ReadonlyObservable<Renderable>): Node {
-  return Displayer.create(obs)
+  return instanciate_verb(new Displayer(obs))
 }
 
 
@@ -133,14 +108,16 @@ export class ConditionalDisplayer<T> extends Displayer {
   rendered_otherwise: Renderable
 
   constructor(
-    protected display: Displayable<T>,
+    protected display: Displayable<NonNullable<T>>,
     protected condition: O<T>,
     protected display_otherwise?: Displayable<T>
   ) {
     super(o(condition).tf(cond => {
       if (cond) {
         if (!this.rendered_display)
-          this.rendered_display = typeof display === 'function' ? display(o(condition)) : display
+          // Here we have to help the inferer as it can't guess that cond and condition
+          // are linked and as such display(o(condition)) is actually handling a NonNullable.
+          this.rendered_display = typeof display === 'function' ? display(o(condition as NonNullable<T>)) : display
         return this.rendered_display
       } else {
         if (!this.rendered_otherwise)
@@ -166,10 +143,10 @@ export function DisplayIf<T>(
 ): Node
 export function DisplayIf<T>(
   condition: null | undefined | O<T | null | undefined>,
-  display: Displayable<any>,
+  display: Displayable<NonNullable<T>>,
   display_otherwise?: Displayable<T>
 ): Node {
-  return ConditionalDisplayer.create(display, condition as O<T>, display_otherwise)
+  return instanciate_verb(new ConditionalDisplayer(display, condition as O<T>, display_otherwise))
 }
 
 
@@ -181,7 +158,7 @@ export type SeparatorFn = (oi: number) => Renderable
 /**
  *  Repeats content.
  */
-export class Repeater<T> extends Verb {
+export class Repeater<T> extends Mixin<Comment> {
 
   protected obs: Observable<T[]>
   protected positions: Node[] = []
@@ -395,7 +372,7 @@ export function Repeat(
   render: any,
   separator?: SeparatorFn
 ): Node {
-  return Repeater.create(ob, render, separator)
+  return instanciate_verb(new Repeater(ob, render, separator))
 }
 
 
@@ -408,14 +385,14 @@ export function RepeatScroll<T>(
   separator?: SeparatorFn,
   scroll_buffer_size = 10
 ): Node {
-  return ScrollRepeater.create(ob, render, scroll_buffer_size, 500, separator)
+  return instanciate_verb(new ScrollRepeater(ob, render, scroll_buffer_size, 500, separator))
 }
 
 
 /**
  *  A comment node that holds a document fragment.
  */
-export class FragmentHolder extends Verb {
+export class FragmentHolder extends Mixin<Comment> {
 
   child_nodes: Node[]
 
@@ -454,6 +431,6 @@ export class FragmentHolder extends Verb {
  *  completely false !
  */
 export function Fragment(attrs: EmptyAttributes, children: DocumentFragment): Element {
-  // This is a trick !
-  return FragmentHolder.create(children) as Element
+  // This is a trick ! It is not actually an element !
+  return instanciate_verb(new FragmentHolder(children)) as Element
 }
