@@ -198,6 +198,7 @@ export function DisplayIf<T>(
 
 
 export type RenderFn<T> = (e: Observable<T>, oi: number) => Renderable
+export type ReadonlyRenderFn<T> = (e: ReadonlyObservable<T>, oi: number) => Renderable
 export type SeparatorFn = (oi: number) => Renderable
 
 
@@ -411,6 +412,7 @@ export class ScrollRepeater<T> extends Repeater<T> {
  */
 export function Repeat<T>(ob: T[], render: RenderFn<T>, separator?: SeparatorFn): Node;
 export function Repeat<T>(ob: Observable<T[]>, render: RenderFn<T>, separator?: SeparatorFn): Node
+export function Repeat<T>(ob: ReadonlyObservable<T[]>, render: ReadonlyRenderFn<T>, separator?: SeparatorFn): Node
 export function Repeat<T>(ob: RO<T[]>, render: RenderFn<T>, separator?: SeparatorFn): Node
 export function Repeat(
   ob: any,
@@ -422,10 +424,11 @@ export function Repeat(
 
 
 export function RepeatScroll<T>(ob: T[], render: RenderFn<T>, separator?: SeparatorFn, scroll_buffer_size?: number): Node;
-export function RepeatScroll<T>(ob: Observable<T[]>, render: RenderFn<T>, separator?: SeparatorFn, scroll_buffer_size?: number): Node;
+export function RepeatScroll<T>(ob: Observable<T[]>, render: RenderFn<T> , separator?: SeparatorFn, scroll_buffer_size?: number): Node;
+export function RepeatScroll<T>(ob: ReadonlyObservable<T[]>, render: ReadonlyRenderFn<T>, separator?: SeparatorFn, scroll_buffer_size?: number): Node;
 export function RepeatScroll<T>(
-  ob: O<any[]>,
-  render: RenderFn<T>,
+  ob: any,
+  render: any,
   separator?: SeparatorFn,
   scroll_buffer_size = 10
 ): Node {
