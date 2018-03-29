@@ -6,9 +6,13 @@ export type ObserverFunction<T, U = void> = (newval: T, changes: Changes<T>) => 
 
 export type ArrayTransformer<A> = number[] | ((lst: A[]) => number[])
 
-export type RecursivePartial<T> = {
-  [P in keyof T]?: RecursivePartial<T[P]>;
-};
+export type AssignPartial<T> = {
+  // Definition that I would like :
+  [P in keyof T]?:
+    T[P] extends (infer U)[] ? {[index: number]: U | AssignPartial<U>} :
+    T[P] extends object ? T[P] | AssignPartial<T[P]> :
+    T[P]
+}
 
 
 export interface ReadonlyObserver<A, B = void> {
@@ -267,8 +271,8 @@ export class Observable<A> implements ReadonlyObservable<A> {
     this.notify()
   }
 
-  assign<U>(this: Observable<U[]>, partial: {[index: number]: RecursivePartial<U>}): void
-  assign(partial: RecursivePartial<A>): void
+  assign<U>(this: Observable<U[]>, partial: {[index: number]: AssignPartial<U>}): void
+  assign(partial: AssignPartial<A>): void
   assign(partial: any): void {
     this.set(o.assign(this.get(), partial))
   }
@@ -969,9 +973,9 @@ export namespace o {
    * @param mutator An object providing new values for select properties
    * @returns a new instance of the object
    */
-  export function assign<A>(value: A[], partial: {[index: number]: RecursivePartial<A>}): A[]
-  export function assign<A>(value: A, mutator: RecursivePartial<A>): A
-  export function assign<A>(value: A, mutator: RecursivePartial<A>): A {
+  export function assign<A>(value: A[], partial: {[index: number]: AssignPartial<A>}): A[]
+  export function assign<A>(value: A, mutator: AssignPartial<A>): A
+  export function assign<A>(value: A, mutator: AssignPartial<A>): A {
     if (mutator == null || typeof mutator !== 'object' || Object.getPrototypeOf(mutator) !== Object.prototype)
       return mutator as any
 
@@ -1206,8 +1210,3 @@ export namespace o {
   }
 
 }
-
-// function onlyhereforcompile() {
-//   let o1: ReadonlyObservable<string | null> = o('toto')
-//   o1.addObserver(zobi => zobi)
-// }
