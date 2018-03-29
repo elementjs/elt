@@ -155,7 +155,6 @@ export function on(event: "MSGestureTap", listener: Listener<MSGestureEvent>, us
 export function on(event: "MSGotPointerCapture", listener: Listener<MSPointerEvent>, useCapture?: boolean): Mixin;
 export function on(event: "MSInertiaStart", listener: Listener<MSGestureEvent>, useCapture?: boolean): Mixin;
 export function on(event: "MSLostPointerCapture", listener: Listener<MSPointerEvent>, useCapture?: boolean): Mixin;
-export function on(event: "MSManipulationStateChanged", listener: Listener<MSManipulationEvent>, useCapture?: boolean): Mixin;
 export function on(event: "MSPointerCancel", listener: Listener<MSPointerEvent>, useCapture?: boolean): Mixin;
 export function on(event: "MSPointerDown", listener: Listener<MSPointerEvent>, useCapture?: boolean): Mixin;
 export function on(event: "MSPointerEnter", listener: Listener<MSPointerEvent>, useCapture?: boolean): Mixin;

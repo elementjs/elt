@@ -277,7 +277,6 @@ export class Mixin<N extends Node = Node> {
   listen(event: "MSGotPointerCapture", listener: Listener<MSPointerEvent, N>, useCapture?: boolean): void
   listen(event: "MSInertiaStart", listener: Listener<MSGestureEvent, N>, useCapture?: boolean): void
   listen(event: "MSLostPointerCapture", listener: Listener<MSPointerEvent, N>, useCapture?: boolean): void
-  listen(event: "MSManipulationStateChanged", listener: Listener<MSManipulationEvent, N>, useCapture?: boolean): void
   listen(event: "MSPointerCancel", listener: Listener<MSPointerEvent, N>, useCapture?: boolean): void
   listen(event: "MSPointerDown", listener: Listener<MSPointerEvent, N>, useCapture?: boolean): void
   listen(event: "MSPointerEnter", listener: Listener<MSPointerEvent, N>, useCapture?: boolean): void

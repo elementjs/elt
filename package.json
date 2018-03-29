@@ -20,7 +20,7 @@
     "concurrently": "^3.5.0",
     "dts-bundle": "^0.7.3",
     "rollup": "^0.57.1",
-    "rollup-plugin-node-resolve": "^3.0.0",
+    "rollup-plugin-node-resolve": "^3.3.0",
     "tslib": "^1.8.0"
   }
 }
