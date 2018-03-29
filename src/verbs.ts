@@ -158,35 +158,11 @@ export class ConditionalDisplayer<T> extends Displayer {
  */
 export function DisplayIf<T>(
   condition: Observable<T | undefined | null>,
-  display: Displayable<T>, display_otherwise?: Displayable<T>
-): Node
-export function DisplayIf<T>(
-  condition: Observable<T | undefined>,
-  display: Displayable<T>, display_otherwise?: Displayable<T>
-): Node
-export function DisplayIf<T>(
-  condition: Observable<T | null>,
-  display: Displayable<T>, display_otherwise?: Displayable<T>
-): Node
-export function DisplayIf<T>(
-  condition: Observable<T>,
-  display: Displayable<T>, display_otherwise?: Displayable<T>
+  display: Displayable<NonNullable<T>>, display_otherwise?: Displayable<T>
 ): Node
 export function DisplayIf<T>(
   condition: ReadonlyObservable<T | undefined | null>,
-  display: Displayable<T>, display_otherwise?: Displayable<T>
-): Node
-export function DisplayIf<T>(
-  condition: ReadonlyObservable<T | undefined>,
-  display: ReadonlyDisplayable<T>, display_otherwise?: ReadonlyDisplayable<T>
-): Node
-export function DisplayIf<T>(
-  condition: ReadonlyObservable<T | null>,
-  display: ReadonlyDisplayable<T>, display_otherwise?: ReadonlyDisplayable<T>
-): Node
-export function DisplayIf<T>(
-  condition: ReadonlyObservable<T>,
-  display: ReadonlyDisplayable<T>, display_otherwise?: ReadonlyDisplayable<T>
+  display: Displayable<NonNullable<T>>, display_otherwise?: Displayable<T>
 ): Node
 export function DisplayIf<T>(
   condition: null | undefined | O<T | null | undefined>,
