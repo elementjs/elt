@@ -194,9 +194,12 @@ export function e(elt: any, _attrs: Attrs | null, ...children: Insertable[]): El
     if (id) mx.observeAttribute('id', id)
 
     if (cls) {
-      var classes = Array.isArray(cls) ? cls : [cls]
-      for (var c of classes) {
-        mx.observeClass(c)
+      if (Array.isArray(cls)) {
+        for (var c of cls) {
+          mx.observeClass(c)
+        }
+      } else {
+        mx.observeClass(cls)
       }
     }
 
