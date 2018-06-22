@@ -363,7 +363,7 @@ export class ScrollRepeater<T> extends Repeater<T> {
  * @returns a Comment node with the Repeater controller bound
  *  on it.
  */
-export function Repeat<T>(ob: T[], render: RenderFn<T>, separator?: SeparatorFn): Node;
+export function Repeat<T>(ob: T[], render: ReadonlyRenderFn<T>, separator?: SeparatorFn): Node;
 export function Repeat<T>(ob: Observable<T[]>, render: RenderFn<T>, separator?: SeparatorFn): Node
 export function Repeat<T>(ob: ReadonlyObservable<T[]>, render: ReadonlyRenderFn<T>, separator?: SeparatorFn): Node
 export function Repeat<T>(ob: RO<T[]>, render: RenderFn<T>, separator?: SeparatorFn): Node
@@ -376,7 +376,7 @@ export function Repeat(
 }
 
 
-export function RepeatScroll<T>(ob: T[], render: RenderFn<T>, separator?: SeparatorFn, scroll_buffer_size?: number): Node;
+export function RepeatScroll<T>(ob: T[], render: ReadonlyRenderFn<T>, separator?: SeparatorFn, scroll_buffer_size?: number): Node;
 export function RepeatScroll<T>(ob: Observable<T[]>, render: RenderFn<T> , separator?: SeparatorFn, scroll_buffer_size?: number): Node;
 export function RepeatScroll<T>(ob: ReadonlyObservable<T[]>, render: ReadonlyRenderFn<T>, separator?: SeparatorFn, scroll_buffer_size?: number): Node;
 export function RepeatScroll<T>(
