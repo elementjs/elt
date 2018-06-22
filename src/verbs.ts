@@ -6,7 +6,6 @@ import {
   O,
   Observable,
   ReadonlyObservable,
-  RO
 } from './observable'
 
 import {
@@ -178,7 +177,7 @@ export class Repeater<T> extends Mixin<Comment> {
   }
 
   init() {
-    this.observe(this.obs, (lst, old_value) => {
+    this.observe(this.obs, lst => {
       this.lst = lst || []
       const diff = lst.length - this.next_index
 
@@ -366,7 +365,6 @@ export class ScrollRepeater<T> extends Repeater<T> {
 export function Repeat<T>(ob: T[], render: ReadonlyRenderFn<T>, separator?: SeparatorFn): Node;
 export function Repeat<T>(ob: Observable<T[]>, render: RenderFn<T>, separator?: SeparatorFn): Node
 export function Repeat<T>(ob: ReadonlyObservable<T[]>, render: ReadonlyRenderFn<T>, separator?: SeparatorFn): Node
-export function Repeat<T>(ob: RO<T[]>, render: RenderFn<T>, separator?: SeparatorFn): Node
 export function Repeat(
   ob: any,
   render: any,
