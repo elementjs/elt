@@ -1,6 +1,6 @@
 
 import {
-  Observable, ObserverFunction, RO
+  Observable, Changes, RO
 } from './observable'
 
 import {
@@ -131,9 +131,9 @@ export class ObserveMixin extends Mixin {
 
 }
 
-export function observe<T>(a: RO<T>, cbk: ObserverFunction<T, any>) {
+export function observe<T>(a: RO<T>, cbk: (newval: T, changes: Changes<T>, node: Node) => void) {
   var m = new ObserveMixin()
-  m.observe(a, cbk)
+  m.observe(a, (newval, changes) => cbk(newval, changes, m.node))
   return m
 }
 
