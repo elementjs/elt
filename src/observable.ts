@@ -769,6 +769,44 @@ export abstract class VirtualObservable<T> extends Observable<T> {
 }
 
 
+/**
+ * An observable meant to act as an intermediary observable that
+ * can change source Observable object during its lifetime.
+ */
+export class PipeObservable<T> extends VirtualObservable<T> {
+
+  private _source_observable: Observable<T>
+  private _observer: Observer<T>
+
+  constructor(proxied: Observable<T>) {
+    super()
+    this._source_observable = proxied
+    this._observer = this.observe(proxied, () => this.refresh())
+  }
+
+  /**
+   * Swap out the underlying observable to another.
+   */
+  changeSource(obs: Observable<T>) {
+    this._observer.stopObserving()
+    this._source_observable = obs
+    this._observer = this.observe(obs, () => this.refresh())
+  }
+
+  getter() {
+    return this._source_observable ? this._source_observable.get() : NOVALUE
+  }
+
+  setter(value: T) {
+    if (this._source_observable) {
+      this._source_observable.set(value)
+    }
+  }
+
+}
+
+
+
 export class TransformObservable<A, B> extends VirtualObservable<B> {
 
   prev_a: A = NOVALUE
@@ -969,6 +1007,7 @@ export namespace o {
 
   /**
    * Create a new object based on an original object and a mutator
+   *
    * @param value The value the new object will be based on
    * @param mutator An object providing new values for select properties
    * @returns a new instance of the object
