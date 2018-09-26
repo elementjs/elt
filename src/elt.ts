@@ -175,11 +175,11 @@ export function e(elt: any, _attrs: Attrs | null, ...children: Insertable[]): El
     node = elt(attrs, getDocumentFragment(children))
   }
 
-  const {class: cls, style, $$, id, ...rest} = attrs
+  const {class: cls, style, $$, id, contenteditable, hidden, accesskey, dir, draggable, dropzone, lang, spellcheck, tabindex, title, translate, ...rest} = attrs
 
   // Classes and style are applied at the end of this function and are thus
   // never passed to other node definitions.
-  if (_attrs || cls || style || id) {
+  if (_attrs || cls || style || accesskey || contenteditable || dir || draggable || dropzone || id || lang || spellcheck || tabindex || title || translate) {
     var mx = new AttrsMixin()
     mx.addToNode(node as HTMLElement) // we're cheating on the type.
 
@@ -191,7 +191,17 @@ export function e(elt: any, _attrs: Attrs | null, ...children: Insertable[]): El
       }
     }
 
+    if (accesskey) mx.observeAttribute('accesskey', accesskey)
+    if (contenteditable) mx.observeAttribute('contenteditable', accesskey)
+    if (dir) mx.observeAttribute('dir', dir)
+    if (draggable) mx.observeAttribute('draggable', draggable)
+    if (dropzone) mx.observeAttribute('dropzone', dropzone)
     if (id) mx.observeAttribute('id', id)
+    if (lang) mx.observeAttribute('lang', lang)
+    if (spellcheck) mx.observeAttribute('spellcheck', spellcheck)
+    if (tabindex) mx.observeAttribute('tabindex', tabindex)
+    if (title) mx.observeAttribute('title', title)
+    if (translate) mx.observeAttribute('translate', translate)
 
     if (cls) {
       if (Array.isArray(cls)) {

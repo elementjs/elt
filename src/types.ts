@@ -51,6 +51,18 @@ export type StyleDefinition =
  */
 export interface Attrs extends EmptyAttributes {
   id?: NRO<string>
+  contenteditable?: NRO<'true' | 'false' | 'inherit'>
+  hidden?: NRO<boolean>
+  accesskey?: NRO<string>
+  dir?: NRO<'ltr' | 'rtl' | 'auto'>
+  draggable?: NRO<'true' | 'false' | 'auto'>
+  dropzone?: NRO<'copy' | 'move' | 'link'>
+  lang?: NRO<string>
+  spellcheck?: NRO<boolean>
+  tabindex?: NRO<number>
+  title?: NRO<string>
+  translate?: NRO<'yes' | 'no'>
+
   class?: ClassDefinition | ClassDefinition[] // special attributes
   style?: StyleDefinition
 
@@ -91,7 +103,7 @@ export interface HTMLAttributes extends Attrs {
   cols?: NRO<number>
   colspan?: NRO<number>
   content?: NRO<string>
-  contenteditable?: NRO<boolean>
+  // contenteditable?: NRO<boolean>
   contextmenu?: NRO<string>
   controls?: NRO<boolean>
   coords?: NRO<string>
@@ -100,10 +112,10 @@ export interface HTMLAttributes extends Attrs {
   datetime?: NRO<string>
   default?: NRO<boolean>
   defer?: NRO<boolean>
-  dir?: NRO<string>
+  // dir?: NRO<string>
   disabled?: NRO<boolean>
   download?: NRO<any>
-  draggable?: NRO<boolean>
+  // draggable?: NRO<boolean>
   enctype?: NRO<string>
   for?: NRO<string>
   form?: NRO<string>
@@ -130,7 +142,7 @@ export interface HTMLAttributes extends Attrs {
   keytype?: NRO<string>
   kind?: NRO<string>
   label?: NRO<string>
-  lang?: NRO<string>
+  // lang?: NRO<string>
   list?: NRO<string>
   loop?: NRO<boolean>
   low?: NRO<number>
