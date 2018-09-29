@@ -63,7 +63,7 @@ export function getChildren(node: Node): Node[] {
 
   while (iter) {
     result.push(iter)
-    iter = iter.nextSibling
+    iter = iter.nextSibling as ChildNode | null
   }
 
   return result

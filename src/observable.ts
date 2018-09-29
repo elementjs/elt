@@ -1019,7 +1019,7 @@ export namespace o {
       return mutator as any
 
     if (typeof mutator === 'object') {
-      var cloned = o.clone(value) || {} // shallow clone
+      var cloned: A = o.clone(value) || ({} as A) // shallow clone
 
       for (var name in mutator) {
         cloned[name] = assign(cloned[name], mutator[name]! as any)
@@ -1104,7 +1104,7 @@ export namespace o {
         clearTimeout(timer)
       }
 
-      timer = setTimeout(() => {
+      timer = window.setTimeout(() => {
         if (!lead) { prev_res = fn.apply(this, args) }
         lead = false
       }, ms)
