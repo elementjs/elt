@@ -1,13 +1,6 @@
 
 import {
   o,
-  O,
-  Observable,
-  ReadonlyObserver,
-  RO,
-  ObserverFunction,
-  Changes,
-  ReadonlyObservable
 } from './observable'
 
 import {
@@ -96,7 +89,7 @@ export class Mixin<N extends Node = Node> {
   readonly mounted: boolean = false
 
   /** An array of observers tied to the Node for observing. Populated by `observe()` calls. */
-  protected observers: ReadonlyObserver<any, any>[] = []
+  protected observers: o.ReadonlyObserver<any, any>[] = []
   protected listeners: {event: string, listener: Listener<Event, Node>, live_listener: null | ((e: Event) => void), useCapture?: boolean}[] | undefined
 
   /**
@@ -174,15 +167,15 @@ export class Mixin<N extends Node = Node> {
    *   before being called.
    * @returns The Observer instance
    */
-  observe<T, U = void>(a: RO<T>, cbk: ObserverFunction<T, U>): ReadonlyObserver<T, U>
-  observe<T, U = void>(a: RO<T>, cbk: ObserverFunction<T, U>, immediate: true): ReadonlyObserver<T, U> | null
-  observe<T, U = void>(a: RO<T>, cbk: ReadonlyObserver<T, U> | ObserverFunction<T, U>, immediate?: boolean): ReadonlyObserver<T, U> | null {
-    if (immediate && !(a instanceof Observable)) {
-      typeof cbk === 'function' ? cbk(a as T, new Changes(a as T)) : cbk.call(a as T)
+  observe<T, U = void>(a: o.RO<T>, cbk: o.ObserverFunction<T, U>): o.ReadonlyObserver<T, U>
+  observe<T, U = void>(a: o.RO<T>, cbk: o.ObserverFunction<T, U>, immediate: true): o.ReadonlyObserver<T, U> | null
+  observe<T, U = void>(a: o.RO<T>, cbk: o.ReadonlyObserver<T, U> | o.ObserverFunction<T, U>, immediate?: boolean): o.ReadonlyObserver<T, U> | null {
+    if (immediate && !(a instanceof o.Observable)) {
+      typeof cbk === 'function' ? cbk(a as T, new o.Changes(a as T)) : cbk.call(a as T)
       return null
     }
 
-    const ob: ReadonlyObservable<T> = a instanceof Observable ? a : o(a)
+    const ob: o.ReadonlyObservable<T> = a instanceof o.Observable ? a : o(a)
     const observer = typeof cbk === 'function' ?  ob.createObserver(cbk) : cbk
     this.observers.push(observer)
 
@@ -425,7 +418,7 @@ export class Mixin<N extends Node = Node> {
   /**
    *
    */
-  observeAttribute<N extends Element>(this: Mixin<N>, name: string, value: O<any>) {
+  observeAttribute<N extends Element>(this: Mixin<N>, name: string, value: o.O<any>) {
     this.observe(value, val => {
       if (val === true)
       this.node.setAttribute(name, '')
@@ -438,7 +431,7 @@ export class Mixin<N extends Node = Node> {
   }
 
   observeStyle<N extends HTMLElement|SVGElement>(this: Mixin<N>, style: StyleDefinition) {
-    if (style instanceof Observable) {
+    if (style instanceof o.Observable) {
       this.observe(style, st => {
         for (var x in st) {
           (this.node.style as any)[x] = (st as any)[x]
@@ -456,7 +449,7 @@ export class Mixin<N extends Node = Node> {
   }
 
   observeClass<N extends Element>(this: Mixin<N>, c: ClassDefinition) {
-    if (c instanceof Observable || typeof c === 'string') {
+    if (c instanceof o.Observable || typeof c === 'string') {
       // c is an Observable<string>
       this.observe(c, (str, chg) => {
         if (chg.hasOldValue()) _remove_class(this.node, chg.oldValue())

@@ -1,6 +1,6 @@
 
 import {
-  Observable, Changes, RO
+  o
 } from './observable'
 
 import {
@@ -14,9 +14,9 @@ import {
 
 export class BindMixin extends Mixin<HTMLInputElement> {
 
-  obs: Observable<string>
+  obs: o.Observable<string>
 
-  constructor(obs: Observable<string>) {
+  constructor(obs: o.Observable<string>) {
     super()
     this.obs = obs
   }
@@ -100,7 +100,7 @@ export class BindMixin extends Mixin<HTMLInputElement> {
         this.observe(obs, (val: any) => {
           this.node.checked = !!val
         })
-        this.listen('change', () => (obs as Observable<any>).set(this.node.checked))
+        this.listen('change', () => (obs as o.Observable<any>).set(this.node.checked))
         break
       // case 'number':
       // case 'text':
@@ -122,7 +122,7 @@ export class BindMixin extends Mixin<HTMLInputElement> {
 }
 
 
-export function bind(obs: Observable<string>) {
+export function bind(obs: o.Observable<string>) {
   return new BindMixin(obs)
 }
 
@@ -131,7 +131,7 @@ export class ObserveMixin extends Mixin {
 
 }
 
-export function observe<T>(a: RO<T>, cbk: (newval: T, changes: Changes<T>, node: Node) => void) {
+export function observe<T>(a: o.RO<T>, cbk: (newval: T, changes: o.Changes<T>, node: Node) => void) {
   var m = new ObserveMixin()
   m.observe(a, (newval, changes) => cbk(newval, changes, m.node))
   return m
