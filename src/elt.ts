@@ -1,6 +1,6 @@
 
 import {
-  Observable
+  o
 } from './observable'
 
 import {
@@ -44,7 +44,7 @@ export function getDocumentFragment(ch: Insertable|Insertable[]) {
 
     if (Array.isArray(c)) {
       result.appendChild(getDocumentFragment(c))
-    } else if (c instanceof Observable) {
+    } else if (c instanceof o.Observable) {
       result.appendChild(Display(c))
     } else if (!(c instanceof Node)) {
       result.appendChild(document.createTextNode(c.toString()))

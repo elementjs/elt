@@ -2,10 +2,7 @@
  * Control structures to help with readability.
  */
 import {
-  o,
-  O,
-  Observable,
-  ReadonlyObservable,
+  o
 } from './observable'
 
 import {
@@ -43,7 +40,7 @@ export class Displayer extends Mixin<Comment> {
 
   next_node: Node | null = null
 
-  constructor(public _obs: ReadonlyObservable<Renderable>) {
+  constructor(public _obs: o.ReadonlyObservable<Renderable>) {
     super()
   }
 
@@ -91,15 +88,15 @@ export class Displayer extends Mixin<Comment> {
  * Write and update the string value of an observable value into
  * a Text node.
  */
-export function Display(obs: ReadonlyObservable<Renderable>): Node {
+export function Display(obs: o.ReadonlyObservable<Renderable>): Node {
   return instanciate_verb(new Displayer(obs))
 }
 
 
 
-export type DisplayCreator<T> = (a: Observable<T>) => Renderable
+export type DisplayCreator<T> = (a: o.Observable<T>) => Renderable
 export type Displayable<T> = Renderable | DisplayCreator<T>
-export type ReadonlyDisplayable<T> = Renderable | ((a: ReadonlyObservable<T>) => Renderable)
+export type ReadonlyDisplayable<T> = Renderable | ((a: o.ReadonlyObservable<T>) => Renderable)
 
 export class ConditionalDisplayer<T> extends Displayer {
 
@@ -108,7 +105,7 @@ export class ConditionalDisplayer<T> extends Displayer {
 
   constructor(
     protected display: Displayable<NonNullable<T>>,
-    protected condition: O<T>,
+    protected condition: o.O<T>,
     protected display_otherwise?: Displayable<T>
   ) {
     super(o(condition).tf(cond => {
@@ -133,24 +130,24 @@ export class ConditionalDisplayer<T> extends Displayer {
  *
  */
 export function DisplayIf<T>(
-  condition: Observable<T | undefined | null>,
+  condition: o.Observable<T | undefined | null>,
   display: Displayable<NonNullable<T>>, display_otherwise?: Displayable<T>
 ): Node
 export function DisplayIf<T>(
-  condition: ReadonlyObservable<T | undefined | null>,
+  condition: o.ReadonlyObservable<T | undefined | null>,
   display: Displayable<NonNullable<T>>, display_otherwise?: Displayable<T>
 ): Node
 export function DisplayIf<T>(
-  condition: null | undefined | O<T | null | undefined>,
+  condition: null | undefined | o.O<T | null | undefined>,
   display: Displayable<NonNullable<T>>,
   display_otherwise?: Displayable<T>
 ): Node {
-  return instanciate_verb(new ConditionalDisplayer(display, condition as O<T>, display_otherwise))
+  return instanciate_verb(new ConditionalDisplayer(display, condition as o.O<T>, display_otherwise))
 }
 
 
-export type RenderFn<T> = (e: Observable<T>, oi: number) => Renderable
-export type ReadonlyRenderFn<T> = (e: ReadonlyObservable<T>, oi: number) => Renderable
+export type RenderFn<T> = (e: o.Observable<T>, oi: number) => Renderable
+export type ReadonlyRenderFn<T> = (e: o.ReadonlyObservable<T>, oi: number) => Renderable
 export type SeparatorFn = (oi: number) => Renderable
 
 
@@ -159,15 +156,15 @@ export type SeparatorFn = (oi: number) => Renderable
  */
 export class Repeater<T> extends Mixin<Comment> {
 
-  protected obs: Observable<T[]>
+  protected obs: o.Observable<T[]>
   protected positions: Node[] = []
   protected next_index: number = 0
   protected lst: T[] = []
 
-  protected child_obs: Observable<T>[] = []
+  protected child_obs: o.Observable<T>[] = []
 
   constructor(
-    ob: O<T[]>,
+    ob: o.O<T[]>,
     public renderfn: RenderFn<T>,
     public separator?: SeparatorFn
   ) {
@@ -273,7 +270,7 @@ export class ScrollRepeater<T> extends Repeater<T> {
   protected parent: HTMLElement|null = null
 
   constructor(
-    ob: O<T[]>,
+    ob: o.O<T[]>,
     renderfn: RenderFn<T>,
     public scroll_buffer_size: number = 10,
     public threshold_height: number = 500,
@@ -363,8 +360,8 @@ export class ScrollRepeater<T> extends Repeater<T> {
  *  on it.
  */
 export function Repeat<T>(ob: T[], render: ReadonlyRenderFn<T>, separator?: SeparatorFn): Node;
-export function Repeat<T>(ob: Observable<T[]>, render: RenderFn<T>, separator?: SeparatorFn): Node
-export function Repeat<T>(ob: ReadonlyObservable<T[]>, render: ReadonlyRenderFn<T>, separator?: SeparatorFn): Node
+export function Repeat<T>(ob: o.Observable<T[]>, render: RenderFn<T>, separator?: SeparatorFn): Node
+export function Repeat<T>(ob: o.ReadonlyObservable<T[]>, render: ReadonlyRenderFn<T>, separator?: SeparatorFn): Node
 export function Repeat(
   ob: any,
   render: any,
@@ -375,8 +372,8 @@ export function Repeat(
 
 
 export function RepeatScroll<T>(ob: T[], render: ReadonlyRenderFn<T>, separator?: SeparatorFn, scroll_buffer_size?: number): Node;
-export function RepeatScroll<T>(ob: Observable<T[]>, render: RenderFn<T> , separator?: SeparatorFn, scroll_buffer_size?: number): Node;
-export function RepeatScroll<T>(ob: ReadonlyObservable<T[]>, render: ReadonlyRenderFn<T>, separator?: SeparatorFn, scroll_buffer_size?: number): Node;
+export function RepeatScroll<T>(ob: o.Observable<T[]>, render: RenderFn<T> , separator?: SeparatorFn, scroll_buffer_size?: number): Node;
+export function RepeatScroll<T>(ob: o.ReadonlyObservable<T[]>, render: ReadonlyRenderFn<T>, separator?: SeparatorFn, scroll_buffer_size?: number): Node;
 export function RepeatScroll<T>(
   ob: any,
   render: any,

@@ -1,8 +1,6 @@
 
 import {
-  O,
-  RO,
-  MaybeObservableReadonlyObject
+  o
 } from './observable'
 import {Mixin} from './mixins'
 
@@ -31,20 +29,20 @@ export type Renderable = string | number | Node | null | undefined
 * by the e() function. Anything of the Insertable type can be put
 * in <tag>{insertable}</tag>
 */
-export type Insertable = RO<Renderable> | RO<Renderable>[]
+export type Insertable = o.RO<Renderable> | o.RO<Renderable>[]
 
 export interface EmptyAttributes {
-  $$children?: O<Insertable> | O<Insertable>[]
+  $$children?: o.O<Insertable> | o.O<Insertable>[]
 }
 
 /**
  * Classes.
  */
-export type ClassDefinition = {[name: string]: RO<any>} | O<string>
+export type ClassDefinition = {[name: string]: o.RO<any>} | o.O<string>
 
 export type StyleDefinition =
-  RO<Partial<CSSStyleDeclaration>>
-  | MaybeObservableReadonlyObject<Partial<CSSStyleDeclaration>>
+  o.RO<Partial<CSSStyleDeclaration>>
+  | o.MaybeObservableReadonlyObject<Partial<CSSStyleDeclaration>>
 
 /**
  * Basic attributes used on all nodes.
@@ -75,7 +73,7 @@ export interface Attrs extends EmptyAttributes {
 ///////////////////////////////////////////////////////////////////////////
 // Now following are the default attributes for HTML and SVG nodes.
 
-export type NRO<T> = RO<T | null | undefined>
+export type NRO<T> = o.RO<T | null | undefined>
 
 export interface HTMLAttributes extends Attrs {
 

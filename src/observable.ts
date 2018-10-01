@@ -1,4 +1,23 @@
 
+
+/**
+ * Make sure we have an observable.
+ * @param arg A MaybeObservable
+ * @returns The original observable if `arg` already was one, or a new
+ *   Observable holding the value of `arg` if it wasn't.
+ */
+export function o<T>(arg: o.O<T>): o.Observable<T>
+export function o<T>(arg: o.RO<T>): o.ReadonlyObservable<T>
+export function o<T>(arg: o.O<T> | undefined): o.Observable<T | undefined>
+export function o<T>(arg: o.RO<T> | undefined): o.ReadonlyObservable<T | undefined>
+export function o(arg: any): any {
+  return arg instanceof o.Observable ? arg : new o.Observable(arg)
+}
+
+
+export namespace o {
+
+
 export type UnregisterFunction = () => void
 
 export type ObserverFunction<T, U = void> = (newval: T, changes: Changes<T>) => U
@@ -22,6 +41,9 @@ export interface ReadonlyObserver<A, B = void> {
   startObserving(): void
   stopObserving(): void
 }
+
+export type MaybeObservableObject<T> = { [P in keyof T]:  O<T[P]>}
+export type MaybeObservableReadonlyObject<T> = { [P in keyof T]:  RO<T[P]>}
 
 
 /**
@@ -929,27 +951,6 @@ export class ArrayTransformObservable<A> extends VirtualObservable<A[]> {
   }
 }
 
-
-/**
- * Make sure we have an observable.
- * @param arg A MaybeObservable
- * @returns The original observable if `arg` already was one, or a new
- *   Observable holding the value of `arg` if it wasn't.
- */
-export function o<T>(arg: O<T>): Observable<T>
-export function o<T>(arg: RO<T>): ReadonlyObservable<T>
-export function o<T>(arg: O<T> | undefined): Observable<T | undefined>
-export function o<T>(arg: RO<T> | undefined): ReadonlyObservable<T | undefined>
-export function o(arg: any): any {
-  return arg instanceof Observable ? arg : new Observable(arg)
-}
-
-
-export type MaybeObservableObject<T> = { [P in keyof T]:  O<T[P]>}
-export type MaybeObservableReadonlyObject<T> = { [P in keyof T]:  RO<T[P]>}
-
-
-export namespace o {
 
   /**
    * Get a MaybeObservable's value
