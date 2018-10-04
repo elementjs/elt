@@ -181,8 +181,8 @@ export interface ReadonlyObservable<A> {
   isTrue(this: ReadonlyObservable<boolean>): ReadonlyObservable<boolean>
   isFalsy(): ReadonlyObservable<boolean>
   isTruthy(): ReadonlyObservable<boolean>
-  or(rhs: ReadonlyObservable<any>): ReadonlyObservable<boolean>
-  and(rhs: ReadonlyObservable<any>): ReadonlyObservable<boolean>
+  or(rhs: any): ReadonlyObservable<boolean>
+  and(rhs: any): ReadonlyObservable<boolean>
   plus(this: ReadonlyObservable<number>, pl: RO<number>): ReadonlyObservable<number>
   minus(this: ReadonlyObservable<number>, pl: RO<number>): ReadonlyObservable<number>
   times(this: ReadonlyObservable<number>, pl: RO<number>): ReadonlyObservable<number>
@@ -536,7 +536,7 @@ export class Observable<A> implements ReadonlyObservable<A> {
    * any of the provided observables is true.
    * @tag transform-readonly
    */
-  or(value: RO<any>): ReadonlyObservable<boolean> {
+  or(value: any): ReadonlyObservable<boolean> {
     return o.merge({lhs: this, rhs: value}).tf(({lhs, rhs}) => !!lhs || !!rhs)
   }
 
@@ -544,7 +544,7 @@ export class Observable<A> implements ReadonlyObservable<A> {
    * True when this and all the values provided in args are true.
    * @tag transform-readonly
    */
-  and(value: RO<any>): ReadonlyObservable<boolean> {
+  and(value: any): ReadonlyObservable<boolean> {
     return o.merge({lhs: this, rhs: value}).tf(({lhs, rhs}) => lhs && !!rhs)
   }
 
@@ -969,7 +969,7 @@ export class ArrayTransformObservable<A> extends VirtualObservable<A[]> {
    * @returns A boolean Observable that is true when all of them are true, false
    *   otherwise.
    */
-  export function and(...args: RO<any>[]): ReadonlyObservable<boolean> {
+  export function and(...args: any[]): ReadonlyObservable<boolean> {
     if (args.length === 1)
       return o(args[0]).isTruthy()
     return args.slice(1).reduce((lhs, rhs) =>
@@ -984,7 +984,7 @@ export class ArrayTransformObservable<A> extends VirtualObservable<A[]> {
    * @returns A boolean Observable that is true when any of them is true, false
    *   otherwise.
    */
-  export function or(...args: RO<any>[]): ReadonlyObservable<boolean> {
+  export function or(...args: any[]): ReadonlyObservable<boolean> {
     if (args.length === 1)
       return o(args[0]).isTruthy()
     return args.slice(1).reduce((lhs, rhs) =>
