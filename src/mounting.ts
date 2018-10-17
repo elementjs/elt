@@ -5,6 +5,14 @@ export type MaybeNode = Node | null
 
 const mnsym = Symbol('element-mounted')
 
+export function added(node: Node, parent: Node) {
+  var mx = getMixins(node)
+  if (!mx) return
+  for (var m of mx)
+    m.added(node, parent)
+}
+
+
 export function _apply_mount(node: Node): void
 export function _apply_mount(node: any) {
   node[mnsym] = true
@@ -201,7 +209,9 @@ export function remove_and_unmount(node: Node): void {
  */
 export function insert_before_and_mount(parent: Node, node: Node, refchild: Node | null = null) {
   parent.insertBefore(node, refchild)
+  added(node, parent)
   mount(node, parent)
+  console.log(node)
 }
 
 

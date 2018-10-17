@@ -21,7 +21,7 @@ import {
 import {
   remove_and_unmount,
   mount,
-  insert_before_and_mount
+  added
 } from './mounting'
 
 
@@ -38,46 +38,54 @@ export function instanciate_verb(m: Mixin<Comment>): Node {
  */
 export class Displayer extends Mixin<Comment> {
 
-  next_node: Node | null = null
+  current_node: Node | null = null
+  observer!: o.ReadonlyObserver<Renderable>
 
   constructor(public _obs: o.ReadonlyObservable<Renderable>) {
     super()
   }
 
   init() {
-    this.observe(this._obs, value => {
-      if (!(value instanceof Node)) {
-        var val = value != null ? value.toString() : ''
-
-        var next = this.next_node
-        if (next && next instanceof Text) {
-          next.nodeValue = val
-          return
-        } else {
-          value = document.createTextNode(val)
-        }
-      }
-
-      var parent = this.node.parentNode!
-      var next = this.next_node
-      if (next) {
-        remove_and_unmount(next)
-      }
-      this.next_node = value
-      insert_before_and_mount(parent, value, this.node)
-    })
+    this.observer = this.observe(this._obs, value => this.update(value))
   }
 
-  inserted(node: Comment, parent: Node) {
-    if (this.next_node) {
-      insert_before_and_mount(parent, this.next_node, this.node)
+  update(value: Renderable) {
+    if (!(value instanceof Node)) {
+      var val = value != null ? value.toString() : ''
+
+      var current = this.current_node
+      if (current && current instanceof Text) {
+        current.nodeValue = val
+        return
+      } else {
+        value = document.createTextNode(val)
+      }
     }
+
+    var parent = this.node.parentNode!
+    var current = this.current_node
+    if (current) {
+      remove_and_unmount(current)
+    }
+    this.current_node = value
+    this.insertBefore(parent, value, this.node)
   }
+
+  added() {
+    // Manually trigger the first call to the observer.
+    this.observer.call(this._obs.get())
+  }
+
+  // inserted(node: Comment, parent: Node) {
+  //   if (this.current_node) {
+  //     this.insertBefore(parent, this.current_node, this.node)
+  //   }
+  // }
 
   removed(node: Comment, parent: Node) {
-    if (this.next_node) {
+    if (this.current_node) {
       // can this err ?
-      remove_and_unmount(this.next_node)
+      remove_and_unmount(this.current_node)
     }
   }
 
@@ -247,7 +255,7 @@ export class Repeater<T> extends Mixin<Comment> {
 
   inserted(node: Comment, parent: Node) {
     for (var n of this.positions) {
-      insert_before_and_mount(parent, n, node)
+      this.insertBefore(parent, n, node)
     }
   }
 
@@ -402,10 +410,10 @@ export class FragmentHolder extends Mixin<Comment> {
     this.child_nodes = nodes
   }
 
-  inserted(node: Comment, parent: Node) {
+  added(node: Comment, parent: Node) {
     parent.insertBefore(this.fragment, node.nextSibling)
     for (var c of this.child_nodes) {
-      mount(c, parent)
+      added(c, parent)
     }
   }
 
