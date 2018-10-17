@@ -76,11 +76,11 @@ export class Displayer extends Mixin<Comment> {
     this.observer.call(this._obs.get())
   }
 
-  // inserted(node: Comment, parent: Node) {
-  //   if (this.current_node) {
-  //     this.insertBefore(parent, this.current_node, this.node)
-  //   }
-  // }
+  inserted(node: Comment, parent: Node) {
+    if (this.current_node) {
+      mount(this.current_node)
+    }
+  }
 
   removed(node: Comment, parent: Node) {
     if (this.current_node) {
@@ -170,6 +170,7 @@ export class Repeater<T> extends Mixin<Comment> {
   protected lst: T[] = []
 
   protected child_obs: o.Observable<T>[] = []
+  private observer!: o.ReadonlyObserver<T[]>
 
   constructor(
     ob: o.O<T[]>,
@@ -182,7 +183,7 @@ export class Repeater<T> extends Mixin<Comment> {
   }
 
   init() {
-    this.observe(this.obs, lst => {
+    this.observer = this.observe(this.obs, lst => {
       this.lst = lst || []
       const diff = lst.length - this.next_index
 
@@ -231,7 +232,10 @@ export class Repeater<T> extends Mixin<Comment> {
     }
 
     parent.insertBefore(fr, this.node)
-    for (var n of to_mount) mount(n, parent)
+    for (var n of to_mount) {
+      added(n, parent)
+      if (this.mounted) mount(n, parent)
+    }
 
   }
 
@@ -255,8 +259,13 @@ export class Repeater<T> extends Mixin<Comment> {
 
   inserted(node: Comment, parent: Node) {
     for (var n of this.positions) {
-      this.insertBefore(parent, n, node)
+      mount(n, parent)
+      // this.insertBefore(parent, n, node)
     }
+  }
+
+  added() {
+    this.observer.call(this.obs.get())
   }
 
   removed() {
@@ -321,6 +330,12 @@ export class ScrollRepeater<T> extends Repeater<T> {
     if (!this.parent) return
     this.appendChildren(0)
   }
+
+  // This is to prevent the nodes to be added directly since the repeat scroll absolutely
+  // needs to know the height of its container to display its first element.
+  // This could be changed in favor of displaying a first chunk of elements and only then
+  // check for height.
+  added() { }
 
   inserted() {
     super.inserted.apply(this, arguments)
@@ -411,9 +426,17 @@ export class FragmentHolder extends Mixin<Comment> {
   }
 
   added(node: Comment, parent: Node) {
-    parent.insertBefore(this.fragment, node.nextSibling)
+    node.parentNode!.insertBefore(this.fragment, node.nextSibling)
     for (var c of this.child_nodes) {
       added(c, parent)
+      if (this.mounted)
+        mount(c, parent)
+    }
+  }
+
+  inserted(node: Comment, parent: Node) {
+    for (var c of this.child_nodes) {
+      mount(c, parent)
     }
   }
 

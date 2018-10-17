@@ -211,7 +211,6 @@ export function insert_before_and_mount(parent: Node, node: Node, refchild: Node
   parent.insertBefore(node, refchild)
   added(node, parent)
   mount(node, parent)
-  console.log(node)
 }
 
 

@@ -160,12 +160,13 @@ export function e(elt: any, _attrs: Attrs | null, ...children: Insertable[]): El
 
     // Append children to the node.
     if (children) {
-      node.appendChild(getDocumentFragment(children))
-      var _child = node.firstChild as Node | null
+      var fragment = getDocumentFragment(children)
+      var _child = fragment.firstChild as Node | null
       while (_child) {
         added(_child, node)
         _child = _child.nextSibling
       }
+      node.appendChild(fragment)
     }
 
   } else if (isComponent(elt)) {
