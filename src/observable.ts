@@ -86,11 +86,26 @@ export class Changes<A> {
    * Does the same as changed, except that if there was no previous value,
    * return false.
    *
-   * @param ex Same than for changed
+   * @param ex Same than for changed, except that if the function returns
+   *  undefined, it means that there was no previous value.
    */
   updated(...ex: ((a: A) => any)[]) {
-    if (this.o === NOVALUE) return false
-    return this.changed(...ex)
+    const old = this.o
+    const n = this.n
+
+    if (old === NOVALUE) return false
+
+    if (ex.length > 0) {
+      for (var e of ex) {
+        const _o = e(old as A)
+        // we have an update only if there was an old value different
+        // from our current value that was not undefined.
+        if (_o !== undefined && e(n) !== _o) return true
+      }
+      return false
+    }
+
+    return old !== n
   }
 
   hasOldValue() {
