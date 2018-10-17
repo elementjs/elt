@@ -7,6 +7,10 @@ import {
   Attrs, Listener, StyleDefinition, ClassDefinition
 } from './types'
 
+import {
+  mount, added
+} from './mounting'
+
 
 /**
  * This symbol is added as a property of the DOM nodes to store
@@ -230,6 +234,13 @@ export class Mixin<N extends Node = Node> {
     this.removed(node, parent, next, prev)
   }
 
+  insertBefore(parent: Node, node: Node, before?: Node) {
+    parent.insertBefore(node, before!)
+    added(node, parent)
+    if (this.mounted)
+      mount(node, parent)
+  }
+
   /**
    * Stub method. Overload it if you want to run code right after the creation of the
    * associated node by the d() function (or more generally whenever this mixin is added
@@ -241,6 +252,17 @@ export class Mixin<N extends Node = Node> {
    * @param node The associated node.
    */
   init(node: N): void { }
+
+  /**
+   * Stub method. Overload if you want to run code right after the node of this
+   * controller was appended to another node, but before it is added to the DOM.
+   * It is generally called during the call to E() when appending the children
+   * to a final node or by verbs that manipulate other nodes.
+   *
+   * @param node The associated node.
+   * @param parent Its new parent
+   */
+  added(node: N, parent: Node): void { }
 
   /**
    * Stub method. Overload it if you want to run code right after the Node was added to the DOM.

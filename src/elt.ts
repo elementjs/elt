@@ -18,6 +18,7 @@ import {
 import {
   Display
 } from './verbs'
+import { added } from './mounting';
 
 
 
@@ -160,6 +161,11 @@ export function e(elt: any, _attrs: Attrs | null, ...children: Insertable[]): El
     // Append children to the node.
     if (children) {
       node.appendChild(getDocumentFragment(children))
+      var _child = node.firstChild as Node | null
+      while (_child) {
+        added(_child, node)
+        _child = _child.nextSibling
+      }
     }
 
   } else if (isComponent(elt)) {
