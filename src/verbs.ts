@@ -68,7 +68,10 @@ export class Displayer extends Mixin<Comment> {
       remove_and_unmount(current)
     }
     this.current_node = value
-    this.insertBefore(parent, value, this.node)
+    parent.insertBefore(value, this.node)
+    added(value)
+    if (this.mounted)
+      mount(value, parent)
   }
 
   added() {
@@ -233,7 +236,7 @@ export class Repeater<T> extends Mixin<Comment> {
 
     parent.insertBefore(fr, this.node)
     for (var n of to_mount) {
-      added(n, parent)
+      added(n)
       if (this.mounted) mount(n, parent)
     }
 
@@ -425,12 +428,12 @@ export class FragmentHolder extends Mixin<Comment> {
     this.child_nodes = nodes
   }
 
-  added(node: Comment, parent: Node) {
+  added(node: Comment) {
     node.parentNode!.insertBefore(this.fragment, node.nextSibling)
     for (var c of this.child_nodes) {
-      added(c, parent)
+      added(c)
       if (this.mounted)
-        mount(c, parent)
+        mount(c)
     }
   }
 
