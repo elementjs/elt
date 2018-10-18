@@ -168,7 +168,7 @@ export class Mixin<N extends Node = Node> {
    * @returns The Observer instance
    */
   observe<T, U = void>(a: o.RO<T>, cbk: o.ObserverFunction<T, U>): o.ReadonlyObserver<T, U>
-  observe<T, U = void>(a: o.RO<T>, cbk: o.ObserverFunction<T, U>, immediate: true): o.ReadonlyObserver<T, U> | null
+  observe<T, U = void>(a: o.RO<T>, cbk: o.ObserverFunction<T, U>, immediate: boolean): o.ReadonlyObserver<T, U> | null
   observe<T, U = void>(a: o.RO<T>, cbk: o.ReadonlyObserver<T, U> | o.ObserverFunction<T, U>, immediate?: boolean): o.ReadonlyObserver<T, U> | null {
     if (immediate && !(a instanceof o.Observable)) {
       typeof cbk === 'function' ? cbk(a as T, new o.Changes(a as T)) : cbk.call(a as T)
