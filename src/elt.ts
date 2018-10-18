@@ -135,13 +135,26 @@ function isComponent(kls: any): kls is new (attrs: Attrs) => Component<any> {
   return kls.prototype instanceof Component
 }
 
+export const GLOBAL_ATTRIBUTES = {
+  accesskey: true,
+  contenteditable: true,
+  dir: true,
+  draggable: true,
+  dropzone: true,
+  id: true,
+  lang: true,
+  spellcheck: true,
+  tabindex: true,
+  title: true,
+  translate: true,
+} as {[attr: string]: boolean}
+
 /**
  * Create Nodes with a twist.
  *
  * This function is the base of element ; it creates Nodes and glues together
  * Controllers, decorators, classes and style.
  */
-
 export function e(elt: ComponentFn, attrs: Attrs | null, ...children: Insertable[]): Element
 export function e(elt: string, attrs: Attrs | null, ...children: Insertable[]): HTMLElement
 export function e<A>(elt: ComponentInstanciator<A>, attrs: A | null, ...children: Insertable[]): Element
@@ -152,8 +165,9 @@ export function e(elt: any, _attrs: Attrs | null, ...children: Insertable[]): El
   let node: Element = null! // just to prevent the warnings later
 
   var attrs = _attrs || {} as Attrs
+  var is_basic_node = typeof elt === 'string'
 
-  if (typeof elt === 'string') {
+  if (is_basic_node) {
     // create a simple DOM node
     var ns = NS[elt] || attrs.xmlns
     node = ns ? document.createElementNS(ns, elt) : document.createElement(elt)
@@ -182,51 +196,31 @@ export function e(elt: any, _attrs: Attrs | null, ...children: Insertable[]): El
     node = elt(attrs, getDocumentFragment(children))
   }
 
-  const {class: cls, style, $$, id, contenteditable, hidden, accesskey, dir, draggable, dropzone, lang, spellcheck, tabindex, title, translate, ...rest} = attrs
-
   // Classes and style are applied at the end of this function and are thus
   // never passed to other node definitions.
-  if (_attrs || cls || style || accesskey || contenteditable || dir || draggable || dropzone || id || lang || spellcheck || tabindex || title || translate) {
-    var mx = new AttrsMixin()
-    mx.addToNode(node as HTMLElement) // we're cheating on the type.
+  var mx = new AttrsMixin()
+  mx.addToNode(node as HTMLElement) // we're cheating on the type.
 
-    if (typeof elt === 'string') {
-      // when building a simple DOM node, then all the attributes
-      // are meant to be applied.
-      for (var x in rest) {
-        mx.observeAttribute(x, (rest as any)[x])
+  for (var key in attrs) {
+    if (key === 'class') {
+      var _cls = attrs.class!
+      if (!Array.isArray(_cls)) mx.observeClass(_cls)
+      else {
+        for (var _c of _cls) mx.observeClass(_c)
       }
-    }
-
-    if (accesskey) mx.observeAttribute('accesskey', accesskey)
-    if (contenteditable) mx.observeAttribute('contenteditable', accesskey)
-    if (dir) mx.observeAttribute('dir', dir)
-    if (draggable) mx.observeAttribute('draggable', draggable)
-    if (dropzone) mx.observeAttribute('dropzone', dropzone)
-    if (id) mx.observeAttribute('id', id)
-    if (lang) mx.observeAttribute('lang', lang)
-    if (spellcheck) mx.observeAttribute('spellcheck', spellcheck)
-    if (tabindex) mx.observeAttribute('tabindex', tabindex)
-    if (title) mx.observeAttribute('title', title)
-    if (translate) mx.observeAttribute('translate', translate)
-
-    if (cls) {
-      if (Array.isArray(cls)) {
-        for (var c of cls) {
-          mx.observeClass(c)
-        }
-      } else {
-        mx.observeClass(cls)
-      }
-    }
-
-    if (style) {
-      mx.observeStyle(style)
+    } else if (key === 'style') {
+      mx.observeStyle(attrs.style!)
+    } else if (key === '$$') {
+      continue
+    } else if (is_basic_node || GLOBAL_ATTRIBUTES[key]) {
+      // Observe all attributes for simple elements
+      mx.observeAttribute(key, (attrs as any)[key])
     }
   }
 
   // decorators are run now. If class and style were defined, they will be applied to the
   // final node.
+  var $$ = attrs.$$
   if ($$) {
     var mixins = Array.isArray($$) ? $$ : [$$]
     for (var d of mixins) {
