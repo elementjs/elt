@@ -167,6 +167,7 @@ export class Repeater<T> extends Mixin<Comment> {
   protected lst: T[] = []
 
   protected child_obs: o.Observable<T>[] = []
+  private end = document.createComment('repeat end')
 
   constructor(
     ob: o.O<T[]>,
@@ -186,6 +187,7 @@ export class Repeater<T> extends Mixin<Comment> {
       return null
 
     var ob = this.obs.p(this.next_index)
+
     this.child_obs.push(ob)
 
     var res = this.renderfn(ob, this.next_index)
@@ -216,9 +218,11 @@ export class Repeater<T> extends Mixin<Comment> {
     }
 
     added(fr)
-    parent.insertBefore(fr, this.node)
-    for (var n of to_mount) {
-      if (this.mounted) mount(n, parent)
+    parent.insertBefore(fr, this.end)
+    if (this.mounted) {
+      for (var n of to_mount) {
+        mount(n, parent)
+      }
     }
 
   }
@@ -241,30 +245,32 @@ export class Repeater<T> extends Mixin<Comment> {
     this.positions = this.positions.slice(0, this.next_index)
   }
 
-  inserted(node: Comment, parent: Node) {
-    for (var n of this.positions) {
-      mount(n, parent)
-      // this.insertBefore(parent, n, node)
-    }
-  }
-
+  /**
+   * FIXME: WHAT SHOULD WE DO WHEN THE NODE IS REMOVED AND THEN
+   * ADDED AGAIN ???
+   */
   added(node: Comment, immediate = true) {
+    // Add the end_repeat after this node
+    node.parentNode!.insertBefore(this.end, node.nextSibling)
+
     this.observe(this.obs, lst => {
       this.lst = lst || []
       const diff = lst.length - this.next_index
 
       if (diff > 0)
         this.appendChildren(diff)
-      else
+      else if (diff < 0)
         this.removeChildren(-diff)
     }, immediate)
   }
 
   removed() {
+    if (this.end.parentNode)
+      this.end.parentNode.removeChild(this.end)
+
     for (var n of this.positions) {
       remove_and_unmount(n)
     }
-
   }
 
 }
