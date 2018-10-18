@@ -5,11 +5,23 @@ export type MaybeNode = Node | null
 
 const mnsym = Symbol('element-mounted')
 
-export function added(node: Node) {
+function _added(node: Node) {
   var mx = getMixins(node)
   if (!mx) return
   for (var m of mx)
     m.added(node)
+}
+
+export function added(node: Node) {
+  if (node instanceof DocumentFragment) {
+    var _n = node.firstChild as Node | null
+    while (_n) {
+      _added(_n)
+      _n = _n.nextSibling
+    }
+  } else {
+    _added(node)
+  }
 }
 
 
