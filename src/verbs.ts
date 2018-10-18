@@ -234,9 +234,9 @@ export class Repeater<T> extends Mixin<Comment> {
       fr.appendChild(next)
     }
 
+    added(fr)
     parent.insertBefore(fr, this.node)
     for (var n of to_mount) {
-      added(n)
       if (this.mounted) mount(n, parent)
     }
 
