@@ -5,11 +5,11 @@ export type MaybeNode = Node | null
 
 const mnsym = Symbol('element-mounted')
 
-export function added(node: Node, parent: Node) {
+export function added(node: Node) {
   var mx = getMixins(node)
   if (!mx) return
   for (var m of mx)
-    m.added(node, parent)
+    m.added(node)
 }
 
 
@@ -208,8 +208,10 @@ export function remove_and_unmount(node: Node): void {
  * @param refchild
  */
 export function insert_before_and_mount(parent: Node, node: Node, refchild: Node | null = null) {
-  parent.insertBefore(node, refchild)
-  added(node, parent)
+  var df = document.createDocumentFragment()
+  df.appendChild(node)
+  added(node)
+  parent.insertBefore(df, refchild)
   mount(node, parent)
 }
 

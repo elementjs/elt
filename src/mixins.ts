@@ -7,10 +7,6 @@ import {
   Attrs, Listener, StyleDefinition, ClassDefinition
 } from './types'
 
-import {
-  mount, added
-} from './mounting'
-
 
 /**
  * This symbol is added as a property of the DOM nodes to store
@@ -234,13 +230,6 @@ export class Mixin<N extends Node = Node> {
     this.removed(node, parent, next, prev)
   }
 
-  insertBefore(parent: Node, node: Node, before?: Node) {
-    parent.insertBefore(node, before!)
-    added(node, parent)
-    if (this.mounted)
-      mount(node, parent)
-  }
-
   /**
    * Stub method. Overload it if you want to run code right after the creation of the
    * associated node by the d() function (or more generally whenever this mixin is added
@@ -262,7 +251,7 @@ export class Mixin<N extends Node = Node> {
    * @param node The associated node.
    * @param parent Its new parent
    */
-  added(node: N, parent: Node): void { }
+  added(node: N): void { }
 
   /**
    * Stub method. Overload it if you want to run code right after the Node was added to the DOM.
