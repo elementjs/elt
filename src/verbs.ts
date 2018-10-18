@@ -167,7 +167,6 @@ export class Repeater<T> extends Mixin<Comment> {
   protected lst: T[] = []
 
   protected child_obs: o.Observable<T>[] = []
-  private observer!: o.ReadonlyObserver<T[]>
 
   constructor(
     ob: o.O<T[]>,
@@ -177,18 +176,6 @@ export class Repeater<T> extends Mixin<Comment> {
     super()
 
     this.obs = o(ob)
-  }
-
-  init() {
-    this.observer = this.observe(this.obs, lst => {
-      this.lst = lst || []
-      const diff = lst.length - this.next_index
-
-      if (diff > 0)
-        this.appendChildren(diff)
-      else
-        this.removeChildren(-diff)
-    })
   }
 
   /**
@@ -261,8 +248,16 @@ export class Repeater<T> extends Mixin<Comment> {
     }
   }
 
-  added() {
-    this.observer.call(this.obs.get())
+  added(node: Comment, immediate = true) {
+    this.observe(this.obs, lst => {
+      this.lst = lst || []
+      const diff = lst.length - this.next_index
+
+      if (diff > 0)
+        this.appendChildren(diff)
+      else
+        this.removeChildren(-diff)
+    }, immediate)
   }
 
   removed() {
@@ -332,7 +327,9 @@ export class ScrollRepeater<T> extends Repeater<T> {
   // needs to know the height of its container to display its first element.
   // This could be changed in favor of displaying a first chunk of elements and only then
   // check for height.
-  added() { }
+  added(node: Comment) {
+    super.added(node, false)
+  }
 
   inserted() {
     super.inserted.apply(this, arguments)
