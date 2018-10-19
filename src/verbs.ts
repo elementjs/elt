@@ -74,7 +74,9 @@ export class Displayer extends Mixin<Comment> {
   }
 
   inserted(node: Comment, parent: Node) {
-    if (this.current_node) {
+    if (this.current_node && this.current_node.nextSibling !== this.node) {
+      this.node.parentNode!.insertBefore(this.current_node, this.node)
+      added(this.current_node)
       mount(this.current_node)
     }
   }
