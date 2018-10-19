@@ -264,13 +264,21 @@ export class Repeater<T> extends Mixin<Comment> {
     }, immediate)
   }
 
+  inserted() {
+    if (this.positions.length === 0) {
+      this.node.parentNode!.insertBefore(this.end, this.node.nextSibling)
+      // This happens when the Repeat was removed from the DOM
+      // and inserted again. In this case, the observer is not triggered since
+      // the value of the list didn't change, so we need to insert the elements.
+      this.appendChildren(this.lst.length)
+    }
+  }
+
   removed() {
     if (this.end.parentNode)
       this.end.parentNode.removeChild(this.end)
 
-    for (var n of this.positions) {
-      remove_and_unmount(n)
-    }
+    this.removeChildren(this.positions.length)
   }
 
 }
@@ -338,7 +346,10 @@ export class ScrollRepeater<T> extends Repeater<T> {
   }
 
   inserted() {
-    super.inserted.apply(this, arguments)
+
+    if (this.positions.length === 0) {
+      this.appendChildren(0)
+    }
 
     // Find parent with the overflow-y
     var iter = this.node.parentElement
