@@ -39,9 +39,14 @@ export function instanciate_verb(m: Mixin<Comment>): Node {
 export class Displayer extends Mixin<Comment> {
 
   current_node: Node | null = null
+  observer!: o.ReadonlyObserver<Renderable>
 
   constructor(public _obs: o.ReadonlyObservable<Renderable>) {
     super()
+  }
+
+  init() {
+    this.observer = this.observe(this._obs, value => this.update(value))
   }
 
   update(value: Renderable) {
@@ -70,7 +75,7 @@ export class Displayer extends Mixin<Comment> {
   }
 
   added() {
-    this.observe(this._obs, value => this.update(value), true)
+    this.observer.call(this._obs.get())
   }
 
   inserted(node: Comment, parent: Node) {
