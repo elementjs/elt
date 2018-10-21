@@ -986,8 +986,6 @@ export class ArrayTransformObservable<A> extends VirtualObservable<A[]> {
    * Observable objects for values that were not.
    * @param arg: The maybe observable object
    */
-  export function tf<A, B>(arg: O<A>, fn: (a: A) => B): O<B>
-  export function tf<A, B>(arg: O<A> | undefined, fn: (a: A | undefined) => B): O<B>
   export function tf<A, B>(arg: RO<A>, fn: (a: A) => B): RO<B>
   export function tf<A, B>(arg: RO<A> | undefined, fn: (a: A | undefined) => B): RO<B>
   export function tf<A, B>(arg: RO<A>, fn: (a: A) => B): RO<B> {
