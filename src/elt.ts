@@ -198,8 +198,10 @@ export function e(elt: any, _attrs: Attrs | null, ...children: Insertable[]): El
 
   // Classes and style are applied at the end of this function and are thus
   // never passed to other node definitions.
-  var mx = new AttrsMixin()
-  mx.addToNode(node as HTMLElement) // we're cheating on the type.
+  var mx = new AttrsMixin();
+  // AttrsMixin doesn't use anything else than its nodes. It has no init(), and
+  // we're not adding it to the node until we know that it would observe it.
+  (mx.node as any) = node as HTMLElement
 
   for (var key in attrs) {
     if (key === 'class') {
@@ -217,6 +219,9 @@ export function e(elt: any, _attrs: Attrs | null, ...children: Insertable[]): El
       mx.observeAttribute(key, (attrs as any)[key])
     }
   }
+
+  if (mx.observers.length > 0)
+    mx.addToNode(node as HTMLElement)
 
   // decorators are run now. If class and style were defined, they will be applied to the
   // final node.
