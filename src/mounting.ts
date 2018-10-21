@@ -161,17 +161,20 @@ export function apply_mutations(records: MutationRecord[]) {
 }
 
 export const symmount = Symbol('mounting')
+
 /**
- * Set up the mounting mechanism. All nodes added as children to the `node` parameter
+ * Set up an automated mounting mechanism. All nodes added as children to the `node` parameter
  * will have their mixins called accordingly whenever they get added to or removed
  * from the DOM.
  *
- * This is generally the first element function you should call, before adding any
- * node created by `d()` to the DOM.
+ * Note that you should use insert_before_and_mount / remove_and_unmount / append_child_and_mount instead
+ * if you're 100% in control of the nodes that get into and out of the document. This function
+ * exists mainly for when you're using libraries that will unpredictably insert nodes created
+ * with E that you need mounted anyways.
  *
  * Behind the scenes, it uses the DOM MutationObserver to accomplish its magic, so
  * the browser will need to implement it for element to work (as of typing this in september
- * 2017, they almost all do, at least all the current big browsers)
+ * 2017, at least all the current big browsers do)
  *
  * @param node: the root node from which we will listen to the document
  *    mutations.
