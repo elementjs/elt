@@ -978,6 +978,26 @@ export class ArrayTransformObservable<A> extends VirtualObservable<A[]> {
     return arg instanceof Observable ? arg.get() : arg
   }
 
+
+  /**
+   * Do a transform of the provided argument and return a tranformed observable
+   * only if it was itself observable.
+   * This function is meant to be used when building components to avoid creating
+   * Observable objects for values that were not.
+   * @param arg: The maybe observable object
+   */
+  export function tf<A, B>(arg: O<A>, fn: (a: A) => B): O<B>
+  export function tf<A, B>(arg: O<A> | undefined, fn: (a: A | undefined) => B): O<B>
+  export function tf<A, B>(arg: RO<A>, fn: (a: A) => B): RO<B>
+  export function tf<A, B>(arg: RO<A> | undefined, fn: (a: A | undefined) => B): RO<B>
+  export function tf<A, B>(arg: RO<A>, fn: (a: A) => B): RO<B> {
+    if (arg instanceof Observable) {
+      return arg.tf(fn)
+    } else {
+      return fn(arg as A)
+    }
+  }
+
   /**
    * Combine several MaybeObservables into an Observable<boolean>
    * @param args Several MaybeObservables that will be and'ed
