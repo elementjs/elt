@@ -1,9 +1,9 @@
 
 import {getMixins} from './mixins'
 
-export type MaybeNode = Node | null
 
-const mnsym = Symbol('element-mounted')
+export const mnsym = Symbol('element-mounted')
+
 
 function _added(node: Node) {
   var mx = getMixins(node)
@@ -73,7 +73,7 @@ export function mount(node: Node, target?: Node) {
 
 
 // node, parent, previous, next
-export type MountTuple = [Node, MaybeNode, MaybeNode, MaybeNode]
+export type MountTuple = [Node, Node | null, Node | null, Node | null]
 
 
 /**
@@ -91,14 +91,14 @@ export function _apply_unmount(tuple: MountTuple) {
 /**
  * Call controller's unmount functions recursively
  */
-export function unmount(node: Node, target: Node, prev: MaybeNode, next: MaybeNode) {
+export function unmount(node: Node, target: Node, prev: Node | null, next: Node | null) {
 
   // The node is already unmounted
   if ((node as any)[mnsym] !== true) return
 
   const unmount: MountTuple[] = []
   const node_stack: Node[] = []
-  var iter: MaybeNode = node.firstChild
+  var iter: Node | null = node.firstChild
 
   // We need to store all the nodes for which we'll call unmount() beforehand,
   // as an unmount() handler may further remove nodes that were already
