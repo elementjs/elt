@@ -602,10 +602,10 @@ export class Observable<A> implements ReadonlyObservable<A> {
     return new TransformObservable(this, fnget, fnset)
   }
 
-  p<A extends object, K extends keyof A>(this: Observable<A>, key: K): PropObservable<A, A[K]>
-  p<A extends {[key: string]: B}, B>(this: Observable<A>, key: O<string>): PropObservable<A, B>
-  p<A>(this: Observable<A[]>, key: O<number>): PropObservable<A[], A>
-  p(this: Observable<any>, key: O<any>): PropObservable<any, any> {
+  p<A extends object, K extends keyof A>(this: Observable<A>, key: RO<K>): PropObservable<A, A[K]>
+  p<A extends {[key: string]: B}, B>(this: Observable<A>, key: RO<string>): PropObservable<A, B>
+  p<A>(this: Observable<A[]>, key: RO<number>): PropObservable<A[], A>
+  p(this: Observable<any>, key: RO<any>): PropObservable<any, any> {
     return new PropObservable(this, key)
   }
 
