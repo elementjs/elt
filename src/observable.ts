@@ -20,6 +20,8 @@ export namespace o {
 
 export type UnregisterFunction = () => void
 
+export type BaseType<T> = T extends ReadonlyObservable<infer U> ? U : T
+
 export type ObserverFunction<T, U = void> = (newval: T, changes: Changes<T>) => U
 
 
@@ -1025,6 +1027,7 @@ export class ArrayTransformObservable<A> extends VirtualObservable<A[]> {
     , o(args[0]))
   }
 
+  export type NonReadonly<T> = T extends ReadonlyObservable<any> ? never : T
 
   /**
    * Merges several MaybeObservables into a single Observable.
@@ -1033,8 +1036,8 @@ export class ArrayTransformObservable<A> extends VirtualObservable<A[]> {
    * @returns An observable which properties are the ones given in `obj` and values
    *   are the resolved values of their respective observables.
    */
-  export function merge<A extends object>(obj: MaybeObservableReadonlyObject<A>): ReadonlyObservable<A>
-  export function merge<A extends object>(obj: MaybeObservableObject<A>): MergeObservable<A>
+  export function merge<A extends object>(obj: {[K in keyof A]: Observable<A[K]>}): Observable<A>
+  export function merge<A extends object>(obj: {[K in keyof A]: ReadonlyObservable<A[K]> | A[K]}): ReadonlyObservable<A>
   export function merge<A extends object>(obj: MaybeObservableObject<A>): MergeObservable<A> {
     return new MergeObservable(obj)
   }
