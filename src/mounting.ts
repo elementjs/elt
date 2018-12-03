@@ -8,8 +8,10 @@ export const mnsym = Symbol('element-mounted')
 function _added(node: Node) {
   var mx = getMixins(node)
   if (!mx) return
-  for (var m of mx)
+  for (var m of mx) {
+    (m.node as any) = node
     m.added(node)
+  }
 }
 
 export function added(node: Node) {
