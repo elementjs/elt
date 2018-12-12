@@ -24,6 +24,11 @@ export type BaseType<T> = T extends ReadonlyObservable<infer U> ? U : T
 
 export type ObserverFunction<T, U = void> = (newval: T, changes: Changes<T>) => U
 
+export interface Transformer<A, B> {
+  get(nval: A, oval: A | undefined, curval: B | undefined): B
+  set(nval: B, oval: B | undefined, obs: Observable<A>): void
+}
+
 
 export type ArrayTransformer<A> = number[] | ((lst: A[]) => number[])
 
@@ -206,7 +211,6 @@ export interface ReadonlyObservable<A> {
   dividedBy(this: ReadonlyObservable<number>, pl: RO<number>): ReadonlyObservable<number>
 
   tf<B>(fnget: (nval: A, oval: A | undefined, curval: B | undefined) => B): ReadonlyObservable<B>
-  tf<B>(fnget: (nval: A, oval: A | undefined, curval: B | undefined) => B, fnset: (nval: B, oval: B | undefined, obs: ReadonlyObservable<A>) => void): Observable<B>
 
   p<A extends object, K extends keyof A>(this: ReadonlyObservable<A>, key: RO<K>): ReadonlyPropObservable<A, A[K]>
   p<A extends {[key: string]: B}, B>(this: ReadonlyObservable<A>, key: RO<string>): ReadonlyPropObservable<A, B>
@@ -600,7 +604,15 @@ export class Observable<A> implements ReadonlyObservable<A> {
    */
   tf<B>(fnget: (nval: A, oval: A | undefined, curval: B | undefined) => B): ReadonlyObservable<B>
   tf<B>(fnget: (nval: A, oval: A | undefined, curval: B | undefined) => B, fnset: (nval: B, oval: B | undefined, obs: Observable<A>) => void): TransformObservable<A, B>
-  tf<B>(fnget: (nval: A, oval: A | undefined, curval: B | undefined) => B, fnset?: (nval: B, oval: B | undefined, obs: Observable<A>) => void): TransformObservable<A, B> {
+  tf<B>(transformer: Transformer<A, B>): TransformObservable<A, B>
+  tf<B>(
+    fnget: Transformer<A, B> | ((nval: A, oval: A | undefined, curval: B | undefined) => B),
+    fnset?: (nval: B, oval: B | undefined, obs: Observable<A>) => void): TransformObservable<A, B>
+  {
+    if (typeof fnget !== 'function') {
+      fnset = fnget.set
+      fnget = fnget.get
+    }
     return new TransformObservable(this, fnget, fnset)
   }
 
