@@ -412,7 +412,7 @@ export class Mixin<N extends Node = Node> {
 
     for (let l of this.listeners) {
       l.live_listener = (ev: Event) => {
-        return l.listener.call(this, ev, this.node)
+        return l.listener.call(this.node, ev, this.node, this)
       }
       this.node.addEventListener(l.event, l.live_listener, l.useCapture)
     }

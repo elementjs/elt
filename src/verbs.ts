@@ -378,7 +378,7 @@ export class ScrollRepeater<T> extends Repeater<T> {
   }
 
   removed() {
-    super.removed.apply(this, arguments)
+    super.removed()
 
     // remove Scrolling
     if (!this.parent) return
