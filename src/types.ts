@@ -5,7 +5,7 @@ import {
 import {Mixin} from './mixins'
 
 
-export type Listener<EventType extends Event, N extends Node = Node> = (this: N, ev: EventType, node: N) => void
+export type Listener<EventType extends Event, N extends Node = Node> = (this: N, ev: EventType, node: N, mixin: Mixin<N>) => void
 
 
 export interface ComponentInterface<A> {
