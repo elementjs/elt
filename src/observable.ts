@@ -331,7 +331,7 @@ export class Observable<A> implements ReadonlyObservable<A> {
    * value as first argument
    * @param fn The callback function
    */
-  evolve(fn: (oldvalue: A) => A) {
+  mutate(fn: (oldvalue: A) => A) {
     const newval = fn(this.__value)
     this.set(newval)
   }
