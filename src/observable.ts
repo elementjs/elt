@@ -306,12 +306,23 @@ export class Observable<A> implements ReadonlyObservable<A> {
   }
 
   /**
-   *
-   * @param value
+   * Set the value of the observable and notify the observers listening
+   * to this object of this new value.
+   * @param value The value to set it to
    */
   set(value: A): void {
     (this.__value as any) = value
     this.notify()
+  }
+
+  /**
+   * Same as set, but expecting a callback that will provide the current
+   * value as first argument
+   * @param fn The callback function
+   */
+  evolve(fn: (oldvalue: A) => A) {
+    const newval = fn(this.__value)
+    this.set(newval)
   }
 
   assign<U>(this: Observable<U[]>, partial: {[index: number]: AssignPartial<U>}): void
