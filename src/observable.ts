@@ -211,6 +211,8 @@ export interface ReadonlyObservable<A> {
   dividedBy(this: ReadonlyObservable<number>, pl: RO<number>): ReadonlyObservable<number>
 
   tf<B>(fnget: (nval: A, oval: A | undefined, curval: B | undefined) => B): ReadonlyObservable<B>
+  tf<B>(fnget: (nval: A, oval: A | undefined, curval: B | undefined) => B, fnset: (nval: B, oval: B | undefined, obs: Observable<A>) => void): TransformObservable<A, B>
+  tf<B>(transformer: Transformer<A, B>): TransformObservable<A, B>
 
   p<A extends object, K extends keyof A>(this: ReadonlyObservable<A>, key: RO<K>): ReadonlyPropObservable<A, A[K]>
   p<A extends {[key: string]: B}, B>(this: ReadonlyObservable<A>, key: RO<string>): ReadonlyPropObservable<A, B>
