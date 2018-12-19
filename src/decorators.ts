@@ -131,9 +131,17 @@ export class ObserveMixin extends Mixin {
 
 }
 
-export function observe<T>(a: o.RO<T>, cbk: (newval: T, changes: o.Changes<T>, node: Node) => void) {
+
+
+export function observe<T>(a: o.ReadonlyObserver<T>, immediate?: boolean): ObserveMixin
+export function observe<T>(a: o.RO<T>, cbk: (newval: T, changes: o.Changes<T>, node: Node) => void, immediate?: boolean): ObserveMixin
+export function observe(a: any, cbk?: any, immediate?: any) {
   var m = new ObserveMixin()
-  m.observe(a, (newval, changes) => cbk(newval, changes, m.node))
+  if (a instanceof o.Observer) {
+    m.observe(a, !!cbk)
+  } else {
+    m.observe(a, cbk, immediate)
+  }
   return m
 }
 

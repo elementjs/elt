@@ -53,6 +53,7 @@ export interface ReadonlyObserver<A, B = void> {
   throttle(ms: number, leading?: boolean): this
   startObserving(): void
   stopObserving(): void
+  observable: ReadonlyObservable<A>
 }
 
 export type MaybeObservableObject<T> = { [P in keyof T]:  O<T[P]>}
@@ -1379,6 +1380,70 @@ export class ArrayTransformObservable<A> extends VirtualObservable<A[]> {
     }
 
     return clone
+  }
+
+
+  /**
+   * A group of observers that can be started and stopped at the same time.
+   * This class is meant to be used for components such as Mixin that want
+   * to tie observing to their life cycle.
+   */
+  export class ObserverGroup {
+
+    observers: o.ReadonlyObserver<any>[] = []
+
+    start() {
+      for (var ob of this.observers)
+        ob.startObserving()
+    }
+
+    stop() {
+      for (var ob of this.observers)
+        ob.stopObserving()
+    }
+
+    add<A, B = void>(obs: A | ReadonlyObservable<A>, cbk: ObserverFunction<A, B>) : ReadonlyObserver<A, B>
+    add<A, B = void>(obs: A | ReadonlyObservable<A>, cbk: ObserverFunction<A, B>, immediate: boolean) : ReadonlyObserver<A, B> | null
+    add<A, B = void>(obs: ReadonlyObserver<A, B>, immediate?: boolean) : ReadonlyObserver<A, B>
+    add<A, B = void>(obs: A | ReadonlyObservable<A> | ReadonlyObserver<A, B>, cbk?: ObserverFunction<A, B> | boolean, immediate?: boolean) : ReadonlyObserver<A, B> | null {
+      var observer: ReadonlyObserver<A, B>
+
+      if (!(obs instanceof Observer)) {
+        const callback = cbk as ObserverFunction<A, B>
+
+        // We were not given an observable, so we resolve the callback immediately
+        if (immediate && !(obs instanceof Observable)) {
+          callback(obs as A, new Changes(obs as A))
+          return null
+        }
+
+        // Otherwise we just create the observable
+        const observable = obs as ReadonlyObservable<A>
+        observer = observable.createObserver(callback)
+
+      } else {
+        observer = obs as ReadonlyObserver<A, B>
+        immediate = !!cbk
+      }
+
+      this.observers.push(observer)
+
+      if (immediate)
+        observer.call(get(observer.observable))
+
+      return observer
+    }
+
+    /**
+     * Remove the observer from this group
+     */
+    remove(observer: ReadonlyObserver<any>) {
+      const idx = this.observers.indexOf(observer)
+      if (idx > -1) {
+        observer.stopObserving()
+        this.observers.splice(idx, 1)
+      }
+    }
   }
 
 }
