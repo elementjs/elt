@@ -1130,11 +1130,15 @@ export class ArrayTransformObservable<A> extends VirtualObservable<A[]> {
   }
 
   /**
-   * Create a new object based on an original object and a mutator
+   * Create a new object based on an original object and a mutator.
+   *
+   * If the mutator would not change the original object then the original
+   * object is returned instead. This behaviour is intented to avoid triggering
+   * observers when not needed.
    *
    * @param value The value the new object will be based on
    * @param mutator An object providing new values for select properties
-   * @returns a new instance of the object
+   * @returns a new instance of the object if the mutator would change it
    */
   export function assign<A>(value: A[], partial: {[index: number]: AssignPartial<A>}): A[]
   export function assign<A>(value: A, mutator: AssignPartial<A>): A
@@ -1143,13 +1147,18 @@ export class ArrayTransformObservable<A> extends VirtualObservable<A[]> {
       return mutator as any
 
     if (typeof mutator === 'object') {
-      var cloned: A = o.clone(value) || ({} as A) // shallow clone
+      var clone: A = o.clone(value) || ({} as A) // shallow clone
+      var changed = false
 
       for (var name in mutator) {
-        cloned[name] = assign(cloned[name], mutator[name]! as any)
+        var old_value = clone[name]
+        var new_value = assign(clone[name], mutator[name]! as any)
+        changed = changed || old_value !== new_value
+        clone[name] = new_value
       }
 
-      return cloned
+      if (!changed) return value
+      return clone
     } else {
       return value
     }
