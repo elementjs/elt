@@ -89,8 +89,8 @@ export class Mixin<N extends Node = Node> {
   readonly mounted: boolean = false
 
   /** An array of observers tied to the Node for observing. Populated by `observe()` calls. */
-  observers: o.ReadonlyObserver<any, any>[] = []
-  listeners: {event: string, listener: Listener<Event, Node>, live_listener: null | ((e: Event) => void), useCapture?: boolean}[] | undefined
+  observers: o.ObserverGroup | undefined = undefined
+  listeners: {event: string, listener: Listener<Event, Node>, live_listener: null | ((e: Event) => void), useCapture?: boolean}[] | undefined = undefined
 
   /**
    * Get a Mixin by its class on the given node or its parents.
@@ -147,7 +147,7 @@ export class Mixin<N extends Node = Node> {
    */
   removeFromNode(node: N) {
     if (this.mounted) {
-      for (var ob of this.observers) ob.stopObserving()
+      if (this.observers) this.observers.stop()
       this.removeListeners(node)
     }
     removeMixin(node, this)
@@ -167,26 +167,12 @@ export class Mixin<N extends Node = Node> {
    *   before being called.
    * @returns The Observer instance
    */
-  observe<T, U = void>(a: o.RO<T>, cbk: o.ObserverFunction<T, U>): o.ReadonlyObserver<T, U>
-  observe<T, U = void>(a: o.RO<T>, cbk: o.ObserverFunction<T, U>, immediate: boolean): o.ReadonlyObserver<T, U> | null
-  observe<T, U = void>(a: o.RO<T>, cbk: o.ReadonlyObserver<T, U> | o.ObserverFunction<T, U>, immediate?: boolean): o.ReadonlyObserver<T, U> | null {
-    if (immediate && !(a instanceof o.Observable)) {
-      typeof cbk === 'function' ? cbk(a as T, new o.Changes(a as T)) : cbk.call(a as T)
-      return null
-    }
-
-    const ob: o.ReadonlyObservable<T> = a instanceof o.Observable ? a : o(a)
-    const observer = typeof cbk === 'function' ?  ob.createObserver(cbk) : cbk
-    this.observers.push(observer)
-
-    if (immediate) {
-      observer.call(o.get(ob))
-    }
-
-    if (this.mounted) {
-      observer.startObserving()
-    }
-    return observer
+  observe<A, B = void>(obs: A | o.ReadonlyObservable<A>, cbk: o.ObserverFunction<A, B>) : o.ReadonlyObserver<A, B>
+  observe<A, B = void>(obs: A | o.ReadonlyObservable<A>, cbk: o.ObserverFunction<A, B>, immediate: boolean) : o.ReadonlyObserver<A, B> | null
+  observe<A, B = void>(obs: o.ReadonlyObserver<A, B>, immediate?: boolean) : o.ReadonlyObserver<A, B>
+  observe<A, B = void>(obs: A | o.ReadonlyObservable<A> | o.ReadonlyObserver<A, B>, cbk?: o.ObserverFunction<A, B> | boolean, immediate?: boolean) : o.ReadonlyObserver<A, B> | null {
+    const _ = this.observers = this.observers || new o.ObserverGroup()
+    return _.add(obs as any, cbk as any, immediate as any)
   }
 
   /**
@@ -204,9 +190,7 @@ export class Mixin<N extends Node = Node> {
 
     this.inserted(node, parent)
 
-    for (var obs of this.observers) {
-      obs.startObserving()
-    }
+    if (this.observers) this.observers.start()
     this.addListeners()
   }
 
@@ -223,9 +207,7 @@ export class Mixin<N extends Node = Node> {
     (this.node as any) = null; // we force the node to null to help with garbage collection.
 
     this.removeListeners(node)
-    for (var o of this.observers) {
-      o.stopObserving()
-    }
+    if (this.observers) this.observers.stop()
 
     this.removed(node, parent, next, prev)
   }

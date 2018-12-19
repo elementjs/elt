@@ -220,7 +220,7 @@ export function e(elt: any, _attrs: Attrs | null, ...children: Insertable[]): El
     }
   }
 
-  if (mx.observers.length > 0)
+  if (mx.observers)
     mx.addToNode(node as HTMLElement)
 
   // decorators are run now. If class and style were defined, they will be applied to the
