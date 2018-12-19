@@ -224,6 +224,9 @@ export interface ReadonlyObservable<A> {
   p<A extends {[key: string]: B}, B>(this: ReadonlyObservable<A>, key: RO<string>): ReadonlyPropObservable<A, B>
   p<A>(this: ReadonlyObservable<A[]>, key: RO<number>): ReadonlyPropObservable<A[], A>
 
+  has<A>(this: ReadonlyObservable<Set<A>>, key: RO<A>): ReadonlyObservable<boolean>
+  key<A, B>(this: ReadonlyObservable<Map<A, B>>, key: RO<A>): ReadonlyObservable<B | undefined>
+
   partial<K extends keyof A>(...props: K[]): ReadonlyObservable<Pick<A, K>>
 
   arrayTransform<A>(this: RO<A[]>, fn: RO<ArrayTransformer<A>>): ReadonlyArrayTransformObservable<A>
@@ -640,6 +643,59 @@ export class Observable<A> implements ReadonlyObservable<A> {
   p<A>(this: Observable<A[]>, key: RO<number>): PropObservable<A[], A>
   p(this: Observable<any>, key: RO<any>): PropObservable<any, any> {
     return new PropObservable(this, key)
+  }
+
+  /**
+   * Only valid for Set.
+   * Create a boolean observable that depends upon the presence
+   * of a key inside a Set.
+   *
+   * If this observable is set, then the corresponding key will be
+   * added/removed from the set.
+   *
+   * @param key: The key to check for
+   */
+  has<A>(this: Observable<Set<A>>, key: RO<A>): Observable<boolean> {
+    return o.merge({
+      self: this,
+      key: key
+    }).tf(v => v.self.has(v.key),
+      newv => {
+        const set = this.get()
+        const nset = new Set(set)
+        if (newv) nset.add(o.get(key))
+        else nset.delete(o.get(key))
+        this.set(nset)
+      }
+    )
+  }
+
+  /**
+   * Like p(), but for Map, with the difference being that if you set
+   * undefined on the resulting transform, the key is removed from the Map.
+   *
+   * This method won't work for anything other than a Map.
+   *
+   * Unlike p() where the null/undefinedness is infered from the underlying
+   * type definition, the resulting element is maybe undefined no matter what.
+   *
+   * @param key: The map key
+   */
+  key<A, B>(this: Observable<Map<A, B>>, key: RO<A>): Observable<B | undefined> {
+    return o.merge({
+      self: this,
+      key: key
+    }).tf(v => v.self.get(v.key),
+      newv => {
+        const map = this.get()
+        const nmap = new Map(map)
+        if (newv != undefined)
+          nmap.set(o.get(key), newv)
+        else
+          nmap.delete(o.get(key))
+        this.set(nmap)
+      }
+    )
   }
 
   /**
