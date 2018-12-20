@@ -142,7 +142,6 @@ export class Observer<A, B = void> implements ReadonlyObserver<A, B> {
   protected old_value: A = NOVALUE
   // saved value exists solely to
   protected last_result: B = NOVALUE
-  readonly observing = false
 
   constructor(public fn: ObserverFunction<A, B>, public observable: Observable<A>) { }
 
@@ -170,13 +169,10 @@ export class Observer<A, B = void> implements ReadonlyObserver<A, B> {
   }
 
   startObserving() {
-    (this.observing as any) = true
     this.observable.addObserver(this)
-    this.call(o.get(this.observable))
   }
 
   stopObserving() {
-    (this.observing as any) = false
     this.observable.removeObserver(this)
   }
 }
@@ -266,9 +262,7 @@ export class Observable<A> implements ReadonlyObservable<A> {
    * all observers currently watching this Observable.
    */
   stopObservers() {
-    for (var observer of this.__observers.slice()) {
-      observer.stopObserving()
-    }
+    this.__observers = []
     this.stopObserved()
   }
 
@@ -409,13 +403,17 @@ export class Observable<A> implements ReadonlyObservable<A> {
    */
   notify() {
     if (this.__paused_notify > -1) {
+      // This observable is paused.
       this.__paused_notify = 1
-    } else {
-      // We copy the observers temporarily, since the array can change
-      // midway.
-      for (var ob of this.__observers.slice())
-        ob.observing && ob.call(this.__value)
+      return
     }
+
+    // We copy the observers temporarily with slice, because a call to one of
+    // could cause an observer to deregister from this Observable.
+    // FIXME : maybe in some cases a further Observer should in fact *not* be called ?
+    for (var ob of this.__observers.slice())
+      ob.call(this.__value)
+
   }
 
   /**
@@ -445,8 +443,6 @@ export class Observable<A> implements ReadonlyObservable<A> {
 
     if (typeof _ob === 'function') {
       _ob = this.createObserver(_ob)
-      _ob.startObserving()
-      return _ob
     }
 
     const ob = _ob
@@ -458,12 +454,17 @@ export class Observable<A> implements ReadonlyObservable<A> {
       this.startObserved()
     }
 
+    ob.call(this.__value)
     return ob
   }
 
   /**
    * Remove an observer from this observable. This means the Observer will not
    * be called anymore when this Observable changes.
+   *
+   * If there are no more observers watching this Observable, then it will stop
+   * watching other Observables in turn if it did.
+   *
    * @param ob The observer
    */
   removeObserver<B = void>(ob: Observer<A, B>): void {
@@ -1435,15 +1436,18 @@ export class ArrayTransformObservable<A> extends VirtualObservable<A[]> {
   export class ObserverGroup {
 
     observers: o.ReadonlyObserver<any>[] = []
+    started = false
 
     start() {
       for (var ob of this.observers)
         ob.startObserving()
+      this.started = true
     }
 
     stop() {
       for (var ob of this.observers)
         ob.stopObserving()
+      this.started = false
     }
 
     /**
@@ -1470,6 +1474,9 @@ export class ArrayTransformObservable<A> extends VirtualObservable<A[]> {
       if (immediate)
         observer.call(get(observer.observable))
 
+      if (this.started)
+        observer.startObserving()
+
       return observer
     }
 
@@ -1479,7 +1486,7 @@ export class ArrayTransformObservable<A> extends VirtualObservable<A[]> {
     remove(observer: ReadonlyObserver<any>) {
       const idx = this.observers.indexOf(observer)
       if (idx > -1) {
-        observer.stopObserving()
+        if (this.started) observer.stopObserving()
         this.observers.splice(idx, 1)
       }
     }
