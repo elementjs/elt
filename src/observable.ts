@@ -186,7 +186,6 @@ export interface ReadonlyObservable<A> {
   get(): A
   pause(): void
   resume(): void
-  startObservers(): void
   stopObservers(): void
   startObserved(): void
   stopObserved(): void
@@ -262,20 +261,21 @@ export class Observable<A> implements ReadonlyObservable<A> {
 
   constructor(protected readonly __value: A) { }
 
-  startObservers() {
-    for (var observer of this.__observers) {
-      observer.startObserving()
-    }
-    this.startObserved()
-  }
-
+  /**
+   * Stop this Observable from observing other observables and stop
+   * all observers currently watching this Observable.
+   */
   stopObservers() {
-    for (var observer of this.__observers) {
+    for (var observer of this.__observers.slice()) {
       observer.stopObserving()
     }
     this.stopObserved()
   }
 
+  /**
+   * Observable subclass may want to watch *other* observables. This method
+   * starts this Observable's own observers towards the watched observables.
+   */
   startObserved() {
     if (this.__observers.length === 0)
       return
@@ -284,6 +284,9 @@ export class Observable<A> implements ReadonlyObservable<A> {
       observer.startObserving()
   }
 
+  /**
+   * Stop watching other Observables.
+   */
   stopObserved() {
     for (var observer of this.__observed)
       observer.stopObserving()
@@ -357,18 +360,39 @@ export class Observable<A> implements ReadonlyObservable<A> {
     this.set(newval)
   }
 
+  /**
+   * Assign new values to the Observable.
+   *
+   * This method expects an object that contains new values to be assigned *recursively*
+   * to the corresponding properties of the current value held by the Observable.
+   *
+   * A value is assigned if it is anything else than a plain object.
+   *
+   * If assigning to an array, the object's keys are array indexes.
+   *
+   * Since Observables values are treated as immutable, assign
+   *
+   * @param partial The object containing changes
+   */
   assign<U>(this: Observable<U[]>, partial: {[index: number]: AssignPartial<U>}): void
   assign(partial: AssignPartial<A>): void
   assign(partial: any): void {
     this.set(o.assign(this.get(), partial))
   }
 
+  /**
+   * Pause the observable. While paused, an Observable does not notify its observers.
+   */
   pause() {
     if (this.__paused_notify === -1)
       this.__paused_notify = 0
     this.stopObserved()
   }
 
+  /**
+   * Unpause the Observable. If the Observable was changed while paused, then the
+   * observers are called with the new value.
+   */
   resume() {
     var prev_notify = this.__paused_notify
     this.__paused_notify = -1
