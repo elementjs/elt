@@ -1402,30 +1402,25 @@ export class ArrayTransformObservable<A> extends VirtualObservable<A[]> {
         ob.stopObserving()
     }
 
-    add<A, B = void>(obs: A | ReadonlyObservable<A>, cbk: ObserverFunction<A, B>) : ReadonlyObserver<A, B>
-    add<A, B = void>(obs: A | ReadonlyObservable<A>, cbk: ObserverFunction<A, B>, immediate: boolean) : ReadonlyObserver<A, B> | null
-    add<A, B = void>(obs: ReadonlyObserver<A, B>, immediate?: boolean) : ReadonlyObserver<A, B>
-    add<A, B = void>(obs: A | ReadonlyObservable<A> | ReadonlyObserver<A, B>, cbk?: ObserverFunction<A, B> | boolean, immediate?: boolean) : ReadonlyObserver<A, B> | null {
-      var observer: ReadonlyObserver<A, B>
-
-      if (!(obs instanceof Observer)) {
-        const callback = cbk as ObserverFunction<A, B>
-
-        // We were not given an observable, so we resolve the callback immediately
-        if (immediate && !(obs instanceof Observable)) {
-          callback(obs as A, new Changes(obs as A))
-          return null
-        }
-
-        // Otherwise we just create the observable
-        const observable = obs as ReadonlyObservable<A>
-        observer = observable.createObserver(callback)
-
-      } else {
-        observer = obs as ReadonlyObserver<A, B>
-        immediate = !!cbk
+    /**
+     * Observe and Observable and return the observer that was created
+     */
+    observe<A, B = void>(obs: o.RO<A>, fn: ObserverFunction<A, B>, immediate?: false): ReadonlyObserver<A, B>
+    observe<A, B = void>(obs: o.RO<A>, fn: ObserverFunction<A, B>, immediate: boolean): ReadonlyObserver<A, B> | null
+    observe<A, B = void>(obs: o.RO<A>, fn: ObserverFunction<A, B>, immediate?: boolean) {
+      if (!(obs instanceof Observable) && immediate) {
+        fn(obs as A, new Changes(obs as A))
+        return null
       }
 
+      const observer = o(obs).createObserver(fn)
+      return this.add(observer, immediate)
+    }
+
+    /**
+     * Add an observer to the observers array
+     */
+    add<A, B = void>(observer: ReadonlyObserver<A, B>, immediate?: boolean) : ReadonlyObserver<A, B> | null {
       this.observers.push(observer)
 
       if (immediate)

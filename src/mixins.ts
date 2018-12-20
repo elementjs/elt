@@ -89,7 +89,7 @@ export class Mixin<N extends Node = Node> {
   readonly mounted: boolean = false
 
   /** An array of observers tied to the Node for observing. Populated by `observe()` calls. */
-  observers: o.ObserverGroup | undefined = undefined
+  observers = new o.ObserverGroup()
   listeners: {event: string, listener: Listener<Event, Node>, live_listener: null | ((e: Event) => void), useCapture?: boolean}[] | undefined = undefined
 
   /**
@@ -147,32 +147,10 @@ export class Mixin<N extends Node = Node> {
    */
   removeFromNode(node: N) {
     if (this.mounted) {
-      if (this.observers) this.observers.stop()
+      this.observers.stop()
       this.removeListeners(node)
     }
     removeMixin(node, this)
-  }
-
-  /**
-   * Observe an observable whenever it is mounted. Stop observing when
-   * unmounted. Reobserve when mounted again.
-   *
-   * If the MaybeObservable is not an observable and immediate is set to true, no
-   * observer is created and the callback is called immediately. observe()
-   * returns null in that case.
-   *
-   * @param a the value to observe
-   * @param cbk The observer instance or the function called when observing
-   * @param immediate Pass true if you do not want the observer to wait to be mounted
-   *   before being called.
-   * @returns The Observer instance
-   */
-  observe<A, B = void>(obs: A | o.ReadonlyObservable<A>, cbk: o.ObserverFunction<A, B>) : o.ReadonlyObserver<A, B>
-  observe<A, B = void>(obs: A | o.ReadonlyObservable<A>, cbk: o.ObserverFunction<A, B>, immediate: boolean) : o.ReadonlyObserver<A, B> | null
-  observe<A, B = void>(obs: o.ReadonlyObserver<A, B>, immediate?: boolean) : o.ReadonlyObserver<A, B>
-  observe<A, B = void>(obs: A | o.ReadonlyObservable<A> | o.ReadonlyObserver<A, B>, cbk?: o.ObserverFunction<A, B> | boolean, immediate?: boolean) : o.ReadonlyObserver<A, B> | null {
-    const _ = this.observers = this.observers || new o.ObserverGroup()
-    return _.add(obs as any, cbk as any, immediate as any)
   }
 
   /**
@@ -190,7 +168,7 @@ export class Mixin<N extends Node = Node> {
 
     this.inserted(node, parent)
 
-    if (this.observers) this.observers.start()
+    this.observers.start()
     this.addListeners()
   }
 
@@ -207,7 +185,7 @@ export class Mixin<N extends Node = Node> {
     (this.node as any) = null; // we force the node to null to help with garbage collection.
 
     this.removeListeners(node)
-    if (this.observers) this.observers.stop()
+    this.observers.stop()
 
     this.removed(node, parent, next, prev)
   }
@@ -412,7 +390,8 @@ export class Mixin<N extends Node = Node> {
    *
    */
   observeAttribute<N extends Element>(this: Mixin<N>, name: string, value: o.O<any>) {
-    this.observe(value, val => {
+    const obs = this.observers
+    obs.observe(value, val => {
       if (val === true)
       this.node.setAttribute(name, '')
       else if (val != null && val !== false)
@@ -424,8 +403,9 @@ export class Mixin<N extends Node = Node> {
   }
 
   observeStyle<N extends HTMLElement|SVGElement>(this: Mixin<N>, style: StyleDefinition) {
+    const obs = this.observers
     if (style instanceof o.Observable) {
-      this.observe(style, st => {
+      obs.observe(style, st => {
         for (var x in st) {
           (this.node.style as any)[x] = (st as any)[x]
         }
@@ -434,7 +414,7 @@ export class Mixin<N extends Node = Node> {
       // c is a MaybeObservableObject
       var st = style as any
       for (let x in st) {
-        this.observe(st[x], value => {
+        obs.observe(st[x], value => {
           (this.node.style as any)[x] = value
         }, true)
       }
@@ -442,16 +422,17 @@ export class Mixin<N extends Node = Node> {
   }
 
   observeClass<N extends Element>(this: Mixin<N>, c: ClassDefinition) {
+    const obs = this.observers
     if (c instanceof o.Observable || typeof c === 'string') {
       // c is an Observable<string>
-      this.observe(c, (str, chg) => {
+      obs.observe(c, (str, chg) => {
         if (chg.hasOldValue()) _remove_class(this.node, chg.oldValue())
         _apply_class(this.node, str)
       }, true)
     } else {
       // c is a MaybeObservableObject
       for (let x in c) {
-        this.observe(c[x], applied => applied ? _apply_class(this.node, x) : _remove_class(this.node, x), true)
+        obs.observe(c[x], applied => applied ? _apply_class(this.node, x) : _remove_class(this.node, x), true)
       }
     }
   }
