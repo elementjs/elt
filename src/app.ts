@@ -17,17 +17,9 @@ export interface BlockInstantiator<B extends Block = Block> {
  */
 export class Block {
 
-  /**
-   * Set to true in a subclass if you want this block to stay instanciated
-   * even if no other block need it.
-   */
-  constructor(public app: App) {
-    // The following any is mandatory since the o_state from app is known just as
-    // a basic Observable<State> and not the particular subclass we are using now.
-  }
+  constructor(public app: App) { }
 
   registry = this.app.registry
-  is_static = false
 
   /**
    * Set to true if this block should persist even if it is no longer in
@@ -158,11 +150,12 @@ export const MainView = Symbol('main-view')
 export class Registry {
 
   private cache = new Map<BlockInstantiator<any> | (new () => any), any>()
-  private children = new Set<Registry>()
   private persistents = new Set<Block>()
-  private parent: Registry | null = null
   private init_list: Block[] = []
-  public active_blocks = new Set<BlockInstantiator>()
+
+  parent: Registry | null = null
+  children = new Set<Registry>()
+  active_blocks = new Set<BlockInstantiator>()
 
   constructor(public app: App) { }
 
@@ -347,6 +340,15 @@ export class App extends Mixin<Comment>{
    */
   removed() {
     this.registry.setParent(null)
+    // should probably deinit ?
+  }
+
+  displaySubApp(main_view: Symbol, ...params: (BlockInstantiator<any> | Object)[]) {
+    const app = new App(main_view, params)
+    app.registry.setParent(this.registry)
+    const disp = app.display(main_view)
+    app.addToNode(disp)
+    return disp
   }
 
   display(sym: Symbol) {
