@@ -40,7 +40,7 @@ export class BindMixin extends Mixin<HTMLInputElement> {
     this.listen('change', upd)
     this.listen('propertychange', upd)
 
-    this.observe(obs, val => {
+    this.observers.observe(obs, val => {
       this.node.value = val||''
     })
   }
@@ -52,7 +52,7 @@ export class BindMixin extends Mixin<HTMLInputElement> {
       obs.set(this.node.value)
     })
 
-    this.observe(obs, val => {
+    this.observers.observe(obs, val => {
       this.node.value = val
     })
   }
@@ -85,11 +85,11 @@ export class BindMixin extends Mixin<HTMLInputElement> {
       case 'month':
       case 'time':
       case 'datetime-local':
-        this.observe(obs, fromObservable)
+        this.observers.observe(obs, fromObservable)
         this.listen('input', fromEvent)
         break
       case 'radio':
-        this.observe(obs, (val) => {
+        this.observers.observe(obs, val => {
           // !!!? ??
           this.node.checked = this.node.value === val
         })
@@ -97,7 +97,7 @@ export class BindMixin extends Mixin<HTMLInputElement> {
         break
       case 'checkbox':
         // FIXME ugly hack because we specified string
-        this.observe(obs, (val: any) => {
+        this.observers.observe(obs, (val: any) => {
           this.node.checked = !!val
         })
         this.listen('change', () => (obs as o.Observable<any>).set(this.node.checked))
@@ -107,7 +107,7 @@ export class BindMixin extends Mixin<HTMLInputElement> {
       // case 'password':
       // case 'search':
       default:
-        this.observe(obs, fromObservable)
+        this.observers.observe(obs, fromObservable)
         this.listen('keyup', fromEvent)
         this.listen('input', fromEvent)
         this.listen('change', fromEvent)
@@ -132,16 +132,28 @@ export class ObserveMixin extends Mixin {
 }
 
 
-
-export function observe<T>(a: o.ReadonlyObserver<T>, immediate?: boolean): ObserveMixin
-export function observe<T>(a: o.RO<T>, cbk: (newval: T, changes: o.Changes<T>, node: Node) => void, immediate?: boolean): ObserveMixin
-export function observe(a: any, cbk?: any, immediate?: any) {
+/**
+ * Decorator to add an observer to a Node
+ *
+ * If immediate is true, the observer is called immediately, before even
+ * the Node exists.
+ *
+ * @param ob: the observer
+ * @param immediate: if the observer should be called immediately
+ */
+export function add_observer(ob: o.Observer<any>, immediate?: boolean) {
   var m = new ObserveMixin()
-  if (a instanceof o.Observer) {
-    m.observe(a, !!cbk)
-  } else {
-    m.observe(a, cbk, immediate)
-  }
+  m.observers.add(ob, !!immediate)
+  return m
+}
+
+
+/**
+ * Observe an observable and tie the observation to the node this is added to
+ */
+export function observe<T>(a: o.RO<T>, cbk: (newval: T, changes: o.Changes<T>, node: Node) => void, immediate?: boolean) {
+  var m = new ObserveMixin()
+  m.observers.observe(a, (newval: T, changes: o.Changes<T>) => cbk(newval, changes, m.node), !!immediate)
   return m
 }
 
