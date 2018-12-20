@@ -306,14 +306,34 @@ export class Observable<A> implements ReadonlyObservable<A> {
     return o.clone(this.get())
   }
 
-  debounce(getms: number, setms?: number): Observable<A> {
+  /**
+   * Return a new observable which is a copy of this one that will debounce
+   * the get / set operations.
+   *
+   * Debounced notifies means that observers will only be called after `notifyms`
+   * milliseconds.
+   *
+   * The setms parameter debounces set and assign calls so to prevent setting
+   * the observable to often with new values.
+   *
+   * As with all debounced() operations, only the last value is taken into account.
+   *
+   * @param notifyms The number of milliseconds to debounce the notify operation
+   * @param setms The number of milliseconds to debounce the set operation
+   */
+  debounce(notifyms: number, setms?: number): Observable<A> {
     if (setms === undefined)
-      setms = getms
+      setms = notifyms
 
     const obs = this.tf(v => v, (n, o, ob) => ob.set(n))
-    obs.set = o.debounce(obs.set, setms)
-    obs.assign = o.debounce(obs.assign, setms)
-    obs.notify = o.debounce(obs.notify, getms)
+
+    if (setms) {
+      obs.set = o.debounce(obs.set, setms)
+      obs.assign = o.debounce(obs.assign, setms)
+    }
+
+    if (notifyms) obs.notify = o.debounce(obs.notify, notifyms)
+
     return obs
   }
 
