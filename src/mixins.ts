@@ -89,7 +89,6 @@ function _add_event_listener(
               return
             }
           }
-          return
         }
         n = n.parentNode!
       }
