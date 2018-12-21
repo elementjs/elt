@@ -53,6 +53,7 @@ export interface ReadonlyObserver<A, B = void> {
   throttle(ms: number, leading?: boolean): this
   startObserving(): void
   stopObserving(): void
+  observing: boolean
   observable: ReadonlyObservable<A>
 }
 
@@ -142,6 +143,7 @@ export class Observer<A, B = void> implements ReadonlyObserver<A, B> {
   protected old_value: A = NOVALUE
   // saved value exists solely to
   protected last_result: B = NOVALUE
+  observing = false
 
   constructor(public fn: ObserverFunction<A, B>, public observable: Observable<A>) { }
 
@@ -169,10 +171,12 @@ export class Observer<A, B = void> implements ReadonlyObserver<A, B> {
   }
 
   startObserving() {
+    this.observing = true
     this.observable.addObserver(this)
   }
 
   stopObserving() {
+    this.observing = false
     this.observable.removeObserver(this)
   }
 }
@@ -251,17 +255,21 @@ export type RO<A> = ReadonlyObservable<A> | A
 
 
 export class Observable<A> implements ReadonlyObservable<A> {
-  protected __observers: Observer<A, any>[] = []
-  protected __observed: Observer<any, any>[] = []
-  protected __paused_notify = -1
+  __observers: Observer<A, any>[] = []
+  __observed: Observer<any, any>[] = []
+  __paused_notify = -1
 
-  constructor(protected readonly __value: A) { }
+  constructor(protected readonly __value: A) {
+    // (this as any).debug = new Error
+  }
 
   /**
    * Stop this Observable from observing other observables and stop
    * all observers currently watching this Observable.
    */
   stopObservers() {
+    for (var o of this.__observers)
+      o.observing = false
     this.__observers = []
     this.stopObserved()
   }
@@ -378,9 +386,10 @@ export class Observable<A> implements ReadonlyObservable<A> {
    * Pause the observable. While paused, an Observable does not notify its observers.
    */
   pause() {
-    if (this.__paused_notify === -1)
+    if (this.__paused_notify === -1) {
       this.__paused_notify = 0
-    this.stopObserved()
+      this.stopObserved()
+    }
   }
 
   /**
@@ -411,8 +420,8 @@ export class Observable<A> implements ReadonlyObservable<A> {
     // We copy the observers temporarily with slice, because a call to one of
     // could cause an observer to deregister from this Observable.
     // FIXME : maybe in some cases a further Observer should in fact *not* be called ?
-    for (var ob of this.__observers.slice())
-      ob.call(this.__value)
+    for (var ob of this.__observers)
+      ob.observing && ob.call(this.__value)
 
   }
 
@@ -468,21 +477,20 @@ export class Observable<A> implements ReadonlyObservable<A> {
    * @param ob The observer
    */
   removeObserver<B = void>(ob: Observer<A, B>): void {
-    var _new_obs: Observer<A, any>[] = []
-    for (var _o of this.__observers)
-      if (_o !== ob)
-        _new_obs.push(_o)
-    this.__observers = _new_obs
+    const _obs = this.__observers
+    const len = _obs.length
+    var delta = 0
+    for (var i = 0; i < len; i++) {
+      if (_obs[i] === ob)
+        delta++
+      else if (delta > 0) {
+        _obs[i - delta] = _obs[i]
+      }
+    }
+    _obs.length -= delta
 
-    if (this.__observers.length === 0) {
-      // Since we're not being watched anymore we unregister
-      // ourselves from the observables we were watching to
-      // have them lose their reference to us and thus allow
-      // us to be garbage collected if needed.
-      const _obs = this.__observed
-      const len = _obs.length
-      for (var i = 0; i < len; i++)
-        _obs[i].stopObserving()
+    if (_obs.length === 0) {
+      this.stopObserved()
     }
   }
 
