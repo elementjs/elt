@@ -189,11 +189,12 @@ export class Mixin<N extends Node = Node> {
    * stop observing, but `removed()` will not be called.
    * @param node
    */
-  removeFromNode(node: N) {
+  removeFromNode() {
     if (this.mounted) {
       this.observers.stop()
     }
-    removeMixin(node, this)
+    removeMixin(this.node, this);
+    (this.node as any) = null; // we force the node to null to help with garbage collection.
   }
 
   /**
