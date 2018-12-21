@@ -288,12 +288,19 @@ export function on(event: "wheel", listener: Listener<WheelEvent>, useCapture?: 
 export function on(event: 'click', listener: Listener<MouseEvent>, useCapture?: boolean): Mixin
 export function on(event: string, listener: Listener<Event>, useCapture?: boolean): Mixin
 export function on<E extends Event>(event: string, _listener: Listener<E>, useCapture = false) {
-  class OnMixin extends Mixin { }
-  var m = new OnMixin()
-  m.listen(event, _listener, useCapture)
+  var m = new OnMixin(event, _listener, useCapture)
   return m
 }
 
+class OnMixin extends Mixin {
+  constructor(public event: string, public listener: Listener<any>, public useCapture = false) {
+    super()
+  }
+
+  init() {
+    this.listen(this.event, this.listener, this.useCapture)
+  }
+}
 
 /**
  * Add a callback on the click event, or touchend if we are on a mobile
