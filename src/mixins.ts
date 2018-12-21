@@ -59,6 +59,51 @@ export function removeMixin(node: any, mixin: Mixin): void {
   node[mxsym] = res
 }
 
+type Handlers = Listener<any>[]
+const event_map = {} as {[event_name: string]: WeakMap<Node, Handlers>}
+
+
+/**
+ * Setup a global event listener for each type of event.
+ * This is based on WeakMap to avoid holding references to nodes.
+ */
+function _add_event_listener(
+  node: Node,
+  event: string,
+  handler: Listener<any>,
+  use_capture?: boolean
+) {
+  const evt = `${event}_${use_capture ? '_capture' : ''}`
+
+  if (!event_map[evt]) {
+    var map = event_map[evt] = new WeakMap<Node, Handlers>()
+    document.addEventListener(event, function (event) {
+      var n = event.target as Node
+      while (n && n !== document) {
+        const handlers = map.get(n)
+        if (handlers) {
+          for (var h of handlers) {
+            if (h.call(n, event, n) === false) {
+              event.stopImmediatePropagation()
+              event.stopPropagation()
+              return
+            }
+          }
+          return
+        }
+        n = n.parentNode!
+      }
+    }, !!use_capture)
+  }
+
+  var handlers = event_map[evt].get(node)
+  if (!handlers) {
+    handlers = []
+    event_map[evt].set(node, handlers)
+  }
+  handlers.push(handler)
+}
+
 
 /**
  * A `Mixin` is an object that is tied to a DOM Node and its lifecycle. This class
@@ -148,7 +193,6 @@ export class Mixin<N extends Node = Node> {
   removeFromNode(node: N) {
     if (this.mounted) {
       this.observers.stop()
-      this.removeListeners(node)
     }
     removeMixin(node, this)
   }
@@ -169,7 +213,6 @@ export class Mixin<N extends Node = Node> {
     this.inserted(node, parent)
 
     this.observers.start()
-    this.addListeners()
   }
 
   /**
@@ -184,7 +227,6 @@ export class Mixin<N extends Node = Node> {
     (this.mounted as any) = false;
     (this.node as any) = null; // we force the node to null to help with garbage collection.
 
-    this.removeListeners(node)
     this.observers.stop()
 
     this.removed(node, parent, next, prev)
@@ -355,35 +397,7 @@ export class Mixin<N extends Node = Node> {
   listen(event: string, listener: Listener<Event, N>, useCapture?: boolean): void
   listen<E extends Event>(name: string, listener: Listener<E, N>, useCapture?: boolean): void
   listen<E extends Event>(name: string, listener: Listener<E, any>, useCapture?: boolean) {
-    if (!this.listeners)
-      this.listeners = []
-
-    this.listeners.push({
-      event: name,
-      listener: listener as Listener<Event, Node>,
-      useCapture: useCapture,
-      live_listener: null
-    })
-
-  }
-
-  protected addListeners() {
-    if (!this.listeners) return
-
-    for (let l of this.listeners) {
-      l.live_listener = (ev: Event) => {
-        return l.listener.call(this.node, ev, this.node, this)
-      }
-      this.node.addEventListener(l.event, l.live_listener, l.useCapture)
-    }
-  }
-
-  protected removeListeners(node: Node) {
-    if (!this.listeners) return
-    for (let l of this.listeners) {
-      node.removeEventListener(l.event, l.live_listener!, l.useCapture)
-      l.live_listener = null
-    }
+    _add_event_listener(this.node, name, listener, useCapture)
   }
 
   /**
