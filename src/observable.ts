@@ -1050,6 +1050,40 @@ export class PropObservable<A, B> extends VirtualObservable<B> {
 }
 
 
+/**
+ * A merge observable that deals in arrays instead of objects
+ */
+export class CombineObservable<A extends any[]> extends VirtualObservable<A> {
+  constructor(public deps: {[K in keyof A]: o.RO<A[K]>}[]) {
+    super()
+    for (var d of deps) {
+      this.dependsOn(d)
+    }
+  }
+
+  getter() {
+    const deps = this.deps
+    const l = deps.length
+    var res: A = new Array(l) as any
+    for (var i = 0; i < l; i++) {
+      res[i] = o.get(deps[i])
+    }
+    return res
+  }
+
+  setter(nval: A) {
+    const deps = this.deps
+    const l = deps.length
+    for (var i = 0; i < l; i++) {
+      const d = deps[i]
+      if (d instanceof Observable) {
+        d.set(nval[i])
+      }
+    }
+  }
+}
+
+
 export class MergeObservable<A> extends VirtualObservable<A> {
   public keys: (keyof A)[]
 
@@ -1190,6 +1224,15 @@ export class ArrayTransformObservable<A> extends VirtualObservable<A[]> {
   export function merge<A extends object>(obj: {[K in keyof A]: ReadonlyObservable<A[K]> | A[K]}): ReadonlyObservable<A>
   export function merge<A extends object>(obj: MaybeObservableObject<A>): MergeObservable<A> {
     return new MergeObservable(obj)
+  }
+
+  /**
+   * Merges several MaybeObservables into a single Observable in an array.
+   */
+  export function combine<A extends any[]>(...deps: {[K in keyof A]: Observable<A[K]>}): Observable<A>
+  export function combine<A extends any[]>(...deps: {[K in keyof A]: ReadonlyObservable<A[K]> | A[K]}): ReadonlyObservable<A>
+  export function combine<A extends any[]>(...deps: {[K in keyof A]: RO<A[K]>}): CombineObservable<A> {
+    return new CombineObservable(deps)
   }
 
   /**
