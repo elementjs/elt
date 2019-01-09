@@ -529,7 +529,7 @@ export class Observable<A> implements ReadonlyObservable<A> {
    * @tag transform-readonly
    */
   isGreaterThan(value: RO<A>): ReadonlyObservable<boolean> {
-    return o.merge({lhs: this, rhs: value}).tf(v => v.lhs > v.rhs)
+    return o.combine(this, value).tf(v => v[0] > v[1])
   }
 
   /**
@@ -537,7 +537,7 @@ export class Observable<A> implements ReadonlyObservable<A> {
    * @tag transform-readonly
    */
   isLesserThan(value: RO<A>): ReadonlyObservable<boolean> {
-    return o.merge({lhs: this, rhs: value}).tf(v => v.lhs < v.rhs)
+    return o.combine(this, value).tf(v => v[0] < v[1])
   }
 
   /**
@@ -545,7 +545,7 @@ export class Observable<A> implements ReadonlyObservable<A> {
    * @tag transform-readonly
    */
   equals(value: RO<A>): ReadonlyObservable<boolean> {
-    return o.merge({lhs: this, rhs: value}).tf(v => v.lhs === v.rhs)
+    return o.combine(this, value).tf(v => v[0] === v[1])
   }
 
 
@@ -554,7 +554,7 @@ export class Observable<A> implements ReadonlyObservable<A> {
    * @tag transform-readonly
    */
   differs(value: RO<A>): ReadonlyObservable<boolean> {
-    return o.merge({lhs: this, rhs: value},).tf(v => v.lhs !== v.rhs)
+    return o.combine(this, value).tf(v => v[0] !== v[1])
   }
 
   /**
@@ -562,7 +562,7 @@ export class Observable<A> implements ReadonlyObservable<A> {
    * @tag transform-readonly
    */
   isGreaterOrEqual(value: RO<A>): ReadonlyObservable<boolean> {
-    return o.merge({lhs: this, rhs: value}).tf(v => v.lhs >= v.rhs)
+    return o.combine(this, value).tf(v => v[0] >= v[1])
   }
 
   /**
@@ -570,7 +570,7 @@ export class Observable<A> implements ReadonlyObservable<A> {
    * @tag transform-readonly
    */
   isLesserOrEqual(value: RO<A>): ReadonlyObservable<boolean> {
-    return o.merge({lhs: this, rhs: value}).tf(v => v.lhs <= v.rhs)
+    return o.combine(this, value).tf(v => v[0] <= v[1])
   }
 
   /**
@@ -643,7 +643,7 @@ export class Observable<A> implements ReadonlyObservable<A> {
    * @tag transform-readonly
    */
   or(value: any): ReadonlyObservable<boolean> {
-    return o.merge({lhs: this, rhs: value}).tf(({lhs, rhs}) => !!lhs || !!rhs)
+    return o.combine(this, value).tf(([lhs, rhs]) => !!lhs || !!rhs)
   }
 
   /**
@@ -651,35 +651,35 @@ export class Observable<A> implements ReadonlyObservable<A> {
    * @tag transform-readonly
    */
   and(value: any): ReadonlyObservable<boolean> {
-    return o.merge({lhs: this, rhs: value}).tf(({lhs, rhs}) => lhs && !!rhs)
+    return o.combine(this, value).tf(v => v[0] && !!v[1])
   }
 
   /**
    * @tag transform-readonly
    */
-  plus(this: ReadonlyObservable<number>, pl: RO<number>): ReadonlyObservable<number> {
-    return o.merge({lhs: this, rhs: pl}).tf(({lhs, rhs}) => lhs + rhs)
+  plus(this: ReadonlyObservable<number>, value: RO<number>): ReadonlyObservable<number> {
+    return o.combine(this, value).tf(v => v[0] + v[1])
   }
 
   /**
    * @tag transform-readonly
    */
-  minus(this: ReadonlyObservable<number>, pl: RO<number>): ReadonlyObservable<number> {
-    return o.merge({lhs: this, rhs: pl}).tf(({lhs, rhs}) => lhs - rhs)
+  minus(this: ReadonlyObservable<number>, value: RO<number>): ReadonlyObservable<number> {
+    return o.combine(this, value).tf(v => v[0] - v[1])
   }
 
   /**
    * @tag transform-readonly
    */
-  times(this: ReadonlyObservable<number>, pl: RO<number>): ReadonlyObservable<number> {
-    return o.merge({lhs: this, rhs: pl}).tf(({lhs, rhs}) => lhs * rhs)
+  times(this: ReadonlyObservable<number>, value: RO<number>): ReadonlyObservable<number> {
+    return o.combine(this, value).tf(v => v[0] * v[1])
   }
 
   /**
    * @tag transform-readonly
    */
-  dividedBy(this: ReadonlyObservable<number>, pl: RO<number>): ReadonlyObservable<number> {
-    return o.merge({lhs: this, rhs: pl}).tf(({lhs, rhs}) => lhs / rhs)
+  dividedBy(this: ReadonlyObservable<number>, value: RO<number>): ReadonlyObservable<number> {
+    return o.combine(this, value).tf(v => v[0] / v[1])
   }
 
   /**
