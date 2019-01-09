@@ -53,7 +53,6 @@ export interface ReadonlyObserver<A, B = void> {
   throttle(ms: number, leading?: boolean): this
   startObserving(): void
   stopObserving(): void
-  observing: boolean
   observable: ReadonlyObservable<A>
 }
 
@@ -143,7 +142,6 @@ export class Observer<A, B = void> implements ReadonlyObserver<A, B> {
   protected old_value: A = NOVALUE
   // saved value exists solely to
   protected last_result: B = NOVALUE
-  observing = false
 
   constructor(public fn: ObserverFunction<A, B>, public observable: Observable<A>) { }
 
@@ -171,12 +169,10 @@ export class Observer<A, B = void> implements ReadonlyObserver<A, B> {
   }
 
   startObserving() {
-    this.observing = true
     this.observable.addObserver(this)
   }
 
   stopObserving() {
-    this.observing = false
     this.observable.removeObserver(this)
   }
 }
@@ -259,6 +255,10 @@ export class Observable<A> implements ReadonlyObservable<A> {
   __observed: Observer<any, any>[] = []
   __paused_notify = -1
 
+  // Currently executed observer in notify, used to make sure we don't execute
+  // observers that should not be.
+  private __cob = -1
+
   constructor(protected readonly __value: A) {
     // (this as any).debug = new Error
   }
@@ -268,8 +268,6 @@ export class Observable<A> implements ReadonlyObservable<A> {
    * all observers currently watching this Observable.
    */
   stopObservers() {
-    for (var o of this.__observers)
-      o.observing = false
     this.__observers = []
     this.stopObserved()
   }
@@ -419,9 +417,12 @@ export class Observable<A> implements ReadonlyObservable<A> {
 
     // We copy the observers temporarily with slice, because a call to one of
     // could cause an observer to deregister from this Observable.
-    // FIXME : maybe in some cases a further Observer should in fact *not* be called ?
-    for (var ob of this.__observers)
-      ob.observing && ob.call(this.__value)
+    const obs = this.__observers
+    for (this.__cob = 0; this.__cob < obs.length; this.__cob++) {
+      var ob = obs[this.__cob]
+      ob.call(this.__value)
+    }
+    this.__cob = -1
 
   }
 
@@ -481,14 +482,22 @@ export class Observable<A> implements ReadonlyObservable<A> {
     const len = _obs.length
     var delta = 0
     for (var i = 0; i < len; i++) {
-      if (_obs[i] === ob)
+      if (_obs[i] === ob) {
+        // We found an observer that we wish to remove. We thus increase
+        // the delta at which the array is to copy back the current observers
+        // into back positions.
         delta++
-      else if (delta > 0) {
+        // Also, if we are in the process of notifying (this.__cob > -1), then
+        // we check to see if this removed observer is before this.__cob and
+        // thus decrease it so this.__cob stays on the currently being executed
+        // observer
+        if (i <= this.__cob)
+          this.__cob -= 1
+      } else if (delta > 0) {
         _obs[i - delta] = _obs[i]
       }
     }
     _obs.length -= delta
-
     if (_obs.length === 0) {
       this.stopObserved()
     }
