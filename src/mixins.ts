@@ -420,8 +420,9 @@ export class Mixin<N extends Node = Node> {
     const obs = this.observers
     if (style instanceof o.Observable) {
       obs.observe(style, st => {
+        const ns = this.node.style
         for (var x in st) {
-          (this.node.style as any)[x] = (st as any)[x]
+          ns.setProperty(x.replace(/[A-Z]/g, m => '-' + m.toLowerCase()), st[x])
         }
       }, true)
     } else {
@@ -429,7 +430,7 @@ export class Mixin<N extends Node = Node> {
       var st = style as any
       for (let x in st) {
         obs.observe(st[x], value => {
-          (this.node.style as any)[x] = value
+          this.node.style.setProperty(x.replace(/[A-Z]/g, m => '-' + m.toLowerCase()), value)
         }, true)
       }
     }
