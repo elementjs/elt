@@ -10,7 +10,8 @@
         "strict": true,
         "noUnusedLocals": true,
         "outDir": "./module",
-        "lib": ["es6", "dom"]
+        "lib": ["es6", "dom"],
+        "types": []
     },
     "files": [
         "./src/index.ts"

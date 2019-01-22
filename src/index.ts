@@ -17,6 +17,7 @@ import {Fragment} from './verbs'
 import {e} from './elt'
 import {ComponentFn, Attrs, Insertable, ComponentInstanciator} from './types'
 
+declare var global: any
 const glb: any = typeof window !== 'undefined' ? window :
   typeof global !== 'undefined' ? global : null
 if (glb && typeof glb.E === 'undefined') {
