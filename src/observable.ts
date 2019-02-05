@@ -220,7 +220,7 @@ export interface ReadonlyObservable<A> {
   p<A extends {[key: string]: B}, B>(this: ReadonlyObservable<A>, key: RO<string>): ReadonlyPropObservable<A, B>
   p<A>(this: ReadonlyObservable<A[]>, key: RO<number>): ReadonlyPropObservable<A[], A>
 
-  has<A>(this: ReadonlyObservable<Set<A>>, key: RO<A>): ReadonlyObservable<boolean>
+  has<A>(this: ReadonlyObservable<Set<A>>, ...keys: RO<A>[]): ReadonlyObservable<boolean>
   key<A, B>(this: ReadonlyObservable<Map<A, B>>, key: RO<A>): ReadonlyObservable<B | undefined>
 
   partial<K extends keyof A>(...props: K[]): ReadonlyObservable<Pick<A, K>>
@@ -711,23 +711,37 @@ export class Observable<A> implements ReadonlyObservable<A> {
   /**
    * Only valid for Set.
    * Create a boolean observable that depends upon the presence
-   * of a key inside a Set.
+   * of one or several keys inside a Set.
    *
-   * If this observable is set, then the corresponding key will be
+   * If this observable is set, then the corresponding key(s) will be
    * added/removed from the set.
    *
    * @param key: The key to check for
+   * @returns true if all the keys were in the set, false if none, undefined
+   *    if some were but not all.
    */
-  has<A>(this: Observable<Set<A>>, key: RO<A>): Observable<boolean> {
-    return o.merge({
-      self: this,
-      key: key
-    }).tf(v => v.self.has(v.key),
+  has<A>(this: Observable<Set<A>>, ...keys: RO<A>[]): Observable<boolean> {
+    return o.combine(
+      this,
+      ...keys
+    ).tf(([self, ...keys]) => {
+        var i = 0
+        for (var k of keys) {
+          if (self.has(k))
+            i++
+        }
+        return i === 0 ? false : i < keys.length ? undefined! : true
+      },
       newv => {
         const set = this.get()
         const nset = new Set(set)
-        if (newv) nset.add(o.get(key))
-        else nset.delete(o.get(key))
+        for (var k of keys) {
+          const key = o.get(k)
+          if (newv)
+            nset.add(key)
+          else
+            nset.delete(key)
+        }
         this.set(nset)
       }
     )
