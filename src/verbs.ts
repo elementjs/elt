@@ -165,6 +165,7 @@ export type SeparatorFn = (oi: number) => Renderable
  */
 export class Repeater<T> extends Mixin<Comment> {
 
+  // protected proxy = o([] as T[])
   protected obs: o.Observable<T[]>
   protected positions: Node[] = []
   protected next_index: number = 0
@@ -181,6 +182,27 @@ export class Repeater<T> extends Mixin<Comment> {
     super()
 
     this.obs = o(ob)
+  }
+
+  /**
+   * FIXME: WHAT SHOULD WE DO WHEN THE NODE IS REMOVED AND THEN
+   * ADDED AGAIN ???
+   */
+  added(node: Comment, immediate = true) {
+    // Add the end_repeat after this node
+    node.parentNode!.insertBefore(this.end, node.nextSibling)
+
+    this.observers.observe(this.obs, lst => {
+      this.lst = lst || []
+      const diff = lst.length - this.next_index
+
+      if (diff < 0)
+        this.removeChildren(-diff)
+
+      if (diff > 0)
+        this.appendChildren(diff)
+
+    }, immediate)
   }
 
   /**
@@ -247,25 +269,6 @@ export class Repeater<T> extends Mixin<Comment> {
 
     this.child_obs = this.child_obs.slice(0, this.next_index)
     this.positions = this.positions.slice(0, this.next_index)
-  }
-
-  /**
-   * FIXME: WHAT SHOULD WE DO WHEN THE NODE IS REMOVED AND THEN
-   * ADDED AGAIN ???
-   */
-  added(node: Comment, immediate = true) {
-    // Add the end_repeat after this node
-    node.parentNode!.insertBefore(this.end, node.nextSibling)
-
-    this.observers.observe(this.obs, lst => {
-      this.lst = lst || []
-      const diff = lst.length - this.next_index
-
-      if (diff > 0)
-        this.appendChildren(diff)
-      else if (diff < 0)
-        this.removeChildren(-diff)
-    }, immediate)
   }
 
   inserted() {
@@ -370,14 +373,14 @@ export class ScrollRepeater<T> extends Repeater<T> {
       console.warn(`Scroll repeat needs a parent with overflow-y: auto`)
       this.appendChildren(0)
       return
-    } else if (this.positions.length === 0) {
-      this.appendChildren(0)
-    } else if (this.positions.length > 0) {
-      var parent = this.node.parentNode!
-      for (var p of this.positions) {
-        mount(p, parent)
-      }
-    }
+    } // else if (this.positions.length === 0) {
+    //   this.appendChildren(0)
+    // } else if (this.positions.length > 0) {
+    //   var parent = this.node.parentNode!
+    //   for (var p of this.positions) {
+    //     mount(p, parent)
+    //   }
+    // }
 
     this.parent.addEventListener('scroll', this.onscroll)
   }
