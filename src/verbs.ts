@@ -80,6 +80,8 @@ export class Displayer extends Mixin<Comment> {
 
   inserted(_: Comment, parent: Node) {
     if (this.current_node) {
+      this.node.parentNode!.insertBefore(this.current_node, this.node)
+      add(this.current_node)
       mount(this.current_node, parent)
     }
   }
