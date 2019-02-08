@@ -279,9 +279,13 @@ export class Repeater<T> extends Mixin<Comment> {
       // the value of the list didn't change, so we need to insert the elements.
       this.appendChildren(this.lst.length)
     } else {
-      var parent = this.node.parentNode!
-      for (var p of this.positions)
-        mount(p, parent)
+      // We timeout this to prevent finishing mounting elements before having our own
+      // observable started, to avoid them registering BEFORE us
+      // setTimeout(() => {
+      //   var parent = this.node.parentNode!
+      //   for (var p of this.positions)
+      //     mount(p, parent)
+      // })
     }
   }
 
