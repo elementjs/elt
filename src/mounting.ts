@@ -5,7 +5,7 @@ import {getMixins} from './mixins'
 export const mnsym = Symbol('element-mounted')
 
 
-function _added(node: Node) {
+function _add(node: Node) {
   var mx = getMixins(node)
   if (!mx) return
   for (var m of mx) {
@@ -14,15 +14,15 @@ function _added(node: Node) {
   }
 }
 
-export function added(node: Node) {
+export function add(node: Node) {
   if (node instanceof DocumentFragment) {
     var _n = node.firstChild as Node | null
     while (_n) {
-      _added(_n)
+      _add(_n)
       _n = _n.nextSibling
     }
   } else {
-    _added(node)
+    _add(node)
   }
 }
 
@@ -227,7 +227,7 @@ export function remove_and_unmount(node: Node): void {
 export function insert_before_and_mount(parent: Node, node: Node, refchild: Node | null = null) {
   var df = document.createDocumentFragment()
   df.appendChild(node)
-  added(node)
+  add(node)
   parent.insertBefore(df, refchild)
   mount(node, parent)
 }

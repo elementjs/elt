@@ -320,6 +320,12 @@ export function inserted(fn: (elt: Element, parent: Node) => void): Mixin {
   return new InsertedMixin()
 }
 
+export function added(fn: (elt: Node) => void): Mixin {
+  class AddedMixin extends Mixin { }
+  AddedMixin.prototype.added = fn
+  return new AddedMixin()
+}
+
 
 export function removed(fn: (node: Element, parent: Node, next: Node | null, prev: Node | null) => void): Mixin {
   class RemovedMixin extends Mixin { }
