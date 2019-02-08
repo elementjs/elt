@@ -21,7 +21,7 @@ import {
 import {
   remove_and_unmount,
   mount,
-  added
+  add
 } from './mounting'
 
 
@@ -69,7 +69,7 @@ export class Displayer extends Mixin<Comment> {
     }
     this.current_node = value
     parent.insertBefore(value, this.node)
-    added(value)
+    add(value)
     if (this.mounted)
       mount(value, parent)
   }
@@ -78,17 +78,14 @@ export class Displayer extends Mixin<Comment> {
     this.observer.call(this._obs.get())
   }
 
-  inserted(node: Comment, parent: Node) {
-    if (this.current_node && this.current_node.nextSibling !== this.node) {
-      this.node.parentNode!.insertBefore(this.current_node, this.node)
-      added(this.current_node)
-      mount(this.current_node)
+  inserted(_: Comment, parent: Node) {
+    if (this.current_node) {
+      mount(this.current_node, parent)
     }
   }
 
   removed(node: Comment, parent: Node) {
     if (this.current_node) {
-      // can this err ?
       remove_and_unmount(this.current_node)
     }
   }
@@ -224,7 +221,7 @@ export class Repeater<T> extends Mixin<Comment> {
       fr.appendChild(next)
     }
 
-    added(fr)
+    add(fr)
     parent.insertBefore(fr, this.end)
     if (this.mounted) {
       for (var n of to_mount) {
@@ -278,6 +275,10 @@ export class Repeater<T> extends Mixin<Comment> {
       // and inserted again. In this case, the observer is not triggered since
       // the value of the list didn't change, so we need to insert the elements.
       this.appendChildren(this.lst.length)
+    } else {
+      var parent = this.node.parentNode!
+      for (var p of this.positions)
+        mount(p, parent)
     }
   }
 
@@ -354,10 +355,6 @@ export class ScrollRepeater<T> extends Repeater<T> {
 
   inserted() {
 
-    if (this.positions.length === 0) {
-      this.appendChildren(0)
-    }
-
     // Find parent with the overflow-y
     var iter = this.node.parentElement
     while (iter) {
@@ -371,7 +368,15 @@ export class ScrollRepeater<T> extends Repeater<T> {
 
     if (!this.parent) {
       console.warn(`Scroll repeat needs a parent with overflow-y: auto`)
+      this.appendChildren(0)
       return
+    } else if (this.positions.length === 0) {
+      this.appendChildren(0)
+    } else if (this.positions.length > 0) {
+      var parent = this.node.parentNode!
+      for (var p of this.positions) {
+        mount(p, parent)
+      }
     }
 
     this.parent.addEventListener('scroll', this.onscroll)
@@ -446,7 +451,7 @@ export class FragmentHolder extends Mixin<Comment> {
   added(node: Comment) {
     node.parentNode!.insertBefore(this.fragment, node.nextSibling)
     for (var c of this.child_nodes) {
-      added(c)
+      add(c)
       if (this.mounted)
         mount(c)
     }
