@@ -210,8 +210,8 @@ export class Mixin<N extends Node = Node> {
     (this.mounted as any) = true;
     (this.node as any) = node;
 
-    this.observers.start()
     this.inserted(node, parent)
+    this.observers.start()
   }
 
   /**
@@ -226,8 +226,8 @@ export class Mixin<N extends Node = Node> {
     (this.mounted as any) = false;
     (this.node as any) = null; // we force the node to null to help with garbage collection.
 
-    this.removed(node, parent, next, prev)
     this.observers.stop()
+    this.removed(node, parent, next, prev)
   }
 
   /**
