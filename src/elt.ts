@@ -16,7 +16,7 @@ import {
 } from './mixins'
 
 import {
-  getNode
+  getDOMInsertable
 } from './verbs'
 
 import { add } from './mounting'
@@ -141,33 +141,32 @@ export function e(elt: any, _attrs: Attrs | null, ...children: o.RO<Renderable>[
   var attrs = _attrs || {} as Attrs
   var is_basic_node = typeof elt === 'string'
 
+  const fragment = getDOMInsertable(children) as DocumentFragment
+
   if (is_basic_node) {
     // create a simple DOM node
     var ns = NS[elt] || attrs.xmlns
     node = ns ? document.createElementNS(ns, elt) : document.createElement(elt)
 
     // Append children to the node.
-    if (children) {
-      var fragment = getNode(children)
-      var _child = fragment.firstChild as Node | null
-      while (_child) {
-        add(_child)
-        _child = _child.nextSibling
-      }
-      node.appendChild(fragment)
+    var _child = fragment.firstChild as Node | null
+    while (_child) {
+      add(_child)
+      _child = _child.nextSibling
     }
+    node.appendChild(fragment)
 
   } else if (isComponent(elt)) {
 
     // elt is an instantiator / Component
     var comp = new elt(attrs)
 
-    node = comp.render(getNode(children) as DocumentFragment)
+    node = comp.render(fragment)
     comp.addToNode(node)
 
   } else if (typeof elt === 'function') {
     // elt is just a creator function
-    node = elt(attrs, getNode(children))
+    node = elt(attrs, fragment)
   }
 
   // Classes and style are applied at the end of this function and are thus

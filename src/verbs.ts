@@ -26,7 +26,7 @@ import {
 } from './mounting'
 
 
-export function getNode(i: Insertable) {
+export function getDOMInsertable(i: Insertable) {
 
   if (i instanceof Node)
     return i
@@ -34,7 +34,7 @@ export function getNode(i: Insertable) {
   if (i instanceof Array) {
     const res = document.createDocumentFragment()
     for (var n of i) {
-      res.appendChild(getNode(n))
+      res.appendChild(getDOMInsertable(n))
     }
     return res
   }
@@ -55,10 +55,11 @@ export function getNode(i: Insertable) {
  * Get a node from an insertable, or a Fragment verb if the insertable
  * returned a DocumentFragment.
  *
- * This function is a helper for Display.
+ * This function is a helper for Display / Repeat ; its goal is to get a
+ * single node from anything that may be inserted (which can be a lot of different things)
  */
-export function getNodeOrFragment(i: Insertable) {
-  const result = getNode(i)
+export function getSingleNode(i: Insertable) {
+  const result = getDOMInsertable(i)
   if (result instanceof DocumentFragment) {
     return instanciate_verb(new FragmentHolder(result))
   }
@@ -107,7 +108,7 @@ export class Displayer extends Mixin<Comment> {
       remove_and_unmount(current)
     }
 
-    const new_node = getNodeOrFragment(value)
+    const new_node = getSingleNode(value)
     this.current_node = new_node
     parent.insertBefore(new_node, this.node)
     add(new_node)
@@ -142,7 +143,7 @@ export class Displayer extends Mixin<Comment> {
  */
 export function Display(obs: o.RO<Renderable>): Node {
   if (!(obs instanceof o.Observable)) {
-    return getNode(obs)
+    return getDOMInsertable(obs)
   }
   return instanciate_verb(new Displayer(obs))
 }
@@ -168,11 +169,11 @@ export class ConditionalDisplayer<T> extends Displayer {
         if (!this.rendered_display)
           // Here we have to help the inferer as it can't guess that cond and condition
           // are linked and as such display(o(condition)) is actually handling a NonNullable.
-          this.rendered_display = getNode(typeof display === 'function' ? display(o(condition as NonNullable<T>)) : display)
+          this.rendered_display = getDOMInsertable(typeof display === 'function' ? display(o(condition as NonNullable<T>)) : display)
         return this.rendered_display
       } else {
         if (!this.rendered_otherwise)
-          this.rendered_otherwise = getNode(typeof display_otherwise === 'function' ? display_otherwise(o(condition)) : display_otherwise)
+          this.rendered_otherwise = getDOMInsertable(typeof display_otherwise === 'function' ? display_otherwise(o(condition)) : display_otherwise)
         return this.rendered_otherwise
       }
     }))
@@ -199,8 +200,8 @@ export function DisplayIf<T>(
 ): Node {
   if ((typeof display === 'function' && display.length === 0 || typeof display !== 'function') && !(condition instanceof o.Observable)) {
     return condition ?
-      getNode(typeof display === 'function' ? display(null!) : display)
-      : getNode(display_otherwise ?
+      getDOMInsertable(typeof display === 'function' ? display(null!) : display)
+      : getDOMInsertable(display_otherwise ?
           (typeof display_otherwise === 'function' ? display_otherwise(null!) : display_otherwise)
           : document.createComment('false'))
   }
@@ -272,10 +273,10 @@ export class Repeater<T> extends Mixin<Comment> {
 
     this.child_obs.push(ob)
 
-    var res = getNodeOrFragment(this.renderfn(ob, this.next_index))
+    var res = getSingleNode(this.renderfn(ob, this.next_index))
 
     if (this.separator && this.next_index > 0) {
-      const sep = getNodeOrFragment(this.separator(this.next_index))
+      const sep = getSingleNode(this.separator(this.next_index))
       res = E(Fragment, {}, sep, res)
     }
 
