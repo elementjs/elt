@@ -5,7 +5,7 @@ import {
 
 import {
   Attrs,
-  Insertable,
+  Renderable,
   ComponentFn,
   ComponentInstanciator
 } from './types'
@@ -16,9 +16,10 @@ import {
 } from './mixins'
 
 import {
-  Display
+  getNode
 } from './verbs'
-import { add } from './mounting';
+
+import { add } from './mounting'
 
 
 
@@ -29,33 +30,6 @@ export class AttrsMixin extends Mixin<HTMLElement> { }
 
 
 ////////////////////////////////////////////////////////
-
-/**
- *
- */
-export function getDocumentFragment(ch: Insertable|Insertable[]) {
-  var result = document.createDocumentFragment()
-  if (!ch) return result
-
-  var children = Array.isArray(ch) ? ch : [ch]
-
-  for (var c of children) {
-    // Do not do anything with null or undefined
-    if (c == null) continue
-
-    if (Array.isArray(c)) {
-      result.appendChild(getDocumentFragment(c))
-    } else if (c instanceof o.Observable) {
-      result.appendChild(Display(c))
-    } else if (!(c instanceof Node)) {
-      result.appendChild(document.createTextNode(c.toString()))
-    } else {
-      result.appendChild(c)
-    }
-  }
-
-  return result
-}
 
 
 export function getChildren(node: Node): Node[] {
@@ -155,10 +129,10 @@ export const GLOBAL_ATTRIBUTES = {
  * This function is the base of element ; it creates Nodes and glues together
  * Controllers, decorators, classes and style.
  */
-export function e(elt: ComponentFn, attrs: Attrs | null, ...children: Insertable[]): Element
-export function e(elt: string, attrs: Attrs | null, ...children: Insertable[]): HTMLElement
-export function e<A>(elt: ComponentInstanciator<A>, attrs: A | null, ...children: Insertable[]): Element
-export function e(elt: any, _attrs: Attrs | null, ...children: Insertable[]): Element {
+export function e(elt: ComponentFn, attrs: Attrs | null, ...children: o.RO<Renderable>[]): Element
+export function e(elt: string, attrs: Attrs | null, ...children: o.RO<Renderable>[]): HTMLElement
+export function e<A>(elt: ComponentInstanciator<A>, attrs: A | null, ...children: o.RO<Renderable>[]): Element
+export function e(elt: any, _attrs: Attrs | null, ...children: o.RO<Renderable>[]): Element {
 
   if (!elt) throw new Error(`d() needs at least a string, a function or a Component`)
 
@@ -174,7 +148,7 @@ export function e(elt: any, _attrs: Attrs | null, ...children: Insertable[]): El
 
     // Append children to the node.
     if (children) {
-      var fragment = getDocumentFragment(children)
+      var fragment = getNode(children)
       var _child = fragment.firstChild as Node | null
       while (_child) {
         add(_child)
@@ -188,12 +162,12 @@ export function e(elt: any, _attrs: Attrs | null, ...children: Insertable[]): El
     // elt is an instantiator / Component
     var comp = new elt(attrs)
 
-    node = comp.render(getDocumentFragment(children))
+    node = comp.render(getNode(children) as DocumentFragment)
     comp.addToNode(node)
 
   } else if (typeof elt === 'function') {
     // elt is just a creator function
-    node = elt(attrs, getDocumentFragment(children))
+    node = elt(attrs, getNode(children))
   }
 
   // Classes and style are applied at the end of this function and are thus

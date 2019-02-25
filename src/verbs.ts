@@ -11,7 +11,8 @@ import {
 
 import {
   EmptyAttributes,
-  Renderable
+  Renderable,
+  Insertable
 } from './types'
 
 import {
@@ -23,6 +24,46 @@ import {
   mount,
   add
 } from './mounting'
+
+
+export function getNode(i: Insertable) {
+
+  if (i instanceof Node)
+    return i
+
+  if (i instanceof Array) {
+    const res = document.createDocumentFragment()
+    for (var n of i) {
+      res.appendChild(getNode(n))
+    }
+    return res
+  }
+
+  if (i instanceof o.Observable) {
+    return Display(i)
+  }
+
+  if (i != null) {
+    return document.createTextNode(i.toString())
+  }
+
+  return document.createComment('empty')
+}
+
+
+/**
+ * Get a node from an insertable, or a Fragment verb if the insertable
+ * returned a DocumentFragment.
+ *
+ * This function is a helper for Display.
+ */
+export function getNodeOrFragment(i: Insertable) {
+  const result = getNode(i)
+  if (result instanceof DocumentFragment) {
+    return instanciate_verb(new FragmentHolder(result))
+  }
+  return result
+}
 
 
 export function instanciate_verb(m: Mixin<Comment>): Node {
@@ -39,9 +80,9 @@ export function instanciate_verb(m: Mixin<Comment>): Node {
 export class Displayer extends Mixin<Comment> {
 
   current_node: Node | null = null
-  observer!: o.ReadonlyObserver<Renderable>
+  observer!: o.ReadonlyObserver<Insertable>
 
-  constructor(public _obs: o.ReadonlyObservable<Renderable>) {
+  constructor(public _obs: o.ReadonlyObservable<Insertable>) {
     super()
   }
 
@@ -49,29 +90,29 @@ export class Displayer extends Mixin<Comment> {
     this.observer = this.observers.observe(this._obs, value => this.update(value))
   }
 
-  update(value: Renderable) {
-    if (!(value instanceof Node)) {
-      var val = value != null ? value.toString() : ''
+  update(value: Insertable) {
+    const typ = typeof value
+    const current = this.current_node
 
-      var current = this.current_node
+    // Special case for when we're updating text with text.
+    if (typ === 'string' || typ === 'number') {
       if (current && current instanceof Text) {
-        current.nodeValue = val
+        current.nodeValue = (value == null ? '' : value).toString()
         return
-      } else {
-        value = document.createTextNode(val)
       }
     }
 
     var parent = this.node.parentNode!
-    var current = this.current_node
     if (current) {
       remove_and_unmount(current)
     }
-    this.current_node = value
-    parent.insertBefore(value, this.node)
-    add(value)
+
+    const new_node = getNodeOrFragment(value)
+    this.current_node = new_node
+    parent.insertBefore(new_node, this.node)
+    add(new_node)
     if (this.mounted)
-      mount(value, parent)
+      mount(new_node, parent)
   }
 
   added() {
@@ -99,15 +140,18 @@ export class Displayer extends Mixin<Comment> {
  * Write and update the string value of an observable value into
  * a Text node.
  */
-export function Display(obs: o.ReadonlyObservable<Renderable>): Node {
+export function Display(obs: o.RO<Renderable>): Node {
+  if (!(obs instanceof o.Observable)) {
+    return getNode(obs)
+  }
   return instanciate_verb(new Displayer(obs))
 }
 
 
 
-export type DisplayCreator<T> = (a: o.Observable<T>) => Renderable
-export type Displayable<T> = Renderable | DisplayCreator<T>
-export type ReadonlyDisplayable<T> = Renderable | ((a: o.ReadonlyObservable<T>) => Renderable)
+export type DisplayCreator<T> = (a: o.Observable<T>) => Insertable
+export type Displayable<T> = Insertable | DisplayCreator<T>
+export type ReadonlyDisplayable<T> = Insertable | ((a: o.ReadonlyObservable<T>) => Insertable)
 
 export class ConditionalDisplayer<T> extends Displayer {
 
@@ -124,11 +168,11 @@ export class ConditionalDisplayer<T> extends Displayer {
         if (!this.rendered_display)
           // Here we have to help the inferer as it can't guess that cond and condition
           // are linked and as such display(o(condition)) is actually handling a NonNullable.
-          this.rendered_display = typeof display === 'function' ? display(o(condition as NonNullable<T>)) : display
+          this.rendered_display = getNode(typeof display === 'function' ? display(o(condition as NonNullable<T>)) : display)
         return this.rendered_display
       } else {
         if (!this.rendered_otherwise)
-          this.rendered_otherwise = typeof display_otherwise === 'function' ? display_otherwise(o(condition)) : display_otherwise
+          this.rendered_otherwise = getNode(typeof display_otherwise === 'function' ? display_otherwise(o(condition)) : display_otherwise)
         return this.rendered_otherwise
       }
     }))
@@ -153,13 +197,23 @@ export function DisplayIf<T>(
   display: Displayable<NonNullable<T>>,
   display_otherwise?: Displayable<T>
 ): Node {
+  if ((typeof display === 'function' && display.length === 0 || typeof display !== 'function') && !(condition instanceof o.Observable)) {
+    return condition ?
+      getNode(typeof display === 'function' ? display(null!) : display)
+      : getNode(display_otherwise ?
+          (typeof display_otherwise === 'function' ? display_otherwise(null!) : display_otherwise)
+          : document.createComment('false'))
+  }
   return instanciate_verb(new ConditionalDisplayer(display, condition as o.O<T>, display_otherwise))
 }
 
 
-export type RenderFn<T> = (e: o.Observable<T>, oi: number) => Renderable
-export type ReadonlyRenderFn<T> = (e: o.ReadonlyObservable<T>, oi: number) => Renderable
-export type SeparatorFn = (oi: number) => Renderable
+export const If = DisplayIf
+
+
+export type RenderFn<T> = (e: o.Observable<T>, oi: number) => Insertable
+export type ReadonlyRenderFn<T> = (e: o.ReadonlyObservable<T>, oi: number) => Insertable
+export type SeparatorFn = (oi: number) => Insertable
 
 
 /**
@@ -218,11 +272,10 @@ export class Repeater<T> extends Mixin<Comment> {
 
     this.child_obs.push(ob)
 
-    var res = this.renderfn(ob, this.next_index)
-    if (!(res instanceof Node)) res = document.createTextNode(res ? '' + res : '')
+    var res = getNodeOrFragment(this.renderfn(ob, this.next_index))
 
     if (this.separator && this.next_index > 0) {
-      const sep = this.separator(this.next_index)
+      const sep = getNodeOrFragment(this.separator(this.next_index))
       res = E(Fragment, {}, sep, res)
     }
 
