@@ -1186,13 +1186,43 @@ export class ArrayTransformObservable<A> extends VirtualObservable<A[]> {
    * Observable objects for values that were not.
    * @param arg: The maybe observable object
    */
+  export function tf<A, B>(arg: RO<A>, fn: (a: A) => B, backfn: ((b: B, old: B | undefined, obs: ReadonlyObservable<A>) => void)): O<B>
+  export function tf<A, B>(arg: RO<A>, trans: Transformer<A, B>): O<B>
   export function tf<A, B>(arg: RO<A>, fn: (a: A) => B): RO<B>
-  export function tf<A, B>(arg: RO<A> | undefined, fn: (a: A | undefined) => B): RO<B>
-  export function tf<A, B>(arg: RO<A>, fn: (a: A) => B): RO<B> {
+  export function tf<A, B>(arg: RO<A>, trans: ReadonlyTransformer<A, B>): RO<B>
+  // export function tf<A, B>(arg: RO<A> | undefined, fn: (a: A | undefined) => B): RO<B>
+  export function tf<A, B>(arg: RO<A>, fn: ReadonlyTransformer<A, B> | ((a: A) => B), backfn?: ((b: B, old: B | undefined, obs: ReadonlyObservable<A>) => void)): RO<B> {
     if (arg instanceof Observable) {
-      return arg.tf(fn)
+      if (typeof fn === 'function') {
+        if (backfn)
+          return (arg as ReadonlyObservable<A>).tf(fn, backfn)
+        return (arg as ReadonlyObservable<A>).tf(fn)
+      } else
+        return (arg as ReadonlyObservable<A>).tf(fn)
     } else {
-      return fn(arg as A)
+      if (typeof fn === 'function')
+        return fn(arg as A)
+      else
+        return fn.get(arg as A, undefined, undefined)
+    }
+  }
+
+  /**
+   * Same as for o.tf, take the property of a maybe observable and
+   * create a maybe observable out of it.
+   *
+   * This is a convenience function for building components.
+   *
+   * @param mobs: The maybe observable
+   * @param key: The key to watch
+   */
+  export function p<A, K extends keyof A>(mobs: O<A>, key: K): O<A[K]>
+  export function p<A, K extends keyof A>(mobs: RO<A>, key: K): RO<A[K]>
+  export function p<A, K extends keyof A>(mobs: RO<A>, key: K): RO<A[K]> {
+    if (mobs instanceof Observable) {
+      return mobs.p(key)
+    } else {
+      return (mobs as A)[key]
     }
   }
 
