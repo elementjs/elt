@@ -1187,9 +1187,13 @@ export class ArrayTransformObservable<A> extends VirtualObservable<A[]> {
    * @param arg: The maybe observable object
    */
   export function tf<A, B>(arg: RO<A>, fn: (a: A) => B, backfn: ((b: B, old: B | undefined, obs: ReadonlyObservable<A>) => void)): O<B>
+  export function tf<A, B>(arg: RO<A> | undefined, fn: (a: A | undefined) => B, backfn: ((b: B, old: B | undefined, obs: ReadonlyObservable<A | undefined>) => void)): O<B>
   export function tf<A, B>(arg: RO<A>, trans: Transformer<A, B>): O<B>
+  export function tf<A, B>(arg: RO<A> | undefined, trans: Transformer<A | undefined, B>): O<B>
   export function tf<A, B>(arg: RO<A>, fn: (a: A) => B): RO<B>
+  export function tf<A, B>(arg: RO<A> | undefined, fn: (a: A | undefined) => B): RO<B>
   export function tf<A, B>(arg: RO<A>, trans: ReadonlyTransformer<A, B>): RO<B>
+  export function tf<A, B>(arg: RO<A> | undefined, trans: ReadonlyTransformer<A | undefined, B>): RO<B>
   // export function tf<A, B>(arg: RO<A> | undefined, fn: (a: A | undefined) => B): RO<B>
   export function tf<A, B>(arg: RO<A>, fn: ReadonlyTransformer<A, B> | ((a: A) => B), backfn?: ((b: B, old: B | undefined, obs: ReadonlyObservable<A>) => void)): RO<B> {
     if (arg instanceof Observable) {
