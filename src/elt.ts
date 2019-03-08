@@ -149,12 +149,16 @@ export function e(elt: any, _attrs: Attrs | null, ...children: o.RO<Renderable>[
     var ns = NS[elt] || attrs.xmlns
     node = ns ? document.createElementNS(ns, elt) : document.createElement(elt)
 
-    // Append children to the node.
+    // Save the children into an array so that we can add them
+    // If we iterate them, we risk adding nodes created by
+    // const arr = Array.from(fragment.childNodes)
     var _child = fragment.firstChild as Node | null
     while (_child) {
       add(_child)
       _child = _child.nextSibling
     }
+
+    // Append children to the node.
     node.appendChild(fragment)
 
   } else if (isComponent(elt)) {
