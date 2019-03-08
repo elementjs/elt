@@ -309,24 +309,6 @@ export class Repeater<T> extends Mixin<Comment> {
     this.positions = this.positions.slice(0, this.next_index)
   }
 
-  inserted() {
-    if (this.positions.length === 0) {
-      this.node.parentNode!.insertBefore(this.end, this.node.nextSibling)
-      // This happens when the Repeat was removed from the DOM
-      // and inserted again. In this case, the observer is not triggered since
-      // the value of the list didn't change, so we need to insert the elements.
-      this.appendChildren(this.lst.length)
-    } else {
-      // We timeout this to prevent finishing mounting elements before having our own
-      // observable started, to avoid them registering BEFORE us
-      // setTimeout(() => {
-      //   var parent = this.node.parentNode!
-      //   for (var p of this.positions)
-      //     mount(p, parent)
-      // })
-    }
-  }
-
   removed() {
     if (this.end.parentNode)
       this.end.parentNode.removeChild(this.end)
@@ -415,14 +397,7 @@ export class ScrollRepeater<T> extends Repeater<T> {
       console.warn(`Scroll repeat needs a parent with overflow-y: auto`)
       this.appendChildren(0)
       return
-    } // else if (this.positions.length === 0) {
-    //   this.appendChildren(0)
-    // } else if (this.positions.length > 0) {
-    //   var parent = this.node.parentNode!
-    //   for (var p of this.positions) {
-    //     mount(p, parent)
-    //   }
-    // }
+    }
 
     this.parent.addEventListener('scroll', this.onscroll)
   }
