@@ -197,6 +197,7 @@ export const If = DisplayIf
 
 export type RenderFn<T> = (e: o.Observable<T>, oi: number) => Insertable
 export type ReadonlyRenderFn<T> = (e: o.ReadonlyObservable<T>, oi: number) => Insertable
+
 export type SeparatorFn = (oi: number) => Insertable
 
 
@@ -422,6 +423,12 @@ export class ScrollRepeater<T> extends Repeater<T> {
 }
 
 
+export type RoItem<T extends o.RO<any>> = T extends o.Observable<(infer U)[]> ? o.Observable<U>
+  : T extends o.ReadonlyObservable<(infer U)[]> ? o.ReadonlyObservable<U>
+  : T extends (infer U)[] ? U
+  : T;
+
+
 /**
  * @verb
  *
@@ -432,15 +439,24 @@ export class ScrollRepeater<T> extends Repeater<T> {
  * @returns a Comment node with the Repeater controller bound
  *  on it.
  */
-export function Repeat<T>(ob: T[], render: ReadonlyRenderFn<T>, separator?: SeparatorFn): Node;
-export function Repeat<T>(ob: o.Observable<T[]>, render: RenderFn<T>, separator?: SeparatorFn): Node
-export function Repeat<T>(ob: o.ReadonlyObservable<T[]>, render: ReadonlyRenderFn<T>, separator?: SeparatorFn): Node
-export function Repeat(
-  ob: any,
-  render: any,
+export function Repeat<T extends o.RO<any[]>>(
+  ob: T,
+  render: (arg: RoItem<T>, idx: number) => Insertable,
   separator?: SeparatorFn
 ): Node {
-  return instanciate_verb(new Repeater(ob, render, separator))
+  if (!(ob instanceof o.Observable)) {
+    const arr = ob as any[]
+    const final = new Array(separator ? arr.length * 2 - 1 : arr.length) as Node[]
+    var i = 0
+    var j = 0
+    for (var elt of arr) {
+      arr[i++] = render(elt, j++)
+      if (separator)
+        arr[i++] = separator(j - 1)
+    }
+    return getSingleNode(final)
+  }
+  return instanciate_verb(new Repeater(ob, render as any, separator))
 }
 
 
