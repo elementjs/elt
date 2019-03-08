@@ -157,7 +157,7 @@ export class ConditionalDisplayer<T extends o.ReadonlyObservable<any>> extends D
     protected condition: T,
     protected display_otherwise?: Displayable<T>
   ) {
-    super(o(condition).tf(cond => {
+    super(condition.tf(cond => {
       if (cond) {
         return getDOMInsertable(display(condition as NonNullableObs<T>))
       } else if (display_otherwise) {
