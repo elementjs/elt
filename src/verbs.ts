@@ -295,14 +295,17 @@ export class Repeater<T> extends Mixin<Comment> {
     // Détruire jusqu'à la position concernée...
     this.next_index = this.next_index - count
 
+    const self_is_removed = !!(this.node||{}).parentNode
     var co = this.child_obs
     var po = this.positions
     var l = co.length
 
     // Remove the excess nodes
     for (var i = this.next_index; i < l; i++) {
+      const node = po[i]
       co[i].stopObservers()
-      remove_and_unmount(po[i])
+      if (self_is_removed) remove_and_unmount(node)
+      else unmount(node, node.parentNode!, node.previousSibling, node.nextSibling)
     }
 
     this.child_obs = this.child_obs.slice(0, this.next_index)
@@ -492,7 +495,7 @@ export class FragmentHolder extends Mixin<Comment> {
     if (!parent) {
       for (var c of this.child_nodes) {
         remove_and_unmount(c)
-        this.fragment.appendChild(c)
+        // this.fragment.appendChild(c)
       }
     } else {
       for (var c of this.child_nodes) {
