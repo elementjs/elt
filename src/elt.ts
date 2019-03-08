@@ -123,6 +123,7 @@ export const GLOBAL_ATTRIBUTES = {
   translate: true,
 } as {[attr: string]: boolean}
 
+
 /**
  * Create Nodes with a twist.
  *

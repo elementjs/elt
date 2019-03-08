@@ -22,7 +22,8 @@ import {
 import {
   remove_and_unmount,
   mount,
-  add
+  add,
+  unmount
 } from './mounting'
 
 
@@ -120,17 +121,10 @@ export class Displayer extends Mixin<Comment> {
     this.observer.call(this._obs.get())
   }
 
-  inserted(_: Comment, parent: Node) {
-    if (this.current_node) {
-      this.node.parentNode!.insertBefore(this.current_node, this.node)
-      add(this.current_node)
-      mount(this.current_node, parent)
-    }
-  }
-
   removed(node: Comment, parent: Node) {
     if (this.current_node) {
       remove_and_unmount(this.current_node)
+      this.current_node = null
     }
   }
 
@@ -150,31 +144,26 @@ export function Display(obs: o.RO<Renderable>): Node {
 
 
 
-export type DisplayCreator<T> = (a: o.Observable<T>) => Insertable
-export type Displayable<T> = Insertable | DisplayCreator<T>
-export type ReadonlyDisplayable<T> = Insertable | ((a: o.ReadonlyObservable<T>) => Insertable)
+export type Displayable<T> = (a: T) => Insertable
+export type NonNullableObs<T> = T extends o.Observable<infer U> ? o.Observable<NonNullable<U>> :
+  T extends o.ReadonlyObservable<infer U> ? o.ReadonlyObservable<NonNullable<U>>
+  : NonNullable<T>
 
-export class ConditionalDisplayer<T> extends Displayer {
 
-  rendered_display: Renderable
-  rendered_otherwise: Renderable
+export class ConditionalDisplayer<T extends o.ReadonlyObservable<any>> extends Displayer {
 
   constructor(
-    protected display: Displayable<NonNullable<T>>,
-    protected condition: o.O<T>,
+    protected display: Displayable<NonNullableObs<T>>,
+    protected condition: T,
     protected display_otherwise?: Displayable<T>
   ) {
     super(o(condition).tf(cond => {
       if (cond) {
-        if (!this.rendered_display)
-          // Here we have to help the inferer as it can't guess that cond and condition
-          // are linked and as such display(o(condition)) is actually handling a NonNullable.
-          this.rendered_display = getDOMInsertable(typeof display === 'function' ? display(o(condition as NonNullable<T>)) : display)
-        return this.rendered_display
+        return getDOMInsertable(display(condition as NonNullableObs<T>))
+      } else if (display_otherwise) {
+        return getDOMInsertable(display_otherwise(condition))
       } else {
-        if (!this.rendered_otherwise)
-          this.rendered_otherwise = getDOMInsertable(typeof display_otherwise === 'function' ? display_otherwise(o(condition)) : display_otherwise)
-        return this.rendered_otherwise
+        return null
       }
     }))
   }
@@ -185,27 +174,20 @@ export class ConditionalDisplayer<T> extends Displayer {
 /**
  *
  */
-export function DisplayIf<T>(
-  condition: o.Observable<T | undefined | null>,
-  display: Displayable<NonNullable<T>>, display_otherwise?: Displayable<T>
-): Node
-export function DisplayIf<T>(
-  condition: o.ReadonlyObservable<T | undefined | null>,
-  display: Displayable<NonNullable<T>>, display_otherwise?: Displayable<T>
-): Node
-export function DisplayIf<T>(
-  condition: null | undefined | o.O<T | null | undefined>,
-  display: Displayable<NonNullable<T>>,
+export function DisplayIf<T extends o.RO<any>>(
+  condition: T,
+  display: Displayable<NonNullableObs<T>>,
   display_otherwise?: Displayable<T>
 ): Node {
   if ((typeof display === 'function' && display.length === 0 || typeof display !== 'function') && !(condition instanceof o.Observable)) {
     return condition ?
-      getDOMInsertable(typeof display === 'function' ? display(null!) : display)
+      getDOMInsertable(display(null!))
       : getDOMInsertable(display_otherwise ?
-          (typeof display_otherwise === 'function' ? display_otherwise(null!) : display_otherwise)
+          (display_otherwise(null!))
           : document.createComment('false'))
   }
-  return instanciate_verb(new ConditionalDisplayer(display, condition as o.O<T>, display_otherwise))
+
+  return instanciate_verb(new ConditionalDisplayer<any>(display, condition, display_otherwise))
 }
 
 
@@ -527,9 +509,20 @@ export class FragmentHolder extends Mixin<Comment> {
   }
 
   removed(n: Node, p: Node, pre: Node, next: Node) {
-    for (var c of this.child_nodes) {
-      remove_and_unmount(c)
-      this.fragment.appendChild(c)
+    const parent = (this.node||{}).parentNode
+
+    // We check if we still have a parent to make sure that we weren't the one
+    // to be removed directly.
+    // If we still have a parent, it means a parent node was removed from the DOM,
+    if (!parent) {
+      for (var c of this.child_nodes) {
+        remove_and_unmount(c)
+        this.fragment.appendChild(c)
+      }
+    } else {
+      for (var c of this.child_nodes) {
+        unmount(c, parent, c.previousSibling, c.nextSibling)
+      }
     }
   }
 
