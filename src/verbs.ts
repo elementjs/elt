@@ -111,10 +111,11 @@ export class Displayer extends Mixin<Comment> {
 
     const new_node = getSingleNode(value)
     this.current_node = new_node
-    parent.insertBefore(new_node, this.node)
-    add(new_node)
-    if (this.mounted)
+    parent.insertBefore(new_node, this.node.nextSibling)
+    if (this.mounted) {
+      add(new_node)
       mount(new_node, parent)
+    }
   }
 
   added() {
@@ -281,12 +282,15 @@ export class Repeater<T> extends Mixin<Comment> {
       fr.appendChild(next)
     }
 
-    add(fr)
-    parent.insertBefore(fr, this.end)
     if (this.mounted) {
+      add(fr)
+      parent.insertBefore(fr, this.end)
       for (var n of to_mount) {
         mount(n, parent)
       }
+    } else {
+      // We're being added already, probably by e() or a variant, so no need to manually add()
+      parent.insertBefore(fr, this.end)
     }
 
   }
