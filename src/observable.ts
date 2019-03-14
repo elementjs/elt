@@ -1211,6 +1211,17 @@ export class ArrayTransformObservable<A> extends VirtualObservable<A[]> {
     }
   }
 
+
+  // export type Transformer<A, B> =
+
+
+  export function pipe<A extends RO<any>, KB extends keyof A>(base: A): RO<A[KB]>
+  export function pipe<A extends RO<any>, B>(base: A, fn: (a: A) => B): RO<B>
+  export function pipe<A>(base: A, ...transforms: any[]) {
+
+  }
+
+
   /**
    * Same as for o.tf, take the property of a maybe observable and
    * create a maybe observable out of it.

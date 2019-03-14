@@ -1,8 +1,13 @@
 
 import {getMixins} from './mixins'
 
-
 export const mnsym = Symbol('element-mounted')
+
+declare global {
+  interface Node {
+    [mnsym]: boolean
+  }
+}
 
 
 function _add(node: Node) {
