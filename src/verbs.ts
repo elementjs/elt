@@ -23,7 +23,8 @@ import {
   remove_and_unmount,
   mount,
   add,
-  unmount
+  unmount,
+  mnsym
 } from './mounting'
 
 
@@ -112,9 +113,16 @@ export class Displayer extends Mixin<Comment> {
     const new_node = getSingleNode(value)
     this.current_node = new_node
     parent.insertBefore(new_node, this.node.nextSibling)
+    add(new_node)
+
     if (this.mounted) {
-      add(new_node)
       mount(new_node, parent)
+    }
+  }
+
+  inserted() {
+    if (this.current_node && !this.current_node[mnsym]) {
+      mount(this.current_node!, this.node.parentNode!)
     }
   }
 
@@ -194,6 +202,11 @@ export function DisplayIf<T extends o.RO<any>>(
 
 export const If = DisplayIf
 
+
+export type RoItem<T extends o.RO<any>> = T extends o.Observable<(infer U)[]> ? o.Observable<U>
+  : T extends o.ReadonlyObservable<(infer U)[]> ? o.ReadonlyObservable<U>
+  : T extends (infer U)[] ? U
+  : T;
 
 export type RenderFn<T> = (e: o.Observable<T>, oi: number) => Insertable
 export type ReadonlyRenderFn<T> = (e: o.ReadonlyObservable<T>, oi: number) => Insertable
@@ -423,12 +436,6 @@ export class ScrollRepeater<T> extends Repeater<T> {
 }
 
 
-export type RoItem<T extends o.RO<any>> = T extends o.Observable<(infer U)[]> ? o.Observable<U>
-  : T extends o.ReadonlyObservable<(infer U)[]> ? o.ReadonlyObservable<U>
-  : T extends (infer U)[] ? U
-  : T;
-
-
 /**
  * @verb
  *
@@ -492,11 +499,13 @@ export class FragmentHolder extends Mixin<Comment> {
   }
 
   added(node: Comment) {
-    node.parentNode!.insertBefore(this.fragment, node.nextSibling)
+    const parent = node.parentNode!
+    parent.insertBefore(this.fragment, node.nextSibling)
     for (var c of this.child_nodes) {
       add(c)
-      if (this.mounted)
-        mount(c)
+      if (this.mounted) {
+        mount(c, parent)
+      }
     }
   }
 
@@ -509,6 +518,7 @@ export class FragmentHolder extends Mixin<Comment> {
   removed(n: Node, p: Node, pre: Node, next: Node) {
     const parent = (this.node||{}).parentNode
 
+    // console.log(parent, this.child_nodes)
     // We check if we still have a parent to make sure that we weren't the one
     // to be removed directly.
     // If we still have a parent, it means a parent node was removed from the DOM,
@@ -535,5 +545,6 @@ export class FragmentHolder extends Mixin<Comment> {
  */
 export function Fragment(attrs: EmptyAttributes, children: DocumentFragment): Element {
   // This is a trick ! It is not actually an element !
+  // return children as any
   return instanciate_verb(new FragmentHolder(children)) as Element
 }
