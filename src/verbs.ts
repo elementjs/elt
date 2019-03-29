@@ -548,3 +548,49 @@ export function Fragment(attrs: EmptyAttributes, children: DocumentFragment): El
   // return children as any
   return instanciate_verb(new FragmentHolder(children)) as Element
 }
+
+
+export class Switcher<T> extends o.TransformObservable<T, Insertable> {
+
+  cases: [(T | ((t: T) => boolean)), (t: o.Observable<T>) => Insertable][] = []
+  passthrough: () => Insertable = () => null
+
+
+  constructor(public obs: o.Observable<T>) {
+    super(obs, nval => {
+      const cases = this.cases
+      for (var c of cases) {
+        const val = c[0]
+        if (val === nval || (typeof val === 'function' && (val as Function)(nval))) {
+          const fn = c[1]
+          return fn(this.obs)
+        }
+      }
+      return this.passthrough ? this.passthrough() : null
+    })
+  }
+
+  Case(value: T | ((t: T) => boolean), fn: (v: o.Observable<T>) => Insertable): this {
+    this.cases.push([value, fn])
+    return this
+  }
+
+  Else(fn: () => Insertable) {
+    this.passthrough = fn
+    return this
+  }
+
+}
+
+
+export interface ReadonlySwitcher<T> extends o.ReadonlyObservable<Insertable> {
+  Case(value: T | ((t: T) => boolean), fn: (v: o.ReadonlyObservable<T>) => Insertable): this
+  Else(fn: () => Insertable): this
+}
+
+
+export function Switch<T>(obs: o.Observable<T>): Switcher<T>
+export function Switch<T>(obs: o.ReadonlyObservable<T>): ReadonlySwitcher<T>
+export function Switch<T>(obs: o.ReadonlyObservable<T>): ReadonlySwitcher<T> {
+  return new (Switcher as any)(obs)
+}
