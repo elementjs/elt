@@ -552,7 +552,7 @@ export function Fragment(attrs: EmptyAttributes, children: DocumentFragment): El
 
 export class Switcher<T> extends o.TransformObservable<T, Insertable> {
 
-  cases: [(T | ((t: T) => boolean)), (t: o.Observable<T>) => Insertable][] = []
+  cases: [(T | ((t: T) => any)), (t: o.Observable<T>) => Insertable][] = []
   passthrough: () => Insertable = () => null
   prev_case: any = null
 
@@ -577,7 +577,7 @@ export class Switcher<T> extends o.TransformObservable<T, Insertable> {
     })
   }
 
-  Case(value: T | ((t: T) => boolean), fn: (v: o.Observable<T>) => Insertable): this {
+  Case(value: T | ((t: T) => any), fn: (v: o.Observable<T>) => Insertable): this {
     this.cases.push([value, fn])
     return this
   }
