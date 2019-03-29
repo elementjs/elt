@@ -554,18 +554,25 @@ export class Switcher<T> extends o.TransformObservable<T, Insertable> {
 
   cases: [(T | ((t: T) => boolean)), (t: o.Observable<T>) => Insertable][] = []
   passthrough: () => Insertable = () => null
-
+  prev_case: any = null
 
   constructor(public obs: o.Observable<T>) {
-    super(obs, nval => {
+    super(obs, (nval, _, prev) => {
       const cases = this.cases
       for (var c of cases) {
         const val = c[0]
         if (val === nval || (typeof val === 'function' && (val as Function)(nval))) {
+          if (this.prev_case === val) {
+            return prev
+          }
+          this.prev_case = val
           const fn = c[1]
           return fn(this.obs)
         }
       }
+      if (this.prev_case === this.passthrough)
+        return prev
+      this.prev_case = this.passthrough
       return this.passthrough ? this.passthrough() : null
     })
   }
