@@ -488,11 +488,12 @@ export class FragmentHolder extends Mixin<Comment> {
 
   init(node: Comment) {
     // Insert the contents of this fragment right after our own node.
-    const parent = this.node.parentNode!
-    parent.insertBefore(this.fragment, node.nextSibling)
     for (var c of this.child_nodes) {
       mount(c)
     }
+
+    const parent = this.node.parentNode!
+    parent.insertBefore(this.fragment, node.nextSibling)
   }
 
   removed(n: Node, p: Node, pre: Node, next: Node) {
