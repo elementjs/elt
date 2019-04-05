@@ -22,9 +22,7 @@ import {
 import {
   remove_and_unmount,
   mount,
-  add,
-  unmount,
-  mnsym
+  unmount
 } from './mounting'
 
 
@@ -112,18 +110,11 @@ export class Displayer extends Mixin<Comment> {
 
     const new_node = getSingleNode(value)
     this.current_node = new_node
-    parent.insertBefore(new_node, this.node.nextSibling)
-    add(new_node)
-
-    if (this.mounted) {
-      mount(new_node, parent)
-    }
-  }
-
-  inserted() {
-    if (this.current_node && !this.current_node[mnsym]) {
-      mount(this.current_node!, this.node.parentNode!)
-    }
+    // FIXME : this would need adding the node to a temporary fragment first.
+    const fr = document.createDocumentFragment()
+    fr.appendChild(new_node)
+    mount(new_node)
+    parent.insertBefore(fr, this.node.nextSibling)
   }
 
   added() {
@@ -226,7 +217,7 @@ export class Repeater<T> extends Mixin<Comment> {
   protected lst: T[] = []
 
   protected child_obs: o.Observable<T>[] = []
-  private end = document.createComment('repeat end')
+  protected end = document.createComment('repeat end')
 
   constructor(
     ob: o.O<T[]>,
@@ -242,7 +233,7 @@ export class Repeater<T> extends Mixin<Comment> {
    * FIXME: WHAT SHOULD WE DO WHEN THE NODE IS REMOVED AND THEN
    * ADDED AGAIN ???
    */
-  added(node: Comment, immediate = true) {
+  init(node: Comment) {
     // Add the end_repeat after this node
     node.parentNode!.insertBefore(this.end, node.nextSibling)
 
@@ -255,8 +246,7 @@ export class Repeater<T> extends Mixin<Comment> {
 
       if (diff > 0)
         this.appendChildren(diff)
-
-    }, immediate)
+    })
   }
 
   /**
@@ -284,29 +274,18 @@ export class Repeater<T> extends Mixin<Comment> {
 
   appendChildren(count: number) {
     var next: Node | null
-    var parent = this.node.parentNode!
 
     var fr = document.createDocumentFragment()
-    var to_mount = []
 
     while (count-- > 0) {
       next = this.next()
       if (!next) break
-      to_mount.push(next)
       fr.appendChild(next)
+      mount(next)
     }
 
-    if (this.mounted) {
-      add(fr)
-      parent.insertBefore(fr, this.end)
-      for (var n of to_mount) {
-        mount(n, parent)
-      }
-    } else {
-      // We're being added already, probably by e() or a variant, so no need to manually add()
-      parent.insertBefore(fr, this.end)
-    }
-
+    const parent = this.node.parentNode!
+    parent.insertBefore(fr, this.end)
   }
 
   removeChildren(count: number) {
@@ -387,40 +366,49 @@ export class ScrollRepeater<T> extends Repeater<T> {
     requestAnimationFrame(append)
   }
 
+  init(node: Comment) {
+    // Add the end_repeat after this node
+    node.parentNode!.insertBefore(this.end, node.nextSibling)
+
+    requestAnimationFrame(() => {
+      // Find parent with the overflow-y
+      var iter = this.node.parentElement
+      while (iter) {
+        var style = getComputedStyle(iter) as any
+        if (style.overflowY === 'auto' || style.msOverflowY === 'auto' || style.msOverflowY === 'scrollbar') {
+          this.parent = iter
+          break
+        }
+        iter = iter.parentElement
+      }
+
+      if (!this.parent) {
+        console.warn(`Scroll repeat needs a parent with overflow-y: auto`)
+        this.appendChildren(0)
+        return
+      }
+
+      this.parent.addEventListener('scroll', this.onscroll)
+
+      this.observers.observe(this.obs, lst => {
+        this.lst = lst || []
+        const diff = lst.length - this.next_index
+
+        if (diff < 0)
+          this.removeChildren(-diff)
+
+        if (diff > 0)
+          this.appendChildren(0)
+      })
+
+    })
+
+  }
+
   @bound
   onscroll() {
     if (!this.parent) return
     this.appendChildren(0)
-  }
-
-  // This is to prevent the nodes to be added directly since the repeat scroll absolutely
-  // needs to know the height of its container to display its first element.
-  // This could be changed in favor of displaying a first chunk of elements and only then
-  // check for height.
-  added(node: Comment) {
-    super.added(node, false)
-  }
-
-  inserted() {
-
-    // Find parent with the overflow-y
-    var iter = this.node.parentElement
-    while (iter) {
-      var style = getComputedStyle(iter) as any
-      if (style.overflowY === 'auto' || style.msOverflowY === 'auto' || style.msOverflowY === 'scrollbar') {
-        this.parent = iter
-        break
-      }
-      iter = iter.parentElement
-    }
-
-    if (!this.parent) {
-      console.warn(`Scroll repeat needs a parent with overflow-y: auto`)
-      this.appendChildren(0)
-      return
-    }
-
-    this.parent.addEventListener('scroll', this.onscroll)
   }
 
   removed() {
@@ -498,20 +486,12 @@ export class FragmentHolder extends Mixin<Comment> {
     this.child_nodes = nodes
   }
 
-  added(node: Comment) {
-    const parent = node.parentNode!
+  init(node: Comment) {
+    // Insert the contents of this fragment right after our own node.
+    const parent = this.node.parentNode!
     parent.insertBefore(this.fragment, node.nextSibling)
     for (var c of this.child_nodes) {
-      add(c)
-      if (this.mounted) {
-        mount(c, parent)
-      }
-    }
-  }
-
-  inserted(node: Comment, parent: Node) {
-    for (var c of this.child_nodes) {
-      mount(c, parent)
+      mount(c)
     }
   }
 
