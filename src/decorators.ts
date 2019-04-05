@@ -127,25 +127,7 @@ export function bind(obs: o.Observable<string>) {
 }
 
 
-export class ObserveMixin extends Mixin {
-
-}
-
-
-/**
- * Decorator to add an observer to a Node
- *
- * If immediate is true, the observer is called immediately, before even
- * the Node exists.
- *
- * @param ob: the observer
- * @param immediate: if the observer should be called immediately
- */
-export function add_observer(ob: o.Observer<any>, immediate?: boolean) {
-  var m = new ObserveMixin()
-  m.observers.add(ob, !!immediate)
-  return m
-}
+export class ObserveMixin extends Mixin { }
 
 
 /**
@@ -282,6 +264,9 @@ export function scrollable() {
 /**
  * A simple decorator to bind a method to its object instance. Useful for callbacks
  * and event listeners.
+ *
+ * This is not an 'elt' decorator, but a regular ES decorator, used with @bound
+ * before a method definition.
  */
 export function bound(target: any, method_name: string, descriptor: PropertyDescriptor) {
   var original = descriptor.value
