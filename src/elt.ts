@@ -19,7 +19,7 @@ import {
   getDOMInsertable
 } from './verbs'
 
-import { add } from './mounting'
+import { mount } from './mounting'
 
 
 
@@ -149,12 +149,9 @@ export function e(elt: any, _attrs: Attrs | null, ...children: o.RO<Renderable>[
     var ns = NS[elt] || attrs.xmlns
     node = ns ? document.createElementNS(ns, elt) : document.createElement(elt)
 
-    // Save the children into an array so that we can add them
-    // If we iterate them, we risk adding nodes created by
-    // const arr = Array.from(fragment.childNodes)
     var _child = fragment.firstChild as Node | null
     while (_child) {
-      add(_child)
+      mount(_child)
       _child = _child.nextSibling
     }
 

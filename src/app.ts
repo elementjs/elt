@@ -328,10 +328,11 @@ export class App extends Mixin<Comment>{
   /**
    *
    */
-  inserted() {
+  init() {
     // Look for a parent app. If found, pick a subregistry and register it.
-    var parent_app = App.get(this.node.parentNode!, true)
-    this.registry.setParent(parent_app ? parent_app.registry : null)
+    // var parent_app = App.get(this.node.parentNode!, true)
+    // this.registry.setParent(parent_app ? parent_app.registry : null)
+    this.registry.setParent(null)
     this.activate(...this.init_list)
   }
 

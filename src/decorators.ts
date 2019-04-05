@@ -133,9 +133,15 @@ export class ObserveMixin extends Mixin { }
 /**
  * Observe an observable and tie the observation to the node this is added to
  */
-export function observe<T>(a: o.RO<T>, cbk: (newval: T, changes: o.Changes<T>, node: Node) => void, immediate?: boolean) {
+export function observe<T>(a: o.ReadonlyObserver<T>, immediate?: boolean): ObserveMixin
+export function observe<T>(a: o.RO<T>, cbk: (newval: T, changes: o.Changes<T>, node: Node) => void, immediate?: boolean): ObserveMixin
+export function observe<T>(a: any, cbk?: any, immediate?: boolean) {
   var m = new ObserveMixin()
-  m.observers.observe(a, (newval: T, changes: o.Changes<T>) => cbk(newval, changes, m.node), !!immediate)
+  if (a instanceof o.Observer) {
+    m.observers.add(a)
+  } else {
+    m.observers.observe(a, (newval: T, changes: o.Changes<T>) => cbk(newval, changes, m.node), !!immediate)
+  }
   return m
 }
 
@@ -170,22 +176,6 @@ class OnMixin extends Mixin {
  */
 export function click(cbk: Listener<MouseEvent>) {
   return on('click', cbk)
-}
-
-
-/**
- *
- */
-export function inserted(fn: (elt: Element, parent: Node) => void): Mixin {
-  class InsertedMixin extends Mixin { }
-  InsertedMixin.prototype.inserted = fn
-  return new InsertedMixin()
-}
-
-export function added(fn: (elt: Node) => void): Mixin {
-  class AddedMixin extends Mixin { }
-  AddedMixin.prototype.added = fn
-  return new AddedMixin()
 }
 
 

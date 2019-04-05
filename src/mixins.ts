@@ -129,8 +129,6 @@ function _add_event_listener(
 export class Mixin<N extends Node = Node> {
 
   readonly node: N = null!
-  /** true when the associated Node is inside the DOM */
-  readonly mounted: boolean = false
 
   /** An array of observers tied to the Node for observing. Populated by `observe()` calls. */
   observers = new o.ObserverGroup()
@@ -181,7 +179,6 @@ export class Mixin<N extends Node = Node> {
   addToNode(node: N) {
     addMixin(node, this);
     (this.node as any) = node;
-    this.init(node)
   }
 
   /**
@@ -190,9 +187,7 @@ export class Mixin<N extends Node = Node> {
    * @param node
    */
   removeFromNode() {
-    if (this.mounted) {
-      this.observers.stop()
-    }
+    this.observers.stop();
     removeMixin(this.node, this);
     (this.node as any) = null; // we force the node to null to help with garbage collection.
   }
@@ -205,12 +200,10 @@ export class Mixin<N extends Node = Node> {
    * @param node The associated node
    * @param parent The parent of the associated node
    */
-  mount(node: N, parent: Node) {
-    // We cheat the readonly here.
-    (this.mounted as any) = true;
+  mount(node: N) {
     (this.node as any) = node;
 
-    this.inserted(node, parent)
+    this.init(node)
     this.observers.start()
   }
 
@@ -223,7 +216,6 @@ export class Mixin<N extends Node = Node> {
    * @param prev Its former prevSibling
    */
   unmount(node: N, parent: Node, next: Node | null, prev: Node | null) {
-    (this.mounted as any) = false;
     (this.node as any) = null; // we force the node to null to help with garbage collection.
 
     this.observers.stop()
@@ -241,24 +233,6 @@ export class Mixin<N extends Node = Node> {
    * @param node The associated node.
    */
   init(node: N): void { }
-
-  /**
-   * Stub method. Overload if you want to run code right after the node of this
-   * controller was appended to another node, but before it is added to the DOM.
-   * It is generally called during the call to E() when appending the children
-   * to a final node or by verbs that manipulate other nodes.
-   *
-   * @param node The associated node.
-   * @param parent Its new parent
-   */
-  added(node: N): void { }
-
-  /**
-   * Stub method. Overload it if you want to run code right after the Node was added to the DOM.
-   * @param node The associated node
-   * @param parent Its new parent
-   */
-  inserted(node: N, parent: Node): void { }
 
   /**
    * Stub method. Overload it if you want to run code right after the associated node was
