@@ -126,12 +126,11 @@ function _add_event_listener(
  * with `init()` or `inserted()`, please make sure that you set it to `null` in the
  * `removed()` call.
  */
-export class Mixin<N extends Node = Node> {
+export class Mixin<N extends Node = Node> extends o.ObserverGroup {
 
   readonly node: N = null!
 
   /** An array of observers tied to the Node for observing. Populated by `observe()` calls. */
-  observers = new o.ObserverGroup()
   listeners: {event: string, listener: Listener<Event, Node>, live_listener: null | ((e: Event) => void), useCapture?: boolean}[] | undefined = undefined
 
   /**
@@ -187,7 +186,7 @@ export class Mixin<N extends Node = Node> {
    * @param node
    */
   removeFromNode() {
-    this.observers.stop();
+    this.stopObservers();
     removeMixin(this.node, this);
     (this.node as any) = null; // we force the node to null to help with garbage collection.
   }
@@ -204,7 +203,7 @@ export class Mixin<N extends Node = Node> {
     (this.node as any) = node;
 
     this.init(node)
-    this.observers.start()
+    this.startObservers()
   }
 
   /**
@@ -218,7 +217,7 @@ export class Mixin<N extends Node = Node> {
   unmount(node: N, parent: Node, next: Node | null, prev: Node | null) {
     (this.node as any) = null; // we force the node to null to help with garbage collection.
 
-    this.observers.stop()
+    this.stopObservers()
     this.removed(node, parent, next, prev)
   }
 
@@ -254,8 +253,7 @@ export class Mixin<N extends Node = Node> {
    *
    */
   observeAttribute<N extends Element>(this: Mixin<N>, name: string, value: o.O<any>) {
-    const obs = this.observers
-    obs.observe(value, val => {
+    this.observe(value, val => {
       if (val === true)
       this.node.setAttribute(name, '')
       else if (val != null && val !== false)
@@ -267,9 +265,8 @@ export class Mixin<N extends Node = Node> {
   }
 
   observeStyle<N extends HTMLElement|SVGElement>(this: Mixin<N>, style: StyleDefinition) {
-    const obs = this.observers
     if (style instanceof o.Observable) {
-      obs.observe(style, st => {
+      this.observe(style, st => {
         const ns = this.node.style
         for (var x in st) {
           ns.setProperty(x.replace(/[A-Z]/g, m => '-' + m.toLowerCase()), st[x])
@@ -279,7 +276,7 @@ export class Mixin<N extends Node = Node> {
       // c is a MaybeObservableObject
       var st = style as any
       for (let x in st) {
-        obs.observe(st[x], value => {
+        this.observe(st[x], value => {
           this.node.style.setProperty(x.replace(/[A-Z]/g, m => '-' + m.toLowerCase()), value)
         }, true)
       }
@@ -287,17 +284,16 @@ export class Mixin<N extends Node = Node> {
   }
 
   observeClass<N extends Element>(this: Mixin<N>, c: ClassDefinition) {
-    const obs = this.observers
     if (c instanceof o.Observable || typeof c === 'string') {
       // c is an Observable<string>
-      obs.observe(c, (str, chg) => {
+      this.observe(c, (str, chg) => {
         if (chg.hasOldValue()) _remove_class(this.node, chg.oldValue())
         _apply_class(this.node, str)
       }, true)
     } else {
       // c is a MaybeObservableObject
       for (let x in c) {
-        obs.observe(c[x], applied => applied ? _apply_class(this.node, x) : _remove_class(this.node, x), true)
+        this.observe(c[x], applied => applied ? _apply_class(this.node, x) : _remove_class(this.node, x), true)
       }
     }
   }

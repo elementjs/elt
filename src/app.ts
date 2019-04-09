@@ -15,9 +15,9 @@ export interface BlockInstantiator<B extends Block = Block> {
  * Services are meant to be used by *composition*, and not through extension.
  * Do not subclass a service unless its state is the exact same type.
  */
-export class Block {
+export class Block extends o.ObserverGroup {
 
-  constructor(public app: App) { }
+  constructor(public app: App) { super() }
 
   registry = this.app.registry
 
@@ -30,7 +30,6 @@ export class Block {
   private blockInitPromise = null as null | Promise<void>
 
   private blockRequirements = new Set<Block | Object>()
-  observers = new o.ObserverGroup()
 
   mark(s: Set<Function>) {
     s.add(this.constructor)
@@ -76,7 +75,7 @@ export class Block {
     // Now we can init.
     this.blockInitPromise = Promise.all(requirement_blocks.map(b => b.blockInit())).then(() => this.init())
     await this.blockInitPromise
-    this.observers.start()
+    this.startObservers()
   }
 
   async blockActivate() {
@@ -85,7 +84,7 @@ export class Block {
   }
 
   async blockDeinit() {
-    this.observers.stop()
+    this.stopObservers()
     this.deinit()
   }
 

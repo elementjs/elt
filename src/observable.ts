@@ -1557,13 +1557,13 @@ export class ArrayTransformObservable<A> extends VirtualObservable<A[]> {
     observers: o.ReadonlyObserver<any>[] = []
     started = false
 
-    start() {
+    startObservers() {
       for (var ob of this.observers)
         ob.startObserving()
       this.started = true
     }
 
-    stop() {
+    stopObservers() {
       for (var ob of this.observers)
         ob.stopObserving()
       this.started = false
@@ -1581,13 +1581,13 @@ export class ArrayTransformObservable<A> extends VirtualObservable<A[]> {
       }
 
       const observer = o(obs).createObserver(fn)
-      return this.add(observer, immediate)
+      return this.addObserver(observer, immediate)
     }
 
     /**
      * Add an observer to the observers array
      */
-    add<A, B = void>(observer: ReadonlyObserver<A, B>, immediate?: boolean) : ReadonlyObserver<A, B> | null {
+    addObserver<A, B = void>(observer: ReadonlyObserver<A, B>, immediate?: boolean) : ReadonlyObserver<A, B> | null {
       this.observers.push(observer)
 
       if (immediate)
