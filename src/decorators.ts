@@ -40,7 +40,7 @@ export class BindMixin extends Mixin<HTMLInputElement> {
     this.listen('change', upd)
     this.listen('propertychange', upd)
 
-    this.observers.observe(obs, val => {
+    this.observe(obs, val => {
       this.node.value = val||''
     })
   }
@@ -52,7 +52,7 @@ export class BindMixin extends Mixin<HTMLInputElement> {
       obs.set(this.node.value)
     })
 
-    this.observers.observe(obs, val => {
+    this.observe(obs, val => {
       this.node.value = val
     })
   }
@@ -85,11 +85,11 @@ export class BindMixin extends Mixin<HTMLInputElement> {
       case 'month':
       case 'time':
       case 'datetime-local':
-        this.observers.observe(obs, fromObservable)
+        this.observe(obs, fromObservable)
         this.listen('input', fromEvent)
         break
       case 'radio':
-        this.observers.observe(obs, val => {
+        this.observe(obs, val => {
           // !!!? ??
           this.node.checked = this.node.value === val
         })
@@ -97,7 +97,7 @@ export class BindMixin extends Mixin<HTMLInputElement> {
         break
       case 'checkbox':
         // FIXME ugly hack because we specified string
-        this.observers.observe(obs, (val: any) => {
+        this.observe(obs, (val: any) => {
           this.node.checked = !!val
         })
         this.listen('change', () => (obs as o.Observable<any>).set(this.node.checked))
@@ -107,7 +107,7 @@ export class BindMixin extends Mixin<HTMLInputElement> {
       // case 'password':
       // case 'search':
       default:
-        this.observers.observe(obs, fromObservable)
+        this.observe(obs, fromObservable)
         this.listen('keyup', fromEvent)
         this.listen('input', fromEvent)
         this.listen('change', fromEvent)
@@ -138,9 +138,9 @@ export function observe<T>(a: o.RO<T>, cbk: (newval: T, changes: o.Changes<T>, n
 export function observe<T>(a: any, cbk?: any, immediate?: boolean) {
   var m = new ObserveMixin()
   if (a instanceof o.Observer) {
-    m.observers.add(a)
+    m.addObserver(a)
   } else {
-    m.observers.observe(a, (newval: T, changes: o.Changes<T>) => cbk(newval, changes, m.node), !!immediate)
+    m.observe(a, (newval: T, changes: o.Changes<T>) => cbk(newval, changes, m.node), !!immediate)
   }
   return m
 }

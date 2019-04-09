@@ -88,7 +88,7 @@ export class Displayer extends Mixin<Comment> {
   }
 
   init() {
-    this.observer = this.observers.observe(this._obs, value => this.update(value))
+    this.observer = this.observe(this._obs, value => this.update(value))
   }
 
   update(value: Insertable) {
@@ -237,7 +237,7 @@ export class Repeater<T> extends Mixin<Comment> {
     // Add the end_repeat after this node
     node.parentNode!.insertBefore(this.end, node.nextSibling)
 
-    this.observers.observe(this.obs, lst => {
+    this.observe(this.obs, lst => {
       this.lst = lst || []
       const diff = lst.length - this.next_index
 
@@ -390,7 +390,7 @@ export class ScrollRepeater<T> extends Repeater<T> {
 
       this.parent.addEventListener('scroll', this.onscroll)
 
-      this.observers.observe(this.obs, lst => {
+      this.observe(this.obs, lst => {
         this.lst = lst || []
         const diff = lst.length - this.next_index
 
