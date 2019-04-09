@@ -22,7 +22,6 @@ import {
 import {
   remove_and_unmount,
   mount,
-  unmount
 } from './mounting'
 
 
@@ -103,7 +102,6 @@ export class Displayer extends Mixin<Comment> {
       }
     }
 
-    var parent = this.node.parentNode!
     if (current) {
       remove_and_unmount(current)
     }
@@ -114,11 +112,9 @@ export class Displayer extends Mixin<Comment> {
     const fr = document.createDocumentFragment()
     fr.appendChild(new_node)
     mount(new_node)
-    parent.insertBefore(fr, this.node.nextSibling)
-  }
 
-  added() {
-    this.observer.call(this._obs.get())
+    var parent = this.node.parentNode!
+    parent.insertBefore(fr, this.node.nextSibling)
   }
 
   removed(node: Comment, parent: Node) {
@@ -292,7 +288,6 @@ export class Repeater<T> extends Mixin<Comment> {
     // Détruire jusqu'à la position concernée...
     this.next_index = this.next_index - count
 
-    const self_is_removed = !!(this.node||{}).parentNode
     var co = this.child_obs
     var po = this.positions
     var l = co.length
@@ -301,8 +296,7 @@ export class Repeater<T> extends Mixin<Comment> {
     for (var i = this.next_index; i < l; i++) {
       const node = po[i]
       co[i].stopObservers()
-      if (self_is_removed) remove_and_unmount(node)
-      else unmount(node, node.parentNode!, node.previousSibling, node.nextSibling)
+      remove_and_unmount(node)
     }
 
     this.child_obs = this.child_obs.slice(0, this.next_index)
@@ -468,51 +462,37 @@ export function RepeatScroll<T>(
 }
 
 
+var fragment_nb = 0
+
 /**
  *  A comment node that holds a document fragment.
  */
 export class FragmentHolder extends Mixin<Comment> {
 
-  child_nodes: Node[]
+  end: Node = document.createComment(`fragment-${fragment_nb++}-end`)
 
   constructor(public fragment: DocumentFragment) {
     super()
-    var iter: Node | null = fragment.firstChild
-    var nodes: Node[] = []
-    while (iter) {
-      nodes.push(iter)
-      iter = iter.nextSibling
-    }
-    this.child_nodes = nodes
   }
 
-  init(node: Comment) {
-    // Insert the contents of this fragment right after our own node.
-    for (var c of this.child_nodes) {
-      mount(c)
-    }
-
-    const parent = this.node.parentNode!
-    parent.insertBefore(this.fragment, node.nextSibling)
+  init(node: Comment, parent: Node) {
+    var next = node.nextSibling
+    parent.insertBefore(this.end, next)
+    parent.insertBefore(this.fragment, next)
   }
 
-  removed(n: Node, p: Node, pre: Node, next: Node) {
-    const parent = (this.node||{}).parentNode
+  removed(node: Node) {
+    var iter = node.nextSibling as Node | null
+    var prev: Node | null
+    var start = this.end
 
-    // console.log(parent, this.child_nodes)
-    // We check if we still have a parent to make sure that we weren't the one
-    // to be removed directly.
-    // If we still have a parent, it means a parent node was removed from the DOM,
-    if (!parent) {
-      for (var c of this.child_nodes) {
-        remove_and_unmount(c)
-        // this.fragment.appendChild(c)
-      }
-    } else {
-      for (var c of this.child_nodes) {
-        unmount(c, parent, c.previousSibling, c.nextSibling)
-      }
-    }
+    if (!iter) return
+
+    do {
+      prev = iter.nextSibling
+      remove_and_unmount(iter!)
+      iter = prev
+    } while (iter && iter !== start)
   }
 
 }

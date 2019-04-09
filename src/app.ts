@@ -338,9 +338,8 @@ export class App extends Mixin<Comment>{
   /**
    *
    */
-  removed() {
+  deinit() {
     this.registry.setParent(null)
-    // should probably deinit ?
   }
 
   displaySubApp(main_view: Symbol, ...params: (BlockInstantiator<any> | Object)[]) {

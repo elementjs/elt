@@ -133,14 +133,14 @@ export class ObserveMixin extends Mixin { }
 /**
  * Observe an observable and tie the observation to the node this is added to
  */
-export function observe<T>(a: o.ReadonlyObserver<T>, immediate?: boolean): ObserveMixin
-export function observe<T>(a: o.RO<T>, cbk: (newval: T, changes: o.Changes<T>, node: Node) => void, immediate?: boolean): ObserveMixin
-export function observe<T>(a: any, cbk?: any, immediate?: boolean) {
+export function observe<T>(a: o.ReadonlyObserver<T>): ObserveMixin
+export function observe<T>(a: o.RO<T>, cbk: (newval: T, changes: o.Changes<T>, node: Node) => void): ObserveMixin
+export function observe<T>(a: any, cbk?: any) {
   var m = new ObserveMixin()
   if (a instanceof o.Observer) {
     m.addObserver(a)
   } else {
-    m.observe(a, (newval: T, changes: o.Changes<T>) => cbk(newval, changes, m.node), !!immediate)
+    m.observe(a, (newval: T, changes: o.Changes<T>) => cbk(newval, changes, m.node))
   }
   return m
 }
@@ -179,7 +179,7 @@ export function click(cbk: Listener<MouseEvent>) {
 }
 
 
-export function removed(fn: (node: Element, parent: Node, next: Node | null, prev: Node | null) => void): Mixin {
+export function removed(fn: (node: Element, parent: Node) => void): Mixin {
   class RemovedMixin extends Mixin { }
   RemovedMixin.prototype.removed = fn
   return new RemovedMixin()
@@ -193,6 +193,13 @@ export function init(fn: (node: Element) => void): Mixin {
   class InitMixin extends Mixin { }
   InitMixin.prototype.init = fn
   return new InitMixin()
+}
+
+
+export function deinit(fn: (node: Element) => void): Mixin {
+  class DeinitMixin extends Mixin { }
+  DeinitMixin.prototype.deinit = fn
+  return new DeinitMixin()
 }
 
 
