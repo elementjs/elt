@@ -1572,26 +1572,23 @@ export class ArrayTransformObservable<A> extends VirtualObservable<A[]> {
     /**
      * Observe and Observable and return the observer that was created
      */
-    observe<A, B = void>(obs: o.RO<A>, fn: ObserverFunction<A, B>, immediate?: false): ReadonlyObserver<A, B>
-    observe<A, B = void>(obs: o.RO<A>, fn: ObserverFunction<A, B>, immediate: boolean): ReadonlyObserver<A, B> | null
-    observe<A, B = void>(obs: o.RO<A>, fn: ObserverFunction<A, B>, immediate?: boolean) {
-      if (!(obs instanceof Observable) && immediate) {
+    observe<A, B = void>(obs: o.ReadonlyObservable<A>, fn: ObserverFunction<A, B>): ReadonlyObserver<A, B>
+    observe<A, B = void>(obs: o.RO<A>, fn: ObserverFunction<A, B>): ReadonlyObserver<A, B> | null
+    observe<A, B = void>(obs: o.RO<A>, fn: ObserverFunction<A, B>) {
+      if (!(obs instanceof Observable)) {
         fn(obs as A, new Changes(obs as A))
         return null
       }
 
       const observer = o(obs).createObserver(fn)
-      return this.addObserver(observer, immediate)
+      return this.addObserver(observer)
     }
 
     /**
      * Add an observer to the observers array
      */
-    addObserver<A, B = void>(observer: ReadonlyObserver<A, B>, immediate?: boolean) : ReadonlyObserver<A, B> | null {
+    addObserver<A, B = void>(observer: ReadonlyObserver<A, B>) : ReadonlyObserver<A, B> {
       this.observers.push(observer)
-
-      if (immediate)
-        observer.call(get(observer.observable))
 
       if (this.started)
         observer.startObserving()

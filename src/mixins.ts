@@ -186,23 +186,17 @@ export class Mixin<N extends Node = Node> extends o.ObserverGroup {
    * @param node
    */
   removeFromNode() {
-    this.stopObservers();
+    this.unmount(this.node);
     removeMixin(this.node, this);
     (this.node as any) = null; // we force the node to null to help with garbage collection.
   }
 
   /**
-   * This method is called by the mounting process whenever the associated node
-   * was inserted into the DOM. Avoid overloading this method if you want to react
-   * to this event ; use `inserted()` instead.
-   *
    * @param node The associated node
-   * @param parent The parent of the associated node
    */
   mount(node: N) {
     (this.node as any) = node;
-
-    this.init(node)
+    this.init(node, node.parentNode!)
     this.startObservers()
   }
 
@@ -214,34 +208,33 @@ export class Mixin<N extends Node = Node> extends o.ObserverGroup {
    * @param next Its former nextSibling
    * @param prev Its former prevSibling
    */
-  unmount(node: N, parent: Node, next: Node | null, prev: Node | null) {
-    (this.node as any) = null; // we force the node to null to help with garbage collection.
-
+  unmount(node: N) {
     this.stopObservers()
-    this.removed(node, parent, next, prev)
+    this.deinit(node);
+    (this.node as any) = null; // we force the node to null to help with garbage collection.
   }
 
   /**
    * Stub method. Overload it if you want to run code right after the creation of the
-   * associated node by the d() function (or more generally whenever this mixin is added
+   * associated node by the e() function (or more generally whenever this mixin is added
    * to a node.)
    *
-   * Note that it is discouraged to manipulate too much the node here, unless it is just
-   * to set some attribute value. Avoid especially creating closures with the node in it.
-   *
    * @param node The associated node.
+   * @param parent The current parent node. It will most likely change.
    */
-  init(node: N): void { }
+  init(node: N, parent: Node): void { }
 
   /**
-   * Stub method. Overload it if you want to run code right after the associated node was
-   * removed from the DOM.
-   * @param node The associated node
-   * @param parent Its former parent
-   * @param next Its former nextSibling
-   * @param prev Its former prevSibling
+   * Stub method. Overload it to run code whenever the node is removed from the DOM.
+   * This is called even when the node was not the direct target of a removal.
    */
-  removed(node: N, parent: Node, next: Node | null, prev: Node | null): void { }
+  deinit(node: N): void { }
+
+  /**
+   * Stub method. Overload it to run code whenever the node is the direct target
+   * of a DOM removal (and not a child in the sub tree of a node that was removed)
+   */
+  removed(node: N, parent: Node): void { }
 
   listen<K extends keyof DocumentEventMap>(name: K, listener: Listener<DocumentEventMap[K], N>, useCapture?: boolean): void
   listen<E extends Event>(name: string, listener: Listener<E, N>, useCapture?: boolean): void
@@ -261,7 +254,7 @@ export class Mixin<N extends Node = Node> extends o.ObserverGroup {
       else
         // We can remove safely even if it doesn't exist as it won't raise an exception
         this.node.removeAttribute(name)
-    }, true)
+    })
   }
 
   observeStyle<N extends HTMLElement|SVGElement>(this: Mixin<N>, style: StyleDefinition) {
@@ -271,14 +264,14 @@ export class Mixin<N extends Node = Node> extends o.ObserverGroup {
         for (var x in st) {
           ns.setProperty(x.replace(/[A-Z]/g, m => '-' + m.toLowerCase()), st[x])
         }
-      }, true)
+      })
     } else {
       // c is a MaybeObservableObject
       var st = style as any
       for (let x in st) {
         this.observe(st[x], value => {
           this.node.style.setProperty(x.replace(/[A-Z]/g, m => '-' + m.toLowerCase()), value)
-        }, true)
+        })
       }
     }
   }
@@ -289,11 +282,11 @@ export class Mixin<N extends Node = Node> extends o.ObserverGroup {
       this.observe(c, (str, chg) => {
         if (chg.hasOldValue()) _remove_class(this.node, chg.oldValue())
         _apply_class(this.node, str)
-      }, true)
+      })
     } else {
       // c is a MaybeObservableObject
       for (let x in c) {
-        this.observe(c[x], applied => applied ? _apply_class(this.node, x) : _remove_class(this.node, x), true)
+        this.observe(c[x], applied => applied ? _apply_class(this.node, x) : _remove_class(this.node, x))
       }
     }
   }

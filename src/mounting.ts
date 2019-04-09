@@ -1,58 +1,33 @@
 
 import {getMixins} from './mixins'
 
-export const mnsym = Symbol('element-mounted')
 
-declare global {
-  interface Node {
-    [mnsym]: boolean
-  }
-}
-
-
-export function _apply_mount(node: Node) {
-  (node as any)[mnsym] = true
+/**
+ * Call controllers' mount() functions.
+ */
+export function mount(node: Node) {
   var mx = getMixins(node)
   if (!mx) return
   for (var m of mx)
     m.mount(node)
 }
 
-/**
- * Call controllers' mount() functions.
- */
-export function mount(node: Node) {
-  // mount was already applied
-  if ((node as any)[mnsym] === true) return
-  _apply_mount(node)
-}
-
-
-// node, parent, previous, next
-export type UnmountTuple = [Node, Node | null, Node | null, Node | null]
-
 
 /**
  * Apply unmount to a node.
  */
-export function _apply_unmount(tuple: UnmountTuple) {
-  var node = tuple[0] as any;
-  node[mnsym] = false
+export function _apply_unmount(node: Node) {
   var mx = getMixins(node)
-
   if (!mx) return
-  for (var m of mx) m.unmount(tuple[0] as Element, tuple[1]!, tuple[2], tuple[3])
+  for (var m of mx) m.unmount(node)
 }
 
 /**
  * Call controller's unmount functions recursively
  */
-export function unmount(node: Node, target: Node, prev: Node | null, next: Node | null) {
+export function unmount(node: Node) {
 
-  // The node is already unmounted
-  if ((node as any)[mnsym] !== true) return
-
-  const unmount: UnmountTuple[] = []
+  const unmount: Node[] = []
   const node_stack: Node[] = []
   var iter: Node | null = node.firstChild
 
@@ -70,7 +45,7 @@ export function unmount(node: Node, target: Node, prev: Node | null, next: Node 
       iter = iter.firstChild
     }
 
-    unmount.push([iter, iter.parentNode || target, iter.previousSibling, iter.nextSibling])
+    unmount.push(iter)
 
     // When we're here, we're on a terminal node, so
     // we're going to have to process it.
@@ -78,14 +53,14 @@ export function unmount(node: Node, target: Node, prev: Node | null, next: Node 
     while (iter && !iter.nextSibling) {
       iter = node_stack.pop()!
       if (iter)
-        unmount.push([iter, iter.parentNode || target, iter.previousSibling, iter.nextSibling])
+        unmount.push(iter)
     }
 
     // So now we're going to traverse the next node.
     iter = iter && iter.nextSibling
   }
 
-  unmount.push([node, node.parentNode || target, prev, next])
+  unmount.push(node)
 
   for (var tuple of unmount) {
     _apply_unmount(tuple)
@@ -106,10 +81,15 @@ export function unmount(node: Node, target: Node, prev: Node | null, next: Node 
  */
 export function remove_and_unmount(node: Node): void {
   const parent = node.parentNode!
-  const prev = node.previousSibling
-  const next = node.nextSibling
-  if (parent) parent.removeChild(node)
-  unmount(node, parent, prev, next)
+  if (parent) {
+    const mx = getMixins(node)
+    unmount(node)
+    if (mx) {
+      for (var m of mx)
+      m.removed(node, parent)
+    }
+    parent.removeChild(node)
+  }
 }
 
 
