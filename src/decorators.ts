@@ -267,13 +267,17 @@ export function scrollable() {
  */
 export function bound(target: any, method_name: string, descriptor: PropertyDescriptor) {
   var original = descriptor.value
+  var bound_sym = Symbol(`bound-method(${method_name})`)
 
   return {
     get() {
-      var _this = this
-      return function () {
-        return original.apply(_this, arguments)
+      var _this = this as any
+      if (!_this[bound_sym]) {
+        _this[bound_sym] = function () {
+          return original.apply(_this, arguments)
+        }
       }
+      return _this[bound_sym]
     }
   }
 }
