@@ -473,18 +473,17 @@ export class FragmentHolder extends Mixin<Comment> {
 
   constructor(public fragment: DocumentFragment) {
     super()
+    fragment.appendChild(this.end)
   }
 
   init(node: Comment, parent: Node) {
-    var next = node.nextSibling
-    parent.insertBefore(this.end, next)
-    parent.insertBefore(this.fragment, next)
+    parent.insertBefore(this.fragment, node.nextSibling)
   }
 
   removed(node: Node) {
     var iter = node.nextSibling as Node | null
     var prev: Node | null
-    var start = this.end
+    var end = this.end
 
     if (!iter) return
 
@@ -492,7 +491,8 @@ export class FragmentHolder extends Mixin<Comment> {
       prev = iter.nextSibling
       remove_and_unmount(iter!)
       iter = prev
-    } while (iter && iter !== start)
+    } while (iter && iter !== end)
+    if (this.end.parentNode) this.end.parentNode!.removeChild(this.end)
   }
 
 }
