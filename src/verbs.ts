@@ -270,6 +270,8 @@ export class Repeater<T> extends Mixin<Comment> {
 
   appendChildren(count: number) {
     var next: Node | null
+    const parent = this.node.parentNode!
+    if (!parent) return
 
     var fr = document.createDocumentFragment()
 
@@ -280,7 +282,6 @@ export class Repeater<T> extends Mixin<Comment> {
       mount(next)
     }
 
-    const parent = this.node.parentNode!
     parent.insertBefore(fr, this.end)
   }
 
@@ -366,6 +367,8 @@ export class ScrollRepeater<T> extends Repeater<T> {
 
     requestAnimationFrame(() => {
       // Find parent with the overflow-y
+      if (!this.node) return
+
       var iter = this.node.parentElement
       while (iter) {
         var style = getComputedStyle(iter) as any
