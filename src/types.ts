@@ -32,21 +32,36 @@ export type MoreRenderable = Renderable | Renderable[]
 */
 export type Insertable = o.RO<MoreRenderable> | o.RO<MoreRenderable>[]
 
+
+/**
+ * Attributes used on elements that are not actually HTML Elements
+ */
 export interface EmptyAttributes {
   $$children?: o.O<Insertable> | o.O<Insertable>[]
 }
 
 /**
- * Classes.
+ * CSS classes for the class={} attribute
  */
 export type ClassDefinition = {[name: string]: o.RO<any>} | o.O<string>
 
+
+/**
+ * CSS Style attribute definition for the style={} attribute
+ */
 export type StyleDefinition =
   o.RO<Partial<CSSStyleDeclaration>>
   | o.MaybeObservableReadonlyObject<Partial<CSSStyleDeclaration>>
 
+
 /**
- * Basic attributes used on all nodes.
+ * A helper type since all HTML / SVG attributes can be null or undefined.
+ */
+export type NRO<T> = o.RO<T | null | undefined>
+
+
+/**
+ * Basic attributes used on all HTML nodes.
  */
 export interface Attrs extends EmptyAttributes {
   id?: NRO<string>
@@ -74,7 +89,6 @@ export interface Attrs extends EmptyAttributes {
 ///////////////////////////////////////////////////////////////////////////
 // Now following are the default attributes for HTML and SVG nodes.
 
-export type NRO<T> = o.RO<T | null | undefined>
 
 export interface HTMLAttributes extends Attrs {
 
