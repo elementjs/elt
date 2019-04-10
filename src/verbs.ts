@@ -25,7 +25,7 @@ import {
 } from './mounting'
 
 
-export function getDOMInsertable(i: Insertable) {
+export function getDOMInsertable(i: Insertable | Insertable[]) {
 
   if (i instanceof Node)
     return i

@@ -1,13 +1,8 @@
-
-import {
-  o
-} from './observable'
-
 import {
   Attrs,
-  Renderable,
   ComponentFn,
-  ComponentInstanciator
+  ComponentInstanciator,
+  Insertable
 } from './types'
 
 import {
@@ -130,10 +125,10 @@ export const GLOBAL_ATTRIBUTES = {
  * This function is the base of element ; it creates Nodes and glues together
  * Controllers, decorators, classes and style.
  */
-export function e(elt: ComponentFn, attrs: Attrs | null, ...children: o.RO<Renderable>[]): Element
-export function e(elt: string, attrs: Attrs | null, ...children: o.RO<Renderable>[]): HTMLElement
-export function e<A>(elt: ComponentInstanciator<A>, attrs: A | null, ...children: o.RO<Renderable>[]): Element
-export function e(elt: any, _attrs: Attrs | null, ...children: o.RO<Renderable>[]): Element {
+export function e(elt: ComponentFn, attrs: Attrs | null, ...children: Insertable[]): Element
+export function e(elt: string, attrs: Attrs | null, ...children: Insertable[]): HTMLElement
+export function e<A>(elt: ComponentInstanciator<A>, attrs: A | null, ...children: Insertable[]): Element
+export function e(elt: any, _attrs: Attrs | null, ...children: Insertable[]): Element {
 
   if (!elt) throw new Error(`d() needs at least a string, a function or a Component`)
 
@@ -149,14 +144,14 @@ export function e(elt: any, _attrs: Attrs | null, ...children: o.RO<Renderable>[
     var ns = NS[elt] || attrs.xmlns
     node = ns ? document.createElementNS(ns, elt) : document.createElement(elt)
 
-    var _child = fragment.firstChild as Node | null
+    // Append children to the node.
+    node.appendChild(fragment)
+
+    var _child = node.firstChild as Node | null
     while (_child) {
       mount(_child)
       _child = _child.nextSibling
     }
-
-    // Append children to the node.
-    node.appendChild(fragment)
 
   } else if (isComponent(elt)) {
 
