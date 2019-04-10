@@ -13,9 +13,11 @@ export interface ComponentInterface<A> {
   render(children?: DocumentFragment): Node
 }
 
+
 export interface ComponentInstanciator<A> {
   new (...a: any[]): ComponentInterface<A>
 }
+
 
 export interface ComponentFn {
   (attrs: EmptyAttributes, children: DocumentFragment): Element
