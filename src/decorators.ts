@@ -179,6 +179,15 @@ export function click(cbk: Listener<MouseEvent>) {
 }
 
 
+/**
+ * ```jsx
+ *  If(o_some_condition, () => <div $$={removed((node, parent) => {
+ *    console.log(`I will only be called is this div is directly removed
+ *    from the DOM, but not if it was a descendant of such a node, in which
+ *    case only deinit() would be called.`)
+ *  })}/>
+ * ```
+ */
 export function removed(fn: (node: Element, parent: Node) => void): Mixin {
   class RemovedMixin extends Mixin { }
   RemovedMixin.prototype.removed = fn
@@ -187,7 +196,9 @@ export function removed(fn: (node: Element, parent: Node) => void): Mixin {
 
 
 /**
- *
+ * ```jsx
+ *  <div $$={init(node => console.log(`This node was just created and its observers are about to start`))}/>
+ * ```
  */
 export function init(fn: (node: Element) => void): Mixin {
   class InitMixin extends Mixin { }
@@ -196,6 +207,11 @@ export function init(fn: (node: Element) => void): Mixin {
 }
 
 
+/**
+ * ```jsx
+ *  <div $$={deinit(node => console.log(`This node is now out of the DOM`))}/>
+ * ```
+ */
 export function deinit(fn: (node: Element) => void): Mixin {
   class DeinitMixin extends Mixin { }
   DeinitMixin.prototype.deinit = fn
