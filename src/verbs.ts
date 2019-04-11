@@ -381,7 +381,7 @@ export class ScrollRepeater<T> extends Repeater<T> {
   init(node: Comment) {
     requestAnimationFrame(() => {
       // Find parent with the overflow-y
-      if (!this.node) return
+      if (!this.live) return
 
       var iter = this.node.parentElement
       while (iter) {
