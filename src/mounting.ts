@@ -88,6 +88,7 @@ export function remove_and_unmount(node: Node): void {
       for (var m of mx)
       m.removed(node, parent)
     }
+    // (m as any).node = null
     parent.removeChild(node)
   }
 }
