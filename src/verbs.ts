@@ -46,7 +46,7 @@ export function getDOMInsertable(i: Insertable | Insertable[]) {
     return document.createTextNode(i.toString())
   }
 
-  return document.createComment('empty')
+  return document.createComment('' + i)
 }
 
 
@@ -106,6 +106,8 @@ export class Displayer extends Mixin<Comment> {
       remove_and_unmount(current)
     }
 
+    if (value == null) return
+
     const new_node = getSingleNode(value)
     this.current_node = new_node
     // FIXME : this would need adding the node to a temporary fragment first.
@@ -114,7 +116,7 @@ export class Displayer extends Mixin<Comment> {
     mount(new_node)
 
     var parent = this.node.parentNode!
-    parent.insertBefore(fr, this.node.nextSibling)
+    parent.insertBefore(fr, this.node)
   }
 
   removed(node: Comment, parent: Node) {
@@ -213,7 +215,6 @@ export class Repeater<T> extends Mixin<Comment> {
   protected lst: T[] = []
 
   protected child_obs: o.Observable<T>[] = []
-  protected end = document.createComment('repeat end')
 
   constructor(
     ob: o.O<T[]>,
@@ -230,9 +231,6 @@ export class Repeater<T> extends Mixin<Comment> {
    * ADDED AGAIN ???
    */
   init(node: Comment) {
-    // Add the end_repeat after this node
-    node.parentNode!.insertBefore(this.end, node.nextSibling)
-
     this.observe(this.obs, lst => {
       this.lst = lst || []
       const diff = lst.length - this.next_index
@@ -282,7 +280,7 @@ export class Repeater<T> extends Mixin<Comment> {
       mount(next)
     }
 
-    parent.insertBefore(fr, this.end)
+    parent.insertBefore(fr, this.node)
   }
 
   removeChildren(count: number) {
@@ -305,9 +303,6 @@ export class Repeater<T> extends Mixin<Comment> {
   }
 
   removed() {
-    if (this.end.parentNode)
-      this.end.parentNode.removeChild(this.end)
-
     this.removeChildren(this.positions.length)
   }
 
@@ -362,9 +357,6 @@ export class ScrollRepeater<T> extends Repeater<T> {
   }
 
   init(node: Comment) {
-    // Add the end_repeat after this node
-    node.parentNode!.insertBefore(this.end, node.nextSibling)
-
     requestAnimationFrame(() => {
       // Find parent with the overflow-y
       if (!this.node) return
@@ -465,37 +457,42 @@ export function RepeatScroll<T>(
 }
 
 
-var fragment_nb = 0
-
 /**
  *  A comment node that holds a document fragment.
  */
 export class FragmentHolder extends Mixin<Comment> {
 
-  end: Node = document.createComment(`fragment-${fragment_nb++}-end`)
+  start!: Node | null
 
   constructor(public fragment: DocumentFragment) {
     super()
-    fragment.appendChild(this.end)
   }
 
   init(node: Comment, parent: Node) {
-    parent.insertBefore(this.fragment, node.nextSibling)
+    var _child = this.fragment.firstChild as Node | null
+
+    while (_child) {
+      mount(_child)
+      _child = _child.nextSibling
+    }
+
+    this.start = this.fragment.firstChild
+
+    parent.insertBefore(this.fragment, node)
   }
 
   removed(node: Node) {
-    var iter = node.nextSibling as Node | null
-    var prev: Node | null
-    var end = this.end
+    var iter = this.start as Node | null
+    var save: Node | null
+    var end = node
 
     if (!iter) return
 
     do {
-      prev = iter.nextSibling
+      save = iter.nextSibling
       remove_and_unmount(iter!)
-      iter = prev
+      iter = save
     } while (iter && iter !== end)
-    if (this.end.parentNode) this.end.parentNode!.removeChild(this.end)
   }
 
 }
