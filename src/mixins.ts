@@ -211,7 +211,6 @@ export class Mixin<N extends Node = Node> extends o.ObserverGroup {
   unmount(node: N) {
     this.stopObservers()
     this.deinit(node);
-    (this.node as any) = null; // we force the node to null to help with garbage collection.
   }
 
   /**

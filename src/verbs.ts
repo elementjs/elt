@@ -74,56 +74,78 @@ export function instanciate_verb(m: Mixin<Comment>): Node {
 
 
 /**
+ * Remove nodes between other nodes, unmounting them.
+ */
+export function remove_nodes_between(start: Node, end: Node) {
+  // this is done in reverse order
+  var iter = end.previousSibling as Node | null
+  var save: Node | null
+
+  if (!iter) return
+
+  while (iter && iter !== start) {
+    save = iter.previousSibling
+    remove_and_unmount(iter!)
+    iter = save
+  }
+
+}
+
+/**
+ * A Mixin that stores nodes between two comments.
+ * Its end is its this.node
+ */
+export class CommentContainer extends Mixin<Comment> {
+
+  start = document.createComment('--start--')
+
+  init(node: Node, parent: Node) {
+    parent.insertBefore(this.start, node)
+  }
+
+  /**
+   * Remove all nodes between this.start and this.node
+   */
+  clear() {
+    remove_nodes_between(this.start, this.node)
+  }
+
+  setContents(node: Node) {
+    this.clear()
+    var end = this.node
+
+    // Insert the new node before the end
+    var parent = this.node.parentNode!
+    parent.insertBefore(node, end)
+
+    var child = this.start.nextSibling
+    while (child && child !== end) {
+      mount(child)
+      child = child.nextSibling
+    }
+  }
+
+  removed(node: Node, parent: Node) {
+    this.clear()
+    parent.removeChild(this.start)
+  }
+}
+
+
+
+/**
  * Displays and actualises the content of an Observable containing
  * Node, string or number into the DOM.
  */
-export class Displayer extends Mixin<Comment> {
-
-  current_node: Node | null = null
-  observer!: o.ReadonlyObserver<Insertable>
+export class Displayer extends CommentContainer {
 
   constructor(public _obs: o.ReadonlyObservable<Insertable>) {
     super()
   }
 
-  init() {
-    this.observer = this.observe(this._obs, value => this.update(value))
-  }
-
-  update(value: Insertable) {
-    const typ = typeof value
-    const current = this.current_node
-
-    // Special case for when we're updating text with text.
-    if (typ === 'string' || typ === 'number') {
-      if (current && current instanceof Text) {
-        current.nodeValue = (value == null ? '' : value).toString()
-        return
-      }
-    }
-
-    if (current) {
-      remove_and_unmount(current)
-    }
-
-    if (value == null) return
-
-    const new_node = getSingleNode(value)
-    this.current_node = new_node
-    // FIXME : this would need adding the node to a temporary fragment first.
-    const fr = document.createDocumentFragment()
-    fr.appendChild(new_node)
-    mount(new_node)
-
-    var parent = this.node.parentNode!
-    parent.insertBefore(fr, this.node)
-  }
-
-  removed(node: Comment, parent: Node) {
-    if (this.current_node) {
-      remove_and_unmount(this.current_node)
-      this.current_node = null
-    }
+  init(node: Node, parent: Node) {
+    super.init(node, parent)
+    this.observe(this._obs, value => this.setContents(getDOMInsertable(value)))
   }
 
 }
@@ -460,39 +482,15 @@ export function RepeatScroll<T>(
 /**
  *  A comment node that holds a document fragment.
  */
-export class FragmentHolder extends Mixin<Comment> {
-
-  start!: Node | null
+export class FragmentHolder extends CommentContainer {
 
   constructor(public fragment: DocumentFragment) {
     super()
   }
 
   init(node: Comment, parent: Node) {
-    var _child = this.fragment.firstChild as Node | null
-
-    while (_child) {
-      mount(_child)
-      _child = _child.nextSibling
-    }
-
-    this.start = this.fragment.firstChild
-
-    parent.insertBefore(this.fragment, node)
-  }
-
-  removed(node: Node) {
-    var iter = this.start as Node | null
-    var save: Node | null
-    var end = node
-
-    if (!iter) return
-
-    do {
-      save = iter.nextSibling
-      remove_and_unmount(iter!)
-      iter = save
-    } while (iter && iter !== end)
+    super.init(node, parent)
+    this.setContents(this.fragment)
   }
 
 }
