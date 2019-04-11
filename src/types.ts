@@ -39,7 +39,7 @@ export type Insertable = o.RO<MoreRenderable> | o.RO<MoreRenderable>[]
  * Attributes used on elements that are not actually HTML Elements
  */
 export interface EmptyAttributes {
-  $$children?: o.O<Insertable> | o.O<Insertable>[]
+  $$children?: o.RO<Insertable> | o.RO<Insertable>[]
 }
 
 /**
