@@ -1555,18 +1555,18 @@ export class ArrayTransformObservable<A> extends VirtualObservable<A[]> {
   export class ObserverGroup {
 
     observers: o.ReadonlyObserver<any>[] = []
-    started = false
+    live = false
 
     startObservers() {
       for (var ob of this.observers)
         ob.startObserving()
-      this.started = true
+      this.live = true
     }
 
     stopObservers() {
       for (var ob of this.observers)
         ob.stopObserving()
-      this.started = false
+      this.live = false
     }
 
     /**
@@ -1590,7 +1590,7 @@ export class ArrayTransformObservable<A> extends VirtualObservable<A[]> {
     addObserver<A, B = void>(observer: ReadonlyObserver<A, B>) : ReadonlyObserver<A, B> {
       this.observers.push(observer)
 
-      if (this.started)
+      if (this.live)
         observer.startObserving()
 
       return observer
@@ -1602,7 +1602,7 @@ export class ArrayTransformObservable<A> extends VirtualObservable<A[]> {
     remove(observer: ReadonlyObserver<any>) {
       const idx = this.observers.indexOf(observer)
       if (idx > -1) {
-        if (this.started) observer.stopObserving()
+        if (this.live) observer.stopObserving()
         this.observers.splice(idx, 1)
       }
     }
