@@ -79,14 +79,12 @@ export function instanciate_verb(m: Mixin<Comment>): Node {
 export function remove_nodes_between(start: Node, end: Node) {
   // this is done in reverse order
   var iter = end.previousSibling as Node | null
-  var save: Node | null
 
   if (!iter) return
 
   while (iter && iter !== start) {
-    save = iter.previousSibling
     remove_and_unmount(iter!)
-    iter = save
+    iter = end.previousSibling
   }
 
 }
