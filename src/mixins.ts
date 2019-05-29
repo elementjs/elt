@@ -1,6 +1,6 @@
 
 import {
-  o,
+  o
 } from './observable'
 
 import {
@@ -276,16 +276,17 @@ export class Mixin<N extends Node = Node> extends o.ObserverGroup {
   }
 
   observeClass<N extends Element>(this: Mixin<N>, c: ClassDefinition) {
-    if (c instanceof o.Observable || typeof c === 'string') {
+    if (c instanceof o.Observable || typeof c === 'string' || c instanceof String) {
       // c is an Observable<string>
       this.observe(c, (str, chg) => {
         if (chg.hasOldValue()) _remove_class(this.node, chg.oldValue())
         _apply_class(this.node, str)
       })
     } else {
+      var ob = c as {[name: string]: o.RO<any>}
       // c is a MaybeObservableObject
-      for (let x in c) {
-        this.observe(c[x], applied => applied ? _apply_class(this.node, x) : _remove_class(this.node, x))
+      for (let x in ob) {
+        this.observe(ob[x], applied => applied ? _apply_class(this.node, x) : _remove_class(this.node, x))
       }
     }
   }
