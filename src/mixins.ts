@@ -276,7 +276,8 @@ export class Mixin<N extends Node = Node> extends o.ObserverGroup {
   }
 
   observeClass<N extends Element>(this: Mixin<N>, c: ClassDefinition) {
-    if (c instanceof o.Observable || typeof c === 'string' || c instanceof String) {
+    if (!c) return
+    if (typeof c === 'string' || c.constructor !== Object) {
       // c is an Observable<string>
       this.observe(c, (str, chg) => {
         if (chg.hasOldValue()) _remove_class(this.node, chg.oldValue())
@@ -308,7 +309,8 @@ export abstract class Component<A extends Attrs = Attrs, N extends Element = Ele
 }
 
 
-function _apply_class(node: Element, c: string) {
+function _apply_class(node: Element, c: any) {
+  c = c == null ? null : c.toString()
   if (!c) return
   for (var _ of c.split(/\s+/g))
     if (_) node.classList.add(_)
