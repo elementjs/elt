@@ -45,7 +45,7 @@ export interface EmptyAttributes {
 /**
  * CSS classes for the class={} attribute
  */
-export type ClassDefinition = {[name: string]: o.RO<any>} | o.O<string>
+export type ClassDefinition = {[name: string]: o.RO<any>} | o.RO<string | String>
 
 
 /**
