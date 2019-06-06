@@ -191,6 +191,7 @@ export interface ReadonlyObservable<A> {
   removeObserver<B = void>(ob: ReadonlyObserver<A, B>): void
 
   debounce(getms: number, setms?: number): ReadonlyObservable<A>
+  throttle(getms: number, setms?: number): ReadonlyObservable<A>
   isGreaterThan(rhs: RO<A>): ReadonlyObservable<boolean>
   isLesserThan(rhs: RO<A>): ReadonlyObservable<boolean>
   equals(rhs: RO<A>): ReadonlyObservable<boolean>
@@ -336,6 +337,37 @@ export class Observable<A> implements ReadonlyObservable<A> {
     }
 
     if (notifyms) obs.notify = o.debounce(obs.notify, notifyms)
+
+    return obs
+  }
+
+  /**
+   * Return a new observable which is a copy of this one that will throttle
+   * the get / set operations.
+   *
+   * Debounced notifies means that observers will only be called every `notifyms`
+   * milliseconds.
+   *
+   * The setms parameter debounces set and assign calls so to prevent setting
+   * the observable to often with new values.
+   *
+   * As with all debounced() operations, only the last value is taken into account.
+   *
+   * @param notifyms The number of milliseconds to debounce the notify operation
+   * @param setms The number of milliseconds to debounce the set operation
+   */
+  throttle(notifyms: number, setms?: number): Observable<A> {
+    if (setms === undefined)
+      setms = notifyms
+
+    const obs = this.tf(v => v, (n, o, ob) => ob.set(n))
+
+    if (setms) {
+      obs.set = o.throttle(obs.set, setms)
+      obs.assign = o.throttle(obs.assign, setms)
+    }
+
+    if (notifyms) obs.notify = o.throttle(obs.notify, notifyms)
 
     return obs
   }
@@ -1417,13 +1449,6 @@ export class ArrayTransformObservable<A> extends VirtualObservable<A[]> {
   export function throttle(ms: number, leading?: boolean): (target: any, key: string, desc: PropertyDescriptor) => void
   export function throttle<F extends Function>(fn: F, ms: number, leading?: boolean): F
   export function throttle(fn: any, ms: any, leading: boolean = false): any {
-    var timer: number | null
-    var prev_res: any
-    var lead = false
-    var last_call: number
-    var _args: any
-    var self: any
-
     // Called as a method decorator.
     if (typeof fn === 'number') {
       leading = ms
@@ -1434,32 +1459,35 @@ export class ArrayTransformObservable<A> extends VirtualObservable<A[]> {
       }
     }
 
-    return function (this: any, ...args: any[]) {
-      var now = Date.now().valueOf()
+    var timer: number | null
+    var prev_res: any
+    var last_call: number = 0
+    var _args: any
+    var self: any
 
-      // console.log(leading, lead, timer, last_call, now)
-      if (leading && !lead && !timer && (!last_call || now - last_call >= ms)) {
+    return function (this: any, ...args: any[]) {
+      var now = Date.now()
+
+      // If the delay expired or if this is the first time this function is called,
+      // then trigger the call. Otherwise, we will have to set up the call.
+      if ((leading && last_call === 0) || last_call + ms <= now) {
         prev_res = fn.apply(this, args)
-        lead = true
-      } else {
-        lead = false
+        last_call = now
+        return prev_res
       }
 
       self = this
       _args = args
+
       if (!timer) {
         timer = window.setTimeout(function () {
-          if (!lead) {
-            prev_res = fn.apply(self, _args)
-            last_call = Date.now().valueOf()
-          }
-          lead = false
+          prev_res = fn.apply(self, _args)
+          last_call = Date.now()
           _args = null
           timer = null
-        }, ms - last_call ? (now - last_call) : 0)
+        }, ms - (now - (last_call || now)))
       }
 
-      last_call = now
       return prev_res
     }
   }
