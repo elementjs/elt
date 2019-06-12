@@ -317,7 +317,7 @@ function _apply_class(node: Element, c: any) {
 }
 
 function _remove_class(node: Element, c: string) {
-  c = c == null ? null : c.toString()
+  c = c == null ? null! : c.toString()
   if (!c) return
   for (var _ of c.split(/\s+/g))
     if (_) node.classList.remove(_)
