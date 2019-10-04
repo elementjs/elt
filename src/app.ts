@@ -9,6 +9,11 @@ export interface BlockInstantiator<B extends Block = Block> {
 }
 
 
+export class View {
+  constructor(public fn: () => Node) { }
+}
+
+
 /**
  * The base class to create services.
  *
@@ -20,6 +25,7 @@ export class Block extends o.ObserverGroup {
   constructor(public app: App) { super() }
 
   registry = this.app.registry
+  views: {[name: string]: (() => Node)} = {}
 
   /**
    * Set to true if this block should persist even if it is no longer in
@@ -55,10 +61,8 @@ export class Block extends o.ObserverGroup {
     fn(this)
   }
 
-  addViews(views: {[name: string]: () => Node}) {
-    this.runOnRequirementsAndSelf(() => {
-
-    })
+  view(fn: () => Node) {
+    return new View(fn.bind(this))
   }
 
   /**
@@ -140,9 +144,6 @@ export class Block extends o.ObserverGroup {
 }
 
 
-export const MainView = Symbol('main-view')
-
-
 /**
  * A registry that holds types mapped to their instance.
  */
@@ -196,14 +197,14 @@ export class Registry {
   }
 
   getViews() {
-    var views = new Map<Symbol, () => Node>()
+    var views = {} as {[name: string]: View}
     this.active_blocks.forEach(inst => {
       var block = this.get(inst)
       block.runOnRequirementsAndSelf(b => {
-        for (var sym of Object.getOwnPropertySymbols(b)) {
-          var fn = (b as any)[sym]
-          if (typeof sym === 'symbol' && typeof fn === 'function' && fn.length === 0) {
-            views.set(sym, fn)
+        for (var name of Object.getOwnPropertyNames(b)) {
+          var fn = (b as any)[name]
+          if (fn instanceof View) {
+            views[name] = fn
           }
         }
       })
@@ -302,11 +303,11 @@ export class App extends Mixin<Comment>{
 
   // o_views really has symbol keys, typescript just does not support
   // this as of now.
-  o_views = new o.Observable<Map<Symbol, () => Node>>(new Map)
+  o_views = new o.Observable<{[name: string]: View}>({})
   active_blocks = new o.Observable<Set<BlockInstantiator>>(new Set())
 
 
-  constructor(public main_view: Symbol, protected init_list: (BlockInstantiator<any> | Object)[]) {
+  constructor(public main_view: string, protected init_list: (BlockInstantiator<any> | Object)[]) {
     super()
   }
 
@@ -342,7 +343,7 @@ export class App extends Mixin<Comment>{
     this.registry.setParent(null)
   }
 
-  displaySubApp(main_view: Symbol, ...params: (BlockInstantiator<any> | Object)[]) {
+  displaySubApp(main_view: string, ...params: (BlockInstantiator<any> | Object)[]) {
     const app = new App(main_view, params)
     app.registry.setParent(this.registry)
     const disp = app.display(main_view)
@@ -350,10 +351,10 @@ export class App extends Mixin<Comment>{
     return disp
   }
 
-  display(sym: Symbol) {
+  display(sym: string) {
     return Display(this.o_views.tf(v => {
-      var view = v.get(sym)
-      return view && view()
+      var view = v[sym]
+      return view && view.fn()
     })) as Comment
   }
 
@@ -366,7 +367,7 @@ export class App extends Mixin<Comment>{
  * @param main_view The symbol of the view to display
  * @param params Initialisation parameters
  */
-export function DisplayApp(main_view: Symbol, ...params: (BlockInstantiator<any> | Object)[]) {
+export function DisplayApp(main_view: string, ...params: (BlockInstantiator<any> | Object)[]) {
   var app = new App(main_view, params)
   var disp = app.display(main_view)
   app.addToNode(disp)
