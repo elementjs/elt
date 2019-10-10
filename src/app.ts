@@ -4,6 +4,15 @@ import { Mixin } from './mixins'
 import { o } from './observable'
 
 
+export type FilterFlags<Base, Condition> = {
+  [Key in keyof Base]:
+      Base[Key] extends Condition ? Key : never
+};
+
+export type AllowedNames<Base, Condition> =
+      FilterFlags<Base, Condition>[keyof Base];
+
+
 export interface BlockInstantiator<B extends Block = Block> {
   new(app: App): B
 }
@@ -135,14 +144,12 @@ export class Block extends o.ObserverGroup {
    * Display the contents of a block
    * @param fn
    */
-  display(
-    v: Symbol
-  ): Node {
-    return this.app.display(v)
+  // v should be AllowedNames<this, View> ! but it is a bug with ts 3.6.2
+  display(v: string): Node {
+    return this.app.display(v as string)
   }
 
 }
-
 
 /**
  * A registry that holds types mapped to their instance.
