@@ -217,9 +217,9 @@ export interface ReadonlyObservable<A> {
   tf<B>(fnget: (nval: A, oval: A | undefined, curval: B | undefined) => B, fnset: (nval: B, oval: B | undefined, obs: ReadonlyObservable<A>) => void): Observable<B>
   tf<B>(transformer: ReadonlyTransformer<A, B>): Observable<B>
 
+  p<A>(this: ReadonlyObservable<A[]>, key: RO<number>): ReadonlyPropObservable<A[], A | undefined>
   p<A extends object, K extends keyof A>(this: ReadonlyObservable<A>, key: RO<K>): ReadonlyPropObservable<A, A[K]>
-  p<A extends {[key: string]: B}, B>(this: ReadonlyObservable<A>, key: RO<string>): ReadonlyPropObservable<A, B>
-  p<A>(this: ReadonlyObservable<A[]>, key: RO<number>): ReadonlyPropObservable<A[], A>
+  p<A extends {[key: string]: B}, B>(this: ReadonlyObservable<A>, key: RO<string>): ReadonlyPropObservable<A, B | undefined>
 
   has<A>(this: ReadonlyObservable<Set<A>>, ...keys: RO<A>[]): ReadonlyObservable<boolean>
   key<A, B>(this: ReadonlyObservable<Map<A, B>>, key: RO<A>): ReadonlyObservable<B | undefined>
@@ -733,9 +733,9 @@ export class Observable<A> implements ReadonlyObservable<A> {
     return new TransformObservable(this, fnget, fnset)
   }
 
+  p<A>(this: Observable<A[]>, key: RO<number>): PropObservable<A[], A | undefined>
   p<A extends object, K extends keyof A>(this: Observable<A>, key: RO<K>): PropObservable<A, A[K]>
-  p<A extends {[key: string]: B}, B>(this: Observable<A>, key: RO<string>): PropObservable<A, B>
-  p<A>(this: Observable<A[]>, key: RO<number>): PropObservable<A[], A>
+  p<A extends {[key: string]: B}, B>(this: Observable<A>, key: RO<string>): PropObservable<A, B | undefined>
   p(this: Observable<any>, key: RO<any>): PropObservable<any, any> {
     return new PropObservable(this, key)
   }
