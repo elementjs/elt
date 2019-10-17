@@ -197,9 +197,9 @@ export function DisplayIf<T extends o.RO<any>>(
   display: Displayable<NonNullableObs<T>>,
   display_otherwise?: Displayable<T>
 ): Node {
-  if ((typeof display === 'function' && display.length === 0 || typeof display !== 'function') && !(condition instanceof o.Observable)) {
+  if (typeof display === 'function' && !(condition instanceof o.Observable)) {
     return condition ?
-      getDOMInsertable(display(null!))
+      getDOMInsertable(display(condition as any))
       : getDOMInsertable(display_otherwise ?
           (display_otherwise(null!))
           : document.createComment('false'))
@@ -270,7 +270,8 @@ export class Repeater<T> extends Mixin<Comment> {
     if (this.next_index >= this.lst.length)
       return null
 
-    var ob = this.obs.p(this.next_index)
+    // here, we *KNOW* it represents a defined value.
+    var ob = this.obs.p(this.next_index) as o.PropObservable<T[], T>
 
     this.child_obs.push(ob)
 
