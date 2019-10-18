@@ -46,6 +46,9 @@ export type AssignPartial<T> = {
     T[P]
 }
 
+export type SortExtractor<T> = keyof T | ((a: T) => any)
+export type Sorter<T> = SortExtractor<T> | { extract: SortExtractor<T>, reverse: true }
+
 
 export interface ReadonlyObserver<A, B = void> {
   call(new_value: A): B
@@ -226,10 +229,11 @@ export interface ReadonlyObservable<A> {
 
   partial<K extends keyof A>(...props: K[]): ReadonlyObservable<Pick<A, K>>
 
-  arrayTransform<A>(this: RO<A[]>, fn: RO<ArrayTransformer<A>>): ReadonlyArrayTransformObservable<A>
-  filtered<A>(this: RO<A[]>, fn: RO<(item: A, index: number, array: A[]) => boolean>): ReadonlyArrayTransformObservable<A>
-  sorted<A> (this: RO<A[]>, fn: RO<(a: A, b: A) => (1 | 0 | -1)>): ReadonlyArrayTransformObservable<A>
-  sliced<A>(this: RO<A[]>, start?: RO<number>, end?: RO<number>): ReadonlyArrayTransformObservable<A>
+  arrayTransform<A>(this: ReadonlyObservable<A[]>, fn: RO<ArrayTransformer<A>>): ReadonlyArrayTransformObservable<A>
+  filtered<A>(this: ReadonlyObservable<A[]>, fn: RO<(item: A, index: number, array: A[]) => boolean>): ReadonlyArrayTransformObservable<A>
+  sorted<A> (this: ReadonlyObservable<A[]>, fn: RO<(a: A, b: A) => (1 | 0 | -1)>): ReadonlyArrayTransformObservable<A>
+  sortedBy<U>(this: ReadonlyObservable<U[]>, sorters: RO<Sorter<U>[]>): ReadonlyArrayTransformObservable<U>
+  sliced<A>(this: ReadonlyObservable<A[]>, start?: RO<number>, end?: RO<number>): ReadonlyArrayTransformObservable<A>
 }
 
 export interface ReadonlyArrayTransformObservable<A> extends ReadonlyObservable<A[]> {
@@ -874,6 +878,33 @@ export class Observable<A> implements ReadonlyObservable<A> {
       }
     }
     return this.arrayTransform(isReadonlyObservable(fn) ? fn.tf(make_sortfn) : make_sortfn(fn))
+  }
+
+  /**
+   * Sort an array by a series of extractors
+   */
+  sortedBy<U>(this: Observable<U[]>, sorters: RO<Sorter<U>[]>): ArrayTransformObservable<U> {
+    return this.sorted(o.tf(sorters, the_sorters => {
+      var is_keyof = (s: Sorter<U>): s is keyof U => typeof s === 'string'
+
+      var sorts = o.map(the_sorters, srt => {
+        var extract = typeof srt === 'function' || is_keyof(srt) ? srt : srt.extract
+        var fn = !is_keyof(extract) ? extract : (a: U) => a[extract as keyof U]
+        var inv = typeof srt === 'function' ? 1 : -1
+        return {fn, inv}
+      })
+
+      return (a: U, b: U): (1 | 0 | -1) => {
+        for (var sorter of sorts) {
+          var fn = sorter.fn
+          var inv = sorter.inv
+          var exa = fn(a)
+          var exb = fn(b)
+          if (exa < exb) return inv * -1 as 1 | -1
+          if (exa > exb) return inv * 1 as 1 | -1
+        }
+        return 0
+    }}))
   }
 
   sliced<A>(this: Observable<A[]>, start?: RO<number>, end?: RO<number>): ArrayTransformObservable<A> {
