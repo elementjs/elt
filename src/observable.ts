@@ -743,19 +743,19 @@ export class Observable<A> implements ReadonlyObservable<A> {
   /**
    * Only valid for Set.
    * Create a boolean observable that depends upon the presence
-   * of one or several keys inside a Set.
+   * of one or several values inside a Set.
    *
    * If this observable is set, then the corresponding key(s) will be
    * added/removed from the set.
    *
    * @param key: The key to check for
-   * @returns true if all the keys were in the set, false if none, undefined
+   * @returns true if all the values were in the set, false if none, undefined
    *    if some were but not all.
    */
-  has<A>(this: Observable<Set<A>>, ...keys: RO<A>[]): Observable<boolean> {
+  has<A>(this: Observable<Set<A>>, ...values: RO<A>[]): Observable<boolean> {
     return o.combine(
       this,
-      ...keys
+      ...values
     ).tf(([self, ...keys]) => {
         var i = 0
         for (var k of keys) {
@@ -767,7 +767,7 @@ export class Observable<A> implements ReadonlyObservable<A> {
       newv => {
         const set = this.get()
         const nset = new Set(set)
-        for (var k of keys) {
+        for (var k of values) {
           const key = o.get(k)
           if (newv)
             nset.add(key)
