@@ -205,6 +205,7 @@ export interface ReadonlyObservable<A> {
   isNotNull(): ReadonlyObservable<boolean>
   isUndefined(): ReadonlyObservable<boolean>
   isDefined(): ReadonlyObservable<boolean>
+  toggled(this: ReadonlyObservable<boolean>): ReadonlyObservable<boolean>
   isFalse(this: ReadonlyObservable<boolean>): ReadonlyObservable<boolean>
   isTrue(this: ReadonlyObservable<boolean>): ReadonlyObservable<boolean>
   isFalsy(): ReadonlyObservable<boolean>
@@ -626,7 +627,8 @@ export class Observable<A> implements ReadonlyObservable<A> {
   }
 
   /**
-   * true when this.get() is strictly undefined
+   * true when this.get() is strictly undefined.
+   * null value is false.
    * @tag transform-readonly
    */
   isUndefined() {
@@ -634,11 +636,20 @@ export class Observable<A> implements ReadonlyObservable<A> {
   }
 
   /**
-   * true when this.get() is strictly not undefined
+   * true when this.get() is strictly not undefined.
+   * null returns true.
    * @tag transform-readonly
    */
   isDefined() {
     return this.tf(val => val !== undefined)
+  }
+
+  /**
+   * Inverts a boolean observable.
+   * @param this Observable<boolean>
+   */
+  toggled(this: Observable<boolean>) {
+    return this.tf(val => !val, (n, _, obs) => obs.set(!n))
   }
 
   /**
