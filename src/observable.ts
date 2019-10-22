@@ -222,7 +222,7 @@ export interface ReadonlyObservable<A> {
 
   p<A>(this: ReadonlyObservable<A[]>, key: RO<number>): ReadonlyPropObservable<A[], A | undefined>
   p<A extends object, K extends keyof A>(this: ReadonlyObservable<A>, key: RO<K>): ReadonlyPropObservable<A, A[K]>
-  p<A extends {[key: string]: B}, B>(this: ReadonlyObservable<A>, key: RO<string>): ReadonlyPropObservable<A, B | undefined>
+  p<A extends {[key: string]: any}, K extends keyof A>(this: ReadonlyObservable<A>, key: RO<string>): ReadonlyPropObservable<A, A[K] | undefined>
 
   has<A>(this: ReadonlyObservable<Set<A>>, ...keys: RO<A>[]): ReadonlyObservable<boolean>
   key<A, B>(this: ReadonlyObservable<Map<A, B>>, key: RO<A>): ReadonlyObservable<B | undefined>
@@ -739,7 +739,7 @@ export class Observable<A> implements ReadonlyObservable<A> {
 
   p<A>(this: Observable<A[]>, key: RO<number>): PropObservable<A[], A | undefined>
   p<A extends object, K extends keyof A>(this: Observable<A>, key: RO<K>): PropObservable<A, A[K]>
-  p<A extends {[key: string]: B}, B>(this: Observable<A>, key: RO<string>): PropObservable<A, B | undefined>
+  p<A extends {[key: string]: any}, K extends keyof A>(this: Observable<A>, key: RO<string>): PropObservable<A, A[K] | undefined>
   p(this: Observable<any>, key: RO<any>): PropObservable<any, any> {
     return new PropObservable(this, key)
   }
@@ -752,32 +752,50 @@ export class Observable<A> implements ReadonlyObservable<A> {
    * If this observable is set, then the corresponding key(s) will be
    * added/removed from the set.
    *
+   * If a value is an observable and its value change, then its old value
+   * is removed from the original set, if it were there.
+   *
    * @param key: The key to check for
    * @returns true if all the values were in the set, false if none, undefined
    *    if some were but not all.
    */
   has<A>(this: Observable<Set<A>>, ...values: RO<A>[]): Observable<boolean> {
+    var last_added_values = null as null | A[]
     return o.combine(
       this,
       ...values
-    ).tf(([self, ...keys]) => {
+    ).tf(([self, ...values]) => {
         var i = 0
-        for (var k of keys) {
+        for (var k of values) {
           if (self.has(k))
             i++
         }
-        return i === 0 ? false : i < keys.length ? undefined! : true
+        return i === 0 ? false : i < values.length ? false : true
       },
-      newv => {
+      (newv) => {
         const set = this.get()
         const nset = new Set(set)
-        for (var k of values) {
-          const key = o.get(k)
-          if (newv)
-            nset.add(key)
-          else
-            nset.delete(key)
+        if (newv) {
+          // if set to true, then add
+          last_added_values = []
+          for (var k of values) {
+            const value = o.get(k)
+            last_added_values.push(value)
+            nset.add(value)
+          }
+        } else if (last_added_values) {
+          // delete the previously added values that we recorded before. We
+          for (var v of last_added_values)
+            nset.delete(v)
+          last_added_values = null
+        } else {
+          // if the values were there *before* this observable was created and we're setting
+          // them to false, then we assume the currently active values are the one we should
+          // be destroying
+          for (var k of values)
+            nset.delete(o.get(k))
         }
+
         this.set(nset)
       }
     )
