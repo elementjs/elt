@@ -235,10 +235,16 @@ export class Mixin<N extends Node = Node> extends o.ObserverGroup {
    */
   removed(node: N, parent: Node): void { }
 
+  listen<K extends (keyof DocumentEventMap)[]>(name: K, listener: Listener<DocumentEventMap[K[number]], N>, useCapture?: boolean): void
   listen<K extends keyof DocumentEventMap>(name: K, listener: Listener<DocumentEventMap[K], N>, useCapture?: boolean): void
-  listen<E extends Event>(name: string, listener: Listener<E, N>, useCapture?: boolean): void
-  listen<E extends Event>(name: string, listener: Listener<E, any>, useCapture?: boolean) {
-    _add_event_listener(this.node, name, listener, useCapture)
+  listen<E extends Event>(name: string | string[], listener: Listener<E, N>, useCapture?: boolean): void
+  listen<E extends Event>(name: string | string[], listener: Listener<E, any>, useCapture?: boolean) {
+    if (typeof name === 'string')
+      _add_event_listener(this.node, name, listener, useCapture)
+    else
+      for (var n of name) {
+        _add_event_listener(this.node, n, listener, useCapture)
+      }
   }
 
   /**

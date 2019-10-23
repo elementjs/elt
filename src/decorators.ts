@@ -153,15 +153,16 @@ export function observe<T>(a: any, cbk?: any) {
  *   <div $$={on('create', ev => ev.target...)}
  * ```
  */
-export function on<K extends keyof DocumentEventMap>(event: K, listener: Listener<DocumentEventMap[K]>, useCapture?: boolean): Mixin
-export function on(event: string, listener: Listener<Event>, useCapture?: boolean): Mixin
-export function on<E extends Event>(event: string, _listener: Listener<E>, useCapture = false) {
+export function on<K extends (keyof DocumentEventMap)[]>(name: K, listener: Listener<DocumentEventMap[K[number]]>, useCapture?: boolean): Mixin
+ export function on<K extends keyof DocumentEventMap>(event: K, listener: Listener<DocumentEventMap[K]>, useCapture?: boolean): Mixin
+export function on(event: string | string[], listener: Listener<Event>, useCapture?: boolean): Mixin
+export function on<E extends Event>(event: string | string[], _listener: Listener<E>, useCapture = false) {
   var m = new OnMixin(event, _listener, useCapture)
   return m
 }
 
 class OnMixin extends Mixin {
-  constructor(public event: string, public listener: Listener<any>, public useCapture = false) {
+  constructor(public event: string | string[], public listener: Listener<any>, public useCapture = false) {
     super()
   }
 
