@@ -1047,12 +1047,27 @@ export abstract class VirtualObservable<T> extends Observable<T> {
 
   addObserver<U = void>(fn: ObserverFunction<T, U>): Observer<T, U>
   addObserver<U = void>(obs: Observer<T, U>): Observer<T, U>
-  addObserver(ob: any) {
-    if (this.__observers.length === 0)
+  addObserver(_ob: any) {
+    if (typeof _ob === 'function') {
+      _ob = this.createObserver(_ob)
+    }
+
+    const ob = _ob
+
+    this.__observers.push(ob)
+
+    // Subscribe to the observables we are meant to subscribe to.
+    if (this.__observers.length === 1) {
+      this.startObserved()
+    }
+
+    if (this.__observers.length === 1)
       // If we were not observed before, there is a good chance this Observable
       // does not hold the correct value, so we force a refresh here.
       this.refresh()
-    return super.addObserver(ob)
+
+    ob.call(this.__value)
+    return ob
   }
 
   dependsOn(ob: O<any>) {
