@@ -183,11 +183,9 @@ export class Observer<A, B = void> implements ReadonlyObserver<A, B> {
 
 export interface ReadonlyObservable<A> {
   get(): A
-  pause(): void
+  pause(): boolean
   resume(): void
   stopObservers(): void
-  startObserved(): void
-  stopObserved(): void
   createObserver<B = void>(fn: ObserverFunction<A, B>): ReadonlyObserver<A, B>
   addObserver<B = void>(fn: ObserverFunction<A, B>): ReadonlyObserver<A, B>
   addObserver<B = void>(obs: ReadonlyObserver<A, B>): ReadonlyObserver<A, B>
@@ -258,7 +256,6 @@ export type RO<A> = ReadonlyObservable<A> | A
 
 export class Observable<A> implements ReadonlyObservable<A> {
   __observers: Observer<A, any>[] = []
-  __observed: Observer<any, any>[] = []
   __paused_notify = -1
 
   // Currently executed observer in notify, used to make sure we don't execute
@@ -275,27 +272,6 @@ export class Observable<A> implements ReadonlyObservable<A> {
    */
   stopObservers() {
     this.__observers = []
-    this.stopObserved()
-  }
-
-  /**
-   * Observable subclass may want to watch *other* observables. This method
-   * starts this Observable's own observers towards the watched observables.
-   */
-  startObserved() {
-    if (this.__observers.length === 0)
-      return
-
-    for (var observer of this.__observed)
-      observer.startObserving()
-  }
-
-  /**
-   * Stop watching other Observables.
-   */
-  stopObserved() {
-    for (var observer of this.__observed)
-      observer.stopObserving()
   }
 
   /**
@@ -423,8 +399,9 @@ export class Observable<A> implements ReadonlyObservable<A> {
   pause() {
     if (this.__paused_notify === -1) {
       this.__paused_notify = 0
-      this.stopObserved()
+      return true
     }
+    return false
   }
 
   /**
@@ -434,7 +411,7 @@ export class Observable<A> implements ReadonlyObservable<A> {
   resume() {
     var prev_notify = this.__paused_notify
     this.__paused_notify = -1
-    this.startObserved()
+    this.startObserving()
     if (prev_notify > 0)
       this.notify()
   }
@@ -497,13 +474,18 @@ export class Observable<A> implements ReadonlyObservable<A> {
     this.__observers.push(ob)
 
     // Subscribe to the observables we are meant to subscribe to.
+    // note, this will only do something for VirtualObservable, but it is here
+    // to avoid redefining everything.
     if (this.__observers.length === 1) {
-      this.startObserved()
+      this.startObserving()
     }
 
     ob.call(this.__value)
     return ob
   }
+
+  /** A stub for VirtualObservable */
+  startObserving() { }
 
   /**
    * Remove an observer from this observable. This means the Observer will not
@@ -535,27 +517,6 @@ export class Observable<A> implements ReadonlyObservable<A> {
       }
     }
     _obs.length -= delta
-    if (_obs.length === 0) {
-      this.stopObserved()
-    }
-  }
-
-  /**
-   * Observe another observable only when this observer itself
-   * is being observed.
-   */
-  observe<A, B = void>(observable: Observable<A>, observer: Observer<A, B>): Observer<A, B>
-  observe<A, B = void>(observable: Observable<A>, observer: ObserverFunction<A, B>): Observer<A, B>
-  observe<A, B = void>(observable: Observable<A>, _observer: ObserverFunction<A, B> | Observer<A, B>) {
-    const obs = typeof _observer === 'function' ? observable.createObserver(_observer) : _observer
-    this.__observed.push(obs)
-
-    if (this.__observers.length > 0) {
-      // start observing immediately if we're already being observed
-      obs.startObserving()
-    }
-
-    return obs
   }
 
   //////////////////////////////////////////////////////////////
@@ -1019,6 +980,8 @@ export class Observable<A> implements ReadonlyObservable<A> {
  */
 export abstract class VirtualObservable<T> extends Observable<T> {
 
+  __observing: Observer<any, any>[] = []
+
   constructor() {
     super(NOVALUE)
   }
@@ -1050,6 +1013,68 @@ export abstract class VirtualObservable<T> extends Observable<T> {
       this.observe(ob, () => this.refresh())
     }
     return this
+  }
+
+  stopObservers() {
+    super.stopObservers()
+    this.stopObserving()
+  }
+
+  /**
+   * Observe another observable only when this observer itself
+   * is being observed.
+   */
+  observe<A, B = void>(observable: Observable<A>, observer: Observer<A, B>): Observer<A, B>
+  observe<A, B = void>(observable: Observable<A>, observer: ObserverFunction<A, B>): Observer<A, B>
+  observe<A, B = void>(observable: Observable<A>, _observer: ObserverFunction<A, B> | Observer<A, B>) {
+    const obs = typeof _observer === 'function' ? observable.createObserver(_observer) : _observer
+    this.__observing.push(obs)
+
+    if (this.__observers.length > 0) {
+      // start observing immediately if we're already being observed
+      obs.startObserving()
+    }
+
+    return obs
+  }
+
+  removeObserver<B = void>(ob: Observer<T, B>): void {
+    super.removeObserver(ob)
+    if (this.__observers.length === 0) {
+      this.stopObserving()
+    }
+  }
+
+  /**
+   * Observable subclass may want to watch *other* observables. This method
+   * starts this Observable's own observers towards the watched observables.
+   */
+  startObserving() {
+    if (this.__observers.length === 0)
+      return
+
+    for (var observer of this.__observing)
+      observer.startObserving()
+  }
+
+  /**
+   * Stop watching other Observables.
+   */
+  stopObserving() {
+    for (var observer of this.__observing)
+      observer.stopObserving()
+  }
+
+  pause() {
+    if (super.pause()) {
+      this.stopObserving()
+      return true
+    }
+    return false
+  }
+
+  resume() {
+    return false
   }
 }
 
