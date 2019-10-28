@@ -1054,44 +1054,6 @@ export abstract class VirtualObservable<T> extends Observable<T> {
 }
 
 
-/**
- * An observable meant to act as an intermediary observable that
- * can change source Observable object during its lifetime.
- */
-export class PipeObservable<T> extends VirtualObservable<T> {
-
-  private _source_observable: Observable<T>
-  private _observer: Observer<T>
-
-  constructor(proxied: Observable<T>) {
-    super()
-    this._source_observable = proxied
-    this._observer = this.observe(proxied, () => this.refresh())
-  }
-
-  /**
-   * Swap out the underlying observable to another.
-   */
-  changeSource(obs: Observable<T>) {
-    this._observer.stopObserving()
-    this._source_observable = obs
-    this._observer = this.observe(obs, () => this.refresh())
-  }
-
-  getter() {
-    return this._source_observable ? this._source_observable.get() : NOVALUE
-  }
-
-  setter(value: T) {
-    if (this._source_observable) {
-      this._source_observable.set(value)
-    }
-  }
-
-}
-
-
-
 export class TransformObservable<A, B> extends VirtualObservable<B> {
 
   prev_a: A = NOVALUE
@@ -1292,17 +1254,6 @@ export class ArrayTransformObservable<A> extends VirtualObservable<A[]> {
         return fn.get(arg as A, undefined, undefined)
     }
   }
-
-
-  // export type Transformer<A, B> =
-
-
-  export function pipe<A extends RO<any>, KB extends keyof A>(base: A): RO<A[KB]>
-  export function pipe<A extends RO<any>, B>(base: A, fn: (a: A) => B): RO<B>
-  export function pipe<A>(base: A, ...transforms: any[]) {
-
-  }
-
 
   /**
    * Same as for o.tf, take the property of a maybe observable and
