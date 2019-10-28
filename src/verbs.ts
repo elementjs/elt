@@ -234,7 +234,7 @@ export class Repeater<T> extends Mixin<Comment> {
   protected next_index: number = 0
   protected lst: T[] = []
 
-  protected child_obs: o.Observable<T>[] = []
+  protected child_obs: o.PropObservable<T[], T>[] = []
 
   constructor(
     ob: o.O<T[]>,
