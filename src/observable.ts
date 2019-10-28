@@ -256,6 +256,7 @@ export type RO<A> = ReadonlyObservable<A> | A
 
 export class Observable<A> implements ReadonlyObservable<A> {
   __observers: Observer<A, any>[] = []
+  __children = new Set<VirtualObservable<any>>()
   __paused_notify = -1
 
   // Currently executed observer in notify, used to make sure we don't execute
@@ -266,12 +267,28 @@ export class Observable<A> implements ReadonlyObservable<A> {
     // (this as any).debug = new Error
   }
 
+  addChild(vo: VirtualObservable<any>) {
+    const c = this.__children
+    // addchild always adds in last position
+    c.delete(vo)
+    c.add(vo)
+  }
+
+  removeChild(vo: VirtualObservable<any>) {
+    this.__children.delete(vo)
+  }
+
+  totalObservers() {
+    return this.__observers.length + this.__children.size
+  }
+
   /**
    * Stop this Observable from observing other observables and stop
    * all observers currently watching this Observable.
    */
   stopObservers() {
     this.__observers = []
+    this.__children.clear()
   }
 
   /**
@@ -436,6 +453,10 @@ export class Observable<A> implements ReadonlyObservable<A> {
     }
     this.__cob = -1
 
+    if (!(this instanceof VirtualObservable)) {
+      for (var c of this.__children)
+        c.refresh()
+    }
   }
 
   /**
@@ -462,19 +483,19 @@ export class Observable<A> implements ReadonlyObservable<A> {
   addObserver<B = void>(fn: ObserverFunction<A, B>): Observer<A, B>
   addObserver<B = void>(obs: Observer<A, B>): Observer<A, B>
   addObserver<B = void>(_ob: ObserverFunction<A, B> | Observer<A, B>): Observer<A, B> {
-
     if (typeof _ob === 'function') {
       _ob = this.createObserver(_ob)
     }
 
     const ob = _ob
+    const prev = this.totalObservers()
 
     this.__observers.push(ob)
 
     // Subscribe to the observables we are meant to subscribe to.
     // note, this will only do something for VirtualObservable, but it is here
     // to avoid redefining everything.
-    if (this.__observers.length === 1) {
+    if (this.totalObservers() === 1 && prev === 0) {
       this.startObserving()
     }
 
@@ -977,7 +998,7 @@ export class Observable<A> implements ReadonlyObservable<A> {
  */
 export abstract class VirtualObservable<T> extends Observable<T> {
 
-  __observing: Observer<any, any>[] = []
+  __parents: Observable<any>[] = []
 
   constructor() {
     super(NOVALUE)
@@ -993,7 +1014,7 @@ export abstract class VirtualObservable<T> extends Observable<T> {
   abstract setter(nval: T, oval: T | undefined): void
 
   get(): T {
-    if (this.__observers.length === 0) {
+    if (this.totalObservers() === 0) {
       this.refresh()
     }
     return this.__value
@@ -1006,47 +1027,48 @@ export abstract class VirtualObservable<T> extends Observable<T> {
   }
 
   dependsOn(obs: O<any>[]) {
-    var refresh = () => this.refresh()
-
-    // here, we compute the final list of observables, where
-    // we avoid duplicating those that depend on the same observables
-
     for (var ob of obs)
       if (ob instanceof Observable) {
-        this.observeOther(ob, refresh)
+        this.__parents.push(ob)
       }
     return this
   }
 
   stopObservers() {
-    super.stopObservers()
     this.stopObserving()
-  }
-
-  /**
-   * Observe another observable only when this observer itself
-   * is being observed.
-   */
-  observeOther<A, B = void>(observable: Observable<A>, _observer: ObserverFunction<A, B>) {
-    const obs = observable.createObserver(_observer)
-    this.__observing.push(obs)
-
-    // FIXME : I should check here if observable has in its history
-
-    // this should not happend.
-    // if (this.__observers.length > 0) {
-    //   // start observing immediately if we're already being observed
-    //   obs.startObserving()
-    // }
-
-    return obs
+    super.stopObservers()
   }
 
   removeObserver<B = void>(ob: Observer<T, B>): void {
     super.removeObserver(ob)
-    if (this.__observers.length === 0) {
+    if (this.totalObservers() === 0) {
       this.stopObserving()
     }
+  }
+
+  addChild(vo: VirtualObservable<any>) {
+    const prev = this.totalObservers()
+
+    this.__children.delete(vo)
+    this.__children.add(vo)
+
+    if (this.totalObservers() === 1 && prev === 0) {
+      this.startObserving()
+    }
+
+    for (var p of this.__parents)
+      p.addChild(vo)
+  }
+
+  removeChild(vo: VirtualObservable<any>) {
+    this.__children.delete(vo)
+
+    if (this.totalObservers() === 0) {
+      this.stopObserving()
+    }
+
+    for (var p of this.__parents)
+      p.removeChild(vo)
   }
 
   /**
@@ -1054,19 +1076,25 @@ export abstract class VirtualObservable<T> extends Observable<T> {
    * starts this Observable's own observers towards the watched observables.
    */
   startObserving() {
-    if (this.__observers.length === 0)
+    if (this.totalObservers() === 0)
       return
 
-    for (var observer of this.__observing)
-      observer.startObserving()
+    for (var obs of this.__parents)
+      obs.addChild(this)
+
+    this.refresh()
   }
 
   /**
    * Stop watching other Observables.
    */
   stopObserving() {
-    for (var observer of this.__observing)
-      observer.stopObserving()
+    for (var ch of this.__children)
+      ch.stopObservers()
+
+    for (var obs of this.__parents)
+      obs.removeChild(this)
+    // this.__children = [] // or should I tell them to unsubscribe ?
   }
 
   pause() {
@@ -1213,11 +1241,11 @@ export class ArrayTransformObservable<A> extends VirtualObservable<A[]> {
     // changes at the same time than list, which would trigger too many calls,
     // whereas fn is still a MaybeObservable and thus may not trigger calls to
     // refresh unnecessarily.
-    this.dependsOn([list, fn])
+    this.dependsOn([fn, list])
   }
 
   getter(): A[] {
-    const arr = this.list.get()
+    const arr = o.get(this.list)
     const fn = o.get(this.fn)
     const indices = typeof fn === 'function' ? fn(arr) : fn
     this.indices.set(indices)
