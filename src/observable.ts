@@ -429,8 +429,6 @@ export class Observable<A> implements ReadonlyObservable<A> {
       return
     }
 
-    // We copy the observers temporarily with slice, because a call to one of
-    // could cause an observer to deregister from this Observable.
     const obs = this.__observers
     for (this.__cob = 0; this.__cob < obs.length; this.__cob++) {
       var ob = obs[this.__cob]
@@ -904,8 +902,7 @@ export class Observable<A> implements ReadonlyObservable<A> {
       for (var i = o.get(start) || 0; i < l; i++)
         indices.push(i)
       return indices
-    }).dependsOn(start)
-      .dependsOn(end)
+    }).dependsOn([start, end])
   }
 
   push<A>(this: Observable<A[]>, value: A) {
@@ -1008,10 +1005,16 @@ export abstract class VirtualObservable<T> extends Observable<T> {
     this.setter(value, old_value)
   }
 
-  dependsOn(ob: O<any>) {
-    if (ob instanceof Observable) {
-      this.observe(ob, () => this.refresh())
-    }
+  dependsOn(obs: O<any>[]) {
+    var refresh = () => this.refresh()
+
+    // here, we compute the final list of observables, where
+    // we avoid duplicating those that depend on the same observables
+
+    for (var ob of obs)
+      if (ob instanceof Observable) {
+        this.observeOther(ob, refresh)
+      }
     return this
   }
 
@@ -1024,16 +1027,17 @@ export abstract class VirtualObservable<T> extends Observable<T> {
    * Observe another observable only when this observer itself
    * is being observed.
    */
-  observe<A, B = void>(observable: Observable<A>, observer: Observer<A, B>): Observer<A, B>
-  observe<A, B = void>(observable: Observable<A>, observer: ObserverFunction<A, B>): Observer<A, B>
-  observe<A, B = void>(observable: Observable<A>, _observer: ObserverFunction<A, B> | Observer<A, B>) {
-    const obs = typeof _observer === 'function' ? observable.createObserver(_observer) : _observer
+  observeOther<A, B = void>(observable: Observable<A>, _observer: ObserverFunction<A, B>) {
+    const obs = observable.createObserver(_observer)
     this.__observing.push(obs)
 
-    if (this.__observers.length > 0) {
-      // start observing immediately if we're already being observed
-      obs.startObserving()
-    }
+    // FIXME : I should check here if observable has in its history
+
+    // this should not happend.
+    // if (this.__observers.length > 0) {
+    //   // start observing immediately if we're already being observed
+    //   obs.startObserving()
+    // }
 
     return obs
   }
@@ -1088,7 +1092,7 @@ export class TransformObservable<A, B> extends VirtualObservable<B> {
     public transformer: (nval: A, oval: A | undefined, prev: B | undefined) => B,
     public _setter?: (nval: B, oval: B | undefined, original: Observable<A>) => void) {
       super()
-      this.dependsOn(original)
+      this.dependsOn([original])
   }
 
   getter() {
@@ -1118,8 +1122,7 @@ export class PropObservable<A, B> extends VirtualObservable<B> {
     public prop: RO<string|number>
   ) {
     super()
-    this.dependsOn(original)
-    this.dependsOn(prop)
+    this.dependsOn([original, prop])
   }
 
   getter() {
@@ -1139,9 +1142,7 @@ export class PropObservable<A, B> extends VirtualObservable<B> {
 export class CombineObservable<A extends any[]> extends VirtualObservable<A> {
   constructor(public deps: {[K in keyof A]: o.RO<A[K]>}[]) {
     super()
-    for (var d of deps) {
-      this.dependsOn(d)
-    }
+    this.dependsOn(deps)
   }
 
   getter() {
@@ -1174,9 +1175,8 @@ export class MergeObservable<A> extends VirtualObservable<A> {
     public deps: MaybeObservableObject<A>
   ) {
     super()
-    this.keys = Object.keys(deps) as any
-    for (var k of this.keys)
-      this.dependsOn(deps[k])
+    var keys = this.keys = Object.keys(deps) as (keyof A)[]
+    this.dependsOn(o.map(keys, k => deps[k]))
   }
 
   getter() {
@@ -1208,14 +1208,12 @@ export class ArrayTransformObservable<A> extends VirtualObservable<A[]> {
     public fn: RO<ArrayTransformer<A>>
   ) {
     super()
-    this.dependsOn(list)
-
     // we do not depend on this.indices, as it gets called whenever getter()
     // is called anyway. The problem is that it is an observable and that it
     // changes at the same time than list, which would trigger too many calls,
     // whereas fn is still a MaybeObservable and thus may not trigger calls to
     // refresh unnecessarily.
-    this.dependsOn(fn)
+    this.dependsOn([list, fn])
   }
 
   getter(): A[] {
