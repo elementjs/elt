@@ -32,7 +32,7 @@ export type MoreRenderable = Renderable | Renderable[]
 * by the e() function. Anything of the Insertable type can be put
 * in <tag>{insertable}</tag>
 */
-export type Insertable = o.RO<MoreRenderable> | o.RO<MoreRenderable>[]
+export type Insertable = o.RO<MoreRenderable> | Insertable[]
 
 
 /**
