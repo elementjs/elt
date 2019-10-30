@@ -255,13 +255,9 @@ export type RO<A> = ReadonlyObservable<A> | A
 
 
 export class Observable<A> implements ReadonlyObservable<A> {
-  __observers: Observer<A, any>[] = []
+  __observers = new Set<Observer<A, any>>()
   __children = new Set<VirtualObservable<any>>()
   __paused_notify = -1
-
-  // Currently executed observer in notify, used to make sure we don't execute
-  // observers that should not be.
-  private __cob = -1
 
   constructor(protected readonly __value: A) {
     // (this as any).debug = new Error
@@ -279,7 +275,7 @@ export class Observable<A> implements ReadonlyObservable<A> {
   }
 
   totalObservers() {
-    return this.__observers.length + this.__children.size
+    return this.__observers.size + this.__children.size
   }
 
   /**
@@ -287,7 +283,7 @@ export class Observable<A> implements ReadonlyObservable<A> {
    * all observers currently watching this Observable.
    */
   stopObservers() {
-    this.__observers = []
+    this.__observers.clear()
     this.__children.clear()
   }
 
@@ -446,12 +442,8 @@ export class Observable<A> implements ReadonlyObservable<A> {
       return
     }
 
-    const obs = this.__observers
-    for (this.__cob = 0; this.__cob < obs.length; this.__cob++) {
-      var ob = obs[this.__cob]
-      ob.call(this.__value)
-    }
-    this.__cob = -1
+    for (var obs of this.__observers)
+      obs.call(this.__value)
 
     if (!(this instanceof VirtualObservable)) {
       for (var c of this.__children)
@@ -490,7 +482,7 @@ export class Observable<A> implements ReadonlyObservable<A> {
     const ob = _ob
     const prev = this.totalObservers()
 
-    this.__observers.push(ob)
+    this.__observers.add(ob)
 
     // Subscribe to the observables we are meant to subscribe to.
     // note, this will only do something for VirtualObservable, but it is here
@@ -516,26 +508,7 @@ export class Observable<A> implements ReadonlyObservable<A> {
    * @param ob The observer
    */
   removeObserver<B = void>(ob: Observer<A, B>): void {
-    const _obs = this.__observers
-    const len = _obs.length
-    var delta = 0
-    for (var i = 0; i < len; i++) {
-      if (_obs[i] === ob) {
-        // We found an observer that we wish to remove. We thus increase
-        // the delta at which the array is to copy back the current observers
-        // into back positions.
-        delta++
-        // Also, if we are in the process of notifying (this.__cob > -1), then
-        // we check to see if this removed observer is before this.__cob and
-        // thus decrease it so this.__cob stays on the currently being executed
-        // observer
-        if (i <= this.__cob)
-          this.__cob -= 1
-      } else if (delta > 0) {
-        _obs[i - delta] = _obs[i]
-      }
-    }
-    _obs.length -= delta
+    this.__observers.delete(ob)
   }
 
   //////////////////////////////////////////////////////////////
