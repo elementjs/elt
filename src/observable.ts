@@ -254,10 +254,23 @@ export type O<A> = Observable<A> | A
 export type RO<A> = ReadonlyObservable<A> | A
 
 
+/**
+ *
+ */
+export const enum ObservableState {
+  Running = 'running',
+  Paused = 'paused',
+  PausedNotified = 'paused-notify',
+}
+
+
 export class Observable<A> implements ReadonlyObservable<A> {
+  /** Observers called when this Observable changes */
   __observers = new Set<Observer<A, any>>()
+  /** Virtual-Observables currently monitoring this Observable to refresh their value */
   __children = new Set<VirtualObservable<any>>()
-  __paused_notify = -1
+  /** Pause state of this observable */
+  __state = ObservableState.Running
 
   constructor(protected readonly __value: A) {
     // (this as any).debug = new Error
@@ -410,8 +423,8 @@ export class Observable<A> implements ReadonlyObservable<A> {
    * Pause the observable. While paused, an Observable does not notify its observers.
    */
   pause() {
-    if (this.__paused_notify === -1) {
-      this.__paused_notify = 0
+    if (this.__state === ObservableState.Running) {
+      this.__state = ObservableState.Paused
       return true
     }
     return false
@@ -422,10 +435,10 @@ export class Observable<A> implements ReadonlyObservable<A> {
    * observers are called with the new value.
    */
   resume() {
-    var prev_notify = this.__paused_notify
-    this.__paused_notify = -1
+    var prev_state = this.__state
+    this.__state = ObservableState.Running
     this.startObserving()
-    if (prev_notify > 0)
+    if (prev_state === ObservableState.PausedNotified)
       this.notify()
   }
 
@@ -436,9 +449,14 @@ export class Observable<A> implements ReadonlyObservable<A> {
    * @param old_value The old value of this observer
    */
   notify() {
-    if (this.__paused_notify > -1) {
-      // This observable is paused.
-      this.__paused_notify = 1
+    if (this.__state === ObservableState.Paused) {
+      // This observable is paused, so we set paused notify to a positive value
+      // so that when resume() checks its value,
+      this.__state = ObservableState.PausedNotified
+    }
+
+    if (this.__state === ObservableState.PausedNotified) {
+      // Do not notify if we're paused.
       return
     }
 
