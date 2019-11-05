@@ -67,7 +67,8 @@ const event_map = {} as {[event_name: string]: WeakMap<Node, Handlers>}
  * Setup a global event listener for each type of event.
  * This is based on WeakMap to avoid holding references to nodes.
  */
-function _add_event_listener(
+export function add_event_listener<N extends Node, E extends keyof DocumentEventMap>(node: N, event: E, handler: Listener<DocumentEventMap[E], N>, use_capture: boolean): void
+export function add_event_listener(
   node: Node,
   event: string,
   handler: Listener<any>,
@@ -240,10 +241,10 @@ export class Mixin<N extends Node = Node> extends o.ObserverGroup {
   listen<E extends Event>(name: string | string[], listener: Listener<E, N>, useCapture?: boolean): void
   listen<E extends Event>(name: string | string[], listener: Listener<E, any>, useCapture?: boolean) {
     if (typeof name === 'string')
-      _add_event_listener(this.node, name, listener, useCapture)
+      add_event_listener(this.node, name, listener, useCapture)
     else
       for (var n of name) {
-        _add_event_listener(this.node, n, listener, useCapture)
+        add_event_listener(this.node, n, listener, useCapture)
       }
   }
 
