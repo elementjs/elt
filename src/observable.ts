@@ -989,6 +989,7 @@ export class Observable<A> implements ReadonlyObservable<A> {
 export abstract class VirtualObservable<T> extends Observable<T> {
 
   __parents: Observable<any>[] = []
+  __parent_values: any[] = undefined!
 
   constructor() {
     super(NOVALUE)
@@ -1009,6 +1010,17 @@ export abstract class VirtualObservable<T> extends Observable<T> {
     if (this.__state === ObservableState.PausedNotified) {
       return
     }
+
+    const p = this.__parents
+    const v = this.__parent_values
+    var differs = false
+    for (var i = 0, len = p.length; i < len; i++) {
+      if (v[i] !== o.get(p[i])) {
+        differs = true
+        break
+      }
+    }
+    if (!differs) return
 
     const old = this.__value;
     const newv = (this.__value as any) = this.getter()
@@ -1040,10 +1052,12 @@ export abstract class VirtualObservable<T> extends Observable<T> {
   }
 
   dependsOn(obs: O<any>[]) {
+    var p = this.__parents
     for (var ob of obs)
       if (ob instanceof Observable) {
-        this.__parents.push(ob)
+        p.push(ob)
       }
+    this.__parent_values = new Array(p.length)
     return this
   }
 
