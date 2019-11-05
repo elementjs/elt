@@ -59,15 +59,25 @@ export function removeMixin(node: any, mixin: Mixin): void {
   node[mxsym] = res
 }
 
-type Handlers = Listener<any>[]
+type Handlers = Set<Listener<any>>
 const event_map = {} as {[event_name: string]: WeakMap<Node, Handlers>}
 
+
+export function remove_event_listener(node: Node, event: string, handler: Listener<any>, use_capture?: boolean): void {
+  const evt = `${event}_${use_capture ? '_capture' : ''}`
+  var map = event_map[evt]
+  if (!map) return
+  var handlers = map.get(node)
+  if (!handlers) return
+  handlers.delete(handler)
+}
 
 /**
  * Setup a global event listener for each type of event.
  * This is based on WeakMap to avoid holding references to nodes.
  */
-export function add_event_listener<N extends Node, E extends keyof DocumentEventMap>(node: N, event: E, handler: Listener<DocumentEventMap[E], N>, use_capture: boolean): void
+export function add_event_listener<N extends Node, E extends keyof DocumentEventMap>(node: N, event: E, handler: Listener<DocumentEventMap[E], N>, use_capture?: boolean): void
+export function add_event_listener(node: Node, event: string, handler: Listener<any>, use_capture?: boolean): void
 export function add_event_listener(
   node: Node,
   event: string,
@@ -98,10 +108,10 @@ export function add_event_listener(
 
   var handlers = event_map[evt].get(node)
   if (!handlers) {
-    handlers = []
+    handlers = new Set()
     event_map[evt].set(node, handlers)
   }
-  handlers.push(handler)
+  handlers.add(handler)
 }
 
 
