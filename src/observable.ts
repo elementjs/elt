@@ -437,7 +437,6 @@ export class Observable<A> implements ReadonlyObservable<A> {
   resume() {
     var prev_state = this.__state
     this.__state = ObservableState.Running
-    this.startObserving()
     if (prev_state === ObservableState.PausedNotified)
       this.notify()
   }
@@ -460,13 +459,13 @@ export class Observable<A> implements ReadonlyObservable<A> {
       return
     }
 
+    // Notify registered observers
     for (var obs of this.__observers)
       obs.call(this.__value)
 
-    if (!(this instanceof VirtualObservable)) {
-      for (var c of this.__children)
+    // notify VirtualObservable children that we changed as well
+    for (var c of this.__children)
         c.refresh()
-    }
   }
 
   /**
@@ -995,10 +994,33 @@ export abstract class VirtualObservable<T> extends Observable<T> {
     super(NOVALUE)
   }
 
+  resume() {
+    var prev = this.__state
+    this.__state = ObservableState.Running
+    if (prev === ObservableState.PausedNotified)
+      this.refresh()
+  }
+
   refresh() {
+    if (this.__state === ObservableState.Paused) {
+      this.__state = ObservableState.PausedNotified
+    }
+
+    if (this.__state === ObservableState.PausedNotified) {
+      return
+    }
+
     const old = this.__value;
-    (this.__value as any) = this.getter()
-    if (old !== this.__value) this.notify()
+    const newv = (this.__value as any) = this.getter()
+    if (old === newv) return
+
+    // notify observers
+    for (var ob of this.__observers)
+      ob.call(newv)
+  }
+
+  notify() {
+    throw new Error(`Virtual Observable shouldn't call notify`)
   }
 
   abstract getter(): T
@@ -1088,17 +1110,6 @@ export abstract class VirtualObservable<T> extends Observable<T> {
     // this.__children = [] // or should I tell them to unsubscribe ?
   }
 
-  pause() {
-    if (super.pause()) {
-      this.stopObserving()
-      return true
-    }
-    return false
-  }
-
-  resume() {
-    return false
-  }
 }
 
 
@@ -1615,6 +1626,25 @@ export class ArrayTransformObservable<A> extends VirtualObservable<A[]> {
     }
 
     return clone
+  }
+
+  /**
+   * Return a function that pauses all the provided observable, runs the callback
+   * and resume all the observables afterwards.
+   *
+   * It does not protect code ; there must be no exceptions thrown by the callback
+   * otherwise the observables won't be restarted.
+   *
+   * Use it whenever you know inter-dependent and cost-heavy observables should trigger
+   * only once after multiple set to parent observables.
+   */
+  export function pausegroup(...ob: Observable<any>[]) {
+    const observables = new Set(ob)
+    return function (fn: () => void) {
+      for (var o of observables) o.pause()
+      fn()
+      for (var o of observables) o.resume()
+    }
   }
 
 
