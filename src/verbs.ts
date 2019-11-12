@@ -137,7 +137,7 @@ export class CommentContainer extends Mixin<Comment> {
  */
 export class Displayer extends CommentContainer {
 
-  constructor(public _obs: o.ReadonlyObservable<Insertable>) {
+  constructor(public _obs: o.RO<Insertable>) {
     super()
   }
 
