@@ -270,7 +270,7 @@ export function flush_queue() {
 }
 
 var queued_idx = 0
-export function queued(fn: () => void) {
+export function transaction(fn: () => void) {
   if (queued_idx === 0) {
     queue = []
   }
