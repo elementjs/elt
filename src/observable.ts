@@ -22,7 +22,7 @@ export type UnregisterFunction = () => void
 
 export type BaseType<T> = T extends ReadonlyObservable<infer U> ? U : T
 
-export type ObserverFunction<T, U = void> = (newval: T, changes: Changes<T>) => U
+export type ObserverFunction<T> = (newval: T, changes: Changes<T>) => void
 
 export interface Transformer<A, B> {
   get(nval: A, oval: A | undefined, curval: B | undefined): B
@@ -50,8 +50,7 @@ export type SortExtractor<T> = keyof T | ((a: T) => any)
 export type Sorter<T> = SortExtractor<T> | { extract: SortExtractor<T>, reverse: true }
 
 
-export interface ReadonlyObserver<A, B = void> {
-  call(new_value: A): B
+export interface ReadonlyObserver<A> {
   debounce(ms: number, leading?: boolean): this
   throttle(ms: number, leading?: boolean): this
   startObserving(): void
@@ -140,34 +139,37 @@ export class Changes<A> {
 
 }
 
-export class Observer<A, B = void> implements ReadonlyObserver<A, B> {
+
+export interface Notifiable {
+  refresh(): void
+  idx_map: {[id: number]: number}
+}
+
+
+export class Observer<A> implements ReadonlyObserver<A>, Notifiable {
 
   protected old_value: A = NOVALUE
-  // saved value exists solely to
-  protected last_result: B = NOVALUE
+  idx_map = {}
 
-  constructor(public fn: ObserverFunction<A, B>, public observable: Observable<A>) { }
+  constructor(public fn: ObserverFunction<A>, public observable: Observable<A>) { }
 
-  call(new_value: A): B {
+  refresh(): void {
     const old = this.old_value
+    const new_value: A = (this.observable as any).__value
 
     if (old !== new_value) {
       this.old_value = new_value
-      const res = this.fn(new_value, new Changes(new_value, old))
-      this.last_result = res
-      return res
+      this.fn(new_value, new Changes(new_value, old))
     }
-
-    return this.last_result
   }
 
   debounce(ms: number, leading = false) {
-    this.call = o.debounce(this.constructor.prototype.call, ms, leading)
+    this.refresh = o.debounce(this.constructor.prototype.call, ms, leading)
     return this
   }
 
   throttle(ms: number, leading = false) {
-    this.call = o.throttle(this.constructor.prototype.call, ms, leading)
+    this.refresh = o.throttle(this.constructor.prototype.call, ms, leading)
     return this
   }
 
@@ -183,13 +185,11 @@ export class Observer<A, B = void> implements ReadonlyObserver<A, B> {
 
 export interface ReadonlyObservable<A> {
   get(): A
-  pause(): boolean
-  resume(): void
   stopObservers(): void
-  createObserver<B = void>(fn: ObserverFunction<A, B>): ReadonlyObserver<A, B>
-  addObserver<B = void>(fn: ObserverFunction<A, B>): ReadonlyObserver<A, B>
-  addObserver<B = void>(obs: ReadonlyObserver<A, B>): ReadonlyObserver<A, B>
-  removeObserver<B = void>(ob: ReadonlyObserver<A, B>): void
+  createObserver(fn: ObserverFunction<A>): ReadonlyObserver<A>
+  addObserver(fn: ObserverFunction<A>): ReadonlyObserver<A>
+  addObserver(obs: ReadonlyObserver<A>): ReadonlyObserver<A>
+  removeObserver(ob: ReadonlyObserver<A>): void
 
   debounce(getms: number, setms?: number): ReadonlyObservable<A>
   throttle(getms: number, setms?: number): ReadonlyObservable<A>
@@ -254,41 +254,43 @@ export type O<A> = Observable<A> | A
 export type RO<A> = ReadonlyObservable<A> | A
 
 
-/**
- *
- */
-export const enum ObservableState {
-  Running = 'running',
-  Paused = 'paused',
-  PausedNotified = 'paused-notify',
+export var queue = null as (Notifiable | null)[] | null
+export var _next_id = 1
+
+export function flush_queue() {
+  if (!queue) return
+  for (var i = 0, l = queue.length; i < l; i++) {
+    var n = queue[i]
+    if (!n) continue
+    delete n.idx_map[0]
+    n.refresh()
+  }
+  queue = null
+  queued_idx = 0
 }
 
+var queued_idx = 0
+export function queued(fn: () => void) {
+  if (queued_idx === 0) {
+    queue = []
+  }
+  queued_idx++
+  fn()
+  if (queued_idx > 0) queued_idx--
+  if (queued_idx === 0) {
+    flush_queue()
+  }
+}
 
 export class Observable<A> implements ReadonlyObservable<A> {
   /** Observers called when this Observable changes */
-  __observers = new Set<Observer<A, any>>()
-  /** Virtual-Observables currently monitoring this Observable to refresh their value */
-  __children = new Set<VirtualObservable<any>>()
-  /** Pause state of this observable */
-  __state = ObservableState.Running
+  // __observers = new Set<Observer<A, any>>()
+  __notifiables = [] as (Notifiable | null)[]
+  __nb_notifiable = 0
+  __id = _next_id++
 
-  constructor(protected readonly __value: A) {
+  constructor(public __value: A) {
     // (this as any).debug = new Error
-  }
-
-  addChild(vo: VirtualObservable<any>) {
-    const c = this.__children
-    // addchild always adds in last position
-    c.delete(vo)
-    c.add(vo)
-  }
-
-  removeChild(vo: VirtualObservable<any>) {
-    this.__children.delete(vo)
-  }
-
-  totalObservers() {
-    return this.__observers.size + this.__children.size
   }
 
   /**
@@ -296,8 +298,19 @@ export class Observable<A> implements ReadonlyObservable<A> {
    * all observers currently watching this Observable.
    */
   stopObservers() {
-    this.__observers.clear()
-    this.__children.clear()
+    // For all the observers, check that they're not in the global queue
+    // calling stopObservers on a notifying observable has undefined results.
+    for (var obr = this.__notifiables, i = 0, l = obr.length; i < l; i++) {
+      var obs = obr[i]
+      if (obs == undefined) continue
+
+      // if (obs instanceof VirtualObservable) {
+      //   obs.stopObservers()
+      // }
+      // check if we're in the global queue, in which case we undefine ourselve.
+
+    }
+    this.__notifiables = []
   }
 
   /**
@@ -420,52 +433,60 @@ export class Observable<A> implements ReadonlyObservable<A> {
   }
 
   /**
-   * Pause the observable. While paused, an Observable does not notify its observers.
-   */
-  pause() {
-    if (this.__state === ObservableState.Running) {
-      this.__state = ObservableState.Paused
-      return true
-    }
-    return false
-  }
-
-  /**
-   * Unpause the Observable. If the Observable was changed while paused, then the
-   * observers are called with the new value.
-   */
-  resume() {
-    var prev_state = this.__state
-    this.__state = ObservableState.Running
-    if (prev_state === ObservableState.PausedNotified)
-      this.notify()
-  }
-
-  /**
    * Notify all the registered observers that is Observable changed
    * value.
    *
    * @param old_value The old value of this observer
    */
   notify() {
-    if (this.__state === ObservableState.Paused) {
-      // This observable is paused, so we set paused notify to a positive value
-      // so that when resume() checks its value,
-      this.__state = ObservableState.PausedNotified
-    }
 
-    if (this.__state === ObservableState.PausedNotified) {
-      // Do not notify if we're paused.
+    // FIXME ; check that the queue is defined. If it is, just append our
+    // notifiables to it.
+    if (queue) {
+        for (var ntf = this.__notifiables, i = 0, l = ntf.length; i < l; i++) {
+          var n = ntf[i]
+          if (n == null) continue
+
+          // queue is 0.
+          var idx = n.idx_map[0]
+          if (idx !== undefined) {
+            queue[idx] = null
+          }
+          n.idx_map[0] = queue.length
+          queue.push(n)
+      }
       return
     }
 
-    // Notify registered observers
-    for (var obs of this.__observers)
-      obs.call(this.__value)
+    // Notify registered notifiables.
+    for (var ntf = this.__notifiables, i = 0, l = ntf.length; i < l; i++) {
+      var n = ntf[i]
+      // if it was put to null, then just ignore it and signal that there is
+      // some cleanup to do.
+      if (n == null) continue
+      n.refresh()
+    }
 
-    // notify VirtualObservable children that we changed as well
-    for (var c of this.__children)
-        c.refresh()
+    // cleanup the observers that are gone and rebuild a new array
+    if (this.__nb_notifiable !== this.__notifiables.length) {
+      this.rebuildNotifiables()
+    }
+  }
+
+  protected rebuildNotifiables() {
+    var newnotifiers = new Array(this.__nb_notifiable) as Notifiable[]
+    var j = 0
+    var id = this.__id
+    for (var i = 0, ntf = this.__notifiables, l = ntf.length; i < l; i++) {
+      var n = ntf[i]
+      if (n != null) {
+        newnotifiers[j] = n
+        n.idx_map[id] = j
+        j++
+      }
+    }
+    if (j !== this.__nb_notifiable) throw new Error(`wha ${j} vs ${this.__nb_notifiable}`)
+    this.__notifiables = newnotifiers
   }
 
   /**
@@ -475,8 +496,20 @@ export class Observable<A> implements ReadonlyObservable<A> {
    * @param fn The function to be called by the obseaddObserver()rver when the value changes
    * @param options
    */
-  createObserver<B = void>(fn: ObserverFunction<A, B>): Observer<A, B> {
+  createObserver(fn: ObserverFunction<A>): Observer<A> {
     return new Observer(fn, this)
+  }
+
+  addNotifiable(n: Notifiable) {
+    const ntf = this.__notifiables
+    const idx = n.idx_map[this.__id]
+    if (idx != undefined) {
+      ntf[idx] = null
+    } else {
+      this.__nb_notifiable++
+    }
+    n.idx_map[this.__id] = ntf.length
+    ntf.push(n)
   }
 
   /**
@@ -489,31 +522,18 @@ export class Observable<A> implements ReadonlyObservable<A> {
    * @returns The newly created observer if a function was given to this method or
    *   the observable that was passed.
    */
-  addObserver<B = void>(fn: ObserverFunction<A, B>): Observer<A, B>
-  addObserver<B = void>(obs: Observer<A, B>): Observer<A, B>
-  addObserver<B = void>(_ob: ObserverFunction<A, B> | Observer<A, B>): Observer<A, B> {
+  addObserver(fn: ObserverFunction<A>): Observer<A>
+  addObserver(obs: Observer<A>): Observer<A>
+  addObserver(_ob: ObserverFunction<A> | Observer<A>): Observer<A> {
     if (typeof _ob === 'function') {
       _ob = this.createObserver(_ob)
     }
 
     const ob = _ob
-    const prev = this.totalObservers()
-
-    this.__observers.add(ob)
-
-    // Subscribe to the observables we are meant to subscribe to.
-    // note, this will only do something for VirtualObservable, but it is here
-    // to avoid redefining everything.
-    if (this.totalObservers() === 1 && prev === 0) {
-      this.startObserving()
-    }
-
-    ob.call(this.__value)
+    this.addNotifiable(_ob)
+    ob.refresh()
     return ob
   }
-
-  /** A stub for VirtualObservable */
-  startObserving() { }
 
   /**
    * Remove an observer from this observable. This means the Observer will not
@@ -524,8 +544,26 @@ export class Observable<A> implements ReadonlyObservable<A> {
    *
    * @param ob The observer
    */
-  removeObserver<B = void>(ob: Observer<A, B>): void {
-    this.__observers.delete(ob)
+  removeObserver(ob: Observer<A>): void {
+    this.removeNotifiable(ob)
+  }
+
+  removeNotifiable(n: Notifiable): void {
+    var idx = n.idx_map[this.__id]
+
+    if (idx != null) {
+      this.__notifiables[idx] = null // good bye.
+      delete n.idx_map[this.__id]
+      this.__nb_notifiable--
+    }
+
+    if (queue) {
+      var qidx = n.idx_map[0]
+      if (qidx !== undefined) {
+        queue[qidx] = null
+        delete n.idx_map[0]
+      }
+    }
   }
 
   //////////////////////////////////////////////////////////////
@@ -986,62 +1024,101 @@ export class Observable<A> implements ReadonlyObservable<A> {
  * An observable that does not its own value, but that depends
  * from outside getters and setters.
  */
-export abstract class VirtualObservable<T> extends Observable<T> {
+export abstract class VirtualObservable<T> extends Observable<T> implements Notifiable {
 
   __parents: Observable<any>[] = []
-  __parent_values: any[] = undefined!
+  idx_map = {}
 
   constructor() {
     super(NOVALUE)
   }
 
-  resume() {
-    var prev = this.__state
-    this.__state = ObservableState.Running
-    if (prev === ObservableState.PausedNotified)
-      this.refresh()
+  refresh() {
+    this.__value = this.getter()
+    if (this.__nb_notifiable !== this.__notifiables.length)
+      this.rebuildNotifiables()
   }
 
-  refresh() {
-    if (this.__state === ObservableState.Paused) {
-      this.__state = ObservableState.PausedNotified
-    }
-
-    if (this.__state === ObservableState.PausedNotified) {
+  // A notifiable ultimately gets added to the parents.
+  // it stays sracked through its idx map.
+  addNotifiable(n: Notifiable) {
+    // We first check that it wasn't already added to this particular observable,
+    // in which case we just skip it.
+    if (n.idx_map[this.__id] != undefined)
       return
+
+    const prev = this.__nb_notifiable === 0
+    super.addNotifiable(n)
+    var add_self = prev && this.__nb_notifiable === 1
+
+    for (var i = 0, par = this.__parents, l = par.length; i < l; i++) {
+      var p = par[i]
+      if (add_self) p.addNotifiable(this)
+      p.addNotifiable(n)
     }
 
-    const p = this.__parents
-    const v = this.__parent_values
-    var differs = false
-    for (var i = 0, len = p.length; i < len; i++) {
-      if (v[i] !== o.get(p[i])) {
-        differs = true
-        break
-      }
+    // If this is the first time it is added, refresh the observable.
+    if (add_self) this.refresh()
+  }
+
+  removeNotifiablesFrom(obs: Observable<any>) {
+    for (var ntf = this.__notifiables, i = 0, l = ntf.length; i < l; i++) {
+      var n = ntf[i]
+      if (!n) continue
+      obs.removeNotifiable(n)
     }
-    if (!differs) return
+  }
 
-    const old = this.__value;
-    const newv = (this.__value as any) = this.getter()
-    if (old === newv) return
+  // Remove the notifiable from the parents
+  removeNotifiable(n: Notifiable) {
+    if (n.idx_map[this.__id] == undefined) return
 
-    // notify observers
-    for (var ob of this.__observers)
-      ob.call(newv)
+    super.removeNotifiable(n)
+
+    var remove_self = this.__nb_notifiable === 0
+    for (var i = 0, par = this.__parents, l = par.length; i < l; i++) {
+      var p = par[i]
+      if (remove_self) p.removeNotifiable(this)
+      p.removeNotifiable(n)
+    }
   }
 
   notify() {
     throw new Error(`Virtual Observable shouldn't call notify`)
   }
 
+  stopObservers() {
+    for (var i = 0, par = this.__parents, l = par.length; i < l; i++) {
+      var p = par[i]
+      for (var j = 0, ntf = this.__notifiables, l2 = ntf.length; j < l2; j++) {
+        var n = ntf[j]
+        if (!n) continue
+        if (n instanceof VirtualObservable)
+          n.stopObservers()
+        else
+          p.removeNotifiable(n)
+      }
+      p.removeNotifiable(this)
+    }
+
+    // remove the notifiables from this virtual observable
+    const id = this.__id
+    for (var i = 0, ntf = this.__notifiables, l = ntf.length; i < l; i++) {
+      var n = ntf[i]
+      if (!n) continue
+      delete n.idx_map[id]
+    }
+
+    this.__notifiables = []
+    this.__nb_notifiable = 0
+  }
+
   abstract getter(): T
   abstract setter(nval: T, oval: T | undefined): void
 
   get(): T {
-    if (this.totalObservers() === 0) {
+    if (this.__notifiables.length === 0)
       this.refresh()
-    }
     return this.__value
   }
 
@@ -1051,77 +1128,15 @@ export abstract class VirtualObservable<T> extends Observable<T> {
     this.setter(value, old_value)
   }
 
-  dependsOn(obs: O<any>[]) {
+  dependsOn(_obs: O<any>[]) {
     var p = this.__parents
-    for (var ob of obs)
+    for (var obs = _obs.slice(0), i = 0; i < obs.length; i++) {
+      var ob = obs[i]
       if (ob instanceof Observable) {
         p.push(ob)
       }
-    this.__parent_values = new Array(p.length)
+    }
     return this
-  }
-
-  stopObservers() {
-    this.stopObserving()
-    super.stopObservers()
-  }
-
-  removeObserver<B = void>(ob: Observer<T, B>): void {
-    super.removeObserver(ob)
-    if (this.totalObservers() === 0) {
-      this.stopObserving()
-    }
-  }
-
-  addChild(vo: VirtualObservable<any>) {
-    const prev = this.totalObservers()
-
-    this.__children.delete(vo)
-    this.__children.add(vo)
-
-    if (this.totalObservers() === 1 && prev === 0) {
-      this.startObserving()
-    }
-
-    for (var p of this.__parents)
-      p.addChild(vo)
-  }
-
-  removeChild(vo: VirtualObservable<any>) {
-    this.__children.delete(vo)
-
-    if (this.totalObservers() === 0) {
-      this.stopObserving()
-    }
-
-    for (var p of this.__parents)
-      p.removeChild(vo)
-  }
-
-  /**
-   * Observable subclass may want to watch *other* observables. This method
-   * starts this Observable's own observers towards the watched observables.
-   */
-  startObserving() {
-    if (this.totalObservers() === 0)
-      return
-
-    for (var obs of this.__parents)
-      obs.addChild(this)
-
-    this.refresh()
-  }
-
-  /**
-   * Stop watching other Observables.
-   */
-  stopObserving() {
-    for (var ch of this.__children)
-      ch.stopObservers()
-
-    for (var obs of this.__parents)
-      obs.removeChild(this)
-    // this.__children = [] // or should I tell them to unsubscribe ?
   }
 
 }
@@ -1643,26 +1658,6 @@ export class ArrayTransformObservable<A> extends VirtualObservable<A[]> {
   }
 
   /**
-   * Return a function that pauses all the provided observable, runs the callback
-   * and resume all the observables afterwards.
-   *
-   * It does not protect code ; there must be no exceptions thrown by the callback
-   * otherwise the observables won't be restarted.
-   *
-   * Use it whenever you know inter-dependent and cost-heavy observables should trigger
-   * only once after multiple set to parent observables.
-   */
-  export function pausegroup(...ob: Observable<any>[]) {
-    const observables = new Set(ob)
-    return function (fn: () => void) {
-      for (var o of observables) o.pause()
-      fn()
-      for (var o of observables) o.resume()
-    }
-  }
-
-
-  /**
    * A group of observers that can be started and stopped at the same time.
    * This class is meant to be used for components such as Mixin that want
    * to tie observing to their life cycle.
@@ -1687,9 +1682,9 @@ export class ArrayTransformObservable<A> extends VirtualObservable<A[]> {
     /**
      * Observe and Observable and return the observer that was created
      */
-    observe<A, B = void>(obs: o.ReadonlyObservable<A>, fn: ObserverFunction<A, B>): ReadonlyObserver<A, B>
-    observe<A, B = void>(obs: o.RO<A>, fn: ObserverFunction<A, B>): ReadonlyObserver<A, B> | null
-    observe<A, B = void>(obs: o.RO<A>, fn: ObserverFunction<A, B>) {
+    observe<A, B = void>(obs: o.ReadonlyObservable<A>, fn: ObserverFunction<A>): ReadonlyObserver<A>
+    observe<A, B = void>(obs: o.RO<A>, fn: ObserverFunction<A>): ReadonlyObserver<A> | null
+    observe<A, B = void>(obs: o.RO<A>, fn: ObserverFunction<A>) {
       if (!(obs instanceof Observable)) {
         fn(obs as A, new Changes(obs as A))
         return null
@@ -1702,7 +1697,7 @@ export class ArrayTransformObservable<A> extends VirtualObservable<A[]> {
     /**
      * Add an observer to the observers array
      */
-    addObserver<A, B = void>(observer: ReadonlyObserver<A, B>) : ReadonlyObserver<A, B> {
+    addObserver<A, B = void>(observer: ReadonlyObserver<A>) : ReadonlyObserver<A> {
       this.observers.push(observer)
 
       if (this.live)
