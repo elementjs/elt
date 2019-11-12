@@ -485,7 +485,6 @@ export class Observable<A> implements ReadonlyObservable<A> {
         j++
       }
     }
-    if (j !== this.__nb_notifiable) throw new Error(`wha ${j} vs ${this.__nb_notifiable}`)
     this.__notifiables = newnotifiers
   }
 
@@ -1035,6 +1034,14 @@ export abstract class VirtualObservable<T> extends Observable<T> implements Noti
 
   refresh() {
     this.__value = this.getter()
+
+    for (var i = 0, ntf = this.__notifiables, l = ntf.length; i < l; i++) {
+      const n = ntf[i]
+      if (n instanceof Observer) {
+        n.refresh()
+      }
+    }
+
     if (this.__nb_notifiable !== this.__notifiables.length)
       this.rebuildNotifiables()
   }
@@ -1050,23 +1057,18 @@ export abstract class VirtualObservable<T> extends Observable<T> implements Noti
     const prev = this.__nb_notifiable === 0
     super.addNotifiable(n)
     var add_self = prev && this.__nb_notifiable === 1
+    var is_virtual_observable = n instanceof VirtualObservable
 
-    for (var i = 0, par = this.__parents, l = par.length; i < l; i++) {
-      var p = par[i]
-      if (add_self) p.addNotifiable(this)
-      p.addNotifiable(n)
+    if (add_self || is_virtual_observable) {
+      for (var i = 0, par = this.__parents, l = par.length; i < l; i++) {
+        var p = par[i]
+        if (add_self) p.addNotifiable(this)
+        if (is_virtual_observable) p.addNotifiable(n)
+      }
     }
 
     // If this is the first time it is added, refresh the observable.
     if (add_self) this.refresh()
-  }
-
-  removeNotifiablesFrom(obs: Observable<any>) {
-    for (var ntf = this.__notifiables, i = 0, l = ntf.length; i < l; i++) {
-      var n = ntf[i]
-      if (!n) continue
-      obs.removeNotifiable(n)
-    }
   }
 
   // Remove the notifiable from the parents
@@ -1074,12 +1076,15 @@ export abstract class VirtualObservable<T> extends Observable<T> implements Noti
     if (n.idx_map[this.__id] == undefined) return
 
     super.removeNotifiable(n)
+    const is_virtual_observable = n instanceof VirtualObservable
 
     var remove_self = this.__nb_notifiable === 0
+    if (!remove_self && !is_virtual_observable) return
+
     for (var i = 0, par = this.__parents, l = par.length; i < l; i++) {
       var p = par[i]
       if (remove_self) p.removeNotifiable(this)
-      p.removeNotifiable(n)
+      if (is_virtual_observable) p.removeNotifiable(n)
     }
   }
 
