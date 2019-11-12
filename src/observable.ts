@@ -1049,11 +1049,6 @@ export abstract class VirtualObservable<T> extends Observable<T> implements Noti
   // A notifiable ultimately gets added to the parents.
   // it stays sracked through its idx map.
   addNotifiable(n: Notifiable) {
-    // We first check that it wasn't already added to this particular observable,
-    // in which case we just skip it.
-    if (n.idx_map[this.__id] != undefined)
-      return
-
     const prev = this.__nb_notifiable === 0
     super.addNotifiable(n)
     var add_self = prev && this.__nb_notifiable === 1
@@ -1073,8 +1068,6 @@ export abstract class VirtualObservable<T> extends Observable<T> implements Noti
 
   // Remove the notifiable from the parents
   removeNotifiable(n: Notifiable) {
-    if (n.idx_map[this.__id] == undefined) return
-
     super.removeNotifiable(n)
     const is_virtual_observable = n instanceof VirtualObservable
 
@@ -1133,9 +1126,9 @@ export abstract class VirtualObservable<T> extends Observable<T> implements Noti
     this.setter(value, old_value)
   }
 
-  dependsOn(_obs: O<any>[]) {
+  dependsOn(obs: O<any>[]) {
     var p = this.__parents
-    for (var obs = _obs.slice(0), i = 0; i < obs.length; i++) {
+    for (var l = obs.length, i = 0; i < l; i++) {
       var ob = obs[i]
       if (ob instanceof Observable) {
         p.push(ob)
