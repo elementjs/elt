@@ -7,12 +7,12 @@ require('source-map-support').install()
 
 ///////////////////////////////////////////////////////////
 
-import 'mocha'
-import {expect} from 'chai'
+import { beforeEach, it, describe } from 'mocha'
+import { expect } from 'chai'
 
 import {
-  o, UnregisterFn, Observable, ObserveOptions
-} from './observable'
+  o
+} from '../src/observable'
 
 
 function cmp(a: any, b: any) {
@@ -53,8 +53,8 @@ class Calls {
 
   callback() {
     var self = this
-    return function () {
-      self.call.apply(self, arguments)
+    return () => {
+      (this.call as any).apply(self, arguments)
     }
   }
 
@@ -75,36 +75,30 @@ class Calls {
 
 ////////////////////////////////////////////////////////////////////
 
-var unregs: UnregisterFn[] = []
-afterEach(function () {
-  unregs.forEach(un => un())
-  unregs = []
-})
-
-function spyon<T>(obs: Observable<T>, opts: ObserveOptions = {updatesOnly: true}) {
+function spyon<T>(obs: o.ReadonlyObservable<T>) {
   var spy = new Calls()
-  unregs.push(obs.addObserver(function (value, changes) {
-    spy.call(value, changes.new_value, changes.old_value)
-  }, opts))
+  obs.addObserver(function (value, changes) {
+    spy.call(value) // , changes.new_value, changes.old_value)
+  })
   return spy
 }
 
-var o_deep = o({a: 1, b: {c: 1}})
-var o_simple = o(0)
-var o_deep_a = o_deep.p('a')
-var o_deep_c = o_deep.p('b').p('c')
-var deep_spy = spyon(o_deep)
-var deep_c_spy = spyon(o_deep_c)
-var deep_a_spy = spyon(o_deep_a)
+// var o_deep = o({a: 1, b: {c: 1}})
+// var o_simple = o(0)
+// var o_deep_a = o_deep.p('a')
+// var o_deep_c = o_deep.p('b').p('c')
+// var deep_spy = spyon(o_deep)
+// var deep_c_spy = spyon(o_deep_c)
+// var deep_a_spy = spyon(o_deep_a)
 
 beforeEach(() => {
-  o_deep = o({a: 1, b: {c: 1}})
-  o_simple = o(0)
-  o_deep_a = o_deep.p('a')
-  o_deep_c = o_deep.p('b').p('c')
-  deep_spy = spyon(o_deep)
-  deep_c_spy = spyon(o_deep_c)
-  deep_a_spy = spyon(o_deep_a)
+  // o_deep = o({a: 1, b: {c: 1}})
+  // o_simple = o(0)
+  // o_deep_a = o_deep.p('a')
+  // o_deep_c = o_deep.p('b').p('c')
+  // deep_spy = spyon(o_deep)
+  // deep_c_spy = spyon(o_deep_c)
+  // deep_a_spy = spyon(o_deep_a)
 })
 
 
@@ -114,12 +108,12 @@ describe('Observable', function () {
     var test = o(0)
 
     var spytest = spyon(test)
-    var spytest2 = spyon(test, {})
+    var spytest2 = spyon(test)
 
     beforeEach(() => {
       test.set(0)
       spytest = spyon(test)
-      spytest2 = spyon(test, {})
+      spytest2 = spyon(test)
     })
 
 
@@ -150,16 +144,6 @@ describe('Observable', function () {
       test.set(0)
       spytest.was.never.called
       spytest2.was.called.once
-    })
-
-    it('pausing observables delays calling the observers until resume is called', () => {
-      test.pauseObserving()
-      test.set(4)
-      test.set(8)
-      test.set(43)
-      test.resumeObserving()
-
-      spytest.was.called.once
     })
 
   })
@@ -231,7 +215,7 @@ describe('PropObservable', function () {
       testa.set(5)
       called_test.was.called.once.with({a: 5, b: 2, c: {d: 1}})
 
-      expect(test.get('a')).to.equal(5)
+      expect(test.get().a).to.equal(5)
     })
 
     it('observers are called on a child when set on a child', () => {
@@ -240,7 +224,7 @@ describe('PropObservable', function () {
 
       called_a.with(6)
 
-      test.set('a', 7)
+      test.assign({a: 7})
 
       called_a.with(7)
       called_a.twice
@@ -253,7 +237,7 @@ describe('PropObservable', function () {
     })
 
     it('observers are not called on a different child', () => {
-      test.set('b', 43)
+      test.assign({b: 43})
       called_a.was.not.called
 
     })
@@ -281,7 +265,7 @@ describe('PropObservable', function () {
       called_d.never
       testd.set(1)
       called_d.once.with(1)
-      test.set('c', {d: 2})
+      test.assign({c: {d: 2}})
       called_d.once.with(2)
     })
 
@@ -292,51 +276,6 @@ describe('PropObservable', function () {
       expect(nestc.get()).to.be.true
       called_nest_c.was.called.once.with(true)
     })
-
-    it('pausing and resuming bundles sub updates into one only', () => {
-      test.pauseObserving()
-
-      testa.set(4)
-      testd.set(23)
-      testa.set(44)
-      testd.set(43)
-      testd.set(34)
-
-      test.resumeObserving()
-      called_test.once
-      called_a.once
-      called_d.once
-    })
-
-    it('pausing and resuming does not interfere with root set()', () => {
-      test.pauseObserving()
-      testa.set(44)
-      testa.set(49)
-      test.set({a: 3, b: 3, c: {d: 34}})
-      testd.set(88)
-      test.resumeObserving()
-
-      called_a.was.called.once.with(3)
-      called_d.was.called.once.with(88)
-      called_test.was.called.once
-    })
-
-    it('pausing and resuming does not interfere with root set() in children', () => {
-      test.pauseObserving()
-      testa.set(44)
-      testa.set(49)
-      testc.set({d: 59})
-      testd.set(45)
-      test.resumeObserving()
-
-      called_a.was.called.once.with(49)
-      called_d.was.called.once.with(45)
-      called_test.was.called.once
-
-      // this is because if we set a parent and we had set children before,
-      // we want the changes to be overwritten.
-    })
-
 
   })
 
@@ -349,7 +288,7 @@ describe('TransformObservable', function () {
   var ttf = tests.tf(a => a + 10)
   var ttf2 = tests.tf(
     v => v + 20,
-    (obs, v) => {
+    (v, _, obs) => {
       obs.set(v * 2)
     }
   )
@@ -376,6 +315,7 @@ describe('TransformObservable', function () {
 })
 
 
+/*
 describe('MergeObservable', function () {
   var test1 = o(5)
   var test2 = o('zobi')
@@ -473,3 +413,4 @@ describe('Changes', function () {
     deep_a_spy.was.not.called
   })
 })
+*/

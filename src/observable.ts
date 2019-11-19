@@ -1,5 +1,3 @@
-
-
 /**
  * Make sure we have an observable.
  * @param arg A MaybeObservable
@@ -140,25 +138,18 @@ export class Changes<A> {
 }
 
 
-export interface Notifiable {
-  refresh(): void
-  idx_map: {[id: number]: number}
-}
-
-
-export class Observer<A> implements ReadonlyObserver<A>, Notifiable {
+export class Observer<A> implements ReadonlyObserver<A>, Indexable {
 
   protected old_value: A = NOVALUE
-  idx_map = {}
+  idx = null
 
   constructor(public fn: ObserverFunction<A>, public observable: Observable<A>) { }
 
   refresh(): void {
     const old = this.old_value
-    const new_value: A = (this.observable as any).__value
+    const new_value = this.observable.__value
 
     if (old !== new_value) {
-      this.old_value = new_value
       this.fn(new_value, new Changes(new_value, old))
     }
   }
@@ -254,40 +245,183 @@ export type O<A> = Observable<A> | A
 export type RO<A> = ReadonlyObservable<A> | A
 
 
-export var queue = null as (Notifiable | null)[] | null
-export var _next_id = 1
+export type Nullable<T> = T | null
 
-export function flush_queue() {
-  if (!queue) return
-  for (var i = 0, l = queue.length; i < l; i++) {
-    var n = queue[i]
-    if (!n) continue
-    delete n.idx_map[0]
-    n.refresh()
-  }
-  queue = null
-  queued_idx = 0
+export interface Indexable {
+  idx: number | null
 }
 
-var queued_idx = 0
+
+export function EACH<T extends Indexable>(_arr: IndexableArray<T>, fn: (arg: T) => void) {
+  for (var i = 0, arr = _arr.arr; i < arr.length; i++) {
+    var item = arr[i]
+    if (item == null) continue
+    fn(item)
+  }
+  _arr.actualize()
+}
+
+export class IndexableArray<T extends Indexable> {
+  arr = [] as Nullable<T>[]
+  real_size = 0
+
+  add(a: T) {
+    const arr = this.arr
+    if (a.idx != null) {
+      // will be put to the end
+      arr[a.idx] = null
+    } else {
+      this.real_size++
+    }
+    a.idx = arr.length
+    arr.push(a)
+  }
+
+  actualize() {
+    const arr = this.arr
+    if (this.real_size !== arr.length) {
+      var newarr = new Array(this.real_size)
+      for (var i = 0, j = 0, l = arr.length; i < l; i++) {
+        var item = arr[i]
+        if (item == null) continue
+        newarr[j] = item
+        item.idx = j
+        j++
+      }
+      this.arr = newarr
+    }
+  }
+
+  delete(a: T) {
+    if (a.idx != null) {
+      this.arr[a.idx] = null
+      a.idx = null
+      this.real_size--
+    }
+  }
+
+  clear() {
+    const a = this.arr
+    for (var i = 0; i < a.length; i++) {
+      var item = a[i]
+      if (item == null) continue
+      item.idx = null
+    }
+    this.arr = []
+    this.real_size = 0
+  }
+}
+
+
+export function EACH_RECURSIVE(obs: Observable<any>, fn: (v: Observable<any>) => void) {
+
+  var stack = [] as [Nullable<ChildObservableLink>[], number][]
+  var [children, i] = [obs.__children.arr, 0]
+  fn(obs)
+
+  while (true) {
+    var _child = children[i]
+    if (_child) {
+      var child = _child.child
+      fn(child)
+      if (child.__children.arr.length) {
+        stack.push([children, i + 1])
+        children = child.__children.arr
+        i = 0
+        continue
+      }
+    }
+
+    i++
+
+    if (i > children.length) {
+      if (stack.length === 0) break
+      [children, i] = stack.pop()!
+      continue
+    }
+  }
+
+}
+
+export class Queue extends IndexableArray<Observable<any>> {
+  transaction_count = 0
+
+  schedule(obs: Observable<any>) {
+    const was_empty = this.real_size === 0
+    EACH_RECURSIVE(obs, ob => {
+      this.add(ob)
+    })
+    if (this.transaction_count === 0 && was_empty) {
+      this.flush()
+    }
+  }
+
+  unschedule(obs: Observable<any>) {
+    EACH_RECURSIVE(obs, ob => this.delete(ob))
+  }
+
+  transaction(fn: () => void) {
+    this.transaction_count++
+    fn()
+    this.transaction_count--
+    if (this.transaction_count === 0) {
+      this.flush()
+    }
+  }
+
+  flush() {
+    for (var i = 0, arr = this.arr; i < arr.length; i++) {
+      var obs = arr[i]
+      if (obs == null) continue
+
+      if (obs instanceof VirtualObservable) {
+        obs.__value = obs.getter()
+      }
+
+      EACH(obs.__children, ch => {
+        ch.child.__parents_values[ch.child_idx] = ch.parent.__value
+      })
+      EACH(obs.__observers, o => o.refresh())
+      obs.idx = null
+      arr[i] = null // just in case...
+    }
+    this.real_size = 0
+    // this.arr = []
+    this.arr.length = 0
+    this.transaction_count = 0
+  }
+}
+
+export var queue = new Queue()
 export function transaction(fn: () => void) {
-  if (queued_idx === 0) {
-    queue = []
-  }
-  queued_idx++
-  fn()
-  if (queued_idx > 0) queued_idx--
-  if (queued_idx === 0) {
-    flush_queue()
+  queue.transaction(fn)
+}
+
+
+export class ChildObservableLink implements Indexable {
+  idx = null
+
+  constructor(
+    public parent: Observable<any>,
+    public child: VirtualObservable<any>,
+    public child_idx: number,
+  ) { }
+
+  refresh() {
+    this.child.__parents_values[this.child_idx] = this.parent.__value
   }
 }
 
-export class Observable<A> implements ReadonlyObservable<A> {
+
+export class Observable<A> implements ReadonlyObservable<A>, Indexable {
   /** Observers called when this Observable changes */
   // __observers = new Set<Observer<A, any>>()
-  __notifiables = [] as (Notifiable | null)[]
-  __nb_notifiable = 0
-  __id = _next_id++
+  __observers = new IndexableArray<Observer<A>>()
+  __children = new IndexableArray<ChildObservableLink>()
+  __watched = false
+
+  /** The index of this Observable in the notify queue. If null, means that it's not scheduled. */
+  idx = null as null | number
 
   constructor(public __value: A) {
     // (this as any).debug = new Error
@@ -298,20 +432,17 @@ export class Observable<A> implements ReadonlyObservable<A> {
    * all observers currently watching this Observable.
    */
   stopObservers() {
-    // For all the observers, check that they're not in the global queue
-    // calling stopObservers on a notifying observable has undefined results.
-    for (var obr = this.__notifiables, i = 0, l = obr.length; i < l; i++) {
-      var obs = obr[i]
-      if (obs == undefined) continue
-
-      // if (obs instanceof VirtualObservable) {
-      //   obs.stopObservers()
-      // }
-      // check if we're in the global queue, in which case we undefine ourselve.
-
-    }
-    this.__notifiables = []
+    EACH_RECURSIVE(this, ob => {
+      if (ob.idx) queue.delete(ob)
+      ob.__observers.clear()
+      if (ob.__watched) {
+        ob.__watched = false
+        ob.unwatched()
+      }
+      ob.__children.clear()
+    })
   }
+
 
   /**
    * Return the underlying value of this Observable
@@ -356,7 +487,7 @@ export class Observable<A> implements ReadonlyObservable<A> {
       obs.assign = o.debounce(obs.assign, setms)
     }
 
-    if (notifyms) obs.notify = o.debounce(obs.notify, notifyms)
+    if (notifyms) obs.set = o.debounce(obs.set, notifyms)
 
     return obs
   }
@@ -387,7 +518,7 @@ export class Observable<A> implements ReadonlyObservable<A> {
       obs.assign = o.throttle(obs.assign, setms)
     }
 
-    if (notifyms) obs.notify = o.throttle(obs.notify, notifyms)
+    if (notifyms) obs.set = o.throttle(obs.set, notifyms)
 
     return obs
   }
@@ -398,8 +529,9 @@ export class Observable<A> implements ReadonlyObservable<A> {
    * @param value The value to set it to
    */
   set(value: A): void {
-    (this.__value as any) = value
-    this.notify()
+    const old = this.__value
+    this.__value = value
+    if (old !== value) queue.schedule(this)
   }
 
   /**
@@ -433,62 +565,6 @@ export class Observable<A> implements ReadonlyObservable<A> {
   }
 
   /**
-   * Notify all the registered observers that is Observable changed
-   * value.
-   *
-   * @param old_value The old value of this observer
-   */
-  notify() {
-
-    // FIXME ; check that the queue is defined. If it is, just append our
-    // notifiables to it.
-    if (queue) {
-        for (var ntf = this.__notifiables, i = 0, l = ntf.length; i < l; i++) {
-          var n = ntf[i]
-          if (n == null) continue
-
-          // queue is 0.
-          var idx = n.idx_map[0]
-          if (idx !== undefined) {
-            queue[idx] = null
-          }
-          n.idx_map[0] = queue.length
-          queue.push(n)
-      }
-      return
-    }
-
-    // Notify registered notifiables.
-    for (var ntf = this.__notifiables, i = 0, l = ntf.length; i < l; i++) {
-      var n = ntf[i]
-      // if it was put to null, then just ignore it and signal that there is
-      // some cleanup to do.
-      if (n == null) continue
-      n.refresh()
-    }
-
-    // cleanup the observers that are gone and rebuild a new array
-    if (this.__nb_notifiable !== this.__notifiables.length) {
-      this.rebuildNotifiables()
-    }
-  }
-
-  protected rebuildNotifiables() {
-    var newnotifiers = new Array(this.__nb_notifiable) as Notifiable[]
-    var j = 0
-    var id = this.__id
-    for (var i = 0, ntf = this.__notifiables, l = ntf.length; i < l; i++) {
-      var n = ntf[i]
-      if (n != null) {
-        newnotifiers[j] = n
-        n.idx_map[id] = j
-        j++
-      }
-    }
-    this.__notifiables = newnotifiers
-  }
-
-  /**
    * Create an observer bound to this observable, but do not start it.
    * For it to start observing, one needs to call its `startObserving()` method.
    *
@@ -497,18 +573,6 @@ export class Observable<A> implements ReadonlyObservable<A> {
    */
   createObserver(fn: ObserverFunction<A>): Observer<A> {
     return new Observer(fn, this)
-  }
-
-  addNotifiable(n: Notifiable) {
-    const ntf = this.__notifiables
-    const idx = n.idx_map[this.__id]
-    if (idx != undefined) {
-      ntf[idx] = null
-    } else {
-      this.__nb_notifiable++
-    }
-    n.idx_map[this.__id] = ntf.length
-    ntf.push(n)
   }
 
   /**
@@ -529,9 +593,22 @@ export class Observable<A> implements ReadonlyObservable<A> {
     }
 
     const ob = _ob
-    this.addNotifiable(_ob)
-    ob.refresh()
+    this.__observers.add(_ob)
+    this.checkWatch()
+    if (this.idx == null) ob.refresh()
     return ob
+  }
+
+  addChild(ch: ChildObservableLink) {
+    if (ch.idx != null) return
+    this.__children.add(ch)
+    this.checkWatch()
+  }
+
+  removeChild(ch: ChildObservableLink) {
+    if (ch.idx == null) return
+    this.__children.delete(ch)
+    this.checkWatch()
   }
 
   /**
@@ -544,26 +621,23 @@ export class Observable<A> implements ReadonlyObservable<A> {
    * @param ob The observer
    */
   removeObserver(ob: Observer<A>): void {
-    this.removeNotifiable(ob)
+    this.__observers.delete(ob)
+    this.checkWatch()
   }
 
-  removeNotifiable(n: Notifiable): void {
-    var idx = n.idx_map[this.__id]
-
-    if (idx != null) {
-      this.__notifiables[idx] = null // good bye.
-      delete n.idx_map[this.__id]
-      this.__nb_notifiable--
-    }
-
-    if (queue) {
-      var qidx = n.idx_map[0]
-      if (qidx !== undefined) {
-        queue[qidx] = null
-        delete n.idx_map[0]
-      }
+  checkWatch() {
+    if (this.__watched && this.__observers.real_size === 0 && this.__children.real_size === 0) {
+      this.__watched = false
+      if (this.idx != null) queue.unschedule(this)
+      this.unwatched()
+    } else if (!this.__watched && this.__observers.real_size + this.__children.real_size > 0) {
+      this.__watched = true
+      this.watched()
     }
   }
+
+  unwatched() { }
+  watched() { }
 
   //////////////////////////////////////////////////////////////
   /////////// The following are methods that provide
@@ -1023,101 +1097,33 @@ export class Observable<A> implements ReadonlyObservable<A> {
  * An observable that does not its own value, but that depends
  * from outside getters and setters.
  */
-export abstract class VirtualObservable<T> extends Observable<T> implements Notifiable {
+export abstract class VirtualObservable<T> extends Observable<T> {
 
-  __parents: Observable<any>[] = []
-  idx_map = {}
+  // __parents: Observable<any>[] = []
+  __links = [] as ChildObservableLink[]
+  __parents_values = [] as any[]
 
   constructor() {
     super(NOVALUE)
   }
 
-  refresh() {
-    this.__value = this.getter()
-
-    for (var i = 0, ntf = this.__notifiables, l = ntf.length; i < l; i++) {
-      const n = ntf[i]
-      if (n instanceof Observer) {
-        n.refresh()
-      }
-    }
-
-    if (this.__nb_notifiable !== this.__notifiables.length)
-      this.rebuildNotifiables()
-  }
-
-  // A notifiable ultimately gets added to the parents.
-  // it stays sracked through its idx map.
-  addNotifiable(n: Notifiable) {
-    const prev = this.__nb_notifiable === 0
-    super.addNotifiable(n)
-    var add_self = prev && this.__nb_notifiable === 1
-    var is_virtual_observable = n instanceof VirtualObservable
-
-    if (add_self || is_virtual_observable) {
-      for (var i = 0, par = this.__parents, l = par.length; i < l; i++) {
-        var p = par[i]
-        if (add_self) p.addNotifiable(this)
-        if (is_virtual_observable) p.addNotifiable(n)
-      }
-    }
-
-    // If this is the first time it is added, refresh the observable.
-    if (add_self) this.refresh()
-  }
-
-  // Remove the notifiable from the parents
-  removeNotifiable(n: Notifiable) {
-    super.removeNotifiable(n)
-    const is_virtual_observable = n instanceof VirtualObservable
-
-    var remove_self = this.__nb_notifiable === 0
-    if (!remove_self && !is_virtual_observable) return
-
-    for (var i = 0, par = this.__parents, l = par.length; i < l; i++) {
-      var p = par[i]
-      if (remove_self) p.removeNotifiable(this)
-      if (is_virtual_observable) p.removeNotifiable(n)
-    }
-  }
-
-  notify() {
-    throw new Error(`Virtual Observable shouldn't call notify`)
-  }
-
-  stopObservers() {
-    for (var i = 0, par = this.__parents, l = par.length; i < l; i++) {
-      var p = par[i]
-      for (var j = 0, ntf = this.__notifiables, l2 = ntf.length; j < l2; j++) {
-        var n = ntf[j]
-        if (!n) continue
-        if (n instanceof VirtualObservable)
-          n.stopObservers()
-        else
-          p.removeNotifiable(n)
-      }
-      p.removeNotifiable(this)
-    }
-
-    // remove the notifiables from this virtual observable
-    const id = this.__id
-    for (var i = 0, ntf = this.__notifiables, l = ntf.length; i < l; i++) {
-      var n = ntf[i]
-      if (!n) continue
-      delete n.idx_map[id]
-    }
-
-    this.__notifiables = []
-    this.__nb_notifiable = 0
-  }
-
   abstract getter(): T
   abstract setter(nval: T, oval: T | undefined): void
 
-  get(): T {
-    if (this.__notifiables.length === 0)
-      this.refresh()
-    return this.__value
+  watched() {
+    for (var i = 0, l = this.__links; i < l.length; i++) {
+      var link = l[i]
+      link.parent.addChild(link)
+      this.__parents_values[link.child_idx] = link.parent.__value
+    }
+    this.__value = this.getter()
+  }
+
+  unwatched() {
+    for (var i = 0, l = this.__links; i < l.length; i++) {
+      var link = l[i]
+      link.parent.removeChild(link)
+    }
   }
 
   set(value: T): void {
@@ -1127,13 +1133,19 @@ export abstract class VirtualObservable<T> extends Observable<T> implements Noti
   }
 
   dependsOn(obs: O<any>[]) {
-    var p = this.__parents
+    var p = new Array(obs.length) as any[]
+    var ch = [] as ChildObservableLink[]
     for (var l = obs.length, i = 0; i < l; i++) {
       var ob = obs[i]
       if (ob instanceof Observable) {
-        p.push(ob)
+        p[i] = ob.__value
+        ch.push(new ChildObservableLink(ob, this, ch.length))
+      } else {
+        p[i] = ob
       }
     }
+    this.__links = ch
+    this.__parents_values = p
     return this
   }
 
@@ -1153,7 +1165,7 @@ export class TransformObservable<A, B> extends VirtualObservable<B> {
   }
 
   getter() {
-    var onew = this.original.get()
+    var onew = this.__parents_values[0]
     const old = this.prev_a
 
     if (onew !== old) {
@@ -1183,11 +1195,13 @@ export class PropObservable<A, B> extends VirtualObservable<B> {
   }
 
   getter() {
-    return (this.original.get() as any)[o.get(this.prop)] as B
+    const [original, prop] = this.__parents_values
+    return original[prop] as B
   }
 
   setter(nval: B) {
-    this.original.assign({[o.get(this.prop)]: nval} as any)
+    const prop = this.__parents_values[1]
+    this.original.assign({[prop]: nval} as any)
   }
 
 }
@@ -1197,29 +1211,19 @@ export class PropObservable<A, B> extends VirtualObservable<B> {
  * A merge observable that deals in arrays instead of objects
  */
 export class CombineObservable<A extends any[]> extends VirtualObservable<A> {
-  constructor(public deps: {[K in keyof A]: o.RO<A[K]>}[]) {
+  constructor(deps: {[K in keyof A]: o.RO<A[K]>}[]) {
     super()
     this.dependsOn(deps)
   }
 
   getter() {
-    const deps = this.deps
-    const l = deps.length
-    var res: A = new Array(l) as any
-    for (var i = 0; i < l; i++) {
-      res[i] = o.get(deps[i])
-    }
-    return res
+    return this.__parents_values.slice() as A
   }
 
   setter(nval: A) {
-    const deps = this.deps
-    const l = deps.length
-    for (var i = 0; i < l; i++) {
-      const d = deps[i]
-      if (d instanceof Observable) {
-        d.set(nval[i])
-      }
+    for (var i = 0, l = this.__links; i < l.length; i++) {
+      var link = l[i]
+      link.parent.set(nval[link.child_idx])
     }
   }
 }
@@ -1229,28 +1233,27 @@ export class MergeObservable<A> extends VirtualObservable<A> {
   public keys: (keyof A)[]
 
   constructor(
-    public deps: MaybeObservableObject<A>
+    deps: MaybeObservableObject<A>
   ) {
     super()
     var keys = this.keys = Object.keys(deps) as (keyof A)[]
-    this.dependsOn(o.map(keys, k => deps[k]))
+    this.dependsOn(keys.map(k => deps[k]))
   }
 
   getter() {
     var res: any = {}
-    var deps = this.deps
-    for (var k of this.keys) {
-      res[k] = o.get(deps[k])
+    const p = this.__parents_values
+    for (var i = 0, k = this.keys; i < k.length; i++) {
+      res[k[i]] = p[i]
     }
     return res
   }
 
   setter(nval: A) {
-    for (var k of this.keys) {
-      var dep = this.deps[k]
-      if (dep instanceof Observable) {
-        dep.set(nval[k])
-      }
+    // should I do a transaction ?
+    for (var i = 0, k = this.keys, l = this.__links; i < l.length; i++) {
+      var link = l[i]
+      link.parent.set(nval[k[link.child_idx]])
     }
   }
 }
@@ -1261,8 +1264,8 @@ export class ArrayTransformObservable<A> extends VirtualObservable<A[]> {
   public indices = o([] as number[])
 
   constructor(
-    public list: Observable<A[]>,
-    public fn: RO<ArrayTransformer<A>>
+    list: Observable<A[]>,
+    fn: RO<ArrayTransformer<A>>
   ) {
     super()
     // we do not depend on this.indices, as it gets called whenever getter()
@@ -1270,23 +1273,23 @@ export class ArrayTransformObservable<A> extends VirtualObservable<A[]> {
     // changes at the same time than list, which would trigger too many calls,
     // whereas fn is still a MaybeObservable and thus may not trigger calls to
     // refresh unnecessarily.
-    this.dependsOn([fn, list])
+    this.dependsOn([list, fn])
   }
 
   getter(): A[] {
-    const arr = o.get(this.list)
-    const fn = o.get(this.fn)
-    const indices = typeof fn === 'function' ? fn(arr) : fn
+    const [arr, fn] = this.__parents_values
+    const indices: number[] = typeof fn === 'function' ? fn(arr) : fn
     this.indices.set(indices)
-    return o.map(indices, i => arr[i])
+    return indices.map(i => arr[i])
   }
 
   setter(nval: A[], oval: A[]) {
-    const narr = this.list.getShallowClone()
+    const narr = this.__parents_values[0].slice() as A[]
+    // const narr = this.list.getShallowClone()
     const indices = this.indices.get()
     for (var i = 0; i < indices.length; i++)
       narr[indices[i]] = nval[i]
-    this.list.set(narr)
+    this.__links[0].parent.set(narr)
   }
 }
 
@@ -1680,9 +1683,9 @@ export class ArrayTransformObservable<A> extends VirtualObservable<A[]> {
     /**
      * Observe and Observable and return the observer that was created
      */
-    observe<A, B = void>(obs: o.ReadonlyObservable<A>, fn: ObserverFunction<A>): ReadonlyObserver<A>
-    observe<A, B = void>(obs: o.RO<A>, fn: ObserverFunction<A>): ReadonlyObserver<A> | null
-    observe<A, B = void>(obs: o.RO<A>, fn: ObserverFunction<A>) {
+    observe<A>(obs: o.ReadonlyObservable<A>, fn: ObserverFunction<A>): ReadonlyObserver<A>
+    observe<A>(obs: o.RO<A>, fn: ObserverFunction<A>): ReadonlyObserver<A> | null
+    observe<A>(obs: o.RO<A>, fn: ObserverFunction<A>) {
       if (!(obs instanceof Observable)) {
         fn(obs as A, new Changes(obs as A))
         return null
@@ -1695,7 +1698,7 @@ export class ArrayTransformObservable<A> extends VirtualObservable<A[]> {
     /**
      * Add an observer to the observers array
      */
-    addObserver<A, B = void>(observer: ReadonlyObserver<A>) : ReadonlyObserver<A> {
+    addObserver<A>(observer: ReadonlyObserver<A>) : ReadonlyObserver<A> {
       this.observers.push(observer)
 
       if (this.live)
