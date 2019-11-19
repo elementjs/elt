@@ -177,7 +177,7 @@ export class ConditionalDisplayer<T extends o.ReadonlyObservable<any>> extends D
   ) {
     super(condition.tf((cond, old, v) => {
       // console.log(cond)
-      // if (!!cond === !!old && v) return v
+      if (old !== o.NOVALUE && !!cond === !!old && v !== o.NOVALUE) return v as Insertable
       if (cond) {
         return display(condition as NonNullableObs<T>)
       } else if (display_otherwise) {
@@ -199,7 +199,8 @@ export function DisplayIf<T extends o.RO<any>>(
   display: Displayable<NonNullableObs<T>>,
   display_otherwise?: Displayable<T>
 ): Node {
-  if (typeof display === 'function' && !(condition instanceof o.Observable)) {
+  // ts bug on condition.
+  if (typeof display === 'function' && !((condition as any) instanceof o.Observable)) {
     return condition ?
       getDOMInsertable(display(condition as any))
       : getDOMInsertable(display_otherwise ?
@@ -522,7 +523,7 @@ export class Switcher<T> extends o.TransformObservable<T, Insertable> {
         const val = c[0]
         if (val === nval || (typeof val === 'function' && (val as Function)(nval))) {
           if (this.prev_case === val) {
-            return prev
+            return prev as Insertable
           }
           this.prev_case = val
           const fn = c[1]
@@ -530,7 +531,7 @@ export class Switcher<T> extends o.TransformObservable<T, Insertable> {
         }
       }
       if (this.prev_case === this.passthrough)
-        return prev
+        return prev as Insertable
       this.prev_case = this.passthrough
       return this.passthrough ? this.passthrough() : null
     })
