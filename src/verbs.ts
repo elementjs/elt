@@ -315,7 +315,6 @@ export class Repeater<T> extends Mixin<Comment> {
     // Remove the excess nodes
     for (var i = this.next_index; i < l; i++) {
       const node = po[i]
-      co[i].stopObservers()
       remove_and_unmount(node)
     }
 
