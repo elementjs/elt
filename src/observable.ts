@@ -23,14 +23,14 @@ export type BaseType<T> = T extends ReadonlyObservable<infer U> ? U : T
 export type ObserverFunction<T> = (newval: T, changes: Changes<T>) => void
 
 export interface Transformer<A, B> {
-  get(nval: A, oval: A | undefined, curval: B | undefined): B
-  set(nval: B, oval: B | undefined, obs: Observable<A>): void
+  get(nval: A, oval: A | NoValue, curval: B | NoValue): B
+  set(nval: B, oval: B | NoValue, obs: Observable<A>): void
 }
 
 
 export interface ReadonlyTransformer<A, B> {
-  get(nval: A, oval: A | undefined, curval: B | undefined): B
-  set(nval: B, oval: B | undefined, obs: ReadonlyObservable<A>): void
+  get(nval: A, oval: A | NoValue, curval: B | NoValue): B
+  set(nval: B, oval: B | NoValue, obs: ReadonlyObservable<A>): void
 }
 
 
@@ -207,8 +207,8 @@ export interface ReadonlyObservable<A> {
   times(this: ReadonlyObservable<number>, pl: RO<number>): ReadonlyObservable<number>
   dividedBy(this: ReadonlyObservable<number>, pl: RO<number>): ReadonlyObservable<number>
 
-  tf<B>(fnget: (nval: A, oval: A | undefined, curval: B | undefined) => B): ReadonlyObservable<B>
-  tf<B>(fnget: (nval: A, oval: A | undefined, curval: B | undefined) => B, fnset: (nval: B, oval: B | undefined, obs: ReadonlyObservable<A>) => void): Observable<B>
+  tf<B>(fnget: (nval: A, oval: A | NoValue, curval: B | NoValue) => B): ReadonlyObservable<B>
+  tf<B>(fnget: (nval: A, oval: A | NoValue, curval: B | NoValue) => B, fnset: (nval: B, oval: B | NoValue, obs: ReadonlyObservable<A>) => void): Observable<B>
   tf<B>(transformer: ReadonlyTransformer<A, B>): Observable<B>
 
   p<A>(this: ReadonlyObservable<A[]>, key: RO<number>): ReadonlyPropObservable<A[], A | undefined>
@@ -822,12 +822,12 @@ export class Observable<A> implements ReadonlyObservable<A>, Indexable {
    * @param fnget
    * @param fnset
    */
-  tf<B>(fnget: (nval: A, oval: A | undefined, curval: B | undefined) => B): ReadonlyObservable<B>
-  tf<B>(fnget: (nval: A, oval: A | undefined, curval: B | undefined) => B, fnset: (nval: B, oval: B | undefined, obs: Observable<A>) => void): TransformObservable<A, B>
+  tf<B>(fnget: (nval: A, oval: A | NoValue, curval: B | NoValue) => B): ReadonlyObservable<B>
+  tf<B>(fnget: (nval: A, oval: A | NoValue, curval: B | NoValue) => B, fnset: (nval: B, oval: B | NoValue, obs: Observable<A>) => void): TransformObservable<A, B>
   tf<B>(transformer: Transformer<A, B>): TransformObservable<A, B>
   tf<B>(
-    fnget: Transformer<A, B> | ((nval: A, oval: A | undefined, curval: B | undefined) => B),
-    fnset?: (nval: B, oval: B | undefined, obs: Observable<A>) => void): TransformObservable<A, B>
+    fnget: Transformer<A, B> | ((nval: A, oval: A | NoValue, curval: B | NoValue) => B),
+    fnset?: (nval: B, oval: B | NoValue, obs: Observable<A>) => void): TransformObservable<A, B>
   {
     if (typeof fnget !== 'function') {
       fnset = fnget.set
@@ -940,7 +940,7 @@ export class Observable<A> implements ReadonlyObservable<A>, Indexable {
       var unchanged = true
       for (var p of props) {
         (res as any)[p] = obj[p]
-        unchanged = unchanged && (!!prev && obj[p] === prev[p])
+        unchanged = unchanged && (!!prev && obj[p] === (prev as any)[p])
       }
       if (unchanged) return previous
       previous = res
@@ -1115,7 +1115,7 @@ export abstract class VirtualObservable<T> extends Observable<T> {
   }
 
   abstract getter(): T
-  abstract setter(nval: T, oval: T | undefined): void
+  abstract setter(nval: T, oval: T | NoValue): void
 
   watched() {
     for (var i = 0, l = this.__links; i < l.length; i++) {
@@ -1185,8 +1185,8 @@ export class TransformObservable<A, B> extends VirtualObservable<B> {
 
   constructor(
     public original: Observable<A>,
-    public transformer: (nval: A, oval: A | undefined, prev: B | undefined) => B,
-    public _setter?: (nval: B, oval: B | undefined, original: Observable<A>) => void) {
+    public transformer: (nval: A, oval: A | NoValue, prev: B | NoValue) => B,
+    public _setter?: (nval: B, oval: B | NoValue, original: Observable<A>) => void) {
       super()
       this.dependsOn([original])
   }
@@ -1204,7 +1204,7 @@ export class TransformObservable<A, B> extends VirtualObservable<B> {
     }
   }
 
-  setter(nval: B, oval: B | undefined) {
+  setter(nval: B, oval: B | NoValue) {
     this._setter!(nval, oval, this.original)
   }
 
@@ -1345,8 +1345,8 @@ export class ArrayTransformObservable<A> extends VirtualObservable<A[]> {
    * Observable objects for values that were not.
    * @param arg: The maybe observable object
    */
-  export function tf<A, B>(arg: RO<A>, fn: (a: A) => B, backfn: ((b: B, old: B | undefined, obs: ReadonlyObservable<A>) => void)): O<B>
-  export function tf<A, B>(arg: RO<A> | undefined, fn: (a: A | undefined) => B, backfn: ((b: B, old: B | undefined, obs: ReadonlyObservable<A | undefined>) => void)): O<B>
+  export function tf<A, B>(arg: RO<A>, fn: (a: A) => B, backfn: ((b: B, old: B | NoValue, obs: ReadonlyObservable<A>) => void)): O<B>
+  export function tf<A, B>(arg: RO<A> | undefined, fn: (a: A | undefined) => B, backfn: ((b: B, old: B | NoValue, obs: ReadonlyObservable<A | undefined>) => void)): O<B>
   export function tf<A, B>(arg: RO<A>, trans: Transformer<A, B>): O<B>
   export function tf<A, B>(arg: RO<A> | undefined, trans: Transformer<A | undefined, B>): O<B>
   export function tf<A, B>(arg: RO<A>, fn: (a: A) => B): RO<B>
@@ -1354,7 +1354,7 @@ export class ArrayTransformObservable<A> extends VirtualObservable<A[]> {
   export function tf<A, B>(arg: RO<A>, trans: ReadonlyTransformer<A, B>): RO<B>
   export function tf<A, B>(arg: RO<A> | undefined, trans: ReadonlyTransformer<A | undefined, B>): RO<B>
   // export function tf<A, B>(arg: RO<A> | undefined, fn: (a: A | undefined) => B): RO<B>
-  export function tf<A, B>(arg: RO<A>, fn: ReadonlyTransformer<A, B> | ((a: A) => B), backfn?: ((b: B, old: B | undefined, obs: ReadonlyObservable<A>) => void)): RO<B> {
+  export function tf<A, B>(arg: RO<A>, fn: ReadonlyTransformer<A, B> | ((a: A) => B), backfn?: ((b: B, old: B | NoValue, obs: ReadonlyObservable<A>) => void)): RO<B> {
     if (arg instanceof Observable) {
       if (typeof fn === 'function') {
         if (backfn)
@@ -1366,7 +1366,7 @@ export class ArrayTransformObservable<A> extends VirtualObservable<A[]> {
       if (typeof fn === 'function')
         return fn(arg as A)
       else
-        return fn.get(arg as A, undefined, undefined)
+        return fn.get(arg as A, NOVALUE, NOVALUE)
     }
   }
 
