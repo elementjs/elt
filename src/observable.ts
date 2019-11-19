@@ -1610,6 +1610,14 @@ export class ArrayTransformObservable<A> extends VirtualObservable<A[]> {
 
   export const clone_symbol = Symbol('o.clone_symbol')
 
+  export function isNoValue<T>(t: T | NoValue): t is NoValue {
+    return t === NOVALUE
+  }
+
+  export function isValue<T>(t: T | NoValue): t is T {
+    return t !== NOVALUE
+  }
+
   /**
    * Shallow clone an object. If you want to perform deep operations, use assign instead.
    * Not all types are safely cloned.
