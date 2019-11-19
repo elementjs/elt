@@ -150,6 +150,7 @@ export class Observer<A> implements ReadonlyObserver<A>, Indexable {
     const new_value = this.observable.__value
 
     if (old !== new_value) {
+      this.old_value = new_value
       this.fn(new_value, new Changes(new_value, old))
     }
   }
@@ -315,18 +316,20 @@ export class IndexableArray<T extends Indexable> {
 
 export function EACH_RECURSIVE(obs: Observable<any>, fn: (v: Observable<any>) => void) {
 
+  var objs = [] as Observable<any>[]
   var stack = [] as [Nullable<ChildObservableLink>[], number][]
   var [children, i] = [obs.__children.arr, 0]
-  fn(obs)
+  objs.push(obs)
 
   while (true) {
     var _child = children[i]
     if (_child) {
       var child = _child.child
-      fn(child)
-      if (child.__children.arr.length) {
+      var subchildren = child.__children.arr
+      objs.push(child)
+      if (subchildren.length) {
         stack.push([children, i + 1])
-        children = child.__children.arr
+        children = subchildren
         i = 0
         continue
       }
@@ -341,6 +344,9 @@ export function EACH_RECURSIVE(obs: Observable<any>, fn: (v: Observable<any>) =>
     }
   }
 
+  for (var i = 0, l = objs.length; i < l; i++) {
+    fn(objs[i])
+  }
 }
 
 export class Queue extends IndexableArray<Observable<any>> {
@@ -433,7 +439,7 @@ export class Observable<A> implements ReadonlyObservable<A>, Indexable {
    */
   stopObservers() {
     EACH_RECURSIVE(this, ob => {
-      if (ob.idx) queue.delete(ob)
+      if (ob.idx) queue.delete(ob);
       ob.__observers.clear()
       if (ob.__watched) {
         ob.__watched = false
@@ -629,7 +635,7 @@ export class Observable<A> implements ReadonlyObservable<A>, Indexable {
   checkWatch() {
     if (this.__watched && this.__observers.real_size === 0 && this.__children.real_size === 0) {
       this.__watched = false
-      if (this.idx != null) queue.unschedule(this)
+      if (this.idx != null) queue.delete(this)
       this.unwatched()
     } else if (!this.__watched && this.__observers.real_size + this.__children.real_size > 0) {
       this.__watched = true
