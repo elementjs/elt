@@ -595,7 +595,8 @@ export class Observable<A> implements ReadonlyObservable<A>, Indexable {
     const ob = _ob
     this.__observers.add(_ob)
     this.checkWatch()
-    if (this.idx == null) ob.refresh()
+    if (this.idx == null)
+      ob.refresh()
     return ob
   }
 
@@ -1126,6 +1127,26 @@ export abstract class VirtualObservable<T> extends Observable<T> {
     }
   }
 
+  get() {
+    if (!this.__watched) {
+      var changed = false
+      for (var i = 0, l = this.__links, p = this.__parents_values; i < l.length; i++) {
+        var link = l[i]
+        var idx = link.child_idx
+        var old = p[idx]
+        var n = link.parent.get()
+        if (old !== n) {
+          changed = true
+          p[idx] = n
+        }
+      }
+      if (changed || this.__value === NOVALUE as any) {
+        this.__value = this.getter()
+      }
+    }
+    return this.__value
+  }
+
   set(value: T): void {
     // Missing a way of not recursing infinitely.
     const old_value = this.__value;
@@ -1221,10 +1242,12 @@ export class CombineObservable<A extends any[]> extends VirtualObservable<A> {
   }
 
   setter(nval: A) {
-    for (var i = 0, l = this.__links; i < l.length; i++) {
-      var link = l[i]
-      link.parent.set(nval[link.child_idx])
-    }
+    queue.transaction(() => {
+      for (var i = 0, l = this.__links; i < l.length; i++) {
+        var link = l[i]
+        link.parent.set(nval[link.child_idx])
+      }
+    })
   }
 }
 
@@ -1251,10 +1274,13 @@ export class MergeObservable<A> extends VirtualObservable<A> {
 
   setter(nval: A) {
     // should I do a transaction ?
-    for (var i = 0, k = this.keys, l = this.__links; i < l.length; i++) {
-      var link = l[i]
-      link.parent.set(nval[k[link.child_idx]])
-    }
+    queue.transaction(() => {
+      for (var i = 0, k = this.keys, l = this.__links; i < l.length; i++) {
+        var link = l[i]
+        var key = k[link.child_idx]
+        link.parent.set(nval[key])
+      }
+    })
   }
 }
 
