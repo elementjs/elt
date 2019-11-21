@@ -609,6 +609,8 @@ export class Observable<A> implements ReadonlyObservable<A>, Indexable {
   addChild(ch: ChildObservableLink) {
     if (ch.idx != null) return
     this.__children.add(ch)
+    if (this.idx != null)
+      queue.schedule(ch.child)
     this.checkWatch()
   }
 
