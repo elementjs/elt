@@ -11,7 +11,6 @@ import {
 
 import {
   EmptyAttributes,
-  Renderable,
   Insertable
 } from './types'
 
@@ -25,7 +24,7 @@ import {
 } from './mounting'
 
 
-export function getDOMInsertable(i: Insertable | Insertable[]) {
+export function getDOMInsertable(i: Insertable) {
 
   if (i instanceof Node)
     return i
@@ -153,9 +152,9 @@ export class Displayer extends CommentContainer {
  * Write and update the string value of an observable value into
  * a Text node.
  */
-export function Display(obs: o.RO<Renderable>): Node {
+export function Display(obs: o.RO<Insertable>): Node {
   if (!(obs instanceof o.Observable)) {
-    return getDOMInsertable(obs)
+    return getDOMInsertable(obs as Insertable)
   }
   return instanciate_verb(new Displayer(obs))
 }
@@ -237,7 +236,7 @@ export class Repeater<T> extends Mixin<Comment> {
   protected next_index: number = 0
   protected lst: T[] = []
 
-  protected child_obs: o.PropObservable<T[], T>[] = []
+  protected child_obs: o.Observable<T>[] = []
 
   constructor(
     ob: o.O<T[]>,
@@ -274,7 +273,7 @@ export class Repeater<T> extends Mixin<Comment> {
       return null
 
     // here, we *KNOW* it represents a defined value.
-    var ob = this.obs.p(this.next_index) as o.PropObservable<T[], T>
+    var ob = this.obs.p(this.next_index) as o.Observable<T>
 
     this.child_obs.push(ob)
 
@@ -510,7 +509,7 @@ export function Fragment(attrs: EmptyAttributes, children: DocumentFragment): El
 }
 
 
-export class Switcher<T> extends o.TransformObservable<T, Insertable> {
+export class Switcher<T> extends o.VirtualObservable<[T], Insertable> {
 
   cases: [(T | ((t: T) => any)), (t: o.Observable<T>) => Insertable][] = []
   passthrough: () => Insertable = () => null
