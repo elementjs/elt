@@ -24,15 +24,14 @@ export interface ComponentFn {
 }
 
 
-export type Renderable = string | number | Node | null | undefined
-export type MoreRenderable = Renderable | Renderable[]
+export type Renderable = string | number | Node | null | undefined | Renderable[]
 
 /**
 * The Insertable type is anything that can be appended to the document
 * by the e() function. Anything of the Insertable type can be put
 * in <tag>{insertable}</tag>
 */
-export type Insertable = o.RO<MoreRenderable> | Insertable[]
+export type Insertable = o.RO<Renderable> | Insertable[]
 
 
 /**
