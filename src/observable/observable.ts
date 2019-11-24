@@ -21,12 +21,12 @@ export namespace o {
 
 export type UnregisterFunction = () => void
 
-export type BaseType<T> = T extends ReadonlyObservable<infer U> ? U : T
+export type BaseType<T> = T extends Observable<infer U> ? U : T extends ReadonlyObservable<infer U> ? U : T extends O<infer U> ? U : T extends RO<infer U> ? U : T
 
 export type ObserverFunction<T> = (newval: T, changes: Changes<T>) => void
 
 export type TransfomGetFn<A, B> = (nval: A, oval: A | NoValue, curval: B | NoValue) => B
-export type TransfomSetFn<A, B> = (nval: B, oval: B | NoValue, curval: A) => A | void
+export type TransfomSetFn<A, B> = (nval: B, oval: B | NoValue, curval: A) => A
 
 
 export interface ReadonlyConverter<A, B> {
@@ -371,7 +371,7 @@ export class Observable<A> implements ReadonlyObservable<A>, Indexable {
    * @param fn The callback function
    */
   mutate(fn: (oldvalue: A) => A) {
-    const newval = fn(o.clone(this.__value))
+    const newval = fn(o.clone(this.__watched ? this.__value : this.get()))
     this.set(newval)
   }
 
@@ -490,6 +490,12 @@ export class Observable<A> implements ReadonlyObservable<A>, Indexable {
         old = v
         return curval
       },
+      (newv, old, [curr, conv]) => {
+        if (typeof conv === 'function') return
+        var setter = (conv as Converter<A, B>).set
+        var new_orig = setter(newv, old, curr)
+        return [new_orig, o.NOVALUE] as [A, NoValue]
+      }
     )
   }
 
@@ -597,13 +603,11 @@ export class VirtualObservable<A extends any[], T = A> extends Observable<T> {
 }
 
 
-// export type BaseTypes<T extends[]> = {[K]}
-
 /**
  * Create a virtual observable with modifiers
  */
 export function virtual<T extends any[], R>(deps: {[K in keyof T]: RO<T[K]>}, get: (a: T) => R): ReadonlyObservable<R>
-export function virtual<T extends any[], R>(deps: {[K in keyof T]: RO<T[K]>}, get: (a: T) => R, set: (r: R, old: R | NoValue, last: T) => T | void): Observable<R>
+export function virtual<T extends any[], R>(deps: {[K in keyof T]: RO<T[K]>}, get: (a: T) => R, set: (r: R, old: R | NoValue, last: T) => {[K in keyof T]: T[K] | NoValue} | void): Observable<R>
 export function virtual<T extends any[], R>(deps: {[K in keyof T]: RO<T[K]>}, get: (a: T) => R, set?: (r: R, old: R | NoValue, last: T) => T | void): Observable<R> {
   var virt = new VirtualObservable<T, R>(deps)
   virt.getter = get
@@ -635,7 +639,7 @@ export function merge<T>(obj: {[K in keyof T]: O<T[K]>}): Observable<T> {
 
 // export function prop<T>(obj: O<T>, prop: RO<number | keyof T | Symbol>)
 export function prop<T>(obj: O<T>, prop: RO<number | keyof T | Symbol>) {
-    return virtual([obj, prop as any] as [O<T>, O<keyof T>],
+    return virtual([obj, prop as any] as [Observable<T>, O<keyof T>],
     ([obj, prop]) => obj[prop] as T[keyof T],
     (nval, _, [orig, prop]) => {
       const newo = o.clone(orig)
