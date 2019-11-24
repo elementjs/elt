@@ -175,7 +175,6 @@ export class ConditionalDisplayer<T extends o.ReadonlyObservable<any>> extends D
     protected display_otherwise?: Displayable<T>
   ) {
     super(condition.tf((cond, old, v) => {
-      // console.log(cond)
       if (old !== o.NOVALUE && !!cond === !!old && v !== o.NOVALUE) return v as Insertable
       if (cond) {
         return display(condition as NonNullableObs<T>)
@@ -520,7 +519,7 @@ export class Switcher<T> extends o.VirtualObservable<[T], Insertable> {
     super([obs])
   }
 
-  getter([nval] : [T]) {
+  getter([nval] : [T]): Insertable {
     const cases = this.cases
     for (var c of cases) {
       const val = c[0]
