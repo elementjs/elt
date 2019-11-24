@@ -22,14 +22,27 @@ export namespace tf {
    *
    * @param fn
    */
-  export function array_transform<T>(fn: o.RO<(array: T[]) => number[]>): o.RO<o.Converter<T[], T[]>> {
+  export function array_transform<T>(fn: o.RO<number[] | ((array: T[]) => number[])>): o.RO<o.Converter<T[], T[]>> {
     var indices: number[]
     return o.tf(fn,
-      fn => (list: T[]) => {
-        return [] as T[]
-      },
-
-    )
+      fn => {
+        return {
+          get(list: T[]) {
+            if (Array.isArray(fn))
+              indices = fn
+            else
+              indices = fn(list)
+            return indices.map(i => list[i])
+          },
+          set(newval, _, current) {
+            var res = current.slice()
+            for (var i = 0; i < indices.length; i++) {
+              res[indices[i]] = newval[i]
+            }
+            return res
+          }
+        }
+      })
   }
 
   /**
@@ -39,16 +52,49 @@ export namespace tf {
    * @param stable If false, the array is refiltered for any change in the condition or array.
    *    If true, only refilter if the condition changes, but keep the indices even if the array changes.
    */
-  export function array_filter<T>(condition: o.RO<(item: T) => any>, stable: o.RO<boolean> = false): o.RO<o.Converter<T[], T[]>> {
-
+  export function array_filter<T>(condition: o.RO<(item: T, idx: number, lst: T[]) => any>, stable: o.RO<boolean> = false): o.RO<o.Converter<T[], T[]>> {
+    return array_transform(o.tf(condition, cond => (lst: T[]) => {
+      var res: number[] = []
+      for (var i = 0, l = lst.length; i < l; i++) {
+        if (cond(lst[i], i, lst))
+          res.push(i)
+      }
+      return res
+    }))
   }
 
+  /**
+   *
+   * @param sortfn
+   */
   export function sort<T>(sortfn: o.RO<(a: T, b: T) => 1 | 0 | -1>): o.RO<o.Converter<T[], T[]>> {
-
+    return array_transform(o.tf(sortfn, sortfn => (lst: T[]) => {
+      var res: number[] = new Array(lst.length)
+      for (var i = 0, l = lst.length; i < l; i++)
+        res[i] = i
+      res.sort((a, b) => sortfn(lst[a], lst[b]))
+      return res
+    }))
   }
 
-  export function sort_by<T>(...sorters: o.RO<(a: T) => any>[]): o.RO<o.Converter<T[], T[]>> {
-
+  /**
+   *
+   * @param sorters
+   */
+  export function sort_by<T>(sorters: o.RO<((a: T) => any)[]>): o.RO<o.Converter<T[], T[]>> {
+    return sort(o.tf(sorters,
+      sorters => {
+        return (a: T, b: T): 1 | 0 | -1 => {
+          for (var i = 0, l = sorters.length; i < l; i++) {
+            var _a = sorters[i](a)
+            var _b = sorters[i](b)
+            if (_a < _b) return -1
+            if (_a > _b) return 1
+          }
+          return 0
+        }
+      }
+    ))
   }
 
   /**

@@ -26,7 +26,7 @@ export type BaseType<T> = T extends ReadonlyObservable<infer U> ? U : T
 export type ObserverFunction<T> = (newval: T, changes: Changes<T>) => void
 
 export type TransfomGetFn<A, B> = (nval: A, oval: A | NoValue, curval: B | NoValue) => B
-export type TransfomSetFn<A, B> = (nval: B, oval: B | NoValue, curval: A) => A
+export type TransfomSetFn<A, B> = (nval: B, oval: B | NoValue, curval: A) => A | void
 
 
 export interface ReadonlyConverter<A, B> {
@@ -155,7 +155,7 @@ export class Observer<A> implements ReadonlyObserver<A>, Indexable {
     if (old !== new_value) {
       // only store the old_value if the observer will need it. Useful to not keep
       // useless references in memory.
-      if (this.fn.length > 1) this.old_value = new_value
+      this.old_value = new_value
       this.fn(new_value, new Changes(new_value, old))
     }
   }
@@ -479,8 +479,10 @@ export class Observable<A> implements ReadonlyObservable<A>, Indexable {
    *
    * @param fnget
    */
+  tf<B>(fnget: RO<Converter<A, B>>): Observable<B>
+  tf<B>(fnget: RO<TransfomGetFn<A, B> | ReadonlyConverter<A, B>>): ReadonlyObservable<B>
   tf<B>(fnget: RO<TransfomGetFn<A, B> | ReadonlyConverter<A, B>>): ReadonlyObservable<B> {
-    var old: A = NOVALUE
+      var old: A = NOVALUE
     var curval: B = NOVALUE
     return virtual([this, fnget] as [Observable<A>, RO<TransfomGetFn<A, B> | ReadonlyConverter<A, B>>],
       ([v, fnget]) => {
@@ -488,19 +490,6 @@ export class Observable<A> implements ReadonlyObservable<A>, Indexable {
         old = v
         return curval
       },
-    )
-  }
-
-  convert<B>(converter: Converter<A, B>): Observable<B> {
-    var old: A = NOVALUE
-    var curval: B = NOVALUE
-    return virtual([this, converter] as [Observable<A>, RO<Converter<A, B>>],
-      ([v, {get}]) => {
-        curval = get(v, old, curval)
-        old = v
-        return curval
-      },
-      (newv, old, [curval, {set}]) => [set(newv, old, curval), NOVALUE] as [A, Converter<A, B>]
     )
   }
 
@@ -648,7 +637,11 @@ export function merge<T>(obj: {[K in keyof T]: O<T[K]>}): Observable<T> {
 export function prop<T>(obj: O<T>, prop: RO<number | keyof T | Symbol>) {
     return virtual([obj, prop as any] as [O<T>, O<keyof T>],
     ([obj, prop]) => obj[prop] as T[keyof T],
-    (nval, _, [_2, prop]) => [o.assign(obj, {[prop]: nval}), o.NOVALUE] as [T, keyof T]
+    (nval, _, [orig, prop]) => {
+      const newo = o.clone(orig)
+      newo[prop] = nval
+      return [newo, o.NOVALUE] as [T, keyof T]
+    }
   )
 }
 
@@ -711,11 +704,14 @@ export function prop<T>(obj: O<T>, prop: RO<number | keyof T | Symbol>) {
    *   otherwise.
    */
   export function and(...args: any[]): ReadonlyObservable<boolean> {
-    if (args.length === 1)
-      return o(args[0]).tf(t => !!t)
-    return args.slice(1).reduce((lhs, rhs) =>
-      lhs.and(rhs)
-    , o(args[0]))
+    return virtual(args,
+      (args) => {
+        for (var i = 0, l = args.length; i < l; i++) {
+          if (!args[i]) return false
+        }
+        return true
+      }
+    )
   }
 
 
@@ -726,11 +722,14 @@ export function prop<T>(obj: O<T>, prop: RO<number | keyof T | Symbol>) {
    *   otherwise.
    */
   export function or(...args: any[]): ReadonlyObservable<boolean> {
-    if (args.length === 1)
-      return o(args[0]).tf(t => !!t)
-    return args.slice(1).reduce((lhs, rhs) =>
-      lhs.or(rhs)
-    , o(args[0]))
+    return virtual(args,
+      (args) => {
+        for (var i = 0, l = args.length; i < l; i++) {
+          if (args[i]) return true
+        }
+        return false
+      }
+    )
   }
 
   export type NonReadonly<T> = T extends ReadonlyObservable<any> ? never : T
