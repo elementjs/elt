@@ -33,6 +33,8 @@ export type Renderable = string | number | Node | null | undefined | Renderable[
 */
 export type Insertable = o.RO<Renderable> | Insertable[]
 
+export type Nullable<T> = T | null
+
 
 /**
  * Attributes used on elements that are not actually HTML Elements

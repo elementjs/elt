@@ -1,3 +1,6 @@
+import { Nullable } from '../types'
+import { EACH, IndexableArray, Indexable } from './indexable'
+
 /**
  * Make sure we have an observable.
  * @param arg A MaybeObservable
@@ -150,7 +153,9 @@ export class Observer<A> implements ReadonlyObserver<A>, Indexable {
     const new_value = this.observable.__value
 
     if (old !== new_value) {
-      this.old_value = new_value
+      // only store the old_value if the observer will need it. Useful to not keep
+      // useless references in memory.
+      if (this.fn.length > 1) this.old_value = new_value
       this.fn(new_value, new Changes(new_value, old))
     }
   }
@@ -194,74 +199,6 @@ export type O<A> = Observable<A> | A
 export type RO<A> = ReadonlyObservable<A> | A
 
 
-export type Nullable<T> = T | null
-
-export interface Indexable {
-  idx: number | null
-}
-
-
-export function EACH<T extends Indexable>(_arr: IndexableArray<T>, fn: (arg: T) => void) {
-  for (var i = 0, arr = _arr.arr; i < arr.length; i++) {
-    var item = arr[i]
-    if (item == null) continue
-    fn(item)
-  }
-  _arr.actualize()
-}
-
-export class IndexableArray<T extends Indexable> {
-  arr = [] as Nullable<T>[]
-  real_size = 0
-
-  add(a: T) {
-    const arr = this.arr
-    if (a.idx != null) {
-      // will be put to the end
-      arr[a.idx] = null
-    } else {
-      this.real_size++
-    }
-    a.idx = arr.length
-    arr.push(a)
-  }
-
-  actualize() {
-    const arr = this.arr
-    if (this.real_size !== arr.length) {
-      var newarr = new Array(this.real_size)
-      for (var i = 0, j = 0, l = arr.length; i < l; i++) {
-        var item = arr[i]
-        if (item == null) continue
-        newarr[j] = item
-        item.idx = j
-        j++
-      }
-      this.arr = newarr
-    }
-  }
-
-  delete(a: T) {
-    if (a.idx != null) {
-      this.arr[a.idx] = null
-      a.idx = null
-      this.real_size--
-    }
-  }
-
-  clear() {
-    const a = this.arr
-    for (var i = 0; i < a.length; i++) {
-      var item = a[i]
-      if (item == null) continue
-      item.idx = null
-    }
-    this.arr = []
-    this.real_size = 0
-  }
-}
-
-
 export function EACH_RECURSIVE(obs: Observable<any>, fn: (v: Observable<any>) => void) {
 
   var objs = [] as Observable<any>[]
@@ -296,6 +233,8 @@ export function EACH_RECURSIVE(obs: Observable<any>, fn: (v: Observable<any>) =>
     fn(objs[i])
   }
 }
+
+
 
 export class Queue extends IndexableArray<Observable<any>> {
   transaction_count = 0
@@ -668,6 +607,8 @@ export class VirtualObservable<A extends any[], T = A> extends Observable<T> {
 
 }
 
+
+// export type BaseTypes<T extends[]> = {[K]}
 
 /**
  * Create a virtual observable with modifiers

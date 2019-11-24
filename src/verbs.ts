@@ -514,26 +514,29 @@ export class Switcher<T> extends o.VirtualObservable<[T], Insertable> {
   cases: [(T | ((t: T) => any)), (t: o.Observable<T>) => Insertable][] = []
   passthrough: () => Insertable = () => null
   prev_case: any = null
+  prev: Insertable | o.NoValue
 
   constructor(public obs: o.Observable<T>) {
-    super(obs, (nval, _, prev) => {
-      const cases = this.cases
-      for (var c of cases) {
-        const val = c[0]
-        if (val === nval || (typeof val === 'function' && (val as Function)(nval))) {
-          if (this.prev_case === val) {
-            return prev as Insertable
-          }
-          this.prev_case = val
-          const fn = c[1]
-          return fn(this.obs)
+    super([obs])
+  }
+
+  getter([nval] : [T]) {
+    const cases = this.cases
+    for (var c of cases) {
+      const val = c[0]
+      if (val === nval || (typeof val === 'function' && (val as Function)(nval))) {
+        if (this.prev_case === val) {
+          return this.prev as Insertable
         }
+        this.prev_case = val
+        const fn = c[1]
+        return (this.prev = fn(this.obs))
       }
-      if (this.prev_case === this.passthrough)
-        return prev as Insertable
-      this.prev_case = this.passthrough
-      return this.passthrough ? this.passthrough() : null
-    })
+    }
+    if (this.prev_case === this.passthrough)
+      return this.prev as Insertable
+    this.prev_case = this.passthrough
+    return (this.prev = this.passthrough ? this.passthrough() : null)
   }
 
   Case(value: T | ((t: T) => any), fn: (v: o.Observable<T>) => Insertable): this {
