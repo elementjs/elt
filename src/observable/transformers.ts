@@ -64,7 +64,7 @@ export namespace tf {
   }
 
   /**
-   *
+   * Transforms an array by sorting it. The sort function must return 0 in case of equality.
    * @param sortfn
    */
   export function sort<T>(sortfn: o.RO<(a: T, b: T) => 1 | 0 | -1>): o.RO<o.Converter<T[], T[]>> {
@@ -78,18 +78,32 @@ export namespace tf {
   }
 
   /**
-   *
+   * Sort an array by extractors, given in order of importance.
    * @param sorters
    */
-  export function sort_by<T>(sorters: o.RO<((a: T) => any)[]>): o.RO<o.Converter<T[], T[]>> {
+  export function sort_by<T>(sorters: o.RO<([(a: T) => any, 'desc' | 'asc'] | ((a: T) => any))[]>): o.RO<o.Converter<T[], T[]>> {
     return sort(o.tf(sorters,
-      sorters => {
+      _sorters => {
+        var sorters: ((a: T) => any)[] = []
+        var mult = [] as (1 | -1)[]
+        for (var i = 0, l = _sorters.length; i < l; i++) {
+          var srt = _sorters[i]
+
+          if (Array.isArray(srt)) {
+            mult.push(srt[1] === 'desc' ? -1 : 1)
+            sorters.push(srt[0])
+          } else {
+            mult.push(1)
+            sorters.push(srt)
+          }
+        }
+
         return (a: T, b: T): 1 | 0 | -1 => {
           for (var i = 0, l = sorters.length; i < l; i++) {
             var _a = sorters[i](a)
             var _b = sorters[i](b)
-            if (_a < _b) return -1
-            if (_a > _b) return 1
+            if (_a < _b) return -1 * mult[i] as 1 | -1
+            if (_a > _b) return 1 * mult[i] as 1 | -1
           }
           return 0
         }
