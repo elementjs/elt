@@ -15,10 +15,6 @@ import {
 } from './types'
 
 import {
-  bound
-} from './decorators'
-
-import {
   remove_and_unmount,
   mount,
 } from './mounting'
@@ -415,8 +411,7 @@ export class ScrollRepeater<T> extends Repeater<T> {
 
   }
 
-  @bound
-  onscroll() {
+  onscroll = () => {
     if (!this.parent) return
     this.appendChildren(0)
   }

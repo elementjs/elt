@@ -273,28 +273,3 @@ export class ScrollableMixin extends Mixin<HTMLElement> {
 export function scrollable() {
   return new ScrollableMixin()
 }
-
-
-/**
- * A simple decorator to bind a method to its object instance. Useful for callbacks
- * and event listeners.
- *
- * This is not an 'elt' decorator, but a regular ES decorator, used with @bound
- * before a method definition.
- */
-export function bound(target: any, method_name: string, descriptor: PropertyDescriptor) {
-  var original = descriptor.value
-  var bound_sym = Symbol(`bound-method(${method_name})`)
-
-  return {
-    get() {
-      var _this = this as any
-      if (!_this[bound_sym]) {
-        _this[bound_sym] = function () {
-          return original.apply(_this, arguments)
-        }
-      }
-      return _this[bound_sym]
-    }
-  }
-}
