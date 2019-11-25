@@ -435,7 +435,7 @@ export class Observable<A> implements ReadonlyObservable<A>, Indexable {
     if (ch.idx != null) return
     this.__children.add(ch)
     if (this.idx != null)
-      queue.schedule(ch.child)
+      queue.add(ch.child)
     this.checkWatch()
   }
 
@@ -922,6 +922,10 @@ export function prop<T>(obj: O<T>, prop: RO<number | keyof T | Symbol>) {
 
   export function isValue<T>(t: T | NoValue): t is T {
     return t !== NOVALUE
+  }
+
+  export function tuple<T extends any[]>(...t: T): T {
+    return t
   }
 
   /**
