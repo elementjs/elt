@@ -327,6 +327,12 @@ export abstract class Component<A extends Attrs = Attrs, N extends Element = Ele
 
 
 function _apply_class(node: Element, c: any) {
+  if (Array.isArray(c)) {
+    for (var i = 0, l = c.length; i < l; i++) {
+      _apply_class(node, c[i])
+    }
+    return
+  }
   c = c == null ? null : c.toString()
   if (!c) return
   for (var _ of c.split(/\s+/g))
@@ -334,6 +340,12 @@ function _apply_class(node: Element, c: any) {
 }
 
 function _remove_class(node: Element, c: string) {
+  if (Array.isArray(c)) {
+    for (var i = 0, l = c.length; i < l; i++) {
+      _remove_class(node, c[i])
+    }
+    return
+  }
   c = c == null ? null! : c.toString()
   if (!c) return
   for (var _ of c.split(/\s+/g))
