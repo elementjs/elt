@@ -327,6 +327,17 @@ export class App extends Mixin<Comment>{
   activate(...params: (BlockInstantiator<any> | Object)[]) {
     var data = params.filter(p => typeof p !== 'function')
     var blocks = params.filter(p => typeof p === 'function') as BlockInstantiator[]
+    const active = this.active_blocks.get()
+    var not_present = false
+
+    for (var b of blocks) {
+      if (!active.has(b))
+        not_present = true
+    }
+
+    // do not activate if the active blocks are already activated
+    if (!not_present) return
+
     this.registry.activate(blocks, data)
     this.active_blocks.set(this.registry.active_blocks)
     this.o_views.set(this.registry.getViews())
