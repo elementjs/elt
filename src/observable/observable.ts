@@ -482,18 +482,18 @@ export class Observable<A> implements ReadonlyObservable<A>, Indexable {
   tf<B>(fnget: RO<Converter<A, B>>): Observable<B>
   tf<B>(fnget: RO<TransfomGetFn<A, B> | ReadonlyConverter<A, B>>): ReadonlyObservable<B>
   tf<B>(fnget: RO<TransfomGetFn<A, B> | ReadonlyConverter<A, B>>): ReadonlyObservable<B> {
-      var old: A = NOVALUE
+    var old: A = NOVALUE
     var curval: B = NOVALUE
     return virtual([this, fnget] as [Observable<A>, RO<TransfomGetFn<A, B> | ReadonlyConverter<A, B>>],
       ([v, fnget]) => {
-        curval = (typeof fnget === 'function' ? fnget : fnget.get)(v, old, curval)
+        if (isValue(old) && old === v && isValue(curval)) return curval
+        curval = (typeof fnget === 'function' ? fnget(v, old, curval) : fnget.get(v, old, curval))
         old = v
         return curval
       },
       (newv, old, [curr, conv]) => {
         if (typeof conv === 'function') return
-        var setter = (conv as Converter<A, B>).set
-        var new_orig = setter(newv, old, curr)
+        var new_orig = (conv as Converter<A, B>).set(newv, old, curr)
         return [new_orig, o.NOVALUE] as [A, NoValue]
       }
     )
@@ -571,6 +571,10 @@ export class VirtualObservable<A extends any[], T = A> extends Observable<T> {
   }
 
   set(value: T): void {
+    // Do not trigger the set chain if the value did not change.
+    if (!this.__watched) this.__value = this.getter(this.__parents_values)
+    if (value === this.__value) return
+
     const old_value = this.__value
     const res = this.setter(value, old_value, this.__parents_values)
     if (res == undefined) return
