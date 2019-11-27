@@ -483,12 +483,14 @@ export class Observable<A> implements ReadonlyObservable<A>, Indexable {
   tf<B>(fnget: RO<TransfomGetFn<A, B> | ReadonlyConverter<A, B>>): ReadonlyObservable<B>
   tf<B>(fnget: RO<TransfomGetFn<A, B> | ReadonlyConverter<A, B>>): ReadonlyObservable<B> {
     var old: A = NOVALUE
+    var old_fnget: any = NOVALUE
     var curval: B = NOVALUE
     return virtual([this, fnget] as [Observable<A>, RO<TransfomGetFn<A, B> | ReadonlyConverter<A, B>>],
       ([v, fnget]) => {
-        if (isValue(old) && old === v && isValue(curval)) return curval
+        if (isValue(old) && isValue(old_fnget) && old === v && old_fnget === fnget && isValue(curval)) return curval
         curval = (typeof fnget === 'function' ? fnget(v, old, curval) : fnget.get(v, old, curval))
         old = v
+        old_fnget = fnget
         return curval
       },
       (newv, old, [curr, conv]) => {
