@@ -335,8 +335,12 @@ function _apply_class(node: Element, c: any) {
   }
   c = c == null ? null : c.toString()
   if (!c) return
-  for (var _ of c.split(/\s+/g))
-    if (_) node.classList.add(_)
+  var is_svg = node instanceof SVGElement
+  if (is_svg) {
+    for (var _ of c.split(/\s+/g))
+      if (_) node.classList.add(_)
+  } else
+    node.className += ' ' + c
 }
 
 function _remove_class(node: Element, c: string) {
@@ -348,6 +352,15 @@ function _remove_class(node: Element, c: string) {
   }
   c = c == null ? null! : c.toString()
   if (!c) return
+  var is_svg = node instanceof SVGElement
+  var name = node.className
   for (var _ of c.split(/\s+/g))
-    if (_) node.classList.remove(_)
+    if (_) {
+      if (is_svg)
+        node.classList.remove(_)
+      else
+        name = name.replace(' ' + _, '')
+    }
+  if (!is_svg)
+    node.setAttribute('class', name)
 }
