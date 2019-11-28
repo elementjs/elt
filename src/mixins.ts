@@ -277,14 +277,18 @@ export class Mixin<N extends Node = Node> extends o.ObserverGroup {
     if (style instanceof o.Observable) {
       this.observe(style, st => {
         const ns = this.node.style
-        for (var x in st) {
+        var props = Object.keys(st)
+        for (var i = 0, l = props.length; i < l; i++) {
+          var x = props[i]
           ns.setProperty(x.replace(/[A-Z]/g, m => '-' + m.toLowerCase()), st[x])
         }
       })
     } else {
       // c is a MaybeObservableObject
       var st = style as any
-      for (let x in st) {
+      var props = Object.keys(st)
+      for (var i = 0, l = props.length; i < l; i++) {
+        var x = props[i]
         this.observe(st[x], value => {
           this.node.style.setProperty(x.replace(/[A-Z]/g, m => '-' + m.toLowerCase()), value)
         })
@@ -303,7 +307,9 @@ export class Mixin<N extends Node = Node> extends o.ObserverGroup {
     } else {
       var ob = c as {[name: string]: o.RO<any>}
       // c is a MaybeObservableObject
-      for (let x in ob) {
+      var props = Object.keys(ob)
+      for (var i = 0, l = props.length; i < l; i++) {
+        var x = props[i]
         this.observe(ob[x], applied => applied ? _apply_class(this.node, x) : _remove_class(this.node, x))
       }
     }
