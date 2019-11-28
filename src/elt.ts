@@ -130,7 +130,7 @@ export function e(elt: string, attrs: Attrs | null, ...children: Insertable[]): 
 export function e<A>(elt: ComponentInstanciator<A>, attrs: A | null, ...children: Insertable[]): Element
 export function e(elt: any, _attrs: Attrs | null, ...children: Insertable[]): Element {
 
-  if (!elt) throw new Error(`d() needs at least a string, a function or a Component`)
+  if (!elt) throw new Error(`e() needs at least a string, a function or a Component`)
 
   let node: Element = null! // just to prevent the warnings later
 
@@ -173,7 +173,9 @@ export function e(elt: any, _attrs: Attrs | null, ...children: Insertable[]): El
   // we're not adding it to the node until we know that it would observe it.
   (mx.node as any) = node as HTMLElement
 
-  for (var key in attrs) {
+  var keys = Object.keys(attrs)
+  for (var i = 0, l = keys.length; i < l; i++) {
+    var key = keys[i]
     if (key === 'class') {
       var _cls = attrs.class!
       if (!Array.isArray(_cls)) mx.observeClass(_cls)
@@ -196,9 +198,13 @@ export function e(elt: any, _attrs: Attrs | null, ...children: Insertable[]): El
   // decorators are run now.
   var $$ = attrs.$$
   if ($$) {
-    var mixins = Array.isArray($$) ? $$ : [$$]
-    for (var d of mixins) {
-      d.addToNode(node)
+    if (Array.isArray($$)) {
+      for (var i = 0, l = $$.length; i < l; i++) {
+        var d = $$[i]
+        d.addToNode(node)
+      }
+    } else {
+      $$.addToNode(node)
     }
   }
 
