@@ -127,7 +127,19 @@ export function bind(obs: o.Observable<string>) {
 }
 
 
-export class ObserveMixin extends Mixin { }
+export class ObserveMixin extends Mixin {
+  debounce(ms: number, leading?: boolean) {
+    for (var i = 0, ob = this.observers, l = ob.length; i < l; i++)
+      ob[i].debounce(ms, leading)
+    return this
+  }
+
+  throttle(ms: number, leading?: boolean) {
+    for (var i = 0, ob = this.observers, l = ob.length; i < l; i++)
+      ob[i].throttle(ms, leading)
+    return this
+  }
+}
 
 
 /**
