@@ -182,6 +182,16 @@ export class Observer<A> implements ReadonlyObserver, Indexable {
   stopObserving() {
     this.observable.removeObserver(this)
   }
+
+  debounce(ms: number, leading?: boolean) {
+    this.refresh = o.debounce(this.refresh.bind(this), ms, leading)
+    return this
+  }
+
+  throttle(ms: number, leading?: boolean) {
+    this.refresh = o.throttle(this.refresh.bind(this), ms, leading)
+    return this
+  }
 }
 
 

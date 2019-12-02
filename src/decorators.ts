@@ -154,7 +154,7 @@ export function observe<T>(a: any, cbk?: any) {
  * ```
  */
 export function on<K extends (keyof DocumentEventMap)[]>(name: K, listener: Listener<DocumentEventMap[K[number]]>, useCapture?: boolean): Mixin
- export function on<K extends keyof DocumentEventMap>(event: K, listener: Listener<DocumentEventMap[K]>, useCapture?: boolean): Mixin
+export function on<K extends keyof DocumentEventMap>(event: K, listener: Listener<DocumentEventMap[K]>, useCapture?: boolean): Mixin
 export function on(event: string | string[], listener: Listener<Event>, useCapture?: boolean): Mixin
 export function on<E extends Event>(event: string | string[], _listener: Listener<E>, useCapture = false) {
   var m = new OnMixin(event, _listener, useCapture)
