@@ -7,21 +7,45 @@ import { EACH, IndexableArray, Indexable } from './indexable'
  * @returns The original observable if `arg` already was one, or a new
  *   Observable holding the value of `arg` if it wasn't.
  */
-export function o<T>(arg: o.O<T>): o.Observable<T>
-export function o<T>(arg: o.RO<T>): o.ReadonlyObservable<T>
-export function o<T>(arg: o.O<T> | undefined): o.Observable<T | undefined>
-export function o<T>(arg: o.RO<T> | undefined): o.ReadonlyObservable<T | undefined>
-export function o(arg: any): any {
-  return arg instanceof o.Observable ? arg : new o.Observable(arg)
+export function o<T>(arg: T): o.Observablify<T> {
+  return arg instanceof o.Observable ? arg as any : new o.Observable(arg)
 }
-
 
 export namespace o {
 
-
-export type UnregisterFunction = () => void
+export type AnyExtendsReadonlyObservable<T> = T extends ReadonlyObservable<any> ? true : never
 
 export type BaseType<T> = T extends Observable<infer U> ? U : T extends ReadonlyObservable<infer U> ? U : T extends O<infer U> ? U : T extends RO<infer U> ? U : T
+
+/**
+ * A helper type that gives the correct Observable vs. ReadonlyObservable type based on
+ * the provided argument's type when using the o() function.
+ *
+ * Its purpose is to give back an observable type that is *safe* to use given the arguments - as in, safe to use
+ * to create transformers and observers.
+ *
+ * If the argument has nothing to do with an observable, then the result will be a modifiable Observable.
+ *
+ * If the argument contains several Observable types and those types are not compatible, the result is
+ * a ReadonlyObservable of the union.
+ *
+ * If the argument is an Observable, then just give it back.
+ *
+ * If it is a combination of observables / readonlyobservables / values, then the result is a readonly
+ * observable of the union of the base types.
+ */
+export type Observablify<T> =
+  // if the argument is all Observable, we'll have to check that their basetypes are compatible.
+  [T] extends [Observable<any>] ?
+    T
+  :
+    // when there is a mix of different observables, then we have a readonlyobservable of the combination of the types
+    [true] extends [AnyExtendsReadonlyObservable<T>] ?
+      ReadonlyObservable<BaseType<T>>
+      // if there were NO observables involved, then we obtain just a modifiable observable of the provided types.
+      : Observable<T>
+
+
 
 export type ObserverFunction<T> = (newval: T, changes: Changes<T>) => void
 
@@ -38,8 +62,6 @@ export interface Converter<A, B> extends ReadonlyConverter<A, B> {
 }
 
 
-export type ArrayTransformer<A> = number[] | ((lst: A[]) => number[])
-
 export type AssignPartial<T> = {
   // Definition that I would like :
   [P in keyof T]?:
@@ -47,9 +69,6 @@ export type AssignPartial<T> = {
     T[P] extends object ? T[P] | AssignPartial<T[P]> :
     T[P]
 }
-
-export type SortExtractor<T> = keyof T | ((a: T) => any)
-export type Sorter<T> = SortExtractor<T> | { extract: SortExtractor<T>, reverse: true }
 
 
 export interface ReadonlyObserver<A> {
