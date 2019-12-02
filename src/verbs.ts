@@ -234,7 +234,7 @@ export class Repeater<T> extends Mixin<Comment> {
   protected child_obs: o.Observable<T>[] = []
 
   constructor(
-    ob: o.O<T[]>,
+    ob: o.Observable<T[]>,
     public renderfn: RenderFn<T>,
     public separator?: SeparatorFn
   ) {
@@ -335,7 +335,7 @@ export class ScrollRepeater<T> extends Repeater<T> {
   protected parent: HTMLElement|null = null
 
   constructor(
-    ob: o.O<T[]>,
+    ob: o.Observable<T[]>,
     renderfn: RenderFn<T>,
     public scroll_buffer_size: number = 10,
     public threshold_height: number = 500,
