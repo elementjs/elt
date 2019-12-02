@@ -71,7 +71,8 @@ export interface ReadonlyObserver {
   startObserving(): void
   stopObserving(): void
   refresh(): void
-  // observable: ReadonlyObservable<A>
+  debounce(ms: number, leading?: boolean): this
+  throttle(ms: number, leading?: boolean): this
 }
 
 // export type MaybeObservableObject<T> = { [P in keyof T]:  O<T[P]>}
