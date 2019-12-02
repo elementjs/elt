@@ -7,7 +7,14 @@ import { EACH, IndexableArray, Indexable } from './indexable'
  * @returns The original observable if `arg` already was one, or a new
  *   Observable holding the value of `arg` if it wasn't.
  */
-export function o<T>(arg: T): o.Observablify<T> {
+export function o<T>(arg: T): [T] extends [o.Observable<any>] ?
+      T
+    :
+    // when there is a mix of different observables, then we have a readonlyobservable of the combination of the types
+    [true] extends [o.AnyExtendsReadonlyObservable<T>] ?
+      o.ReadonlyObservable<o.BaseType<T>>
+      // if there were NO observables involved, then we obtain just a modifiable observable of the provided types.
+  : o.Observable<T> {
   return arg instanceof o.Observable ? arg as any : new o.Observable(arg)
 }
 
@@ -15,8 +22,7 @@ export namespace o {
 
 export type AnyExtendsReadonlyObservable<T> = T extends ReadonlyObservable<any> ? true : never
 
-export type BaseType<T> = T extends Observable<infer U> ? U : T extends ReadonlyObservable<infer U> ? U : T extends O<infer U> ? U : T extends RO<infer U> ? U : T
-
+export type BaseType<T> = T extends ReadonlyObservable<infer U> ? U : T
 /**
  * A helper type that gives the correct Observable vs. ReadonlyObservable type based on
  * the provided argument's type when using the o() function.
@@ -34,16 +40,6 @@ export type BaseType<T> = T extends Observable<infer U> ? U : T extends Readonly
  * If it is a combination of observables / readonlyobservables / values, then the result is a readonly
  * observable of the union of the base types.
  */
-export type Observablify<T> =
-  // if the argument is all Observable, we'll have to check that their basetypes are compatible.
-  [T] extends [Observable<any>] ?
-    T
-  :
-    // when there is a mix of different observables, then we have a readonlyobservable of the combination of the types
-    [true] extends [AnyExtendsReadonlyObservable<T>] ?
-      ReadonlyObservable<BaseType<T>>
-      // if there were NO observables involved, then we obtain just a modifiable observable of the provided types.
-      : Observable<T>
 
 
 
@@ -71,14 +67,14 @@ export type AssignPartial<T> = {
 }
 
 
-export interface ReadonlyObserver<A> {
+export interface ReadonlyObserver {
   startObserving(): void
   stopObserving(): void
   refresh(): void
   // observable: ReadonlyObservable<A>
 }
 
-export type MaybeObservableObject<T> = { [P in keyof T]:  O<T[P]>}
+// export type MaybeObservableObject<T> = { [P in keyof T]:  O<T[P]>}
 export type MaybeObservableReadonlyObject<T> = { [P in keyof T]:  RO<T[P]>}
 
 
@@ -160,7 +156,7 @@ export class Changes<A> {
 }
 
 
-export class Observer<A> implements ReadonlyObserver<A>, Indexable {
+export class Observer<A> implements ReadonlyObserver, Indexable {
 
   protected old_value: A = NOVALUE
   idx = null
@@ -192,10 +188,10 @@ export class Observer<A> implements ReadonlyObserver<A>, Indexable {
 export interface ReadonlyObservable<A> {
   get(): A
   stopObservers(): void
-  createObserver(fn: ObserverFunction<A>): ReadonlyObserver<A>
-  addObserver(fn: ObserverFunction<A>): ReadonlyObserver<A>
-  addObserver(obs: ReadonlyObserver<A>): ReadonlyObserver<A>
-  removeObserver(ob: ReadonlyObserver<A>): void
+  createObserver(fn: ObserverFunction<A>): ReadonlyObserver
+  addObserver(fn: ObserverFunction<A>): ReadonlyObserver
+  addObserver(obs: ReadonlyObserver): ReadonlyObserver
+  removeObserver(ob: ReadonlyObserver): void
 
   tf<B>(fnget: RO<TransfomGetFn<A, B> | ReadonlyConverter<A, B>>): ReadonlyObservable<B>
 
@@ -214,7 +210,7 @@ export interface ReadonlyPropObservable<A, B> extends ReadonlyObservable<B> {
 }
 
 
-export type O<A> = Observable<A> | A
+// export type O<A> = Observable<A> | A
 export type RO<A> = ReadonlyObservable<A> | A
 
 
@@ -648,11 +644,11 @@ export function virtual<T extends any[], R>(deps: {[K in keyof T]: RO<T[K]>}, ge
  * @returns An observable which properties are the ones given in `obj` and values
  *   are the resolved values of their respective observables.
  */
-export function merge<T>(obj: {[K in keyof T]: O<T[K]>}): Observable<T>
+export function merge<T>(obj: {[K in keyof T]: Observable<T[K]> | T[K]}): Observable<T>
 export function merge<T>(obj: {[K in keyof T]: RO<T[K]>}): ReadonlyObservable<T>
-export function merge<T>(obj: {[K in keyof T]: O<T[K]>}): Observable<T> {
+export function merge<T>(obj: {[K in keyof T]: Observable<T[K]>}): Observable<T> {
   const keys = Object.keys(obj) as (keyof T)[]
-  const parents: O<T[keyof T]>[] = keys.map(k => obj[k])
+  const parents: RO<T[keyof T]>[] = keys.map(k => obj[k])
   return virtual(parents, args => {
     var res = {} as {[K in keyof T]: T[K]}
     for (var i = 0; i < keys.length; i++) {
@@ -663,8 +659,8 @@ export function merge<T>(obj: {[K in keyof T]: O<T[K]>}): Observable<T> {
 }
 
 // export function prop<T>(obj: O<T>, prop: RO<number | keyof T | Symbol>)
-export function prop<T>(obj: O<T>, prop: RO<number | keyof T | Symbol>) {
-    return virtual([obj, prop as any] as [Observable<T>, O<keyof T>],
+export function prop<T>(obj: Observable<T> | T, prop: RO<number | keyof T | Symbol>) {
+    return virtual([obj, prop as any] as [Observable<T>, RO<keyof T>],
     ([obj, prop]) => obj[prop] as T[keyof T],
     (nval, _, [orig, prop]) => {
       const newo = o.clone(orig)
@@ -716,7 +712,7 @@ export function prop<T>(obj: O<T>, prop: RO<number | keyof T | Symbol>) {
    * @param mobs: The maybe observable
    * @param key: The key to watch
    */
-  export function p<A, K extends keyof A>(mobs: O<A>, key: K): O<A[K]>
+  export function p<A, K extends keyof A>(mobs: Observable<A>, key: K): Observable<A[K]>
   export function p<A, K extends keyof A>(mobs: RO<A>, key: K): RO<A[K]>
   export function p<A, K extends keyof A>(mobs: RO<A>, key: K): RO<A[K]> {
     if (mobs instanceof Observable) {
@@ -1040,7 +1036,7 @@ export function prop<T>(obj: O<T>, prop: RO<number | keyof T | Symbol>) {
    */
   export class ObserverGroup {
 
-    observers: o.ReadonlyObserver<any>[] = []
+    observers: o.ReadonlyObserver[] = []
     live = false
 
     startObservers() {
@@ -1058,11 +1054,9 @@ export function prop<T>(obj: O<T>, prop: RO<number | keyof T | Symbol>) {
     /**
      * Observe and Observable and return the observer that was created
      */
-    observe<A>(obs: o.ReadonlyObservable<A>, fn: ObserverFunction<A>): ReadonlyObserver<A>
-    observe<A>(obs: o.RO<A>, fn: ObserverFunction<A>): ReadonlyObserver<A> | null
-    observe<A>(obs: o.RO<A>, fn: ObserverFunction<A>) {
+    observe<A>(obs: A, fn: ObserverFunction<BaseType<A>>): ReadonlyObserver | null {
       if (!(obs instanceof Observable)) {
-        fn(obs as A, new Changes(obs as A))
+        fn(obs as BaseType<A>, new Changes(obs as BaseType<A>))
         return null
       }
 
@@ -1073,7 +1067,7 @@ export function prop<T>(obj: O<T>, prop: RO<number | keyof T | Symbol>) {
     /**
      * Add an observer to the observers array
      */
-    addObserver<A>(observer: ReadonlyObserver<A>) : ReadonlyObserver<A> {
+    addObserver(observer: ReadonlyObserver) : ReadonlyObserver {
       this.observers.push(observer)
 
       if (this.live)
@@ -1085,7 +1079,7 @@ export function prop<T>(obj: O<T>, prop: RO<number | keyof T | Symbol>) {
     /**
      * Remove the observer from this group
      */
-    remove(observer: ReadonlyObserver<any>) {
+    remove(observer: ReadonlyObserver) {
       const idx = this.observers.indexOf(observer)
       if (idx > -1) {
         if (this.live) observer.stopObserving()
