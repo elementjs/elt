@@ -261,7 +261,7 @@ export class Mixin<N extends Node = Node> extends o.ObserverGroup {
   /**
    *
    */
-  observeAttribute<N extends Element>(this: Mixin<N>, name: string, value: o.O<any>) {
+  observeAttribute<N extends Element>(this: Mixin<N>, name: string, value: o.RO<any>) {
     this.observe(value, val => {
       if (val === true)
       this.node.setAttribute(name, '')
