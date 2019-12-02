@@ -133,7 +133,7 @@ export class ObserveMixin extends Mixin { }
 /**
  * Observe an observable and tie the observation to the node this is added to
  */
-export function observe<T>(a: o.ReadonlyObserver): ObserveMixin
+export function observe(a: o.ReadonlyObserver): ObserveMixin
 export function observe<T>(a: T, cbk: (newval: o.BaseType<T>, changes: o.Changes<o.BaseType<T>>, node: Node) => void): ObserveMixin
 export function observe<T>(a: any, cbk?: any) {
   var m = new ObserveMixin()
