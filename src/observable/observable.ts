@@ -816,48 +816,6 @@ export function prop<T>(obj: Observable<T> | T, prop: RO<number | keyof T | Symb
   }
 
   /**
-   * Naïve implementation of Array.prototype.map, as it does a lot of unnecessary checks.
-   * @param arr The original array
-   * @param fn The function to apply on this array
-   * @returns A new array with the mapped value
-   */
-  export function map<T, U>(arr: T[], fn: (item: T, index: number, arr: T[]) => U) {
-    var len = arr.length
-    var res: U[] = new Array<U>(len)
-    for (var i = 0; i < len; i++)
-      res[i] = fn(arr[i], i, arr)
-    return res
-  }
-
-  /**
-   * Naïve implementation of Array.prorotype.filter that avoids unnecessary checks.
-   * @param arr The original array
-   * @param fn The filter function
-   * @returns A new array with the filtered object.
-   */
-  export function filter<T>(arr: T[], fn: (item: T, index: number, arr: T[]) => boolean): T[] {
-    var res: T[] = []
-    var len = arr.length
-    for (var i = 0; i < len; i++) {
-      var item = arr[i]
-      if (fn(item, i, arr))
-        res.push(item)
-    }
-    return res
-  }
-
-  /**
-   * Naïve implementation of foreach that does no unnecessary checks.
-   * @param arr The array
-   * @param fn The function to apply
-   */
-  export function foreach<T>(arr: T[], fn: (item: T, index: number, arr: T[]) => void): void {
-    var l = arr.length
-    for (var i = 0; i < l; i++)
-      fn(arr[i], i, arr)
-  }
-
-  /**
    *
    */
   export function debounce(ms: number, leading?: boolean): (target: any, key: string, desc: PropertyDescriptor) => void
