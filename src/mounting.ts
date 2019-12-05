@@ -118,4 +118,6 @@ export function insert_before_and_mount(parent: Node, node: Node, refchild: Node
  * Alias for insert_before_and_mount
  * @category mounting
  */
-export const append_child_and_mount = insert_before_and_mount as (parent: Node, child: Node) => void
+export function append_child_and_mount(parent: Node, child: Node) {
+  insert_before_and_mount(parent, child)
+}

@@ -171,6 +171,7 @@ export class Displayer extends CommentContainer {
 /**
  * Write and update the string value of an observable value into
  * a Text node.
+ * @category verb
  */
 export function Display(obs: o.RO<Insertable>): Node {
   if (!(obs instanceof o.Observable)) {
@@ -217,9 +218,9 @@ export class ConditionalDisplayer<T extends o.ReadonlyObservable<any>> extends D
 
 
 /**
- *
+ * @category verb
  */
-export function DisplayIf<T extends o.RO<any>>(
+export function If<T extends o.RO<any>>(
   condition: T,
   display: Displayable<NonNullableObs<T>>,
   display_otherwise?: Displayable<T>
@@ -235,9 +236,6 @@ export function DisplayIf<T extends o.RO<any>>(
 
   return new ConditionalDisplayer<any>(display, condition, display_otherwise).render()
 }
-
-
-export const If = DisplayIf
 
 
 /**
@@ -474,6 +472,7 @@ export class ScrollRepeater<T> extends Repeater<T> {
  * @param render The render function that will be called for
  * @returns a Comment node with the Repeater controller bound
  *  on it.
+ * @category verb
  */
 export function Repeat<T extends o.RO<any[]>>(
   ob: T,
@@ -495,7 +494,14 @@ export function Repeat<T extends o.RO<any[]>>(
   return new Repeater(ob, render as any, separator).render()
 }
 
-
+/**
+ *
+ * @param ob
+ * @param render
+ * @param separator
+ * @param scroll_buffer_size
+ * @category verb
+ */
 export function RepeatScroll<T>(ob: T[], render: ReadonlyRenderFn<T>, separator?: SeparatorFn, scroll_buffer_size?: number): Node;
 export function RepeatScroll<T>(ob: o.Observable<T[]>, render: RenderFn<T> , separator?: SeparatorFn, scroll_buffer_size?: number): Node;
 export function RepeatScroll<T>(ob: o.ReadonlyObservable<T[]>, render: ReadonlyRenderFn<T>, separator?: SeparatorFn, scroll_buffer_size?: number): Node;
@@ -532,6 +538,7 @@ export class FragmentHolder extends CommentContainer {
  *  Beware that because of typescript's imprecisions with the JSX namespace,
  *  we had to tell this function that it returns an HTMLElement while this
  *  completely false !
+ * @category verb
  */
 export function Fragment(attrs: EmptyAttributes, children: DocumentFragment): Element {
   // This is a trick ! It is not actually an element !
@@ -593,6 +600,11 @@ export interface ReadonlySwitcher<T> extends o.ReadonlyObservable<Insertable> {
 }
 
 
+/**
+ * Perform a Switch statement
+ * @param obs The observable switched on
+ * @category verb
+ */
 export function Switch<T>(obs: o.Observable<T>): Switcher<T>
 export function Switch<T>(obs: o.ReadonlyObservable<T>): ReadonlySwitcher<T>
 export function Switch<T>(obs: o.ReadonlyObservable<T>): ReadonlySwitcher<T> {
