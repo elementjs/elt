@@ -9,7 +9,7 @@
   "jsnext:main": "./module/index.js",
   "typings": "./dist/elt.d.ts",
   "scripts": {
-    "build:dts": "dts-bundle --name elt --main module/index.d.ts --out ../dist/elt.d.ts && sed -i 's/^global/declare global/' ./module/elt.d.ts",
+    "build:dts": "dts-bundle-generator --inline-declare-global --umd-module-name elt module/index.d.ts -o dist/elt.d.ts",
     "build:js": "tsc ; rollup -c",
     "build": "npm run build:js && npm run build:dts",
     "prepublish": "npm run build",
@@ -21,12 +21,11 @@
     "chai": "^4.2.0",
     "chokidar-cli": "^1.2.0",
     "concurrently": "^3.5.0",
-    "dts-bundle": "^0.7.3",
+    "dts-bundle-generator": "^3.3.1",
     "mocha": "^6.2.2",
     "rollup": "1.26.5",
     "rollup-plugin-node-resolve": "^3.3.0",
     "tslib": "^1.8.0"
   },
-  "dependencies": {
-  }
+  "dependencies": {}
 }
