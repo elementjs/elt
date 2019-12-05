@@ -999,6 +999,25 @@ export function prop<T>(obj: Observable<T> | T, prop: RO<number | keyof T | Symb
   }
 
   /**
+   * Returns a function that accepts a callback. While this callback is running, all calls
+   * to the returned locks will not launch.
+   *
+   * This helper is to be used when have observables which set each other's value in observers,
+   * which could end up in an infinite loop.
+   *
+   * @returns a function that accepts a callback
+   */
+  export function exclusive_lock() {
+    var locked = false
+    return function exclusive_lock(fn: () => void) {
+      if (locked) return
+      locked = true
+      fn()
+      locked = false
+    }
+  }
+
+  /**
    * A group of observers that can be started and stopped at the same time.
    * This class is meant to be used for components such as Mixin that want
    * to tie observing to their life cycle.
