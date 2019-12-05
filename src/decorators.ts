@@ -108,9 +108,7 @@ export class BindMixin extends Mixin<HTMLInputElement> {
       // case 'search':
       default:
         this.observe(obs, fromObservable)
-        this.listen('keyup', fromEvent)
-        this.listen('input', fromEvent)
-        this.listen('change', fromEvent)
+        this.listen(['keyup', 'input', 'change'], fromEvent)
     }
 
   }
