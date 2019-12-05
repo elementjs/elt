@@ -4,6 +4,7 @@ import {getMixins} from './mixins'
 
 /**
  * Call controllers' mount() functions.
+ * @category mounting
  */
 export function mount(node: Node) {
   var mx = getMixins(node)
@@ -16,7 +17,7 @@ export function mount(node: Node) {
 /**
  * Apply unmount to a node.
  */
-export function _apply_unmount(node: Node) {
+function _apply_unmount(node: Node) {
   var mx = getMixins(node)
   if (!mx) return
   for (var m of mx) m.unmount(node)
@@ -24,6 +25,7 @@ export function _apply_unmount(node: Node) {
 
 /**
  * Call controller's unmount functions recursively
+ * @category mounting
  */
 export function unmount(node: Node) {
 
@@ -78,6 +80,7 @@ export function unmount(node: Node) {
  * parent.removeChild() when possible.
  *
  * @param node The node to remove from the DOM
+ * @category mounting
  */
 export function remove_and_unmount(node: Node): void {
   const parent = node.parentNode!
@@ -101,6 +104,7 @@ export function remove_and_unmount(node: Node): void {
  * @param parent
  * @param node
  * @param refchild
+ * @category mounting
  */
 export function insert_before_and_mount(parent: Node, node: Node, refchild: Node | null = null) {
   var df = document.createDocumentFragment()
@@ -112,5 +116,6 @@ export function insert_before_and_mount(parent: Node, node: Node, refchild: Node
 
 /**
  * Alias for insert_before_and_mount
+ * @category mounting
  */
 export const append_child_and_mount = insert_before_and_mount as (parent: Node, child: Node) => void

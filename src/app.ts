@@ -4,15 +4,9 @@ import { Mixin } from './mixins'
 import { o } from './observable'
 
 
-export type FilterFlags<Base, Condition> = {
-  [Key in keyof Base]:
-      Base[Key] extends Condition ? Key : never
-};
-
-export type AllowedNames<Base, Condition> =
-      FilterFlags<Base, Condition>[keyof Base];
-
-
+/**
+ * @hidden
+ */
 export interface BlockInstantiator<B extends Block = Block> {
   new(app: App): B
 }

@@ -19,7 +19,8 @@ import { mount } from './mounting'
 
 
 /**
- * Private mixin used by the d() function when binding on
+ * Private mixin used by the e() function when watching style, classes and other attributes.
+ * @hidden
  */
 export class AttrsMixin extends Mixin<HTMLElement> { }
 
@@ -27,6 +28,11 @@ export class AttrsMixin extends Mixin<HTMLElement> { }
 ////////////////////////////////////////////////////////
 
 
+/**
+ * get the children of a node in an array
+ * @param node the node
+ * @hidden
+ */
 export function getChildren(node: Node): Node[] {
   const result: Node[] = []
   let iter = node.firstChild
@@ -104,6 +110,7 @@ function isComponent(kls: any): kls is new (attrs: Attrs) => Component<any> {
   return kls.prototype instanceof Component
 }
 
+/** @hidden */
 export const GLOBAL_ATTRIBUTES = {
   accesskey: true,
   contenteditable: true,

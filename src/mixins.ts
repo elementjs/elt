@@ -22,6 +22,7 @@ const mxsym = Symbol('element-mixins')
 /**
  * Get an array of all the mixins associated with that node.
  * @param node The node that holds the mixins
+ * @hidden
  */
 export function getMixins<N extends Node>(node: N): Mixin<N>[] | undefined
 export function getMixins(node: any): Mixin[] | undefined {
@@ -33,6 +34,7 @@ export function getMixins(node: any): Mixin[] | undefined {
  * Add a mixin to the array of mixins associated with that node.
  * @param node The node the mixin will be added to
  * @param mixin The mixin to add
+ * @hidden
  */
 export function addMixin<N extends Node>(node: N, mixin: Mixin<N>): void
 export function addMixin(node: any, mixin: Mixin) {
@@ -49,6 +51,7 @@ export function addMixin(node: any, mixin: Mixin) {
  * Remove a Mixin from the array of mixins associated with this Node.
  * @param node The node the mixin will be removed from
  * @param mixin The mixin object we want to remove
+ * @hidden
  */
 export function removeMixin<N extends Node>(node: N, mixin: Mixin<N>): void
 export function removeMixin(node: any, mixin: Mixin): void {

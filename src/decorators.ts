@@ -12,6 +12,10 @@ import {
 } from './mixins'
 
 
+/**
+ * An internal mixin used by the `bind()` decorator.
+ * @hidden
+ */
 export class BindMixin extends Mixin<HTMLInputElement> {
 
   obs: o.Observable<string>
@@ -120,11 +124,20 @@ export class BindMixin extends Mixin<HTMLInputElement> {
 }
 
 
+/**
+ * Bind an observable to an input
+ * @param obs The observer bound to the input
+ * @category decorator
+ */
 export function bind(obs: o.Observable<string>) {
   return new BindMixin(obs)
 }
 
 
+/**
+ * An internal mixin created only by the `observe()` decorator.
+ * @hidden
+ */
 export class ObserveMixin extends Mixin {
   debounce(ms: number, leading?: boolean) {
     for (var i = 0, ob = this.observers, l = ob.length; i < l; i++)
@@ -142,6 +155,7 @@ export class ObserveMixin extends Mixin {
 
 /**
  * Observe an observable and tie the observation to the node this is added to
+ * @category decorator
  */
 export function observe(a: o.ReadonlyObserver): ObserveMixin
 export function observe<T>(a: T, cbk: (newval: o.BaseType<T>, changes: o.Changes<o.BaseType<T>>, node: Node) => void): ObserveMixin
@@ -162,6 +176,7 @@ export function observe<T>(a: any, cbk?: any) {
  * ```jsx
  *   <div $$={on('create', ev => ev.target...)}
  * ```
+ * @category decorator
  */
 export function on<K extends (keyof DocumentEventMap)[]>(name: K, listener: Listener<DocumentEventMap[K[number]]>, useCapture?: boolean): Mixin
 export function on<K extends keyof DocumentEventMap>(event: K, listener: Listener<DocumentEventMap[K]>, useCapture?: boolean): Mixin
@@ -171,6 +186,10 @@ export function on<E extends Event>(event: string | string[], _listener: Listene
   return m
 }
 
+/**
+ * An internal mixin used by the `on()` decorator.
+ * @hidden
+ */
 class OnMixin extends Mixin {
   constructor(public event: string | string[], public listener: Listener<any>, public useCapture = false) {
     super()
@@ -184,6 +203,7 @@ class OnMixin extends Mixin {
 /**
  * Add a callback on the click event, or touchend if we are on a mobile
  * device.
+ * @category decorator
  */
 export function click(cbk: Listener<MouseEvent>) {
   return on('click', cbk)
@@ -198,6 +218,7 @@ export function click(cbk: Listener<MouseEvent>) {
  *    case only deinit() would be called.`)
  *  })}/>
  * ```
+ * @category decorator
  */
 export function removed(fn: (node: Element, parent: Node) => void): Mixin {
   class RemovedMixin extends Mixin { }
@@ -210,6 +231,7 @@ export function removed(fn: (node: Element, parent: Node) => void): Mixin {
  * ```jsx
  *  <div $$={init(node => console.log(`This node was just created and its observers are about to start`))}/>
  * ```
+ * @category decorator
  */
 export function init(fn: (node: Element) => void): Mixin {
   class InitMixin extends Mixin { }
@@ -222,6 +244,8 @@ export function init(fn: (node: Element) => void): Mixin {
  * ```jsx
  *  <div $$={deinit(node => console.log(`This node is now out of the DOM`))}/>
  * ```
+ *
+ * @category decorator
  */
 export function deinit(fn: (node: Element) => void): Mixin {
   class DeinitMixin extends Mixin { }
@@ -233,6 +257,10 @@ export function deinit(fn: (node: Element) => void): Mixin {
 var _noscrollsetup = false
 
 
+/**
+ * Used by the `scrollable()` mixin
+ * @hidden
+ */
 function _setUpNoscroll() {
 
 	document.body.addEventListener('touchmove', function event(ev) {
@@ -244,6 +272,10 @@ function _setUpNoscroll() {
 }
 
 
+/**
+ * Used by the `scrollable()` mixin
+ * @hidden
+ */
 export class ScrollableMixin extends Mixin<HTMLElement> {
 
     _touchStart: (ev: TouchEvent) => void = () => null
@@ -279,6 +311,7 @@ export class ScrollableMixin extends Mixin<HTMLElement> {
  * trigger the ugly scroll band on mobile devices.
  *
  * Calling this functions makes anything not marked scrollable as non-scrollable.
+ * @category decorator
  */
 export function scrollable() {
   return new ScrollableMixin()
