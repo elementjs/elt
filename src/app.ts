@@ -321,6 +321,7 @@ export class App extends Mixin<Comment>{
  *
  * @param main_view The symbol of the view to display
  * @param params Initialisation parameters
+ * @category verb
  */
 export function DisplayApp(main_view: string, ...params: BlockInstantiator<any>[]) {
   var app = new App(main_view, params)
