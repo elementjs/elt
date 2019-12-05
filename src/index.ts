@@ -6,7 +6,8 @@ export * from './observable'
 export * from './types'
 export * from './decorators'
 export * from './mixins'
-export * from './elt'
+// export * from './elt'
+export { e } from './elt'
 export * from './mounting'
 export * from './verbs'
 export * from './app'
@@ -36,6 +37,7 @@ import {
 
 import {EmptyAttributes} from './types'
 
+/** @hidden */
 export type ElementAlias = Element
 
 declare global {

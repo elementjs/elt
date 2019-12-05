@@ -20,6 +20,11 @@ import {
 } from './mounting'
 
 
+/**
+ * Get a node that can be inserted into the DOM from an insertable.
+ * @param i The insertable
+ * @hidden
+ */
 export function getDOMInsertable(i: Insertable) {
 
   if (i instanceof Node)
@@ -51,25 +56,31 @@ export function getDOMInsertable(i: Insertable) {
  *
  * This function is a helper for Display / Repeat ; its goal is to get a
  * single node from anything that may be inserted (which can be a lot of different things)
+ * @hidden
  */
 export function getSingleNode(i: Insertable) {
   const result = getDOMInsertable(i)
   if (result instanceof DocumentFragment) {
-    return instanciate_verb(new FragmentHolder(result))
+    new FragmentHolder(result).render()
   }
   return result
 }
 
 
-export function instanciate_verb(m: Mixin<Comment>): Node {
-  const node = document.createComment(`  ${m.constructor.name} `)
-  m.addToNode(node)
-  return node
-}
+/**
+ * Create a Comment node and bind the mixin to it.
+ * @param m The mixin that will be added to the verb
+ */
+// export function instanciate_verb(m: Mixin<Comment>): Node {
+//   const node = document.createComment(`  ${m.constructor.name} `)
+//   m.addToNode(node)
+//   return node
+// }
 
 
 /**
  * Remove nodes between other nodes, unmounting them.
+ * @category helper
  */
 export function remove_nodes_between(start: Node, end: Node) {
   // this is done in reverse order
@@ -84,11 +95,23 @@ export function remove_nodes_between(start: Node, end: Node) {
 
 }
 
+export class Verb extends Mixin<Comment> {
+
+  render() {
+    const node = document.createComment(`  ${this.constructor.name} `)
+    this.addToNode(node)
+    return node
+  }
+
+}
+
 /**
  * A Mixin that stores nodes between two comments.
  * Its end is its this.node
+ *
+ * Can be used as a base to build verbs more easily.
  */
-export class CommentContainer extends Mixin<Comment> {
+export class CommentContainer extends Verb {
 
   start = document.createComment('--start--')
 
@@ -129,6 +152,7 @@ export class CommentContainer extends Mixin<Comment> {
 /**
  * Displays and actualises the content of an Observable containing
  * Node, string or number into the DOM.
+ * @hidden
  */
 export class Displayer extends CommentContainer {
 
@@ -152,17 +176,24 @@ export function Display(obs: o.RO<Insertable>): Node {
   if (!(obs instanceof o.Observable)) {
     return getDOMInsertable(obs as Insertable)
   }
-  return instanciate_verb(new Displayer(obs))
+
+  return new Displayer(obs).render()
 }
 
 
-
+/** @hidden */
 export type Displayable<T> = (a: T) => Insertable
+
+/** @hidden */
 export type NonNullableObs<T> = T extends o.Observable<infer U> ? o.Observable<NonNullable<U>> :
   T extends o.ReadonlyObservable<infer U> ? o.ReadonlyObservable<NonNullable<U>>
   : NonNullable<T>
 
 
+/**
+ * Implementation of the `DisplayIf()` verb.
+ * @hidden
+ */
 export class ConditionalDisplayer<T extends o.ReadonlyObservable<any>> extends Displayer {
 
   constructor(
@@ -202,13 +233,17 @@ export function DisplayIf<T extends o.RO<any>>(
           : document.createComment('false'))
   }
 
-  return instanciate_verb(new ConditionalDisplayer<any>(display, condition, display_otherwise))
+  return new ConditionalDisplayer<any>(display, condition, display_otherwise).render()
 }
 
 
 export const If = DisplayIf
 
 
+/**
+ * should I document that ?
+ * @hidden
+ */
 export type RoItem<T extends o.RO<any>> = T extends o.Observable<(infer U)[]> ? o.Observable<U>
   : T extends o.ReadonlyObservable<(infer U)[]> ? o.ReadonlyObservable<U>
   : T extends (infer U)[] ? U
@@ -217,13 +252,14 @@ export type RoItem<T extends o.RO<any>> = T extends o.Observable<(infer U)[]> ? 
 export type RenderFn<T> = (e: o.Observable<T>, oi: number) => Insertable
 export type ReadonlyRenderFn<T> = (e: o.ReadonlyObservable<T>, oi: number) => Insertable
 
+/** @hidden */
 export type SeparatorFn = (oi: number) => Insertable
 
 
 /**
  *  Repeats content.
  */
-export class Repeater<T> extends Mixin<Comment> {
+export class Repeater<T> extends Verb {
 
   // protected proxy = o([] as T[])
   protected obs: o.Observable<T[]>
@@ -456,7 +492,7 @@ export function Repeat<T extends o.RO<any[]>>(
     }
     return getSingleNode(final)
   }
-  return instanciate_verb(new Repeater(ob, render as any, separator))
+  return new Repeater(ob, render as any, separator).render()
 }
 
 
@@ -469,12 +505,13 @@ export function RepeatScroll<T>(
   separator?: SeparatorFn,
   scroll_buffer_size = 10
 ): Node {
-  return instanciate_verb(new ScrollRepeater(ob, render, scroll_buffer_size, 500, separator))
+  return new ScrollRepeater(ob, render, scroll_buffer_size, 500, separator).render()
 }
 
 
 /**
  *  A comment node that holds a document fragment.
+ * @hidden
  */
 export class FragmentHolder extends CommentContainer {
 
@@ -499,10 +536,14 @@ export class FragmentHolder extends CommentContainer {
 export function Fragment(attrs: EmptyAttributes, children: DocumentFragment): Element {
   // This is a trick ! It is not actually an element !
   // return children as any
-  return instanciate_verb(new FragmentHolder(children)) as Element
+  return new FragmentHolder(children).render() as unknown as Element
 }
 
 
+/**
+ * Used by the `Switch()` verb.
+ * @hidden
+ */
 export class Switcher<T> extends o.VirtualObservable<[T], Insertable> {
 
   cases: [(T | ((t: T) => any)), (t: o.Observable<T>) => Insertable][] = []

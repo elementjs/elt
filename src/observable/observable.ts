@@ -2,7 +2,7 @@ import { Nullable } from '../types'
 import { EACH, IndexableArray, Indexable } from './indexable'
 
 /**
- * Make sure we have an observable.
+ * Make sure we have a usable observable.
  * @param arg A MaybeObservable
  * @returns The original observable if `arg` already was one, or a new
  *   Observable holding the value of `arg` if it wasn't.
@@ -23,24 +23,6 @@ export namespace o {
 export type AnyExtendsReadonlyObservable<T> = T extends ReadonlyObservable<any> ? true : never
 
 export type BaseType<T> = T extends ReadonlyObservable<infer U> ? U : T
-/**
- * A helper type that gives the correct Observable vs. ReadonlyObservable type based on
- * the provided argument's type when using the o() function.
- *
- * Its purpose is to give back an observable type that is *safe* to use given the arguments - as in, safe to use
- * to create transformers and observers.
- *
- * If the argument has nothing to do with an observable, then the result will be a modifiable Observable.
- *
- * If the argument contains several Observable types and those types are not compatible, the result is
- * a ReadonlyObservable of the union.
- *
- * If the argument is an Observable, then just give it back.
- *
- * If it is a combination of observables / readonlyobservables / values, then the result is a readonly
- * observable of the union of the base types.
- */
-
 
 
 export type ObserverFunction<T> = (newval: T, changes: Changes<T>) => void
@@ -160,6 +142,7 @@ export class Changes<A> {
 export class Observer<A> implements ReadonlyObserver, Indexable {
 
   protected old_value: A = NOVALUE
+  /** @hidden */
   idx = null
 
   constructor(public fn: ObserverFunction<A>, public observable: Observable<A>) { }
@@ -318,6 +301,7 @@ export function transaction(fn: () => void) {
 
 
 export class ChildObservableLink implements Indexable {
+  /** @hidden */
   idx = null
 
   constructor(
@@ -335,14 +319,20 @@ export class ChildObservableLink implements Indexable {
 export class Observable<A> implements ReadonlyObservable<A>, Indexable {
   /** Observers called when this Observable changes */
   // __observers = new Set<Observer<A, any>>()
+
+  /** @hidden */
   __observers = new IndexableArray<Observer<A>>()
+  /** @hidden */
   __children = new IndexableArray<ChildObservableLink>()
+  /** @hidden */
   __watched = false
 
-  /** The index of this Observable in the notify queue. If null, means that it's not scheduled. */
+  /** The index of this Observable in the notify queue. If null, means that it's not scheduled.
+   * @hidden
+  */
   idx = null as null | number
 
-  constructor(public __value: A) {
+  constructor(/** @hidden */public __value: A) {
     // (this as any).debug = new Error
   }
 
@@ -544,8 +534,9 @@ export class Observable<A> implements ReadonlyObservable<A>, Indexable {
  */
 export class VirtualObservable<A extends any[], T = A> extends Observable<T> {
 
-  // __parents: Observable<any>[] = []
+  /** @hidden */
   __links = [] as ChildObservableLink[]
+  /** @hidden */
   __parents_values: A = [] as any
 
   constructor(deps: {[K in keyof A]: RO<A[K]>}) {
