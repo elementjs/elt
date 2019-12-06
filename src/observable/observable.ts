@@ -142,7 +142,6 @@ export class Changes<A> {
 export class Observer<A> implements ReadonlyObserver, Indexable {
 
   protected old_value: A = NOVALUE
-  /** @hidden */
   idx = null
 
   constructor(public fn: ObserverFunction<A>, public observable: Observable<A>) { }
@@ -301,7 +300,6 @@ export function transaction(fn: () => void) {
 
 
 export class ChildObservableLink implements Indexable {
-  /** @hidden */
   idx = null
 
   constructor(
@@ -320,19 +318,15 @@ export class Observable<A> implements ReadonlyObservable<A>, Indexable {
   /** Observers called when this Observable changes */
   // __observers = new Set<Observer<A, any>>()
 
-  /** @hidden */
   __observers = new IndexableArray<Observer<A>>()
-  /** @hidden */
   __children = new IndexableArray<ChildObservableLink>()
-  /** @hidden */
   __watched = false
 
   /** The index of this Observable in the notify queue. If null, means that it's not scheduled.
-   * @hidden
   */
   idx = null as null | number
 
-  constructor(/** @hidden */public __value: A) {
+  constructor(public __value: A) {
     // (this as any).debug = new Error
   }
 
@@ -534,9 +528,7 @@ export class Observable<A> implements ReadonlyObservable<A>, Indexable {
  */
 export class VirtualObservable<A extends any[], T = A> extends Observable<T> {
 
-  /** @hidden */
   __links = [] as ChildObservableLink[]
-  /** @hidden */
   __parents_values: A = [] as any
 
   constructor(deps: {[K in keyof A]: RO<A[K]>}) {

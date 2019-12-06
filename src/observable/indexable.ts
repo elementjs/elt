@@ -3,7 +3,6 @@ import { Nullable } from '../types'
 
 /**
  *
- * @hidden
  */
 export interface Indexable {
   idx: number | null
@@ -14,7 +13,6 @@ export interface Indexable {
  * Does a naive foreach on an IndexableArray
  * @param _arr the array
  * @param fn the function to apply
- * @hidden
  */
 export function EACH<T extends Indexable>(_arr: IndexableArray<T>, fn: (arg: T) => void) {
   for (var i = 0, arr = _arr.arr; i < arr.length; i++) {
@@ -28,7 +26,6 @@ export function EACH<T extends Indexable>(_arr: IndexableArray<T>, fn: (arg: T) 
 
 /**
  * An array wrapper that infects its elements with their indexes for faster deletion.
- * @hidden
  */
 export class IndexableArray<T extends Indexable> {
   arr = [] as Nullable<T>[]

@@ -14,7 +14,6 @@ import {
 
 /**
  * An internal mixin used by the `bind()` decorator.
- * @hidden
  */
 export class BindMixin extends Mixin<HTMLInputElement> {
 
@@ -136,7 +135,6 @@ export function bind(obs: o.Observable<string>) {
 
 /**
  * An internal mixin created only by the `observe()` decorator.
- * @hidden
  */
 export class ObserveMixin extends Mixin {
   debounce(ms: number, leading?: boolean) {
@@ -188,7 +186,6 @@ export function on<E extends Event>(event: string | string[], _listener: Listene
 
 /**
  * An internal mixin used by the `on()` decorator.
- * @hidden
  */
 class OnMixin extends Mixin {
   constructor(public event: string | string[], public listener: Listener<any>, public useCapture = false) {
@@ -259,7 +256,6 @@ var _noscrollsetup = false
 
 /**
  * Used by the `scrollable()` mixin
- * @hidden
  */
 function _setUpNoscroll() {
 
@@ -274,7 +270,6 @@ function _setUpNoscroll() {
 
 /**
  * Used by the `scrollable()` mixin
- * @hidden
  */
 export class ScrollableMixin extends Mixin<HTMLElement> {
 
