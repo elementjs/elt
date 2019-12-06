@@ -8,20 +8,17 @@ import {Mixin} from './mixins'
 export type Listener<EventType extends Event, N extends Node = Node> = (this: N, ev: EventType, node: N) => any
 
 
-/** @hidden */
 export interface ComponentInterface<A> {
   attrs: A
   render(children?: DocumentFragment): Node
 }
 
 
-/** @hidden */
 export interface ComponentInstanciator<A> {
   new (...a: any[]): ComponentInterface<A>
 }
 
 
-/** @hidden */
 export interface ComponentFn {
   (attrs: EmptyAttributes, children: DocumentFragment): Element
 }
@@ -42,7 +39,6 @@ export type Insertable = o.RO<Renderable> | Insertable[]
 
 /**
  * Helper type
- * @hidden
  */
 export type Nullable<T> = T | null
 
@@ -70,7 +66,6 @@ export type StyleDefinition =
 
 /**
  * A helper type since all HTML / SVG attributes can be null or undefined.
- * @hidden
  */
 export type NRO<T> = o.RO<T | null | undefined>
 

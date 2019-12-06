@@ -23,7 +23,6 @@ import {
 /**
  * Get a node that can be inserted into the DOM from an insertable.
  * @param i The insertable
- * @hidden
  */
 export function getDOMInsertable(i: Insertable) {
 
@@ -56,7 +55,6 @@ export function getDOMInsertable(i: Insertable) {
  *
  * This function is a helper for Display / Repeat ; its goal is to get a
  * single node from anything that may be inserted (which can be a lot of different things)
- * @hidden
  */
 export function getSingleNode(i: Insertable) {
   const result = getDOMInsertable(i)
@@ -152,7 +150,6 @@ export class CommentContainer extends Verb {
 /**
  * Displays and actualises the content of an Observable containing
  * Node, string or number into the DOM.
- * @hidden
  */
 export class Displayer extends CommentContainer {
 
@@ -172,6 +169,7 @@ export class Displayer extends CommentContainer {
  * Write and update the string value of an observable value into
  * a Text node.
  * @category verb
+ * @api
  */
 export function Display(obs: o.RO<Insertable>): Node {
   if (!(obs instanceof o.Observable)) {
@@ -182,10 +180,8 @@ export function Display(obs: o.RO<Insertable>): Node {
 }
 
 
-/** @hidden */
 export type Displayable<T> = (a: T) => Insertable
 
-/** @hidden */
 export type NonNullableObs<T> = T extends o.Observable<infer U> ? o.Observable<NonNullable<U>> :
   T extends o.ReadonlyObservable<infer U> ? o.ReadonlyObservable<NonNullable<U>>
   : NonNullable<T>
@@ -193,7 +189,6 @@ export type NonNullableObs<T> = T extends o.Observable<infer U> ? o.Observable<N
 
 /**
  * Implementation of the `DisplayIf()` verb.
- * @hidden
  */
 export class ConditionalDisplayer<T extends o.ReadonlyObservable<any>> extends Displayer {
 
@@ -240,7 +235,6 @@ export function If<T extends o.RO<any>>(
 
 /**
  * should I document that ?
- * @hidden
  */
 export type RoItem<T extends o.RO<any>> = T extends o.Observable<(infer U)[]> ? o.Observable<U>
   : T extends o.ReadonlyObservable<(infer U)[]> ? o.ReadonlyObservable<U>
@@ -250,7 +244,6 @@ export type RoItem<T extends o.RO<any>> = T extends o.Observable<(infer U)[]> ? 
 export type RenderFn<T> = (e: o.Observable<T>, oi: number) => Insertable
 export type ReadonlyRenderFn<T> = (e: o.ReadonlyObservable<T>, oi: number) => Insertable
 
-/** @hidden */
 export type SeparatorFn = (oi: number) => Insertable
 
 
@@ -517,7 +510,6 @@ export function RepeatScroll<T>(
 
 /**
  *  A comment node that holds a document fragment.
- * @hidden
  */
 export class FragmentHolder extends CommentContainer {
 
@@ -549,7 +541,6 @@ export function Fragment(attrs: EmptyAttributes, children: DocumentFragment): El
 
 /**
  * Used by the `Switch()` verb.
- * @hidden
  */
 export class Switcher<T> extends o.VirtualObservable<[T], Insertable> {
 

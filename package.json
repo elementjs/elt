@@ -9,6 +9,7 @@
   "jsnext:main": "./module/index.js",
   "typings": "./dist/elt.d.ts",
   "scripts": {
+    "docs": "typedoc --excludePrivate --excludeNotExported --out ./docs src/index.ts --mode file --theme ./doctemplates --internal-aliases internal,publicapi,api --external-aliases external,internalapi",
     "build:dts": "dts-bundle-generator --inline-declare-global --umd-module-name elt module/index.d.ts -o dist/elt.d.ts",
     "build:js": "tsc ; rollup -c",
     "build": "npm run build:js && npm run build:dts",
@@ -25,7 +26,10 @@
     "mocha": "^6.2.2",
     "rollup": "1.26.5",
     "rollup-plugin-node-resolve": "^3.3.0",
-    "tslib": "^1.8.0"
+    "tslib": "^1.8.0",
+    "typedoc-plugin-internal-external": "^2.0.2"
   },
-  "dependencies": {}
+  "dependencies": {
+    "typedoc": "^0.15.3"
+  }
 }

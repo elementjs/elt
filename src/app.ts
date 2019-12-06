@@ -5,7 +5,6 @@ import { o } from './observable'
 
 
 /**
- * @hidden
  */
 export interface BlockInstantiator<B extends Block = Block> {
   new(app: App): B
