@@ -9,6 +9,8 @@ import {
   Mixin,
 } from './mixins'
 
+import { e } from './elt'
+
 import {
   EmptyAttributes,
   Insertable
@@ -303,7 +305,7 @@ export class Repeater<T> extends Verb {
 
     if (this.separator && this.next_index > 0) {
       const sep = getSingleNode(this.separator(this.next_index))
-      res = E(Fragment, {}, sep, res)
+      res = e(Fragment, {}, sep, res)
     }
 
     this.positions.push(res)
