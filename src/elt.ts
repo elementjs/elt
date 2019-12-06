@@ -231,7 +231,7 @@ export namespace e {
   export const createElement = e //(elt: ComponentFn, attrs: Attrs, ...children: Insertable[]): Node
   // export const createElement(elt: string, attrs: Attrs, ...children: Insertable[]): HTMLElement
   // export const createElement<A>(elt: ComponentInstanciator<A>, attrs: A, ...children: Insertable[]): Node
-  export const Fragment = F //(at: Attrs, ch: DocumentFragment): e.JSX.Element
+  export const Fragment: (at: Attrs, ch: DocumentFragment) => e.JSX.Element = F //(at: Attrs, ch: DocumentFragment): e.JSX.Element
 }
 
 /**
