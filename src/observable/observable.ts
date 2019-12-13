@@ -764,7 +764,7 @@ export function prop<T>(obj: Observable<T> | T, prop: RO<number | keyof T | Symb
    * @param mutator An object providing new values for select properties
    * @returns a new instance of the object if the mutator would change it
    */
-  export function assign<A>(value: A[], partial: {[index: number]: AssignPartial<A>}): A[]
+  export function assign<A>(value: A[], partial: {[index: number]: assign.AssignPartial<A>}): A[]
   export function assign<A>(value: A, mutator: assign.AssignPartial<A>): A
   export function assign<A>(value: A, mutator: assign.AssignPartial<A>): A {
     if (mutator == null || typeof mutator !== 'object' || Object.getPrototypeOf(mutator) !== Object.prototype)
