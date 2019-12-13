@@ -33,11 +33,6 @@ export type Renderable = string | number | Node | null | undefined | Renderable[
 */
 export type Insertable = o.RO<Renderable> | Insertable[]
 
-/**
- * Helper type
- */
-export type Nullable<T> = T | null
-
 
 /**
  * Attributes used on elements that are not actually HTML Elements
@@ -45,6 +40,7 @@ export type Nullable<T> = T | null
 export interface EmptyAttributes {
   $$children?: o.RO<Insertable> | o.RO<Insertable>[]
 }
+
 
 /**
  * CSS classes for the class={} attribute

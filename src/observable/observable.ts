@@ -1,4 +1,3 @@
-import { Nullable } from '../types'
 import { EACH, IndexableArray, Indexable } from './indexable'
 
 /**
@@ -210,7 +209,7 @@ export type RO<A> = ReadonlyObservable<A> | A
 export function EACH_RECURSIVE(obs: Observable<any>, fn: (v: Observable<any>) => void) {
 
   var objs = [] as Observable<any>[]
-  var stack = [] as [Nullable<ChildObservableLink>[], number][]
+  var stack = [] as [(ChildObservableLink | null)[], number][]
   var [children, i] = [obs.__children.arr, 0]
   objs.push(obs)
 
