@@ -39,15 +39,6 @@ export interface Converter<A, B> extends ReadonlyConverter<A, B> {
 }
 
 
-export type AssignPartial<T> = {
-  // Definition that I would like :
-  [P in keyof T]?:
-    T[P] extends (infer U)[] ? {[index: number]: U | AssignPartial<U>} :
-    T[P] extends object ? T[P] | AssignPartial<T[P]> :
-    T[P]
-}
-
-
 export interface ReadonlyObserver {
   startObserving(): void
   stopObserving(): void
@@ -398,8 +389,8 @@ export class Observable<A> implements ReadonlyObservable<A>, Indexable {
    *
    * @param partial The object containing changes
    */
-  assign<U>(this: Observable<U[]>, partial: {[index: number]: AssignPartial<U>}): void
-  assign(partial: AssignPartial<A>): void
+  assign<U>(this: Observable<U[]>, partial: {[index: number]: assign.AssignPartial<U>}): void
+  assign(partial: assign.AssignPartial<A>): void
   assign(partial: any): void {
     this.set(o.assign(this.get(), partial))
   }
@@ -774,8 +765,8 @@ export function prop<T>(obj: Observable<T> | T, prop: RO<number | keyof T | Symb
    * @returns a new instance of the object if the mutator would change it
    */
   export function assign<A>(value: A[], partial: {[index: number]: AssignPartial<A>}): A[]
-  export function assign<A>(value: A, mutator: AssignPartial<A>): A
-  export function assign<A>(value: A, mutator: AssignPartial<A>): A {
+  export function assign<A>(value: A, mutator: assign.AssignPartial<A>): A
+  export function assign<A>(value: A, mutator: assign.AssignPartial<A>): A {
     if (mutator == null || typeof mutator !== 'object' || Object.getPrototypeOf(mutator) !== Object.prototype)
       return mutator as any
 
@@ -794,6 +785,16 @@ export function prop<T>(obj: Observable<T> | T, prop: RO<number | keyof T | Symb
       return clone
     } else {
       return value
+    }
+  }
+
+  export namespace assign {
+    export type AssignPartial<T> = {
+      // Definition that I would like :
+      [P in keyof T]?:
+        T[P] extends (infer U)[] ? {[index: number]: U | AssignPartial<U>} :
+        T[P] extends object ? T[P] | AssignPartial<T[P]> :
+        T[P]
     }
   }
 
