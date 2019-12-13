@@ -11,7 +11,7 @@ import {
 } from './mixins'
 
 import {
-  getDOMInsertable
+  get_dom_insertable
 } from './verbs'
 
 import { mount } from './mounting'
@@ -25,23 +25,6 @@ export class AttrsMixin extends Mixin<HTMLElement> { }
 
 
 ////////////////////////////////////////////////////////
-
-
-/**
- * get the children of a node in an array
- * @param node the node
- */
-export function getChildren(node: Node): Node[] {
-  const result: Node[] = []
-  let iter = node.firstChild
-
-  while (iter) {
-    result.push(iter)
-    iter = iter.nextSibling as ChildNode | null
-  }
-
-  return result
-}
 
 
 const SVG = "http://www.w3.org/2000/svg"
@@ -142,7 +125,7 @@ export function e(elt: any, _attrs: Attrs | null, ...children: Insertable[]): El
   var attrs = _attrs || {} as Attrs
   var is_basic_node = typeof elt === 'string'
 
-  const fragment = getDOMInsertable(children) as DocumentFragment
+  const fragment = get_dom_insertable(children) as DocumentFragment
 
   if (is_basic_node) {
     // create a simple DOM node

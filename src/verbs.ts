@@ -26,7 +26,7 @@ import {
  * Get a node that can be inserted into the DOM from an insertable.
  * @param i The insertable
  */
-export function getDOMInsertable(i: Insertable) {
+export function get_dom_insertable(i: Insertable) {
 
   if (i instanceof Node)
     return i
@@ -34,7 +34,7 @@ export function getDOMInsertable(i: Insertable) {
   if (i instanceof Array) {
     const res = document.createDocumentFragment()
     for (var n of i) {
-      res.appendChild(getDOMInsertable(n))
+      res.appendChild(get_dom_insertable(n))
     }
     return res
   }
@@ -58,8 +58,8 @@ export function getDOMInsertable(i: Insertable) {
  * This function is a helper for Display / Repeat ; its goal is to get a
  * single node from anything that may be inserted (which can be a lot of different things)
  */
-export function getSingleNode(i: Insertable) {
-  const result = getDOMInsertable(i)
+export function get_single_node(i: Insertable) {
+  const result = get_dom_insertable(i)
   if (result instanceof DocumentFragment) {
     new FragmentHolder(result).render()
   }
@@ -161,7 +161,7 @@ export class Displayer extends CommentContainer {
 
   init(node: Node, parent: Node) {
     super.init(node, parent)
-    this.observe(this._obs, value => this.setContents(getDOMInsertable(value)))
+    this.observe(this._obs, value => this.setContents(get_dom_insertable(value)))
   }
 
 }
@@ -175,7 +175,7 @@ export class Displayer extends CommentContainer {
  */
 export function Display(obs: o.RO<Insertable>): Node {
   if (!(obs instanceof o.Observable)) {
-    return getDOMInsertable(obs as Insertable)
+    return get_dom_insertable(obs as Insertable)
   }
 
   return new Displayer(obs).render()
@@ -225,8 +225,8 @@ export function If<T extends o.RO<any>>(
   // ts bug on condition.
   if (typeof display === 'function' && !((condition as any) instanceof o.Observable)) {
     return condition ?
-      getDOMInsertable(display(condition as any))
-      : getDOMInsertable(display_otherwise ?
+      get_dom_insertable(display(condition as any))
+      : get_dom_insertable(display_otherwise ?
           (display_otherwise(null!))
           : document.createComment('false'))
   }
@@ -301,10 +301,10 @@ export class Repeater<T> extends Verb {
 
     this.child_obs.push(ob)
 
-    var res = getSingleNode(this.renderfn(ob, this.next_index))
+    var res = get_single_node(this.renderfn(ob, this.next_index))
 
     if (this.separator && this.next_index > 0) {
-      const sep = getSingleNode(this.separator(this.next_index))
+      const sep = get_single_node(this.separator(this.next_index))
       res = e(Fragment, {}, sep, res)
     }
 
@@ -484,7 +484,7 @@ export function Repeat<T extends o.RO<any[]>>(
       if (separator)
         arr[i++] = separator(j - 1)
     }
-    return getSingleNode(final)
+    return get_single_node(final)
   }
   return new Repeater(ob, render as any, separator).render()
 }

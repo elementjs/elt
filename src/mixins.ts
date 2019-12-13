@@ -23,8 +23,8 @@ const mxsym = Symbol('element-mixins')
  * Get an array of all the mixins associated with that node.
  * @param node The node that holds the mixins
  */
-export function getMixins<N extends Node>(node: N): Mixin<N>[] | undefined
-export function getMixins(node: any): Mixin[] | undefined {
+export function get_mixins<N extends Node>(node: N): Mixin<N>[] | undefined
+export function get_mixins(node: any): Mixin[] | undefined {
   return node[mxsym]
 }
 
@@ -34,8 +34,8 @@ export function getMixins(node: any): Mixin[] | undefined {
  * @param node The node the mixin will be added to
  * @param mixin The mixin to add
  */
-export function addMixin<N extends Node>(node: N, mixin: Mixin<N>): void
-export function addMixin(node: any, mixin: Mixin) {
+export function add_mixin<N extends Node>(node: N, mixin: Mixin<N>): void
+export function add_mixin(node: any, mixin: Mixin) {
   var mx: Mixin[] = node[mxsym]
   if (!mx) {
     node[mxsym] = []
@@ -50,8 +50,8 @@ export function addMixin(node: any, mixin: Mixin) {
  * @param node The node the mixin will be removed from
  * @param mixin The mixin object we want to remove
  */
-export function removeMixin<N extends Node>(node: N, mixin: Mixin<N>): void
-export function removeMixin(node: any, mixin: Mixin): void {
+export function remove_mixin<N extends Node>(node: N, mixin: Mixin<N>): void
+export function remove_mixin(node: any, mixin: Mixin): void {
   var mx: Mixin[] = node[mxsym]
   if (!mx) return
   var res: Mixin[] = []
@@ -166,7 +166,7 @@ export class Mixin<N extends Node = Node> extends o.ObserverGroup {
     let iter: Node | null = node as Node // yeah yeah, I know, it's an EventTarget as well but hey.
 
     while (iter) {
-      var mixins = getMixins(iter)
+      var mixins = get_mixins(iter)
 
       if (mixins) {
         for (var m of mixins)
@@ -188,7 +188,7 @@ export class Mixin<N extends Node = Node> extends o.ObserverGroup {
    * @param node The node that will receive this mixin.
    */
   addToNode(node: N) {
-    addMixin(node, this);
+    add_mixin(node, this);
     (this.node as any) = node;
   }
 
@@ -199,7 +199,7 @@ export class Mixin<N extends Node = Node> extends o.ObserverGroup {
    */
   removeFromNode() {
     this.unmount(this.node);
-    removeMixin(this.node, this);
+    remove_mixin(this.node, this);
     (this.node as any) = null; // we force the node to null to help with garbage collection.
   }
 

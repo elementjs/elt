@@ -1,5 +1,5 @@
 
-import {getMixins} from './mixins'
+import {get_mixins} from './mixins'
 
 
 /**
@@ -7,7 +7,7 @@ import {getMixins} from './mixins'
  * @category mounting
  */
 export function mount(node: Node) {
-  var mx = getMixins(node)
+  var mx = get_mixins(node)
   if (!mx) return
   for (var m of mx)
     m.mount(node)
@@ -18,7 +18,7 @@ export function mount(node: Node) {
  * Apply unmount to a node.
  */
 function _apply_unmount(node: Node) {
-  var mx = getMixins(node)
+  var mx = get_mixins(node)
   if (!mx) return
   for (var m of mx) m.unmount(node)
 }
@@ -85,7 +85,7 @@ export function unmount(node: Node) {
 export function remove_and_unmount(node: Node): void {
   const parent = node.parentNode!
   if (parent) {
-    const mx = getMixins(node)
+    const mx = get_mixins(node)
     unmount(node)
     if (mx) {
       for (var m of mx)
