@@ -236,20 +236,6 @@ export function If<T extends o.RO<any>>(
 
 
 /**
- * should I document that ?
- */
-export type RoItem<T extends o.RO<any>> = T extends o.Observable<(infer U)[]> ? o.Observable<U>
-  : T extends o.ReadonlyObservable<(infer U)[]> ? o.ReadonlyObservable<U>
-  : T extends (infer U)[] ? U
-  : T;
-
-export type RenderFn<T> = (e: o.Observable<T>, oi: number) => Insertable
-export type ReadonlyRenderFn<T> = (e: o.ReadonlyObservable<T>, oi: number) => Insertable
-
-export type SeparatorFn = (oi: number) => Insertable
-
-
-/**
  *  Repeats content.
  */
 export class Repeater<T> extends Verb {
@@ -264,8 +250,8 @@ export class Repeater<T> extends Verb {
 
   constructor(
     ob: o.Observable<T[]>,
-    public renderfn: RenderFn<T>,
-    public separator?: SeparatorFn
+    public renderfn: Repeat.RenderFn<T>,
+    public separator?: Repeat.SeparatorFn
   ) {
     super()
 
@@ -365,10 +351,10 @@ export class ScrollRepeater<T> extends Repeater<T> {
 
   constructor(
     ob: o.Observable<T[]>,
-    renderfn: RenderFn<T>,
+    renderfn: Repeat.RenderFn<T>,
     public scroll_buffer_size: number = 10,
     public threshold_height: number = 500,
-    public separator?: SeparatorFn,
+    public separator?: Repeat.SeparatorFn,
   ) {
     super(ob, renderfn)
   }
@@ -471,8 +457,8 @@ export class ScrollRepeater<T> extends Repeater<T> {
  */
 export function Repeat<T extends o.RO<any[]>>(
   ob: T,
-  render: (arg: RoItem<T>, idx: number) => Insertable,
-  separator?: SeparatorFn
+  render: (arg: Repeat.RoItem<T>, idx: number) => Insertable,
+  separator?: Repeat.SeparatorFn
 ): Node {
   if (!(ob instanceof o.Observable)) {
     const arr = ob as any[]
@@ -489,6 +475,20 @@ export function Repeat<T extends o.RO<any[]>>(
   return new Repeater(ob, render as any, separator).render()
 }
 
+export namespace Repeat {
+
+  export type RoItem<T extends o.RO<any>> = T extends o.Observable<(infer U)[]> ? o.Observable<U>
+  : T extends o.ReadonlyObservable<(infer U)[]> ? o.ReadonlyObservable<U>
+  : T extends (infer U)[] ? U
+  : T;
+
+  export type RenderFn<T> = (e: o.Observable<T>, oi: number) => Insertable
+  export type ReadonlyRenderFn<T> = (e: o.ReadonlyObservable<T>, oi: number) => Insertable
+
+  export type SeparatorFn = (oi: number) => Insertable
+
+}
+
 /**
  *
  * @param ob
@@ -497,13 +497,13 @@ export function Repeat<T extends o.RO<any[]>>(
  * @param scroll_buffer_size
  * @category verb
  */
-export function RepeatScroll<T>(ob: T[], render: ReadonlyRenderFn<T>, separator?: SeparatorFn, scroll_buffer_size?: number): Node;
-export function RepeatScroll<T>(ob: o.Observable<T[]>, render: RenderFn<T> , separator?: SeparatorFn, scroll_buffer_size?: number): Node;
-export function RepeatScroll<T>(ob: o.ReadonlyObservable<T[]>, render: ReadonlyRenderFn<T>, separator?: SeparatorFn, scroll_buffer_size?: number): Node;
+export function RepeatScroll<T>(ob: T[], render: Repeat.ReadonlyRenderFn<T>, separator?: Repeat.SeparatorFn, scroll_buffer_size?: number): Node;
+export function RepeatScroll<T>(ob: o.Observable<T[]>, render: Repeat.RenderFn<T> , separator?: Repeat.SeparatorFn, scroll_buffer_size?: number): Node;
+export function RepeatScroll<T>(ob: o.ReadonlyObservable<T[]>, render: Repeat.ReadonlyRenderFn<T>, separator?: Repeat.SeparatorFn, scroll_buffer_size?: number): Node;
 export function RepeatScroll<T>(
   ob: any,
   render: any,
-  separator?: SeparatorFn,
+  separator?: Repeat.SeparatorFn,
   scroll_buffer_size = 10
 ): Node {
   return new ScrollRepeater(ob, render, scroll_buffer_size, 500, separator).render()

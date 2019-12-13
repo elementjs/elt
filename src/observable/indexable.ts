@@ -1,6 +1,3 @@
-import { Nullable } from '../types'
-
-
 /**
  *
  */
@@ -28,7 +25,7 @@ export function EACH<T extends Indexable>(_arr: IndexableArray<T>, fn: (arg: T) 
  * An array wrapper that infects its elements with their indexes for faster deletion.
  */
 export class IndexableArray<T extends Indexable> {
-  arr = [] as Nullable<T>[]
+  arr = [] as (T | null)[]
   real_size = 0
 
   add(a: T) {
