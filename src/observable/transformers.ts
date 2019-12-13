@@ -10,13 +10,13 @@ export namespace tf {
     return o.tf(other, oth => (current: T) => current !== oth)
   }
 
-  export const is_truthy = (val: any) => !!val
+  export function is_truthy(val: any) { return !!val }
 
-  export const is_falsy = (val: any) => !val
+  export function is_falsy(val: any) { return !val }
 
-  export const is_value = (val: any) => val != null
+  export function is_value(val: any) { return val != null }
 
-  export const is_not_value = (val: any) => val == null
+  export function is_not_value(val: any) { return val == null }
 
   /**
    *
