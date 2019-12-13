@@ -205,7 +205,7 @@ import {
 import {EmptyAttributes} from './types'
 
 /** @hidden */
-export type ElementAlias = Element
+type ElementAlias = Element
 
 import { Fragment as F } from './verbs'
 

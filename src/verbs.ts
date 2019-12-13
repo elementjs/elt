@@ -447,13 +447,14 @@ export class ScrollRepeater<T> extends Repeater<T> {
 /**
  * @verb
  *
- * Repeats a render function for each element of an array.
+ * Repeats the `render` function for each element in `ob`, optionally separating each rendering
+ * with the result of the `separator` function.
  *
- * @param ob The array to observe
- * @param render The render function that will be called for
- * @returns a Comment node with the Repeater controller bound
- *  on it.
- * @category verb
+ * If `ob` is an observable, `Repeat` will update the generated nodes to match the changes.
+ * If it is a `ReadonlyObservable`, then the `render` callback will be provided a read only observable.
+ *
+ * `ob` is not converted to an observable if it was not one, in which case the results are executed
+ * right away and only once.
  */
 export function Repeat<T extends o.RO<any[]>>(
   ob: T,
@@ -490,12 +491,21 @@ export namespace Repeat {
 }
 
 /**
+ * Similarly to `Repeat`, `RepeatScroll` repeats the `render` function for each element in `ob`,
+ * optionally separated by the results of `separator`, until the elements overflow past the
+ * bottom border of the current parent marked `overflow-y: auto`.
  *
- * @param ob
- * @param render
- * @param separator
- * @param scroll_buffer_size
- * @category verb
+ * As the user scrolls, new items are being added. Old items are *not* discarded and stay above.
+ *
+ * It will generate `scroll_buffer_size` elements at a time (or 10 if not specified), waiting for
+ * the next repaint with `requestAnimationFrame()` between chunks.
+ *
+ * Unlike `Repeat`, `RepeatScroll` turns `ob` into an `Observable` internally even if it wasn't one.
+ *
+ * > **Note** : while functional, RepeatScroll is not perfect. A "VirtualScroll" behaviour is in the
+ * > roadmap to only maintain the right amount of elements on screen.
+ *
+ * @verb
  */
 export function RepeatScroll<T>(ob: T[], render: Repeat.ReadonlyRenderFn<T>, separator?: Repeat.SeparatorFn, scroll_buffer_size?: number): Node;
 export function RepeatScroll<T>(ob: o.Observable<T[]>, render: Repeat.RenderFn<T> , separator?: Repeat.SeparatorFn, scroll_buffer_size?: number): Node;
