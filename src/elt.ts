@@ -1,7 +1,5 @@
 import {
   Attrs,
-  ComponentFn,
-  ComponentInstanciator,
   Insertable
 } from './types'
 
@@ -113,9 +111,9 @@ export const GLOBAL_ATTRIBUTES = {
  * This function is the base of element ; it creates Nodes and glues together
  * Controllers, decorators, classes and style.
  */
-export function e(elt: ComponentFn, attrs: Attrs | null, ...children: Insertable[]): Element
+export function e(elt: (attrs: EmptyAttributes, children: DocumentFragment) => Element, attrs: Attrs | null, ...children: Insertable[]): Element
 export function e(elt: string, attrs: Attrs | null, ...children: Insertable[]): HTMLElement
-export function e<A>(elt: ComponentInstanciator<A>, attrs: A | null, ...children: Insertable[]): Element
+export function e<A extends Attrs>(elt: {new (a: A): Component<A>}, attrs: A | null, ...children: Insertable[]): Element
 export function e(elt: any, _attrs: Attrs | null, ...children: Insertable[]): Element {
 
   if (!elt) throw new Error(`e() needs at least a string, a function or a Component`)
