@@ -7,26 +7,10 @@ import {Mixin} from './mixins'
 
 export type Listener<EventType extends Event, N extends Node = Node> = (this: N, ev: EventType, node: N) => any
 
-
-export interface ComponentInterface<A> {
-  attrs: A
-  render(children?: DocumentFragment): Node
-}
-
-
-export interface ComponentInstanciator<A> {
-  new (...a: any[]): ComponentInterface<A>
-}
-
-
-export interface ComponentFn {
-  (attrs: EmptyAttributes, children: DocumentFragment): Element
-}
-
-
 /**
- * Renderable types can be rendered almost as-is by Display() and as such
- * can be used between {curly braces} in tsx code.
+ * Renderables are the types understood by the `Display` verb and that can be rendered into
+ * the DOM without efforts or need to transform. It is used by the `Insertable` type
+ * to define what can go between `{ curly braces }` in JSX code.
  */
 export type Renderable = string | number | Node | null | undefined | Renderable[]
 
