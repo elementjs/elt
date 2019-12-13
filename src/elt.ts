@@ -104,7 +104,7 @@ export const GLOBAL_ATTRIBUTES = {
   tabindex: true,
   title: true,
   translate: true,
-} as {[attr: string]: boolean}
+} as const
 
 
 /**
@@ -174,7 +174,7 @@ export function e(elt: any, _attrs: Attrs | null, ...children: Insertable[]): El
       mx.observeStyle(attrs.style!)
     } else if (key === '$$') {
       continue
-    } else if (is_basic_node || GLOBAL_ATTRIBUTES[key]) {
+    } else if (is_basic_node || GLOBAL_ATTRIBUTES[key as keyof typeof GLOBAL_ATTRIBUTES]) {
       // Observe all attributes for simple elements
       mx.observeAttribute(key, (attrs as any)[key])
     }
