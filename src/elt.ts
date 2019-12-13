@@ -409,3 +409,22 @@ export namespace e {
   // export const createElement<A>(elt: ComponentInstanciator<A>, attrs: A, ...children: Insertable[]): Node
   export const Fragment: (at: Attrs, ch: DocumentFragment) => JSX.Element = F //(at: Attrs, ch: DocumentFragment): e.JSX.Element
 }
+
+declare var global: any
+if ('undefined' !== typeof window && typeof (window as any).E === 'undefined' || typeof global !== 'undefined' && typeof (global.E) === 'undefined') {
+  (window as any).E = e
+}
+
+declare global {
+
+  const E: typeof e
+
+  namespace E.JSX {
+    export type Element = ElementAlias
+    export type ElementAttributesProperty = e.JSX.ElementAttributesProperty
+    export type ElementChildrenAttribute = e.JSX.ElementChildrenAttribute
+    export type ElementClassFn = e.JSX.ElementClassFn
+    export type ElementClass = e.JSX.ElementClass
+    export type IntrinsicElements = e.JSX.IntrinsicElements
+  }
+}
