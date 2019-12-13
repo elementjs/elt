@@ -31,9 +31,21 @@ export interface ComponentFn {
 export type Renderable = string | number | Node | null | undefined | Renderable[]
 
 /**
-* The Insertable type is anything that can be appended to the document
-* by the e() function. Anything of the Insertable type can be put
-* in <tag>{insertable}</tag>
+ * @api
+ * @category jsx
+ *
+ * The Insertable type describes the types that elt can append to a Node.
+ * Anything of the Insertable type can be put `<tag>between braces {'!'}</tag>`.
+ *
+ * The following types can be used :
+ *  - `null` or `undefined` (which output nothing)
+ *  - `number`
+ *  - `string`
+ *  - `Node`
+ *  - Arrays of these types, even recursively.
+ *
+ * `<div>{['hello', ' ', [['world']] ]}</div>` will render `<div>hello world</div>`
+ *
 */
 export type Insertable = o.RO<Renderable> | Insertable[]
 
