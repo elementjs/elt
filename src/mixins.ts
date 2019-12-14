@@ -3,10 +3,6 @@ import {
   o
 } from './observable'
 
-import {
-  Attrs, Listener, StyleDefinition, ClassDefinition
-} from './types'
-
 
 /**
  * This symbol is added as a property of the DOM nodes to store
@@ -59,11 +55,11 @@ export function remove_mixin(node: any, mixin: Mixin): void {
   node[mxsym] = res
 }
 
-type Handlers = Set<Listener<any>>
+type Handlers = Set<Mixin.Listener<any>>
 const event_map = {} as {[event_name: string]: WeakMap<Node, Handlers>}
 
 
-export function remove_event_listener(node: Node, event: string, handler: Listener<any>, use_capture?: boolean): void {
+export function remove_event_listener(node: Node, event: string, handler: Mixin.Listener<any>, use_capture?: boolean): void {
   const evt = `${event}_${use_capture ? '_capture' : ''}`
   var map = event_map[evt]
   if (!map) return
@@ -76,12 +72,12 @@ export function remove_event_listener(node: Node, event: string, handler: Listen
  * Setup a global event listener for each type of event.
  * This is based on WeakMap to avoid holding references to nodes.
  */
-export function add_event_listener<N extends Node, E extends keyof DocumentEventMap>(node: N, event: E, handler: Listener<DocumentEventMap[E], N>, use_capture?: boolean): void
-export function add_event_listener(node: Node, event: string, handler: Listener<any>, use_capture?: boolean): void
+export function add_event_listener<N extends Node, E extends keyof DocumentEventMap>(node: N, event: E, handler: Mixin.Listener<DocumentEventMap[E], N>, use_capture?: boolean): void
+export function add_event_listener(node: Node, event: string, handler: Mixin.Listener<any>, use_capture?: boolean): void
 export function add_event_listener(
   node: Node,
   event: string,
-  handler: Listener<any>,
+  handler: Mixin.Listener<any>,
   use_capture?: boolean
 ) {
   const evt = `${event}_${use_capture ? '_capture' : ''}`
@@ -143,7 +139,7 @@ export class Mixin<N extends Node = Node> extends o.ObserverGroup {
   readonly node: N = null!
 
   /** An array of observers tied to the Node for observing. Populated by `observe()` calls. */
-  listeners: {event: string, listener: Listener<Event, Node>, live_listener: null | ((e: Event) => void), useCapture?: boolean}[] | undefined = undefined
+  listeners: {event: string, listener: Mixin.Listener<Event, Node>, live_listener: null | ((e: Event) => void), useCapture?: boolean}[] | undefined = undefined
 
   /**
    * Get a Mixin by its class on the given node or its parents.
@@ -247,10 +243,10 @@ export class Mixin<N extends Node = Node> extends o.ObserverGroup {
    */
   removed(node: N, parent: Node): void { }
 
-  listen<K extends (keyof DocumentEventMap)[]>(name: K, listener: Listener<DocumentEventMap[K[number]], N>, useCapture?: boolean): void
-  listen<K extends keyof DocumentEventMap>(name: K, listener: Listener<DocumentEventMap[K], N>, useCapture?: boolean): void
-  listen<E extends Event>(name: string | string[], listener: Listener<E, N>, useCapture?: boolean): void
-  listen<E extends Event>(name: string | string[], listener: Listener<E, any>, useCapture?: boolean) {
+  listen<K extends (keyof DocumentEventMap)[]>(name: K, listener: Mixin.Listener<DocumentEventMap[K[number]], N>, useCapture?: boolean): void
+  listen<K extends keyof DocumentEventMap>(name: K, listener: Mixin.Listener<DocumentEventMap[K], N>, useCapture?: boolean): void
+  listen<E extends Event>(name: string | string[], listener: Mixin.Listener<E, N>, useCapture?: boolean): void
+  listen<E extends Event>(name: string | string[], listener: Mixin.Listener<E, any>, useCapture?: boolean) {
     if (typeof name === 'string')
       add_event_listener(this.node, name, listener, useCapture)
     else
@@ -274,7 +270,7 @@ export class Mixin<N extends Node = Node> extends o.ObserverGroup {
     })
   }
 
-  observeStyle<N extends HTMLElement|SVGElement>(this: Mixin<N>, style: StyleDefinition) {
+  observeStyle<N extends HTMLElement|SVGElement>(this: Mixin<N>, style: e.JSX.StyleDefinition) {
     if (style instanceof o.Observable) {
       this.observe(style, st => {
         const ns = this.node.style
@@ -297,7 +293,7 @@ export class Mixin<N extends Node = Node> extends o.ObserverGroup {
     }
   }
 
-  observeClass<N extends Element>(this: Mixin<N>, c: ClassDefinition) {
+  observeClass<N extends Element>(this: Mixin<N>, c: e.JSX.ClassDefinition) {
     if (!c) return
     if (typeof c === 'string' || c.constructor !== Object) {
       // c is an Observable<string>
@@ -319,6 +315,10 @@ export class Mixin<N extends Node = Node> extends o.ObserverGroup {
 }
 
 
+export namespace Mixin {
+  export type Listener<EventType extends Event, N extends Node = Node> = (this: N, ev: EventType, node: N) => any
+}
+
 /**
  * The Component is the core class of your TSX components.
  *
@@ -326,7 +326,7 @@ export class Mixin<N extends Node = Node> extends o.ObserverGroup {
  * property which will restrict what attributes the component can be created with.
  * All attributes must extend the base `Attrs` class.
  */
-export abstract class Component<A extends Attrs = Attrs, N extends Element = Element> extends Mixin<N> {
+export abstract class Component<A extends e.JSX.Attrs = e.JSX.Attrs, N extends Element = Element> extends Mixin<N> {
   // attrs: Attrs
   constructor(public attrs: A) { super() }
   abstract render(children: DocumentFragment): N
@@ -371,3 +371,5 @@ function _remove_class(node: Element, c: string) {
   if (!is_svg)
     node.setAttribute('class', name)
 }
+
+import { e } from './elt'
