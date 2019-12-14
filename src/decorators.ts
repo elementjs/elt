@@ -4,10 +4,6 @@ import {
 } from './observable'
 
 import {
-  Listener
-} from './types'
-
-import {
   Mixin
 } from './mixins'
 
@@ -176,10 +172,10 @@ export function observe<T>(a: any, cbk?: any) {
  * ```
  * @category decorator
  */
-export function on<K extends (keyof DocumentEventMap)[]>(name: K, listener: Listener<DocumentEventMap[K[number]]>, useCapture?: boolean): Mixin
-export function on<K extends keyof DocumentEventMap>(event: K, listener: Listener<DocumentEventMap[K]>, useCapture?: boolean): Mixin
-export function on(event: string | string[], listener: Listener<Event>, useCapture?: boolean): Mixin
-export function on<E extends Event>(event: string | string[], _listener: Listener<E>, useCapture = false) {
+export function on<K extends (keyof DocumentEventMap)[]>(name: K, listener: Mixin.Listener<DocumentEventMap[K[number]]>, useCapture?: boolean): Mixin
+export function on<K extends keyof DocumentEventMap>(event: K, listener: Mixin.Listener<DocumentEventMap[K]>, useCapture?: boolean): Mixin
+export function on(event: string | string[], listener: Mixin.Listener<Event>, useCapture?: boolean): Mixin
+export function on<E extends Event>(event: string | string[], _listener: Mixin.Listener<E>, useCapture = false) {
   var m = new OnMixin(event, _listener, useCapture)
   return m
 }
@@ -188,7 +184,7 @@ export function on<E extends Event>(event: string | string[], _listener: Listene
  * An internal mixin used by the `on()` decorator.
  */
 class OnMixin extends Mixin {
-  constructor(public event: string | string[], public listener: Listener<any>, public useCapture = false) {
+  constructor(public event: string | string[], public listener: Mixin.Listener<any>, public useCapture = false) {
     super()
   }
 
@@ -202,7 +198,7 @@ class OnMixin extends Mixin {
  * device.
  * @category decorator
  */
-export function click(cbk: Listener<MouseEvent>) {
+export function click(cbk: Mixin.Listener<MouseEvent>) {
   return on('click', cbk)
 }
 

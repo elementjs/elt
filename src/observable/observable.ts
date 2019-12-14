@@ -57,6 +57,14 @@ export type MaybeObservableReadonlyObject<T> = { [P in keyof T]:  RO<T[P]>}
  * is passed.
  */
 export class NoValue { private constructor() { }}
+
+/**
+ * The only instance of the `NoValue` class.
+ *
+ * > **note**: the NoValue system is still pretty "hacky" in terms of typings, as its use is so far
+ * > limited to implementing virtual observables that have readonly values or internally when checking
+ * > if `Observer`s should be called. This will be made better in future releases.
+ */
 export const NOVALUE = new (NoValue as any)() as any
 
 export class Changes<A> {
@@ -622,9 +630,27 @@ export function virtual<T extends any[], R>(deps: {[K in keyof T]: RO<T[K]>}, ge
 
 
 /**
- * Merges several MaybeObservables into a single Observable.
+ * Create an `Observable` from an object whose values may be observables.
  *
- * @param obj An object which values are MaybeObservable
+ * The observed value becomes an object resembling `obj`. Observers on a merged
+ * observable are called whenever the value of one of the underlying observable
+ * changes.
+ *
+ * The resulting observable is writable only if all its constituents were themselves
+ * writable.
+ *
+ * ```tsx
+ * const merged = o.merge({a: o('hello'), b: o('world')})
+ *
+ * observe(merged, ({a, b}) => {
+ *   console.log(a, b) // hello world
+ * })
+ *
+ * merged.p('a').set('bye')
+ * merged.assign({b: 'universe'})
+ * ```
+ *
+ * @param obj An object whose values may be Observables
  * @returns An observable which properties are the ones given in `obj` and values
  *   are the resolved values of their respective observables.
  */
