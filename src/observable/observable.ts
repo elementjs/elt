@@ -6,9 +6,7 @@ import { EACH, IndexableArray, Indexable } from './indexable'
  * @returns The original observable if `arg` already was one, or a new
  *   Observable holding the value of `arg` if it wasn't.
  */
-export function o<T>(arg: T): [T] extends [o.Observable<any>] ?
-      T
-    :
+export function o<T>(arg: T): [T] extends [o.Observable<any>] ? T :
     // when there is a mix of different observables, then we have a readonlyobservable of the combination of the types
     [true] extends [o.AnyExtendsReadonlyObservable<T>] ?
       o.ReadonlyObservable<o.BaseType<T>>
