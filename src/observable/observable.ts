@@ -1029,7 +1029,7 @@ export function prop<T>(obj: Observable<T> | T, prop: RO<number | keyof T | Symb
    * This class is meant to be used for components such as Mixin that want
    * to tie observing to their life cycle.
    */
-  export class ObserverGroup {
+  export class ObserverHolder {
 
     observers: o.ReadonlyObserver[] = []
     live = false

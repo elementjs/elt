@@ -112,7 +112,7 @@ export namespace App {
    * Services are meant to be used by *composition*, and not through extension.
    * Do not subclass a service unless its state is the exact same type.
    */
-  export class Block extends o.ObserverGroup {
+  export class Block extends o.ObserverHolder {
 
     constructor(public app: App) {
       super()
