@@ -289,7 +289,8 @@ export class Queue extends IndexableArray<Observable<any>> {
   }
 }
 
-export var queue = new Queue()
+const queue = new Queue()
+
 export function transaction(fn: () => void) {
   queue.transaction(fn)
 }
