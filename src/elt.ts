@@ -16,7 +16,7 @@ import { mount } from './mounting'
 /**
  * Private mixin used by the e() function when watching style, classes and other attributes.
  */
-class AttrsMixin extends Mixin<HTMLElement> { }
+export class AttrsMixin extends Mixin<HTMLElement> { }
 
 
 ////////////////////////////////////////////////////////
@@ -703,6 +703,7 @@ declare global {
     export type ElementClass = e.JSX.ElementClass
     export type IntrinsicElements = e.JSX.IntrinsicElements
 
+    export type Renderable = e.JSX.Renderable
     export type Insertable = e.JSX.Insertable
     export type ClassDefinition = e.JSX.ClassDefinition
     export type StyleDefinition = e.JSX.StyleDefinition
