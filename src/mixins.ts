@@ -138,9 +138,6 @@ export class Mixin<N extends Node = Node> extends o.ObserverGroup {
 
   readonly node: N = null!
 
-  /** An array of observers tied to the Node for observing. Populated by `observe()` calls. */
-  listeners: {event: string, listener: Mixin.Listener<Event, Node>, live_listener: null | ((e: Event) => void), useCapture?: boolean}[] | undefined = undefined
-
   /**
    * Get a Mixin by its class on the given node or its parents.
    *
