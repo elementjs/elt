@@ -1,6 +1,5 @@
 // Export everything.
 export * from './observable'
-export * from './types'
 export * from './decorators'
 export * from './mixins'
 export * from './elt'
