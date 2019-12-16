@@ -134,7 +134,7 @@ export function add_event_listener(
  * `removed()` call.
  * @api
  */
-export class Mixin<N extends Node = Node> extends o.ObserverGroup {
+export class Mixin<N extends Node = Node> extends o.ObserverHolder {
 
   readonly node: N = null!
 

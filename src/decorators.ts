@@ -130,37 +130,38 @@ export function bind(obs: o.Observable<string>) {
 
 
 /**
- * An internal mixin created only by the `observe()` decorator.
- */
-export class ObserveMixin extends Mixin {
-  debounce(ms: number, leading?: boolean) {
-    for (var i = 0, ob = this.observers, l = ob.length; i < l; i++)
-      ob[i].debounce(ms, leading)
-    return this
-  }
-
-  throttle(ms: number, leading?: boolean) {
-    for (var i = 0, ob = this.observers, l = ob.length; i < l; i++)
-      ob[i].throttle(ms, leading)
-    return this
-  }
-}
-
-
-/**
  * Observe an observable and tie the observation to the node this is added to
  * @category decorator
  */
-export function observe(a: o.ReadonlyObserver): ObserveMixin
-export function observe<T>(a: T, cbk: (newval: o.BaseType<T>, changes: o.Changes<o.BaseType<T>>, node: Node) => void): ObserveMixin
+export function observe(a: o.ReadonlyObserver): observe.ObserveMixin
+export function observe<T>(a: T, cbk: (newval: o.BaseType<T>, changes: o.Changes<o.BaseType<T>>, node: Node) => void): observe.ObserveMixin
 export function observe<T>(a: any, cbk?: any) {
-  var m = new ObserveMixin()
+  var m = new observe.ObserveMixin()
   if (a instanceof o.Observer) {
     m.addObserver(a)
   } else {
     m.observe(a, (newval: T, changes: o.Changes<T>) => cbk(newval, changes, m.node))
   }
   return m
+}
+
+export namespace observe {
+  /**
+   * An internal mixin created only by the `observe()` decorator.
+   */
+  export class ObserveMixin extends Mixin {
+    debounce(ms: number, leading?: boolean) {
+      for (var i = 0, ob = this.observers, l = ob.length; i < l; i++)
+        ob[i].debounce(ms, leading)
+      return this
+    }
+
+    throttle(ms: number, leading?: boolean) {
+      for (var i = 0, ob = this.observers, l = ob.length; i < l; i++)
+        ob[i].throttle(ms, leading)
+      return this
+    }
+  }
 }
 
 
