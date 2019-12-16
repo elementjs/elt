@@ -1,5 +1,4 @@
 export { Indexable } from './indexable'
 export * from './observable'
+export * from './transformers'
 
-import * as tf from './transformers'
-export { tf }
