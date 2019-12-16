@@ -177,45 +177,13 @@ export function Display(obs: o.RO<e.JSX.Insertable>): Node {
 }
 
 
-export type Displayable<T> = (a: T) => e.JSX.Insertable
-
-export type NonNullableObs<T> = T extends o.Observable<infer U> ? o.Observable<NonNullable<U>> :
-  T extends o.ReadonlyObservable<infer U> ? o.ReadonlyObservable<NonNullable<U>>
-  : NonNullable<T>
-
-
-/**
- * Implementation of the `DisplayIf()` verb.
- */
-export class ConditionalDisplayer<T extends o.ReadonlyObservable<any>> extends Displayer {
-
-  constructor(
-    protected display: Displayable<NonNullableObs<T>>,
-    protected condition: T,
-    protected display_otherwise?: Displayable<T>
-  ) {
-    super(condition.tf((cond, old, v) => {
-      if (old !== o.NOVALUE && !!cond === !!old && v !== o.NOVALUE) return v as e.JSX.Insertable
-      if (cond) {
-        return display(condition as NonNullableObs<T>)
-      } else if (display_otherwise) {
-        return display_otherwise(condition)
-      } else {
-        return null
-      }
-    }))
-  }
-
-}
-
-
 /**
  * @category verb
  */
 export function If<T extends o.RO<any>>(
   condition: T,
-  display: Displayable<NonNullableObs<T>>,
-  display_otherwise?: Displayable<T>
+  display: If.DisplayFn<If.NonNullableObs<T>>,
+  display_otherwise?: If.DisplayFn<T>
 ): Node {
   // ts bug on condition.
   if (typeof display === 'function' && !((condition as any) instanceof o.Observable)) {
@@ -226,7 +194,42 @@ export function If<T extends o.RO<any>>(
           : document.createComment('false'))
   }
 
-  return new ConditionalDisplayer<any>(display, condition, display_otherwise).render()
+  return new If.ConditionalDisplayer<any>(display, condition, display_otherwise).render()
+}
+
+export namespace If {
+
+  export type DisplayFn<T> = (a: T) => e.JSX.Insertable
+
+  export type NonNullableObs<T> = T extends o.Observable<infer U> ? o.Observable<NonNullable<U>> :
+    T extends o.ReadonlyObservable<infer U> ? o.ReadonlyObservable<NonNullable<U>>
+    : NonNullable<T>
+
+
+  /**
+   * Implementation of the `DisplayIf()` verb.
+   */
+  export class ConditionalDisplayer<T extends o.ReadonlyObservable<any>> extends Displayer {
+
+    constructor(
+      protected display: If.DisplayFn<If.NonNullableObs<T>>,
+      protected condition: T,
+      protected display_otherwise?: If.DisplayFn<T>
+    ) {
+      super(condition.tf((cond, old, v) => {
+        if (old !== o.NOVALUE && !!cond === !!old && v !== o.NOVALUE) return v as e.JSX.Insertable
+        if (cond) {
+          return display(condition as NonNullableObs<T>)
+        } else if (display_otherwise) {
+          return display_otherwise(condition)
+        } else {
+          return null
+        }
+      }))
+    }
+
+  }
+
 }
 
 
