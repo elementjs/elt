@@ -87,7 +87,7 @@ function isComponent(kls: any): kls is new (attrs: e.JSX.Attrs) => Component<any
 }
 
 
-export const GLOBAL_ATTRIBUTES = {
+const GLOBAL_ATTRIBUTES = {
   accesskey: true,
   contenteditable: true,
   dir: true,
