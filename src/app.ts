@@ -12,7 +12,7 @@ import { o } from './observable'
  */
 export class App extends Mixin<Comment>{
 
-  registry = new App.Registry(this)
+  registry: App.Registry = new App.Registry(this)
 
   o_views = new o.Observable<{[name: string]: App.View}>({})
   active_blocks = new o.Observable<Set<App.BlockInstantiator>>(new Set())
@@ -119,7 +119,7 @@ export namespace App {
       this.app.registry.cache.set(this.constructor as any, this)
     }
 
-    registry = this.app.registry
+    registry: App.Registry = this.app.registry
 
     private block_init_promise = null as null | Promise<void>
 
