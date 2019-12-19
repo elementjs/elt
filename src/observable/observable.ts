@@ -57,15 +57,6 @@ export interface Converter<A, B> extends ReadonlyConverter<A, B> {
 }
 
 
-export interface ReadonlyObserver {
-  startObserving(): void
-  stopObserving(): void
-  refresh(): void
-  debounce(ms: number, leading?: boolean): this
-  throttle(ms: number, leading?: boolean): this
-}
-
-
 /**
  * @category Observable
  */
@@ -166,16 +157,19 @@ export class Changes<A> {
 }
 
 
-export class Observer<A> implements ReadonlyObserver, Indexable {
+export class Observer<A> implements Indexable {
 
   protected old_value: A = NOVALUE
   idx = null
+  protected fn: ObserverFunction<any>
 
-  constructor(public fn: ObserverFunction<A>, public observable: Observable<A>) { }
+  constructor(fn: ObserverFunction<A>, public observable: ReadonlyObservable<A>) {
+    this.fn = fn
+  }
 
   refresh(): void {
     const old = this.old_value
-    const new_value = this.observable.__value
+    const new_value = (this.observable as any).__value
 
     if (old !== new_value) {
       // only store the old_value if the observer will need it. Useful to not keep
@@ -208,10 +202,10 @@ export class Observer<A> implements ReadonlyObserver, Indexable {
 export interface ReadonlyObservable<A> {
   get(): A
   stopObservers(): void
-  createObserver(fn: ObserverFunction<A>): ReadonlyObserver
-  addObserver(fn: ObserverFunction<A>): ReadonlyObserver
-  addObserver(obs: ReadonlyObserver): ReadonlyObserver
-  removeObserver(ob: ReadonlyObserver): void
+  createObserver(fn: ObserverFunction<A>): Observer<A>
+  addObserver(fn: ObserverFunction<A>): Observer<A>
+  addObserver(obs: Observer<A>): Observer<A>
+  removeObserver(ob: Observer<A>): void
 
   tf<B>(fnget: RO<TransfomGetFn<A, B> | ReadonlyConverter<A, B>>): ReadonlyObservable<B>
 
@@ -1063,7 +1057,7 @@ export function prop<T>(obj: Observable<T> | T, prop: RO<number | keyof T | Symb
    */
   export class ObserverHolder {
 
-    observers: o.ReadonlyObserver[] = []
+    observers: o.Observer<any>[] = []
     live = false
 
     startObservers() {
@@ -1081,7 +1075,7 @@ export function prop<T>(obj: Observable<T> | T, prop: RO<number | keyof T | Symb
     /**
      * Observe and Observable and return the observer that was created
      */
-    observe<A>(obs: A, fn: ObserverFunction<BaseType<A>>): ReadonlyObserver | null {
+    observe<A>(obs: A, fn: ObserverFunction<BaseType<A>>): Observer<A> | null {
       if (!(obs instanceof Observable)) {
         fn(obs as BaseType<A>, new Changes(obs as BaseType<A>))
         return null
@@ -1094,7 +1088,7 @@ export function prop<T>(obj: Observable<T> | T, prop: RO<number | keyof T | Symb
     /**
      * Add an observer to the observers array
      */
-    addObserver(observer: ReadonlyObserver) : ReadonlyObserver {
+    addObserver(observer: Observer<any>) : Observer<any> {
       this.observers.push(observer)
 
       if (this.live)
@@ -1106,7 +1100,7 @@ export function prop<T>(obj: Observable<T> | T, prop: RO<number | keyof T | Symb
     /**
      * Remove the observer from this group
      */
-    remove(observer: ReadonlyObserver) {
+    remove(observer: Observer<any>) {
       const idx = this.observers.indexOf(observer)
       if (idx > -1) {
         if (this.live) observer.stopObserving()

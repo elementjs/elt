@@ -135,7 +135,7 @@ export function bind(obs: o.Observable<string>) {
  * @category decorator
  * @api
  */
-export function observe(a: o.ReadonlyObserver): observe.ObserveMixin
+export function observe<T>(a: o.Observer<T>): observe.ObserveMixin
 export function observe<T>(a: T, cbk: (newval: o.BaseType<T>, changes: o.Changes<o.BaseType<T>>, node: Node) => void): observe.ObserveMixin
 export function observe<T>(a: any, cbk?: any) {
   var m = new observe.ObserveMixin()
