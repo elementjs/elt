@@ -29,11 +29,6 @@ export type BaseType<T> = T extends ReadonlyObservable<infer U> ? U : T
 /**
  * @category Observable
  */
-export type ObserverFunction<T> = (newval: T, changes: Changes<T>) => void
-
-/**
- * @category Observable
- */
 export type TransfomGetFn<A, B> = (nval: A, oval: A | NoValue, curval: B | NoValue) => B
 
 /**
@@ -64,9 +59,11 @@ export type MaybeObservableReadonlyObject<T> = { [P in keyof T]:  RO<T[P]>}
 
 
 /**
- * We need a default uninitialized value to allow the first call to
- * call() to trigger the function, even if something like undefined
- * is passed.
+ * This class represents "no value", which is how Observers, Changes and Observable can
+ * identify when a value changes from not existing to having a value.
+ *
+ * Think of it as a kind of `undefined`, which we couldn't use since `undefined` has a meaning and
+ * is widely used.
  *
  * @category Observable
  */
@@ -161,9 +158,9 @@ export class Observer<A> implements Indexable {
 
   protected old_value: A = NOVALUE
   idx = null
-  protected fn: ObserverFunction<any>
+  protected fn: Observer.ObserverFunction<any>
 
-  constructor(fn: ObserverFunction<A>, public observable: ReadonlyObservable<A>) {
+  constructor(fn: Observer.ObserverFunction<A>, public observable: ReadonlyObservable<A>) {
     this.fn = fn
   }
 
@@ -199,11 +196,19 @@ export class Observer<A> implements Indexable {
 }
 
 
+export namespace Observer {
+  /**
+   */
+  export type ObserverFunction<T> = (newval: T, changes: Changes<T>) => void
+
+}
+
+
 export interface ReadonlyObservable<A> {
   get(): A
   stopObservers(): void
-  createObserver(fn: ObserverFunction<A>): Observer<A>
-  addObserver(fn: ObserverFunction<A>): Observer<A>
+  createObserver(fn: Observer.ObserverFunction<A>): Observer<A>
+  addObserver(fn: Observer.ObserverFunction<A>): Observer<A>
   addObserver(obs: Observer<A>): Observer<A>
   removeObserver(ob: Observer<A>): void
 
@@ -434,7 +439,7 @@ export class Observable<A> implements ReadonlyObservable<A>, Indexable {
    * @param fn The function to be called by the obseaddObserver()rver when the value changes
    * @param options
    */
-  createObserver(fn: ObserverFunction<A>): Observer<A> {
+  createObserver(fn: Observer.ObserverFunction<A>): Observer<A> {
     return new Observer(fn, this)
   }
 
@@ -448,9 +453,9 @@ export class Observable<A> implements ReadonlyObservable<A>, Indexable {
    * @returns The newly created observer if a function was given to this method or
    *   the observable that was passed.
    */
-  addObserver(fn: ObserverFunction<A>): Observer<A>
+  addObserver(fn: Observer.ObserverFunction<A>): Observer<A>
   addObserver(obs: Observer<A>): Observer<A>
-  addObserver(_ob: ObserverFunction<A> | Observer<A>): Observer<A> {
+  addObserver(_ob: Observer.ObserverFunction<A> | Observer<A>): Observer<A> {
     if (typeof _ob === 'function') {
       _ob = this.createObserver(_ob)
     }
@@ -1075,7 +1080,7 @@ export function prop<T>(obj: Observable<T> | T, prop: RO<number | keyof T | Symb
     /**
      * Observe and Observable and return the observer that was created
      */
-    observe<A>(obs: A, fn: ObserverFunction<BaseType<A>>): Observer<A> | null {
+    observe<A>(obs: A, fn: Observer.ObserverFunction<BaseType<A>>): Observer<A> | null {
       if (!(obs instanceof Observable)) {
         fn(obs as BaseType<A>, new Changes(obs as BaseType<A>))
         return null
