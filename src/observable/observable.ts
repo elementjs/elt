@@ -5,6 +5,7 @@ import { EACH, IndexableArray, Indexable } from './indexable'
  * @param arg A MaybeObservable
  * @returns The original observable if `arg` already was one, or a new
  *   Observable holding the value of `arg` if it wasn't.
+ * @category Observable
  */
 export function o<T>(arg: T): [T] extends [o.Observable<any>] ? T :
     // when there is a mix of different observables, then we have a readonlyobservable of the combination of the types
@@ -19,19 +20,38 @@ export namespace o {
 
 export type AnyExtendsReadonlyObservable<T> = T extends ReadonlyObservable<any> ? true : never
 
+/**
+ * Get the type of the element of an observable. Works on `#o.RO` as well.
+ * @category Observable
+ */
 export type BaseType<T> = T extends ReadonlyObservable<infer U> ? U : T
 
-
+/**
+ * @category Observable
+ */
 export type ObserverFunction<T> = (newval: T, changes: Changes<T>) => void
 
+/**
+ * @category Observable
+ */
 export type TransfomGetFn<A, B> = (nval: A, oval: A | NoValue, curval: B | NoValue) => B
+
+/**
+ * @category Observable
+ */
 export type TransfomSetFn<A, B> = (nval: B, oval: B | NoValue, curval: A) => A
 
 
+/**
+ * @category Observable
+ */
 export interface ReadonlyConverter<A, B> {
   get: TransfomGetFn<A, B>
 }
 
+/**
+ * @category Observable
+ */
 export interface Converter<A, B> extends ReadonlyConverter<A, B> {
   set: TransfomSetFn<A, B>
 }
@@ -45,7 +65,10 @@ export interface ReadonlyObserver {
   throttle(ms: number, leading?: boolean): this
 }
 
-// export type MaybeObservableObject<T> = { [P in keyof T]:  O<T[P]>}
+
+/**
+ * @category Observable
+ */
 export type MaybeObservableReadonlyObject<T> = { [P in keyof T]:  RO<T[P]>}
 
 
@@ -53,6 +76,8 @@ export type MaybeObservableReadonlyObject<T> = { [P in keyof T]:  RO<T[P]>}
  * We need a default uninitialized value to allow the first call to
  * call() to trigger the function, even if something like undefined
  * is passed.
+ *
+ * @category Observable
  */
 export class NoValue { private constructor() { }}
 
@@ -62,9 +87,16 @@ export class NoValue { private constructor() { }}
  * > **note**: the NoValue system is still pretty "hacky" in terms of typings, as its use is so far
  * > limited to implementing virtual observables that have readonly values or internally when checking
  * > if `Observer`s should be called. This will be made better in future releases.
+ *
+ * @category Observable
  */
 export const NOVALUE = new (NoValue as any)() as any
 
+
+/**
+ * A helper class to deal with changes from an old `#o.Observable` value to a new one.
+ * @category Observable
+ */
 export class Changes<A> {
   constructor(protected n: A, protected o: A | NoValue = NOVALUE) {
 
@@ -76,7 +108,6 @@ export class Changes<A> {
    *
    * @param ex Extractors to check for sub properties. If any of them
    *  changes, the function will return true.
-   *
    */
   changed(...ex: ((a: A) => any)[]) {
     const old = this.o

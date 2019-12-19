@@ -63,7 +63,7 @@ export function get_single_node(i: e.JSX.Insertable) {
 
 
 /**
- * Remove nodes between other nodes, unmounting them.
+ * Remove all the nodes between `start` (included) and `end` (included), calling `removed` and `unmount` if needed.
  * @category helper
  */
 export function remove_nodes_between(start: Node, end: Node) {

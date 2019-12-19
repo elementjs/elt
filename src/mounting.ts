@@ -124,12 +124,11 @@ export function unmount(node: Node) {
 
 
 /**
- * A node.remove() alternative that synchronously calls _unmount
- * on it, to avoid situations where some observables that would trigger
- * a removal also trigger an error (like on .p() on a now inexistant property).
+ * Remove a `node` from the DOM and call `removed` on its mixins as well as `deinit` on itself
+ * and all its children's Mixins.
  *
- * It is advised though not mandatory to use this function instead of using
- * parent.removeChild() when possible.
+ * Prefer using it over `Node.removeChild` or `Node.remove()` as not unmounting Mixins will leave
+ * `#o.Observable`s still being watched and lead to memory leaks.
  *
  * @param node The node to remove from the DOM
  * @category mounting
