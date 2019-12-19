@@ -26,7 +26,39 @@ export function mount(node: Node) {
  *
  */
 export function mounting_inserted(node: Node) {
+  var nodes = [node] as Node[] // the nodes we will have to tell they're inserted
 
+  var iter = node.firstChild as Node | null | undefined
+  var stack = [] as Node[]
+  // We build here a stack where parents are added first and children last
+  while (iter) {
+    nodes.push(iter) // always push the current node
+    var first = iter.firstChild
+    if (first) {
+      var next = iter.nextSibling // where we'll pick up when we unstack.
+      if (next)
+        stack.push(next)
+      iter = first // we will keep going to the children
+      continue
+    } else if (iter.nextSibling) {
+      iter = iter.nextSibling
+      continue
+    } else {
+      // no first child, no next sibling, just unpack the stack
+      iter = stack.pop()
+    }
+  }
+
+  // Call inserted on the node list we just built.
+  for (var i = 0, l = nodes.length; i < l; i++) {
+    var n = nodes[i]
+    n[sym_uninserted] = false // now inserted
+    var mx = n[sym_mixins]
+    while (mx) {
+      mx.inserted(n)
+      mx = mx.next_mixin
+    }
+  }
 }
 
 
@@ -126,10 +158,31 @@ export function remove_and_unmount(node: Node): void {
  * @category mounting
  */
 export function insert_before_and_mount(parent: Node, node: Node, refchild: Node | null = null) {
-  var df = document.createDocumentFragment()
-  df.appendChild(node)
-  mount(node)
-  parent.insertBefore(df, refchild)
+  var parent_is_inserted = !parent[sym_uninserted] // if parent_is_inserted, then we have to call inserted() on the added nodes.
+
+  if (!(node instanceof DocumentFragment)) {
+    var df = document.createDocumentFragment()
+    df.appendChild(node)
+    node = df
+  }
+
+  var iter = node.firstChild
+  var to_insert = parent_is_inserted ? [] as Node[] : undefined
+  while (iter) {
+    mount(iter)
+    if (parent_is_inserted) to_insert!.push(iter)
+    iter = iter.nextSibling
+  }
+
+  parent.insertBefore(node, refchild)
+
+  // now the elements are inserted, they're in the DOM. We should now call inserted() on them.
+  if (parent_is_inserted) {
+    for (var i = 0, l = to_insert!.length; i < l; i++) {
+      var n = to_insert![i]
+      mounting_inserted(n)
+    }
+  }
 }
 
 

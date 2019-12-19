@@ -226,7 +226,7 @@ export class Mixin<N extends Node = Node> extends o.ObserverHolder {
    * Stub method. Overload it to run code whenever the node is inserted into the
    * live DOM.
    */
-  inserted(node: N, parent: Node): void { }
+  inserted(node: N): void { }
 
   listen<K extends (keyof DocumentEventMap)[]>(name: K, listener: Mixin.Listener<DocumentEventMap[K[number]], N>, useCapture?: boolean): void
   listen<K extends keyof DocumentEventMap>(name: K, listener: Mixin.Listener<DocumentEventMap[K], N>, useCapture?: boolean): void

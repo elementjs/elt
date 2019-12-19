@@ -12,8 +12,8 @@ import {
 import { e } from './elt'
 
 import {
+  insert_before_and_mount,
   remove_and_unmount,
-  mount,
 } from './mounting'
 
 
@@ -120,14 +120,7 @@ export class CommentContainer extends Verb {
     var end = this.node
 
     // Insert the new node before the end
-    var parent = this.node.parentNode!
-    parent.insertBefore(node, end)
-
-    var child = this.start.nextSibling
-    while (child && child !== end) {
-      mount(child)
-      child = child.nextSibling
-    }
+    insert_before_and_mount(this.node.parentNode!, node, end)
   }
 
   removed(node: Node, parent: Node) {
@@ -305,10 +298,9 @@ export class Repeater<T> extends Verb {
       next = this.next()
       if (!next) break
       fr.appendChild(next)
-      mount(next)
     }
 
-    parent.insertBefore(fr, this.node)
+    insert_before_and_mount(parent, fr, this.node)
   }
 
   removeChildren(count: number) {

@@ -240,6 +240,13 @@ export function init(fn: (node: Element) => void): Mixin {
 }
 
 
+export function inserted(fn: (node: Node) => void): Mixin {
+  class InsertedMixin extends Mixin { }
+  InsertedMixin.prototype.inserted = fn
+  return new InsertedMixin()
+}
+
+
 /**
  * ```jsx
  *  <div $$={deinit(node => console.log(`This node is now out of the DOM`))}/>
