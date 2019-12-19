@@ -3,19 +3,19 @@
 
 Element is a [typescript](https://typescriptlang.org) library for building user interfaces in a web environment. It is not meant to build websites ; its purpose is to write applications.
 
-Weighing less than 10kb minified and gziped, it is meant as an alternative to React, Angular and the likes. Unlike many, it does **not** make use of any kind of virtual DOM. It is however pretty "reactive" and has an MVVM approach.
+Weighing less than 15kb minified and gziped, it is meant as an alternative to React, Angular and the likes. Unlike several of them, it does **not** make use of any kind of virtual DOM. It is however pretty "reactive" and has an MVVM approach, where variables are bound to the DOM.
 
-It makes use of fairly modern standards, such as `Map`, `Symbol` and `MutationObserver`. While it will probably work with some versions of IE, support is limited to Safari (+ iOS), Firefox, Chrome (+ Android Browser) and Edge.
+It makes use of fairly modern standards, such as `Map`, `Set` `Symbol` and `WeakMap`. While it will probably work with some versions of IE, support is limited to recent versions of Safari (+ iOS), Firefox, Chrome (+ Android Browser) and Edge -- recent meaning here the last two years, give or take.
 
 # Why use it
 
-  * **You use typescript** and don't want a javascript library that use patterns that the typing system doesn't always gracefully support. Everything is Element was built with type inference in mind. The `Observable` ecosystem tries hard to keep that valuable typing information without getting in your way.
+  * **You use typescript** and don't want a javascript library that use patterns that the typing system doesn't always gracefully support. Everything is Element was built with *type inference* in mind. The `Observable` ecosystem tries hard to keep that valuable typing information without getting in your way.
 
-  * **You like the Observer pattern** but you're afraid your app is going to leak. The `observe()` decorator and `Mixin#observe()` method provide a simple way of ensuring this won't happen.
+  * **You like the Observer pattern** but you're afraid your app is going to leak as this pattern is prone to. Element solves this elegantly by tying the observing to the presence of a Node in the DOM, (mostly) removing the need to un-register observers that would otherwise leak. See [`ObserverHolder`](#o.ObserverHolder), [`observe()`](#observe), [`App.Block`](#App.Block) and [`Mixin`](#Mixin).
 
-  * Virtual-DOM appears brilliant to you, but you'd rather **manipulate the DOM directly**. This is a philosophical point ; Virtual DOM is extremely efficient, probably more so than manipulating the document directly, but it also adds a layer of abstraction that is not always needed.
+  * Virtual-DOM appears brilliant to you, but you'd rather **manipulate the DOM directly**. This is a philosophical point ; Virtual DOM is extremely efficient, probably more so than manipulating the document directly, but it also adds a layer of abstraction that is not always needed. In Element, all the `<jsx>code</jsx>` returns DOM Elements, or at least Nodes that can be manipulated with "vanilla" javascript.
 
-  * **You like expliciteness**. Element was thought up to be as explicit as possible. The Observables and Verbs are a clear giveaway of what parts of your application are subject to change.
+  * **You like expliciteness**. Element was thought up to be as explicit as possible. The Observables and Verbs are a clear giveaway of what parts of your application are subject to change. Every symbol you use should be reachable with the go-to definition of your code editor.
 
   * **You like immutability** and its benefits. Values held by Observables are immutable. All the "mutating" methods of the Observable class actually clone the underlying object before modifying it, maintaining its type and prototype chain.
 
@@ -27,7 +27,7 @@ Use TSX (the typescript version of JSX) to build your interfaces. The result of 
 
 ```jsx
 // You can write that.
-document.body.appendChild(<div class='some-class'>Hello</div>)
+append_child_and_mount(document.body, <div class='some-class'>Hello</div>)
 ```
 
 ## It has an Observable class
@@ -43,22 +43,11 @@ o_bool.set(false)
 o_bool.get() // false
 ```
 
-They were built with typescript's inference system in mind. Everything is thus typed when using them, even though **there is only one Observable class**.
-
-```jsx
-const o_bool = o(true) // Observable<boolean>
-o_bool.toggle() // compiles
-o_bool.push(3) // compilation error
-const o_arr = o([1, 2, 3]) // Observable<number[]>
-o_arr.toggle() // compilation error
-o_arr.push(4) // OK.
-```
-
 They can be transformed, and these transformations can be bidirectional.
 
 ```jsx
 const o_obj = o({a: 1, b: 'hello'})
-const o_a = o_obj.p('a') // o_a is a new Observable that watches the 'a' property
+const o_a = o_obj.p('a') // o_a is a new Observable that watches the 'a' property. Its type is o.Observable<number>
 o_a.set(3)
 o_obj.p('b').set('!!!')
 o_obj.get() // is now {a: 3, b: '!!!'}
@@ -74,7 +63,7 @@ The value in an observable is **immutable**. Whenever a modifying method is call
 const prev = o_obj.get()
 o_obj.p('b').set('something else')
 
-prev !== o_obj.get() // this is true
+prev !== o_obj.get() // true
 ```
 
 They can do a **lot** more than these very simple transformations. Check the Observable documentation page.

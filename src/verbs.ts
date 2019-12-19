@@ -18,8 +18,13 @@ import {
 
 
 /**
- * Get a node that can be inserted into the DOM from an insertable.
+ * Get a node that can be inserted into the DOM from an insertable `i`. The returned value can be
+ * a single `Node` or a `DocumentFragment` if the insertable was an array.
+ *
+ *
  * @param i The insertable
+ *
+ * @category helper
  */
 export function get_dom_insertable(i: e.JSX.Insertable) {
 
@@ -47,11 +52,14 @@ export function get_dom_insertable(i: e.JSX.Insertable) {
 
 
 /**
- * Get a node from an insertable, or a Fragment verb if the insertable
+ * Get a node from an insertable ready to be mounted as-is. Gives a `#Fragment` if the insertable
  * returned a DocumentFragment.
  *
  * This function is a helper for Display / Repeat ; its goal is to get a
- * single node from anything that may be inserted (which can be a lot of different things)
+ * single node from anything that may be inserted, which can then be targeted by a single
+ * `remove_and_unmount`.
+ *
+ * @category helper
  */
 export function get_single_node(i: e.JSX.Insertable) {
   const result = get_dom_insertable(i)
@@ -443,6 +451,18 @@ export class ScrollRepeater<T> extends Repeater<T> {
  *
  * `ob` is not converted to an observable if it was not one, in which case the results are executed
  * right away and only once.
+ *
+ * ```tsx
+ * const o_mylist = o(['hello', 'world'])
+ *
+ * <div>
+ *   {Repeat(
+ *      o_mylist,
+ *      o_item => <Button click={event => o_item.mutate(value => value + '!')}/>,
+ *      () => <div class='separator'/> // this div will be inserted between each button.
+ *   )}
+ * </div>
+ * ```
  */
 export function Repeat<T extends o.RO<any[]>>(
   ob: T,
@@ -527,68 +547,20 @@ export class FragmentHolder extends CommentContainer {
 
 
 /**
- *  Fragment wraps everything into a DocumentFragment.
- *  Beware that because of typescript's imprecisions with the JSX namespace,
- *  we had to tell this function that it returns an HTMLElement while this
- *  completely false !
+ * Fragment is responsible for its children. If the `Fragment` is removed and unmounted,
+ * it then removes and unmounts its children.
+ *
+ * Beware that because of typescript's imprecisions with the JSX namespace,
+ * we had to tell this function that it returns an Element, which is false.
+ *
+ * `<Fragment class='something'></Fragment>` will most likely crash, even though the type system
+ * will allow it.
+ *
  * @category verb
  */
 export function Fragment(attrs: e.JSX.EmptyAttributes, children: DocumentFragment): Element {
   // This is a trick ! It is not actually an element !
-  // return children as any
   return new FragmentHolder(children).render() as unknown as Element
-}
-
-
-/**
- * Used by the `Switch()` verb.
- */
-export class Switcher<T> extends o.VirtualObservable<[T], e.JSX.Insertable> {
-
-  cases: [(T | ((t: T) => any)), (t: o.Observable<T>) => e.JSX.Insertable][] = []
-  passthrough: () => e.JSX.Insertable = () => null
-  prev_case: any = null
-  prev: e.JSX.Insertable | o.NoValue
-
-  constructor(public obs: o.Observable<T>) {
-    super([obs])
-  }
-
-  getter([nval] : [T]): e.JSX.Insertable {
-    const cases = this.cases
-    for (var c of cases) {
-      const val = c[0]
-      if (val === nval || (typeof val === 'function' && (val as Function)(nval))) {
-        if (this.prev_case === val) {
-          return this.prev as e.JSX.Insertable
-        }
-        this.prev_case = val
-        const fn = c[1]
-        return (this.prev = fn(this.obs))
-      }
-    }
-    if (this.prev_case === this.passthrough)
-      return this.prev as e.JSX.Insertable
-    this.prev_case = this.passthrough
-    return (this.prev = this.passthrough ? this.passthrough() : null)
-  }
-
-  Case(value: T | ((t: T) => any), fn: (v: o.Observable<T>) => e.JSX.Insertable): this {
-    this.cases.push([value, fn])
-    return this
-  }
-
-  Else(fn: () => e.JSX.Insertable) {
-    this.passthrough = fn
-    return this
-  }
-
-}
-
-
-export interface ReadonlySwitcher<T> extends o.ReadonlyObservable<e.JSX.Insertable> {
-  Case(value: T | ((t: T) => boolean), fn: (v: o.ReadonlyObservable<T>) => e.JSX.Insertable): this
-  Else(fn: () => e.JSX.Insertable): this
 }
 
 
@@ -598,8 +570,63 @@ export interface ReadonlySwitcher<T> extends o.ReadonlyObservable<e.JSX.Insertab
  * @category verb
  * @api
  */
-export function Switch<T>(obs: o.Observable<T>): Switcher<T>
-export function Switch<T>(obs: o.ReadonlyObservable<T>): ReadonlySwitcher<T>
-export function Switch<T>(obs: o.ReadonlyObservable<T>): ReadonlySwitcher<T> {
-  return new (Switcher as any)(obs)
+export function Switch<T>(obs: o.Observable<T>): Switch.Switcher<T>
+export function Switch<T>(obs: o.ReadonlyObservable<T>): Switch.ReadonlySwitcher<T>
+export function Switch<T>(obs: o.ReadonlyObservable<T>): Switch.ReadonlySwitcher<T> {
+  return new (Switch.Switcher as any)(obs)
+}
+
+
+export namespace Switch {
+  /**
+   * Used by the `Switch()` verb.
+   */
+  export class Switcher<T> extends o.VirtualObservable<[T], e.JSX.Insertable> {
+
+    cases: [(T | ((t: T) => any)), (t: o.Observable<T>) => e.JSX.Insertable][] = []
+    passthrough: () => e.JSX.Insertable = () => null
+    prev_case: any = null
+    prev: e.JSX.Insertable | o.NoValue
+
+    constructor(public obs: o.Observable<T>) {
+      super([obs])
+    }
+
+    getter([nval] : [T]): e.JSX.Insertable {
+      const cases = this.cases
+      for (var c of cases) {
+        const val = c[0]
+        if (val === nval || (typeof val === 'function' && (val as Function)(nval))) {
+          if (this.prev_case === val) {
+            return this.prev as e.JSX.Insertable
+          }
+          this.prev_case = val
+          const fn = c[1]
+          return (this.prev = fn(this.obs))
+        }
+      }
+      if (this.prev_case === this.passthrough)
+        return this.prev as e.JSX.Insertable
+      this.prev_case = this.passthrough
+      return (this.prev = this.passthrough ? this.passthrough() : null)
+    }
+
+    Case(value: T | ((t: T) => any), fn: (v: o.Observable<T>) => e.JSX.Insertable): this {
+      this.cases.push([value, fn])
+      return this
+    }
+
+    Else(fn: () => e.JSX.Insertable) {
+      this.passthrough = fn
+      return this
+    }
+
+  }
+
+
+  export interface ReadonlySwitcher<T> extends o.ReadonlyObservable<e.JSX.Insertable> {
+    Case(value: T | ((t: T) => boolean), fn: (v: o.ReadonlyObservable<T>) => e.JSX.Insertable): this
+    Else(fn: () => e.JSX.Insertable): this
+  }
+
 }

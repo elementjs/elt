@@ -2,25 +2,42 @@ import { o } from './observable'
 
 export namespace tf {
 
+  /**
+   * @category transformer
+   */
   export function equals<T, TT extends T>(other: o.RO<TT>) {
     return o.tf(other, oth => (current: T) => current === oth)
   }
 
+  /**
+   * @category transformer
+   */
   export function differs<T, TT extends T>(other: o.RO<TT>) {
     return o.tf(other, oth => (current: T) => current !== oth)
   }
 
+  /**
+   * @category transformer
+   */
   export function is_truthy(val: any) { return !!val }
 
+  /**
+   * @category transformer
+   */
   export function is_falsy(val: any) { return !val }
 
+  /**
+   * @category transformer
+   */
   export function is_value(val: any) { return val != null }
 
+  /**
+   * @category transformer
+   */
   export function is_not_value(val: any) { return val == null }
 
   /**
-   *
-   * @param fn
+   * @category transformer
    */
   export function array_transform<T>(fn: o.RO<number[] | ((array: T[]) => number[])>): o.RO<o.Converter<T[], T[]> & {indices: number[]}> {
     return o.tf(fn,
@@ -51,6 +68,7 @@ export namespace tf {
    * @param condition The condition the item has to pass to be kept
    * @param stable If false, the array is refiltered for any change in the condition or array.
    *    If true, only refilter if the condition changes, but keep the indices even if the array changes.
+   * @category transformer
    */
   export function array_filter<T>(condition: o.RO<(item: T, idx: number, lst: T[]) => any>, stable: o.RO<boolean> = false): o.RO<o.Converter<T[], T[]> & {indices: number[]}> {
     return o.virtual(
@@ -94,6 +112,7 @@ export namespace tf {
   /**
    * Transforms an array by sorting it. The sort function must return 0 in case of equality.
    * @param sortfn
+   * @category transformer
    */
   export function sort<T>(sortfn: o.RO<(a: T, b: T) => 1 | 0 | -1>): o.RO<o.Converter<T[], T[]>> {
     return array_transform(o.tf(sortfn, sortfn => (lst: T[]) => {
@@ -108,6 +127,7 @@ export namespace tf {
   /**
    * Sort an array by extractors, given in order of importance.
    * @param sorters
+   * @category transformer
    */
   export function sort_by<T>(sorters: o.RO<([(a: T) => any, 'desc' | 'asc'] | ((a: T) => any))[]>): o.RO<o.Converter<T[], T[]>> {
     return sort(o.tf(sorters,
@@ -139,7 +159,9 @@ export namespace tf {
     ))
   }
 
-
+  /**
+   * @category transformer
+   */
   export function group_by<T, R>(extractor: o.RO<(a: T) => R>): o.RO<o.Converter<T[], [R, T][]> & {indices: number[][]}> {
     return o.tf(extractor, extractor => {
       return {
@@ -157,6 +179,7 @@ export namespace tf {
   /**
    *
    * @param values The values that should be in the set.
+   * @category transformer
    */
   export function set_has<T>(...values: o.RO<T>[]): o.RO<o.Converter<Set<T>, boolean>> {
     return o.virtual(values, (values) => {

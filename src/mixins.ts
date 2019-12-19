@@ -322,6 +322,7 @@ export namespace Mixin {
  * It is just a Mixin that has a `render()` method and that defines the `attrs`
  * property which will restrict what attributes the component can be created with.
  * All attributes must extend the base `Attrs` class.
+ * @category jsx
  */
 export abstract class Component<A extends e.JSX.Attrs = e.JSX.Attrs, N extends Element = Element> extends Mixin<N> {
   // attrs: Attrs
