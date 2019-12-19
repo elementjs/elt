@@ -9,7 +9,7 @@ import {
   get_dom_insertable
 } from './verbs'
 
-import { mount } from './mounting'
+import { mount, sym_uninserted } from './mounting'
 
 
 
@@ -126,6 +126,7 @@ export function e(elt: any, _attrs: e.JSX.Attrs | null, ...children: e.JSX.Inser
     // create a simple DOM node
     var ns = NS[elt] || attrs.xmlns
     node = ns ? document.createElementNS(ns, elt) : document.createElement(elt)
+    node[sym_uninserted] = true
 
     // Append children to the node.
     node.appendChild(fragment)

@@ -12,32 +12,12 @@ import {
  * a WeakSet, but since the performance is not terrific (especially
  * when the number of elements gets high), the symbol solution was retained.
  */
-const mxsym = Symbol('element-mixins')
+export const sym_mixins = Symbol('element-mixins')
 
-
-/**
- * Get an array of all the mixins associated with that node.
- * @param node The node that holds the mixins
- */
-export function get_mixins<N extends Node>(node: N): Mixin<N>[] | undefined
-export function get_mixins(node: any): Mixin[] | undefined {
-  return node[mxsym]
-}
-
-
-/**
- * Add a mixin to the array of mixins associated with that node.
- * @param node The node the mixin will be added to
- * @param mixin The mixin to add
- */
-export function add_mixin<N extends Node>(node: N, mixin: Mixin<N>): void
-export function add_mixin(node: any, mixin: Mixin) {
-  var mx: Mixin[] = node[mxsym]
-  if (!mx) {
-    node[mxsym] = []
-    mx = node[mxsym]
+declare global {
+  interface Node {
+    [sym_mixins]?: Mixin<any>
   }
-  mx.push(mixin)
 }
 
 
@@ -48,11 +28,11 @@ export function add_mixin(node: any, mixin: Mixin) {
  */
 export function remove_mixin<N extends Node>(node: N, mixin: Mixin<N>): void
 export function remove_mixin(node: any, mixin: Mixin): void {
-  var mx: Mixin[] = node[mxsym]
+  var mx: Mixin[] = node[sym_mixins]
   if (!mx) return
   var res: Mixin[] = []
   for (var m of mx) if (mixin !== m) res.push(m)
-  node[mxsym] = res
+  node[sym_mixins] = res
 }
 
 type Handlers = Set<Mixin.Listener<any>>
@@ -137,6 +117,7 @@ export function add_event_listener(
 export class Mixin<N extends Node = Node> extends o.ObserverHolder {
 
   readonly node: N = null!
+  next_mixin?: Mixin<any>
 
   /**
    * Get a Mixin by its class on the given node or its parents.
@@ -159,12 +140,11 @@ export class Mixin<N extends Node = Node> extends o.ObserverHolder {
     let iter: Node | null = node as Node // yeah yeah, I know, it's an EventTarget as well but hey.
 
     while (iter) {
-      var mixins = get_mixins(iter)
+      var mixin_iter = iter[sym_mixins]
 
-      if (mixins) {
-        for (var m of mixins)
-          if (m instanceof this)
-            return m as M
+      while (mixin_iter) {
+        if (mixin_iter instanceof this)
+          return mixin_iter as M
       }
 
       if (!recursive)
@@ -181,7 +161,8 @@ export class Mixin<N extends Node = Node> extends o.ObserverHolder {
    * @param node The node that will receive this mixin.
    */
   addToNode(node: N) {
-    add_mixin(node, this);
+    this.next_mixin = node[sym_mixins]
+    node[sym_mixins] = this;
     (this.node as any) = node;
   }
 
@@ -239,6 +220,13 @@ export class Mixin<N extends Node = Node> extends o.ObserverHolder {
    * of a DOM removal (and not a child in the sub tree of a node that was removed)
    */
   removed(node: N, parent: Node): void { }
+
+
+  /**
+   * Stub method. Overload it to run code whenever the node is inserted into the
+   * live DOM.
+   */
+  inserted(node: N, parent: Node): void { }
 
   listen<K extends (keyof DocumentEventMap)[]>(name: K, listener: Mixin.Listener<DocumentEventMap[K[number]], N>, useCapture?: boolean): void
   listen<K extends keyof DocumentEventMap>(name: K, listener: Mixin.Listener<DocumentEventMap[K], N>, useCapture?: boolean): void
