@@ -1,16 +1,32 @@
 
-import {get_mixins} from './mixins'
+import { sym_mixins } from './mixins'
 
+export const sym_uninserted = Symbol('unmounted')
+
+declare global {
+  interface Node {
+    [sym_uninserted]?: boolean
+  }
+}
 
 /**
  * Call controllers' mount() functions.
  * @category mounting
  */
 export function mount(node: Node) {
-  var mx = get_mixins(node)
-  if (!mx) return
-  for (var m of mx)
-    m.mount(node)
+  var mx = node[sym_mixins]
+  while (mx) {
+    mx.mount(node)
+    mx = mx.next_mixin
+  }
+}
+
+
+/**
+ *
+ */
+export function mounting_inserted(node: Node) {
+
 }
 
 
@@ -18,9 +34,12 @@ export function mount(node: Node) {
  * Apply unmount to a node.
  */
 function _apply_unmount(node: Node) {
-  var mx = get_mixins(node)
-  if (!mx) return
-  for (var m of mx) m.unmount(node)
+  node[sym_uninserted] = true
+  var mx = node[sym_mixins]
+  while (mx) {
+    mx.unmount(node)
+    mx = mx.next_mixin
+  }
 }
 
 /**
@@ -85,11 +104,11 @@ export function unmount(node: Node) {
 export function remove_and_unmount(node: Node): void {
   const parent = node.parentNode!
   if (parent) {
-    const mx = get_mixins(node)
     unmount(node)
-    if (mx) {
-      for (var m of mx)
-      m.removed(node, parent)
+    var mx = node[sym_mixins]
+    while (mx) {
+      mx.removed(node, parent)
+      mx = mx.next_mixin
     }
     // (m as any).node = null
     parent.removeChild(node)

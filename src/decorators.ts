@@ -123,6 +123,7 @@ export class BindMixin extends Mixin<HTMLInputElement> {
  * Bind an observable to an input
  * @param obs The observer bound to the input
  * @category decorator
+ * @api
  */
 export function bind(obs: o.Observable<string>) {
   return new BindMixin(obs)
@@ -132,6 +133,7 @@ export function bind(obs: o.Observable<string>) {
 /**
  * Observe an observable and tie the observation to the node this is added to
  * @category decorator
+ * @api
  */
 export function observe(a: o.ReadonlyObserver): observe.ObserveMixin
 export function observe<T>(a: T, cbk: (newval: o.BaseType<T>, changes: o.Changes<o.BaseType<T>>, node: Node) => void): observe.ObserveMixin
@@ -172,6 +174,7 @@ export namespace observe {
  *   <div $$={on('create', ev => ev.target...)}
  * ```
  * @category decorator
+ * @api
  */
 export function on<K extends (keyof DocumentEventMap)[]>(name: K, listener: Mixin.Listener<DocumentEventMap[K[number]]>, useCapture?: boolean): Mixin
 export function on<K extends keyof DocumentEventMap>(event: K, listener: Mixin.Listener<DocumentEventMap[K]>, useCapture?: boolean): Mixin
@@ -198,6 +201,7 @@ class OnMixin extends Mixin {
  * Add a callback on the click event, or touchend if we are on a mobile
  * device.
  * @category decorator
+ * @api
  */
 export function click(cbk: Mixin.Listener<MouseEvent>) {
   return on('click', cbk)
@@ -213,6 +217,7 @@ export function click(cbk: Mixin.Listener<MouseEvent>) {
  *  })}/>
  * ```
  * @category decorator
+ * @api
  */
 export function removed(fn: (node: Element, parent: Node) => void): Mixin {
   class RemovedMixin extends Mixin { }
@@ -226,6 +231,7 @@ export function removed(fn: (node: Element, parent: Node) => void): Mixin {
  *  <div $$={init(node => console.log(`This node was just created and its observers are about to start`))}/>
  * ```
  * @category decorator
+ * @api
  */
 export function init(fn: (node: Element) => void): Mixin {
   class InitMixin extends Mixin { }
@@ -240,6 +246,7 @@ export function init(fn: (node: Element) => void): Mixin {
  * ```
  *
  * @category decorator
+ * @api
  */
 export function deinit(fn: (node: Element) => void): Mixin {
   class DeinitMixin extends Mixin { }
@@ -304,6 +311,7 @@ export class ScrollableMixin extends Mixin<HTMLElement> {
  *
  * Calling this functions makes anything not marked scrollable as non-scrollable.
  * @category decorator
+ * @api
  */
 export function scrollable() {
   return new ScrollableMixin()

@@ -63,17 +63,6 @@ export function get_single_node(i: e.JSX.Insertable) {
 
 
 /**
- * Create a Comment node and bind the mixin to it.
- * @param m The mixin that will be added to the verb
- */
-// export function instanciate_verb(m: Mixin<Comment>): Node {
-//   const node = document.createComment(`  ${m.constructor.name} `)
-//   m.addToNode(node)
-//   return node
-// }
-
-
-/**
  * Remove nodes between other nodes, unmounting them.
  * @category helper
  */
@@ -90,6 +79,10 @@ export function remove_nodes_between(start: Node, end: Node) {
 
 }
 
+
+/**
+ * @category verb
+ */
 export class Verb extends Mixin<Comment> {
 
   render() {
@@ -101,10 +94,11 @@ export class Verb extends Mixin<Comment> {
 }
 
 /**
- * A Mixin that stores nodes between two comments.
- * Its end is its this.node
+ * A subclass of `#Verb` made to store nodes between two comments.
  *
  * Can be used as a base to build verbs more easily.
+ * @api
+ * @category verb
  */
 export class CommentContainer extends Verb {
 
@@ -179,6 +173,9 @@ export function Display(obs: o.RO<e.JSX.Insertable>): Node {
 
 /**
  * @category verb
+ * @api
+ *
+ * Display content depending on the value of a `condition`, which can be `#o.Observable`
  */
 export function If<T extends o.RO<any>>(
   condition: T,
@@ -443,7 +440,8 @@ export class ScrollRepeater<T> extends Repeater<T> {
 
 
 /**
- * @verb
+ * @category verb
+ * @api
  *
  * Repeats the `render` function for each element in `ob`, optionally separating each rendering
  * with the result of the `separator` function.
@@ -503,7 +501,8 @@ export namespace Repeat {
  * > **Note** : while functional, RepeatScroll is not perfect. A "VirtualScroll" behaviour is in the
  * > roadmap to only maintain the right amount of elements on screen.
  *
- * @verb
+ * @category verb
+ * @api
  */
 export function RepeatScroll<T>(ob: T[], render: Repeat.ReadonlyRenderFn<T>, separator?: Repeat.SeparatorFn, scroll_buffer_size?: number): Node;
 export function RepeatScroll<T>(ob: o.Observable<T[]>, render: Repeat.RenderFn<T> , separator?: Repeat.SeparatorFn, scroll_buffer_size?: number): Node;
@@ -605,6 +604,7 @@ export interface ReadonlySwitcher<T> extends o.ReadonlyObservable<e.JSX.Insertab
  * Perform a Switch statement
  * @param obs The observable switched on
  * @category verb
+ * @api
  */
 export function Switch<T>(obs: o.Observable<T>): Switcher<T>
 export function Switch<T>(obs: o.ReadonlyObservable<T>): ReadonlySwitcher<T>
