@@ -228,7 +228,7 @@ export function removed(fn: (node: Element, parent: Node) => void): Mixin {
 
 /**
  * ```jsx
- *  <div $$={init(node => console.log(`This node was just created and its observers are about to start`))}/>
+ *  <MyComponent $$={init(node => console.log(`This node was just created and its observers are now live`))}/>
  * ```
  * @category decorator
  */

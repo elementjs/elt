@@ -107,6 +107,7 @@ const GLOBAL_ATTRIBUTES = {
  *
  * This function is the base of element ; it creates Nodes and glues together
  * Controllers, decorators, classes and style.
+ * @category jsx
  */
 export function e(elt: string, attrs: e.JSX.Attrs | null, ...children: e.JSX.Insertable[]): HTMLElement
 export function e<A extends e.JSX.EmptyAttributes>(elt: (attrs: A, children: DocumentFragment) => Element, attrs: A | null, ...children: e.JSX.Insertable[]): Element
@@ -217,6 +218,10 @@ export namespace e {
       $$children: any
     }
 
+    /**
+     * The prototype JSX functions have to conform to.
+     * @category jsx
+     */
     export interface ElementClassFn {
       (attrs: EmptyAttributes, children: DocumentFragment): Element
     }
@@ -230,6 +235,7 @@ export namespace e {
      * Renderables are the types understood by the `Display` verb and that can be rendered into
      * the DOM without efforts or need to transform. It is used by the `Insertable` type
      * to define what can go between `{ curly braces }` in JSX code.
+     * @category jsx
      */
     export type Renderable = string | number | Node | null | undefined | Renderable[]
 
@@ -282,9 +288,20 @@ export namespace e {
 
 
     /**
-     * Basic attributes used on all HTML nodes.
+     * Basic attributes used on all HTML nodes, which can be reused when making components
+     * to benefit from the class / style / id... attributes defined here.
+     *
+     * ```jsx
+     * function MyComponent(a: Attrs & {some_attribute: string}, ch: DocumentFragment) {
+     *   return <div>{ch} {a.some_attribute}</div>
+     * }
+     *
+     * // With Attrs, all the basic elements are available.
+     * <MyComponent id='some_id' class='css_class_1'/>
+     * ```
      *
      * This type should be used as first argument to all components definitions.
+     * @category jsx
      */
     export interface Attrs extends EmptyAttributes {
       id?: NRO<string>

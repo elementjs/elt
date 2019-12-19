@@ -7,15 +7,24 @@ import { o } from './observable'
  * An App is a collection of building blocks that all together form an application.
  * These blocks contain code, data and views that produce DOM elements.
  *
+ * It is not meant to be instanciated directly, prefer using `#App.DisplayApp` instead.
+ *
  * @include ../docs/app.md
  *
+ * @category helper
  */
 export class App extends Mixin<Comment>{
 
   registry: App.Registry = new App.Registry(this)
 
+  /** @internal */
   o_views = new o.Observable<{[name: string]: App.View}>({})
-  active_blocks = new o.Observable<Set<App.BlockInstantiator>>(new Set())
+
+  /**
+   * The currently active blocks, ie. the blocks that were specifically
+   * given to `#App.DisplayApp` or `this.activate`
+   */
+  o_active_blocks = new o.Observable<Set<App.BlockInstantiator>>(new Set())
 
   constructor(public main_view: string, protected init_list: App.BlockInstantiator<any>[]) {
     super()
@@ -29,7 +38,7 @@ export class App extends Mixin<Comment>{
    */
   activate(...params: App.BlockInstantiator<any>[]) {
     var blocks = params.filter(p => typeof p === 'function') as App.BlockInstantiator[]
-    const active = this.active_blocks.get()
+    const active = this.o_active_blocks.get()
     var not_present = false
 
     for (var b of blocks) {
@@ -41,12 +50,12 @@ export class App extends Mixin<Comment>{
     if (!not_present) return
 
     this.registry.activate(blocks)
-    this.active_blocks.set(this.registry.active_blocks)
+    this.o_active_blocks.set(this.registry.active_blocks)
     this.o_views.set(this.registry.getViews())
   }
 
   /**
-   *
+   * @internal
    */
   init() {
     // Look for a parent app. If found, pick a subregistry and register it.
@@ -56,18 +65,16 @@ export class App extends Mixin<Comment>{
   }
 
   /**
+   * @internal
    *
+   * Implementation of display
    */
-  deinit() {
-
-  }
-
-  display(sym: string) {
+  display(view_name: string) {
     return Display(this.o_views.tf((v, old, prev) => {
-      var view = v[sym]
+      var view = v[view_name]
       // if (sym === 'MainView')
       //   console.log(sym, v, old, o.isValue(old) && view === old[sym])
-      if (o.isValue(old) && view === old[sym] && o.isValue(prev)) {
+      if (o.isValue(old) && view === old[view_name] && o.isValue(prev)) {
         return prev
       }
       return view && view.fn()
@@ -79,24 +86,35 @@ export class App extends Mixin<Comment>{
 
 export namespace App {
   /**
-   * Display the application.
+   * Display an application with the specified `#App.Block`s as activated blocks, displaying
+   * the `main_view` view.
    *
-   * @param main_view The symbol of the view to display
-   * @param params Initialisation parameters
+   * @param main_view The name of the property holding the view to display
+   * @param blocks The blocks to activate
+   *
+   * ```tsx
+   * class LoginBlock extends App.Block {
+   *   Main = this.view(() => <div>
+   *     <SomeLoginForm/>
+   *   </div>)
+   * }
+   *
+   * append_child_and_mount(document.body, App.DisplayApp('Main', LoginBlock))
+   * ```
    *
    * @category verb
    */
-  export function DisplayApp(main_view: string, ...params: BlockInstantiator<any>[]) {
-    var app = new App(main_view, params)
+  export function DisplayApp(main_view: string, ...blocks: BlockInstantiator<any>[]) {
+    var app = new App(main_view, blocks)
     var disp = app.display(main_view)
     app.addToNode(disp)
     return disp
   }
 
   /**
-   * A Helper interface for a Block constructor.
+   * A Helper type for a Block constructor.
    */
-  export interface BlockInstantiator<B extends Block = Block> {
+  export type BlockInstantiator<B extends Block = Block> = {
     new(app: App): B
   }
 
@@ -107,10 +125,16 @@ export namespace App {
 
 
   /**
-   * The base class to create services.
+   * A base class to make application blocks.
    *
-   * Services are meant to be used by *composition*, and not through extension.
-   * Do not subclass a service unless its state is the exact same type.
+   * A block defines views through `this.view` and reacts to
+   *
+   * An ObserverHolder, Blocks can use `this.observe` to watch `#o.Observable`s and will
+   * only actively watch them as long as they're either *activated* or in the *requirements* of
+   * an activated block.
+   *
+   * Blocks are meant to be used by *composition*, and not through extension.
+   * Do not subclass a Block unless its state is the exact same type.
    */
   export class Block extends o.ObserverHolder {
 
@@ -119,12 +143,16 @@ export namespace App {
       this.app.registry.cache.set(this.constructor as any, this)
     }
 
+    /** @internal */
     registry: App.Registry = this.app.registry
 
+    /** @internal */
     private block_init_promise = null as null | Promise<void>
 
+    /** @internal */
     private block_requirements = new Set<Block | Object>()
 
+    /** @internal */
     mark(s: Set<Function>) {
       s.add(this.constructor)
       this.block_requirements.forEach(req => {
@@ -144,6 +172,8 @@ export namespace App {
      *
      * @param fn The function to run on all blocks
      * @param mark A set containing blocks that were already visited
+     *
+     * @internal
      */
     runOnRequirementsAndSelf(fn: (b: Block) => void, mark = new Set<Block>()) {
       mark.add(this)
@@ -155,12 +185,25 @@ export namespace App {
       fn(this)
     }
 
+    /**
+     * Create a view. The view's name is the name of the property it's assigned to.
+     *
+     * ```tsx
+     * class MyBlock extends App.Block {
+     *   ToolbarView = this.view(() => <div class='toolbar'>...</div>)
+     *   Main = this.view(() => <div>{this.display('ToolbarView')}</div>)
+     * }
+     *
+     * append_child_and_mount(document.body, App.DisplayApp('Main', MyBlock))
+     * ```
+     */
     view(fn: () => Node) {
       return new View(fn.bind(this))
     }
 
     /**
      * Wait for all the required blocks to init
+     * @internal
      */
     async blockInit(): Promise<void> {
       if (this.block_init_promise) {
@@ -176,11 +219,13 @@ export namespace App {
       this.startObservers()
     }
 
+    /** @internal */
     async blockActivate() {
       await this.blockInit()
-      await this.activate()
+      await this.activated()
     }
 
+    /** @internal */
     async blockDeinit() {
       this.stopObservers()
       this.deinit()
@@ -192,7 +237,7 @@ export namespace App {
      *
      * The `init` chain is started on activation. However, the views start displaying immediately,
      * which means that in all likelyhood, `init()` for a block will terminate **after** the DOM
-     * is in place.
+     * from the views was inserted.
      */
     async init(): Promise<void> { }
 
@@ -200,7 +245,7 @@ export namespace App {
      * Extend this method to run code whenever the block is *activated* directly (ie: passed as an
      * argument to the `app.activate()` method).
      */
-    async activate(): Promise<void> { }
+    async activated(): Promise<void> { }
 
     /**
      * Extend this method to run code whenever this block is removed from the app.
@@ -209,13 +254,23 @@ export namespace App {
      */
     async deinit(): Promise<any> { }
 
-    isActive() {
-      return this.app.registry.active_blocks.has(this.constructor as BlockInstantiator<this>)
-    }
-
     /**
+     * Require another block for this block to use. Mostly useful directly in the current block's
+     * current properties definition.
      *
-     * @param block_def
+     * ```tsx
+     * class MyBlock extends App.Block {
+     *   // declare this block dependencies as properties
+     *   auth = this.require(AuthBlock)
+     *
+     *   someMethod() {
+     *     // since auth is now a property, I can use it as any object.
+     *     console.log(this.auth.isLoggedIn())
+     *   }
+     * }
+     * ```
+     *
+     * @param block_def another block's constructor
      */
     require<B extends Block>(block_def: BlockInstantiator<B>): B {
       var result = this.registry.get(block_def)
@@ -224,7 +279,20 @@ export namespace App {
     }
 
     /**
-     * Display the contents of a block
+     * Acts as a verb that displays the specified `view_name`
+     *
+     * ```tsx
+     * // ... inside a Block subclass declaration.
+     * ToolbarView = this.view(() => <div>
+     *   <h3>My Title</h3>
+     *   {this.display('MoreToolbar')}
+     * </div>)
+     *
+     * // MoreToolbar can be redefined in other blocks, which will then be displayed
+     * // by app.display if they come before the current block in the requirements.
+     * MoreToolbar = this.view(() => <Button click={e => doSomething()}>Something</Button>)
+     * // ...
+     * ```
      * @param fn
      */
     // v should be AllowedNames<this, View> ! but it is a bug with ts 3.6.2
