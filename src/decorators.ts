@@ -231,7 +231,6 @@ export function removed(fn: (node: Element, parent: Node) => void): Mixin {
  *  <div $$={init(node => console.log(`This node was just created and its observers are about to start`))}/>
  * ```
  * @category decorator
- * @api
  */
 export function init(fn: (node: Element) => void): Mixin {
   class InitMixin extends Mixin { }
@@ -240,6 +239,18 @@ export function init(fn: (node: Element) => void): Mixin {
 }
 
 
+/**
+ * Call the `fn` callback when the decorated `node` is inserted into the DOM with
+ * itself as first argument.
+ *
+ * ```tsx
+ * append_child_and_mount(document.body, <div $$={inserted(n => {
+ *   console.log(`I am now in the DOM and `, n.parentNode, ` is document.body`)
+ * })}/>)
+ * ```
+ *
+ * @category decorator
+ */
 export function inserted(fn: (node: Node) => void): Mixin {
   class InsertedMixin extends Mixin { }
   InsertedMixin.prototype.inserted = fn

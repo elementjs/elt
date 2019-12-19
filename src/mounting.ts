@@ -11,7 +11,7 @@ declare global {
 
 /**
  * Call controllers' mount() functions.
- * @category mounting
+ * @internal
  */
 export function mount(node: Node) {
   var mx = node[sym_mixins]
@@ -23,7 +23,7 @@ export function mount(node: Node) {
 
 
 /**
- *
+ * @internal
  */
 export function mounting_inserted(node: Node) {
   var nodes = [node] as Node[] // the nodes we will have to tell they're inserted
@@ -64,6 +64,7 @@ export function mounting_inserted(node: Node) {
 
 /**
  * Apply unmount to a node.
+ * @internal
  */
 function _apply_unmount(node: Node) {
   node[sym_uninserted] = true
@@ -149,12 +150,16 @@ export function remove_and_unmount(node: Node): void {
 
 
 /**
- * An alternative way of inserting a child into the DOM that immediately calls
- * mount() on the node and its children.
+ * Insert a `node` to a `parent`'s child list before `refchild`.
  *
- * @param parent
- * @param node
- * @param refchild
+ * This method should **always** be used instead of `Node.appendChild` or `Node.insertBefore` when
+ * dealing with nodes created with `#e`, as it performs the following operations on top of adding
+ * them :
+ *
+ *  - Call the `mount()` methods on `#Mixin`s present on the nodes that were not already mounted
+ *  - Call the `inserted()` methods on `#Mixin`'s present on **all** the nodes and their descendents
+ *     if `parent` is already inside the DOM.
+ *
  * @category mounting
  */
 export function insert_before_and_mount(parent: Node, node: Node, refchild: Node | null = null) {
@@ -187,7 +192,7 @@ export function insert_before_and_mount(parent: Node, node: Node, refchild: Node
 
 
 /**
- * Alias for insert_before_and_mount
+ * Alias for `#insert_before_and_mount` that mimicks `Node.appendChild()`
  * @category mounting
  */
 export function append_child_and_mount(parent: Node, child: Node) {
