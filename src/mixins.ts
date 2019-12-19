@@ -39,6 +39,10 @@ type Handlers = Set<Mixin.Listener<any>>
 const event_map = {} as {[event_name: string]: WeakMap<Node, Handlers>}
 
 
+/**
+ * Stop listening on `event` from the `handler` registered on `node`.
+ * @category helper
+ */
 export function remove_event_listener(node: Node, event: string, handler: Mixin.Listener<any>, use_capture?: boolean): void {
   const evt = `${event}_${use_capture ? '_capture' : ''}`
   var map = event_map[evt]
@@ -49,8 +53,16 @@ export function remove_event_listener(node: Node, event: string, handler: Mixin.
 }
 
 /**
- * Setup a global event listener for each type of event.
- * This is based on WeakMap to avoid holding references to nodes.
+ * Listen to an `event` happening on `node`, executing `handler` when it happens, optionnally
+ * during the capture phase if `use_capture` is used.
+ *
+ * This function does **not** register directly the event on the `node`. Instead, it adds a global
+ * listener on `document` and dispatches the events itself to the handlers precisely to avoid
+ * registering events on all the nodes.
+ *
+ * A WeakMap is used behind the scenes to associate nodes to handles.
+ *
+ * @category helper
  */
 export function add_event_listener<N extends Node, E extends keyof DocumentEventMap>(node: N, event: E, handler: Mixin.Listener<DocumentEventMap[E], N>, use_capture?: boolean): void
 export function add_event_listener(node: Node, event: string, handler: Mixin.Listener<any>, use_capture?: boolean): void
