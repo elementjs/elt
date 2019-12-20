@@ -3,31 +3,54 @@
 
 Element is a [typescript](https://typescriptlang.org) library for building user interfaces in a web environment. It is not meant to build websites ; its purpose is to write applications.
 
-Weighing less than 15kb minified and gziped, it is meant as an alternative to React, Angular and the likes. Unlike several of them, it does **not** make use of any kind of virtual DOM. It is however pretty "reactive" and has an MVVM approach, where variables are bound to the DOM.
+Weighing less than 15kb minified and gziped, it is meant as an alternative to React, Angular and the likes. Unlike several of them, it does *not* make use of any kind of virtual DOM. Instead, it provides the developper with an `Observable` class and a `Mixin` system to manipulate the DOM directly.
 
-It makes use of fairly modern standards, such as `Map`, `Set` `Symbol` and `WeakMap`. While it will probably work with some versions of IE, support is limited to recent versions of Safari (+ iOS), Firefox, Chrome (+ Android Browser) and Edge -- recent meaning here the last two years, give or take.
+It makes use of fairly modern standards, such as `Map`, `Set`, `Symbol` and `WeakMap`. While it will probably work with some versions of IE, support is limited to less than two year old versions of Safari (+ iOS), Firefox, Chrome (+ Android Browser) and Edge.
+
+While it is of course usable in plain javascript, its real intended audience is typescript users.
 
 # Why use it
 
   * **You use typescript** and don't want a javascript library that use patterns that the typing system doesn't always gracefully support. Everything is Element was built with *type inference* in mind. The `Observable` ecosystem tries hard to keep that valuable typing information without getting in your way.
 
-  * **You like the Observer pattern** but you're afraid your app is going to leak as this pattern is prone to. Element solves this elegantly by tying the observing to the presence of a Node in the DOM, (mostly) removing the need to un-register observers that would otherwise leak. See [`ObserverHolder`](#o.ObserverHolder), [`observe()`](#observe), [`App.Block`](#App.Block) and [`Mixin`](#Mixin).
+  * **You like the Observer pattern** but you're afraid your app is going to leak as this pattern is prone to. Element solves this elegantly by tying the observing to the presence of a Node in the DOM, removing the need to un-register observers that would otherwise leak. See [`ObserverHolder`](#o.ObserverHolder), [`observe()`](#observe), [`App.Block`](#App.Block) and [`Mixin`](#Mixin).
 
-  * Virtual-DOM appears brilliant to you, but you'd rather **manipulate the DOM directly**. This is a philosophical point ; Virtual DOM is extremely efficient, probably more so than manipulating the document directly, but it also adds a layer of abstraction that is not always needed. In Element, all the `<jsx>code</jsx>` returns DOM Elements, or at least Nodes that can be manipulated with "vanilla" javascript.
+  * Virtual-DOM appears brilliant to you, but **you'd rather manipulate the DOM directly**. This is a philosophical point ; Virtual DOM is extremely efficient, probably more so than manipulating the document directly, but it also adds a layer of abstraction that is not always needed. In Element, all the `<jsx>code</jsx>` returns DOM Elements, or at least Nodes that can be manipulated with "vanilla" javascript.
 
   * **You like expliciteness**. Element was thought up to be as explicit as possible. The Observables and Verbs are a clear giveaway of what parts of your application are subject to change. Every symbol you use should be reachable with the go-to definition of your code editor.
 
-  * **You like immutability** and its benefits. Values held by Observables are immutable. All the "mutating" methods of the Observable class actually clone the underlying object before modifying it, maintaining its type and prototype chain.
+  * **You're tired of packages with dozens of dependencies**. Element has none. It uses plain, vanilla JS, and doesn't shy away from reimplementing simple algorithm instead of polluting your node_modules.
+
+# Getting started
+
+First, install elt in your
 
 # In a Nutshell
 
+All UI libraries basically do the same thing : display data and provide a way to modify it.
+
+In Element, this is achieved by using the [`Observable`](#o.Observable) class, which is essentially a wrapper around an immutable object that informs [`Observer`](#o.Observer)s whenever the object changes.
+
+[`Mixin`](#Mixin)s are objects meant to be associated to a `Node` which allow us to :
+- run code whenever the associated `Node` is created, added to the DOM or removed from the DOM
+- observe Observables, but **only** while the Node is inside the `document`.
+
+All the library is built on this basis. Of course, Observables can do *much* more than just observing an object and Mixins provide more functionnality.
+
 ## It is meant to be used with TSX
 
-Use TSX (the typescript version of JSX) to build your interfaces. The result of a TSX expression is always an `Element`.
+Use TSX (the typescript version of JSX) to build your interfaces. The result of a TSX expression is (almost) always a DOM `Element` -- it is at least a `Node`.
 
 ```jsx
 // You can write that.
 append_child_and_mount(document.body, <div class='some-class'>Hello</div>)
+```
+
+For convenience, the `class`, `style` and `id` attributes (plus some other global HTML attributes, see the [`Attrs`](#e.JSX.Attrs) interface) do not need to be forwarded in your components definitions.
+
+```tsx
+import { Attrs } from 'elt'
+function MyComponent(a: Attrs, )
 ```
 
 ## It has an Observable class
@@ -67,46 +90,6 @@ prev !== o_obj.get() // true
 ```
 
 They can do a **lot** more than these very simple transformations. Check the Observable documentation page.
-
-## ... and a very useful MaybeObservable object
-
-The `MaybeObservable` is the root of Element's flexibility. It is also simple ; it means "either a value of a certain type, or an observable of this same type". The `o` function and its `o.get` method are meant to deal with it.
-
-```jsx
-const value = {a: 1, b: 2}
-const o_value = o(value)
-
-// o.get takes a MaybeObservable and returns its current value
-o.get(value) === o.get(o_value)
-
-// o() creates an observable or just passes the given observable if it already was one.
-// It essentially transforms a MaybeObservable to an Observable
-o_value === o(o_value)
-```
-
-Its usefulness lies in the fact that a Component may define its attributes as `MaybeObservable`, allowing the caller to do stuff like this ;
-
-```jsx
-
-interface IconAttributes extends Attrs {
-  name: MaybeObservable<string>
-}
-
-function Icon({name}: IconAttributes) {
-  const o_name = o(name) // make sure we have an Observable
-  return <i class={['my-icon-lib', o_name.tf(name => `icon-${name}`)]}/>
-}
-
-// With a value
-<Icon name='menu'/>
-
-// With an observable
-o_icon_name = o('menu')
-<Icon name={o_icon_name}/>
-
-// ... later
-o_icon_name.set('close')
-```
 
 ## Mixins
 
