@@ -11,7 +11,7 @@ While it is of course usable in plain javascript, its real intended audience is 
 
 # Why use it
 
-  * **You use typescript** and don't want a javascript library that use patterns that the typing system doesn't always gracefully support. Everything is Element was built with *type inference* in mind. The `Observable` ecosystem tries hard to keep that valuable typing information without getting in your way.
+  * **You use typescript** and don't want a javascript library that use patterns that the typing system doesn't always gracefully support. Everything is Element was built with *type inference* in mind. The `Observable` ecosystem tries hard to keep that valuable typing information without getting in your way. It also tries to be as strict as possible, which is way the recommended way to enjoy this library is with `"strict": true` in your `tsconfig.json`.
 
   * **You like the Observer pattern** but you're afraid your app is going to leak as this pattern is prone to. Element solves this elegantly by tying the observing to the presence of a Node in the DOM, removing the need to un-register observers that would otherwise leak. See [`ObserverHolder`](#o.ObserverHolder), [`observe()`](#observe), [`App.Block`](#App.Block) and [`Mixin`](#Mixin).
 
@@ -19,11 +19,43 @@ While it is of course usable in plain javascript, its real intended audience is 
 
   * **You like expliciteness**. Element was thought up to be as explicit as possible. The Observables and Verbs are a clear giveaway of what parts of your application are subject to change. Every symbol you use should be reachable with the go-to definition of your code editor.
 
-  * **You're tired of packages with dozens of dependencies**. Element has none. It uses plain, vanilla JS, and doesn't shy away from reimplementing simple algorithm instead of polluting your node_modules.
+  * **You're tired of packages with dozens of dependencies**. Element has none. It uses plain, vanilla JS, and doesn't shy away from reimplementing simple algorithms instead of polluting your node_modules.
 
 # Getting started
 
-First, install elt in your
+First, install elt in your project
+
+```bash
+npm install elt
+# Alternatively
+yarn add elt
+```
+
+In your `tsconfig.json`, you will need to add the following :
+
+```json
+  "strict": true, // not needed, but strongly advised
+  "lib": ["es6", "dom"], // elt uses some es6 specific classes, and of course a lot of the DOM api
+  "jsx": "react",
+  "jsxNamespace": "E", // alternatively "jsxNamespace": "e", but you then have to import { e } from 'elt' in your .tsx files.
+```
+
+You can also use `"jsxFactory": "E"` instead of the namespace, but to use fragments, you have to `import { Fragment } from 'elt'` and then use the `<Fragment></Fragment>` construct instead of `<></>`.
+
+Last, to add a Node created with this library, you will need to use [`append_child_and_mount`](#append_child_and_mount) (or [`insert_before_and_mount`](#insert_before_and_mount)) instead of the regular `.appendChild()` or `.insertBefore()`, as the latter will of course ignore the `Mixin`s present on the nodes.
+
+```tsx
+import { o, bind } from 'elt'
+
+const o_says = o('hello world')
+
+append_child_and_mount(document.body, <div>
+  <p><input $$={bind(o_says)}/></p>
+  <p>Element says {o_says} !</p>
+</div>)
+```
+
+... and that's it !
 
 # In a Nutshell
 
@@ -44,13 +76,6 @@ Use TSX (the typescript version of JSX) to build your interfaces. The result of 
 ```jsx
 // You can write that.
 append_child_and_mount(document.body, <div class='some-class'>Hello</div>)
-```
-
-For convenience, the `class`, `style` and `id` attributes (plus some other global HTML attributes, see the [`Attrs`](#e.JSX.Attrs) interface) do not need to be forwarded in your components definitions.
-
-```tsx
-import { Attrs } from 'elt'
-function MyComponent(a: Attrs, )
 ```
 
 ## It has an Observable class
@@ -75,9 +100,15 @@ o_a.set(3)
 o_obj.p('b').set('!!!')
 o_obj.get() // is now {a: 3, b: '!!!'}
 
-const o_tf = o_a.tf(val => val * 2, (nval, oval, obs) => obs.set(nval / 2))
+const o_tf = o_a.tf({get: val => val * 2, set: nval => nval / 2})
 o_tf.get() // 6
-o_tf.set(8) // o_a is now 4, and o_obj is {a: 4, b: '!!!}
+o_tf.set(8) // o_a is now 4, and o_obj is {a: 4, b: '!!!'}
+
+// A transform can also be unidirectionnal
+const o_tf2 = o_a.tf(val => val * 3)
+o_tf2.get() // 9
+// But then, the resulting observable is read only !
+o_tf2.set(3) // Compile error ! Runtime error too !
 ```
 
 The value in an observable is **immutable**. Whenever a modifying method is called, the object inside it is cloned.
@@ -89,21 +120,21 @@ o_obj.p('b').set('something else')
 prev !== o_obj.get() // true
 ```
 
-They can do a **lot** more than these very simple transformations. Check the Observable documentation page.
+They can do a **lot** more than these very simple transformations. Check the Observable documentation.
 
 ## Mixins
 
-A `Mixin` is an object that is tied to a node. You can use the `$$` attribute to bind one to the node.
+A `Mixin` is an object that is tied to a node. You can use the `$$` attribute to manually bind one to the node.
 
 They offer the convenient `observe()` method, which ties the observing of an `Observable` to the presence of the node inside the `document`. They are warned whenever the node is inserted or removed from the `document`
 
 ```jsx
 class MyMixin extends Mixin {
-  inserted(node: Node, parent: Node) {
+  inserted(node: Node,) {
     console.log(`I was inserted on`, parent)
   }
 
-  removed(node: Node, parent: Node, prev: Node | null, next: Node | null) {
+  removed(node: Node, parent: Node) {
     console.log(`I was removed from the document`)
     console.log(`My parent was`, parent)
   }
@@ -119,25 +150,27 @@ o_arr = o([1, 2, 3])
 
 // the contents of o_arr will be logged as long as this div is inside the document.
 document.body.appendChild(<div $$={observe(o_arr, value => console.log(value))}/>)
+o_arr.set([4, 5, 6])
 ```
 
 ## Verbs
 
-"Verbs" are functions that return `Comment` nodes. They indicate dynamicity in your interface. The most commonly used are `DisplayIf` and `Repeat`.
+"Verbs" are functions that return `Comment` nodes. They indicate dynamicity in your interface. The most commonly used are `If` and `Repeat`.
 
-`DisplayIf` is used to conditionnally display content.
+`If` is used to conditionnally display content, where the condition can be an observable or not.
 
 ```jsx
 import {o} from 'elt'
 import {Button} from 'elt-material'
 
-const o_bool = o(false)
+const o_object = o({a: 1} as null | {a: number})
 document.body.appendChild(<div>
   <Button click={e => o_bool.toggle()}/>
-  {DisplayIf(o_bool,
-    () => <span>My value is true</span>,
-    () => <span>My value is false</span>
-  )}
+  {If(o_object,
+    // here, o_obj is Observable<{a: number}>
+    o_obj => <span>a has: {o_obj.p('a')}</span>,
+  // I cannot do o_object.p('a'), as it will complain about the null part.
+  ).Else(() => <span>There is no value</span>)}
 </div>)
 ```
 
@@ -178,7 +211,7 @@ function Elt() {
 // -> <div class='hello word'/>
 ```
 
-`class` and `style` can receive `Observable` as well as regular values. `class` can also be an array with `MaybeObservable<string>` or with an object of class definitions.
+`class` and `style` can receive `Observable` as well as regular values. `class` can also be an array with `RO<string>` or with an object of class definitions.
 
 ```jsx
 const o_class = o('class2')
@@ -198,30 +231,3 @@ The `style` attribute does not accept text. Since it is considered good practice
 ```jsx
 <Elt style={ {width: o_width} }>
 ```
-
-
-# Getting Started
-
-Add the following to your `tsconfig.json` :
-
-```javascript
-{
-  // ...
-  "jsx": "react",
-  "jsxFactory": "E",
-  // Those can come in handy
-  "lib": ["es6", "dom"]
-}
-```
-
-This should do it, now you can just ...
-
-```typescript
-import {/* ... */} from 'elt'
-```
-
-... and start coding !
-
-# Examples
-
-You can fork this TodoMVC example to see more of it in action.
