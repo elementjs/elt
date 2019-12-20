@@ -125,6 +125,7 @@ export function add_event_listener(
  * with `init()` or `inserted()`, please make sure that you set it to `null` in the
  * `removed()` call.
  * @api
+ * @category jsx
  */
 export class Mixin<N extends Node = Node> extends o.ObserverHolder {
 
@@ -169,8 +170,21 @@ export class Mixin<N extends Node = Node> extends o.ObserverHolder {
   }
 
   /**
-   * Add the mixin to the node and call its init() method.
-   * @param node The node that will receive this mixin.
+   * Associate this mixin to a `node`.
+   *
+   * All it does is add it to the chained list of mixins accessible on `node[sym_mixins]` and
+   * set `this.node` to the corresponding node.
+   *
+   * It is also possible to add a mixin to a node by using the `$$` attribute of jsx constructors :
+   *
+   * ```tsx
+   * var my_mixin = new Mixin()
+   *
+   * // all those are equivalent
+   * <div $$={my_mixin}/>
+   * <div $$={[my_mixin]}/>
+   * var d = <div/>; my_mixin.addToNode(d)
+   * ```
    */
   addToNode(node: N) {
     this.next_mixin = node[sym_mixins]
@@ -194,7 +208,7 @@ export class Mixin<N extends Node = Node> extends o.ObserverHolder {
    */
   mount(node: N) {
     (this.node as any) = node;
-    this.init(node, node.parentNode!)
+    this.init(node)
     this.startObservers()
   }
 
@@ -219,7 +233,7 @@ export class Mixin<N extends Node = Node> extends o.ObserverHolder {
    * @param node The associated node.
    * @param parent The current parent node. It will most likely change.
    */
-  init(node: N, parent: Node): void { }
+  init(node: N): void { }
 
   /**
    * Stub method. Overload it to run code whenever the node is removed from the DOM.

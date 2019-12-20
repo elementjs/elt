@@ -150,7 +150,7 @@ export namespace App {
     private block_init_promise = null as null | Promise<void>
 
     /** @internal */
-    private block_requirements = new Set<Block | Object>()
+    private block_requirements = new Set<Block>()
 
     /** @internal */
     mark(s: Set<Function>) {
@@ -211,7 +211,7 @@ export namespace App {
         return
       }
 
-      var requirement_blocks = Array.from(this.block_requirements).filter(b => b instanceof Block) as Block[]
+      var requirement_blocks = Array.from(this.block_requirements)
       // This is where we wait for all the required blocks to end their init.
       // Now we can init.
       this.block_init_promise = Promise.all(requirement_blocks.map(b => b.blockInit())).then(() => this.init())
@@ -230,6 +230,12 @@ export namespace App {
       this.stopObservers()
       this.deinit()
     }
+
+    /**
+     * Extend this method to run code whenever this block is initialized, after its requirements
+     * syncInit() were run.
+     */
+    syncInit(): void { }
 
     /**
      * Extend this method to run code whenever the block is created after the `init()` methods
