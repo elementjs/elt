@@ -112,8 +112,8 @@ export class CommentContainer extends Verb {
 
   start = document.createComment('--start--')
 
-  init(node: Node, parent: Node) {
-    parent.insertBefore(this.start, node)
+  init(node: Node) {
+    node.parentNode!.insertBefore(this.start, node)
   }
 
   /**
@@ -149,8 +149,8 @@ export class Displayer extends CommentContainer {
     super()
   }
 
-  init(node: Node, parent: Node) {
-    super.init(node, parent)
+  init(node: Node) {
+    super.init(node)
     this.observe(this._obs, value => this.setContents(get_dom_insertable(value)))
   }
 
@@ -538,8 +538,8 @@ export class FragmentHolder extends CommentContainer {
     super()
   }
 
-  init(node: Comment, parent: Node) {
-    super.init(node, parent)
+  init(node: Comment) {
+    super.init(node)
     this.setContents(this.fragment)
   }
 
