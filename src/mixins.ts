@@ -26,13 +26,20 @@ declare global {
  * @param node The node the mixin will be removed from
  * @param mixin The mixin object we want to remove
  */
-export function remove_mixin<N extends Node>(node: N, mixin: Mixin<N>): void
-export function remove_mixin(node: any, mixin: Mixin): void {
-  var mx: Mixin[] = node[sym_mixins]
+export function remove_mixin(node: Node, mixin: Mixin): void {
+  var mx = node[sym_mixins]
   if (!mx) return
-  var res: Mixin[] = []
-  for (var m of mx) if (mixin !== m) res.push(m)
-  node[sym_mixins] = res
+  if (mx === mixin) {
+    node[sym_mixins] = mixin.next_mixin
+  } else {
+    var iter = mx
+    while (iter) {
+      if (iter.next_mixin === mixin) {
+        iter.next_mixin = mixin.next_mixin
+        return
+      }
+    }
+  }
 }
 
 type Handlers = Set<Mixin.Listener<any>>
