@@ -216,8 +216,8 @@ export interface ReadonlyObservable<A> {
 
   tf<B>(fnget: RO<TransfomGetFn<A, B> | ReadonlyConverter<A, B>>): ReadonlyObservable<B>
 
-  p<A>(this: ReadonlyObservable<A[]>, key: RO<number>): ReadonlyObservable<A | undefined>
-  p<A extends object, K extends keyof A>(this: ReadonlyObservable<A>, key: RO<K>): ReadonlyObservable<A[K]>
+  p<A>(this: ReadonlyObservable<A[]>, key: RO<number>): ReadonlyObservable<A>
+  p<A, K extends keyof A>(this: ReadonlyObservable<A>, key: RO<K>): ReadonlyObservable<A[K]>
 
 }
 
@@ -542,8 +542,8 @@ export class Observable<A> implements ReadonlyObservable<A>, Indexable {
     )
   }
 
-  p<A>(this: Observable<A[]>, key: RO<number>): Observable<A | undefined>
-  p<A extends object, K extends keyof A>(this: Observable<A>, key: RO<K>): Observable<A[K]>
+  p<A>(this: Observable<A[]>, key: RO<number>): Observable<A>
+  p<A, K extends keyof A>(this: Observable<A>, key: RO<K>): Observable<A[K]>
   // p<A extends {[key: string]: any}, K extends keyof A>(this: Observable<A>, key: RO<string>): PropObservable<A, A[K] | undefined>
   p(this: Observable<any>, key: RO<any>): Observable<any> {
     return prop(this, key)
@@ -594,21 +594,25 @@ export class VirtualObservable<A extends any[], T = A> extends Observable<T> {
     }
   }
 
+  refreshParentValues() {
+    var changed = false
+    for (var i = 0, l = this.__links, p = this.__parents_values; i < l.length; i++) {
+      var link = l[i]
+      var idx = link.child_idx
+      var old = p[idx]
+      var n = link.parent.get()
+      if (old !== n) {
+        changed = true
+        p[idx] = n
+      }
+    }
+    return changed
+  }
+
   get() {
     if (!this.__watched) {
-      var changed = false
-      for (var i = 0, l = this.__links, p = this.__parents_values; i < l.length; i++) {
-        var link = l[i]
-        var idx = link.child_idx
-        var old = p[idx]
-        var n = link.parent.get()
-        if (old !== n) {
-          changed = true
-          p[idx] = n
-        }
-      }
-      if (changed || this.__value === NOVALUE as any) {
-        this.__value = this.getter(p)
+      if (this.refreshParentValues() || this.__value === NOVALUE as any) {
+        this.__value = this.getter(this.__parents_values)
       }
     }
     return this.__value
@@ -620,6 +624,7 @@ export class VirtualObservable<A extends any[], T = A> extends Observable<T> {
     if (value === this.__value) return
 
     const old_value = this.__value
+    if (!this.__watched) this.refreshParentValues()
     const res = this.setter(value, old_value, this.__parents_values)
     if (res == undefined) return
     for (var i = 0, l = this.__links, len = l.length; i < len; i++) {
