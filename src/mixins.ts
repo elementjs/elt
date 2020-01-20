@@ -62,8 +62,13 @@ export function remove_event_listener(node: Node, event: string, handler: Mixin.
 }
 
 
-
-export function register_new_document(document: Document) {
+/**
+ * Register a document in the event-delegation system. Used internally when mounting.
+ * @internal
+ */
+export function register_new_document(_document: Document | null | undefined) {
+  if (_document == null || documents.indexOf(_document) > -1) return
+  const document = _document as Document
   documents.push(document)
 
   function unregister() {
