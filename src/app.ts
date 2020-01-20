@@ -1,6 +1,7 @@
 
 import { Display } from './verbs'
 import { Mixin } from './mixins'
+import { e } from './elt'
 import { o } from './observable'
 
 /**
@@ -77,7 +78,7 @@ export class App extends Mixin<Comment>{
       if (o.isValue(old) && view === old[view_name] && o.isValue(prev)) {
         return prev
       }
-      return view && view.fn()
+      return view && view()
     })) as Comment
   }
 
@@ -111,18 +112,19 @@ export namespace App {
     return disp
   }
 
+  export function view(object: Block, key: string, desc: PropertyDescriptor) {
+    object.views[key] = desc.value.bind(object)
+  }
+
+  export type View = () => e.JSX.Insertable
+
   /**
    * A Helper type for a Block constructor.
    */
-  export type BlockInstantiator<B extends Block = Block> = {
+  export type BlockInstantiator<B extends App.Block = App.Block> = {
     new(app: App): B
+    views?: {[name: string]: View}
   }
-
-
-  export class View {
-    constructor(public fn: () => Node) { }
-  }
-
 
   /**
    * A base class to make application blocks.
@@ -137,6 +139,7 @@ export namespace App {
    * Do not subclass a Block unless its state is the exact same type.
    */
   export class Block extends o.ObserverHolder {
+    views: {[name: string]: View} = {}
 
     constructor(public app: App) {
       super()
@@ -183,22 +186,6 @@ export namespace App {
         }
       })
       fn(this)
-    }
-
-    /**
-     * Create a view. The view's name is the name of the property it's assigned to.
-     *
-     * ```tsx
-     * class MyBlock extends App.Block {
-     *   ToolbarView = this.view(() => <div class='toolbar'>...</div>)
-     *   Main = this.view(() => <div>{this.display('ToolbarView')}</div>)
-     * }
-     *
-     * append_child_and_mount(document.body, App.DisplayApp('Main', MyBlock))
-     * ```
-     */
-    view(fn: () => Node) {
-      return new View(fn.bind(this))
     }
 
     /**
@@ -346,11 +333,8 @@ export namespace App {
       this.active_blocks.forEach(inst => {
         var block = this.get(inst)
         block.runOnRequirementsAndSelf(b => {
-          for (var name of Object.getOwnPropertyNames(b)) {
-            var fn = (b as any)[name]
-            if (fn instanceof View) {
-              views[name] = fn
-            }
+          if (block.views) {
+            Object.assign(views, block.views)
           }
         })
       })
