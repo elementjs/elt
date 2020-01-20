@@ -1,5 +1,5 @@
 
-import { sym_mixins } from './mixins'
+import { sym_mixins, register_new_document } from './mixins'
 
 export const sym_uninserted = Symbol('unmounted')
 
@@ -182,6 +182,11 @@ export function insert_before_and_mount(parent: Node, node: Node, refchild: Node
 
   // now the elements are inserted, they're in the DOM. We should now call inserted() on them.
   if (parent_is_inserted) {
+    // If this symbol is undefined, it means the parent was most likely not created by elt.
+    // We check that its document events are handled by us.
+    if (parent[sym_uninserted] == undefined) {
+      register_new_document(parent.ownerDocument)
+    }
     for (var i = 0, l = to_insert!.length; i < l; i++) {
       var n = to_insert![i]
       mounting_inserted(n)
