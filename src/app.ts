@@ -113,7 +113,9 @@ export namespace App {
   }
 
   export function view(object: Block, key: string, desc: PropertyDescriptor) {
-    object.views[key] = desc.value.bind(object)
+    const cons = object.constructor as any
+    cons.views = cons.views ?? {}
+    cons.views[key] = desc.value
   }
 
   export type View = () => e.JSX.Insertable
@@ -333,8 +335,10 @@ export namespace App {
       this.active_blocks.forEach(inst => {
         var block = this.get(inst)
         block.runOnRequirementsAndSelf(b => {
-          if (block.views) {
-            Object.assign(views, block.views)
+          const cons = b.constructor as any
+          const v = cons.views ?? {}
+          for (var key of Object.getOwnPropertyNames(v)) {
+            views[key] = v[key].bind(b)
           }
         })
       })
