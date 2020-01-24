@@ -45,7 +45,7 @@ You can also use `"jsxFactory": "E"` instead of the namespace, but to use fragme
 Last, to add a Node created with this library, you will need to use [`append_child_and_mount`](#append_child_and_mount) (or [`insert_before_and_mount`](#insert_before_and_mount)) instead of the regular `.appendChild()` or `.insertBefore()`, as the latter will of course ignore the `Mixin`s present on the nodes.
 
 ```tsx
-import { o, bind } from 'elt'
+import { o, bind, append_child_and_mount } from 'elt'
 
 const o_says = o('hello world')
 
