@@ -42,116 +42,6 @@ export function remove_mixin(node: Node, mixin: Mixin): void {
   }
 }
 
-type Handlers = Mixin.Listener<any>[]
-const event_map = {} as {[event_name: string]: WeakMap<Node, Handlers>}
-const documents = [document]
-
-
-/**
- * Stop listening on `event` from the `handler` registered on `node`.
- * @category helper
- */
-export function remove_event_listener(node: Node, event: string, handler: Mixin.Listener<any>, use_capture?: boolean): void {
-  const evt = `${event}_${use_capture ? '_capture' : ''}`
-  var map = event_map[evt]
-  if (!map) return
-  var handlers = map.get(node)
-  if (!handlers) return
-  var idx = handlers.indexOf(handler)
-  if (idx > 1) handlers.splice(idx, 1)
-}
-
-
-/**
- * Register a document in the event-delegation system. Used internally when mounting.
- * @internal
- */
-export function register_new_document(_document: Document | null | undefined) {
-  if (_document == null || documents.indexOf(_document) > -1) return
-  const document = _document as Document
-  documents.push(document)
-
-  function unregister() {
-    var idx = documents.indexOf(document)
-    if (idx > -1) {
-      documents.splice(idx, 1)
-    }
-    document.removeEventListener('beforeunload', unregister)
-  }
-
-  document.addEventListener('beforeunload', unregister)
-
-  for (var evt of Object.keys(event_map)) {
-    register_root_handler(document, evt)
-  }
-}
-
-
-export function register_root_handler(document: Document, evt: string) {
-  var event = evt.replace('_capture', '')
-  var use_capture = event !== evt
-
-  var map = event_map[evt]
-  if (!map) {
-    map = event_map[evt] = new WeakMap<Node, Handlers>()
-  }
-
-  document.addEventListener(event, function (event) {
-    var n = event.target as Node
-    while (n && n !== document) {
-      const handlers = map.get(n)
-      if (handlers) {
-        for (var h of handlers) {
-          if (h.call(n, event, n) === false) {
-            event.stopImmediatePropagation()
-            event.stopPropagation()
-            return
-          }
-        }
-      }
-      n = n.parentNode!
-    }
-  }, use_capture)
-
-}
-
-
-/**
- * Listen to an `event` happening on `node`, executing `handler` when it happens, optionnally
- * during the capture phase if `use_capture` is used.
- *
- * This function does **not** register directly the event on the `node`. Instead, it adds a global
- * listener on `document` and dispatches the events itself to the handlers precisely to avoid
- * registering events on all the nodes.
- *
- * A WeakMap is used behind the scenes to associate nodes to handles.
- *
- * @category helper
- */
-export function add_event_listener<N extends Node, E extends keyof DocumentEventMap>(node: N, event: E, handler: Mixin.Listener<DocumentEventMap[E], N>, use_capture?: boolean): void
-export function add_event_listener<N extends Node>(node: N, event: string, handler: Mixin.Listener<Event, N>, use_capture?: boolean): void
-export function add_event_listener(
-  node: Node,
-  event: string,
-  handler: Mixin.Listener<any>,
-  use_capture?: boolean
-) {
-  const evt = `${event}${use_capture ? '_capture' : ''}`
-
-  if (!event_map[evt]) {
-    for (var d of documents)
-      register_root_handler(d, evt)
-  }
-
-  var handlers = event_map[evt].get(node)
-  if (!handlers) {
-    handlers = []
-    event_map[evt].set(node, handlers)
-  }
-  var idx = handlers.indexOf(handler)
-  if (idx === -1) handlers.push(handler)
-}
-
 
 /**
  * A `Mixin` is an object that is tied to a DOM Node and its lifecycle. This class
@@ -307,10 +197,10 @@ export class Mixin<N extends Node = Node> {
   listen(name: string | string[], listener: Mixin.Listener<Event, N>, useCapture?: boolean): void
   listen(name: string | string[], listener: Mixin.Listener<Event, any>, useCapture?: boolean) {
     if (typeof name === 'string')
-      add_event_listener(this.node, name, listener, useCapture)
+      this.node.addEventListener(name, (ev) => listener(ev, this.node), useCapture)
     else
       for (var n of name) {
-        add_event_listener(this.node, n, listener, useCapture)
+        this.node.addEventListener(n, (ev) => listener(ev, this.node), useCapture)
       }
   }
 
