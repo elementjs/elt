@@ -129,7 +129,7 @@ export function register_root_handler(document: Document, evt: string) {
  * @category helper
  */
 export function add_event_listener<N extends Node, E extends keyof DocumentEventMap>(node: N, event: E, handler: Mixin.Listener<DocumentEventMap[E], N>, use_capture?: boolean): void
-export function add_event_listener(node: Node, event: string, handler: Mixin.Listener<any>, use_capture?: boolean): void
+export function add_event_listener<N extends Node>(node: N, event: string, handler: Mixin.Listener<Event, N>, use_capture?: boolean): void
 export function add_event_listener(
   node: Node,
   event: string,
@@ -177,7 +177,7 @@ export function add_event_listener(
  * @api
  * @category jsx
  */
-export class Mixin<N extends Node = Node> extends o.ObserverHolder {
+export class Mixin<N extends Node = Node> {
 
   readonly node: N = null!
   next_mixin?: Mixin<any>
@@ -259,7 +259,6 @@ export class Mixin<N extends Node = Node> extends o.ObserverHolder {
   mount(node: N) {
     (this.node as any) = node;
     this.init(node)
-    this.startObservers()
   }
 
   /**
@@ -271,7 +270,6 @@ export class Mixin<N extends Node = Node> extends o.ObserverHolder {
    * @param prev Its former prevSibling
    */
   unmount(node: N) {
-    this.stopObservers()
     this.deinit(node);
   }
 
@@ -306,8 +304,8 @@ export class Mixin<N extends Node = Node> extends o.ObserverHolder {
 
   listen<K extends (keyof DocumentEventMap)[]>(name: K, listener: Mixin.Listener<DocumentEventMap[K[number]], N>, useCapture?: boolean): void
   listen<K extends keyof DocumentEventMap>(name: K, listener: Mixin.Listener<DocumentEventMap[K], N>, useCapture?: boolean): void
-  listen<E extends Event>(name: string | string[], listener: Mixin.Listener<E, N>, useCapture?: boolean): void
-  listen<E extends Event>(name: string | string[], listener: Mixin.Listener<E, any>, useCapture?: boolean) {
+  listen(name: string | string[], listener: Mixin.Listener<Event, N>, useCapture?: boolean): void
+  listen(name: string | string[], listener: Mixin.Listener<Event, any>, useCapture?: boolean) {
     if (typeof name === 'string')
       add_event_listener(this.node, name, listener, useCapture)
     else
@@ -317,67 +315,17 @@ export class Mixin<N extends Node = Node> extends o.ObserverHolder {
   }
 
   /**
-   *
+   * Observe and Observable and return the observer that was created
    */
-  observeAttribute<N extends Element>(this: Mixin<N>, name: string, value: o.RO<any>) {
-    this.observe(value, val => {
-      if (val === true)
-      this.node.setAttribute(name, '')
-      else if (val != null && val !== false)
-        this.node.setAttribute(name, val)
-      else
-        // We can remove safely even if it doesn't exist as it won't raise an exception
-        this.node.removeAttribute(name)
-    })
-  }
-
-  observeStyle<N extends HTMLElement|SVGElement>(this: Mixin<N>, style: e.JSX.StyleDefinition) {
-    if (style instanceof o.Observable) {
-      this.observe(style, st => {
-        const ns = this.node.style
-        var props = Object.keys(st)
-        for (var i = 0, l = props.length; i < l; i++) {
-          let x = props[i]
-          ns.setProperty(x.replace(/[A-Z]/g, m => '-' + m.toLowerCase()), st[x])
-        }
-      })
-    } else {
-      // c is a MaybeObservableObject
-      var st = style as any
-      var props = Object.keys(st)
-      for (var i = 0, l = props.length; i < l; i++) {
-        let x = props[i]
-        this.observe(st[x], value => {
-          this.node.style.setProperty(x.replace(/[A-Z]/g, m => '-' + m.toLowerCase()), value)
-        })
-      }
-    }
-  }
-
-  observeClass<N extends Element>(this: Mixin<N>, c: e.JSX.ClassDefinition) {
-    if (!c) return
-    if (typeof c === 'string' || c.constructor !== Object) {
-      // c is an Observable<string>
-      this.observe(c, (str, chg) => {
-        if (chg.hasOldValue()) _remove_class(this.node, chg.oldValue())
-        _apply_class(this.node, str)
-      })
-    } else {
-      var ob = c as {[name: string]: o.RO<any>}
-      // c is a MaybeObservableObject
-      var props = Object.keys(ob)
-      for (var i = 0, l = props.length; i < l; i++) {
-        let x = props[i]
-        this.observe(ob[x], applied => applied ? _apply_class(this.node, x) : _remove_class(this.node, x))
-      }
-    }
+  observe<A>(obs: o.RO<A>, fn: o.Observer.ObserverFunction<A>): o.Observer<A> | null {
+    return node_observe(this.node, obs, fn)
   }
 
 }
 
 
 export namespace Mixin {
-  export type Listener<EventType extends Event, N extends Node = Node> = (this: N, ev: EventType, node: N) => any
+  export type Listener<EventType extends Event, N extends Node = Node> = (ev: EventType, node: N) => any
 }
 
 /**
@@ -388,10 +336,101 @@ export namespace Mixin {
  * All attributes must extend the base `Attrs` class.
  * @category jsx
  */
-export abstract class Component<A extends e.JSX.Attrs = e.JSX.Attrs, N extends Element = Element> extends Mixin<N> {
+export abstract class Component<A extends e.JSX.EmptyAttributes<any>> extends Mixin<A['$$children']> {
   // attrs: Attrs
   constructor(public attrs: A) { super() }
-  abstract render(children: DocumentFragment): N
+  abstract render(children: e.JSX.Renderable[]): Node
+}
+
+
+export const sym_observers = Symbol('observers')
+
+declare global {
+  interface Node {
+    [sym_observers]?: o.Observer<any>[]
+  }
+}
+
+export function node_observe<T>(node: Node, obs: o.RO<T>, obsfn: o.Observer.ObserverFunction<T>): o.Observer<T> | null {
+  if (!(o.isReadonlyObservable(obs))) {
+    obsfn(obs, new o.Changes(obs))
+    return null
+  }
+  // Create the observer and append it to the observer array of the node
+  var obser = obs.createObserver(obsfn)
+  if (node[sym_observers] == undefined)
+    node[sym_observers] = []
+  node[sym_observers]!.push(obser)
+  obser.startObserving() // this *may* be a problem ? FIXME TODO
+  // we might need to track the mounting status of a node.
+  return obser
+}
+
+export function node_unobserve(node: Node, obsfn: o.Observer<any> | o.Observer.ObserverFunction<any>) {
+  node[sym_observers] = node[sym_observers]?.filter(ob => {
+    const res = ob === obsfn || ob.fn === obsfn
+    if (res) {
+      ob.stopObserving()
+    }
+    return res
+  })
+}
+
+/**
+ *
+ */
+export function node_observe_attribute(node: Element, name: string, value: o.RO<string | boolean>) {
+  node_observe(node, value, val => {
+    if (val === true)
+    node.setAttribute(name, '')
+    else if (val != null && val !== false)
+      node.setAttribute(name, val)
+    else
+      // We can remove safely even if it doesn't exist as it won't raise an exception
+      node.removeAttribute(name)
+  })
+}
+
+export function node_observe_style(node: HTMLElement | SVGElement, style: e.JSX.StyleDefinition) {
+  if (style instanceof o.Observable) {
+    node_observe(node, style, st => {
+      const ns = node.style
+      var props = Object.keys(st)
+      for (var i = 0, l = props.length; i < l; i++) {
+        let x = props[i]
+        ns.setProperty(x.replace(/[A-Z]/g, m => '-' + m.toLowerCase()), st[x])
+      }
+    })
+  } else {
+    // c is a MaybeObservableObject
+    var st = style as any
+    var props = Object.keys(st)
+    for (var i = 0, l = props.length; i < l; i++) {
+      let x = props[i]
+      node_observe(node, st[x], value => {
+        node.style.setProperty(x.replace(/[A-Z]/g, m => '-' + m.toLowerCase()), value)
+      })
+    }
+  }
+}
+
+export function node_observe_class(node: Element, c: e.JSX.ClassDefinition) {
+  if (!c) return
+  if (typeof c === 'string' || c.constructor !== Object) {
+    // c is an Observable<string>
+    node_observe(node, c, (str, chg) => {
+      if (chg.hasOldValue()) _remove_class(node, chg.oldValue())
+      _apply_class(node, str)
+    })
+  } else {
+    var ob = c as {[name: string]: o.RO<any>}
+    // c is a MaybeObservableObject
+    var props = Object.keys(ob)
+    for (var i = 0, l = props.length; i < l; i++) {
+      let x = props[i]
+      node_observe(node, ob[x], applied => applied ? _apply_class(node, x) : _remove_class(node, x))
+    }
+  }
 }
 
 

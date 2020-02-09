@@ -118,7 +118,7 @@ export namespace App {
     cons.views[key] = desc.value
   }
 
-  export type View = () => e.JSX.Insertable
+  export type View = () => e.JSX.Insertable<Node>
 
   /**
    * A Helper type for a Block constructor.

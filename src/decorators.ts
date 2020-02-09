@@ -4,8 +4,11 @@ import {
 } from './observable'
 
 import {
-  Mixin
+  Mixin, node_observe, add_event_listener
 } from './mixins'
+
+
+export type Decorator<N extends Node> = (node: N) => void
 
 
 /**
@@ -135,34 +138,12 @@ export function bind(obs: o.Observable<string>) {
  * @category decorator
  * @api
  */
-export function observe<T>(a: o.Observer<T>): observe.ObserveMixin
-export function observe<T>(a: T, cbk: (newval: o.BaseType<T>, changes: o.Changes<o.BaseType<T>>, node: Node) => void): observe.ObserveMixin
-export function observe<T>(a: any, cbk?: any) {
-  var m = new observe.ObserveMixin()
-  if (a instanceof o.Observer) {
-    m.addObserver(a)
-  } else {
-    m.observe(a, (newval: T, changes: o.Changes<T>) => cbk(newval, changes, m.node))
-  }
-  return m
-}
-
-export namespace observe {
-  /**
-   * An internal mixin created only by the `observe()` decorator.
-   */
-  export class ObserveMixin extends Mixin {
-    debounce(ms: number, leading?: boolean) {
-      for (var i = 0, ob = this.observers, l = ob.length; i < l; i++)
-        ob[i].debounce(ms, leading)
-      return this
-    }
-
-    throttle(ms: number, leading?: boolean) {
-      for (var i = 0, ob = this.observers, l = ob.length; i < l; i++)
-        ob[i].throttle(ms, leading)
-      return this
-    }
+// export function $observe<T>(a: o.Observer<T>): Decorator<Node>
+export function $observe<N extends Node, T>(a: o.RO<T>, cbk: (newval: T, changes: o.Changes<T>, node: N) => void, obs_cbk?: (observer: o.Observer<T>) => void): Decorator<N> {
+// export function $observe<T>(a: any, cbk?: any): Decorator<Node> {
+  return node => {
+    var res = node_observe(node, a, (nval, chg) => cbk(nval, chg, node))
+    if (res && obs_cbk) obs_cbk(res)
   }
 }
 
@@ -176,24 +157,18 @@ export namespace observe {
  * @category decorator
  * @api
  */
-export function on<K extends (keyof DocumentEventMap)[]>(name: K, listener: Mixin.Listener<DocumentEventMap[K[number]]>, useCapture?: boolean): Mixin
-export function on<K extends keyof DocumentEventMap>(event: K, listener: Mixin.Listener<DocumentEventMap[K]>, useCapture?: boolean): Mixin
-export function on(event: string | string[], listener: Mixin.Listener<Event>, useCapture?: boolean): Mixin
-export function on<E extends Event>(event: string | string[], _listener: Mixin.Listener<E>, useCapture = false) {
-  var m = new OnMixin(event, _listener, useCapture)
-  return m
-}
-
-/**
- * An internal mixin used by the `on()` decorator.
- */
-class OnMixin extends Mixin {
-  constructor(public event: string | string[], public listener: Mixin.Listener<any>, public useCapture = false) {
-    super()
-  }
-
-  init() {
-    this.listen(this.event, this.listener, this.useCapture)
+export function $on<N extends Node, K extends (keyof DocumentEventMap)[]>(name: K, listener: Mixin.Listener<DocumentEventMap[K[number]], N>, useCapture?: boolean): Decorator<N>
+export function $on<N extends Node, K extends keyof DocumentEventMap>(event: K, listener: Mixin.Listener<DocumentEventMap[K], N>, useCapture?: boolean): Decorator<N>
+export function $on<N extends Node>(event: string | string[], listener: Mixin.Listener<Event, N>, useCapture?: boolean): Decorator<N>
+export function $on<N extends Node>(event: string | string[], _listener: Mixin.Listener<Event, N>, useCapture = false): Decorator<N> {
+  return node => {
+    if (typeof event === 'string')
+      add_event_listener(node, event, _listener, useCapture)
+    else {
+      for (var n of event) {
+        add_event_listener(node, n, _listener, useCapture)
+      }
+    }
   }
 }
 
@@ -203,23 +178,23 @@ class OnMixin extends Mixin {
  * @category decorator
  * @api
  */
-export function click(cbk: Mixin.Listener<MouseEvent>) {
-  return on('click', cbk)
+export function $click(cbk: Mixin.Listener<MouseEvent>) {
+  return $on('click', cbk)
 }
 
 
 /**
  * ```jsx
- *  If(o_some_condition, () => <div $$={removed((node, parent) => {
+ *  If(o_some_condition, () => <div>{$removed((node, parent) => {
  *    console.log(`I will only be called is this div is directly removed
  *    from the DOM, but not if it was a descendant of such a node, in which
  *    case only deinit() would be called.`)
- *  })}/>
+ *  })}</div>
  * ```
  * @category decorator
  * @api
  */
-export function removed(fn: (node: Element, parent: Node) => void): Mixin {
+export function $removed(fn: (node: Element, parent: Node) => void): Mixin {
   class RemovedMixin extends Mixin { }
   RemovedMixin.prototype.removed = fn
   return new RemovedMixin()
@@ -228,12 +203,12 @@ export function removed(fn: (node: Element, parent: Node) => void): Mixin {
 
 /**
  * ```jsx
- *  <MyComponent $$={init(node => console.log(`This node was just created and its observers are now live`))}/>
+ *  <MyComponent>{$init(node => console.log(`This node was just created and its observers are now live`))}</MyComponent>
  * ```
  * @category decorator
  */
-export function init(fn: (node: Element) => void): Mixin {
-  class InitMixin extends Mixin { }
+export function $init<N extends Node>(fn: (node: N) => void): Mixin<N> {
+  class InitMixin extends Mixin<N> { }
   InitMixin.prototype.init = fn
   return new InitMixin()
 }
@@ -244,14 +219,14 @@ export function init(fn: (node: Element) => void): Mixin {
  * itself as first argument.
  *
  * ```tsx
- * append_child_and_mount(document.body, <div $$={inserted(n => {
+ * append_child_and_mount(document.body, <div>{$inserted(n => {
  *   console.log(`I am now in the DOM and `, n.parentNode, ` is document.body`)
- * })}/>)
+ * })}</div>)
  * ```
  *
  * @category decorator
  */
-export function inserted(fn: (node: Node) => void): Mixin {
+export function $inserted(fn: (node: Node) => void): Mixin {
   class InsertedMixin extends Mixin { }
   InsertedMixin.prototype.inserted = fn
   return new InsertedMixin()
@@ -260,13 +235,13 @@ export function inserted(fn: (node: Node) => void): Mixin {
 
 /**
  * ```jsx
- *  <div $$={deinit(node => console.log(`This node is now out of the DOM`))}/>
+ *  <div>{$deinit(node => console.log(`This node is now out of the DOM`))}</div>
  * ```
  *
  * @category decorator
  * @api
  */
-export function deinit(fn: (node: Element) => void): Mixin {
+export function $deinit(fn: (node: Element) => void): Mixin {
   class DeinitMixin extends Mixin { }
   DeinitMixin.prototype.deinit = fn
   return new DeinitMixin()
@@ -331,6 +306,6 @@ export class ScrollableMixin extends Mixin<HTMLElement> {
  * @category decorator
  * @api
  */
-export function scrollable() {
+export function $scrollable() {
   return new ScrollableMixin()
 }

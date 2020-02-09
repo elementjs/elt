@@ -2,11 +2,14 @@ import { o } from './observable'
 
 import {
   Mixin,
-  Component
+  Component,
+  node_observe_class,
+  node_observe_style,
+  node_observe_attribute
 } from './mixins'
 
 import {
-  get_dom_insertable
+  Display
 } from './verbs'
 
 import { mount, sym_uninserted } from './mounting'
@@ -82,7 +85,7 @@ const NS = {
 } as {[name: string]: string}
 
 
-function isComponent(kls: any): kls is new (attrs: e.JSX.Attrs) => Component<any> {
+function isComponent(kls: any): kls is new (attrs: e.JSX.Attrs<any>) => Component<any> {
   return kls.prototype instanceof Component
 }
 
@@ -103,52 +106,83 @@ const GLOBAL_ATTRIBUTES = {
 
 
 /**
+ * Separates decorators and mixins from nodes or soon-to-be-nodes from children.
+ * Returns a tuple containing the decorators/mixins/attrs in one part and the children in the other.
+ * The resulting arrays are 1-dimensional and do not contain null or undefined.
+ * @internal
+ */
+export function separate_children_from_rest(children: e.JSX.Insertable<any>[], dm: (Decorator<any> | Mixin<any> | e.JSX.EmptyAttributes<any>)[] = [], chld: e.JSX.Renderable[] = []) {
+  for (var i = 0, l = children.length; i < l; i++) {
+    var c = children[i]
+    if (c == null) continue
+    if (Array.isArray(c)) {
+      separate_children_from_rest(c, dm, chld)
+    } else if (c instanceof Node || typeof c === 'string' || typeof c === 'number' || o.isReadonlyObservable(c)) {
+      chld.push(c)
+    } else {
+      dm.push(c)
+    }
+  }
+  return [dm, chld] as const
+}
+
+/**
  * Create Nodes with a twist.
  *
  * This function is the base of element ; it creates Nodes and glues together
  * Controllers, decorators, classes and style.
  * @category jsx
  */
-export function e(elt: string, attrs: e.JSX.Attrs | null, ...children: e.JSX.Insertable[]): HTMLElement
-export function e<A extends e.JSX.EmptyAttributes>(elt: (attrs: A, children: DocumentFragment) => Element, attrs: A | null, ...children: e.JSX.Insertable[]): Element
-export function e<A extends e.JSX.Attrs>(elt: {new (a: A): Component<A>}, attrs: A | null, ...children: e.JSX.Insertable[]): Element
-export function e(elt: any, _attrs: e.JSX.Attrs | null, ...children: e.JSX.Insertable[]): Element {
+export function e<K extends keyof HTMLElementTagNameMap>(elt: K, attrs: e.JSX.Attrs<HTMLElementTagNameMap[K]> | null, ...children: e.JSX.Insertable<HTMLElementTagNameMap[K]>[]): HTMLElementTagNameMap[K]
+ export function e(elt: string, attrs: e.JSX.Attrs<HTMLElement> | null, ...children: e.JSX.Insertable<HTMLElement>[]): HTMLElement
+export function e<N extends Node, A extends e.JSX.EmptyAttributes<N>>(elt: (attrs: A, children: DocumentFragment) => N, attrs: A | null, ...children: e.JSX.Insertable<N>[]): N
+export function e<N extends Node, A extends e.JSX.Attrs<N>>(elt: {new (a: A): Component<N, A>}, attrs: A | null, ...children: e.JSX.Insertable<N>[]): Element
+export function e<N extends Node>(elt: any, ...children: e.JSX.Insertable<N>[]): N {
 
   if (!elt) throw new Error(`e() needs at least a string, a function or a Component`)
 
-  let node: Element = null! // just to prevent the warnings later
+  let node: N = null! // just to prevent the warnings later
 
-  var attrs = _attrs || {} as e.JSX.Attrs
   var is_basic_node = typeof elt === 'string'
 
-  const fragment = get_dom_insertable(children) as DocumentFragment
+  // const fragment = get_dom_insertable(children) as DocumentFragment
+  const [dm, chld] = separate_children_from_rest(children)
 
   if (is_basic_node) {
     // create a simple DOM node
-    var ns = NS[elt] || attrs.xmlns
+    var ns = NS[elt] // || attrs.xmlns
     node = ns ? document.createElementNS(ns, elt) : document.createElement(elt)
     node[sym_uninserted] = true
 
-    // Append children to the node.
-    node.appendChild(fragment)
-
-    var _child = node.firstChild as Node | null
-    while (_child) {
-      mount(_child)
-      _child = _child.nextSibling
+    for (var i = 0, l = chld.length; i < l; i++) {
+      var c = chld[i]
+      if (c == null) continue
+      var append: Node
+      if (typeof c === 'string' || typeof c === 'number')
+        append = document.createTextNode(c.toString())
+      else if (o.isReadonlyObservable(c))
+        append = Display(c)
+      else
+        append = c
+      node.appendChild(append)
+      mount(node)
+      //
+      // mount(c)
     }
 
   } else if (isComponent(elt)) {
 
     // elt is an instantiator / Component
+    var attrs = dm[0] as e.JSX.EmptyAttributes<any>
     var comp = new elt(attrs)
 
-    node = comp.render(fragment)
+    node = comp.render(chld) as N
     comp.addToNode(node)
 
   } else if (typeof elt === 'function') {
     // elt is just a creator function
-    node = elt(attrs, fragment)
+    var attrs = dm[0] as e.JSX.EmptyAttributes<any>
+    node = elt(attrs, chld)
   }
 
   // Classes and style are applied at the end of this function and are thus
@@ -156,40 +190,35 @@ export function e(elt: any, _attrs: e.JSX.Attrs | null, ...children: e.JSX.Inser
   var mx = new AttrsMixin();
   // AttrsMixin doesn't use anything else than its nodes. It has no init(), and
   // we're not adding it to the node until we know that it would observe it.
-  (mx.node as any) = node as HTMLElement
+  (mx.node as any) = node
 
-  var keys = Object.keys(attrs)
-  for (var i = 0, l = keys.length; i < l; i++) {
-    var key = keys[i]
-    if (key === 'class') {
-      var _cls = attrs.class!
-      if (!Array.isArray(_cls)) mx.observeClass(_cls)
-      else {
-        for (var _c of _cls) mx.observeClass(_c)
-      }
-    } else if (key === 'style') {
-      mx.observeStyle(attrs.style!)
-    } else if (key === '$$') {
-      continue
-    } else if (is_basic_node || GLOBAL_ATTRIBUTES[key as keyof typeof GLOBAL_ATTRIBUTES]) {
-      // Observe all attributes for simple elements
-      mx.observeAttribute(key, (attrs as any)[key])
-    }
-  }
-
-  if (mx.observers.length)
-    mx.addToNode(node as HTMLElement)
-
-  // decorators are run now.
-  var $$ = attrs.$$
-  if ($$) {
-    if (Array.isArray($$)) {
-      for (var i = 0, l = $$.length; i < l; i++) {
-        var d = $$[i]
-        d.addToNode(node)
-      }
+  for (var i = 0, l = dm.length; i < l; i++) {
+    var cur = dm[i]
+    if (typeof cur === 'function') {
+      cur(node)
+    } else if (cur instanceof Mixin) {
+      cur.addToNode(node)
     } else {
-      $$.addToNode(node)
+      // attributes object.
+      var at = cur as e.JSX.HTMLAttributes
+      var keys = Object.keys(at)
+      for (var j = 0, l2 = keys.length; j < l2; j++) {
+        var key = keys[j]
+        if (key === 'class') {
+          var _cls = at.class!
+          if (!Array.isArray(_cls)) node_observe_class(node as unknown as Element, _cls)
+          else {
+            for (var _c of _cls) node_observe_class(node as unknown as Element, _c)
+          }
+        } else if (key === 'style') {
+          node_observe_style(node as unknown as HTMLElement, at.style!)
+        } else if (key === '$$') {
+          continue
+        } else if (is_basic_node || GLOBAL_ATTRIBUTES[key as keyof typeof GLOBAL_ATTRIBUTES]) {
+          // Observe all attributes for simple elements
+          node_observe_attribute(node as unknown as Element, key, (at as any)[key])
+        }
+      }
     }
   }
 
@@ -197,10 +226,8 @@ export function e(elt: any, _attrs: e.JSX.Attrs | null, ...children: e.JSX.Inser
 }
 
 
-/** @hidden */
-type ElementAlias = Element
-
 import { Fragment as F } from './verbs'
+import { Decorator } from './decorators'
 
 export namespace e {
 
@@ -208,7 +235,7 @@ export namespace e {
    * Extend the JSX namespace to be able to use .tsx code.
    */
   export namespace JSX {
-    export type Element = ElementAlias
+    export type Element = Node
 
     export interface ElementAttributesProperty {
       attrs: any
@@ -222,11 +249,11 @@ export namespace e {
      * The prototype JSX functions have to conform to.
      * @category jsx
      */
-    export interface ElementClassFn {
-      (attrs: EmptyAttributes, children: DocumentFragment): Element
+    export interface ElementClassFn<N extends Node> {
+      (attrs: EmptyAttributes<N>, children: e.JSX.Renderable[]): N
     }
 
-    export type ElementClass = ElementClassFn | Component
+    export type ElementClass<N extends Node> = ElementClassFn<N> | Component<N>
 
     ///////////////////////////////////////////////////////////////////////////
     // Now following are the default attributes for HTML and SVG nodes.
@@ -237,7 +264,7 @@ export namespace e {
      * to define what can go between `{ curly braces }` in JSX code.
      * @category jsx
      */
-    export type Renderable = string | number | Node | null | undefined | Renderable[]
+    export type Renderable = string | number | Node | null | undefined | o.RO<string | number | Node | null | undefined>
 
     /**
      * @api
@@ -256,14 +283,13 @@ export namespace e {
      * `<div>{['hello', ' ', [['world']] ]}</div>` will render `<div>hello world</div>`
      *
     */
-    export type Insertable = o.RO<Renderable> | Insertable[]
-
+    export type Insertable<N extends Node> = Mixin<N> | Decorator<N> | e.JSX.Attrs<N> | Renderable | Insertable<N>[]
 
     /**
      * Attributes used on elements that are not actually HTML Elements
      */
-    export interface EmptyAttributes {
-      $$children?: o.RO<Insertable> | o.RO<Insertable>[]
+    export interface EmptyAttributes<N extends Node> {
+      $$children?: o.RO<Insertable<N>> | o.RO<Insertable<N>>[]
     }
 
 
@@ -303,7 +329,7 @@ export namespace e {
      * This type should be used as first argument to all components definitions.
      * @category jsx
      */
-    export interface Attrs extends EmptyAttributes {
+    export interface Attrs<N extends Node> extends EmptyAttributes<N> {
       id?: NRO<string>
       contenteditable?: NRO<'true' | 'false' | 'inherit'>
       hidden?: NRO<boolean>
@@ -320,13 +346,11 @@ export namespace e {
       class?: ClassDefinition | ClassDefinition[] // special attributes
       style?: StyleDefinition
 
-      $$?: Mixin | Mixin[]
       xmlns?: string
     }
 
 
-
-    export interface HTMLAttributes extends Attrs {
+    export interface HTMLAttributes<N extends HTMLElement = HTMLElement> extends Attrs<N> {
 
       // Attributes shamelessly stolen from React's type definitions.
       // Standard HTML Attributes
@@ -475,7 +499,7 @@ export namespace e {
       unselectable?: NRO<boolean>
     }
 
-    export interface SVGAttributes extends Attrs {
+    export interface SVGAttributes<N extends SVGElement = SVGElement> extends Attrs<N> {
       'clip-path'?: string;
       cx?: NRO<number | string>
       cy?: NRO<number | string>
@@ -530,178 +554,178 @@ export namespace e {
 
 
     export interface IntrinsicElements {
-      a: HTMLAttributes
-      abbr: HTMLAttributes
-      address: HTMLAttributes
-      area: HTMLAttributes
-      article: HTMLAttributes
-      aside: HTMLAttributes
-      audio: HTMLAttributes
-      b: HTMLAttributes
-      base: HTMLAttributes
-      bdi: HTMLAttributes
-      bdo: HTMLAttributes
-      big: HTMLAttributes
-      blockquote: HTMLAttributes
-      body: HTMLAttributes
-      br: HTMLAttributes
-      button: HTMLAttributes
-      canvas: HTMLAttributes
-      caption: HTMLAttributes
-      cite: HTMLAttributes
-      code: HTMLAttributes
-      col: HTMLAttributes
-      colgroup: HTMLAttributes
-      data: HTMLAttributes
-      datalist: HTMLAttributes
-      dd: HTMLAttributes
-      del: HTMLAttributes
-      details: HTMLAttributes
-      dfn: HTMLAttributes
-      dialog: HTMLAttributes
-      div: HTMLAttributes
-      dl: HTMLAttributes
-      dt: HTMLAttributes
-      em: HTMLAttributes
-      embed: HTMLAttributes
-      fieldset: HTMLAttributes
-      figcaption: HTMLAttributes
-      figure: HTMLAttributes
-      footer: HTMLAttributes
-      form: HTMLAttributes
-      h1: HTMLAttributes
-      h2: HTMLAttributes
-      h3: HTMLAttributes
-      h4: HTMLAttributes
-      h5: HTMLAttributes
-      h6: HTMLAttributes
-      head: HTMLAttributes
-      header: HTMLAttributes
-      hr: HTMLAttributes
-      html: HTMLAttributes
-      i: HTMLAttributes
-      iframe: HTMLAttributes
-      img: HTMLAttributes
-      input: HTMLAttributes
-      ins: HTMLAttributes
-      kbd: HTMLAttributes
-      keygen: HTMLAttributes
-      label: HTMLAttributes
-      legend: HTMLAttributes
-      li: HTMLAttributes
-      link: HTMLAttributes
-      main: HTMLAttributes
-      map: HTMLAttributes
-      mark: HTMLAttributes
-      menu: HTMLAttributes
-      menuitem: HTMLAttributes
-      meta: HTMLAttributes
-      meter: HTMLAttributes
-      nav: HTMLAttributes
-      noscript: HTMLAttributes
-      object: HTMLAttributes
-      ol: HTMLAttributes
-      optgroup: HTMLAttributes
-      option: HTMLAttributes
-      output: HTMLAttributes
-      p: HTMLAttributes
-      param: HTMLAttributes
-      picture: HTMLAttributes
-      pre: HTMLAttributes
-      progress: HTMLAttributes
-      q: HTMLAttributes
-      rp: HTMLAttributes
-      rt: HTMLAttributes
-      ruby: HTMLAttributes
-      s: HTMLAttributes
-      samp: HTMLAttributes
-      script: HTMLAttributes
-      section: HTMLAttributes
-      select: HTMLAttributes
-      small: HTMLAttributes
-      source: HTMLAttributes
-      span: HTMLAttributes
-      strong: HTMLAttributes
-      style: HTMLAttributes
-      sub: HTMLAttributes
-      summary: HTMLAttributes
-      sup: HTMLAttributes
-      table: HTMLAttributes
-      tbody: HTMLAttributes
-      td: HTMLAttributes
-      textarea: HTMLAttributes
-      tfoot: HTMLAttributes
-      th: HTMLAttributes
-      thead: HTMLAttributes
-      time: HTMLAttributes
-      title: HTMLAttributes
-      tr: HTMLAttributes
-      track: HTMLAttributes
-      u: HTMLAttributes
-      ul: HTMLAttributes
-      'var': HTMLAttributes
-      video: HTMLAttributes
-      wbr: HTMLAttributes
+      a: HTMLAttributes<HTMLElementTagNameMap['a']>
+      abbr: HTMLAttributes<HTMLElementTagNameMap['abbr']>
+      address: HTMLAttributes<HTMLElementTagNameMap['address']>
+      area: HTMLAttributes<HTMLElementTagNameMap['area']>
+      article: HTMLAttributes<HTMLElementTagNameMap['article']>
+      aside: HTMLAttributes<HTMLElementTagNameMap['aside']>
+      audio: HTMLAttributes<HTMLElementTagNameMap['audio']>
+      b: HTMLAttributes<HTMLElementTagNameMap['b']>
+      base: HTMLAttributes<HTMLElementTagNameMap['base']>
+      bdi: HTMLAttributes<HTMLElementTagNameMap['bdi']>
+      bdo: HTMLAttributes<HTMLElementTagNameMap['bdo']>
+      big: HTMLAttributes<HTMLElement>
+      blockquote: HTMLAttributes<HTMLElementTagNameMap['blockquote']>
+      body: HTMLAttributes<HTMLElementTagNameMap['body']>
+      br: HTMLAttributes<HTMLElementTagNameMap['br']>
+      button: HTMLAttributes<HTMLElementTagNameMap['button']>
+      canvas: HTMLAttributes<HTMLElementTagNameMap['canvas']>
+      caption: HTMLAttributes<HTMLElementTagNameMap['caption']>
+      cite: HTMLAttributes<HTMLElementTagNameMap['cite']>
+      code: HTMLAttributes<HTMLElementTagNameMap['code']>
+      col: HTMLAttributes<HTMLElementTagNameMap['col']>
+      colgroup: HTMLAttributes<HTMLElementTagNameMap['colgroup']>
+      data: HTMLAttributes<HTMLElementTagNameMap['data']>
+      datalist: HTMLAttributes<HTMLElementTagNameMap['datalist']>
+      dd: HTMLAttributes<HTMLElementTagNameMap['dd']>
+      del: HTMLAttributes<HTMLElementTagNameMap['del']>
+      details: HTMLAttributes<HTMLElementTagNameMap['details']>
+      dfn: HTMLAttributes<HTMLElementTagNameMap['dfn']>
+      dialog: HTMLAttributes<HTMLElementTagNameMap['dialog']>
+      div: HTMLAttributes<HTMLElementTagNameMap['div']>
+      dl: HTMLAttributes<HTMLElementTagNameMap['dl']>
+      dt: HTMLAttributes<HTMLElementTagNameMap['dt']>
+      em: HTMLAttributes<HTMLElementTagNameMap['em']>
+      embed: HTMLAttributes<HTMLElementTagNameMap['embed']>
+      fieldset: HTMLAttributes<HTMLElementTagNameMap['fieldset']>
+      figcaption: HTMLAttributes<HTMLElementTagNameMap['figcaption']>
+      figure: HTMLAttributes<HTMLElementTagNameMap['figure']>
+      footer: HTMLAttributes<HTMLElementTagNameMap['footer']>
+      form: HTMLAttributes<HTMLElementTagNameMap['form']>
+      h1: HTMLAttributes<HTMLElementTagNameMap['h1']>
+      h2: HTMLAttributes<HTMLElementTagNameMap['h2']>
+      h3: HTMLAttributes<HTMLElementTagNameMap['h3']>
+      h4: HTMLAttributes<HTMLElementTagNameMap['h4']>
+      h5: HTMLAttributes<HTMLElementTagNameMap['h5']>
+      h6: HTMLAttributes<HTMLElementTagNameMap['h6']>
+      head: HTMLAttributes<HTMLElementTagNameMap['head']>
+      header: HTMLAttributes<HTMLElementTagNameMap['header']>
+      hr: HTMLAttributes<HTMLElementTagNameMap['hr']>
+      html: HTMLAttributes<HTMLElementTagNameMap['html']>
+      i: HTMLAttributes<HTMLElementTagNameMap['i']>
+      iframe: HTMLAttributes<HTMLElementTagNameMap['iframe']>
+      img: HTMLAttributes<HTMLElementTagNameMap['img']>
+      input: HTMLAttributes<HTMLElementTagNameMap['input']>
+      ins: HTMLAttributes<HTMLElementTagNameMap['ins']>
+      kbd: HTMLAttributes<HTMLElementTagNameMap['kbd']>
+      keygen: HTMLAttributes<HTMLElement> // ???
+      label: HTMLAttributes<HTMLElementTagNameMap['label']>
+      legend: HTMLAttributes<HTMLElementTagNameMap['legend']>
+      li: HTMLAttributes<HTMLElementTagNameMap['li']>
+      link: HTMLAttributes<HTMLElementTagNameMap['link']>
+      main: HTMLAttributes<HTMLElementTagNameMap['main']>
+      map: HTMLAttributes<HTMLElementTagNameMap['map']>
+      mark: HTMLAttributes<HTMLElementTagNameMap['mark']>
+      menu: HTMLAttributes<HTMLElementTagNameMap['menu']>
+      menuitem: HTMLAttributes<HTMLElement> // ??
+      meta: HTMLAttributes<HTMLElementTagNameMap['meta']>
+      meter: HTMLAttributes<HTMLElementTagNameMap['meter']>
+      nav: HTMLAttributes<HTMLElementTagNameMap['nav']>
+      noscript: HTMLAttributes<HTMLElementTagNameMap['noscript']>
+      object: HTMLAttributes<HTMLElementTagNameMap['object']>
+      ol: HTMLAttributes<HTMLElementTagNameMap['ol']>
+      optgroup: HTMLAttributes<HTMLElementTagNameMap['optgroup']>
+      option: HTMLAttributes<HTMLElementTagNameMap['option']>
+      output: HTMLAttributes<HTMLElementTagNameMap['output']>
+      p: HTMLAttributes<HTMLElementTagNameMap['p']>
+      param: HTMLAttributes<HTMLElementTagNameMap['param']>
+      picture: HTMLAttributes<HTMLElementTagNameMap['picture']>
+      pre: HTMLAttributes<HTMLElementTagNameMap['pre']>
+      progress: HTMLAttributes<HTMLElementTagNameMap['progress']>
+      q: HTMLAttributes<HTMLElementTagNameMap['q']>
+      rp: HTMLAttributes<HTMLElementTagNameMap['rp']>
+      rt: HTMLAttributes<HTMLElementTagNameMap['rt']>
+      ruby: HTMLAttributes<HTMLElementTagNameMap['ruby']>
+      s: HTMLAttributes<HTMLElementTagNameMap['s']>
+      samp: HTMLAttributes<HTMLElementTagNameMap['samp']>
+      script: HTMLAttributes<HTMLElementTagNameMap['script']>
+      section: HTMLAttributes<HTMLElementTagNameMap['section']>
+      select: HTMLAttributes<HTMLElementTagNameMap['select']>
+      small: HTMLAttributes<HTMLElementTagNameMap['small']>
+      source: HTMLAttributes<HTMLElementTagNameMap['source']>
+      span: HTMLAttributes<HTMLElementTagNameMap['span']>
+      strong: HTMLAttributes<HTMLElementTagNameMap['strong']>
+      style: HTMLAttributes<HTMLElementTagNameMap['style']>
+      sub: HTMLAttributes<HTMLElementTagNameMap['sub']>
+      summary: HTMLAttributes<HTMLElementTagNameMap['summary']>
+      sup: HTMLAttributes<HTMLElementTagNameMap['sup']>
+      table: HTMLAttributes<HTMLElementTagNameMap['table']>
+      tbody: HTMLAttributes<HTMLElementTagNameMap['tbody']>
+      td: HTMLAttributes<HTMLElementTagNameMap['td']>
+      textarea: HTMLAttributes<HTMLElementTagNameMap['textarea']>
+      tfoot: HTMLAttributes<HTMLElementTagNameMap['tfoot']>
+      th: HTMLAttributes<HTMLElementTagNameMap['th']>
+      thead: HTMLAttributes<HTMLElementTagNameMap['thead']>
+      time: HTMLAttributes<HTMLElementTagNameMap['time']>
+      title: HTMLAttributes<HTMLElementTagNameMap['title']>
+      tr: HTMLAttributes<HTMLElementTagNameMap['tr']>
+      track: HTMLAttributes<HTMLElementTagNameMap['track']>
+      u: HTMLAttributes<HTMLElementTagNameMap['u']>
+      ul: HTMLAttributes<HTMLElementTagNameMap['ul']>
+      'var': HTMLAttributes<HTMLElementTagNameMap['var']>
+      video: HTMLAttributes<HTMLElementTagNameMap['video']>
+      wbr: HTMLAttributes<HTMLElementTagNameMap['wbr']>
 
-      svg: SVGAttributes
-      circle: SVGAttributes
-      clipPath: SVGAttributes
-      defs: SVGAttributes
-      desc: SVGAttributes
-      ellipse: SVGAttributes
-      feBlend: SVGAttributes
-      feColorMatrix: SVGAttributes
-      feComponentTransfer: SVGAttributes
-      feComposite: SVGAttributes
-      feConvolveMatrix: SVGAttributes
-      feDiffuseLighting: SVGAttributes
-      feDisplacementMap: SVGAttributes
-      feDistantLight: SVGAttributes
-      feFlood: SVGAttributes
-      feFuncA: SVGAttributes
-      feFuncB: SVGAttributes
-      feFuncG: SVGAttributes
-      feFuncR: SVGAttributes
-      feGaussianBlur: SVGAttributes
-      feImage: SVGAttributes
-      feMerge: SVGAttributes
-      feMergeNode: SVGAttributes
-      feMorphology: SVGAttributes
-      feOffset: SVGAttributes
-      fePointLight: SVGAttributes
-      feSpecularLighting: SVGAttributes
-      feSpotLight: SVGAttributes
-      feTile: SVGAttributes
-      feTurbulence: SVGAttributes
-      filter: SVGAttributes
-      foreignObject: SVGAttributes
-      g: SVGAttributes
-      image: SVGAttributes
-      line: SVGAttributes
-      linearGradient: SVGAttributes
-      marker: SVGAttributes
-      mask: SVGAttributes
-      metadata: SVGAttributes
-      path: SVGAttributes
-      pattern: SVGAttributes
-      polygon: SVGAttributes
-      polyline: SVGAttributes
-      radialGradient: SVGAttributes
-      rect: SVGAttributes
-      stop: SVGAttributes
-      switch: SVGAttributes
-      symbol: SVGAttributes
-      text: SVGAttributes
-      textPath: SVGAttributes
-      tspan: SVGAttributes
-      use: SVGAttributes
-      view: SVGAttributes
+      svg: SVGAttributes<SVGElementTagNameMap['svg']>
+      circle: SVGAttributes<SVGElementTagNameMap['circle']>
+      clipPath: SVGAttributes<SVGElementTagNameMap['clipPath']>
+      defs: SVGAttributes<SVGElementTagNameMap['defs']>
+      desc: SVGAttributes<SVGElementTagNameMap['desc']>
+      ellipse: SVGAttributes<SVGElementTagNameMap['ellipse']>
+      feBlend: SVGAttributes<SVGElementTagNameMap['feBlend']>
+      feColorMatrix: SVGAttributes<SVGElementTagNameMap['feColorMatrix']>
+      feComponentTransfer: SVGAttributes<SVGElementTagNameMap['feComponentTransfer']>
+      feComposite: SVGAttributes<SVGElementTagNameMap['feComposite']>
+      feConvolveMatrix: SVGAttributes<SVGElementTagNameMap['feConvolveMatrix']>
+      feDiffuseLighting: SVGAttributes<SVGElementTagNameMap['feDiffuseLighting']>
+      feDisplacementMap: SVGAttributes<SVGElementTagNameMap['feDisplacementMap']>
+      feDistantLight: SVGAttributes<SVGElementTagNameMap['feDistantLight']>
+      feFlood: SVGAttributes<SVGElementTagNameMap['feFlood']>
+      feFuncA: SVGAttributes<SVGElementTagNameMap['feFuncA']>
+      feFuncB: SVGAttributes<SVGElementTagNameMap['feFuncB']>
+      feFuncG: SVGAttributes<SVGElementTagNameMap['feFuncG']>
+      feFuncR: SVGAttributes<SVGElementTagNameMap['feFuncR']>
+      feGaussianBlur: SVGAttributes<SVGElementTagNameMap['feGaussianBlur']>
+      feImage: SVGAttributes<SVGElementTagNameMap['feImage']>
+      feMerge: SVGAttributes<SVGElementTagNameMap['feMerge']>
+      feMergeNode: SVGAttributes<SVGElementTagNameMap['feMergeNode']>
+      feMorphology: SVGAttributes<SVGElementTagNameMap['feMorphology']>
+      feOffset: SVGAttributes<SVGElementTagNameMap['feOffset']>
+      fePointLight: SVGAttributes<SVGElementTagNameMap['fePointLight']>
+      feSpecularLighting: SVGAttributes<SVGElementTagNameMap['feSpecularLighting']>
+      feSpotLight: SVGAttributes<SVGElementTagNameMap['feSpotLight']>
+      feTile: SVGAttributes<SVGElementTagNameMap['feTile']>
+      feTurbulence: SVGAttributes<SVGElementTagNameMap['feTurbulence']>
+      filter: SVGAttributes<SVGElementTagNameMap['filter']>
+      foreignObject: SVGAttributes<SVGElementTagNameMap['foreignObject']>
+      g: SVGAttributes<SVGElementTagNameMap['g']>
+      image: SVGAttributes<SVGElementTagNameMap['image']>
+      line: SVGAttributes<SVGElementTagNameMap['line']>
+      linearGradient: SVGAttributes<SVGElementTagNameMap['linearGradient']>
+      marker: SVGAttributes<SVGElementTagNameMap['marker']>
+      mask: SVGAttributes<SVGElementTagNameMap['mask']>
+      metadata: SVGAttributes<SVGElementTagNameMap['metadata']>
+      path: SVGAttributes<SVGElementTagNameMap['path']>
+      pattern: SVGAttributes<SVGElementTagNameMap['pattern']>
+      polygon: SVGAttributes<SVGElementTagNameMap['polygon']>
+      polyline: SVGAttributes<SVGElementTagNameMap['polyline']>
+      radialGradient: SVGAttributes<SVGElementTagNameMap['radialGradient']>
+      rect: SVGAttributes<SVGElementTagNameMap['rect']>
+      stop: SVGAttributes<SVGElementTagNameMap['stop']>
+      switch: SVGAttributes<SVGElementTagNameMap['switch']>
+      symbol: SVGAttributes<SVGElementTagNameMap['symbol']>
+      text: SVGAttributes<SVGElementTagNameMap['text']>
+      textPath: SVGAttributes<SVGElementTagNameMap['textPath']>
+      tspan: SVGAttributes<SVGElementTagNameMap['tspan']>
+      use: SVGAttributes<SVGElementTagNameMap['use']>
+      view: SVGAttributes<SVGElementTagNameMap['view']>
 
     }
   }
 
   export const createElement = e
-  export const Fragment: (at: e.JSX.Attrs, ch: DocumentFragment) => JSX.Element = F //(at: Attrs, ch: DocumentFragment): e.JSX.Element
+  export const Fragment: (at: e.JSX.Attrs<Comment>, ch: DocumentFragment) => JSX.Element = F //(at: Attrs, ch: DocumentFragment): e.JSX.Element
 }
 
 declare var global: any
@@ -714,20 +738,20 @@ declare global {
   const E: typeof e
 
   namespace E.JSX {
-    export type Element = ElementAlias
+    export type Element = Node
     export type ElementAttributesProperty = e.JSX.ElementAttributesProperty
     export type ElementChildrenAttribute = e.JSX.ElementChildrenAttribute
-    export type ElementClassFn = e.JSX.ElementClassFn
-    export type ElementClass = e.JSX.ElementClass
+    export type ElementClassFn<N extends Node> = e.JSX.ElementClassFn<N>
+    export type ElementClass<N extends Node> = e.JSX.ElementClass<N>
     export type IntrinsicElements = e.JSX.IntrinsicElements
 
     export type Renderable = e.JSX.Renderable
-    export type Insertable = e.JSX.Insertable
+    export type Insertable<N extends Node> = e.JSX.Insertable<N>
     export type ClassDefinition = e.JSX.ClassDefinition
     export type StyleDefinition = e.JSX.StyleDefinition
-    export type Attrs = e.JSX.Attrs
-    export type EmptyAttributes = e.JSX.EmptyAttributes
-    export type HTMLAttributes = e.JSX.HTMLAttributes
-    export type SVGAttributes = e.JSX.SVGAttributes
+    export type Attrs<N extends Node> = e.JSX.Attrs<N>
+    export type EmptyAttributes<N extends Node> = e.JSX.EmptyAttributes<N>
+    export type HTMLAttributes<N extends HTMLElement = HTMLElement> = e.JSX.HTMLAttributes<N>
+    export type SVGAttributes<N extends SVGElement = SVGElement> = e.JSX.SVGAttributes<N>
   }
 }
