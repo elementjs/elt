@@ -157,10 +157,10 @@ export function $observe<N extends Node, T>(a: o.RO<T>, cbk: (newval: T, changes
  * @category decorator
  * @api
  */
-export function $on<N extends Node, K extends (keyof DocumentEventMap)[]>(name: K, listener: Mixin.Listener<DocumentEventMap[K[number]], N>, useCapture?: boolean): Decorator<N>
-export function $on<N extends Node, K extends keyof DocumentEventMap>(event: K, listener: Mixin.Listener<DocumentEventMap[K], N>, useCapture?: boolean): Decorator<N>
-export function $on<N extends Node>(event: string | string[], listener: Mixin.Listener<Event, N>, useCapture?: boolean): Decorator<N>
-export function $on<N extends Node>(event: string | string[], _listener: Mixin.Listener<Event, N>, useCapture = false): Decorator<N> {
+export function $on<N extends Element, K extends (keyof DocumentEventMap)[]>(name: K, listener: Mixin.Listener<DocumentEventMap[K[number]], N>, useCapture?: boolean): Decorator<N>
+export function $on<N extends Element, K extends keyof DocumentEventMap>(event: K, listener: Mixin.Listener<DocumentEventMap[K], N>, useCapture?: boolean): Decorator<N>
+export function $on<N extends Element>(event: string | string[], listener: Mixin.Listener<Event, N>, useCapture?: boolean): Decorator<N>
+export function $on<N extends Element>(event: string | string[], _listener: Mixin.Listener<Event, N>, useCapture = false): Decorator<N> {
   return node => {
     if (typeof event === 'string')
       add_event_listener(node, event, _listener, useCapture)
