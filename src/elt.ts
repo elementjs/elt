@@ -135,7 +135,7 @@ export function separate_children_from_rest(children: e.JSX.Insertable<any>[], d
  */
 export function e<K extends keyof HTMLElementTagNameMap>(elt: K, ...children: e.JSX.Insertable<HTMLElementTagNameMap[K]>[]): HTMLElementTagNameMap[K]
  export function e(elt: string, ...children: e.JSX.Insertable<HTMLElement>[]): HTMLElement
-export function e<N extends Node, A extends e.JSX.EmptyAttributes<N>>(elt: (attrs: A, children: DocumentFragment) => N, attrs: A | null, ...children: e.JSX.Insertable<N>[]): N
+export function e<N extends Node, A extends e.JSX.EmptyAttributes<N>>(elt: (attrs: A, children: E.JSX.Renderable[]) => N, attrs: A | null, ...children: e.JSX.Insertable<N>[]): N
 export function e<N extends Node, A extends e.JSX.Attrs<N>>(elt: {new (a: A): Component<A>}, attrs: A | null, ...children: e.JSX.Insertable<N>[]): Element
 export function e<N extends Node>(elt: any, ...children: e.JSX.Insertable<N>[]): N {
 
@@ -299,7 +299,7 @@ export namespace e {
     /**
      * CSS classes for the class={} attribute
      */
-    export type ClassDefinition = {[name: string]: o.RO<any>} | o.RO<any>
+    export type ClassDefinition = {[name: string]: o.RO<any>} | o.RO<string>
 
 
     /**
@@ -727,6 +727,127 @@ export namespace e {
     }
 
   }
+
+  export function mkwrapper<K extends keyof HTMLElementTagNameMap>(elt: K): (...args: (e.JSX.Insertable<HTMLElementTagNameMap[K]> | e.JSX.HTMLAttributes<HTMLElementTagNameMap[K]>)[]) => HTMLElementTagNameMap[K]
+  export function mkwrapper(elt: string): (...args: (e.JSX.Insertable<HTMLElement> | e.JSX.HTMLAttributes<HTMLElement>)[]) => HTMLElement
+  export function mkwrapper<K extends keyof HTMLElementTagNameMap>(elt: K): (...args: (e.JSX.Insertable<HTMLElementTagNameMap[K]> | e.JSX.HTMLAttributes<HTMLElementTagNameMap[K]>)[]) => HTMLElementTagNameMap[K] {
+    return (...args) => {
+      return e(elt, ...args)
+    }
+  }
+
+  export const A = mkwrapper('a')
+  export const ABBR = mkwrapper('abbr')
+  export const ADDRESS = mkwrapper('address')
+  export const AREA = mkwrapper('area')
+  export const ARTICLE = mkwrapper('article')
+  export const ASIDE = mkwrapper('aside')
+  export const AUDIO = mkwrapper('audio')
+  export const B = mkwrapper('b')
+  export const BASE = mkwrapper('base')
+  export const BDI = mkwrapper('bdi')
+  export const BDO = mkwrapper('bdo')
+  export const BIG = mkwrapper('big')
+  export const BLOCKQUOTE = mkwrapper('blockquote')
+  export const BODY = mkwrapper('body')
+  export const BR = mkwrapper('br')
+  export const BUTTON = mkwrapper('button')
+  export const CANVAS = mkwrapper('canvas')
+  export const CAPTION = mkwrapper('caption')
+  export const CITE = mkwrapper('cite')
+  export const CODE = mkwrapper('code')
+  export const COL = mkwrapper('col')
+  export const COLGROUP = mkwrapper('colgroup')
+  export const DATA = mkwrapper('data')
+  export const DATALIST = mkwrapper('datalist')
+  export const DD = mkwrapper('dd')
+  export const DEL = mkwrapper('del')
+  export const DETAILS = mkwrapper('details')
+  export const DFN = mkwrapper('dfn')
+  export const DIALOG = mkwrapper('dialog')
+  export const DIV = mkwrapper('div')
+  export const DL = mkwrapper('dl')
+  export const DT = mkwrapper('dt')
+  export const EM = mkwrapper('em')
+  export const EMBED = mkwrapper('embed')
+  export const FIELDSET = mkwrapper('fieldset')
+  export const FIGCAPTION = mkwrapper('figcaption')
+  export const FIGURE = mkwrapper('figure')
+  export const FOOTER = mkwrapper('footer')
+  export const FORM = mkwrapper('form')
+  export const H1 = mkwrapper('h1')
+  export const H2 = mkwrapper('h2')
+  export const H3 = mkwrapper('h3')
+  export const H4 = mkwrapper('h4')
+  export const H5 = mkwrapper('h5')
+  export const H6 = mkwrapper('h6')
+  export const HEAD = mkwrapper('head')
+  export const HEADER = mkwrapper('header')
+  export const HR = mkwrapper('hr')
+  export const HTML = mkwrapper('html')
+  export const I = mkwrapper('i')
+  export const IFRAME = mkwrapper('iframe')
+  export const IMG = mkwrapper('img')
+  export const INPUT = mkwrapper('input')
+  export const INS = mkwrapper('ins')
+  export const KBD = mkwrapper('kbd')
+  export const KEYGEN = mkwrapper('keygen')
+  export const LABEL = mkwrapper('label')
+  export const LEGEND = mkwrapper('legend')
+  export const LI = mkwrapper('li')
+  export const LINK = mkwrapper('link')
+  export const MAIN = mkwrapper('main')
+  export const MAP = mkwrapper('map')
+  export const MARK = mkwrapper('mark')
+  export const MENU = mkwrapper('menu')
+  export const MENUITEM = mkwrapper('menuitem')
+  export const META = mkwrapper('meta')
+  export const METER = mkwrapper('meter')
+  export const NAV = mkwrapper('nav')
+  export const NOSCRIPT = mkwrapper('noscript')
+  export const OBJECT = mkwrapper('object')
+  export const OL = mkwrapper('ol')
+  export const OPTGROUP = mkwrapper('optgroup')
+  export const OPTION = mkwrapper('option')
+  export const OUTPUT = mkwrapper('output')
+  export const P = mkwrapper('p')
+  export const PARAM = mkwrapper('param')
+  export const PICTURE = mkwrapper('picture')
+  export const PRE = mkwrapper('pre')
+  export const PROGRESS = mkwrapper('progress')
+  export const Q = mkwrapper('q')
+  export const RP = mkwrapper('rp')
+  export const RT = mkwrapper('rt')
+  export const RUBY = mkwrapper('ruby')
+  export const S = mkwrapper('s')
+  export const SAMP = mkwrapper('samp')
+  export const SCRIPT = mkwrapper('script')
+  export const SECTION = mkwrapper('section')
+  export const SELECT = mkwrapper('select')
+  export const SMALL = mkwrapper('small')
+  export const SOURCE = mkwrapper('source')
+  export const SPAN = mkwrapper('span')
+  export const STRONG = mkwrapper('strong')
+  export const STYLE = mkwrapper('style')
+  export const SUB = mkwrapper('sub')
+  export const SUMMARY = mkwrapper('summary')
+  export const SUP = mkwrapper('sup')
+  export const TABLE = mkwrapper('table')
+  export const TBODY = mkwrapper('tbody')
+  export const TD = mkwrapper('td')
+  export const TEXTAREA = mkwrapper('textarea')
+  export const TFOOT = mkwrapper('tfoot')
+  export const TH = mkwrapper('th')
+  export const THEAD = mkwrapper('thead')
+  export const TIME = mkwrapper('time')
+  export const TITLE = mkwrapper('title')
+  export const TR = mkwrapper('tr')
+  export const TRACK = mkwrapper('track')
+  export const U = mkwrapper('u')
+  export const UL = mkwrapper('ul')
+  export const VAR = mkwrapper('var')
+  export const VIDEO = mkwrapper('video')
+  export const WBR = mkwrapper('wbr')
 
   export const createElement = e
   export const Fragment: (at: e.JSX.Attrs<Comment>, ch: DocumentFragment) => JSX.Element = F //(at: Attrs, ch: DocumentFragment): e.JSX.Element
