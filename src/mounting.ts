@@ -1,5 +1,5 @@
 
-import { sym_mixins, register_new_document } from './mixins'
+import { sym_mixins, register_new_document, sym_observers } from './mixins'
 
 export const sym_uninserted = Symbol('unmounted')
 
@@ -18,6 +18,12 @@ export function mount(node: Node) {
   while (mx) {
     mx.mount(node)
     mx = mx.next_mixin
+  }
+  var obs = node[sym_observers]
+  if (obs) {
+    for (var i = 0, l = obs.length; i < l; i++) {
+      obs[i].startObserving()
+    }
   }
 }
 
@@ -67,6 +73,12 @@ export function mounting_inserted(node: Node) {
  * @internal
  */
 function _apply_unmount(node: Node) {
+  var obs = node[sym_observers]
+  if (obs) {
+    for (var i = 0, l = obs.length; i < l; i++) {
+      obs[i].stopObserving()
+    }
+  }
   node[sym_uninserted] = true
   var mx = node[sym_mixins]
   while (mx) {

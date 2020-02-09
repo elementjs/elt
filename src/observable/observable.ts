@@ -76,6 +76,9 @@ export class NoValue { private constructor() { }}
  */
 export const NOVALUE = new (NoValue as any)() as any
 
+export function isReadonlyObservable(_: any): _ is ReadonlyObservable<any> {
+  return _ instanceof Observable
+}
 
 /**
  * A helper class to deal with changes from an old `#o.Observable` value to a new one.
@@ -157,7 +160,7 @@ export class Observer<A> implements Indexable {
 
   protected old_value: A = NOVALUE
   idx = null
-  protected fn: Observer.ObserverFunction<any>
+  fn: Observer.ObserverFunction<any>
 
   constructor(fn: Observer.ObserverFunction<A>, public observable: ReadonlyObservable<A>) {
     this.fn = fn
