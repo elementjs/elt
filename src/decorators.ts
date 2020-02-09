@@ -4,7 +4,7 @@ import {
 } from './observable'
 
 import {
-  Mixin, node_observe
+  Mixin, node_observe, node_observe_class
 } from './mixins'
 
 
@@ -133,6 +133,24 @@ export function bind(obs: o.Observable<string>) {
 }
 
 
+export function $class(...clss: E.JSX.ClassDefinition[]) {
+  return (node: Element) => {
+    for (var i = 0, l = clss.length; i < l; i++) {
+      node_observe_class(node, clss[i])
+    }
+  }
+}
+
+
+export function $style(...styles: E.JSX.StyleDefinition[]) {
+  return (node: Element) => {
+    for (var i = 0, l = styles.length; i < l; i++) {
+      node_observe_class(node, styles[i])
+    }
+  }
+}
+
+
 /**
  * Observe an observable and tie the observation to the node this is added to
  * @category decorator
@@ -226,8 +244,8 @@ export function $init<N extends Node>(fn: (node: N) => void): Mixin<N> {
  *
  * @category decorator
  */
-export function $inserted(fn: (node: Node) => void): Mixin {
-  class InsertedMixin extends Mixin { }
+export function $inserted<N extends Node>(fn: (node: N) => void): Mixin<N> {
+  class InsertedMixin extends Mixin<N> { }
   InsertedMixin.prototype.inserted = fn
   return new InsertedMixin()
 }
@@ -241,8 +259,8 @@ export function $inserted(fn: (node: Node) => void): Mixin {
  * @category decorator
  * @api
  */
-export function $deinit(fn: (node: Element) => void): Mixin {
-  class DeinitMixin extends Mixin { }
+export function $deinit<N extends Node>(fn: (node: N) => void): Mixin<N> {
+  class DeinitMixin extends Mixin<N> { }
   DeinitMixin.prototype.deinit = fn
   return new DeinitMixin()
 }
