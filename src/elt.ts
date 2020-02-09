@@ -136,7 +136,7 @@ export function separate_children_from_rest(children: e.JSX.Insertable<any>[], d
 export function e<K extends keyof HTMLElementTagNameMap>(elt: K, attrs: e.JSX.Attrs<HTMLElementTagNameMap[K]> | null, ...children: e.JSX.Insertable<HTMLElementTagNameMap[K]>[]): HTMLElementTagNameMap[K]
  export function e(elt: string, attrs: e.JSX.Attrs<HTMLElement> | null, ...children: e.JSX.Insertable<HTMLElement>[]): HTMLElement
 export function e<N extends Node, A extends e.JSX.EmptyAttributes<N>>(elt: (attrs: A, children: DocumentFragment) => N, attrs: A | null, ...children: e.JSX.Insertable<N>[]): N
-export function e<N extends Node, A extends e.JSX.Attrs<N>>(elt: {new (a: A): Component<N, A>}, attrs: A | null, ...children: e.JSX.Insertable<N>[]): Element
+export function e<N extends Node, A extends e.JSX.Attrs<N>>(elt: {new (a: A): Component<A>}, attrs: A | null, ...children: e.JSX.Insertable<N>[]): Element
 export function e<N extends Node>(elt: any, ...children: e.JSX.Insertable<N>[]): N {
 
   if (!elt) throw new Error(`e() needs at least a string, a function or a Component`)
@@ -253,7 +253,7 @@ export namespace e {
       (attrs: EmptyAttributes<N>, children: e.JSX.Renderable[]): N
     }
 
-    export type ElementClass<N extends Node> = ElementClassFn<N> | Component<N>
+    export type ElementClass<N extends Node> = ElementClassFn<N> | Component<EmptyAttributes<N>>
 
     ///////////////////////////////////////////////////////////////////////////
     // Now following are the default attributes for HTML and SVG nodes.
@@ -288,9 +288,11 @@ export namespace e {
     /**
      * Attributes used on elements that are not actually HTML Elements
      */
-    export interface EmptyAttributes<N extends Node> {
+    export interface EmptyAttributes<N extends Node = Node> {
       $$children?: o.RO<Insertable<N>> | o.RO<Insertable<N>>[]
     }
+
+    export type NodeType<At extends EmptyAttributes<any>> = At extends EmptyAttributes<infer N> ? N : never
 
 
     /**
@@ -329,7 +331,7 @@ export namespace e {
      * This type should be used as first argument to all components definitions.
      * @category jsx
      */
-    export interface Attrs<N extends Node> extends EmptyAttributes<N> {
+    export interface Attrs<N extends Node = HTMLElement> extends EmptyAttributes<N> {
       id?: NRO<string>
       contenteditable?: NRO<'true' | 'false' | 'inherit'>
       hidden?: NRO<boolean>
@@ -722,6 +724,7 @@ export namespace e {
       view: SVGAttributes<SVGElementTagNameMap['view']>
 
     }
+
   }
 
   export const createElement = e
@@ -749,8 +752,8 @@ declare global {
     export type Insertable<N extends Node> = e.JSX.Insertable<N>
     export type ClassDefinition = e.JSX.ClassDefinition
     export type StyleDefinition = e.JSX.StyleDefinition
-    export type Attrs<N extends Node> = e.JSX.Attrs<N>
-    export type EmptyAttributes<N extends Node> = e.JSX.EmptyAttributes<N>
+    export type Attrs<N extends Node = HTMLElement> = e.JSX.Attrs<N>
+    export type EmptyAttributes<N extends Node = Node> = e.JSX.EmptyAttributes<N>
     export type HTMLAttributes<N extends HTMLElement = HTMLElement> = e.JSX.HTMLAttributes<N>
     export type SVGAttributes<N extends SVGElement = SVGElement> = e.JSX.SVGAttributes<N>
   }
