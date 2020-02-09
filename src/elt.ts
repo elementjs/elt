@@ -133,8 +133,8 @@ export function separate_children_from_rest(children: e.JSX.Insertable<any>[], d
  * Controllers, decorators, classes and style.
  * @category jsx
  */
-export function e<K extends keyof HTMLElementTagNameMap>(elt: K, attrs: e.JSX.Attrs<HTMLElementTagNameMap[K]> | null, ...children: e.JSX.Insertable<HTMLElementTagNameMap[K]>[]): HTMLElementTagNameMap[K]
- export function e(elt: string, attrs: e.JSX.Attrs<HTMLElement> | null, ...children: e.JSX.Insertable<HTMLElement>[]): HTMLElement
+export function e<K extends keyof HTMLElementTagNameMap>(elt: K, ...children: e.JSX.Insertable<HTMLElementTagNameMap[K]>[]): HTMLElementTagNameMap[K]
+ export function e(elt: string, ...children: e.JSX.Insertable<HTMLElement>[]): HTMLElement
 export function e<N extends Node, A extends e.JSX.EmptyAttributes<N>>(elt: (attrs: A, children: DocumentFragment) => N, attrs: A | null, ...children: e.JSX.Insertable<N>[]): N
 export function e<N extends Node, A extends e.JSX.Attrs<N>>(elt: {new (a: A): Component<A>}, attrs: A | null, ...children: e.JSX.Insertable<N>[]): Element
 export function e<N extends Node>(elt: any, ...children: e.JSX.Insertable<N>[]): N {
@@ -228,6 +228,7 @@ export function e<N extends Node>(elt: any, ...children: e.JSX.Insertable<N>[]):
 
 import { Fragment as F } from './verbs'
 import { Decorator } from './decorators'
+
 
 export namespace e {
 
