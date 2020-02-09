@@ -4,7 +4,7 @@ import {
 } from './observable'
 
 import {
-  Mixin, node_observe, add_event_listener
+  Mixin, node_observe
 } from './mixins'
 
 
@@ -163,10 +163,10 @@ export function $on<N extends Element>(event: string | string[], listener: Mixin
 export function $on<N extends Element>(event: string | string[], _listener: Mixin.Listener<Event, N>, useCapture = false): Decorator<N> {
   return node => {
     if (typeof event === 'string')
-      add_event_listener(node, event, _listener, useCapture)
+      node.addEventListener(event, ev => _listener(ev, node), useCapture)
     else {
       for (var n of event) {
-        add_event_listener(node, n, _listener, useCapture)
+        node.addEventListener(n, ev => _listener(ev, node), useCapture)
       }
     }
   }
