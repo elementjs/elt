@@ -3,6 +3,9 @@ import {
   o
 } from './observable'
 
+import { sym_mount_status } from './mounting'
+import { e } from './elt'
+
 
 /**
  * This symbol is added as a property of the DOM nodes to store
@@ -362,6 +365,3 @@ function _remove_class(node: Element, c: string) {
   if (!is_svg)
     node.setAttribute('class', name)
 }
-
-import { e } from './elt'import { sym_mount_status } from './mounting'
-
