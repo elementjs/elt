@@ -226,10 +226,10 @@ export namespace Mixin {
  * All attributes must extend the base `Attrs` class.
  * @category jsx
  */
-export abstract class Component<A extends e.JSX.EmptyAttributes<any> = e.JSX.Attrs<HTMLElement>> extends Mixin<e.JSX.NodeType<A>> {
+export abstract class Component<N extends Node = HTMLElement, A extends e.JSX.EmptyAttributes<N> = e.JSX.Attrs<N>> extends Mixin<N> {
   // attrs: Attrs
   constructor(public attrs: A) { super() }
-  abstract render(children: e.JSX.Renderable[]): Node
+  abstract render(children: e.JSX.Renderable[]): N
 }
 
 
@@ -309,7 +309,7 @@ export function node_observe_class(node: Element, c: e.JSX.ClassDefinition) {
   if (typeof c === 'string' || c.constructor !== Object) {
     // c is an Observable<string>
     node_observe(node, c, (str, chg) => {
-      if (chg.hasOldValue()) _remove_class(node, chg.oldValue())
+      if (chg.hasOldValue()) _remove_class(node, chg.oldValue() as string)
       _apply_class(node, str)
     })
   } else {
