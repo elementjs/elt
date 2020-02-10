@@ -265,7 +265,7 @@ export namespace e {
      * to define what can go between `{ curly braces }` in JSX code.
      * @category jsx
      */
-    export type Renderable = string | number | Node | null | undefined | o.RO<string | number | Node | null | undefined>
+    export type Renderable = o.RO<string | number | Node | null | undefined>
 
     /**
      * @api
