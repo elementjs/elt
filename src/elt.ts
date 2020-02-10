@@ -126,6 +126,19 @@ export function separate_children_from_rest(children: e.JSX.Insertable<any>[], d
   return [dm, chld] as const
 }
 
+
+export function renderable_to_node(r: e.JSX.Renderable) {
+  if (r == null)
+    return null
+  else if (typeof r === 'string' || typeof r === 'number')
+    return document.createTextNode(r.toString())
+  else if (o.isReadonlyObservable(r))
+    return Display(r)
+  else
+    return r
+}
+
+
 /**
  * Create Nodes with a twist.
  *
@@ -134,11 +147,10 @@ export function separate_children_from_rest(children: e.JSX.Insertable<any>[], d
  * @category jsx
  */
 export function e<K extends keyof HTMLElementTagNameMap>(elt: K, ...children: e.JSX.Insertable<HTMLElementTagNameMap[K]>[]): HTMLElementTagNameMap[K]
- export function e(elt: string, ...children: e.JSX.Insertable<HTMLElement>[]): HTMLElement
-export function e<N extends Node, A extends e.JSX.EmptyAttributes<N>>(elt: (attrs: A, children: E.JSX.Renderable[]) => N, attrs: A | null, ...children: e.JSX.Insertable<N>[]): N
-export function e<N extends Node, A extends e.JSX.Attrs<N>>(elt: {new (a: A): Component<A>}, attrs: A | null, ...children: e.JSX.Insertable<N>[]): Element
+export function e(elt: string, ...children: e.JSX.Insertable<HTMLElement>[]): HTMLElement
+export function e<N extends Node, A extends e.JSX.EmptyAttributes<any>>(elt: new (a: A) => Component<N, A>, attrs: A, ...children: e.JSX.Insertable<N>[]): N
+export function e<N extends Node, A extends e.JSX.EmptyAttributes<any>>(elt: (attrs: A, children: E.JSX.Renderable[]) => N, attrs: A, ...children: e.JSX.Insertable<N>[]): N
 export function e<N extends Node>(elt: any, ...children: e.JSX.Insertable<N>[]): N {
-
   if (!elt) throw new Error(`e() needs at least a string, a function or a Component`)
 
   let node: N = null! // just to prevent the warnings later
@@ -155,17 +167,11 @@ export function e<N extends Node>(elt: any, ...children: e.JSX.Insertable<N>[]):
     node[sym_uninserted] = true
 
     for (var i = 0, l = chld.length; i < l; i++) {
-      var c = chld[i]
-      if (c == null) continue
-      var append: Node
-      if (typeof c === 'string' || typeof c === 'number')
-        append = document.createTextNode(c.toString())
-      else if (o.isReadonlyObservable(c))
-        append = Display(c)
-      else
-        append = c
-      node.appendChild(append)
-      mount(node)
+      var c = renderable_to_node(chld[i])
+      if (c) {
+        node.appendChild(c)
+        mount(c)
+      }
       //
       // mount(c)
     }
@@ -173,7 +179,7 @@ export function e<N extends Node>(elt: any, ...children: e.JSX.Insertable<N>[]):
   } else if (isComponent(elt)) {
 
     // elt is an instantiator / Component
-    var attrs = dm[0] as e.JSX.EmptyAttributes<any>
+    var attrs = (dm[0] ?? {}) as e.JSX.EmptyAttributes<any>
     var comp = new elt(attrs)
 
     node = comp.render(chld) as N
@@ -181,7 +187,7 @@ export function e<N extends Node>(elt: any, ...children: e.JSX.Insertable<N>[]):
 
   } else if (typeof elt === 'function') {
     // elt is just a creator function
-    var attrs = dm[0] as e.JSX.EmptyAttributes<any>
+    var attrs = (dm[0] ?? {}) as e.JSX.EmptyAttributes<any>
     node = elt(attrs, chld)
   }
 
@@ -238,10 +244,6 @@ export namespace e {
   export namespace JSX {
     export type Element = Node
 
-    export interface ElementAttributesProperty {
-      attrs: any
-    }
-
     export interface ElementChildrenAttribute {
       $$children: any
     }
@@ -254,7 +256,7 @@ export namespace e {
       (attrs: EmptyAttributes<N>, children: e.JSX.Renderable[]): N
     }
 
-    export type ElementClass<N extends Node> = ElementClassFn<N> | Component<EmptyAttributes<N>>
+    export type ElementClass<N extends Node> = ElementClassFn<N> | Component<any, EmptyAttributes<any>>
 
     ///////////////////////////////////////////////////////////////////////////
     // Now following are the default attributes for HTML and SVG nodes.
@@ -289,7 +291,7 @@ export namespace e {
     /**
      * Attributes used on elements that are not actually HTML Elements
      */
-    export interface EmptyAttributes<N extends Node = Node> {
+    export interface EmptyAttributes<N extends Node> {
       $$children?: o.RO<Insertable<N>> | o.RO<Insertable<N>>[]
     }
 
@@ -850,7 +852,7 @@ export namespace e {
   export const WBR = mkwrapper('wbr')
 
   export const createElement = e
-  export const Fragment: (at: e.JSX.Attrs<Comment>, ch: DocumentFragment) => JSX.Element = F //(at: Attrs, ch: DocumentFragment): e.JSX.Element
+  export const Fragment: (at: e.JSX.Attrs<Comment>, ch: e.JSX.Renderable[]) => JSX.Element = F //(at: Attrs, ch: DocumentFragment): e.JSX.Element
 }
 
 declare var global: any
@@ -864,7 +866,6 @@ declare global {
 
   namespace E.JSX {
     export type Element = Node
-    export type ElementAttributesProperty = e.JSX.ElementAttributesProperty
     export type ElementChildrenAttribute = e.JSX.ElementChildrenAttribute
     export type ElementClassFn<N extends Node> = e.JSX.ElementClassFn<N>
     export type ElementClass<N extends Node> = e.JSX.ElementClass<N>

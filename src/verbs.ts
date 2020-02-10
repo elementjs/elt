@@ -9,7 +9,7 @@ import {
   Mixin,
 } from './mixins'
 
-import { e } from './elt'
+import { e, renderable_to_node } from './elt'
 
 import {
   insert_before_and_mount,
@@ -559,9 +559,14 @@ export class FragmentHolder extends CommentContainer {
  *
  * @category verb
  */
-export function Fragment(attrs: e.JSX.EmptyAttributes<Comment>, children: DocumentFragment): Comment {
+export function Fragment(attrs: e.JSX.EmptyAttributes<Comment>, children: e.JSX.Renderable[]): Comment {
   // This is a trick ! It is not actually an element !
-  return new FragmentHolder(children).render()
+  const fr = document.createDocumentFragment()
+  for (var i = 0, l = children.length; i < l; i++) {
+    const c = renderable_to_node(children[i])
+    if (c) fr.appendChild(c)
+  }
+  return new FragmentHolder(fr).render()
 }
 
 
