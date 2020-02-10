@@ -12,7 +12,7 @@ import {
   Display
 } from './verbs'
 
-import { mount, sym_inserted, sym_mount_status } from './mounting'
+import { mount } from './mounting'
 
 
 
