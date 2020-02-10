@@ -12,7 +12,7 @@ import {
   Display
 } from './verbs'
 
-import { mount, sym_uninserted } from './mounting'
+import { mount, sym_inserted, sym_mount_status } from './mounting'
 
 
 
@@ -164,7 +164,6 @@ export function e<N extends Node>(elt: any, ...children: e.JSX.Insertable<N>[]):
     // create a simple DOM node
     var ns = NS[elt] // || attrs.xmlns
     node = ns ? document.createElementNS(ns, elt) : document.createElement(elt)
-    node[sym_uninserted] = true
 
     for (var i = 0, l = chld.length; i < l; i++) {
       var c = renderable_to_node(chld[i])
@@ -206,7 +205,7 @@ export function e<N extends Node>(elt: any, ...children: e.JSX.Insertable<N>[]):
       cur.addToNode(node)
     } else {
       // attributes object.
-      var at = cur as e.JSX.HTMLAttributes
+      var at = cur as e.JSX.HTMLAttributes<HTMLElement>
       var keys = Object.keys(at)
       for (var j = 0, l2 = keys.length; j < l2; j++) {
         var key = keys[j]
@@ -334,7 +333,7 @@ export namespace e {
      * This type should be used as first argument to all components definitions.
      * @category jsx
      */
-    export interface Attrs<N extends Node = HTMLElement> extends EmptyAttributes<N> {
+    export interface Attrs<N extends Node> extends EmptyAttributes<N> {
       id?: NRO<string>
       contenteditable?: NRO<'true' | 'false' | 'inherit'>
       hidden?: NRO<boolean>
@@ -355,7 +354,7 @@ export namespace e {
     }
 
 
-    export interface HTMLAttributes<N extends HTMLElement = HTMLElement> extends Attrs<N> {
+    export interface HTMLAttributes<N extends HTMLElement> extends Attrs<N> {
 
       // Attributes shamelessly stolen from React's type definitions.
       // Standard HTML Attributes
@@ -875,9 +874,9 @@ declare global {
     export type Insertable<N extends Node> = e.JSX.Insertable<N>
     export type ClassDefinition = e.JSX.ClassDefinition
     export type StyleDefinition = e.JSX.StyleDefinition
-    export type Attrs<N extends Node = HTMLElement> = e.JSX.Attrs<N>
+    export type Attrs<N extends Node> = e.JSX.Attrs<N>
     export type EmptyAttributes<N extends Node = Node> = e.JSX.EmptyAttributes<N>
-    export type HTMLAttributes<N extends HTMLElement = HTMLElement> = e.JSX.HTMLAttributes<N>
+    export type HTMLAttributes<N extends HTMLElement> = e.JSX.HTMLAttributes<N>
     export type SVGAttributes<N extends SVGElement = SVGElement> = e.JSX.SVGAttributes<N>
   }
 }

@@ -1,11 +1,11 @@
 
 import { sym_mixins, sym_observers } from './mixins'
 
-export const sym_uninserted = Symbol('unmounted')
+export const sym_mount_status = Symbol('sym_mount_status')
 
 declare global {
   interface Node {
-    [sym_uninserted]?: boolean
+    [sym_mount_status]?: 'init' | 'inserted' // note : unmounted is the same as undefined as far as elt knows.
   }
 }
 
@@ -15,6 +15,7 @@ declare global {
  */
 export function mount(node: Node) {
   var mx = node[sym_mixins]
+  node[sym_mount_status] = 'init'
   while (mx) {
     mx.mount(node)
     mx = mx.next_mixin
@@ -58,7 +59,7 @@ export function mounting_inserted(node: Node) {
   // Call inserted on the node list we just built.
   for (var i = 0, l = nodes.length; i < l; i++) {
     var n = nodes[i]
-    n[sym_uninserted] = false // now inserted
+    n[sym_mount_status] = 'inserted' // now inserted
     var mx = n[sym_mixins]
     while (mx) {
       mx.inserted(n)
@@ -79,7 +80,7 @@ function _apply_unmount(node: Node) {
       obs[i].stopObserving()
     }
   }
-  node[sym_uninserted] = true
+  node[sym_mount_status] = undefined
   var mx = node[sym_mixins]
   while (mx) {
     mx.unmount(node)
@@ -174,7 +175,7 @@ export function remove_and_unmount(node: Node): void {
  * @category mounting
  */
 export function insert_before_and_mount(parent: Node, node: Node, refchild: Node | null = null) {
-  var parent_is_inserted = !parent[sym_uninserted] // if parent_is_inserted, then we have to call inserted() on the added nodes.
+  var parent_is_inserted = !parent[sym_mount_status] // if parent_is_inserted, then we have to call inserted() on the added nodes.
 
   if (!(node instanceof DocumentFragment)) {
     var df = document.createDocumentFragment()
