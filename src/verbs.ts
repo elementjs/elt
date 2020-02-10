@@ -14,7 +14,6 @@ import { e, renderable_to_node } from './elt'
 import {
   insert_before_and_mount,
   remove_and_unmount,
-  sym_inserted,
   sym_mount_status,
 } from './mounting'
 
