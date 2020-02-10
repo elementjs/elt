@@ -226,10 +226,10 @@ export namespace Mixin {
  * All attributes must extend the base `Attrs` class.
  * @category jsx
  */
-export abstract class Component<N extends Node = HTMLElement, A extends e.JSX.EmptyAttributes<N> = e.JSX.Attrs<N>> extends Mixin<N> {
+export abstract class Component<A extends e.JSX.EmptyAttributes<any> = e.JSX.Attrs<HTMLElement>> extends Mixin<e.JSX.NodeType<A>> {
   // attrs: Attrs
   constructor(public attrs: A) { super() }
-  abstract render(children: e.JSX.Renderable[]): N
+  abstract render(children: e.JSX.Renderable[]): e.JSX.NodeType<A>
 }
 
 

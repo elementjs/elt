@@ -148,8 +148,8 @@ export function renderable_to_node(r: e.JSX.Renderable) {
  */
 export function e<K extends keyof HTMLElementTagNameMap>(elt: K, ...children: e.JSX.Insertable<HTMLElementTagNameMap[K]>[]): HTMLElementTagNameMap[K]
 export function e(elt: string, ...children: e.JSX.Insertable<HTMLElement>[]): HTMLElement
-export function e<N extends Node, A extends e.JSX.EmptyAttributes<any>>(elt: new (a: A) => Component<N, A>, attrs: A, ...children: e.JSX.Insertable<N>[]): N
-export function e<N extends Node, A extends e.JSX.EmptyAttributes<any>>(elt: (attrs: A, children: E.JSX.Renderable[]) => N, attrs: A, ...children: e.JSX.Insertable<N>[]): N
+export function e<A extends e.JSX.EmptyAttributes<any>>(elt: new (a: A) => Component<A>, attrs: A, ...children: e.JSX.Insertable<e.JSX.NodeType<A>>[]): e.JSX.NodeType<A>
+export function e<A extends e.JSX.EmptyAttributes<any>>(elt: (attrs: A, children: E.JSX.Renderable[]) => e.JSX.NodeType<A>, attrs: A, ...children: e.JSX.Insertable<e.JSX.NodeType<A>>[]): e.JSX.NodeType<A>
 export function e<N extends Node>(elt: any, ...children: e.JSX.Insertable<N>[]): N {
   if (!elt) throw new Error(`e() needs at least a string, a function or a Component`)
 
@@ -256,7 +256,7 @@ export namespace e {
       (attrs: EmptyAttributes<N>, children: e.JSX.Renderable[]): N
     }
 
-    export type ElementClass<N extends Node> = ElementClassFn<N> | Component<any, EmptyAttributes<any>>
+    export type ElementClass<N extends Node> = ElementClassFn<N> | Component<EmptyAttributes<any>>
 
     ///////////////////////////////////////////////////////////////////////////
     // Now following are the default attributes for HTML and SVG nodes.
