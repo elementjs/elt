@@ -251,7 +251,7 @@ export function node_observe<T>(node: Node, obs: o.RO<T>, obsfn: o.Observer.Obse
   if (node[sym_observers] == undefined)
     node[sym_observers] = []
   node[sym_observers]!.push(obser)
-  obser.startObserving() // this *may* be a problem ? FIXME TODO
+  if (node[sym_mount_status]) obser.startObserving() // this *may* be a problem ? FIXME TODO
   // we might need to track the mounting status of a node.
   return obser
 }
@@ -363,4 +363,5 @@ function _remove_class(node: Element, c: string) {
     node.setAttribute('class', name)
 }
 
-import { e } from './elt'
+import { e } from './elt'import { sym_mount_status } from './mounting'
+

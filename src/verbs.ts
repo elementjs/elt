@@ -14,7 +14,8 @@ import { e, renderable_to_node } from './elt'
 import {
   insert_before_and_mount,
   remove_and_unmount,
-  sym_uninserted,
+  sym_inserted,
+  sym_mount_status,
 } from './mounting'
 
 
@@ -387,7 +388,7 @@ export class ScrollRepeater<T> extends Repeater<T> {
   init(node: Comment) {
     requestAnimationFrame(() => {
       // Find parent with the overflow-y
-      if (this.node[sym_uninserted]) return
+      if (this.node[sym_mount_status] !== 'inserted') return
 
       var iter = this.node.parentElement
       while (iter) {
