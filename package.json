@@ -24,7 +24,7 @@
     "concurrently": "^3.5.0",
     "dts-bundle-generator": "^3.3.1",
     "mocha": "^6.2.2",
-    "rollup": "1.26.5",
-    "rollup-plugin-node-resolve": "^3.3.0"
+    "rollup": "^1.31.0",
+    "rollup-plugin-node-resolve": "^5.2.0"
   }
 }
