@@ -16,6 +16,7 @@ import {
   remove_and_deinit,
   sym_mount_status,
   node_add_mixin,
+  node_init,
 } from './dom'
 
 
@@ -54,37 +55,19 @@ export function get_dom_insertable(i: e.JSX.Insertable<Node>) {
 
 
 /**
- * Get a node from an insertable ready to be mounted as-is. Gives a `#Fragment` if the insertable
- * returned a DocumentFragment.
- *
- * This function is a helper for Display / Repeat ; its goal is to get a
- * single node from anything that may be inserted, which can then be targeted by a single
- * `remove_and_unmount`.
- *
+ * Remove all the nodes between `start` (included) and `end` (not included), calling `removed` and `unmount` if needed.
  * @category helper
  */
-export function get_single_node(i: e.JSX.Insertable<Node>) {
-  const result = get_dom_insertable(i)
-  if (result instanceof DocumentFragment) {
-    new FragmentHolder(result).render()
-  }
-  return result
-}
-
-
-/**
- * Remove all the nodes between `start` (included) and `end` (included), calling `removed` and `unmount` if needed.
- * @category helper
- */
-export function remove_nodes_between(start: Node, end: Node) {
+export function node_remove_between(start: Node, end: Node) {
   // this is done in reverse order
-  var iter = end.previousSibling as Node | null
+  var iter = start as Node | null
 
   if (!iter) return
 
-  while (iter && iter !== start) {
+  while (iter && iter !== end) {
+    var next = iter.nextSibling as Node | null
     remove_and_deinit(iter!)
-    iter = end.previousSibling
+    iter = next
   }
 
 }
@@ -122,7 +105,7 @@ export class CommentContainer extends Verb {
    * Remove all nodes between this.start and this.node
    */
   clear() {
-    remove_nodes_between(this.start, this.node)
+    node_remove_between(this.start.nextSibling!, this.node)
   }
 
   setContents(node: Node) {
@@ -272,56 +255,53 @@ export class Repeater<T> extends Verb {
   /**
    * Generate the next element to append to the list.
    */
-  next(): Node | null {
+  next(fr: DocumentFragment): boolean {
     if (this.next_index >= this.lst.length)
-      return null
+      return false
 
     // here, we *KNOW* it represents a defined value.
     var ob = this.obs.p(this.next_index) as o.Observable<T>
 
     this.child_obs.push(ob)
 
-    var res = get_single_node(this.renderfn(ob, this.next_index))
-
+    var first_node: Node | null = null
     if (this.separator && this.next_index > 0) {
-      const sep = get_single_node(this.separator(this.next_index))
-      res = e(Fragment, {}, sep, res)
+      var sep = get_dom_insertable(this.separator(this.next_index))
+      first_node = sep instanceof DocumentFragment ? sep.firstChild : sep
+      fr.appendChild(sep)
     }
 
-    this.positions.push(res)
+    var node = get_dom_insertable(this.renderfn(ob, this.next_index))
+    if (first_node == null)
+      first_node = node instanceof DocumentFragment ? node.firstChild : node
+    this.positions.push(first_node!)
+    fr.appendChild(node)
+
     this.next_index++
-    return res
+    return true
   }
 
   appendChildren(count: number) {
-    var next: Node | null
     const parent = this.node.parentNode!
     if (!parent) return
 
     var fr = document.createDocumentFragment()
 
     while (count-- > 0) {
-      next = this.next()
-      if (!next) break
-      fr.appendChild(next)
+      if (!this.next(fr)) break
     }
 
     insert_before_and_init(parent, fr, this.node)
   }
 
   removeChildren(count: number) {
+    if (this.next_index === 0 || count === 0) return
     // Détruire jusqu'à la position concernée...
     this.next_index = this.next_index - count
 
-    var co = this.child_obs
-    var po = this.positions
-    var l = co.length
+    const end = this.node
 
-    // Remove the excess nodes
-    for (var i = this.next_index; i < l; i++) {
-      const node = po[i]
-      remove_and_deinit(node)
-    }
+    node_remove_between(this.positions[this.next_index], end)
 
     this.child_obs = this.child_obs.slice(0, this.next_index)
     this.positions = this.positions.slice(0, this.next_index)
@@ -477,7 +457,7 @@ export function Repeat<T extends o.RO<any[]>>(
       if (separator)
         arr[i++] = separator(j - 1)
     }
-    return get_single_node(final)
+    return get_dom_insertable(final)
   }
   return new Repeater(ob, render as any, separator).render()
 }
@@ -527,21 +507,21 @@ export function RepeatScroll<T>(
 }
 
 
-/**
- *  A comment node that holds a document fragment.
- */
-export class FragmentHolder extends CommentContainer {
+// /**
+//  *  A comment node that holds a document fragment.
+//  */
+// export class FragmentHolder extends CommentContainer {
 
-  constructor(public fragment: DocumentFragment) {
-    super()
-  }
+//   constructor(public fragment: DocumentFragment) {
+//     super()
+//   }
 
-  init(node: Comment) {
-    super.init(node)
-    this.setContents(this.fragment)
-  }
+//   init(node: Comment) {
+//     super.init(node)
+//     this.setContents(this.fragment)
+//   }
 
-}
+// }
 
 
 /**
@@ -556,14 +536,17 @@ export class FragmentHolder extends CommentContainer {
  *
  * @category verb
  */
-export function Fragment(attrs: e.JSX.EmptyAttributes<Comment>, children: e.JSX.Renderable[]): Comment {
+export function Fragment(attrs: e.JSX.EmptyAttributes<DocumentFragment>, children: e.JSX.Renderable[]): DocumentFragment {
   // This is a trick ! It is not actually an element !
   const fr = document.createDocumentFragment()
   for (var i = 0, l = children.length; i < l; i++) {
     const c = renderable_to_node(children[i])
-    if (c) fr.appendChild(c)
+    if (c) {
+      fr.appendChild(c)
+      node_init(c)
+    }
   }
-  return new FragmentHolder(fr).render()
+  return fr
 }
 
 

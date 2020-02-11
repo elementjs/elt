@@ -853,7 +853,7 @@ export namespace e {
   export const WBR = mkwrapper('wbr')
 
   export const createElement = e
-  export const Fragment: (at: e.JSX.Attrs<Comment>, ch: e.JSX.Renderable[]) => JSX.Element = F //(at: Attrs, ch: DocumentFragment): e.JSX.Element
+  export const Fragment: (at: e.JSX.Attrs<DocumentFragment>, ch: e.JSX.Renderable[]) => DocumentFragment = F //(at: Attrs, ch: DocumentFragment): e.JSX.Element
 }
 
 declare var global: any
