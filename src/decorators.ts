@@ -4,9 +4,10 @@ import {
 } from './observable'
 
 import {
-  Mixin, node_observe, node_observe_class
+  Mixin
 } from './mixins'
 
+import { node_observe, node_observe_class } from './dom'
 
 export type Decorator<N extends Node> = (node: N) => void
 

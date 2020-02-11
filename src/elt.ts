@@ -3,16 +3,18 @@ import { o } from './observable'
 import {
   Mixin,
   Component,
-  node_observe_class,
-  node_observe_style,
-  node_observe_attribute
 } from './mixins'
 
 import {
   Display
 } from './verbs'
 
-import { mount } from './mounting'
+import {
+  mount,
+  node_observe_class,
+  node_observe_style,
+  node_observe_attribute
+} from './dom'
 
 
 
