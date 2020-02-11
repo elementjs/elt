@@ -25,11 +25,12 @@ declare global {
  * Call controllers' mount() functions.
  * @internal
  */
-export function mount(node: Node) {
+export function node_init(node: Node) {
   var mx = node[sym_mixins]
   node[sym_mount_status] = 'init'
   while (mx) {
-    mx.mount(node)
+    (mx as any).node = node
+    mx.init?.(node)
     mx = mx.next_mixin
   }
   var obs = node[sym_observers]
@@ -44,7 +45,7 @@ export function mount(node: Node) {
 /**
  * @internal
  */
-export function mounting_inserted(node: Node) {
+export function node_inserted(node: Node) {
   var nodes = [node] as Node[] // the nodes we will have to tell they're inserted
 
   var iter = node.firstChild as Node | null | undefined
@@ -74,7 +75,7 @@ export function mounting_inserted(node: Node) {
     n[sym_mount_status] = 'inserted' // now inserted
     var mx = n[sym_mixins]
     while (mx) {
-      mx.inserted(n)
+      mx.inserted?.(n)
       mx = mx.next_mixin
     }
   }
@@ -85,7 +86,7 @@ export function mounting_inserted(node: Node) {
  * Apply unmount to a node.
  * @internal
  */
-function _apply_unmount(node: Node) {
+function _apply_removed(node: Node) {
   var obs = node[sym_observers]
   if (obs) {
     for (var i = 0, l = obs.length; i < l; i++) {
@@ -95,7 +96,7 @@ function _apply_unmount(node: Node) {
   node[sym_mount_status] = undefined
   var mx = node[sym_mixins]
   while (mx) {
-    mx.unmount(node)
+    mx.deinit?.(node)
     mx = mx.next_mixin
   }
 }
@@ -104,7 +105,7 @@ function _apply_unmount(node: Node) {
  * Call controller's unmount functions recursively
  * @category mounting
  */
-export function unmount(node: Node) {
+export function node_removed(node: Node) {
 
   const unmount: Node[] = []
   const node_stack: Node[] = []
@@ -142,7 +143,7 @@ export function unmount(node: Node) {
   unmount.push(node)
 
   for (var tuple of unmount) {
-    _apply_unmount(tuple)
+    _apply_removed(tuple)
   }
 
 }
@@ -158,13 +159,13 @@ export function unmount(node: Node) {
  * @param node The node to remove from the DOM
  * @category mounting
  */
-export function remove_and_unmount(node: Node): void {
+export function remove_and_deinit(node: Node): void {
   const parent = node.parentNode!
   if (parent) {
-    unmount(node)
+    node_removed(node)
     var mx = node[sym_mixins]
     while (mx) {
-      mx.removed(node, parent)
+      mx.removed?.(node, parent)
       mx = mx.next_mixin
     }
     // (m as any).node = null
@@ -186,7 +187,7 @@ export function remove_and_unmount(node: Node): void {
  *
  * @category mounting
  */
-export function insert_before_and_mount(parent: Node, node: Node, refchild: Node | null = null) {
+export function insert_before_and_init(parent: Node, node: Node, refchild: Node | null = null) {
   var parent_is_inserted = !parent[sym_mount_status] // if parent_is_inserted, then we have to call inserted() on the added nodes.
 
   if (!(node instanceof DocumentFragment)) {
@@ -198,7 +199,7 @@ export function insert_before_and_mount(parent: Node, node: Node, refchild: Node
   var iter = node.firstChild
   var to_insert = parent_is_inserted ? [] as Node[] : undefined
   while (iter) {
-    mount(iter)
+    node_init(iter)
     if (parent_is_inserted) to_insert!.push(iter)
     iter = iter.nextSibling
   }
@@ -211,7 +212,7 @@ export function insert_before_and_mount(parent: Node, node: Node, refchild: Node
     // We check that its document events are handled by us.
     for (var i = 0, l = to_insert!.length; i < l; i++) {
       var n = to_insert![i]
-      mounting_inserted(n)
+      node_inserted(n)
     }
   }
 }
@@ -221,8 +222,8 @@ export function insert_before_and_mount(parent: Node, node: Node, refchild: Node
  * Alias for `#insert_before_and_mount` that mimicks `Node.appendChild()`
  * @category mounting
  */
-export function append_child_and_mount(parent: Node, child: Node) {
-  insert_before_and_mount(parent, child)
+export function append_child_and_init(parent: Node, child: Node) {
+  insert_before_and_init(parent, child)
 }
 
 declare global {
@@ -351,4 +352,49 @@ function _remove_class(node: Element, c: string) {
     }
   if (!is_svg)
     node.setAttribute('class', name)
+}
+
+
+/**
+ * Remove a Mixin from the array of mixins associated with this Node.
+ * @param node The node the mixin will be removed from
+ * @param mixin The mixin object we want to remove
+ */
+export function node_remove_mixin(node: Node, mixin: Mixin): void {
+  var mx = node[sym_mixins]
+  if (!mx) return
+  if (mx === mixin) {
+    node[sym_mixins] = mixin.next_mixin
+  } else {
+    var iter = mx
+    while (iter) {
+      if (iter.next_mixin === mixin) {
+        iter.next_mixin = mixin.next_mixin
+        return
+      }
+    }
+  }
+}
+
+
+/**
+ * Associate a `mixin` to a `node`.
+ *
+ * All it does is add it to the chained list of mixins accessible on `node[sym_mixins]` and
+ * set `mixin.node` to the corresponding node.
+ *
+ * In general, to add a mixin to a node, prefer adding it to its children.
+ *
+ * ```tsx
+ * var my_mixin = new Mixin()
+ *
+ * // these are equivalent
+ * <div>{my_mixin}</div>
+ * var d = <div/>; node_add_mixin(d, mixin);
+ * ```
+ */
+export function node_add_mixin(node: Node, mixin: Mixin): void {
+  mixin.next_mixin = node[sym_mixins]
+  node[sym_mixins] = mixin
+  mixin.node = node
 }

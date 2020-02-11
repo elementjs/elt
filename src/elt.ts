@@ -10,10 +10,11 @@ import {
 } from './verbs'
 
 import {
-  mount,
+  node_init,
   node_observe_class,
   node_observe_style,
-  node_observe_attribute
+  node_observe_attribute,
+  node_add_mixin
 } from './dom'
 
 
@@ -171,7 +172,7 @@ export function e<N extends Node>(elt: any, ...children: e.JSX.Insertable<N>[]):
       var c = renderable_to_node(chld[i])
       if (c) {
         node.appendChild(c)
-        mount(c)
+        node_init(c)
       }
       //
       // mount(c)
@@ -184,8 +185,7 @@ export function e<N extends Node>(elt: any, ...children: e.JSX.Insertable<N>[]):
     var comp = new elt(attrs)
 
     node = comp.render(chld) as N
-    comp.addToNode(node)
-
+    node_add_mixin(node, comp)
   } else if (typeof elt === 'function') {
     // elt is just a creator function
     var attrs = (dm[0] ?? {}) as e.JSX.EmptyAttributes<any>
@@ -204,7 +204,7 @@ export function e<N extends Node>(elt: any, ...children: e.JSX.Insertable<N>[]):
     if (typeof cur === 'function') {
       cur(node)
     } else if (cur instanceof Mixin) {
-      cur.addToNode(node)
+      node_add_mixin(node, cur)
     } else {
       // attributes object.
       var at = cur as e.JSX.HTMLAttributes<HTMLElement>

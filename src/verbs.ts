@@ -12,9 +12,10 @@ import {
 import { e, renderable_to_node } from './elt'
 
 import {
-  insert_before_and_mount,
-  remove_and_unmount,
+  insert_before_and_init,
+  remove_and_deinit,
   sym_mount_status,
+  node_add_mixin,
 } from './dom'
 
 
@@ -82,7 +83,7 @@ export function remove_nodes_between(start: Node, end: Node) {
   if (!iter) return
 
   while (iter && iter !== start) {
-    remove_and_unmount(iter!)
+    remove_and_deinit(iter!)
     iter = end.previousSibling
   }
 
@@ -96,7 +97,7 @@ export class Verb extends Mixin<Comment> {
 
   render() {
     const node = document.createComment(`  ${this.constructor.name} `)
-    this.addToNode(node)
+    node_add_mixin(node, this)
     return node
   }
 
@@ -129,7 +130,7 @@ export class CommentContainer extends Verb {
     var end = this.node
 
     // Insert the new node before the end
-    insert_before_and_mount(this.node.parentNode!, node, end)
+    insert_before_and_init(this.node.parentNode!, node, end)
   }
 
   removed(node: Node, parent: Node) {
@@ -255,11 +256,7 @@ export class Repeater<T> extends Verb {
     this.obs = o(ob)
   }
 
-  /**
-   * FIXME: WHAT SHOULD WE DO WHEN THE NODE IS REMOVED AND THEN
-   * ADDED AGAIN ???
-   */
-  init(node: Comment) {
+  init() {
     this.observe(this.obs, lst => {
       this.lst = lst || []
       const diff = lst.length - this.next_index
@@ -309,7 +306,7 @@ export class Repeater<T> extends Verb {
       fr.appendChild(next)
     }
 
-    insert_before_and_mount(parent, fr, this.node)
+    insert_before_and_init(parent, fr, this.node)
   }
 
   removeChildren(count: number) {
@@ -323,7 +320,7 @@ export class Repeater<T> extends Verb {
     // Remove the excess nodes
     for (var i = this.next_index; i < l; i++) {
       const node = po[i]
-      remove_and_unmount(node)
+      remove_and_deinit(node)
     }
 
     this.child_obs = this.child_obs.slice(0, this.next_index)
@@ -384,7 +381,7 @@ export class ScrollRepeater<T> extends Repeater<T> {
     requestAnimationFrame(append)
   }
 
-  init(node: Comment) {
+  init() {
     requestAnimationFrame(() => {
       // Find parent with the overflow-y
       if (this.node[sym_mount_status] !== 'inserted') return
