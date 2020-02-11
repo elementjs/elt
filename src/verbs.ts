@@ -13,7 +13,7 @@ import { e, renderable_to_node } from './elt'
 
 import {
   insert_before_and_init,
-  node_remove_between,
+  node_remove_after,
   sym_mount_status,
   node_add_mixin,
   node_init,
@@ -74,32 +74,33 @@ export class Verb extends Mixin<Comment> {
  * @api
  * @category verb
  */
+var cmt_count = 0
 export class CommentContainer extends Verb {
 
-  start = document.createComment('--start--')
+  end = document.createComment(`-- ${this.constructor.name} ${cmt_count ++} --`)
 
-  init(node: Node) {
-    node.parentNode!.insertBefore(this.start, node)
+  init(node: Comment) {
+    node.parentNode!.insertBefore(this.end, node.nextSibling)
   }
 
   /**
    * Remove all nodes between this.start and this.node
    */
   clear() {
-    node_remove_between(this.start.nextSibling!, this.node)
+    if (this.end.previousSibling !== this.node)
+      node_remove_after(this.node, this.end.previousSibling!)
   }
 
-  setContents(node: Node) {
+  setContents(cts: Node) {
     this.clear()
-    var end = this.node
 
-    // Insert the new node before the end
-    insert_before_and_init(this.node.parentNode!, node, end)
+    // Insert the new comment before the end
+    insert_before_and_init(this.node.parentNode!, cts, this.end)
   }
 
   removed(node: Node, parent: Node) {
     this.clear()
-    parent.removeChild(this.start)
+    parent.removeChild(this.end)
   }
 }
 
@@ -115,7 +116,7 @@ export class Displayer extends CommentContainer {
     super()
   }
 
-  init(node: Node) {
+  init(node: Comment) {
     super.init(node)
     this.observe(this._obs, value => this.setContents(get_dom_insertable(value)))
   }
@@ -245,17 +246,12 @@ export class Repeater<T> extends Verb {
 
     this.child_obs.push(ob)
 
-    var first_node: Node | null = null
     if (this.separator && this.next_index > 0) {
-      var sep = get_dom_insertable(this.separator(this.next_index))
-      first_node = sep instanceof DocumentFragment ? sep.firstChild : sep
-      fr.appendChild(sep)
+      fr.appendChild(get_dom_insertable(this.separator(this.next_index)))
     }
 
     var node = get_dom_insertable(this.renderfn(ob, this.next_index))
-    if (first_node == null)
-      first_node = node instanceof DocumentFragment ? node.firstChild : node
-    this.positions.push(first_node!)
+    this.positions.push(node instanceof DocumentFragment ? node.lastChild! : node)
     fr.appendChild(node)
 
     this.next_index++
@@ -280,9 +276,7 @@ export class Repeater<T> extends Verb {
     // Détruire jusqu'à la position concernée...
     this.next_index = this.next_index - count
 
-    const end = this.node
-
-    node_remove_between(this.positions[this.next_index], end)
+    node_remove_after(this.positions[this.next_index - 1] ?? this.node, this.positions[this.positions.length - 1])
 
     this.child_obs = this.child_obs.slice(0, this.next_index)
     this.positions = this.positions.slice(0, this.next_index)
