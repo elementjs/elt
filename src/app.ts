@@ -3,6 +3,7 @@ import { Display } from './verbs'
 import { Mixin } from './mixins'
 import { e } from './elt'
 import { o } from './observable'
+import { node_add_mixin } from './dom'
 
 /**
  * An App is a collection of building blocks that all together form an application.
@@ -108,7 +109,7 @@ export namespace App {
   export function DisplayApp(main_view: string, ...blocks: BlockInstantiator<any>[]) {
     var app = new App(main_view, blocks)
     var disp = app.display(main_view)
-    app.addToNode(disp)
+    node_add_mixin(disp, app)
     return disp
   }
 

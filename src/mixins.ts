@@ -4,30 +4,38 @@ import {
 } from './observable'
 
 import { e } from './elt'
-import { sym_mixins, node_observe } from './dom'
+import { sym_mixins, node_observe, node_remove_mixin } from './dom'
 
 
-/**
- * Remove a Mixin from the array of mixins associated with this Node.
- * @param node The node the mixin will be removed from
- * @param mixin The mixin object we want to remove
- */
-export function remove_mixin(node: Node, mixin: Mixin): void {
-  var mx = node[sym_mixins]
-  if (!mx) return
-  if (mx === mixin) {
-    node[sym_mixins] = mixin.next_mixin
-  } else {
-    var iter = mx
-    while (iter) {
-      if (iter.next_mixin === mixin) {
-        iter.next_mixin = mixin.next_mixin
-        return
-      }
-    }
-  }
+export interface Mixin<N extends Node> {
+  /**
+   * Stub method. Overload it if you want to run code right after the creation of the
+   * associated node by the e() function (or more generally whenever this mixin is added
+   * to a node.)
+   *
+   * @param node The associated node.
+   * @param parent The current parent node. It will most likely change.
+   */
+  init?(node: N): void
+
+  /**
+   * Stub method. Overload it to run code whenever the node is inserted into the
+   * live DOM.
+   */
+  inserted?(node: N): void
+
+  /**
+   * Stub method. Overload it to run code whenever the node is removed from the DOM.
+   * This is called even when the node was not the direct target of a removal.
+   */
+  deinit?(node: N): void
+
+  /**
+   * Stub method. Overload it to run code whenever the node is the direct target
+   * of a DOM removal (and not a child in the sub tree of a node that was removed)
+   */
+  removed?(node: N, parent: Node): void
 }
-
 
 /**
  * A `Mixin` is an object that is tied to a DOM Node and its lifecycle. This class
@@ -53,9 +61,9 @@ export function remove_mixin(node: Node, mixin: Mixin): void {
  * @api
  * @category jsx
  */
-export class Mixin<N extends Node = Node> {
+export abstract class Mixin<N extends Node = Node> {
 
-  readonly node: N = null!
+  node: N = null!
   next_mixin?: Mixin<any>
 
   /**
@@ -96,87 +104,15 @@ export class Mixin<N extends Node = Node> {
   }
 
   /**
-   * Associate this mixin to a `node`.
-   *
-   * All it does is add it to the chained list of mixins accessible on `node[sym_mixins]` and
-   * set `this.node` to the corresponding node.
-   *
-   * It is also possible to add a mixin to a node by using the `$$` attribute of jsx constructors :
-   *
-   * ```tsx
-   * var my_mixin = new Mixin()
-   *
-   * // all those are equivalent
-   * <div $$={my_mixin}/>
-   * <div $$={[my_mixin]}/>
-   * var d = <div/>; my_mixin.addToNode(d)
-   * ```
-   */
-  addToNode(node: N) {
-    this.next_mixin = node[sym_mixins]
-    node[sym_mixins] = this;
-    (this.node as any) = node;
-  }
-
-  /**
    * Remove the mixin from this node. Observers created with `observe()` will
    * stop observing, but `removed()` will not be called.
    * @param node
    */
   removeFromNode() {
-    this.unmount(this.node);
-    remove_mixin(this.node, this);
+    this.deinit?.(this.node);
+    node_remove_mixin(this.node, this);
     (this.node as any) = null; // we force the node to null to help with garbage collection.
   }
-
-  /**
-   * @param node The associated node
-   */
-  mount(node: N) {
-    (this.node as any) = node;
-    this.init(node)
-  }
-
-  /**
-   * This method is called by the mounting process whenever the associated node
-   * was removed from the DOM. Overload `removed()` if you want to react to this event.
-   * @param node The associated node
-   * @param parent Its former parent
-   * @param next Its former nextSibling
-   * @param prev Its former prevSibling
-   */
-  unmount(node: N) {
-    this.deinit(node);
-  }
-
-  /**
-   * Stub method. Overload it if you want to run code right after the creation of the
-   * associated node by the e() function (or more generally whenever this mixin is added
-   * to a node.)
-   *
-   * @param node The associated node.
-   * @param parent The current parent node. It will most likely change.
-   */
-  init(node: N): void { }
-
-  /**
-   * Stub method. Overload it to run code whenever the node is removed from the DOM.
-   * This is called even when the node was not the direct target of a removal.
-   */
-  deinit(node: N): void { }
-
-  /**
-   * Stub method. Overload it to run code whenever the node is the direct target
-   * of a DOM removal (and not a child in the sub tree of a node that was removed)
-   */
-  removed(node: N, parent: Node): void { }
-
-
-  /**
-   * Stub method. Overload it to run code whenever the node is inserted into the
-   * live DOM.
-   */
-  inserted(node: N): void { }
 
   listen<K extends (keyof DocumentEventMap)[]>(name: K, listener: Mixin.Listener<DocumentEventMap[K[number]], N>, useCapture?: boolean): void
   listen<K extends keyof DocumentEventMap>(name: K, listener: Mixin.Listener<DocumentEventMap[K], N>, useCapture?: boolean): void
