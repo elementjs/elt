@@ -13,7 +13,7 @@ import { e, renderable_to_node } from './elt'
 
 import {
   insert_before_and_init,
-  remove_and_deinit,
+  node_remove_between,
   sym_mount_status,
   node_add_mixin,
   node_init,
@@ -51,25 +51,6 @@ export function get_dom_insertable(i: e.JSX.Insertable<Node>) {
   }
 
   return document.createComment('' + i)
-}
-
-
-/**
- * Remove all the nodes between `start` (included) and `end` (not included), calling `removed` and `unmount` if needed.
- * @category helper
- */
-export function node_remove_between(start: Node, end: Node) {
-  // this is done in reverse order
-  var iter = start as Node | null
-
-  if (!iter) return
-
-  while (iter && iter !== end) {
-    var next = iter.nextSibling as Node | null
-    remove_and_deinit(iter!)
-    iter = next
-  }
-
 }
 
 
