@@ -398,3 +398,22 @@ export function node_add_mixin(node: Node, mixin: Mixin): void {
   node[sym_mixins] = mixin
   mixin.node = node
 }
+
+
+/**
+ * Remove all the nodes between `start` (included) and `end` (not included), calling `removed` and `unmount` if needed.
+ * @category helper
+ */
+export function node_remove_between(start: Node, end: Node) {
+  // this is done in reverse order
+  var iter = start as Node | null
+
+  if (!iter) return
+
+  while (iter && iter !== end) {
+    var next = iter.nextSibling as Node | null
+    remove_and_deinit(iter!)
+    iter = next
+  }
+
+}
