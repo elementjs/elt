@@ -119,10 +119,10 @@ export abstract class Mixin<N extends Node = Node> {
   listen(name: string | string[], listener: Mixin.Listener<Event, N>, useCapture?: boolean): void
   listen(name: string | string[], listener: Mixin.Listener<Event, any>, useCapture?: boolean) {
     if (typeof name === 'string')
-      this.node.addEventListener(name, (ev) => listener(ev, this.node), useCapture)
+      this.node.addEventListener(name, (ev) => listener(ev), useCapture)
     else
       for (var n of name) {
-        this.node.addEventListener(n, (ev) => listener(ev, this.node), useCapture)
+        this.node.addEventListener(n, (ev) => listener(ev), useCapture)
       }
   }
 
@@ -137,7 +137,7 @@ export abstract class Mixin<N extends Node = Node> {
 
 
 export namespace Mixin {
-  export type Listener<EventType extends Event, N extends Node = Node> = (ev: EventType, node: N) => any
+  export type Listener<EventType extends Event, N extends Node = Node> = (ev: EventType & {currentTarget: N}) => any
 }
 
 /**
