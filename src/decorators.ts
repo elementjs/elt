@@ -182,10 +182,10 @@ export function $on<N extends Element>(event: string | string[], listener: Mixin
 export function $on<N extends Element>(event: string | string[], _listener: Mixin.Listener<Event, N>, useCapture = false): Decorator<N> {
   return node => {
     if (typeof event === 'string')
-      node.addEventListener(event, ev => _listener(ev, node), useCapture)
+      node.addEventListener(event, ev => _listener(ev as any), useCapture)
     else {
       for (var n of event) {
-        node.addEventListener(n, ev => _listener(ev, node), useCapture)
+        node.addEventListener(n, ev => _listener(ev as any), useCapture)
       }
     }
   }
@@ -303,14 +303,14 @@ export class ScrollableMixin extends Mixin<HTMLElement> {
       // seems like typescript doesn't have this property yet
       style.webkitOverflowScrolling = 'touch'
 
-      this.listen('touchstart', (ev, node) => {
-        if (node.scrollTop == 0) {
+      this.listen('touchstart', ev => {
+        if (ev.currentTarget.scrollTop == 0) {
           node.scrollTop = 1
         } else if (node.scrollTop + node.offsetHeight >= node.scrollHeight - 1) node.scrollTop -= 1
       }, true)
 
-      this.listen('touchmove', (ev, node) => {
-        if (node.offsetHeight < node.scrollHeight)
+      this.listen('touchmove', ev => {
+        if (ev.currentTarget.offsetHeight < ev.currentTarget.scrollHeight)
         (ev as any).scrollable = true
       }, true)
     }
