@@ -197,7 +197,7 @@ export function $on<N extends Element>(event: string | string[], _listener: Mixi
  * @category decorator
  * @api
  */
-export function $click(cbk: Mixin.Listener<MouseEvent>) {
+export function $click<N extends Element>(cbk: Mixin.Listener<MouseEvent, N>): Decorator<N> {
   return $on('click', cbk)
 }
 
