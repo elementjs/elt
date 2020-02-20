@@ -4,7 +4,7 @@ import {
 } from './observable'
 
 import { e } from './elt'
-import { sym_mixins, node_observe, node_remove_mixin } from './dom'
+import { sym_mixins, node_observe, node_remove_mixin, Listener } from './dom'
 
 
 export interface Mixin<N extends Node> {
@@ -114,10 +114,10 @@ export abstract class Mixin<N extends Node = Node> {
     (this.node as any) = null; // we force the node to null to help with garbage collection.
   }
 
-  listen<K extends (keyof DocumentEventMap)[]>(name: K, listener: Mixin.Listener<DocumentEventMap[K[number]], N>, useCapture?: boolean): void
-  listen<K extends keyof DocumentEventMap>(name: K, listener: Mixin.Listener<DocumentEventMap[K], N>, useCapture?: boolean): void
-  listen(name: string | string[], listener: Mixin.Listener<Event, N>, useCapture?: boolean): void
-  listen(name: string | string[], listener: Mixin.Listener<Event, any>, useCapture?: boolean) {
+  listen<K extends (keyof DocumentEventMap)[]>(name: K, listener: Listener<DocumentEventMap[K[number]], N>, useCapture?: boolean): void
+  listen<K extends keyof DocumentEventMap>(name: K, listener: Listener<DocumentEventMap[K], N>, useCapture?: boolean): void
+  listen(name: string | string[], listener: Listener<Event, N>, useCapture?: boolean): void
+  listen(name: string | string[], listener: Listener<Event, any>, useCapture?: boolean) {
     if (typeof name === 'string')
       this.node.addEventListener(name, (ev) => listener(ev), useCapture)
     else
@@ -135,10 +135,6 @@ export abstract class Mixin<N extends Node = Node> {
 
 }
 
-
-export namespace Mixin {
-  export type Listener<EventType extends Event, N extends Node = Node> = (ev: EventType & {currentTarget: N}) => any
-}
 
 /**
  * The Component is the core class of your TSX components.
