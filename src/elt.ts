@@ -108,6 +108,8 @@ const GLOBAL_ATTRIBUTES = {
 } as const
 
 
+var _decorator_map = new WeakMap<Function, Comment>()
+
 /**
  * Separates decorators and mixins from nodes or soon-to-be-nodes from children.
  * Returns a tuple containing the decorators/mixins/attrs in one part and the children in the other.
@@ -122,6 +124,11 @@ export function separate_children_from_rest(children: e.JSX.Insertable<any>[], d
       separate_children_from_rest(c, dm, chld)
     } else if (c instanceof Node || typeof c === 'string' || typeof c === 'number' || o.isReadonlyObservable(c)) {
       chld.push(c)
+    } else if (typeof c === 'function') {
+      var cmt = document.createComment('decorator ' + c.name)
+      _decorator_map.set(c, cmt)
+      chld.push(cmt)
+      dm.push(c)
     } else {
       dm.push(c)
     }
@@ -202,7 +209,13 @@ export function e<N extends Node>(elt: any, ...children: e.JSX.Insertable<N>[]):
   for (var i = 0, l = dm.length; i < l; i++) {
     var cur = dm[i]
     if (typeof cur === 'function') {
-      cur(node)
+      var res = cur(node)
+      if (!res) continue
+      var nd = renderable_to_node(res)
+      if (!nd) continue
+      var cmt = _decorator_map.get(cur)
+      if (!cmt) continue
+      cmt.parentNode?.insertBefore(nd, cmt)
     } else if (cur instanceof Mixin) {
       node_add_mixin(node, cur)
     } else {

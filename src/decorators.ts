@@ -9,7 +9,7 @@ import {
 
 import { node_observe, node_observe_class } from './dom'
 
-export type Decorator<N extends Node> = (node: N) => void
+export type Decorator<N extends Node> = (node: N) => void | E.JSX.Renderable
 
 
 /**
@@ -180,7 +180,7 @@ export function $on<N extends Element, K extends (keyof DocumentEventMap)[]>(nam
 export function $on<N extends Element, K extends keyof DocumentEventMap>(event: K, listener: Mixin.Listener<DocumentEventMap[K], N>, useCapture?: boolean): Decorator<N>
 export function $on<N extends Element>(event: string | string[], listener: Mixin.Listener<Event, N>, useCapture?: boolean): Decorator<N>
 export function $on<N extends Element>(event: string | string[], _listener: Mixin.Listener<Event, N>, useCapture = false): Decorator<N> {
-  return node => {
+  return function $on(node) {
     if (typeof event === 'string')
       node.addEventListener(event, ev => _listener(ev as any), useCapture)
     else {
