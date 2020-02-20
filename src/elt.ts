@@ -210,7 +210,7 @@ export function e<N extends Node>(elt: any, ...children: e.JSX.Insertable<N>[]):
     var cur = dm[i]
     if (typeof cur === 'function') {
       var res = cur(node)
-      if (!res) continue
+      if (!res || res === node) continue
       var nd = renderable_to_node(res)
       if (!nd) continue
       var cmt = _decorator_map.get(cur)
