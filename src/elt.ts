@@ -6,7 +6,7 @@ import {
 } from './mixins'
 
 import {
-  Display
+  $Display
 } from './verbs'
 
 import {
@@ -136,7 +136,7 @@ export function renderable_to_node(r: e.JSX.Renderable) {
   else if (typeof r === 'string' || typeof r === 'number')
     return document.createTextNode(r.toString())
   else if (o.isReadonlyObservable(r))
-    return Display(r)
+    return $Display(r)
   else
     return r
 }

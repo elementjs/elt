@@ -1,5 +1,5 @@
 
-import { Display } from './verbs'
+import { $Display } from './verbs'
 import { Mixin } from './mixins'
 import { e } from './elt'
 import { o } from './observable'
@@ -72,7 +72,7 @@ export class App extends Mixin<Comment>{
    * Implementation of display
    */
   display(view_name: string) {
-    return Display(this.o_views.tf((v, old, prev) => {
+    return $Display(this.o_views.tf((v, old, prev) => {
       var view = v[view_name]
       // if (sym === 'MainView')
       //   console.log(sym, v, old, o.isValue(old) && view === old[sym])
