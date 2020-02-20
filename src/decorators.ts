@@ -7,7 +7,7 @@ import {
   Mixin
 } from './mixins'
 
-import { node_observe, node_observe_class } from './dom'
+import { node_observe, node_observe_class, Listener } from './dom'
 
 export type Decorator<N extends Node> = (node: N) => void | E.JSX.Renderable
 
@@ -176,10 +176,10 @@ export function $observe<N extends Node, T>(a: o.RO<T>, cbk: (newval: T, changes
  * @category decorator
  * @api
  */
-export function $on<N extends Element, K extends (keyof DocumentEventMap)[]>(name: K, listener: Mixin.Listener<DocumentEventMap[K[number]], N>, useCapture?: boolean): Decorator<N>
-export function $on<N extends Element, K extends keyof DocumentEventMap>(event: K, listener: Mixin.Listener<DocumentEventMap[K], N>, useCapture?: boolean): Decorator<N>
-export function $on<N extends Element>(event: string | string[], listener: Mixin.Listener<Event, N>, useCapture?: boolean): Decorator<N>
-export function $on<N extends Element>(event: string | string[], _listener: Mixin.Listener<Event, N>, useCapture = false): Decorator<N> {
+export function $on<N extends Element, K extends (keyof DocumentEventMap)[]>(name: K, listener: Listener<DocumentEventMap[K[number]], N>, useCapture?: boolean): Decorator<N>
+export function $on<N extends Element, K extends keyof DocumentEventMap>(event: K, listener: Listener<DocumentEventMap[K], N>, useCapture?: boolean): Decorator<N>
+export function $on<N extends Element>(event: string | string[], listener: Listener<Event, N>, useCapture?: boolean): Decorator<N>
+export function $on<N extends Element>(event: string | string[], _listener: Listener<Event, N>, useCapture = false): Decorator<N> {
   return function $on(node) {
     if (typeof event === 'string')
       node.addEventListener(event, ev => _listener(ev as any), useCapture)
@@ -197,7 +197,7 @@ export function $on<N extends Element>(event: string | string[], _listener: Mixi
  * @category decorator
  * @api
  */
-export function $click<N extends Element>(cbk: Mixin.Listener<MouseEvent, N>): Decorator<N> {
+export function $click<N extends Element>(cbk: Listener<MouseEvent, N>): Decorator<N> {
   return $on('click', cbk)
 }
 

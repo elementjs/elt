@@ -2,6 +2,8 @@ import { o } from './observable'
 import { e } from './elt'
 import { Mixin } from './mixins'
 
+export type Listener<EventType extends Event, N extends Node = Node> = (ev: EventType & {currentTarget: N}) => any
+
 export const sym_observers = Symbol('observers')
 export const sym_mount_status = Symbol('sym_mount_status')
 /**
