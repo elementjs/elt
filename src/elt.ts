@@ -210,9 +210,9 @@ export function e<N extends Node>(elt: any, ...children: e.JSX.Insertable<N>[]):
     var cur = dm[i]
     if (typeof cur === 'function') {
       var res = cur(node)
-      if (!res || res === node) continue
+      if (res == null || res === node) continue
       var nd = renderable_to_node(res)
-      if (!nd) continue
+      if (nd == null) continue
       var cmt = _decorator_map.get(cur)
       if (!cmt) continue
       cmt.parentNode?.insertBefore(nd, cmt)
