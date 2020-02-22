@@ -160,6 +160,7 @@ export namespace tf {
   }
 
   /**
+   * Group by an extractor function.
    * @category transformer
    */
   export function group_by<T, R>(extractor: o.RO<(a: T) => R>): o.RO<o.Converter<T[], [R, T][]> & {indices: number[][]}> {
@@ -167,6 +168,7 @@ export namespace tf {
       return {
         indices: [] as number[][],
         get(lst: T[]) {
+
           return []
         },
         set() {
@@ -174,6 +176,52 @@ export namespace tf {
         }
       }
     })
+  }
+
+  /**
+   * Object entries, as returned by Object.keys() and returned as an array of [key, value][]
+   * @category transformer
+   */
+  export function entries<T extends object, K extends keyof T>(): o.Converter<T, [K, T[K]][]> {
+    return {
+      get(item: T) {
+        var res = [] as [K, T[K]][]
+        var keys = Object.keys(item) as K[]
+        for (var i = 0, l = keys.length; i < l; i++) {
+          var k = keys[i] as K
+          res.push([k, item[k]])
+        }
+        return res
+      },
+      set(nval) {
+        var nres = {} as T
+        for (var i = 0, l = nval.length; i < l; i++) {
+          var entry = nval[i]
+          nres[entry[0]] = entry[1]
+        }
+        return nres
+      }
+    }
+  }
+
+  /**
+   * Object entries, as returned by Object.keys() and returned as an array of [key, value][]
+   * @category transformer
+   */
+  export function map_entries<K, V>(): o.Converter<Map<K, V>, [K, V][]> {
+    return {
+      get(item: Map<K, V>) {
+        return [...item.entries()]
+      },
+      set(nval) {
+        var nres = new Map<K, V>()
+        for (var i = 0, l = nval.length; i < l; i++) {
+          var entry = nval[i]
+          nres.set(entry[0], entry[1])
+        }
+        return nres
+      }
+    }
   }
 
   /**
