@@ -163,16 +163,45 @@ export namespace tf {
    * Group by an extractor function.
    * @category transformer
    */
-  export function group_by<T, R>(extractor: o.RO<(a: T) => R>): o.RO<o.Converter<T[], [R, T][]> & {indices: number[][]}> {
+  export function group_by<T, R>(extractor: o.RO<(a: T) => R>): o.RO<o.Converter<T[], [R, T[]][]> & {indices: number[][], length: number}> {
     return o.tf(extractor, extractor => {
       return {
+        length: 0 as number,
         indices: [] as number[][],
         get(lst: T[]) {
+          this.length = lst.length
+          var m = new Map<R, number[]>()
+          for (var i = 0, l = lst.length; i < l; i++) {
+            var item = lst[i]
+            var ex = extractor(item)
+            var ls = m.get(ex) ?? m.set(ex, []).get(ex)!
+            ls.push(i)
+          }
 
-          return []
+          var res = [] as [R, T[]][]
+          var indices = [] as number[][]
+          for (var entry of m.entries()) {
+            var ind = entry[1]
+            var newl = new Array(ind.length) as T[]
+            indices.push(ind)
+            for (var i = 0, l = ind.length; i < l; i++) {
+              newl[i] = lst[ind[i]]
+            }
+            res.push([entry[0], newl])
+          }
+          return res
         },
-        set() {
-          return []
+        set(nval) {
+          var res = new Array(this.length) as T[]
+          var ind = this.indices
+          for (var i = 0, li = ind.length; i < li; i++) {
+            var line = ind[i]
+            for (var j = 0, lj = line.length; j < lj; j++) {
+              var nval_line = nval[i][1]
+              res[line[j]] = nval_line[j]
+            }
+          }
+          return res
         }
       }
     })
