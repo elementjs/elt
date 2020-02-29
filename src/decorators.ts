@@ -9,7 +9,7 @@ import {
 
 import { node_observe, node_observe_class, Listener } from './dom'
 
-export type Decorator<N extends Node> = (node: N) => void | E.JSX.Renderable
+export type Decorator<N extends Node> = (node: N) => void | E.JSX.Renderable | Decorator<N> | Mixin<N>
 
 
 /**

@@ -209,8 +209,13 @@ export function e<N extends Node>(elt: any, ...children: e.JSX.Insertable<N>[]):
   for (var i = 0, l = dm.length; i < l; i++) {
     var cur = dm[i]
     if (typeof cur === 'function') {
-      var res = cur(node)
+      var res: ReturnType<Decorator<Node>>
+      while (typeof (res = cur(node)) === 'function') { }
       if (res == null || res === node) continue
+      if (res instanceof Mixin) {
+        node_add_mixin(node, res)
+        continue
+      }
       var nd = renderable_to_node(res)
       if (nd == null) continue
       var cmt = _decorator_map.get(cur)
