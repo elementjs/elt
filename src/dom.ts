@@ -16,10 +16,13 @@ export const sym_mount_status = Symbol('sym_mount_status')
  */
 export const sym_mixins = Symbol('element-mixins')
 
+// Elt adds a few symbol properties on the nodes it creates.
 declare global {
+
   interface Node {
     [sym_mount_status]?: 'init' | 'inserted' // note : unmounted is the same as undefined as far as elt knows.
     [sym_mixins]?: Mixin<any>
+    [sym_observers]?: o.Observer<any>[]
   }
 }
 
@@ -228,11 +231,6 @@ export function append_child_and_init(parent: Node, child: Node) {
   insert_before_and_init(parent, child)
 }
 
-declare global {
-  interface Node {
-    [sym_observers]?: o.Observer<any>[]
-  }
-}
 
 export function node_observe<T>(node: Node, obs: o.RO<T>, obsfn: o.Observer.ObserverFunction<T>): o.Observer<T> | null {
   if (!(o.isReadonlyObservable(obs))) {
