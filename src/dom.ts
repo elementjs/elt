@@ -4,8 +4,8 @@ import { Mixin } from './mixins'
 
 export type Listener<EventType extends Event, N extends Node = Node> = (ev: EventType & {currentTarget: N}) => any
 
-export const sym_observers = Symbol('observers')
-export const sym_mount_status = Symbol('sym_mount_status')
+export const sym_observers = Symbol('elt-observers')
+export const sym_mount_status = Symbol('elt-mount-status')
 /**
  * This symbol is added as a property of the DOM nodes to store
  * an array of mixins.
@@ -14,7 +14,12 @@ export const sym_mount_status = Symbol('sym_mount_status')
  * a WeakSet, but since the performance is not terrific (especially
  * when the number of elements gets high), the symbol solution was retained.
  */
-export const sym_mixins = Symbol('element-mixins')
+export const sym_mixins = Symbol('elt-mixins')
+
+export const sym_init = Symbol('elt-init')
+export const sym_deinit = Symbol('elt-deinit')
+export const sym_inserted = Symbol('elt-inserted')
+export const sym_removed = Symbol('elt-removed')
 
 // Elt adds a few symbol properties on the nodes it creates.
 declare global {
@@ -23,6 +28,10 @@ declare global {
     [sym_mount_status]?: 'init' | 'inserted' // note : unmounted is the same as undefined as far as elt knows.
     [sym_mixins]?: Mixin<any>
     [sym_observers]?: o.Observer<any>[]
+    [sym_init]?: ((n: Node) => void)[]
+    [sym_deinit]?: ((n: Node) => void)[]
+    [sym_inserted]?: ((n: Node, parent: Node) => void)[]
+    [sym_removed]?: ((n: Node, parent: Node) => void)[]
   }
 }
 
@@ -31,11 +40,18 @@ declare global {
  * @internal
  */
 export function node_init(node: Node) {
-  var mx = node[sym_mixins]
   node[sym_mount_status] = 'init'
+
+  var mx = node[sym_mixins]
   while (mx) {
     (mx as any).node = node
     mx.init?.(node)
+    if (mx.deinit)
+      (node[sym_deinit] = node[sym_deinit] ?? []).push((function (this: Mixin<any>, node: Node) { this.deinit!(node) }).bind(mx))
+    if (mx.inserted)
+      (node[sym_inserted] = node[sym_inserted] ?? []).push((function (this: Mixin<any>, node: Node, parent: Node) { this.inserted!(node, parent) }).bind(mx))
+    if (mx.removed)
+      (node[sym_removed] = node[sym_removed] ?? []).push((function (this: Mixin<any>, node: Node, parent: Node) { this.removed!(node, parent) }).bind(mx))
     mx = mx.next_mixin
   }
   var obs = node[sym_observers]
@@ -78,10 +94,11 @@ export function node_inserted(node: Node) {
   for (var i = 0, l = nodes.length; i < l; i++) {
     var n = nodes[i]
     n[sym_mount_status] = 'inserted' // now inserted
-    var mx = n[sym_mixins]
-    while (mx) {
-      mx.inserted?.(n)
-      mx = mx.next_mixin
+    var cbks = n[sym_inserted]
+    if (cbks) {
+      for (var j = 0, l = cbks.length; j < l; j++) {
+        cbks[j](n, n.parentNode!)
+      }
     }
   }
 }
@@ -91,18 +108,20 @@ export function node_inserted(node: Node) {
  * Apply unmount to a node.
  * @internal
  */
-function _apply_removed(node: Node) {
+function _apply_deinit(node: Node) {
   var obs = node[sym_observers]
   if (obs) {
     for (var i = 0, l = obs.length; i < l; i++) {
       obs[i].stopObserving()
     }
   }
+
   node[sym_mount_status] = undefined
-  var mx = node[sym_mixins]
-  while (mx) {
-    mx.deinit?.(node)
-    mx = mx.next_mixin
+  var cbks = node[sym_deinit]
+  if (cbks) {
+    for (var j = 0, l = cbks.length; j < l; j++) {
+      cbks[j](node)
+    }
   }
 }
 
@@ -148,7 +167,7 @@ export function node_removed(node: Node) {
   unmount.push(node)
 
   for (var tuple of unmount) {
-    _apply_removed(tuple)
+    _apply_deinit(tuple)
   }
 
 }
@@ -168,10 +187,11 @@ export function remove_and_deinit(node: Node): void {
   const parent = node.parentNode!
   if (parent) {
     node_removed(node)
-    var mx = node[sym_mixins]
-    while (mx) {
-      mx.removed?.(node, parent)
-      mx = mx.next_mixin
+    var cbks = node[sym_removed]
+    if (cbks) {
+      for (var j = 0, l = cbks.length; j < l; j++) {
+        cbks[j](node, parent)
+      }
     }
     // (m as any).node = null
     parent.removeChild(node)

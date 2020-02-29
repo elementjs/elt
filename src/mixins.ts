@@ -22,7 +22,7 @@ export interface Mixin<N extends Node> {
    * Stub method. Overload it to run code whenever the node is inserted into the
    * live DOM.
    */
-  inserted?(node: N): void
+  inserted?(node: N, parent: Node): void
 
   /**
    * Stub method. Overload it to run code whenever the node is removed from the DOM.
