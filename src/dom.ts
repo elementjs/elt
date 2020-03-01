@@ -28,6 +28,15 @@ declare global {
     [sym_mount_status]?: 'init' | 'inserted' // note : unmounted is the same as undefined as far as elt knows.
     [sym_mixins]?: Mixin<any>
     [sym_observers]?: o.Observer<any>[]
+
+    // Note: the following section is somewhat "incorrect", as the correct typing here
+    // would be (n: this) => void for the functions.
+    // However, doing so then prevents some simple code like
+    // var n: node = some_node.nextSibling, since its sym_init would then be (n: ChildNode) => void
+
+    // FIXME : we may have to use a different type that doesn't upgrade Node but rather that works alongside
+    // it to stay correct. Decorators for a given node type *cannot* be passed around, which this
+    // way of doing is authorizing.
     [sym_init]?: ((n: Node) => void)[]
     [sym_deinit]?: ((n: Node) => void)[]
     [sym_inserted]?: ((n: Node, parent: Node) => void)[]
@@ -42,18 +51,15 @@ declare global {
 export function node_init(node: Node) {
   node[sym_mount_status] = 'init'
 
-  var mx = node[sym_mixins]
-  while (mx) {
-    (mx as any).node = node
-    mx.init?.(node)
-    if (mx.deinit)
-      (node[sym_deinit] = node[sym_deinit] ?? []).push((function (this: Mixin<any>, node: Node) { this.deinit!(node) }).bind(mx))
-    if (mx.inserted)
-      (node[sym_inserted] = node[sym_inserted] ?? []).push((function (this: Mixin<any>, node: Node, parent: Node) { this.inserted!(node, parent) }).bind(mx))
-    if (mx.removed)
-      (node[sym_removed] = node[sym_removed] ?? []).push((function (this: Mixin<any>, node: Node, parent: Node) { this.removed!(node, parent) }).bind(mx))
-    mx = mx.next_mixin
+  // call init functions
+  var inits = node[sym_init]
+  if (inits) {
+    for (var i = 0, l = inits.length; i < l; i++) {
+      inits[i](node)
+    }
   }
+
+  // start observers
   var obs = node[sym_observers]
   if (obs) {
     for (var i = 0, l = obs.length; i < l; i++) {
@@ -397,6 +403,26 @@ export function node_remove_mixin(node: Node, mixin: Mixin): void {
 }
 
 
+export function node_on_init(node: Node, fn: (n: Node) => void) {
+  (node[sym_init] = node[sym_init] ?? []).push(fn)
+}
+
+
+export function node_on_inserted(node: Node, fn: (n: Node, parent: Node) => void) {
+  (node[sym_inserted] = node[sym_inserted] ?? []).push(fn)
+}
+
+
+export function node_on_deinit(node: Node, fn: (n: Node) => void) {
+  (node[sym_deinit] = node[sym_deinit] ?? []).push(fn)
+}
+
+
+export function node_on_removed(node: Node, fn: (n: Node, parent: Node) => void) {
+  (node[sym_removed] = node[sym_removed] ?? []).push(fn)
+}
+
+
 /**
  * Associate a `mixin` to a `node`.
  *
@@ -417,6 +443,11 @@ export function node_add_mixin(node: Node, mixin: Mixin): void {
   mixin.next_mixin = node[sym_mixins]
   node[sym_mixins] = mixin
   mixin.node = node
+
+  if (mixin.init) node_on_init(node, mixin.init!.bind(mixin))
+  if (mixin.deinit) node_on_deinit(node, mixin.deinit.bind(mixin))
+  if (mixin.removed) node_on_removed(node, mixin.removed.bind(mixin))
+  if (mixin.inserted) node_on_inserted(node, mixin.inserted.bind(mixin))
 }
 
 
