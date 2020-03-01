@@ -1,9 +1,8 @@
 
 import { $Display } from './verbs'
-import { Mixin } from './mixins'
+import { Mixin, node_add_mixin } from './mixins'
 import { e } from './elt'
 import { o } from './observable'
-import { node_add_mixin } from './dom'
 
 /**
  * An App is a collection of building blocks that all together form an application.

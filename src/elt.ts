@@ -3,6 +3,7 @@ import { o } from './observable'
 import {
   Mixin,
   Component,
+  node_add_mixin
 } from './mixins'
 
 import {
@@ -14,7 +15,6 @@ import {
   node_observe_class,
   node_observe_style,
   node_observe_attribute,
-  node_add_mixin
 } from './dom'
 
 

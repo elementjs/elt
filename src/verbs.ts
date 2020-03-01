@@ -7,6 +7,7 @@ import {
 
 import {
   Mixin,
+  node_add_mixin
 } from './mixins'
 
 import { e, renderable_to_node } from './elt'
@@ -15,7 +16,6 @@ import {
   insert_before_and_init,
   node_remove_after,
   sym_mount_status,
-  node_add_mixin,
   node_init,
 } from './dom'
 

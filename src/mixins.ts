@@ -4,7 +4,7 @@ import {
 } from './observable'
 
 import { e } from './elt'
-import { sym_mixins, node_observe, node_remove_mixin, Listener } from './dom'
+import { sym_mixins, node_observe, Listener, node_on_init, node_on_deinit, node_on_removed, node_on_inserted } from './dom'
 
 
 export interface Mixin<N extends Node> {
@@ -148,4 +148,54 @@ export abstract class Component<A extends e.JSX.EmptyAttributes<any> = e.JSX.Att
   // attrs: Attrs
   constructor(public attrs: A) { super() }
   abstract render(children: e.JSX.Renderable[]): e.JSX.NodeType<A>
+}
+
+
+/**
+ * Associate a `mixin` to a `node`.
+ *
+ * All it does is add it to the chained list of mixins accessible on `node[sym_mixins]` and
+ * set `mixin.node` to the corresponding node.
+ *
+ * In general, to add a mixin to a node, prefer adding it to its children.
+ *
+ * ```tsx
+ * var my_mixin = new Mixin()
+ *
+ * // these are equivalent
+ * <div>{my_mixin}</div>
+ * var d = <div/>; node_add_mixin(d, mixin);
+ * ```
+ */
+export function node_add_mixin(node: Node, mixin: Mixin): void {
+  mixin.next_mixin = node[sym_mixins]
+  node[sym_mixins] = mixin
+  mixin.node = node
+
+  if (mixin.init) node_on_init(node, mixin.init!.bind(mixin))
+  if (mixin.deinit) node_on_deinit(node, mixin.deinit.bind(mixin))
+  if (mixin.removed) node_on_removed(node, mixin.removed.bind(mixin))
+  if (mixin.inserted) node_on_inserted(node, mixin.inserted.bind(mixin))
+}
+
+
+/**
+ * Remove a Mixin from the array of mixins associated with this Node.
+ * @param node The node the mixin will be removed from
+ * @param mixin The mixin object we want to remove
+ */
+export function node_remove_mixin(node: Node, mixin: Mixin): void {
+  var mx = node[sym_mixins]
+  if (!mx) return
+  if (mx === mixin) {
+    node[sym_mixins] = mixin.next_mixin
+  } else {
+    var iter = mx
+    while (iter) {
+      if (iter.next_mixin === mixin) {
+        iter.next_mixin = mixin.next_mixin
+        return
+      }
+    }
+  }
 }
