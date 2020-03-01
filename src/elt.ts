@@ -199,13 +199,6 @@ export function e<N extends Node>(elt: any, ...children: e.JSX.Insertable<N>[]):
     node = elt(attrs, chld)
   }
 
-  // Classes and style are applied at the end of this function and are thus
-  // never passed to other node definitions.
-  var mx = new AttrsMixin();
-  // AttrsMixin doesn't use anything else than its nodes. It has no init(), and
-  // we're not adding it to the node until we know that it would observe it.
-  (mx.node as any) = node
-
   for (var i = 0, l = dm.length; i < l; i++) {
     var cur = dm[i]
     if (typeof cur === 'function') {

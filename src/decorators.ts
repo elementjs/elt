@@ -7,7 +7,15 @@ import {
   Mixin
 } from './mixins'
 
-import { node_observe, node_observe_class, Listener } from './dom'
+import {
+  node_observe,
+  node_observe_class,
+  Listener,
+  node_on_removed,
+  node_on_deinit,
+  node_on_init,
+  node_on_inserted
+} from './dom'
 
 export type Decorator<N extends Node> = (node: N) => void | E.JSX.Renderable | Decorator<N> | Mixin<N>
 
@@ -204,32 +212,39 @@ export function $click<N extends Element>(cbk: Listener<MouseEvent, N>): Decorat
 
 /**
  * ```jsx
- *  If(o_some_condition, () => <div>{$removed((node, parent) => {
- *    console.log(`I will only be called is this div is directly removed
- *    from the DOM, but not if it was a descendant of such a node, in which
- *    case only deinit() would be called.`)
- *  })}</div>
- * ```
- * @category decorator
- * @api
- */
-export function $removed(fn: (node: Element, parent: Node) => void): Mixin {
-  class RemovedMixin extends Mixin { }
-  RemovedMixin.prototype.removed = fn
-  return new RemovedMixin()
-}
-
-
-/**
- * ```jsx
  *  <MyComponent>{$init(node => console.log(`This node was just created and its observers are now live`))}</MyComponent>
  * ```
  * @category decorator
  */
-export function $init<N extends Node>(fn: (node: N) => void): Mixin<N> {
-  class InitMixin extends Mixin<N> { }
-  InitMixin.prototype.init = fn
-  return new InitMixin()
+export function $init<N extends Node>(fn: (node: N) => void): Decorator<N> {
+  return node => {
+    // @ts-ignore : I have to force typescript's hand there
+    // typing node correctly would mean having to put sym_init as (n: this) => void,
+    // but then it becomes impossible to have Node variables with nextSibling, parent
+    // and so on.
+    node_on_init(node, fn)
+  }
+}
+
+
+/**
+ * Call the specified function when the node is removed from the DOM.
+ *
+ * It is not the same as $removed, which is called when the node is a direct target
+ * of removal from a function such as `node_remove`.
+ *
+ * ```jsx
+ *  <div>{$deinit(node => console.log(`This node is now out of the DOM`))}</div>
+ * ```
+ *
+ * @category decorator
+ * @api
+ */
+export function $deinit<N extends Node>(fn: (node: N) => void): Decorator<N> {
+  return node => {
+    // @ts-ignore : I have to force typescript's hand there
+    node_on_deinit(fn)
+  }
 }
 
 
@@ -245,25 +260,30 @@ export function $init<N extends Node>(fn: (node: N) => void): Mixin<N> {
  *
  * @category decorator
  */
-export function $inserted<N extends Node>(fn: (node: N) => void): Mixin<N> {
-  class InsertedMixin extends Mixin<N> { }
-  InsertedMixin.prototype.inserted = fn
-  return new InsertedMixin()
+export function $inserted<N extends Node>(fn: (node: N, parent: Node) => void): Decorator<N> {
+  return node => {
+    // @ts-ignore : I have to force typescript's hand there
+    node_on_inserted(node, fn)
+  }
 }
 
 
 /**
  * ```jsx
- *  <div>{$deinit(node => console.log(`This node is now out of the DOM`))}</div>
+ *  If(o_some_condition, () => <div>{$removed((node, parent) => {
+ *    console.log(`I will only be called is this div is directly removed
+ *    from the DOM, but not if it was a descendant of such a node, in which
+ *    case only deinit() would be called.`)
+ *  })}</div>
  * ```
- *
  * @category decorator
  * @api
  */
-export function $deinit<N extends Node>(fn: (node: N) => void): Mixin<N> {
-  class DeinitMixin extends Mixin<N> { }
-  DeinitMixin.prototype.deinit = fn
-  return new DeinitMixin()
+export function $removed<N extends Node>(fn: (node: N, parent: Node) => void): Decorator<N> {
+  return node => {
+    // @ts-ignore : I have to force typescript's hand there
+    node_on_removed(fn)
+  }
 }
 
 
