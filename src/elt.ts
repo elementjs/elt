@@ -203,7 +203,7 @@ export function e<N extends Node>(elt: any, ...children: e.JSX.Insertable<N>[]):
     var cur = dm[i]
     if (typeof cur === 'function') {
       var res: ReturnType<Decorator<Node>>
-      while (typeof (res = cur(node)) === 'function') { }
+      while (typeof (res = cur(node)) === 'function') { cur = res }
       if (res == null || res === node) continue
       if (res instanceof Mixin) {
         node_add_mixin(node, res)
