@@ -29,7 +29,7 @@ import {
  *
  * @category helper
  */
-export function get_dom_insertable(i: e.JSX.Insertable<Node>) {
+export function get_node_from_insertable(i: e.JSX.Insertable<Node>) {
 
   if (i instanceof Node)
     return i
@@ -37,7 +37,7 @@ export function get_dom_insertable(i: e.JSX.Insertable<Node>) {
   if (i instanceof Array) {
     const res = document.createDocumentFragment()
     for (var n of i) {
-      res.appendChild(get_dom_insertable(n))
+      res.appendChild(get_node_from_insertable(n))
     }
     return res
   }
@@ -118,7 +118,7 @@ export class Displayer extends CommentContainer {
 
   init(node: Comment) {
     super.init(node)
-    this.observe(this._obs, value => this.setContents(get_dom_insertable(value)))
+    this.observe(this._obs, value => this.setContents(get_node_from_insertable(value)))
   }
 
 }
@@ -132,7 +132,7 @@ export class Displayer extends CommentContainer {
  */
 export function $Display(obs: o.RO<e.JSX.Insertable<Node>>): Node {
   if (!(obs instanceof o.Observable)) {
-    return get_dom_insertable(obs as e.JSX.Insertable<Node>)
+    return get_node_from_insertable(obs as e.JSX.Insertable<Node>)
   }
 
   return new Displayer(obs).render()
@@ -153,8 +153,8 @@ export function $If<T extends o.RO<any>>(
   // ts bug on condition.
   if (typeof display === 'function' && !((condition as any) instanceof o.Observable)) {
     return condition ?
-      get_dom_insertable(display(condition as any))
-      : get_dom_insertable(display_otherwise ?
+      get_node_from_insertable(display(condition as any))
+      : get_node_from_insertable(display_otherwise ?
           (display_otherwise(null!))
           : document.createComment('false'))
   }
@@ -247,10 +247,10 @@ export class Repeater<T> extends Verb {
     this.child_obs.push(ob)
 
     if (this.separator && this.next_index > 0) {
-      fr.appendChild(get_dom_insertable(this.separator(this.next_index)))
+      fr.appendChild(get_node_from_insertable(this.separator(this.next_index)))
     }
 
-    var node = get_dom_insertable(this.renderfn(ob, this.next_index))
+    var node = get_node_from_insertable(this.renderfn(ob, this.next_index))
     this.positions.push(node instanceof DocumentFragment ? node.lastChild! : node)
     fr.appendChild(node)
 
@@ -432,7 +432,7 @@ export function $Repeat<T extends o.RO<any[]>>(
       if (separator)
         arr[i++] = separator(j - 1)
     }
-    return get_dom_insertable(final)
+    return get_node_from_insertable(final)
   }
   return new Repeater(ob, render as any, separator).render()
 }
