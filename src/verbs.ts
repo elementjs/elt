@@ -482,23 +482,6 @@ export function $RepeatScroll<T>(
 }
 
 
-// /**
-//  *  A comment node that holds a document fragment.
-//  */
-// export class FragmentHolder extends CommentContainer {
-
-//   constructor(public fragment: DocumentFragment) {
-//     super()
-//   }
-
-//   init(node: Comment) {
-//     super.init(node)
-//     this.setContents(this.fragment)
-//   }
-
-// }
-
-
 /**
  * Fragment is responsible for its children. If the `Fragment` is removed and unmounted,
  * it then removes and unmounts its children.
