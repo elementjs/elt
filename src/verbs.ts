@@ -494,7 +494,7 @@ export function $RepeatScroll<T>(
  *
  * @category verb
  */
-export function Fragment(attrs: e.JSX.EmptyAttributes<DocumentFragment>, children: e.JSX.Renderable[]): DocumentFragment {
+export function $Fragment(attrs: e.JSX.EmptyAttributes<DocumentFragment>, children: e.JSX.Renderable[]): DocumentFragment {
   // This is a trick ! It is not actually an element !
   const fr = document.createDocumentFragment()
   for (var i = 0, l = children.length; i < l; i++) {
