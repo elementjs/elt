@@ -14,7 +14,8 @@ import {
   node_on_removed,
   node_on_deinit,
   node_on_init,
-  node_on_inserted
+  node_on_inserted,
+  node_observe_style
 } from './dom'
 
 export type Decorator<N extends Node> = (node: N) => void | E.JSX.Renderable | Decorator<N> | Mixin<N>
@@ -167,10 +168,10 @@ export function $class<N extends Element>(...clss: E.JSX.ClassDefinition[]) {
 }
 
 
-export function $style(...styles: E.JSX.StyleDefinition[]) {
-  return (node: Element) => {
+export function $style<N extends HTMLElement | SVGElement>(...styles: E.JSX.StyleDefinition[]) {
+  return (node: N) => {
     for (var i = 0, l = styles.length; i < l; i++) {
-      node_observe_class(node, styles[i])
+      node_observe_style(node, styles[i])
     }
   }
 }
