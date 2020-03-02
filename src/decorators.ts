@@ -142,8 +142,25 @@ export function bind(obs: o.Observable<string>) {
 }
 
 
-export function $class(...clss: E.JSX.ClassDefinition[]) {
-  return (node: Element) => {
+export function $props<N extends Node>(props: {[k in keyof N]?:  o.RO<N[k]>}) {
+  var keys = Object.keys(props) as (keyof N)[]
+  return (node: N) => {
+    for (var i = 0, l = keys.length; i < l; i++) {
+      var k = keys[i]
+      var val = props[k] as o.RO<N[keyof N]>
+      if (o.isReadonlyObservable(val)) {
+        node_observe(node, val, value => node[k] = value)
+      } else {
+        node[k] = val
+      }
+    }
+  }
+}
+
+
+
+export function $class<N extends Element>(...clss: E.JSX.ClassDefinition[]) {
+  return (node: N) => {
     for (var i = 0, l = clss.length; i < l; i++) {
       node_observe_class(node, clss[i])
     }

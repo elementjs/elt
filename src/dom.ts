@@ -212,7 +212,7 @@ export function remove_and_deinit(node: Node): void {
  * dealing with nodes created with `#e`, as it performs the following operations on top of adding
  * them :
  *
- *  - Call the `mount()` methods on `#Mixin`s present on the nodes that were not already mounted
+ *  - Call the `init()` methods on `#Mixin`s present on the nodes that were not already mounted
  *  - Call the `inserted()` methods on `#Mixin`'s present on **all** the nodes and their descendents
  *     if `parent` is already inside the DOM.
  *
