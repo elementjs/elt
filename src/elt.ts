@@ -156,6 +156,7 @@ export function renderable_to_node(r: e.JSX.Renderable) {
  * Controllers, decorators, classes and style.
  * @category jsx
  */
+export function e<N extends Node>(elt: N, ...children: e.JSX.Insertable<N>[]): N
 export function e<K extends keyof HTMLElementTagNameMap>(elt: K, ...children: e.JSX.Insertable<HTMLElementTagNameMap[K]>[]): HTMLElementTagNameMap[K]
 export function e(elt: string, ...children: e.JSX.Insertable<HTMLElement>[]): HTMLElement
 export function e<A extends e.JSX.EmptyAttributes<any>>(elt: new (a: A) => Component<A>, attrs: A, ...children: e.JSX.Insertable<e.JSX.NodeType<A>>[]): e.JSX.NodeType<A>
@@ -165,15 +166,19 @@ export function e<N extends Node>(elt: any, ...children: e.JSX.Insertable<N>[]):
 
   let node: N = null! // just to prevent the warnings later
 
-  var is_basic_node = typeof elt === 'string'
+  var is_basic_node = typeof elt === 'string' || elt instanceof Node
 
   // const fragment = get_dom_insertable(children) as DocumentFragment
-  const [dm, chld] = separate_children_from_rest(children)
+  const [dma, chld] = separate_children_from_rest(children)
 
   if (is_basic_node) {
     // create a simple DOM node
-    var ns = NS[elt] // || attrs.xmlns
-    node = ns ? document.createElementNS(ns, elt) : document.createElement(elt)
+    if (typeof elt === 'string') {
+      var ns = NS[elt] // || attrs.xmlns
+      node = (ns ? document.createElementNS(ns, elt) : document.createElement(elt)) as unknown as N
+    } else {
+      node = elt as N
+    }
 
     for (var i = 0, l = chld.length; i < l; i++) {
       var c = renderable_to_node(chld[i])
@@ -181,26 +186,24 @@ export function e<N extends Node>(elt: any, ...children: e.JSX.Insertable<N>[]):
         node.appendChild(c)
         node_init(c)
       }
-      //
-      // mount(c)
     }
 
   } else if (isComponent(elt)) {
 
     // elt is an instantiator / Component
-    var attrs = (dm[0] ?? {}) as e.JSX.EmptyAttributes<any>
+    var attrs = (dma[0] ?? {}) as e.JSX.EmptyAttributes<any>
     var comp = new elt(attrs)
 
     node = comp.render(chld) as N
     node_add_mixin(node, comp)
   } else if (typeof elt === 'function') {
     // elt is just a creator function
-    var attrs = (dm[0] ?? {}) as e.JSX.EmptyAttributes<any>
+    var attrs = (dma[0] ?? {}) as e.JSX.EmptyAttributes<any>
     node = elt(attrs, chld)
   }
 
-  for (var i = 0, l = dm.length; i < l; i++) {
-    var cur = dm[i]
+  for (var i = 0, l = dma.length; i < l; i++) {
+    var cur = dma[i]
     if (typeof cur === 'function') {
       var res: ReturnType<Decorator<Node>>
       while (typeof (res = cur(node)) === 'function') { cur = res }
