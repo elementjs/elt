@@ -133,7 +133,7 @@ function _apply_deinit(node: Node) {
 
 /**
  * Call controller's unmount functions recursively
- * @category mounting
+ * @category dom, toc
  */
 export function node_removed(node: Node) {
 
@@ -187,7 +187,7 @@ export function node_removed(node: Node) {
  * `#o.Observable`s still being watched and lead to memory leaks.
  *
  * @param node The node to remove from the DOM
- * @category mounting
+ * @category dom, toc
  */
 export function remove_and_deinit(node: Node): void {
   const parent = node.parentNode!
@@ -216,7 +216,7 @@ export function remove_and_deinit(node: Node): void {
  *  - Call the `inserted()` methods on `#Mixin`'s present on **all** the nodes and their descendents
  *     if `parent` is already inside the DOM.
  *
- * @category mounting
+ * @category dom, toc
  */
 export function insert_before_and_init(parent: Node, node: Node, refchild: Node | null = null) {
   var parent_is_inserted = parent.isConnected// if parent_is_inserted, then we have to call inserted() on the added nodes.
@@ -251,13 +251,21 @@ export function insert_before_and_init(parent: Node, node: Node, refchild: Node 
 
 /**
  * Alias for `#insert_before_and_mount` that mimicks `Node.appendChild()`
- * @category mounting
+ * @category dom, toc
  */
 export function append_child_and_init(parent: Node, child: Node) {
   insert_before_and_init(parent, child)
 }
 
 
+/**
+ * Tie the observal of an `#Observable` to the presence of this node in the DOM.
+ *
+ * Observers are called whenever the observable changes **and** the node is contained
+ * in the document.
+ *
+ * @category dom, toc
+ */
 export function node_observe<T>(node: Node, obs: o.RO<T>, obsfn: o.Observer.ObserverFunction<T>): o.Observer<T> | null {
   if (!(o.isReadonlyObservable(obs))) {
     obsfn(obs, new o.Changes(obs))
@@ -273,6 +281,11 @@ export function node_observe<T>(node: Node, obs: o.RO<T>, obsfn: o.Observer.Obse
   return obser
 }
 
+
+/**
+ * Stop a node from observing an observable, even if it is still in the DOM
+ * @category dom, toc
+ */
 export function node_unobserve(node: Node, obsfn: o.Observer<any> | o.Observer.ObserverFunction<any>) {
   node[sym_observers] = node[sym_observers]?.filter(ob => {
     const res = ob === obsfn || ob.fn === obsfn
@@ -283,8 +296,10 @@ export function node_unobserve(node: Node, obsfn: o.Observer<any> | o.Observer.O
   })
 }
 
+
 /**
- *
+ * Observe an attribute and update the node as needed.
+ * @category dom, toc
  */
 export function node_observe_attribute(node: Element, name: string, value: o.RO<string | boolean>) {
   node_observe(node, value, val => {
@@ -298,6 +313,11 @@ export function node_observe_attribute(node: Element, name: string, value: o.RO<
   })
 }
 
+
+/**
+ * Observe a style (as JS defines it) and update the node as needed.
+ * @category dom, toc
+ */
 export function node_observe_style(node: HTMLElement | SVGElement, style: e.JSX.StyleDefinition) {
   if (style instanceof o.Observable) {
     node_observe(node, style, st => {
@@ -321,6 +341,11 @@ export function node_observe_style(node: HTMLElement | SVGElement, style: e.JSX.
   }
 }
 
+
+/**
+ * Observe a complex class definition and update the node as needed.
+ * @category dom, toc
+ */
 export function node_observe_class(node: Element, c: e.JSX.ClassDefinition) {
   if (!c) return
   if (typeof c === 'string' || c.constructor !== Object) {
@@ -381,29 +406,52 @@ function _remove_class(node: Element, c: string) {
 }
 
 
+/**
+ * Register a callback that will run as soon as the node is created, but not yet in the DOM.
+ *
+ * The node always has a parent ; most likely its future parent, but at times it can be
+ * a DocumentFragment used for node preparation.
+ *
+ * During this callback, you may thus not do anything that has to do with the dom as it stands,
+ * only `#node_observe` and some sibling node insertion/removal.
+ *
+ * @category dom, toc
+ */
 export function node_on_init(node: Node, fn: (n: Node) => void) {
   (node[sym_init] = node[sym_init] ?? []).push(fn)
 }
 
 
+/**
+ * Register a callback that will run when this node is added to the DOM
+ * @category dom, toc
+ */
 export function node_on_inserted(node: Node, fn: (n: Node, parent: Node) => void) {
   (node[sym_inserted] = node[sym_inserted] ?? []).push(fn)
 }
 
 
+/**
+ * Register a callback that will run when this node is removed from the DOM
+ * @category dom, toc
+ */
 export function node_on_deinit(node: Node, fn: (n: Node) => void) {
   (node[sym_deinit] = node[sym_deinit] ?? []).push(fn)
 }
 
 
+/**
+ * Register a callback that will run when this node is a direct target for removal from the DOM
+ * @category dom, toc
+ */
 export function node_on_removed(node: Node, fn: (n: Node, parent: Node) => void) {
   (node[sym_removed] = node[sym_removed] ?? []).push(fn)
 }
 
 
 /**
- * Remove all the nodes after `start` until `until` (included), calling `removed` and `unmount` if needed.
- * @category helper
+ * Remove all the nodes after `start` until `until` (included), calling `removed` and `deinit` as needed.
+ * @category dom, toc
  */
 export function node_remove_after(start: Node, until: Node | null) {
   if (!start) return
