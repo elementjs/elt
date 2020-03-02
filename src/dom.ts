@@ -219,7 +219,7 @@ export function remove_and_deinit(node: Node): void {
  * @category mounting
  */
 export function insert_before_and_init(parent: Node, node: Node, refchild: Node | null = null) {
-  var parent_is_inserted = !parent[sym_mount_status] // if parent_is_inserted, then we have to call inserted() on the added nodes.
+  var parent_is_inserted = parent.isConnected// if parent_is_inserted, then we have to call inserted() on the added nodes.
 
   if (!(node instanceof DocumentFragment)) {
     var df = document.createDocumentFragment()
