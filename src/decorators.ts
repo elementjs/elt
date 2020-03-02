@@ -142,7 +142,7 @@ export function bind(obs: o.Observable<string>) {
 }
 
 
-export function $props<N extends Node>(props: {[k in keyof N]?:  o.RO<N[k]>}) {
+export function $props<N extends Node>(props: {[k in keyof N]?:  o.RO<N[k]>}): (node: N) => void {
   var keys = Object.keys(props) as (keyof N)[]
   return (node: N) => {
     for (var i = 0, l = keys.length; i < l; i++) {
@@ -156,7 +156,6 @@ export function $props<N extends Node>(props: {[k in keyof N]?:  o.RO<N[k]>}) {
     }
   }
 }
-
 
 
 export function $class<N extends Element>(...clss: E.JSX.ClassDefinition[]) {
