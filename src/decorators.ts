@@ -135,14 +135,17 @@ export class BindMixin extends Mixin<HTMLInputElement> {
 /**
  * Bind an observable to an input
  * @param obs The observer bound to the input
- * @category decorator
- * @api
+ * @category decorator, toc
  */
 export function bind(obs: o.Observable<string>) {
   return new BindMixin(obs)
 }
 
 
+/**
+ * Modify object properties of the current Node.
+ * @category decorator, toc
+ */
 export function $props<N extends Node>(props: {[k in keyof N]?:  o.RO<N[k]>}): (node: N) => void {
   var keys = Object.keys(props) as (keyof N)[]
   return (node: N) => {
@@ -159,6 +162,9 @@ export function $props<N extends Node>(props: {[k in keyof N]?:  o.RO<N[k]>}): (
 }
 
 
+/**
+ * @category decorator, toc
+ */
 export function $class<N extends Element>(...clss: E.JSX.ClassDefinition[]) {
   return (node: N) => {
     for (var i = 0, l = clss.length; i < l; i++) {
@@ -168,6 +174,9 @@ export function $class<N extends Element>(...clss: E.JSX.ClassDefinition[]) {
 }
 
 
+/**
+ * @category decorator, toc
+ */
 export function $style<N extends HTMLElement | SVGElement>(...styles: E.JSX.StyleDefinition[]) {
   return (node: N) => {
     for (var i = 0, l = styles.length; i < l; i++) {
@@ -179,8 +188,7 @@ export function $style<N extends HTMLElement | SVGElement>(...styles: E.JSX.Styl
 
 /**
  * Observe an observable and tie the observation to the node this is added to
- * @category decorator
- * @api
+ * @category decorator, toc
  */
 // export function $observe<T>(a: o.Observer<T>): Decorator<Node>
 export function $observe<N extends Node, T>(a: o.RO<T>, cbk: (newval: T, changes: o.Changes<T>, node: N) => void, obs_cbk?: (observer: o.Observer<T>) => void): Decorator<N> {
@@ -195,11 +203,22 @@ export function $observe<N extends Node, T>(a: o.RO<T>, cbk: (newval: T, changes
 /**
  * Use to bind to an event directly in the jsx phase.
  *
+ * For convenience, the resulting event object is typed as the original events coupled
+ * with `{ currentTarget: N }`, where N is the node type the event is being registered on.
+ *
+ *
+ *
  * ```jsx
- *   <div $$={on('create', ev => ev.target...)}
+ *   <div>
+ *     {$on('click', ev => {
+ *        if (ev.target === ev.currentTarget) {
+ *          console.log(`The current div was clicked on, not a child.`)
+ *          console.log(`In this function, ev.currentTarget is typed as HTMLDivElement`)
+ *        }
+ *     })}
+ *   </div>
  * ```
- * @category decorator
- * @api
+ * @category decorator, toc
  */
 export function $on<N extends Element, K extends (keyof DocumentEventMap)[]>(name: K, listener: Listener<DocumentEventMap[K[number]], N>, useCapture?: boolean): Decorator<N>
 export function $on<N extends Element, K extends keyof DocumentEventMap>(event: K, listener: Listener<DocumentEventMap[K], N>, useCapture?: boolean): Decorator<N>
@@ -219,7 +238,7 @@ export function $on<N extends Element>(event: string | string[], _listener: List
 /**
  * Add a callback on the click event, or touchend if we are on a mobile
  * device.
- * @category decorator
+ * @category decorator, toc
  * @api
  */
 export function $click<N extends Element>(cbk: Listener<MouseEvent, N>): Decorator<N> {
@@ -231,7 +250,7 @@ export function $click<N extends Element>(cbk: Listener<MouseEvent, N>): Decorat
  * ```jsx
  *  <MyComponent>{$init(node => console.log(`This node was just created and its observers are now live`))}</MyComponent>
  * ```
- * @category decorator
+ * @category decorator, toc
  */
 export function $init<N extends Node>(fn: (node: N) => void): Decorator<N> {
   return node => {
@@ -254,7 +273,7 @@ export function $init<N extends Node>(fn: (node: N) => void): Decorator<N> {
  *  <div>{$deinit(node => console.log(`This node is now out of the DOM`))}</div>
  * ```
  *
- * @category decorator
+ * @category decorator, toc
  * @api
  */
 export function $deinit<N extends Node>(fn: (node: N) => void): Decorator<N> {
@@ -275,7 +294,7 @@ export function $deinit<N extends Node>(fn: (node: N) => void): Decorator<N> {
  * })}</div>)
  * ```
  *
- * @category decorator
+ * @category decorator, toc
  */
 export function $inserted<N extends Node>(fn: (node: N, parent: Node) => void): Decorator<N> {
   return node => {
@@ -293,7 +312,7 @@ export function $inserted<N extends Node>(fn: (node: N, parent: Node) => void): 
  *    case only deinit() would be called.`)
  *  })}</div>
  * ```
- * @category decorator
+ * @category decorator, toc
  * @api
  */
 export function $removed<N extends Node>(fn: (node: N, parent: Node) => void): Decorator<N> {
@@ -359,7 +378,7 @@ export class ScrollableMixin extends Mixin<HTMLElement> {
  * trigger the ugly scroll band on mobile devices.
  *
  * Calling this functions makes anything not marked scrollable as non-scrollable.
- * @category decorator
+ * @category decorator, toc
  * @api
  */
 export function $scrollable() {

@@ -10,13 +10,12 @@ import {
   node_add_mixin
 } from './mixins'
 
-import { e, renderable_to_node } from './elt'
+import { e } from './elt'
 
 import {
   insert_before_and_init,
   node_remove_after,
   sym_mount_status,
-  node_init,
 } from './dom'
 
 
@@ -24,10 +23,11 @@ import {
  * Get a node that can be inserted into the DOM from an insertable `i`. The returned value can be
  * a single `Node` or a `DocumentFragment` if the insertable was an array.
  *
+ * Note that this function will ignore Decorators, Mixins and other non-renderable elements.
  *
  * @param i The insertable
  *
- * @category helper
+ * @category dom, toc
  */
 export function get_node_from_insertable(i: e.JSX.Insertable<Node>) {
 
@@ -55,7 +55,7 @@ export function get_node_from_insertable(i: e.JSX.Insertable<Node>) {
 
 
 /**
- * @category verb
+ * @category verb, toc
  */
 export class Verb extends Mixin<Comment> {
 
@@ -71,8 +71,7 @@ export class Verb extends Mixin<Comment> {
  * A subclass of `#Verb` made to store nodes between two comments.
  *
  * Can be used as a base to build verbs more easily.
- * @api
- * @category verb
+ * @category verb, toc
  */
 var cmt_count = 0
 export class CommentContainer extends Verb {
@@ -127,8 +126,7 @@ export class Displayer extends CommentContainer {
 /**
  * Write and update the string value of an observable value into
  * a Text node.
- * @category verb
- * @api
+ * @category verb, toc
  */
 export function $Display(obs: o.RO<e.JSX.Insertable<Node>>): Node {
   if (!(obs instanceof o.Observable)) {
@@ -140,8 +138,7 @@ export function $Display(obs: o.RO<e.JSX.Insertable<Node>>): Node {
 
 
 /**
- * @category verb
- * @api
+ * @category verb, toc
  *
  * Display content depending on the value of a `condition`, which can be `#o.Observable`
  */
@@ -393,8 +390,7 @@ export class ScrollRepeater<T> extends Repeater<T> {
 
 
 /**
- * @category verb
- * @api
+ * @category verb, toc
  *
  * Repeats the `render` function for each element in `ob`, optionally separating each rendering
  * with the result of the `separator` function.
@@ -466,8 +462,7 @@ export namespace $Repeat {
  * > **Note** : while functional, RepeatScroll is not perfect. A "VirtualScroll" behaviour is in the
  * > roadmap to only maintain the right amount of elements on screen.
  *
- * @category verb
- * @api
+ * @category verb, toc
  */
 export function $RepeatScroll<T>(ob: T[], render: $Repeat.ReadonlyRenderFn<T>, separator?: $Repeat.SeparatorFn, scroll_buffer_size?: number): Node;
 export function $RepeatScroll<T>(ob: o.Observable<T[]>, render: $Repeat.RenderFn<T> , separator?: $Repeat.SeparatorFn, scroll_buffer_size?: number): Node;
@@ -483,36 +478,9 @@ export function $RepeatScroll<T>(
 
 
 /**
- * Fragment is responsible for its children. If the `Fragment` is removed and unmounted,
- * it then removes and unmounts its children.
- *
- * Beware that because of typescript's imprecisions with the JSX namespace,
- * we had to tell this function that it returns an Element, which is false.
- *
- * `<Fragment class='something'></Fragment>` will most likely crash, even though the type system
- * will allow it.
- *
- * @category verb
- */
-export function $Fragment(attrs: e.JSX.EmptyAttributes<DocumentFragment>, children: e.JSX.Renderable[]): DocumentFragment {
-  // This is a trick ! It is not actually an element !
-  const fr = document.createDocumentFragment()
-  for (var i = 0, l = children.length; i < l; i++) {
-    const c = renderable_to_node(children[i])
-    if (c) {
-      fr.appendChild(c)
-      node_init(c)
-    }
-  }
-  return fr
-}
-
-
-/**
  * Perform a Switch statement
  * @param obs The observable switched on
- * @category verb
- * @api
+ * @category verb, toc
  */
 export function $Switch<T>(obs: o.Observable<T>): $Switch.Switcher<T>
 export function $Switch<T>(obs: o.ReadonlyObservable<T>): $Switch.ReadonlySwitcher<T>

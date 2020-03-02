@@ -239,8 +239,18 @@ export function e<N extends Node>(elt: any, ...children: e.JSX.Insertable<N>[]):
   return node
 }
 
+/**
+ * Creates a document fragment. Typescript's JSX is configured to use this
+ *
+ * @category dom, toc
+ */
+export function $Fragment(...children: e.JSX.Insertable<DocumentFragment>[]): DocumentFragment {
+  // This is a trick ! It is not actually an element !
+  const fr = document.createDocumentFragment()
+  return e(fr, children)
+}
 
-import { $Fragment as $F } from './verbs'
+
 import { Decorator } from './decorators'
 
 
@@ -860,7 +870,7 @@ export namespace e {
   export const $WBR = mkwrapper('wbr')
 
   export const createElement = e
-  export const Fragment: (at: e.JSX.Attrs<DocumentFragment>, ch: e.JSX.Renderable[]) => DocumentFragment = $F //(at: Attrs, ch: DocumentFragment): e.JSX.Element
+  export const Fragment: (at: e.JSX.Attrs<DocumentFragment>, ch: e.JSX.Renderable[]) => DocumentFragment = $Fragment //(at: Attrs, ch: DocumentFragment): e.JSX.Element
 }
 
 declare var global: any
