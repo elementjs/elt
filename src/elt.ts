@@ -147,7 +147,7 @@ export function renderable_to_node(r: e.JSX.Renderable) {
  *
  * This function is the base of element ; it creates Nodes and glues together
  * Controllers, decorators, classes and style.
- * @category jsx
+ * @category dom, toc
  */
 export function e<N extends Node>(elt: N, ...children: e.JSX.Insertable<N>[]): N
 export function e<K extends keyof HTMLElementTagNameMap>(elt: K, ...children: e.JSX.Insertable<HTMLElementTagNameMap[K]>[]): HTMLElementTagNameMap[K]

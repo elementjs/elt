@@ -282,6 +282,18 @@ export function node_observe<T>(node: Node, obs: o.RO<T>, obsfn: o.Observer.Obse
 }
 
 
+export function node_add_event_listener<N extends Element, K extends (keyof DocumentEventMap)[]>(node: N, name: K, listener: Listener<DocumentEventMap[K[number]], N>, useCapture?: boolean): void
+export function node_add_event_listener<N extends Element, K extends keyof DocumentEventMap>(node: N, event: K, listener: Listener<DocumentEventMap[K], N>, useCapture?: boolean): void
+export function node_add_event_listener<N extends Element>(node: N, event: string | string[], listener: Listener<Event, N>, useCapture?: boolean): void
+export function node_add_event_listener<N extends Node>(node: N, ev: any, listener: Listener<Event, N>): void {
+  if (Array.isArray(ev))
+    for (var e of ev) node.addEventListener(e, listener as any)
+  else {
+    node.addEventListener(ev, listener as any)
+  }
+}
+
+
 /**
  * Stop a node from observing an observable, even if it is still in the DOM
  * @category dom, toc

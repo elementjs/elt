@@ -1,27 +1,28 @@
-# What is Element
+# What is ELT
 
+ELT is a [typescript](https://typescriptlang.org) library for building user interfaces in a web environment. It is not meant to build websites ; its purpose is to write applications.
 
-Element is a [typescript](https://typescriptlang.org) library for building user interfaces in a web environment. It is not meant to build websites ; its purpose is to write applications.
-
-Weighing less than 15kb minified and gziped, it is meant as an alternative to React, Angular and the likes. Unlike several of them, it does *not* make use of any kind of virtual DOM. Instead, it provides the developper with an `Observable` class and a `Mixin` system to manipulate the DOM directly.
+Weighing less than 15kb minified and gziped, it is meant as an alternative to React, Angular and the likes. Unlike several of them, it does *not* make use of any kind of virtual DOM. Instead, it provides the developper with an `#Observable` class and a few easy to use hooks on the node life cycle to react to their presence in the document. It also provides a `#Mixin` class for those cases when writing extensible code is required.
 
 It makes use of fairly modern standards, such as `Map`, `Set`, `Symbol` and `WeakMap`. While it will probably work with some versions of IE, support is limited to less than two year old versions of Safari (+ iOS), Firefox, Chrome (+ Android Browser) and Edge.
 
-While it is of course usable in plain javascript, its real intended audience is typescript users.
+It is of course usable in plain javascript. Howeveer, its real intended audience is typescript users.
 
 # Why use it
 
-  * **You use typescript** and don't want a javascript library that use patterns that the typing system doesn't always gracefully support. Everything is Element was built with *type inference* in mind. The `Observable` ecosystem tries hard to keep that valuable typing information without getting in your way. It also tries to be as strict as possible, which is way the recommended way to enjoy this library is with `"strict": true` in your `tsconfig.json`.
+  * **You use typescript** and don't want a javascript library that use patterns that the typing system doesn't always gracefully support. Everything is Element was built with *type inference* in mind. The `#Observable` ecosystem tries hard to keep that valuable typing information without getting in your way and have you type everything by hand. It also tries to be as strict as possible, which is why the recommended way to enjoy this library is with `"strict": true` in your `tsconfig.json`.
 
-  * **You like the Observer pattern** but you're afraid your app is going to leak as this pattern is prone to. Element solves this elegantly by tying the observing to the presence of a Node in the DOM, removing the need to un-register observers that would otherwise leak. See [`ObserverHolder`](#o.ObserverHolder), [`observe()`](#observe), [`App.Block`](#App.Block) and [`Mixin`](#Mixin).
+  * **You like the Observer pattern** but you're afraid your app is going to leak as this pattern is prone to do. Element solves this elegantly by tying the observing to the presence of a Node in the DOM, removing the need to un-register observers that would otherwise leak. See [`node_observe`](#node_observe) and [`$observe()`](#$observe).
 
-  * Virtual-DOM appears brilliant to you, but **you'd rather manipulate the DOM directly**. This is a philosophical point ; Virtual DOM is extremely efficient, probably more so than manipulating the document directly, but it also adds a layer of abstraction that is not always needed. In Element, all the `<jsx>code</jsx>` returns DOM Elements, or at least Nodes that can be manipulated with "vanilla" javascript.
+  * Virtual-DOM appears brilliant to you, but **you'd rather manipulate the DOM directly**. This is a philosophical point ; Virtual DOM is extremely efficient, probably more so than manipulating the document directly, but it also adds a layer of abstraction that is not always needed. In Element, all the `<jsx>code</jsx>` return DOM Elements that can be manipulated with vanillay javascript.
 
-  * **You like expliciteness**. Element was thought up to be as explicit as possible. The Observables and Verbs are a clear giveaway of what parts of your application are subject to change. Every symbol you use should be reachable with the go-to definition of your code editor.
+  * **You like expliciteness**. The Observables and Verbs are a clear giveaway of what parts of your application are subject to change. Also, every symbol you use should be reachable with the go-to definition of your code editor ; html string templates are just plain evil.
 
-  * **You're tired of packages with dozens of dependencies**. Element has none. It uses plain, vanilla JS, and doesn't shy away from reimplementing simple algorithms instead of polluting your node_modules.
+  * **You're tired of packages with dozens of dependencies**. Element has none. It uses plain, vanilla JS, and doesn't shy away from reimplementing simple algorithms instead of polluting your node_modules, all the while trying to provide enough batteries to not have to import dozens of packages to get work done.
 
 # Getting started
+
+## Installation
 
 First, install elt in your project
 
@@ -37,45 +38,81 @@ In your `tsconfig.json`, you will need to add the following :
   "strict": true, // not needed, but strongly advised
   "lib": ["es6", "dom"], // elt uses some es6 specific classes, and of course a lot of the DOM api
   "jsx": "react",
-  "jsxNamespace": "E", // alternatively "jsxNamespace": "e", but you then have to import { e } from 'elt' in your .tsx files.
+  "jsxNamespace": "E", // alternatively "jsxNamespace": "e", but you then have to import { e } from 'elt' in all your .tsx files.
 ```
 
-You can also use `"jsxFactory": "E"` instead of the namespace, but to use fragments, you have to `import { Fragment } from 'elt'` and then use the `<Fragment></Fragment>` construct instead of `<></>`.
+You can also use `"jsxFactory": "E"` instead of `jsxNamespace`, but to use fragments, you have to `import { $Fragment } from 'elt'` and then use the `<$Fragment></$Fragment>` construct instead of `<></>`. You may of course rename it to something terser, such as `import { $Fragment as $ }` and `<$></$>`. The plus side of this approach is that typescript will only generate `E()` calls instead of `E.createElement()`, resulting in smaller, easier to read compiled code.
 
-Last, to add a Node created with this library, you will need to use [`append_child_and_mount`](#append_child_and_mount) (or [`insert_before_and_mount`](#insert_before_and_mount)) instead of the regular `.appendChild()` or `.insertBefore()`, as the latter will of course ignore the `Mixin`s present on the nodes.
+Last, to add a Node created with this library, you will need to use [`append_child_and_init`](#append_child_and_init) (or [`insert_before_and_init`](#insert_before_and_init)) instead of the regular `.appendChild()` or `.insertBefore()`, and `#node_remove` instead of `.remove()` or `.removeChild()`, as the vanilla methods will not call the life cycle hooks elt provides (and thus not start or stop `#Observable`s). This should be the **only** deviation from using the dom.
+
+## Using a module loader such as webpack or rollup, or <script type="module">
 
 ```tsx
-import { o, bind, append_child_and_mount } from 'elt'
+import { o, $bind, append_child_and_init } from 'elt'
 
 const o_says = o('hello world')
 
-append_child_and_mount(document.body, <div>
-  <p><input $$={bind(o_says)}/></p>
+append_child_and_init(document.body, <div>
+  <p><input>{$bind(o_says)}</input></p>
   <p>Element says {o_says} !</p>
 </div>)
 ```
 
-... and that's it !
+## Using it as a umd module
 
-# In a Nutshell
+ELT supports being used as an umd module in a regular `<script>` import, in which case its global name is elt.
+
+```tsx
+const { o, $bind, append_child_and_init } = elt
+
+// ... !
+```
+
+# ELT In a Nutshell ; the core concepts
 
 All UI libraries basically do the same thing : display data and provide a way to modify it.
 
 In Element, this is achieved by using the [`Observable`](#o.Observable) class, which is essentially a wrapper around an immutable object that informs [`Observer`](#o.Observer)s whenever the object changes.
 
-[`Mixin`](#Mixin)s are objects meant to be associated to a `Node` which allow us to :
-- run code whenever the associated `Node` is created, added to the DOM or removed from the DOM
-- observe Observables, but **only** while the Node is inside the `document`.
+All the library is built on this basis. Of course, Observables can do *much* more than just observing an object.
 
-All the library is built on this basis. Of course, Observables can do *much* more than just observing an object and Mixins provide more functionnality.
+## Creating nodes
 
-## It is meant to be used with TSX
-
-Use TSX (the typescript version of JSX) to build your interfaces. The result of a TSX expression is (almost) always a DOM `Element` -- it is at least a `Node`.
+Use TSX (the typescript version of JSX) to build your interfaces. The result of a TSX expression is alwas a DOM `Node`.
 
 ```jsx
 // You can write that.
-append_child_and_mount(document.body, <div class='some-class'>Hello</div>)
+append_child_and_init(document.body, <div class='some-class'>Hello</div>)
+```
+
+### Creating nodes without tsx
+
+Typescript's TSX is awesome. Unfortunately, as of today (version 3.8), its system still considers a TSX element as the type defined as the `JSX.Element` type, which is why as far as the type system is concerned, `var div = <div/>` will always have the type `Node`.
+
+```tsx
+// This is correct, as ELT will create an HTMLDivElement, but unfortunately, typescript won't allow it.
+var div: HTMLDivElement = <div/>
+// This works
+var div = <div/> as HTMLDivElement
+// But so does this, which is incorrect
+var div = <input/> as HTMLDivElement // this should be HTMLInputElement.
+```
+
+It is possible to use `E()` (or `e()`) directly ; they use the correct types.
+
+```tsx
+var div = e('div') // div is infered as HTMLDivElement, hurray !
+```
+
+ELT provides a few helper functions to work without tsx without too much pain ;
+
+```tsx
+var o_contents = o(')
+var root = E.$DIV(
+  E.$SPAN('span contents !'),
+  E.$INPUT($bind(o_contents)),
+  o_contents
+)
 ```
 
 ## It has an Observable class
