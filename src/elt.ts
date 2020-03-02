@@ -18,13 +18,6 @@ import {
 } from './dom'
 
 
-
-/**
- * Private mixin used by the e() function when watching style, classes and other attributes.
- */
-export class AttrsMixin extends Mixin<HTMLElement> { }
-
-
 ////////////////////////////////////////////////////////
 
 
