@@ -15,130 +15,95 @@ import {
   node_on_deinit,
   node_on_init,
   node_on_inserted,
-  node_observe_style
+  node_observe_style,
+  node_add_event_listener
 } from './dom'
 
 export type Decorator<N extends Node> = (node: N) => void | E.JSX.Renderable | Decorator<N> | Mixin<N>
 
 
-/**
- * An internal mixin used by the `bind()` decorator.
- */
-export class BindMixin extends Mixin<HTMLInputElement> {
+export namespace $bind {
 
-  obs: o.Observable<string>
-
-  constructor(obs: o.Observable<string>) {
-    super()
-    this.obs = obs
-  }
-
-  init(node: Node) {
-    if (node instanceof HTMLInputElement) this.linkToInput()
-    if (node instanceof HTMLSelectElement) this.linkToSelect()
-    if (node instanceof HTMLTextAreaElement) this.linkToTextArea()
-
-    if (node instanceof HTMLElement && node.contentEditable) this.linkToHTML5Editable()
-  }
-
-  linkToTextArea() {
-    let obs = this.obs
-
-    var upd = (evt: Event) => {
-      obs.set(this.node.value)
+  // FIXME this lacks some debounce and throttle, or a way of achieving it.
+  function setup_bind<T, N extends Element>(
+    obs: o.Observable<T>,
+    node_get: (node: N) => T,
+    node_set: (node: N, value: T) => void,
+    event = 'input' as string | string[]
+  ) {
+    return function (node: N) {
+      const lock = o.exclusive_lock()
+      /// When the observable changes, update the node
+      node_observe(node, obs, value => {
+        lock(() => { node_set(node, value) })
+      })
+      node_add_event_listener(node, event, () => {
+        lock(() => { obs.set(node_get(node)) })
+      })
     }
-
-    this.listen('input', upd)
-    this.listen('change', upd)
-    this.listen('propertychange', upd)
-
-    this.observe(obs, val => {
-      this.node.value = val||''
-    })
   }
 
-  linkToSelect() {
-    let obs = this.obs
-
-    this.listen('change', (evt) => {
-      obs.set(this.node.value)
-    })
-
-    this.observe(obs, val => {
-      this.node.value = val
-    })
+  /**
+   * Bind an observable to an input's value.
+   * @category decorator, toc
+   */
+  export function string(obs: o.Observable<string>): (node: HTMLInputElement | HTMLTextAreaElement) => void {
+    return setup_bind(obs, node => node.value, (node, value) => node.value = value)
   }
 
-  linkToInput() {
-    let obs = this.obs
-    let value_set_from_event = false
-
-    let fromObservable = (val: string) => {
-      if (value_set_from_event)
-        return
-      this.node.value = val == null ? '' : val
-    }
-
-    let fromEvent = (evt: Event) => {
-      let val = this.node.value
-      value_set_from_event = true
-      obs.set(val)
-      value_set_from_event = false
-    }
-
-    let type = this.node.type.toLowerCase() || 'text'
-
-    switch (type) {
-      case 'color':
-      case 'range':
-      case 'date':
-      case 'datetime':
-      case 'week':
-      case 'month':
-      case 'time':
-      case 'datetime-local':
-        this.observe(obs, fromObservable)
-        this.listen('input', fromEvent)
-        break
-      case 'radio':
-        this.observe(obs, val => {
-          // !!!? ??
-          this.node.checked = this.node.value === val
-        })
-        this.listen('change', fromEvent)
-        break
-      case 'checkbox':
-        // FIXME ugly hack because we specified string
-        this.observe(obs, (val: any) => {
-          this.node.checked = !!val
-        })
-        this.listen('change', () => (obs as o.Observable<any>).set(this.node.checked))
-        break
-      // case 'number':
-      // case 'text':
-      // case 'password':
-      // case 'search':
-      default:
-        this.observe(obs, fromObservable)
-        this.listen(['keyup', 'input', 'change'], fromEvent)
-    }
-
+  /**
+   * @category decorator, toc
+   */
+  export function contenteditable(obs: o.Observable<string>, as_html?: boolean): (node: HTMLElement) => void {
+    return setup_bind(obs,
+      node => as_html ? node.innerHTML : node.innerText,
+      (node, value) => {
+        if (as_html) { node.innerHTML = value }
+            else { node.innerText = value }
+      },
+    )
   }
 
-  linkToHTML5Editable() {
-    // FIXME
+  /**
+   * @category decorator, toc
+   */
+  export function number(obs: o.Observable<number>): (node: HTMLInputElement) => void {
+    return setup_bind(obs,
+      node => node.valueAsNumber,
+      (node, value) => node.valueAsNumber = value
+    )
   }
 
-}
+  /**
+   * @category decorator, toc
+   */
+  export function date(obs: o.Observable<Date | null>): (node: HTMLInputElement) => void {
+    return setup_bind(obs,
+      node => node.valueAsDate,
+      (node, value) => node.valueAsDate = value
+    )
+  }
 
+  /**
+   * @category decorator, toc
+   */
+  export function boolean(obs: o.Observable<boolean>): (node: HTMLInputElement) => void {
+    return setup_bind(obs,
+      node => node.checked,
+      (node, value) => node.checked = value,
+      'change'
+    )
+  }
 
-/**
- * Bind an observable to an input
- * @param obs The observer bound to the input
- * @category decorator, toc
- */
-export function bind(obs: o.Observable<string>) {
-  return new BindMixin(obs)
+  /**
+   * @category decorator, toc
+   */
+  export function selected_index(obs: o.Observable<number>): (node: HTMLSelectElement) => void {
+    return setup_bind(obs,
+      node => node.selectedIndex,
+      (node, value) => node.selectedIndex = value
+    )
+  }
 }
 
 
