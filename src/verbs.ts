@@ -15,7 +15,6 @@ import { e } from './elt'
 import {
   insert_before_and_init,
   node_remove_after,
-  sym_mount_status,
 } from './dom'
 
 
