@@ -12,7 +12,7 @@ import { o } from './observable'
  *
  * @include ../docs/app.md
  *
- * @category helper
+ * @category app, toc
  */
 export class App extends Mixin<Comment>{
 

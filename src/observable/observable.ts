@@ -320,7 +320,7 @@ export class Queue extends IndexableArray<Observable<any>> {
 const queue = new Queue()
 
 /**
- * @category observable, helper
+ * @category observable, toc
  */
 export function transaction(fn: () => void) {
   queue.transaction(fn)
@@ -844,7 +844,7 @@ export function prop<T>(obj: Observable<T> | T, prop: RO<number | keyof T | Symb
    * @param value The value the new object will be based on
    * @param mutator An object providing new values for select properties
    * @returns a new instance of the object if the mutator would change it
-   * @category helper
+   * @category observable, toc
    */
   export function assign<A>(value: A[], partial: {[index: number]: assign.AssignPartial<A>}): A[]
   export function assign<A>(value: A, mutator: assign.AssignPartial<A>): A
@@ -881,7 +881,7 @@ export function prop<T>(obj: Observable<T> | T, prop: RO<number | keyof T | Symb
   }
 
   /**
-   * @category helper
+   * @category observable, toc
    */
   export function debounce(ms: number, leading?: boolean): (target: any, key: string, desc: PropertyDescriptor) => void
   export function debounce<F extends Function>(fn: F, ms: number, leading?: boolean): F
@@ -921,7 +921,7 @@ export function prop<T>(obj: Observable<T> | T, prop: RO<number | keyof T | Symb
 
 
   /**
-   * @category helper
+   * @category observable, toc
    */
   export function throttle(ms: number, leading?: boolean): (target: any, key: string, desc: PropertyDescriptor) => void
   export function throttle<F extends Function>(fn: F, ms: number, leading?: boolean): F
@@ -990,7 +990,7 @@ export function prop<T>(obj: Observable<T> | T, prop: RO<number | keyof T | Symb
    *
    * This exists only because Typescript won't give us to create a tuple easily from values.
    *
-   * @category helper
+   * @category observable, toc
    */
   export function tuple<T extends any[]>(...t: T): T {
     return t
@@ -1008,7 +1008,7 @@ export function prop<T>(obj: Observable<T> | T, prop: RO<number | keyof T | Symb
    *
    * @param obj The object to shallow clone
    * @returns a new instance of the passed object.
-   * @category helper
+   * @category observable, toc
    */
   export function clone<T>(obj: T): T
   export function clone(obj: any): any {
@@ -1085,7 +1085,7 @@ export function prop<T>(obj: Observable<T> | T, prop: RO<number | keyof T | Symb
    * which could end up in an infinite loop.
    *
    * @returns a function that accepts a callback
-   * @category helper
+   * @category observable, toc
    */
   export function exclusive_lock() {
     var locked = false

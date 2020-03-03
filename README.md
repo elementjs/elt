@@ -199,6 +199,15 @@ Decorators are part of `Insertable`, and are simply functions that take the curr
     inp.value = 'some value'
   }}
 </input>
+
+// Or, we may want to be able to click on anything
+<div>
+  {$click(ev => {
+    // $click will add cursor: pointer to this node, as otherwise safari does not want to trigger
+    // a click on this element.
+    console.log('clicked !)
+  })}
+</div>
 ```
 
 > **Note**: The above warning about <jsx></jsx> returning Node and having to be cast to their correct type does not affect the functionnality of decorators.
