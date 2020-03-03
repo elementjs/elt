@@ -2,7 +2,7 @@
 
 ELT is a [typescript](https://typescriptlang.org) library for building user interfaces in a web environment. It is not meant to build websites ; its purpose is to write applications.
 
-Weighing less than 15kb minified and gziped, it is meant as an alternative to React, Angular and the likes. Unlike several of them, it does *not* make use of any kind of virtual DOM. Instead, it provides the developper with an `#Observable` class and a few easy to use hooks on the node life cycle to react to their presence in the document. It also provides a `#Mixin` class for those cases when writing extensible code is required.
+Weighing less than 15kb minified and gziped, it is meant as an alternative to React, Angular and the likes. Unlike several of them, it does *not* make use of any kind of virtual DOM. Instead, it provides the developper with an [`Observable`](#Observable) class and a few easy to use hooks on the node life cycle to react to their presence in the document. It also provides a [`Mixin`](#Mixin) class for those cases when writing extensible code is required.
 
 It makes use of fairly modern standards, such as `Map`, `Set`, `Symbol` and `WeakMap`. While it will probably work with some versions of IE, support is limited to less than two year old versions of Safari (+ iOS), Firefox, Chrome (+ Android Browser) and Edge.
 
@@ -10,7 +10,7 @@ It is of course usable in plain javascript. Howeveer, its real intended audience
 
 # Why use it
 
-  * **You use typescript** and don't want a javascript library that use patterns that the typing system doesn't always gracefully support. Everything is Element was built with *type inference* in mind. The `#Observable` ecosystem tries hard to keep that valuable typing information without getting in your way and have you type everything by hand. It also tries to be as strict as possible, which is why the recommended way to enjoy this library is with `"strict": true` in your `tsconfig.json`.
+  * **You use typescript** and don't want a javascript library that use patterns that the typing system doesn't always gracefully support. Everything is Element was built with *type inference* in mind. The [`Observable`](#Observable) ecosystem tries hard to keep that valuable typing information without getting in your way and have you type everything by hand. It also tries to be as strict as possible, which is why the recommended way to enjoy this library is with `"strict": true` in your `tsconfig.json`.
 
   * **You like the Observer pattern** but you're afraid your app is going to leak as this pattern is prone to do. Element solves this elegantly by tying the observing to the presence of a Node in the DOM, removing the need to un-register observers that would otherwise leak. See [`node_observe`](#node_observe) and [`$observe()`](#$observe).
 
@@ -43,7 +43,7 @@ In your `tsconfig.json`, you will need to add the following :
 
 You can also use `"jsxFactory": "E"` instead of `jsxNamespace`, but to use fragments, you have to `import { $Fragment } from 'elt'` and then use the `<$Fragment></$Fragment>` construct instead of `<></>`. You may of course rename it to something terser, such as `import { $Fragment as $ }` and `<$></$>`. The plus side of this approach is that typescript will only generate `E()` calls instead of `E.createElement()`, resulting in smaller, easier to read compiled code.
 
-Last, to add a Node created with this library, you will need to use [`append_child_and_init`](#append_child_and_init) (or [`insert_before_and_init`](#insert_before_and_init)) instead of the regular `.appendChild()` or `.insertBefore()`, and `#node_remove` instead of `.remove()` or `.removeChild()`, as the vanilla methods will not call the life cycle hooks elt provides (and thus not start or stop `#Observable`s). This should be the **only** deviation from using the dom.
+Last, to add a Node created with this library, you will need to use [`append_child_and_init`](#append_child_and_init) (or [`insert_before_and_init`](#insert_before_and_init)) instead of the regular `.appendChild()` or `.insertBefore()`, and [`node_remove`](#node_remove) instead of `.remove()` or `.removeChild()`, as the vanilla methods will not call the life cycle hooks elt provides (and thus not start or stop [`Observable`](#Observable)s). This should be the **only** deviation from using the dom.
 
 ## Using a module loader such as webpack or rollup, or <script type="module">
 
@@ -115,7 +115,100 @@ var root = E.$DIV(
 )
 ```
 
-## It has an Observable class
+## Adding children
+
+Nodes can of course have children. ELT defines a [`Renderable`](#e.JSX.Renderable) type which defines which types can safely rendered as a child to a node.
+
+You may thus add variables of type :
+ * `string`, which will be rendered as is
+ * `number`, which will be converted using `.toString()`
+ * `null` and `undefined`, which render nothing
+ * `Node`, which will be added as-is
+ * An array of all of them. Arrays may be nested ; ELT will traverse through them and flatten them when rendering.
+ * Finally, an [`Observable`](#Observable) of all the previously mentionned types, which will then update the DOM whenever its value change.
+
+This means that for any Observable that should be rendered into the dom, it first has to be converted to one of these types to appear.
+
+```tsx
+// A small exemple which works
+var o_txt = o('some text')
+var o_date = o(new Date())
+var date_format = new Intl.DateTimeFormat('fr')
+
+append_child_and_init(document.body, <div>
+  <span>{o_txt}</span>
+  {1234}
+  {['hello', 'world', ['hows', 'it', 'going?']]}
+  {null}
+
+  {/* here, o_date is transformed (tf) to another observable that holds a string, which can then be rendered. */}
+  <div>{o_date.tf(d => date_format.format(d))}</div>
+</div>)
+```
+
+## Dynamicity through Observables and Verbs
+
+Verbs are simply functions whose name is a verb (hence the name), that usually start prefixed with `$`, to add a visual emphasis on their presence.
+The fact they're verbs is to mean they represent dynamicity, things that change.
+
+They usually work in concert with Observables to control the presence of nodes in the document.
+
+For instance, [`$If`](#$If) will render its then arm only if the given observable is truthy, and the else otherwise.
+
+```tsx
+const o_some_obj = o({prop: 'value!'} as {prop: string} | null)
+
+append_child_and_init(document.body, <div>
+  <h1>An $If example</h1>
+  {$If(o_some_obj,
+    // Here, o_truthy is of type Observable<{prop: string}>, without the null
+    // We can thus safely take its property, which is a Renderable (string), through the .p() method.
+    o_truthy => <div>We have a {o_truthy.p('prop')}</div>,
+    () => <div>We had null</div>
+  )}
+</div>)
+```
+
+[`$Repeat`](#$Repeat) repeats the contents of an array, with an optional separator.
+
+```tsx
+const o_arr = o([{a: 'p'}, {a: 'q'}, {a: 'r'}])
+
+append_child_and_init(document.body, <div>
+  <h1>A $Repeat example</h1>
+  {$Repeat(o_arr,
+    // o_item is Observable<{a: string}>
+    (o_item, idx) => <div>{idx}: {o_item.p('a')}</div>
+  )}
+</div>)
+
+```
+
+## Node Decorators
+
+Decorators are a handy way of playing with a node without having to assign it to a variable first.
+
+As the [`Renderable`](#e.JSX.Renderable) type controls what types can safely be appended to a node, the [`Insertable`](#e.JSX.Insertable) type controls what can be put as a child, without necessarily mean that it will have a visual representation.
+
+Decorators are part of `Insertable`, and are simply functions that take the current node as an argument.
+
+```tsx
+<input>
+  {inp => {
+    // here, inp is of type HTMLInputElement
+    inp.value = 'some value'
+  }}
+</input>
+```
+
+> **Note**: The above warning about <jsx></jsx> returning Node and having to be cast to their correct type does not affect the functionnality of decorators.
+> Declaring a function in a child will work with the type inferer ;
+
+Decorators may return any [`Insertable`](#Insertable), even if it is another decorator.
+
+See the existing decorators to see what they can do.
+
+## Observables
 
 Observables are the mechanism through which we achieve MVVM. They are not RxJS's Observable (see `src/observable.ts`).
 
@@ -159,82 +252,6 @@ prev !== o_obj.get() // true
 
 They can do a **lot** more than these very simple transformations. Check the Observable documentation.
 
-## Mixins
-
-A `Mixin` is an object that is tied to a node. You can use the `$$` attribute to manually bind one to the node.
-
-They offer the convenient `observe()` method, which ties the observing of an `Observable` to the presence of the node inside the `document`. They are warned whenever the node is inserted or removed from the `document`
-
-```jsx
-class MyMixin extends Mixin {
-  inserted(node: Node,) {
-    console.log(`I was inserted on`, parent)
-  }
-
-  removed(node: Node, parent: Node) {
-    console.log(`I was removed from the document`)
-    console.log(`My parent was`, parent)
-  }
-}
-
-document.body.appendChild(<div $$={new MyMixin()}/>)
-```
-
-There are some useful functions that return mixins, such as `observe()`
-
-```jsx
-o_arr = o([1, 2, 3])
-
-// the contents of o_arr will be logged as long as this div is inside the document.
-document.body.appendChild(<div $$={observe(o_arr, value => console.log(value))}/>)
-o_arr.set([4, 5, 6])
-```
-
-## Verbs
-
-"Verbs" are functions that return `Comment` nodes. They indicate dynamicity in your interface. The most commonly used are `If` and `Repeat`.
-
-`If` is used to conditionnally display content, where the condition can be an observable or not.
-
-```jsx
-import {o} from 'elt'
-import {Button} from 'elt-material'
-
-const o_object = o({a: 1} as null | {a: number})
-document.body.appendChild(<div>
-  <Button click={e => o_bool.toggle()}/>
-  {If(o_object,
-    // here, o_obj is Observable<{a: number}>
-    o_obj => <span>a has: {o_obj.p('a')}</span>,
-  // I cannot do o_object.p('a'), as it will complain about the null part.
-  ).Else(() => <span>There is no value</span>)}
-</div>)
-```
-
-`Repeat` is used to display elements of an array. Its callback gives an `Observable` which is the current item, and the number index.
-
-```jsx
-o_arr = o([1, 2, 3])
-document.body.appendChild(<div>
-  {Repeat(o_arr, (o_item, idx) =>
-    // Here we suppose there is an Input component expecting
-    // a model property. o_item can be set, even though it is in a repeat.
-    <Input model={o_item} label={`Item #${idx}`}/>
-  )}
-</div>)
-```
-
-You can use `RepeatScroll` with `scrollable()` if you want to display a list but only render those that are in view and wait for the user to scroll before revealing the rest.
-
-```jsx
-// We need the div to be scrollable(), as RepeatScroll needs a scrollable parent.
-document.body.appendChild(<div $$={scrollable()}>
-  {RepeatScroll(o_my_long_array, o_item => <div>
-    ... do something with o_item.
-  </div>)}
-</div>)
-```
-
 ## Classes and Styles
 
 You do not need to forward the `class`, `style` or `id` attribute. Generally speaking, the process of forwarding props generically to subcomponents with `<Comp ...{props}>` is not needed.
@@ -268,3 +285,31 @@ The `style` attribute does not accept text. Since it is considered good practice
 ```jsx
 <Elt style={ {width: o_width} }>
 ```
+
+## Function Components
+
+## Mixins
+
+A [`Mixin`](#Mixin) is an object that is tied to a node. As for decorators, they are part of the [`Insertable`](#Insertable) type, which means that the way to add them to a `Node` is simply to put them somewhere in their children.
+
+They serve as the basis for the `Component` class below, and have a few convenient methods, such as `.observe()`, `init()`, `inserted()`, `deinit()` and `removed()`.
+
+Aside from the `Component` class, their utility resides in the fact they allow a developper to write extensible code in a pure object-oriented fashion and to encapsulate code neatly when the component has a complex and lengthy implementation.
+
+```jsx
+// This mixin can be added on just any node.
+class MyMixin extends Mixin {
+  inserted(node: Node,) {
+    console.log(`I was inserted on`, parent)
+  }
+
+  removed(node: Node, parent: Node) {
+    console.log(`I was removed from the document`)
+    console.log(`My parent was`, parent)
+  }
+}
+
+document.body.appendChild(<div>{new MyMixin()}</div>)
+```
+
+## Component class
