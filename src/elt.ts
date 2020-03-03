@@ -86,21 +86,6 @@ function isComponent(kls: any): kls is new (attrs: e.JSX.Attrs<any>) => Componen
 }
 
 
-const GLOBAL_ATTRIBUTES = {
-  accesskey: true,
-  contenteditable: true,
-  dir: true,
-  draggable: true,
-  dropzone: true,
-  id: true,
-  lang: true,
-  spellcheck: true,
-  tabindex: true,
-  title: true,
-  translate: true,
-} as const
-
-
 var _decorator_map = new WeakMap<Function, Comment>()
 
 /**
@@ -226,9 +211,9 @@ export function e<N extends Node>(elt: any, ...children: e.JSX.Insertable<N>[]):
           }
         } else if (key === 'style') {
           node_observe_style(node as unknown as HTMLElement, at.style!)
-        } else if (key === '$$') {
-          continue
-        } else if (is_basic_node || GLOBAL_ATTRIBUTES[key as keyof typeof GLOBAL_ATTRIBUTES]) {
+        } else if (key === 'id') {
+          node_observe_attribute(node as unknown as Element, 'id', (at as any)[key])
+        } else if (is_basic_node) {
           // Observe all attributes for simple elements
           node_observe_attribute(node as unknown as Element, key, (at as any)[key])
         }
@@ -358,26 +343,20 @@ export namespace e {
      */
     export interface Attrs<N extends Node> extends EmptyAttributes<N> {
       id?: NRO<string>
-      contenteditable?: NRO<'true' | 'false' | 'inherit'>
-      hidden?: NRO<boolean>
-      accesskey?: NRO<string>
-      dir?: NRO<'ltr' | 'rtl' | 'auto'>
-      draggable?: NRO<'true' | 'false' | 'auto'>
-      dropzone?: NRO<'copy' | 'move' | 'link'>
-      lang?: NRO<string>
-      spellcheck?: NRO<boolean>
-      tabindex?: NRO<number>
-      title?: NRO<string>
-      translate?: NRO<'yes' | 'no'>
-
       class?: ClassDefinition | ClassDefinition[] // special attributes
       style?: StyleDefinition
-
-      xmlns?: string
     }
 
 
     export interface HTMLAttributes<N extends HTMLElement> extends Attrs<N> {
+
+      contenteditable?: NRO<'true' | 'false' | 'inherit'>
+      dir?: NRO<'ltr' | 'rtl' | 'auto'>
+      draggable?: NRO<'true' | 'false' | 'auto'>
+      dropzone?: NRO<'copy' | 'move' | 'link'>
+      lang?: NRO<string>
+      translate?: NRO<'yes' | 'no'>
+      xmlns?: string
 
       // Attributes shamelessly stolen from React's type definitions.
       // Standard HTML Attributes
@@ -527,6 +506,15 @@ export namespace e {
     }
 
     export interface SVGAttributes<N extends SVGElement = SVGElement> extends Attrs<N> {
+
+      contenteditable?: NRO<'true' | 'false' | 'inherit'>
+      hidden?: NRO<boolean>
+      accesskey?: NRO<string>
+      lang?: NRO<string>
+      tabindex?: NRO<number>
+      title?: NRO<string>
+      xmlns?: string
+
       'clip-path'?: string;
       cx?: NRO<number | string>
       cy?: NRO<number | string>
