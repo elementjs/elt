@@ -5,14 +5,16 @@ import { Mixin } from './mixins'
 export type Listener<EventType extends Event, N extends Node = Node> = (ev: EventType & {currentTarget: N}) => any
 
 export const sym_observers = Symbol('elt-observers')
+
 export const sym_mount_status = Symbol('elt-mount-status')
+
 /**
- * This symbol is added as a property of the DOM nodes to store
- * an array of mixins.
+ * This symbol is added as a property of the DOM nodes to store mixins associated with it.
  *
  * The more "correct" way of achieving this would have been to create
  * a WeakSet, but since the performance is not terrific (especially
  * when the number of elements gets high), the symbol solution was retained.
+ * @category dom, toc
  */
 export const sym_mixins = Symbol('elt-mixins')
 

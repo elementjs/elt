@@ -335,9 +335,10 @@ export class ScrollRepeater<T> extends Repeater<T> {
 
   init() {
     requestAnimationFrame(() => {
-      // Find parent with the overflow-y
-      if (this.node[sym_mount_status] !== 'inserted') return
+      // do not process this if the node is not inserted.
+      if (!this.node.isConnected) return
 
+      // Find parent with the overflow-y
       var iter = this.node.parentElement
       while (iter) {
         var style = getComputedStyle(iter) as any

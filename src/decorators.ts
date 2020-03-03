@@ -206,8 +206,12 @@ export function $on<N extends Element>(event: string | string[], _listener: List
  * @category decorator, toc
  * @api
  */
-export function $click<N extends Element>(cbk: Listener<MouseEvent, N>): Decorator<N> {
-  return $on('click', cbk)
+export function $click<N extends HTMLElement | SVGElement>(cbk: Listener<MouseEvent, N>, capture?: boolean): (node: N) => void {
+  return function $click(node) {
+    // events don't trigger on safari if not pointer.
+    node.style.cursor = 'pointer'
+    node_add_event_listener(node, 'click', cbk, capture)
+  }
 }
 
 
