@@ -75,6 +75,14 @@ export namespace $bind {
   }
 
   /**
+   * Bind bidirectionnally a `Date | null` observable to an `input`. Will only work on inputs
+   * type `"date"` `"datetime"` `"datetime-local"`.
+   *
+   * ```tsx
+   * const o_d = o(new Date() as Date | null)
+   * <input type="date">{$bind.date(o_d)}</input>
+   * ```
+   *
    * @category decorator, toc
    */
   export function date(obs: o.Observable<Date | null>): (node: HTMLInputElement) => void {
@@ -85,6 +93,14 @@ export namespace $bind {
   }
 
   /**
+   * Bind bidirectionnally a boolean observable to an input. Will only work if the input's type
+   * is "radio" or "checkbox".
+   *
+   * ```tsx
+   * const o_bool = o(false)
+   * <input type="checkbox">{$bind.boolean(o_bool)}</input>
+   * ```
+   *
    * @category decorator, toc
    */
   export function boolean(obs: o.Observable<boolean>): (node: HTMLInputElement) => void {
@@ -135,6 +151,46 @@ export function $class<N extends Element>(...clss: E.JSX.ClassDefinition[]) {
     for (var i = 0, l = clss.length; i < l; i++) {
       node_observe_class(node, clss[i])
     }
+  }
+}
+
+
+/**
+ * Update a node's id with a potentially observable value.
+ * Used mostly when dealing with components since their base node attributes are no longer available.
+ *
+ * ```tsx
+ * <MyComponent>{$id('some-id')}</MyComponent>
+ * ```
+ *
+ * @category decorator, toc
+ */
+export function $id<N extends Element>(id: o.RO<string>) {
+  return (node: N) => {
+    node_observe(node, id, id => node.id = id)
+  }
+}
+
+
+/**
+ * Update a node's title with a potentially observable value.
+ * Used mostly when dealing with components since their base node attributes are no longer available.
+ *
+ * ```tsx
+ * <MyComponent>{$title('Some title ! It generally appears on hover.')}</MyComponent>
+ * ```
+ * @category decorator, toc
+ */
+export function $title<N extends HTMLElement>(title: o.RO<string>) {
+  return (node: N) => {
+    node_observe(node, title, title => node.title = title)
+  }
+}
+
+
+export function $shadow() {
+  return (node: HTMLElement) => {
+    node.attachShadow({mode: 'open'})
   }
 }
 

@@ -4,8 +4,18 @@ import { Mixin } from './mixins'
 
 export type Listener<EventType extends Event, N extends Node = Node> = (ev: EventType & {currentTarget: N}) => any
 
+/**
+ * Symbol property on `Node` to an array of observers that are started when the node is `init()` and
+ * stopped on `deinit()`.
+ * @internal
+ */
 export const sym_observers = Symbol('elt-observers')
 
+/**
+ * Symbol property added on `Node` to track the status of the node ; if it's been init(), inserted() or more.
+ * Its value type is `string`.
+ * @internal
+ */
 export const sym_mount_status = Symbol('elt-mount-status')
 
 /**
@@ -14,13 +24,32 @@ export const sym_mount_status = Symbol('elt-mount-status')
  * The more "correct" way of achieving this would have been to create
  * a WeakSet, but since the performance is not terrific (especially
  * when the number of elements gets high), the symbol solution was retained.
- * @category dom, toc
+ * @internal
  */
 export const sym_mixins = Symbol('elt-mixins')
 
+/**
+ * A symbol property on `Node` to an array of functions to run when the node is `init()`
+ * @internal
+ */
 export const sym_init = Symbol('elt-init')
+
+/**
+ * A symbol property on `Node` to an array of functions to run when the node is `deinit()`
+ * @internal
+ */
 export const sym_deinit = Symbol('elt-deinit')
+
+/**
+ * A symbol property on `Node` to an array of functions to run when the node is `inserted()` into the document.
+ * @internal
+ */
 export const sym_inserted = Symbol('elt-inserted')
+
+/**
+ * A symbol property on `Node` to an array of functions to run when the node is directly `removed()` from the document.
+ * @internal
+ */
 export const sym_removed = Symbol('elt-removed')
 
 // Elt adds a few symbol properties on the nodes it creates.

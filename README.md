@@ -95,7 +95,8 @@ var div: HTMLDivElement = <div/>
 // This works
 var div = <div/> as HTMLDivElement
 // But so does this, which is incorrect
-var div = <input/> as HTMLDivElement // this should be HTMLInputElement.
+var div = <input/> as HTMLDivElement // this should be HTMLInputElement
+// when using the as keyword, Typescript allows a cast as a subtype without complaining.
 ```
 
 It is possible to use `E()` (or `e()`) directly ; they use the correct types.
@@ -107,7 +108,7 @@ var div = e('div') // div is infered as HTMLDivElement, hurray !
 ELT provides a few helper functions to work without tsx without too much pain ;
 
 ```tsx
-var o_contents = o(')
+var o_contents = o('')
 var root = E.$DIV(
   E.$SPAN('span contents !'),
   E.$INPUT($bind(o_contents)),
@@ -144,6 +145,18 @@ append_child_and_init(document.body, <div>
   {/* here, o_date is transformed (tf) to another observable that holds a string, which can then be rendered. */}
   <div>{o_date.tf(d => date_format.format(d))}</div>
 </div>)
+```
+
+The non-jsx version works by adding children as arguments.
+
+```tsx
+append_child_and_init(document.body, E.$DIV(
+  E.$SPAN(o_txt),
+  1234,
+  ['hello', 'world', ['hows', 'it', 'going?']],
+  null,
+  E.$DIV(o_date.tf(d => date_format.format(d)))
+))
 ```
 
 ## Dynamicity through Observables and Verbs
@@ -263,18 +276,11 @@ They can do a **lot** more than these very simple transformations. Check the Obs
 
 ## Classes and Styles
 
-You do not need to forward the `class`, `style` or `id` attribute. Generally speaking, the process of forwarding props generically to subcomponents with `<Comp ...{props}>` is not needed.
+`class` and `style` on HTML elements can receive `Observable` as well as regular values.
 
-```jsx
-function Elt() {
-  return <div class='hello'/>
-}
+`class` can be a `o.RO<string>` or an object of class definitions, where the properties are the class name and their values the potentially observable condition that will determine if the class is attributed. On top of that, class can receive an array of the two former to build complex classes.
 
-<Elt class='world'/>
-// -> <div class='hello word'/>
-```
-
-`class` and `style` can receive `Observable` as well as regular values. `class` can also be an array with `RO<string>` or with an object of class definitions.
+When using components, adding more classes or styles to them must be done through the [`$class`](#$class) and [`$style`](#$style) decorators.
 
 ```jsx
 const o_class = o('class2')
@@ -292,23 +298,22 @@ o_class.set('another-class')
 The `style` attribute does not accept text. Since it is considered good practice to not use this attribute, only its object form is supported for those cases where you can't do without.
 
 ```jsx
+const o_width = o('432px')
 <Elt style={ {width: o_width} }>
 ```
 
-## Function Components
-
 ## Mixins
 
-A [`Mixin`](#Mixin) is an object that is tied to a node. As for decorators, they are part of the [`Insertable`](#Insertable) type, which means that the way to add them to a `Node` is simply to put them somewhere in their children.
+A [`Mixin`](#Mixin) is an object that is tied to a node. Just like decorators, they are part of the [`Insertable`](#Insertable) type, which means that the way to add them to a `Node` is simply to put them somewhere in their children.
 
-They serve as the basis for the `Component` class below, and have a few convenient methods, such as `.observe()`, `init()`, `inserted()`, `deinit()` and `removed()`.
+They serve as the basis for the `Component` class below, and have a few convenient methods, such as `.observe()` and `.listen()`, and have a way of defining `init()`, `inserted()`, `deinit()` and `removed()` that work like their decorator counterparts.
 
-Aside from the `Component` class, their utility resides in the fact they allow a developper to write extensible code in a pure object-oriented fashion and to encapsulate code neatly when the component has a complex and lengthy implementation.
+Aside from creating components with the `Component` class, their utility resides in the fact they allow a developper to write extensible classes and to encapsulate code neatly when the component has a complex and lengthy implementation.
 
 ```jsx
 // This mixin can be added on just any node.
-class MyMixin extends Mixin {
-  inserted(node: Node,) {
+class MyMixin extends Mixin<Node> {
+  inserted(node: Node) {
     console.log(`I was inserted on`, parent)
   }
 
@@ -321,4 +326,76 @@ class MyMixin extends Mixin {
 document.body.appendChild(<div>{new MyMixin()}</div>)
 ```
 
+# Components
+
+Use components when you want to reuse dom structures without hassle.
+
+There are two ways of building components ; as a simple function or as a class.
+
+## Component Functions
+
+A component function takes two arguments and return a Node.
+
+The first argument is always an [`Attrs`](#e.JSX.Attrs) type, with the returned node type as a template argument. The second argument is always [`e.JSX.Renderable[]](#e.JSX.Renderable) and are the children that are to be added to this component.
+
+The `attrs` argument represents what attributes can be set on the component. In simple cases, it is enough to give the arguments with the `&` operator.
+
+```tsx
+function MyComponent(attrs: E.JSX.Attrs<HTMLDivElement> & {title: string}, children: E.JSX.Renderable[]) {
+  return <div>
+      <h1>{attrs.title}</h1>
+      {/* children will be inserted in the body div. */}
+      <div class='body'>{children}</div>
+    </div> as HTMLDivElement
+}
+
+<MyComponent title='Some title'>
+  Content <span>that will be</span> appended.
+</MyComponent>
+```
+
+If the attributes are complex, then it is advisable to define an interface.
+
+```tsx
+interface MyComponentAttrs extends E.JSX.Attrs<HTMLDivElement> {
+  title: string
+  more_content?: E.JSX.Renderable
+}
+
+function MyComponent(attrs: MyComponentAttrs, children: E.JSX.Renderable[]) {
+  /// ...
+}
+```
+
 ## Component class
+
+A component is a subclass of `Mixin`. A custom Component must define a `.render()` method that returns the node type specified in its `Attrs` type and takes renderables as its only argument.
+
+By default, the attributes are accessible as `this.attrs` in the component methods.
+
+```tsx
+class MyComponent extends Component<E.JSX.Attrs<HTMLDivElement> & {title: string}> {
+
+  render(children: E.JSX.Renderable[]) {
+    return E.$DIV(
+      E.$H1(this.attrs.title),
+      E.$DIV($class('body'), children)
+    )
+  }
+
+}
+```
+
+## Components and other Mixins or Decorators
+
+Decorators and Mixins can be added to components ; the node they act upon is always the root node returned by the component, as is specified in their `Attrs` definition.
+
+```tsx
+<MyComponent>
+  {$click(ev => {
+    console.log('the component was clicked on !')
+  })}
+  {$class('another_class', o_observable_classname)}
+</MyComponent>
+```
+

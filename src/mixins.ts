@@ -59,7 +59,7 @@ export interface Mixin<N extends Node> {
  * with `init()` or `inserted()`, please make sure that you set it to `null` in the
  * `removed()` call.
  * @api
- * @category jsx
+ * @category dom, toc
  */
 export abstract class Mixin<N extends Node = Node> {
 
@@ -142,12 +142,12 @@ export abstract class Mixin<N extends Node = Node> {
  * It is just a Mixin that has a `render()` method and that defines the `attrs`
  * property which will restrict what attributes the component can be created with.
  * All attributes must extend the base `Attrs` class.
- * @category jsx
+ * @category dom, toc
  */
-export abstract class Component<A extends e.JSX.EmptyAttributes<any> = e.JSX.Attrs<HTMLElement>> extends Mixin<e.JSX.NodeType<A>> {
+export abstract class Component<A extends e.JSX.EmptyAttributes<any> = e.JSX.Attrs<HTMLElement>> extends Mixin<e.JSX.AttrsNodeType<A>> {
   // attrs: Attrs
   constructor(public attrs: A) { super() }
-  abstract render(children: e.JSX.Renderable[]): e.JSX.NodeType<A>
+  abstract render(children: e.JSX.Renderable[]): e.JSX.AttrsNodeType<A>
 }
 
 

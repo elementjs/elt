@@ -296,7 +296,7 @@ export class ScrollRepeater<T> extends Repeater<T> {
 
   constructor(
     ob: o.Observable<T[]>,
-    renderfn: $Repeat.RenderFn<T>,
+    renderfn: (e: o.Observable<T>, oi: number) => e.JSX.Insertable<Node>,
     public scroll_buffer_size: number = 10,
     public threshold_height: number = 500,
     public separator?: $Repeat.SeparatorFn,
@@ -465,16 +465,14 @@ export namespace $Repeat {
  *
  * @category verb, toc
  */
-export function $RepeatScroll<T>(ob: T[], render: $Repeat.ReadonlyRenderFn<T>, separator?: $Repeat.SeparatorFn, scroll_buffer_size?: number): Node;
-export function $RepeatScroll<T>(ob: o.Observable<T[]>, render: $Repeat.RenderFn<T> , separator?: $Repeat.SeparatorFn, scroll_buffer_size?: number): Node;
-export function $RepeatScroll<T>(ob: o.ReadonlyObservable<T[]>, render: $Repeat.ReadonlyRenderFn<T>, separator?: $Repeat.SeparatorFn, scroll_buffer_size?: number): Node;
-export function $RepeatScroll<T>(
-  ob: any,
-  render: any,
+export function $RepeatScroll<T extends o.RO<any[]>>(
+  ob: T,
+  render: (arg: $Repeat.RoItem<T>, idx: number) => e.JSX.Insertable<Node>,
   separator?: $Repeat.SeparatorFn,
   scroll_buffer_size = 10
 ): Node {
-  return new ScrollRepeater(ob, render, scroll_buffer_size, 500, separator).render()
+  // we cheat the typesystem, which is not great, but we know what we're doing.
+  return new ScrollRepeater(o(ob as any) as o.Observable<any>, render as any, scroll_buffer_size, 500, separator).render()
 }
 
 
