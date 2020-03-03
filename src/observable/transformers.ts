@@ -3,41 +3,41 @@ import { o } from './observable'
 export namespace tf {
 
   /**
-   * @category transformer
+   * @category observable, toc
    */
   export function equals<T, TT extends T>(other: o.RO<TT>) {
     return o.tf(other, oth => (current: T) => current === oth)
   }
 
   /**
-   * @category transformer
+   * @category observable, toc
    */
   export function differs<T, TT extends T>(other: o.RO<TT>) {
     return o.tf(other, oth => (current: T) => current !== oth)
   }
 
   /**
-   * @category transformer
+   * @category observable, toc
    */
   export function is_truthy(val: any) { return !!val }
 
   /**
-   * @category transformer
+   * @category observable, toc
    */
   export function is_falsy(val: any) { return !val }
 
   /**
-   * @category transformer
+   * @category observable, toc
    */
   export function is_value(val: any) { return val != null }
 
   /**
-   * @category transformer
+   * @category observable, toc
    */
   export function is_not_value(val: any) { return val == null }
 
   /**
-   * @category transformer
+   * @category observable, toc
    */
   export function array_transform<T>(fn: o.RO<number[] | ((array: T[]) => number[])>): o.RO<o.Converter<T[], T[]> & {indices: number[]}> {
     return o.tf(fn,
@@ -68,7 +68,7 @@ export namespace tf {
    * @param condition The condition the item has to pass to be kept
    * @param stable If false, the array is refiltered for any change in the condition or array.
    *    If true, only refilter if the condition changes, but keep the indices even if the array changes.
-   * @category transformer
+   * @category observable, toc
    */
   export function array_filter<T>(condition: o.RO<(item: T, idx: number, lst: T[]) => any>, stable: o.RO<boolean> = false): o.RO<o.Converter<T[], T[]> & {indices: number[]}> {
     return o.virtual(
@@ -112,7 +112,7 @@ export namespace tf {
   /**
    * Transforms an array by sorting it. The sort function must return 0 in case of equality.
    * @param sortfn
-   * @category transformer
+   * @category observable, toc
    */
   export function sort<T>(sortfn: o.RO<(a: T, b: T) => 1 | 0 | -1>): o.RO<o.Converter<T[], T[]>> {
     return array_transform(o.tf(sortfn, sortfn => (lst: T[]) => {
@@ -127,7 +127,7 @@ export namespace tf {
   /**
    * Sort an array by extractors, given in order of importance.
    * @param sorters
-   * @category transformer
+   * @category observable, toc
    */
   export function sort_by<T>(sorters: o.RO<([(a: T) => any, 'desc' | 'asc'] | ((a: T) => any))[]>): o.RO<o.Converter<T[], T[]>> {
     return sort(o.tf(sorters,
@@ -161,7 +161,7 @@ export namespace tf {
 
   /**
    * Group by an extractor function.
-   * @category transformer
+   * @category observable, toc
    */
   export function group_by<T, R>(extractor: o.RO<(a: T) => R>): o.RO<o.Converter<T[], [R, T[]][]> & {indices: number[][], length: number}> {
     return o.tf(extractor, extractor => {
@@ -209,7 +209,7 @@ export namespace tf {
 
   /**
    * Object entries, as returned by Object.keys() and returned as an array of [key, value][]
-   * @category transformer
+   * @category observable, toc
    */
   export function entries<T extends object, K extends keyof T>(): o.Converter<T, [K, T[K]][]> {
     return {
@@ -235,7 +235,7 @@ export namespace tf {
 
   /**
    * Object entries, as returned by Object.keys() and returned as an array of [key, value][]
-   * @category transformer
+   * @category observable, toc
    */
   export function map_entries<K, V>(): o.Converter<Map<K, V>, [K, V][]> {
     return {
@@ -256,7 +256,7 @@ export namespace tf {
   /**
    *
    * @param values The values that should be in the set.
-   * @category transformer
+   * @category observable, toc
    */
   export function set_has<T>(...values: o.RO<T>[]): o.RO<o.Converter<Set<T>, boolean>> {
     return o.virtual(values, (values) => {

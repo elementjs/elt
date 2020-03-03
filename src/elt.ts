@@ -152,8 +152,8 @@ export function renderable_to_node(r: e.JSX.Renderable) {
 export function e<N extends Node>(elt: N, ...children: e.JSX.Insertable<N>[]): N
 export function e<K extends keyof HTMLElementTagNameMap>(elt: K, ...children: e.JSX.Insertable<HTMLElementTagNameMap[K]>[]): HTMLElementTagNameMap[K]
 export function e(elt: string, ...children: e.JSX.Insertable<HTMLElement>[]): HTMLElement
-export function e<A extends e.JSX.EmptyAttributes<any>>(elt: new (a: A) => Component<A>, attrs: A, ...children: e.JSX.Insertable<e.JSX.NodeType<A>>[]): e.JSX.NodeType<A>
-export function e<A extends e.JSX.EmptyAttributes<any>>(elt: (attrs: A, children: E.JSX.Renderable[]) => e.JSX.NodeType<A>, attrs: A, ...children: e.JSX.Insertable<e.JSX.NodeType<A>>[]): e.JSX.NodeType<A>
+export function e<A extends e.JSX.EmptyAttributes<any>>(elt: new (a: A) => Component<A>, attrs: A, ...children: e.JSX.Insertable<e.JSX.AttrsNodeType<A>>[]): e.JSX.AttrsNodeType<A>
+export function e<A extends e.JSX.EmptyAttributes<any>>(elt: (attrs: A, children: E.JSX.Renderable[]) => e.JSX.AttrsNodeType<A>, attrs: A, ...children: e.JSX.Insertable<e.JSX.AttrsNodeType<A>>[]): e.JSX.AttrsNodeType<A>
 export function e<N extends Node>(elt: any, ...children: e.JSX.Insertable<N>[]): N {
   if (!elt) throw new Error(`e() needs at least a string, a function or a Component`)
 
@@ -267,8 +267,8 @@ export namespace e {
     }
 
     /**
-     * The prototype JSX functions have to conform to.
-     * @category jsx
+     * The signature function components should conform to.
+     * @category dom, toc
      */
     export interface ElementClassFn<N extends Node> {
       (attrs: EmptyAttributes<N>, children: e.JSX.Renderable[]): N
@@ -283,13 +283,13 @@ export namespace e {
      * Renderables are the types understood by the `Display` verb and that can be rendered into
      * the DOM without efforts or need to transform. It is used by the `Insertable` type
      * to define what can go between `{ curly braces }` in JSX code.
-     * @category jsx
+     * @category dom, toc
      */
     export type Renderable = o.RO<string | number | Node | null | undefined>
 
     /**
      * @api
-     * @category jsx
+     * @category dom, toc
      *
      * The Insertable type describes the types that elt can append to a Node.
      * Anything of the Insertable type can be put `<tag>between braces {'!'}</tag>`.
@@ -313,7 +313,11 @@ export namespace e {
       $$children?: o.RO<Insertable<N>> | o.RO<Insertable<N>>[]
     }
 
-    export type NodeType<At extends EmptyAttributes<any>> = At extends EmptyAttributes<infer N> ? N : never
+    /**
+     * For a given attribute type used in components, give its related `Node` type.
+     * @category dom, toc
+     */
+    export type AttrsNodeType<At extends EmptyAttributes<any>> = At extends EmptyAttributes<infer N> ? N : never
 
 
     /**
@@ -350,7 +354,7 @@ export namespace e {
      * ```
      *
      * This type should be used as first argument to all components definitions.
-     * @category jsx
+     * @category dom, toc
      */
     export interface Attrs<N extends Node> extends EmptyAttributes<N> {
       id?: NRO<string>

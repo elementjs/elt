@@ -5,7 +5,7 @@ import { EACH, IndexableArray, Indexable } from './indexable'
  * @param arg A MaybeObservable
  * @returns The original observable if `arg` already was one, or a new
  *   Observable holding the value of `arg` if it wasn't.
- * @category observable
+ * @category observable, toc
  */
 export function o<T>(arg: T): [T] extends [o.Observable<any>] ? T :
     // when there is a mix of different observables, then we have a readonlyobservable of the combination of the types
@@ -22,7 +22,7 @@ export type AnyExtendsReadonlyObservable<T> = T extends ReadonlyObservable<any> 
 
 /**
  * Get the type of the element of an observable. Works on `#o.RO` as well.
- * @category observable
+ * @category observable, toc
  */
 export type BaseType<T> = T extends ReadonlyObservable<infer U> ? U : T
 
@@ -62,7 +62,7 @@ export type MaybeObservableReadonlyObject<T> = { [P in keyof T]:  RO<T[P]>}
  *
  * See `#o.NOVALUE`
  *
- * @category observable
+ * @category observable, toc
  */
 export class NoValue { private constructor() { }}
 
@@ -82,7 +82,7 @@ export function isReadonlyObservable(_: any): _ is ReadonlyObservable<any> {
 
 /**
  * A helper class to deal with changes from an old `#o.Observable` value to a new one.
- * @category observable
+ * @category observable, toc
  */
 export class Changes<A> {
   constructor(protected n: A, protected o: A | NoValue = NOVALUE) {
@@ -154,7 +154,7 @@ export class Changes<A> {
 
 
 /**
- * @category observable
+ * @category observable, toc
  */
 export class Observer<A> implements Indexable {
 
@@ -207,7 +207,7 @@ export namespace Observer {
 
 
 /**
- * @category observable
+ * @category observable, toc
  */
 export interface ReadonlyObservable<A> {
   get(): A
@@ -226,7 +226,7 @@ export interface ReadonlyObservable<A> {
 
 
 /**
- * @category observable
+ * @category observable, toc
  */
 export type RO<A> = ReadonlyObservable<A> | A
 
@@ -346,7 +346,7 @@ export class ChildObservableLink implements Indexable {
  *
  * Comes with the `.set()` and `.assign()` methods.
  *
- * @category observable
+ * @category observable, toc
  */
 export class Observable<A> implements ReadonlyObservable<A>, Indexable {
   /** Observers called when this Observable changes */
@@ -560,7 +560,7 @@ export class Observable<A> implements ReadonlyObservable<A>, Indexable {
  * An observable that does not its own value, but that depends
  * from outside getters and setters. The `#o.virtual` helper makes creating them easier.
  *
- * @category observable
+ * @category observable, toc
  */
 export class VirtualObservable<A extends any[], T = A> extends Observable<T> {
 
@@ -661,7 +661,7 @@ export class VirtualObservable<A extends any[], T = A> extends Observable<T> {
 
 /**
  * Create a virtual observable
- * @category observable
+ * @category observable, toc
  */
 export function virtual<T extends any[], R>(deps: {[K in keyof T]: RO<T[K]>}, get: (a: T) => R): ReadonlyObservable<R>
 export function virtual<T extends any[], R>(deps: {[K in keyof T]: RO<T[K]>}, get: (a: T) => R, set: (r: R, old: R | NoValue, last: T) => {[K in keyof T]: T[K] | NoValue} | void): Observable<R>
@@ -698,7 +698,7 @@ export function virtual<T extends any[], R>(deps: {[K in keyof T]: RO<T[K]>}, ge
  * @returns An observable which properties are the ones given in `obj` and values
  *   are the resolved values of their respective observables.
  *
- * @category observable
+ * @category observable, toc
  */
 export function merge<T>(obj: {[K in keyof T]: Observable<T[K]> | T[K]}): Observable<T>
 export function merge<T>(obj: {[K in keyof T]: RO<T[K]>}): ReadonlyObservable<T>
@@ -716,7 +716,7 @@ export function merge<T>(obj: {[K in keyof T]: Observable<T[K]>}): Observable<T>
 
 
 /**
- * @category observable
+ * @category observable, toc
  */
 export function prop<T>(obj: Observable<T> | T, prop: RO<number | keyof T | Symbol>) {
     return virtual([obj, prop as any] as [Observable<T>, RO<keyof T>],
@@ -733,7 +733,7 @@ export function prop<T>(obj: Observable<T> | T, prop: RO<number | keyof T | Symb
    * Get a MaybeObservable's value
    * @param arg The MaybeObservable
    * @returns `arg.get()` if it was an Observable or `arg` itself if it was not.
-   * @category observable
+   * @category observable, toc
    */
   export function get<A>(arg: RO<A>): A
   export function get<A>(arg: undefined | RO<A>): A | undefined
@@ -748,7 +748,7 @@ export function prop<T>(obj: Observable<T> | T, prop: RO<number | keyof T | Symb
    * This function is meant to be used when building components to avoid creating
    * Observable objects for values that were not.
    * @param arg: The maybe observable object
-   * @category observable
+   * @category observable, toc
    */
   export function tf<A, B>(arg: RO<A>, fn: Converter<A, B> | TransfomGetFn<A, B>): RO<B> {
     if (arg instanceof Observable) {
@@ -772,7 +772,7 @@ export function prop<T>(obj: Observable<T> | T, prop: RO<number | keyof T | Symb
    *
    * @param mobs: The maybe observable
    * @param key: The key to watch
-   * @category observable
+   * @category observable, toc
    */
   export function p<A, K extends keyof A>(mobs: Observable<A>, key: K): Observable<A[K]>
   export function p<A, K extends keyof A>(mobs: RO<A>, key: K): RO<A[K]>
@@ -789,7 +789,7 @@ export function prop<T>(obj: Observable<T> | T, prop: RO<number | keyof T | Symb
    * @param args Several MaybeObservables that will be and'ed
    * @returns A boolean Observable that is true when all of them are true, false
    *   otherwise.
-   * @category observable
+   * @category observable, toc
    */
   export function and(...args: any[]): ReadonlyObservable<boolean> {
     return virtual(args,
@@ -808,7 +808,7 @@ export function prop<T>(obj: Observable<T> | T, prop: RO<number | keyof T | Symb
    * @param args Several MaybeObservables that will be and'ed
    * @returns A boolean Observable that is true when any of them is true, false
    *   otherwise.
-   * @category observable
+   * @category observable, toc
    */
   export function or(...args: any[]): ReadonlyObservable<boolean> {
     return virtual(args,
@@ -826,7 +826,7 @@ export function prop<T>(obj: Observable<T> | T, prop: RO<number | keyof T | Symb
 
   /**
    * Merges several MaybeObservables into a single Observable in an array.
-   * @category observable
+   * @category observable, toc
    */
   export function combine<A extends any[]>(...deps: {[K in keyof A]: Observable<A[K]>}): Observable<A>
   export function combine<A extends any[]>(...deps: {[K in keyof A]: ReadonlyObservable<A[K]> | A[K]}): ReadonlyObservable<A>
@@ -972,14 +972,14 @@ export function prop<T>(obj: Observable<T> | T, prop: RO<number | keyof T | Symb
   export const clone_symbol = Symbol('o.clone_symbol')
 
   /**
-   * @category observable
+   * @category observable, toc
    */
   export function isNoValue<T>(t: T | NoValue): t is NoValue {
     return t === NOVALUE
   }
 
   /**
-   * @category observable
+   * @category observable, toc
    */
   export function isValue<T>(t: T | NoValue): t is T {
     return t !== NOVALUE
@@ -1101,7 +1101,7 @@ export function prop<T>(obj: Observable<T> | T, prop: RO<number | keyof T | Symb
    * A group of observers that can be started and stopped at the same time.
    * This class is meant to be used for components such as Mixin that want
    * to tie observing to their life cycle.
-   * @category observable
+   * @category observable, toc
    */
   export class ObserverHolder {
 
