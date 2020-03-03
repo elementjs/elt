@@ -274,13 +274,20 @@ prev !== o_obj.get() // true
 
 They can do a **lot** more than these very simple transformations. Check the Observable documentation.
 
+## Attributes
+
+All attributes on `HTMLElement` can have observables passed as value, in which case the attribute is updated as the observable changes.
+If the observable is boolean, then the value of the attribute will be `''`.
+
+```tsx
+<div contenteditable={o_boolean}/>
+```
+
 ## Classes and Styles
 
-`class` and `style` on HTML elements can receive `Observable` as well as regular values.
+`class` and `style` on elements can receive `Observable` as well as regular values.
 
 `class` can be a `o.RO<string>` or an object of class definitions, where the properties are the class name and their values the potentially observable condition that will determine if the class is attributed. On top of that, class can receive an array of the two former to build complex classes.
-
-When using components, adding more classes or styles to them must be done through the [`$class`](#$class) and [`$style`](#$style) decorators.
 
 ```jsx
 const o_class = o('class2')
@@ -384,6 +391,20 @@ class MyComponent extends Component<E.JSX.Attrs<HTMLDivElement> & {title: string
   }
 
 }
+```
+
+## Components and `class`, `style` and `id`
+
+Since these three attributes are ubiquitous on just any element type, they are handled separately.
+
+They're still passed along the `attrs` objects given to the components, but they don't have to be handled. They're applied automatically to the root node returned by the component.
+
+```tsx
+const o_cls = o('some_class')
+
+// this is valid and works on any component
+<MyComponent class={o_cls} id='some-id' style={{width: '350px'}}/>
+
 ```
 
 ## Components and other Mixins or Decorators
