@@ -2,7 +2,6 @@ import { EACH, IndexableArray, Indexable } from './indexable'
 
 /**
  * Make sure we have a usable observable.
- * @param arg A MaybeObservable
  * @returns The original observable if `arg` already was one, or a new
  *   Observable holding the value of `arg` if it wasn't.
  * @category observable, toc
@@ -93,7 +92,6 @@ export class Changes<A> {
    * Return true if the object changed compared to its previous value.
    * If there was no previous value, return true
    *
-   * @param ex Extractors to check for sub properties. If any of them
    *  changes, the function will return true.
    */
   changed(...ex: ((a: A) => any)[]) {
@@ -115,7 +113,6 @@ export class Changes<A> {
    * Does the same as changed, except that if there was no previous value,
    * return false.
    *
-   * @param ex Same than for changed, except that if the function returns
    *  undefined, it means that there was no previous value.
    */
   updated(...ex: ((a: A) => any)[]) {
@@ -349,14 +346,16 @@ export class ChildObservableLink implements Indexable {
  * @category observable, toc
  */
 export class Observable<A> implements ReadonlyObservable<A>, Indexable {
-  /** Observers called when this Observable changes */
-  // __observers = new Set<Observer<A, any>>()
 
+  /** @category internal */
   __observers = new IndexableArray<Observer<A>>()
+  /** @category internal */
   __children = new IndexableArray<ChildObservableLink>()
+  /** @category internal */
   __watched = false
 
   /** The index of this Observable in the notify queue. If null, means that it's not scheduled.
+   * @category internal
   */
   idx = null as null | number
 
@@ -396,7 +395,6 @@ export class Observable<A> implements ReadonlyObservable<A>, Indexable {
   /**
    * Set the value of the observable and notify the observers listening
    * to this object of this new value.
-   * @param value The value to set it to
    */
   set(value: A): void {
     const old = this.__value
@@ -413,7 +411,6 @@ export class Observable<A> implements ReadonlyObservable<A>, Indexable {
    *
    * For basic types like `number` or `string`, use `.set` instead.
    *
-   * @param fn The callback function
    */
   mutate(fn: (clone_value: A) => any) {
     var cloned = o.clone(this.__watched ? this.__value : this.get())
@@ -433,7 +430,6 @@ export class Observable<A> implements ReadonlyObservable<A>, Indexable {
    *
    * Since Observables values are treated as immutable, assign
    *
-   * @param partial The object containing changes
    */
   assign<U>(this: Observable<U[]>, partial: {[index: number]: assign.AssignPartial<U>}): void
   assign(partial: assign.AssignPartial<A>): void
@@ -502,7 +498,6 @@ export class Observable<A> implements ReadonlyObservable<A>, Indexable {
    * If there are no more observers watching this Observable, then it will stop
    * watching other Observables in turn if it did.
    *
-   * @param ob The observer
    */
   removeObserver(ob: Observer<A>): void {
     this.__observers.delete(ob)
@@ -552,7 +547,6 @@ export class Observable<A> implements ReadonlyObservable<A>, Indexable {
    * o_transformed_2.set(8) // o_obs now holds 2
    * ```
    *
-   * @param fnget
    */
   tf<B>(fnget: RO<Converter<A, B>>): Observable<B>
   tf<B>(fnget: RO<TransfomGetFn<A, B> | ReadonlyConverter<A, B>>): ReadonlyObservable<B>
@@ -588,6 +582,10 @@ export class Observable<A> implements ReadonlyObservable<A>, Indexable {
    * const o_base_a = o_base.p('a') // Observable<number>
    * o_base_a.set(4) // o_base now holds {a: 4, b: 2}
    *
+   * const o_key = o('b' as 'b' | 'a') // more generally `keyof T`
+   * const o_tf_key = o_base.p(o_key) // 2
+   * o_key.set('a') // o_tf_key now has 4
+   *
    * const o_base_2 = o([1, 2, 3, 4]) // Observable<number[]>
    * const o_base_2_item = o_base_2.p(2) // Observable<number>
    * ```
@@ -604,11 +602,14 @@ export class Observable<A> implements ReadonlyObservable<A>, Indexable {
  * An observable that does not its own value, but that depends
  * from outside getters and setters. The `#o.virtual` helper makes creating them easier.
  *
- * @category observable, toc
+ * @category observable, internal
  */
 export class VirtualObservable<A extends any[], T = A> extends Observable<T> {
 
+  /** @category internal */
   __links = [] as ChildObservableLink[]
+
+  /** @category internal */
   __parents_values: A = [] as any
 
   constructor(deps: {[K in keyof A]: RO<A[K]>}) {
@@ -704,7 +705,7 @@ export class VirtualObservable<A extends any[], T = A> extends Observable<T> {
 
 
 /**
- * Create a virtual observable
+ * Create an observable that depends on several other
  * @category observable, toc
  */
 export function virtual<T extends any[], R>(deps: {[K in keyof T]: RO<T[K]>}, get: (a: T) => R): ReadonlyObservable<R>
@@ -738,7 +739,6 @@ export function virtual<T extends any[], R>(deps: {[K in keyof T]: RO<T[K]>}, ge
  * merged.assign({b: 'universe'})
  * ```
  *
- * @param obj An object whose values may be Observables
  * @returns An observable which properties are the ones given in `obj` and values
  *   are the resolved values of their respective observables.
  *
@@ -775,7 +775,6 @@ export function prop<T, K extends keyof T>(obj: Observable<T> | T, prop: RO<K>) 
 
   /**
    * Get a MaybeObservable's value
-   * @param arg The MaybeObservable
    * @returns `arg.get()` if it was an Observable or `arg` itself if it was not.
    * @category observable, toc
    */
@@ -791,7 +790,6 @@ export function prop<T, K extends keyof T>(obj: Observable<T> | T, prop: RO<K>) 
    * only if it was itself observable.
    * This function is meant to be used when building components to avoid creating
    * Observable objects for values that were not.
-   * @param arg: The maybe observable object
    * @category observable, toc
    */
   export function tf<A, B>(arg: RO<A>, fn: Converter<A, B> | TransfomGetFn<A, B>): RO<B> {
@@ -814,8 +812,6 @@ export function prop<T, K extends keyof T>(obj: Observable<T> | T, prop: RO<K>) 
    *
    * This is a convenience function for building components.
    *
-   * @param mobs: The maybe observable
-   * @param key: The key to watch
    * @category observable, toc
    */
   export function p<A, K extends keyof A>(mobs: Observable<A>, key: K): Observable<A[K]>
@@ -830,7 +826,6 @@ export function prop<T, K extends keyof T>(obj: Observable<T> | T, prop: RO<K>) 
 
   /**
    * Combine several MaybeObservables into an Observable<boolean>
-   * @param args Several MaybeObservables that will be and'ed
    * @returns A boolean Observable that is true when all of them are true, false
    *   otherwise.
    * @category observable, toc
@@ -849,7 +844,6 @@ export function prop<T, K extends keyof T>(obj: Observable<T> | T, prop: RO<K>) 
 
   /**
    * Combine several MaybeObservables into an Observable<boolean>
-   * @param args Several MaybeObservables that will be and'ed
    * @returns A boolean Observable that is true when any of them is true, false
    *   otherwise.
    * @category observable, toc
@@ -885,8 +879,6 @@ export function prop<T, K extends keyof T>(obj: Observable<T> | T, prop: RO<K>) 
    * object is returned instead. This behaviour is intented to avoid triggering
    * observers when not needed.
    *
-   * @param value The value the new object will be based on
-   * @param mutator An object providing new values for select properties
    * @returns a new instance of the object if the mutator would change it
    * @category observable, toc
    */
@@ -1050,7 +1042,6 @@ export function prop<T, K extends keyof T>(obj: Observable<T> | T, prop: RO<K>) 
    *  - Promises are not supported.
    *  - Regexp and Dates are supported.
    *
-   * @param obj The object to shallow clone
    * @returns a new instance of the passed object.
    * @category observable, toc
    */
