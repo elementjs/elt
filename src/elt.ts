@@ -11,11 +11,12 @@ import {
 } from './verbs'
 
 import {
-  node_init,
   node_observe_class,
   node_observe_style,
   node_observe_attribute,
   node_inserted,
+  insert_before_and_init,
+  append_child_and_init,
 } from './dom'
 
 
@@ -130,8 +131,7 @@ export function e<N extends Node>(elt: any, ...children: e.JSX.Insertable<N>[]):
     for (i = 0, l = renderables.length; i < l; i++) {
       var c = e.renderable_to_node(renderables[i])
       if (c) {
-        node.appendChild(c)
-        node_init(c)
+        append_child_and_init(node, c)
       }
     }
 
@@ -243,9 +243,7 @@ export namespace e {
     // If there was no comment associated with this decorator, do nothing
     if (!cmt) return
     // insert the resulting node right next to the comment
-    node.insertBefore(nd, cmt)
-    // and init it
-    node_init(nd)
+    insert_before_and_init(node, nd, cmt)
   }
 
   /**

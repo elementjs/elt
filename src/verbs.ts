@@ -148,8 +148,18 @@ export function $If<T extends o.RO<any>>(
 
 export namespace $If {
 
-  export type DisplayFn<T> = (a: T) => e.JSX.Insertable<Node>
+  export type DisplayFn<T> = (a: T) => e.JSX.Renderable
 
+  /**
+   * Get the type of a potentially `Observable` type where `null` and `undefined` are exluded, keeping
+   * the `Readonly` status if the provided `Observable` type was `Readonly`.
+   *
+   * ```tsx
+   * NonNullableObs<o.Observable<string | null>> // -> o.Observable<string>
+   * NonNullableObs<o.RO<number | undefined | null> // -> o.ReadonlyObservable<number> | number
+   * NonNullableObs<string> // -> string
+   * ```
+   */
   export type NonNullableObs<T> = T extends o.Observable<infer U> ? o.Observable<NonNullable<U>> :
     T extends o.ReadonlyObservable<infer U> ? o.ReadonlyObservable<NonNullable<U>>
     : NonNullable<T>
@@ -157,6 +167,7 @@ export namespace $If {
 
   /**
    * Implementation of the `DisplayIf()` verb.
+   * @internal
    */
   export class ConditionalDisplayer<T extends o.ReadonlyObservable<any>> extends Displayer {
 
