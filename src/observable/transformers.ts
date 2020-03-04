@@ -71,7 +71,7 @@ export namespace tf {
    * @category observable, toc
    */
   export function array_filter<T>(condition: o.RO<(item: T, idx: number, lst: T[]) => any>, stable: o.RO<boolean> = false): o.RO<o.Converter<T[], T[]> & {indices: number[]}> {
-    return o.virtual(
+    return o.combine(
       o.tuple(condition, stable),
       ([cond, stable]) => {
         return {
@@ -259,7 +259,7 @@ export namespace tf {
    * @category observable, toc
    */
   export function set_has<T>(...values: o.RO<T>[]): o.RO<o.Converter<Set<T>, boolean>> {
-    return o.virtual(values, (values) => {
+    return o.combine(values, (values) => {
       return {
         get(set) {
           for (var i = 0; i < values.length; i++) {

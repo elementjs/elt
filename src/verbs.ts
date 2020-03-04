@@ -126,11 +126,31 @@ export function $Display(obs: o.RO<Insertable<Node>>): Node {
  * @category verb, toc
  *
  * Display content depending on the value of a `condition`, which can be `#o.Observable`
+ *
+ * If `condition` is not an observable, then the call to `$If` is resolved immediately without using
+ * an intermediary observable.
+ *
+ * If `condition` is readonly, then the observables given to `display` and `display_otherwise` are
+ * Readonly as well.
+ *
+ * For convenience, the truth value is given typed as a `o.Observable<NonNullable<...>>` in `display`,
+ * since there is no way `null` or `undefined` could make their way here.
+ *
+ * ```tsx
+ * // o_obj is nullable.
+ * const o_obj = o({a: 'hello'} as {a: string} | null)
+ *
+ * $If(o_obj,
+ *   // o_truthy here is o.Observable<{a: string}>
+ *   // which is why we can safely use .p('a') without typescript complaining
+ *   o_truthy => <>{o_truthy.p('a')}
+ * )
+ * ```
  */
 export function $If<T extends o.RO<any>>(
   condition: T,
-  display: $If.DisplayFn<$If.NonNullableObs<T>>,
-  display_otherwise?: $If.DisplayFn<T>
+  display: (arg: $If.NonNullableRO<T>) => Renderable,
+  display_otherwise?: (a: T) => Renderable
 ): Node {
   // ts bug on condition.
   if (typeof display === 'function' && !((condition as any) instanceof o.Observable)) {
@@ -148,8 +168,6 @@ export function $If<T extends o.RO<any>>(
 
 export namespace $If {
 
-  export type DisplayFn<T> = (a: T) => Renderable
-
   /**
    * Get the type of a potentially `Observable` type where `null` and `undefined` are exluded, keeping
    * the `Readonly` status if the provided `Observable` type was `Readonly`.
@@ -160,26 +178,26 @@ export namespace $If {
    * NonNullableObs<string> // -> string
    * ```
    */
-  export type NonNullableObs<T> = T extends o.Observable<infer U> ? o.Observable<NonNullable<U>> :
+  export type NonNullableRO<T> = T extends o.Observable<infer U> ? o.Observable<NonNullable<U>> :
     T extends o.ReadonlyObservable<infer U> ? o.ReadonlyObservable<NonNullable<U>>
     : NonNullable<T>
 
 
   /**
    * Implementation of the `DisplayIf()` verb.
-   * @internal
+   * @category internal
    */
   export class ConditionalDisplayer<T extends o.ReadonlyObservable<any>> extends Displayer {
 
     constructor(
-      protected display: $If.DisplayFn<$If.NonNullableObs<T>>,
+      protected display: (arg: $If.NonNullableRO<T>) => Renderable,
       protected condition: T,
-      protected display_otherwise?: $If.DisplayFn<T>
+      protected display_otherwise?: (arg: T) => Renderable
     ) {
       super(condition.tf((cond, old, v) => {
         if (old !== o.NOVALUE && !!cond === !!old && v !== o.NOVALUE) return v as Insertable<Node>
         if (cond) {
-          return display(condition as NonNullableObs<T>)
+          return display(condition as NonNullableRO<T>)
         } else if (display_otherwise) {
           return display_otherwise(condition)
         } else {
@@ -396,8 +414,8 @@ export class ScrollRepeater<T> extends Repeater<T> {
  * Repeats the `render` function for each element in `ob`, optionally separating each rendering
  * with the result of the `separator` function.
  *
- * If `ob` is an observable, `Repeat` will update the generated nodes to match the changes.
- * If it is a `ReadonlyObservable`, then the `render` callback will be provided a read only observable.
+ * If `ob` is an observable, `$Repeat` will update the generated nodes to match the changes.
+ * If it is a `o.ReadonlyObservable`, then the `render` callback will be provided a read only observable.
  *
  * `ob` is not converted to an observable if it was not one, in which case the results are executed
  * right away and only once.
@@ -453,7 +471,7 @@ export namespace $Repeat {
 }
 
 /**
- * Similarly to `Repeat`, `RepeatScroll` repeats the `render` function for each element in `ob`,
+ * Similarly to `$Repeat`, `$RepeatScroll` repeats the `render` function for each element in `ob`,
  * optionally separated by the results of `separator`, until the elements overflow past the
  * bottom border of the current parent marked `overflow-y: auto`.
  *
@@ -498,7 +516,7 @@ export function $RepeatScroll<T extends o.RO<any[]>>(
  * </div>
  * ```
  *
- * $Switch can work with typeguards to narrow a type in the observable passed to the then callback,
+ * `$Switch()` can work with typeguards to narrow a type in the observable passed to the then callback,
  * but only with defined functions. It is however not as powerful as typescript's type guards in ifs
  * and will not recognize `typeof` or `instanceof` calls.
  *
