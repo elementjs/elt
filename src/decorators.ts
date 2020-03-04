@@ -63,7 +63,7 @@ export namespace $bind {
       node => as_html ? node.innerHTML : node.innerText,
       (node, value) => {
         if (as_html) { node.innerHTML = value }
-            else { node.innerText = value }
+        else { node.innerText = value }
       },
     )
   }
@@ -144,7 +144,7 @@ export namespace $bind {
  *
  * @category decorator, toc
  */
-export function $props<N extends Node>(props: {[k in keyof N]?:  o.RO<N[k]>}): (node: N) => void {
+export function $props<N extends Node>(props: { [k in keyof N]?: o.RO<N[k]> }): (node: N) => void {
   var keys = Object.keys(props) as (keyof N)[]
   return (node: N) => {
     for (var i = 0, l = keys.length; i < l; i++) {
@@ -236,7 +236,7 @@ export function $style<N extends HTMLElement | SVGElement>(...styles: StyleDefin
  */
 // export function $observe<T>(a: o.Observer<T>): Decorator<Node>
 export function $observe<N extends Node, T>(a: o.RO<T>, cbk: (newval: T, changes: o.Changes<T>, node: N) => void, obs_cbk?: (observer: o.Observer<T>) => void): Decorator<N> {
-// export function $observe<T>(a: any, cbk?: any): Decorator<Node> {
+  // export function $observe<T>(a: any, cbk?: any): Decorator<Node> {
   return node => {
     var res = node_observe(node, a, (nval, chg) => cbk(nval, chg, node))
     if (res && obs_cbk) obs_cbk(res)
@@ -375,50 +375,17 @@ var _noscrollsetup = false
 
 
 /**
- * Used by the `scrollable()` mixin
+ * Used by the `scrollable()` decorator
  */
 function _setUpNoscroll() {
 
-	document.body.addEventListener('touchmove', function event(ev) {
-		// If no div marked as scrollable set the moving attribute, then simply don't scroll.
-		if (!(ev as any).scrollable) ev.preventDefault()
-	}, false)
+  document.body.addEventListener('touchmove', function event(ev) {
+    // If no div marked as scrollable set the moving attribute, then simply don't scroll.
+    if (!(ev as any).scrollable) ev.preventDefault()
+  }, false)
 
-	_noscrollsetup = true
+  _noscrollsetup = true
 }
-
-
-/**
- * Used by the `scrollable()` mixin
- */
-export class ScrollableMixin extends Mixin<HTMLElement> {
-
-    _touchStart: (ev: TouchEvent) => void = () => null
-    _touchMove: (ev: TouchEvent) => void = () => null
-
-    init(node: HTMLElement) {
-      if (!(node instanceof HTMLElement)) throw new Error(`scrollable() only works on HTMLElement`)
-      if (!_noscrollsetup) _setUpNoscroll()
-
-      var style = node.style as any
-      style.overflowY = 'auto'
-      style.overflowX = 'auto'
-
-      // seems like typescript doesn't have this property yet
-      style.webkitOverflowScrolling = 'touch'
-
-      this.listen('touchstart', ev => {
-        if (ev.currentTarget.scrollTop == 0) {
-          node.scrollTop = 1
-        } else if (node.scrollTop + node.offsetHeight >= node.scrollHeight - 1) node.scrollTop -= 1
-      }, true)
-
-      this.listen('touchmove', ev => {
-        if (ev.currentTarget.offsetHeight < ev.currentTarget.scrollHeight)
-        (ev as any).scrollable = true
-      }, true)
-    }
-  }
 
 
 /**
@@ -430,5 +397,25 @@ export class ScrollableMixin extends Mixin<HTMLElement> {
  * @api
  */
 export function $scrollable() {
-  return new ScrollableMixin()
+  return (node: HTMLElement) => {
+    if (!_noscrollsetup) _setUpNoscroll()
+
+    var style = node.style as any
+    style.overflowY = 'auto'
+    style.overflowX = 'auto'
+
+    // seems like typescript doesn't have this property yet
+    style.webkitOverflowScrolling = 'touch'
+
+    node_add_event_listener(node, 'touchstart', ev => {
+      if (ev.currentTarget.scrollTop == 0) {
+        node.scrollTop = 1
+      } else if (node.scrollTop + node.offsetHeight >= node.scrollHeight - 1) node.scrollTop -= 1
+    }, true)
+
+    node_add_event_listener(node, 'touchmove', ev => {
+      if (ev.currentTarget.offsetHeight < ev.currentTarget.scrollHeight)
+        (ev as any).scrollable = true
+    }, true)
+  }
 }

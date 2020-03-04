@@ -443,8 +443,8 @@ export namespace $Repeat {
   : T extends (infer U)[] ? U
   : T;
 
+  /** @category internal */
   export type RenderFn<T> = (e: o.Observable<T>, oi: number) => Insertable<Node>
-  export type ReadonlyRenderFn<T> = (e: o.ReadonlyObservable<T>, oi: number) => Insertable<Node>
 
   export type SeparatorFn = (oi: number) => Insertable<Node>
 
