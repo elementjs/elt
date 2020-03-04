@@ -7,7 +7,6 @@ import {
 
 import {
   Mixin,
-  node_add_mixin
 } from './mixins'
 
 import { e } from './elt'
@@ -54,26 +53,13 @@ export function get_node_from_insertable(i: e.JSX.Insertable<Node>) {
 
 
 /**
- * @category verb, toc
- */
-export class Verb extends Mixin<Comment> {
-
-  render() {
-    const node = document.createComment(`  ${this.constructor.name} `)
-    node_add_mixin(node, this)
-    return node
-  }
-
-}
-
-/**
  * A subclass of `#Verb` made to store nodes between two comments.
  *
  * Can be used as a base to build verbs more easily.
  * @category verb, toc
  */
 var cmt_count = 0
-export class CommentContainer extends Verb {
+export class CommentContainer extends Mixin<Comment> {
 
   end = document.createComment(`-- ${this.constructor.name} ${cmt_count ++} --`)
 
@@ -132,7 +118,7 @@ export function $Display(obs: o.RO<e.JSX.Insertable<Node>>): Node {
     return get_node_from_insertable(obs as e.JSX.Insertable<Node>)
   }
 
-  return new Displayer(obs).render()
+  return e(document.createComment('$Display'), new Displayer(obs))
 }
 
 
@@ -155,7 +141,9 @@ export function $If<T extends o.RO<any>>(
           : document.createComment('false'))
   }
 
-  return new $If.ConditionalDisplayer<any>(display, condition, display_otherwise).render()
+  return e(document.createComment('$If'),
+    new $If.ConditionalDisplayer<any>(display, condition, display_otherwise)
+  )
 }
 
 export namespace $If {
@@ -197,7 +185,7 @@ export namespace $If {
 /**
  *  Repeats content.
  */
-export class Repeater<T> extends Verb {
+export class Repeater<T> extends Mixin<Comment> {
 
   // protected proxy = o([] as T[])
   protected obs: o.Observable<T[]>
@@ -430,7 +418,11 @@ export function $Repeat<T extends o.RO<any[]>>(
     }
     return get_node_from_insertable(final)
   }
-  return new Repeater(ob, render as any, separator).render()
+
+  return e(
+    document.createComment('$Repeat'),
+    new Repeater(ob, render as any, separator)
+  )
 }
 
 export namespace $Repeat {
@@ -471,7 +463,10 @@ export function $RepeatScroll<T extends o.RO<any[]>>(
   scroll_buffer_size = 10
 ): Node {
   // we cheat the typesystem, which is not great, but we know what we're doing.
-  return new ScrollRepeater(o(ob as any) as o.Observable<any>, render as any, scroll_buffer_size, 500, separator).render()
+  return e(
+    document.createComment('$RepeatScroll'),
+    new ScrollRepeater(o(ob as any) as o.Observable<any>, render as any, scroll_buffer_size, 500, separator)
+  )
 }
 
 

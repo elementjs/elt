@@ -63,11 +63,9 @@ declare global {
     // Note: the following section is somewhat "incorrect", as the correct typing here
     // would be (n: this) => void for the functions.
     // However, doing so then prevents some simple code like
-    // var n: node = some_node.nextSibling, since its sym_init would then be (n: ChildNode) => void
+    // var n: Node = some_node.nextSibling, since its sym_init would then be (n: ChildNode) => void
+    // and thus can no longer be assigned to the variable without breaking stuff in existing code.
 
-    // FIXME : we may have to use a different type that doesn't upgrade Node but rather that works alongside
-    // it to stay correct. Decorators for a given node type *cannot* be passed around, which this
-    // way of doing is authorizing.
     [sym_init]?: ((n: Node) => void)[]
     [sym_deinit]?: ((n: Node) => void)[]
     [sym_inserted]?: ((n: Node, parent: Node) => void)[]
