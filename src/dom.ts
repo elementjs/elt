@@ -74,8 +74,8 @@ declare global {
 }
 
 /**
- * Call controllers' mount() functions.
- * @internal
+ * Call init() functions on a node
+ * @category internal
  */
 export function node_init(node: Node) {
   node[sym_mount_status] = 'init'
@@ -99,7 +99,7 @@ export function node_init(node: Node) {
 
 
 /**
- * @internal
+ * @category internal
  */
 export function node_inserted(node: Node) {
   var nodes = [node] as Node[] // the nodes we will have to tell they're inserted

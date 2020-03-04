@@ -228,6 +228,7 @@ export interface ReadonlyObservable<A> {
 export type RO<A> = ReadonlyObservable<A> | A
 
 
+/** @category internal */
 export function each_recursive(obs: Observable<any>, fn: (v: Observable<any>) => void) {
 
   var objs = [] as Observable<any>[]
@@ -264,7 +265,7 @@ export function each_recursive(obs: Observable<any>, fn: (v: Observable<any>) =>
 }
 
 
-
+/** @category internal */
 export class Queue extends IndexableArray<Observable<any>> {
   transaction_count = 0
 
@@ -314,9 +315,30 @@ export class Queue extends IndexableArray<Observable<any>> {
   }
 }
 
+/** @category internal */
 const queue = new Queue()
 
 /**
+ * Start an observable transaction, where the observers of all the observables being
+ * set or assigned to during the callback are only called at the end.
+ *
+ * Use it when you know you will modify two or more observables that trigger the same transforms
+ * to avoid calling the observers each time one of the observable is modified.
+ *
+ * ```tsx
+ * const o_1 = o(1)
+ * const o_2 = o(2)
+ * const o_3 = o.join(o_1, o_2).tf(([a, b]) => a + b)
+ *
+ * // ...
+ *
+ * // the observers on o_3 will only get called once instead of twice.
+ * o.transaction(() => {
+ *   o_1.set(2)
+ *   o_2.set(3)
+ * })
+ * ```
+ *
  * @category observable, toc
  */
 export function transaction(fn: () => void) {
@@ -554,7 +576,7 @@ export class Observable<A> implements ReadonlyObservable<A>, Indexable {
     var old: A = NOVALUE
     var old_fnget: any = NOVALUE
     var curval: B = NOVALUE
-    return virtual([this, fnget] as [Observable<A>, RO<TransfomGetFn<A, B> | ReadonlyConverter<A, B>>],
+    return combine([this, fnget] as [Observable<A>, RO<TransfomGetFn<A, B> | ReadonlyConverter<A, B>>],
       ([v, fnget]) => {
         if (isValue(old) && isValue(old_fnget) && old === v && old_fnget === fnget && isValue(curval)) return curval
         curval = (typeof fnget === 'function' ? fnget(v, old, curval) : fnget.get(v, old, curval))
@@ -705,12 +727,41 @@ export class VirtualObservable<A extends any[], T = A> extends Observable<T> {
 
 
 /**
- * Create an observable that depends on several other
+ * Create an observable that depends on several other observables, optionally providing a two-way transformation if `set` is given.
+ *
+ * This is a more involved version of [`o.join`](#o.join) but without having to use `.tf()` on it which is more efficient.
+ * Also, this allows for creating observables depending on a combination of readable and readonly observables.
+ *
+ * In the `set` portion, returning a `o.NOVALUE` in the result tuple will tell the combiner that the original observable should not be touched.
+ *
+ * For instance, here is a possible implementation of `.p()` :
+ *
+ * ```tsx
+ * // prop is o.RO<K>, which allows us to write
+ * // prop(o_obs, 'key')
+ * // prop(o_obs, o_key) where o_key can be readonly
+ * // -- this works because we never need to touch the key, just to know if it changes.
+ * function prop<T, K extends keyof T>(obj: o.Observable<T> | T, prop: o.RO<K>) {
+ *   return o.combine(
+ *     o.tuple(obj, prop), // combine needs a tuple to not have all arguments as unions
+ *     ([obj, prop]) => obj[prop], // the getter is pretty straightforward
+ *     (nval, _, [orig, prop]) => { // we ignore the old value of the combined observable, which is why it's named _
+ *       // clone the original value ; remember, observables deal with immutables
+ *       const newo = o.clone(orig)
+ *       // assign the new value to the clone
+ *       newo[prop] = nval
+ *       // here, combine will not update the prop since NOVALUE is given
+ *       return o.tuple(newo, o.NOVALUE) // o.NOVALUE is any, so tsc won't complain
+ *     }
+ *   )
+ * }
+ * ```
+ *
  * @category observable, toc
  */
-export function virtual<T extends any[], R>(deps: {[K in keyof T]: RO<T[K]>}, get: (a: T) => R): ReadonlyObservable<R>
-export function virtual<T extends any[], R>(deps: {[K in keyof T]: RO<T[K]>}, get: (a: T) => R, set: (r: R, old: R | NoValue, last: T) => {[K in keyof T]: T[K] | NoValue} | void): Observable<R>
-export function virtual<T extends any[], R>(deps: {[K in keyof T]: RO<T[K]>}, get: (a: T) => R, set?: (r: R, old: R | NoValue, last: T) => T | void): Observable<R> {
+export function combine<T extends any[], R>(deps: {[K in keyof T]: RO<T[K]>}, get: (a: T) => R): ReadonlyObservable<R>
+export function combine<T extends any[], R>(deps: {[K in keyof T]: RO<T[K]>}, get: (a: T) => R, set: (r: R, old: R | NoValue, last: T) => {[K in keyof T]: T[K] | NoValue} | void): Observable<R>
+export function combine<T extends any[], R>(deps: {[K in keyof T]: RO<T[K]>}, get: (a: T) => R, set?: (r: R, old: R | NoValue, last: T) => T | void): Observable<R> {
   var virt = new VirtualObservable<T, R>(deps)
   virt.getter = get
   virt.setter = set! // force undefined to trigger errors for readonly observables.
@@ -749,7 +800,7 @@ export function merge<T>(obj: {[K in keyof T]: RO<T[K]>}): ReadonlyObservable<T>
 export function merge<T>(obj: {[K in keyof T]: Observable<T[K]>}): Observable<T> {
   const keys = Object.keys(obj) as (keyof T)[]
   const parents: RO<T[keyof T]>[] = keys.map(k => obj[k])
-  return virtual(parents, args => {
+  return combine(parents, args => {
     var res = {} as {[K in keyof T]: T[K]}
     for (var i = 0; i < keys.length; i++) {
       res[keys[i]] = args[i]
@@ -763,12 +814,12 @@ export function merge<T>(obj: {[K in keyof T]: Observable<T[K]>}): Observable<T>
  * @category observable, toc
  */
 export function prop<T, K extends keyof T>(obj: Observable<T> | T, prop: RO<K>) {
-    return virtual([obj, prop as any] as [Observable<T>, RO<K>],
-    ([obj, prop]) => obj[prop] as T[K],
+    return combine([obj, prop] as [Observable<T>, RO<K>],
+    ([obj, prop]) => obj[prop],
     (nval, _, [orig, prop]) => {
       const newo = o.clone(orig)
       newo[prop] = nval
-      return [newo, o.NOVALUE] as [T, K]
+      return o.tuple(newo, o.NOVALUE)
     }
   )
 }
@@ -831,7 +882,7 @@ export function prop<T, K extends keyof T>(obj: Observable<T> | T, prop: RO<K>) 
    * @category observable, toc
    */
   export function and(...args: any[]): ReadonlyObservable<boolean> {
-    return virtual(args,
+    return combine(args,
       (args) => {
         for (var i = 0, l = args.length; i < l; i++) {
           if (!args[i]) return false
@@ -849,7 +900,7 @@ export function prop<T, K extends keyof T>(obj: Observable<T> | T, prop: RO<K>) 
    * @category observable, toc
    */
   export function or(...args: any[]): ReadonlyObservable<boolean> {
-    return virtual(args,
+    return combine(args,
       (args) => {
         for (var i = 0, l = args.length; i < l; i++) {
           if (args[i]) return true
@@ -864,11 +915,23 @@ export function prop<T, K extends keyof T>(obj: Observable<T> | T, prop: RO<K>) 
 
   /**
    * Merges several MaybeObservables into a single Observable in an array.
+   *
+   * The resulting observable is writable only if all its constituents were themselves writable.
+   *
+   * ```tsx
+   * var obs = o.join(o('a'), o('b'))
+   *
+   * <div>
+   *   {$observe(obs, ([a, b]) => {
+   *     // ...
+   *   })}
+   * </div>
+   * ```
    * @category observable, toc
    */
-  export function combine<A extends any[]>(...deps: {[K in keyof A]: Observable<A[K]>}): Observable<A>
-  export function combine<A extends any[]>(...deps: {[K in keyof A]: ReadonlyObservable<A[K]> | A[K]}): ReadonlyObservable<A>
-  export function combine<A extends any[]>(...deps: {[K in keyof A]: RO<A[K]>}) {
+  export function join<A extends any[]>(...deps: {[K in keyof A]: Observable<A[K]>}): Observable<A>
+  export function join<A extends any[]>(...deps: {[K in keyof A]: ReadonlyObservable<A[K]> | A[K]}): ReadonlyObservable<A>
+  export function join<A extends any[]>(...deps: {[K in keyof A]: RO<A[K]>}) {
     return new VirtualObservable(deps)
   }
 
@@ -1024,7 +1087,13 @@ export function prop<T, K extends keyof T>(obj: Observable<T> | T, prop: RO<K>) 
   /**
    * Returns its arguments as an array but typed as a tuple from Typescript's point of view.
    *
-   * This exists only because Typescript won't give us to create a tuple easily from values.
+   * This only exists because there is no way to declare a tuple in Typescript other than with a plain
+   * array, and arrays with several types end up as an union.
+   *
+   * ```tsx
+   * var a = ['hello', 2] // a is (string | number)[]
+   * var b = o.tuple('hello', 2) // b is [string, number]
+   * ```
    *
    * @category observable, toc
    */
