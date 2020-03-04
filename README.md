@@ -164,6 +164,8 @@ append_child_and_init(document.body, E.$DIV(
 Verbs are simply functions whose name is a verb (hence the name), that usually start prefixed with `$`, to add a visual emphasis on their presence.
 The fact they're verbs is to mean they represent dynamicity, things that change.
 
+While they could have been implemented as Components, the choice was deliberately made to make them regular function calls to insist on the fact that they're not just some html component that will sit in the document once rendered.
+
 They usually work in concert with Observables to control the presence of nodes in the document.
 
 For instance, [`$If`](#$If) will render its then arm only if the given observable is truthy, and the else otherwise.
