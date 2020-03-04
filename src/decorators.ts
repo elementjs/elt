@@ -125,6 +125,19 @@ export namespace $bind {
 
 /**
  * Modify object properties of the current Node.
+ *
+ * Unfortunately, TSX does not pick up on the correct node type here. It however works without having
+ * to type with regular js calls.
+ *
+ * ```tsx
+ * <div>
+ *   {$props<HTMLDivElement>({dir: 'left'})}
+ * </div>
+ * E.$DIV(
+ *   $props({dir: 'left'})
+ * )
+ * ```
+ *
  * @category decorator, toc
  */
 export function $props<N extends Node>(props: {[k in keyof N]?:  o.RO<N[k]>}): (node: N) => void {
@@ -157,11 +170,12 @@ export function $class<N extends Element>(...clss: E.JSX.ClassDefinition[]) {
 
 /**
  * Update a node's id with a potentially observable value.
- * Used mostly when dealing with components since their base node attributes are no longer available.
  *
  * ```tsx
  * <MyComponent>{$id('some-id')}</MyComponent>
  * ```
+ *
+ * > **Note**: You can use the `id` attribute on any element, be them Components or regular nodes, as it is forwarded.
  *
  * @category decorator, toc
  */
@@ -178,6 +192,9 @@ export function $id<N extends Element>(id: o.RO<string>) {
  *
  * ```tsx
  * <MyComponent>{$title('Some title ! It generally appears on hover.')}</MyComponent>
+ * E.$DIV(
+ *   $title('hello there !')
+ * )
  * ```
  * @category decorator, toc
  */
@@ -189,6 +206,15 @@ export function $title<N extends HTMLElement>(title: o.RO<string>) {
 
 
 /**
+ * Update a node's style with potentially observable varlues
+ *
+ * ```tsx
+ * const o_width = o('321px')
+ * E.$DIV(
+ *   $style({width: o_width, flex: '1'})
+ * )
+ * ```
+ *
  * @category decorator, toc
  */
 export function $style<N extends HTMLElement | SVGElement>(...styles: E.JSX.StyleDefinition[]) {
@@ -294,10 +320,10 @@ export function $init<N extends Node>(fn: (node: N) => void): Decorator<N> {
  * @category decorator, toc
  * @api
  */
-export function $deinit<N extends Node>(fn: (node: N) => void): Decorator<N> {
-  return node => {
+export function $deinit<N extends Node>(fn: (node: N) => void) {
+  return (node: N) => {
     // @ts-ignore : I have to force typescript's hand there
-    node_on_deinit(fn)
+    node_on_deinit(node, fn)
   }
 }
 
@@ -314,8 +340,8 @@ export function $deinit<N extends Node>(fn: (node: N) => void): Decorator<N> {
  *
  * @category decorator, toc
  */
-export function $inserted<N extends Node>(fn: (node: N, parent: Node) => void): Decorator<N> {
-  return node => {
+export function $inserted<N extends Node>(fn: (node: N, parent: Node) => void) {
+  return (node: N) => {
     // @ts-ignore : I have to force typescript's hand there
     node_on_inserted(node, fn)
   }
@@ -323,20 +349,26 @@ export function $inserted<N extends Node>(fn: (node: N, parent: Node) => void): 
 
 
 /**
+ * Run a callback when the node is a direct target for removal from the document.
+ *
  * ```jsx
- *  If(o_some_condition, () => <div>{$removed((node, parent) => {
- *    console.log(`I will only be called is this div is directly removed
- *    from the DOM, but not if it was a descendant of such a node, in which
- *    case only deinit() would be called.`)
- *  })}</div>
+ * $If(o_some_condition, () => <div>
+ *   {$removed((node, parent) => {
+ *     console.log(`I was removed.`)
+ *   })}
+ *   <div>
+ *      Subdiv
+ *      {$removed(() => console.log('I will not be displayed when o_some_condition becomes false'))}
+ *      {$deinit(() => console.log('However, I will'))}
+ *   </div>
+ * </div>)
  * ```
  * @category decorator, toc
  * @api
  */
-export function $removed<N extends Node>(fn: (node: N, parent: Node) => void): Decorator<N> {
-  return node => {
-    // @ts-ignore : I have to force typescript's hand there
-    node_on_removed(fn)
+export function $removed<N extends Node>(fn: (node: N, parent: Node) => void) {
+  return (node: N) => {
+    node_on_removed(node, fn)
   }
 }
 
