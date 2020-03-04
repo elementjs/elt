@@ -99,7 +99,6 @@ var _decorator_map = new WeakMap<Function, Comment>()
 export type Renderable = o.RO<string | number | Node | null | undefined>
 
 /**
- * @api
  * @category dom, toc
  *
  * The Insertable type describes the types that elt can append to a Node.
