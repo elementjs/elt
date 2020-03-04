@@ -498,11 +498,25 @@ export function $RepeatScroll<T extends o.RO<any[]>>(
  * </div>
  * ```
  *
+ * $Switch can work with typeguards to narrow a type in the observable passed to the then callback,
+ * but only with defined functions. It is however not as powerful as typescript's type guards in ifs
+ * and will not recognize `typeof` or `instanceof` calls.
+ *
+ * ```tsx
+ * const is_number = (v: any): v is number => typeof v === 'number'
+ * const o_obs = o('hello' as string | number) // Observable<string | number>
+ *
+ * $Switch(o_obs)
+ *   .$Case(is_number, o_num => o_num) // o_num is Observable<number>
+ *   .$Case('hey', o_obs => )
+ *   .$Else(() => null)
+ * ```
+ *
  * @category verb, toc
  */
 export function $Switch<T>(obs: o.Observable<T>): $Switch.Switcher<T>
 export function $Switch<T>(obs: o.ReadonlyObservable<T>): $Switch.ReadonlySwitcher<T>
-export function $Switch<T>(obs: o.ReadonlyObservable<T>): $Switch.ReadonlySwitcher<T> {
+export function $Switch<T>(obs: any): any {
   return new ($Switch.Switcher as any)(obs)
 }
 
@@ -543,7 +557,8 @@ export namespace $Switch {
     }
 
     $Case<S extends T>(value: (t: T) => t is S, fn: (v: o.Observable<S>) => Renderable): this
-    $Case(value: T | ((t: T) => any), fn: (v: o.Observable<T>) => Renderable): this
+    $Case<S extends T>(value: S, fn: (v: o.Observable<S>) => Renderable): this
+    $Case(predicate: (t: T) => any, fn: (v: o.Observable<T>) => Renderable): this
     $Case(value: T | ((t: T) => any), fn: (v: o.Observable<T>) => Renderable): this {
       this.cases.push([value, fn])
       return this
@@ -558,9 +573,10 @@ export namespace $Switch {
 
 
   export interface ReadonlySwitcher<T> extends o.ReadonlyObservable<Renderable> {
-    $Case<S extends T>(value: (t: T) => t is S, fn: (v: o.Observable<S>) => Renderable): this
-    $Case(value: T | ((t: T) => boolean), fn: (v: o.ReadonlyObservable<T>) => Renderable): this
-    $Else(fn: () => Renderable): this
+    $Case<S extends T>(value: (t: T) => t is S, fn: (v: o.ReadonlyObservable<S>) => Renderable): this
+    $Case<S extends T>(value: S, fn: (v: o.ReadonlyObservable<S>) => Renderable): this
+    $Case(predicate: (t: T) => any, fn: (v: o.ReadonlyObservable<T>) => Renderable): this
+    $Else(fn: (v: o.ReadonlyObservable<T>) => Renderable): this
   }
 
 }
