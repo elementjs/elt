@@ -188,13 +188,6 @@ export function $title<N extends HTMLElement>(title: o.RO<string>) {
 }
 
 
-export function $shadow() {
-  return (node: HTMLElement) => {
-    node.attachShadow({mode: 'open'})
-  }
-}
-
-
 /**
  * @category decorator, toc
  */
