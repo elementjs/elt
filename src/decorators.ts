@@ -298,10 +298,6 @@ export function $click<N extends HTMLElement | SVGElement>(cbk: Listener<MouseEv
  */
 export function $init<N extends Node>(fn: (node: N) => void): Decorator<N> {
   return node => {
-    // @ts-ignore : I have to force typescript's hand there
-    // typing node correctly would mean having to put sym_init as (n: this) => void,
-    // but then it becomes impossible to have Node variables with nextSibling, parent
-    // and so on.
     node_on_init(node, fn)
   }
 }
@@ -322,7 +318,6 @@ export function $init<N extends Node>(fn: (node: N) => void): Decorator<N> {
  */
 export function $deinit<N extends Node>(fn: (node: N) => void) {
   return (node: N) => {
-    // @ts-ignore : I have to force typescript's hand there
     node_on_deinit(node, fn)
   }
 }
@@ -342,7 +337,6 @@ export function $deinit<N extends Node>(fn: (node: N) => void) {
  */
 export function $inserted<N extends Node>(fn: (node: N, parent: Node) => void) {
   return (node: N) => {
-    // @ts-ignore : I have to force typescript's hand there
     node_on_inserted(node, fn)
   }
 }

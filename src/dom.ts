@@ -462,8 +462,8 @@ function _remove_class(node: Element, c: string) {
  *
  * @category dom, toc
  */
-export function node_on_init(node: Node, fn: (n: Node) => void) {
-  (node[sym_init] = node[sym_init] ?? []).push(fn)
+export function node_on_init<N extends Node>(node: N, fn: (n: N) => void) {
+  (node[sym_init] = node[sym_init] ?? []).push(fn as (n: Node) => void)
 }
 
 
@@ -471,8 +471,8 @@ export function node_on_init(node: Node, fn: (n: Node) => void) {
  * Register a callback that will run when this node is added to the DOM
  * @category dom, toc
  */
-export function node_on_inserted(node: Node, fn: (n: Node, parent: Node) => void) {
-  (node[sym_inserted] = node[sym_inserted] ?? []).push(fn)
+export function node_on_inserted<N extends Node>(node: N, fn: (n: N, parent: Node) => void) {
+  (node[sym_inserted] = node[sym_inserted] ?? []).push(fn as (n: Node, parent: Node) => void)
 }
 
 
@@ -480,8 +480,8 @@ export function node_on_inserted(node: Node, fn: (n: Node, parent: Node) => void
  * Register a callback that will run when this node is removed from the DOM
  * @category dom, toc
  */
-export function node_on_deinit(node: Node, fn: (n: Node) => void) {
-  (node[sym_deinit] = node[sym_deinit] ?? []).push(fn)
+export function node_on_deinit<N extends Node>(node: N, fn: (n: N) => void) {
+  (node[sym_deinit] = node[sym_deinit] ?? []).push(fn as (n: Node) => void)
 }
 
 
@@ -489,8 +489,8 @@ export function node_on_deinit(node: Node, fn: (n: Node) => void) {
  * Register a callback that will run when this node is a direct target for removal from the DOM
  * @category dom, toc
  */
-export function node_on_removed(node: Node, fn: (n: Node, parent: Node) => void) {
-  (node[sym_removed] = node[sym_removed] ?? []).push(fn)
+export function node_on_removed<N extends Node>(node: N, fn: (n: N, parent: Node) => void) {
+  (node[sym_removed] = node[sym_removed] ?? []).push(fn as (n: Node, parent: Node) => void)
 }
 
 
