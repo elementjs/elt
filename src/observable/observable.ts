@@ -425,19 +425,11 @@ export class Observable<A> implements ReadonlyObservable<A>, Indexable {
   }
 
   /**
-   * Expects a `fn` callback that takes a clone of the current value as the `clone_value`
-   * argument.
-   *
-   * `clone_value` is entirely mutable and is the object the `Observable` will be set to
-   * after `fn` has run.
-   *
-   * For basic types like `number` or `string`, use `.set` instead.
-   *
+   * Expects a `fn` callback that takes the current value as a parameter and returns a new value.
+   * It is the responsability of the caller to ensure the object is properly cloned before being modified.
    */
-  mutate(fn: (clone_value: A) => any) {
-    var cloned = o.clone(this.__watched ? this.__value : this.get())
-    fn(cloned)
-    this.set(cloned)
+  mutate(fn: (current_value: Readonly<A>) => A) {
+    this.set(fn(this.__value))
   }
 
   /**
