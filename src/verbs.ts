@@ -195,6 +195,7 @@ export namespace $If {
 
 /**
  *  Repeats content.
+ * @category internal
  */
 export class Repeater<T> extends Mixin<Comment> {
 
@@ -287,6 +288,7 @@ export class Repeater<T> extends Mixin<Comment> {
 /**
  * Repeats content and append it to the DOM until a certain threshold
  * is meant. Use it with `scrollable()` on the parent..
+ * @category internal
  */
 export class ScrollRepeater<T> extends Repeater<T> {
 
@@ -482,8 +484,20 @@ export function $RepeatScroll<T extends o.RO<any[]>>(
 
 
 /**
- * Perform a Switch statement
- * @param obs The observable switched on
+ * Perform a Switch statement on an observable.
+ *
+ * ```tsx
+ * const o_value = o('hello')
+ * <div>
+ *   {$Switch(o_value)
+ *    .$Case('world', o_v => <span>It is {o_v}</span>)
+ *    .$Case(v => v === 'one' || v === 'two', () => <>Test with a function</>)
+ *    .$Case('something else', () => <span>We got another one</span>)
+ *    .$Else(() => <>Something else entirely</>)
+ *   }
+ * </div>
+ * ```
+ *
  * @category verb, toc
  */
 export function $Switch<T>(obs: o.Observable<T>): $Switch.Switcher<T>
@@ -496,25 +510,26 @@ export function $Switch<T>(obs: o.ReadonlyObservable<T>): $Switch.ReadonlySwitch
 export namespace $Switch {
   /**
    * Used by the `Switch()` verb.
+   * @category internal
    */
-  export class Switcher<T> extends o.VirtualObservable<[T], Insertable<Node>> {
+  export class Switcher<T> extends o.VirtualObservable<[T], Renderable> {
 
-    cases: [(T | ((t: T) => any)), (t: o.Observable<T>) => Insertable<Node>][] = []
-    passthrough: () => Insertable<Node> = () => null
+    cases: [(T | ((t: T) => any)), (t: o.Observable<T>) => Renderable][] = []
+    passthrough: () => Renderable = () => null
     prev_case: any = null
-    prev: Insertable<Node> | o.NoValue
+    prev: Renderable | o.NoValue
 
     constructor(public obs: o.Observable<T>) {
       super([obs])
     }
 
-    getter([nval] : [T]): Insertable<Node> {
+    getter([nval] : [T]): Renderable {
       const cases = this.cases
       for (var c of cases) {
         const val = c[0]
         if (val === nval || (typeof val === 'function' && (val as Function)(nval))) {
           if (this.prev_case === val) {
-            return this.prev as Insertable<Node>
+            return this.prev as Renderable
           }
           this.prev_case = val
           const fn = c[1]
@@ -522,17 +537,19 @@ export namespace $Switch {
         }
       }
       if (this.prev_case === this.passthrough)
-        return this.prev as Insertable<Node>
+        return this.prev as Renderable
       this.prev_case = this.passthrough
       return (this.prev = this.passthrough ? this.passthrough() : null)
     }
 
-    Case(value: T | ((t: T) => any), fn: (v: o.Observable<T>) => Insertable<Node>): this {
+    $Case<S extends T>(value: (t: T) => t is S, fn: (v: o.Observable<S>) => Renderable): this
+    $Case(value: T | ((t: T) => any), fn: (v: o.Observable<T>) => Renderable): this
+    $Case(value: T | ((t: T) => any), fn: (v: o.Observable<T>) => Renderable): this {
       this.cases.push([value, fn])
       return this
     }
 
-    Else(fn: () => Insertable<Node>) {
+    $Else(fn: () => Renderable) {
       this.passthrough = fn
       return this
     }
@@ -540,9 +557,10 @@ export namespace $Switch {
   }
 
 
-  export interface ReadonlySwitcher<T> extends o.ReadonlyObservable<Insertable<Node>> {
-    Case(value: T | ((t: T) => boolean), fn: (v: o.ReadonlyObservable<T>) => Insertable<Node>): this
-    Else(fn: () => Insertable<Node>): this
+  export interface ReadonlySwitcher<T> extends o.ReadonlyObservable<Renderable> {
+    $Case<S extends T>(value: (t: T) => t is S, fn: (v: o.Observable<S>) => Renderable): this
+    $Case(value: T | ((t: T) => boolean), fn: (v: o.ReadonlyObservable<T>) => Renderable): this
+    $Else(fn: () => Renderable): this
   }
 
 }
