@@ -19,7 +19,11 @@ import {
   node_add_event_listener
 } from './dom'
 
-export type Decorator<N extends Node> = (node: N) => void | E.JSX.Renderable | Decorator<N> | Mixin<N>
+import {
+  Renderable, ClassDefinition, StyleDefinition
+} from './elt'
+
+export type Decorator<N extends Node> = (node: N) => void | Renderable | Decorator<N> | Mixin<N>
 
 
 export namespace $bind {
@@ -159,7 +163,7 @@ export function $props<N extends Node>(props: {[k in keyof N]?:  o.RO<N[k]>}): (
 /**
  * @category decorator, toc
  */
-export function $class<N extends Element>(...clss: E.JSX.ClassDefinition[]) {
+export function $class<N extends Element>(...clss: ClassDefinition[]) {
   return (node: N) => {
     for (var i = 0, l = clss.length; i < l; i++) {
       node_observe_class(node, clss[i])
@@ -217,7 +221,7 @@ export function $title<N extends HTMLElement>(title: o.RO<string>) {
  *
  * @category decorator, toc
  */
-export function $style<N extends HTMLElement | SVGElement>(...styles: E.JSX.StyleDefinition[]) {
+export function $style<N extends HTMLElement | SVGElement>(...styles: StyleDefinition[]) {
   return (node: N) => {
     for (var i = 0, l = styles.length; i < l; i++) {
       node_observe_style(node, styles[i])

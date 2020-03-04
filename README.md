@@ -118,7 +118,7 @@ var root = E.$DIV(
 
 ## Adding children
 
-Nodes can of course have children. ELT defines a [`Renderable`](#e.JSX.Renderable) type which defines which types can safely rendered as a child to a node.
+Nodes can of course have children. ELT defines a [`Renderable`](#Renderable) type which defines which types can safely rendered as a child to a node.
 
 You may thus add variables of type :
  * `string`, which will be rendered as is
@@ -203,7 +203,7 @@ append_child_and_init(document.body, <div>
 
 Decorators are a handy way of playing with a node without having to assign it to a variable first.
 
-As the [`Renderable`](#e.JSX.Renderable) type controls what types can safely be appended to a node, the [`Insertable`](#e.JSX.Insertable) type controls what can be put as a child, without necessarily mean that it will have a visual representation.
+As the [`Renderable`](#Renderable) type controls what types can safely be appended to a node, the [`Insertable`](#Insertable) type controls what can be put as a child, without necessarily mean that it will have a visual representation.
 
 Decorators are part of `Insertable`, and are simply functions that take the current node as an argument.
 
@@ -345,12 +345,12 @@ There are two ways of building components ; as a simple function or as a class.
 
 A component function takes two arguments and return a Node.
 
-The first argument is always an [`Attrs`](#e.JSX.Attrs) type, with the returned node type as a template argument. The second argument is always [`e.JSX.Renderable[]](#e.JSX.Renderable) and are the children that are to be added to this component.
+The first argument is always an [`Attrs`](#Attrs) type, with the returned node type as a template argument. The second argument is always [`Renderable[]](#Renderable) and are the children that are to be added to this component.
 
 The `attrs` argument represents what attributes can be set on the component. In simple cases, it is enough to give the arguments with the `&` operator.
 
 ```tsx
-function MyComponent(attrs: E.JSX.Attrs<HTMLDivElement> & {title: string}, children: E.JSX.Renderable[]) {
+function MyComponent(attrs: Attrs<HTMLDivElement> & {title: string}, children: Renderable[]) {
   return <div>
       <h1>{attrs.title}</h1>
       {/* children will be inserted in the body div. */}
@@ -366,12 +366,12 @@ function MyComponent(attrs: E.JSX.Attrs<HTMLDivElement> & {title: string}, child
 If the attributes are complex, then it is advisable to define an interface.
 
 ```tsx
-interface MyComponentAttrs extends E.JSX.Attrs<HTMLDivElement> {
+interface MyComponentAttrs extends Attrs<HTMLDivElement> {
   title: string
-  more_content?: E.JSX.Renderable
+  more_content?: Renderable
 }
 
-function MyComponent(attrs: MyComponentAttrs, children: E.JSX.Renderable[]) {
+function MyComponent(attrs: MyComponentAttrs, children: Renderable[]) {
   /// ...
 }
 ```
@@ -383,9 +383,9 @@ A component is a subclass of `Mixin`. A custom Component must define a `.render(
 By default, the attributes are accessible as `this.attrs` in the component methods.
 
 ```tsx
-class MyComponent extends Component<E.JSX.Attrs<HTMLDivElement> & {title: string}> {
+class MyComponent extends Component<Attrs<HTMLDivElement> & {title: string}> {
 
-  render(children: E.JSX.Renderable[]) {
+  render(children: Renderable[]) {
     return E.$DIV(
       E.$H1(this.attrs.title),
       E.$DIV($class('body'), children)

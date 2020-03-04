@@ -1,5 +1,5 @@
 import { o } from './observable'
-import { e } from './elt'
+import { StyleDefinition, ClassDefinition } from './elt'
 import { Mixin } from './mixins'
 
 export type Listener<EventType extends Event, N extends Node = Node> = (ev: EventType & {currentTarget: N}) => any
@@ -361,7 +361,7 @@ export function node_observe_attribute(node: Element, name: string, value: o.RO<
  * Observe a style (as JS defines it) and update the node as needed.
  * @category dom, toc
  */
-export function node_observe_style(node: HTMLElement | SVGElement, style: e.JSX.StyleDefinition) {
+export function node_observe_style(node: HTMLElement | SVGElement, style: StyleDefinition) {
   if (style instanceof o.Observable) {
     node_observe(node, style, st => {
       const ns = node.style
@@ -389,7 +389,7 @@ export function node_observe_style(node: HTMLElement | SVGElement, style: e.JSX.
  * Observe a complex class definition and update the node as needed.
  * @category dom, toc
  */
-export function node_observe_class(node: Element, c: e.JSX.ClassDefinition) {
+export function node_observe_class(node: Element, c: ClassDefinition) {
   if (!c) return
   if (typeof c === 'string' || c.constructor !== Object) {
     // c is an Observable<string>

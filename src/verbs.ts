@@ -9,7 +9,7 @@ import {
   Mixin,
 } from './mixins'
 
-import { e } from './elt'
+import { e, Insertable, Renderable } from './elt'
 
 import {
   insert_before_and_init,
@@ -27,7 +27,7 @@ import {
  *
  * @category dom, toc
  */
-export function get_node_from_insertable(i: e.JSX.Insertable<Node>) {
+export function get_node_from_insertable(i: Insertable<Node>) {
 
   if (i instanceof Node)
     return i
@@ -96,7 +96,7 @@ export class CommentContainer extends Mixin<Comment> {
  */
 export class Displayer extends CommentContainer {
 
-  constructor(public _obs: o.RO<e.JSX.Insertable<Node>>) {
+  constructor(public _obs: o.RO<Insertable<Node>>) {
     super()
   }
 
@@ -113,9 +113,9 @@ export class Displayer extends CommentContainer {
  * a Text node.
  * @category verb, toc
  */
-export function $Display(obs: o.RO<e.JSX.Insertable<Node>>): Node {
+export function $Display(obs: o.RO<Insertable<Node>>): Node {
   if (!(obs instanceof o.Observable)) {
-    return get_node_from_insertable(obs as e.JSX.Insertable<Node>)
+    return get_node_from_insertable(obs as Insertable<Node>)
   }
 
   return e(document.createComment('$Display'), new Displayer(obs))
@@ -148,7 +148,7 @@ export function $If<T extends o.RO<any>>(
 
 export namespace $If {
 
-  export type DisplayFn<T> = (a: T) => e.JSX.Renderable
+  export type DisplayFn<T> = (a: T) => Renderable
 
   /**
    * Get the type of a potentially `Observable` type where `null` and `undefined` are exluded, keeping
@@ -177,7 +177,7 @@ export namespace $If {
       protected display_otherwise?: $If.DisplayFn<T>
     ) {
       super(condition.tf((cond, old, v) => {
-        if (old !== o.NOVALUE && !!cond === !!old && v !== o.NOVALUE) return v as e.JSX.Insertable<Node>
+        if (old !== o.NOVALUE && !!cond === !!old && v !== o.NOVALUE) return v as Insertable<Node>
         if (cond) {
           return display(condition as NonNullableObs<T>)
         } else if (display_otherwise) {
@@ -294,7 +294,7 @@ export class ScrollRepeater<T> extends Repeater<T> {
 
   constructor(
     ob: o.Observable<T[]>,
-    renderfn: (e: o.Observable<T>, oi: number) => e.JSX.Insertable<Node>,
+    renderfn: (e: o.Observable<T>, oi: number) => Insertable<Node>,
     public scroll_buffer_size: number = 10,
     public threshold_height: number = 500,
     public separator?: $Repeat.SeparatorFn,
@@ -414,7 +414,7 @@ export class ScrollRepeater<T> extends Repeater<T> {
  */
 export function $Repeat<T extends o.RO<any[]>>(
   ob: T,
-  render: (arg: $Repeat.RoItem<T>, idx: number) => e.JSX.Insertable<Node>,
+  render: (arg: $Repeat.RoItem<T>, idx: number) => Insertable<Node>,
   separator?: $Repeat.SeparatorFn
 ): Node {
   if (!(ob instanceof o.Observable)) {
@@ -443,10 +443,10 @@ export namespace $Repeat {
   : T extends (infer U)[] ? U
   : T;
 
-  export type RenderFn<T> = (e: o.Observable<T>, oi: number) => e.JSX.Insertable<Node>
-  export type ReadonlyRenderFn<T> = (e: o.ReadonlyObservable<T>, oi: number) => e.JSX.Insertable<Node>
+  export type RenderFn<T> = (e: o.Observable<T>, oi: number) => Insertable<Node>
+  export type ReadonlyRenderFn<T> = (e: o.ReadonlyObservable<T>, oi: number) => Insertable<Node>
 
-  export type SeparatorFn = (oi: number) => e.JSX.Insertable<Node>
+  export type SeparatorFn = (oi: number) => Insertable<Node>
 
 }
 
@@ -469,7 +469,7 @@ export namespace $Repeat {
  */
 export function $RepeatScroll<T extends o.RO<any[]>>(
   ob: T,
-  render: (arg: $Repeat.RoItem<T>, idx: number) => e.JSX.Insertable<Node>,
+  render: (arg: $Repeat.RoItem<T>, idx: number) => Insertable<Node>,
   separator?: $Repeat.SeparatorFn,
   scroll_buffer_size = 10
 ): Node {
@@ -497,24 +497,24 @@ export namespace $Switch {
   /**
    * Used by the `Switch()` verb.
    */
-  export class Switcher<T> extends o.VirtualObservable<[T], e.JSX.Insertable<Node>> {
+  export class Switcher<T> extends o.VirtualObservable<[T], Insertable<Node>> {
 
-    cases: [(T | ((t: T) => any)), (t: o.Observable<T>) => e.JSX.Insertable<Node>][] = []
-    passthrough: () => e.JSX.Insertable<Node> = () => null
+    cases: [(T | ((t: T) => any)), (t: o.Observable<T>) => Insertable<Node>][] = []
+    passthrough: () => Insertable<Node> = () => null
     prev_case: any = null
-    prev: e.JSX.Insertable<Node> | o.NoValue
+    prev: Insertable<Node> | o.NoValue
 
     constructor(public obs: o.Observable<T>) {
       super([obs])
     }
 
-    getter([nval] : [T]): e.JSX.Insertable<Node> {
+    getter([nval] : [T]): Insertable<Node> {
       const cases = this.cases
       for (var c of cases) {
         const val = c[0]
         if (val === nval || (typeof val === 'function' && (val as Function)(nval))) {
           if (this.prev_case === val) {
-            return this.prev as e.JSX.Insertable<Node>
+            return this.prev as Insertable<Node>
           }
           this.prev_case = val
           const fn = c[1]
@@ -522,17 +522,17 @@ export namespace $Switch {
         }
       }
       if (this.prev_case === this.passthrough)
-        return this.prev as e.JSX.Insertable<Node>
+        return this.prev as Insertable<Node>
       this.prev_case = this.passthrough
       return (this.prev = this.passthrough ? this.passthrough() : null)
     }
 
-    Case(value: T | ((t: T) => any), fn: (v: o.Observable<T>) => e.JSX.Insertable<Node>): this {
+    Case(value: T | ((t: T) => any), fn: (v: o.Observable<T>) => Insertable<Node>): this {
       this.cases.push([value, fn])
       return this
     }
 
-    Else(fn: () => e.JSX.Insertable<Node>) {
+    Else(fn: () => Insertable<Node>) {
       this.passthrough = fn
       return this
     }
@@ -540,9 +540,9 @@ export namespace $Switch {
   }
 
 
-  export interface ReadonlySwitcher<T> extends o.ReadonlyObservable<e.JSX.Insertable<Node>> {
-    Case(value: T | ((t: T) => boolean), fn: (v: o.ReadonlyObservable<T>) => e.JSX.Insertable<Node>): this
-    Else(fn: () => e.JSX.Insertable<Node>): this
+  export interface ReadonlySwitcher<T> extends o.ReadonlyObservable<Insertable<Node>> {
+    Case(value: T | ((t: T) => boolean), fn: (v: o.ReadonlyObservable<T>) => Insertable<Node>): this
+    Else(fn: () => Insertable<Node>): this
   }
 
 }

@@ -3,7 +3,7 @@ import {
   o
 } from './observable'
 
-import { e } from './elt'
+import { EmptyAttributes, Attrs, AttrsNodeType, Renderable } from './elt'
 import { sym_mixins, node_observe, Listener, node_on_init, node_on_deinit, node_on_removed, node_on_inserted } from './dom'
 
 
@@ -144,10 +144,10 @@ export abstract class Mixin<N extends Node = Node> {
  * All attributes must extend the base `Attrs` class.
  * @category dom, toc
  */
-export abstract class Component<A extends e.JSX.EmptyAttributes<any> = e.JSX.Attrs<HTMLElement>> extends Mixin<e.JSX.AttrsNodeType<A>> {
+export abstract class Component<A extends EmptyAttributes<any> = Attrs<HTMLElement>> extends Mixin<AttrsNodeType<A>> {
   // attrs: Attrs
   constructor(public attrs: A) { super() }
-  abstract render(children: e.JSX.Renderable[]): e.JSX.AttrsNodeType<A>
+  abstract render(children: Renderable[]): AttrsNodeType<A>
 }
 
 

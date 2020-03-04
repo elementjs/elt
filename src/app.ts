@@ -1,7 +1,7 @@
 
 import { $Display } from './verbs'
 import { Mixin, node_add_mixin } from './mixins'
-import { e } from './elt'
+import { Renderable } from './elt'
 import { o } from './observable'
 
 /**
@@ -18,7 +18,7 @@ export class App extends Mixin<Comment>{
 
   registry: App.Registry = new App.Registry(this)
 
-  /** @internal */
+  /** @category internal */
   o_views = new o.Observable<{[name: string]: App.View}>({})
 
   /**
@@ -118,7 +118,7 @@ export namespace App {
     cons.views[key] = desc.value
   }
 
-  export type View = () => e.JSX.Insertable<Node>
+  export type View = () => Renderable
 
   /**
    * A Helper type for a Block constructor.

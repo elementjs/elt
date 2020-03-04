@@ -83,12 +83,95 @@ const NS = {
 } as {[name: string]: string}
 
 
-function isComponent(kls: any): kls is new (attrs: e.JSX.Attrs<any>) => Component<any> {
+function isComponent(kls: any): kls is new (attrs: Attrs<any>) => Component<any> {
   return kls.prototype instanceof Component
 }
 
 
 var _decorator_map = new WeakMap<Function, Comment>()
+
+/**
+ * Renderables are the types understood by the `Display` verb and that can be rendered into
+ * the DOM without efforts or need to transform. It is used by the `Insertable` type
+ * to define what can go between `{ curly braces }` in JSX code.
+ * @category dom, toc
+ */
+export type Renderable = o.RO<string | number | Node | null | undefined>
+
+/**
+ * @api
+ * @category dom, toc
+ *
+ * The Insertable type describes the types that elt can append to a Node.
+ * Anything of the Insertable type can be put `<tag>between braces {'!'}</tag>`.
+ *
+ * The following types can be used :
+ *  - `null` or `undefined` (which output nothing)
+ *  - `number`
+ *  - `string`
+ *  - `Node`
+ *  - Arrays of these types, even recursively.
+ *
+ * `<div>{['hello', ' ', [['world']] ]}</div>` will render `<div>hello world</div>`
+ *
+*/
+export type Insertable<N extends Node> = Mixin<N> | Decorator<N> | Attrs<N> | Renderable | Insertable<N>[]
+
+/**
+ * Attributes used on elements that are not actually HTML Elements
+ */
+export interface EmptyAttributes<N extends Node> {
+  $$children?: o.RO<Insertable<N>> | o.RO<Insertable<N>>[]
+}
+
+/**
+ * For a given attribute type used in components, give its related `Node` type.
+ * @category dom, toc
+ */
+export type AttrsNodeType<At extends EmptyAttributes<any>> = At extends EmptyAttributes<infer N> ? N : never
+
+
+/**
+ * CSS classes for the class={} attribute
+ */
+export type ClassDefinition = {[name: string]: o.RO<any>} | o.RO<string>
+
+
+/**
+ * CSS Style attribute definition for the style={} attribute
+ */
+export type StyleDefinition =
+  o.RO<Partial<CSSStyleDeclaration>>
+  | o.MaybeObservableReadonlyObject<Partial<CSSStyleDeclaration>>
+
+
+/**
+ * A helper type since all HTML / SVG attributes can be null or undefined.
+ */
+export type NRO<T> = o.RO<T | null | undefined>
+
+
+/**
+ * Basic attributes used on all HTML nodes, which can be reused when making components
+ * to benefit from the class / style / id... attributes defined here.
+ *
+ * ```jsx
+ * function MyComponent(a: Attrs & {some_attribute: string}, ch: DocumentFragment) {
+ *   return <div>{ch} {a.some_attribute}</div>
+ * }
+ *
+ * // With Attrs, all the basic elements are available.
+ * <MyComponent id='some_id' class='css_class_1'/>
+ * ```
+ *
+ * This type should be used as first argument to all components definitions.
+ * @category dom, toc
+ */
+export interface Attrs<N extends Node> extends EmptyAttributes<N> {
+  id?: NRO<string | null>
+  class?: ClassDefinition | ClassDefinition[] // special attributes
+  style?: StyleDefinition
+}
 
 
 /**
@@ -98,12 +181,12 @@ var _decorator_map = new WeakMap<Function, Comment>()
  * Controllers, decorators, classes and style.
  * @category dom, toc
  */
-export function e<N extends Node>(elt: N, ...children: e.JSX.Insertable<N>[]): N
-export function e<K extends keyof HTMLElementTagNameMap>(elt: K, ...children: e.JSX.Insertable<HTMLElementTagNameMap[K]>[]): HTMLElementTagNameMap[K]
-export function e(elt: string, ...children: e.JSX.Insertable<HTMLElement>[]): HTMLElement
-export function e<A extends e.JSX.EmptyAttributes<any>>(elt: new (a: A) => Component<A>, attrs: A, ...children: e.JSX.Insertable<e.JSX.AttrsNodeType<A>>[]): e.JSX.AttrsNodeType<A>
-export function e<A extends e.JSX.EmptyAttributes<any>>(elt: (attrs: A, children: E.JSX.Renderable[]) => e.JSX.AttrsNodeType<A>, attrs: A, ...children: e.JSX.Insertable<e.JSX.AttrsNodeType<A>>[]): e.JSX.AttrsNodeType<A>
-export function e<N extends Node>(elt: any, ...children: e.JSX.Insertable<N>[]): N {
+export function e<N extends Node>(elt: N, ...children: Insertable<N>[]): N
+export function e<K extends keyof HTMLElementTagNameMap>(elt: K, ...children: Insertable<HTMLElementTagNameMap[K]>[]): HTMLElementTagNameMap[K]
+export function e(elt: string, ...children: Insertable<HTMLElement>[]): HTMLElement
+export function e<A extends EmptyAttributes<any>>(elt: new (a: A) => Component<A>, attrs: A, ...children: Insertable<AttrsNodeType<A>>[]): AttrsNodeType<A>
+export function e<A extends EmptyAttributes<any>>(elt: (attrs: A, children: Renderable[]) => AttrsNodeType<A>, attrs: A, ...children: Insertable<AttrsNodeType<A>>[]): AttrsNodeType<A>
+export function e<N extends Node>(elt: any, ...children: Insertable<N>[]): N {
   if (!elt) throw new Error(`e() needs at least a string, a function or a Component`)
 
   let node: N = null! // just to prevent the warnings later
@@ -113,10 +196,10 @@ export function e<N extends Node>(elt: any, ...children: e.JSX.Insertable<N>[]):
   // const fragment = get_dom_insertable(children) as DocumentFragment
   var i = 0
   var l = 0
-  var attrs: e.JSX.Attrs<N> = {}
+  var attrs: Attrs<N> = {}
   var decorators: Decorator<N>[] = []
   var mixins: Mixin<N>[] = []
-  var renderables: e.JSX.Renderable[] = []
+  var renderables: Renderable[] = []
   e.separate_children_from_rest(children, attrs, decorators, mixins, renderables)
 
   if (is_basic_node) {
@@ -173,7 +256,7 @@ export function e<N extends Node>(elt: any, ...children: e.JSX.Insertable<N>[]):
  *
  * @category dom, toc
  */
-export function $Fragment(...children: e.JSX.Insertable<DocumentFragment>[]): DocumentFragment {
+export function $Fragment(...children: Insertable<DocumentFragment>[]): DocumentFragment {
   // This is a trick ! It is not actually an element !
   const fr = document.createDocumentFragment()
   return e(fr, children)
@@ -190,9 +273,9 @@ export namespace e {
    * Separates decorators and mixins from nodes or soon-to-be-nodes from children.
    * Returns a tuple containing the decorators/mixins/attrs in one part and the children in the other.
    * The resulting arrays are 1-dimensional and do not contain null or undefined.
-   * @internal
+   * @category internal
    */
-  export function separate_children_from_rest(children: e.JSX.Insertable<any>[], attrs: e.JSX.Attrs<any>, decorators: Decorator<any>[], mixins: Mixin<any>[], chld: e.JSX.Renderable[]) {
+  export function separate_children_from_rest(children: Insertable<any>[], attrs: Attrs<any>, decorators: Decorator<any>[], mixins: Mixin<any>[], chld: Renderable[]) {
     for (var i = 0, l = children.length; i < l; i++) {
       var c = children[i]
       if (c == null) continue
@@ -214,8 +297,10 @@ export namespace e {
     }
   }
 
-
-  export function renderable_to_node(r: e.JSX.Renderable) {
+  /**
+   * @category internal
+   */
+  export function renderable_to_node(r: Renderable) {
     if (r == null)
       return null
     else if (typeof r === 'string' || typeof r === 'number')
@@ -226,6 +311,9 @@ export namespace e {
       return r
   }
 
+  /**
+   * @category internal
+   */
   export function handle_decorator(node: Node, decorator: Decorator<any>) {
     var res: ReturnType<Decorator<Node>>
     var dec_iter = decorator
@@ -248,6 +336,7 @@ export namespace e {
 
   /**
    * Handle attributes for simple nodes
+   * @category internal
    */
   export function handle_attrs(node: HTMLElement, attrs: e.JSX.HTMLAttributes<any>, is_basic_node: boolean) {
     var keys = Object.keys(attrs) as (keyof typeof attrs)[]
@@ -278,97 +367,13 @@ export namespace e {
      * @category dom, toc
      */
     export interface ElementClassFn<N extends Node> {
-      (attrs: EmptyAttributes<N>, children: e.JSX.Renderable[]): N
+      (attrs: EmptyAttributes<N>, children: Renderable[]): N
     }
 
     export type ElementClass<N extends Node> = ElementClassFn<N> | Component<EmptyAttributes<any>>
 
     ///////////////////////////////////////////////////////////////////////////
     // Now following are the default attributes for HTML and SVG nodes.
-
-    /**
-     * Renderables are the types understood by the `Display` verb and that can be rendered into
-     * the DOM without efforts or need to transform. It is used by the `Insertable` type
-     * to define what can go between `{ curly braces }` in JSX code.
-     * @category dom, toc
-     */
-    export type Renderable = o.RO<string | number | Node | null | undefined>
-
-    /**
-     * @api
-     * @category dom, toc
-     *
-     * The Insertable type describes the types that elt can append to a Node.
-     * Anything of the Insertable type can be put `<tag>between braces {'!'}</tag>`.
-     *
-     * The following types can be used :
-     *  - `null` or `undefined` (which output nothing)
-     *  - `number`
-     *  - `string`
-     *  - `Node`
-     *  - Arrays of these types, even recursively.
-     *
-     * `<div>{['hello', ' ', [['world']] ]}</div>` will render `<div>hello world</div>`
-     *
-    */
-    export type Insertable<N extends Node> = Mixin<N> | Decorator<N> | e.JSX.Attrs<N> | Renderable | Insertable<N>[]
-
-    /**
-     * Attributes used on elements that are not actually HTML Elements
-     */
-    export interface EmptyAttributes<N extends Node> {
-      $$children?: o.RO<Insertable<N>> | o.RO<Insertable<N>>[]
-    }
-
-    /**
-     * For a given attribute type used in components, give its related `Node` type.
-     * @category dom, toc
-     */
-    export type AttrsNodeType<At extends EmptyAttributes<any>> = At extends EmptyAttributes<infer N> ? N : never
-
-
-    /**
-     * CSS classes for the class={} attribute
-     */
-    export type ClassDefinition = {[name: string]: o.RO<any>} | o.RO<string>
-
-
-    /**
-     * CSS Style attribute definition for the style={} attribute
-     */
-    export type StyleDefinition =
-      o.RO<Partial<CSSStyleDeclaration>>
-      | o.MaybeObservableReadonlyObject<Partial<CSSStyleDeclaration>>
-
-
-    /**
-     * A helper type since all HTML / SVG attributes can be null or undefined.
-     */
-    export type NRO<T> = o.RO<T | null | undefined>
-
-
-    /**
-     * Basic attributes used on all HTML nodes, which can be reused when making components
-     * to benefit from the class / style / id... attributes defined here.
-     *
-     * ```jsx
-     * function MyComponent(a: Attrs & {some_attribute: string}, ch: DocumentFragment) {
-     *   return <div>{ch} {a.some_attribute}</div>
-     * }
-     *
-     * // With Attrs, all the basic elements are available.
-     * <MyComponent id='some_id' class='css_class_1'/>
-     * ```
-     *
-     * This type should be used as first argument to all components definitions.
-     * @category dom, toc
-     */
-    export interface Attrs<N extends Node> extends EmptyAttributes<N> {
-      id?: NRO<string>
-      class?: ClassDefinition | ClassDefinition[] // special attributes
-      style?: StyleDefinition
-    }
-
 
     export interface HTMLAttributes<N extends HTMLElement> extends Attrs<N> {
 
@@ -762,9 +767,9 @@ export namespace e {
 
   }
 
-  export function mkwrapper<K extends keyof HTMLElementTagNameMap>(elt: K): (...args: (e.JSX.Insertable<HTMLElementTagNameMap[K]> | e.JSX.HTMLAttributes<HTMLElementTagNameMap[K]>)[]) => HTMLElementTagNameMap[K]
-  export function mkwrapper(elt: string): (...args: (e.JSX.Insertable<HTMLElement> | e.JSX.HTMLAttributes<HTMLElement>)[]) => HTMLElement
-  export function mkwrapper<K extends keyof HTMLElementTagNameMap>(elt: K): (...args: (e.JSX.Insertable<HTMLElementTagNameMap[K]> | e.JSX.HTMLAttributes<HTMLElementTagNameMap[K]>)[]) => HTMLElementTagNameMap[K] {
+  export function mkwrapper<K extends keyof HTMLElementTagNameMap>(elt: K): (...args: (Insertable<HTMLElementTagNameMap[K]> | e.JSX.HTMLAttributes<HTMLElementTagNameMap[K]>)[]) => HTMLElementTagNameMap[K]
+  export function mkwrapper(elt: string): (...args: (Insertable<HTMLElement> | e.JSX.HTMLAttributes<HTMLElement>)[]) => HTMLElement
+  export function mkwrapper<K extends keyof HTMLElementTagNameMap>(elt: K): (...args: (Insertable<HTMLElementTagNameMap[K]> | e.JSX.HTMLAttributes<HTMLElementTagNameMap[K]>)[]) => HTMLElementTagNameMap[K] {
     return (...args) => {
       return e(elt, ...args)
     }
@@ -884,7 +889,7 @@ export namespace e {
   export const $WBR = mkwrapper('wbr')
 
   export const createElement = e
-  export const Fragment: (at: e.JSX.Attrs<DocumentFragment>, ch: e.JSX.Renderable[]) => DocumentFragment = $Fragment //(at: Attrs, ch: DocumentFragment): e.JSX.Element
+  export const Fragment: (at: Attrs<DocumentFragment>, ch: Renderable[]) => DocumentFragment = $Fragment //(at: Attrs, ch: DocumentFragment): e.JSX.Element
 }
 
 declare var global: any
@@ -903,12 +908,6 @@ declare global {
     export type ElementClass<N extends Node> = e.JSX.ElementClass<N>
     export type IntrinsicElements = e.JSX.IntrinsicElements
 
-    export type Renderable = e.JSX.Renderable
-    export type Insertable<N extends Node> = e.JSX.Insertable<N>
-    export type ClassDefinition = e.JSX.ClassDefinition
-    export type StyleDefinition = e.JSX.StyleDefinition
-    export type Attrs<N extends Node> = e.JSX.Attrs<N>
-    export type EmptyAttributes<N extends Node = Node> = e.JSX.EmptyAttributes<N>
     export type HTMLAttributes<N extends HTMLElement> = e.JSX.HTMLAttributes<N>
     export type SVGAttributes<N extends SVGElement = SVGElement> = e.JSX.SVGAttributes<N>
   }
