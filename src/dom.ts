@@ -110,7 +110,9 @@ export function node_inserted(node: Node) {
   var stack = [] as Node[]
   // We build here a stack where parents are added first and children last
   while (iter) {
-    nodes.push(iter) // always push the current node
+    if (iter[sym_mount_status] !== 'inserted')
+      nodes.push(iter) // always push the current node
+
     var first = iter.firstChild
     if (first) {
       var next = iter.nextSibling // where we'll pick up when we unstack.

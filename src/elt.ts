@@ -15,6 +15,7 @@ import {
   node_observe_class,
   node_observe_style,
   node_observe_attribute,
+  node_inserted,
 } from './dom'
 
 
@@ -88,44 +89,6 @@ function isComponent(kls: any): kls is new (attrs: e.JSX.Attrs<any>) => Componen
 
 var _decorator_map = new WeakMap<Function, Comment>()
 
-/**
- * Separates decorators and mixins from nodes or soon-to-be-nodes from children.
- * Returns a tuple containing the decorators/mixins/attrs in one part and the children in the other.
- * The resulting arrays are 1-dimensional and do not contain null or undefined.
- * @internal
- */
-export function separate_children_from_rest(children: e.JSX.Insertable<any>[], dm: (Decorator<any> | Mixin<any> | e.JSX.EmptyAttributes<any>)[] = [], chld: e.JSX.Renderable[] = []) {
-  for (var i = 0, l = children.length; i < l; i++) {
-    var c = children[i]
-    if (c == null) continue
-    if (Array.isArray(c)) {
-      separate_children_from_rest(c, dm, chld)
-    } else if (c instanceof Node || typeof c === 'string' || typeof c === 'number' || o.isReadonlyObservable(c)) {
-      chld.push(c)
-    } else if (typeof c === 'function') {
-      var cmt = document.createComment('decorator ' + c.name)
-      _decorator_map.set(c, cmt)
-      chld.push(cmt)
-      dm.push(c)
-    } else {
-      dm.push(c)
-    }
-  }
-  return [dm, chld] as const
-}
-
-
-export function renderable_to_node(r: e.JSX.Renderable) {
-  if (r == null)
-    return null
-  else if (typeof r === 'string' || typeof r === 'number')
-    return document.createTextNode(r.toString())
-  else if (o.isReadonlyObservable(r))
-    return $Display(r)
-  else
-    return r
-}
-
 
 /**
  * Create Nodes with a twist.
@@ -147,7 +110,13 @@ export function e<N extends Node>(elt: any, ...children: e.JSX.Insertable<N>[]):
   var is_basic_node = typeof elt === 'string' || elt instanceof Node
 
   // const fragment = get_dom_insertable(children) as DocumentFragment
-  const [dma, chld] = separate_children_from_rest(children)
+  var i = 0
+  var l = 0
+  var attrs: e.JSX.Attrs<N> = {}
+  var decorators: Decorator<N>[] = []
+  var mixins: Mixin<N>[] = []
+  var renderables: e.JSX.Renderable[] = []
+  e.separate_children_from_rest(children, attrs, decorators, mixins, renderables)
 
   if (is_basic_node) {
     // create a simple DOM node
@@ -158,8 +127,8 @@ export function e<N extends Node>(elt: any, ...children: e.JSX.Insertable<N>[]):
       node = elt as N
     }
 
-    for (var i = 0, l = chld.length; i < l; i++) {
-      var c = renderable_to_node(chld[i])
+    for (i = 0, l = renderables.length; i < l; i++) {
+      var c = e.renderable_to_node(renderables[i])
       if (c) {
         node.appendChild(c)
         node_init(c)
@@ -167,58 +136,33 @@ export function e<N extends Node>(elt: any, ...children: e.JSX.Insertable<N>[]):
     }
 
   } else if (isComponent(elt)) {
-
     // elt is an instantiator / Component
-    var attrs = (dma[0] ?? {}) as e.JSX.EmptyAttributes<any>
     var comp = new elt(attrs)
 
-    node = comp.render(chld) as N
+    node = comp.render(renderables) as N
     node_add_mixin(node, comp)
   } else if (typeof elt === 'function') {
     // elt is just a creator function
-    var attrs = (dma[0] ?? {}) as e.JSX.EmptyAttributes<any>
-    node = elt(attrs, chld)
+    node = elt(attrs, renderables)
   }
 
-  for (var i = 0, l = dma.length; i < l; i++) {
-    var cur = dma[i]
-    if (typeof cur === 'function') {
-      var res: ReturnType<Decorator<Node>>
-      while (typeof (res = cur(node)) === 'function') { cur = res }
-      if (res == null || res === node) continue
-      if (res instanceof Mixin) {
-        node_add_mixin(node, res)
-        continue
-      }
-      var nd = renderable_to_node(res)
-      if (nd == null) continue
-      var cmt = _decorator_map.get(cur)
-      if (!cmt) continue
-      cmt.parentNode?.insertBefore(nd, cmt)
-    } else if (cur instanceof Mixin) {
-      node_add_mixin(node, cur)
-    } else {
-      // attributes object.
-      var at = cur as e.JSX.HTMLAttributes<HTMLElement>
-      var keys = Object.keys(at)
-      for (var j = 0, l2 = keys.length; j < l2; j++) {
-        var key = keys[j]
-        if (key === 'class') {
-          var _cls = at.class!
-          if (!Array.isArray(_cls)) node_observe_class(node as unknown as Element, _cls)
-          else {
-            for (var _c of _cls) node_observe_class(node as unknown as Element, _c)
-          }
-        } else if (key === 'style') {
-          node_observe_style(node as unknown as HTMLElement, at.style!)
-        } else if (key === 'id') {
-          node_observe_attribute(node as unknown as Element, 'id', (at as any)[key])
-        } else if (is_basic_node) {
-          // Observe all attributes for simple elements
-          node_observe_attribute(node as unknown as Element, key, (at as any)[key])
-        }
-      }
-    }
+  // we have to cheat a bit here.
+  e.handle_attrs(node as any, attrs, is_basic_node)
+
+  // Handle decorators on the node
+  for (i = 0, l = decorators.length; i < l; i++) {
+    e.handle_decorator(node, decorators[i])
+  }
+
+  // Add the mixins
+  for (i = 0, l = mixins.length; i < l; i++) {
+    node_add_mixin(node, mixins[i])
+  }
+
+  // If the node was connected (ie, we called e() with an existing node like document.body), then
+  // we have to call inserted on it.
+  if (node.isConnected) {
+    node_inserted(node)
   }
 
   return node
@@ -240,6 +184,86 @@ import { Decorator } from './decorators'
 
 
 export namespace e {
+
+
+  /**
+   * Separates decorators and mixins from nodes or soon-to-be-nodes from children.
+   * Returns a tuple containing the decorators/mixins/attrs in one part and the children in the other.
+   * The resulting arrays are 1-dimensional and do not contain null or undefined.
+   * @internal
+   */
+  export function separate_children_from_rest(children: e.JSX.Insertable<any>[], attrs: e.JSX.Attrs<any>, decorators: Decorator<any>[], mixins: Mixin<any>[], chld: e.JSX.Renderable[]) {
+    for (var i = 0, l = children.length; i < l; i++) {
+      var c = children[i]
+      if (c == null) continue
+      if (Array.isArray(c)) {
+        separate_children_from_rest(c, attrs, decorators, mixins, chld)
+      } else if (c instanceof Node || typeof c === 'string' || typeof c === 'number' || o.isReadonlyObservable(c)) {
+        chld.push(c)
+      } else if (typeof c === 'function') {
+        var cmt = document.createComment('decorator ' + c.name)
+        _decorator_map.set(c, cmt)
+        chld.push(cmt)
+        decorators.push(c)
+      } else if (c instanceof Mixin) {
+        mixins.push(c)
+      } else {
+        // We just copy the attrs properties onto the attrs object
+        Object.assign(attrs, c)
+      }
+    }
+  }
+
+
+  export function renderable_to_node(r: e.JSX.Renderable) {
+    if (r == null)
+      return null
+    else if (typeof r === 'string' || typeof r === 'number')
+      return document.createTextNode(r.toString())
+    else if (o.isReadonlyObservable(r))
+      return $Display(r)
+    else
+      return r
+  }
+
+  export function handle_decorator(node: Node, decorator: Decorator<any>) {
+    var res: ReturnType<Decorator<Node>>
+    var dec_iter = decorator
+    // while the decorator returns a decorator, keep calling it.
+    while (typeof (res = dec_iter(node)) === 'function') { dec_iter = res }
+    // If it returns nothing or the node itself, don't do anything
+    if (res == null || res === node) return
+    if (res instanceof Mixin) {
+      node_add_mixin(node, res)
+      return
+    }
+    var nd = renderable_to_node(res)
+    if (nd == null) return
+    var cmt = _decorator_map.get(decorator)
+    // If there was no comment associated with this decorator, do nothing
+    if (!cmt) return
+    // insert the resulting node right next to the comment
+    node.insertBefore(nd, cmt)
+    // and init it
+    node_init(nd)
+  }
+
+  /**
+   * Handle attributes for simple nodes
+   */
+  export function handle_attrs(node: HTMLElement, attrs: e.JSX.HTMLAttributes<any>, is_basic_node: boolean) {
+    var keys = Object.keys(attrs) as (keyof typeof attrs)[]
+    for (var i = 0, l = keys.length; i < l; i++) {
+      var key = keys[i]
+      if (key === 'class') {
+        node_observe_class(node, attrs.class!)
+      } else if (key === 'style') {
+        node_observe_style(node, attrs.style!)
+      } else if (key === 'id' || is_basic_node) {
+        node_observe_attribute(node, key, attrs[key])
+      }
+    }
+  }
 
   /**
    * Extend the JSX namespace to be able to use .tsx code.
