@@ -58,7 +58,6 @@ export interface Mixin<N extends Node> {
  * If you intend to store a reference to the associated Node in your Mixin when called
  * with `init()` or `inserted()`, please make sure that you set it to `null` in the
  * `removed()` call.
- * @api
  * @category dom, toc
  */
 export abstract class Mixin<N extends Node = Node> {

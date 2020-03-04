@@ -360,6 +360,9 @@ export class Observable<A> implements ReadonlyObservable<A>, Indexable {
   */
   idx = null as null | number
 
+  /**
+   * Build an observable from a value. For readability purposes, use the [`o()`](#o) function instead.
+   */
   constructor(public __value: A) {
     // (this as any).debug = new Error
   }
@@ -391,14 +394,6 @@ export class Observable<A> implements ReadonlyObservable<A>, Indexable {
   }
 
   /**
-   * Get a shallow copy of the current value. Used for transforms.
-   * Prototypes and constructor should be kept in the cloned object.
-   */
-  getShallowClone(): A {
-    return o.clone(this.get())
-  }
-
-  /**
    * Set the value of the observable and notify the observers listening
    * to this object of this new value.
    * @param value The value to set it to
@@ -410,13 +405,20 @@ export class Observable<A> implements ReadonlyObservable<A>, Indexable {
   }
 
   /**
-   * Same as set, but expecting a callback that will provide the current
-   * value as first argument
+   * Expects a `fn` callback that takes a clone of the current value as the `clone_value`
+   * argument.
+   *
+   * `clone_value` is entirely mutable and is the object the `Observable` will be set to
+   * after `fn` has run.
+   *
+   * For basic types like `number` or `string`, use `.set` instead.
+   *
    * @param fn The callback function
    */
-  mutate(fn: (oldvalue: A) => A) {
-    const newval = fn(o.clone(this.__watched ? this.__value : this.get()))
-    this.set(newval)
+  mutate(fn: (clone_value: A) => any) {
+    var cloned = o.clone(this.__watched ? this.__value : this.get())
+    fn(cloned)
+    this.set(cloned)
   }
 
   /**
@@ -443,19 +445,16 @@ export class Observable<A> implements ReadonlyObservable<A>, Indexable {
    * Create an observer bound to this observable, but do not start it.
    * For it to start observing, one needs to call its `startObserving()` method.
    *
-   * @param fn The function to be called by the obseaddObserver()rver when the value changes
-   * @param options
+   * > **Note**: This method should rarely be used. Prefer using [`$observe()`](#$observe), [`node_observe()`](#node_observe) or [`Mixin.observe`](#Mixin) for observing values.
    */
   createObserver(fn: Observer.ObserverFunction<A>): Observer<A> {
     return new Observer(fn, this)
   }
 
   /**
-   * Add an observer to this observable. If there were no observers and this Observable
-   * observes another Observable, then its own observers to this observable are started.
+   * Add an observer to this observable, which will be updated as soon as the `Observable` is set to a new value.
    *
-   * This method is called by `Observer#startObserving()` and is not meant to be called
-   * directly.
+   * > **Note**: This method should rarely be used. Prefer using [`$observe()`](#$observe), [`node_observe()`](#node_observe) or [`Mixin.observe`](#Mixin) for observing values.
    *
    * @returns The newly created observer if a function was given to this method or
    *   the observable that was passed.
@@ -475,6 +474,10 @@ export class Observable<A> implements ReadonlyObservable<A>, Indexable {
     return ob
   }
 
+  /**
+   * Add a child observable to this observable that will depend on it to build its own value.
+   * @category internal
+   */
   addChild(ch: ChildObservableLink) {
     if (ch.idx != null) return
     this.__children.add(ch)
@@ -483,6 +486,9 @@ export class Observable<A> implements ReadonlyObservable<A>, Indexable {
     this.checkWatch()
   }
 
+  /**
+   * @category internal
+   */
   removeChild(ch: ChildObservableLink) {
     if (ch.idx == null) return
     this.__children.delete(ch)
@@ -503,6 +509,12 @@ export class Observable<A> implements ReadonlyObservable<A>, Indexable {
     this.checkWatch()
   }
 
+  /**
+   * Check if this `Observable` is being watched or not. If it stopped being observed but is in the notification
+   * queue, remove it from there as no one is expecting its value.
+   *
+   * @category internal
+   */
   checkWatch() {
     if (this.__watched && this.__observers.real_size === 0 && this.__children.real_size === 0) {
       this.__watched = false
@@ -514,12 +526,31 @@ export class Observable<A> implements ReadonlyObservable<A>, Indexable {
     }
   }
 
+  /**
+   * @category internal
+   */
   unwatched() { }
+  /**
+   * @category internal
+   */
   watched() { }
 
   /**
-   * Transform this Observable into a ReadonlyObservable which value is the
-   * result of this Observable's value passed through `fnget()`
+   * Transform this Observable into another using a transform function or a Converter.
+   *
+   * If there is only one transform function provided then the result is a ReadonlyObservable since
+   * there is no way of converting the result back.
+   *
+   * A Converter providing both `get` and `set` operations will create a two-way observable that is settable.
+   *
+   * ```tsx
+   * const o_obs = o(3)
+   * const o_transformed = o_obs.tf(v => v * 4) // 12 right now
+   * o_obs.set(6) // o_transformed will hold 24
+   *
+   * const o_transformed_2 = o_obs.tf({get: v => v * 4, set: v => v / 4})
+   * o_transformed_2.set(8) // o_obs now holds 2
+   * ```
    *
    * @param fnget
    */
@@ -545,10 +576,23 @@ export class Observable<A> implements ReadonlyObservable<A>, Indexable {
     )
   }
 
-  p<A>(this: Observable<A[]>, key: RO<number>): Observable<A>
-  p<A, K extends keyof A>(this: Observable<A>, key: RO<K>): Observable<A[K]>
-  // p<A extends {[key: string]: any}, K extends keyof A>(this: Observable<A>, key: RO<string>): PropObservable<A, A[K] | undefined>
-  p(this: Observable<any>, key: RO<any>): Observable<any> {
+  /**
+   * Create an observable that will hold the value of the property specified with `key`.
+   * The resulting observable is completely bi-directional.
+   *
+   * The `key` can itself be an observable, in which case the resulting observable will
+   * change whenever either `key` or the original observable change.
+   *
+   * ```tsx
+   * const o_base = o({a: 1, b: 2}) // Observable<{a: number, b: number}>
+   * const o_base_a = o_base.p('a') // Observable<number>
+   * o_base_a.set(4) // o_base now holds {a: 4, b: 2}
+   *
+   * const o_base_2 = o([1, 2, 3, 4]) // Observable<number[]>
+   * const o_base_2_item = o_base_2.p(2) // Observable<number>
+   * ```
+   */
+  p<A, K extends keyof A>(this: Observable<A>, key: RO<K>): Observable<A[K]> {
     return prop(this, key)
   }
 
@@ -718,13 +762,13 @@ export function merge<T>(obj: {[K in keyof T]: Observable<T[K]>}): Observable<T>
 /**
  * @category observable, toc
  */
-export function prop<T>(obj: Observable<T> | T, prop: RO<number | keyof T | Symbol>) {
-    return virtual([obj, prop as any] as [Observable<T>, RO<keyof T>],
-    ([obj, prop]) => obj[prop] as T[keyof T],
+export function prop<T, K extends keyof T>(obj: Observable<T> | T, prop: RO<K>) {
+    return virtual([obj, prop as any] as [Observable<T>, RO<K>],
+    ([obj, prop]) => obj[prop] as T[K],
     (nval, _, [orig, prop]) => {
       const newo = o.clone(orig)
       newo[prop] = nval
-      return [newo, o.NOVALUE] as [T, keyof T]
+      return [newo, o.NOVALUE] as [T, K]
     }
   )
 }

@@ -283,7 +283,6 @@ export function $on<N extends Element>(event: string | string[], _listener: List
  * Add a callback on the click event, or touchend if we are on a mobile
  * device.
  * @category decorator, toc
- * @api
  */
 export function $click<N extends HTMLElement | SVGElement>(cbk: Listener<MouseEvent, N>, capture?: boolean): (node: N) => void {
   return function $click(node) {
@@ -318,7 +317,6 @@ export function $init<N extends Node>(fn: (node: N) => void): Decorator<N> {
  * ```
  *
  * @category decorator, toc
- * @api
  */
 export function $deinit<N extends Node>(fn: (node: N) => void) {
   return (node: N) => {
@@ -362,7 +360,6 @@ export function $inserted<N extends Node>(fn: (node: N, parent: Node) => void) {
  * </div>)
  * ```
  * @category decorator, toc
- * @api
  */
 export function $removed<N extends Node>(fn: (node: N, parent: Node) => void) {
   return (node: N) => {
@@ -394,7 +391,6 @@ function _setUpNoscroll() {
  *
  * Calling this functions makes anything not marked scrollable as non-scrollable.
  * @category decorator, toc
- * @api
  */
 export function $scrollable() {
   return (node: HTMLElement) => {
