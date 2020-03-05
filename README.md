@@ -53,7 +53,7 @@ import { o, $bind, append_child_and_init } from 'elt'
 const o_says = o('hello world')
 
 append_child_and_init(document.body, <div>
-  <p><input>{$bind(o_says)}</input></p>
+  <p><input>{$bind.string(o_says)}</input></p>
   <p>Element says {o_says} !</p>
 </div>)
 ```
@@ -67,6 +67,12 @@ const { o, $bind, append_child_and_init } = elt
 
 // ... !
 ```
+
+# About this documentation - `e()` vs `E()`
+
+Throughout this documentation, a `demo_display()` function is used. All it does is just `append_child_and_init(document.body, ...whatever_was_provided)`. This is just to make examples a little more terse.
+
+Also, the `E()` function is used almost exclusively over `e()`. They're the same, but ELT infects the global namespace to make it more convenient (only if `E` did not exist before, of course). This saves `import` statements and hopefully makes for a less cluttered documentation.
 
 # ELT In a Nutshell ; the core concepts
 
@@ -82,6 +88,7 @@ Use TSX (the typescript version of JSX) to build your interfaces. The result of 
 
 ```jsx
 // You can write that.
+import { append_child_and_init } from 'elt'
 append_child_and_init(document.body, <div class='some-class'>Hello</div>)
 ```
 
@@ -102,17 +109,21 @@ var div = <input/> as HTMLDivElement // this should be HTMLInputElement
 It is possible to use `E()` (or `e()`) directly ; they use the correct types.
 
 ```tsx
-var div = e('div') // div is infered as HTMLDivElement, hurray !
+var div = E('div') // div is infered as HTMLDivElement, hurray !
 ```
 
 ELT provides a few helper functions to work without tsx without too much pain ;
 
 ```tsx
+import { o, $bind } from 'elt'
+
 var o_contents = o('')
-var root = E.$DIV(
-  E.$SPAN('span contents !'),
-  E.$INPUT($bind(o_contents)),
-  o_contents
+demo_display(
+  E.$DIV(
+    E.$SPAN('span contents !'),
+    E.$INPUT($bind.string(o_contents)),
+    o_contents
+  )
 )
 ```
 
@@ -131,12 +142,14 @@ You may thus add variables of type :
 This means that for any Observable that should be rendered into the dom, it first has to be converted to one of these types to appear.
 
 ```tsx
-// A small exemple which works
-var o_txt = o('some text')
-var o_date = o(new Date())
-var date_format = new Intl.DateTimeFormat('fr')
+import { o } from 'elt'
 
-append_child_and_init(document.body, <div>
+// A small exemple which works
+const o_txt = o('some text')
+const o_date = o(new Date())
+const date_format = new Intl.DateTimeFormat('fr')
+
+demo_display(<div>
   <span>{o_txt}</span>
   {1234}
   {['hello', 'world', ['hows', 'it', 'going?']]}
@@ -150,7 +163,12 @@ append_child_and_init(document.body, <div>
 The non-jsx version works by adding children as arguments.
 
 ```tsx
-append_child_and_init(document.body, E.$DIV(
+import { o } from 'elt'
+const o_txt = o('observable')
+const o_date = o(new Date())
+const date_format = new Intl.DateTimeFormat('fr')
+
+demo_display(E.$DIV(
   E.$SPAN(o_txt),
   1234,
   ['hello', 'world', ['hows', 'it', 'going?']],
@@ -171,15 +189,23 @@ They usually work in concert with Observables to control the presence of nodes i
 For instance, [`$If`](#$If) will render its then arm only if the given observable is truthy, and the else otherwise.
 
 ```tsx
+import { o, $If, $click } from 'elt'
+
 const o_some_obj = o({prop: 'value!'} as {prop: string} | null)
 
-append_child_and_init(document.body, <div>
+demo_display(<div>
   <h1>An $If example</h1>
+  <div><button>
+    {$click(() => {
+      o_some_obj.mutate(v => !!v ? null : {prop: 'clicked'})
+    })}
+    Inverse
+  </button></div>
   {$If(o_some_obj,
     // Here, o_truthy is of type Observable<{prop: string}>, without the null
     // We can thus safely take its property, which is a Renderable (string), through the .p() method.
     o_truthy => <div>We have a {o_truthy.p('prop')}</div>,
-    () => <div>We had null</div>
+    () => <div>Value is null</div>
   )}
 </div>)
 ```
@@ -187,6 +213,8 @@ append_child_and_init(document.body, <div>
 [`$Repeat`](#$Repeat) repeats the contents of an array, with an optional separator.
 
 ```tsx
+import { $Repeat, o, append_child_and_init } from 'elt'
+
 const o_arr = o([{a: 'p'}, {a: 'q'}, {a: 'r'}])
 
 append_child_and_init(document.body, <div>
@@ -208,21 +236,23 @@ As the [`Renderable`](#Renderable) type controls what types can safely be append
 Decorators are part of `Insertable`, and are simply functions that take the current node as an argument.
 
 ```tsx
-<input>
-  {inp => {
-    // here, inp is of type HTMLInputElement
-    inp.value = 'some value'
-  }}
-</input>
+demo_display(
+  <div>
+    <input>
+      {inp => {
+        // here, inp is of type HTMLInputElement
+        inp.value = 'some value'
+      }}
+    </input>
 
-// Or, we may want to be able to click on anything
-<div>
-  {$click(ev => {
-    // $click will add cursor: pointer to this node, as otherwise safari does not want to trigger
-    // a click on this element.
-    console.log('clicked !)
-  })}
-</div>
+    <div>
+      This div is all uppercase
+      {div => {
+        div.style.textTransform = 'uppercase'
+      }}
+    </div>
+  </div>
+)
 ```
 
 > **Note**: The above warning about <jsx></jsx> returning Node and having to be cast to their correct type does not affect the functionnality of decorators.
@@ -250,11 +280,11 @@ o_bool.get() // false
 They can be transformed, and these transformations can be bidirectional.
 
 ```jsx
+import { o, $click } from 'elt'
+
 const o_obj = o({a: 1, b: 'hello'})
 const o_a = o_obj.p('a') // o_a is a new Observable that watches the 'a' property. Its type is o.Observable<number>
 o_a.set(3)
-o_obj.p('b').set('!!!')
-o_obj.get() // is now {a: 3, b: '!!!'}
 
 const o_tf = o_a.tf({get: val => val * 2, set: nval => nval / 2})
 o_tf.get() // 6
@@ -265,15 +295,32 @@ const o_tf2 = o_a.tf(val => val * 3)
 o_tf2.get() // 9
 // But then, the resulting observable is read only !
 o_tf2.set(3) // Compile error ! Runtime error too !
+
+demo_display(<div>
+  <div>
+    o_obj is: <code>{o_obj.tf(value => JSON.stringify(value))}</code> and o_a is: <code>{o_a}</code>
+    <button>{$click(() => o_a.set(3))}
+      Set o_a
+    </button>
+    <button>
+      {$click(() => o_obj.p('b').set('!!!'))}
+      Set o_b
+    </button>
+  </div>
+
+</div>)
 ```
 
 The value in an observable is **immutable**. Whenever a modifying method is called, the object inside it is cloned.
 
 ```jsx
+import { o } from 'elt'
+
+const o_obj = o({a: 1, b: 'b'})
 const prev = o_obj.get()
 o_obj.p('b').set('something else')
 
-prev !== o_obj.get() // true
+demo_display(prev === o_obj.get() ? 'true' : 'false') // true
 ```
 
 They can do a **lot** more than these very simple transformations. Check the Observable documentation.
@@ -285,13 +332,25 @@ Two or more observables can be joined together to make a new observable that wil
 A notable case is the `.p()` method on Observable, which creates a new Observable based on the property of another ; the property itself can be an Observable. If the base object or the property change, the resulting observable is updated.
 
 ```tsx
+import { o, $Fragment } from 'elt'
+
 type SomeType = {a: string, b: number}
 const o_obj = o({a: 'string !', b: 2} as SomeType)
 const o_key = o('a' as keyof SomeType)
 const o_prop = o_obj.p(o_key)
 
 o_key.set('b') // o_prop now has 2 as a value
-o_obj.set({a: 'world', b: 3}) // o_prop now has 3
+ // o_prop now has 3
+
+demo_display(<$Fragment>
+  <div>o_obj: {o_obj.tf(v => JSON.stringify(v))}</div>
+  <div>o_prop: {o_prop}</div>
+  <div>
+    <DemoBtn do={() => o_key.set('a')}/>
+    <DemoBtn do={() => o_key.set('b')}/>
+    <DemoBtn do={() => o_obj.set({a: 'world', b: 3})}/>
+  </div>
+</$Fragment>)
 ```
 
 ## Attributes
