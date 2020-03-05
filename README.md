@@ -12,9 +12,9 @@ It is of course usable in plain javascript. Howeveer, its real intended audience
 
   * **You use typescript** and don't want a javascript library that use patterns that the typing system doesn't always gracefully support. Everything is Element was built with *type inference* in mind. The [`Observable`](#Observable) ecosystem tries hard to keep that valuable typing information without getting in your way and have you type everything by hand. It also tries to be as strict as possible, which is why the recommended way to enjoy this library is with `"strict": true` in your `tsconfig.json`.
 
-  * **You like the Observer pattern** but you're afraid your app is going to leak as this pattern is prone to do. Element solves this elegantly by tying the observing to the presence of a Node in the DOM, removing the need to un-register observers that would otherwise leak. See [`node_observe`](#node_observe) and [`$observe()`](#$observe).
+  * **You like the Observer pattern** but you're afraid your app is going to leak as this pattern is prone to do. Element solves this elegantly by tying the observing to the presence of a Node in the DOM, removing the need to un-register observers that would otherwise leak. See [`node_observe`](#node_observe) and [`$observe()`](#$observe). Also, the Observables are **buffed** ; they can be transformed and combined, which makes for very fun data pipelines.
 
-  * Virtual-DOM appears brilliant to you, but **you'd rather manipulate the DOM directly**. This is a philosophical point ; Virtual DOM is extremely efficient, probably more so than manipulating the document directly, but it also adds a layer of abstraction that is not always needed. In Element, all the `<jsx>code</jsx>` return DOM Elements that can be manipulated with vanillay javascript.
+  * Virtual-DOM appears brilliant to you, but **you'd rather manipulate the DOM directly**. This is a philosophical point ; Virtual DOM is extremely efficient, probably more so than manipulating the document directly, but it also adds a layer of abstraction that is not always needed. In Element, all the `<jsx>code</jsx>` return DOM Elements that can be manipulated with vanilla javascript.
 
   * **You like expliciteness**. The Observables and Verbs are a clear giveaway of what parts of your application are subject to change. Also, every symbol you use should be reachable with the go-to definition of your code editor ; html string templates are just plain evil.
 
@@ -232,7 +232,7 @@ Decorators may return any [`Insertable`](#Insertable), even if it is another dec
 
 See the existing decorators to see what they can do.
 
-## Observables
+# Observables
 
 Observables are the mechanism through which we achieve MVVM. They are not RxJS's Observable (see `src/observable.ts`).
 
@@ -244,6 +244,8 @@ o_bool.get() // true
 o_bool.set(false)
 o_bool.get() // false
 ```
+
+## Observable transformations
 
 They can be transformed, and these transformations can be bidirectional.
 
@@ -275,6 +277,22 @@ prev !== o_obj.get() // true
 ```
 
 They can do a **lot** more than these very simple transformations. Check the Observable documentation.
+
+## Observable combination
+
+Two or more observables can be joined together to make a new observable that will update when any of its constituents change. See [`o.combine`](#o.combine), [`o.join`](#o.join) and [`o.merge`](#o.merge).
+
+A notable case is the `.p()` method on Observable, which creates a new Observable based on the property of another ; the property itself can be an Observable. If the base object or the property change, the resulting observable is updated.
+
+```tsx
+type SomeType = {a: string, b: number}
+const o_obj = o({a: 'string !', b: 2} as SomeType)
+const o_key = o('a' as keyof SomeType)
+const o_prop = o_obj.p(o_key)
+
+o_key.set('b') // o_prop now has 2 as a value
+o_obj.set({a: 'world', b: 3}) // o_prop now has 3
+```
 
 ## Attributes
 
