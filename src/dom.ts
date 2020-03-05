@@ -2,7 +2,7 @@ import { o } from './observable'
 import { StyleDefinition, ClassDefinition } from './elt'
 import { Mixin } from './mixins'
 
-export type Listener<EventType extends Event, N extends Node = Node> = (ev: EventType & {currentTarget: N}) => any
+export type Listener<EventType extends Event, N extends Node = Node> = (ev: EventType & { currentTarget: N }) => any
 
 /**
  * Symbol property on `Node` to an array of observers that are started when the node is `init()` and
@@ -250,31 +250,34 @@ export function remove_and_deinit(node: Node): void {
  * @category dom, toc
  */
 export function insert_before_and_init(parent: Node, node: Node, refchild: Node | null = null) {
-  var parent_is_inserted = parent.isConnected// if parent_is_inserted, then we have to call inserted() on the added nodes.
+  var df: DocumentFragment
 
   if (!(node instanceof DocumentFragment)) {
-    var df = document.createDocumentFragment()
+    df = document.createDocumentFragment()
     df.appendChild(node)
-    node = df
+  } else {
+    df = node
   }
 
-  var iter = node.firstChild
-  var to_insert = parent_is_inserted ? [] as Node[] : undefined
+  var iter = df.firstChild
   while (iter) {
     node_init(iter)
-    if (parent_is_inserted) to_insert!.push(iter)
     iter = iter.nextSibling
   }
 
-  parent.insertBefore(node, refchild)
+  var first = df.firstChild
+  var last = df.lastChild
+  parent.insertBefore(df, refchild)
 
-  // now the elements are inserted, they're in the DOM. We should now call inserted() on them.
-  if (parent_is_inserted) {
-    // If this symbol is undefined, it means the parent was most likely not created by elt.
-    // We check that its document events are handled by us.
-    for (var i = 0, l = to_insert!.length; i < l; i++) {
-      var n = to_insert![i]
-      node_inserted(n)
+  // If the parent was in the document, then we have to call inserted() on all the
+  // nodes we're adding.
+  if (parent.isConnected && first && last) {
+    iter = last
+    // we do it in reverse because Display and the likes do it from previous to next.
+    while (iter && iter !== first) {
+      var next = iter.previousSibling
+      node_inserted(iter)
+      iter = next as ChildNode | null
     }
   }
 }
@@ -347,7 +350,7 @@ export function node_unobserve(node: Node, obsfn: o.Observer<any> | o.Observer.O
 export function node_observe_attribute(node: Element, name: string, value: o.RO<string | boolean>) {
   node_observe(node, value, val => {
     if (val === true)
-    node.setAttribute(name, '')
+      node.setAttribute(name, '')
     else if (val != null && val !== false)
       node.setAttribute(name, val)
     else
@@ -398,7 +401,7 @@ export function node_observe_class(node: Element, c: ClassDefinition) {
       _apply_class(node, str)
     })
   } else {
-    var ob = c as {[name: string]: o.RO<any>}
+    var ob = c as { [name: string]: o.RO<any> }
     // c is a MaybeObservableObject
     var props = Object.keys(ob)
     for (var i = 0, l = props.length; i < l; i++) {
