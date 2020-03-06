@@ -4,7 +4,7 @@ import {
 } from './observable'
 
 import { EmptyAttributes, Attrs, AttrsNodeType, Renderable } from './elt'
-import { sym_mixins, node_observe, Listener, node_on_init, node_on_deinit, node_on_removed, node_on_inserted } from './dom'
+import { sym_mixins, node_observe, Listener, node_on, node_unobserve, sym_init, sym_deinit, sym_removed, sym_inserted, node_off } from './dom'
 
 
 export interface Mixin<N extends Node> {
@@ -63,7 +63,11 @@ export interface Mixin<N extends Node> {
 export abstract class Mixin<N extends Node = Node> {
 
   node: N = null!
-  next_mixin?: Mixin<any>
+
+  /** @category internal */
+  __next_mixin?: Mixin<any>
+  /** @category internal */
+  __observers: o.Observer<any>[] = []
 
   /**
    * Get a Mixin by its class on the given node or its parents.
@@ -132,6 +136,11 @@ export abstract class Mixin<N extends Node = Node> {
     return node_observe(this.node, obs, fn)
   }
 
+  unobserve(obs: o.Observer.ObserverFunction<any> | o.Observer<any>) {
+    this.__observers = this.__observers.filter(ob => obs !== ob && obs !== ob.fn)
+    return node_unobserve(this.node, obs)
+  }
+
 }
 
 
@@ -167,14 +176,26 @@ export abstract class Component<A extends EmptyAttributes<any> = Attrs<HTMLEleme
  * ```
  */
 export function node_add_mixin(node: Node, mixin: Mixin): void {
-  mixin.next_mixin = node[sym_mixins]
+  mixin.__next_mixin = node[sym_mixins]
   node[sym_mixins] = mixin
   mixin.node = node
 
-  if (mixin.init) node_on_init(node, mixin.init!.bind(mixin))
-  if (mixin.deinit) node_on_deinit(node, mixin.deinit.bind(mixin))
-  if (mixin.removed) node_on_removed(node, mixin.removed.bind(mixin))
-  if (mixin.inserted) node_on_inserted(node, mixin.inserted.bind(mixin))
+  if (mixin.init) {
+    mixin.init = mixin.init.bind(mixin)
+    node_on(node, sym_init, mixin.init)
+  }
+  if (mixin.deinit) {
+    mixin.deinit = mixin.deinit.bind(mixin)
+    node_on(node, sym_deinit, mixin.deinit)
+  }
+  if (mixin.removed) {
+    mixin.removed = mixin.removed.bind(mixin)
+    node_on(node, sym_removed, mixin.removed)
+  }
+  if (mixin.inserted) {
+    mixin.inserted = mixin.inserted.bind(mixin)
+    node_on(node, sym_inserted, mixin.inserted)
+  }
 }
 
 
@@ -185,16 +206,30 @@ export function node_add_mixin(node: Node, mixin: Mixin): void {
  */
 export function node_remove_mixin(node: Node, mixin: Mixin): void {
   var mx = node[sym_mixins]
+  var found = false
+
   if (!mx) return
   if (mx === mixin) {
-    node[sym_mixins] = mixin.next_mixin
+    found = true
+    node[sym_mixins] = mixin.__next_mixin
   } else {
     var iter = mx
     while (iter) {
-      if (iter.next_mixin === mixin) {
-        iter.next_mixin = mixin.next_mixin
-        return
+      if (iter.__next_mixin === mixin) {
+        found = true
+        iter.__next_mixin = mixin.__next_mixin
+        break
       }
+    }
+  }
+
+  if (found) {
+    if (mixin.init) node_off(node, sym_init, mixin.init)
+    if (mixin.inserted) node_off(node, sym_inserted, mixin.inserted)
+    if (mixin.deinit) node_off(node, sym_deinit, mixin.deinit)
+    if (mixin.removed) node_off(node, sym_removed, mixin.removed)
+    for (var ob of mixin.__observers) {
+      node_unobserve(node, ob)
     }
   }
 }
