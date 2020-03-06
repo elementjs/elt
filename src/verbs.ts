@@ -9,47 +9,12 @@ import {
   Mixin,
 } from './mixins'
 
-import { e, Insertable, Renderable } from './elt'
+import { e, Renderable } from './elt'
 
 import {
   insert_before_and_init,
   node_remove_after,
 } from './dom'
-
-
-/**
- * Get a node that can be inserted into the DOM from an insertable `i`. The returned value can be
- * a single `Node` or a `DocumentFragment` if the insertable was an array.
- *
- * Note that this function will ignore Decorators, Mixins and other non-renderable elements.
- *
- * @param i The insertable
- *
- * @category dom, toc
- */
-export function get_node_from_insertable(i: Insertable<Node>) {
-
-  if (i instanceof Node)
-    return i
-
-  if (i instanceof Array) {
-    const res = document.createDocumentFragment()
-    for (var n of i) {
-      res.appendChild(get_node_from_insertable(n))
-    }
-    return res
-  }
-
-  if (i instanceof o.Observable) {
-    return $Display(i)
-  }
-
-  if (i != null) {
-    return document.createTextNode(i.toString())
-  }
-
-  return document.createComment('' + i)
-}
 
 
 /**
@@ -75,11 +40,11 @@ export class CommentContainer extends Mixin<Comment> {
       node_remove_after(this.node, this.end.previousSibling!)
   }
 
-  setContents(cts: Node) {
+  setContents(cts: Node | null) {
     this.clear()
 
     // Insert the new comment before the end
-    insert_before_and_init(this.node.parentNode!, cts, this.end)
+    if (cts) insert_before_and_init(this.node.parentNode!, cts, this.end)
   }
 }
 
@@ -91,13 +56,13 @@ export class CommentContainer extends Mixin<Comment> {
  */
 export class Displayer extends CommentContainer {
 
-  constructor(public _obs: o.RO<Insertable<Node>>) {
+  constructor(public _obs: o.RO<Renderable>) {
     super()
   }
 
   init(node: Comment) {
     super.init(node)
-    this.observe(this._obs, value => this.setContents(get_node_from_insertable(value)))
+    this.observe(this._obs, value => this.setContents(e.renderable_to_node(value)))
   }
 
 }
@@ -120,9 +85,9 @@ export class Displayer extends CommentContainer {
  *
  * @category verb, toc
  */
-export function $Display(obs: o.RO<Insertable<Node>>): Node {
+export function $Display(obs: o.RO<Renderable>): Node {
   if (!(obs instanceof o.Observable)) {
-    return get_node_from_insertable(obs as Insertable<Node>)
+    return e.renderable_to_node(obs as Renderable, true)
   }
 
   return e(document.createComment('$Display'), new Displayer(obs))
@@ -162,10 +127,10 @@ export function $If<T extends o.RO<any>>(
   // ts bug on condition.
   if (typeof display === 'function' && !((condition as any) instanceof o.Observable)) {
     return condition ?
-      get_node_from_insertable(display(condition as any))
-      : get_node_from_insertable(display_otherwise ?
+      e.renderable_to_node(display(condition as any), true)
+      : e.renderable_to_node(display_otherwise ?
           (display_otherwise(null!))
-          : document.createComment('false'))
+          : document.createComment('false'), true)
   }
 
   return e(document.createComment('$If'),
@@ -202,7 +167,7 @@ export namespace $If {
       protected display_otherwise?: (arg: T) => Renderable
     ) {
       super(condition.tf((cond, old, v) => {
-        if (old !== o.NOVALUE && !!cond === !!old && v !== o.NOVALUE) return v as Insertable<Node>
+        if (old !== o.NOVALUE && !!cond === !!old && v !== o.NOVALUE) return v as Renderable
         if (cond) {
           return display(condition as NonNullableRO<T>)
         } else if (display_otherwise) {
@@ -244,20 +209,20 @@ export namespace $If {
  */
 export function $Repeat<T extends o.RO<any[]>>(
   ob: T,
-  render: (arg: $Repeat.RoItem<T>, idx: number) => Insertable<Node>,
+  render: (arg: $Repeat.RoItem<T>, idx: number) => Renderable,
   separator?: $Repeat.SeparatorFn
 ): Node {
   if (!(ob instanceof o.Observable)) {
     const arr = ob as any[]
-    const final = new Array(separator ? arr.length * 2 - 1 : arr.length) as Node[]
-    var i = 0
-    var j = 0
-    for (var elt of arr) {
-      arr[i++] = render(elt, j++)
-      if (separator)
-        arr[i++] = separator(j - 1)
+
+    var df = document.createDocumentFragment()
+    for (var i = 0, l = arr.length; i < l; i++) {
+      df.appendChild(e.renderable_to_node(render(arr[i], i), true))
+      if (i > 1 && separator) {
+        df.appendChild(e.renderable_to_node(separator(i - 1), true))
+      }
     }
-    return get_node_from_insertable(final)
+    return df
   }
 
   return e(
@@ -274,9 +239,9 @@ export namespace $Repeat {
   : T;
 
   /** @category internal */
-  export type RenderFn<T> = (e: o.Observable<T>, oi: number) => Insertable<Node>
+  export type RenderFn<T> = (e: o.Observable<T>, oi: number) => Renderable
 
-  export type SeparatorFn = (oi: number) => Insertable<Node>
+  export type SeparatorFn = (oi: number) => Renderable
 
   /**
    *  Repeats content.
@@ -328,10 +293,11 @@ export namespace $Repeat {
       this.child_obs.push(ob)
 
       if (this.separator && this.next_index > 0) {
-        fr.appendChild(get_node_from_insertable(this.separator(this.next_index)))
+        var sep = e.renderable_to_node(this.separator(this.next_index))
+        if (sep) fr.appendChild(sep)
       }
 
-      var node = get_node_from_insertable(this.renderfn(ob, this.next_index))
+      var node = e.renderable_to_node(this.renderfn(ob, this.next_index), true)
       this.positions.push(node instanceof DocumentFragment ? node.lastChild! : node)
       fr.appendChild(node)
 
@@ -385,7 +351,7 @@ export namespace $Repeat {
  */
 export function $RepeatScroll<T extends o.RO<any[]>>(
   ob: T,
-  render: (arg: $Repeat.RoItem<T>, idx: number) => Insertable<Node>,
+  render: (arg: $Repeat.RoItem<T>, idx: number) => Renderable,
   options: Partial<$RepeatScroll.Options> = {}
 ): Node {
   // we cheat the typesystem, which is not great, but we know what we're doing.
@@ -414,7 +380,7 @@ export namespace $RepeatScroll {
 
     constructor(
       ob: o.Observable<T[]>,
-      renderfn: (e: o.Observable<T>, oi: number) => Insertable<Node>,
+      renderfn: (e: o.Observable<T>, oi: number) => Renderable,
       public options: $RepeatScroll.Options
     ) {
       super(ob, renderfn)

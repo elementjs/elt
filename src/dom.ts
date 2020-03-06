@@ -7,14 +7,14 @@ export type Listener<EventType extends Event, N extends Node = Node> = (ev: Even
 /**
  * Symbol property on `Node` to an array of observers that are started when the node is `init()` and
  * stopped on `deinit()`.
- * @internal
+ * @category low level dom, toc
  */
 export const sym_observers = Symbol('elt-observers')
 
 /**
  * Symbol property added on `Node` to track the status of the node ; if it's been init(), inserted() or more.
  * Its value type is `string`.
- * @internal
+ * @category low level dom, toc
  */
 export const sym_mount_status = Symbol('elt-mount-status')
 
@@ -24,26 +24,26 @@ export const sym_mount_status = Symbol('elt-mount-status')
  * The more "correct" way of achieving this would have been to create
  * a WeakSet, but since the performance is not terrific (especially
  * when the number of elements gets high), the symbol solution was retained.
- * @internal
+ * @category low level dom, toc
  */
 export const sym_mixins = Symbol('elt-mixins')
 
 /**
  * A symbol property on `Node` to an array of functions to run when the node is **init**, which is to
  * say usually right when it was created but already added to a parent (which can be a `DocumentFragment`).
- * @internal
+ * @category low level dom, toc
  */
 export const sym_init = Symbol('elt-init')
 
 /**
  * A symbol property on `Node` to an array of functions to run when the node is **inserted** into a document.
- * @internal
+ * @category low level dom, toc
  */
 export const sym_inserted = Symbol('elt-inserted')
 
 /**
  * A symbol property on `Node` to an array of functions to run when the node is **removed** from a document.
- * @internal
+ * @category low level dom, toc
  */
 export const sym_removed = Symbol('elt-removed')
 
@@ -104,6 +104,7 @@ function _node_stop_observers(node: Node) {
 
 /**
  * Return `true` if this node is currently observing its associated observables.
+ * @category low level dom, toc
  */
 export function node_is_observing(node: Node) {
   return !!(node[sym_mount_status] & NODE_IS_OBSERVING)
@@ -112,6 +113,7 @@ export function node_is_observing(node: Node) {
 
 /**
  * Return `true` is the init() phase was already executed on this node.
+ * @category low level dom, toc
  */
 export function node_is_inited(node: Node) {
   return !!(node[sym_mount_status] & NODE_IS_INITED)
@@ -125,7 +127,7 @@ export function node_is_inited(node: Node) {
  * its status is potentially updated after the node was inserted or removed from the dom, or could
  * have been forced to another value by a third party.
  *
- * @category dom, toc
+ * @category low level dom, toc
  */
 export function node_is_inserted(node: Node) {
   return !!(node[sym_mount_status] & NODE_IS_INSERTED)
@@ -232,7 +234,7 @@ function _apply_removed(node: Node, prev_parent: Node | null) {
  *
  * If `prev_parent` is not supplied, then the `remove` is not run, but observers stop.
  *
- * @category dom, toc
+ * @category internal
  */
 export function node_do_remove(node: Node, prev_parent: Node | null) {
 
@@ -266,14 +268,12 @@ export function node_do_remove(node: Node, prev_parent: Node | null) {
 
 
 /**
- * Remove a `node` from the DOM and call `removed` on its mixins as well as `deinit` on itself
- * and all its children's Mixins.
+ * Remove a `node` from the tree and call `removed` on its mixins and all the `removed` callbacks..
  *
- * Prefer using it over `Node.removeChild` or `Node.remove()` as not unmounting Mixins will leave
- * `#o.Observable`s still being watched and lead to memory leaks.
+ * This function is mostly used by verbs that don't want to wait for the mutation observer
+ * callback registered in [`setup_mutation_observer`](#setup_mutation_observer)
  *
- * @param node The node to remove from the DOM
- * @category dom, toc
+ * @category low level dom, toc
  */
 export function remove_and_deinit(node: Node): void {
   const parent = node.parentNode!
@@ -357,17 +357,15 @@ export function setup_mutation_observer(node: Node) {
 
 
 /**
- * Insert a `node` to a `parent`'s child list before `refchild`.
- *
- * This method should **always** be used instead of `Node.appendChild` or `Node.insertBefore` when
- * dealing with nodes created with `#e`, as it performs the following operations on top of adding
- * them :
+ * Insert a `node` to a `parent`'s child list before `refchild`, mimicking `Node.insertBefore()`.
+ * This function is used by verbs and `e()` to run the `init()` and `inserted()` callbacks before
+ * the mutation observer for performance reasons.
  *
  *  - Call the `init()` methods on `#Mixin`s present on the nodes that were not already mounted
  *  - Call the `inserted()` methods on `#Mixin`'s present on **all** the nodes and their descendents
  *     if `parent` is already inside the DOM.
  *
- * @category dom, toc
+ * @category low level dom, toc
  */
 export function insert_before_and_init(parent: Node, node: Node, refchild: Node | null = null) {
   var df: DocumentFragment
@@ -406,7 +404,7 @@ export function insert_before_and_init(parent: Node, node: Node, refchild: Node 
 
 /**
  * Alias for `#insert_before_and_mount` that mimicks `Node.appendChild()`
- * @category dom, toc
+ * @category low level dom, toc
  */
 export function append_child_and_init(parent: Node, child: Node) {
   insert_before_and_init(parent, child)
@@ -419,7 +417,9 @@ export function append_child_and_init(parent: Node, child: Node) {
  * Observers are called whenever the observable changes **and** the node is contained
  * in the document.
  *
- * @category dom, toc
+ * Used mostly by [`$observe()`](#$observe) and `Mixin.observe`
+ *
+ * @category low level dom, toc
  */
 export function node_observe<T>(node: Node, obs: o.RO<T>, obsfn: o.Observer.ObserverFunction<T>): o.Observer<T> | null {
   if (!(o.isReadonlyObservable(obs))) {
@@ -438,6 +438,15 @@ export function node_observe<T>(node: Node, obs: o.RO<T>, obsfn: o.Observer.Obse
 }
 
 
+/**
+ * Attach an event `listener` to a `node`, where `event` can potentially be an array.
+ *
+ * The listener is typed as having `currentTarget` as the type of the node the event is added on, if known.
+ *
+ * Used mostly by `Mixin.on` and [`$on()`](#$on)
+ *
+ * @category low level dom, toc
+ */
 export function node_add_event_listener<N extends Element, K extends (keyof DocumentEventMap)[]>(node: N, name: K, listener: Listener<DocumentEventMap[K[number]], N>, useCapture?: boolean): void
 export function node_add_event_listener<N extends Element, K extends keyof DocumentEventMap>(node: N, event: K, listener: Listener<DocumentEventMap[K], N>, useCapture?: boolean): void
 export function node_add_event_listener<N extends Element>(node: N, event: string | string[], listener: Listener<Event, N>, useCapture?: boolean): void
@@ -486,7 +495,7 @@ export function node_observe_attribute(node: Element, name: string, value: o.RO<
 
 /**
  * Observe a style (as JS defines it) and update the node as needed.
- * @category dom, toc
+ * @category low level dom, toc
  */
 export function node_observe_style(node: HTMLElement | SVGElement, style: StyleDefinition) {
   if (style instanceof o.Observable) {
@@ -514,7 +523,7 @@ export function node_observe_style(node: HTMLElement | SVGElement, style: StyleD
 
 /**
  * Observe a complex class definition and update the node as needed.
- * @category dom, toc
+ * @category low level dom, toc
  */
 export function node_observe_class(node: Element, c: ClassDefinition) {
   if (!c) return
@@ -595,7 +604,7 @@ function _remove_class(node: Element, c: string) {
  * </div>
  * ```
  *
- * @category dom, toc
+ * @category low level dom, toc
  */
 export function node_on<N extends Node>(
   node: N,
