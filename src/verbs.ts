@@ -81,11 +81,6 @@ export class CommentContainer extends Mixin<Comment> {
     // Insert the new comment before the end
     insert_before_and_init(this.node.parentNode!, cts, this.end)
   }
-
-  removed(node: Node, parent: Node) {
-    this.clear()
-    parent.removeChild(this.end)
-  }
 }
 
 
@@ -212,203 +207,6 @@ export namespace $If {
 
 
 /**
- *  Repeats content.
- * @category internal
- */
-export class Repeater<T> extends Mixin<Comment> {
-
-  // protected proxy = o([] as T[])
-  protected obs: o.Observable<T[]>
-  protected positions: Node[] = []
-  protected next_index: number = 0
-  protected lst: T[] = []
-
-  protected child_obs: o.Observable<T>[] = []
-
-  constructor(
-    ob: o.Observable<T[]>,
-    public renderfn: $Repeat.RenderFn<T>,
-    public separator?: $Repeat.SeparatorFn
-  ) {
-    super()
-
-    this.obs = o(ob)
-  }
-
-  init() {
-    this.observe(this.obs, lst => {
-      this.lst = lst || []
-      const diff = lst.length - this.next_index
-
-      if (diff < 0)
-        this.removeChildren(-diff)
-
-      if (diff > 0)
-        this.appendChildren(diff)
-    })
-  }
-
-  /**
-   * Generate the next element to append to the list.
-   */
-  next(fr: DocumentFragment): boolean {
-    if (this.next_index >= this.lst.length)
-      return false
-
-    // here, we *KNOW* it represents a defined value.
-    var ob = this.obs.p(this.next_index) as o.Observable<T>
-
-    this.child_obs.push(ob)
-
-    if (this.separator && this.next_index > 0) {
-      fr.appendChild(get_node_from_insertable(this.separator(this.next_index)))
-    }
-
-    var node = get_node_from_insertable(this.renderfn(ob, this.next_index))
-    this.positions.push(node instanceof DocumentFragment ? node.lastChild! : node)
-    fr.appendChild(node)
-
-    this.next_index++
-    return true
-  }
-
-  appendChildren(count: number) {
-    const parent = this.node.parentNode!
-    if (!parent) return
-
-    var fr = document.createDocumentFragment()
-
-    while (count-- > 0) {
-      if (!this.next(fr)) break
-    }
-
-    insert_before_and_init(parent, fr, this.node)
-  }
-
-  removeChildren(count: number) {
-    if (this.next_index === 0 || count === 0) return
-    // Détruire jusqu'à la position concernée...
-    this.next_index = this.next_index - count
-
-    node_remove_after(this.positions[this.next_index - 1] ?? this.node, this.positions[this.positions.length - 1])
-
-    this.child_obs = this.child_obs.slice(0, this.next_index)
-    this.positions = this.positions.slice(0, this.next_index)
-  }
-
-  removed() {
-    this.removeChildren(this.positions.length)
-  }
-
-}
-
-
-/**
- * Repeats content and append it to the DOM until a certain threshold
- * is meant. Use it with `scrollable()` on the parent..
- * @category internal
- */
-export class ScrollRepeater<T> extends Repeater<T> {
-
-  protected parent: HTMLElement|null = null
-
-  constructor(
-    ob: o.Observable<T[]>,
-    renderfn: (e: o.Observable<T>, oi: number) => Insertable<Node>,
-    public scroll_buffer_size: number = 10,
-    public threshold_height: number = 500,
-    public separator?: $Repeat.SeparatorFn,
-  ) {
-    super(ob, renderfn)
-  }
-
-  /**
-   * Append `count` children if the parent was not scrollable (just like Repeater),
-   * or append elements until we've added past the bottom of the container.
-   */
-  appendChildren(count: number) {
-    if (!this.parent)
-      // if we have no scrollable parent, just act like a regular repeater.
-      return super.appendChildren(count)
-
-    // Instead of appending all the count, break it down to bufsize packets.
-    const bufsize = this.scroll_buffer_size
-    const p = this.parent
-
-    const append = () => {
-      if (this.next_index < this.lst.length && p.scrollHeight - (p.clientHeight + p.scrollTop) < this.threshold_height) {
-        super.appendChildren(bufsize)
-        requestAnimationFrame(append)
-      }
-    }
-
-    // We do not try appending immediately ; some observables may modify current
-    // items height right after this function ends, which can lead to a situation
-    // where we had few elements that were very high and went past the threshold
-    // that would get very small suddenly, but since they didn't get the chance
-    // to do that, append stops because it is past the threshold right now and
-    // thus leaves a lot of blank space.
-    requestAnimationFrame(append)
-  }
-
-  init() {
-    requestAnimationFrame(() => {
-      // do not process this if the node is not inserted.
-      if (!this.node.isConnected) return
-
-      // Find parent with the overflow-y
-      var iter = this.node.parentElement
-      while (iter) {
-        var style = getComputedStyle(iter) as any
-        if (style.overflowY === 'auto' || style.msOverflowY === 'auto' || style.msOverflowY === 'scrollbar') {
-          this.parent = iter
-          break
-        }
-        iter = iter.parentElement
-      }
-
-      if (!this.parent) {
-        console.warn(`Scroll repeat needs a parent with overflow-y: auto`)
-        this.appendChildren(0)
-        return
-      }
-
-      this.parent.addEventListener('scroll', this.onscroll)
-
-      this.observe(this.obs, lst => {
-        this.lst = lst || []
-        const diff = lst.length - this.next_index
-
-        if (diff < 0)
-          this.removeChildren(-diff)
-
-        if (diff > 0)
-          this.appendChildren(0)
-      })
-
-    })
-
-  }
-
-  onscroll = () => {
-    if (!this.parent) return
-    this.appendChildren(0)
-  }
-
-  removed() {
-    super.removed()
-
-    // remove Scrolling
-    if (!this.parent) return
-
-    this.parent.removeEventListener('scroll', this.onscroll)
-    this.parent = null
-  }
-
-}
-
-
-/**
  * @category verb, toc
  *
  * Repeats the `render` function for each element in `ob`, optionally separating each rendering
@@ -452,7 +250,7 @@ export function $Repeat<T extends o.RO<any[]>>(
 
   return e(
     document.createComment('$Repeat'),
-    new Repeater(ob, render as any, separator)
+    new $Repeat.Repeater(ob, render as any, separator)
   )
 }
 
@@ -468,7 +266,93 @@ export namespace $Repeat {
 
   export type SeparatorFn = (oi: number) => Insertable<Node>
 
+  /**
+   *  Repeats content.
+   * @category internal
+   */
+  export class Repeater<T> extends Mixin<Comment> {
+
+    // protected proxy = o([] as T[])
+    protected obs: o.Observable<T[]>
+    protected positions: Node[] = []
+    protected next_index: number = 0
+    protected lst: T[] = []
+
+    protected child_obs: o.Observable<T>[] = []
+
+    constructor(
+      ob: o.Observable<T[]>,
+      public renderfn: $Repeat.RenderFn<T>,
+      public separator?: $Repeat.SeparatorFn
+    ) {
+      super()
+
+      this.obs = o(ob)
+    }
+
+    init() {
+      this.observe(this.obs, lst => {
+        this.lst = lst || []
+        const diff = lst.length - this.next_index
+
+        if (diff < 0)
+          this.removeChildren(-diff)
+
+        if (diff > 0)
+          this.appendChildren(diff)
+      })
+    }
+
+    /**
+     * Generate the next element to append to the list.
+     */
+    next(fr: DocumentFragment): boolean {
+      if (this.next_index >= this.lst.length)
+        return false
+
+      // here, we *KNOW* it represents a defined value.
+      var ob = this.obs.p(this.next_index) as o.Observable<T>
+
+      this.child_obs.push(ob)
+
+      if (this.separator && this.next_index > 0) {
+        fr.appendChild(get_node_from_insertable(this.separator(this.next_index)))
+      }
+
+      var node = get_node_from_insertable(this.renderfn(ob, this.next_index))
+      this.positions.push(node instanceof DocumentFragment ? node.lastChild! : node)
+      fr.appendChild(node)
+
+      this.next_index++
+      return true
+    }
+
+    appendChildren(count: number) {
+      const parent = this.node.parentNode!
+      if (!parent) return
+
+      var fr = document.createDocumentFragment()
+
+      while (count-- > 0) {
+        if (!this.next(fr)) break
+      }
+
+      insert_before_and_init(parent, fr, this.node)
+    }
+
+    removeChildren(count: number) {
+      if (this.next_index === 0 || count === 0) return
+      // Détruire jusqu'à la position concernée...
+      this.next_index = this.next_index - count
+
+      node_remove_after(this.positions[this.next_index - 1] ?? this.node, this.positions[this.positions.length - 1])
+
+      this.child_obs = this.child_obs.slice(0, this.next_index)
+      this.positions = this.positions.slice(0, this.next_index)
+    }
+  }
 }
+
 
 /**
  * Similarly to `$Repeat`, `$RepeatScroll` repeats the `render` function for each element in `ob`,
@@ -490,14 +374,124 @@ export namespace $Repeat {
 export function $RepeatScroll<T extends o.RO<any[]>>(
   ob: T,
   render: (arg: $Repeat.RoItem<T>, idx: number) => Insertable<Node>,
-  separator?: $Repeat.SeparatorFn,
-  scroll_buffer_size = 10
+  options: Partial<$RepeatScroll.Options> = {}
 ): Node {
   // we cheat the typesystem, which is not great, but we know what we're doing.
   return e(
     document.createComment('$RepeatScroll'),
-    new ScrollRepeater(o(ob as any) as o.Observable<any>, render as any, scroll_buffer_size, 500, separator)
+    new $RepeatScroll.ScrollRepeater<any>(o(ob as any) as o.Observable<any>, render as any, options)
   )
+}
+
+export namespace $RepeatScroll {
+
+  export type Options = {
+    separator?: $Repeat.SeparatorFn
+    scroll_buffer_size?: number
+    threshold_height?: number
+  }
+
+  /**
+   * Repeats content and append it to the DOM until a certain threshold
+   * is meant. Use it with `scrollable()` on the parent..
+   * @category internal
+   */
+  export class ScrollRepeater<T> extends $Repeat.Repeater<T> {
+
+    protected parent: HTMLElement|null = null
+
+    constructor(
+      ob: o.Observable<T[]>,
+      renderfn: (e: o.Observable<T>, oi: number) => Insertable<Node>,
+      public options: $RepeatScroll.Options
+    ) {
+      super(ob, renderfn)
+    }
+
+    scroll_buffer_size = this.options.scroll_buffer_size ?? 10
+    threshold_height = this.options.threshold_height ?? 500
+    separator = this.options.separator
+
+    /**
+     * Append `count` children if the parent was not scrollable (just like Repeater),
+     * or append elements until we've added past the bottom of the container.
+     */
+    appendChildren() {
+      if (!this.parent)
+        // if we have no scrollable parent (yet, if just inited), then just append items
+        return super.appendChildren(this.scroll_buffer_size)
+
+      // Instead of appending all the count, break it down to bufsize packets.
+      const bufsize = this.scroll_buffer_size
+      const p = this.parent
+
+      const append = () => {
+        if (this.next_index < this.lst.length && p.scrollHeight - (p.clientHeight + p.scrollTop) < this.threshold_height) {
+          super.appendChildren(bufsize)
+          requestAnimationFrame(append)
+        }
+      }
+
+      // We do not try appending immediately ; some observables may modify current
+      // items height right after this function ends, which can lead to a situation
+      // where we had few elements that were very high and went past the threshold
+      // that would get very small suddenly, but since they didn't get the chance
+      // to do that, append stops because it is past the threshold right now and
+      // thus leaves a lot of blank space.
+      requestAnimationFrame(append)
+    }
+
+    inserted() {
+      // do not process this if the node is not inserted.
+      if (!this.node.isConnected) return
+
+      // Find parent with the overflow-y
+      var iter = this.node.parentElement
+      while (iter) {
+        var style = getComputedStyle(iter) as any
+        if (style.overflowY === 'auto' || style.msOverflowY === 'auto' || style.msOverflowY === 'scrollbar') {
+          this.parent = iter
+          break
+        }
+        iter = iter.parentElement
+      }
+
+      if (!this.parent) {
+        console.warn(`Scroll repeat needs a parent with overflow-y: auto`)
+        this.appendChildren()
+        return
+      }
+
+      this.parent.addEventListener('scroll', this.onscroll)
+
+      this.observe(this.obs, lst => {
+        this.lst = lst || []
+        const diff = lst.length - this.next_index
+
+        if (diff < 0)
+          this.removeChildren(-diff)
+
+        if (diff > 0)
+          this.appendChildren()
+      })
+    }
+
+    onscroll = () => {
+      if (!this.parent) return
+      this.appendChildren()
+    }
+
+    removed() {
+      // remove Scrolling
+      if (!this.parent) return
+
+      this.parent.removeEventListener('scroll', this.onscroll)
+      this.parent = null
+    }
+
+  }
+
+
 }
 
 
