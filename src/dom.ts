@@ -282,20 +282,42 @@ export function remove_and_deinit(node: Node): void {
     parent.removeChild(node)
     node_do_remove(node, parent)
   } else {
-    node_do_remove(node, null) // just deinit otherwise...
+    node_do_remove(node, null) // just stop observers otherwise...
   }
 }
 
 
 /**
  * Setup the mutation observer that will be in charge of listening to document changes
- * so that the `init`, `inserted`, `deinit` and `removed` hooks are called on the nodes
- * as needed.
+ * so that the `init`, `inserted` and `removed` life-cycle callbacks are called.
  *
- * This should be the first thing done when importing
+ * This should be the first thing done at the top level of a project using ELT.
+ *
+ * If the code opens another window, it **must** use `setup_mutation_observer` on the newly created
+ * window's document or other `Node` that will hold the ELT application.
+ *
+ * This function also registers a listener on the `unload` event of the `document` or `ownerDocument`
+ * to stop all the observers when the window closes.
+ *
+ * ```tsx
+ * import { setup_mutation_observer, $inserted } from 'elt'
+ * // typically in the top-level app.tsx or index.tsx
+ * // setup_mutation_observer(document)
+ *
+ * // This example may require a popup permission from your browser.
+ * const new_window = window.open(undefined, '_blank', 'menubar=0,status=0,toolbar=0')
+ * if (new_window) {
+ *   setup_mutation_observer(new_window.document)
+ *   new_window.document.body.appendChild(<div>
+ *     {$inserted(() => console.log('inserted.'))}
+ *   </div>)
+ * }
+ *
+ *
+ * @category dom, toc
  */
 export function setup_mutation_observer(node: Node) {
-  if (!node.isConnected)
+  if (!node.isConnected && !!node.ownerDocument)
     throw new Error(`cannot setup mutation observer on a Node that is not connected in a document`)
 
   var obs = new MutationObserver(records => {
@@ -555,16 +577,22 @@ function _remove_class(node: Element, c: string) {
 
 
 /**
- * Register a callback to be called on one of the life-cycle events provided by elt.
- * In general, [`$init()`](#$init), [`$inserted()`](#inserted), [`$deinit()`](#$deinit) and [`$removed()`](#$removed) are more commonly used.
+ * Register a `callback` to be called for the life-cycle event `sym` on `node`.
+ * [`$init()`](#$init), [`$inserted()`](#inserted) and [`$removed()`](#$removed) are more commonly used, as well as the methods on [`Mixin`](#Mixin)
+ *
+ * This is mostly used internally.
  *
  * ```tsx
  * import { sym_inserted, node_on } from 'elt'
  *
  * var node = <div></div>
- * node_on(node, sym_inserted, (n, parent) => {
- *   console.log('do something')
- * })
+ * node_on(node, sym_inserted, (node, parent) => console.log('inserted'))
+ *
+ * // the former is achieved more easily by doing that:
+ * import { $inserted } from 'elt'
+ * <div>
+ *   {$inserted((node, parent) => console.log('inserted'))}
+ * </div>
  * ```
  *
  * @category dom, toc
@@ -572,21 +600,22 @@ function _remove_class(node: Element, c: string) {
 export function node_on<N extends Node>(
   node: N,
   sym: typeof sym_init | typeof sym_inserted | typeof sym_removed,
-  fn: (n: N, parent: Node) => void
+  callback: (n: N, parent: Node) => void
 ) {
-  (node[sym] = node[sym] ?? []).push(fn as (n: Node, parent: Node) => void)
+  (node[sym] = node[sym] ?? []).push(callback as (n: Node, parent: Node) => void)
 }
 
 
 /**
+ * Remove a previously associated `callback` from the life-cycle event `sym` for the `node`.
  * @category dom, toc
  */
 export function node_off<N extends Node>(
   node: N,
   sym: typeof sym_init | typeof sym_inserted | typeof sym_removed,
-  fn: (n: N, parent: Node) => void
+  callback: (n: N, parent: Node) => void
 ) {
-  (node[sym] = node[sym] ?? []).filter(f => f !== fn as (n: Node, parent: Node) => void)
+  (node[sym] = node[sym] ?? []).filter(f => f !== callback as (n: Node, parent: Node) => void)
 }
 
 
