@@ -25,12 +25,6 @@ export interface Mixin<N extends Node> {
   inserted?(node: N, parent: Node): void
 
   /**
-   * Stub method. Overload it to run code whenever the node is removed from the DOM.
-   * This is called even when the node was not the direct target of a removal.
-   */
-  deinit?(node: N): void
-
-  /**
    * Stub method. Overload it to run code whenever the node is the direct target
    * of a DOM removal (and not a child in the sub tree of a node that was removed)
    */
@@ -107,12 +101,20 @@ export abstract class Mixin<N extends Node = Node> {
   }
 
   /**
+   * To be used with decorators
+   */
+  static onThisNode<N extends Node, M extends Mixin<N>>(cbk: (m: M) => void) {
+    return (node: N) => {
+
+    }
+  }
+
+  /**
    * Remove the mixin from this node. Observers created with `observe()` will
    * stop observing, but `removed()` will not be called.
    * @param node
    */
   removeFromNode() {
-    this.deinit?.(this.node);
     node_remove_mixin(this.node, this);
     (this.node as any) = null; // we force the node to null to help with garbage collection.
   }

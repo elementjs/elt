@@ -244,7 +244,29 @@ export function e<N extends Node>(elt: any, ...children: Insertable<N>[]): N {
 }
 
 /**
- * Creates a document fragment. Typescript's JSX is configured to use this
+ * Creates a document fragment.
+ *
+ * The JSX namespace points `JSX.Fragment` to this function.
+ *
+ * While it is a "valid" component in the eyes of ELT, no life-cycle event will ever be triggered
+ * on a `$Fragment`.
+ *
+ * ```tsx
+ * // If using jsxFactory, you have to import $Fragment and use it
+ * import { $Fragment as $ } from 'elt'
+ *
+ * document.body.appendChild(<$>
+ *   <p>Content</p>
+ *   <p>More Content</p>
+ * </$>)
+ *
+ * // If using jsxNamespace as "e" or "E", the following works out of the box
+ * document.body.appendChild(<>
+ *   <p>Content</p>
+ *   <p>More Content</p>
+ * </>)
+ *
+ * ```
  *
  * @category dom, toc
  */

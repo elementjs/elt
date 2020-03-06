@@ -106,6 +106,18 @@ export class Displayer extends CommentContainer {
 /**
  * Write and update the string value of an observable value into
  * a Text node.
+ *
+ * This verb is used whenever an observable is passed as a child to a node.
+ *
+ * ```tsx
+ * import { o, $Display, $Fragment as $ } from 'elt'
+ *
+ * const o_text = o('text')
+ * document.body.appendChild(<$>
+ *   {o_text} is the same as {$Display(o_text)}
+ * </$>)
+ * ```
+ *
  * @category verb, toc
  */
 export function $Display(obs: o.RO<Insertable<Node>>): Node {
@@ -120,7 +132,7 @@ export function $Display(obs: o.RO<Insertable<Node>>): Node {
 /**
  * @category verb, toc
  *
- * Display content depending on the value of a `condition`, which can be `#o.Observable`
+ * Display content depending on the value of a `condition`, which can be an observable.
  *
  * If `condition` is not an observable, then the call to `$If` is resolved immediately without using
  * an intermediary observable.
