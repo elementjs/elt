@@ -314,9 +314,11 @@ export namespace e {
   /**
    * @category internal
    */
-  export function renderable_to_node(r: Renderable) {
+  export function renderable_to_node(r: Renderable): Node | null
+  export function renderable_to_node(r: Renderable, null_as_comment: true): Node
+  export function renderable_to_node(r: Renderable, null_as_comment = false) {
     if (r == null)
-      return null
+      return null_as_comment ? document.createComment(' null ') : null
     else if (typeof r === 'string' || typeof r === 'number')
       return document.createTextNode(r.toString())
     else if (o.isReadonlyObservable(r))
