@@ -4,7 +4,7 @@ import {
 } from './observable'
 
 import { EmptyAttributes, Attrs, AttrsNodeType, Renderable } from './elt'
-import { sym_mixins, node_observe, Listener, node_on, node_unobserve, sym_init, sym_deinit, sym_removed, sym_inserted, node_off } from './dom'
+import { sym_mixins, node_observe, Listener, node_on, node_unobserve, sym_init, sym_removed, sym_inserted, node_off } from './dom'
 
 
 export interface Mixin<N extends Node> {
@@ -184,10 +184,6 @@ export function node_add_mixin(node: Node, mixin: Mixin): void {
     mixin.init = mixin.init.bind(mixin)
     node_on(node, sym_init, mixin.init)
   }
-  if (mixin.deinit) {
-    mixin.deinit = mixin.deinit.bind(mixin)
-    node_on(node, sym_deinit, mixin.deinit)
-  }
   if (mixin.removed) {
     mixin.removed = mixin.removed.bind(mixin)
     node_on(node, sym_removed, mixin.removed)
@@ -226,7 +222,6 @@ export function node_remove_mixin(node: Node, mixin: Mixin): void {
   if (found) {
     if (mixin.init) node_off(node, sym_init, mixin.init)
     if (mixin.inserted) node_off(node, sym_inserted, mixin.inserted)
-    if (mixin.deinit) node_off(node, sym_deinit, mixin.deinit)
     if (mixin.removed) node_off(node, sym_removed, mixin.removed)
     for (var ob of mixin.__observers) {
       node_unobserve(node, ob)

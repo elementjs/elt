@@ -15,7 +15,6 @@ import {
   node_add_event_listener,
   sym_init,
   node_on,
-  sym_deinit,
   sym_inserted,
   sym_removed
 } from './dom'
@@ -308,25 +307,6 @@ export function $init<N extends Node>(fn: (node: N) => void): Decorator<N> {
 
 
 /**
- * Call the specified function when the node is removed from the DOM.
- *
- * It is not the same as $removed, which is called when the node is a direct target
- * of removal from a function such as `node_remove`.
- *
- * ```jsx
- *  <div>{$deinit(node => console.log(`This node is now out of the DOM`))}</div>
- * ```
- *
- * @category decorator, toc
- */
-export function $deinit<N extends Node>(fn: (node: N) => void) {
-  return (node: N) => {
-    node_on(node, sym_deinit, fn)
-  }
-}
-
-
-/**
  * Call the `fn` callback when the decorated `node` is inserted into the DOM with
  * itself as first argument.
  *
@@ -346,19 +326,17 @@ export function $inserted<N extends Node>(fn: (node: N, parent: Node) => void) {
 
 
 /**
- * Run a callback when the node is a direct target for removal from the document.
+ * Run a callback when the node is removed from its holding document.
  *
  * ```jsx
- * $If(o_some_condition, () => <div>
+ * import { o, $removed } from 'elt'
+ * const o_some_condition = o(true)
+ *
+ * document.appendChild($If(o_some_condition, () => <div>
  *   {$removed((node, parent) => {
  *     console.log(`I was removed.`)
  *   })}
- *   <div>
- *      Subdiv
- *      {$removed(() => console.log('I will not be displayed when o_some_condition becomes false'))}
- *      {$deinit(() => console.log('However, I will'))}
- *   </div>
- * </div>)
+ * </div>))
  * ```
  * @category decorator, toc
  */

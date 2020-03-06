@@ -29,25 +29,20 @@ export const sym_mount_status = Symbol('elt-mount-status')
 export const sym_mixins = Symbol('elt-mixins')
 
 /**
- * A symbol property on `Node` to an array of functions to run when the node is `init()`
+ * A symbol property on `Node` to an array of functions to run when the node is **init**, which is to
+ * say usually right when it was created but already added to a parent (which can be a `DocumentFragment`).
  * @internal
  */
 export const sym_init = Symbol('elt-init')
 
 /**
- * A symbol property on `Node` to an array of functions to run when the node is `deinit()`
- * @internal
- */
-export const sym_deinit = Symbol('elt-deinit')
-
-/**
- * A symbol property on `Node` to an array of functions to run when the node is `inserted()` into the document.
+ * A symbol property on `Node` to an array of functions to run when the node is **inserted** into a document.
  * @internal
  */
 export const sym_inserted = Symbol('elt-inserted')
 
 /**
- * A symbol property on `Node` to an array of functions to run when the node is directly `removed()` from the document.
+ * A symbol property on `Node` to an array of functions to run when the node is **removed** from a document.
  * @internal
  */
 export const sym_removed = Symbol('elt-removed')
@@ -73,13 +68,12 @@ declare global {
 
     [sym_init]?: ((n: Node, parent: Node) => void)[]
     [sym_inserted]?: ((n: Node, parent: Node) => void)[]
-    [sym_deinit]?: ((n: Node, parent: Node) => void)[]
     [sym_removed]?: ((n: Node, parent: Node) => void)[]
   }
 }
 
 
-function _node_call_cbks(node: Node, sym: typeof sym_init | typeof sym_deinit | typeof sym_inserted | typeof sym_removed, parent?: Node) {
+function _node_call_cbks(node: Node, sym: typeof sym_init | typeof sym_inserted | typeof sym_removed, parent?: Node) {
   var cbks = node[sym]
   if (!cbks) return
 
@@ -216,12 +210,11 @@ export function node_do_inserted(node: Node) {
  * Apply unmount to a node.
  * @internal
  */
-function _apply_deinit(node: Node, prev_parent: Node | null) {
+function _apply_removed(node: Node, prev_parent: Node | null) {
   var st = node[sym_mount_status]
 
   if (st & NODE_IS_OBSERVING) {
     _node_stop_observers(node)
-    _node_call_cbks(node, sym_deinit)
     st = st ^ NODE_IS_OBSERVING
   }
 
@@ -237,12 +230,11 @@ function _apply_deinit(node: Node, prev_parent: Node | null) {
  * Traverse the node tree of `node` and call the `deinit()` handlers, begininning by the leafs and ending
  * on the root.
  *
- * If `prev_parent` is supplied, it means that this is a **removal** from the document, in which case
- * the `removed()` handlers are called as well.
+ * If `prev_parent` is not supplied, then the `remove` is not run, but observers stop.
  *
  * @category dom, toc
  */
-export function node_do_deinit(node: Node, prev_parent: Node | null) {
+export function node_do_remove(node: Node, prev_parent: Node | null) {
 
   const node_stack: Node[] = []
   var iter: Node | null = node.firstChild
@@ -254,7 +246,7 @@ export function node_do_deinit(node: Node, prev_parent: Node | null) {
       iter = iter.firstChild
     }
 
-    _apply_deinit(iter, prev_parent ? iter.parentNode! : null)
+    _apply_removed(iter, prev_parent ? iter.parentNode! : null)
     if (prev_parent)
 
     // When we're here, we're on a terminal node, so
@@ -262,14 +254,14 @@ export function node_do_deinit(node: Node, prev_parent: Node | null) {
 
     while (iter && !iter.nextSibling) {
       iter = node_stack.pop()!
-      if (iter) _apply_deinit(iter, prev_parent ? iter.parentNode! : null)
+      if (iter) _apply_removed(iter, prev_parent ? iter.parentNode! : null)
     }
 
     // So now we're going to traverse the next node.
     iter = iter && iter.nextSibling
   }
 
-  _apply_deinit(node, prev_parent)
+  _apply_removed(node, prev_parent)
 }
 
 
@@ -288,9 +280,9 @@ export function remove_and_deinit(node: Node): void {
   if (parent) {
     // (m as any).node = null
     parent.removeChild(node)
-    node_do_deinit(node, parent)
+    node_do_remove(node, parent)
   } else {
-    node_do_deinit(node, null) // just deinit otherwise...
+    node_do_remove(node, null) // just deinit otherwise...
   }
 }
 
@@ -321,14 +313,14 @@ export function setup_mutation_observer(node: Node) {
       }
       for (var removed = Array.from(record.removedNodes), j = 0, lj = removed.length; j < lj; j++) {
         var removed_node = removed[j]
-        node_do_deinit(removed_node, record.target)
+        node_do_remove(removed_node, record.target)
       }
     }
   })
 
   // Make sure that when closing the window, everything gets cleaned up
   ;(node.ownerDocument ?? node).addEventListener('unload', ev => {
-    node_do_deinit(node, null) // technically, the nodes were not removed, but we want to at least shut down all observers.
+    node_do_remove(node, null) // technically, the nodes were not removed, but we want to at least shut down all observers.
     obs.disconnect()
   })
 
@@ -579,7 +571,7 @@ function _remove_class(node: Element, c: string) {
  */
 export function node_on<N extends Node>(
   node: N,
-  sym: typeof sym_init | typeof sym_deinit | typeof sym_inserted | typeof sym_removed,
+  sym: typeof sym_init | typeof sym_inserted | typeof sym_removed,
   fn: (n: N, parent: Node) => void
 ) {
   (node[sym] = node[sym] ?? []).push(fn as (n: Node, parent: Node) => void)
@@ -591,7 +583,7 @@ export function node_on<N extends Node>(
  */
 export function node_off<N extends Node>(
   node: N,
-  sym: typeof sym_init | typeof sym_deinit | typeof sym_inserted | typeof sym_removed,
+  sym: typeof sym_init | typeof sym_inserted | typeof sym_removed,
   fn: (n: N, parent: Node) => void
 ) {
   (node[sym] = node[sym] ?? []).filter(f => f !== fn as (n: Node, parent: Node) => void)
