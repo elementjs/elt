@@ -14,7 +14,6 @@ import {
   node_observe_class,
   node_observe_style,
   node_observe_attribute,
-  node_inserted,
   insert_before_and_init,
   append_child_and_init,
 } from './dom'
@@ -239,12 +238,6 @@ export function e<N extends Node>(elt: any, ...children: Insertable<N>[]): N {
   // Add the mixins
   for (i = 0, l = mixins.length; i < l; i++) {
     node_add_mixin(node, mixins[i])
-  }
-
-  // If the node was connected (ie, we called e() with an existing node like document.body), then
-  // we have to call inserted on it.
-  if (node.isConnected) {
-    node_inserted(node)
   }
 
   return node

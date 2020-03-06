@@ -11,12 +11,13 @@ import {
   node_observe,
   node_observe_class,
   Listener,
-  node_on_removed,
-  node_on_deinit,
-  node_on_init,
-  node_on_inserted,
   node_observe_style,
-  node_add_event_listener
+  node_add_event_listener,
+  sym_init,
+  node_on,
+  sym_deinit,
+  sym_inserted,
+  sym_removed
 } from './dom'
 
 import {
@@ -301,7 +302,7 @@ export function $click<N extends HTMLElement | SVGElement>(cbk: Listener<MouseEv
  */
 export function $init<N extends Node>(fn: (node: N) => void): Decorator<N> {
   return node => {
-    node_on_init(node, fn)
+    node_on(node, sym_init, fn)
   }
 }
 
@@ -320,7 +321,7 @@ export function $init<N extends Node>(fn: (node: N) => void): Decorator<N> {
  */
 export function $deinit<N extends Node>(fn: (node: N) => void) {
   return (node: N) => {
-    node_on_deinit(node, fn)
+    node_on(node, sym_deinit, fn)
   }
 }
 
@@ -339,7 +340,7 @@ export function $deinit<N extends Node>(fn: (node: N) => void) {
  */
 export function $inserted<N extends Node>(fn: (node: N, parent: Node) => void) {
   return (node: N) => {
-    node_on_inserted(node, fn)
+    node_on(node, sym_inserted, fn)
   }
 }
 
@@ -363,7 +364,7 @@ export function $inserted<N extends Node>(fn: (node: N, parent: Node) => void) {
  */
 export function $removed<N extends Node>(fn: (node: N, parent: Node) => void) {
   return (node: N) => {
-    node_on_removed(node, fn)
+    node_on(node, sym_removed, fn)
   }
 }
 
