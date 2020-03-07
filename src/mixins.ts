@@ -60,7 +60,11 @@ export abstract class Mixin<N extends Node = Node> {
 
   /** @category internal */
   __next_mixin?: Mixin<any>
-  /** @category internal */
+  /**
+   * An internal list of observers that are kept only for reference in the case the mixin needs
+   * to be unregistered from its Node.
+   * @category internal
+   * */
   __observers: o.Observer<any>[] = []
 
   /**
@@ -135,10 +139,14 @@ export abstract class Mixin<N extends Node = Node> {
    * Observe and Observable and return the observer that was created
    */
   observe<A>(obs: o.RO<A>, fn: o.Observer.ObserverFunction<A>, observer_callback?: (observer: o.Observer<A>) => any): o.Observer<A> | null {
-    return node_observe(this.node, obs, fn, observer_callback)
+    return node_observe(this.node, obs, fn, ob => {
+      this.__observers.push(ob)
+      observer_callback?.(ob)
+    })
   }
 
   addObserver<T>(obs: o.Observer<T>) {
+    this.__observers.push(obs)
     return node_add_observer(this.node, obs)
   }
 
