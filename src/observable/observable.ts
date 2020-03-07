@@ -1219,13 +1219,14 @@ export function prop<T, K extends keyof T>(obj: Observable<T> | T, prop: RO<K>) 
     /**
      * Observe and Observable and return the observer that was created
      */
-    observe<A>(obs: A, fn: Observer.ObserverFunction<BaseType<A>>): Observer<A> | null {
+    observe<A>(obs: RO<A>, fn: Observer.ObserverFunction<A>, observer_callback?: (observer: Observer<A>) => any): Observer<A> | null {
       if (!(obs instanceof Observable)) {
-        fn(obs as BaseType<A>, new Changes(obs as BaseType<A>))
+        fn(obs as A, new Changes(obs as A))
         return null
       }
 
       const observer = o(obs).createObserver(fn)
+      observer_callback?.(observer)
       return this.addObserver(observer)
     }
 
