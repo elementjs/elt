@@ -440,20 +440,23 @@ export function append_child_and_init(parent: Node, child: Node) {
  *
  * @category low level dom, toc
  */
-export function node_observe<T>(node: Node, obs: o.RO<T>, obsfn: o.Observer.ObserverFunction<T>): o.Observer<T> | null {
+export function node_observe<T>(node: Node, obs: o.RO<T>, obsfn: o.Observer.ObserverFunction<T>, observer_callback?: (obs: o.Observer<T>) => any): o.Observer<T> | null {
   if (!(o.isReadonlyObservable(obs))) {
     obsfn(obs, new o.Changes(obs))
     return null
   }
   // Create the observer and append it to the observer array of the node
   var obser = obs.createObserver(obsfn)
+  if (observer_callback) observer_callback(obser)
+  node_add_observer(node, obser)
+  return obser
+}
+
+export function node_add_observer<T>(node: Node, observer: o.Observer<T>) {
   if (node[sym_observers] == undefined)
     node[sym_observers] = []
-  node[sym_observers]!.push(obser)
-
-  if (node[sym_mount_status] & NODE_IS_OBSERVING) obser.startObserving() // this *may* be a problem ? FIXME TODO
-  // we might need to track the mounting status of a node.
-  return obser
+  node[sym_observers]!.push(observer)
+  if (node[sym_mount_status] & NODE_IS_OBSERVING) observer.startObserving()
 }
 
 
