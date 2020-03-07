@@ -210,7 +210,7 @@ export namespace $If {
 export function $Repeat<T extends o.RO<any[]>>(
   ob: T,
   render: (arg: $Repeat.RoItem<T>, idx: number) => Renderable,
-  separator?: $Repeat.SeparatorFn
+  separator?: (n: number) => Renderable
 ): Node {
   if (!(ob instanceof o.Observable)) {
     const arr = ob as any[]
@@ -238,11 +238,6 @@ export namespace $Repeat {
   : T extends (infer U)[] ? U
   : T;
 
-  /** @category internal */
-  export type RenderFn<T> = (e: o.Observable<T>, oi: number) => Renderable
-
-  export type SeparatorFn = (oi: number) => Renderable
-
   /**
    *  Repeats content.
    * @category internal
@@ -259,8 +254,8 @@ export namespace $Repeat {
 
     constructor(
       ob: o.Observable<T[]>,
-      public renderfn: $Repeat.RenderFn<T>,
-      public separator?: $Repeat.SeparatorFn
+      public renderfn: (ob: o.Observable<T>, n: number) => Renderable,
+      public separator?: (n: number) => Renderable
     ) {
       super()
 
@@ -364,7 +359,7 @@ export function $RepeatScroll<T extends o.RO<any[]>>(
 export namespace $RepeatScroll {
 
   export type Options = {
-    separator?: $Repeat.SeparatorFn
+    separator?: (n: number) => Renderable
     scroll_buffer_size?: number
     threshold_height?: number
   }

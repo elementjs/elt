@@ -235,11 +235,10 @@ export function $style<N extends HTMLElement | SVGElement>(...styles: StyleDefin
  * @category dom, toc
  */
 // export function $observe<T>(a: o.Observer<T>): Decorator<Node>
-export function $observe<N extends Node, T>(a: o.RO<T>, cbk: (newval: T, changes: o.Changes<T>, node: N) => void, obs_cbk?: (observer: o.Observer<T>) => void): Decorator<N> {
+export function $observe<N extends Node, T>(a: o.RO<T>, cbk: (newval: T, changes: o.Changes<T>, node: N) => void, obs_cbk?: (observer: o.Observer<T>) => void) {
   // export function $observe<T>(a: any, cbk?: any): Decorator<Node> {
-  return node => {
-    var res = node_observe(node, a, (nval, chg) => cbk(nval, chg, node))
-    if (res && obs_cbk) obs_cbk(res)
+  return (node: N) => {
+    node_observe(node, a, (nval, chg) => cbk(nval, chg, node), obs_cbk)
   }
 }
 

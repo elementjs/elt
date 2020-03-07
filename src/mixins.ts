@@ -4,7 +4,7 @@ import {
 } from './observable'
 
 import { EmptyAttributes, Attrs, AttrsNodeType, Renderable } from './elt'
-import { sym_mixins, node_observe, Listener, node_on, node_unobserve, sym_init, sym_removed, sym_inserted, node_off } from './dom'
+import { sym_mixins, node_observe, Listener, node_on, node_unobserve, sym_init, sym_removed, sym_inserted, node_off, node_add_observer } from './dom'
 
 
 export interface Mixin<N extends Node> {
@@ -134,8 +134,12 @@ export abstract class Mixin<N extends Node = Node> {
   /**
    * Observe and Observable and return the observer that was created
    */
-  observe<A>(obs: o.RO<A>, fn: o.Observer.ObserverFunction<A>): o.Observer<A> | null {
-    return node_observe(this.node, obs, fn)
+  observe<A>(obs: o.RO<A>, fn: o.Observer.ObserverFunction<A>, observer_callback?: (observer: o.Observer<A>) => any): o.Observer<A> | null {
+    return node_observe(this.node, obs, fn, observer_callback)
+  }
+
+  addObserver<T>(obs: o.Observer<T>) {
+    return node_add_observer(this.node, obs)
   }
 
   unobserve(obs: o.Observer.ObserverFunction<any> | o.Observer<any>) {

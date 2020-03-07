@@ -1244,7 +1244,7 @@ export function prop<T, K extends keyof T>(obj: Observable<T> | T, prop: RO<K>) 
     /**
      * Remove the observer from this group
      */
-    remove(observer: Observer<any>) {
+    unobserve(observer: Observer<any>) {
       const idx = this.observers.indexOf(observer)
       if (idx > -1) {
         if (this.live) observer.stopObserving()
