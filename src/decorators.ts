@@ -49,14 +49,14 @@ export namespace $bind {
 
   /**
    * Bind an observable to an input's value.
-   * @category decorator, toc
+   * @category dom, toc
    */
   export function string(obs: o.Observable<string>): (node: HTMLInputElement | HTMLTextAreaElement) => void {
     return setup_bind(obs, node => node.value, (node, value) => node.value = value)
   }
 
   /**
-   * @category decorator, toc
+   * @category dom, toc
    */
   export function contenteditable(obs: o.Observable<string>, as_html?: boolean): (node: HTMLElement) => void {
     return setup_bind(obs,
@@ -69,7 +69,7 @@ export namespace $bind {
   }
 
   /**
-   * @category decorator, toc
+   * @category dom, toc
    */
   export function number(obs: o.Observable<number>): (node: HTMLInputElement) => void {
     return setup_bind(obs,
@@ -87,7 +87,7 @@ export namespace $bind {
    * <input type="date">{$bind.date(o_d)}</input>
    * ```
    *
-   * @category decorator, toc
+   * @category dom, toc
    */
   export function date(obs: o.Observable<Date | null>): (node: HTMLInputElement) => void {
     return setup_bind(obs,
@@ -105,7 +105,7 @@ export namespace $bind {
    * <input type="checkbox">{$bind.boolean(o_bool)}</input>
    * ```
    *
-   * @category decorator, toc
+   * @category dom, toc
    */
   export function boolean(obs: o.Observable<boolean>): (node: HTMLInputElement) => void {
     return setup_bind(obs,
@@ -116,7 +116,7 @@ export namespace $bind {
   }
 
   /**
-   * @category decorator, toc
+   * @category dom, toc
    */
   export function selected_index(obs: o.Observable<number>): (node: HTMLSelectElement) => void {
     return setup_bind(obs,
@@ -142,7 +142,7 @@ export namespace $bind {
  * )
  * ```
  *
- * @category decorator, toc
+ * @category dom, toc
  */
 export function $props<N extends Node>(props: { [k in keyof N]?: o.RO<N[k]> }): (node: N) => void {
   var keys = Object.keys(props) as (keyof N)[]
@@ -161,7 +161,7 @@ export function $props<N extends Node>(props: { [k in keyof N]?: o.RO<N[k]> }): 
 
 
 /**
- * @category decorator, toc
+ * @category dom, toc
  */
 export function $class<N extends Element>(...clss: ClassDefinition[]) {
   return (node: N) => {
@@ -181,7 +181,7 @@ export function $class<N extends Element>(...clss: ClassDefinition[]) {
  *
  * > **Note**: You can use the `id` attribute on any element, be them Components or regular nodes, as it is forwarded.
  *
- * @category decorator, toc
+ * @category dom, toc
  */
 export function $id<N extends Element>(id: o.RO<string>) {
   return (node: N) => {
@@ -200,7 +200,7 @@ export function $id<N extends Element>(id: o.RO<string>) {
  *   $title('hello there !')
  * )
  * ```
- * @category decorator, toc
+ * @category dom, toc
  */
 export function $title<N extends HTMLElement>(title: o.RO<string>) {
   return (node: N) => {
@@ -219,7 +219,7 @@ export function $title<N extends HTMLElement>(title: o.RO<string>) {
  * )
  * ```
  *
- * @category decorator, toc
+ * @category dom, toc
  */
 export function $style<N extends HTMLElement | SVGElement>(...styles: StyleDefinition[]) {
   return (node: N) => {
@@ -232,7 +232,7 @@ export function $style<N extends HTMLElement | SVGElement>(...styles: StyleDefin
 
 /**
  * Observe an observable and tie the observation to the node this is added to
- * @category decorator, toc
+ * @category dom, toc
  */
 // export function $observe<T>(a: o.Observer<T>): Decorator<Node>
 export function $observe<N extends Node, T>(a: o.RO<T>, cbk: (newval: T, changes: o.Changes<T>, node: N) => void, obs_cbk?: (observer: o.Observer<T>) => void): Decorator<N> {
@@ -262,7 +262,7 @@ export function $observe<N extends Node, T>(a: o.RO<T>, cbk: (newval: T, changes
  *     })}
  *   </div>
  * ```
- * @category decorator, toc
+ * @category dom, toc
  */
 export function $on<N extends Element, K extends (keyof DocumentEventMap)[]>(name: K, listener: Listener<DocumentEventMap[K[number]], N>, useCapture?: boolean): Decorator<N>
 export function $on<N extends Element, K extends keyof DocumentEventMap>(event: K, listener: Listener<DocumentEventMap[K], N>, useCapture?: boolean): Decorator<N>
@@ -282,7 +282,7 @@ export function $on<N extends Element>(event: string | string[], _listener: List
 /**
  * Add a callback on the click event, or touchend if we are on a mobile
  * device.
- * @category decorator, toc
+ * @category dom, toc
  */
 export function $click<N extends HTMLElement | SVGElement>(cbk: Listener<MouseEvent, N>, capture?: boolean): (node: N) => void {
   return function $click(node) {
@@ -297,7 +297,7 @@ export function $click<N extends HTMLElement | SVGElement>(cbk: Listener<MouseEv
  * ```jsx
  *  <MyComponent>{$init(node => console.log(`This node was just created and its observers are now live`))}</MyComponent>
  * ```
- * @category decorator, toc
+ * @category dom, toc
  */
 export function $init<N extends Node>(fn: (node: N) => void): Decorator<N> {
   return node => {
@@ -316,7 +316,7 @@ export function $init<N extends Node>(fn: (node: N) => void): Decorator<N> {
  * })}</div>)
  * ```
  *
- * @category decorator, toc
+ * @category dom, toc
  */
 export function $inserted<N extends Node>(fn: (node: N, parent: Node) => void) {
   return (node: N) => {
@@ -338,7 +338,7 @@ export function $inserted<N extends Node>(fn: (node: N, parent: Node) => void) {
  *   })}
  * </div>))
  * ```
- * @category decorator, toc
+ * @category dom, toc
  */
 export function $removed<N extends Node>(fn: (node: N, parent: Node) => void) {
   return (node: N) => {
@@ -347,33 +347,16 @@ export function $removed<N extends Node>(fn: (node: N, parent: Node) => void) {
 }
 
 
-var _noscrollsetup = false
-
-
-/**
- * Used by the `scrollable()` decorator
- */
-function _setUpNoscroll() {
-
-  document.body.addEventListener('touchmove', function event(ev) {
-    // If no div marked as scrollable set the moving attribute, then simply don't scroll.
-    if (!(ev as any).scrollable) ev.preventDefault()
-  }, false)
-
-  _noscrollsetup = true
-}
-
-
 /**
  * Setup scroll so that touchstart and touchmove events don't
  * trigger the ugly scroll band on mobile devices.
  *
  * Calling this functions makes anything not marked scrollable as non-scrollable.
- * @category decorator, toc
+ * @category dom, toc
  */
 export function $scrollable() {
   return (node: HTMLElement) => {
-    if (!_noscrollsetup) _setUpNoscroll()
+    $scrollable.setUpNoscroll(node.ownerDocument!)
 
     var style = node.style as any
     style.overflowY = 'auto'
@@ -390,7 +373,34 @@ export function $scrollable() {
 
     node_add_event_listener(node, 'touchmove', ev => {
       if (ev.currentTarget.offsetHeight < ev.currentTarget.scrollHeight)
-        (ev as any).scrollable = true
+        (ev as $scrollable.ScrollableEvent)[$scrollable.sym_letscroll] = true
     }, true)
   }
+}
+
+
+export namespace $scrollable {
+
+  const documents_wm = new WeakMap<Document>()
+
+  export const sym_letscroll = Symbol('elt-scrollstop')
+
+  export type ScrollableEvent = Event & {[sym_letscroll]?: true}
+
+  /**
+   * Used by the `scrollable()` decorator
+   * @category internal
+   */
+  export function setUpNoscroll(dc: Document) {
+    if (documents_wm.has(dc)) return
+
+    dc.body.addEventListener('touchmove', function event(ev) {
+      // If no handler has "marked" the event as being allowed to scroll, then
+      // just stop the scroll.
+      if (!(ev as ScrollableEvent)[sym_letscroll]) ev.preventDefault()
+    }, false)
+  }
+
+
+
 }
