@@ -113,7 +113,7 @@ export type Renderable = o.RO<string | number | Node | null | undefined>
  * `<div>{['hello', ' ', [['world']] ]}</div>` will render `<div>hello world</div>`
  *
 */
-export type Insertable<N extends Node> = Mixin<N> | Decorator<N> | Attrs<N> | Renderable | Insertable<N>[]
+export type Insertable<N extends Node> = Mixin<N> | Decorator<N> | Renderable | Insertable<N>[]
 
 /**
  * Attributes used on elements that are not actually HTML Elements
@@ -179,12 +179,12 @@ export interface Attrs<N extends Node> extends EmptyAttributes<N> {
  * Controllers, decorators, classes and style.
  * @category dom, toc
  */
-export function e<N extends Node>(elt: N, ...children: Insertable<N>[]): N
-export function e<K extends keyof HTMLElementTagNameMap>(elt: K, ...children: Insertable<HTMLElementTagNameMap[K]>[]): HTMLElementTagNameMap[K]
+export function e<N extends Node>(elt: N, ...children: (Insertable<N> | Attrs<N>)[]): N
+export function e<K extends keyof HTMLElementTagNameMap>(elt: K, ...children: (Insertable<HTMLElementTagNameMap[K]> | e.JSX.HTMLAttributes<HTMLElementTagNameMap[K]>)[]): HTMLElementTagNameMap[K]
 export function e(elt: string, ...children: Insertable<HTMLElement>[]): HTMLElement
 export function e<A extends EmptyAttributes<any>>(elt: new (a: A) => Component<A>, attrs: A, ...children: Insertable<AttrsNodeType<A>>[]): AttrsNodeType<A>
 export function e<A extends EmptyAttributes<any>>(elt: (attrs: A, children: Renderable[]) => AttrsNodeType<A>, attrs: A, ...children: Insertable<AttrsNodeType<A>>[]): AttrsNodeType<A>
-export function e<N extends Node>(elt: any, ...children: Insertable<N>[]): N {
+export function e<N extends Node>(elt: any, ...children: (Insertable<N> | Attrs<N>)[]): N {
   if (!elt) throw new Error(`e() needs at least a string, a function or a Component`)
 
   let node: N = null! // just to prevent the warnings later
@@ -248,8 +248,9 @@ export function e<N extends Node>(elt: any, ...children: Insertable<N>[]): N {
  *
  * The JSX namespace points `JSX.Fragment` to this function.
  *
- * While it is a "valid" component in the eyes of ELT, no life-cycle event will ever be triggered
- * on a `$Fragment`.
+ * > **Note**: Its signature says it expects `Insertable`, but since a document fragment itself never
+ * > ends up being added to `Node`, no observable will ever run on it, no life cycle callback will
+ * > ever be called on it.
  *
  * ```tsx
  * // If using jsxFactory, you have to import $Fragment and use it
@@ -270,10 +271,10 @@ export function e<N extends Node>(elt: any, ...children: Insertable<N>[]): N {
  *
  * @category dom, toc
  */
-export function $Fragment(...children: Insertable<DocumentFragment>[]): DocumentFragment {
-  // This is a trick ! It is not actually an element !
+export function $Fragment(...children: (Insertable<DocumentFragment> | EmptyAttributes<DocumentFragment>)[]): DocumentFragment {
   const fr = document.createDocumentFragment()
-  return e(fr, children)
+  // This is a trick, children may contain lots of stuff
+  return e(fr, children as Renderable[])
 }
 
 
@@ -289,7 +290,7 @@ export namespace e {
    * The resulting arrays are 1-dimensional and do not contain null or undefined.
    * @category internal
    */
-  export function separate_children_from_rest(children: Insertable<any>[], attrs: Attrs<any>, decorators: Decorator<any>[], mixins: Mixin<any>[], chld: Renderable[]) {
+  export function separate_children_from_rest(children: (Insertable<any> | Attrs<any>)[], attrs: Attrs<any>, decorators: Decorator<any>[], mixins: Mixin<any>[], chld: Renderable[]) {
     for (var i = 0, l = children.length; i < l; i++) {
       var c = children[i]
       if (c == null) continue
@@ -796,7 +797,7 @@ export namespace e {
   export function mkwrapper(elt: string): (...args: (Insertable<HTMLElement> | e.JSX.HTMLAttributes<HTMLElement>)[]) => HTMLElement
   export function mkwrapper<K extends keyof HTMLElementTagNameMap>(elt: K): (...args: (Insertable<HTMLElementTagNameMap[K]> | e.JSX.HTMLAttributes<HTMLElementTagNameMap[K]>)[]) => HTMLElementTagNameMap[K] {
     return (...args) => {
-      return e(elt, ...args)
+      return e<K>(elt, ...args)
     }
   }
 
@@ -1032,7 +1033,7 @@ export namespace e {
   export const createElement = e
 
   /** @category internal */
-  export const Fragment: (at: Attrs<DocumentFragment>, ch: Renderable[]) => DocumentFragment = $Fragment //(at: Attrs, ch: DocumentFragment): e.JSX.Element
+  export const Fragment: (at: EmptyAttributes<DocumentFragment>, ch: Renderable[]) => DocumentFragment = $Fragment //(at: Attrs, ch: DocumentFragment): e.JSX.Element
 }
 
 declare var global: any
