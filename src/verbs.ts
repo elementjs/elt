@@ -21,7 +21,7 @@ import {
  * A subclass of `#Verb` made to store nodes between two comments.
  *
  * Can be used as a base to build verbs more easily.
- * @category verb, toc
+ * @category dom, toc
  */
 var cmt_count = 0
 export class CommentContainer extends Mixin<Comment> {
@@ -83,7 +83,7 @@ export class Displayer extends CommentContainer {
  * </$>)
  * ```
  *
- * @category verb, toc
+ * @category dom, toc
  */
 export function $Display(obs: o.RO<Renderable>): Node {
   if (!(obs instanceof o.Observable)) {
@@ -95,7 +95,7 @@ export function $Display(obs: o.RO<Renderable>): Node {
 
 
 /**
- * @category verb, toc
+ * @category dom, toc
  *
  * Display content depending on the value of a `condition`, which can be an observable.
  *
@@ -184,7 +184,7 @@ export namespace $If {
 
 
 /**
- * @category verb, toc
+ * @category dom, toc
  *
  * Repeats the `render` function for each element in `ob`, optionally separating each rendering
  * with the result of the `separator` function.
@@ -347,7 +347,7 @@ export namespace $Repeat {
  * > **Note** : while functional, RepeatScroll is not perfect. A "VirtualScroll" behaviour is in the
  * > roadmap to only maintain the right amount of elements on screen.
  *
- * @category verb, toc
+ * @category dom, toc
  */
 export function $RepeatScroll<T extends o.RO<any[]>>(
   ob: T,
@@ -502,7 +502,7 @@ export namespace $RepeatScroll {
  *   .$Else(() => null)
  * ```
  *
- * @category verb, toc
+ * @category dom, toc
  */
 export function $Switch<T>(obs: o.Observable<T>): $Switch.Switcher<T>
 export function $Switch<T>(obs: o.ReadonlyObservable<T>): $Switch.ReadonlySwitcher<T>
