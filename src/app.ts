@@ -95,15 +95,20 @@ export namespace App {
    *
    * ```tsx
    * class LoginBlock extends App.Block {
-   *   Main = this.view(() => <div>
-   *     <SomeLoginForm/>
-   *   </div>)
+   *   @App.view
+   *   Main() {
+   *     return <div>
+   *       <SomeLoginForm/>
+   *     </div>
+   *   }
    * }
    *
-   * append_child_and_mount(document.body, App.DisplayApp('Main', LoginBlock))
+   * document.body.appendChild(
+   *   App.DisplayApp('Main', LoginBlock)
+   * )
    * ```
    *
-   * @category verb
+   * @category app, toc
    */
   export function DisplayApp(main_view: string, ...blocks: BlockInstantiator<any>[]) {
     var app = new App(main_view, blocks)
@@ -139,6 +144,8 @@ export namespace App {
    *
    * Blocks are meant to be used by *composition*, and not through extension.
    * Do not subclass a Block unless its state is the exact same type.
+   *
+   * @category app, toc
    */
   export class Block extends o.ObserverHolder {
     views: {[name: string]: View} = {}
@@ -299,6 +306,7 @@ export namespace App {
 
   /**
    * A registry that holds types mapped to their instance.
+   * @category internal
    */
   export class Registry {
 
