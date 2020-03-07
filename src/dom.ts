@@ -461,7 +461,7 @@ export function node_add_event_listener<N extends Node>(node: N, ev: any, listen
 
 /**
  * Stop a node from observing an observable, even if it is still in the DOM
- * @category dom, toc
+ * @category low level dom, toc
  */
 export function node_unobserve(node: Node, obsfn: o.Observer<any> | o.Observer.ObserverFunction<any>) {
   const is_observing = node[sym_mount_status] & NODE_IS_OBSERVING
@@ -478,7 +478,7 @@ export function node_unobserve(node: Node, obsfn: o.Observer<any> | o.Observer.O
 
 /**
  * Observe an attribute and update the node as needed.
- * @category dom, toc
+ * @category low level dom, toc
  */
 export function node_observe_attribute(node: Element, name: string, value: o.RO<string | boolean>) {
   node_observe(node, value, val => {
@@ -617,7 +617,7 @@ export function node_on<N extends Node>(
 
 /**
  * Remove a previously associated `callback` from the life-cycle event `sym` for the `node`.
- * @category dom, toc
+ * @category low level dom, toc
  */
 export function node_off<N extends Node>(
   node: N,
@@ -630,7 +630,7 @@ export function node_off<N extends Node>(
 
 /**
  * Remove all the nodes after `start` until `until` (included), calling `removed` and `deinit` as needed.
- * @category dom, toc
+ * @category low level dom, toc
  */
 export function node_remove_after(start: Node, until: Node | null) {
   if (!start) return
