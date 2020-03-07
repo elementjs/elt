@@ -249,7 +249,6 @@ export function node_do_remove(node: Node, prev_parent: Node | null) {
     }
 
     _apply_removed(iter, prev_parent ? iter.parentNode! : null)
-    if (prev_parent)
 
     // When we're here, we're on a terminal node, so
     // we're going to have to process it.
@@ -288,6 +287,12 @@ export function remove_and_deinit(node: Node): void {
 
 
 /**
+ * This is where we keep track of the registered documents.
+ * @category internal
+ */
+const _registered_documents = new WeakSet<Document>()
+
+/**
  * Setup the mutation observer that will be in charge of listening to document changes
  * so that the `init`, `inserted` and `removed` life-cycle callbacks are called.
  *
@@ -300,25 +305,34 @@ export function remove_and_deinit(node: Node): void {
  * to stop all the observers when the window closes.
  *
  * ```tsx
- * import { setup_mutation_observer, $inserted } from 'elt'
- * // typically in the top-level app.tsx or index.tsx
+ * import { o, setup_mutation_observer, $inserted, $observe } from 'elt'
+ * // typically in the top-level app.tsx or index.tsx of your project :
  * // setup_mutation_observer(document)
  *
+ * const o_test = o(1)
+ *
  * // This example may require a popup permission from your browser.
+ * // Upon closing the window, the console.log will stop.
  * const new_window = window.open(undefined, '_blank', 'menubar=0,status=0,toolbar=0')
  * if (new_window) {
  *   setup_mutation_observer(new_window.document)
  *   new_window.document.body.appendChild(<div>
  *     {$inserted(() => console.log('inserted.'))}
+ *     {$observe(o_test, t => console.log('window sees t:', t))}
+ *     HELLO.
  *   </div>)
  * }
  *
+ * setInterval(() => {
+ *   o_test.mutate(t => t + 1)
+ * }, 1000)
  *
  * @category dom, toc
  */
 export function setup_mutation_observer(node: Node) {
   if (!node.isConnected && !!node.ownerDocument)
     throw new Error(`cannot setup mutation observer on a Node that is not connected in a document`)
+
 
   var obs = new MutationObserver(records => {
     for (var i = 0, l = records.length; i < l; i++) {
@@ -341,10 +355,15 @@ export function setup_mutation_observer(node: Node) {
   })
 
   // Make sure that when closing the window, everything gets cleaned up
-  ;(node.ownerDocument ?? node).addEventListener('unload', ev => {
-    node_do_remove(node, null) // technically, the nodes were not removed, but we want to at least shut down all observers.
-    obs.disconnect()
-  })
+  const target_document = (node.ownerDocument ?? node) as Document
+
+  if (!_registered_documents.has(target_document)) {
+    target_document.defaultView?.addEventListener('unload', ev => {
+      // Calls a `removed` on all the nodes in the closing window.
+      node_do_remove(target_document.firstChild!, target_document)
+      obs.disconnect()
+    })
+  }
 
   // observe modifications to *all the tree*
   obs.observe(node, {
