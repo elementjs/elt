@@ -22,6 +22,32 @@ While it is of course usable with plain javascript, its real intended audience i
 
   * **You're tired of packages with dozens of dependencies**. Element has none. It uses plain, vanilla JS, and doesn't shy away from reimplementing simple algorithms instead of polluting your node_modules, all the while trying to provide enough batteries to not have to import dozens of packages to get work done.
 
+# About this documentation
+
+All the examples should be runnable, testable and modifiable.
+
+The documentation is set up to use the `E()` version of `e()`. They're the same, but ELT infects the global namespace and adds `E()` on `window` to make it more convenient (only if `E` did not exist before, of course). This saves `import` statements and hopefully makes for a less cluttered documentation.
+
+Also, [`setup_mutation_observer`](#setup_setup_mutation_observer) is called automatically in the examples to reduce verbosity.
+
+# ELT In a Nutshell
+
+ELT offers the following concepts to get this done :
+
+ * For binding data to the document in an MVVM manner, there is an [`Observable`](#o.Observable) class, which is essentially a wrapper around an immutable object that informs [`Observer`](#o.Observer)s whenever its value is changed. Observables can also be combined together or transformed to get new observables whose value change whenever their base Observable change.
+
+ * Since observing an observable makes them keeps a reference to their observers in the memory, observers have to be deregistered properly when they're not used anymore. To alleviate the burden on the programmer and avoid forgetting to stop the observers -- and thus create memory leaks, ELT associates observing with nodes and whether they're in the document or not. See [`$observe()`](#$observe), [`node_observe()`](#node_observe) and [`Mixin.observe()`](#Mixin.observe).
+
+ * Since the DOM does not offer a simple way to know *when* a node is added or removed from the document other than using a `MutationObserver`, ELT offers a way to react to these events by setting up the observer itself and registering callbacks directly on the `Node`s. See [`$inserted()`](#$inserted), [`$removed()`](#$removed), but also [`$prepare()`](#$prepare).
+
+ * Instead of creating components that change what they render based on the values of Observables, such as an hypothetical `<If condition={...}>`, ELT uses "verbs" ; functions whose name starts with `$` and an **upper-case** letter. While a component-based approach would work perfectly, the "verb" approach is more explicit about where dynamicity is happening in the code. See [`$If()`](#$If), [`$Repeat`](#$Repeat), [`$RepeatScroll`](#$RepeatScroll) and [`$Switch`](#$Switch).
+
+ * To avoid declaring a boatload of variables to modify nodes that are being created, ELT defines ["decorators"](#Decorator) which are callback functions that can be added as children of a node. See all the `$` prefixed functions followed by a **lower-case** letter. Their naming scheme was thought to differenciate them from function calls that actually *create* Nodes.
+
+ * While most of the time it is simpler to use Function components and bind on `Node`s directly with decorators, it is sometimes preferable to adopt an object oriented approach. For those cases, there is the [`Mixin`](#Mixin) class, or even the [`Component`](#Component) class.
+
+ * At last, ELT offers a simple way to build applications with the [`App`](#App) class and friends. While it is not mandatory to use it to get things done, it's small enough to not add much weight to the library, and convenient enough to build complex applications to justify its inclusion in the core library and not become "yet another package".
+
 # Getting started
 
 ## Installation
@@ -78,34 +104,6 @@ const { o, $bind, setup_mutation_observer } = elt
 
 // ... !
 ```
-
-# About this documentation
-
-The documentation is set up to use the `E()` version of `e()`. They're the same, but ELT infects the global namespace and adds `E()` on `window`to make it more convenient (only if `E` did not exist before, of course). This saves `import` statements and hopefully makes for a less cluttered documentation.
-
-Also, `setup_mutation_observer` is called automatically in the examples to reduce verbosity.
-
-All the examples should be runnable, testable and modifiable. Have fun !
-
-# ELT In a Nutshell ; the core concepts
-
-All UI libraries basically do the same thing : display data and provide a way to modify it.
-
-ELT offers the following concepts to get this done :
-
- * For binding data to the document there is an [`Observable`](#o.Observable) class, which is essentially a wrapper around an immutable object that informs [`Observer`](#o.Observer)s whenever its value is changed. Observables can also be combined together or transformed to get new observables whose value change whenever their base Observable change.
-
- * Since observing an observable makes them keeps a reference to their observers in the memory, observers have to be deregistered properly when they're not used anymore. To alleviate the burden on the programmer and avoid forgetting to stop the observers -- and thus create memory leaks, ELT associates observing with nodes and whether they're in the document or not. See [`$observe()`](#$observe), [`node_observe`](#node_observe) and [`Mixin.observe()`](#Mixin.observe).
-
- * Since the DOM does not offer a simple way to know *when* a node is added or removed from the document other than using a `MutationObserver`, ELT offers a way to react to these events by setting up the observer itself and registering callbacks directly on the `Node`s. See [`$inserted()`](#$inserted), [`$removed()`](#$removed), but also [`$prepare()`](#$prepare).
-
- * Instead of creating components that change what they render based on the values of Observables, such as an hypothetical `<If condition={...}>`, ELT uses "verbs" ; functions whose name starts with `$` and an **upper-case** letter. While a component-based approach would work perfectly, the "verb" approach is more explicit about where dynamicity is happening in the code.
-
- * To avoid declaring a boatload of variables to modify nodes that are being created, ELT defines "decorators" which are callback functions that can be added as children of a node. See all the `$` prefixed functions followed by a **lower-case** letter. Their naming scheme was thought to differenciate them from function calls that actually *create* Nodes.
-
- * While most of the time it is simpler to use Function components and bind on `Node`s directly with decorators, it is sometimes preferable to adopt an object oriented approach. For those cases, there is the [`Mixin`](#Mixin) class, or event the [`Component`](#Component) class.
-
- * At last, ELT offers a simple way to build applications with the [`App`](#App) class and friends. While it is not mandatory to use it to get things done, it's small enough to not add much weight to the library, and convenient enough to build complex applications to justify its inclusion in the core library and not become "yet another package".
 
 ## Creating nodes
 

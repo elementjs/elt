@@ -56,6 +56,21 @@ export namespace $bind {
   }
 
   /**
+   * Bind a string observable to a div which is contenteditable.
+   *
+   * ```tsx
+   * import { o, $bind, $Fragment as $ } from 'elt'
+   *
+   * const o_contents = o('Hello <b>World</b> !')
+   *
+   * document.body.appendChild(<$>
+   *   <div contenteditable='true'>
+   *      {$bind.contenteditable(o_contents, true)}
+   *   </div>
+   *   <pre><code style={{whiteSpace: 'pre-wrap'}}>{o_contents}</code></pre>
+   * </$>)
+   * ```
+   *
    * @category dom, toc
    */
   export function contenteditable(obs: o.Observable<string>, as_html?: boolean): (node: HTMLElement) => void {
