@@ -5,8 +5,8 @@ import { Mixin } from './mixins'
 export type Listener<EventType extends Event, N extends Node = Node> = (ev: EventType & { currentTarget: N }) => any
 
 /**
- * Symbol property on `Node` to an array of observers that are started when the node is `init()` and
- * stopped on `deinit()`.
+ * Symbol property on `Node` to an array of observers that are started when the node is `init()` or `inserted()` and
+ * stopped on `removed()`.
  * @category low level dom, toc
  */
 export const sym_observers = Symbol('elt-observers')
@@ -260,10 +260,10 @@ function _apply_removed(node: Node, prev_parent: Node | null) {
 }
 
 /**
- * Traverse the node tree of `node` and call the `deinit()` handlers, begininning by the leafs and ending
+ * Traverse the node tree of `node` and call the `removed()` handlers, begininning by the leafs and ending
  * on the root.
  *
- * If `prev_parent` is not supplied, then the `remove` is not run, but observers stop.
+ * If `prev_parent` is not supplied, then the `removed` is not run, but observers are stopped.
  *
  * @category internal
  */
@@ -305,7 +305,7 @@ export function node_do_remove(node: Node, prev_parent: Node | null) {
  *
  * @category low level dom, toc
  */
-export function remove_and_deinit(node: Node): void {
+export function remove_node(node: Node): void {
   const parent = node.parentNode!
   if (parent) {
     // (m as any).node = null
@@ -682,7 +682,7 @@ export function node_off<N extends Node>(
 
 
 /**
- * Remove all the nodes after `start` until `until` (included), calling `removed` and `deinit` as needed.
+ * Remove all the nodes after `start` until `until` (included), calling `removed` and stopping observables as needed.
  * @category low level dom, toc
  */
 export function node_remove_after(start: Node, until: Node | null) {
@@ -690,7 +690,7 @@ export function node_remove_after(start: Node, until: Node | null) {
 
   var next: Node | null
   while ((next = start.nextSibling)) {
-    remove_and_deinit(next)
+    remove_node(next)
     if (next === until) break
   }
 
