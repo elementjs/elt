@@ -392,7 +392,7 @@ const o_width = o('432px')
 
 A [`Mixin`](#Mixin) is an object that is tied to a node. Just like decorators, they are part of the [`Insertable`](#Insertable) type, which means that the way to add them to a `Node` is simply to put them somewhere in their children.
 
-They serve as the basis for the `Component` class below, and have a few convenient methods, such as `.observe()` and `.listen()`, and have a way of defining `init()`, `inserted()`, `deinit()` and `removed()` that work like their decorator counterparts.
+They serve as the basis for the `Component` class below, and have a few convenient methods, such as `.observe()` and `.listen()`, and have a way of defining `init()`, `inserted()` and `removed()` that work like their decorator counterparts.
 
 Aside from creating components with the `Component` class, their utility resides in the fact they allow a developper to write extensible classes and to encapsulate code neatly when the component has a complex and lengthy implementation.
 
