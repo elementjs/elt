@@ -149,6 +149,7 @@ export namespace App {
    */
   export class Block extends o.ObserverHolder {
     views: {[name: string]: View} = {}
+    persist = false
 
     constructor(public app: App) {
       super()
@@ -319,10 +320,9 @@ export namespace App {
     constructor(public app: App) {
     }
 
-    get<B extends Block>(creator: BlockInstantiator<B>): B
-    get(key: any): any {
+    get<B extends Block>(key: BlockInstantiator<B>): B {
       // First try to see if we own a version of this service.
-      var first_attempt = this.cache.get(key)
+      var first_attempt = this.cache.get(key) as B | undefined
 
       if (first_attempt) return first_attempt
 
@@ -331,8 +331,9 @@ export namespace App {
       // case we give it the app as it *should* be a block (we do not allow
       // constructors with parameters for data services)
       var result = new key(this.app)
-      if (result instanceof Block)
-        this.init_list.add(result)
+
+      this.init_list.add(result)
+
       if (result.persist)
         this.persistents.add(result)
       return result

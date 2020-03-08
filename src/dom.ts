@@ -503,8 +503,10 @@ export function node_add_observer<T>(node: Node, observer: o.Observer<T>) {
 export function node_add_event_listener<N extends Element, K extends (keyof DocumentEventMap)[]>(node: N, name: K, listener: Listener<DocumentEventMap[K[number]], N>, useCapture?: boolean): void
 export function node_add_event_listener<N extends Element, K extends keyof DocumentEventMap>(node: N, event: K, listener: Listener<DocumentEventMap[K], N>, useCapture?: boolean): void
 export function node_add_event_listener<N extends Element>(node: N, event: string | string[], listener: Listener<Event, N>, useCapture?: boolean): void
-export function node_add_event_listener<N extends Node>(node: N, ev: any, listener: Listener<Event, N>): void {
+export function node_add_event_listener<N extends Node>(node: N, ev: string | string[], listener: Listener<Event, N>): void {
   if (Array.isArray(ev))
+    // we have to force typescript's hands on the listener typing, as we **know** for certain that current_target
+    // is the right type here.
     for (var e of ev) node.addEventListener(e, listener as any)
   else {
     node.addEventListener(ev, listener as any)
@@ -598,7 +600,7 @@ export function node_observe_class(node: Element, c: ClassDefinition) {
 }
 
 
-function _apply_class(node: Element, c: any) {
+function _apply_class(node: Element, c: ClassDefinition | ClassDefinition[] | null) {
   if (Array.isArray(c)) {
     for (var i = 0, l = c.length; i < l; i++) {
       _apply_class(node, c[i])
