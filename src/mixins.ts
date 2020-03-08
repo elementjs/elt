@@ -4,7 +4,7 @@ import {
 } from './observable'
 
 import { EmptyAttributes, Attrs, AttrsNodeType, Renderable } from './elt'
-import { sym_mixins, node_observe, Listener, node_on, node_unobserve, sym_init, sym_removed, sym_inserted, node_off, node_add_observer } from './dom'
+import { sym_mixins, Listener } from './dom'
 
 
 export interface Mixin<N extends Node> {
@@ -12,11 +12,8 @@ export interface Mixin<N extends Node> {
    * Stub method. Overload it if you want to run code right after the creation of the
    * associated node by the e() function (or more generally whenever this mixin is added
    * to a node.)
-   *
-   * @param node The associated node.
-   * @param parent The current parent node. It will most likely change.
    */
-  init?(node: N): void
+  init?(node: N, parent: Node): void
 
   /**
    * Stub method. Overload it to run code whenever the node is inserted into the
@@ -54,18 +51,9 @@ export interface Mixin<N extends Node> {
  * `removed()` call.
  * @category dom, toc
  */
-export abstract class Mixin<N extends Node = Node> {
+export abstract class Mixin<N extends Node = Node> extends o.ObserverHolder {
 
   node: N = null!
-
-  /** @category internal */
-  __next_mixin?: Mixin<any>
-  /**
-   * An internal list of observers that are kept only for reference in the case the mixin needs
-   * to be unregistered from its Node.
-   * @category internal
-   * */
-  __observers: o.Observer<any>[] = []
 
   /**
    * Get a Mixin by its class on the given node or its parents.
@@ -135,26 +123,6 @@ export abstract class Mixin<N extends Node = Node> {
       }
   }
 
-  /**
-   * Observe and Observable and return the observer that was created
-   */
-  observe<A>(obs: o.RO<A>, fn: o.Observer.ObserverFunction<A>, observer_callback?: (observer: o.Observer<A>) => any): o.Observer<A> | null {
-    return node_observe(this.node, obs, fn, ob => {
-      this.__observers.push(ob)
-      observer_callback?.(ob)
-    })
-  }
-
-  addObserver<T>(obs: o.Observer<T>) {
-    this.__observers.push(obs)
-    return node_add_observer(this.node, obs)
-  }
-
-  unobserve(obs: o.Observer.ObserverFunction<any> | o.Observer<any>) {
-    this.__observers = this.__observers.filter(ob => obs !== ob && obs !== ob.fn)
-    return node_unobserve(this.node, obs)
-  }
-
 }
 
 
@@ -190,22 +158,8 @@ export abstract class Component<A extends EmptyAttributes<any> = Attrs<HTMLEleme
  * ```
  */
 export function node_add_mixin(node: Node, mixin: Mixin): void {
-  mixin.__next_mixin = node[sym_mixins]
-  node[sym_mixins] = mixin
+  (node[sym_mixins] = node[sym_mixins] ?? []).push(mixin)
   mixin.node = node
-
-  if (mixin.init) {
-    mixin.init = mixin.init.bind(mixin)
-    node_on(node, sym_init, mixin.init)
-  }
-  if (mixin.removed) {
-    mixin.removed = mixin.removed.bind(mixin)
-    node_on(node, sym_removed, mixin.removed)
-  }
-  if (mixin.inserted) {
-    mixin.inserted = mixin.inserted.bind(mixin)
-    node_on(node, sym_inserted, mixin.inserted)
-  }
 }
 
 
@@ -216,29 +170,11 @@ export function node_add_mixin(node: Node, mixin: Mixin): void {
  */
 export function node_remove_mixin(node: Node, mixin: Mixin): void {
   var mx = node[sym_mixins]
-  var found = false
 
   if (!mx) return
-  if (mx === mixin) {
-    found = true
-    node[sym_mixins] = mixin.__next_mixin
-  } else {
-    var iter = mx
-    while (iter) {
-      if (iter.__next_mixin === mixin) {
-        found = true
-        iter.__next_mixin = mixin.__next_mixin
-        break
-      }
-    }
-  }
-
-  if (found) {
-    if (mixin.init) node_off(node, sym_init, mixin.init)
-    if (mixin.inserted) node_off(node, sym_inserted, mixin.inserted)
-    if (mixin.removed) node_off(node, sym_removed, mixin.removed)
-    for (var ob of mixin.__observers) {
-      node_unobserve(node, ob)
-    }
+  var idx = mx.indexOf(mixin)
+  if (idx) mx.splice(idx, 1)
+  if (idx > -1) {
+    mixin.stopObservers()
   }
 }
