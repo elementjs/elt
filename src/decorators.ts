@@ -49,6 +49,19 @@ export namespace $bind {
 
   /**
    * Bind an observable to an input's value.
+   *
+   * ```tsx
+   * import { o, $bind, $Fragment as $ } from 'elt'
+   *
+   * const o_string = o('stuff')
+   *
+   * document.body.appendChild(<$>
+   *   <input type="text">
+   *     {$bind.string(o_string)}
+   *   </input> / {o_string}
+   * </$>)
+   * ```
+   *
    * @category dom, toc
    */
   export function string(obs: o.Observable<string>): (node: HTMLInputElement | HTMLTextAreaElement) => void {
@@ -56,7 +69,7 @@ export namespace $bind {
   }
 
   /**
-   * Bind a string observable to a div which is contenteditable.
+   * Bind a string observable to an html element which is contenteditable.
    *
    * ```tsx
    * import { o, $bind, $Fragment as $ } from 'elt'
@@ -84,6 +97,21 @@ export namespace $bind {
   }
 
   /**
+   * Bind a number observable to an <input type="number"/>. Most likely won't work on anything else
+   * and will set the value to `NaN`.
+   *
+   * ```tsx
+   * import { o, $bind, $Fragment as $ } from 'elt'
+   *
+   * const o_number = o(1)
+   *
+   * document.body.appendChild(<$>
+   *   <input type="number">
+   *     {$bind.number(o_number)}
+   *   </input> / {o_number}
+   * </$>)
+   * ```
+   *
    * @category dom, toc
    */
   export function number(obs: o.Observable<number>): (node: HTMLInputElement) => void {
@@ -98,8 +126,16 @@ export namespace $bind {
    * type `"date"` `"datetime"` `"datetime-local"`.
    *
    * ```tsx
-   * const o_d = o(new Date() as Date | null)
-   * <input type="date">{$bind.date(o_d)}</input>
+   * import { o, $bind, $Fragment as $ } from 'elt'
+   *
+   * const o_date = o(null as Date | null)
+   * const dtf = Intl.DateTimeFormat('fr')
+   *
+   * document.body.appendChild(<$>
+   *   <input type="date">
+   *      {$bind.date(o_date)}
+   *   </input> - {o_date.tf(d => d ? dtf.format(d) : 'null')}
+   * </$>)
    * ```
    *
    * @category dom, toc
@@ -116,8 +152,15 @@ export namespace $bind {
    * is "radio" or "checkbox".
    *
    * ```tsx
+   * import { o, $bind, $Fragment as $ } from 'elt'
+   *
    * const o_bool = o(false)
-   * <input type="checkbox">{$bind.boolean(o_bool)}</input>
+   *
+   * document.body.appendChild(<$>
+   *   <input type="checkbox">
+   *      {$bind.boolean(o_bool)}
+   *   </input> - {o_bool.tf(b => b ? 'true' : 'false')}
+   * </$>)
    * ```
    *
    * @category dom, toc
@@ -131,6 +174,23 @@ export namespace $bind {
   }
 
   /**
+   * Bind a number observable to the selected index of a select element
+   *
+   * ```tsx
+   * import { o, $bind, $Fragment as $ } from 'elt'
+   *
+   * const o_selected = o(-1)
+   *
+   * document.body.appendChild(<$>
+   *   <select>
+   *      {$bind.selected_index(o_selected)}
+   *      <option>one</option>
+   *      <option>two</option>
+   *      <option>three</option>
+   *   </select> / {o_selected}
+   * </$>)
+   * ```
+   *
    * @category dom, toc
    */
   export function selected_index(obs: o.Observable<number>): (node: HTMLSelectElement) => void {
