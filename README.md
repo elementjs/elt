@@ -4,19 +4,21 @@ ELT is a [typescript](https://typescriptlang.org) library for building user inte
 
 Weighing less than 15kb minified and gziped, it is meant as an alternative to React, Angular and the likes. Unlike several of them, it does *not* make use of any kind of virtual DOM. Instead, it provides the developper with an [`Observable`](#Observable) class and a few easy to use hooks on the node life cycle to react to their presence in the document. It also provides a [`Mixin`](#Mixin) class for those cases when writing extensible code is required.
 
-It makes use of fairly modern standards, such as `Map`, `Set`, `Symbol` and `WeakMap`. While it will probably work with some versions of IE, support is limited to less than two year old versions of Safari (+ iOS), Firefox, Chrome (+ Android Browser) and Edge.
+It makes use of fairly modern standards, such as `Map`, `Set`, `Symbol` and `WeakMap`. As such, it probably won't run on IE without using polyfills. In general, support is limited to less than two years old browser versions.
 
-It is of course usable in plain javascript. Howeveer, its real intended audience is typescript users.
+While it is of course usable with plain javascript, its real intended audience is [Typescript](https://www.typescriptlang.org/) users.
 
 # Why use it
 
-  * **You use typescript** and don't want a javascript library that use patterns that the typing system doesn't always gracefully support. Everything is Element was built with *type inference* in mind. The [`Observable`](#Observable) ecosystem tries hard to keep that valuable typing information without getting in your way and have you type everything by hand. It also tries to be as strict as possible, which is why the recommended way to enjoy this library is with `"strict": true` in your `tsconfig.json`.
+  * **You use typescript** and don't want a javascript library that use patterns that the typing system doesn't always gracefully support. Everything is Element was built with *type inference* in mind. The [`Observable`](#Observable) ecosystem tries hard to keep that valuable typing information without getting in your way and have you type everything by hand.
 
-  * **You like the Observer pattern** but you're afraid your app is going to leak as this pattern is prone to do. Element solves this elegantly by tying the observing to the presence of a Node in the DOM, removing the need to un-register observers that would otherwise leak. See [`node_observe`](#node_observe) and [`$observe()`](#$observe). Also, the Observables are **buffed** ; they can be transformed and combined, which makes for very fun data pipelines.
+  * **You are strict about typing** and do not like to cheat with `any`. The recommended way to enjoy this library is with `"strict": true` in your `tsconfig.json`.
 
-  * Virtual-DOM appears brilliant to you, but **you'd rather manipulate the DOM directly**. This is a philosophical point ; Virtual DOM is extremely efficient, probably more so than manipulating the document directly, but it also adds a layer of abstraction that is not always needed. In Element, all the `<jsx>code</jsx>` return DOM Elements that can be manipulated with vanilla javascript.
+  * **You like the Observer pattern** but you're afraid your app is going to leak as this pattern is prone to do. Element solves this elegantly by tying the observing to the presence of a Node in the DOM, removing the need to un-register observers that would otherwise leak. See [`node_observe`](#node_observe) and [`$observe()`](#$observe). Also, the [`Observables`](#o.Observable) are **buffed** ; they can be transformed and combined, which makes for very fun data pipelines.
 
-  * **You like expliciteness**. The Observables and Verbs are a clear giveaway of what parts of your application are subject to change. Also, every symbol you use should be reachable with the go-to definition of your code editor ; html string templates are just plain evil.
+  * **You like to manipulate the DOM directly**. In ELT, all the `<jsx>code</jsx>` return DOM Elements that can be manipulated with vanilla javascript. In general, the library makes use of standards and tries as much as possible not to deviate from them.
+
+  * **You like expliciteness**. The "moving parts" of your application should be identifiable just by scanning the source code visually ; the Observables and Verbs are a clear giveaway of what parts of your application are subject to change. Also, every symbol you use should be reachable with the go-to definition of your code editor ; html string templates are just plain evil.
 
   * **You're tired of packages with dozens of dependencies**. Element has none. It uses plain, vanilla JS, and doesn't shy away from reimplementing simple algorithms instead of polluting your node_modules, all the while trying to provide enough batteries to not have to import dozens of packages to get work done.
 
@@ -38,21 +40,30 @@ In your `tsconfig.json`, you will need to add the following :
   "strict": true, // not needed, but strongly advised
   "lib": ["es6", "dom"], // elt uses some es6 specific classes, and of course a lot of the DOM api
   "jsx": "react",
-  "jsxNamespace": "E", // alternatively "jsxNamespace": "e", but you then have to import { e } from 'elt' in all your .tsx files.
+  "jsxNamespace": "E", // alternatively "jsxNamespace": "e", but you then have to
+     // `import { e } from 'elt'` in all your .tsx files.
 ```
 
-You can also use `"jsxFactory": "E"` instead of `jsxNamespace`, but to use fragments, you have to `import { $Fragment } from 'elt'` and then use the `<$Fragment></$Fragment>` construct instead of `<></>`. You may of course rename it to something terser, such as `import { $Fragment as $ }` and `<$></$>`. The plus side of this approach is that typescript will only generate `E()` calls instead of `E.createElement()`, resulting in smaller, easier to read compiled code.
+> **Note**: You can also use `"jsxFactory": "E"` instead of `jsxNamespace`, but to use fragments, you have to `import { $Fragment } from 'elt'` and then use the `<$Fragment></$Fragment>` construct instead of `<></>`. You may of course rename it to something terser, such as `import { $Fragment as $ }` and `<$></$>`. The plus side of this approach is that typescript will only generate `E()` calls instead of `E.createElement()`, resulting in smaller, easier to read compiled code.
 
-Last, to add a Node created with this library, you will need to use [`append_child_and_init`](#append_child_and_init) (or [`insert_before_and_init`](#insert_before_and_init)) instead of the regular `.appendChild()` or `.insertBefore()`, and [`node_remove`](#node_remove) instead of `.remove()` or `.removeChild()`, as the vanilla methods will not call the life cycle hooks elt provides (and thus not start or stop [`Observable`](#Observable)s). This should be the **only** deviation from using the dom.
+At last, you need to setup the [`MutationObserver`](https://developer.mozilla.org/en-US/docs/Web/API/MutationObserver) which will call the life-cycle callbacks used extensively by elt. This has to be done only once *per document*, see [`setup_mutation_observer`](#setup_mutation_observer)
+
+```tsx
+import { setup_mutation_observer } from 'elt'
+setup_mutation_observer(document)
+// you
+```
 
 ## Using a module loader such as webpack or rollup, or <script type="module">
 
 ```tsx
-import { o, $bind, append_child_and_init } from 'elt'
+import { o, $bind, setup_mutation_observer } from 'elt'
+
+setup_mutation_observer(document)
 
 const o_says = o('hello world')
 
-append_child_and_init(document.body, <div>
+document.body.appendChild(<div>
   <p><input>{$bind.string(o_says)}</input></p>
   <p>Element says {o_says} !</p>
 </div>)
@@ -63,24 +74,38 @@ append_child_and_init(document.body, <div>
 ELT supports being used as an umd module in a regular `<script>` import, in which case its global name is elt.
 
 ```tsx
-const { o, $bind, append_child_and_init } = elt
+const { o, $bind, setup_mutation_observer } = elt
 
 // ... !
 ```
 
-# About this documentation - `e()` vs `E()`
+# About this documentation
 
-Throughout this documentation, a `demo_display()` function is used. All it does is just `append_child_and_init(document.body, ...whatever_was_provided)`. This is just to make examples a little more terse.
+The documentation is set up to use the `E()` version of `e()`. They're the same, but ELT infects the global namespace and adds `E()` on `window`to make it more convenient (only if `E` did not exist before, of course). This saves `import` statements and hopefully makes for a less cluttered documentation.
 
-Also, the `E()` function is used almost exclusively over `e()`. They're the same, but ELT infects the global namespace to make it more convenient (only if `E` did not exist before, of course). This saves `import` statements and hopefully makes for a less cluttered documentation.
+Also, `setup_mutation_observer` is called automatically in the examples to reduce verbosity.
+
+All the examples should be runnable, testable and modifiable. Have fun !
 
 # ELT In a Nutshell ; the core concepts
 
 All UI libraries basically do the same thing : display data and provide a way to modify it.
 
-In Element, this is achieved by using the [`Observable`](#o.Observable) class, which is essentially a wrapper around an immutable object that informs [`Observer`](#o.Observer)s whenever the object changes.
+ELT offers the following concepts to get this done :
 
-All the library is built on this basis. Of course, Observables can do *much* more than just observing an object.
+ * For binding data to the document there is an [`Observable`](#o.Observable) class, which is essentially a wrapper around an immutable object that informs [`Observer`](#o.Observer)s whenever its value is changed. Observables can also be combined together or transformed to get new observables whose value change whenever their base Observable change.
+
+ * Since observing an observable makes them keeps a reference to their observers in the memory, observers have to be deregistered properly when they're not used anymore. To alleviate the burden on the programmer and avoid forgetting to stop the observers -- and thus create memory leaks, ELT associates observing with nodes and whether they're in the document or not. See [`$observe()`](#$observe), [`node_observe`](#node_observe) and [`Mixin.observe()`](#Mixin.observe).
+
+ * Since the DOM does not offer a simple way to know *when* a node is added or removed from the document other than using a `MutationObserver`, ELT offers a way to react to these events by setting up the observer itself and registering callbacks directly on the `Node`s. See [`$inserted()`](#$inserted), [`$removed()`](#$removed), but also [`$prepare()`](#$prepare).
+
+ * Instead of creating components that change what they render based on the values of Observables, such as an hypothetical `<If condition={...}>`, ELT uses "verbs" ; functions whose name starts with `$` and an **upper-case** letter. While a component-based approach would work perfectly, the "verb" approach is more explicit about where dynamicity is happening in the code.
+
+ * To avoid declaring a boatload of variables to modify nodes that are being created, ELT defines "decorators" which are callback functions that can be added as children of a node. See all the `$` prefixed functions followed by a **lower-case** letter. Their naming scheme was thought to differenciate them from function calls that actually *create* Nodes.
+
+ * While most of the time it is simpler to use Function components and bind on `Node`s directly with decorators, it is sometimes preferable to adopt an object oriented approach. For those cases, there is the [`Mixin`](#Mixin) class, or event the [`Component`](#Component) class.
+
+ * At last, ELT offers a simple way to build applications with the [`App`](#App) class and friends. While it is not mandatory to use it to get things done, it's small enough to not add much weight to the library, and convenient enough to build complex applications to justify its inclusion in the core library and not become "yet another package".
 
 ## Creating nodes
 
@@ -118,7 +143,7 @@ ELT provides a few helper functions to work without tsx without too much pain ;
 import { o, $bind } from 'elt'
 
 var o_contents = o('')
-demo_display(
+document.body.appendChild(
   E.$DIV(
     E.$SPAN('span contents !'),
     E.$INPUT($bind.string(o_contents)),
@@ -149,7 +174,7 @@ const o_txt = o('some text')
 const o_date = o(new Date())
 const date_format = new Intl.DateTimeFormat('fr')
 
-demo_display(<div>
+document.body.appendChild(<div>
   <span>{o_txt}</span>
   {1234}
   {['hello', 'world', ['hows', 'it', 'going?']]}
@@ -168,7 +193,7 @@ const o_txt = o('observable')
 const o_date = o(new Date())
 const date_format = new Intl.DateTimeFormat('fr')
 
-demo_display(E.$DIV(
+document.body.appendChild(E.$DIV(
   E.$SPAN(o_txt),
   1234,
   ['hello', 'world', ['hows', 'it', 'going?']],
@@ -188,44 +213,7 @@ They usually work in concert with Observables to control the presence of nodes i
 
 For instance, [`$If`](#$If) will render its then arm only if the given observable is truthy, and the else otherwise.
 
-```tsx
-import { o, $If, $click } from 'elt'
-
-const o_some_obj = o({prop: 'value!'} as {prop: string} | null)
-
-demo_display(<div>
-  <h1>An $If example</h1>
-  <div><button>
-    {$click(() => {
-      o_some_obj.mutate(v => !!v ? null : {prop: 'clicked'})
-    })}
-    Inverse
-  </button></div>
-  {$If(o_some_obj,
-    // Here, o_truthy is of type Observable<{prop: string}>, without the null
-    // We can thus safely take its property, which is a Renderable (string), through the .p() method.
-    o_truthy => <div>We have a {o_truthy.p('prop')}</div>,
-    () => <div>Value is null</div>
-  )}
-</div>)
-```
-
-[`$Repeat`](#$Repeat) repeats the contents of an array, with an optional separator.
-
-```tsx
-import { $Repeat, o, append_child_and_init } from 'elt'
-
-const o_arr = o([{a: 'p'}, {a: 'q'}, {a: 'r'}])
-
-append_child_and_init(document.body, <div>
-  <h1>A $Repeat example</h1>
-  {$Repeat(o_arr,
-    // o_item is Observable<{a: string}>
-    (o_item, idx) => <div>{idx}: {o_item.p('a')}</div>
-  )}
-</div>)
-
-```
+[`$Repeat`](#$Repeat) repeats the contents of an array, with an optional separator. [`$RepeatScroll`] does the same, but stops rendering elements once they overflow past the bottom of the `scrollable` block they're in.
 
 ## Node Decorators
 
@@ -236,7 +224,7 @@ As the [`Renderable`](#Renderable) type controls what types can safely be append
 Decorators are part of `Insertable`, and are simply functions that take the current node as an argument.
 
 ```tsx
-demo_display(
+document.body.appendChild(
   <div>
     <input>
       {inp => {
@@ -296,7 +284,7 @@ o_tf2.get() // 9
 // But then, the resulting observable is read only !
 o_tf2.set(3) // Compile error ! Runtime error too !
 
-demo_display(<div>
+document.body.appendChild(<div>
   <div>
     o_obj is: <code>{o_obj.tf(value => JSON.stringify(value))}</code> and o_a is: <code>{o_a}</code>
     <button>{$click(() => o_a.set(3))}
@@ -320,7 +308,7 @@ const o_obj = o({a: 1, b: 'b'})
 const prev = o_obj.get()
 o_obj.p('b').set('something else')
 
-demo_display(prev === o_obj.get() ? 'true' : 'false') // true
+document.body.appendChild(prev === o_obj.get() ? 'true' : 'false') // true
 ```
 
 They can do a **lot** more than these very simple transformations. Check the Observable documentation.
@@ -342,7 +330,7 @@ const o_prop = o_obj.p(o_key)
 o_key.set('b') // o_prop now has 2 as a value
  // o_prop now has 3
 
-demo_display(<$Fragment>
+document.body.appendChild(<$Fragment>
   <div>o_obj: {o_obj.tf(v => JSON.stringify(v))}</div>
   <div>o_prop: {o_prop}</div>
   <div>
