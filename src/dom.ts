@@ -57,7 +57,7 @@ declare global {
 
   interface Node {
     [sym_mount_status]: number // we cheat on the undefined as all masking operations as undefined is considered 0
-    [sym_mixins]?: Mixin<any>
+    [sym_mixins]?: Mixin<any>[]
     [sym_observers]?: o.Observer<any>[]
 
     // Note: the following section is somewhat "incorrect", as the correct typing here
@@ -75,29 +75,60 @@ declare global {
 
 function _node_call_cbks(node: Node, sym: typeof sym_init | typeof sym_inserted | typeof sym_removed, parent?: Node) {
   var cbks = node[sym]
-  if (!cbks) return
-
   parent = parent ?? node.parentNode!
-  for (var i = 0, l = cbks.length; i < l; i++) {
-    cbks[i](node, parent)
+  if (cbks) {
+    for (var i = 0, l = cbks.length; i < l; i++) {
+      cbks[i](node, parent)
+    }
+  }
+
+  var mx = node[sym_mixins]
+  if (mx) {
+    if (sym === sym_init) {
+      for (i = 0, l = mx.length; i < l; i++) {
+        mx[i].init?.(node, parent)
+      }
+    } else if (sym === sym_inserted) {
+      for (i = 0, l = mx.length; i < l; i++) {
+        mx[i].inserted?.(node, parent)
+      }
+    } else if (sym === sym_removed) {
+      for (i = 0, l = mx.length; i < l; i++) {
+        mx[i].removed?.(node, parent)
+      }
+    }
   }
 }
 
 
 function _node_start_observers(node: Node) {
   var obs = node[sym_observers]
-  if (!obs) return
-  for (var i = 0, l = obs.length; i < l; i++) {
-    obs[i].startObserving()
+  if (obs) {
+    for (var i = 0, l = obs.length; i < l; i++) {
+      obs[i].startObserving()
+    }
+  }
+  var mx = node[sym_mixins]
+  if (mx) {
+    for (i = 0, l = mx.length; i < l; i++) {
+      mx[i].startObservers()
+    }
   }
 }
 
 
 function _node_stop_observers(node: Node) {
   var obs = node[sym_observers]
-  if (!obs) return
-  for (var i = 0, l = obs.length; i < l; i++) {
-    obs[i].stopObserving()
+  if (obs) {
+    for (var i = 0, l = obs.length; i < l; i++) {
+      obs[i].stopObserving()
+    }
+  }
+  var mx = node[sym_mixins]
+  if (mx) {
+    for (i = 0, l = mx.length; i < l; i++) {
+      mx[i].stopObservers()
+    }
   }
 }
 
