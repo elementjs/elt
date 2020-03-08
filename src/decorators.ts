@@ -236,6 +236,58 @@ export function $props<N extends Node>(props: { [k in keyof N]?: o.RO<N[k]> }): 
 
 
 /**
+ * Observe one or several class definition, where a class definition is either
+ *  - A `o.RO<string>`
+ *  - An object which keys are class names and values are `o.RO<any>` and whose truthiness
+ *    determine the inclusion of the class on the target element.
+ *
+ * The `class={}` attribute on all nodes works exactly the same as `$class`.
+ *
+ * ```tsx
+ * import { $class, o, $Fragment as $, $bind } from 'elt'
+ *
+ * const o_cls = o('class2')
+ * const o_bool = o(false)
+ *
+ * document.body.appendChild(<$>
+ *   <style>
+ *     {`.class1 {
+ *        text-decoration: underline;
+ *     }
+ *     .class2 {
+ *        background: #f99;
+ *     }
+ *     .class3 {
+ *        font-weight: bold;
+ *     }
+ *     .class4 {
+ *        background: #99f;
+ *     }
+ *   `}
+ *   </style>
+ *
+ *   <input id='class3' type="checkbox">
+ *     {$bind.boolean(o_bool)}
+ *   </input> <label for='class3'>Class 3</label>
+ *   {' / '}
+ *   <input type='text'>
+ *     {$bind.string(o_cls)}
+ *   </input>
+ *
+ *   <div>
+ *     {$class('class1', o_cls, {class3: o_bool})}
+ *     content 1
+ *   </div>
+ *   <div>$class and class= are equivalent</div>
+ *   <div class={['class1', o_cls, {class3: o_bool}]}>
+ *     content 2
+ *   </div>
+ *   {E.$DIV(
+ *     $class('class1', o_cls, {class3: o_bool}),
+ *     'content 3'
+ *   )}
+ * </$>)
+ * ```
  * @category dom, toc
  */
 export function $class<N extends Element>(...clss: ClassDefinition[]) {
