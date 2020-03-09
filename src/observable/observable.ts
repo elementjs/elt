@@ -297,7 +297,7 @@ export class Queue extends IndexableArray<Observable<any>> {
       var obs = arr[i]
       if (obs == null) continue
 
-      if (obs instanceof VirtualObservable) {
+      if (obs instanceof CombinedObservable) {
         obs.__value = obs.getter(obs.__parents_values)
       }
 
@@ -351,7 +351,7 @@ export class ChildObservableLink implements Indexable {
 
   constructor(
     public parent: Observable<any>,
-    public child: VirtualObservable<any>,
+    public child: CombinedObservable<any>,
     public child_idx: number,
   ) { }
 
@@ -382,7 +382,7 @@ export class Observable<A> implements ReadonlyObservable<A>, Indexable {
   idx = null as null | number
 
   /**
-   * Build an observable from a value. For readability purposes, use the [`o()`](#o) function instead.
+   * Build an observable from a value. For readability purposes, use the [[o]] function instead.
    */
   constructor(public __value: A) {
     // (this as any).debug = new Error
@@ -455,7 +455,7 @@ export class Observable<A> implements ReadonlyObservable<A>, Indexable {
    * Create an observer bound to this observable, but do not start it.
    * For it to start observing, one needs to call its `startObserving()` method.
    *
-   * > **Note**: This method should rarely be used. Prefer using [`$observe()`](#$observe), [`node_observe()`](#node_observe) or [`Mixin.observe`](#Mixin) for observing values.
+   * > **Note**: This method should rarely be used. Prefer using [[$observe]], [[node_observe]], [`Mixin#observe`](#o.ObserverHolder#observe) or [`App.Block#observe`](#o.ObserverHolder#observe) for observing values.
    */
   createObserver(fn: Observer.ObserverFunction<A>): Observer<A> {
     return new Observer(fn, this)
@@ -464,7 +464,7 @@ export class Observable<A> implements ReadonlyObservable<A>, Indexable {
   /**
    * Add an observer to this observable, which will be updated as soon as the `Observable` is set to a new value.
    *
-   * > **Note**: This method should rarely be used. Prefer using [`$observe()`](#$observe), [`node_observe()`](#node_observe) or [`Mixin.observe`](#Mixin) for observing values.
+   * > **Note**: This method should rarely be used. Prefer using [[$observe]], [[node_observe]], [`Mixin#observe()`](#Mixin) or [`App.Block#observe()`](#App.Block) for observing values.
    *
    * @returns The newly created observer if a function was given to this method or
    *   the observable that was passed.
@@ -616,9 +616,9 @@ export class Observable<A> implements ReadonlyObservable<A>, Indexable {
  * An observable that does not its own value, but that depends
  * from outside getters and setters. The `#o.virtual` helper makes creating them easier.
  *
- * @category observable, internal
+ * @internal
  */
-export class VirtualObservable<A extends any[], T = A> extends Observable<T> {
+export class CombinedObservable<A extends any[], T = A> extends Observable<T> {
 
   /** @internal */
   __links = [] as ChildObservableLink[]
@@ -721,7 +721,7 @@ export class VirtualObservable<A extends any[], T = A> extends Observable<T> {
 /**
  * Create an observable that depends on several other observables, optionally providing a two-way transformation if `set` is given.
  *
- * This is a more involved version of [`o.join`](#o.join) but without having to use `.tf()` on it which is more efficient.
+ * This is a more involved version of [[o.join]] but without having to use `.tf()` on it which is more efficient.
  * Also, this allows for creating observables depending on a combination of readable and readonly observables.
  *
  * In the `set` portion, returning a `o.NOVALUE` in the result tuple will tell the combiner that the original observable should not be touched.
@@ -754,7 +754,7 @@ export class VirtualObservable<A extends any[], T = A> extends Observable<T> {
 export function combine<T extends any[], R>(deps: {[K in keyof T]: RO<T[K]>}, get: (a: T) => R): ReadonlyObservable<R>
 export function combine<T extends any[], R>(deps: {[K in keyof T]: RO<T[K]>}, get: (a: T) => R, set: (r: R, old: R | NoValue, last: T) => {[K in keyof T]: T[K] | NoValue} | void): Observable<R>
 export function combine<T extends any[], R>(deps: {[K in keyof T]: RO<T[K]>}, get: (a: T) => R, set?: (r: R, old: R | NoValue, last: T) => T | void): Observable<R> {
-  var virt = new VirtualObservable<T, R>(deps)
+  var virt = new CombinedObservable<T, R>(deps)
   virt.getter = get
   virt.setter = set! // force undefined to trigger errors for readonly observables.
   return virt
@@ -924,7 +924,7 @@ export function prop<T, K extends keyof T>(obj: Observable<T> | T, prop: RO<K>) 
   export function join<A extends any[]>(...deps: {[K in keyof A]: Observable<A[K]>}): Observable<A>
   export function join<A extends any[]>(...deps: {[K in keyof A]: ReadonlyObservable<A[K]> | A[K]}): ReadonlyObservable<A>
   export function join<A extends any[]>(...deps: {[K in keyof A]: RO<A[K]>}) {
-    return new VirtualObservable(deps)
+    return new CombinedObservable(deps)
   }
 
   /**
@@ -1194,30 +1194,45 @@ export function prop<T, K extends keyof T>(obj: Observable<T> | T, prop: RO<K>) 
   }
 
   /**
-   * A group of observers that can be started and stopped at the same time.
-   * This class is meant to be used for components such as Mixin that want
-   * to tie observing to their life cycle.
+   * A helper class that manages a group of observers with a few handy methods
+   * to all start or stop them from observing.
+   *
+   * Meant to be extended by [[Mixin]] and [[App.Block]], or any class that has
+   * some form of life-cycle (on/off) that it wants to tie observing to.
+   *
    * @category observable, toc
    */
   export class ObserverHolder {
 
-    observers: o.Observer<any>[] = []
-    live = false
+    /** @internal */
+    __observers: o.Observer<any>[] = []
 
+    /**
+     * Boolean indicating if this object is actively observing its observers.
+     */
+    is_observing = false
+
+    /**
+     * Start all the observers on this holder
+     * @internal
+     */
     startObservers() {
-      for (var ob of this.observers)
+      for (var ob of this.__observers)
         ob.startObserving()
-      this.live = true
-    }
-
-    stopObservers() {
-      for (var ob of this.observers)
-        ob.stopObserving()
-      this.live = false
+      this.is_observing = true
     }
 
     /**
-     * Observe and Observable and return the observer that was created
+     * Stop all the observers on this holder from observing.
+     */
+    stopObservers() {
+      for (var ob of this.__observers)
+        ob.stopObserving()
+      this.is_observing = false
+    }
+
+    /**
+     * Does pretty much what [[$observe]] does.
      */
     observe<A>(obs: RO<A>, fn: Observer.ObserverFunction<A>, observer_callback?: (observer: Observer<A>) => any): Observer<A> | null {
       if (!(obs instanceof Observable)) {
@@ -1231,25 +1246,25 @@ export function prop<T, K extends keyof T>(obj: Observable<T> | T, prop: RO<K>) 
     }
 
     /**
-     * Add an observer to the observers array
+     * Add an observer to the observers array.
      */
     addObserver(observer: Observer<any>) : Observer<any> {
-      this.observers.push(observer)
+      this.__observers.push(observer)
 
-      if (this.live)
+      if (this.is_observing)
         observer.startObserving()
 
       return observer
     }
 
     /**
-     * Remove the observer from this group
+     * Remove the observer from this holder and stop it from observing
      */
     unobserve(observer: Observer<any>) {
-      const idx = this.observers.indexOf(observer)
+      const idx = this.__observers.indexOf(observer)
       if (idx > -1) {
-        if (this.live) observer.stopObserving()
-        this.observers.splice(idx, 1)
+        if (this.is_observing) observer.stopObserving()
+        this.__observers.splice(idx, 1)
       }
     }
   }

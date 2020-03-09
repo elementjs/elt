@@ -7,52 +7,49 @@ import { EmptyAttributes, Attrs, AttrsNodeType, Renderable } from './elt'
 import { sym_mixins, Listener } from './dom'
 
 
-export interface Mixin<N extends Node> {
-  /**
-   * Stub method. Overload it if you want to run code right after the creation of the
-   * associated node by the e() function (or more generally whenever this mixin is added
-   * to a node.)
-   */
-  init?(node: N, parent: Node): void
-
-  /**
-   * Stub method. Overload it to run code whenever the node is inserted into the
-   * live DOM.
-   */
-  inserted?(node: N, parent: Node): void
-
-  /**
-   * Stub method. Overload it to run code whenever the node is the direct target
-   * of a DOM removal (and not a child in the sub tree of a node that was removed)
-   */
-  removed?(node: N, parent: Node): void
-}
-
 /**
  * A `Mixin` is an object that is tied to a DOM Node and its lifecycle. This class
  * is the base class all Mixins should derive from.
  *
- * Mixins can "comunicate" with each other by asking other mixins present on a given
- * node.
+ * Aside from allowing code to be nicely boxed in classes, Mixins can "communicate" by
+ * looking for other mixins on the same node, children or parents.
  *
- * Extending a Mixin allows the developper to be notified whenever the node
- * is first created by the `d()` function, when it gets inserted into the DOM
- * by overloading the `inserted()` method or when it gets removed from the DOM
- * by overloading the `removed()` method.
+ * When defining a Mixin that could be set on a root type (eg: `HTMLElement`), ensure that
+ * it is always defined as an extension of this type
  *
- * Additionally, it provides the `observe()` method that ties the observing of an
- * Observable to the Node's presence in the DOM : if the `Node` is inserted, then
- * the observers start listening to their observable. If it gets removed, they stop.
- * Limiting the observing this way ensures that we avoid creating circular references
- * and thus memory leaks.
+ * ```tsx
+ * import { Mixin } from 'elt'
  *
- * If you intend to store a reference to the associated Node in your Mixin when called
- * with `init()` or `inserted()`, please make sure that you set it to `null` in the
- * `removed()` call.
+ * class MyMixinWorks<N extends HTMLElement> extends Mixin<N> {
+ *
+ * }
+ *
+ * class MyMixinFails extends Mixin<HTMLElement> {
+ *
+ * }
+ *
+ * var div = <div>
+ *   {new MyMixinWorks()}
+ *   {new MyMixinFails()}
+ * </div>
+ * ```
+ *
  * @category dom, toc
  */
 export abstract class Mixin<N extends Node = Node> extends o.ObserverHolder {
 
+  /**
+   * The node this mixin is associated to.
+   *
+   * Since assigning a mixin to a `Node` is done by **first** creating the mixin and
+   * putting it in its children when using [[e]], the fact that node is not typed as `N | null`
+   * is cheating ; `this.node` **is** null in the `constructor` of the Mixin.
+   *
+   * The only reason it is not `N | null` is because it is not `null` for very long.
+   *
+   * `this.node` is only defined for certain during [[Mixin#init]] ; do not try to use it before
+   * then.
+   */
   node: N = null!
 
   /**
@@ -102,15 +99,55 @@ export abstract class Mixin<N extends Node = Node> extends o.ObserverHolder {
   }
 
   /**
-   * Remove the mixin from this node. Observers created with `observe()` will
-   * stop observing, but `removed()` will not be called.
-   * @param node
+   * Stub method meant to be overloaded in a child class. Called during [[$init]]
+   */
+  init(node: N, parent: Node): void { }
+
+  /**
+   * Stub method meant to be overloaded in a child class. Called during [[$inserted]]
+   */
+  inserted(node: N, parent: Node): void { }
+
+  /**
+   * Stub method meant to be overloaded in a child class. Called during [[$removed]]
+   */
+  removed(node: N, parent: Node): void { }
+
+  /**
+   * Remove the mixin from this node. Observers created with `this.observe()` will
+   * stop observing. The `this.removed` method **will not** be called.
    */
   removeFromNode() {
     node_remove_mixin(this.node, this);
     (this.node as any) = null; // we force the node to null to help with garbage collection.
   }
 
+  /**
+   * Helper method to listen an event on the current node. `currentTarget` is typed as the current node type.
+   *
+   * ```tsx
+   * import { Mixin, $Fragment as $, o } from 'elt'
+   *
+   * class MyMixin<N extends HTMLElement> extends Mixin<N> {
+   *
+   *   o_times = o(0)
+   *
+   *   init() {
+   *     this.listen(['mouseup', 'mousedown'], ev => {
+   *       this.o_times.mutate(t => t + 1)
+   *     })
+   *
+   *     this.node.appendChild(<$>({this.o_times})</$>)
+   *   }
+   *
+   * }
+   *
+   * document.body.appendChild(E.$DIV(
+   *   'Click Me !',
+   *   new MyMixin(),
+   * ))
+   * ```
+   */
   listen<K extends (keyof DocumentEventMap)[]>(name: K, listener: Listener<DocumentEventMap[K[number]], N>, useCapture?: boolean): void
   listen<K extends keyof DocumentEventMap>(name: K, listener: Listener<DocumentEventMap[K], N>, useCapture?: boolean): void
   listen(name: string | string[], listener: Listener<Event, N>, useCapture?: boolean): void
@@ -165,8 +202,10 @@ export function node_add_mixin(node: Node, mixin: Mixin): void {
 
 /**
  * Remove a Mixin from the array of mixins associated with this Node.
- * @param node The node the mixin will be removed from
- * @param mixin The mixin object we want to remove
+ *
+ * Stops the observers if they were running.
+ *
+ * Does **NOT** call its `removed()` handlers.
  */
 export function node_remove_mixin(node: Node, mixin: Mixin): void {
   var mx = node[sym_mixins]

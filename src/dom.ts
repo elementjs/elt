@@ -86,15 +86,15 @@ function _node_call_cbks(node: Node, sym: typeof sym_init | typeof sym_inserted 
   if (mx) {
     if (sym === sym_init) {
       for (i = 0, l = mx.length; i < l; i++) {
-        mx[i].init?.(node, parent)
+        mx[i].init(node, parent)
       }
     } else if (sym === sym_inserted) {
       for (i = 0, l = mx.length; i < l; i++) {
-        mx[i].inserted?.(node, parent)
+        mx[i].inserted(node, parent)
       }
     } else if (sym === sym_removed) {
       for (i = 0, l = mx.length; i < l; i++) {
-        mx[i].removed?.(node, parent)
+        mx[i].removed(node, parent)
       }
     }
   }
@@ -301,7 +301,7 @@ export function node_do_remove(node: Node, prev_parent: Node | null) {
  * Remove a `node` from the tree and call `removed` on its mixins and all the `removed` callbacks..
  *
  * This function is mostly used by verbs that don't want to wait for the mutation observer
- * callback registered in [`setup_mutation_observer`](#setup_mutation_observer)
+ * callback registered in [[setup_mutation_observer]]
  *
  * @category low level dom, toc
  */
@@ -467,7 +467,7 @@ export function append_child_and_init(parent: Node, child: Node) {
  * Observers are called whenever the observable changes **and** the node is contained
  * in the document.
  *
- * Used mostly by [`$observe()`](#$observe) and `Mixin.observe`
+ * Used mostly by [[$observe]] and [[Mixin.observe]]
  *
  * @category low level dom, toc
  */
@@ -496,7 +496,7 @@ export function node_add_observer<T>(node: Node, observer: o.Observer<T>) {
  *
  * The listener is typed as having `currentTarget` as the type of the node the event is added on, if known.
  *
- * Used mostly by `Mixin.on` and [`$on()`](#$on)
+ * Used mostly by [[Mixin.on]] and [[$on]]
  *
  * @category low level dom, toc
  */
@@ -642,7 +642,7 @@ function _remove_class(node: Element, c: string) {
 
 /**
  * Register a `callback` to be called for the life-cycle event `sym` on `node`.
- * [`$init()`](#$init), [`$inserted()`](#inserted) and [`$removed()`](#$removed) are more commonly used, as well as the methods on [`Mixin`](#Mixin)
+ * [[$init]], [[$inserted]] and [[$removed]] are more commonly used, or alternatively [[Mixin#init]], [[Mixin#inserted]] or [[Mixin#removed]]
  *
  * This is mostly used internally.
  *
