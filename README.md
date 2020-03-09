@@ -306,7 +306,7 @@ const o_obj = o({a: 1, b: 'b'})
 const prev = o_obj.get()
 o_obj.p('b').set('something else')
 
-document.body.appendChild(prev === o_obj.get() ? 'true' : 'false') // true
+document.body.appendChild(<span>{prev === o_obj.get() ? 'true' : 'false'}</span>)
 ```
 
 They can do a **lot** more than these very simple transformations. Check the Observable documentation.

@@ -514,7 +514,7 @@ export namespace $scrollable {
 
   /**
    * Used by the `scrollable()` decorator
-   * @category internal
+   * @internal
    */
   export function setUpNoscroll(dc: Document) {
     if (documents_wm.has(dc)) return

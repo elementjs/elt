@@ -288,7 +288,7 @@ export namespace e {
    * Separates decorators and mixins from nodes or soon-to-be-nodes from children.
    * Returns a tuple containing the decorators/mixins/attrs in one part and the children in the other.
    * The resulting arrays are 1-dimensional and do not contain null or undefined.
-   * @category internal
+   * @internal
    */
   export function separate_children_from_rest(children: (Insertable<any> | Attrs<any>)[], attrs: Attrs<any>, decorators: Decorator<any>[], mixins: Mixin<any>[], chld: Renderable[]) {
     for (var i = 0, l = children.length; i < l; i++) {
@@ -313,7 +313,7 @@ export namespace e {
   }
 
   /**
-   * @category internal
+   * @internal
    */
   export function renderable_to_node(r: Renderable): Node | null
   export function renderable_to_node(r: Renderable, null_as_comment: true): Node
@@ -329,7 +329,7 @@ export namespace e {
   }
 
   /**
-   * @category internal
+   * @internal
    */
   export function handle_decorator(node: Node, decorator: Decorator<any>) {
     var res: ReturnType<Decorator<Node>>
@@ -353,7 +353,7 @@ export namespace e {
 
   /**
    * Handle attributes for simple nodes
-   * @category internal
+   * @internal
    */
   export function handle_attrs(node: HTMLElement, attrs: e.JSX.HTMLAttributes<any>, is_basic_node: boolean) {
     var keys = Object.keys(attrs) as (keyof typeof attrs)[]
@@ -377,29 +377,29 @@ export namespace e {
    * Extend the JSX namespace to be able to use .tsx code.
    */
   export namespace JSX {
-    /** @category internal */
+    /** @internal */
     export type Element = Node
 
-    /** @category internal */
+    /** @internal */
     export interface ElementChildrenAttribute {
       $$children: any
     }
 
     /**
      * The signature function components should conform to.
-     * @category internal
+     * @internal
      */
     export interface ElementClassFn<N extends Node> {
       (attrs: EmptyAttributes<N>, children: Renderable[]): N
     }
 
-    /** @category internal */
+    /** @internal */
     export type ElementClass<N extends Node> = ElementClassFn<N> | Component<EmptyAttributes<any>>
 
     ///////////////////////////////////////////////////////////////////////////
     // Now following are the default attributes for HTML and SVG nodes.
 
-    /** @category internal */
+    /** @internal */
     export interface HTMLAttributes<N extends HTMLElement> extends Attrs<N> {
 
       contenteditable?: NRO<'true' | 'false' | 'inherit'>
@@ -557,7 +557,7 @@ export namespace e {
       unselectable?: NRO<boolean>
     }
 
-    /** @category internal */
+    /** @internal */
     export interface SVGAttributes<N extends SVGElement = SVGElement> extends Attrs<N> {
 
       contenteditable?: NRO<'true' | 'false' | 'inherit'>
@@ -620,7 +620,7 @@ export namespace e {
       y?: NRO<number | string>
     }
 
-    /** @category internal */
+    /** @internal */
     export interface IntrinsicElements {
       a: HTMLAttributes<HTMLElementTagNameMap['a']>
       abbr: HTMLAttributes<HTMLElementTagNameMap['abbr']>
@@ -795,7 +795,7 @@ export namespace e {
 
   /**
    * A wrapper maker for basic elements, used to generate all of the $A, $DIV, ...
-   * @category internal
+   * @internal
    */
   export function mkwrapper<K extends keyof HTMLElementTagNameMap>(elt: K): (...args: (Insertable<HTMLElementTagNameMap[K]> | e.JSX.HTMLAttributes<HTMLElementTagNameMap[K]>)[]) => HTMLElementTagNameMap[K]
   export function mkwrapper(elt: string): (...args: (Insertable<HTMLElement> | e.JSX.HTMLAttributes<HTMLElement>)[]) => HTMLElement
@@ -805,238 +805,238 @@ export namespace e {
     }
   }
 
-  /** @category internal */
+  /** @internal */
   export const $A = mkwrapper('a')
-  /** @category internal */
+  /** @internal */
   export const $ABBR = mkwrapper('abbr')
-  /** @category internal */
+  /** @internal */
   export const $ADDRESS = mkwrapper('address')
-  /** @category internal */
+  /** @internal */
   export const $AREA = mkwrapper('area')
-  /** @category internal */
+  /** @internal */
   export const $ARTICLE = mkwrapper('article')
-  /** @category internal */
+  /** @internal */
   export const $ASIDE = mkwrapper('aside')
-  /** @category internal */
+  /** @internal */
   export const $AUDIO = mkwrapper('audio')
-  /** @category internal */
+  /** @internal */
   export const $B = mkwrapper('b')
-  /** @category internal */
+  /** @internal */
   export const $BASE = mkwrapper('base')
-  /** @category internal */
+  /** @internal */
   export const $BDI = mkwrapper('bdi')
-  /** @category internal */
+  /** @internal */
   export const $BDO = mkwrapper('bdo')
-  /** @category internal */
+  /** @internal */
   export const $BIG = mkwrapper('big')
-  /** @category internal */
+  /** @internal */
   export const $BLOCKQUOTE = mkwrapper('blockquote')
-  /** @category internal */
+  /** @internal */
   export const $BODY = mkwrapper('body')
-  /** @category internal */
+  /** @internal */
   export const $BR = mkwrapper('br')
-  /** @category internal */
+  /** @internal */
   export const $BUTTON = mkwrapper('button')
-  /** @category internal */
+  /** @internal */
   export const $CANVAS = mkwrapper('canvas')
-  /** @category internal */
+  /** @internal */
   export const $CAPTION = mkwrapper('caption')
-  /** @category internal */
+  /** @internal */
   export const $CITE = mkwrapper('cite')
-  /** @category internal */
+  /** @internal */
   export const $CODE = mkwrapper('code')
-  /** @category internal */
+  /** @internal */
   export const $COL = mkwrapper('col')
-  /** @category internal */
+  /** @internal */
   export const $COLGROUP = mkwrapper('colgroup')
-  /** @category internal */
+  /** @internal */
   export const $DATA = mkwrapper('data')
-  /** @category internal */
+  /** @internal */
   export const $DATALIST = mkwrapper('datalist')
-  /** @category internal */
+  /** @internal */
   export const $DD = mkwrapper('dd')
-  /** @category internal */
+  /** @internal */
   export const $DEL = mkwrapper('del')
-  /** @category internal */
+  /** @internal */
   export const $DETAILS = mkwrapper('details')
-  /** @category internal */
+  /** @internal */
   export const $DFN = mkwrapper('dfn')
-  /** @category internal */
+  /** @internal */
   export const $DIALOG = mkwrapper('dialog')
-  /** @category internal */
+  /** @internal */
   export const $DIV = mkwrapper('div')
-  /** @category internal */
+  /** @internal */
   export const $DL = mkwrapper('dl')
-  /** @category internal */
+  /** @internal */
   export const $DT = mkwrapper('dt')
-  /** @category internal */
+  /** @internal */
   export const $EM = mkwrapper('em')
-  /** @category internal */
+  /** @internal */
   export const $EMBED = mkwrapper('embed')
-  /** @category internal */
+  /** @internal */
   export const $FIELDSET = mkwrapper('fieldset')
-  /** @category internal */
+  /** @internal */
   export const $FIGCAPTION = mkwrapper('figcaption')
-  /** @category internal */
+  /** @internal */
   export const $FIGURE = mkwrapper('figure')
-  /** @category internal */
+  /** @internal */
   export const $FOOTER = mkwrapper('footer')
-  /** @category internal */
+  /** @internal */
   export const $FORM = mkwrapper('form')
-  /** @category internal */
+  /** @internal */
   export const $H1 = mkwrapper('h1')
-  /** @category internal */
+  /** @internal */
   export const $H2 = mkwrapper('h2')
-  /** @category internal */
+  /** @internal */
   export const $H3 = mkwrapper('h3')
-  /** @category internal */
+  /** @internal */
   export const $H4 = mkwrapper('h4')
-  /** @category internal */
+  /** @internal */
   export const $H5 = mkwrapper('h5')
-  /** @category internal */
+  /** @internal */
   export const $H6 = mkwrapper('h6')
-  /** @category internal */
+  /** @internal */
   export const $HEAD = mkwrapper('head')
-  /** @category internal */
+  /** @internal */
   export const $HEADER = mkwrapper('header')
-  /** @category internal */
+  /** @internal */
   export const $HR = mkwrapper('hr')
-  /** @category internal */
+  /** @internal */
   export const $HTML = mkwrapper('html')
-  /** @category internal */
+  /** @internal */
   export const $I = mkwrapper('i')
-  /** @category internal */
+  /** @internal */
   export const $IFRAME = mkwrapper('iframe')
-  /** @category internal */
+  /** @internal */
   export const $IMG = mkwrapper('img')
-  /** @category internal */
+  /** @internal */
   export const $INPUT = mkwrapper('input')
-  /** @category internal */
+  /** @internal */
   export const $INS = mkwrapper('ins')
-  /** @category internal */
+  /** @internal */
   export const $KBD = mkwrapper('kbd')
-  /** @category internal */
+  /** @internal */
   export const $KEYGEN = mkwrapper('keygen')
-  /** @category internal */
+  /** @internal */
   export const $LABEL = mkwrapper('label')
-  /** @category internal */
+  /** @internal */
   export const $LEGEND = mkwrapper('legend')
-  /** @category internal */
+  /** @internal */
   export const $LI = mkwrapper('li')
-  /** @category internal */
+  /** @internal */
   export const $LINK = mkwrapper('link')
-  /** @category internal */
+  /** @internal */
   export const $MAIN = mkwrapper('main')
-  /** @category internal */
+  /** @internal */
   export const $MAP = mkwrapper('map')
-  /** @category internal */
+  /** @internal */
   export const $MARK = mkwrapper('mark')
-  /** @category internal */
+  /** @internal */
   export const $MENU = mkwrapper('menu')
-  /** @category internal */
+  /** @internal */
   export const $MENUITEM = mkwrapper('menuitem')
-  /** @category internal */
+  /** @internal */
   export const $META = mkwrapper('meta')
-  /** @category internal */
+  /** @internal */
   export const $METER = mkwrapper('meter')
-  /** @category internal */
+  /** @internal */
   export const $NAV = mkwrapper('nav')
-  /** @category internal */
+  /** @internal */
   export const $NOSCRIPT = mkwrapper('noscript')
-  /** @category internal */
+  /** @internal */
   export const $OBJECT = mkwrapper('object')
-  /** @category internal */
+  /** @internal */
   export const $OL = mkwrapper('ol')
-  /** @category internal */
+  /** @internal */
   export const $OPTGROUP = mkwrapper('optgroup')
-  /** @category internal */
+  /** @internal */
   export const $OPTION = mkwrapper('option')
-  /** @category internal */
+  /** @internal */
   export const $OUTPUT = mkwrapper('output')
-  /** @category internal */
+  /** @internal */
   export const $P = mkwrapper('p')
-  /** @category internal */
+  /** @internal */
   export const $PARAM = mkwrapper('param')
-  /** @category internal */
+  /** @internal */
   export const $PICTURE = mkwrapper('picture')
-  /** @category internal */
+  /** @internal */
   export const $PRE = mkwrapper('pre')
-  /** @category internal */
+  /** @internal */
   export const $PROGRESS = mkwrapper('progress')
-  /** @category internal */
+  /** @internal */
   export const $Q = mkwrapper('q')
-  /** @category internal */
+  /** @internal */
   export const $RP = mkwrapper('rp')
-  /** @category internal */
+  /** @internal */
   export const $RT = mkwrapper('rt')
-  /** @category internal */
+  /** @internal */
   export const $RUBY = mkwrapper('ruby')
-  /** @category internal */
+  /** @internal */
   export const $S = mkwrapper('s')
-  /** @category internal */
+  /** @internal */
   export const $SAMP = mkwrapper('samp')
-  /** @category internal */
+  /** @internal */
   export const $SCRIPT = mkwrapper('script')
-  /** @category internal */
+  /** @internal */
   export const $SECTION = mkwrapper('section')
-  /** @category internal */
+  /** @internal */
   export const $SELECT = mkwrapper('select')
-  /** @category internal */
+  /** @internal */
   export const $SMALL = mkwrapper('small')
-  /** @category internal */
+  /** @internal */
   export const $SOURCE = mkwrapper('source')
-  /** @category internal */
+  /** @internal */
   export const $SPAN = mkwrapper('span')
-  /** @category internal */
+  /** @internal */
   export const $STRONG = mkwrapper('strong')
-  /** @category internal */
+  /** @internal */
   export const $STYLE = mkwrapper('style')
-  /** @category internal */
+  /** @internal */
   export const $SUB = mkwrapper('sub')
-  /** @category internal */
+  /** @internal */
   export const $SUMMARY = mkwrapper('summary')
-  /** @category internal */
+  /** @internal */
   export const $SUP = mkwrapper('sup')
-  /** @category internal */
+  /** @internal */
   export const $TABLE = mkwrapper('table')
-  /** @category internal */
+  /** @internal */
   export const $TBODY = mkwrapper('tbody')
-  /** @category internal */
+  /** @internal */
   export const $TD = mkwrapper('td')
-  /** @category internal */
+  /** @internal */
   export const $TEXTAREA = mkwrapper('textarea')
-  /** @category internal */
+  /** @internal */
   export const $TFOOT = mkwrapper('tfoot')
-  /** @category internal */
+  /** @internal */
   export const $TH = mkwrapper('th')
-  /** @category internal */
+  /** @internal */
   export const $THEAD = mkwrapper('thead')
-  /** @category internal */
+  /** @internal */
   export const $TIME = mkwrapper('time')
-  /** @category internal */
+  /** @internal */
   export const $TITLE = mkwrapper('title')
-  /** @category internal */
+  /** @internal */
   export const $TR = mkwrapper('tr')
-  /** @category internal */
+  /** @internal */
   export const $TRACK = mkwrapper('track')
-  /** @category internal */
+  /** @internal */
   export const $U = mkwrapper('u')
-  /** @category internal */
+  /** @internal */
   export const $UL = mkwrapper('ul')
-  /** @category internal */
+  /** @internal */
   export const $VAR = mkwrapper('var')
-  /** @category internal */
+  /** @internal */
   export const $VIDEO = mkwrapper('video')
-  /** @category internal */
+  /** @internal */
   export const $WBR = mkwrapper('wbr')
 
   /**
    * An alias to conform to typescript's JSX
-   * @category internal
+   * @internal
    */
   export const createElement = e
 
-  /** @category internal */
+  /** @internal */
   export const Fragment: (at: EmptyAttributes<DocumentFragment>, ch: Renderable[]) => DocumentFragment = $Fragment //(at: Attrs, ch: DocumentFragment): e.JSX.Element
 }
 
