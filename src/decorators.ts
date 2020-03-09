@@ -531,10 +531,13 @@ export function $scrollable() {
 
 export namespace $scrollable {
 
+  /** @internal */
   const documents_wm = new WeakMap<Document>()
 
+  /** @internal */
   export const sym_letscroll = Symbol('elt-scrollstop')
 
+  /** @internal */
   export type ScrollableEvent = Event & {[sym_letscroll]?: true}
 
   /**

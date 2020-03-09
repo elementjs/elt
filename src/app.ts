@@ -16,14 +16,15 @@ import { o } from './observable'
  */
 export class App extends Mixin<Comment>{
 
+  /** The block registry */
   registry: App.Registry = new App.Registry(this)
 
   /** @internal */
-  o_views = new o.Observable<{[name: string]: App.View}>({})
+  o_views = new o.Observable<{[name: string]: () => Renderable}>({})
 
   /**
    * The currently active blocks, ie. the blocks that were specifically
-   * given to `#App.DisplayApp` or `this.activate`
+   * given to [[#App.DisplayApp]] or [[App#activate]]
    */
   o_active_blocks = new o.Observable<Set<App.BlockInstantiator>>(new Set())
 
@@ -94,6 +95,8 @@ export namespace App {
    * @param blocks The blocks to activate
    *
    * ```tsx
+   * import { App } from 'elt'
+   *
    * class LoginBlock extends App.Block {
    *   @App.view
    *   Main() {
@@ -117,20 +120,56 @@ export namespace App {
     return disp
   }
 
+  /**
+   * @category app, toc
+   * Marks a method of a block as a view that can be displayed with [[App.DisplayApp]]
+   * or [[App.Block#display]].
+   *
+   * Views are always a function with no arguments that return a Renderable.
+   *
+   * Starting with the activated blocks, and going up the [[Block.require]] calls, [[App]]
+   * uses the first view that matches the name it's looking for and uses it to display its
+   * contents.
+   *
+   * ```tsx
+   * import { App, $click } from 'elt'
+   *
+   * class TheApp extends App.Block {
+   *   @App.view
+   *   Main() {
+   *     return <div>
+   *       We've logged into the App !
+   *     </div>
+   *   }
+   * }
+   *
+   * class LoginBlock extends App.Block {
+   *   @App.view
+   *   Main() {
+   *     return <div>
+   *       Some login form.<br/>
+   *       <button>
+   *         {$click(_ => this.activate(TheApp))}
+   *         Login
+   *     </div>
+   *   }
+   * }
+   *
+   * document.body.appendChild(App.DisplayApp('Main', LoginBlock))
+   * ```
+   */
   export function view(object: Block, key: string, desc: PropertyDescriptor) {
     const cons = object.constructor as any
     cons.views = cons.views ?? {}
     cons.views[key] = desc.value
   }
 
-  export type View = () => Renderable
-
   /**
    * A Helper type for a Block constructor.
    */
   export type BlockInstantiator<B extends App.Block = App.Block> = {
     new(app: App): B
-    views?: {[name: string]: View}
+    views?: {[name: string]: () => Renderable}
   }
 
   /**
@@ -150,7 +189,7 @@ export namespace App {
   export class Block extends o.ObserverHolder {
 
     // @internal
-    views: {[name: string]: View} = {}
+    views: {[name: string]: () => Renderable} = {}
 
     /**
      * Set this property to `true` if the block should stay instanciated even if it is
@@ -357,7 +396,7 @@ export namespace App {
     }
 
     getViews() {
-      var views = {} as {[name: string]: View}
+      var views = {} as {[name: string]: () => Renderable}
       this.active_blocks.forEach(inst => {
         var block = this.get(inst)
         block.runOnRequirementsAndSelf(b => {
