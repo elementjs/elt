@@ -167,7 +167,7 @@ export function node_is_inserted(node: Node) {
 
 /**
  * Call init() functions on a node, and start its observers.
- * @category internal
+ * @internal
  */
 export function node_do_init(node: Node) {
 
@@ -204,7 +204,7 @@ function _apply_inserted(node: Node) {
 
 
 /**
- * @category internal
+ * @internal
  */
 export function node_do_inserted(node: Node) {
   if (node[sym_mount_status] & NODE_IS_INSERTED) return
@@ -265,7 +265,7 @@ function _apply_removed(node: Node, prev_parent: Node | null) {
  *
  * If `prev_parent` is not supplied, then the `removed` is not run, but observers are stopped.
  *
- * @category internal
+ * @internal
  */
 export function node_do_remove(node: Node, prev_parent: Node | null) {
 
@@ -319,7 +319,7 @@ export function remove_node(node: Node): void {
 
 /**
  * This is where we keep track of the registered documents.
- * @category internal
+ * @internal
  */
 const _registered_documents = new WeakSet<Document>()
 

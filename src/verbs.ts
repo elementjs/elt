@@ -179,7 +179,7 @@ export namespace $If {
 
   /**
    * Implementation of the `DisplayIf()` verb.
-   * @category internal
+   * @internal
    */
   export class ConditionalDisplayer<T extends o.ReadonlyObservable<any>> extends Displayer {
 
@@ -267,7 +267,7 @@ export namespace $Repeat {
 
   /**
    *  Repeats content.
-   * @category internal
+   * @internal
    */
   export class Repeater<T> extends Mixin<Comment> {
 
@@ -394,7 +394,7 @@ export namespace $RepeatScroll {
   /**
    * Repeats content and append it to the DOM until a certain threshold
    * is meant. Use it with `scrollable()` on the parent..
-   * @category internal
+   * @internal
    */
   export class ScrollRepeater<T> extends $Repeat.Repeater<T> {
 
@@ -536,7 +536,7 @@ export function $Switch<T>(obs: any): any {
 export namespace $Switch {
   /**
    * Used by the `Switch()` verb.
-   * @category internal
+   * @internal
    */
   export class Switcher<T> extends o.VirtualObservable<[T], Renderable> {
 

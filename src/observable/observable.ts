@@ -228,7 +228,7 @@ export interface ReadonlyObservable<A> {
 export type RO<A> = ReadonlyObservable<A> | A
 
 
-/** @category internal */
+/** @internal */
 export function each_recursive(obs: Observable<any>, fn: (v: Observable<any>) => void) {
 
   var objs = [] as Observable<any>[]
@@ -265,7 +265,7 @@ export function each_recursive(obs: Observable<any>, fn: (v: Observable<any>) =>
 }
 
 
-/** @category internal */
+/** @internal */
 export class Queue extends IndexableArray<Observable<any>> {
   transaction_count = 0
 
@@ -315,7 +315,7 @@ export class Queue extends IndexableArray<Observable<any>> {
   }
 }
 
-/** @category internal */
+/** @internal */
 const queue = new Queue()
 
 /**
@@ -369,15 +369,15 @@ export class ChildObservableLink implements Indexable {
  */
 export class Observable<A> implements ReadonlyObservable<A>, Indexable {
 
-  /** @category internal */
+  /** @internal */
   __observers = new IndexableArray<Observer<A>>()
-  /** @category internal */
+  /** @internal */
   __children = new IndexableArray<ChildObservableLink>()
-  /** @category internal */
+  /** @internal */
   __watched = false
 
   /** The index of this Observable in the notify queue. If null, means that it's not scheduled.
-   * @category internal
+   * @internal
   */
   idx = null as null | number
 
@@ -486,7 +486,7 @@ export class Observable<A> implements ReadonlyObservable<A>, Indexable {
 
   /**
    * Add a child observable to this observable that will depend on it to build its own value.
-   * @category internal
+   * @internal
    */
   addChild(ch: ChildObservableLink) {
     if (ch.idx != null) return
@@ -497,7 +497,7 @@ export class Observable<A> implements ReadonlyObservable<A>, Indexable {
   }
 
   /**
-   * @category internal
+   * @internal
    */
   removeChild(ch: ChildObservableLink) {
     if (ch.idx == null) return
@@ -522,7 +522,7 @@ export class Observable<A> implements ReadonlyObservable<A>, Indexable {
    * Check if this `Observable` is being watched or not. If it stopped being observed but is in the notification
    * queue, remove it from there as no one is expecting its value.
    *
-   * @category internal
+   * @internal
    */
   checkWatch() {
     if (this.__watched && this.__observers.real_size === 0 && this.__children.real_size === 0) {
@@ -536,11 +536,11 @@ export class Observable<A> implements ReadonlyObservable<A>, Indexable {
   }
 
   /**
-   * @category internal
+   * @internal
    */
   unwatched() { }
   /**
-   * @category internal
+   * @internal
    */
   watched() { }
 
@@ -620,10 +620,10 @@ export class Observable<A> implements ReadonlyObservable<A>, Indexable {
  */
 export class VirtualObservable<A extends any[], T = A> extends Observable<T> {
 
-  /** @category internal */
+  /** @internal */
   __links = [] as ChildObservableLink[]
 
-  /** @category internal */
+  /** @internal */
   __parents_values: A = [] as any
 
   constructor(deps: {[K in keyof A]: RO<A[K]>}) {

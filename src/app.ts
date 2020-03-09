@@ -18,7 +18,7 @@ export class App extends Mixin<Comment>{
 
   registry: App.Registry = new App.Registry(this)
 
-  /** @category internal */
+  /** @internal */
   o_views = new o.Observable<{[name: string]: App.View}>({})
 
   /**
@@ -148,7 +148,24 @@ export namespace App {
    * @category app, toc
    */
   export class Block extends o.ObserverHolder {
+
+    // @internal
     views: {[name: string]: View} = {}
+
+    /**
+     * Set this property to `true` if the block should stay instanciated even if it is
+     * not required anymore.
+     *
+     * ```tsx
+     * import { App } from 'elt'
+     *
+     * class MyBlock extends App.Block {
+     *   // this is enough to make a block persist in the current App.
+     *   persist = true
+     * }
+     * ```
+     *
+     */
     persist = false
 
     constructor(public app: App) {
@@ -307,7 +324,7 @@ export namespace App {
 
   /**
    * A registry that holds types mapped to their instance.
-   * @category internal
+   * @internal
    */
   export class Registry {
 
