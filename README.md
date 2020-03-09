@@ -2,7 +2,7 @@
 
 ELT is a [typescript](https://typescriptlang.org) library for building user interfaces in a web environment. It is not meant to build websites ; its purpose is to write applications.
 
-Weighing less than 15kb minified and gziped, it is meant as an alternative to React, Angular and the likes. Unlike several of them, it does *not* make use of any kind of virtual DOM. Instead, it provides the developper with an [`Observable`](#Observable) class and a few easy to use hooks on the node life cycle to react to their presence in the document. It also provides a [`Mixin`](#Mixin) class for those cases when writing extensible code is required.
+Weighing less than 15kb minified and gziped, it is meant as an alternative to React, Angular and the likes. Unlike several of them, it does *not* make use of any kind of virtual DOM. Instead, it provides the developper with an [`Observable`](#o.Observable) class and a few easy to use hooks on the node life cycle to react to their presence in the document. It also provides a [`Mixin`](#Mixin) class for those cases when writing extensible code is required.
 
 It makes use of fairly modern standards, such as `Map`, `Set`, `Symbol` and `WeakMap`. As such, it probably won't run on IE without using polyfills. In general, support is limited to less than two years old browser versions.
 
@@ -10,7 +10,7 @@ While it is of course usable with plain javascript, its real intended audience i
 
 # Why use it
 
-  * **You use typescript** and don't want a javascript library that use patterns that the typing system doesn't always gracefully support. Everything is Element was built with *type inference* in mind. The [`Observable`](#Observable) ecosystem tries hard to keep that valuable typing information without getting in your way and have you type everything by hand.
+  * **You use typescript** and don't want a javascript library that use patterns that the typing system doesn't always gracefully support. Everything is Element was built with *type inference* in mind. The [`Observable`](#o.Observable) ecosystem tries hard to keep that valuable typing information without getting in your way and have you type everything by hand.
 
   * **You are strict about typing** and do not like to cheat with `any`. The recommended way to enjoy this library is with `"strict": true` in your `tsconfig.json`.
 
@@ -160,7 +160,7 @@ You may thus add variables of type :
  * `null` and `undefined`, which render nothing
  * `Node`, which will be added as-is
  * An array of all of them. Arrays may be nested ; ELT will traverse through them and flatten them when rendering.
- * Finally, an [`Observable`](#Observable) of all the previously mentionned types, which will then update the DOM whenever its value change.
+ * Finally, an [`Observable`](#o.Observable) of all the previously mentionned types, which will then update the DOM whenever its value change.
 
 This means that for any Observable that should be rendered into the dom, it first has to be converted to one of these types to appear.
 

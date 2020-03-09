@@ -164,15 +164,18 @@ export namespace $If {
 
   /**
    * Get the type of a potentially `Observable` type where `null` and `undefined` are exluded, keeping
-   * the `Readonly` status if the provided `Observable` type was `Readonly`.
+   * the `Readonly` status if the provided [[o.Observable]] type was `Readonly`.
    *
    * ```tsx
-   * NonNullableObs<o.Observable<string | null>> // -> o.Observable<string>
-   * NonNullableObs<o.RO<number | undefined | null> // -> o.ReadonlyObservable<number> | number
-   * NonNullableObs<string> // -> string
+   * import { o, $If } from 'elt'
+   *
+   * type A = $If.NonNullableRO<o.Observable<string | null>> // -> o.Observable<string>
+   * type B = $If.NonNullableRO<o.RO<number | undefined | null>> // -> o.ReadonlyObservable<number> | number
+   * type C = $If.NonNullableRO<string> // -> string
    * ```
    */
-  export type NonNullableRO<T> = T extends o.Observable<infer U> ? o.Observable<NonNullable<U>> :
+  export type NonNullableRO<T> =
+    T extends o.Observable<infer U> ? o.Observable<NonNullable<U>> :
     T extends o.ReadonlyObservable<infer U> ? o.ReadonlyObservable<NonNullable<U>>
     : NonNullable<T>
 
@@ -260,7 +263,23 @@ export function $Repeat<T extends o.RO<any[]>>(
 
 export namespace $Repeat {
 
-  export type RoItem<T extends o.RO<any>> = T extends o.Observable<(infer U)[]> ? o.Observable<U>
+  /**
+   * A helper type that transforms a type that could be an array, an [[o.Observable]] or a [[o.ReadonlyObservable]]
+   * of an array to the base type of the same type.
+   *
+   * This type is used to help with [[$Repeat]]'s prototype definition.
+   *
+   * ```tsx
+   * import { o, $Repeat } from 'elt'
+   * // string
+   * type A = $Repeat.RoItem<string[]>
+   * // o.Observable<string | number>
+   * type B = $Repeat.RoItem<o.Observable<(string | number)[]>>
+   * // o.ReadonlyObservable<Date>
+   * type C = $Repeat.RoItem<o.ReadonlyObservable<Date[]>>
+   * ```
+   */
+  export type RoItem<T extends o.RO<any[]>> = T extends o.Observable<(infer U)[]> ? o.Observable<U>
   : T extends o.ReadonlyObservable<(infer U)[]> ? o.ReadonlyObservable<U>
   : T extends (infer U)[] ? U
   : T;
@@ -538,7 +557,7 @@ export namespace $Switch {
    * Used by the `Switch()` verb.
    * @internal
    */
-  export class Switcher<T> extends o.VirtualObservable<[T], Renderable> {
+  export class Switcher<T> extends o.CombinedObservable<[T], Renderable> {
 
     cases: [(T | ((t: T) => any)), (t: o.Observable<T>) => Renderable][] = []
     passthrough: () => Renderable = () => null

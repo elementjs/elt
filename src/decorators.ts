@@ -419,8 +419,44 @@ export function $click<N extends HTMLElement | SVGElement>(cbk: Listener<MouseEv
 
 
 /**
+ * Run code soon after the `node` was created, when it has a `parent`. Beware, the `parent` in
+ * init **is probably not the parent it will have in the document**.
+ *
+ * To avoid layout trashing (aka reflow) and needless repaints,
+ * ELT tries to do most of the work in `DocumentFragment` or while the nodes are still in memory.
+ *
+ * When calling [[e]] (or `E()`), whenever a node appends a child to itself, `e` calls its
+ * `$init` callbacks **and start the node's observers**. It does so because some verbs, like `$If`
+ * will only update their content when observing their condition, not before. Since `$If` uses enclosing
+ * comments to find out what it has to replace, it needs to have access to its parent to manipulate its
+ * siblings, hence this particular way of proceeding.
+ *
+ * Afterwards, [[$inserted]] and [[$removed]] both start and stop observers, respectively. The first
+ * time around, since [[$init]] already started them, [[$inserted]] will only run its callbacks and
+ * leave the observers to do their jobs.
+ *
  * ```jsx
- *  <MyComponent>{$init(node => console.log(`This node was just created and its observers are now live`))}</MyComponent>
+ * import { o, $init, $inserted, $removed, $Fragment as $, $If, $click } from 'elt'
+ *
+ * var the_div = <div>
+ *   {$init(() => console.log('init'))}
+ *   {$inserted(() => console.log('inserted'))}
+ *   {$removed(() => console.log('removed'))}
+ *   I AM HERE.
+ * </div>
+ *
+ * var o_is_inside = o(false)
+ *
+ * // here, we reuse the_div and are not recreating it all the time.
+ * // notice in the console how init was only called once.
+ * document.body.appendChild(<$>
+ *   <button>
+ *     {$click(() => o_is_inside.mutate(b => !b))}
+ *     Toggle the div
+ *   </button>
+ *   {$If(o_is_inside, () => the_div)}
+ * </$>)
+ *
  * ```
  * @category dom, toc
  */
@@ -433,13 +469,9 @@ export function $init<N extends Node>(fn: (node: N) => void): Decorator<N> {
 
 /**
  * Call the `fn` callback when the decorated `node` is inserted into the DOM with
- * itself as first argument.
+ * itself as first argument and its parent as the second.
  *
- * ```tsx
- * append_child_and_mount(document.body, <div>{$inserted(n => {
- *   console.log(`I am now in the DOM and `, n.parentNode, ` is document.body`)
- * })}</div>)
- * ```
+ * See [[$init]] for examples.
  *
  * @category dom, toc
  */
@@ -451,18 +483,11 @@ export function $inserted<N extends Node>(fn: (node: N, parent: Node) => void) {
 
 
 /**
- * Run a callback when the node is removed from its holding document.
+ * Run a callback when the node is removed from its holding document, with `node`
+ * as the node being removed and `parent` with its previous parent.
  *
- * ```jsx
- * import { o, $removed } from 'elt'
- * const o_some_condition = o(true)
+ * See [[$init]] for examples.
  *
- * document.appendChild($If(o_some_condition, () => <div>
- *   {$removed((node, parent) => {
- *     console.log(`I was removed.`)
- *   })}
- * </div>))
- * ```
  * @category dom, toc
  */
 export function $removed<N extends Node>(fn: (node: N, parent: Node) => void) {
