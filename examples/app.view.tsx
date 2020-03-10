@@ -1,11 +1,6 @@
 import { App, $click, o, $If } from 'elt'
 
-class DepBlock extends App.Block {
-
-}
-
 class TheApp extends App.Block {
-  dep = this.require(DepBlock)
   o_was_logged = o(false)
 
   @App.view
@@ -20,7 +15,7 @@ class TheApp extends App.Block {
 }
 
 class AuthBlock extends App.Block {
-  dep = this.require(DepBlock)
+
   async checkIfLogged() {
     // try setting this to true
     return false // this could be a call to a REST backend
