@@ -5,12 +5,46 @@ import { Renderable } from './elt'
 import { o } from './observable'
 
 /**
- * An App is a collection of building blocks that all together form an application.
+ * An App is a collection of building blocks that altogether form an application.
  * These blocks contain code, data and views that produce DOM elements.
  *
- * It is not meant to be instanciated directly, prefer using `#App.DisplayApp` instead.
+ * Use [[App.$DisplayApp]] to instanciate an App and [[App#$DisplayChildApp]] for child apps.
  *
- * @include ../docs/app.md
+ * An `App` needs to be provided a view name (see [[App.view]]) which will be the main
+ * view that the `App` displays, and one or several block classes (not objects), that are
+ * to be "activated", which means they will be instanciated and serve as the base blocks
+ * that will be searched for the main view to render it. As Blocks can require other blocks,
+ * and those blocks also can define views, `App` will look in them as well for the main view
+ * and will stop at the first one it finds.
+ *
+ * Blocks are singletons ; once required, any subsequent [[Block#require]] on a same block
+ * class will return the same instance (not always true for child apps).
+ *
+ * During the life of the application, the list of activated blocks can change using [[App#activate]],
+ * in which case the views will be reevaluated using the same "first one that has it" rule.
+ *
+ * As the activated blocks change, so do their requirements. Blocks that were instanciated
+ * but are not required anymore are thus removed. See [[Block#deinit]].
+ *
+ * **Why the app class**
+ *
+ * While [[Component]]s and their functional counterparts are a nice way of displaying data and
+ * somewhat handling some simple states, they should never perform network calls or in general even be *aware* of any kind of network,
+ * or query `localStorage`, or do anything other than just do what it was meant to do ; create
+ * DOM Nodes to render some data, and signal the program that some user interaction has taken place.
+ *
+ * More precisely ; Components should not deal with anything that has side effects.
+ *
+ * The `App` class and its [[App.Block]] friend are a proposal to separate pure presentation from *business logic*.
+ * Blocks can still have a visual role, but it is more about *layout* than display. They don't even have
+ * to do anything visual ; a Block could for instance handle network calls exclusively for instance.
+ *
+ * The idea is that an `App` is created *by composition* ; it is the sum of its blocks, and they can change
+ * during its life time.
+ *
+ * In a way, Blocks are *modules*, except they are loaded and unloaded dynamically as the application
+ * is used. They also encapsulate state neatly, and it is perfectly possible to have several `Apps` on the
+ * same page that never share data, or several that do using "child" apps.
  *
  * @category app, toc
  */
@@ -22,22 +56,27 @@ export class App extends Mixin<Comment>{
    */
   o_view_blocks = o(new Map<string | Symbol, App.Block>())
 
+  /** @internal */
   public __cache = new Map<typeof App.Block, App.Block>()
 
+  /** @internal */
   active_blocks = new Set<App.Block>()
 
   /**
    * The currently active blocks, ie. the blocks that were specifically
-   * given to [[#App.DisplayApp]] or [[App#activate]]
+   * given to [[#App.$DisplayApp]] or [[App#activate]]
    */
   o_active_blocks = o(this.active_blocks)
 
+  /** @internal */
   __children_app = new Set<App>()
 
+  /** @internal */
   constructor(public main_view: string | Symbol, public __parent_app?: App) {
     super()
   }
 
+  /** @internal */
   inserted() {
     // Tell our parent that we exist.
     // Now, when cleaning up, the parent will check that it doesn't remove a block
@@ -45,6 +84,7 @@ export class App extends Mixin<Comment>{
     this.__parent_app?.__children_app.add(this)
   }
 
+  /** @internal */
   removed() {
     // When removed, unregister ourselves from our parent app, the blocks we had registered
     // now no longer hold a requirement in the parent app's cache.
@@ -52,6 +92,7 @@ export class App extends Mixin<Comment>{
       this.__parent_app.__children_app.delete(this)
   }
 
+  /** @internal */
   getBlock<B extends App.Block>(key: new (app: App) => B): B
   getBlock<B extends App.Block>(key: new (app: App) => B, init_if_not_found: false): B | undefined
   getBlock<B extends App.Block>(key: new (app: App) => B, init_if_not_found = true): B | undefined {
@@ -86,7 +127,6 @@ export class App extends Mixin<Comment>{
   }
 
   /**
-   *
    * @internal
    */
   getBlocksInRequirementOrder(active_blocks: Set<App.Block>) {
@@ -118,7 +158,9 @@ export class App extends Mixin<Comment>{
   }
 
   /**
-   * Remove entries from the registry
+   * Remove blocks that are not required anymore by the current activated blocks
+   * or any of their requirements. Call deinit() on the blocks that are removed.
+   * @internal
    */
   protected cleanup() {
     var kept_blocks = new Set<App.Block>()
@@ -154,6 +196,7 @@ export class App extends Mixin<Comment>{
   /**
    * Activate blocks to change the application's state.
    *
+   * See [[App.view]] for an example.
    */
   activate(...new_blocks: {new (app: App): App.Block}[]) {
     const active = this.active_blocks
@@ -185,10 +228,12 @@ export class App extends Mixin<Comment>{
       throw e
     }
 
+    this.active_blocks = new_active_blocks
+
     for (var block of new_active_blocks)
       block.blockActivate()
 
-    this.active_blocks = new_active_blocks
+    // remove dead blocks
     this.cleanup()
 
     o.transaction(() => {
@@ -222,13 +267,14 @@ export class App extends Mixin<Comment>{
   }
 
   /**
-   * Display an App that depends on this one.
+   * Display an App that depends on this one, displaying `view_name` as its main view
+   * and activating the block classes passed in `blocks`.
    *
-   * Blocks in the sub app that require other blocks will query this app if their app
+   * Blocks in the child app that require other blocks will query this app if their app
    * does not have the block defined and use it if found. Otherwise, they will instanciate
    * their own version.
    *
-   * Activated blocks are reinstanciated in a subapp even if they already are instanciated
+   * Activated blocks in a child app are instanciated even if they already exist
    * in the parent app.
    *
    * ```tsx
@@ -272,7 +318,7 @@ export namespace App {
    *
    * @category app, toc
    */
-  export function $DisplayApp(main_view: string, ...blocks: (typeof App.Block)[]) {
+  export function $DisplayApp(main_view: string, ...blocks: ({new (app: App): App.Block })[]) {
     var app = new App(main_view)
     var disp = app.display(main_view)
     app.activate(...blocks)
@@ -311,26 +357,35 @@ export namespace App {
    * an activated block.
    *
    * Blocks are meant to be used by *composition*, and not through extension.
-   * Do not subclass a Block unless its state is the exact same type.
+   * Do not subclass a subclass of Block unless its state is the exact same type.
    *
    * @category app, toc
    */
   export class Block extends o.ObserverHolder {
 
-    // @internal
+    /** @internal */
     static views?: Set<string | Symbol>
 
     /**
      * Set this property to `true` if the block should stay instanciated even if it is
      * not required anymore.
+     *
+     * See [[App.view]] for an example.
      */
     persistent?: boolean
 
     /**
-     * Set to `true` if this block should be
+     * Set to `true` if this block should be instanciated only once across this app and
+     * its child apps.
+     *
+     * See [[App.$DisplayChildApp]] for an example.
      */
     unique_across_all_apps?: boolean
 
+    /**
+     * A block is not meant to be instanciated by hand. Also, classes that subclass [[Block]]
+     *  should never have any other arguments than just an [[App]] instance.
+     */
     constructor(public app: App) {
       super()
     }
@@ -372,12 +427,15 @@ export namespace App {
     }
 
     /**
-     * Extend this method to run code whenever the block is created after the `init()` methods
-     * of the requirements have returned.
+     * Extend this method to run code whenever after the `init()` methods
+     * of the its requirements have returned. If it had no requirements, then this method is
+     * run shortly after the Block's instanciation.
      *
-     * The `init` chain is started on activation. However, the views start displaying immediately,
+     * The `init` chain is started on [[App#activate]]. However, the views start displaying immediately,
      * which means that in all likelyhood, `init()` for a block will terminate **after** the DOM
      * from the views was inserted.
+     *
+     * If you need to run code **before** the views are displayed, overload the `constructor`.
      */
     async init(): Promise<void> { }
 
@@ -392,16 +450,14 @@ export namespace App {
      *
      * A block is said to be removed from the app if it is not required by any other block.
      */
-    async deinit(): Promise<any> { }
+    async deinit(): Promise<void> { }
 
     /**
      * Require another block for this block to use.
      *
-     * If the requested block does not
+     * If the requested block does not already exist within this [[App]], instanciate it.
      *
      * See [[App.$DisplayChildApp]] and [[App.view]] for examples.
-     *
-     * @param block_def another block's constructor
      */
     require<B extends Block>(block_def: new (app: App) => B): B {
       var result = this.app.getBlock(block_def)
