@@ -9,9 +9,9 @@ It makes use of fairly modern standards, such as `Map`, `Set`, `Symbol` and `Wea
 While it is of course usable with plain javascript, its real intended audience is [Typescript](https://www.typescriptlang.org/) users.
 
 It is built with three objectives in mind :
- * Writing code with it must be pleasant
- * All overheads should be kepts as low as possible
- * Types. Types. Types.
+ * Writing and reading code using it **must** be pleasant
+ * All overheads induced by its use **should** be kept as low as possible
+ * Everything **must** be typed correctly. This library **must** be refactoring-friendly.
 
 # Why use it
 
@@ -216,7 +216,7 @@ They usually work in concert with Observables to control the presence of nodes i
 
 For instance, [`$If`](#$If) will render its then arm only if the given observable is truthy, and the else otherwise.
 
-[`$Repeat`](#$Repeat) repeats the contents of an array, with an optional separator. [`$RepeatScroll`] does the same, but stops rendering elements once they overflow past the bottom of the `scrollable` block they're in.
+[`$Repeat`](#$Repeat) repeats the contents of an array, with an optional separator. [`$RepeatScroll`](#$RepeatScroll) does the same, but stops rendering elements once they overflow past the bottom of the `scrollable` block they're in.
 
 ## Node Decorators
 
@@ -224,7 +224,7 @@ Decorators are a handy way of playing with a node without having to assign it to
 
 As the [`Renderable`](#Renderable) type controls what types can safely be appended to a node, the [`Insertable`](#Insertable) type controls what can be put as a child, without necessarily mean that it will have a visual representation.
 
-Decorators are part of `Insertable`, and are simply functions that take the current node as an argument.
+Decorators are part of [`Insertable`](#Insertable), and are simply functions that take the current node as an argument.
 
 ```tsx
 document.body.appendChild(
