@@ -821,12 +821,9 @@ export function prop<T, K extends keyof T>(obj: Observable<T> | T, prop: RO<K>) 
    * @returns `arg.get()` if it was an Observable or `arg` itself if it was not.
    * @category observable, toc
    */
-  export function get<A>(arg: RO<A>): A
-  export function get<A>(arg: undefined | RO<A>): A | undefined
   export function get<A>(arg: RO<A>): A {
     return arg instanceof Observable ? arg.get() : arg
   }
-
 
   /**
    * Do a transform of the provided argument and return a tranformed observable

@@ -20,7 +20,7 @@ export class App extends Mixin<Comment>{
   registry: App.Registry = new App.Registry(this)
 
   /** @internal */
-  o_views = new o.Observable<{[name: string]: () => Renderable}>({})
+  o_views = new o.Observable<{[name: string]: App.View}>({})
 
   /**
    * The currently active blocks, ie. the blocks that were specifically
@@ -122,7 +122,8 @@ export namespace App {
 
   /**
    * @category app, toc
-   * Marks a method of a block as a view that can be displayed with [[App.DisplayApp]]
+   *
+   * This is a method decorator. It marks a method of a block as a view that can be displayed with [[App.DisplayApp]]
    * or [[App.Block#display]].
    *
    * Views are always a function with no arguments that return a Renderable.
@@ -132,30 +133,7 @@ export namespace App {
    * contents.
    *
    * ```tsx
-   * import { App, $click } from 'elt'
-   *
-   * class TheApp extends App.Block {
-   *   @App.view
-   *   Main() {
-   *     return <div>
-   *       We've logged into the App !
-   *     </div>
-   *   }
-   * }
-   *
-   * class LoginBlock extends App.Block {
-   *   @App.view
-   *   Main() {
-   *     return <div>
-   *       Some login form.<br/>
-   *       <button>
-   *         {$click(_ => this.activate(TheApp))}
-   *         Login
-   *     </div>
-   *   }
-   * }
-   *
-   * document.body.appendChild(App.DisplayApp('Main', LoginBlock))
+   * @include ../examples/app.view.tsx
    * ```
    */
   export function view(object: Block, key: string, desc: PropertyDescriptor) {
@@ -163,6 +141,9 @@ export namespace App {
     cons.views = cons.views ?? {}
     cons.views[key] = desc.value
   }
+
+  /** @internal, @inline */
+  export type View = () => Renderable
 
   /**
    * A Helper type for a Block constructor.
@@ -189,7 +170,7 @@ export namespace App {
   export class Block extends o.ObserverHolder {
 
     // @internal
-    views: {[name: string]: () => Renderable} = {}
+    views: {[name: string]: View} = {}
 
     /**
      * Set this property to `true` if the block should stay instanciated even if it is
@@ -396,7 +377,7 @@ export namespace App {
     }
 
     getViews() {
-      var views = {} as {[name: string]: () => Renderable}
+      var views = {} as {[name: string]: View}
       this.active_blocks.forEach(inst => {
         var block = this.get(inst)
         block.runOnRequirementsAndSelf(b => {
