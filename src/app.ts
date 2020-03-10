@@ -199,9 +199,11 @@ export class App extends Mixin<Comment>{
   }
 
   /**
-   * @internal
+   * Display the specified `view_name`.
    *
-   * Implementation of display
+   * ```tsx
+   * @include ../examples/app.display.tsx
+   * ```
    */
   display(view_name: string | Symbol) {
     return $Display(this.o_view_blocks.tf(v => {
@@ -249,8 +251,7 @@ export namespace App {
    * Display an application with the specified `#App.Block`s as activated blocks, displaying
    * the `main_view` view.
    *
-   * @param main_view The name of the property holding the view to display
-   * @param blocks The blocks to activate
+   * The app will look for the first block that implements the asked view in the requirement chain. See [[App.view]] for details.
    *
    * ```tsx
    * import { App } from 'elt'
@@ -295,7 +296,7 @@ export namespace App {
    * @include ../examples/app.view.tsx
    * ```
    */
-  export function view(object: Block, key: string | Symbol, desc: PropertyDescriptor) {
+  export function view<T extends Renderable>(object: Block, key: string | Symbol, desc: TypedPropertyDescriptor<() => T>) {
     const cons = object.constructor as typeof Block
     (cons.views = cons.views ?? new Set()).add(key)
   }
@@ -322,16 +323,6 @@ export namespace App {
     /**
      * Set this property to `true` if the block should stay instanciated even if it is
      * not required anymore.
-     *
-     * ```tsx
-     * import { App } from 'elt'
-     *
-     * class MyBlock extends App.Block {
-     *   // this is enough to make a block persist in the current App.
-     *   persist = true
-     * }
-     * ```
-     *
      */
     persistent?: boolean
 
@@ -404,20 +395,11 @@ export namespace App {
     async deinit(): Promise<any> { }
 
     /**
-     * Require another block for this block to use. Mostly useful directly in the current block's
-     * current properties definition.
+     * Require another block for this block to use.
      *
-     * ```tsx
-     * class MyBlock extends App.Block {
-     *   // declare this block dependencies as properties
-     *   auth = this.require(AuthBlock)
+     * If the requested block does not
      *
-     *   someMethod() {
-     *     // since auth is now a property, I can use it as any object.
-     *     console.log(this.auth.isLoggedIn())
-     *   }
-     * }
-     * ```
+     * See [[App.$DisplayChildApp]] and [[App.view]] for examples.
      *
      * @param block_def another block's constructor
      */
@@ -425,27 +407,6 @@ export namespace App {
       var result = this.app.getBlock(block_def)
       this.__requirements.add(result)
       return result as B
-    }
-
-    /**
-     * Acts as a verb that displays the specified `view_name`
-     *
-     * ```tsx
-     * // ... inside a Block subclass declaration.
-     * ToolbarView = this.view(() => <div>
-     *   <h3>My Title</h3>
-     *   {this.display('MoreToolbar')}
-     * </div>)
-     *
-     * // MoreToolbar can be redefined in other blocks, which will then be displayed
-     * // by app.display if they come before the current block in the requirements.
-     * MoreToolbar = this.view(() => <Button click={e => doSomething()}>Something</Button>)
-     * // ...
-     * ```
-     * @param fn
-     */
-    display(v: string | Symbol): Node {
-      return this.app.display(v)
     }
 
   }
