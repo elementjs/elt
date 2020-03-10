@@ -1,0 +1,16 @@
+{
+  "compilerOptions": {
+      "target": "es6",
+      "module": "esnext",
+      "moduleResolution": "node",
+      "declaration": true,
+      "inlineSourceMap": true,
+      "experimentalDecorators": true,
+      "strict": true,
+      "jsx": "react",
+      "jsxFactory": "E",
+      "noUnusedLocals": true,
+      "lib": ["es6", "dom"],
+      "types": []
+  }
+}

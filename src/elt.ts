@@ -124,6 +124,14 @@ export interface EmptyAttributes<N extends Node> {
 
 /**
  * For a given attribute type used in components, give its related `Node` type.
+ *
+ * ```tsx
+ * import { Attrs, AttrsNodeType } from 'elt'
+ *
+ * type At = Attrs<HTMLDivElement>
+ * type No = AttrsNodeType<At>
+ * ```
+ *
  * @category dom, toc
  */
 export type AttrsNodeType<At extends EmptyAttributes<any>> = At extends EmptyAttributes<infer N> ? N : never
@@ -145,6 +153,8 @@ export type StyleDefinition =
 
 /**
  * A helper type since all HTML / SVG attributes can be null or undefined.
+ * @inline
+ * @internal
  */
 export type NRO<T> = o.RO<T | null | undefined>
 
@@ -153,21 +163,32 @@ export type NRO<T> = o.RO<T | null | undefined>
  * Basic attributes used on all HTML nodes, which can be reused when making components
  * to benefit from the class / style / id... attributes defined here.
  *
+ * Attrs **must** always specify the returned node type as its type argument.
+ *
  * ```jsx
- * function MyComponent(a: Attrs & {some_attribute: string}, ch: DocumentFragment) {
- *   return <div>{ch} {a.some_attribute}</div>
+ * import { Attrs } from 'elt'
+ *
+ * function MyComponent(a: Attrs<HTMLDivElement> & {some_attribute: string}, ch: DocumentFragment) {
+ *   return E.$DIV(ch, a.some_attribute)
  * }
  *
  * // With Attrs, all the basic elements are available.
- * <MyComponent id='some_id' class='css_class_1'/>
+ * document.body.appendChild(<MyComponent
+ *   id='some_id'
+ *   class='css_class_1'
+ *   some_attribute='World !'
+ * >Hello </MyComponent>)
  * ```
  *
  * This type should be used as first argument to all components definitions.
  * @category dom, toc
  */
 export interface Attrs<N extends Node> extends EmptyAttributes<N> {
+  /** A document id */
   id?: NRO<string | null>
+  /** Class definition(s), see [[$class]] for possible uses */
   class?: ClassDefinition | ClassDefinition[] // special attributes
+  /** Style definition, see [[$style]] for use */
   style?: StyleDefinition
 }
 

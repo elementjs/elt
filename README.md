@@ -8,6 +8,11 @@ It makes use of fairly modern standards, such as `Map`, `Set`, `Symbol` and `Wea
 
 While it is of course usable with plain javascript, its real intended audience is [Typescript](https://www.typescriptlang.org/) users.
 
+It is built with three objectives in mind :
+ * Writing code with it must be pleasant
+ * All overheads should be kepts as low as possible
+ * Types. Types. Types.
+
 # Why use it
 
   * **You use typescript** and don't want a javascript library that use patterns that the typing system doesn't always gracefully support. Everything is Element was built with *type inference* in mind. The [`Observable`](#o.Observable) ecosystem tries hard to keep that valuable typing information without getting in your way and have you type everything by hand.
