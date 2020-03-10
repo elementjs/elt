@@ -1,6 +1,11 @@
 import { App, $click, o, $If } from 'elt'
 
+class DepBlock extends App.Block {
+
+}
+
 class TheApp extends App.Block {
+  dep = this.require(DepBlock)
   o_was_logged = o(false)
 
   @App.view
@@ -15,6 +20,7 @@ class TheApp extends App.Block {
 }
 
 class AuthBlock extends App.Block {
+  dep = this.require(DepBlock)
   async checkIfLogged() {
     // try setting this to true
     return false // this could be a call to a REST backend
@@ -34,8 +40,8 @@ class AuthBlock extends App.Block {
 
 class InitBlock extends App.Block {
   // Try inverting the requires
-  theapp = this.require(TheApp)
   auth = this.require(AuthBlock)
+  theapp = this.require(TheApp)
 
   async init() {
     if (await this.auth.checkIfLogged()) {
@@ -45,4 +51,4 @@ class InitBlock extends App.Block {
   }
 }
 
-document.body.appendChild(App.DisplayApp('Main', InitBlock))
+document.body.appendChild(App.$DisplayApp('Main', InitBlock))

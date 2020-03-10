@@ -16,54 +16,186 @@ import { o } from './observable'
  */
 export class App extends Mixin<Comment>{
 
-  /** The block registry */
-  registry: App.Registry = new App.Registry(this)
+  /**
+   * For a given name, get the block that defines it
+   * @internal
+   */
+  o_view_blocks = o(new Map<string | Symbol, App.Block>())
 
-  /** @internal */
-  o_views = new o.Observable<{[name: string]: App.View}>({})
+  public __cache = new Map<typeof App.Block, App.Block>()
+
+  active_blocks = new Set<App.Block>()
 
   /**
    * The currently active blocks, ie. the blocks that were specifically
    * given to [[#App.DisplayApp]] or [[App#activate]]
    */
-  o_active_blocks = new o.Observable<Set<App.BlockInstantiator>>(new Set())
+  o_active_blocks = o(this.active_blocks)
 
-  constructor(public main_view: string, protected init_list: App.BlockInstantiator<any>[]) {
+  __children_app = new Set<App>()
+
+  constructor(public main_view: string | Symbol, public __parent_app?: App) {
     super()
+  }
+
+  inserted() {
+    // Tell our parent that we exist.
+    // Now, when cleaning up, the parent will check that it doesn't remove a block
+    // that the child needs.
+    this.__parent_app?.__children_app.add(this)
+  }
+
+  removed() {
+    // When removed, unregister ourselves from our parent app, the blocks we had registered
+    // now no longer hold a requirement in the parent app's cache.
+    if (this.__parent_app)
+      this.__parent_app.__children_app.delete(this)
+  }
+
+  getBlock<B extends App.Block>(key: new (app: App) => B): B
+  getBlock<B extends App.Block>(key: new (app: App) => B, init_if_not_found: false): B | undefined
+  getBlock<B extends App.Block>(key: new (app: App) => B, init_if_not_found = true): B | undefined {
+    // First try to see if we already own a version of this service.
+    var cached = this.__cache.get(key as any) as B | undefined
+    if (cached) return cached
+
+    // Try our parent app before trying to init it ourselves.
+    if (this.__parent_app) {
+      // In the parent app however, we won't try to instanciate anything if it is not found
+      cached = this.__parent_app.getBlock(key, false)
+      if (cached) return cached
+    }
+
+    if (init_if_not_found) {
+      if (key.length > 0) {
+        // Blocks take no arguments in their constructors, so this is a bogus require.
+        throw new Error(`Trying to instanciate a block that requires arguments without having provided it to activate first`)
+      }
+      var result = new key(this)
+
+      if (!result.unique_across_all_apps) {
+        this.__cache.set(key as unknown as typeof App.Block, result)
+      } else {
+        var _ap = this as App
+        while (_ap.__parent_app) { _ap = _ap.__parent_app }
+        _ap.__cache.set(key as unknown as typeof App.Block, result)
+      }
+
+      return result
+    }
+  }
+
+  /**
+   *
+   * @internal
+   */
+  getBlocksInRequirementOrder(active_blocks: Set<App.Block>) {
+    var blocks = new Set(active_blocks)
+
+    for (var bl of blocks) {
+      for (var ch of bl.__requirements) {
+        blocks.add(ch)
+      }
+    }
+
+    return blocks
+  }
+
+  /**
+   * Get the views defined by our currently active blocks
+   * @internal
+   */
+  getViews() {
+    var res = new Map<string | Symbol, App.Block>()
+    for (var block of this.getBlocksInRequirementOrder(this.o_active_blocks.get())) {
+      const views = (block.constructor as typeof App.Block).views
+      if (!views) continue
+      for (var name of views) {
+        if (!res.has(name)) res.set(name, block)
+      }
+    }
+    return res
+  }
+
+  /**
+   * Remove entries from the registry
+   */
+  protected cleanup() {
+    var kept_blocks = new Set<App.Block>()
+
+    function keep(b: App.Block) {
+      if (kept_blocks.has(b)) return
+      kept_blocks.add(b)
+      for (var req of b.__requirements) {
+        keep(req)
+      }
+    }
+
+    // We start by tagging blocks to know which are the active ones
+    // as well as their dependencies.
+    for (var bl of this.active_blocks) {
+      keep(bl)
+    }
+
+    for (var ch of this.__children_app) {
+      for (var bl of ch.active_blocks)
+        keep(bl)
+    }
+
+    // Once we know who to keep, we remove those that were not tagged.
+    for (var [key, block] of this.__cache) {
+      if (!kept_blocks.has(block) && !block.persistent) {
+        this.__cache.delete(key)
+        block.blockDeinit()
+      }
+    }
   }
 
   /**
    * Activate blocks to change the application's state.
    *
-   * @param params The blocks to activate, some states to put in the
-   * registry already initialized to the correct values, etc.
    */
-  activate(...params: App.BlockInstantiator<any>[]) {
-    var blocks = params.filter(p => typeof p === 'function') as App.BlockInstantiator[]
-    const active = this.o_active_blocks.get()
-    var not_present = false
+  activate(...new_blocks: {new (app: App): App.Block}[]) {
+    const active = this.active_blocks
+    const new_active_blocks = new Set<App.Block>()
+    var already_has_blocks = true
 
-    for (var b of blocks) {
-      if (!active.has(b))
-        not_present = true
+    // first check for the asked new_blocks if
+    for (var b of new_blocks) {
+      const instance = this.__cache.get(b as typeof App.Block)
+      if (!instance || !active.has(instance)) {
+        already_has_blocks = false
+        break
+      }
     }
 
     // do not activate if the active blocks are already activated
-    if (!not_present) return
+    if (already_has_blocks) return
 
-    this.registry.activate(blocks)
-    this.o_active_blocks.set(this.registry.active_blocks)
-    this.o_views.set(this.registry.getViews())
-  }
+    var previous_cache = new Map(this.__cache)
+    try {
+      for (var b of new_blocks) {
+        var bl = this.getBlock(b)
+        new_active_blocks.add(bl)
+      }
+    } catch (e) {
+      // cancel activating the new block
+      console.warn(e)
+      this.__cache = previous_cache
+      throw e
+    }
 
-  /**
-   * @internal
-   */
-  init() {
-    // Look for a parent app. If found, pick a subregistry and register it.
-    // var parent_app = App.get(this.node.parentNode!, true)
-    // this.registry.setParent(parent_app ? parent_app.registry : null)
-    this.activate(...this.init_list)
+    for (var block of new_active_blocks)
+      block.blockActivate()
+
+    this.active_blocks = new_active_blocks
+    this.cleanup()
+
+    o.transaction(() => {
+      this.o_active_blocks.set(new_active_blocks)
+      var views = this.getViews()
+      this.o_view_blocks.set(views)
+    })
   }
 
   /**
@@ -71,14 +203,42 @@ export class App extends Mixin<Comment>{
    *
    * Implementation of display
    */
-  display(view_name: string) {
-    return $Display(this.o_views.tf((v, old, prev) => {
-      var view = v[view_name]
-      if (o.isValue(old) && view === old[view_name] && o.isValue(prev)) {
-        return prev
+  display(view_name: string | Symbol) {
+    return $Display(this.o_view_blocks.tf(v => {
+      return v.get(view_name)
+    // we use another tf to not retrigger the display if the block implementing the view did
+    // not change.
+    }).tf(block => {
+      if (!block) {
+        console.warn(`view ${view_name} was not found, cannot display it`)
+        return undefined
       }
-      return view && view()
+      // unfortunately, we can't specify that view_name here accesses
+      // a () => Renderable function, so we cheat.
+      return (block as any)[view_name as any]()
     })) as Comment
+  }
+
+  /**
+   * Display an App that depends on this one.
+   *
+   * Blocks in the sub app that require other blocks will query this app if their app
+   * does not have the block defined and use it if found. Otherwise, they will instanciate
+   * their own version.
+   *
+   * Activated blocks are reinstanciated in a subapp even if they already are instanciated
+   * in the parent app.
+   *
+   * ```tsx
+   * @include ../examples/app.subapp.tsx
+   * ```
+   */
+  $DisplayChildApp(view_name: string | Symbol, ...blocks: {new (app: App): App.Block}[]) {
+    var newapp = new App(view_name, this)
+    var res = newapp.display(view_name)
+    newapp.activate(...blocks)
+    node_add_mixin(res, newapp)
+    return res
   }
 
 }
@@ -105,15 +265,16 @@ export namespace App {
    * }
    *
    * document.body.appendChild(
-   *   App.DisplayApp('Main', LoginBlock)
+   *   App.$DisplayApp('Main', LoginBlock)
    * )
    * ```
    *
    * @category app, toc
    */
-  export function DisplayApp(main_view: string, ...blocks: BlockInstantiator<any>[]) {
-    var app = new App(main_view, blocks)
+  export function $DisplayApp(main_view: string, ...blocks: (typeof App.Block)[]) {
+    var app = new App(main_view)
     var disp = app.display(main_view)
+    app.activate(...blocks)
     node_add_mixin(disp, app)
     return disp
   }
@@ -134,21 +295,9 @@ export namespace App {
    * @include ../examples/app.view.tsx
    * ```
    */
-  export function view(object: Block, key: string, desc: PropertyDescriptor) {
-    const cons = object.constructor as any
-    cons.views = cons.views ?? {}
-    cons.views[key] = desc.value
-  }
-
-  /** @internal, @inline */
-  export type View = () => Renderable
-
-  /**
-   * A Helper type for a Block constructor.
-   */
-  export type BlockInstantiator<B extends App.Block = App.Block> = {
-    new(app: App): B
-    views?: {[name: string]: () => Renderable}
+  export function view(object: Block, key: string | Symbol, desc: PropertyDescriptor) {
+    const cons = object.constructor as typeof Block
+    (cons.views = cons.views ?? new Set()).add(key)
   }
 
   /**
@@ -168,7 +317,7 @@ export namespace App {
   export class Block extends o.ObserverHolder {
 
     // @internal
-    views: {[name: string]: View} = {}
+    static views?: Set<string | Symbol>
 
     /**
      * Set this property to `true` if the block should stay instanciated even if it is
@@ -184,54 +333,22 @@ export namespace App {
      * ```
      *
      */
-    persist = false
+    persistent?: boolean
+
+    /**
+     * Set to `true` if this block should be
+     */
+    unique_across_all_apps?: boolean
 
     constructor(public app: App) {
       super()
-      this.app.registry.cache.set(this.constructor as any, this)
     }
-
-    /** @internal */
-    registry: App.Registry = this.app.registry
 
     /** @internal */
     private block_init_promise = null as null | Promise<void>
 
     /** @internal */
-    private block_requirements = new Set<Block>()
-
-    /** @internal */
-    mark(s: Set<Function>) {
-      s.add(this.constructor)
-      this.block_requirements.forEach(req => {
-        var proto = req.constructor
-        if (req instanceof o.Observable) {
-          s.add(req.get().constructor)
-        } if (req instanceof Block && !s.has(proto)) {
-          req.mark(s)
-        } else {
-          s.add(proto)
-        }
-      })
-    }
-
-    /**
-     * Run `fn` on the requirements of this block, then on itself.
-     *
-     * @param fn The function to run on all blocks
-     * @param mark A set containing blocks that were already visited
-     *
-     * @internal
-     */
-    runOnRequirementsAndSelf(fn: (b: Block) => void, mark = new Set<Block>()) {
-      mark.add(this)
-      this.block_requirements.forEach(req => {
-        if (req instanceof Block && !mark.has(req)) {
-          req.runOnRequirementsAndSelf(fn, mark)
-        }
-      })
-      fn(this)
-    }
+    __requirements = new Set<Block>()
 
     /**
      * Wait for all the required blocks to init
@@ -243,7 +360,7 @@ export namespace App {
         return
       }
 
-      var requirement_blocks = Array.from(this.block_requirements)
+      var requirement_blocks = Array.from(this.__requirements)
       // This is where we wait for all the required blocks to end their init.
       // Now we can init.
       this.block_init_promise = Promise.all(requirement_blocks.map(b => b.blockInit())).then(() => this.init())
@@ -262,12 +379,6 @@ export namespace App {
       this.stopObservers()
       this.deinit()
     }
-
-    /**
-     * Extend this method to run code whenever this block is initialized, after its requirements
-     * syncInit() were run.
-     */
-    syncInit(): void { }
 
     /**
      * Extend this method to run code whenever the block is created after the `init()` methods
@@ -310,10 +421,10 @@ export namespace App {
      *
      * @param block_def another block's constructor
      */
-    require<B extends Block>(block_def: BlockInstantiator<B>): B {
-      var result = this.registry.get(block_def)
-      this.block_requirements.add(result)
-      return result
+    require<B extends Block>(block_def: new (app: App) => B): B {
+      var result = this.app.getBlock(block_def)
+      this.__requirements.add(result)
+      return result as B
     }
 
     /**
@@ -333,104 +444,8 @@ export namespace App {
      * ```
      * @param fn
      */
-    // v should be AllowedNames<this, View> ! but it is a bug with ts 3.6.2
-    display(v: string): Node {
-      return this.app.display(v as string)
-    }
-
-  }
-
-  /**
-   * A registry that holds types mapped to their instance.
-   * @internal
-   */
-  export class Registry {
-
-    public cache = new Map<BlockInstantiator<any>, Block>()
-    public persistents = new Set<Block>()
-    public init_list: Set<Block> = new Set()
-
-    active_blocks = new Set<BlockInstantiator>()
-
-    constructor(public app: App) {
-    }
-
-    get<B extends Block>(key: BlockInstantiator<B>): B {
-      // First try to see if we own a version of this service.
-      var first_attempt = this.cache.get(key) as B | undefined
-
-      if (first_attempt) return first_attempt
-
-      // If neither we nor the parent have the instance, create it ourselve.
-      // We just check that the asked class/function has one argument, in which
-      // case we give it the app as it *should* be a block (we do not allow
-      // constructors with parameters for data services)
-      var result = new key(this.app)
-
-      this.init_list.add(result)
-
-      if (result.persist)
-        this.persistents.add(result)
-      return result
-    }
-
-    getViews() {
-      var views = {} as {[name: string]: View}
-      this.active_blocks.forEach(inst => {
-        var block = this.get(inst)
-        block.runOnRequirementsAndSelf(b => {
-          const cons = b.constructor as any
-          const v = cons.views ?? {}
-          for (var key of Object.getOwnPropertyNames(v)) {
-            views[key] = v[key].bind(b)
-          }
-        })
-      })
-      return views
-    }
-
-    /**
-     * Activate the given blocks with the given data
-     * If all the blocks were already active, then only the data will be set,
-     * but the views won't be refreshed (as they're the same).
-     *
-     * @param blocks: The blocks to activate
-     * @param data: The data to preload
-     */
-    activate(blocks: BlockInstantiator[]) {
-      this.active_blocks = new Set(blocks)
-      var insts = Array.from(this.active_blocks).map(b => this.get(b))
-      insts.forEach(i => i.blockActivate())
-      this.cleanup()
-      this.initPending()
-    }
-
-    /**
-     * Remove entries from the registry
-     */
-    protected cleanup() {
-      var mark = new Set<Function>()
-
-      this.persistents.forEach(b => b.mark(mark))
-      this.active_blocks.forEach(bl => {
-        var b = this.cache.get(bl) as Block
-        b.mark(mark)
-      })
-
-      // now, we sweep
-      this.cache.forEach((value, key) => {
-        if (!mark.has(key)) {
-          this.cache.delete(key)
-          value.blockDeinit()
-        }
-      })
-    }
-
-    initPending() {
-      for (var block of this.init_list) {
-        this.init_list.delete(block)
-        block.blockInit()
-      }
+    display(v: string | Symbol): Node {
+      return this.app.display(v)
     }
 
   }
