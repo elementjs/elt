@@ -1171,11 +1171,11 @@ export function prop<T, K extends keyof T>(obj: Observable<T> | T, prop: RO<K>) 
   }
 
   /**
-   * Returns a function that accepts a callback. While this callback is running, all calls
-   * to the returned locks will not launch.
+   * Returns a function that accepts a callback. While this callback is running, all subsequent
+   * calls to the created lock become no-op.
    *
    * This helper is to be used when have observables which set each other's value in observers,
-   * which could end up in an infinite loop.
+   * which could end up in an infinite loop, or when dealing with DOM Events.
    *
    * @returns a function that accepts a callback
    * @category observable, toc

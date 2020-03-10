@@ -74,8 +74,6 @@ export class App extends Mixin<Comment>{
   display(view_name: string) {
     return $Display(this.o_views.tf((v, old, prev) => {
       var view = v[view_name]
-      // if (sym === 'MainView')
-      //   console.log(sym, v, old, o.isValue(old) && view === old[sym])
       if (o.isValue(old) && view === old[view_name] && o.isValue(prev)) {
         return prev
       }
