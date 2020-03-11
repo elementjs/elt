@@ -1,6 +1,6 @@
 import { App, $click, o, $If } from 'elt'
 
-class TheApp extends App.Block {
+class TheApp extends App.Service {
   o_was_logged = o(false)
 
   @App.view
@@ -14,7 +14,7 @@ class TheApp extends App.Block {
   }
 }
 
-class AuthBlock extends App.Block {
+class AuthService extends App.Service {
 
   async checkIfLogged() {
     // try setting this to true
@@ -33,9 +33,9 @@ class AuthBlock extends App.Block {
   }
 }
 
-class InitBlock extends App.Block {
+class InitService extends App.Service {
   // Try inverting the requires
-  auth = this.require(AuthBlock)
+  auth = this.require(AuthService)
   theapp = this.require(TheApp)
 
   async init() {
@@ -46,4 +46,4 @@ class InitBlock extends App.Block {
   }
 }
 
-document.body.appendChild(App.$DisplayApp('Main', InitBlock))
+document.body.appendChild(App.$DisplayApp('Main', InitService))

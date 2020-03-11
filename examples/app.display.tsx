@@ -1,28 +1,28 @@
 import { App } from 'elt'
 
-class Block1 extends App.Block {
+class Service1 extends App.Service {
   @App.view
   Content() {
     return <div>
-      Block 1
+      Service 1
     </div>
   }
 }
 
-class Block2 extends App.Block {
+class Service2 extends App.Service {
 
   @App.view
   Content() {
-    return <div>Block 2</div>
+    return <div>Service 2</div>
   }
 
 }
 
-class RootBlock extends App.Block {
+class RootService extends App.Service {
 
   // try inverting the require
-  bl1 = this.require(Block1)
-  bl2 = this.require(Block2)
+  bl1 = this.require(Service1)
+  bl2 = this.require(Service2)
 
   @App.view
   Main() {
@@ -30,4 +30,4 @@ class RootBlock extends App.Block {
   }
 }
 
-document.body.appendChild(App.$DisplayApp('Main', RootBlock))
+document.body.appendChild(App.$DisplayApp('Main', RootService))

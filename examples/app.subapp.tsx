@@ -1,17 +1,17 @@
 import { App, $click, o } from 'elt'
 
 
-class Required extends App.Block {
+class Required extends App.Service {
   o_req = o(0)
 }
 
-class Required2 extends App.Block {
+class Required2 extends App.Service {
   // Required2 will be a true singleton.
   unique_across_all_apps = true
   o_req2 = o(0)
 }
 
-class SubBlock extends App.Block {
+class SubService extends App.Service {
   req = this.require(Required)
   req2 = this.require(Required2)
   o_own = o(0)
@@ -31,7 +31,7 @@ class SubBlock extends App.Block {
   }
 }
 
-class InitBlock extends App.Block {
+class InitService extends App.Service {
 
   // If the following line is uncommented, then the child apps will resolve
   // to this dependency and won't try to instanciate their own
@@ -40,11 +40,11 @@ class InitBlock extends App.Block {
   @App.view
   Main() {
     return <div>
-      {this.app.$DisplayChildApp('Main2', SubBlock)}
-      {this.app.$DisplayChildApp('Main2', SubBlock)}
-      {this.app.$DisplayChildApp('Main2', SubBlock)}
+      {this.app.$DisplayChildApp('Main2', SubService)}
+      {this.app.$DisplayChildApp('Main2', SubService)}
+      {this.app.$DisplayChildApp('Main2', SubService)}
     </div>
   }
 }
 
-document.body.appendChild(App.$DisplayApp('Main', InitBlock))
+document.body.appendChild(App.$DisplayApp('Main', InitService))
