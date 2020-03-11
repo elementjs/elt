@@ -455,7 +455,7 @@ export class Observable<A> implements ReadonlyObservable<A>, Indexable {
    * Create an observer bound to this observable, but do not start it.
    * For it to start observing, one needs to call its `startObserving()` method.
    *
-   * > **Note**: This method should rarely be used. Prefer using [[$observe]], [[node_observe]], [`Mixin#observe`](#o.ObserverHolder#observe) or [`App.Block#observe`](#o.ObserverHolder#observe) for observing values.
+   * > **Note**: This method should rarely be used. Prefer using [[$observe]], [[node_observe]], [`Mixin#observe`](#o.ObserverHolder#observe) or [`App.Service#observe`](#o.ObserverHolder#observe) for observing values.
    */
   createObserver(fn: Observer.ObserverFunction<A>): Observer<A> {
     return new Observer(fn, this)
@@ -464,7 +464,7 @@ export class Observable<A> implements ReadonlyObservable<A>, Indexable {
   /**
    * Add an observer to this observable, which will be updated as soon as the `Observable` is set to a new value.
    *
-   * > **Note**: This method should rarely be used. Prefer using [[$observe]], [[node_observe]], [`Mixin#observe()`](#Mixin) or [`App.Block#observe()`](#App.Block) for observing values.
+   * > **Note**: This method should rarely be used. Prefer using [[$observe]], [[node_observe]], [`Mixin#observe()`](#Mixin) or [`App.Service#observe()`](#App.Service#observe) for observing values.
    *
    * @returns The newly created observer if a function was given to this method or
    *   the observable that was passed.
@@ -1194,7 +1194,7 @@ export function prop<T, K extends keyof T>(obj: Observable<T> | T, prop: RO<K>) 
    * A helper class that manages a group of observers with a few handy methods
    * to all start or stop them from observing.
    *
-   * Meant to be extended by [[Mixin]] and [[App.Block]], or any class that has
+   * Meant to be extended by [[Mixin]] and [[App.Service]], or any class that has
    * some form of life-cycle (on/off) that it wants to tie observing to.
    *
    * @category observable, toc
