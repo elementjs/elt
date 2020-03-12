@@ -218,6 +218,7 @@ export interface ReadonlyObservable<A> {
 
   p<A>(this: ReadonlyObservable<A[]>, key: RO<number>): ReadonlyObservable<A>
   p<A, K extends keyof A>(this: ReadonlyObservable<A>, key: RO<K>): ReadonlyObservable<A[K]>
+  mp<A, B>(this: ReadonlyObservable<Map<A, B>>, key: RO<A>, delete_on_undefined?: boolean): ReadonlyObservable<B | undefined>
 
 }
 
@@ -608,8 +609,26 @@ export class Observable<A> implements ReadonlyObservable<A>, Indexable {
     return prop(this, key)
   }
 
-}
+  /**
+   * Like [[o.Observable#p]], but with `Map` objects, with the added difference that since
+   * maps return `B | undefined`, setting the resulting observable to undefined **deletes**
+   * the key instead of setting it, unless `delete_on_undefined` is `false`, in which case
+   * `undefined` values will be inserted.
+   */
+  mp<A, B>(this: Observable<Map<A, B>>, key: RO<A>, delete_on_undefined = true): Observable<B | undefined> {
+      return combine([this, key] as [Observable<Map<A, B>>, RO<A>],
+      ([map, key]) => map.get(key),
+      (ret, _, [omap, okey]) => {
+        var result = new Map(omap) //.set(okey, ret)
+        // Is this correct ? should I **delete** when I encounter undefined ?
+        if (ret !== undefined || !delete_on_undefined) result.set(okey, ret!)
+        else result.delete(okey)
+        return [result, o.NOVALUE] as [Map<A, B>, NoValue]
+      }
+    )
+  }
 
+}
 
 
 /**
