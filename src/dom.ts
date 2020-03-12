@@ -323,12 +323,12 @@ export function node_do_remove(node: Node, prev_parent: Node) {
  *
  * @category low level dom, toc
  */
-export function remove_node(node: Node, prev_parent: Node): void {
+export function remove_node(node: Node): void {
   const parent = node.parentNode!
   if (parent) {
     parent.removeChild(node)
   }
-  node_do_remove(node, prev_parent) // just stop observers otherwise...
+  node_do_remove(node, parent) // just stop observers otherwise...
 }
 
 

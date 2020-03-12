@@ -1108,7 +1108,6 @@ export function prop<T, K extends keyof T>(obj: Observable<T> | T, prop: RO<K>) 
     if (obj == null || typeof obj === 'number' || typeof obj === 'string' || typeof obj === 'boolean')
       return obj
     var clone: any
-    var len: number
     var key: number | string
 
     if (obj[clone_symbol]) {
@@ -1116,11 +1115,7 @@ export function prop<T, K extends keyof T>(obj: Observable<T> | T, prop: RO<K>) 
     }
 
     if (Array.isArray(obj)) {
-      len = obj.length
-      clone = new Array(len)
-      for (key = 0; key < len; key++)
-        clone[key] = obj[key]
-      return clone
+      return obj.slice()
     }
 
     if (obj instanceof Date) {
@@ -1139,17 +1134,11 @@ export function prop<T, K extends keyof T>(obj: Observable<T> | T, prop: RO<K>) 
     }
 
     if (obj instanceof Map) {
-      clone = new Map()
-      obj.forEach((key, value) => {
-        clone.set(key, value)
-      })
-      return clone
+      return new Map(obj)
     }
 
     if (obj instanceof Set) {
-      clone = new Set()
-      obj.forEach(val => clone.add(val))
-      return clone
+      return new Set(obj)
     }
 
     // If we got here, then we're cloning an object
