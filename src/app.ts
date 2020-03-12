@@ -72,7 +72,7 @@ export class App extends Mixin<Comment>{
   o_view_services = o(new Map<string | Symbol, App.Service>())
 
   /** @internal */
-  constructor(public main_view: string | Symbol, public __parent_app?: App) {
+  constructor(public main_view: string | Symbol, public _parent_app?: App) {
     super()
   }
 
@@ -81,15 +81,15 @@ export class App extends Mixin<Comment>{
     // Tell our parent that we exist.
     // Now, when cleaning up, the parent will check that it doesn't remove a service
     // that the child needs.
-    this.__parent_app?._children_app.add(this)
+    this._parent_app?._children_app.add(this)
   }
 
   /** @internal */
   removed() {
     // When removed, unregister ourselves from our parent app, the services we had registered
     // now no longer hold a requirement in the parent app's cache.
-    if (this.__parent_app)
-      this.__parent_app._children_app.delete(this)
+    if (this._parent_app)
+      this._parent_app._children_app.delete(this)
   }
 
   /** @internal */
@@ -101,9 +101,9 @@ export class App extends Mixin<Comment>{
     if (cached) return cached
 
     // Try our parent app before trying to init it ourselves.
-    if (this.__parent_app) {
+    if (this._parent_app) {
       // In the parent app however, we won't try to instanciate anything if it is not found
-      cached = this.__parent_app.getService(key, false)
+      cached = this._parent_app.getService(key, false)
       if (cached) return cached
     }
 
@@ -118,7 +118,7 @@ export class App extends Mixin<Comment>{
         this._cache.set(key as unknown as typeof App.Service, result)
       } else {
         var _ap = this as App
-        while (_ap.__parent_app) { _ap = _ap.__parent_app }
+        while (_ap._parent_app) { _ap = _ap._parent_app }
         _ap._cache.set(key as unknown as typeof App.Service, result)
       }
 
