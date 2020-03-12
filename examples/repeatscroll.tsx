@@ -1,8 +1,11 @@
 import { o, $scrollable, $RepeatScroll } from 'elt'
 
-const o_arr = o(['one', 'two', 'three', 'four', 'five', 'six'])
+var arr = [] as number[]
+for (var i = 0; i < 1000; i++) arr.push(i)
 
-document.body.appendChild(<div style={{height: '90px'}}>
+const o_arr = o(arr)
+
+document.body.appendChild(<div style={{height: '240px'}}>
   {$scrollable}
   {$RepeatScroll(o_arr, o_item => <div style={{padding: '16px'}}>
     {o_item}
