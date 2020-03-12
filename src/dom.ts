@@ -47,9 +47,9 @@ export const sym_inserted = Symbol('elt-inserted')
  */
 export const sym_removed = Symbol('elt-removed')
 
-const NODE_IS_INITED = 0x01
-const NODE_IS_INSERTED = 0x10
-const NODE_IS_OBSERVING = 0x100
+const NODE_IS_INITED =        0x001
+const NODE_IS_INSERTED =      0x010
+const NODE_IS_OBSERVING =     0x100
 
 
 // Elt adds a few symbol properties on the nodes it creates.
@@ -171,16 +171,35 @@ export function node_is_inserted(node: Node) {
  */
 export function node_do_init(node: Node) {
 
-  // if there is anything in the status, it means the node was inited before,
-  // so we don't do that again.
-  if (!(node[sym_mount_status] & NODE_IS_INITED))
+  if (!(node[sym_mount_status] & NODE_IS_INITED)) {
     _node_call_cbks(node, sym_init)
+    // We free the inits
+    node[sym_init] = undefined
+  }
 
-  if (!(node[sym_mount_status] & NODE_IS_OBSERVING))
-    // call init functions
-    _node_start_observers(node)
 
-  node[sym_mount_status] = NODE_IS_INITED | NODE_IS_OBSERVING
+  // _node_start_observers(node)
+  // We now refresh all the observers so that they trigger their behaviour.
+  // They are however not started, since nodes could be discarded.
+  var observers = node[sym_observers]
+  if (observers) {
+    for (var i = 0, l = observers.length; i < l; i++) {
+      observers[i].refresh()
+    }
+  }
+
+  var mx = node[sym_mixins]
+  if (mx) {
+    for (var i = 0, l = mx.length; i < l; i++) {
+      var mx_observers = mx[i].__observers
+      for (var j = 0, lj = mx_observers.length; j < lj; j++) {
+        mx_observers[j].refresh()
+      }
+    }
+  }
+
+  node[sym_mount_status] = NODE_IS_INITED
+  // node[sym_mount_status] = NODE_IS_INITED | NODE_IS_OBSERVING
 }
 
 
@@ -195,9 +214,7 @@ function _apply_inserted(node: Node) {
   if (!(st & NODE_IS_OBSERVING)) _node_start_observers(node)
 
   // then, call inserted.
-  if (!(st & NODE_IS_INSERTED)) {
-    _node_call_cbks(node, sym_inserted)
-  }
+  if (!(st & NODE_IS_INSERTED)) _node_call_cbks(node, sym_inserted)
 
   node[sym_mount_status] = NODE_IS_INITED | NODE_IS_INSERTED | NODE_IS_OBSERVING // now inserted
 }
@@ -211,27 +228,27 @@ export function node_do_inserted(node: Node) {
 
   var iter = node.firstChild as Node | null | undefined
   var stack = [] as Node[]
-  // We build here a stack where parents are added first and children last
 
   _apply_inserted(node)
 
   while (iter) {
+    var already_inserted = iter[sym_mount_status] & NODE_IS_INSERTED
+    if (!already_inserted) {
+      _apply_inserted(iter)
+    }
+
+    var first: ChildNode | null
     // we ignore an entire subtree if the node is already marked as inserted
     // in all other cases, the node will be inserted
-    if (!(iter[sym_mount_status] & NODE_IS_INSERTED)) {
-      _apply_inserted(iter)
-
-      var first = iter.firstChild
-      if (first) {
-        var next = iter.nextSibling // where we'll pick up when we unstack.
-        if (next)
-          stack.push(next)
-        iter = first // we will keep going to the children
-        continue
-      } else if (iter.nextSibling) {
-        iter = iter.nextSibling
-        continue
-      }
+    if (!already_inserted && (first = iter.firstChild)) {
+      var next = iter.nextSibling // where we'll pick up when we unstack.
+      if (next)
+        stack.push(next)
+      iter = first // we will keep going to the children
+      continue
+    } else if (iter.nextSibling) {
+      iter = iter.nextSibling
+      continue
     }
 
     iter = stack.pop()
@@ -243,7 +260,7 @@ export function node_do_inserted(node: Node) {
  * Apply unmount to a node.
  * @internal
  */
-function _apply_removed(node: Node, prev_parent: Node | null) {
+function _apply_removed(node: Node, prev_parent: Node) {
   var st = node[sym_mount_status]
 
   if (st & NODE_IS_OBSERVING) {
@@ -251,7 +268,7 @@ function _apply_removed(node: Node, prev_parent: Node | null) {
     st = st ^ NODE_IS_OBSERVING
   }
 
-  if (prev_parent && st & NODE_IS_INSERTED) {
+  if (st & NODE_IS_INSERTED) {
     _node_call_cbks(node, sym_removed)
     st = st ^ NODE_IS_INSERTED
   }
@@ -267,26 +284,27 @@ function _apply_removed(node: Node, prev_parent: Node | null) {
  *
  * @internal
  */
-export function node_do_remove(node: Node, prev_parent: Node | null) {
+export function node_do_remove(node: Node, prev_parent: Node) {
 
   const node_stack: Node[] = []
   var iter: Node | null = node.firstChild
 
   while (iter) {
 
-    while (iter.firstChild) {
+    var first: ChildNode | null
+    while ((first = iter.firstChild) && (first[sym_mount_status] & NODE_IS_INSERTED)) {
       node_stack.push(iter)
-      iter = iter.firstChild
+      iter = first
     }
 
-    _apply_removed(iter, prev_parent ? iter.parentNode! : null)
+    _apply_removed(iter, iter.parentNode!)
 
     // When we're here, we're on a terminal node, so
     // we're going to have to process it.
 
     while (iter && !iter.nextSibling) {
       iter = node_stack.pop()!
-      if (iter) _apply_removed(iter, prev_parent ? iter.parentNode! : null)
+      if (iter) _apply_removed(iter, iter.parentNode!)
     }
 
     // So now we're going to traverse the next node.
@@ -305,15 +323,12 @@ export function node_do_remove(node: Node, prev_parent: Node | null) {
  *
  * @category low level dom, toc
  */
-export function remove_node(node: Node): void {
+export function remove_node(node: Node, prev_parent: Node): void {
   const parent = node.parentNode!
   if (parent) {
-    // (m as any).node = null
     parent.removeChild(node)
-    node_do_remove(node, parent)
-  } else {
-    node_do_remove(node, null) // just stop observers otherwise...
   }
+  node_do_remove(node, prev_parent) // just stop observers otherwise...
 }
 
 
@@ -370,12 +385,6 @@ export function setup_mutation_observer(node: Node) {
       var record = records[i]
       for (var added = Array.from(record.addedNodes), j = 0, lj = added.length; j < lj; j++) {
         var added_node = added[j]
-
-        // skip this node if it is already marked as inserted, as it means verbs already
-        // have performed the mounting for this element
-        if (added_node[sym_mount_status] & NODE_IS_INSERTED) {
-          continue
-        }
         node_do_inserted(added_node)
       }
       for (var removed = Array.from(record.removedNodes), j = 0, lj = removed.length; j < lj; j++) {

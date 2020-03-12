@@ -79,7 +79,7 @@ In your `tsconfig.json`, you will need to add the following :
 
 At last, you need to setup the [`MutationObserver`](https://developer.mozilla.org/en-US/docs/Web/API/MutationObserver) which will call the life-cycle callbacks used extensively by elt. This has to be done only once *per document*, see [`setup_mutation_observer`](#setup_mutation_observer)
 
-```tsx
+```jsx
 import { setup_mutation_observer } from 'elt'
 setup_mutation_observer(document)
 // you
@@ -104,7 +104,7 @@ document.body.appendChild(<div>
 
 ELT supports being used as an umd module in a regular `<script>` import, in which case its global name is elt.
 
-```tsx
+```jsx
 const { o, $bind, setup_mutation_observer } = elt
 
 // ... !
