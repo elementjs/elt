@@ -388,6 +388,10 @@ export namespace $Repeat {
  * > **Note** : while functional, RepeatScroll is not perfect. A "VirtualScroll" behaviour is in the
  * > roadmap to only maintain the right amount of elements on screen.
  *
+ * ```tsx
+ * @include ../examples/repeatscroll.tsx
+ * ```
+ *
  * @category dom, toc
  */
 export function $RepeatScroll<T extends o.RO<any[]>>(

@@ -504,16 +504,16 @@ export function $removed<N extends Node>(fn: (node: N, parent: Node) => void) {
  * Calling this functions makes anything not marked scrollable as non-scrollable.
  * @category dom, toc
  */
-export function $scrollable() {
-  return (node: HTMLElement) => {
+export function $scrollable(node: HTMLElement): void {
+
     $scrollable.setUpNoscroll(node.ownerDocument!)
 
-    var style = node.style as any
+    var style = node.style
     style.overflowY = 'auto'
     style.overflowX = 'auto'
 
     // seems like typescript doesn't have this property yet
-    style.webkitOverflowScrolling = 'touch'
+    ; (style as any).webkitOverflowScrolling = 'touch'
 
     node_add_event_listener(node, 'touchstart', ev => {
       if (ev.currentTarget.scrollTop == 0) {
@@ -525,7 +525,6 @@ export function $scrollable() {
       if (ev.currentTarget.offsetHeight < ev.currentTarget.scrollHeight)
         (ev as $scrollable.ScrollableEvent)[$scrollable.sym_letscroll] = true
     }, true)
-  }
 }
 
 
