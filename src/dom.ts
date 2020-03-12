@@ -191,7 +191,7 @@ export function node_do_init(node: Node) {
   var mx = node[sym_mixins]
   if (mx) {
     for (var i = 0, l = mx.length; i < l; i++) {
-      var mx_observers = mx[i].__observers
+      var mx_observers = mx[i]._observers
       for (var j = 0, lj = mx_observers.length; j < lj; j++) {
         mx_observers[j].refresh()
       }
@@ -473,16 +473,18 @@ export function append_child_and_init(parent: Node, child: Node) {
 /**
  * Tie the observal of an `#Observable` to the presence of this node in the DOM.
  *
- * Observers are called whenever the observable changes **and** the node is contained
- * in the document.
- *
  * Used mostly by [[$observe]] and [[Mixin.observe]]
  *
  * @category low level dom, toc
  */
 export function node_observe<T>(node: Node, obs: o.RO<T>, obsfn: o.Observer.ObserverFunction<T>, observer_callback?: (obs: o.Observer<T>) => any): o.Observer<T> | null {
   if (!(o.isReadonlyObservable(obs))) {
-    obsfn(obs, new o.Changes(obs))
+    // If the node is already inited, run the callback
+    if (node[sym_mount_status] & NODE_IS_INITED)
+      obsfn(obs, new o.Changes(obs))
+    else
+      // otherwise, call it when inited
+      node_on(node, sym_init, () => obsfn(obs, new o.Changes(obs)))
     return null
   }
   // Create the observer and append it to the observer array of the node
@@ -700,8 +702,9 @@ export function node_remove_after(start: Node, until: Node | null) {
   if (!start) return
 
   var next: Node | null
+  var parent = start.parentNode!
   while ((next = start.nextSibling)) {
-    remove_node(next)
+    remove_node(next, parent)
     if (next === until) break
   }
 

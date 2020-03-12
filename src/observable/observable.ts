@@ -1202,7 +1202,9 @@ export function prop<T, K extends keyof T>(obj: Observable<T> | T, prop: RO<K>) 
   export class ObserverHolder {
 
     /** @internal */
-    __observers: o.Observer<any>[] = []
+    _observers: o.Observer<any>[] = []
+
+    _callback_queue?: (() => void)[] = undefined
 
     /**
      * Boolean indicating if this object is actively observing its observers.
@@ -1214,8 +1216,16 @@ export function prop<T, K extends keyof T>(obj: Observable<T> | T, prop: RO<K>) 
      * @internal
      */
     startObservers() {
-      for (var ob of this.__observers)
-        ob.startObserving()
+      var cbk = this._callback_queue
+      if (cbk) {
+        for (var i = 0, l = cbk.length; i < l; i++) {
+          cbk[i]()
+        }
+        this._callback_queue = undefined
+      }
+      for (var obss = this._observers, i = 0, l = obss.length; i < l; i++) {
+        obss[i].startObserving()
+      }
       this.is_observing = true
     }
 
@@ -1223,8 +1233,9 @@ export function prop<T, K extends keyof T>(obj: Observable<T> | T, prop: RO<K>) 
      * Stop all the observers on this holder from observing.
      */
     stopObservers() {
-      for (var ob of this.__observers)
-        ob.stopObserving()
+      for (var obss = this._observers, i = 0, l = obss.length; i < l; i++) {
+        obss[i].stopObserving()
+      }
       this.is_observing = false
     }
 
@@ -1233,7 +1244,10 @@ export function prop<T, K extends keyof T>(obj: Observable<T> | T, prop: RO<K>) 
      */
     observe<A>(obs: RO<A>, fn: Observer.ObserverFunction<A>, observer_callback?: (observer: Observer<A>) => any): Observer<A> | null {
       if (!(obs instanceof Observable)) {
-        fn(obs as A, new Changes(obs as A))
+        if (this.is_observing)
+          fn(obs as A, new Changes(obs as A))
+        else
+          (this._callback_queue = this._callback_queue ?? []).push(() => fn(obs as A, new Changes(obs as A)))
         return null
       }
 
@@ -1246,7 +1260,7 @@ export function prop<T, K extends keyof T>(obj: Observable<T> | T, prop: RO<K>) 
      * Add an observer to the observers array.
      */
     addObserver(observer: Observer<any>) : Observer<any> {
-      this.__observers.push(observer)
+      this._observers.push(observer)
 
       if (this.is_observing)
         observer.startObserving()
@@ -1258,10 +1272,10 @@ export function prop<T, K extends keyof T>(obj: Observable<T> | T, prop: RO<K>) 
      * Remove the observer from this holder and stop it from observing
      */
     unobserve(observer: Observer<any>) {
-      const idx = this.__observers.indexOf(observer)
+      const idx = this._observers.indexOf(observer)
       if (idx > -1) {
         if (this.is_observing) observer.stopObserving()
-        this.__observers.splice(idx, 1)
+        this._observers.splice(idx, 1)
       }
     }
   }
