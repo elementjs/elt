@@ -704,7 +704,8 @@ export function node_remove_after(start: Node, until: Node | null) {
   var next: Node | null
   var parent = start.parentNode!
   while ((next = start.nextSibling)) {
-    remove_node(next, parent)
+    parent.removeChild(next)
+    node_do_remove(next, parent)
     if (next === until) break
   }
 
