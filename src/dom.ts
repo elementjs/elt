@@ -477,7 +477,7 @@ export function append_child_and_init(parent: Node, child: Node) {
  *
  * @category low level dom, toc
  */
-export function node_observe<T>(node: Node, obs: o.RO<T>, obsfn: o.Observer.ObserverFunction<T>, observer_callback?: (obs: o.Observer<T>) => any): o.Observer<T> | null {
+export function node_observe<T>(node: Node, obs: o.RO<T>, obsfn: o.Observer.Callback<T>, observer_callback?: (obs: o.Observer<T>) => any): o.Observer<T> | null {
   if (!(o.isReadonlyObservable(obs))) {
     // If the node is already inited, run the callback
     if (node[sym_mount_status] & NODE_IS_INITED)
@@ -529,7 +529,7 @@ export function node_add_event_listener<N extends Node>(node: N, ev: string | st
  * Stop a node from observing an observable, even if it is still in the DOM
  * @category low level dom, toc
  */
-export function node_unobserve(node: Node, obsfn: o.Observer<any> | o.Observer.ObserverFunction<any>) {
+export function node_unobserve(node: Node, obsfn: o.Observer<any> | o.Observer.Callback<any>) {
   const is_observing = node[sym_mount_status] & NODE_IS_OBSERVING
   node[sym_observers] = node[sym_observers]?.filter(ob => {
     const res = ob === obsfn || ob.fn === obsfn

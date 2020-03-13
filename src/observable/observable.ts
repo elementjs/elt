@@ -27,11 +27,11 @@ export type BaseType<T> = T extends ReadonlyObservable<infer U> ? U : T
 
 /**
  */
-export type TransfomGetFn<A, B> = (nval: A, oval: A | typeof NOVALUE, curval: B | typeof NOVALUE) => B
+export type TransfomGetFn<A, B> = (nval: A, oval: A | NoValue, curval: B | NoValue) => B
 
 /**
  */
-export type TransfomSetFn<A, B> = (nval: B, oval: B | typeof NOVALUE, curval: A) => A
+export type TransfomSetFn<A, B> = (nval: B, oval: B | NoValue, curval: A) => A
 
 
 /**
@@ -58,6 +58,7 @@ export type MaybeObservableReadonlyObject<T> = { [P in keyof T]:  RO<T[P]>}
  * Used in Observers and combined observables to know when a value has been set for the first time.
  */
 export const NOVALUE = Symbol('NOVALUE')
+export type NoValue = typeof NOVALUE
 
 export function isReadonlyObservable(_: any): _ is ReadonlyObservable<any> {
   return _ instanceof Observable
@@ -68,7 +69,7 @@ export function isReadonlyObservable(_: any): _ is ReadonlyObservable<any> {
  * @category observable, toc
  */
 export class Changes<A> {
-  constructor(protected n: A, protected o: A | typeof NOVALUE = NOVALUE) {
+  constructor(protected n: A, protected o: A | NoValue = NOVALUE) {
 
   }
 
@@ -139,17 +140,17 @@ export class Changes<A> {
  */
 export class Observer<A> implements Indexable {
 
-  protected old_value: A | typeof NOVALUE = NOVALUE
+  protected old_value: A | NoValue = NOVALUE
   idx = null
-  fn: Observer.ObserverFunction<any>
+  fn: Observer.Callback<any>
 
-  constructor(fn: Observer.ObserverFunction<A>, public observable: ReadonlyObservable<A>) {
+  constructor(fn: Observer.Callback<A>, public observable: ReadonlyObservable<A>) {
     this.fn = fn
   }
 
   refresh(): void {
     const old = this.old_value
-    const new_value = (this.observable as Observable<A>).__value
+    const new_value = (this.observable as Observable<A>)._value
 
     if (old !== new_value) {
       // only store the old_value if the observer will need it. Useful to not keep
@@ -182,7 +183,7 @@ export class Observer<A> implements Indexable {
 export namespace Observer {
   /**
    */
-  export type ObserverFunction<T> = (newval: T, changes: Changes<T>) => void
+  export type Callback<T> = (newval: T, changes: Changes<T>) => void
 
 }
 
@@ -193,8 +194,8 @@ export namespace Observer {
 export interface ReadonlyObservable<A> {
   get(): A
   stopObservers(): void
-  createObserver(fn: Observer.ObserverFunction<A>): Observer<A>
-  addObserver(fn: Observer.ObserverFunction<A>): Observer<A>
+  createObserver(fn: Observer.Callback<A>): Observer<A>
+  addObserver(fn: Observer.Callback<A>): Observer<A>
   addObserver(obs: Observer<A>): Observer<A>
   removeObserver(ob: Observer<A>): void
 
@@ -217,14 +218,14 @@ export function each_recursive(obs: Observable<any>, fn: (v: Observable<any>) =>
 
   var objs = [] as Observable<any>[]
   var stack = [] as [(ChildObservableLink | null)[], number][]
-  var [children, i] = [obs.__children.arr, 0]
+  var [children, i] = [obs._children.arr, 0]
   objs.push(obs)
 
   while (true) {
     var _child = children[i]
     if (_child) {
       var child = _child.child
-      var subchildren = child.__children.arr
+      var subchildren = child._children.arr
       objs.push(child)
       if (subchildren.length) {
         stack.push([children, i + 1])
@@ -282,13 +283,13 @@ export class Queue extends IndexableArray<Observable<any>> {
       if (obs == null) continue
 
       if (obs instanceof CombinedObservable) {
-        obs.__value = obs.getter(obs.__parents_values)
+        obs._value = obs.getter(obs._parents_values)
       }
 
-      EACH(obs.__children, ch => {
-        ch.child.__parents_values[ch.child_idx] = ch.parent.__value
+      EACH(obs._children, ch => {
+        ch.child._parents_values[ch.child_idx] = ch.parent._value
       })
-      EACH(obs.__observers, o => o.refresh())
+      EACH(obs._observers, o => o.refresh())
       obs.idx = null
       arr[i] = null // just in case...
     }
@@ -340,7 +341,7 @@ export class ChildObservableLink implements Indexable {
   ) { }
 
   refresh() {
-    this.child.__parents_values[this.child_idx] = this.parent.__value
+    this.child._parents_values[this.child_idx] = this.parent._value
   }
 }
 
@@ -354,11 +355,11 @@ export class ChildObservableLink implements Indexable {
 export class Observable<A> implements ReadonlyObservable<A>, Indexable {
 
   /** @internal */
-  __observers = new IndexableArray<Observer<A>>()
+  _observers = new IndexableArray<Observer<A>>()
   /** @internal */
-  __children = new IndexableArray<ChildObservableLink>()
+  _children = new IndexableArray<ChildObservableLink>()
   /** @internal */
-  __watched = false
+  _watched = false
 
   /** The index of this Observable in the notify queue. If null, means that it's not scheduled.
    * @internal
@@ -368,7 +369,7 @@ export class Observable<A> implements ReadonlyObservable<A>, Indexable {
   /**
    * Build an observable from a value. For readability purposes, use the [[o]] function instead.
    */
-  constructor(public __value: A) {
+  constructor(public _value: A) {
     // (this as any).debug = new Error
   }
 
@@ -379,12 +380,12 @@ export class Observable<A> implements ReadonlyObservable<A>, Indexable {
   stopObservers() {
     each_recursive(this, ob => {
       if (ob.idx) queue.delete(ob);
-      ob.__observers.clear()
-      if (ob.__watched) {
-        ob.__watched = false
+      ob._observers.clear()
+      if (ob._watched) {
+        ob._watched = false
         ob.unwatched()
       }
-      ob.__children.clear()
+      ob._children.clear()
     })
   }
 
@@ -395,7 +396,7 @@ export class Observable<A> implements ReadonlyObservable<A>, Indexable {
    * NOTE: treat this value as being entirely readonly !
    */
   get(): A {
-    return this.__value
+    return this._value
   }
 
   /**
@@ -403,8 +404,8 @@ export class Observable<A> implements ReadonlyObservable<A>, Indexable {
    * to this object of this new value.
    */
   set(value: A): void {
-    const old = this.__value
-    this.__value = value
+    const old = this._value
+    this._value = value
     if (old !== value) queue.schedule(this)
   }
 
@@ -413,7 +414,7 @@ export class Observable<A> implements ReadonlyObservable<A>, Indexable {
    * It is the responsability of the caller to ensure the object is properly cloned before being modified.
    */
   mutate(fn: (current_value: Readonly<A>) => A) {
-    this.set(fn(this.__value))
+    this.set(fn(this._value))
   }
 
   /**
@@ -441,7 +442,7 @@ export class Observable<A> implements ReadonlyObservable<A>, Indexable {
    *
    * > **Note**: This method should rarely be used. Prefer using [[$observe]], [[node_observe]], [`Mixin#observe`](#o.ObserverHolder#observe) or [`App.Service#observe`](#o.ObserverHolder#observe) for observing values.
    */
-  createObserver(fn: Observer.ObserverFunction<A>): Observer<A> {
+  createObserver(fn: Observer.Callback<A>): Observer<A> {
     return new Observer(fn, this)
   }
 
@@ -453,15 +454,15 @@ export class Observable<A> implements ReadonlyObservable<A>, Indexable {
    * @returns The newly created observer if a function was given to this method or
    *   the observable that was passed.
    */
-  addObserver(fn: Observer.ObserverFunction<A>): Observer<A>
+  addObserver(fn: Observer.Callback<A>): Observer<A>
   addObserver(obs: Observer<A>): Observer<A>
-  addObserver(_ob: Observer.ObserverFunction<A> | Observer<A>): Observer<A> {
+  addObserver(_ob: Observer.Callback<A> | Observer<A>): Observer<A> {
     if (typeof _ob === 'function') {
       _ob = this.createObserver(_ob)
     }
 
     const ob = _ob
-    this.__observers.add(_ob)
+    this._observers.add(_ob)
     this.checkWatch()
     if (this.idx == null)
       ob.refresh()
@@ -474,7 +475,7 @@ export class Observable<A> implements ReadonlyObservable<A>, Indexable {
    */
   addChild(ch: ChildObservableLink) {
     if (ch.idx != null) return
-    this.__children.add(ch)
+    this._children.add(ch)
     if (this.idx != null)
       queue.add(ch.child)
     this.checkWatch()
@@ -485,7 +486,7 @@ export class Observable<A> implements ReadonlyObservable<A>, Indexable {
    */
   removeChild(ch: ChildObservableLink) {
     if (ch.idx == null) return
-    this.__children.delete(ch)
+    this._children.delete(ch)
     this.checkWatch()
   }
 
@@ -498,7 +499,7 @@ export class Observable<A> implements ReadonlyObservable<A>, Indexable {
    *
    */
   removeObserver(ob: Observer<A>): void {
-    this.__observers.delete(ob)
+    this._observers.delete(ob)
     this.checkWatch()
   }
 
@@ -509,12 +510,12 @@ export class Observable<A> implements ReadonlyObservable<A>, Indexable {
    * @internal
    */
   checkWatch() {
-    if (this.__watched && this.__observers.real_size === 0 && this.__children.real_size === 0) {
-      this.__watched = false
+    if (this._watched && this._observers.real_size === 0 && this._children.real_size === 0) {
+      this._watched = false
       if (this.idx != null) queue.delete(this)
       this.unwatched()
-    } else if (!this.__watched && this.__observers.real_size + this.__children.real_size > 0) {
-      this.__watched = true
+    } else if (!this._watched && this._observers.real_size + this._children.real_size > 0) {
+      this._watched = true
       this.watched()
     }
   }
@@ -549,9 +550,9 @@ export class Observable<A> implements ReadonlyObservable<A>, Indexable {
   tf<B>(fnget: RO<Converter<A, B>>): Observable<B>
   tf<B>(fnget: RO<TransfomGetFn<A, B> | ReadonlyConverter<A, B>>): ReadonlyObservable<B>
   tf<B>(fnget: RO<TransfomGetFn<A, B> | ReadonlyConverter<A, B>>): ReadonlyObservable<B> {
-    var old: A | typeof NOVALUE = NOVALUE
+    var old: A | NoValue = NOVALUE
     var old_fnget: any = NOVALUE
-    var curval: B | typeof NOVALUE = NOVALUE
+    var curval: B | NoValue = NOVALUE
     return combine([this, fnget] as [Observable<A>, RO<TransfomGetFn<A, B> | ReadonlyConverter<A, B>>],
       ([v, fnget]) => {
         if (isValue(old) && isValue(old_fnget) && old === v && old_fnget === fnget && isValue(curval)) return curval
@@ -628,10 +629,10 @@ export class Observable<A> implements ReadonlyObservable<A>, Indexable {
 export class CombinedObservable<A extends any[], T = A> extends Observable<T> {
 
   /** @internal */
-  __links = [] as ChildObservableLink[]
+  _links = [] as ChildObservableLink[]
 
   /** @internal */
-  __parents_values: A = [] as any
+  _parents_values: A = [] as any
 
   constructor(deps: {[K in keyof A]: RO<A[K]>}) {
     super(NOVALUE as any)
@@ -642,22 +643,22 @@ export class CombinedObservable<A extends any[], T = A> extends Observable<T> {
     return values.slice() as any as T
   }
 
-  setter(nval: T, oval: T | typeof NOVALUE, last: A): A | void {
+  setter(nval: T, oval: T | NoValue, last: A): A | void {
     return nval as any as A // by default, just forward the type
   }
 
   watched() {
-    const p = this.__parents_values
-    for (var i = 0, l = this.__links; i < l.length; i++) {
+    const p = this._parents_values
+    for (var i = 0, l = this._links; i < l.length; i++) {
       var link = l[i]
       link.parent.addChild(link)
-      p[link.child_idx] = link.parent.__value
+      p[link.child_idx] = link.parent._value
     }
-    this.__value = this.getter(p)
+    this._value = this.getter(p)
   }
 
   unwatched() {
-    for (var i = 0, l = this.__links; i < l.length; i++) {
+    for (var i = 0, l = this._links; i < l.length; i++) {
       var link = l[i]
       link.parent.removeChild(link)
     }
@@ -665,7 +666,7 @@ export class CombinedObservable<A extends any[], T = A> extends Observable<T> {
 
   refreshParentValues() {
     var changed = false
-    for (var i = 0, l = this.__links, p = this.__parents_values; i < l.length; i++) {
+    for (var i = 0, l = this._links, p = this._parents_values; i < l.length; i++) {
       var link = l[i]
       var idx = link.child_idx
       var old = p[idx]
@@ -679,27 +680,27 @@ export class CombinedObservable<A extends any[], T = A> extends Observable<T> {
   }
 
   get() {
-    if (!this.__watched) {
-      if (this.refreshParentValues() || this.__value === NOVALUE as any) {
-        this.__value = this.getter(this.__parents_values)
+    if (!this._watched) {
+      if (this.refreshParentValues() || this._value === NOVALUE as any) {
+        this._value = this.getter(this._parents_values)
       }
     }
-    return this.__value
+    return this._value
   }
 
   set(value: T): void {
     // Do not trigger the set chain if the value did not change.
-    if (!this.__watched) this.__value = this.getter(this.__parents_values)
-    if (value === this.__value) return
+    if (!this._watched) this._value = this.getter(this._parents_values)
+    if (value === this._value) return
 
-    const old_value = this.__value
-    if (!this.__watched) this.refreshParentValues()
-    const res = this.setter(value, old_value, this.__parents_values)
+    const old_value = this._value
+    if (!this._watched) this.refreshParentValues()
+    const res = this.setter(value, old_value, this._parents_values)
     if (res == undefined) return
-    for (var i = 0, l = this.__links, len = l.length; i < len; i++) {
+    for (var i = 0, l = this._links, len = l.length; i < len; i++) {
       var link = l[i]
       var newval = res[link.child_idx]
-      if (newval !== NOVALUE && newval !== link.parent.__value) {
+      if (newval !== NOVALUE && newval !== link.parent._value) {
         link.parent.set(newval)
       }
     }
@@ -711,14 +712,14 @@ export class CombinedObservable<A extends any[], T = A> extends Observable<T> {
     for (var l = obs.length, i = 0; i < l; i++) {
       var ob = obs[i]
       if (ob instanceof Observable) {
-        p[i] = ob.__value
+        p[i] = ob._value
         ch.push(new ChildObservableLink(ob, this, ch.length))
       } else {
         p[i] = ob
       }
     }
-    this.__links = ch
-    this.__parents_values = p
+    this._links = ch
+    this._parents_values = p
     return this
   }
 
@@ -759,8 +760,8 @@ export class CombinedObservable<A extends any[], T = A> extends Observable<T> {
  * @category observable, toc
  */
 export function combine<T extends any[], R>(deps: {[K in keyof T]: RO<T[K]>}, get: (a: T) => R): ReadonlyObservable<R>
-export function combine<T extends any[], R>(deps: {[K in keyof T]: RO<T[K]>}, get: (a: T) => R, set: (r: R, old: R | typeof NOVALUE, last: T) => {[K in keyof T]: T[K] | typeof NOVALUE} | void): Observable<R>
-export function combine<T extends any[], R>(deps: {[K in keyof T]: RO<T[K]>}, get: (a: T) => R, set?: (r: R, old: R | typeof NOVALUE, last: T) => T | void): Observable<R> {
+export function combine<T extends any[], R>(deps: {[K in keyof T]: RO<T[K]>}, get: (a: T) => R, set: (r: R, old: R | NoValue, last: T) => {[K in keyof T]: T[K] | NoValue} | void): Observable<R>
+export function combine<T extends any[], R>(deps: {[K in keyof T]: RO<T[K]>}, get: (a: T) => R, set?: (r: R, old: R | NoValue, last: T) => T | void): Observable<R> {
   var virt = new CombinedObservable<T, R>(deps)
   virt.getter = get
   virt.setter = set! // force undefined to trigger errors for readonly observables.
@@ -1074,14 +1075,14 @@ export function prop<T, K extends keyof T>(obj: Observable<T> | T, prop: RO<K>, 
   /**
    * @category observable, toc
    */
-  export function isNoValue<T>(t: T | typeof NOVALUE): t is typeof NOVALUE {
+  export function isNoValue<T>(t: T | NoValue): t is NoValue {
     return t === NOVALUE
   }
 
   /**
    * @category observable, toc
    */
-  export function isValue<T>(t: T | typeof NOVALUE): t is T {
+  export function isValue<T>(t: T | NoValue): t is T {
     return t !== NOVALUE
   }
 
@@ -1243,7 +1244,7 @@ export function prop<T, K extends keyof T>(obj: Observable<T> | T, prop: RO<K>, 
     /**
      * Does pretty much what [[$observe]] does.
      */
-    observe<A>(obs: RO<A>, fn: Observer.ObserverFunction<A>, observer_callback?: (observer: Observer<A>) => any): Observer<A> | null {
+    observe<A>(obs: RO<A>, fn: Observer.Callback<A>, observer_callback?: (observer: Observer<A>) => any): Observer<A> | null {
       if (!(obs instanceof Observable)) {
         if (this.is_observing)
           fn(obs as A, new Changes(obs as A))
