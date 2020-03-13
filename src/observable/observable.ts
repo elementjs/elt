@@ -643,7 +643,7 @@ export class CombinedObservable<A extends any[], T = A> extends Observable<T> {
     return values.slice() as any as T
   }
 
-  setter(nval: T, oval: T | NoValue, last: A): A | void {
+  setter(nval: T, oval: T | NoValue, last: A): {[K in keyof A]: A[K] | NoValue} {
     return nval as any as A // by default, just forward the type
   }
 
@@ -760,8 +760,8 @@ export class CombinedObservable<A extends any[], T = A> extends Observable<T> {
  * @category observable, toc
  */
 export function combine<T extends any[], R>(deps: {[K in keyof T]: RO<T[K]>}, get: (a: T) => R): ReadonlyObservable<R>
-export function combine<T extends any[], R>(deps: {[K in keyof T]: RO<T[K]>}, get: (a: T) => R, set: (r: R, old: R | NoValue, last: T) => {[K in keyof T]: T[K] | NoValue} | void): Observable<R>
-export function combine<T extends any[], R>(deps: {[K in keyof T]: RO<T[K]>}, get: (a: T) => R, set?: (r: R, old: R | NoValue, last: T) => T | void): Observable<R> {
+export function combine<T extends any[], R>(deps: {[K in keyof T]: RO<T[K]>}, get: (a: T) => R, set: (r: R, old: R | NoValue, last: T) => {[K in keyof T]: T[K] | NoValue}): Observable<R>
+export function combine<T extends any[], R>(deps: {[K in keyof T]: RO<T[K]>}, get: (a: T) => R, set?: (r: R, old: R | NoValue, last: T) => {[K in keyof T]: T[K] | NoValue}): Observable<R> {
   var virt = new CombinedObservable<T, R>(deps)
   virt.getter = get
   virt.setter = set! // force undefined to trigger errors for readonly observables.
@@ -814,7 +814,8 @@ export function merge<T>(obj: {[K in keyof T]: Observable<T[K]>}): Observable<T>
  * @category observable, toc
  */
 export function prop<T, K extends keyof T>(obj: Observable<T> | T, prop: RO<K>, def?: RO<(key: K, obj: T) => T[K]>) {
-    return combine([obj, prop, def] as [Observable<T>, RO<K>, RO<(key: K, obj: T) => T[K]>],
+  return combine(
+    tuple(obj, prop, def),
     ([obj, prop, def]) => {
       var res = obj[prop]
       if (res === undefined && def)
@@ -824,7 +825,7 @@ export function prop<T, K extends keyof T>(obj: Observable<T> | T, prop: RO<K>, 
     (nval, _, [orig, prop]) => {
       const newo = o.clone(orig)
       newo[prop] = nval
-      return o.tuple(newo, NOVALUE, NOVALUE)
+      return tuple(newo, NOVALUE, NOVALUE)
     }
   )
 }
