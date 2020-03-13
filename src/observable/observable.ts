@@ -203,7 +203,7 @@ export interface ReadonlyObservable<A> {
 
   p<A>(this: ReadonlyObservable<A[]>, key: RO<number>, def?: RO<(key: number, obj: A[]) => A>): ReadonlyObservable<A>
   p<A, K extends keyof A>(this: ReadonlyObservable<A>, key: RO<K>, def?: RO<(key: K, obj: A) => A[K]>): ReadonlyObservable<A[K]>
-  key<A, B>(this: ReadonlyObservable<Map<A, B>>, key: RO<A>, def: undefined, delete_on_undefined?: boolean): ReadonlyObservable<B | undefined>
+  key<A, B>(this: ReadonlyObservable<Map<A, B>>, key: RO<A>, def?: undefined, delete_on_undefined?: boolean): ReadonlyObservable<B | undefined>
   key<A, B>(this: ReadonlyObservable<Map<A, B>>, key: RO<A>, def: RO<(key: A, map: Map<A, B>) => B>): ReadonlyObservable<B>
 }
 
@@ -596,7 +596,7 @@ export class Observable<A> implements ReadonlyObservable<A>, Indexable {
   /**
    * Like [[o.Observable#p]], but with `Map` objects.
    */
-  key<A, B>(this: Observable<Map<A, B>>, key: RO<A>, def: undefined, delete_on_undefined: RO<boolean | undefined>): Observable<B | undefined>
+  key<A, B>(this: Observable<Map<A, B>>, key: RO<A>, def?: undefined, delete_on_undefined?: RO<boolean | undefined>): Observable<B | undefined>
   key<A, B>(this: Observable<Map<A, B>>, key: RO<A>, def: RO<(key: A, map: Map<A, B>) => B>): Observable<B>
   key<A, B>(this: Observable<Map<A, B>>, key: RO<A>, def?: RO<(key: A, map: Map<A, B>) => B>, delete_on_undefined = true as RO<boolean | undefined>): Observable<B | undefined> {
       return combine([this, key, def, delete_on_undefined] as [Observable<Map<A, B>>, RO<A>, RO<(key: A, map: Map<A, B>) => B>, RO<boolean>],
