@@ -566,7 +566,7 @@ export namespace $Switch {
     cases: [(T | ((t: T) => any)), (t: o.Observable<T>) => Renderable][] = []
     passthrough: () => Renderable = () => null
     prev_case: any = null
-    prev: Renderable | o.NoValue
+    prev: Renderable = ''
 
     constructor(public obs: o.Observable<T>) {
       super([obs])
@@ -578,7 +578,7 @@ export namespace $Switch {
         const val = c[0]
         if (val === nval || (typeof val === 'function' && (val as Function)(nval))) {
           if (this.prev_case === val) {
-            return this.prev as Renderable
+            return this.prev
           }
           this.prev_case = val
           const fn = c[1]
@@ -586,7 +586,7 @@ export namespace $Switch {
         }
       }
       if (this.prev_case === this.passthrough)
-        return this.prev as Renderable
+        return this.prev
       this.prev_case = this.passthrough
       return (this.prev = this.passthrough ? this.passthrough() : null)
     }

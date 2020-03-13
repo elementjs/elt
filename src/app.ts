@@ -148,7 +148,7 @@ export class App extends Mixin<Comment>{
   getViews() {
     var res = new Map<string | Symbol, App.Service>()
     for (var service of this.getServicesInRequirementOrder(this.o_active_services.get())) {
-      const views = (service.constructor as typeof App.Service).__views
+      const views = (service.constructor as typeof App.Service)._views
       if (!views) continue
       for (var name of views) {
         if (!res.has(name)) res.set(name, service)
@@ -344,7 +344,7 @@ export namespace App {
    */
   export function view<T extends Renderable>(object: Service, key: string | Symbol, desc: TypedPropertyDescriptor<() => T>) {
     const cons = object.constructor as typeof Service
-    (cons.__views = cons.__views ?? new Set()).add(key)
+    (cons._views = cons._views ?? new Set()).add(key)
   }
 
   /**
@@ -364,7 +364,7 @@ export namespace App {
   export class Service extends o.ObserverHolder {
 
     /** @internal */
-    static __views?: Set<string | Symbol>
+    static _views?: Set<string | Symbol>
 
     /**
      * Set this property to `true` if the service should stay instanciated even if it is
