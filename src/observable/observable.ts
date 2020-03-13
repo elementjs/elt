@@ -216,12 +216,11 @@ export interface ReadonlyObservable<A> {
 
   tf<B>(fnget: RO<TransfomGetFn<A, B> | ReadonlyConverter<A, B>>): ReadonlyObservable<B>
 
-  p<A>(this: ReadonlyObservable<A[]>, key: RO<number>): ReadonlyObservable<A>
-  p<A, K extends keyof A>(this: ReadonlyObservable<A>, key: RO<K>): ReadonlyObservable<A[K]>
-  mp<A, B>(this: ReadonlyObservable<Map<A, B>>, key: RO<A>, delete_on_undefined?: boolean): ReadonlyObservable<B | undefined>
-
+  p<A>(this: ReadonlyObservable<A[]>, key: RO<number>, def?: RO<(key: number, obj: A[]) => A>): ReadonlyObservable<A>
+  p<A, K extends keyof A>(this: ReadonlyObservable<A>, key: RO<K>, def?: RO<(key: K, obj: A) => A[K]>): ReadonlyObservable<A[K]>
+  key<A, B>(this: ReadonlyObservable<Map<A, B>>, key: RO<A>, def: undefined, delete_on_undefined?: boolean): ReadonlyObservable<B | undefined>
+  key<A, B>(this: ReadonlyObservable<Map<A, B>>, key: RO<A>, def: RO<(key: A, map: Map<A, B>) => B>): ReadonlyObservable<B>
 }
-
 
 /**
  * @category observable, toc
@@ -578,7 +577,7 @@ export class Observable<A> implements ReadonlyObservable<A>, Indexable {
         return curval
       },
       (newv, old, [curr, conv]) => {
-        if (typeof conv === 'function') return
+        if (typeof conv === 'function') return [NOVALUE, NOVALUE] as [NoValue, NoValue]
         var new_orig = (conv as Converter<A, B>).set(newv, old, curr)
         return [new_orig, o.NOVALUE] as [A, NoValue]
       }
@@ -605,25 +604,30 @@ export class Observable<A> implements ReadonlyObservable<A>, Indexable {
    * const o_base_2_item = o_base_2.p(2) // Observable<number>
    * ```
    */
-  p<A, K extends keyof A>(this: Observable<A>, key: RO<K>): Observable<A[K]> {
-    return prop(this, key)
+  p<A, K extends keyof A>(this: Observable<A>, key: RO<K>, def?: RO<(key: K, a: A) => A[K]>): Observable<A[K]> {
+    return prop(this, key, def)
   }
 
   /**
-   * Like [[o.Observable#p]], but with `Map` objects, with the added difference that since
-   * maps return `B | undefined`, setting the resulting observable to undefined **deletes**
-   * the key instead of setting it, unless `delete_on_undefined` is `false`, in which case
-   * `undefined` values will be inserted.
+   * Like [[o.Observable#p]], but with `Map` objects.
    */
-  mp<A, B>(this: Observable<Map<A, B>>, key: RO<A>, delete_on_undefined = true): Observable<B | undefined> {
-      return combine([this, key] as [Observable<Map<A, B>>, RO<A>],
-      ([map, key]) => map.get(key),
+  key<A, B>(this: Observable<Map<A, B>>, key: RO<A>, def: undefined, delete_on_undefined: RO<boolean | undefined>): Observable<B | undefined>
+  key<A, B>(this: Observable<Map<A, B>>, key: RO<A>, def: RO<(key: A, map: Map<A, B>) => B>): Observable<B>
+  key<A, B>(this: Observable<Map<A, B>>, key: RO<A>, def?: RO<(key: A, map: Map<A, B>) => B>, delete_on_undefined = true as RO<boolean | undefined>): Observable<B | undefined> {
+      return combine([this, key, def, delete_on_undefined] as [Observable<Map<A, B>>, RO<A>, RO<(key: A, map: Map<A, B>) => B>, RO<boolean>],
+      ([map, key, def]) => {
+        var res = map.get(key)
+        if (res === undefined && def) {
+          res = def(key, map)
+        }
+        return res
+      },
       (ret, _, [omap, okey]) => {
         var result = new Map(omap) //.set(okey, ret)
         // Is this correct ? should I **delete** when I encounter undefined ?
         if (ret !== undefined || !delete_on_undefined) result.set(okey, ret!)
         else result.delete(okey)
-        return [result, o.NOVALUE] as [Map<A, B>, NoValue]
+        return [result, NOVALUE, NOVALUE, NOVALUE] as [Map<A, B>, NoValue, NoValue, NoValue]
       }
     )
   }
@@ -824,13 +828,18 @@ export function merge<T>(obj: {[K in keyof T]: Observable<T[K]>}): Observable<T>
 /**
  * @category observable, toc
  */
-export function prop<T, K extends keyof T>(obj: Observable<T> | T, prop: RO<K>) {
-    return combine([obj, prop] as [Observable<T>, RO<K>],
-    ([obj, prop]) => obj[prop],
+export function prop<T, K extends keyof T>(obj: Observable<T> | T, prop: RO<K>, def?: RO<(key: K, obj: T) => T[K]>) {
+    return combine([obj, prop, def] as [Observable<T>, RO<K>, RO<(key: K, obj: T) => T[K]>],
+    ([obj, prop, def]) => {
+      var res = obj[prop]
+      if (res === undefined && def)
+        res = def(prop, obj)
+      return res
+    },
     (nval, _, [orig, prop]) => {
       const newo = o.clone(orig)
       newo[prop] = nval
-      return o.tuple(newo, o.NOVALUE)
+      return o.tuple(newo, NOVALUE, NOVALUE)
     }
   )
 }
