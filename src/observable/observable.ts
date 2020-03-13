@@ -31,7 +31,7 @@ export type TransfomGetFn<A, B> = (nval: A, oval: A | NoValue, curval: B | NoVal
 
 /**
  */
-export type TransfomSetFn<A, B> = (nval: B, oval: B | NoValue, curval: A) => A
+export type TransfomSetFn<A, B> = (nval: B, oval: B | NoValue, curval: A) => A | NoValue
 
 
 /**
