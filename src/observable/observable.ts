@@ -27,11 +27,11 @@ export type BaseType<T> = T extends ReadonlyObservable<infer U> ? U : T
 
 /**
  */
-export type TransfomGetFn<A, B> = (nval: A, oval: A | NoValue, curval: B | NoValue) => B
+export type TransfomGetFn<A, B> = (nval: A, oval: A | typeof NOVALUE, curval: B | typeof NOVALUE) => B
 
 /**
  */
-export type TransfomSetFn<A, B> = (nval: B, oval: B | NoValue, curval: A) => A
+export type TransfomSetFn<A, B> = (nval: B, oval: B | typeof NOVALUE, curval: A) => A
 
 
 /**
@@ -53,27 +53,11 @@ export type MaybeObservableReadonlyObject<T> = { [P in keyof T]:  RO<T[P]>}
 
 
 /**
- * This class represents "no value", which is how Observers, Changes and Observable can
- * identify when a value changes from not existing to having a value.
+ * A constant symbol representing the fact that there is no value.
  *
- * Think of it as a kind of `undefined`, which we couldn't use since `undefined` has a meaning and
- * is widely used.
- *
- * See `#o.NOVALUE`
- *
- * @category observable, toc
+ * Used in Observers and combined observables to know when a value has been set for the first time.
  */
-export class NoValue { private constructor() { }}
-
-/**
- * The only instance of the `NoValue` class.
- *
- * > **note**: the NoValue system is still pretty "hacky" in terms of typings, as its use is so far
- * > limited to implementing virtual observables that have readonly values or internally when checking
- * > if `Observer`s should be called. This will be made better in future releases.
- *
- */
-export const NOVALUE = new (NoValue as any)() as any
+export const NOVALUE = Symbol('NOVALUE')
 
 export function isReadonlyObservable(_: any): _ is ReadonlyObservable<any> {
   return _ instanceof Observable
@@ -84,7 +68,7 @@ export function isReadonlyObservable(_: any): _ is ReadonlyObservable<any> {
  * @category observable, toc
  */
 export class Changes<A> {
-  constructor(protected n: A, protected o: A | NoValue = NOVALUE) {
+  constructor(protected n: A, protected o: A | typeof NOVALUE = NOVALUE) {
 
   }
 
@@ -155,7 +139,7 @@ export class Changes<A> {
  */
 export class Observer<A> implements Indexable {
 
-  protected old_value: A = NOVALUE
+  protected old_value: A | typeof NOVALUE = NOVALUE
   idx = null
   fn: Observer.ObserverFunction<any>
 
@@ -165,7 +149,7 @@ export class Observer<A> implements Indexable {
 
   refresh(): void {
     const old = this.old_value
-    const new_value = (this.observable as any).__value
+    const new_value = (this.observable as Observable<A>).__value
 
     if (old !== new_value) {
       // only store the old_value if the observer will need it. Useful to not keep
@@ -565,9 +549,9 @@ export class Observable<A> implements ReadonlyObservable<A>, Indexable {
   tf<B>(fnget: RO<Converter<A, B>>): Observable<B>
   tf<B>(fnget: RO<TransfomGetFn<A, B> | ReadonlyConverter<A, B>>): ReadonlyObservable<B>
   tf<B>(fnget: RO<TransfomGetFn<A, B> | ReadonlyConverter<A, B>>): ReadonlyObservable<B> {
-    var old: A = NOVALUE
+    var old: A | typeof NOVALUE = NOVALUE
     var old_fnget: any = NOVALUE
-    var curval: B = NOVALUE
+    var curval: B | typeof NOVALUE = NOVALUE
     return combine([this, fnget] as [Observable<A>, RO<TransfomGetFn<A, B> | ReadonlyConverter<A, B>>],
       ([v, fnget]) => {
         if (isValue(old) && isValue(old_fnget) && old === v && old_fnget === fnget && isValue(curval)) return curval
@@ -577,9 +561,9 @@ export class Observable<A> implements ReadonlyObservable<A>, Indexable {
         return curval
       },
       (newv, old, [curr, conv]) => {
-        if (typeof conv === 'function') return [NOVALUE, NOVALUE] as [NoValue, NoValue]
+        if (typeof conv === 'function') return tuple(NOVALUE, NOVALUE)
         var new_orig = (conv as Converter<A, B>).set(newv, old, curr)
-        return [new_orig, o.NOVALUE] as [A, NoValue]
+        return tuple(new_orig, o.NOVALUE)
       }
     )
   }
@@ -627,7 +611,7 @@ export class Observable<A> implements ReadonlyObservable<A>, Indexable {
         // Is this correct ? should I **delete** when I encounter undefined ?
         if (ret !== undefined || !delete_on_undefined) result.set(okey, ret!)
         else result.delete(okey)
-        return [result, NOVALUE, NOVALUE, NOVALUE] as [Map<A, B>, NoValue, NoValue, NoValue]
+        return tuple(result, NOVALUE, NOVALUE, NOVALUE)
       }
     )
   }
@@ -650,7 +634,7 @@ export class CombinedObservable<A extends any[], T = A> extends Observable<T> {
   __parents_values: A = [] as any
 
   constructor(deps: {[K in keyof A]: RO<A[K]>}) {
-    super(NOVALUE)
+    super(NOVALUE as any)
     this.dependsOn(deps)
   }
 
@@ -658,7 +642,7 @@ export class CombinedObservable<A extends any[], T = A> extends Observable<T> {
     return values.slice() as any as T
   }
 
-  setter(nval: T, oval: T | NoValue, last: A): A | void {
+  setter(nval: T, oval: T | typeof NOVALUE, last: A): A | void {
     return nval as any as A // by default, just forward the type
   }
 
@@ -775,8 +759,8 @@ export class CombinedObservable<A extends any[], T = A> extends Observable<T> {
  * @category observable, toc
  */
 export function combine<T extends any[], R>(deps: {[K in keyof T]: RO<T[K]>}, get: (a: T) => R): ReadonlyObservable<R>
-export function combine<T extends any[], R>(deps: {[K in keyof T]: RO<T[K]>}, get: (a: T) => R, set: (r: R, old: R | NoValue, last: T) => {[K in keyof T]: T[K] | NoValue} | void): Observable<R>
-export function combine<T extends any[], R>(deps: {[K in keyof T]: RO<T[K]>}, get: (a: T) => R, set?: (r: R, old: R | NoValue, last: T) => T | void): Observable<R> {
+export function combine<T extends any[], R>(deps: {[K in keyof T]: RO<T[K]>}, get: (a: T) => R, set: (r: R, old: R | typeof NOVALUE, last: T) => {[K in keyof T]: T[K] | typeof NOVALUE} | void): Observable<R>
+export function combine<T extends any[], R>(deps: {[K in keyof T]: RO<T[K]>}, get: (a: T) => R, set?: (r: R, old: R | typeof NOVALUE, last: T) => T | void): Observable<R> {
   var virt = new CombinedObservable<T, R>(deps)
   virt.getter = get
   virt.setter = set! // force undefined to trigger errors for readonly observables.
@@ -1090,14 +1074,14 @@ export function prop<T, K extends keyof T>(obj: Observable<T> | T, prop: RO<K>, 
   /**
    * @category observable, toc
    */
-  export function isNoValue<T>(t: T | NoValue): t is NoValue {
+  export function isNoValue<T>(t: T | typeof NOVALUE): t is typeof NOVALUE {
     return t === NOVALUE
   }
 
   /**
    * @category observable, toc
    */
-  export function isValue<T>(t: T | NoValue): t is T {
+  export function isValue<T>(t: T | typeof NOVALUE): t is T {
     return t !== NOVALUE
   }
 
