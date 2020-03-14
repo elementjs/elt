@@ -599,7 +599,7 @@ export class Observable<A> implements ReadonlyObservable<A>, Indexable {
   key<A, B>(this: Observable<Map<A, B>>, key: RO<A>, def?: undefined, delete_on_undefined?: RO<boolean | undefined>): Observable<B | undefined>
   key<A, B>(this: Observable<Map<A, B>>, key: RO<A>, def: RO<(key: A, map: Map<A, B>) => B>): Observable<B>
   key<A, B>(this: Observable<Map<A, B>>, key: RO<A>, def?: RO<(key: A, map: Map<A, B>) => B>, delete_on_undefined = true as RO<boolean | undefined>): Observable<B | undefined> {
-      return combine([this, key, def, delete_on_undefined] as [Observable<Map<A, B>>, RO<A>, RO<(key: A, map: Map<A, B>) => B>, RO<boolean>],
+    return combine([this, key, def, delete_on_undefined] as [Observable<Map<A, B>>, RO<A>, RO<(key: A, map: Map<A, B>) => B>, RO<boolean>],
       ([map, key, def]) => {
         var res = map.get(key)
         if (res === undefined && def) {
@@ -607,7 +607,7 @@ export class Observable<A> implements ReadonlyObservable<A>, Indexable {
         }
         return res
       },
-      (ret, _, [omap, okey]) => {
+      (ret, _, [omap, okey, _2, delete_on_undefined]) => {
         var result = new Map(omap) //.set(okey, ret)
         // Is this correct ? should I **delete** when I encounter undefined ?
         if (ret !== undefined || !delete_on_undefined) result.set(okey, ret!)
