@@ -349,6 +349,7 @@ export namespace $Repeat {
     appendChildren(count: number) {
       const parent = this.node.parentNode!
       if (!parent) return
+      const insert_point = this.positions.length === 0 ? this.node.nextSibling : this.positions[this.positions.length - 1]?.nextSibling
 
       var fr = document.createDocumentFragment()
 
@@ -356,7 +357,7 @@ export namespace $Repeat {
         if (!this.next(fr)) break
       }
 
-      insert_before_and_init(parent, fr, this.node)
+      insert_before_and_init(parent, fr, insert_point)
     }
 
     removeChildren(count: number) {
@@ -364,7 +365,7 @@ export namespace $Repeat {
       // Détruire jusqu'à la position concernée...
       this.next_index = this.next_index - count
 
-      node_remove_after(this.positions[this.next_index - 1] ?? this.node, this.positions[this.positions.length - 1])
+      node_remove_after(this.positions[this.next_index - 1], this.node.previousSibling)
 
       this.child_obs = this.child_obs.slice(0, this.next_index)
       this.positions = this.positions.slice(0, this.next_index)
