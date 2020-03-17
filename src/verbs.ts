@@ -365,7 +365,7 @@ export namespace $Repeat {
       // Détruire jusqu'à la position concernée...
       this.next_index = this.next_index - count
 
-      node_remove_after(this.positions[this.next_index - 1], this.node.previousSibling)
+      node_remove_after(this.positions[this.next_index - 1] ?? this.node, this.positions[this.positions.length - 1])
 
       this.child_obs = this.child_obs.slice(0, this.next_index)
       this.positions = this.positions.slice(0, this.next_index)
