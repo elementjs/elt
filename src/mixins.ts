@@ -73,11 +73,12 @@ export abstract class Mixin<N extends Node = Node> extends o.ObserverHolder {
     let iter: Node | null = node as Node // yeah yeah, I know, it's an EventTarget as well but hey.
 
     while (iter) {
-      var mixin_iter = iter[sym_mixins]
-
-      while (mixin_iter) {
-        if (mixin_iter instanceof this)
-          return mixin_iter as M
+      var mixins = iter[sym_mixins]
+      if (mixins) {
+        for (var i = 0, l = mixins.length; i < l; i++) {
+          var m = mixins[i]
+          if (m instanceof this) return m
+        }
       }
 
       if (!recursive)
