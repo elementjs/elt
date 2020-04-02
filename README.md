@@ -45,7 +45,7 @@ ELT offers the following concepts to get this done :
 
  * Since the DOM does not offer a simple way to know *when* a node is added or removed from the document other than using a `MutationObserver`, ELT offers a way to react to these events by setting up the observer itself and registering callbacks directly on the `Node`s. See [`$inserted()`](#$inserted), [`$removed()`](#$removed), but also [`$prepare()`](#$prepare).
 
- * Instead of creating components that change what they render based on the values of Observables, such as an hypothetical `<If condition={...}>`, ELT uses "verbs" ; functions whose name starts with `$` and an **upper-case** letter. While a component-based approach would work perfectly, the "verb" approach is more explicit about where dynamicity is happening in the code. See [`$If()`](#$If), [`$Repeat`](#$Repeat), [`$RepeatScroll`](#$RepeatScroll) and [`$Switch`](#$Switch).
+ * Instead of creating components that change what they render based on the values of Observables, such as an hypothetical `<If condition={...}>`, ELT uses "verbs" ; functions whose name starts with `$` and an **upper-case** letter. While a component-based approach would work perfectly, the "verb" approach is more explicit about where dynamicity is happening in the code. See [`If()`](#If), [`Repeat`](#Repeat), [`RepeatScroll`](#RepeatScroll) and [`Switch`](#Switch).
 
  * To avoid declaring a boatload of variables to modify nodes that are being created, ELT defines ["decorators"](#Decorator) which are callback functions that can be added as children of a node. See all the `$` prefixed functions followed by a **lower-case** letter. Their naming scheme was thought to differenciate them from function calls that actually *create* Nodes.
 
@@ -75,7 +75,7 @@ In your `tsconfig.json`, you will need to add the following :
      // `import { e } from 'elt'` in all your .tsx files.
 ```
 
-> **Note**: You can also use `"jsxFactory": "E"` instead of `jsxNamespace`, but to use fragments, you have to `import { $Fragment } from 'elt'` and then use the `<$Fragment></$Fragment>` construct instead of `<></>`. You may of course rename it to something terser, such as `import { $Fragment as $ }` and `<$></$>`. The plus side of this approach is that typescript will only generate `E()` calls instead of `E.createElement()`, resulting in smaller, easier to read compiled code.
+> **Note**: You can also use `"jsxFactory": "E"` instead of `jsxNamespace`, but to use fragments, you have to `import { Fragment } from 'elt'` and then use the `<Fragment></Fragment>` construct instead of `<></>`. You may of course rename it to something terser, such as `import { Fragment as $ }` and `<$></$>`. The plus side of this approach is that typescript will only generate `E()` calls instead of `E.createElement()`, resulting in smaller, easier to read compiled code.
 
 At last, you need to setup the [`MutationObserver`](https://developer.mozilla.org/en-US/docs/Web/API/MutationObserver) which will call the life-cycle callbacks used extensively by elt. This has to be done only once *per document*, see [`setup_mutation_observer`](#setup_mutation_observer)
 
@@ -214,9 +214,9 @@ While they could have been implemented as Components, the choice was deliberatel
 
 They usually work in concert with Observables to control the presence of nodes in the document.
 
-For instance, [`$If`](#$If) will render its then arm only if the given observable is truthy, and the else otherwise.
+For instance, [`If`](#If) will render its then arm only if the given observable is truthy, and the else otherwise.
 
-[`$Repeat`](#$Repeat) repeats the contents of an array, with an optional separator. [`$RepeatScroll`](#$RepeatScroll) does the same, but stops rendering elements once they overflow past the bottom of the `scrollable` block they're in.
+[`Repeat`](#Repeat) repeats the contents of an array, with an optional separator. [`RepeatScroll`](#RepeatScroll) does the same, but stops rendering elements once they overflow past the bottom of the `scrollable` block they're in.
 
 ## Node Decorators
 
@@ -323,7 +323,7 @@ Two or more observables can be joined together to make a new observable that wil
 A notable case is the `.p()` method on Observable, which creates a new Observable based on the property of another ; the property itself can be an Observable. If the base object or the property change, the resulting observable is updated.
 
 ```tsx
-import { o, $Fragment } from 'elt'
+import { o, Fragment } from 'elt'
 
 type SomeType = {a: string, b: number}
 const o_obj = o({a: 'string !', b: 2} as SomeType)
@@ -333,7 +333,7 @@ const o_prop = o_obj.p(o_key)
 o_key.set('b') // o_prop now has 2 as a value
  // o_prop now has 3
 
-document.body.appendChild(<$Fragment>
+document.body.appendChild(<Fragment>
   <div>o_obj: {o_obj.tf(v => JSON.stringify(v))}</div>
   <div>o_prop: {o_prop}</div>
   <div>
@@ -341,7 +341,7 @@ document.body.appendChild(<$Fragment>
     <DemoBtn do={() => o_key.set('b')}/>
     <DemoBtn do={() => o_obj.set({a: 'world', b: 3})}/>
   </div>
-</$Fragment>)
+</Fragment>)
 ```
 
 ## Attributes

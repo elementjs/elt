@@ -75,7 +75,7 @@ export class Displayer extends CommentContainer {
  * This verb is used whenever an observable is passed as a child to a node.
  *
  * ```tsx
- * import { o, $Display, $Fragment as $ } from 'elt'
+ * import { o, $Display, Fragment as $ } from 'elt'
  *
  * const o_text = o('text')
  * document.body.appendChild(<$>
@@ -85,7 +85,7 @@ export class Displayer extends CommentContainer {
  *
  * @category low level dom, toc
  */
-export function $Display(obs: o.RO<Renderable>): Node {
+export function Display(obs: o.RO<Renderable>): Node {
   if (!(obs instanceof o.Observable)) {
     return e.renderable_to_node(obs as Renderable, true)
   }
@@ -99,7 +99,7 @@ export function $Display(obs: o.RO<Renderable>): Node {
  *
  * Display content depending on the value of a `condition`, which can be an observable.
  *
- * If `condition` is not an observable, then the call to `$If` is resolved immediately without using
+ * If `condition` is not an observable, then the call to `If` is resolved immediately without using
  * an intermediary observable.
  *
  * If `condition` is readonly, then the observables given to `display` and `display_otherwise` are
@@ -112,7 +112,7 @@ export function $Display(obs: o.RO<Renderable>): Node {
  * // o_obj is nullable.
  * const o_obj = o({a: 'hello'} as {a: string} | null)
  *
- * $If(o_obj,
+ * If(o_obj,
  *   // o_truthy here is o.Observable<{a: string}>
  *   // which is why we can safely use .p('a') without typescript complaining
  *   o_truthy => <>{o_truthy.p('a')}
@@ -120,19 +120,19 @@ export function $Display(obs: o.RO<Renderable>): Node {
  * ```
  *
  * ```tsx
- *  import { o, $If, $click } from 'elt'
+ *  import { o, If, $click } from 'elt'
  *
  *  const o_some_obj = o({prop: 'value!'} as {prop: string} | null)
  *
  *  document.body.appendChild(<div>
- *    <h1>An $If example</h1>
+ *    <h1>An If example</h1>
  *    <div><button>
  *     {$click(() => {
  *       o_some_obj.mutate(v => !!v ? null : {prop: 'clicked'})
  *     })}
  *     Inverse
  *   </button></div>
- *   {$If(o_some_obj,
+ *   {If(o_some_obj,
  *     // Here, o_truthy is of type Observable<{prop: string}>, without the null
  *     // We can thus safely take its property, which is a Renderable (string), through the .p() method.
  *     o_truthy => <div>We have a {o_truthy.p('prop')}</div>,
@@ -141,9 +141,9 @@ export function $Display(obs: o.RO<Renderable>): Node {
  *  </div>)
  * ```
  */
-export function $If<T extends o.RO<any>>(
+export function If<T extends o.RO<any>>(
   condition: T,
-  display: (arg: $If.NonNullableRO<T>) => Renderable,
+  display: (arg: If.NonNullableRO<T>) => Renderable,
   display_otherwise?: (a: T) => Renderable
 ): Node {
   // ts bug on condition.
@@ -155,23 +155,23 @@ export function $If<T extends o.RO<any>>(
           : document.createComment('false'), true)
   }
 
-  return e(document.createComment('$If'),
-    new $If.ConditionalDisplayer<any>(display, condition, display_otherwise)
+  return e(document.createComment('If'),
+    new If.ConditionalDisplayer<any>(display, condition, display_otherwise)
   )
 }
 
-export namespace $If {
+export namespace If {
 
   /**
    * Get the type of a potentially `Observable` type where `null` and `undefined` are exluded, keeping
    * the `Readonly` status if the provided [[o.Observable]] type was `Readonly`.
    *
    * ```tsx
-   * import { o, $If } from 'elt'
+   * import { o, If } from 'elt'
    *
-   * type A = $If.NonNullableRO<o.Observable<string | null>> // -> o.Observable<string>
-   * type B = $If.NonNullableRO<o.RO<number | undefined | null>> // -> o.ReadonlyObservable<number> | number
-   * type C = $If.NonNullableRO<string> // -> string
+   * type A = If.NonNullableRO<o.Observable<string | null>> // -> o.Observable<string>
+   * type B = If.NonNullableRO<o.RO<number | undefined | null>> // -> o.ReadonlyObservable<number> | number
+   * type C = If.NonNullableRO<string> // -> string
    * ```
    */
   export type NonNullableRO<T> =
@@ -187,7 +187,7 @@ export namespace $If {
   export class ConditionalDisplayer<T extends o.ReadonlyObservable<any>> extends Displayer {
 
     constructor(
-      protected display: (arg: $If.NonNullableRO<T>) => Renderable,
+      protected display: (arg: If.NonNullableRO<T>) => Renderable,
       protected condition: T,
       protected display_otherwise?: (arg: T) => Renderable
     ) {
@@ -214,19 +214,19 @@ export namespace $If {
  * Repeats the `render` function for each element in `ob`, optionally separating each rendering
  * with the result of the `separator` function.
  *
- * If `ob` is an observable, `$Repeat` will update the generated nodes to match the changes.
+ * If `ob` is an observable, `Repeat` will update the generated nodes to match the changes.
  * If it is a `o.ReadonlyObservable`, then the `render` callback will be provided a read only observable.
  *
  * `ob` is not converted to an observable if it was not one, in which case the results are executed
  * right away and only once.
  *
  * ```tsx
- * import { o, $Repeat, $click } from 'elt'
+ * import { o, Repeat, $click } from 'elt'
  *
  * const o_mylist = o(['hello', 'world'])
  *
  * document.body.appendChild(<div>
- *   {$Repeat(
+ *   {Repeat(
  *      o_mylist,
  *      o_item => <button>
  *        {$click(ev => o_item.mutate(value => value + '!'))}
@@ -237,9 +237,9 @@ export namespace $If {
  * </div>)
  * ```
  */
-export function $Repeat<T extends o.RO<any[]>>(
+export function Repeat<T extends o.RO<any[]>>(
   ob: T,
-  render: (arg: $Repeat.RoItem<T>, idx: number) => Renderable,
+  render: (arg: Repeat.RoItem<T>, idx: number) => Renderable,
   separator?: (n: number) => Renderable
 ): Node {
   if (!(ob instanceof o.Observable)) {
@@ -256,27 +256,27 @@ export function $Repeat<T extends o.RO<any[]>>(
   }
 
   return e(
-    document.createComment('$Repeat'),
-    new $Repeat.Repeater(ob, render as any, separator)
+    document.createComment('Repeat'),
+    new Repeat.Repeater(ob, render as any, separator)
   )
 }
 
-export namespace $Repeat {
+export namespace Repeat {
 
   /**
    * A helper type that transforms a type that could be an array, an [[o.Observable]] or a [[o.ReadonlyObservable]]
    * of an array to the base type of the same type.
    *
-   * This type is used to help with [[$Repeat]]'s prototype definition.
+   * This type is used to help with [[Repeat]]'s prototype definition.
    *
    * ```tsx
-   * import { o, $Repeat } from 'elt'
+   * import { o, Repeat } from 'elt'
    * // string
-   * type A = $Repeat.RoItem<string[]>
+   * type A = Repeat.RoItem<string[]>
    * // o.Observable<string | number>
-   * type B = $Repeat.RoItem<o.Observable<(string | number)[]>>
+   * type B = Repeat.RoItem<o.Observable<(string | number)[]>>
    * // o.ReadonlyObservable<Date>
-   * type C = $Repeat.RoItem<o.ReadonlyObservable<Date[]>>
+   * type C = Repeat.RoItem<o.ReadonlyObservable<Date[]>>
    * ```
    */
   export type RoItem<T extends o.RO<any[]>> = T extends o.Observable<(infer U)[]> ? o.Observable<U>
@@ -375,7 +375,7 @@ export namespace $Repeat {
 
 
 /**
- * Similarly to `$Repeat`, `$RepeatScroll` repeats the `render` function for each element in `ob`,
+ * Similarly to `Repeat`, `RepeatScroll` repeats the `render` function for each element in `ob`,
  * optionally separated by the results of `separator`, until the elements overflow past the
  * bottom border of the current parent marked `overflow-y: auto`.
  *
@@ -395,19 +395,19 @@ export namespace $Repeat {
  *
  * @category dom, toc
  */
-export function $RepeatScroll<T extends o.RO<any[]>>(
+export function RepeatScroll<T extends o.RO<any[]>>(
   ob: T,
-  render: (arg: $Repeat.RoItem<T>, idx: number) => Renderable,
-  options: Partial<$RepeatScroll.Options> = {}
+  render: (arg: Repeat.RoItem<T>, idx: number) => Renderable,
+  options: Partial<RepeatScroll.Options> = {}
 ): Node {
   // we cheat the typesystem, which is not great, but we know what we're doing.
   return e(
-    document.createComment('$RepeatScroll'),
-    new $RepeatScroll.ScrollRepeater<any>(o(ob as any) as o.Observable<any>, render as any, options)
+    document.createComment('RepeatScroll'),
+    new RepeatScroll.ScrollRepeater<any>(o(ob as any) as o.Observable<any>, render as any, options)
   )
 }
 
-export namespace $RepeatScroll {
+export namespace RepeatScroll {
 
   export type Options = {
     separator?: (n: number) => Renderable
@@ -420,14 +420,14 @@ export namespace $RepeatScroll {
    * is meant. Use it with `scrollable()` on the parent..
    * @internal
    */
-  export class ScrollRepeater<T> extends $Repeat.Repeater<T> {
+  export class ScrollRepeater<T> extends Repeat.Repeater<T> {
 
     protected parent: HTMLElement|null = null
 
     constructor(
       ob: o.Observable<T[]>,
       renderfn: (e: o.Observable<T>, oi: number) => Renderable,
-      public options: $RepeatScroll.Options
+      public options: RepeatScroll.Options
     ) {
       super(ob, renderfn)
     }
@@ -525,16 +525,16 @@ export namespace $RepeatScroll {
  * ```tsx
  * const o_value = o('hello')
  * <div>
- *   {$Switch(o_value)
- *    .$Case('world', o_v => <span>It is {o_v}</span>)
- *    .$Case(v => v === 'one' || v === 'two', () => <>Test with a function</>)
- *    .$Case('something else', () => <span>We got another one</span>)
- *    .$Else(() => <>Something else entirely</>)
+ *   {Switch(o_value)
+ *    .Case('world', o_v => <span>It is {o_v}</span>)
+ *    .Case(v => v === 'one' || v === 'two', () => <>Test with a function</>)
+ *    .Case('something else', () => <span>We got another one</span>)
+ *    .Else(() => <>Something else entirely</>)
  *   }
  * </div>
  * ```
  *
- * `$Switch()` can work with typeguards to narrow a type in the observable passed to the then callback,
+ * `Switch()` can work with typeguards to narrow a type in the observable passed to the then callback,
  * but only with defined functions. It is however not as powerful as typescript's type guards in ifs
  * and will not recognize `typeof` or `instanceof` calls.
  *
@@ -542,22 +542,22 @@ export namespace $RepeatScroll {
  * const is_number = (v: any): v is number => typeof v === 'number'
  * const o_obs = o('hello' as string | number) // Observable<string | number>
  *
- * $Switch(o_obs)
- *   .$Case(is_number, o_num => o_num) // o_num is Observable<number>
- *   .$Case('hey', o_obs => )
- *   .$Else(() => null)
+ * Switch(o_obs)
+ *   .Case(is_number, o_num => o_num) // o_num is Observable<number>
+ *   .Case('hey', o_obs => )
+ *   .Else(() => null)
  * ```
  *
  * @category dom, toc
  */
-export function $Switch<T>(obs: o.Observable<T>): $Switch.Switcher<T>
-export function $Switch<T>(obs: o.ReadonlyObservable<T>): $Switch.ReadonlySwitcher<T>
-export function $Switch<T>(obs: any): any {
-  return new ($Switch.Switcher as any)(obs)
+export function Switch<T>(obs: o.Observable<T>): Switch.Switcher<T>
+export function Switch<T>(obs: o.ReadonlyObservable<T>): Switch.ReadonlySwitcher<T>
+export function Switch<T>(obs: any): any {
+  return new (Switch.Switcher as any)(obs)
 }
 
 
-export namespace $Switch {
+export namespace Switch {
   /**
    * Used by the `Switch()` verb.
    * @internal
@@ -592,15 +592,15 @@ export namespace $Switch {
       return (this.prev = this.passthrough ? this.passthrough() : null)
     }
 
-    $Case<S extends T>(value: (t: T) => t is S, fn: (v: o.Observable<S>) => Renderable): this
-    $Case<S extends T>(value: S, fn: (v: o.Observable<S>) => Renderable): this
-    $Case(predicate: (t: T) => any, fn: (v: o.Observable<T>) => Renderable): this
-    $Case(value: T | ((t: T) => any), fn: (v: o.Observable<T>) => Renderable): this {
+    Case<S extends T>(value: (t: T) => t is S, fn: (v: o.Observable<S>) => Renderable): this
+    Case<S extends T>(value: S, fn: (v: o.Observable<S>) => Renderable): this
+    Case(predicate: (t: T) => any, fn: (v: o.Observable<T>) => Renderable): this
+    Case(value: T | ((t: T) => any), fn: (v: o.Observable<T>) => Renderable): this {
       this.cases.push([value, fn])
       return this
     }
 
-    $Else(fn: () => Renderable) {
+    Else(fn: () => Renderable) {
       this.passthrough = fn
       return this
     }
@@ -609,10 +609,10 @@ export namespace $Switch {
 
 
   export interface ReadonlySwitcher<T> extends o.ReadonlyObservable<Renderable> {
-    $Case<S extends T>(value: (t: T) => t is S, fn: (v: o.ReadonlyObservable<S>) => Renderable): this
-    $Case<S extends T>(value: S, fn: (v: o.ReadonlyObservable<S>) => Renderable): this
-    $Case(predicate: (t: T) => any, fn: (v: o.ReadonlyObservable<T>) => Renderable): this
-    $Else(fn: (v: o.ReadonlyObservable<T>) => Renderable): this
+    Case<S extends T>(value: (t: T) => t is S, fn: (v: o.ReadonlyObservable<S>) => Renderable): this
+    Case<S extends T>(value: S, fn: (v: o.ReadonlyObservable<S>) => Renderable): this
+    Case(predicate: (t: T) => any, fn: (v: o.ReadonlyObservable<T>) => Renderable): this
+    Else(fn: (v: o.ReadonlyObservable<T>) => Renderable): this
   }
 
 }

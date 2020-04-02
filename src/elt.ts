@@ -7,7 +7,7 @@ import {
 } from './mixins'
 
 import {
-  $Display
+  Display
 } from './verbs'
 
 import {
@@ -95,7 +95,7 @@ var _decorator_map = new WeakMap<Function, Comment>()
  * to define what can go between `{ curly braces }` in JSX code.
  * @category dom, toc
  */
-export type Renderable = o.RO<string | number | Node | null | undefined>
+export type Renderable = o.RO<string | number | Node | null | undefined | Renderable[]>
 
 /**
  * @category dom, toc
@@ -274,8 +274,8 @@ export function e<N extends Node>(elt: string | Node | Function, ...children: (I
  * > ever be called on it.
  *
  * ```tsx
- * // If using jsxFactory, you have to import $Fragment and use it
- * import { $Fragment as $ } from 'elt'
+ * // If using jsxFactory, you have to import Fragment and use it
+ * import { Fragment as $ } from 'elt'
  *
  * document.body.appendChild(<$>
  *   <p>Content</p>
@@ -292,11 +292,13 @@ export function e<N extends Node>(elt: string | Node | Function, ...children: (I
  *
  * @category dom, toc
  */
-export function $Fragment(...children: (Insertable<DocumentFragment> | EmptyAttributes<DocumentFragment>)[]): DocumentFragment {
+export function Fragment(...children: (Insertable<DocumentFragment> | EmptyAttributes<DocumentFragment>)[]): DocumentFragment {
   const fr = document.createDocumentFragment()
   // This is a trick, children may contain lots of stuff
   return e(fr, children as Renderable[])
 }
+
+const $ = Fragment
 
 
 import { Decorator } from './decorators'
@@ -344,8 +346,15 @@ export namespace e {
     else if (typeof r === 'string' || typeof r === 'number')
       return document.createTextNode(r.toString())
     else if (o.isReadonlyObservable(r))
-      return $Display(r)
-    else
+      return Display(r)
+    else if (Array.isArray(r)) {
+      var df = document.createDocumentFragment()
+      for (var i = 0, l = r.length; i < l; i++) {
+        var r2 = renderable_to_node(r[i], null_as_comment as true)
+        if (r2) df.appendChild(r2)
+      }
+      return df
+    } else
       return r
   }
 
@@ -827,229 +836,229 @@ export namespace e {
   }
 
   /** @internal */
-  export const $A = mkwrapper('a')
+  export const A = mkwrapper('a')
   /** @internal */
-  export const $ABBR = mkwrapper('abbr')
+  export const ABBR = mkwrapper('abbr')
   /** @internal */
-  export const $ADDRESS = mkwrapper('address')
+  export const ADDRESS = mkwrapper('address')
   /** @internal */
-  export const $AREA = mkwrapper('area')
+  export const AREA = mkwrapper('area')
   /** @internal */
-  export const $ARTICLE = mkwrapper('article')
+  export const ARTICLE = mkwrapper('article')
   /** @internal */
-  export const $ASIDE = mkwrapper('aside')
+  export const ASIDE = mkwrapper('aside')
   /** @internal */
-  export const $AUDIO = mkwrapper('audio')
+  export const AUDIO = mkwrapper('audio')
   /** @internal */
-  export const $B = mkwrapper('b')
+  export const B = mkwrapper('b')
   /** @internal */
-  export const $BASE = mkwrapper('base')
+  export const BASE = mkwrapper('base')
   /** @internal */
-  export const $BDI = mkwrapper('bdi')
+  export const BDI = mkwrapper('bdi')
   /** @internal */
-  export const $BDO = mkwrapper('bdo')
+  export const BDO = mkwrapper('bdo')
   /** @internal */
-  export const $BIG = mkwrapper('big')
+  export const BIG = mkwrapper('big')
   /** @internal */
-  export const $BLOCKQUOTE = mkwrapper('blockquote')
+  export const BLOCKQUOTE = mkwrapper('blockquote')
   /** @internal */
-  export const $BODY = mkwrapper('body')
+  export const BODY = mkwrapper('body')
   /** @internal */
-  export const $BR = mkwrapper('br')
+  export const BR = mkwrapper('br')
   /** @internal */
-  export const $BUTTON = mkwrapper('button')
+  export const BUTTON = mkwrapper('button')
   /** @internal */
-  export const $CANVAS = mkwrapper('canvas')
+  export const CANVAS = mkwrapper('canvas')
   /** @internal */
-  export const $CAPTION = mkwrapper('caption')
+  export const CAPTION = mkwrapper('caption')
   /** @internal */
-  export const $CITE = mkwrapper('cite')
+  export const CITE = mkwrapper('cite')
   /** @internal */
-  export const $CODE = mkwrapper('code')
+  export const CODE = mkwrapper('code')
   /** @internal */
-  export const $COL = mkwrapper('col')
+  export const COL = mkwrapper('col')
   /** @internal */
-  export const $COLGROUP = mkwrapper('colgroup')
+  export const COLGROUP = mkwrapper('colgroup')
   /** @internal */
-  export const $DATA = mkwrapper('data')
+  export const DATA = mkwrapper('data')
   /** @internal */
-  export const $DATALIST = mkwrapper('datalist')
+  export const DATALIST = mkwrapper('datalist')
   /** @internal */
-  export const $DD = mkwrapper('dd')
+  export const DD = mkwrapper('dd')
   /** @internal */
-  export const $DEL = mkwrapper('del')
+  export const DEL = mkwrapper('del')
   /** @internal */
-  export const $DETAILS = mkwrapper('details')
+  export const DETAILS = mkwrapper('details')
   /** @internal */
-  export const $DFN = mkwrapper('dfn')
+  export const DFN = mkwrapper('dfn')
   /** @internal */
-  export const $DIALOG = mkwrapper('dialog')
+  export const DIALOG = mkwrapper('dialog')
   /** @internal */
-  export const $DIV = mkwrapper('div')
+  export const DIV = mkwrapper('div')
   /** @internal */
-  export const $DL = mkwrapper('dl')
+  export const DL = mkwrapper('dl')
   /** @internal */
-  export const $DT = mkwrapper('dt')
+  export const DT = mkwrapper('dt')
   /** @internal */
-  export const $EM = mkwrapper('em')
+  export const EM = mkwrapper('em')
   /** @internal */
-  export const $EMBED = mkwrapper('embed')
+  export const EMBED = mkwrapper('embed')
   /** @internal */
-  export const $FIELDSET = mkwrapper('fieldset')
+  export const FIELDSET = mkwrapper('fieldset')
   /** @internal */
-  export const $FIGCAPTION = mkwrapper('figcaption')
+  export const FIGCAPTION = mkwrapper('figcaption')
   /** @internal */
-  export const $FIGURE = mkwrapper('figure')
+  export const FIGURE = mkwrapper('figure')
   /** @internal */
-  export const $FOOTER = mkwrapper('footer')
+  export const FOOTER = mkwrapper('footer')
   /** @internal */
-  export const $FORM = mkwrapper('form')
+  export const FORM = mkwrapper('form')
   /** @internal */
-  export const $H1 = mkwrapper('h1')
+  export const H1 = mkwrapper('h1')
   /** @internal */
-  export const $H2 = mkwrapper('h2')
+  export const H2 = mkwrapper('h2')
   /** @internal */
-  export const $H3 = mkwrapper('h3')
+  export const H3 = mkwrapper('h3')
   /** @internal */
-  export const $H4 = mkwrapper('h4')
+  export const H4 = mkwrapper('h4')
   /** @internal */
-  export const $H5 = mkwrapper('h5')
+  export const H5 = mkwrapper('h5')
   /** @internal */
-  export const $H6 = mkwrapper('h6')
+  export const H6 = mkwrapper('h6')
   /** @internal */
-  export const $HEAD = mkwrapper('head')
+  export const HEAD = mkwrapper('head')
   /** @internal */
-  export const $HEADER = mkwrapper('header')
+  export const HEADER = mkwrapper('header')
   /** @internal */
-  export const $HR = mkwrapper('hr')
+  export const HR = mkwrapper('hr')
   /** @internal */
-  export const $HTML = mkwrapper('html')
+  export const HTML = mkwrapper('html')
   /** @internal */
-  export const $I = mkwrapper('i')
+  export const I = mkwrapper('i')
   /** @internal */
-  export const $IFRAME = mkwrapper('iframe')
+  export const IFRAME = mkwrapper('iframe')
   /** @internal */
-  export const $IMG = mkwrapper('img')
+  export const IMG = mkwrapper('img')
   /** @internal */
-  export const $INPUT = mkwrapper('input')
+  export const INPUT = mkwrapper('input')
   /** @internal */
-  export const $INS = mkwrapper('ins')
+  export const INS = mkwrapper('ins')
   /** @internal */
-  export const $KBD = mkwrapper('kbd')
+  export const KBD = mkwrapper('kbd')
   /** @internal */
-  export const $KEYGEN = mkwrapper('keygen')
+  export const KEYGEN = mkwrapper('keygen')
   /** @internal */
-  export const $LABEL = mkwrapper('label')
+  export const LABEL = mkwrapper('label')
   /** @internal */
-  export const $LEGEND = mkwrapper('legend')
+  export const LEGEND = mkwrapper('legend')
   /** @internal */
-  export const $LI = mkwrapper('li')
+  export const LI = mkwrapper('li')
   /** @internal */
-  export const $LINK = mkwrapper('link')
+  export const LINK = mkwrapper('link')
   /** @internal */
-  export const $MAIN = mkwrapper('main')
+  export const MAIN = mkwrapper('main')
   /** @internal */
-  export const $MAP = mkwrapper('map')
+  export const MAP = mkwrapper('map')
   /** @internal */
-  export const $MARK = mkwrapper('mark')
+  export const MARK = mkwrapper('mark')
   /** @internal */
-  export const $MENU = mkwrapper('menu')
+  export const MENU = mkwrapper('menu')
   /** @internal */
-  export const $MENUITEM = mkwrapper('menuitem')
+  export const MENUITEM = mkwrapper('menuitem')
   /** @internal */
-  export const $META = mkwrapper('meta')
+  export const META = mkwrapper('meta')
   /** @internal */
-  export const $METER = mkwrapper('meter')
+  export const METER = mkwrapper('meter')
   /** @internal */
-  export const $NAV = mkwrapper('nav')
+  export const NAV = mkwrapper('nav')
   /** @internal */
-  export const $NOSCRIPT = mkwrapper('noscript')
+  export const NOSCRIPT = mkwrapper('noscript')
   /** @internal */
-  export const $OBJECT = mkwrapper('object')
+  export const OBJECT = mkwrapper('object')
   /** @internal */
-  export const $OL = mkwrapper('ol')
+  export const OL = mkwrapper('ol')
   /** @internal */
-  export const $OPTGROUP = mkwrapper('optgroup')
+  export const OPTGROUP = mkwrapper('optgroup')
   /** @internal */
-  export const $OPTION = mkwrapper('option')
+  export const OPTION = mkwrapper('option')
   /** @internal */
-  export const $OUTPUT = mkwrapper('output')
+  export const OUTPUT = mkwrapper('output')
   /** @internal */
-  export const $P = mkwrapper('p')
+  export const P = mkwrapper('p')
   /** @internal */
-  export const $PARAM = mkwrapper('param')
+  export const PARAM = mkwrapper('param')
   /** @internal */
-  export const $PICTURE = mkwrapper('picture')
+  export const PICTURE = mkwrapper('picture')
   /** @internal */
-  export const $PRE = mkwrapper('pre')
+  export const PRE = mkwrapper('pre')
   /** @internal */
-  export const $PROGRESS = mkwrapper('progress')
+  export const PROGRESS = mkwrapper('progress')
   /** @internal */
-  export const $Q = mkwrapper('q')
+  export const Q = mkwrapper('q')
   /** @internal */
-  export const $RP = mkwrapper('rp')
+  export const RP = mkwrapper('rp')
   /** @internal */
-  export const $RT = mkwrapper('rt')
+  export const RT = mkwrapper('rt')
   /** @internal */
-  export const $RUBY = mkwrapper('ruby')
+  export const RUBY = mkwrapper('ruby')
   /** @internal */
-  export const $S = mkwrapper('s')
+  export const S = mkwrapper('s')
   /** @internal */
-  export const $SAMP = mkwrapper('samp')
+  export const SAMP = mkwrapper('samp')
   /** @internal */
-  export const $SCRIPT = mkwrapper('script')
+  export const SCRIPT = mkwrapper('script')
   /** @internal */
-  export const $SECTION = mkwrapper('section')
+  export const SECTION = mkwrapper('section')
   /** @internal */
-  export const $SELECT = mkwrapper('select')
+  export const SELECT = mkwrapper('select')
   /** @internal */
-  export const $SMALL = mkwrapper('small')
+  export const SMALL = mkwrapper('small')
   /** @internal */
-  export const $SOURCE = mkwrapper('source')
+  export const SOURCE = mkwrapper('source')
   /** @internal */
-  export const $SPAN = mkwrapper('span')
+  export const SPAN = mkwrapper('span')
   /** @internal */
-  export const $STRONG = mkwrapper('strong')
+  export const STRONG = mkwrapper('strong')
   /** @internal */
-  export const $STYLE = mkwrapper('style')
+  export const STYLE = mkwrapper('style')
   /** @internal */
-  export const $SUB = mkwrapper('sub')
+  export const SUB = mkwrapper('sub')
   /** @internal */
-  export const $SUMMARY = mkwrapper('summary')
+  export const SUMMARY = mkwrapper('summary')
   /** @internal */
-  export const $SUP = mkwrapper('sup')
+  export const SUP = mkwrapper('sup')
   /** @internal */
-  export const $TABLE = mkwrapper('table')
+  export const TABLE = mkwrapper('table')
   /** @internal */
-  export const $TBODY = mkwrapper('tbody')
+  export const TBODY = mkwrapper('tbody')
   /** @internal */
-  export const $TD = mkwrapper('td')
+  export const TD = mkwrapper('td')
   /** @internal */
-  export const $TEXTAREA = mkwrapper('textarea')
+  export const TEXTAREA = mkwrapper('textarea')
   /** @internal */
-  export const $TFOOT = mkwrapper('tfoot')
+  export const TFOOT = mkwrapper('tfoot')
   /** @internal */
-  export const $TH = mkwrapper('th')
+  export const TH = mkwrapper('th')
   /** @internal */
-  export const $THEAD = mkwrapper('thead')
+  export const THEAD = mkwrapper('thead')
   /** @internal */
-  export const $TIME = mkwrapper('time')
+  export const TIME = mkwrapper('time')
   /** @internal */
-  export const $TITLE = mkwrapper('title')
+  export const TITLE = mkwrapper('title')
   /** @internal */
-  export const $TR = mkwrapper('tr')
+  export const TR = mkwrapper('tr')
   /** @internal */
-  export const $TRACK = mkwrapper('track')
+  export const TRACK = mkwrapper('track')
   /** @internal */
-  export const $U = mkwrapper('u')
+  export const U = mkwrapper('u')
   /** @internal */
-  export const $UL = mkwrapper('ul')
+  export const UL = mkwrapper('ul')
   /** @internal */
-  export const $VAR = mkwrapper('var')
+  export const VAR = mkwrapper('var')
   /** @internal */
-  export const $VIDEO = mkwrapper('video')
+  export const VIDEO = mkwrapper('video')
   /** @internal */
-  export const $WBR = mkwrapper('wbr')
+  export const WBR = mkwrapper('wbr')
 
   /**
    * An alias to conform to typescript's JSX
@@ -1058,7 +1067,7 @@ export namespace e {
   export const createElement = e
 
   /** @internal */
-  export const Fragment: (at: EmptyAttributes<DocumentFragment>, ch: Renderable[]) => DocumentFragment = $Fragment //(at: Attrs, ch: DocumentFragment): e.JSX.Element
+  export const Fragment: (at: EmptyAttributes<DocumentFragment>, ch: Renderable[]) => DocumentFragment = $ //(at: Attrs, ch: DocumentFragment): e.JSX.Element
 }
 
 declare var global: any

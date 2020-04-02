@@ -1,4 +1,4 @@
-import { App, $click, o, $If } from 'elt'
+import { App, $click, o, If } from 'elt'
 
 class TheApp extends App.Service {
   o_was_logged = o(false)
@@ -6,7 +6,7 @@ class TheApp extends App.Service {
   @App.view
   Main() {
     return <div>
-      {$If(this.o_was_logged,
+      {If(this.o_was_logged,
         () => `We were already logged`,
         () => `We've logged into the App !`
       )}

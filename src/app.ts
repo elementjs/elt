@@ -1,5 +1,5 @@
 
-import { $Display } from './verbs'
+import { Display } from './verbs'
 import { Mixin, node_add_mixin } from './mixins'
 import { Renderable } from './elt'
 import { o } from './observable'
@@ -8,7 +8,7 @@ import { o } from './observable'
  * An App is a collection of services that altogether form an application.
  * These services contain code, data and views that produce DOM elements.
  *
- * Use [[App.$DisplayApp]] to instanciate an App and [[App#$DisplayChildApp]] for child apps.
+ * Use [[App.DisplayApp]] to instanciate an App and [[App#DisplayChildApp]] for child apps.
  *
  * An `App` needs to be provided a view name (see [[App.view]]) which will be the main
  * view that the `App` displays, and one or several service classes (not objects), that are
@@ -61,7 +61,7 @@ export class App extends Mixin<Comment>{
 
   /**
    * The currently active services, ie. the services that were specifically
-   * given to [[#App.$DisplayApp]] or [[App#activate]]
+   * given to [[#App.DisplayApp]] or [[App#activate]]
    */
   o_active_services = o(this._active_services)
 
@@ -251,7 +251,7 @@ export class App extends Mixin<Comment>{
    * ```
    */
   display(view_name: string | Symbol) {
-    return $Display(this.o_view_services.tf(v => {
+    return Display(this.o_view_services.tf(v => {
       return v.get(view_name)
     // we use another tf to not retrigger the display if the service implementing the view did
     // not change.
@@ -281,7 +281,7 @@ export class App extends Mixin<Comment>{
    * @include ../examples/app.subapp.tsx
    * ```
    */
-  $DisplayChildApp(view_name: string | Symbol, ...services: {new (app: App): App.Service}[]) {
+  DisplayChildApp(view_name: string | Symbol, ...services: {new (app: App): App.Service}[]) {
     var newapp = new App(view_name, this)
     var res = newapp.display(view_name)
     newapp.activate(...services)
@@ -312,13 +312,13 @@ export namespace App {
    * }
    *
    * document.body.appendChild(
-   *   App.$DisplayApp('Main', LoginService)
+   *   App.DisplayApp('Main', LoginService)
    * )
    * ```
    *
    * @category app, toc
    */
-  export function $DisplayApp(main_view: string, ...services: ({new (app: App): App.Service })[]) {
+  export function DisplayApp(main_view: string, ...services: ({new (app: App): App.Service })[]) {
     var app = new App(main_view)
     var disp = app.display(main_view)
     app.activate(...services)
@@ -378,7 +378,7 @@ export namespace App {
      * Set to `true` if this service should be instanciated only once across this app and
      * its child apps.
      *
-     * See [[App.$DisplayChildApp]] for an example.
+     * See [[App.DisplayChildApp]] for an example.
      */
     unique_across_all_apps?: boolean
 
@@ -459,7 +459,7 @@ export namespace App {
      *
      * If the requested service does not already exist within this [[App]], instanciate it.
      *
-     * See [[App.$DisplayChildApp]] and [[App.view]] for examples.
+     * See [[App.DisplayChildApp]] and [[App.view]] for examples.
      */
     require<B extends Service>(service_def: new (app: App) => B): B {
       var result = this.app.getService(service_def)

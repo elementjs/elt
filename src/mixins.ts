@@ -127,7 +127,7 @@ export abstract class Mixin<N extends Node = Node> extends o.ObserverHolder {
    * Helper method to listen an event on the current node. `currentTarget` is typed as the current node type.
    *
    * ```tsx
-   * import { Mixin, $Fragment as $, o } from 'elt'
+   * import { Mixin, Fragment as $, o } from 'elt'
    *
    * class MyMixin<N extends HTMLElement> extends Mixin<N> {
    *

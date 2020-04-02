@@ -51,7 +51,7 @@ export namespace $bind {
    * Bind an observable to an input's value.
    *
    * ```tsx
-   * import { o, $bind, $Fragment as $ } from 'elt'
+   * import { o, $bind, Fragment as $ } from 'elt'
    *
    * const o_string = o('stuff')
    *
@@ -72,7 +72,7 @@ export namespace $bind {
    * Bind a string observable to an html element which is contenteditable.
    *
    * ```tsx
-   * import { o, $bind, $Fragment as $ } from 'elt'
+   * import { o, $bind, Fragment as $ } from 'elt'
    *
    * const o_contents = o('Hello <b>World</b> !')
    *
@@ -101,7 +101,7 @@ export namespace $bind {
    * and will set the value to `NaN`.
    *
    * ```tsx
-   * import { o, $bind, $Fragment as $ } from 'elt'
+   * import { o, $bind, Fragment as $ } from 'elt'
    *
    * const o_number = o(1)
    *
@@ -126,7 +126,7 @@ export namespace $bind {
    * type `"date"` `"datetime"` `"datetime-local"`.
    *
    * ```tsx
-   * import { o, $bind, $Fragment as $ } from 'elt'
+   * import { o, $bind, Fragment as $ } from 'elt'
    *
    * const o_date = o(null as Date | null)
    * const dtf = Intl.DateTimeFormat('fr')
@@ -152,7 +152,7 @@ export namespace $bind {
    * is "radio" or "checkbox".
    *
    * ```tsx
-   * import { o, $bind, $Fragment as $ } from 'elt'
+   * import { o, $bind, Fragment as $ } from 'elt'
    *
    * const o_bool = o(false)
    *
@@ -177,7 +177,7 @@ export namespace $bind {
    * Bind a number observable to the selected index of a select element
    *
    * ```tsx
-   * import { o, $bind, $Fragment as $ } from 'elt'
+   * import { o, $bind, Fragment as $ } from 'elt'
    *
    * const o_selected = o(-1)
    *
@@ -244,7 +244,7 @@ export function $props<N extends Node>(props: { [k in keyof N]?: o.RO<N[k]> }): 
  * The `class={}` attribute on all nodes works exactly the same as `$class`.
  *
  * ```tsx
- * import { $class, o, $Fragment as $, $bind } from 'elt'
+ * import { $class, o, Fragment as $, $bind } from 'elt'
  *
  * const o_cls = o('class2')
  * const o_bool = o(false)
@@ -426,8 +426,8 @@ export function $click<N extends HTMLElement | SVGElement>(cbk: Listener<MouseEv
  * ELT tries to do most of the work in `DocumentFragment` or while the nodes are still in memory.
  *
  * When calling [[e]] (or `E()`), whenever a node appends a child to itself, `e` calls its
- * `$init` callbacks **and start the node's observers**. It does so because some verbs, like `$If`
- * will only update their content when observing their condition, not before. Since `$If` uses enclosing
+ * `$init` callbacks **and start the node's observers**. It does so because some verbs, like `If`
+ * will only update their content when observing their condition, not before. Since `If` uses enclosing
  * comments to find out what it has to replace, it needs to have access to its parent to manipulate its
  * siblings, hence this particular way of proceeding.
  *
@@ -436,7 +436,7 @@ export function $click<N extends HTMLElement | SVGElement>(cbk: Listener<MouseEv
  * leave the observers to do their jobs.
  *
  * ```jsx
- * import { o, $init, $inserted, $removed, $Fragment as $, $If, $click } from 'elt'
+ * import { o, $init, $inserted, $removed, Fragment as $, If, $click } from 'elt'
  *
  * var the_div = <div>
  *   {$init(() => console.log('init'))}
@@ -454,7 +454,7 @@ export function $click<N extends HTMLElement | SVGElement>(cbk: Listener<MouseEv
  *     {$click(() => o_is_inside.mutate(b => !b))}
  *     Toggle the div
  *   </button>
- *   {$If(o_is_inside, () => the_div)}
+ *   {If(o_is_inside, () => the_div)}
  * </$>)
  *
  * ```
