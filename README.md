@@ -45,7 +45,7 @@ ELT offers the following concepts to get this done :
 
  * Since the DOM does not offer a simple way to know *when* a node is added or removed from the document other than using a `MutationObserver`, ELT offers a way to react to these events by setting up the observer itself and registering callbacks directly on the `Node`s. See [`$inserted()`](#$inserted), [`$removed()`](#$removed), but also [`$prepare()`](#$prepare).
 
- * Instead of creating components that change what they render based on the values of Observables, such as an hypothetical `<If condition={...}>`, ELT uses "verbs" ; functions whose name starts with `$` and an **upper-case** letter. While a component-based approach would work perfectly, the "verb" approach is more explicit about where dynamicity is happening in the code. See [`If()`](#If), [`Repeat`](#Repeat), [`RepeatScroll`](#RepeatScroll) and [`Switch`](#Switch).
+ * Instead of creating components that change what they render based on the values of Observables, such as an hypothetical `<If condition={...}>`, ELT uses "verbs" ; functions whose name starts with an **upper-case** letter. While a component-based approach would work perfectly, the "verb" approach is more explicit about where dynamicity is happening in the code. See [`If()`](#If), [`Repeat`](#Repeat), [`RepeatScroll`](#RepeatScroll) and [`Switch`](#Switch).
 
  * To avoid declaring a boatload of variables to modify nodes that are being created, ELT defines ["decorators"](#Decorator) which are callback functions that can be added as children of a node. See all the `$` prefixed functions followed by a **lower-case** letter. Their naming scheme was thought to differenciate them from function calls that actually *create* Nodes.
 
@@ -207,8 +207,8 @@ document.body.appendChild(E.$DIV(
 
 ## Dynamicity through Observables and Verbs
 
-Verbs are simply functions whose name is a verb (hence the name), that usually start prefixed with `$`, to add a visual emphasis on their presence.
-The fact they're verbs is to mean they represent dynamicity, things that change.
+Verbs are simply functions whose name is a verb (hence the name), that usually start with an uppercase letter to add a visual emphasis on their presence.
+The reason they're named "verbs" is to emphasise the fact they represent dynamicity, things that change.
 
 While they could have been implemented as Components, the choice was deliberately made to make them regular function calls to insist on the fact that they're not just some html component that will sit in the document once rendered.
 
@@ -216,7 +216,7 @@ They usually work in concert with Observables to control the presence of nodes i
 
 For instance, [`If`](#If) will render its then arm only if the given observable is truthy, and the else otherwise.
 
-[`Repeat`](#Repeat) repeats the contents of an array, with an optional separator. [`RepeatScroll`](#RepeatScroll) does the same, but stops rendering elements once they overflow past the bottom of the `scrollable` block they're in.
+[`Repeat`](#Repeat) repeats the contents of an array, with an optional separator. [`RepeatScroll`](#RepeatScroll) does the same, but stops rendering elements once they overflow past the bottom of the [`$scrollable`](#$scrollable) block they're in.
 
 ## Node Decorators
 
