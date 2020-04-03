@@ -410,14 +410,6 @@ export class Observable<A> implements ReadonlyObservable<A>, Indexable {
   }
 
   /**
-   * Expects a `fn` callback that takes the current value as a parameter and returns a new value.
-   * It is the responsability of the caller to ensure the object is properly cloned before being modified.
-   */
-  mutate(fn: (current_value: A) => A) {
-    this.set(fn(this._value))
-  }
-
-  /**
    * Assign new values to the Observable.
    *
    * This method expects an object that contains new values to be assigned *recursively*
