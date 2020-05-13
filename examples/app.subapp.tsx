@@ -1,6 +1,5 @@
 import { App, $click, o } from 'elt'
 
-
 class Required extends App.Service {
   o_req = o(0)
 }

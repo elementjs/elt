@@ -212,7 +212,7 @@ export namespace $bind {
  * <div>
  *   {$props<HTMLDivElement>({dir: 'left'})}
  * </div>
- * E.$DIV(
+ * E.DIV(
  *   $props({dir: 'left'})
  * )
  * ```
@@ -282,7 +282,7 @@ export function $props<N extends Node>(props: { [k in keyof N]?: o.RO<N[k]> }): 
  *   <div class={['class1', o_cls, {class3: o_bool}]}>
  *     content 2
  *   </div>
- *   {E.$DIV(
+ *   {E.DIV(
  *     $class('class1', o_cls, {class3: o_bool}),
  *     'content 3'
  *   )}
@@ -323,7 +323,7 @@ export function $id<N extends Element>(id: o.RO<string>) {
  *
  * ```tsx
  * <MyComponent>{$title('Some title ! It generally appears on hover.')}</MyComponent>
- * E.$DIV(
+ * E.DIV(
  *   $title('hello there !')
  * )
  * ```
@@ -341,7 +341,7 @@ export function $title<N extends HTMLElement>(title: o.RO<string>) {
  *
  * ```tsx
  * const o_width = o('321px')
- * E.$DIV(
+ * E.DIV(
  *   $style({width: o_width, flex: '1'})
  * )
  * ```
