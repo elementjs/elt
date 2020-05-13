@@ -484,10 +484,10 @@ export function node_observe<T>(node: Node, obs: o.RO<T>, obsfn: o.Observer.Call
   if (!(o.isReadonlyObservable(obs))) {
     // If the node is already inited, run the callback
     if (node[sym_mount_status] & NODE_IS_INITED)
-      obsfn(obs, new o.Changes(obs))
+      obsfn(obs, o.NoValue)
     else
       // otherwise, call it when inited
-      node_on(node, sym_init, () => obsfn(obs, new o.Changes(obs)))
+      node_on(node, sym_init, () => obsfn(obs, o.NoValue))
     return null
   }
   // Create the observer and append it to the observer array of the node
@@ -610,7 +610,7 @@ export function node_observe_class(node: Element, c: ClassDefinition) {
   if (typeof c === 'string' || c.constructor !== Object) {
     // c is an Observable<string>
     node_observe(node, c, (str, chg) => {
-      if (chg.hasOldValue()) _remove_class(node, chg.oldValue() as string)
+      if (chg !== o.NoValue) _remove_class(node, chg as string)
       _apply_class(node, str)
     })
   } else {
