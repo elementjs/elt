@@ -81,6 +81,12 @@ export const NoValue = Symbol('NoValue')
  */
 export type NoValue = typeof NoValue
 
+/**
+ * Typeguard to check that an object is a readonlyobservable.
+ *
+ * It really only checks that the variable is an observable under the hood.
+ * @category observable, toc
+ */
 export function isReadonlyObservable(_: any): _ is ReadonlyObservable<any> {
   return _ instanceof Observable
 }
@@ -1097,10 +1103,32 @@ export function prop<T, K extends keyof T>(obj: Observable<T> | T, prop: RO<K>, 
     }
   }
 
-
-  /**
-   * @category observable, toc
-   */
+ /**
+  * Create a throttled function will only call the wrapped function at most every `ms` milliseconds.
+  *
+  * If `leading` is true, then the first time this function is called it will
+  * call `fn` immediately. Otherwise, it will wait `ms` milliseconds before triggering it for the first time.
+  *
+  * Also works as an es7 decorator.
+  *
+  * ```tsx
+  * import { o } from 'elt'
+  *
+  * function dostuff() {
+  *   console.log('!')
+  * }
+  * const throttled = o.throttle(dostuff, 40)
+  *
+  * class MyClass {
+  *   @o.throttle(400)
+  *   dostuff() {
+  *     console.log('stuff')
+  *   }
+  * }
+  * ```
+  *
+  * @category observable, toc
+  */
   export function throttle(ms: number, leading?: boolean): (target: any, key: string, desc: PropertyDescriptor) => void
   export function throttle<F extends Function>(fn: F, ms: number, leading?: boolean): F
   export function throttle(fn: any, ms: any, leading: boolean = false): any {

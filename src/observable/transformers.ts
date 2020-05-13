@@ -3,6 +3,20 @@ import { o } from './observable'
 export namespace tf {
 
   /**
+   * Transforms to a boolean observable that switches to `true` when
+   * the original `observable` has the same value than `other`.
+   *
+   * `other` may be itself an observable.
+   *
+   * ```tsx
+   * import { o, tf } from 'elt'
+   *
+   * const o_str = o('hello')
+   * const o_is_world = o_str.tf(tf.equals('world'))
+   * // false now
+   * o_str.set('world')
+   * // o_is_world is now true
+   * ```
    * @category observable, toc
    */
   export function equals<T, TT extends T>(other: o.RO<TT>) {
@@ -10,6 +24,7 @@ export namespace tf {
   }
 
   /**
+   * Does the opposite of [[tf.equals]]
    * @category observable, toc
    */
   export function differs<T, TT extends T>(other: o.RO<TT>) {
@@ -17,26 +32,15 @@ export namespace tf {
   }
 
   /**
-   * @category observable, toc
-   */
-  export function is_truthy(val: any) { return !!val }
-
-  /**
-   * @category observable, toc
-   */
-  export function is_falsy(val: any) { return !val }
-
-  /**
-   * @category observable, toc
-   */
-  export function is_value(val: any) { return val != null }
-
-  /**
-   * @category observable, toc
-   */
-  export function is_not_value(val: any) { return val == null }
-
-  /**
+   * Transform an observable of array into another array based on either
+   * an array of numbers (which are indices) or a function that takes the
+   * array and returns indices.
+   *
+   * The indices/index function can be itself an observable.
+   *
+   * The resulting observable can have set() called on it.
+   *
+   * This is the basis of [[tf.filter]] and [[tf.array_sort]]
    * @category observable, toc
    */
   export function array_transform<T>(fn: o.RO<number[] | ((array: T[]) => number[])>): o.RO<o.Converter<T[], T[]> & {indices: number[]}> {
@@ -114,7 +118,7 @@ export namespace tf {
    * @param sortfn
    * @category observable, toc
    */
-  export function sort<T>(sortfn: o.RO<(a: T, b: T) => 1 | 0 | -1>): o.RO<o.Converter<T[], T[]>> {
+  export function array_sort<T>(sortfn: o.RO<(a: T, b: T) => 1 | 0 | -1>): o.RO<o.Converter<T[], T[]>> {
     return array_transform(o.tf(sortfn, sortfn => (lst: T[]) => {
       var res: number[] = new Array(lst.length)
       for (var i = 0, l = lst.length; i < l; i++)
@@ -126,11 +130,19 @@ export namespace tf {
 
   /**
    * Sort an array by extractors, given in order of importance.
+   * To sort in descending order, make a tuple with 'desc' as the second argument.
+   *
+   * ```tsx
+   * import { o } from 'elt'
+   *
+   * const o_something = o([{a: 1, b: 'hello'}, {a: 3, b: 'world'}])
+   * const o_sorted = o_something.tf(tf.array_sort_by([t => t.b, [t => t.a, 'desc']]))
+   * ```
    * @param sorters
    * @category observable, toc
    */
-  export function sort_by<T>(sorters: o.RO<([(a: T) => any, 'desc' | 'asc'] | ((a: T) => any))[]>): o.RO<o.Converter<T[], T[]>> {
-    return sort(o.tf(sorters,
+  export function array_sort_by<T>(sorters: o.RO<([(a: T) => any, 'desc' | 'asc'] | ((a: T) => any))[]>): o.RO<o.Converter<T[], T[]>> {
+    return array_sort(o.tf(sorters,
       _sorters => {
         var sorters: ((a: T) => any)[] = []
         var mult = [] as (1 | -1)[]
@@ -163,7 +175,7 @@ export namespace tf {
    * Group by an extractor function.
    * @category observable, toc
    */
-  export function group_by<T, R>(extractor: o.RO<(a: T) => R>): o.RO<o.Converter<T[], [R, T[]][]> & {indices: number[][], length: number}> {
+  export function array_group_by<T, R>(extractor: o.RO<(a: T) => R>): o.RO<o.Converter<T[], [R, T[]][]> & {indices: number[][], length: number}> {
     return o.tf(extractor, extractor => {
       return {
         length: 0 as number,
@@ -254,8 +266,11 @@ export namespace tf {
   }
 
   /**
+   * Make a boolean observable from the presence of given values in a `Set`.
+   * If the observable can be written to, then setting the transformed to `true` will
+   * put all the values to the `Set`, and setting it to `false` will remove all of them.
    *
-   * @param values The values that should be in the set.
+   * The values that should be in the set.
    * @category observable, toc
    */
   export function set_has<T>(...values: o.RO<T>[]): o.RO<o.Converter<Set<T>, boolean>> {
