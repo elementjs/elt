@@ -122,20 +122,33 @@ export namespace Observer {
 
 
 /**
+ * `ReadonlyObservable` is just an interface to an actual `Observable` class but without
+ * the methods that can modify the observed value.
+ *
  * @category observable, toc
  */
 export interface ReadonlyObservable<A> {
+  /** See [[o.Observable#get]] */
   get(): A
+    /** See [[o.Observable#stopObservers]] */
   stopObservers(): void
+  /** See [[o.Observable#createObserver]] */
   createObserver(fn: Observer.Callback<A>): Observer<A>
+
+  /** See [[o.Observable#addObserver]] */
   addObserver(fn: Observer.Callback<A>): Observer<A>
   addObserver(obs: Observer<A>): Observer<A>
+
+  /** See [[o.Observable#removeObserver]] */
   removeObserver(ob: Observer<A>): void
 
+  /** See [[o.Observable#tf]] */
   tf<B>(fnget: RO<TransfomGetFn<A, B> | ReadonlyConverter<A, B>>): ReadonlyObservable<B>
 
+  /** See [[o.Observable#p]] */
   p<A>(this: ReadonlyObservable<A[]>, key: RO<number>, def?: RO<(key: number, obj: A[]) => A>): ReadonlyObservable<A>
   p<A, K extends keyof A>(this: ReadonlyObservable<A>, key: RO<K>, def?: RO<(key: K, obj: A) => A[K]>): ReadonlyObservable<A[K]>
+  /** See [[o.Observable#key]] */
   key<A, B>(this: ReadonlyObservable<Map<A, B>>, key: RO<A>, def?: undefined, delete_on_undefined?: boolean): ReadonlyObservable<B | undefined>
   key<A, B>(this: ReadonlyObservable<Map<A, B>>, key: RO<A>, def: RO<(key: A, map: Map<A, B>) => B>): ReadonlyObservable<B>
 }
@@ -737,6 +750,8 @@ export function merge<T>(obj: {[K in keyof T]: Observable<T[K]>}): Observable<T>
 
 
 /**
+ * Create an observable that watches a `prop` from `obj`, giving returning the result
+ * of `def` if the value was `undefined`.
  * @category observable, toc
  */
 export function prop<T, K extends keyof T>(obj: Observable<T> | T, prop: RO<K>, def?: RO<(key: K, obj: T) => T[K]>) {
@@ -906,6 +921,31 @@ export function prop<T, K extends keyof T>(obj: Observable<T> | T, prop: RO<K>, 
   }
 
   /**
+   * Create a debounced function that will run `ms` milliseconds after the last
+   * call to `fn`.
+   *
+   * If `leading` is true, then the first time this function is called it will
+   * call `fn` immediately and only then wait `ms` milliseconds after the last
+   * call.
+   *
+   * Also works as an es7 decorator.
+   *
+   * ```tsx
+   * import { o } from 'elt'
+   *
+   * function dostuff() {
+   *   console.log('!')
+   * }
+   * const debounced = o.debounce(dostuff, 40)
+   *
+   * class MyClass {
+   *   @o.debounce(400)
+   *   dostuff() {
+   *     console.log('stuff')
+   *   }
+   * }
+   * ```
+   *
    * @category observable, toc
    */
   export function debounce(ms: number, leading?: boolean): (target: any, key: string, desc: PropertyDescriptor) => void

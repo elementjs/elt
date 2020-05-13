@@ -459,15 +459,17 @@ export namespace RepeatScroll {
  * Perform a Switch statement on an observable.
  *
  * ```tsx
+ * import { o, Switch, Fragment as $ } from 'elt'
+ *
  * const o_value = o('hello')
- * <div>
+ * document.body.appendChild(<div>
  *   {Switch(o_value)
  *    .Case('world', o_v => <span>It is {o_v}</span>)
- *    .Case(v => v === 'one' || v === 'two', () => <>Test with a function</>)
+ *    .Case(v => v === 'one' || v === 'two', () => <$>Test with a function</$>)
  *    .Case('something else', () => <span>We got another one</span>)
- *    .Else(() => <>Something else entirely</>)
+ *    .Else(() => <$>Something else entirely</$>)
  *   }
- * </div>
+ * </div>)
  * ```
  *
  * `Switch()` can work with typeguards to narrow a type in the observable passed to the then callback,
@@ -475,13 +477,16 @@ export namespace RepeatScroll {
  * and will not recognize `typeof` or `instanceof` calls.
  *
  * ```tsx
+ * import { o, Switch, Fragment as $ } from 'elt'
+ *
  * const is_number = (v: any): v is number => typeof v === 'number'
  * const o_obs = o('hello' as string | number) // Observable<string | number>
  *
- * Switch(o_obs)
+ * document.body.appendChild(<$>{Switch(o_obs)
  *   .Case(is_number, o_num => o_num) // o_num is Observable<number>
- *   .Case('hey', o_obs => )
- *   .Else(() => null)
+ *   .Case('hey', o_obs2 => 'hello') // also, o_obs2 is now Observable<string>
+ *                  // since number has been taken care of.
+ *   .Else(() => null)}</$>)
  * ```
  *
  * @category dom, toc
@@ -495,7 +500,6 @@ export function Switch<T>(obs: any): any {
 
 export namespace Switch {
   /**
-   * Used by the `Switch()` verb.
    * @internal
    */
   export class Switcher<T> extends o.CombinedObservable<[T], Renderable> {
@@ -528,12 +532,13 @@ export namespace Switch {
       return (this.prev = this.passthrough ? this.passthrough() : null)
     }
 
-    Case<S extends T>(value: (t: T) => t is S, fn: (v: o.Observable<S>) => Renderable): this
-    Case<S extends T>(value: S, fn: (v: o.Observable<S>) => Renderable): this
+    // @ts-ignore
+    Case<S extends T>(value: (t: T) => t is S, fn: (v: o.Observable<S>) => Renderable): Switcher<Exclude<T, S>>
+    Case(value: T, fn: (v: o.Observable<T>) => Renderable): this
     Case(predicate: (t: T) => any, fn: (v: o.Observable<T>) => Renderable): this
     Case(value: T | ((t: T) => any), fn: (v: o.Observable<T>) => Renderable): this {
       this.cases.push([value, fn])
-      return this
+      return this as any
     }
 
     Else(fn: () => Renderable) {
@@ -544,10 +549,15 @@ export namespace Switch {
   }
 
 
+  /**
+   * @internal
+   */
   export interface ReadonlySwitcher<T> extends o.ReadonlyObservable<Renderable> {
-    Case<S extends T>(value: (t: T) => t is S, fn: (v: o.ReadonlyObservable<S>) => Renderable): this
-    Case<S extends T>(value: S, fn: (v: o.ReadonlyObservable<S>) => Renderable): this
+    /** See [[Switch.Switcher#Case]] */
+    Case<S extends T>(value: (t: T) => t is S, fn: (v: o.ReadonlyObservable<S>) => Renderable): ReadonlySwitcher<Exclude<T, S>>
+    Case(value: T, fn: (v: o.ReadonlyObservable<T>) => Renderable): this
     Case(predicate: (t: T) => any, fn: (v: o.ReadonlyObservable<T>) => Renderable): this
+    /** See [[Switch.Switcher#Else]] */
     Else(fn: (v: o.ReadonlyObservable<T>) => Renderable): this
   }
 
