@@ -8,9 +8,11 @@ import {
 } from './mixins'
 
 import {
+  ClassDefinition,
+  StyleDefinition,
+  Listener,
   node_observe,
   node_observe_class,
-  Listener,
   node_observe_style,
   node_add_event_listener,
   sym_init,
@@ -20,7 +22,7 @@ import {
 } from './dom'
 
 import {
-  Renderable, ClassDefinition, StyleDefinition
+  Renderable,
 } from './elt'
 
 /**

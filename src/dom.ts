@@ -1,6 +1,17 @@
 import { o } from './observable'
-import { StyleDefinition, ClassDefinition } from './elt'
 import { Mixin } from './mixins'
+
+/**
+ * CSS Style attribute definition for the style={} attribute
+ */
+export type StyleDefinition =
+  o.RO<Partial<CSSStyleDeclaration>>
+  | o.ROProps<Partial<CSSStyleDeclaration>>
+
+/**
+ * CSS classes for the class={} attribute
+ */
+export type ClassDefinition = {[name: string]: o.RO<any>} | o.RO<string>
 
 /**
  * Used with [[$on]] or [[Mixin#on]]
