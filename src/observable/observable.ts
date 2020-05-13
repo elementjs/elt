@@ -8,7 +8,7 @@ import { EACH, IndexableArray, Indexable } from './indexable'
  */
 export function o<T>(arg: T): [T] extends [o.Observable<any>] ? T :
     // when there is a mix of different observables, then we have a readonlyobservable of the combination of the types
-    [true] extends [o.AnyExtendsReadonlyObservable<T>] ?
+    [true] extends [T extends o.ReadonlyObservable<any> ? true : never] ?
       o.ReadonlyObservable<o.BaseType<T>>
       // if there were NO observables involved, then we obtain just a modifiable observable of the provided types.
   : o.Observable<T> {
@@ -16,8 +16,6 @@ export function o<T>(arg: T): [T] extends [o.Observable<any>] ? T :
 }
 
 export namespace o {
-
-export type AnyExtendsReadonlyObservable<T> = T extends ReadonlyObservable<any> ? true : never
 
 /**
  * Get the type of the element of an observable. Works on `#o.RO` as well.
@@ -35,14 +33,26 @@ export type TransfomSetFn<A, B> = (nval: B, oval: B | NoValue, curval: A) => A |
 
 
 /**
+ * For use with [[o.Observable#tf]]. The `ReadonlyConverter` only provides a transformation
+ * that will result in the creation of a `ReadonlyObservable`, since there is no way to
+ * transform it back.
  */
 export interface ReadonlyConverter<A, B> {
+  /**
+   * The transform function
+   */
   get: TransfomGetFn<A, B>
 }
 
 /**
+ * For use with [[o.Observable#tf]]. A `Converter` object gives an [[o.Observable]] a bijection
+ * to another type, allowing an observable to transform into another observable type that can be set.
  */
 export interface Converter<A, B> extends ReadonlyConverter<A, B> {
+  /**
+   * The transform function to get the transformed value back to the original
+   * observable.
+   */
   set: TransfomSetFn<A, B>
 }
 
@@ -69,18 +79,52 @@ export function isReadonlyObservable(_: any): _ is ReadonlyObservable<any> {
 }
 
 /**
+ * An `Observer` observes an [[o.Observable]]. `Observable`s maintain a list of **active**
+ * observers that are observing it. Whenever their value change, all the registered
+ * `Observer`s have their `refresh` method called.
+ *
+ * An `Observer` is built with a function that will be called when it is refreshed and
+ * the value **changed** from the previous value it knew.
+ *
+ * This behaviour has implications for memory usage ; all `Observers` keep a reference
+ * to the last value they were called with, since this is the value they will pass as
+ * the `old_value` to their wrapped function.
+ *
+ * They behave this way because an Observer can be stopped and then started again.
+ * In between, the observable they watch could have been changed several times. The `fn`
+ * function they wrap may make assumptions on what value it has seen itself. Thus,
+ * by keeping a reference to the last value they were called with, they can provide it
+ * safely to `fn`.
+ *
  * @category observable, toc
  */
 export class Observer<A> implements Indexable {
 
+  /**
+   * The last value they've been called with.
+   */
   protected old_value: A | NoValue = NoValue
+  /**
+   * Used to speed up access
+   * @internal
+   */
   idx = null
+  /**
+   * The function that will be called on `refresh`
+   */
   fn: Observer.Callback<any>
 
+  /**
+   * Build an observer that will call `fn` whenever the value contained by
+   * `observable` changes.
+   */
   constructor(fn: Observer.Callback<A>, public observable: ReadonlyObservable<A>) {
     this.fn = fn
   }
 
+  /**
+   * Called by the `observable` currently being watched.
+   */
   refresh(): void {
     const old = this.old_value
     const new_value = (this.observable as Observable<A>)._value
@@ -93,19 +137,37 @@ export class Observer<A> implements Indexable {
     }
   }
 
+  /**
+   * Register on the `observable` to be `refresh`ed whenever it changes.
+   */
   startObserving() {
     this.observable.addObserver(this)
   }
 
+  /**
+   * Stop being notified by the observable.
+   */
   stopObserving() {
     this.observable.removeObserver(this)
   }
 
+  /**
+   * Debounce `this.refresh` by `ms` milliseconds, optionnally calling it
+   * immediately the first time around if `leading` is true.
+   *
+   * See [[o.debounce]].
+   */
   debounce(ms: number, leading?: boolean) {
     this.refresh = o.debounce(this.refresh.bind(this), ms, leading)
     return this
   }
 
+  /**
+   * Throttle `this.refresh` by `ms` milliseconds, optionnally calling it
+   * immediately the first time around if `leading` is true.
+   *
+   * See [[o.throttle]].
+   */
   throttle(ms: number, leading?: boolean) {
     this.refresh = o.throttle(this.refresh.bind(this), ms, leading)
     return this
@@ -115,8 +177,13 @@ export class Observer<A> implements Indexable {
 
 export namespace Observer {
   /**
+   * The type for functions that are passed to [[o.Observer]]s instances.
+   *
+   * `newval` is the new value the observable currently has, while `old_value`
+   * is the previous value or [[o.NoValue]] if this is the first time the callback
+   * is called.
    */
-  export type Callback<T> = (newval: T, changes: T | NoValue) => void
+  export type Callback<T> = (newval: T, old_value: T | NoValue) => void
 
 }
 
@@ -154,6 +221,27 @@ export interface ReadonlyObservable<A> {
 }
 
 /**
+ * `RO` is a helper type that represents a value that could be both a [[o.ReadonlyObservable]]
+ * or a non-observable.
+ *
+ * It is very useful when dealing with [[Attrs]] where flexibility is needed for arguments.
+ *
+ * ```tsx
+ * import { Attrs, o, Fragment as $ } from 'elt'
+ *
+ * function MyComponent(attrs: { title: o.RO<string> } & Attrs<HTMLDivElement>) {
+ *   return <div>
+ *     Hello {attrs.title}
+ *   </div>
+ * }
+ *
+ * const o_str = o('world observable !')
+ * document.body.appendChild(<$>
+ *   <MyComponent title='world str !'/>
+ *   <MyComponent title={o_str}/>
+ * </$>)
+ * ```
+ *
  * @category observable, toc
  */
 export type RO<A> = ReadonlyObservable<A> | A
