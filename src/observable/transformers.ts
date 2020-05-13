@@ -77,10 +77,10 @@ export namespace tf {
         return {
           indices: [] as number[],
           transform(lst: T[], old_val: T[] | o.NoValue) {
-            var indices: number[] = stable && o.isValue(old_val) ? this.indices : []
+            var indices: number[] = stable && old_val !== o.NoValue ? this.indices : []
 
             // If the filter is stable, then start adding values at the end if the array changed length
-            var start = stable && o.isValue(old_val) ? old_val.length : 0
+            var start = stable && old_val !== o.NoValue ? old_val.length : 0
 
             // this will only run if the old length is smaller than the new length.
             for (var i = start, l = lst.length; i < l; i++) {
