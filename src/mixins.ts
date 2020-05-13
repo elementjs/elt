@@ -143,7 +143,7 @@ export abstract class Mixin<N extends Node = Node> extends o.ObserverHolder {
    *
    * }
    *
-   * document.body.appendChild(E.$DIV(
+   * document.body.appendChild(E.DIV(
    *   'Click Me !',
    *   new MyMixin(),
    * ))

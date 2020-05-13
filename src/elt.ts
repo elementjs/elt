@@ -169,7 +169,7 @@ export type NRO<T> = o.RO<T | null | undefined>
  * import { Attrs } from 'elt'
  *
  * function MyComponent(a: Attrs<HTMLDivElement> & {some_attribute: string}, ch: DocumentFragment) {
- *   return E.$DIV(ch, a.some_attribute)
+ *   return E.DIV(ch, a.some_attribute)
  * }
  *
  * // With Attrs, all the basic elements are available.

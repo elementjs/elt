@@ -147,9 +147,9 @@ import { o, $bind } from 'elt'
 
 var o_contents = o('')
 document.body.appendChild(
-  E.$DIV(
-    E.$SPAN('span contents !'),
-    E.$INPUT($bind.string(o_contents)),
+  E.DIV(
+    E.SPAN('span contents !'),
+    E.INPUT($bind.string(o_contents)),
     o_contents
   )
 )
@@ -196,12 +196,12 @@ const o_txt = o('observable')
 const o_date = o(new Date())
 const date_format = new Intl.DateTimeFormat('fr')
 
-document.body.appendChild(E.$DIV(
-  E.$SPAN(o_txt),
+document.body.appendChild(E.DIV(
+  E.SPAN(o_txt),
   1234,
   ['hello', 'world', ['hows', 'it', 'going?']],
   null,
-  E.$DIV(o_date.tf(d => date_format.format(d)))
+  E.DIV(o_date.tf(d => date_format.format(d)))
 ))
 ```
 
@@ -259,7 +259,9 @@ Observables are the mechanism through which we achieve MVVM. They are not RxJS's
 
 Basically, an `Observable` holds a value. You can retrieve it with `.get()` or modify it with `.set()`.
 
-```jsx
+```tsx
+import { o } from 'elt'
+
 const o_bool = o(true)
 o_bool.get() // true
 o_bool.set(false)
@@ -270,7 +272,7 @@ o_bool.get() // false
 
 They can be transformed, and these transformations can be bidirectional.
 
-```jsx
+```tsx
 import { o, $click } from 'elt'
 
 const o_obj = o({a: 1, b: 'hello'})
@@ -304,7 +306,7 @@ document.body.appendChild(<div>
 
 The value in an observable is **immutable**. Whenever a modifying method is called, the object inside it is cloned.
 
-```jsx
+```tsx
 import { o } from 'elt'
 
 const o_obj = o({a: 1, b: 'b'})
@@ -359,10 +361,11 @@ If the observable is boolean, then the value of the attribute will be `''`.
 
 `class` can be a `o.RO<string>` or an object of class definitions, where the properties are the class name and their values the potentially observable condition that will determine if the class is attributed. On top of that, class can receive an array of the two former to build complex classes.
 
-```jsx
+```tsx
+import { o } from 'elt'
 const o_class = o('class2')
 const o_bool = o(true)
-<Elt class={['class1', o_class, {class3: o_bool}]}/>
+<div class={['class1', o_class, {class3: o_bool}]}/>
 // -> <div class='class1 class2 class3'/>
 
 // ... some later code runs the following :
@@ -387,7 +390,9 @@ They serve as the basis for the `Component` class below, and have a few convenie
 
 Aside from creating components with the `Component` class, their utility resides in the fact they allow a developper to write extensible classes and to encapsulate code neatly when the component has a complex and lengthy implementation.
 
-```jsx
+```tsx
+import { Mixin } from 'elt'
+
 // This mixin can be added on just any node.
 class MyMixin extends Mixin<Node> {
   inserted(node: Node) {
@@ -418,6 +423,8 @@ The first argument is always an [`Attrs`](#Attrs) type, with the returned node t
 The `attrs` argument represents what attributes can be set on the component. In simple cases, it is enough to give the arguments with the `&` operator.
 
 ```tsx
+import { Attrs, Renderable } from 'elt'
+
 function MyComponent(attrs: Attrs<HTMLDivElement> & {title: string}, children: Renderable[]) {
   return <div>
       <h1>{attrs.title}</h1>
@@ -426,14 +433,16 @@ function MyComponent(attrs: Attrs<HTMLDivElement> & {title: string}, children: R
     </div> as HTMLDivElement
 }
 
-<MyComponent title='Some title'>
+document.body.appendChild(<MyComponent title='Some title'>
   Content <span>that will be</span> appended.
-</MyComponent>
+</MyComponent>)
 ```
 
 If the attributes are complex, then it is advisable to define an interface.
 
 ```tsx
+import { Attrs } from 'elt'
+
 interface MyComponentAttrs extends Attrs<HTMLDivElement> {
   title: string
   more_content?: Renderable
@@ -454,9 +463,9 @@ By default, the attributes are accessible as `this.attrs` in the component metho
 class MyComponent extends Component<Attrs<HTMLDivElement> & {title: string}> {
 
   render(children: Renderable[]) {
-    return E.$DIV(
-      E.$H1(this.attrs.title),
-      E.$DIV($class('body'), children)
+    return E.DIV(
+      E.H1(this.attrs.title),
+      E.DIV($class('body'), children)
     )
   }
 
