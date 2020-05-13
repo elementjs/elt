@@ -24,12 +24,19 @@ export namespace o {
 export type BaseType<T> = T extends ReadonlyObservable<infer U> ? U : T
 
 /**
+ * A transform function for an observable where `nval` is the new current value of
+ * the **original** observable, `oval` is the old value of the **original** observable and `curval` is the current value of the
+ * **transformed** observable that is about to be replaced.
  */
-export type TransfomGetFn<A, B> = (nval: A, oval: A | NoValue, curval: B | NoValue) => B
+export type TransfomFn<A, B> = (nval: A, oval: A | NoValue, curval: B | NoValue) => B
 
 /**
+ * A transform function for a value from a *transformed* observable to convert it back to
+ * the original, where `nval` is the current value of the **transformed** observable,
+ * `oval` the previous value of the **transformed** observable and `curval` the current
+ * value of the **original** observable that is about to be changed.
  */
-export type TransfomSetFn<A, B> = (nval: B, oval: B | NoValue, curval: A) => A | NoValue
+export type RevertFn<A, B> = (nval: B, oval: B | NoValue, curval: A) => A | NoValue
 
 
 /**
@@ -41,7 +48,7 @@ export interface ReadonlyConverter<A, B> {
   /**
    * The transform function
    */
-  get: TransfomGetFn<A, B>
+  transform: TransfomFn<A, B>
 }
 
 /**
@@ -53,7 +60,7 @@ export interface Converter<A, B> extends ReadonlyConverter<A, B> {
    * The transform function to get the transformed value back to the original
    * observable.
    */
-  set: TransfomSetFn<A, B>
+  revert: RevertFn<A, B>
 }
 
 
@@ -210,7 +217,7 @@ export interface ReadonlyObservable<A> {
   removeObserver(ob: Observer<A>): void
 
   /** See [[o.Observable#tf]] */
-  tf<B>(fnget: RO<TransfomGetFn<A, B> | ReadonlyConverter<A, B>>): ReadonlyObservable<B>
+  tf<B>(transform: RO<TransfomFn<A, B> | ReadonlyConverter<A, B>>): ReadonlyObservable<B>
 
   /** See [[o.Observable#p]] */
   p<A>(this: ReadonlyObservable<A[]>, key: RO<number>, def?: RO<(key: number, obj: A[]) => A>): ReadonlyObservable<A>
@@ -574,23 +581,23 @@ export class Observable<A> implements ReadonlyObservable<A>, Indexable {
    * ```
    *
    */
-  tf<B>(fnget: RO<Converter<A, B>>): Observable<B>
-  tf<B>(fnget: RO<TransfomGetFn<A, B> | ReadonlyConverter<A, B>>): ReadonlyObservable<B>
-  tf<B>(fnget: RO<TransfomGetFn<A, B> | ReadonlyConverter<A, B>>): ReadonlyObservable<B> {
+  tf<B>(transform: RO<Converter<A, B>>): Observable<B>
+  tf<B>(transform: RO<TransfomFn<A, B> | ReadonlyConverter<A, B>>): ReadonlyObservable<B>
+  tf<B>(transform: RO<TransfomFn<A, B> | ReadonlyConverter<A, B>>): ReadonlyObservable<B> {
     var old: A | NoValue = NoValue
-    var old_fnget: any = NoValue
+    var old_transform: any = NoValue
     var curval: B | NoValue = NoValue
-    return combine([this, fnget] as [Observable<A>, RO<TransfomGetFn<A, B> | ReadonlyConverter<A, B>>],
+    return combine([this, transform] as [Observable<A>, RO<TransfomFn<A, B> | ReadonlyConverter<A, B>>],
       ([v, fnget]) => {
-        if (isValue(old) && isValue(old_fnget) && old === v && old_fnget === fnget && isValue(curval)) return curval
-        curval = (typeof fnget === 'function' ? fnget(v, old, curval) : fnget.get(v, old, curval))
+        if (isValue(old) && isValue(old_transform) && old === v && old_transform === fnget && isValue(curval)) return curval
+        curval = (typeof fnget === 'function' ? fnget(v, old, curval) : fnget.transform(v, old, curval))
         old = v
-        old_fnget = fnget
+        old_transform = fnget
         return curval
       },
       (newv, old, [curr, conv]) => {
         if (typeof conv === 'function') return tuple(NoValue, NoValue)
-        var new_orig = (conv as Converter<A, B>).set(newv, old, curr)
+        var new_orig = (conv as Converter<A, B>).revert(newv, old, curr)
         return tuple(new_orig, o.NoValue)
       }
     )
@@ -875,7 +882,7 @@ export function prop<T, K extends keyof T>(obj: Observable<T> | T, prop: RO<K>, 
    * Observable objects for values that were not.
    * @category observable, toc
    */
-  export function tf<A, B>(arg: RO<A>, fn: Converter<A, B> | TransfomGetFn<A, B>): RO<B> {
+  export function tf<A, B>(arg: RO<A>, fn: Converter<A, B> | TransfomFn<A, B>): RO<B> {
     if (arg instanceof Observable) {
       if (typeof fn === 'function') {
         return (arg as ReadonlyObservable<A>).tf(fn)
@@ -885,7 +892,7 @@ export function prop<T, K extends keyof T>(obj: Observable<T> | T, prop: RO<K>, 
       if (typeof fn === 'function')
         return fn(arg as A, NoValue, NoValue)
       else
-        return fn.get(arg as A, NoValue, NoValue)
+        return fn.transform(arg as A, NoValue, NoValue)
     }
   }
 

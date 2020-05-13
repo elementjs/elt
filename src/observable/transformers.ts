@@ -44,14 +44,14 @@ export namespace tf {
       fn => {
         return {
           indices: [] as number[],
-          get(list: T[]) {
+          transform(list: T[]) {
             if (Array.isArray(fn))
               this.indices = fn
             else
               this.indices = fn(list)
             return this.indices.map(i => list[i])
           },
-          set(newval, _, current) {
+          revert(newval, _, current) {
             var res = current.slice()
             for (var i = 0, idx = this.indices; i < idx.length; i++) {
               res[idx[i]] = newval[i]
@@ -76,7 +76,7 @@ export namespace tf {
       ([cond, stable]) => {
         return {
           indices: [] as number[],
-          get(lst: T[], old_val: T[] | o.NoValue) {
+          transform(lst: T[], old_val: T[] | o.NoValue) {
             var indices: number[] = stable && o.isValue(old_val) ? this.indices : []
 
             // If the filter is stable, then start adding values at the end if the array changed length
@@ -98,7 +98,7 @@ export namespace tf {
             this.indices = indices
             return indices.map(i => lst[i]) as T[]
           },
-          set(newval, _, current) {
+          revert(newval, _, current) {
             var res = current.slice()
             for (var i = 0, idx = this.indices; i < idx.length; i++) {
               res[idx[i]] = newval[i]
@@ -168,7 +168,7 @@ export namespace tf {
       return {
         length: 0 as number,
         indices: [] as number[][],
-        get(lst: T[]) {
+        transform(lst: T[]) {
           this.length = lst.length
           var m = new Map<R, number[]>()
           for (var i = 0, l = lst.length; i < l; i++) {
@@ -191,7 +191,7 @@ export namespace tf {
           }
           return res
         },
-        set(nval) {
+        revert(nval) {
           var res = new Array(this.length) as T[]
           var ind = this.indices
           for (var i = 0, li = ind.length; i < li; i++) {
@@ -213,7 +213,7 @@ export namespace tf {
    */
   export function entries<T extends object, K extends keyof T>(): o.Converter<T, [K, T[K]][]> {
     return {
-      get(item: T) {
+      transform(item: T) {
         var res = [] as [K, T[K]][]
         var keys = Object.keys(item) as K[]
         for (var i = 0, l = keys.length; i < l; i++) {
@@ -222,7 +222,7 @@ export namespace tf {
         }
         return res
       },
-      set(nval) {
+      revert(nval) {
         var nres = {} as T
         for (var i = 0, l = nval.length; i < l; i++) {
           var entry = nval[i]
@@ -239,10 +239,10 @@ export namespace tf {
    */
   export function map_entries<K, V>(): o.Converter<Map<K, V>, [K, V][]> {
     return {
-      get(item: Map<K, V>) {
+      transform(item: Map<K, V>) {
         return [...item.entries()]
       },
-      set(nval) {
+      revert(nval) {
         var nres = new Map<K, V>()
         for (var i = 0, l = nval.length; i < l; i++) {
           var entry = nval[i]
@@ -261,7 +261,7 @@ export namespace tf {
   export function set_has<T>(...values: o.RO<T>[]): o.RO<o.Converter<Set<T>, boolean>> {
     return o.combine(values, (values) => {
       return {
-        get(set) {
+        transform(set) {
           for (var i = 0; i < values.length; i++) {
             var item = values[i]
             if (!set.has(item))
@@ -269,7 +269,7 @@ export namespace tf {
           }
           return true
         },
-        set(newv, _, set) {
+        revert(newv, _, set) {
           const res = new Set(set)
           for (var i = 0; i < values.length; i++) {
             var item = values[i]
