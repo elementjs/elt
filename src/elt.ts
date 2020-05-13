@@ -11,6 +11,8 @@ import {
 } from './verbs'
 
 import {
+  ClassDefinition,
+  StyleDefinition,
   node_observe_class,
   node_observe_style,
   node_observe_attribute,
@@ -139,20 +141,6 @@ export interface EmptyAttributes<N extends Node> {
  * @category dom, toc
  */
 export type AttrsNodeType<At extends EmptyAttributes<any>> = At extends EmptyAttributes<infer N> ? N : never
-
-
-/**
- * CSS classes for the class={} attribute
- */
-export type ClassDefinition = {[name: string]: o.RO<any>} | o.RO<string>
-
-
-/**
- * CSS Style attribute definition for the style={} attribute
- */
-export type StyleDefinition =
-  o.RO<Partial<CSSStyleDeclaration>>
-  | o.ROProps<Partial<CSSStyleDeclaration>>
 
 
 /**
