@@ -48,8 +48,9 @@ export interface Converter<A, B> extends ReadonlyConverter<A, B> {
 
 
 /**
+ * Transforms the type to make its values [[o.RO]]
  */
-export type MaybeObservableReadonlyObject<T> = { [P in keyof T]:  RO<T[P]>}
+export type ROProps<T> = { [P in keyof T]:  RO<T[P]>}
 
 
 /**
@@ -57,8 +58,11 @@ export type MaybeObservableReadonlyObject<T> = { [P in keyof T]:  RO<T[P]>}
  *
  * Used in Observers and combined observables to know when a value has been set for the first time.
  */
-export const NOVALUE = Symbol('NOVALUE')
-export type NoValue = typeof NOVALUE
+export const NoValue = Symbol('NoValue')
+/**
+ * The type associated to NoValue
+ */
+export type NoValue = typeof NoValue
 
 export function isReadonlyObservable(_: any): _ is ReadonlyObservable<any> {
   return _ instanceof Observable
@@ -69,7 +73,7 @@ export function isReadonlyObservable(_: any): _ is ReadonlyObservable<any> {
  * @category observable, toc
  */
 export class Changes<A> {
-  constructor(protected n: A, protected o: A | NoValue = NOVALUE) {
+  constructor(protected n: A, protected o: A | NoValue = NoValue) {
 
   }
 
@@ -82,7 +86,7 @@ export class Changes<A> {
   changed(...ex: ((a: A) => any)[]) {
     const old = this.o
     const n = this.n
-    if (old === NOVALUE) return true
+    if (old === NoValue) return true
 
     if (ex.length > 0) {
       for (var e of ex) {
@@ -104,7 +108,7 @@ export class Changes<A> {
     const old = this.o
     const n = this.n
 
-    if (old === NOVALUE) return false
+    if (old === NoValue) return false
 
     if (ex.length > 0) {
       for (var e of ex) {
@@ -120,11 +124,11 @@ export class Changes<A> {
   }
 
   hasOldValue() {
-    return this.o !== NOVALUE
+    return this.o !== NoValue
   }
 
   oldValue(def?: A) {
-    if (this.o === NOVALUE) {
+    if (this.o === NoValue) {
       if (arguments.length === 0)
         throw new Error('there is no old value')
       return def!
@@ -140,7 +144,7 @@ export class Changes<A> {
  */
 export class Observer<A> implements Indexable {
 
-  protected old_value: A | NoValue = NOVALUE
+  protected old_value: A | NoValue = NoValue
   idx = null
   fn: Observer.Callback<any>
 
@@ -331,6 +335,7 @@ export function transaction(fn: () => void) {
 }
 
 
+/** @internal */
 export class ChildObservableLink implements Indexable {
   idx = null
 
@@ -542,9 +547,9 @@ export class Observable<A> implements ReadonlyObservable<A>, Indexable {
   tf<B>(fnget: RO<Converter<A, B>>): Observable<B>
   tf<B>(fnget: RO<TransfomGetFn<A, B> | ReadonlyConverter<A, B>>): ReadonlyObservable<B>
   tf<B>(fnget: RO<TransfomGetFn<A, B> | ReadonlyConverter<A, B>>): ReadonlyObservable<B> {
-    var old: A | NoValue = NOVALUE
-    var old_fnget: any = NOVALUE
-    var curval: B | NoValue = NOVALUE
+    var old: A | NoValue = NoValue
+    var old_fnget: any = NoValue
+    var curval: B | NoValue = NoValue
     return combine([this, fnget] as [Observable<A>, RO<TransfomGetFn<A, B> | ReadonlyConverter<A, B>>],
       ([v, fnget]) => {
         if (isValue(old) && isValue(old_fnget) && old === v && old_fnget === fnget && isValue(curval)) return curval
@@ -554,9 +559,9 @@ export class Observable<A> implements ReadonlyObservable<A>, Indexable {
         return curval
       },
       (newv, old, [curr, conv]) => {
-        if (typeof conv === 'function') return tuple(NOVALUE, NOVALUE)
+        if (typeof conv === 'function') return tuple(NoValue, NoValue)
         var new_orig = (conv as Converter<A, B>).set(newv, old, curr)
-        return tuple(new_orig, o.NOVALUE)
+        return tuple(new_orig, o.NoValue)
       }
     )
   }
@@ -604,7 +609,7 @@ export class Observable<A> implements ReadonlyObservable<A>, Indexable {
         // Is this correct ? should I **delete** when I encounter undefined ?
         if (ret !== undefined || !delete_on_undefined) result.set(okey, ret!)
         else result.delete(okey)
-        return tuple(result, NOVALUE, NOVALUE, NOVALUE)
+        return tuple(result, NoValue, NoValue, NoValue)
       }
     )
   }
@@ -627,7 +632,7 @@ export class CombinedObservable<A extends any[], T = A> extends Observable<T> {
   _parents_values: A = [] as any
 
   constructor(deps: {[K in keyof A]: RO<A[K]>}) {
-    super(NOVALUE as any)
+    super(NoValue as any)
     this.dependsOn(deps)
   }
 
@@ -673,7 +678,7 @@ export class CombinedObservable<A extends any[], T = A> extends Observable<T> {
 
   get() {
     if (!this._watched) {
-      if (this.refreshParentValues() || this._value === NOVALUE as any) {
+      if (this.refreshParentValues() || this._value === NoValue as any) {
         this._value = this.getter(this._parents_values)
       }
     }
@@ -692,7 +697,7 @@ export class CombinedObservable<A extends any[], T = A> extends Observable<T> {
     for (var i = 0, l = this._links, len = l.length; i < len; i++) {
       var link = l[i]
       var newval = res[link.child_idx]
-      if (newval !== NOVALUE && newval !== link.parent._value) {
+      if (newval !== NoValue && newval !== link.parent._value) {
         link.parent.set(newval)
       }
     }
@@ -817,7 +822,7 @@ export function prop<T, K extends keyof T>(obj: Observable<T> | T, prop: RO<K>, 
     (nval, _, [orig, prop]) => {
       const newo = o.clone(orig)
       newo[prop] = nval
-      return tuple(newo, NOVALUE, NOVALUE)
+      return tuple(newo, NoValue, NoValue)
     }
   )
 }
@@ -846,9 +851,9 @@ export function prop<T, K extends keyof T>(obj: Observable<T> | T, prop: RO<K>, 
         return (arg as ReadonlyObservable<A>).tf(fn)
     } else {
       if (typeof fn === 'function')
-        return fn(arg as A, NOVALUE, NOVALUE)
+        return fn(arg as A, NoValue, NoValue)
       else
-        return fn.get(arg as A, NOVALUE, NOVALUE)
+        return fn.get(arg as A, NoValue, NoValue)
     }
   }
 
@@ -904,9 +909,6 @@ export function prop<T, K extends keyof T>(obj: Observable<T> | T, prop: RO<K>, 
       }
     )
   }
-
-  export type NonReadonly<T> = T extends ReadonlyObservable<any> ? never : T
-
 
   /**
    * Merges several MaybeObservables into a single Observable in an array.
@@ -1063,20 +1065,35 @@ export function prop<T, K extends keyof T>(obj: Observable<T> | T, prop: RO<K>, 
     }
   }
 
-  export const clone_symbol = Symbol('o.clone_symbol')
+  /**
+   * Setup a function that takes no argument and returns a new value
+   * when cloning should be performed differently than just using `Object.create` and
+   * copying properties.
+   *
+   * ```jsx
+   * class MyType {
+   *   [o.sym_clone]() {
+   *     return new MyType() // or just anything that returns a clone
+   *   }
+   * }
+   * ```
+   *
+   * @category observable
+   */
+  export const sym_clone = Symbol('o.clone_symbol')
 
   /**
    * @category observable, toc
    */
   export function isNoValue<T>(t: T | NoValue): t is NoValue {
-    return t === NOVALUE
+    return t === NoValue
   }
 
   /**
    * @category observable, toc
    */
   export function isValue<T>(t: T | NoValue): t is T {
-    return t !== NOVALUE
+    return t !== NoValue
   }
 
   /**
@@ -1113,15 +1130,15 @@ export function prop<T, K extends keyof T>(obj: Observable<T> | T, prop: RO<K>, 
    * @returns a new instance of the passed object.
    * @category observable, toc
    */
-  export function clone<T>(obj: T): T
+  export function clone<T>(obj: T | {[o.sym_clone]: () => T}): T
   export function clone(obj: any): any {
     if (obj == null || typeof obj === 'number' || typeof obj === 'string' || typeof obj === 'boolean')
       return obj
     var clone: any
     var key: number | string
 
-    if (obj[clone_symbol]) {
-      return obj[clone_symbol]()
+    if (obj[sym_clone]) {
+      return obj[sym_clone]()
     }
 
     if (Array.isArray(obj)) {
@@ -1203,6 +1220,7 @@ export function prop<T, K extends keyof T>(obj: Observable<T> | T, prop: RO<K>, 
     /** @internal */
     _observers: o.Observer<any>[] = []
 
+    /** @internal */
     _callback_queue?: (() => void)[] = undefined
 
     /**

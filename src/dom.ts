@@ -2,6 +2,9 @@ import { o } from './observable'
 import { StyleDefinition, ClassDefinition } from './elt'
 import { Mixin } from './mixins'
 
+/**
+ * Used with [[$on]] or [[Mixin#on]]
+ */
 export type Listener<EventType extends Event, N extends Node = Node> = (ev: EventType & { currentTarget: N }) => any
 
 /**
@@ -494,6 +497,17 @@ export function node_observe<T>(node: Node, obs: o.RO<T>, obsfn: o.Observer.Call
   return obser
 }
 
+
+/**
+ * Associate an `observer` to a `node`. If the `node` is in the document, then
+ * the `observer` is called as its [[o.Observable]] changes.
+ *
+ * If `node` is removed from the dom, then `observer` is disconnected from
+ * its [[o.Observable]]. This helps in preventing memory leaks for those variables
+ * that `observer` may close on.
+ *
+ * @category low level dom, toc
+ */
 export function node_add_observer<T>(node: Node, observer: o.Observer<T>) {
   if (node[sym_observers] == undefined)
     node[sym_observers] = []

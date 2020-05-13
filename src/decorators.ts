@@ -23,6 +23,20 @@ import {
   Renderable, ClassDefinition, StyleDefinition
 } from './elt'
 
+/**
+ * Definition of the Decorator type, or functions that can be passed directly
+ * as a component's child.
+ *
+ * If the decorator returns nothing, `null` or `undefined`, then nothing is inserted.
+ *
+ * If it returns a [[Renderable]], then it is appended to `node` where the decorator was called.
+ *
+ * If the result is a decorator, then it is reexecuted on the `node`.
+ *
+ * If the result is a [[Mixin]], then it is associated to the `node`.
+ *
+ * @category dom
+ */
 export type Decorator<N extends Node> = (node: N) => void | Renderable | Decorator<N> | Mixin<N>
 
 
