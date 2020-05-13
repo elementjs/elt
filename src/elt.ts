@@ -7,10 +7,6 @@ import {
 } from './mixins'
 
 import {
-  Display
-} from './verbs'
-
-import {
   ClassDefinition,
   StyleDefinition,
   node_observe_class,
@@ -18,6 +14,7 @@ import {
   node_observe_attribute,
   insert_before_and_init,
   append_child_and_init,
+  node_remove_after
 } from './dom'
 
 
@@ -82,6 +79,97 @@ const NS = {
   use: SVG,
   view: SVG,
 } as {[name: string]: string}
+
+
+
+var cmt_count = 0
+/**
+ * A [[Mixin]] made to store nodes between two comments.
+ *
+ * Can be used as a base to build verbs more easily.
+ * @category dom, toc
+ */
+export class CommentContainer extends Mixin<Comment> {
+
+  /** The Comment marking the end of the node handled by this Mixin */
+  end = document.createComment(`-- ${this.constructor.name} ${cmt_count ++} --`)
+
+  /** @internal */
+  init(node: Comment) {
+    node.parentNode!.insertBefore(this.end, node.nextSibling)
+  }
+
+  /**
+   * Remove all nodes between this.start and this.node
+   */
+  clear() {
+    if (this.end.previousSibling !== this.node)
+      node_remove_after(this.node, this.end.previousSibling!)
+  }
+
+  /**
+   * Update the contents between `this.node` and `this.end` with `cts`. `cts` may be
+   * a `DocumentFragment`.
+   */
+  setContents(cts: Node | null) {
+    this.clear()
+
+    // Insert the new comment before the end
+    if (cts) insert_before_and_init(this.node.parentNode!, cts, this.end)
+  }
+}
+
+
+
+/**
+ * Displays and actualises the content of an Observable containing
+ * Node, string or number into the DOM.
+ *
+ * This is the class that is used whenever an observable is used as
+ * a child.
+ */
+export class Displayer extends CommentContainer {
+
+  /**
+   * The `Displayer` expects `Renderable` values.
+   */
+  constructor(public _obs: o.RO<Renderable>) {
+    super()
+  }
+
+  /** @internal */
+  init(node: Comment) {
+    super.init(node)
+    this.observe(this._obs, value => this.setContents(e.renderable_to_node(value)))
+  }
+
+}
+
+
+/**
+ * Write and update the string value of an observable value into
+ * a Text node.
+ *
+ * This verb is used whenever an observable is passed as a child to a node.
+ *
+ * ```tsx
+ * import { o, $Display, Fragment as $ } from 'elt'
+ *
+ * const o_text = o('text')
+ * document.body.appendChild(<$>
+ *   {o_text} is the same as {$Display(o_text)}
+ * </$>)
+ * ```
+ *
+ * @category low level dom, toc
+ */
+export function Display(obs: o.RO<Renderable>): Node {
+  if (!(obs instanceof o.Observable)) {
+    return e.renderable_to_node(obs as Renderable, true)
+  }
+
+  return e(document.createComment('$Display'), new Displayer(obs))
+}
 
 
 function isComponent(kls: any): kls is new (attrs: Attrs<any>) => Component<any> {

@@ -1,7 +1,6 @@
 
-import { Display } from './verbs'
 import { Mixin, node_add_mixin } from './mixins'
-import { Renderable } from './elt'
+import { Renderable, Display } from './elt'
 import { o } from './observable'
 
 /**
