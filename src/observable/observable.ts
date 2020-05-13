@@ -69,77 +69,6 @@ export function isReadonlyObservable(_: any): _ is ReadonlyObservable<any> {
 }
 
 /**
- * A helper class to deal with changes from an old `#o.Observable` value to a new one.
- * @category observable, toc
- */
-export class Changes<A> {
-  constructor(protected n: A, protected o: A | NoValue = NoValue) {
-
-  }
-
-  /**
-   * Return true if the object changed compared to its previous value.
-   * If there was no previous value, return true
-   *
-   *  changes, the function will return true.
-   */
-  changed(...ex: ((a: A) => any)[]) {
-    const old = this.o
-    const n = this.n
-    if (old === NoValue) return true
-
-    if (ex.length > 0) {
-      for (var e of ex) {
-        if (e(n) !== e(old as A)) return true
-      }
-      return false
-    }
-
-    return true
-  }
-
-  /**
-   * Does the same as changed, except that if there was no previous value,
-   * return false.
-   *
-   *  undefined, it means that there was no previous value.
-   */
-  updated(...ex: ((a: A) => any)[]) {
-    const old = this.o
-    const n = this.n
-
-    if (old === NoValue) return false
-
-    if (ex.length > 0) {
-      for (var e of ex) {
-        const _o = e(old as A)
-        // we have an update only if there was an old value different
-        // from our current value that was not undefined.
-        if (_o !== undefined && e(n) !== _o) return true
-      }
-      return false
-    }
-
-    return old !== n
-  }
-
-  hasOldValue() {
-    return this.o !== NoValue
-  }
-
-  oldValue(def?: A) {
-    if (this.o === NoValue) {
-      if (arguments.length === 0)
-        throw new Error('there is no old value')
-      return def!
-    }
-    return this.o as A
-  }
-
-}
-
-
-/**
  * @category observable, toc
  */
 export class Observer<A> implements Indexable {
@@ -160,7 +89,7 @@ export class Observer<A> implements Indexable {
       // only store the old_value if the observer will need it. Useful to not keep
       // useless references in memory.
       this.old_value = new_value
-      this.fn(new_value, new Changes(new_value, old))
+      this.fn(new_value, old)
     }
   }
 
@@ -187,7 +116,7 @@ export class Observer<A> implements Indexable {
 export namespace Observer {
   /**
    */
-  export type Callback<T> = (newval: T, changes: Changes<T>) => void
+  export type Callback<T> = (newval: T, changes: T | NoValue) => void
 
 }
 
@@ -1258,9 +1187,9 @@ export function prop<T, K extends keyof T>(obj: Observable<T> | T, prop: RO<K>, 
     observe<A>(obs: RO<A>, fn: Observer.Callback<A>, observer_callback?: (observer: Observer<A>) => any): Observer<A> | null {
       if (!(obs instanceof Observable)) {
         if (this.is_observing)
-          fn(obs as A, new Changes(obs as A))
+          fn(obs as A, NoValue)
         else
-          (this._callback_queue = this._callback_queue ?? []).push(() => fn(obs as A, new Changes(obs as A)))
+          (this._callback_queue = this._callback_queue ?? []).push(() => fn(obs as A, NoValue))
         return null
       }
 
