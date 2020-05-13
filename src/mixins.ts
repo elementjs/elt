@@ -149,10 +149,10 @@ export abstract class Mixin<N extends Node = Node> extends o.ObserverHolder {
    * ))
    * ```
    */
-  listen<K extends (keyof DocumentEventMap)[]>(name: K, listener: Listener<DocumentEventMap[K[number]], N>, useCapture?: boolean): void
-  listen<K extends keyof DocumentEventMap>(name: K, listener: Listener<DocumentEventMap[K], N>, useCapture?: boolean): void
-  listen(name: string | string[], listener: Listener<Event, N>, useCapture?: boolean): void
-  listen(name: string | string[], listener: Listener<Event, any>, useCapture?: boolean) {
+  on<K extends (keyof DocumentEventMap)[]>(name: K, listener: Listener<DocumentEventMap[K[number]], N>, useCapture?: boolean): void
+  on<K extends keyof DocumentEventMap>(name: K, listener: Listener<DocumentEventMap[K], N>, useCapture?: boolean): void
+  on(name: string | string[], listener: Listener<Event, N>, useCapture?: boolean): void
+  on(name: string | string[], listener: Listener<Event, any>, useCapture?: boolean) {
     if (typeof name === 'string')
       this.node.addEventListener(name, (ev) => listener(ev), useCapture)
     else
@@ -169,12 +169,25 @@ export abstract class Mixin<N extends Node = Node> extends o.ObserverHolder {
  *
  * It is just a Mixin that has a `render()` method and that defines the `attrs`
  * property which will restrict what attributes the component can be created with.
- * All attributes must extend the base `Attrs` class.
+ *
+ * All attributes **must** extend the base `Attrs` class.
  * @category dom, toc
  */
 export abstract class Component<A extends EmptyAttributes<any> = Attrs<HTMLElement>> extends Mixin<AttrsNodeType<A>> {
-  // attrs: Attrs
-  constructor(public attrs: A) { super() }
+  /**
+   * The attributes passed to the component
+   */
+  attrs: A
+
+  /** @internal */
+  constructor(attrs: A) {
+    super()
+    this.attrs = attrs
+  }
+
+  /**
+   * The render function that has to be defined by Components
+   */
   abstract render(children: Renderable[]): AttrsNodeType<A>
 }
 

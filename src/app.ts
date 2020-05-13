@@ -270,11 +270,11 @@ export class App extends Mixin<Comment>{
    * Display an App that depends on this one, displaying `view_name` as its main view
    * and activating the service classes passed in `services`.
    *
-   * Services in the child app that require other services will query this app if their app
-   * does not have the service defined and use it if found. Otherwise, they will instanciate
-   * their own version.
+   * Services in the child app that require other services will query the parent [[App]] first. If the
+   * parent does not have the service, then the child app is queried. If the service does not exist, the
+   * child app instanciates its own version.
    *
-   * Activated services in a child app are instanciated even if they already exist
+   * Activated services through `this.app.activate` in a child app are instanciated even if they already exist
    * in the parent app.
    *
    * ```tsx

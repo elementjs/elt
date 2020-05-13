@@ -119,6 +119,10 @@ export type Insertable<N extends Node> = Mixin<N> | Decorator<N> | Renderable | 
  * Attributes used on elements that are not actually HTML Elements
  */
 export interface EmptyAttributes<N extends Node> {
+  /**
+   * This attribute is the one used by TSX to validate what can be inserted
+   * as a child in a TSX expression.
+   */
   $$children?: o.RO<Insertable<N>> | o.RO<Insertable<N>>[]
 }
 
@@ -148,7 +152,7 @@ export type ClassDefinition = {[name: string]: o.RO<any>} | o.RO<string>
  */
 export type StyleDefinition =
   o.RO<Partial<CSSStyleDeclaration>>
-  | o.MaybeObservableReadonlyObject<Partial<CSSStyleDeclaration>>
+  | o.ROProps<Partial<CSSStyleDeclaration>>
 
 
 /**

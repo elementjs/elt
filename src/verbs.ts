@@ -17,17 +17,19 @@ import {
 } from './dom'
 
 
+var cmt_count = 0
 /**
- * A subclass of `#Verb` made to store nodes between two comments.
+ * A [[Mixin]] made to store nodes between two comments.
  *
  * Can be used as a base to build verbs more easily.
  * @category dom, toc
  */
-var cmt_count = 0
 export class CommentContainer extends Mixin<Comment> {
 
+  /** The Comment marking the end of the node handled by this Mixin */
   end = document.createComment(`-- ${this.constructor.name} ${cmt_count ++} --`)
 
+  /** @internal */
   init(node: Comment) {
     node.parentNode!.insertBefore(this.end, node.nextSibling)
   }
@@ -40,6 +42,10 @@ export class CommentContainer extends Mixin<Comment> {
       node_remove_after(this.node, this.end.previousSibling!)
   }
 
+  /**
+   * Update the contents between `this.node` and `this.end` with `cts`. `cts` may be
+   * a `DocumentFragment`.
+   */
   setContents(cts: Node | null) {
     this.clear()
 
@@ -53,13 +59,20 @@ export class CommentContainer extends Mixin<Comment> {
 /**
  * Displays and actualises the content of an Observable containing
  * Node, string or number into the DOM.
+ *
+ * This is the class that is used whenever an observable is used as
+ * a child.
  */
 export class Displayer extends CommentContainer {
 
+  /**
+   * The `Displayer` expects `Renderable` values.
+   */
   constructor(public _obs: o.RO<Renderable>) {
     super()
   }
 
+  /** @internal */
   init(node: Comment) {
     super.init(node)
     this.observe(this._obs, value => this.setContents(e.renderable_to_node(value)))
@@ -192,7 +205,7 @@ export namespace If {
       protected display_otherwise?: (arg: T) => Renderable
     ) {
       super(condition.tf((cond, old, v) => {
-        if (old !== o.NOVALUE && !!cond === !!old && v !== o.NOVALUE) return v as Renderable
+        if (old !== o.NoValue && !!cond === !!old && v !== o.NoValue) return v as Renderable
         if (cond) {
           return display(condition as NonNullableRO<T>)
         } else if (display_otherwise) {
@@ -409,9 +422,22 @@ export function RepeatScroll<T extends o.RO<any[]>>(
 
 export namespace RepeatScroll {
 
-  export type Options = {
+  /**
+   * Options to [[RepeatScroll]]
+   */
+  export interface Options {
+    /**
+     * The separator to insert between all rendering of repeated elements
+     */
     separator?: (n: number) => Renderable
+    /**
+     * The number of elements to generate at the same time between `requestAnimationFrame` calls.
+     */
     scroll_buffer_size?: number
+    /**
+     * The number of pixels before the end of the container at which RepeatScroll should start
+     * generating new elements as the user scrolls.
+     */
     threshold_height?: number
   }
 
