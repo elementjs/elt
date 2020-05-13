@@ -589,7 +589,7 @@ export class Observable<A> implements ReadonlyObservable<A>, Indexable {
     var curval: B | NoValue = NoValue
     return combine([this, transform] as [Observable<A>, RO<TransfomFn<A, B> | ReadonlyConverter<A, B>>],
       ([v, fnget]) => {
-        if (isValue(old) && isValue(old_transform) && old === v && old_transform === fnget && isValue(curval)) return curval
+        if (old !== NoValue && old_transform !== NoValue && curval !== NoValue && old === v && old_transform === fnget) return curval
         curval = (typeof fnget === 'function' ? fnget(v, old, curval) : fnget.transform(v, old, curval))
         old = v
         old_transform = fnget
@@ -978,6 +978,20 @@ export function prop<T, K extends keyof T>(obj: Observable<T> | T, prop: RO<K>, 
    * object is returned instead. This behaviour is intented to avoid triggering
    * observers when not needed.
    *
+   * > **Note**: the immer library is much nicer when dealing with complex mutations
+   * > than this attempt at doing bulk modifications which is not elegant.
+   * > It is very probable that it will either be removed from elt or replaced by something
+   * > a little more elegant.
+   * > Try [[o.transaction]] for a different approach for grouped notifications.
+   *
+   * ```tsx
+   *  import { o } from 'elt'
+   *  const o_obj = o({a: 1, b: [2, 3]})
+   *  o_obj.assign({a: 2})
+   *  o_obj.assign({b: [3, 4]}) // the array is changed
+   *  o_obj.assign({b: {0: 4}}) // only the object at index 0 is changed
+   * ```
+   *
    * @returns a new instance of the object if the mutator would change it
    * @category observable, toc
    */
@@ -1006,6 +1020,10 @@ export function prop<T, K extends keyof T>(obj: Observable<T> | T, prop: RO<K>, 
   }
 
   export namespace assign {
+
+    /**
+     * Type for [[o.assign]] arguments.
+     */
     export type AssignPartial<T> = {
       // Definition that I would like :
       [P in keyof T]?:
@@ -1146,19 +1164,6 @@ export function prop<T, K extends keyof T>(obj: Observable<T> | T, prop: RO<K>, 
    */
   export const sym_clone = Symbol('o.clone_symbol')
 
-  /**
-   * @category observable, toc
-   */
-  export function isNoValue<T>(t: T | NoValue): t is NoValue {
-    return t === NoValue
-  }
-
-  /**
-   * @category observable, toc
-   */
-  export function isValue<T>(t: T | NoValue): t is T {
-    return t !== NoValue
-  }
 
   /**
    * Returns its arguments as an array but typed as a tuple from Typescript's point of view.
