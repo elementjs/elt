@@ -1113,10 +1113,6 @@ export function prop<T, K extends keyof T>(obj: Observable<T> | T, prop: RO<K>, 
     return t
   }
 
-  export function object<T>(t: T) {
-    return t
-  }
-
   /**
    * Shallow clone an object. If you want to perform deep operations, use assign instead.
    * Not all types are safely cloned.
