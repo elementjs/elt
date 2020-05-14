@@ -24,15 +24,20 @@ export namespace o {
 export type ObservedType<T> = T extends ReadonlyObservable<infer U> ? U : T
 
 /**
- * A transform function for an observable where `nval` is the new current value of
+ * Signature of the transform functions that transform an observable of a given type
+ * to another observable of another type.
+ *
+ * `nval` is the new current value of
  * the **original** observable, `oval` is the old value of the **original** observable and `curval` is the current value of the
  * **transformed** observable that is about to be replaced.
  */
 export type TransfomFn<A, B> = (nval: A, oval: A | NoValue, curval: B | NoValue) => B
 
 /**
- * A transform function for a value from a *transformed* observable to convert it back to
- * the original, where `nval` is the current value of the **transformed** observable,
+ * Signature of the function that reverts a value from a transformed observable
+ * back to the original observable.
+ *
+ * `nval` is the current value of the **transformed** observable,
  * `oval` the previous value of the **transformed** observable and `curval` the current
  * value of the **original** observable that is about to be changed.
  */
