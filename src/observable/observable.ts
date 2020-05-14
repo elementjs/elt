@@ -9,7 +9,7 @@ import { EACH, IndexableArray, Indexable } from './indexable'
 export function o<T>(arg: T): [T] extends [o.Observable<any>] ? T :
     // when there is a mix of different observables, then we have a readonlyobservable of the combination of the types
     [true] extends [T extends o.ReadonlyObservable<any> ? true : never] ?
-      o.ReadonlyObservable<o.BaseType<T>>
+      o.ReadonlyObservable<o.ObservedType<T>>
       // if there were NO observables involved, then we obtain just a modifiable observable of the provided types.
   : o.Observable<T> {
   return arg instanceof o.Observable ? arg as any : new o.Observable(arg)
@@ -21,7 +21,7 @@ export namespace o {
  * Get the type of the element of an observable. Works on `#o.RO` as well.
  * @category observable, toc
  */
-export type BaseType<T> = T extends ReadonlyObservable<infer U> ? U : T
+export type ObservedType<T> = T extends ReadonlyObservable<infer U> ? U : T
 
 /**
  * A transform function for an observable where `nval` is the new current value of
