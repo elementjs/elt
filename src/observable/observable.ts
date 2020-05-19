@@ -1285,6 +1285,37 @@ export function prop<T, K extends keyof T>(obj: Observable<T> | T, prop: RO<K>, 
   }
 
   /**
+   * Transforms an observable that holds a promise to a read only observable
+   * that updates its value when the promise has resolved.
+   *
+   * If the promise changes while waiting for its result, then the previous promise
+   * is ignored.
+   *
+   * The resulting observable only listens to the promise changes if it's being observed.
+   *
+   * Since Promises don't have an initial value, the resulting observable may contain
+   */
+  export function tfpromise<T>(obs: o.RO<Promise<T>>, def: () => T): o.ReadonlyObservable<T> {
+    var last_promise: Promise<T>
+    var last_result = def()
+
+    var res = new CombinedObservable<[Promise<T>], T>([o(obs)])
+    res.getter = ([pro]) => {
+      if (last_promise === pro) return last_result
+      last_promise = pro
+      pro.then(val => {
+        if (last_promise !== pro) return
+        last_result = val
+        queue.schedule(res)
+      })
+      return last_result
+    }
+    res.setter = undefined!
+
+    return res
+  }
+
+  /**
    * Returns a function that accepts a callback. While this callback is running, all subsequent
    * calls to the created lock become no-op.
    *
