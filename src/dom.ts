@@ -221,6 +221,8 @@ function _apply_inserted(node: Node) {
 
   var st = node[sym_mount_status] || 0
 
+  node[sym_mount_status] = NODE_IS_INITED | NODE_IS_INSERTED | NODE_IS_OBSERVING // now inserted
+
   // init if it was not done
   if (!(st & NODE_IS_INITED)) _node_call_cbks(node, sym_init)
 
@@ -229,8 +231,6 @@ function _apply_inserted(node: Node) {
 
   // then, call inserted.
   if (!(st & NODE_IS_INSERTED)) _node_call_cbks(node, sym_inserted)
-
-  node[sym_mount_status] = NODE_IS_INITED | NODE_IS_INSERTED | NODE_IS_OBSERVING // now inserted
 }
 
 
@@ -277,17 +277,15 @@ export function node_do_inserted(node: Node) {
 function _apply_removed(node: Node, prev_parent: Node) {
   var st = node[sym_mount_status]
 
+  node[sym_mount_status] = st ^ NODE_IS_OBSERVING ^ NODE_IS_INSERTED
+
   if (st & NODE_IS_OBSERVING) {
     _node_stop_observers(node)
-    st = st ^ NODE_IS_OBSERVING
   }
 
   if (st & NODE_IS_INSERTED) {
     _node_call_cbks(node, sym_removed)
-    st = st ^ NODE_IS_INSERTED
   }
-
-  node[sym_mount_status] = st
 }
 
 /**
