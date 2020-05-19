@@ -389,8 +389,11 @@ export namespace App {
       super()
     }
 
-    /** @internal */
-    private _service_init_promise = null as null | Promise<void>
+    /**
+     * A promise that is resolved once the service's `init()` has been called.
+     * Used
+     */
+    init_promise = null as null | Promise<void>
 
     /** @internal */
     _requirements = new Set<Service>()
@@ -400,18 +403,18 @@ export namespace App {
      * @internal
      */
     async _init(): Promise<void> {
-      if (this._service_init_promise) {
-        await this._service_init_promise
+      if (this.init_promise) {
+        await this.init_promise
         return
       }
 
       // This is where we wait for all the required services to end their init.
       // Now we can init.
-      this._service_init_promise = Promise.all(
+      this.init_promise = Promise.all(
         [...this._requirements].map(b => b._init())
       ).then(() => this.init())
 
-      await this._service_init_promise
+      await this.init_promise
       this.startObservers()
     }
 
