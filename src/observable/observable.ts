@@ -1285,15 +1285,14 @@ export function prop<T, K extends keyof T>(obj: Observable<T> | T, prop: RO<K>, 
   }
 
   /**
-   * Transforms an observable that holds a promise to a read only observable
-   * that updates its value when the promise has resolved.
+   * Transforms `obs`, an observable that holds a promise to a read only observable
+   * that updates its value when the promise has resolved. Since the first time around
+   * there is no value, the `def` callback is called to make sure there is.
    *
    * If the promise changes while waiting for its result, then the previous promise
    * is ignored.
    *
    * The resulting observable only listens to the promise changes if it's being observed.
-   *
-   * Since Promises don't have an initial value, the resulting observable may contain
    */
   export function tfpromise<T>(obs: o.RO<Promise<T>>, def: () => T): o.ReadonlyObservable<T> {
     var last_promise: Promise<T>
