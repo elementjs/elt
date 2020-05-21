@@ -185,7 +185,7 @@ var _decorator_map = new WeakMap<Function, Comment>()
  * to define what can go between `{ curly braces }` in JSX code.
  * @category dom, toc
  */
-export type Renderable = o.RO<string | number | Node | null | undefined | Component<EmptyAttributes<any>> | Renderable[]>
+export type Renderable = o.RO<string | number | Node | null | undefined | {[e.sym_render](): Node} | Renderable[]>
 
 /**
  * @category dom, toc
@@ -386,6 +386,11 @@ import { Decorator } from './decorators'
 
 export namespace e {
 
+  export const sym_render = Symbol('renderable')
+
+  export function is_renderable_object(c: any): c is {[sym_render](): Node} {
+    return c && c[sym_render]
+  }
 
   /**
    * Separates decorators and mixins from nodes or soon-to-be-nodes from children.
@@ -399,7 +404,7 @@ export namespace e {
       if (c == null) continue
       if (Array.isArray(c)) {
         separate_children_from_rest(c, attrs, decorators, mixins, chld)
-      } else if (c instanceof Node || typeof c === 'string' || typeof c === 'number' || o.isReadonlyObservable(c) || c instanceof Component) {
+      } else if (c instanceof Node || typeof c === 'string' || typeof c === 'number' || o.isReadonlyObservable(c) || is_renderable_object(c)) {
         chld.push(c)
       } else if (typeof c === 'function') {
         var cmt = document.createComment('decorator ' + c.name)
@@ -434,8 +439,8 @@ export namespace e {
         if (r2) df.appendChild(r2)
       }
       return df
-    } else if (r instanceof Component) {
-      return r.render([])
+    } else if (is_renderable_object(r)) {
+      return r[e.sym_render]()
     } else {
       return r
     }
