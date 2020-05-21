@@ -370,7 +370,8 @@ export namespace RepeatScroll {
 
     scroll_buffer_size = this.options.scroll_buffer_size ?? 10
     threshold_height = this.options.threshold_height ?? 500
-    separator = this.options.separator
+    // Have to type this manually since dts-bundler chokes on Renderable
+    separator?: (n: number) => Renderable = this.options.separator
 
     /**
      * Append `count` children if the parent was not scrollable (just like Repeater),

@@ -17,14 +17,14 @@
     "watch": "concurrently -c green,blue,red -n dtsbundle,rollup,tsc 'chokidar --silent \"./module/**/*.js\" -c \"npm run build:dts\"' 'chokidar --silent \"./module/**/*.js\" -c \"rollup -c\"' 'tsc -w --preserveWatchOutput'"
   },
   "devDependencies": {
+    "@rollup/plugin-node-resolve": "^7.1.1",
     "@types/chai": "^4.2.5",
     "@types/mocha": "^5.2.7",
     "chai": "^4.2.0",
     "chokidar-cli": "^1.2.0",
     "concurrently": "^3.5.0",
-    "dts-bundle-generator": "^3.3.1",
+    "dts-bundle-generator": "^4.3.0",
     "mocha": "^6.2.2",
-    "rollup": "^1.31.0",
-    "@rollup/plugin-node-resolve": "^7.1.1"
+    "rollup": "^1.31.0"
   }
 }
