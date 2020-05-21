@@ -185,7 +185,7 @@ var _decorator_map = new WeakMap<Function, Comment>()
  * to define what can go between `{ curly braces }` in JSX code.
  * @category dom, toc
  */
-export type Renderable = o.RO<string | number | Node | null | undefined | Renderable[]>
+export type Renderable = o.RO<string | number | Node | null | undefined | Component<EmptyAttributes<any>> | Renderable[]>
 
 /**
  * @category dom, toc
@@ -399,7 +399,7 @@ export namespace e {
       if (c == null) continue
       if (Array.isArray(c)) {
         separate_children_from_rest(c, attrs, decorators, mixins, chld)
-      } else if (c instanceof Node || typeof c === 'string' || typeof c === 'number' || o.isReadonlyObservable(c)) {
+      } else if (c instanceof Node || typeof c === 'string' || typeof c === 'number' || o.isReadonlyObservable(c) || c instanceof Component) {
         chld.push(c)
       } else if (typeof c === 'function') {
         var cmt = document.createComment('decorator ' + c.name)
@@ -420,7 +420,7 @@ export namespace e {
    */
   export function renderable_to_node(r: Renderable): Node | null
   export function renderable_to_node(r: Renderable, null_as_comment: true): Node
-  export function renderable_to_node(r: Renderable, null_as_comment = false) {
+  export function renderable_to_node(r: Renderable, null_as_comment = false): Node | null {
     if (r == null)
       return null_as_comment ? document.createComment(' null ') : null
     else if (typeof r === 'string' || typeof r === 'number')
@@ -434,8 +434,11 @@ export namespace e {
         if (r2) df.appendChild(r2)
       }
       return df
-    } else
+    } else if (r instanceof Component) {
+      return r.render([])
+    } else {
       return r
+    }
   }
 
   /**
