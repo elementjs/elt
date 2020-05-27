@@ -1294,11 +1294,13 @@ export function prop<T, K extends keyof T>(obj: Observable<T> | T, prop: RO<K>, 
    *
    * The resulting observable only listens to the promise changes if it's being observed.
    */
-  export function tfpromise<T>(obs: o.RO<Promise<T>>, def: () => T): o.ReadonlyObservable<T> {
+  export function tfpromise<T>(obs: o.RO<Promise<T>>, def: () => T): o.ReadonlyObservable<T>
+  export function tfpromise<T>(obs: o.RO<Promise<T>>): o.ReadonlyObservable<T | undefined>
+  export function tfpromise<T>(obs: o.RO<Promise<T>>, def?: () => T): o.ReadonlyObservable<T | undefined> {
     var last_promise: Promise<T>
-    var last_result = def()
+    var last_result = def?.()
 
-    var res = new CombinedObservable<[Promise<T>], T>([o(obs)])
+    var res = new CombinedObservable<[Promise<T>], T | undefined>([o(obs)])
     res.getter = ([pro]) => {
       if (last_promise === pro) return last_result
       last_promise = pro
