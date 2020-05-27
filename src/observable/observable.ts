@@ -233,8 +233,8 @@ export interface ReadonlyObservable<A> {
   tf<B>(transform: RO<TransfomFn<A, B> | ReadonlyConverter<A, B>>): ReadonlyObservable<B>
 
   /** See [[o.Observable#p]] */
-  p<A>(this: ReadonlyObservable<A[]>, key: RO<number>, def?: RO<(key: number, obj: A[]) => A>): ReadonlyObservable<A>
-  p<A, K extends keyof A>(this: ReadonlyObservable<A>, key: RO<K>, def?: RO<(key: K, obj: A) => A[K]>): ReadonlyObservable<A[K]>
+  // p<A>(this: ReadonlyObservable<A[]>, key: RO<number>, def?: RO<(key: number, obj: A[]) => A>): ReadonlyObservable<A>
+  p<K extends keyof A>(key: RO<K>): ReadonlyObservable<A[K]>
   /** See [[o.Observable#key]] */
   key<A, B>(this: ReadonlyObservable<Map<A, B>>, key: RO<A>, def?: undefined, delete_on_undefined?: boolean): ReadonlyObservable<B | undefined>
   key<A, B>(this: ReadonlyObservable<Map<A, B>>, key: RO<A>, def: RO<(key: A, map: Map<A, B>) => B>): ReadonlyObservable<B>
@@ -636,8 +636,8 @@ export class Observable<A> implements ReadonlyObservable<A>, Indexable {
    * const o_base_2_item = o_base_2.p(2) // Observable<number>
    * ```
    */
-  p<A, K extends keyof A>(this: Observable<A>, key: RO<K>, def?: RO<(key: K, a: A) => A[K]>): Observable<A[K]> {
-    return prop(this, key, def)
+  p<K extends keyof A>(key: RO<K>): Observable<A[K]> {
+    return prop(this, key)
   }
 
   /**
@@ -979,8 +979,8 @@ export function prop<T, K extends keyof T>(obj: Observable<T> | T, prop: RO<K>, 
    * @category observable, toc
    */
   export function join<A extends any[]>(...deps: {[K in keyof A]: Observable<A[K]>}): Observable<A>
-  export function join<A extends any[]>(...deps: {[K in keyof A]: ReadonlyObservable<A[K]> | A[K]}): ReadonlyObservable<A>
-  export function join<A extends any[]>(...deps: {[K in keyof A]: RO<A[K]>}) {
+  export function join<A extends any[]>(...deps: {[K in keyof A]: RO<A[K]>}): ReadonlyObservable<A>
+  export function join<A extends any[]>(...deps: {[K in keyof A]: RO<A[K]>}): any {
     return new CombinedObservable(deps)
   }
 
