@@ -92,8 +92,10 @@ export type NoValue = typeof NoValue
  * It really only checks that the variable is an observable under the hood.
  * @category observable, toc
  */
+export function isReadonlyObservable<T>(_: RO<T>): _ is ReadonlyObservable<T>
+export function isReadonlyObservable(_: any): _ is ReadonlyObservable<any>
 export function isReadonlyObservable(_: any): _ is ReadonlyObservable<any> {
-  return _ instanceof Observable
+      return _ instanceof Observable
 }
 
 /**
