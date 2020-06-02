@@ -465,6 +465,24 @@ export class Observable<A> implements ReadonlyObservable<A>, Indexable {
   }
 
   /**
+   * Convenience function to set the value of this observable depending on its
+   * current value.
+   *
+   * The result of `fn` **must** be absolutely different from the current value. Arrays
+   * should be `slice`d first and objects copied, otherwise the observable will not
+   * trigger its observers since to it the object didn't change. For convenience, you can
+   * use [[o.clone]] or the great [immer.js](https://github.com/immerjs/immer).
+   *
+   * If the return value of `fn` is [[o.NoValue]] then the observable is untouched.
+   */
+  mutate(fn: (current: A) => A | o.NoValue) {
+    const n = fn(this._value)
+    if (n !== NoValue) {
+      this.set(n)
+    }
+  }
+
+  /**
    * Assign new values to the Observable.
    *
    * This method expects an object that contains new values to be assigned *recursively*

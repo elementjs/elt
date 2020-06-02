@@ -39,11 +39,11 @@ class InitService extends App.Service {
   @App.view
   Main() {
     return <div>
-      {this.app.$DisplayChildApp('Main2', SubService)}
-      {this.app.$DisplayChildApp('Main2', SubService)}
-      {this.app.$DisplayChildApp('Main2', SubService)}
+      {this.app.DisplayChildApp('Main2', SubService)}
+      {this.app.DisplayChildApp('Main2', SubService)}
+      {this.app.DisplayChildApp('Main2', SubService)}
     </div>
   }
 }
 
-document.body.appendChild(App.$DisplayApp('Main', InitService))
+document.body.appendChild(App.DisplayApp('Main', InitService))

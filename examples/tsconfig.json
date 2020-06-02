@@ -10,6 +10,7 @@
       "jsx": "react",
       "jsxFactory": "E",
       "noUnusedLocals": true,
+      "noEmit": true,
       "lib": ["es6", "dom"],
       "types": []
   }

@@ -30,4 +30,4 @@ class RootService extends App.Service {
   }
 }
 
-document.body.appendChild(App.$DisplayApp('Main', RootService))
+document.body.appendChild(App.DisplayApp('Main', RootService))
