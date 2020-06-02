@@ -8,15 +8,7 @@ export namespace tf {
    *
    * `other` may be itself an observable.
    *
-   * ```tsx
-   * import { o, tf } from 'elt'
-   *
-   * const o_str = o('hello')
-   * const o_is_world = o_str.tf(tf.equals('world'))
-   * // false now
-   * o_str.set('world')
-   * // o_is_world is now true
-   * ```
+   * @code ../../examples/tf.equals.tsx
    * @category observable, toc
    */
   export function equals<T, TT extends T>(other: o.RO<TT>) {
@@ -132,13 +124,7 @@ export namespace tf {
    * Sort an array by extractors, given in order of importance.
    * To sort in descending order, make a tuple with 'desc' as the second argument.
    *
-   * ```tsx
-   * import { o } from 'elt'
-   *
-   * const o_something = o([{a: 1, b: 'hello'}, {a: 3, b: 'world'}])
-   * const o_sorted = o_something.tf(tf.array_sort_by([t => t.b, [t => t.a, 'desc']]))
-   * ```
-   * @param sorters
+   * @code ../../examples/tf.array_sort_by.tsx
    * @category observable, toc
    */
   export function array_sort_by<T>(sorters: o.RO<([(a: T) => any, 'desc' | 'asc'] | ((a: T) => any))[]>): o.RO<o.Converter<T[], T[]>> {

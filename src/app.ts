@@ -245,9 +245,7 @@ export class App extends Mixin<Comment>{
   /**
    * Display the specified `view_name`.
    *
-   * ```tsx
-   * @include ../examples/app.display.tsx
-   * ```
+   * @code ../examples/app.display.tsx
    */
   display(view_name: string | Symbol) {
     return Display(this.o_view_services.tf(v => {
@@ -276,9 +274,7 @@ export class App extends Mixin<Comment>{
    * Activated services through `this.app.activate` in a child app are instanciated even if they already exist
    * in the parent app.
    *
-   * ```tsx
-   * @include ../examples/app.subapp.tsx
-   * ```
+   * @code ../examples/app.subapp.tsx
    */
   DisplayChildApp(view_name: string | Symbol, ...services: {new (app: App): App.Service}[]) {
     var newapp = new App(view_name, this)
@@ -298,22 +294,7 @@ export namespace App {
    *
    * The app will look for the first service that implements the asked view in the requirement chain. See [[App.view]] for details.
    *
-   * ```tsx
-   * import { App } from 'elt'
-   *
-   * class LoginService extends App.Service {
-   *   @App.view
-   *   Main() {
-   *     return <div>
-   *       <SomeLoginForm/>
-   *     </div>
-   *   }
-   * }
-   *
-   * document.body.appendChild(
-   *   App.DisplayApp('Main', LoginService)
-   * )
-   * ```
+   * @code ../examples/app.displayapp.tsx
    *
    * @category app, toc
    */
@@ -337,9 +318,7 @@ export namespace App {
    * uses the first view that matches the name it's looking for and uses it to display its
    * contents.
    *
-   * ```tsx
-   * @include ../examples/app.view.tsx
-   * ```
+   * @code ../examples/app.view.tsx
    */
   export function view<T extends Renderable>(object: Service, key: string | Symbol, desc: TypedPropertyDescriptor<() => T>) {
     const cons = object.constructor as typeof Service

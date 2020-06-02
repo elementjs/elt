@@ -17,26 +17,11 @@ import { sym_mixins, Listener } from './dom'
  * When defining a Mixin that could be set on a root type (eg: `HTMLElement`), ensure that
  * it is always defined as an extension of this type
  *
- * ```tsx
- * import { Mixin } from 'elt'
- *
- * class MyMixinWorks<N extends HTMLElement> extends Mixin<N> {
- *
- * }
- *
- * class MyMixinFails extends Mixin<HTMLElement> {
- *
- * }
- *
- * var div = <div>
- *   {new MyMixinWorks()}
- *   {new MyMixinFails()}
- * </div>
- * ```
+ * @code ../examples/mixin.tsx
  *
  * @category dom, toc
  */
-export abstract class Mixin<N extends Node = Node> extends o.ObserverHolder {
+export class Mixin<N extends Node = Node> extends o.ObserverHolder {
 
   /**
    * The node this mixin is associated to.
@@ -56,14 +41,6 @@ export abstract class Mixin<N extends Node = Node> extends o.ObserverHolder {
    * Get a Mixin by its class on the given node or its parents.
    *
    * You do not need to overload this static method.
-   *
-   * ```typescript
-   * class MyMixin extends Mixin {  }
-   *
-   * // At some point, we add this mixin to a node.
-   *
-   * var mx = MyMixin.get(node) // This gets the instance that was added to the node, if it exists.
-   * ```
    *
    * @param node The node at which we'll start looking for the mixin
    * @param recursive Set to false if you do not want the mixin to be searched on the
@@ -126,28 +103,7 @@ export abstract class Mixin<N extends Node = Node> extends o.ObserverHolder {
   /**
    * Helper method to listen an event on the current node. `currentTarget` is typed as the current node type.
    *
-   * ```tsx
-   * import { Mixin, Fragment as $, o } from 'elt'
-   *
-   * class MyMixin<N extends HTMLElement> extends Mixin<N> {
-   *
-   *   o_times = o(0)
-   *
-   *   init() {
-   *     this.listen(['mouseup', 'mousedown'], ev => {
-   *       this.o_times.mutate(t => t + 1)
-   *     })
-   *
-   *     this.node.appendChild(<$>({this.o_times})</$>)
-   *   }
-   *
-   * }
-   *
-   * document.body.appendChild(E.DIV(
-   *   'Click Me !',
-   *   new MyMixin(),
-   * ))
-   * ```
+   * @code ../examples/mixin.on.tsx
    */
   on<K extends (keyof DocumentEventMap)[]>(name: K, listener: Listener<DocumentEventMap[K[number]], N>, useCapture?: boolean): void
   on<K extends keyof DocumentEventMap>(name: K, listener: Listener<DocumentEventMap[K], N>, useCapture?: boolean): void
@@ -200,13 +156,7 @@ export abstract class Component<A extends EmptyAttributes<any> = Attrs<HTMLEleme
  *
  * In general, to add a mixin to a node, prefer adding it to its children.
  *
- * ```tsx
- * var my_mixin = new Mixin()
- *
- * // these are equivalent
- * <div>{my_mixin}</div>
- * var d = <div/>; node_add_mixin(d, mixin);
- * ```
+ * @code ../examples/node_add_mixin.tsx
  */
 export function node_add_mixin(node: Node, mixin: Mixin): void {
   (node[sym_mixins] = node[sym_mixins] ?? []).push(mixin)

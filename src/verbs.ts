@@ -31,38 +31,9 @@ import {
  * For convenience, the truth value is given typed as a `o.Observable<NonNullable<...>>` in `display`,
  * since there is no way `null` or `undefined` could make their way here.
  *
- * ```tsx
- * // o_obj is nullable.
- * const o_obj = o({a: 'hello'} as {a: string} | null)
+ * @code ../examples/if.tsx
  *
- * If(o_obj,
- *   // o_truthy here is o.Observable<{a: string}>
- *   // which is why we can safely use .p('a') without typescript complaining
- *   o_truthy => <>{o_truthy.p('a')}
- * )
- * ```
- *
- * ```tsx
- *  import { o, If, $click } from 'elt'
- *
- *  const o_some_obj = o({prop: 'value!'} as {prop: string} | null)
- *
- *  document.body.appendChild(<div>
- *    <h1>An If example</h1>
- *    <div><button>
- *     {$click(() => {
- *       o_some_obj.mutate(v => !!v ? null : {prop: 'clicked'})
- *     })}
- *     Inverse
- *   </button></div>
- *   {If(o_some_obj,
- *     // Here, o_truthy is of type Observable<{prop: string}>, without the null
- *     // We can thus safely take its property, which is a Renderable (string), through the .p() method.
- *     o_truthy => <div>We have a {o_truthy.p('prop')}</div>,
- *     () => <div>Value is null</div>
- *   )}
- *  </div>)
- * ```
+ * @code ../examples/if2.tsx
  */
 export function If<T extends o.RO<any>>(
   condition: T,
@@ -89,13 +60,7 @@ export namespace If {
    * Get the type of a potentially `Observable` type where `null` and `undefined` are exluded, keeping
    * the `Readonly` status if the provided [[o.Observable]] type was `Readonly`.
    *
-   * ```tsx
-   * import { o, If } from 'elt'
-   *
-   * type A = If.NonNullableRO<o.Observable<string | null>> // -> o.Observable<string>
-   * type B = If.NonNullableRO<o.RO<number | undefined | null>> // -> o.ReadonlyObservable<number> | number
-   * type C = If.NonNullableRO<string> // -> string
-   * ```
+   * @code ../examples/if.nonnullablero.tsx
    */
   export type NonNullableRO<T> =
     T extends o.Observable<infer U> ? o.Observable<NonNullable<U>> :
@@ -143,22 +108,7 @@ export namespace If {
  * `ob` is not converted to an observable if it was not one, in which case the results are executed
  * right away and only once.
  *
- * ```tsx
- * import { o, Repeat, $click } from 'elt'
- *
- * const o_mylist = o(['hello', 'world'])
- *
- * document.body.appendChild(<div>
- *   {Repeat(
- *      o_mylist,
- *      o_item => <button>
- *        {$click(ev => o_item.mutate(value => value + '!'))}
- *        {o_item}
- *      </button>,
- *      () => ', '
- *   )}
- * </div>)
- * ```
+ * @code ../examples/repeat.tsx
  */
 export function Repeat<T extends o.RO<any[]>>(
   ob: T,
@@ -192,15 +142,7 @@ export namespace Repeat {
    *
    * This type is used to help with [[Repeat]]'s prototype definition.
    *
-   * ```tsx
-   * import { o, Repeat } from 'elt'
-   * // string
-   * type A = Repeat.RoItem<string[]>
-   * // o.Observable<string | number>
-   * type B = Repeat.RoItem<o.Observable<(string | number)[]>>
-   * // o.ReadonlyObservable<Date>
-   * type C = Repeat.RoItem<o.ReadonlyObservable<Date[]>>
-   * ```
+   * @code ../examples/repeat.roitem.tsx
    */
   export type RoItem<T extends o.RO<any[]>> = T extends o.Observable<(infer U)[]> ? o.Observable<U>
   : T extends o.ReadonlyObservable<(infer U)[]> ? o.ReadonlyObservable<U>
@@ -312,9 +254,7 @@ export namespace Repeat {
  * > **Note** : while functional, RepeatScroll is not perfect. A "VirtualScroll" behaviour is in the
  * > roadmap to only maintain the right amount of elements on screen.
  *
- * ```tsx
- * @include ../examples/repeatscroll.tsx
- * ```
+ * @code ../examples/repeatscroll.tsx
  *
  * @category dom, toc
  */
@@ -459,36 +399,13 @@ export namespace RepeatScroll {
 /**
  * Perform a Switch statement on an observable.
  *
- * ```tsx
- * import { o, Switch, Fragment as $ } from 'elt'
- *
- * const o_value = o('hello')
- * document.body.appendChild(<div>
- *   {Switch(o_value)
- *    .Case('world', o_v => <span>It is {o_v}</span>)
- *    .Case(v => v === 'one' || v === 'two', () => <$>Test with a function</$>)
- *    .Case('something else', () => <span>We got another one</span>)
- *    .Else(() => <$>Something else entirely</$>)
- *   }
- * </div>)
- * ```
+ * @code ../examples/switch.tsx
  *
  * `Switch()` can work with typeguards to narrow a type in the observable passed to the then callback,
  * but only with defined functions. It is however not as powerful as typescript's type guards in ifs
  * and will not recognize `typeof` or `instanceof` calls.
  *
- * ```tsx
- * import { o, Switch, Fragment as $ } from 'elt'
- *
- * const is_number = (v: any): v is number => typeof v === 'number'
- * const o_obs = o('hello' as string | number) // Observable<string | number>
- *
- * document.body.appendChild(<$>{Switch(o_obs)
- *   .Case(is_number, o_num => o_num) // o_num is Observable<number>
- *   .Case('hey', o_obs2 => 'hello') // also, o_obs2 is now Observable<string>
- *                  // since number has been taken care of.
- *   .Else(() => null)}</$>)
- * ```
+ * @code ../examples/switch2.tsx
  *
  * @category dom, toc
  */

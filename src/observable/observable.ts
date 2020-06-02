@@ -246,21 +246,7 @@ export interface ReadonlyObservable<A> {
  *
  * It is very useful when dealing with [[Attrs]] where flexibility is needed for arguments.
  *
- * ```tsx
- * import { Attrs, o, Fragment as $ } from 'elt'
- *
- * function MyComponent(attrs: { title: o.RO<string> } & Attrs<HTMLDivElement>) {
- *   return <div>
- *     Hello {attrs.title}
- *   </div>
- * }
- *
- * const o_str = o('world observable !')
- * document.body.appendChild(<$>
- *   <MyComponent title='world str !'/>
- *   <MyComponent title={o_str}/>
- * </$>)
- * ```
+ * @code ../../examples/o.ro.tsx
  *
  * @category observable, toc
  */
@@ -364,19 +350,7 @@ const queue = new Queue()
  * Use it when you know you will modify two or more observables that trigger the same transforms
  * to avoid calling the observers each time one of the observable is modified.
  *
- * ```tsx
- * const o_1 = o(1)
- * const o_2 = o(2)
- * const o_3 = o.join(o_1, o_2).tf(([a, b]) => a + b)
- *
- * // ...
- *
- * // the observers on o_3 will only get called once instead of twice.
- * o.transaction(() => {
- *   o_1.set(2)
- *   o_2.set(3)
- * })
- * ```
+ * @code ../../examples/o.transaction.tsx
  *
  * @category observable, toc
  */
@@ -602,14 +576,7 @@ export class Observable<A> implements ReadonlyObservable<A>, Indexable {
    *
    * A Converter providing both `get` and `set` operations will create a two-way observable that is settable.
    *
-   * ```tsx
-   * const o_obs = o(3)
-   * const o_transformed = o_obs.tf(v => v * 4) // 12 right now
-   * o_obs.set(6) // o_transformed will hold 24
-   *
-   * const o_transformed_2 = o_obs.tf({get: v => v * 4, set: v => v / 4})
-   * o_transformed_2.set(8) // o_obs now holds 2
-   * ```
+   * @code ../../examples/o.observable.tf.tsx
    *
    */
   tf<B>(transform: RO<Converter<A, B>>): Observable<B>
@@ -641,18 +608,7 @@ export class Observable<A> implements ReadonlyObservable<A>, Indexable {
    * The `key` can itself be an observable, in which case the resulting observable will
    * change whenever either `key` or the original observable change.
    *
-   * ```tsx
-   * const o_base = o({a: 1, b: 2}) // Observable<{a: number, b: number}>
-   * const o_base_a = o_base.p('a') // Observable<number>
-   * o_base_a.set(4) // o_base now holds {a: 4, b: 2}
-   *
-   * const o_key = o('b' as 'b' | 'a') // more generally `keyof T`
-   * const o_tf_key = o_base.p(o_key) // 2
-   * o_key.set('a') // o_tf_key now has 4
-   *
-   * const o_base_2 = o([1, 2, 3, 4]) // Observable<number[]>
-   * const o_base_2_item = o_base_2.p(2) // Observable<number>
-   * ```
+   * @code ../../examples/o.observable.p.tsx
    */
   p<K extends keyof A>(key: RO<K>): Observable<A[K]> {
     return prop(this, key)
@@ -801,26 +757,7 @@ export class CombinedObservable<A extends any[], T = A> extends Observable<T> {
  *
  * For instance, here is a possible implementation of `.p()` :
  *
- * ```tsx
- * // prop is o.RO<K>, which allows us to write
- * // prop(o_obs, 'key')
- * // prop(o_obs, o_key) where o_key can be readonly
- * // -- this works because we never need to touch the key, just to know if it changes.
- * function prop<T, K extends keyof T>(obj: o.Observable<T> | T, prop: o.RO<K>) {
- *   return o.combine(
- *     o.tuple(obj, prop), // combine needs a tuple to not have all arguments as unions
- *     ([obj, prop]) => obj[prop], // the getter is pretty straightforward
- *     (nval, _, [orig, prop]) => { // we ignore the old value of the combined observable, which is why it's named _
- *       // clone the original value ; remember, observables deal with immutables
- *       const newo = o.clone(orig)
- *       // assign the new value to the clone
- *       newo[prop] = nval
- *       // here, combine will not update the prop since NOVALUE is given
- *       return o.tuple(newo, o.NOVALUE) // o.NOVALUE is any, so tsc won't complain
- *     }
- *   )
- * }
- * ```
+ * @code ../../examples/o.combine.tsx
  *
  * @category observable, toc
  */
@@ -844,16 +781,7 @@ export function combine<T extends any[], R>(deps: {[K in keyof T]: RO<T[K]>}, ge
  * The resulting observable is writable only if all its constituents were themselves
  * writable.
  *
- * ```tsx
- * const merged = o.merge({a: o('hello'), b: o('world')})
- *
- * observe(merged, ({a, b}) => {
- *   console.log(a, b) // hello world
- * })
- *
- * merged.p('a').set('bye')
- * merged.assign({b: 'universe'})
- * ```
+ * @code ../../examples/o.merge.tsx
  *
  * @returns An observable which properties are the ones given in `obj` and values
  *   are the resolved values of their respective observables.
@@ -985,15 +913,7 @@ export function prop<T, K extends keyof T>(obj: Observable<T> | T, prop: RO<K>, 
    *
    * The resulting observable is writable only if all its constituents were themselves writable.
    *
-   * ```tsx
-   * var obs = o.join(o('a'), o('b'))
-   *
-   * <div>
-   *   {$observe(obs, ([a, b]) => {
-   *     // ...
-   *   })}
-   * </div>
-   * ```
+   * @code ../../examples/o.join.tsx
    * @category observable, toc
    */
   export function join<A extends any[]>(...deps: {[K in keyof A]: Observable<A[K]>}): Observable<A>
@@ -1015,13 +935,7 @@ export function prop<T, K extends keyof T>(obj: Observable<T> | T, prop: RO<K>, 
    * > a little more elegant.
    * > Try [[o.transaction]] for a different approach for grouped notifications.
    *
-   * ```tsx
-   *  import { o } from 'elt'
-   *  const o_obj = o({a: 1, b: [2, 3]})
-   *  o_obj.assign({a: 2})
-   *  o_obj.assign({b: [3, 4]}) // the array is changed
-   *  o_obj.assign({b: {0: 4}}) // only the object at index 0 is changed
-   * ```
+   * @code ../../examples/o.assign.tsx
    *
    * @returns a new instance of the object if the mutator would change it
    * @category observable, toc
@@ -1074,21 +988,7 @@ export function prop<T, K extends keyof T>(obj: Observable<T> | T, prop: RO<K>, 
    *
    * Also works as an es7 decorator.
    *
-   * ```tsx
-   * import { o } from 'elt'
-   *
-   * function dostuff() {
-   *   console.log('!')
-   * }
-   * const debounced = o.debounce(dostuff, 40)
-   *
-   * class MyClass {
-   *   @o.debounce(400)
-   *   dostuff() {
-   *     console.log('stuff')
-   *   }
-   * }
-   * ```
+   * @code ../../examples/o.debounce.tsx
    *
    * @category observable, toc
    */
@@ -1129,28 +1029,14 @@ export function prop<T, K extends keyof T>(obj: Observable<T> | T, prop: RO<K>, 
   }
 
  /**
-  * Create a throttled function will only call the wrapped function at most every `ms` milliseconds.
+  * Create a throttled function that will only call the wrapped function at most every `ms` milliseconds.
   *
   * If `leading` is true, then the first time this function is called it will
   * call `fn` immediately. Otherwise, it will wait `ms` milliseconds before triggering it for the first time.
   *
   * Also works as an es7 decorator.
   *
-  * ```tsx
-  * import { o } from 'elt'
-  *
-  * function dostuff() {
-  *   console.log('!')
-  * }
-  * const throttled = o.throttle(dostuff, 40)
-  *
-  * class MyClass {
-  *   @o.throttle(400)
-  *   dostuff() {
-  *     console.log('stuff')
-  *   }
-  * }
-  * ```
+  * @code ../../examples/o.throttle.tsx
   *
   * @category observable, toc
   */
@@ -1205,13 +1091,7 @@ export function prop<T, K extends keyof T>(obj: Observable<T> | T, prop: RO<K>, 
    * when cloning should be performed differently than just using `Object.create` and
    * copying properties.
    *
-   * ```jsx
-   * class MyType {
-   *   [o.sym_clone]() {
-   *     return new MyType() // or just anything that returns a clone
-   *   }
-   * }
-   * ```
+   * @code ../../examples/o.sym_clone.tsx
    *
    * @category observable
    */
@@ -1224,10 +1104,7 @@ export function prop<T, K extends keyof T>(obj: Observable<T> | T, prop: RO<K>, 
    * This only exists because there is no way to declare a tuple in Typescript other than with a plain
    * array, and arrays with several types end up as an union.
    *
-   * ```tsx
-   * var a = ['hello', 2] // a is (string | number)[]
-   * var b = o.tuple('hello', 2) // b is [string, number]
-   * ```
+   * @code ../../examples/o.tuple.tsx
    *
    * @category observable, toc
    */
