@@ -46,4 +46,4 @@ class InitService extends App.Service {
   }
 }
 
-document.body.appendChild(App.$DisplayApp('Main', InitService))
+document.body.appendChild(App.DisplayApp('Main', InitService))
