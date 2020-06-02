@@ -66,17 +66,7 @@ export namespace $bind {
   /**
    * Bind an observable to an input's value.
    *
-   * ```tsx
-   * import { o, $bind, Fragment as $ } from 'elt'
-   *
-   * const o_string = o('stuff')
-   *
-   * document.body.appendChild(<$>
-   *   <input type="text">
-   *     {$bind.string(o_string)}
-   *   </input> / {o_string}
-   * </$>)
-   * ```
+   * @code ../examples/_bind.string.tsx
    *
    * @category dom, toc
    */
@@ -87,18 +77,7 @@ export namespace $bind {
   /**
    * Bind a string observable to an html element which is contenteditable.
    *
-   * ```tsx
-   * import { o, $bind, Fragment as $ } from 'elt'
-   *
-   * const o_contents = o('Hello <b>World</b> !')
-   *
-   * document.body.appendChild(<$>
-   *   <div contenteditable='true'>
-   *      {$bind.contenteditable(o_contents, true)}
-   *   </div>
-   *   <pre><code style={{whiteSpace: 'pre-wrap'}}>{o_contents}</code></pre>
-   * </$>)
-   * ```
+   * @code ../examples/_bind.contenteditable.tsx
    *
    * @category dom, toc
    */
@@ -116,17 +95,7 @@ export namespace $bind {
    * Bind a number observable to an <input type="number"/>. Most likely won't work on anything else
    * and will set the value to `NaN`.
    *
-   * ```tsx
-   * import { o, $bind, Fragment as $ } from 'elt'
-   *
-   * const o_number = o(1)
-   *
-   * document.body.appendChild(<$>
-   *   <input type="number">
-   *     {$bind.number(o_number)}
-   *   </input> / {o_number}
-   * </$>)
-   * ```
+   * @code ../examples/_bind.number.tsx
    *
    * @category dom, toc
    */
@@ -141,18 +110,7 @@ export namespace $bind {
    * Bind bidirectionnally a `Date | null` observable to an `input`. Will only work on inputs
    * type `"date"` `"datetime"` `"datetime-local"`.
    *
-   * ```tsx
-   * import { o, $bind, Fragment as $ } from 'elt'
-   *
-   * const o_date = o(null as Date | null)
-   * const dtf = Intl.DateTimeFormat('fr')
-   *
-   * document.body.appendChild(<$>
-   *   <input type="date">
-   *      {$bind.date(o_date)}
-   *   </input> - {o_date.tf(d => d ? dtf.format(d) : 'null')}
-   * </$>)
-   * ```
+   * @code ../examples/_bind.date.tsx
    *
    * @category dom, toc
    */
@@ -167,17 +125,7 @@ export namespace $bind {
    * Bind bidirectionnally a boolean observable to an input. Will only work if the input's type
    * is "radio" or "checkbox".
    *
-   * ```tsx
-   * import { o, $bind, Fragment as $ } from 'elt'
-   *
-   * const o_bool = o(false)
-   *
-   * document.body.appendChild(<$>
-   *   <input type="checkbox">
-   *      {$bind.boolean(o_bool)}
-   *   </input> - {o_bool.tf(b => b ? 'true' : 'false')}
-   * </$>)
-   * ```
+   * @code ../examples/_bind.boolean.tsx
    *
    * @category dom, toc
    */
@@ -192,20 +140,7 @@ export namespace $bind {
   /**
    * Bind a number observable to the selected index of a select element
    *
-   * ```tsx
-   * import { o, $bind, Fragment as $ } from 'elt'
-   *
-   * const o_selected = o(-1)
-   *
-   * document.body.appendChild(<$>
-   *   <select>
-   *      {$bind.selected_index(o_selected)}
-   *      <option>one</option>
-   *      <option>two</option>
-   *      <option>three</option>
-   *   </select> / {o_selected}
-   * </$>)
-   * ```
+   * @code ../examples/_bind.selected_index.tsx
    *
    * @category dom, toc
    */
@@ -224,14 +159,7 @@ export namespace $bind {
  * Unfortunately, TSX does not pick up on the correct node type here. It however works without having
  * to type with regular js calls.
  *
- * ```tsx
- * <div>
- *   {$props<HTMLDivElement>({dir: 'left'})}
- * </div>
- * E.DIV(
- *   $props({dir: 'left'})
- * )
- * ```
+ * @code ../examples/_props.tsx
  *
  * @category dom, toc
  */
@@ -259,51 +187,7 @@ export function $props<N extends Node>(props: { [k in keyof N]?: o.RO<N[k]> }): 
  *
  * The `class={}` attribute on all nodes works exactly the same as `$class`.
  *
- * ```tsx
- * import { $class, o, Fragment as $, $bind } from 'elt'
- *
- * const o_cls = o('class2')
- * const o_bool = o(false)
- *
- * document.body.appendChild(<$>
- *   <style>
- *     {`.class1 {
- *        text-decoration: underline;
- *     }
- *     .class2 {
- *        background: #f99;
- *     }
- *     .class3 {
- *        font-weight: bold;
- *     }
- *     .class4 {
- *        background: #99f;
- *     }
- *   `}
- *   </style>
- *
- *   <input id='class3' type="checkbox">
- *     {$bind.boolean(o_bool)}
- *   </input> <label for='class3'>Class 3</label>
- *   {' / '}
- *   <input type='text'>
- *     {$bind.string(o_cls)}
- *   </input>
- *
- *   <div>
- *     {$class('class1', o_cls, {class3: o_bool})}
- *     content 1
- *   </div>
- *   <div>$class and class= are equivalent</div>
- *   <div class={['class1', o_cls, {class3: o_bool}]}>
- *     content 2
- *   </div>
- *   {E.DIV(
- *     $class('class1', o_cls, {class3: o_bool}),
- *     'content 3'
- *   )}
- * </$>)
- * ```
+ * @code ../examples/_class.tsx
  * @category dom, toc
  */
 export function $class<N extends Element>(...clss: ClassDefinition[]) {
@@ -318,9 +202,7 @@ export function $class<N extends Element>(...clss: ClassDefinition[]) {
 /**
  * Update a node's id with a potentially observable value.
  *
- * ```tsx
- * <MyComponent>{$id('some-id')}</MyComponent>
- * ```
+ * @code ../examples/_id.tsx
  *
  * > **Note**: You can use the `id` attribute on any element, be them Components or regular nodes, as it is forwarded.
  *
@@ -337,12 +219,7 @@ export function $id<N extends Element>(id: o.RO<string>) {
  * Update a node's title with a potentially observable value.
  * Used mostly when dealing with components since their base node attributes are no longer available.
  *
- * ```tsx
- * <MyComponent>{$title('Some title ! It generally appears on hover.')}</MyComponent>
- * E.DIV(
- *   $title('hello there !')
- * )
- * ```
+ * @code ../examples/_title.tsx
  * @category dom, toc
  */
 export function $title<N extends HTMLElement>(title: o.RO<string>) {
@@ -355,13 +232,7 @@ export function $title<N extends HTMLElement>(title: o.RO<string>) {
 /**
  * Update a node's style with potentially observable varlues
  *
- * ```tsx
- * const o_width = o('321px')
- * E.DIV(
- *   $style({width: o_width, flex: '1'})
- * )
- * ```
- *
+ * @code ../examples/_style.tsx
  * @category dom, toc
  */
 export function $style<N extends HTMLElement | SVGElement>(...styles: StyleDefinition[]) {
@@ -374,10 +245,12 @@ export function $style<N extends HTMLElement | SVGElement>(...styles: StyleDefin
 
 
 /**
- * Observe an observable and tie the observation to the node this is added to
+ * Observe an observable and tie the observation to the node this is added to.
+ * `cbk` receives the new value as well as the old, but also the node
+ *
+ * @code ../examples/_observe.tsx
  * @category dom, toc
  */
-// export function $observe<T>(a: o.Observer<T>): Decorator<Node>
 export function $observe<N extends Node, T>(a: o.RO<T>, cbk: (newval: T, old_val: T | o.NoValue, node: N) => void, obs_cbk?: (observer: o.Observer<T>) => void) {
   return (node: N) => {
     node_observe(node, a, (nval, chg) => cbk(nval, chg, node), obs_cbk)
@@ -391,18 +264,7 @@ export function $observe<N extends Node, T>(a: o.RO<T>, cbk: (newval: T, old_val
  * For convenience, the resulting event object is typed as the original events coupled
  * with `{ currentTarget: N }`, where N is the node type the event is being registered on.
  *
- *
- *
- * ```jsx
- *   <div>
- *     {$on('click', ev => {
- *        if (ev.target === ev.currentTarget) {
- *          console.log(`The current div was clicked on, not a child.`)
- *          console.log(`In this function, ev.currentTarget is typed as HTMLDivElement`)
- *        }
- *     })}
- *   </div>
- * ```
+ * @code ../examples/_on.tsx
  * @category dom, toc
  */
 export function $on<N extends Element, K extends (keyof DocumentEventMap)[]>(name: K, listener: Listener<DocumentEventMap[K[number]], N>, useCapture?: boolean): Decorator<N>
@@ -451,29 +313,7 @@ export function $click<N extends HTMLElement | SVGElement>(cbk: Listener<MouseEv
  * time around, since [[$init]] already started them, [[$inserted]] will only run its callbacks and
  * leave the observers to do their jobs.
  *
- * ```jsx
- * import { o, $init, $inserted, $removed, Fragment as $, If, $click } from 'elt'
- *
- * var the_div = <div>
- *   {$init(() => console.log('init'))}
- *   {$inserted(() => console.log('inserted'))}
- *   {$removed(() => console.log('removed'))}
- *   I AM HERE.
- * </div>
- *
- * var o_is_inside = o(false)
- *
- * // here, we reuse the_div and are not recreating it all the time.
- * // notice in the console how init was only called once.
- * document.body.appendChild(<$>
- *   <button>
- *     {$click(() => o_is_inside.mutate(b => !b))}
- *     Toggle the div
- *   </button>
- *   {If(o_is_inside, () => the_div)}
- * </$>)
- *
- * ```
+ * @code ../examples/_init.tsx
  * @category dom, toc
  */
 export function $init<N extends Node>(fn: (node: N) => void): Decorator<N> {

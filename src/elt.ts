@@ -152,14 +152,7 @@ export class Displayer extends CommentContainer {
  *
  * This verb is used whenever an observable is passed as a child to a node.
  *
- * ```tsx
- * import { o, $Display, Fragment as $ } from 'elt'
- *
- * const o_text = o('text')
- * document.body.appendChild(<$>
- *   {o_text} is the same as {$Display(o_text)}
- * </$>)
- * ```
+ * @code ../examples/display.tsx
  *
  * @category low level dom, toc
  */
@@ -219,12 +212,7 @@ export interface EmptyAttributes<N extends Node> {
 /**
  * For a given attribute type used in components, give its related `Node` type.
  *
- * ```tsx
- * import { Attrs, AttrsNodeType } from 'elt'
- *
- * type At = Attrs<HTMLDivElement>
- * type No = AttrsNodeType<At>
- * ```
+ * @code ../examples/attrsnodetype.tsx
  *
  * @category dom, toc
  */
@@ -245,20 +233,7 @@ export type NRO<T> = o.RO<T | null | undefined>
  *
  * Attrs **must** always specify the returned node type as its type argument.
  *
- * ```jsx
- * import { Attrs } from 'elt'
- *
- * function MyComponent(a: Attrs<HTMLDivElement> & {some_attribute: string}, ch: DocumentFragment) {
- *   return E.DIV(ch, a.some_attribute)
- * }
- *
- * // With Attrs, all the basic elements are available.
- * document.body.appendChild(<MyComponent
- *   id='some_id'
- *   class='css_class_1'
- *   some_attribute='World !'
- * >Hello </MyComponent>)
- * ```
+ * @code ../examples/attrs.tsx
  *
  * This type should be used as first argument to all components definitions.
  * @category dom, toc
@@ -353,22 +328,7 @@ export function e<N extends Node>(elt: string | Node | Function, ...children: (I
  * > ends up being added to `Node`, no observable will ever run on it, no life cycle callback will
  * > ever be called on it.
  *
- * ```tsx
- * // If using jsxFactory, you have to import Fragment and use it
- * import { Fragment as $ } from 'elt'
- *
- * document.body.appendChild(<$>
- *   <p>Content</p>
- *   <p>More Content</p>
- * </$>)
- *
- * // If using jsxNamespace as "e" or "E", the following works out of the box
- * document.body.appendChild(<>
- *   <p>Content</p>
- *   <p>More Content</p>
- * </>)
- *
- * ```
+ * @code ../examples/fragment.tsx
  *
  * @category dom, toc
  */
@@ -386,8 +346,17 @@ import { Decorator } from './decorators'
 
 export namespace e {
 
+  /**
+   * Implement this property on any object to be able to insert it as a node
+   * child. The signature it implements is `() => Renderable`.
+   *
+   * @code ../examples/e.sym_render.tsx
+   *
+   * @category toc, dom
+   */
   export const sym_render = Symbol('renderable')
 
+  /** @internal */
   export function is_renderable_object(c: any): c is {[sym_render](): Node} {
     return c && c[sym_render]
   }

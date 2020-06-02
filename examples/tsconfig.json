@@ -9,7 +9,7 @@
       "strict": true,
       "jsx": "react",
       "jsxFactory": "E",
-      "noUnusedLocals": true,
+      "noUnusedLocals": false,
       "noEmit": true,
       "lib": ["es6", "dom"],
       "types": []
