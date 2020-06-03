@@ -70,9 +70,10 @@ export class Mixin<N extends Node = Node> extends o.ObserverHolder {
   /**
    * To be used with decorators
    */
-  static onThisNode<N extends Node, M extends Mixin<N>>(cbk: (m: M) => void) {
+  static onThisNode<N extends Node, M extends Mixin<N>>(this: { new (...a: any[]): M, get(n: Node): M | null }, cbk: (m: M) => void) {
     return (node: N) => {
-
+      const mx = this.get(node)
+      if (mx) cbk(mx)
     }
   }
 
