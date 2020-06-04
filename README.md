@@ -13,7 +13,7 @@ It is built with three objectives in mind :
  * All overheads induced by its use **should** be kept as low as possible
  * Everything **must** be typed correctly. This library **must** be refactoring-friendly.
 
-Join the (discord)[https://discord.gg/A8tKA7q] for questions or use the tags `#typescript` and `#elt` on stack overflow, go to the (repository)[https://github.com/elementjs/elt] to file issues.
+Join the [discord](https://discord.gg/A8tKA7q) for questions or use the tags `#typescript` and `#elt` on stack overflow, go to the [repository](https://github.com/elementjs/elt) to file issues.
 
 ## Why use it
 
