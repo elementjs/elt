@@ -275,8 +275,6 @@ export class App extends Mixin<Comment>{
    * in the parent app.
    *
    * @code ../examples/app.subapp.tsx
-   *
-   * @category app, toc
    */
   DisplayChildApp(view_name: string | Symbol, ...services: {new (app: App): App.Service}[]) {
     var newapp = new App(view_name, this)
@@ -442,7 +440,7 @@ export namespace App {
      *
      * If the requested service does not already exist within this [[App]], instanciate it.
      *
-     * See [[App.DisplayChildApp]] and [[App.view]] for examples.
+     * See [[App#DisplayChildApp]] and [[App.view]] for examples.
      */
     require<B extends Service>(service_def: new (app: App) => B): B {
       var result = this.app.getService(service_def)
