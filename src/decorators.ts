@@ -58,7 +58,16 @@ export namespace $bind {
         lock(() => { node_set(node, value) })
       })
       node_add_event_listener(node, event, () => {
-        lock(() => { obs.set(node_get(node)) })
+        lock(() => {
+          var new_value = node_get(node)
+          obs.set(new_value)
+          // since obs could be a transformed observable, using set() may end up setting it
+          // to a *different* value. Here we make sure we keep the node *correctly* in sync
+          // with its observable.
+          if (obs.get() !== new_value) {
+            node_set(node, obs.get())
+          }
+        })
       })
     }
   }
