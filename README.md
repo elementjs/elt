@@ -13,7 +13,7 @@ It is built with three objectives in mind :
  * All overheads induced by its use **should** be kept as low as possible
  * Everything **must** be typed correctly. This library **must** be refactoring-friendly.
 
-# Why use it
+## Why use it
 
   * **You use typescript** and don't want a javascript library that use patterns that the typing system doesn't always gracefully support. Everything is Element was built with *type inference* in mind. The [`Observable`](#o.Observable) ecosystem tries hard to keep that valuable typing information without getting in your way and have you type everything by hand.
 
@@ -27,15 +27,7 @@ It is built with three objectives in mind :
 
   * **You're tired of packages with dozens of dependencies**. Element has none. It uses plain, vanilla JS, and doesn't shy away from reimplementing simple algorithms instead of polluting your node_modules, all the while trying to provide enough batteries to not have to import dozens of packages to get work done.
 
-# About this documentation
-
-All the examples should be runnable, testable and modifiable.
-
-The documentation is set up to use the `E()` version of `e()`. They're the same, but ELT infects the global namespace and adds `E()` on `window` to make it more convenient (only if `E` did not exist before, of course). This saves `import` statements and hopefully makes for a less cluttered documentation.
-
-Also, [`setup_mutation_observer`](#setup_setup_mutation_observer) is called automatically in the examples to reduce verbosity.
-
-# ELT In a Nutshell
+## In a Nutshell
 
 ELT offers the following concepts to get this done :
 
@@ -53,7 +45,17 @@ ELT offers the following concepts to get this done :
 
  * At last, ELT offers a simple way to build applications with the [`App`](#App) class and friends. While it is not mandatory to use it to get things done, it's small enough to not add much weight to the library, and convenient enough to build complex applications to justify its inclusion in the core library and not become "yet another package".
 
+
 # Getting started
+
+## About this documentation
+
+All the examples should be runnable, testable and modifiable.
+
+The documentation is set up to use the `E()` version of `e()`. They're the same, but ELT infects the global namespace and adds `E()` on `window` to make it more convenient (only if `E` did not exist before, of course). This saves `import` statements and hopefully makes for a less cluttered documentation.
+
+Also, [`setup_mutation_observer`](#setup_setup_mutation_observer) is called automatically in the examples to reduce verbosity.
+
 
 ## Installation
 
@@ -85,7 +87,9 @@ setup_mutation_observer(document)
 // you
 ```
 
-## Using a module loader such as webpack or rollup, or <script type="module">
+## Using it with a module loader
+
+You can use the library through import statements. It is perfectly fine to use with webpack, rollup or parcel, although as of now no effort was put to make elt (tree-shakable)[https://webpack.js.org/guides/tree-shaking/].
 
 ```tsx
 import { o, $bind, setup_mutation_observer } from 'elt'
@@ -100,27 +104,31 @@ document.body.appendChild(<div>
 </div>)
 ```
 
-## Using it as a umd module
+## Using it as an umd module
 
 ELT supports being used as an umd module in a regular `<script>` import, in which case its global name is elt.
 
 ```jsx
 const { o, $bind, setup_mutation_observer } = elt
-
-// ... !
+setup_mutation_observer(document)
+// ... profit !
 ```
+
+# Elt primer
 
 ## Creating nodes
 
+### Using TSX
+
 Use TSX (the typescript version of JSX) to build your interfaces. The result of a TSX expression is alwas a DOM `Node`.
+This means that the result of a tsx expression (or a `e()` call) is directly insertable into the document.
 
 ```jsx
 // You can write that.
-import { append_child_and_init } from 'elt'
-append_child_and_init(document.body, <div class='some-class'>Hello</div>)
+import { setup_mutation_observer } from 'elt'
+setup_mutation_observer(document)
+document.body.appendChild(<div class='some-class'>Hello</div>)
 ```
-
-### Creating nodes without tsx
 
 Typescript's TSX is awesome. Unfortunately, as of today (version 3.8), its system still considers a TSX element as the type defined as the `JSX.Element` type, which is why as far as the type system is concerned, `var div = <div/>` will always have the type `Node`.
 
@@ -134,10 +142,14 @@ var div = <input/> as HTMLDivElement // this should be HTMLInputElement
 // when using the as keyword, Typescript allows a cast as a subtype without complaining.
 ```
 
-It is possible to use `E()` (or `e()`) directly ; they use the correct types.
+### Creating nodes without tsx
+
+
+It is possible to use `E()` (or `e()`) directly ; they use the correct types. The `e` function is made to be a target for tsx code generation, but its signature is a tad more flexible. Check its documentation for more informations.
 
 ```tsx
 var div = E('div') // div is infered as HTMLDivElement, hurray !
+var div2 = E('div', {class: 'my-class'}, 'Some text content')
 ```
 
 ELT provides a few helper functions to work without tsx without too much pain ;
@@ -205,6 +217,44 @@ document.body.appendChild(E.DIV(
 ))
 ```
 
+## Attributes
+
+All attributes on `HTMLElement` can have observables passed as value, in which case the attribute is updated as the observable changes.
+If the observable is boolean, then the value of the attribute will be `''`.
+
+```tsx
+<div contenteditable={o_boolean}/>
+```
+
+## Classes and Styles
+
+`class` and `style` on elements can receive `Observable` as well as regular values.
+
+`class` can be a `o.RO<string>` or an object of class definitions, where the properties are the class name and their values the potentially observable condition that will determine if the class is attributed. On top of that, class can receive an array of the two former to build complex classes.
+
+```tsx
+import { o } from 'elt'
+const o_class = o('class2')
+const o_bool = o(true)
+<div class={['class1', o_class, {class3: o_bool}]}/>
+// -> <div class='class1 class2 class3'/>
+
+// ... some later code runs the following :
+o_bool.set(false)
+// -> <div class='class1 class2'/>
+o_class.set('another-class')
+// -> <div class='class1 another-class'>
+```
+
+The `style` attribute does not accept text. Since it is considered good practice to not use this attribute, only its object form is supported for those cases where you can't do without.
+
+```jsx
+const o_width = o('432px')
+<Elt style={ {width: o_width} }>
+```
+
+
+
 ## Dynamicity through Observables and Verbs
 
 Verbs are simply functions whose name is a verb (hence the name), that usually start with an uppercase letter to add a visual emphasis on their presence.
@@ -253,7 +303,7 @@ Decorators may return any [`Insertable`](#Insertable), even if it is another dec
 
 See the existing decorators to see what they can do.
 
-# Observables
+## Observables
 
 Observables are the mechanism through which we achieve MVVM. They are not RxJS's Observable (see `src/observable.ts`).
 
@@ -268,7 +318,7 @@ o_bool.set(false)
 o_bool.get() // false
 ```
 
-## Observable transformations
+### Transformations
 
 They can be transformed, and these transformations can be bidirectional.
 
@@ -318,7 +368,7 @@ document.body.appendChild(<span>{prev === o_obj.get() ? 'true' : 'false'}</span>
 
 They can do a **lot** more than these very simple transformations. Check the Observable documentation.
 
-## Observable combination
+### Combining
 
 Two or more observables can be joined together to make a new observable that will update when any of its constituents change. See [`o.combine`](#o.combine), [`o.join`](#o.join) and [`o.merge`](#o.merge).
 
@@ -346,41 +396,6 @@ document.body.appendChild(<Fragment>
 </Fragment>)
 ```
 
-## Attributes
-
-All attributes on `HTMLElement` can have observables passed as value, in which case the attribute is updated as the observable changes.
-If the observable is boolean, then the value of the attribute will be `''`.
-
-```tsx
-<div contenteditable={o_boolean}/>
-```
-
-## Classes and Styles
-
-`class` and `style` on elements can receive `Observable` as well as regular values.
-
-`class` can be a `o.RO<string>` or an object of class definitions, where the properties are the class name and their values the potentially observable condition that will determine if the class is attributed. On top of that, class can receive an array of the two former to build complex classes.
-
-```tsx
-import { o } from 'elt'
-const o_class = o('class2')
-const o_bool = o(true)
-<div class={['class1', o_class, {class3: o_bool}]}/>
-// -> <div class='class1 class2 class3'/>
-
-// ... some later code runs the following :
-o_bool.set(false)
-// -> <div class='class1 class2'/>
-o_class.set('another-class')
-// -> <div class='class1 another-class'>
-```
-
-The `style` attribute does not accept text. Since it is considered good practice to not use this attribute, only its object form is supported for those cases where you can't do without.
-
-```jsx
-const o_width = o('432px')
-<Elt style={ {width: o_width} }>
-```
 
 ## Mixins
 
@@ -408,13 +423,13 @@ class MyMixin<N extends Node> extends Mixin<N> {
 document.body.appendChild(<div>{new MyMixin()}</div>)
 ```
 
-# Components
+## Components
 
 Use components when you want to reuse dom structures without hassle.
 
 There are two ways of building components ; as a simple function or as a class.
 
-## Component Functions
+### Component Functions
 
 A component function takes two arguments and return a Node.
 
@@ -453,7 +468,7 @@ function MyComponent(attrs: MyComponentAttrs, children: Renderable[]) {
 }
 ```
 
-## Component class
+### Component class
 
 A component is a subclass of `Mixin`. A custom Component must define a `.render()` method that returns the node type specified in its `Attrs` type and takes renderables as its only argument.
 
@@ -472,7 +487,7 @@ class MyComponent extends Component<Attrs<HTMLDivElement> & {title: string}> {
 }
 ```
 
-## Components and `class`, `style` and `id`
+### `class`, `style` and `id`
 
 Since these three attributes are ubiquitous on just any element type, they are handled separately.
 
@@ -486,7 +501,7 @@ const o_cls = o('some_class')
 
 ```
 
-## Components and other Mixins or Decorators
+### Components and other Mixins or Decorators
 
 Decorators and Mixins can be added to components ; the node they act upon is always the root node returned by the component, as is specified in their `Attrs` definition.
 
