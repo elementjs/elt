@@ -13,6 +13,8 @@ It is built with three objectives in mind :
  * All overheads induced by its use **should** be kept as low as possible
  * Everything **must** be typed correctly. This library **must** be refactoring-friendly.
 
+Join the (discord)[https://discord.gg/A8tKA7q] for questions or use the tags `#typescript` and `#elt` on stack overflow, go to the (repository)[https://github.com/elementjs/elt] to file issues.
+
 ## Why use it
 
   * **You use typescript** and don't want a javascript library that use patterns that the typing system doesn't always gracefully support. Everything is Element was built with *type inference* in mind. The [`Observable`](#o.Observable) ecosystem tries hard to keep that valuable typing information without getting in your way and have you type everything by hand.
