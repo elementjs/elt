@@ -279,7 +279,7 @@ const o_obj = o({a: 1, b: 'hello'})
 const o_a = o_obj.p('a') // o_a is a new Observable that watches the 'a' property. Its type is o.Observable<number>
 o_a.set(3)
 
-const o_tf = o_a.tf({get: val => val * 2, set: nval => nval / 2})
+const o_tf = o_a.tf({transform: val => val * 2, revert: (nval: number) => nval / 2})
 o_tf.get() // 6
 o_tf.set(8) // o_a is now 4, and o_obj is {a: 4, b: '!!!'}
 
