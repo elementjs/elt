@@ -35,7 +35,7 @@ ELT offers the following concepts to get this done :
 
  * Since observing an observable makes them keeps a reference to their observers in the memory, observers have to be deregistered properly when they're not used anymore. To alleviate the burden on the programmer and avoid forgetting to stop the observers -- and thus create memory leaks, ELT associates observing with nodes and whether they're in the document or not. See [`$observe()`](#$observe), [`node_observe()`](#node_observe) and [`Mixin.observe()`](#Mixin.observe).
 
- * Since the DOM does not offer a simple way to know *when* a node is added or removed from the document other than using a `MutationObserver`, ELT offers a way to react to these events by setting up the observer itself and registering callbacks directly on the `Node`s. See [`$inserted()`](#$inserted), [`$removed()`](#$removed), but also [`$prepare()`](#$prepare).
+ * Since the DOM does not offer a simple way to know *when* a node is added or removed from the document other than using a `MutationObserver`, ELT offers a way to react to these events by setting up the observer itself and registering callbacks directly on the `Node`s. See [`$inserted()`](#$inserted), [`$removed()`](#$removed), but also [`$init()`](#$init).
 
  * Instead of creating components that change what they render based on the values of Observables, such as an hypothetical `<If condition={...}>`, ELT uses "verbs" ; functions whose name starts with an **upper-case** letter. While a component-based approach would work perfectly, the "verb" approach is more explicit about where dynamicity is happening in the code. See [`If()`](#If), [`Repeat`](#Repeat), [`RepeatScroll`](#RepeatScroll) and [`Switch`](#Switch).
 
