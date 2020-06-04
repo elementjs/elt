@@ -91,7 +91,7 @@ setup_mutation_observer(document)
 
 ## Using it with a module loader
 
-You can use the library through import statements. It is perfectly fine to use with webpack, rollup or parcel, although as of now no effort was put to make elt (tree-shakable)[https://webpack.js.org/guides/tree-shaking/].
+You can use the library through import statements. It is perfectly fine to use with webpack, rollup or parcel, although as of now no effort was put to make elt [tree-shakable](https://webpack.js.org/guides/tree-shaking/).
 
 ```tsx
 import { o, $bind, setup_mutation_observer } from 'elt'
