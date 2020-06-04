@@ -394,12 +394,12 @@ Aside from creating components with the `Component` class, their utility resides
 import { Mixin } from 'elt'
 
 // This mixin can be added on just any node.
-class MyMixin extends Mixin<Node> {
-  inserted(node: Node) {
+class MyMixin<N extends Node> extends Mixin<N> {
+  inserted(node: N) {
     console.log(`I was inserted on`, parent)
   }
 
-  removed(node: Node, parent: Node) {
+  removed(node: N, parent: Node) {
     console.log(`I was removed from the document`)
     console.log(`My parent was`, parent)
   }
