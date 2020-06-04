@@ -275,6 +275,8 @@ export class App extends Mixin<Comment>{
    * in the parent app.
    *
    * @code ../examples/app.subapp.tsx
+   *
+   * @category app, toc
    */
   DisplayChildApp(view_name: string | Symbol, ...services: {new (app: App): App.Service}[]) {
     var newapp = new App(view_name, this)
