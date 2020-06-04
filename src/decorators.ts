@@ -154,32 +154,6 @@ export namespace $bind {
 
 
 /**
- * Modify object properties of the current Node.
- *
- * Unfortunately, TSX does not pick up on the correct node type here. It however works without having
- * to type with regular js calls.
- *
- * @code ../examples/_props.tsx
- *
- * @category dom, toc
- */
-export function $props<N extends Node>(props: { [k in keyof N]?: o.RO<N[k]> }): (node: N) => void {
-  var keys = Object.keys(props) as (keyof N)[]
-  return (node: N) => {
-    for (var i = 0, l = keys.length; i < l; i++) {
-      var k = keys[i]
-      var val = props[k] as o.RO<N[keyof N]>
-      if (o.isReadonlyObservable(val)) {
-        node_observe(node, val, value => node[k] = value)
-      } else {
-        node[k] = val
-      }
-    }
-  }
-}
-
-
-/**
  * Observe one or several class definition, where a class definition is either
  *  - A `o.RO<string>`
  *  - An object which keys are class names and values are `o.RO<any>` and whose truthiness

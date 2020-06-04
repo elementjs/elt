@@ -8,10 +8,13 @@ class MyMixinWorks<N extends HTMLElement> extends Mixin<N> {
 
 }
 
+// it can be instanciated directly as a child without specifying its type
 var div = <div>
   {new MyMixinWorks()}
 </div>
 
+// when storing it first in a variable however, the type must be known prior
+// to inserting it.
 var mx = new MyMixinWorks<HTMLDivElement>()
 var div2 = <div>{mx}</div>
 
@@ -29,7 +32,7 @@ class MyMixinFails extends Mixin<HTMLElement> {
 
 }
 
-// doesn't work either, even though it should.
+// doesn't work either, even though it should, which is a shame.
 var div4 = <div>
   {new MyMixinFails()}
 </div>
