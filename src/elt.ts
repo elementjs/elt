@@ -446,14 +446,14 @@ export namespace e {
     var keys = Object.keys(attrs) as (keyof typeof attrs)[]
     for (var i = 0, l = keys.length; i < l; i++) {
       var key = keys[i]
-      if (key === 'class') {
-        var clss = attrs.class!
+      if (key === 'class' && attrs.class) {
+        var clss = attrs.class
         if (Array.isArray(clss))
           for (var j = 0, lj = clss.length; j < lj; j++) node_observe_class(node, clss[j])
         else
           node_observe_class(node, attrs.class!)
-      } else if (key === 'style') {
-        node_observe_style(node, attrs.style!)
+      } else if (key === 'style' && attrs.style) {
+        node_observe_style(node, attrs.style)
       } else if (key === 'id' || is_basic_node) {
         node_observe_attribute(node, key, attrs[key])
       }
