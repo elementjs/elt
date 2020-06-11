@@ -559,6 +559,9 @@ export class Observable<A> implements ReadonlyObservable<A>, Indexable {
     }
   }
 
+  /** Return `true` if this observable is being observed by an Observer or another Observable. */
+  isObserved() { return this._watched }
+
   /**
    * @internal
    */
@@ -1181,6 +1184,50 @@ export function prop<T, K extends keyof T>(obj: Observable<T> | T, prop: RO<K>, 
     return clone
   }
 
+
+  /**
+   * Wrap a promise observable into an instant observable that has information about
+   * the current promise resolving status.
+   *
+   * @category observable, toc
+   */
+  export function wrapPromise<T>(obs: o.RO<Promise<T>>): o.Observable<wrapPromise.Result<T>> {
+    var last_promise: Promise<T>
+    var last_result: wrapPromise.Result<T> = { status: 'pending' }
+
+    var res = new CombinedObservable<[Promise<T>], wrapPromise.Result<T>>([o(obs)])
+    res.getter = ([pro]) => {
+      if (last_promise === pro) return last_result
+      last_promise = pro
+      pro.then(val => {
+        // ignore the result of this promise if it actually changed.
+        if (last_promise !== pro) return
+        last_result = { status: 'resolved', value: val }
+        // this will force-recall the setter
+        if (res.isObserved()) queue.schedule(res)
+      })
+      pro.catch(err => {
+        last_result = { ...last_result, status: 'error', error: err }
+        if (res.isObserved()) queue.schedule(res)
+      })
+      // console.log(last_result)
+      return { ...last_result, status: 'pending' }
+    }
+    res.setter = undefined!
+
+    return res
+  }
+
+  export namespace wrapPromise {
+    /**
+     * @category observable
+     */
+    export type Result<T, Error = any> =
+      | { status: 'pending', value?: T, error?: Error }
+      | { status: 'resolved', value: T }
+      | { status: 'error', error: Error, value?: T }
+  }
+
   /**
    * Transforms `obs`, an observable that holds a promise to a read only observable
    * that updates its value when the promise has resolved. Since the first time around
@@ -1190,28 +1237,27 @@ export function prop<T, K extends keyof T>(obj: Observable<T> | T, prop: RO<K>, 
    * is ignored.
    *
    * The resulting observable only listens to the promise changes if it's being observed.
+   *
+   * > **Note**: Try to use `tfpromise` at the last possible link of a transformation chain
+   * > to avoid undesirable intermediary transforms when the promise is itself the result
+   * > of a transformation. IE: use tfpromise to create the observable that will be rendered.
    */
-  export function tfpromise<T>(obs: o.RO<Promise<T>>, def: () => T): o.ReadonlyObservable<T>
-  export function tfpromise<T>(obs: o.RO<Promise<T>>): o.ReadonlyObservable<T | undefined>
-  export function tfpromise<T>(obs: o.RO<Promise<T>>, def?: () => T): o.ReadonlyObservable<T | undefined> {
-    var last_promise: Promise<T>
-    var last_result = def?.()
+  export function tfpromise<T>(obs: o.RO<Promise<T>>, def: () => T): o.ReadonlyObservable<T> & {wrapped: o.ReadonlyObservable<wrapPromise.Result<T>>}
+  export function tfpromise<T>(obs: o.RO<Promise<T>>): o.ReadonlyObservable<T | undefined> & {wrapped: o.ReadonlyObservable<wrapPromise.Result<T>>}
+  export function tfpromise<T>(obs: o.RO<Promise<T>>, def?: () => T): o.ReadonlyObservable<T | undefined> & {wrapped: o.ReadonlyObservable<wrapPromise.Result<T>>} {
+    // var last_promise: Promise<T>
+    // var last_result = def ? def() : undefined
 
-    var res = new CombinedObservable<[Promise<T>], T | undefined>([o(obs)])
-    res.getter = ([pro]) => {
-      if (last_promise === pro) return last_result
-      last_promise = pro
-      pro.then(val => {
-        if (last_promise !== pro) return
-        last_result = val
-        queue.schedule(res)
-      })
-      return last_result
-    }
-    res.setter = undefined!
+    const wrapped = wrapPromise(obs)
+    const res: o.ReadonlyObservable<T | undefined> & {wrapped: o.ReadonlyObservable<wrapPromise.Result<T>>}  = wrapped.tf(val => {
+      if (val.status === 'pending' && !val.value && def) return def()
+      return val.value
+    }) as any
 
+    res.wrapped = wrapped
     return res
   }
+
 
   /**
    * Returns a function that accepts a callback. While this callback is running, all subsequent
