@@ -448,6 +448,13 @@ export namespace App {
       return result as B
     }
 
+    /**
+     * Set this service as the active one.
+     */
+    activateSelf() {
+      this.app.activate(this.constructor as new (app: App) => Service)
+    }
+
   }
 
 }
