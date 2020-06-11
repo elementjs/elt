@@ -53,7 +53,7 @@ export class App extends Mixin<Comment>{
   protected _cache = new Map<typeof App.Service, App.Service>()
 
   /** @internal */
-  protected _active_services = new Set<App.Service>()
+  protected _active_services = new Map<typeof App.Service, App.Service>()
 
   /** @internal */
   protected _children_app = new Set<App>()
@@ -128,12 +128,12 @@ export class App extends Mixin<Comment>{
   /**
    * @internal
    */
-  getServicesInRequirementOrder(active_services: Set<App.Service>) {
-    var services = new Set(active_services)
+  getServicesInRequirementOrder(active_services: Map<typeof App.Service, App.Service>) {
+    var services = new Set(active_services.values())
 
-    for (var bl of services) {
-      for (var ch of bl._requirements) {
-        services.add(ch)
+    for (var bl of services.values()) {
+      for (var req of bl._requirements) {
+        services.add(req)
       }
     }
 
@@ -174,12 +174,12 @@ export class App extends Mixin<Comment>{
 
     // We start by tagging services to know which are the active ones
     // as well as their dependencies.
-    for (var bl of this._active_services) {
+    for (var bl of this._active_services.values()) {
       keep(bl)
     }
 
     for (var ch of this._children_app) {
-      for (var bl of ch._active_services)
+      for (var bl of ch._active_services.values())
         keep(bl)
     }
 
@@ -199,13 +199,13 @@ export class App extends Mixin<Comment>{
    */
   activate(...new_services: {new (app: App): App.Service}[]) {
     const active = this._active_services
-    const new_active_services = new Set<App.Service>()
+    const new_active_services = new Map<typeof App.Service, App.Service>()
     var already_has_services = true
 
     // first check for the asked new_services if
     for (var b of new_services) {
       const instance = this._cache.get(b as typeof App.Service)
-      if (!instance || !active.has(instance)) {
+      if (!instance || !active.has(instance.instantiator)) {
         already_has_services = false
         break
       }
@@ -218,7 +218,7 @@ export class App extends Mixin<Comment>{
     try {
       for (var b of new_services) {
         var bl = this.getService(b)
-        new_active_services.add(bl)
+        new_active_services.set(bl.instantiator, bl)
       }
     } catch (e) {
       // cancel activating the new service
@@ -229,7 +229,7 @@ export class App extends Mixin<Comment>{
 
     this._active_services = new_active_services
 
-    for (var service of new_active_services)
+    for (var service of new_active_services.values())
       service._activate()
 
     // remove dead services
@@ -288,6 +288,8 @@ export class App extends Mixin<Comment>{
 
 
 export namespace App {
+  export type ServiceInstanciator<S extends Service> = new (app: App) => S
+
   /**
    * Display an application with the specified `#App.Service`s as activated services, displaying
    * the `main_view` view.
@@ -343,6 +345,8 @@ export namespace App {
 
     /** @internal */
     static _views?: Set<string | Symbol>
+
+    instantiator = this.constructor as typeof Service
 
     /**
      * Set this property to `true` if the service should stay instanciated even if it is
