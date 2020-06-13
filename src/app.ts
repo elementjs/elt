@@ -449,6 +449,7 @@ export namespace App {
     require<B extends Service>(service_def: new (app: App) => B): B {
       var result = this.app.getService(service_def)
       this._requirements.add(result)
+      result._init()
       return result as B
     }
 
