@@ -737,7 +737,7 @@ export class CombinedObservable<A extends any[], T = A> extends Observable<T> {
       var ob = obs[i]
       if (ob instanceof Observable) {
         p[i] = ob._value
-        ch.push(new ChildObservableLink(ob, this, ch.length))
+        ch.push(new ChildObservableLink(ob, this, i))
       } else {
         p[i] = ob
       }
@@ -1242,9 +1242,9 @@ export function prop<T, K extends keyof T>(obj: Observable<T> | T, prop: RO<K>, 
    * > to avoid undesirable intermediary transforms when the promise is itself the result
    * > of a transformation. IE: use tfpromise to create the observable that will be rendered.
    */
-  export function tfpromise<T>(obs: o.RO<Promise<T>>, def: () => T): o.ReadonlyObservable<T> & {wrapped: o.ReadonlyObservable<wrapPromise.Result<T>>}
-  export function tfpromise<T>(obs: o.RO<Promise<T>>): o.ReadonlyObservable<T | undefined> & {wrapped: o.ReadonlyObservable<wrapPromise.Result<T>>}
-  export function tfpromise<T>(obs: o.RO<Promise<T>>, def?: () => T): o.ReadonlyObservable<T | undefined> & {wrapped: o.ReadonlyObservable<wrapPromise.Result<T>>} {
+  export function tfpromise<T>(obs: o.RO<Promise<T>>, def: () => T): o.ReadonlyObservable<T>
+  export function tfpromise<T>(obs: o.RO<Promise<T>>): o.ReadonlyObservable<T | undefined>
+  export function tfpromise<T>(obs: o.RO<Promise<T>>, def?: () => T): o.ReadonlyObservable<T | undefined> {
     // var last_promise: Promise<T>
     // var last_result = def ? def() : undefined
 
