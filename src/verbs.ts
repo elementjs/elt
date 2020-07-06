@@ -9,7 +9,7 @@ import {
   Mixin,
 } from './mixins'
 
-import { e, Renderable, Displayer } from './elt'
+import { e, Renderable, Displayer, Display } from './elt'
 
 import {
   insert_before_and_init,
@@ -479,4 +479,33 @@ export namespace Switch {
     Else(fn: (v: o.ReadonlyObservable<T>) => Renderable): this
   }
 
+}
+
+
+export function IfLoading(op: o.RO<Promise<any>>, fn: () => Renderable) {
+  return If(o.wrapPromise(op).tf(v => v.resolving), fn)
+}
+
+
+export function IfResolved<T>(op: o.RO<Promise<T>>,
+  yes: (o_value: o.ReadonlyObservable<T>) => Renderable,
+  no?: (o_error: o.ReadonlyObservable<any>) => Renderable)
+{
+  const op_wrapped = o.wrapPromise(op)
+  const o_value = o(undefined as any)
+  const o_error = o(undefined)
+  return Display(op_wrapped.tf((wr, _, prev) => {
+    if (wr.resolved === 'value') {
+      o_value.set(wr.value)
+      if (prev !== o.NoValue && _ !== o.NoValue && (_.resolved ==='value'))
+        return prev
+      return yes(o_value)
+    } else if (no && (wr.resolved === 'error')) {
+      o_error.set(wr.error)
+      if (prev !== o.NoValue && _ !== o.NoValue && (_.resolved === 'error'))
+        return prev
+      return no(o_error)
+    }
+    return undefined
+  }))
 }

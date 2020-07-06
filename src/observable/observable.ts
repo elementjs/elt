@@ -1,4 +1,5 @@
 import { EACH, IndexableArray, Indexable } from './indexable'
+import { Deferred } from '../promises'
 
 /**
  * Make sure we have a usable observable.
@@ -12,7 +13,7 @@ export function o<T>(arg: T): [T] extends [o.Observable<any>] ? T :
       o.ReadonlyObservable<o.ObservedType<T>>
       // if there were NO observables involved, then we obtain just a modifiable observable of the provided types.
   : o.Observable<T> {
-  return arg instanceof o.Observable ? arg as any : new o.Observable(arg)
+  return arg instanceof Promise ? new o.PromiseObservable(arg) : arg instanceof o.Observable ? arg as any : new o.Observable(arg)
 }
 
 export namespace o {
@@ -1185,6 +1186,28 @@ export function prop<T, K extends keyof T>(obj: Observable<T> | T, prop: RO<K>, 
   }
 
 
+  export type WrappedPromise<T> = Promise<T> & {
+    resolve(v:T): void
+    reject(v: any): void
+  }
+
+  export class PromiseObservable<T> extends Observable<Promise<T>> {
+
+    constructor(v: Promise<T>) {
+      super(Deferred.create(v))
+    }
+
+    set(v: Promise<T>) {
+      var current = this._value as WrappedPromise<T>
+      current.reject(new Error(`new observable value`))
+      return super.set(Deferred.create(v))
+    }
+
+  }
+
+
+  const _wrap_cache = new WeakMap<any, Observable<any>>()
+
   /**
    * Wrap a promise observable into an instant observable that has information about
    * the current promise resolving status.
@@ -1192,26 +1215,31 @@ export function prop<T, K extends keyof T>(obj: Observable<T> | T, prop: RO<K>, 
    * @category observable, toc
    */
   export function wrapPromise<T>(obs: o.RO<Promise<T>>): o.Observable<wrapPromise.Result<T>> {
+    if (_wrap_cache.has(obs)) {
+      return _wrap_cache.get(obs)!
+    }
+
     var last_promise: Promise<T>
-    var last_result: wrapPromise.Result<T> = { status: 'pending' }
+    var last_result: wrapPromise.Result<T> = { resolving: true }
 
     var res = new CombinedObservable<[Promise<T>], wrapPromise.Result<T>>([o(obs)])
+    _wrap_cache.set(obs, res)
     res.getter = ([pro]) => {
       if (last_promise === pro) return last_result
       last_promise = pro
       pro.then(val => {
         // ignore the result of this promise if it actually changed.
         if (last_promise !== pro) return
-        last_result = { status: 'resolved', value: val }
+        last_result = { resolving: false, resolved: 'value', value: val }
         // this will force-recall the setter
         if (res.isObserved()) queue.schedule(res)
       })
       pro.catch(err => {
-        last_result = { ...last_result, status: 'error', error: err }
+        last_result = { resolving: false, resolved: 'error', error: err }
         if (res.isObserved()) queue.schedule(res)
       })
       // console.log(last_result)
-      return { ...last_result, status: 'pending' }
+      return { ...last_result, resolving: true }
     }
     res.setter = undefined!
 
@@ -1223,9 +1251,29 @@ export function prop<T, K extends keyof T>(obj: Observable<T> | T, prop: RO<K>, 
      * @category observable
      */
     export type Result<T, Error = any> =
-      | { status: 'pending', value?: T, error?: Error }
-      | { status: 'resolved', value: T }
-      | { status: 'error', error: Error, value?: T }
+      | { resolving: true, resolved?: undefined }
+      | { resolving: boolean, resolved: 'value', value: T }
+      | { resolving: boolean, resolved: 'error', error: Error }
+  }
+
+  export function setFromPromise<T>(obs: Observable<T>, pro: Promise<T>, init?: T) {
+    if (arguments.length === 3) {
+      obs.set(init!)
+    }
+    pro.then(pr => {
+      var cur = obs.get()
+      if (cur === init) obs.set(pr)
+    })
+    return obs
+  }
+
+  export function fromPromise<T>(init: T, pro: Promise<T>): Observable<T> {
+    var res = o(init) as Observable<T>
+    pro.then(p => {
+      if (res.get() === init)
+        res.set(p)
+    })
+    return res
   }
 
   /**
@@ -1238,20 +1286,17 @@ export function prop<T, K extends keyof T>(obj: Observable<T> | T, prop: RO<K>, 
    *
    * The resulting observable only listens to the promise changes if it's being observed.
    *
-   * > **Note**: Try to use `tfpromise` at the last possible link of a transformation chain
+   * > **Note**: Try to use `unpromise` at the last possible link of a transformation chain
    * > to avoid undesirable intermediary transforms when the promise is itself the result
-   * > of a transformation. IE: use tfpromise to create the observable that will be rendered.
+   * > of a transformation. IE: use unpromise to create the observable that will be rendered.
    */
-  export function tfpromise<T>(obs: o.RO<Promise<T>>, def: () => T): o.ReadonlyObservable<T>
-  export function tfpromise<T>(obs: o.RO<Promise<T>>): o.ReadonlyObservable<T | undefined>
-  export function tfpromise<T>(obs: o.RO<Promise<T>>, def?: () => T): o.ReadonlyObservable<T | undefined> {
-    // var last_promise: Promise<T>
-    // var last_result = def ? def() : undefined
-
+  export function unpromise<T>(obs: o.RO<Promise<T>>, def: () => T): o.ReadonlyObservable<T>
+  export function unpromise<T>(obs: o.RO<Promise<T>>): o.ReadonlyObservable<T | undefined>
+  export function unpromise<T>(obs: o.RO<Promise<T>>, def?: () => T): o.ReadonlyObservable<T | undefined> {
     const wrapped = wrapPromise(obs)
     const res: o.ReadonlyObservable<T | undefined> & {wrapped: o.ReadonlyObservable<wrapPromise.Result<T>>}  = wrapped.tf(val => {
-      if (val.status === 'pending' && !val.value && def) return def()
-      return val.value
+      if (val.resolved === 'value') return val.value
+      return def?.()
     }) as any
 
     res.wrapped = wrapped
@@ -1306,6 +1351,7 @@ export function prop<T, K extends keyof T>(obj: Observable<T> | T, prop: RO<K>, 
      * @internal
      */
     startObservers() {
+      if (this.is_observing) return
       var cbk = this._callback_queue
       if (cbk) {
         for (var i = 0, l = cbk.length; i < l; i++) {
@@ -1323,6 +1369,7 @@ export function prop<T, K extends keyof T>(obj: Observable<T> | T, prop: RO<K>, 
      * Stop all the observers on this holder from observing.
      */
     stopObservers() {
+      if (!this.is_observing) return
       for (var obss = this._observers, i = 0, l = obss.length; i < l; i++) {
         obss[i].stopObserving()
       }
@@ -1371,3 +1418,4 @@ export function prop<T, K extends keyof T>(obj: Observable<T> | T, prop: RO<K>, 
   }
 
 }
+
