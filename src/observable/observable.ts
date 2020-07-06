@@ -13,7 +13,7 @@ export function o<T>(arg: T): [T] extends [o.Observable<any>] ? T :
       o.ReadonlyObservable<o.ObservedType<T>>
       // if there were NO observables involved, then we obtain just a modifiable observable of the provided types.
   : o.Observable<T> {
-  return arg instanceof Promise ? new o.PromiseObservable(arg) : arg instanceof o.Observable ? arg as any : new o.Observable(arg)
+  return arg instanceof o.Observable ? arg as any : new o.Observable(arg)
 }
 
 export namespace o {
@@ -1186,35 +1186,28 @@ export function prop<T, K extends keyof T>(obj: Observable<T> | T, prop: RO<K>, 
   }
 
 
-  export type WrappedPromise<T> = Promise<T> & {
-    resolve(v:T): void
-    reject(v: any): void
-  }
-
-  export class PromiseObservable<T> extends Observable<Promise<T>> {
-
-    constructor(v: Promise<T>) {
-      super(Deferred.create(v))
-    }
-
-    set(v: Promise<T>) {
-      var current = this._value as WrappedPromise<T>
-      current.reject(new Error(`new observable value`))
-      return super.set(Deferred.create(v))
-    }
-
-  }
-
-
   const _wrap_cache = new WeakMap<any, Observable<any>>()
 
   /**
    * Wrap a promise observable into an instant observable that has information about
-   * the current promise resolving status.
+   * the current promise resolution status.
+   *
+   * The resulting observable has two properties that indicate the state of the promise :
+   * - `resolving` which is `true` when there is a pending promise and `false` when the promise
+   *    has either been resolved or rejected.
+   * - `resolved` which is `"value"` if the promise resolved and `"error"` if it errored
+   *
+   * If `resolved` is `"value"`, then the `value` field gives the resolved value. Similarily,
+   * when `resolved` is `"error"`, the `error` field contains the error the promise ended up in.
+   *
+   * The duality between `resolving` and `resolved` exists because when dealing with an **observable**
+   * of Promise, we want to keep the last resolved value to probably keep displaying the previous
+   * result while showing some loading indicator.
    *
    * @category observable, toc
    */
-  export function wrapPromise<T>(obs: o.RO<Promise<T>>): o.Observable<wrapPromise.Result<T>> {
+  export function wrapPromise<T>(obs: o.RO<Promise<T>>): o.ReadonlyObservable<wrapPromise.Result<T>> {
+    // We cache the wrapped observable to avoid polluting memory for nothing.
     if (_wrap_cache.has(obs)) {
       return _wrap_cache.get(obs)!
     }
@@ -1248,6 +1241,7 @@ export function prop<T, K extends keyof T>(obj: Observable<T> | T, prop: RO<K>, 
 
   export namespace wrapPromise {
     /**
+     * The value of an observable that wraps a promise observable.
      * @category observable
      */
     export type Result<T, Error = any> =
@@ -1256,6 +1250,12 @@ export function prop<T, K extends keyof T>(obj: Observable<T> | T, prop: RO<K>, 
       | { resolving: boolean, resolved: 'error', error: Error }
   }
 
+  /**
+   * Set the value of `obs` to `init` if it is provided and then to the value of the
+   * promise when it resolves.
+   *
+   * @category toc, observable
+   */
   export function setFromPromise<T>(obs: Observable<T>, pro: Promise<T>, init?: T) {
     if (arguments.length === 3) {
       obs.set(init!)
@@ -1267,6 +1267,12 @@ export function prop<T, K extends keyof T>(obj: Observable<T> | T, prop: RO<K>, 
     return obs
   }
 
+  /**
+   * Create an observable whose initial value is `init` and then turns into
+   * the value of `pro` once it resolves.
+   *
+   * @category toc, observable
+   */
   export function fromPromise<T>(init: T, pro: Promise<T>): Observable<T> {
     var res = o(init) as Observable<T>
     pro.then(p => {
@@ -1285,10 +1291,6 @@ export function prop<T, K extends keyof T>(obj: Observable<T> | T, prop: RO<K>, 
    * is ignored.
    *
    * The resulting observable only listens to the promise changes if it's being observed.
-   *
-   * > **Note**: Try to use `unpromise` at the last possible link of a transformation chain
-   * > to avoid undesirable intermediary transforms when the promise is itself the result
-   * > of a transformation. IE: use unpromise to create the observable that will be rendered.
    */
   export function unpromise<T>(obs: o.RO<Promise<T>>, def: () => T): o.ReadonlyObservable<T>
   export function unpromise<T>(obs: o.RO<Promise<T>>): o.ReadonlyObservable<T | undefined>
