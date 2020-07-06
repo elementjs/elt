@@ -482,14 +482,31 @@ export namespace Switch {
 }
 
 
-export function IfLoading(op: o.RO<Promise<any>>, fn: () => Renderable) {
-  return If(o.wrapPromise(op).tf(v => v.resolving), fn)
+/**
+ * Display the result of `fn` if the promise is waiting for its result, or if the promise currently
+ * contained in the provided observable is loading.
+ *
+ * To display something based on the result of the promise, use [[IfResolved]]
+ *
+ * @category toc, verb
+ */
+export function IfResolving(pro: o.RO<Promise<any>>, fn: () => Renderable) {
+  return If(o.wrapPromise(pro).tf(v => v.resolving), fn)
 }
 
 
+/**
+ * Display the result of `resolved` if the promise has resolved and provide its result in `o_value`.
+ * If the promise has errored, then the `rejected` arm is executed with `o_error` filled with the
+ * error.
+ *
+ * To display something based on the loading state of the promise, use [[IfResolving]]
+ *
+ * @category toc, verb
+ */
 export function IfResolved<T>(op: o.RO<Promise<T>>,
-  yes: (o_value: o.ReadonlyObservable<T>) => Renderable,
-  no?: (o_error: o.ReadonlyObservable<any>) => Renderable)
+  resolved: (o_value: o.ReadonlyObservable<T>) => Renderable,
+  rejected?: (o_error: o.ReadonlyObservable<any>) => Renderable)
 {
   const op_wrapped = o.wrapPromise(op)
   const o_value = o(undefined as any)
@@ -499,12 +516,12 @@ export function IfResolved<T>(op: o.RO<Promise<T>>,
       o_value.set(wr.value)
       if (prev !== o.NoValue && _ !== o.NoValue && (_.resolved ==='value'))
         return prev
-      return yes(o_value)
-    } else if (no && (wr.resolved === 'error')) {
+      return resolved(o_value)
+    } else if (rejected && (wr.resolved === 'error')) {
       o_error.set(wr.error)
       if (prev !== o.NoValue && _ !== o.NoValue && (_.resolved === 'error'))
         return prev
-      return no(o_error)
+      return rejected(o_error)
     }
     return undefined
   }))
