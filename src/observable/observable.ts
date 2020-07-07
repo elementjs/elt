@@ -450,7 +450,7 @@ export class Observable<A> implements ReadonlyObservable<A>, Indexable {
    * If the return value of `fn` is [[o.NoValue]] then the observable is untouched.
    */
   mutate(fn: (current: A) => A | o.NoValue) {
-    const n = fn(this._value)
+    const n = fn(this.get())
     if (n !== NoValue) {
       this.set(n)
     }
