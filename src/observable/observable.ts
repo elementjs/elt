@@ -1,5 +1,4 @@
 import { EACH, IndexableArray, Indexable } from './indexable'
-import { Deferred } from '../promises'
 
 /**
  * Make sure we have a usable observable.
