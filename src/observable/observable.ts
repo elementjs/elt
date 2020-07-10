@@ -806,27 +806,47 @@ export function merge<T>(obj: {[K in keyof T]: Observable<T[K]>}): Observable<T>
 }
 
 
-/**
- * Create an observable that watches a `prop` from `obj`, giving returning the result
- * of `def` if the value was `undefined`.
- * @category observable, toc
- */
-export function prop<T, K extends keyof T>(obj: Observable<T> | T, prop: RO<K>, def?: RO<(key: K, obj: T) => T[K]>) {
-  return combine(
-    tuple(obj, prop, def),
-    ([obj, prop, def]) => {
-      var res = obj[prop]
-      if (res === undefined && def)
-        res = def(prop, obj)
-      return res
-    },
-    (nval, _, [orig, prop]) => {
-      const newo = o.clone(orig)
-      newo[prop] = nval
-      return tuple(newo, NoValue, NoValue)
-    }
-  )
-}
+  /**
+   * Create an observable that watches a `prop` from `obj`, giving returning the result
+   * of `def` if the value was `undefined`.
+   * @category observable, toc
+   */
+  export function prop<T, K extends keyof T>(obj: Observable<T> | T, prop: RO<K>, def?: RO<(key: K, obj: T) => T[K]>) {
+    return combine(
+      tuple(obj, prop, def),
+      ([obj, prop, def]) => {
+        var res = obj[prop]
+        if (res === undefined && def)
+          res = def(prop, obj)
+        return res
+      },
+      (nval, _, [orig, prop]) => {
+        const newo = o.clone(orig)
+        newo[prop] = nval
+        return tuple(newo, NoValue, NoValue)
+      }
+    )
+  }
+
+  export type UnPromise<T> = T extends PromiseLike<infer U> ? U : T
+
+  export function then<T extends any[], U>(o_pro: o.RO<T>, tffn: (item: {[K in keyof T]: UnPromise<T[K]>}) => U): o.ReadonlyObservable<Promise<U>>
+  export function then<T, U>(o_pro: o.RO<T>, tffn: (item: UnPromise<T>) => U): o.ReadonlyObservable<Promise<U>>
+  export function then(o_pro: o.RO<any>, tffn: (item: any) => any) {
+    var prevreject: undefined | ((err: any) => void)
+    return o.tf(o_pro, (newpro) => {
+      if (prevreject) prevreject(new Error(`Promise changed, cancelling`))
+      return new Promise((accept, reject) => {
+        prevreject = reject
+        if (Array.isArray(newpro))
+          Promise.all(newpro).then(val => accept(tffn(val)))
+        else if (newpro && typeof newpro['then'] === 'function')
+          newpro.then((val: any) => accept(tffn(val)))
+        else
+          setTimeout(() => accept(tffn(newpro)), 0)
+      })
+    })
+  }
 
   /**
    * Get a MaybeObservable's value
