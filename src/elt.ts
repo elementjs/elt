@@ -190,7 +190,7 @@ export type Renderable = o.RO<string | number | Node | null | undefined | {[e.sy
  * `<div>{['hello', ' ', [['world']] ]}</div>` will render `<div>hello world</div>`
  *
 */
-export type Insertable<N extends Node> = Mixin<N> | Decorator<N> | Renderable | Insertable<N>[]
+export type Insertable<N extends Node> = Decorator<N> | Renderable | Insertable<N>[]
 
 /**
  * Attributes used on elements that are not actually HTML Elements
@@ -374,8 +374,6 @@ export namespace e {
         _decorator_map.set(c, cmt)
         chld.push(cmt)
         decorators.push(c)
-      } else if (c instanceof Mixin) {
-        mixins.push(c)
       } else {
         // We just copy the attrs properties onto the attrs object
         Object.assign(attrs, c)
