@@ -266,9 +266,8 @@ export function e<N extends Node>(elt: string | Node | Function, ...children: (I
   var l = 0
   var attrs: Attrs<N> = {}
   var decorators: Decorator<N>[] = []
-  var mixins: Mixin<N>[] = []
   var renderables: Renderable[] = []
-  e.separate_children_from_rest(children, attrs, decorators, mixins, renderables)
+  e.separate_children_from_rest(children, attrs, decorators, renderables)
 
   if (is_basic_node) {
     // create a simple DOM node
@@ -303,11 +302,6 @@ export function e<N extends Node>(elt: string | Node | Function, ...children: (I
   // Handle decorators on the node
   for (i = 0, l = decorators.length; i < l; i++) {
     e.handle_decorator(node, decorators[i])
-  }
-
-  // Add the mixins
-  for (i = 0, l = mixins.length; i < l; i++) {
-    node_add_mixin(node, mixins[i])
   }
 
   return node
@@ -361,12 +355,12 @@ export namespace e {
    * The resulting arrays are 1-dimensional and do not contain null or undefined.
    * @internal
    */
-  export function separate_children_from_rest(children: (Insertable<any> | Attrs<any>)[], attrs: Attrs<any>, decorators: Decorator<any>[], mixins: Mixin<any>[], chld: Renderable[]) {
+  export function separate_children_from_rest(children: (Insertable<any> | Attrs<any>)[], attrs: Attrs<any>, decorators: Decorator<any>[], chld: Renderable[]) {
     for (var i = 0, l = children.length; i < l; i++) {
       var c = children[i]
       if (c == null) continue
       if (Array.isArray(c)) {
-        separate_children_from_rest(c, attrs, decorators, mixins, chld)
+        separate_children_from_rest(c, attrs, decorators, chld)
       } else if (c instanceof Node || typeof c === 'string' || typeof c === 'number' || o.isReadonlyObservable(c) || is_renderable_object(c)) {
         chld.push(c)
       } else if (typeof c === 'function') {
