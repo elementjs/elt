@@ -164,8 +164,6 @@ export function Display(obs: o.RO<Renderable>): Node {
 }
 
 
-var _decorator_map = new WeakMap<Function, Comment>()
-
 /**
  * Renderables are the types understood by the `Display` verb and that can be rendered into
  * the DOM without efforts or need to transform. It is used by the `Insertable` type
@@ -265,9 +263,9 @@ export function e<N extends Node>(elt: string | Node | Function, ...children: (I
   var i = 0
   var l = 0
   var attrs: Attrs<N> = {}
-  var decorators: Decorator<N>[] = []
+  var decorators_map: [Decorator<N>, Comment][] = []
   var renderables: Renderable[] = []
-  e.separate_children_from_rest(children, attrs, decorators, renderables)
+  e.handle_raw_children(children, attrs, decorators_map, renderables)
 
   if (is_basic_node) {
     // create a simple DOM node
@@ -300,8 +298,9 @@ export function e<N extends Node>(elt: string | Node | Function, ...children: (I
   e.handle_attrs(node as any, attrs, is_basic_node)
 
   // Handle decorators on the node
-  for (i = 0, l = decorators.length; i < l; i++) {
-    e.handle_decorator(node, decorators[i])
+  for (i = 0, l = decorators_map.length; i < l; i++) {
+    var item = decorators_map[i]
+    e.handle_decorator(node, item[1], item[0])
   }
 
   return node
@@ -350,24 +349,24 @@ export namespace e {
   }
 
   /**
-   * Separates decorators and mixins from nodes or soon-to-be-nodes from children.
-   * Returns a tuple containing the decorators/mixins/attrs in one part and the children in the other.
-   * The resulting arrays are 1-dimensional and do not contain null or undefined.
+   * FIXME : re document this !
    * @internal
    */
-  export function separate_children_from_rest(children: (Insertable<any> | Attrs<any>)[], attrs: Attrs<any>, decorators: Decorator<any>[], chld: Renderable[]) {
+  export function handle_raw_children(children: (Insertable<any> | Attrs<any>)[], attrs: Attrs<any>, decorators: [Decorator<any>, Comment][], chld: Renderable[]) {
     for (var i = 0, l = children.length; i < l; i++) {
       var c = children[i]
       if (c == null) continue
       if (Array.isArray(c)) {
-        separate_children_from_rest(c, attrs, decorators, chld)
+        handle_raw_children(c, attrs, decorators, chld)
       } else if (c instanceof Node || typeof c === 'string' || typeof c === 'number' || o.isReadonlyObservable(c) || is_renderable_object(c)) {
         chld.push(c)
       } else if (typeof c === 'function') {
+        // FIXME / WARNING : as it stands, this implementation is broken, as if the same decorator is called while
+        // being executed, then the comment node will be messed.
         var cmt = document.createComment('decorator ' + c.name)
-        _decorator_map.set(c, cmt)
+        // I should keep the comment / function association instead of using a map, the decorators variable should reflect that.
         chld.push(cmt)
-        decorators.push(c)
+        decorators.push([c, cmt])
       } else {
         // We just copy the attrs properties onto the attrs object
         Object.assign(attrs, c)
@@ -437,10 +436,9 @@ export namespace e {
   /**
    * @internal
    */
-  export function handle_decorator(node: Node, decorator: Decorator<any>): void {
+  export function handle_decorator(node: Node, insert: Comment, decorator: Decorator<any>): void {
     var res: ReturnType<Decorator<Node>> = decorator(node)
-    const ins = _decorator_map.get(decorator)
-    handle_decorator_result(node, ins, res)
+    handle_decorator_result(node, insert, res)
   }
 
   /**
