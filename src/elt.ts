@@ -256,6 +256,7 @@ export interface Attrs<N extends Node> extends EmptyAttributes<N> {
  * @category dom, toc
  */
 export function e<N extends Node>(elt: N, ...children: (Insertable<N> | Attrs<N>)[]): N
+export function e<K extends keyof SVGElementTagNameMap>(elt: K, ...children: (Insertable<SVGElementTagNameMap[K]> | e.JSX.SVGAttributes<SVGElementTagNameMap[K]>)[]): SVGElementTagNameMap[K]
 export function e<K extends keyof HTMLElementTagNameMap>(elt: K, ...children: (Insertable<HTMLElementTagNameMap[K]> | e.JSX.HTMLAttributes<HTMLElementTagNameMap[K]>)[]): HTMLElementTagNameMap[K]
 export function e(elt: string, ...children: Insertable<HTMLElement>[]): HTMLElement
 export function e<A extends EmptyAttributes<any>>(elt: new (a: A) => Component<A>, attrs: A, ...children: Insertable<AttrsNodeType<A>>[]): AttrsNodeType<A>
