@@ -39,7 +39,8 @@ import {
  *
  * @category dom
  */
-export type Decorator<N extends Node> = (node: N) => void | Renderable | Decorator<N> | Mixin<N>
+export type DecoratorResult<N extends Node> = void | Renderable | Decorator<N> | Mixin<N> | DecoratorResult<N>[]
+export type Decorator<N extends Node> = (node: N) => DecoratorResult<N>
 
 
 export namespace $bind {

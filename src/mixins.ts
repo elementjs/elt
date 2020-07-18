@@ -3,7 +3,6 @@ import {
   o
 } from './observable'
 
-import { EmptyAttributes, Attrs, AttrsNodeType, Renderable } from './elt'
 import { sym_mixins, Listener } from './dom'
 
 
@@ -23,6 +22,8 @@ import { sym_mixins, Listener } from './dom'
  */
 export class Mixin<N extends Node = Node> extends o.ObserverHolder {
 
+  constructor(node: N) { super(); this.node = node }
+
   /**
    * The node this mixin is associated to.
    *
@@ -35,7 +36,7 @@ export class Mixin<N extends Node = Node> extends o.ObserverHolder {
    * `this.node` is only defined for certain during [[Mixin#init]] ; do not try to use it before
    * then.
    */
-  node: N = null!
+  node: N
 
   /**
    * Get a Mixin by its class on the given node or its parents.
@@ -118,34 +119,6 @@ export class Mixin<N extends Node = Node> extends o.ObserverHolder {
       }
   }
 
-}
-
-
-/**
- * The Component is the core class of your TSX components.
- *
- * It is just a Mixin that has a `render()` method and that defines the `attrs`
- * property which will restrict what attributes the component can be created with.
- *
- * All attributes **must** extend the base `Attrs` class.
- * @category dom, toc
- */
-export abstract class Component<A extends EmptyAttributes<any> = Attrs<HTMLElement>> extends Mixin<AttrsNodeType<A>> {
-  /**
-   * The attributes passed to the component
-   */
-  attrs: A
-
-  /** @internal */
-  constructor(attrs: A) {
-    super()
-    this.attrs = attrs
-  }
-
-  /**
-   * The render function that has to be defined by Components
-   */
-  abstract render(children: Renderable[]): AttrsNodeType<A>
 }
 
 

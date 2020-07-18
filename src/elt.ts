@@ -2,7 +2,6 @@ import { o } from './observable'
 
 import {
   Mixin,
-  Component,
   node_add_mixin
 } from './mixins'
 
@@ -133,8 +132,8 @@ export class Displayer extends CommentContainer {
   /**
    * The `Displayer` expects `Renderable` values.
    */
-  constructor(public _obs: o.RO<Renderable>) {
-    super()
+  constructor(public node: Comment, public _obs: o.RO<Renderable>) {
+    super(node)
   }
 
   /** @internal */
@@ -161,12 +160,7 @@ export function Display(obs: o.RO<Renderable>): Node {
     return e.renderable_to_node(obs as Renderable, true)
   }
 
-  return e(document.createComment('$Display'), new Displayer(obs))
-}
-
-
-function isComponent(kls: any): kls is new (attrs: Attrs<any>) => Component<any> {
-  return kls.prototype instanceof Component
+  return e(document.createComment('$Display'), node => new Displayer(node, obs))
 }
 
 
@@ -238,7 +232,7 @@ export type NRO<T> = o.RO<T | null | undefined>
  * This type should be used as first argument to all components definitions.
  * @category dom, toc
  */
-export interface Attrs<N extends Node> extends EmptyAttributes<N> {
+export interface Attrs<N extends Node = HTMLElement> extends EmptyAttributes<N> {
   /** A document id */
   id?: NRO<string | null>
   /** Class definition(s), see [[$class]] for possible uses */
@@ -259,7 +253,6 @@ export function e<N extends Node>(elt: N, ...children: (Insertable<N> | Attrs<N>
 export function e<K extends keyof SVGElementTagNameMap>(elt: K, ...children: (Insertable<SVGElementTagNameMap[K]> | e.JSX.SVGAttributes<SVGElementTagNameMap[K]>)[]): SVGElementTagNameMap[K]
 export function e<K extends keyof HTMLElementTagNameMap>(elt: K, ...children: (Insertable<HTMLElementTagNameMap[K]> | e.JSX.HTMLAttributes<HTMLElementTagNameMap[K]>)[]): HTMLElementTagNameMap[K]
 export function e(elt: string, ...children: Insertable<HTMLElement>[]): HTMLElement
-export function e<A extends EmptyAttributes<any>>(elt: new (a: A) => Component<A>, attrs: A, ...children: Insertable<AttrsNodeType<A>>[]): AttrsNodeType<A>
 export function e<A extends EmptyAttributes<any>>(elt: (attrs: A, children: Renderable[]) => AttrsNodeType<A>, attrs: A, ...children: Insertable<AttrsNodeType<A>>[]): AttrsNodeType<A>
 export function e<N extends Node>(elt: string | Node | Function, ...children: (Insertable<N> | Attrs<N>)[]): N {
   if (!elt) throw new Error(`e() needs at least a string, a function or a Component`)
@@ -286,19 +279,19 @@ export function e<N extends Node>(elt: string | Node | Function, ...children: (I
       node = elt as N
     }
 
-    for (i = 0, l = renderables.length; i < l; i++) {
-      var c = e.renderable_to_node(renderables[i])
-      if (c) {
-        append_child_and_init(node, c)
+    // We have to perform this check, as decorators respond with a comment to insert their content
+    // once the component has been created, and it cannot be inserted to a comment node.
+    // In practice, the type checker should respond with an error when trying to return nodes from
+    // a decorator applied to a comment.
+    if (!(node instanceof Comment)) {
+      for (i = 0, l = renderables.length; i < l; i++) {
+        var c = e.renderable_to_node(renderables[i])
+        if (c) {
+          if (!(node instanceof Comment)) append_child_and_init(node, c)
+        }
       }
     }
 
-  } else if (isComponent(elt)) {
-    // elt is an instantiator / Component
-    var comp = new elt(attrs)
-
-    node = comp.render(renderables) as N
-    node_add_mixin(node, comp)
   } else if (typeof elt === 'function') {
     // elt is just a creator function
     node = elt(attrs, renderables)
@@ -416,27 +409,46 @@ export namespace e {
     }
   }
 
-  /**
-   * @internal
-   */
-  export function handle_decorator(node: Node, decorator: Decorator<any>) {
-    var res: ReturnType<Decorator<Node>>
-    var dec_iter = decorator
-    // while the decorator returns a decorator, keep calling it.
-    while (typeof (res = dec_iter(node)) === 'function') { dec_iter = res }
-    // If it returns nothing or the node itself, don't do anything
+  export function handle_decorator_result(node: Node, insert: Comment | undefined, res: ReturnType<Decorator<Node>>): void {
+    // if there is not result, or the result is the node itself, do nothing
     if (res == null || res === node) return
+
+    if (typeof res === 'function') {
+      var res2 = res(node)
+      return handle_decorator_result(node, insert, res2)
+    }
+
+    // If it returns nothing or the node itself, don't do anything
     if (res instanceof Mixin) {
       node_add_mixin(node, res)
       return
     }
+
+    if (Array.isArray(res)) {
+      for (var i = 0, l = res.length; i < l; i++) {
+        const ri = res[i]
+        handle_decorator_result(node, insert, ri)
+      }
+      return
+    }
+
+    // Ignore the nodes that may be created if there is nowhere to insert them to
+    if (!insert) return
+
     var nd = renderable_to_node(res)
     if (nd == null) return
-    var cmt = _decorator_map.get(decorator)
-    // If there was no comment associated with this decorator, do nothing
-    if (!cmt) return
     // insert the resulting node right next to the comment
-    insert_before_and_init(node, nd, cmt)
+    insert_before_and_init(node, nd, insert)
+
+  }
+
+  /**
+   * @internal
+   */
+  export function handle_decorator(node: Node, decorator: Decorator<any>): void {
+    var res: ReturnType<Decorator<Node>> = decorator(node)
+    const ins = _decorator_map.get(decorator)
+    handle_decorator_result(node, ins, res)
   }
 
   /**
@@ -482,7 +494,7 @@ export namespace e {
     }
 
     /** @internal */
-    export type ElementClass<N extends Node> = ElementClassFn<N> | Component<EmptyAttributes<any>>
+    export type ElementClass<N extends Node> = ElementClassFn<N>
 
     ///////////////////////////////////////////////////////////////////////////
     // Now following are the default attributes for HTML and SVG nodes.

@@ -50,7 +50,7 @@ export function If<T extends o.RO<any>>(
   }
 
   return e(document.createComment('If'),
-    new If.ConditionalDisplayer<any>(display, condition, display_otherwise)
+    node => new If.ConditionalDisplayer<any>(node, display, condition, display_otherwise)
   )
 }
 
@@ -75,11 +75,12 @@ export namespace If {
   export class ConditionalDisplayer<T extends o.ReadonlyObservable<any>> extends Displayer {
 
     constructor(
+      node: Comment,
       protected display: (arg: If.NonNullableRO<T>) => Renderable,
       protected condition: T,
       protected display_otherwise?: (arg: T) => Renderable
     ) {
-      super(condition.tf((cond, old, v) => {
+      super(node, condition.tf((cond, old, v) => {
         if (old !== o.NoValue && !!cond === !!old && v !== o.NoValue) return v as Renderable
         if (cond) {
           return display(condition as NonNullableRO<T>)
@@ -130,7 +131,7 @@ export function Repeat<T extends o.RO<any[]>>(
 
   return e(
     document.createComment('Repeat'),
-    new Repeat.Repeater(ob, render as any, separator)
+    node => new Repeat.Repeater(node, ob, render as any, separator)
   )
 }
 
@@ -164,11 +165,12 @@ export namespace Repeat {
     protected child_obs: o.Observable<T>[] = []
 
     constructor(
+      node: Comment,
       ob: o.Observable<T[]>,
       public renderfn: (ob: o.Observable<T>, n: number) => Renderable,
       public separator?: (n: number) => Renderable
     ) {
-      super()
+      super(node)
 
       this.obs = o(ob)
     }
@@ -266,7 +268,7 @@ export function RepeatScroll<T extends o.RO<any[]>>(
   // we cheat the typesystem, which is not great, but we know what we're doing.
   return e(
     document.createComment('RepeatScroll'),
-    new RepeatScroll.ScrollRepeater<any>(o(ob as any) as o.Observable<any>, render as any, options)
+    node => new RepeatScroll.ScrollRepeater<any>(node, o(ob as any) as o.Observable<any>, render as any, options)
   )
 }
 
@@ -301,11 +303,12 @@ export namespace RepeatScroll {
     protected parent: HTMLElement|null = null
 
     constructor(
+      node: Comment,
       ob: o.Observable<T[]>,
       renderfn: (e: o.Observable<T>, oi: number) => Renderable,
       public options: RepeatScroll.Options
     ) {
-      super(ob, renderfn)
+      super(node, ob, renderfn)
     }
 
     scroll_buffer_size = this.options.scroll_buffer_size ?? 10
