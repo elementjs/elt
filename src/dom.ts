@@ -71,7 +71,7 @@ declare global {
 
   interface Node {
     [sym_mount_status]: number // we cheat on the undefined as all masking operations as undefined is considered 0
-    [sym_mixins]?: Mixin<any>[]
+    [sym_mixins]?: Mixin[]
     [sym_observers]?: o.Observer<any>[]
 
     // Note: the following section is somewhat "incorrect", as the correct typing here
@@ -96,22 +96,6 @@ function _node_call_cbks(node: Node, sym: typeof sym_init | typeof sym_inserted 
     }
   }
 
-  var mx = node[sym_mixins]
-  if (mx) {
-    if (sym === sym_init) {
-      for (i = 0, l = mx.length; i < l; i++) {
-        mx[i].init(node, parent)
-      }
-    } else if (sym === sym_inserted) {
-      for (i = 0, l = mx.length; i < l; i++) {
-        mx[i].inserted(node, parent)
-      }
-    } else if (sym === sym_removed) {
-      for (i = 0, l = mx.length; i < l; i++) {
-        mx[i].removed(node, parent)
-      }
-    }
-  }
 }
 
 
@@ -122,12 +106,6 @@ function _node_start_observers(node: Node) {
       obs[i].startObserving()
     }
   }
-  var mx = node[sym_mixins]
-  if (mx) {
-    for (i = 0, l = mx.length; i < l; i++) {
-      mx[i].startObservers()
-    }
-  }
 }
 
 
@@ -136,12 +114,6 @@ function _node_stop_observers(node: Node) {
   if (obs) {
     for (var i = 0, l = obs.length; i < l; i++) {
       obs[i].stopObserving()
-    }
-  }
-  var mx = node[sym_mixins]
-  if (mx) {
-    for (i = 0, l = mx.length; i < l; i++) {
-      mx[i].stopObservers()
     }
   }
 }
@@ -199,16 +171,6 @@ export function node_do_init(node: Node) {
   if (observers) {
     for (var i = 0, l = observers.length; i < l; i++) {
       observers[i].refresh()
-    }
-  }
-
-  var mx = node[sym_mixins]
-  if (mx) {
-    for (var i = 0, l = mx.length; i < l; i++) {
-      var mx_observers = mx[i]._observers
-      for (var j = 0, lj = mx_observers.length; j < lj; j++) {
-        mx_observers[j].refresh()
-      }
     }
   }
 

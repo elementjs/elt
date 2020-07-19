@@ -2,7 +2,8 @@ import { o } from './observable'
 
 import {
   Mixin,
-  node_add_mixin
+  node_add_mixin,
+  Component
 } from './mixins'
 
 import {
@@ -80,6 +81,10 @@ const NS = {
 } as {[name: string]: string}
 
 
+function isComponentClass(kls: any): kls is new (attrs: Attrs<any>) => Component<any> {
+  return kls.prototype instanceof Component
+}
+
 
 var cmt_count = 0
 /**
@@ -88,15 +93,12 @@ var cmt_count = 0
  * Can be used as a base to build verbs more easily.
  * @category dom, toc
  */
-export class CommentContainer extends Mixin<Comment> {
+export class CommentContainer extends Component<Comment> {
 
   /** The Comment marking the end of the node handled by this Mixin */
   end = document.createComment(`-- ${this.constructor.name} ${cmt_count ++} --`)
 
-  /** @internal */
-  init(node: Comment) {
-    node.parentNode!.insertBefore(this.end, node.nextSibling)
-  }
+  constructor() { super({}) }
 
   /**
    * Remove all nodes between this.start and this.node
@@ -116,6 +118,12 @@ export class CommentContainer extends Mixin<Comment> {
     // Insert the new comment before the end
     if (cts) insert_before_and_init(this.node.parentNode!, cts, this.end)
   }
+
+  render(): Comment {
+    const cmt = document.createComment(this.constructor.name)
+    e(cmt, $init(node => node.parentNode!.insertBefore(this.end, node.nextSibling)))
+    return cmt
+  }
 }
 
 
@@ -132,14 +140,14 @@ export class Displayer extends CommentContainer {
   /**
    * The `Displayer` expects `Renderable` values.
    */
-  constructor(public node: Comment, public _obs: o.RO<Renderable>) {
-    super(node)
+  constructor(public _obs: o.RO<Renderable>) {
+    super()
   }
 
-  /** @internal */
-  init(node: Comment) {
-    super.init(node)
-    this.observe(this._obs, value => this.setContents(e.renderable_to_node(value)))
+  render() {
+    return e(super.render(), $observe(this._obs, value =>
+      this.setContents(e.renderable_to_node(value)))
+    )
   }
 
 }
@@ -160,7 +168,7 @@ export function Display(obs: o.RO<Renderable>): Node {
     return e.renderable_to_node(obs as Renderable, true)
   }
 
-  return e(document.createComment('$Display'), node => new Displayer(node, obs))
+  return new Displayer(obs).renderAndAttach([])
 }
 
 
@@ -251,6 +259,7 @@ export function e<N extends Node>(elt: N, ...children: (Insertable<N> | Attrs<N>
 export function e<K extends keyof SVGElementTagNameMap>(elt: K, ...children: (Insertable<SVGElementTagNameMap[K]> | e.JSX.SVGAttributes<SVGElementTagNameMap[K]>)[]): SVGElementTagNameMap[K]
 export function e<K extends keyof HTMLElementTagNameMap>(elt: K, ...children: (Insertable<HTMLElementTagNameMap[K]> | e.JSX.HTMLAttributes<HTMLElementTagNameMap[K]>)[]): HTMLElementTagNameMap[K]
 export function e(elt: string, ...children: Insertable<HTMLElement>[]): HTMLElement
+export function e<N extends Node, A extends EmptyAttributes<any>>(elt: new (a: A) => Component<N, A>, attrs: A, ...children: Insertable<AttrsNodeType<A>>[]): N
 export function e<A extends EmptyAttributes<any>>(elt: (attrs: A, children: Renderable[]) => AttrsNodeType<A>, attrs: A, ...children: Insertable<AttrsNodeType<A>>[]): AttrsNodeType<A>
 export function e<N extends Node>(elt: string | Node | Function, ...children: (Insertable<N> | Attrs<N>)[]): N {
   if (!elt) throw new Error(`e() needs at least a string, a function or a Component`)
@@ -292,6 +301,8 @@ export function e<N extends Node>(elt: string | Node | Function, ...children: (I
   } else if (typeof elt === 'function') {
     // elt is just a creator function
     node = elt(attrs, renderables)
+  } else if (isComponentClass(elt)) {
+    node = new elt(attrs).renderAndAttach(renderables)
   }
 
   // we have to cheat a bit here.
@@ -328,7 +339,7 @@ export function Fragment(...children: (Insertable<DocumentFragment> | EmptyAttri
 const $ = Fragment
 
 
-import { Decorator } from './decorators'
+import { Decorator, $observe, $init } from './decorators'
 
 
 export namespace e {
@@ -484,7 +495,7 @@ export namespace e {
     }
 
     /** @internal */
-    export type ElementClass<N extends Node> = ElementClassFn<N>
+    export type ElementClass = ElementClassFn<any> | Component<any, EmptyAttributes<any>>
 
     ///////////////////////////////////////////////////////////////////////////
     // Now following are the default attributes for HTML and SVG nodes.
@@ -1143,7 +1154,7 @@ declare global {
     export type Element = Node
     export type ElementChildrenAttribute = e.JSX.ElementChildrenAttribute
     export type ElementClassFn<N extends Node> = e.JSX.ElementClassFn<N>
-    export type ElementClass<N extends Node> = e.JSX.ElementClass<N>
+    export type ElementClass = e.JSX.ElementClass
     export type IntrinsicElements = e.JSX.IntrinsicElements
 
     export type HTMLAttributes<N extends HTMLElement> = e.JSX.HTMLAttributes<N>
