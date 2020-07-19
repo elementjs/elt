@@ -1,10 +1,8 @@
 import { o } from './observable'
 
 import {
-  Mixin,
-  node_add_mixin,
   Component
-} from './mixins'
+} from './component'
 
 import {
   ClassDefinition,
@@ -120,9 +118,9 @@ export class CommentContainer extends Component<Comment> {
   }
 
   render(): Comment {
-    const cmt = document.createComment(this.constructor.name)
-    e(cmt, $init(node => node.parentNode!.insertBefore(this.end, node.nextSibling)))
-    return cmt
+    return e(document.createComment(this.constructor.name),
+      $init(node => node.parentNode!.insertBefore(this.end, node.nextSibling))
+    )
   }
 }
 
@@ -418,12 +416,6 @@ export namespace e {
     if (typeof res === 'function') {
       var res2 = res(node)
       return handle_decorator_result(node, insert, res2)
-    }
-
-    // If it returns nothing or the node itself, don't do anything
-    if (res instanceof Mixin) {
-      node_add_mixin(node, res)
-      return
     }
 
     if (Array.isArray(res)) {

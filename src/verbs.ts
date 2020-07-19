@@ -7,7 +7,7 @@ import {
 
 import {
   Component,
-} from './mixins'
+} from './component'
 
 import { e, Renderable, Displayer, Display } from './elt'
 

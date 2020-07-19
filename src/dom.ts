@@ -1,5 +1,4 @@
 import { o } from './observable'
-import { Mixin } from './mixins'
 
 /**
  * CSS Style attribute definition for the style={} attribute
@@ -40,7 +39,7 @@ export const sym_mount_status = Symbol('elt-mount-status')
  * when the number of elements gets high), the symbol solution was retained.
  * @category low level dom, toc
  */
-export const sym_mixins = Symbol('elt-mixins')
+export const sym_objects = Symbol('elt-mixins')
 
 /**
  * A symbol property on `Node` to an array of functions to run when the node is **init**, which is to
@@ -71,7 +70,7 @@ declare global {
 
   interface Node {
     [sym_mount_status]: number // we cheat on the undefined as all masking operations as undefined is considered 0
-    [sym_mixins]?: Mixin[]
+    [sym_objects]?: object[]
     [sym_observers]?: o.Observer<any>[]
 
     // Note: the following section is somewhat "incorrect", as the correct typing here
@@ -661,4 +660,19 @@ export function node_remove_after(start: Node, until: Node | null) {
     if (next === until) break
   }
 
+}
+
+export function node_add_data(node: Node, object: object) {
+  (node[sym_objects] ?? (node[sym_objects] = [])).push(object)
+}
+
+export function node_remove_data(node: Node, object: object) {
+  const objs = node[sym_objects]
+  if (!objs) return
+  const idx = objs.indexOf(object)
+  if (idx > -1) objs.splice(idx, 1)
+}
+
+export function node_get_data<T extends object>(node: Node, kls: new (...a: any[]) => T) {
+  return (node[sym_objects] ?? []).filter(obj => obj instanceof kls) as T[]
 }
