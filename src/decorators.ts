@@ -4,10 +4,6 @@ import {
 } from './observable'
 
 import {
-  Mixin
-} from './mixins'
-
-import {
   ClassDefinition,
   StyleDefinition,
   Listener,
@@ -39,7 +35,7 @@ import type {
  *
  * @category dom
  */
-export type DecoratorResult<N extends Node> = void | Renderable | Decorator<N> | Mixin | DecoratorResult<N>[]
+export type DecoratorResult<N extends Node> = void | Renderable | Decorator<N> | DecoratorResult<N>[]
 export type Decorator<N extends Node> = (node: N) => DecoratorResult<N>
 
 
