@@ -1,9 +1,10 @@
 
-import {
-  o
-} from './observable'
+import { sym_mixins } from './dom'
+import type { EmptyAttributes, Attrs, Renderable } from './elt'
 
-import { sym_mixins, Listener } from './dom'
+
+export type ArgTypes<T> = T extends (...args: infer U) => any ? U : never
+export type ResType<T> = T extends (...args: any[]) => infer U ? U : never
 
 
 /**
@@ -20,23 +21,7 @@ import { sym_mixins, Listener } from './dom'
  *
  * @category dom, toc
  */
-export class Mixin<N extends Node = Node> extends o.ObserverHolder {
-
-  constructor(node: N) { super(); this.node = node }
-
-  /**
-   * The node this mixin is associated to.
-   *
-   * Since assigning a mixin to a `Node` is done by **first** creating the mixin and
-   * putting it in its children when using [[e]], the fact that node is not typed as `N | null`
-   * is cheating ; `this.node` **is** null in the `constructor` of the Mixin.
-   *
-   * The only reason it is not `N | null` is because it is not `null` for very long.
-   *
-   * `this.node` is only defined for certain during [[Mixin#init]] ; do not try to use it before
-   * then.
-   */
-  node: N
+export class Mixin {
 
   /**
    * Get a Mixin by its class on the given node or its parents.
@@ -47,7 +32,7 @@ export class Mixin<N extends Node = Node> extends o.ObserverHolder {
    * @param recursive Set to false if you do not want the mixin to be searched on the
    *   node parent's if it was not found.
    */
-  static get<N extends Node, M extends Mixin<N>>(this: new (...a: any[]) => M, node: Node | EventTarget, recursive = true): M | null {
+  static get<N extends Node, M extends Mixin>(this: new (...a: any[]) => M, node: Node | EventTarget, recursive = true): M | null {
     let iter: Node | null = node as Node // yeah yeah, I know, it's an EventTarget as well but hey.
 
     while (iter) {
@@ -68,59 +53,68 @@ export class Mixin<N extends Node = Node> extends o.ObserverHolder {
     return null
   }
 
-  /**
-   * To be used with decorators
-   */
-  static onThisNode<N extends Node, M extends Mixin<N>>(this: { new (...a: any[]): M, get(n: Node): M | null }, cbk: (m: M) => void) {
-    return (node: N) => {
-      const mx = this.get(node)
-      if (mx) cbk(mx)
+  static emit<M extends Mixin, K extends keyof M>(this: { new (...a: any[]): M, get(node: Node): M }, node: Node, method: K, ...args: ArgTypes<M[K]>): ResType<M[K]> {
+    const inst = this.get(node)
+    if (inst) {
+      return (inst[method] as any)(...args)
     }
+    throw new Error(`Mixin '${this.name}' was not found on this node or any parent`)
   }
 
-  /**
-   * Stub method meant to be overloaded in a child class. Called during [[$init]]
-   */
-  init(node: N, parent: Node): void { }
-
-  /**
-   * Stub method meant to be overloaded in a child class. Called during [[$inserted]]
-   */
-  inserted(node: N, parent: Node): void { }
-
-  /**
-   * Stub method meant to be overloaded in a child class. Called during [[$removed]]
-   */
-  removed(node: N, parent: Node): void { }
-
-  /**
-   * Remove the mixin from this node. Observers created with `this.observe()` will
-   * stop observing. The `this.removed` method **will not** be called.
-   */
-  removeFromNode() {
-    node_remove_mixin(this.node, this);
-    (this.node as any) = null; // we force the node to null to help with garbage collection.
-  }
-
-  /**
-   * Helper method to listen an event on the current node. `currentTarget` is typed as the current node type.
-   *
-   * @code ../examples/mixin.on.tsx
-   */
-  on<K extends (keyof DocumentEventMap)[]>(name: K, listener: Listener<DocumentEventMap[K[number]], N>, useCapture?: boolean): void
-  on<K extends keyof DocumentEventMap>(name: K, listener: Listener<DocumentEventMap[K], N>, useCapture?: boolean): void
-  on(name: string | string[], listener: Listener<Event, N>, useCapture?: boolean): void
-  on(name: string | string[], listener: Listener<Event, any>, useCapture?: boolean) {
-    if (typeof name === 'string')
-      this.node.addEventListener(name, (ev) => listener(ev), useCapture)
-    else
-      for (var n of name) {
-        this.node.addEventListener(n, (ev) => listener(ev), useCapture)
+  static broadcast<M extends Mixin, K extends keyof M>(this: { new (...a: any[]): M, get(node: Node): M }, node: Node, method: K, ...args: ArgTypes<M[K]>): ResType<M[K]>[] {
+    var res = [] as ResType<M[K]>[]
+    for (var iter = node.firstChild; iter; iter = iter.nextSibling) {
+      var mx = iter[sym_mixins]
+      if (!mx) continue
+      for (var l = mx.length, i = 0; i < l; i++) {
+        if (mx[i] instanceof this) {
+          res.push((mx[i] as any)[method](...args))
+        }
       }
+    }
+    return res
   }
-
 }
 
+
+/**
+ * The Component is the core class of your TSX components.
+ *
+ * It is just a Mixin that has a `render()` method and that defines the `attrs`
+ * property which will restrict what attributes the component can be created with.
+ *
+ * All attributes **must** extend the base `Attrs` class.
+ * @category dom, toc
+ */
+export abstract class Component<N extends Node, A extends EmptyAttributes<N> = Attrs<N>> extends Mixin {
+  /**
+   *
+   */
+  node!: N
+  /**
+   * The attributes passed to the component
+   */
+  attrs: A
+
+  /** @internal */
+  constructor(attrs: A) {
+    super()
+    this.attrs = attrs
+  }
+
+  /**
+   * The render function that has to be defined by Components
+   */
+  abstract render(children: Renderable[]): N
+
+  /** @internal */
+  renderAndAttach(children: Renderable[]): N {
+    const res = this.render(children)
+    this.node = res
+    node_add_mixin(res, this)
+    return res
+  }
+}
 
 /**
  * Associate a `mixin` to a `node`.
@@ -134,7 +128,6 @@ export class Mixin<N extends Node = Node> extends o.ObserverHolder {
  */
 export function node_add_mixin(node: Node, mixin: Mixin): void {
   (node[sym_mixins] = node[sym_mixins] ?? []).push(mixin)
-  mixin.node = node
 }
 
 
@@ -151,7 +144,4 @@ export function node_remove_mixin(node: Node, mixin: Mixin): void {
   if (!mx) return
   var idx = mx.indexOf(mixin)
   if (idx) mx.splice(idx, 1)
-  if (idx > -1) {
-    mixin.stopObservers()
-  }
 }

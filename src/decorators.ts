@@ -21,7 +21,7 @@ import {
   sym_removed
 } from './dom'
 
-import {
+import type {
   Renderable,
 } from './elt'
 
@@ -39,7 +39,7 @@ import {
  *
  * @category dom
  */
-export type DecoratorResult<N extends Node> = void | Renderable | Decorator<N> | Mixin<N> | DecoratorResult<N>[]
+export type DecoratorResult<N extends Node> = void | Renderable | Decorator<N> | Mixin | DecoratorResult<N>[]
 export type Decorator<N extends Node> = (node: N) => DecoratorResult<N>
 
 

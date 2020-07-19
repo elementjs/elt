@@ -6,7 +6,7 @@ import {
 } from './observable'
 
 import {
-  Mixin,
+  Component,
 } from './mixins'
 
 import { e, Renderable, Displayer, Display } from './elt'
@@ -15,6 +15,7 @@ import {
   insert_before_and_init,
   node_remove_after,
 } from './dom'
+import { $observe, $inserted, $removed } from './decorators'
 
 
 /**
@@ -41,7 +42,7 @@ export function If<T extends o.RO<any>>(
   display_otherwise?: (a: T) => Renderable
 ): Node {
   // ts bug on condition.
-  if (typeof display === 'function' && !((condition as any) instanceof o.Observable)) {
+  if (!((condition as any) instanceof o.Observable)) {
     return condition ?
       e.renderable_to_node(display(condition as any), true)
       : e.renderable_to_node(display_otherwise ?
@@ -49,9 +50,7 @@ export function If<T extends o.RO<any>>(
           : document.createComment('false'), true)
   }
 
-  return e(document.createComment('If'),
-    node => new If.ConditionalDisplayer<any>(node, display, condition, display_otherwise)
-  )
+  return new If.ConditionalDisplayer(display as any, condition as any, display_otherwise as any).renderAndAttach([])
 }
 
 export namespace If {
@@ -75,12 +74,11 @@ export namespace If {
   export class ConditionalDisplayer<T extends o.ReadonlyObservable<any>> extends Displayer {
 
     constructor(
-      node: Comment,
       protected display: (arg: If.NonNullableRO<T>) => Renderable,
       protected condition: T,
       protected display_otherwise?: (arg: T) => Renderable
     ) {
-      super(node, condition.tf((cond, old, v) => {
+      super(condition.tf((cond, old, v) => {
         if (old !== o.NoValue && !!cond === !!old && v !== o.NoValue) return v as Renderable
         if (cond) {
           return display(condition as NonNullableRO<T>)
@@ -129,10 +127,7 @@ export function Repeat<T extends o.RO<any[]>>(
     return df
   }
 
-  return e(
-    document.createComment('Repeat'),
-    node => new Repeat.Repeater(node, ob, render as any, separator)
-  )
+  return new Repeat.Repeater(ob, render as any, separator).renderAndAttach([])
 }
 
 export namespace Repeat {
@@ -154,10 +149,8 @@ export namespace Repeat {
    *  Repeats content.
    * @internal
    */
-  export class Repeater<T> extends Mixin<Comment> {
+  export class Repeater<T> extends Component<Comment> {
 
-    // protected proxy = o([] as T[])
-    protected obs: o.Observable<T[]>
     protected positions: Node[] = []
     protected next_index: number = 0
     protected lst: T[] = []
@@ -165,27 +158,26 @@ export namespace Repeat {
     protected child_obs: o.Observable<T>[] = []
 
     constructor(
-      node: Comment,
-      ob: o.Observable<T[]>,
+      public obs: o.Observable<T[]>,
       public renderfn: (ob: o.Observable<T>, n: number) => Renderable,
       public separator?: (n: number) => Renderable
     ) {
-      super(node)
-
-      this.obs = o(ob)
+      super({})
     }
 
-    init() {
-      this.observe(this.obs, lst => {
-        this.lst = lst || []
-        const diff = lst.length - this.next_index
+    render() {
+      return e(document.createComment(this.constructor.name),
+        $observe(this.obs, lst => {
+          this.lst = lst || []
+          const diff = lst.length - this.next_index
 
-        if (diff < 0)
-          this.removeChildren(-diff)
+          if (diff < 0)
+            this.removeChildren(-diff)
 
-        if (diff > 0)
-          this.appendChildren(diff)
-      })
+          if (diff > 0)
+            this.appendChildren(diff)
+        })
+      )
     }
 
     /**
@@ -266,10 +258,7 @@ export function RepeatScroll<T extends o.RO<any[]>>(
   options: Partial<RepeatScroll.Options> = {}
 ): Node {
   // we cheat the typesystem, which is not great, but we know what we're doing.
-  return e(
-    document.createComment('RepeatScroll'),
-    node => new RepeatScroll.ScrollRepeater<any>(node, o(ob as any) as o.Observable<any>, render as any, options)
-  )
+  return new RepeatScroll.ScrollRepeater<any>(o(ob as any) as o.Observable<any>, render as any, options).renderAndAttach([])
 }
 
 export namespace RepeatScroll {
@@ -303,12 +292,11 @@ export namespace RepeatScroll {
     protected parent: HTMLElement|null = null
 
     constructor(
-      node: Comment,
       ob: o.Observable<T[]>,
       renderfn: (e: o.Observable<T>, oi: number) => Renderable,
       public options: RepeatScroll.Options
     ) {
-      super(node, ob, renderfn)
+      super(ob, renderfn)
     }
 
     scroll_buffer_size = this.options.scroll_buffer_size ?? 10
@@ -367,17 +355,6 @@ export namespace RepeatScroll {
       }
 
       this.parent.addEventListener('scroll', this.onscroll)
-
-      this.observe(this.obs, lst => {
-        this.lst = lst || []
-        const diff = lst.length - this.next_index
-
-        if (diff < 0)
-          this.removeChildren(-diff)
-
-        if (diff > 0)
-          this.appendChildren()
-      })
     }
 
     onscroll = () => {
@@ -391,6 +368,24 @@ export namespace RepeatScroll {
 
       this.parent.removeEventListener('scroll', this.onscroll)
       this.parent = null
+    }
+
+    render() {
+      return e(
+        super.render(),
+        $observe(this.obs, lst => {
+          this.lst = lst || []
+          const diff = lst.length - this.next_index
+
+          if (diff < 0)
+            this.removeChildren(-diff)
+
+          if (diff > 0)
+            this.appendChildren()
+        }),
+        $inserted(_ => this.inserted()),
+        $removed(_ => this.removed()),
+      )
     }
 
   }
