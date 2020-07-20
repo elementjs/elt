@@ -1134,7 +1134,11 @@ export namespace e {
 }
 
 declare var global: any
-if ('undefined' !== typeof window && typeof (window as any).E === 'undefined' || typeof global !== 'undefined' && typeof (global.E) === 'undefined') {
+if (typeof global !== 'undefined' && typeof (global.E) === 'undefined') {
+  (global as any).E = e
+}
+
+if ('undefined' !== typeof window && typeof (window as any).E === 'undefined') {
   (window as any).E = e
 }
 
