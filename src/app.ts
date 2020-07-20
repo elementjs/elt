@@ -85,6 +85,7 @@ export class App {
 
   /**
    * Check the cache and remove the services that are no longer in use.
+   * @internal
    */
   cleanup() {
     const srv = this.o_active_service.get()
