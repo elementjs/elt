@@ -1,49 +1,57 @@
 import { App, $click, o, If } from 'elt'
 
-class TheApp extends App.Service {
-  o_was_logged = o(false)
+async function TheApp(srv: App.Service) {
 
-  @App.view
-  Main() {
+  const api = {
+    o_was_logged: o(false)
+  }
+
+  srv.views.set('Main', () => {
     return <div>
-      {If(this.o_was_logged,
+      {If(api.o_was_logged,
         () => `We were already logged`,
         () => `We've logged into the App !`
       )}
     </div>
-  }
+  })
+
+  return api
 }
 
-class AuthService extends App.Service {
+async function AuthService(srv: App.Service) {
 
-  async checkIfLogged() {
-    // try setting this to true
-    return false // this could be a call to a REST backend
+  const api = {
+    async checkIfLogged() {
+      // try setting this to true
+      return false // this could be a call to a REST backend
+    }
   }
 
-  @App.view
-  Main() {
+
+  srv.views.set('Main', () => {
     return <div>
       Some login form.<br/>
       <button>
-        {$click(_ => this.app.activate(TheApp))}
+        {$click(_ => srv.app.activate(TheApp))}
         Login
       </button>
     </div>
-  }
+  })
+
+  return api
 }
 
-class InitService extends App.Service {
+async function InitService(srv: App.Service) {
   // Try inverting the requires
-  auth = this.require(AuthService)
-  theapp = this.require(TheApp)
+  const auth = await srv.require(AuthService)
+  const theapp = await srv.require(TheApp)
 
-  async init() {
-    if (await this.auth.checkIfLogged()) {
-      this.theapp.o_was_logged.set(true)
-      this.app.activate(TheApp)
-    }
+  if (await auth.checkIfLogged()) {
+    theapp.o_was_logged.set(true)
+    srv.app.activate(TheApp)
   }
 }
 
-document.body.appendChild(App.DisplayApp('Main', InitService))
+const app = new App()
+app.activate(InitService)
+document.body.appendChild(app.DisplayView('Main'))

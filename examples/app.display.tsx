@@ -1,33 +1,33 @@
 import { App } from 'elt'
 
-class Service1 extends App.Service {
-  @App.view
-  Content() {
+async function Service1(srv: App.Service) {
+  srv.views.set('Content', () => {
     return <div>
       Service 1
     </div>
-  }
+  })
 }
 
-class Service2 extends App.Service {
+async function Service2(srv: App.Service) {
 
-  @App.view
-  Content() {
+  srv.views.set('Content', () => {
     return <div>Service 2</div>
-  }
+  })
 
 }
 
-class RootService extends App.Service {
+async function RootService(srv: App.Service) {
 
   // try inverting the require
-  bl1 = this.require(Service1)
-  bl2 = this.require(Service2)
+  await srv.require(Service1)
+  await srv.require(Service2)
 
-  @App.view
-  Main() {
-    return <div>{this.app.display('Content')}</div>
-  }
+  srv.views.set('Main', () => {
+    return <div>{srv.app.DisplayView('Content')}</div>
+  })
+
 }
 
-document.body.appendChild(App.DisplayApp('Main', RootService))
+const app = new App()
+app.activate(RootService)
+document.body.appendChild(app.DisplayView('Main'))
