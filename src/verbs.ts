@@ -9,7 +9,7 @@ import {
   Component,
 } from './component'
 
-import { e, Renderable, Displayer, Display } from './elt'
+import { e, Renderable, Displayer, Display, EmptyAttributes } from './elt'
 
 import {
   insert_before_and_init,
@@ -149,7 +149,7 @@ export namespace Repeat {
    *  Repeats content.
    * @internal
    */
-  export class Repeater<T> extends Component<Comment> {
+  export class Repeater<T> extends Component<EmptyAttributes<Comment>> {
 
     protected positions: Node[] = []
     protected next_index: number = 0

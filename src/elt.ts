@@ -91,7 +91,7 @@ var cmt_count = 0
  * Can be used as a base to build verbs more easily.
  * @category dom, toc
  */
-export class CommentContainer extends Component<Comment> {
+export class CommentContainer extends Component<EmptyAttributes<Comment>> {
 
   /** The Comment marking the end of the node handled by this Mixin */
   end = document.createComment(`-- ${this.constructor.name} ${cmt_count ++} --`)
@@ -257,7 +257,7 @@ export function e<N extends Node>(elt: N, ...children: (Insertable<N> | Attrs<N>
 export function e<K extends keyof SVGElementTagNameMap>(elt: K, ...children: (Insertable<SVGElementTagNameMap[K]> | e.JSX.SVGAttributes<SVGElementTagNameMap[K]>)[]): SVGElementTagNameMap[K]
 export function e<K extends keyof HTMLElementTagNameMap>(elt: K, ...children: (Insertable<HTMLElementTagNameMap[K]> | e.JSX.HTMLAttributes<HTMLElementTagNameMap[K]>)[]): HTMLElementTagNameMap[K]
 export function e(elt: string, ...children: Insertable<HTMLElement>[]): HTMLElement
-export function e<N extends Node, A extends EmptyAttributes<any>>(elt: new (a: A) => Component<N, A>, attrs: A, ...children: Insertable<AttrsNodeType<A>>[]): N
+export function e<A extends EmptyAttributes<any>>(elt: new (a: A) => Component<A>, attrs: A, ...children: Insertable<AttrsNodeType<A>>[]): AttrsNodeType<A>
 export function e<A extends EmptyAttributes<any>>(elt: (attrs: A, children: Renderable[]) => AttrsNodeType<A>, attrs: A, ...children: Insertable<AttrsNodeType<A>>[]): AttrsNodeType<A>
 export function e<N extends Node>(elt: string | Node | Function, ...children: (Insertable<N> | Attrs<N>)[]): N {
   if (!elt) throw new Error(`e() needs at least a string, a function or a Component`)
@@ -300,7 +300,7 @@ export function e<N extends Node>(elt: string | Node | Function, ...children: (I
     // elt is just a creator function
     node = elt(attrs, renderables)
   } else if (isComponentClass(elt)) {
-    node = new elt(attrs).renderAndAttach(renderables)
+    node = new elt(attrs).renderAndAttach(renderables) as unknown as N
   }
 
   // we have to cheat a bit here.
@@ -487,7 +487,7 @@ export namespace e {
     }
 
     /** @internal */
-    export type ElementClass = ElementClassFn<any> | Component<any, EmptyAttributes<any>>
+    export type ElementClass = ElementClassFn<any> | Component<EmptyAttributes<any>>
 
     ///////////////////////////////////////////////////////////////////////////
     // Now following are the default attributes for HTML and SVG nodes.
