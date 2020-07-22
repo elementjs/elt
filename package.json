@@ -14,6 +14,7 @@
     "build:js": "tsc ; rollup -c",
     "build": "npm run build:js && npm run build:dts",
     "prepublish": "npm run build",
+    "tscver": "tsc --version",
     "watch": "concurrently -c green,blue,red -n dtsbundle,rollup,tsc 'chokidar --silent \"./module/**/*.js\" -c \"npm run build:dts\"' 'chokidar --silent \"./module/**/*.js\" -c \"rollup -c\"' 'tsc -w --preserveWatchOutput'"
   },
   "devDependencies": {
@@ -23,7 +24,7 @@
     "chai": "^4.2.0",
     "chokidar-cli": "^1.2.0",
     "concurrently": "^3.5.0",
-    "dts-bundle-generator": "^4.3.0",
+    "dts-bundle-generator": "^5.1.0",
     "mocha": "^6.2.2",
     "rollup": "^1.31.0"
   }
