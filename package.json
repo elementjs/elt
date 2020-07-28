@@ -10,12 +10,13 @@
   "typings": "./dist/elt.d.ts",
   "scripts": {
     "docs": "typedoc --excludePrivate --excludeNotExported --out ./docs src/index.ts --mode file --theme minimal --internal-aliases internal,publicapi,api --external-aliases external,internalapi",
+    "eventmap": "node scripts/mkeventmap.js > ./src/eventmap.ts",
     "build:dts": "dts-bundle-generator --inline-declare-global --umd-module-name elt module/index.d.ts -o dist/elt.d.ts",
-    "build:js": "tsc ; rollup -c",
+    "build:js": "npm run eventmap ; tsc ; rollup -c",
     "build": "npm run build:js && npm run build:dts",
     "prepublish": "npm run build",
     "tscver": "tsc --version",
-    "watch": "concurrently -c green,blue,red -n dtsbundle,rollup,tsc 'chokidar --silent \"./module/**/*.js\" -c \"npm run build:dts\"' 'chokidar --silent \"./module/**/*.js\" -c \"rollup -c\"' 'tsc -w --preserveWatchOutput'"
+    "watch": "npm run eventmap ; concurrently -c green,blue,red -n dtsbundle,rollup,tsc 'chokidar --silent \"./module/**/*.js\" -c \"npm run build:dts\"' 'chokidar --silent \"./module/**/*.js\" -c \"rollup -c\"' 'tsc -w --preserveWatchOutput'"
   },
   "devDependencies": {
     "@rollup/plugin-node-resolve": "^7.1.1",

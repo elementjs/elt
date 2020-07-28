@@ -296,11 +296,11 @@ export function e<N extends Node>(elt: string | Node | Function, ...children: (I
       }
     }
 
+  } else if (isComponentClass(elt)) {
+    node = new elt(attrs).renderAndAttach(renderables) as unknown as N
   } else if (typeof elt === 'function') {
     // elt is just a creator function
     node = elt(attrs, renderables)
-  } else if (isComponentClass(elt)) {
-    node = new elt(attrs).renderAndAttach(renderables) as unknown as N
   }
 
   // we have to cheat a bit here.

@@ -1,4 +1,5 @@
 import { o } from './observable'
+import type { AllEventMap } from './eventmap'
 
 /**
  * CSS Style attribute definition for the style={} attribute
@@ -474,9 +475,9 @@ export function node_add_observer<T>(node: Node, observer: o.Observer<T>) {
  *
  * @category low level dom, toc
  */
-export function node_add_event_listener<N extends Element, K extends (keyof DocumentEventMap)[]>(node: N, name: K, listener: Listener<DocumentEventMap[K[number]], N>, useCapture?: boolean): void
-export function node_add_event_listener<N extends Element, K extends keyof DocumentEventMap>(node: N, event: K, listener: Listener<DocumentEventMap[K], N>, useCapture?: boolean): void
-export function node_add_event_listener<N extends Element>(node: N, event: string | string[], listener: Listener<Event, N>, useCapture?: boolean): void
+export function node_add_event_listener<N extends Node, K extends (keyof AllEventMap<N>)[]>(node: N, name: K, listener: Listener<AllEventMap<N>[K[number]], N>, useCapture?: boolean): void
+export function node_add_event_listener<N extends Node, K extends keyof AllEventMap<N>>(node: N, event: K, listener: Listener<AllEventMap<N>[K], N>, useCapture?: boolean): void
+export function node_add_event_listener<N extends Node>(node: N, event: string | string[], listener: Listener<Event, N>, useCapture?: boolean): void
 export function node_add_event_listener<N extends Node>(node: N, ev: string | string[], listener: Listener<Event, N>): void {
   if (Array.isArray(ev))
     // we have to force typescript's hands on the listener typing, as we **know** for certain that current_target
