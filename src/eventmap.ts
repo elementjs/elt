@@ -72,7 +72,7 @@ export interface AllEventMap<ET extends EventTarget = HTMLElement> {
   "end": SpeechSynthesisEvent
   "ended": Event
   "enter": Event
-  "error": ET extends AbstractWorker ? ErrorEvent : ET extends FileReader ? ProgressEvent<FileReader> : ET extends RTCDataChannel ? RTCErrorEvent : ET extends RTCDtlsTransport ? RTCErrorEvent : ET extends SpeechSynthesisUtterance ? SpeechSynthesisErrorEvent : ET extends Window ? ErrorEvent : ET extends XMLHttpRequestEventTarget ? ProgressEvent<XMLHttpRequestEventTarget> : Event
+  "error": ET extends AbstractWorker ? ErrorEvent : ET extends FileReader ? ProgressEvent<FileReader> : ET extends RTCDataChannel ? RTCErrorEvent : ET extends RTCDtlsTransport ? RTCErrorEvent : ET extends SpeechRecognition ? ErrorEvent : ET extends SpeechSynthesisUtterance ? SpeechSynthesisErrorEvent : ET extends Window ? ErrorEvent : ET extends XMLHttpRequestEventTarget ? ProgressEvent<XMLHttpRequestEventTarget> : Event
   "exit": Event
   "finish": AnimationPlaybackEvent
   "focus": FocusEvent
@@ -132,7 +132,7 @@ export interface AllEventMap<ET extends EventTarget = HTMLElement> {
   "removesourcebuffer": Event
   "removetrack": Event
   "reset": Event
-  "resize": UIEvent
+  "resize": Event
   "resourcetimingbufferfull": Event
   "result": SpeechRecognitionEvent
   "resume": SpeechSynthesisEvent
