@@ -1237,7 +1237,9 @@ export function merge<T>(obj: {[K in keyof T]: Observable<T[K]>}): Observable<T>
     var res = new CombinedObservable<[Promise<T>], wrapPromise.Result<T>>([o(obs)])
     _wrap_cache.set(obs, res)
     res.getter = ([pro]) => {
-      if (last_promise === pro) return last_result
+      if (last_promise === pro) {
+        return last_result
+      }
       last_promise = pro
       pro.then(val => {
         // ignore the result of this promise if it actually changed.
@@ -1250,7 +1252,6 @@ export function merge<T>(obj: {[K in keyof T]: Observable<T[K]>}): Observable<T>
         last_result = { resolving: false, resolved: 'error', error: err }
         if (res.isObserved()) queue.schedule(res)
       })
-      // console.log(last_result)
       return { ...last_result, resolving: true }
     }
     res.setter = undefined!
