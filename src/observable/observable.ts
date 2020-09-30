@@ -323,12 +323,10 @@ export class Queue extends IndexableArray<Observable<any>> {
       if (obs == null) continue
 
       if (obs instanceof CombinedObservable) {
-        obs._value = obs.getter(obs._parents_values)
+        if (obs.refreshParentValues())
+          obs._value = obs.getter(obs._parents_values)
       }
 
-      EACH(obs._children, ch => {
-        ch.child._parents_values[ch.child_idx] = ch.parent._value
-      })
       EACH(obs._observers, o => o.refresh())
       obs.idx = null
       arr[i] = null // just in case...
