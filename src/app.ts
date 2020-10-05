@@ -13,6 +13,7 @@ export class App {
   cache = new Map<Function, App.Service>()
 
   o_active_service = o(null as null | App.Service)
+  protected _reactivate: App.ServiceCreator<any> | null = null
 
   o_views = this.o_active_service.tf(ser => {
     const views = new Map<string, () => Renderable>()
@@ -54,13 +55,14 @@ export class App {
   /**
    * Does like require() but sets the resulting service as the active instance.
    */
-  async activate<S>(si: (srv: App.Service) => Promise<S>): Promise<void> {
+  async activate<S>(si: App.ServiceCreator<S>): Promise<void> {
 
     const active = this.o_active_service.get()
     if (active?.builder === si) return // Do not activate if the currently active service is already the asked one.
 
     if (this.is_activating) {
-      throw si
+      this._reactivate = si
+      return
     }
 
     this.is_activating = true
@@ -72,14 +74,15 @@ export class App {
 
       srv.forEach(s => s.startObservers())
       this.o_active_service.set(srv)
-    } catch(e) {
-      this.is_activating = false
-      if (typeof e === 'function')
-        return await this.activate(e)
-      throw e
     } finally {
       this.cleanup()
       this.is_activating = false
+
+      if (this._reactivate) {
+        const srv = this._reactivate
+        this._reactivate = null
+        return this.activate(srv)
+      }
     }
   }
 
@@ -123,6 +126,8 @@ export class App {
 }
 
 export namespace App {
+
+  export type ServiceCreator<T> = (srv: App.Service) => Promise<T>
 
   export class Service extends o.ObserverHolder {
     constructor(public app: App, public builder: Function) { super() }
