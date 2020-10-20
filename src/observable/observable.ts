@@ -327,8 +327,8 @@ export class Queue extends IndexableArray<Observable<any>> {
           obs._value = obs.getter(obs._parents_values)
       }
 
-      EACH(obs._observers, o => o.refresh())
       obs.idx = null
+      EACH(obs._observers, o => o.refresh())
       arr[i] = null // just in case...
     }
     this.real_size = 0
@@ -747,6 +747,41 @@ export class CombinedObservable<A extends any[], T = A> extends Observable<T> {
 
 }
 
+export class ProxyObservable<T> extends CombinedObservable<[T], T> {
+  constructor(obs: Observable<T>) {
+    super([obs])
+  }
+
+  getter(values: [T]) {
+    return values[0]
+  }
+
+  setter(nval: T) {
+    if ((nval as any) === o.NoValue) return o.NoValue as any as [T]
+    return [nval] as [T]
+  }
+
+  changeTarget(obs: Observable<T>) {
+    if (this._watched) {
+      // unwatch the observable
+      this.unwatched()
+    }
+    this.dependsOn([obs])
+    if (this._watched) {
+      this.watched()
+      queue.schedule(this) // refresh to the value of the new observable.
+    }
+  }
+}
+
+
+/**
+ * Create an observable that is a proxy to another that can be changed afterwards
+ * with changeTarget
+ */
+export function proxy<T>(ob: Observable<T>): ProxyObservable<T> {
+  return new ProxyObservable(ob)
+}
 
 /**
  * Create an observable that depends on several other observables, optionally providing a two-way transformation if `set` is given.
