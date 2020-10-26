@@ -8,7 +8,7 @@ export default {
   input: 'module/index.js',
   output: {
     file: 'dist/elt.js',
-    sourcemap: true,
+    sourcemap: 'inline',
     name: 'elt',
     format: 'umd'
   },
