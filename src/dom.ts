@@ -202,32 +202,11 @@ function _apply_inserted(node: Node) {
 export function node_do_inserted(node: Node) {
   if (node[sym_mount_status] & NODE_IS_INSERTED) return
 
-  var iter = node.firstChild as Node | null | undefined
-  var stack = [] as Node[]
-
   _apply_inserted(node)
-
+  var iter = node.firstChild
   while (iter) {
-    var already_inserted = iter[sym_mount_status] & NODE_IS_INSERTED
-    if (!already_inserted) {
-      _apply_inserted(iter)
-    }
-
-    var first: ChildNode | null
-    // we ignore an entire subtree if the node is already marked as inserted
-    // in all other cases, the node will be inserted
-    if (!already_inserted && (first = iter.firstChild)) {
-      var next = iter.nextSibling // where we'll pick up when we unstack.
-      if (next)
-        stack.push(next)
-      iter = first // we will keep going to the children
-      continue
-    } else if (iter.nextSibling) {
-      iter = iter.nextSibling
-      continue
-    }
-
-    iter = stack.pop()
+    node_do_inserted(iter)
+    iter = iter.nextSibling
   }
 }
 
@@ -246,7 +225,7 @@ function _apply_removed(node: Node, prev_parent: Node) {
   }
 
   if (st & NODE_IS_INSERTED) {
-    _node_call_cbks(node, sym_removed)
+    _node_call_cbks(node, sym_removed, prev_parent)
   }
 }
 
@@ -260,29 +239,10 @@ function _apply_removed(node: Node, prev_parent: Node) {
  */
 export function node_do_remove(node: Node, prev_parent: Node) {
 
-  const node_stack: Node[] = []
-  var iter: Node | null = node.firstChild
-
-  while (iter) {
-
-    var first: ChildNode | null
-    while ((first = iter.firstChild) && (first[sym_mount_status] & NODE_IS_INSERTED)) {
-      node_stack.push(iter)
-      iter = first
-    }
-
-    _apply_removed(iter, iter.parentNode!)
-
-    // When we're here, we're on a terminal node, so
-    // we're going to have to process it.
-
-    while (iter && !iter.nextSibling) {
-      iter = node_stack.pop()!
-      if (iter) _apply_removed(iter, iter.parentNode!)
-    }
-
-    // So now we're going to traverse the next node.
-    iter = iter && iter.nextSibling
+  var iter = node.firstChild
+  while (iter) { // first[sym_mount_status] & NODE_IS_INSERTED
+    node_do_remove(iter, node)
+    iter = iter.nextSibling
   }
 
   _apply_removed(node, prev_parent)
