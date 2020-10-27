@@ -83,6 +83,14 @@ function isComponentClass(kls: any): kls is new (attrs: Attrs<any>) => Component
   return kls.prototype instanceof Component
 }
 
+export type WrappedComponent<N extends Node> = {
+  componentFn: (at: Attrs<N>, children: Renderable[]) => N
+}
+
+function isWrappedComponent(cmp: any): cmp is WrappedComponent<any> {
+  return cmp && !!cmp.componentFn
+}
+
 
 var cmt_count = 0
 /**
@@ -298,6 +306,8 @@ export function e<N extends Node>(elt: string | Node | Function, ...children: (I
 
   } else if (isComponentClass(elt)) {
     node = new elt(attrs).renderAndAttach(renderables) as unknown as N
+  } else if (isWrappedComponent(elt)) {
+    node = elt.componentFn(attrs, renderables)
   } else if (typeof elt === 'function') {
     // elt is just a creator function
     node = elt(attrs, renderables)
@@ -313,6 +323,22 @@ export function e<N extends Node>(elt: string | Node | Function, ...children: (I
   }
 
   return node
+}
+
+e.component = function component<At, N extends Node>(fn: (attrs: At, children: Renderable[]) => N): {} extends At ? {
+  (attrs?: Attrs<N> & At, ...children: Insertable<N>[]): N
+  componentFn: (at: Attrs<N> & At, children: Renderable[]) => N
+} : {
+  (attrs: Attrs<N> & At, ...children: Insertable<N>[]): N
+  componentFn: (at: Attrs<N> & At, children: Renderable[]) => N
+}
+{
+  var res: any = function (...args: any[]) {
+    return E(fn as any, args)
+  }
+  res.componentFn = fn as any
+
+  return res
 }
 
 /**
