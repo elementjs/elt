@@ -1269,7 +1269,7 @@ export function merge<T>(obj: {[K in keyof T]: Observable<T[K]>}): Observable<T>
   }
 
 
-  const _wrap_cache = new WeakMap<any, Observable<any>>()
+  const _wrap_cache = new WeakMap<any, o.ReadonlyObservable<wrapPromise.Result<any>>>()
 
   /**
    * Wrap a promise observable into an instant observable that has information about
@@ -1296,31 +1296,28 @@ export function merge<T>(obj: {[K in keyof T]: Observable<T[K]>}): Observable<T>
     }
 
     var last_promise: Promise<T>
-    var last_result: wrapPromise.Result<T> = { resolving: true }
+    const o_result = o({ resolving: true } as wrapPromise.Result<T>)
 
-    var res = new CombinedObservable<[Promise<T>], wrapPromise.Result<T>>([o(obs)])
-    _wrap_cache.set(obs, res)
-    res.getter = ([pro]) => {
-      if (last_promise === pro) {
-        return last_result
+    const res_obs = o.merge({pro: obs, res: o_result}).tf(({pro, res}, old) => {
+      last_promise = pro // We need a reference to that to compare to the result of the last .then
+      // since right now we can't cancel that
+      if (old === o.NoValue || old.pro !== pro) {
+        // Changing promise, so we have to get its .then
+        pro.then(pres => {
+          if (last_promise !== pro) return // ignore if this is not our promise anymore
+          o_result.set({resolving: false, value: pres, resolved: 'value'})
+        })
+        pro.catch(perr => {
+          if (last_promise !== pro) return // ignore if this is not our promise anymore
+          o_result.set({resolving: false, error: perr, resolved: 'error'})
+        })
+        return {...res, resolving: true} as wrapPromise.Result<T, any>
       }
-      last_promise = pro
-      pro.then(val => {
-        // ignore the result of this promise if it actually changed.
-        if (last_promise !== pro) return
-        last_result = { resolving: false, resolved: 'value', value: val }
-        // this will force-recall the setter
-        if (res.isObserved()) queue.schedule(res)
-      })
-      pro.catch(err => {
-        last_result = { resolving: false, resolved: 'error', error: err }
-        if (res.isObserved()) queue.schedule(res)
-      })
-      return { ...last_result, resolving: true }
-    }
-    res.setter = undefined!
+      return res
+    })
 
-    return res
+    _wrap_cache.set(obs, res_obs)
+    return res_obs
   }
 
   export namespace wrapPromise {
