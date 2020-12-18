@@ -109,25 +109,31 @@ export namespace If {
  *
  * @code ../examples/repeat.tsx
  */
+export function Repeat<T extends o.RO<any[]>>(obs: T, render: (arg: Repeat.RoItem<T>, idx: number) => Renderable): Node
+export function Repeat<T extends o.RO<any[]>>(obs: T, options: Repeat.Options, render: (arg: Repeat.RoItem<T>, idx: number) => Renderable): Node
 export function Repeat<T extends o.RO<any[]>>(
   ob: T,
-  render: (arg: Repeat.RoItem<T>, idx: number) => Renderable,
-  separator?: (n: number) => Renderable
+  render_or_options: Repeat.Options | ((arg: Repeat.RoItem<T>, idx: number) => Renderable),
+  real_render?: (arg: Repeat.RoItem<T>, idx: number) => Renderable
 ): Node {
+  const options = typeof render_or_options === 'function' ? {} : render_or_options
+  const render = typeof render_or_options === 'function' ? render_or_options : real_render!
+
   if (!(ob instanceof o.Observable)) {
     const arr = ob as any[]
 
     var df = document.createDocumentFragment()
+    var sep = options.separator
     for (var i = 0, l = arr.length; i < l; i++) {
       df.appendChild(e.renderable_to_node(render(arr[i], i), true))
-      if (i > 1 && separator) {
-        df.appendChild(e.renderable_to_node(separator(i - 1), true))
+      if (i > 1 && sep) {
+        df.appendChild(e.renderable_to_node(sep(i - 1), true))
       }
     }
     return df
   }
 
-  return new Repeat.Repeater(ob, render as any, separator).renderAndAttach([])
+  return new Repeat.Repeater(ob, render as any, options).renderAndAttach([])
 }
 
 export namespace Repeat {
@@ -145,6 +151,13 @@ export namespace Repeat {
   : T extends (infer U)[] ? U
   : T;
 
+  export interface Options {
+    /**
+     * The separator to insert between all rendering of repeated elements
+     */
+    separator?: (n: number) => Renderable
+  }
+
   /**
    *  Repeats content.
    * @internal
@@ -160,7 +173,7 @@ export namespace Repeat {
     constructor(
       public obs: o.Observable<T[]>,
       public renderfn: (ob: o.Observable<T>, n: number) => Renderable,
-      public separator?: (n: number) => Renderable
+      public options: Repeat.Options = {}
     ) {
       super({})
     }
@@ -192,8 +205,9 @@ export namespace Repeat {
 
       this.child_obs.push(ob)
 
-      if (this.separator && this.next_index > 0) {
-        var sep = e.renderable_to_node(this.separator(this.next_index))
+      var _sep = this.options.separator
+      if (_sep && this.next_index > 0) {
+        var sep = e.renderable_to_node(_sep(this.next_index))
         if (sep) fr.appendChild(sep)
       }
 
@@ -252,13 +266,19 @@ export namespace Repeat {
  *
  * @category dom, toc
  */
+export function RepeatScroll<T extends o.RO<any[]>>(ob: T, render: (arg: Repeat.RoItem<T>, idx: number) => Renderable): Node
+export function RepeatScroll<T extends o.RO<any[]>>(ob: T, options: RepeatScroll.Options, render: (arg: Repeat.RoItem<T>, idx: number) => Renderable): Node
 export function RepeatScroll<T extends o.RO<any[]>>(
   ob: T,
-  render: (arg: Repeat.RoItem<T>, idx: number) => Renderable,
-  options: Partial<RepeatScroll.Options> = {}
+  opts_or_render: ((arg: Repeat.RoItem<T>, idx: number) => Renderable) | RepeatScroll.Options,
+  real_render?: ((arg: Repeat.RoItem<T>, idx: number) => Renderable)
 ): Node {
-  // we cheat the typesystem, which is not great, but we know what we're doing.
-  return new RepeatScroll.ScrollRepeater<any>(o(ob as any) as o.Observable<any>, render as any, options).renderAndAttach([])
+  // we cheat the typesystem, which is not great, but we "know what we're doing".
+  if (typeof opts_or_render === 'function') {
+    return new RepeatScroll.ScrollRepeater<any>(o(ob as any) as o.Observable<any>, opts_or_render as any, {}).renderAndAttach([])
+  }
+
+  return new RepeatScroll.ScrollRepeater<any>(o(ob as any) as o.Observable<any>, real_render as any, opts_or_render).renderAndAttach([])
 }
 
 export namespace RepeatScroll {
@@ -266,11 +286,7 @@ export namespace RepeatScroll {
   /**
    * Options to [[RepeatScroll]]
    */
-  export interface Options {
-    /**
-     * The separator to insert between all rendering of repeated elements
-     */
-    separator?: (n: number) => Renderable
+  export interface Options extends Repeat.Options {
     /**
      * The number of elements to generate at the same time between `requestAnimationFrame` calls.
      */
@@ -296,7 +312,7 @@ export namespace RepeatScroll {
       renderfn: (e: o.Observable<T>, oi: number) => Renderable,
       public options: RepeatScroll.Options
     ) {
-      super(ob, renderfn)
+      super(ob, renderfn, options)
     }
 
     scroll_buffer_size = this.options.scroll_buffer_size ?? 10
