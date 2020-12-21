@@ -110,10 +110,10 @@ export namespace If {
  * @code ../examples/repeat.tsx
  */
 export function Repeat<T extends o.RO<any[]>>(obs: T, render: (arg: Repeat.RoItem<T>, idx: number) => Renderable): Node
-export function Repeat<T extends o.RO<any[]>>(obs: T, options: Repeat.Options, render: (arg: Repeat.RoItem<T>, idx: number) => Renderable): Node
+export function Repeat<T extends o.RO<any[]>>(obs: T, options: Repeat.Options<Repeat.RoItem<T>>, render: (arg: Repeat.RoItem<T>, idx: number) => Renderable): Node
 export function Repeat<T extends o.RO<any[]>>(
   ob: T,
-  render_or_options: Repeat.Options | ((arg: Repeat.RoItem<T>, idx: number) => Renderable),
+  render_or_options: Repeat.Options<Repeat.RoItem<T>> | ((arg: Repeat.RoItem<T>, idx: number) => Renderable),
   real_render?: (arg: Repeat.RoItem<T>, idx: number) => Renderable
 ): Node {
   const options = typeof render_or_options === 'function' ? {} : render_or_options
@@ -151,15 +151,16 @@ export namespace Repeat {
   : T extends (infer U)[] ? U
   : T;
 
-  export interface Options {
+  export interface Options<T> {
     /**
      * The separator to insert between all rendering of repeated elements
      */
     separator?: (n: number) => Renderable
+    key?: (elt: T) => any
   }
 
   /**
-   *  Repeats content.
+   * Repeats content.
    * @internal
    */
   export class Repeater<T> extends Component<EmptyAttributes<Comment>> {
@@ -167,13 +168,14 @@ export namespace Repeat {
     protected positions: Node[] = []
     protected next_index: number = 0
     protected lst: T[] = []
+    protected keyfn = this.options.key
 
     protected child_obs: o.Observable<T>[] = []
 
     constructor(
       public obs: o.Observable<T[]>,
       public renderfn: (ob: o.Observable<T>, n: number) => Renderable,
-      public options: Repeat.Options = {}
+      public options: Repeat.Options<T> = {}
     ) {
       super({})
     }
@@ -183,6 +185,11 @@ export namespace Repeat {
         $observe(this.obs, lst => {
           this.lst = lst || []
           const diff = lst.length - this.next_index
+          var keyfn = this.keyfn
+          if (keyfn) {
+            // maps the key to a position
+            var mp = new Map<any, number>()
+          }
 
           if (diff < 0)
             this.removeChildren(-diff)
@@ -267,10 +274,10 @@ export namespace Repeat {
  * @category dom, toc
  */
 export function RepeatScroll<T extends o.RO<any[]>>(ob: T, render: (arg: Repeat.RoItem<T>, idx: number) => Renderable): Node
-export function RepeatScroll<T extends o.RO<any[]>>(ob: T, options: RepeatScroll.Options, render: (arg: Repeat.RoItem<T>, idx: number) => Renderable): Node
+export function RepeatScroll<T extends o.RO<any[]>>(ob: T, options: RepeatScroll.Options<Repeat.RoItem<T>>, render: (arg: Repeat.RoItem<T>, idx: number) => Renderable): Node
 export function RepeatScroll<T extends o.RO<any[]>>(
   ob: T,
-  opts_or_render: ((arg: Repeat.RoItem<T>, idx: number) => Renderable) | RepeatScroll.Options,
+  opts_or_render: ((arg: Repeat.RoItem<T>, idx: number) => Renderable) | RepeatScroll.Options<Repeat.RoItem<T>>,
   real_render?: ((arg: Repeat.RoItem<T>, idx: number) => Renderable)
 ): Node {
   // we cheat the typesystem, which is not great, but we "know what we're doing".
@@ -286,7 +293,7 @@ export namespace RepeatScroll {
   /**
    * Options to [[RepeatScroll]]
    */
-  export interface Options extends Repeat.Options {
+  export interface Options<T> extends Repeat.Options<T> {
     /**
      * The number of elements to generate at the same time between `requestAnimationFrame` calls.
      */
@@ -310,7 +317,7 @@ export namespace RepeatScroll {
     constructor(
       ob: o.Observable<T[]>,
       renderfn: (e: o.Observable<T>, oi: number) => Renderable,
-      public options: RepeatScroll.Options
+      public options: RepeatScroll.Options<T>
     ) {
       super(ob, renderfn, options)
     }
