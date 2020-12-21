@@ -325,16 +325,12 @@ export namespace RepeatScroll {
      * or append elements until we've added past the bottom of the container.
      */
     appendChildren() {
-      if (!this.parent)
-        // if we have no scrollable parent (yet, if just inited), then just append items
-        return super.appendChildren(this.scroll_buffer_size)
-
       // Instead of appending all the count, break it down to bufsize packets.
       const bufsize = this.scroll_buffer_size
-      const p = this.parent
 
       const append = () => {
-        if (this.next_index < this.lst.length && p.scrollHeight - (p.clientHeight + p.scrollTop) < this.threshold_height) {
+        const p = this.parent
+        if (!p || this.next_index < this.lst.length && p.scrollHeight - (p.clientHeight + p.scrollTop) < this.threshold_height) {
           super.appendChildren(bufsize)
           requestAnimationFrame(append)
         }
@@ -389,16 +385,6 @@ export namespace RepeatScroll {
     render() {
       return e(
         super.render(),
-        $observe(this.obs, lst => {
-          this.lst = lst || []
-          const diff = lst.length - this.next_index
-
-          if (diff < 0)
-            this.removeChildren(-diff)
-
-          if (diff > 0)
-            this.appendChildren()
-        }),
         $inserted(_ => this.inserted()),
         $removed(_ => this.removed()),
       )
