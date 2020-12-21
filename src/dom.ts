@@ -296,12 +296,13 @@ export function setup_mutation_observer(node: Node) {
   var obs = new MutationObserver(records => {
     for (var i = 0, l = records.length; i < l; i++) {
       var record = records[i]
-      for (var removed = Array.from(record.removedNodes), j = 0, lj = removed.length; j < lj; j++) {
+      for (var removed = record.removedNodes, j = 0, lj = removed.length; j < lj; j++) {
         var removed_node = removed[j]
-        if (!removed_node.isConnected)
+        if (!removed_node.isConnected) {
           node_do_remove(removed_node, record.target)
+        }
       }
-      for (var added = Array.from(record.addedNodes), j = 0, lj = added.length; j < lj; j++) {
+      for (var added = record.addedNodes, j = 0, lj = added.length; j < lj; j++) {
         var added_node = added[j]
         node_do_inserted(added_node)
       }
