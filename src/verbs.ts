@@ -110,10 +110,10 @@ export namespace If {
  * @code ../examples/repeat.tsx
  */
 export function Repeat<T extends o.RO<any[]>>(obs: T, render: (arg: Repeat.RoItem<T>, idx: number) => Renderable): Node
-export function Repeat<T extends o.RO<any[]>>(obs: T, options: Repeat.Options<Repeat.RoItem<T>>, render: (arg: Repeat.RoItem<T>, idx: number) => Renderable): Node
+export function Repeat<T extends o.RO<any[]>>(obs: T, options: Repeat.Options<Repeat.Item<T>>, render: (arg: Repeat.RoItem<T>, idx: number) => Renderable): Node
 export function Repeat<T extends o.RO<any[]>>(
   ob: T,
-  render_or_options: Repeat.Options<Repeat.RoItem<T>> | ((arg: Repeat.RoItem<T>, idx: number) => Renderable),
+  render_or_options: Repeat.Options<Repeat.Item<T>> | ((arg: Repeat.RoItem<T>, idx: number) => Renderable),
   real_render?: (arg: Repeat.RoItem<T>, idx: number) => Renderable
 ): Node {
   const options = typeof render_or_options === 'function' ? {} : render_or_options
@@ -151,6 +151,8 @@ export namespace Repeat {
   : T extends (infer U)[] ? U
   : T;
 
+  export type Item<T extends o.RO<any[]>> = T extends o.ReadonlyObservable<(infer U)[]> ? U : T
+
   export interface Options<T> {
     /**
      * The separator to insert between all rendering of repeated elements
@@ -181,15 +183,11 @@ export namespace Repeat {
     }
 
     render() {
+      // var old_map = new Map<
       return e(document.createComment(this.constructor.name),
         $observe(this.obs, lst => {
           this.lst = lst || []
           const diff = lst.length - this.next_index
-          var keyfn = this.keyfn
-          if (keyfn) {
-            // maps the key to a position
-            var mp = new Map<any, number>()
-          }
 
           if (diff < 0)
             this.removeChildren(-diff)
@@ -208,7 +206,7 @@ export namespace Repeat {
         return false
 
       // here, we *KNOW* it represents a defined value.
-      var ob = this.obs.p(this.next_index) as o.Observable<T>
+      var ob = this.obs.p(this.next_index)
 
       this.child_obs.push(ob)
 
@@ -274,10 +272,10 @@ export namespace Repeat {
  * @category dom, toc
  */
 export function RepeatScroll<T extends o.RO<any[]>>(ob: T, render: (arg: Repeat.RoItem<T>, idx: number) => Renderable): Node
-export function RepeatScroll<T extends o.RO<any[]>>(ob: T, options: RepeatScroll.Options<Repeat.RoItem<T>>, render: (arg: Repeat.RoItem<T>, idx: number) => Renderable): Node
+export function RepeatScroll<T extends o.RO<any[]>>(ob: T, options: RepeatScroll.Options<Repeat.Item<T>>, render: (arg: Repeat.RoItem<T>, idx: number) => Renderable): Node
 export function RepeatScroll<T extends o.RO<any[]>>(
   ob: T,
-  opts_or_render: ((arg: Repeat.RoItem<T>, idx: number) => Renderable) | RepeatScroll.Options<Repeat.RoItem<T>>,
+  opts_or_render: ((arg: Repeat.RoItem<T>, idx: number) => Renderable) | RepeatScroll.Options<Repeat.Item<T>>,
   real_render?: ((arg: Repeat.RoItem<T>, idx: number) => Renderable)
 ): Node {
   // we cheat the typesystem, which is not great, but we "know what we're doing".
