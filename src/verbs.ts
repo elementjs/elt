@@ -217,8 +217,15 @@ export namespace Repeat {
       }
 
       var node = e.renderable_to_node(this.renderfn(ob, this.next_index), true)
-      this.positions.push(node instanceof DocumentFragment ? node.lastChild! : node)
-      fr.appendChild(node)
+      if (node instanceof DocumentFragment) {
+        let p = document.createComment('marker')
+        this.positions.push(p)
+        fr.appendChild(node)
+        fr.appendChild(p)
+      } else {
+        this.positions.push(node)
+        fr.appendChild(node)
+      }
 
       this.next_index++
       return true
