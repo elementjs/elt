@@ -217,7 +217,7 @@ export namespace Repeat {
       }
 
       var node = e.renderable_to_node(this.renderfn(ob, this.next_index), true)
-      if (node instanceof DocumentFragment) {
+      if (node instanceof DocumentFragment || node instanceof Comment) {
         let p = document.createComment('marker')
         this.positions.push(p)
         fr.appendChild(node)
