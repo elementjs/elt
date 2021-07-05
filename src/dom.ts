@@ -21,14 +21,14 @@ export type Listener<EventType extends Event, N extends Node = Node> = (ev: Even
 /**
  * Symbol property on `Node` to an array of observers that are started when the node is `init()` or `inserted()` and
  * stopped on `removed()`.
- * @category low level dom, toc
+ * @internal
  */
 export const sym_observers = Symbol('elt-observers')
 
 /**
  * Symbol property added on `Node` to track the status of the node ; if it's been init(), inserted() or more.
  * Its value type is `string`.
- * @category low level dom, toc
+ * @internal
  */
 export const sym_mount_status = Symbol('elt-mount-status')
 
@@ -38,26 +38,26 @@ export const sym_mount_status = Symbol('elt-mount-status')
  * The more "correct" way of achieving this would have been to create
  * a WeakSet, but since the performance is not terrific (especially
  * when the number of elements gets high), the symbol solution was retained.
- * @category low level dom, toc
+ * @internal
  */
 export const sym_objects = Symbol('elt-mixins')
 
 /**
  * A symbol property on `Node` to an array of functions to run when the node is **init**, which is to
  * say usually right when it was created but already added to a parent (which can be a `DocumentFragment`).
- * @category low level dom, toc
+ * @internal
  */
 export const sym_init = Symbol('elt-init')
 
 /**
  * A symbol property on `Node` to an array of functions to run when the node is **inserted** into a document.
- * @category low level dom, toc
+ * @internal
  */
 export const sym_inserted = Symbol('elt-inserted')
 
 /**
  * A symbol property on `Node` to an array of functions to run when the node is **removed** from a document.
- * @category low level dom, toc
+ * @internal
  */
 export const sym_removed = Symbol('elt-removed')
 

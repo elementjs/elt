@@ -19,7 +19,7 @@ import { $observe, $inserted, $removed } from './decorators'
 
 
 /**
- * @category dom, toc
+ * @category verbs, toc
  *
  * Display content depending on the value of a `condition`, which can be an observable.
  *
@@ -96,7 +96,7 @@ export namespace If {
 
 
 /**
- * @category dom, toc
+ * @category verbs, toc
  *
  * Repeats the `render` function for each element in `ob`, optionally separating each rendering
  * with the result of the `separator` function.
@@ -276,7 +276,7 @@ export namespace Repeat {
  *
  * @code ../examples/repeatscroll.tsx
  *
- * @category dom, toc
+ * @category verbs, toc
  */
 export function RepeatScroll<T extends o.RO<any[]>>(ob: T, render: (arg: Repeat.RoItem<T>, idx: number) => Renderable): Node
 export function RepeatScroll<T extends o.RO<any[]>>(ob: T, options: RepeatScroll.Options<Repeat.Item<T>>, render: (arg: Repeat.RoItem<T>, idx: number) => Renderable): Node
@@ -419,7 +419,7 @@ export namespace RepeatScroll {
  *
  * @code ../examples/switch2.tsx
  *
- * @category dom, toc
+ * @category verbs, toc
  */
 export function Switch<T>(obs: o.Observable<T>): Switch.Switcher<T>
 export function Switch<T>(obs: o.ReadonlyObservable<T>): Switch.ReadonlySwitcher<T>
@@ -500,7 +500,7 @@ export namespace Switch {
  *
  * To display something based on the result of the promise, use [[IfResolved]]
  *
- * @category toc, verb
+ * @category toc, verbs
  */
 export function IfResolving(pro: o.RO<Promise<any>>, fn: () => Renderable) {
   return If(o.wrapPromise(pro).tf(v => v.resolving), fn)
@@ -514,7 +514,7 @@ export function IfResolving(pro: o.RO<Promise<any>>, fn: () => Renderable) {
  *
  * To display something based on the loading state of the promise, use [[IfResolving]]
  *
- * @category toc, verb
+ * @category toc, verbs
  */
 export function IfResolved<T>(op: o.RO<Promise<T>>,
   resolved: (o_value: o.ReadonlyObservable<T>) => Renderable,

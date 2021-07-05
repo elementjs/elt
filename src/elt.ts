@@ -167,7 +167,7 @@ export class Displayer extends CommentContainer {
  *
  * @code ../examples/display.tsx
  *
- * @category low level dom, toc
+ * @category verbs, toc
  */
 export function Display(obs: o.RO<Renderable>): Node {
   if (!(obs instanceof o.Observable)) {
