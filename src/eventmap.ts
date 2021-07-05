@@ -6,21 +6,6 @@ export interface AllEventMap<ET extends EventTarget = HTMLElement> {
   "MSCandidateWindowHide": Event
   "MSCandidateWindowShow": Event
   "MSCandidateWindowUpdate": Event
-  "MSGestureChange": Event
-  "MSGestureDoubleTap": Event
-  "MSGestureEnd": Event
-  "MSGestureHold": Event
-  "MSGestureStart": Event
-  "MSGestureTap": Event
-  "MSInertiaStart": Event
-  "MSPointerCancel": Event
-  "MSPointerDown": Event
-  "MSPointerEnter": Event
-  "MSPointerLeave": Event
-  "MSPointerMove": Event
-  "MSPointerOut": Event
-  "MSPointerOver": Event
-  "MSPointerUp": Event
   "SVGUnload": Event
   "SVGZoom": SVGZoomEvent
   "abort": ET extends FileReader ? ProgressEvent<FileReader> : ET extends Window ? UIEvent : ET extends XMLHttpRequestEventTarget ? ProgressEvent<XMLHttpRequestEventTarget> : Event
@@ -54,7 +39,6 @@ export interface AllEventMap<ET extends EventTarget = HTMLElement> {
   "datachannel": RTCDataChannelEvent
   "dblclick": MouseEvent
   "devicechange": Event
-  "devicelight": DeviceLightEvent
   "devicemotion": DeviceMotionEvent
   "deviceorientation": DeviceOrientationEvent
   "deviceorientationabsolute": DeviceOrientationEvent
@@ -88,7 +72,6 @@ export interface AllEventMap<ET extends EventTarget = HTMLElement> {
   "icegatheringstatechange": Event
   "input": Event
   "invalid": Event
-  "isolationchange": Event
   "keydown": KeyboardEvent
   "keypress": KeyboardEvent
   "keystatuseschange": Event
@@ -122,6 +105,8 @@ export interface AllEventMap<ET extends EventTarget = HTMLElement> {
   "pagehide": PageTransitionEvent
   "pageshow": PageTransitionEvent
   "pause": SpeechSynthesisEvent
+  "payerdetailchange": Event
+  "paymentmethodchange": Event
   "play": Event
   "playing": Event
   "pointerlockchange": Event
@@ -157,7 +142,6 @@ export interface AllEventMap<ET extends EventTarget = HTMLElement> {
   "stalled": Event
   "start": SpeechSynthesisEvent
   "statechange": Event
-  "statsended": RTCStatsEvent
   "storage": StorageEvent
   "submit": Event
   "success": Event
@@ -183,9 +167,6 @@ export interface AllEventMap<ET extends EventTarget = HTMLElement> {
   "vrdisplayconnect": Event
   "vrdisplaydeactivate": Event
   "vrdisplaydisconnect": Event
-  "vrdisplayfocus": Event
-  "vrdisplaypointerrestricted": Event
-  "vrdisplaypointerunrestricted": Event
   "vrdisplaypresentchange": Event
   "waiting": Event
   "waitingforkey": Event
