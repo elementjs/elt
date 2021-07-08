@@ -12,7 +12,7 @@ import {
   node_observe_attribute,
   insert_before_and_init,
   append_child_and_init,
-  node_remove_after
+  node_do_remove
 } from './dom'
 
 
@@ -110,8 +110,15 @@ export class CommentContainer extends Component<EmptyAttributes<Comment>> {
    * Remove all nodes between this.start and this.node
    */
   clear() {
-    if (this.end.previousSibling !== this.node)
-      node_remove_after(this.node, this.end.previousSibling!)
+    const end = this.end
+    const node = this.node
+    const parent = node.parentNode!
+    let iter: ChildNode | null = end.previousSibling
+    while (iter !== node) {
+      parent.removeChild(iter!)
+      node_do_remove(iter!, parent)
+      iter = end.previousSibling
+    }
   }
 
   /**

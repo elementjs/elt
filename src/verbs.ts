@@ -13,7 +13,7 @@ import { e, Renderable, Displayer, Display, EmptyAttributes } from './elt'
 
 import {
   insert_before_and_init,
-  node_remove_after,
+  node_do_remove,
 } from './dom'
 import { $observe, $inserted, $removed } from './decorators'
 
@@ -109,12 +109,12 @@ export namespace If {
  *
  * @code ../examples/repeat.tsx
  */
-export function Repeat<T extends o.RO<any[]>>(obs: T, render: (arg: Repeat.RoItem<T>, idx: number) => Renderable): Node
-export function Repeat<T extends o.RO<any[]>>(obs: T, options: Repeat.Options<Repeat.Item<T>>, render: (arg: Repeat.RoItem<T>, idx: number) => Renderable): Node
+export function Repeat<T extends o.RO<any[]>>(obs: T, render: (arg: Repeat.RoItem<T>, idx: o.RO<number>) => Renderable): Node
+export function Repeat<T extends o.RO<any[]>>(obs: T, options: Repeat.Options<Repeat.Item<T>>, render: (arg: Repeat.RoItem<T>, idx: o.RO<number>) => Renderable): Node
 export function Repeat<T extends o.RO<any[]>>(
   ob: T,
-  render_or_options: Repeat.Options<Repeat.Item<T>> | ((arg: Repeat.RoItem<T>, idx: number) => Renderable),
-  real_render?: (arg: Repeat.RoItem<T>, idx: number) => Renderable
+  render_or_options: Repeat.Options<Repeat.Item<T>> | ((arg: Repeat.RoItem<T>, idx: o.RO<number>) => Renderable),
+  real_render?: (arg: Repeat.RoItem<T>, idx: o.RO<number>) => Renderable
 ): Node {
   const options = typeof render_or_options === 'function' ? {} : render_or_options
   const render = typeof render_or_options === 'function' ? render_or_options : real_render!
@@ -138,6 +138,11 @@ export function Repeat<T extends o.RO<any[]>>(
 
 export namespace Repeat {
 
+  export const sym_repeat_pos = Symbol("repeat-pos")
+  export interface RepeatPositionNode extends Node {
+    [sym_repeat_pos]: o.Observable<number>
+  }
+
   /**
    * A helper type that transforms a type that could be an array, an [[o.Observable]] or a [[o.ReadonlyObservable]]
    * of an array to the base type of the same type.
@@ -157,7 +162,7 @@ export namespace Repeat {
     /**
      * The separator to insert between all rendering of repeated elements
      */
-    separator?: (n: number) => Renderable
+    separator?: (n: o.RO<number>) => Renderable
     key?: (elt: T) => any
   }
 
@@ -167,16 +172,13 @@ export namespace Repeat {
    */
   export class Repeater<T> extends Component<EmptyAttributes<Comment>> {
 
-    protected positions: Node[] = []
+    protected last: RepeatPositionNode | null = null
     protected next_index: number = 0
     protected lst: T[] = []
-    protected keyfn = this.options.key
-
-    protected child_obs: o.Observable<T>[] = []
 
     constructor(
       public obs: o.Observable<T[]>,
-      public renderfn: (ob: o.Observable<T>, n: number) => Renderable,
+      public renderfn: (ob: o.Observable<T>, n: o.ReadonlyObservable<number>) => Renderable,
       public options: Repeat.Options<T> = {}
     ) {
       super({})
@@ -189,11 +191,12 @@ export namespace Repeat {
           this.lst = lst || []
           const diff = lst.length - this.next_index
 
+          if (diff > 0)
+            this.appendChildren(diff)
+
           if (diff < 0)
             this.removeChildren(-diff)
 
-          if (diff > 0)
-            this.appendChildren(diff)
         })
       )
     }
@@ -205,27 +208,28 @@ export namespace Repeat {
       if (this.next_index >= this.lst.length)
         return false
 
-      // here, we *KNOW* it represents a defined value.
-      var ob = this.obs.p(this.next_index)
-
-      this.child_obs.push(ob)
+      const prop_obs = o(this.next_index)
+      const ob = this.obs.p(prop_obs)
 
       var _sep = this.options.separator
       if (_sep && this.next_index > 0) {
-        var sep = e.renderable_to_node(_sep(this.next_index))
+        var sep = e.renderable_to_node(_sep(prop_obs))
         if (sep) fr.appendChild(sep)
       }
 
-      var node = e.renderable_to_node(this.renderfn(ob, this.next_index), true)
+      var node = e.renderable_to_node(this.renderfn(ob, prop_obs), true) as unknown as RepeatPositionNode
       if (node instanceof DocumentFragment || node instanceof Comment) {
-        let p = document.createComment('marker')
-        this.positions.push(p)
+        let p = document.createComment('marker') as unknown as RepeatPositionNode
         fr.appendChild(node)
         fr.appendChild(p)
+        node = p
       } else {
-        this.positions.push(node)
         fr.appendChild(node)
       }
+
+      node[sym_repeat_pos] = prop_obs
+      this.last = node
+      // At this stage, node is the "position" element, the one we will use to keep track of
 
       this.next_index++
       return true
@@ -234,7 +238,7 @@ export namespace Repeat {
     appendChildren(count: number) {
       const parent = this.node.parentNode!
       if (!parent) return
-      const insert_point = this.positions.length === 0 ? this.node.nextSibling : this.positions[this.positions.length - 1]?.nextSibling
+      const insert_point = (this.last ?? this.node).nextSibling
 
       var fr = document.createDocumentFragment()
 
@@ -246,14 +250,26 @@ export namespace Repeat {
     }
 
     removeChildren(count: number) {
-      if (this.next_index === 0 || count === 0) return
+      let iter = this.last
+      if (iter == null || this.next_index === 0 || count === 0) return
       // Détruire jusqu'à la position concernée...
       this.next_index = this.next_index - count
+      let parent = iter.parentNode!
 
-      node_remove_after(this.positions[this.next_index - 1] ?? this.node, this.positions[this.positions.length - 1])
+      while (true) {
+        let next = iter.previousSibling as RepeatPositionNode | null
+        if (iter[sym_repeat_pos]) { count-- }
+        if (count === -1) break
+        parent.removeChild(iter)
+        node_do_remove(iter, parent)
+        iter = next
+        if (iter == null) { break }
+      }
 
-      this.child_obs = this.child_obs.slice(0, this.next_index)
-      this.positions = this.positions.slice(0, this.next_index)
+      // reset last if the list is now empty
+      if (this.next_index === 0) {
+        this.last = null
+      }
     }
   }
 }
@@ -321,7 +337,7 @@ export namespace RepeatScroll {
 
     constructor(
       ob: o.Observable<T[]>,
-      renderfn: (e: o.Observable<T>, oi: number) => Renderable,
+      renderfn: (e: o.Observable<T>, oi: o.ReadonlyObservable<number>) => Renderable,
       public options: RepeatScroll.Options<T>
     ) {
       super(ob, renderfn, options)

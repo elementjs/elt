@@ -607,24 +607,6 @@ export function node_off<N extends Node>(
   (node[sym] = node[sym] ?? []).filter(f => f !== callback as (n: Node, parent: Node) => void)
 }
 
-
-/**
- * Remove all the nodes after `start` until `until` (included), calling `removed` and stopping observables as needed.
- * @category low level dom, toc
- */
-export function node_remove_after(start: Node, until: Node | null) {
-  if (!start) return
-
-  var next: Node | null
-  var parent = start.parentNode!
-  while ((next = start.nextSibling)) {
-    parent.removeChild(next)
-    node_do_remove(next, parent)
-    if (next === until) break
-  }
-
-}
-
 export function node_add_data(node: Node, object: object) {
   (node[sym_objects] ?? (node[sym_objects] = [])).push(object)
 }
