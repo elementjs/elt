@@ -186,7 +186,7 @@ export namespace Repeat {
 
     render() {
       // var old_map = new Map<
-      return e(document.createComment(this.constructor.name),
+      let res = e(document.createComment(this.constructor.name),
         $observe(this.obs, lst => {
           this.lst = lst || []
           const diff = lst.length - this.next_index
@@ -199,6 +199,8 @@ export namespace Repeat {
 
         })
       )
+      res[sym_repeat_pos] = true
+      return res
     }
 
     /**
@@ -259,11 +261,11 @@ export namespace Repeat {
       while (true) {
         let next = iter.previousSibling as RepeatPositionNode | null
         if (iter[sym_repeat_pos]) { count-- }
-        if (count === -1) break
+        if (count === -1) { this.last = iter; break }
         parent.removeChild(iter)
         node_do_remove(iter, parent)
         iter = next
-        if (iter == null) { break }
+        if (iter == null || iter === this.node as unknown) { break }
       }
 
       // reset last if the list is now empty
