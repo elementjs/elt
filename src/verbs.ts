@@ -198,8 +198,8 @@ export namespace Repeat {
             this.removeChildren(-diff)
 
         })
-      )
-      res[sym_repeat_pos] = true
+      );
+      (res as any)[sym_repeat_pos] = true
       return res
     }
 
