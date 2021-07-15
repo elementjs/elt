@@ -1,5 +1,7 @@
 import { EACH, IndexableArray, Indexable } from './indexable'
 
+declare const DEBUG: boolean
+
 /**
  * Make sure we have a usable observable.
  * @returns The original observable if `arg` already was one, or a new
@@ -397,7 +399,9 @@ export class Observable<A> implements ReadonlyObservable<A>, Indexable {
    * Build an observable from a value. For readability purposes, use the [[o]] function instead.
    */
   constructor(public _value: A) {
-    // (this as any).debug = new Error
+    if (DEBUG) {
+      (this as any).debug = new Error().stack
+    }
   }
 
   /**
