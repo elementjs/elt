@@ -13,17 +13,10 @@
   },
   "typings": "./dist/elt.d.ts",
   "scripts": {
-    "docs": "typedoc --excludePrivate --excludeNotExported --out ./docs src/index.ts --mode file --theme minimal --internal-aliases internal,publicapi,api --external-aliases external,internalapi",
-    "eventmap": "node scripts/mkeventmap.js > ./src/eventmap.ts",
-    "build:dts": "dts-bundle-generator --inline-declare-global --umd-module-name elt src/index.ts -o dist/elt.d.ts",
-    "build:bundle": "esbuild --bundle --log-limit=0 --platform=browser --target=es2017 --define:DEBUG=false --define:process.env.NODE_ENV=\"development\" --tsconfig=./tsconfig.json --jsx-factory=E --jsx-fragment=E.Fragment src/index.ts --minify-syntax --outfile=dist/elt.js --format=esm",
-    "build:bundle:dev": "esbuild --bundle --log-limit=0 --platform=browser --target=es2017 --define:DEBUG=true --minify-syntax --define:process.env.NODE_ENV=\"development\" --tsconfig=./tsconfig.json --jsx-factory=E --jsx-fragment=E.Fragment src/index.ts --outfile=dist/elt.debug.js --format=esm",
-    "build:js": "npm run eventmap ; tsc ; npm run build:bundle",
-    "build": "npm run build:js && npm run build:dts",
-    "prepublish": "npm run build",
-    "tscver": "tsc --version",
-    "watch": "npm run eventmap ; concurrently -c green,blue,red -n dtsbundle,esbuild,tsc 'chokidar --silent \"./src/**/*.ts\" -c \"npm run build:dts\"' 'chokidar --silent \"./src/**/*.ts\" -c \"npm run build:bundle ; npm run build:bundle:dev\"' 'tsc -w --noEmit | wtsc'"
+    "build": "make",
+    "prepublish": "npm run build"
   },
+  "type": "module",
   "devDependencies": {
     "@types/chai": "^4.2.5",
     "@types/mocha": "^5.2.7",
