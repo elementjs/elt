@@ -395,6 +395,9 @@ export class Observable<A> implements ReadonlyObservable<A>, Indexable {
   */
   idx = null as null | number
 
+  /** only available in development build */
+  debug?: string
+
   /**
    * Build an observable from a value. For readability purposes, use the [[o]] function instead.
    */
