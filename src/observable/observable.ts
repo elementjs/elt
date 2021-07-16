@@ -615,13 +615,14 @@ export class Observable<A> implements ReadonlyObservable<A>, Indexable {
    * @code ../../examples/o.observable.tf.tsx
    *
    */
+  tf<B>(tf: o.RO<TransfomFn<A, B>>, rev: o.RO<RevertFn<A, B>>): Observable<B>
   tf<B>(transform: RO<Converter<A, B>>): Observable<B>
   tf<B>(transform: RO<TransfomFn<A, B> | ReadonlyConverter<A, B>>): ReadonlyObservable<B>
-  tf<B>(transform: RO<TransfomFn<A, B> | ReadonlyConverter<A, B>>): ReadonlyObservable<B> {
+  tf<B>(transform: RO<TransfomFn<A, B> | ReadonlyConverter<A, B>>, rev?: o.RO<RevertFn<A, B>>): ReadonlyObservable<B> {
     var old: A | NoValue = NoValue
     var old_transform: any = NoValue
     var curval: B | NoValue = NoValue
-    return combine([this, transform] as [Observable<A>, RO<TransfomFn<A, B> | ReadonlyConverter<A, B>>],
+    return combine([this, transform, rev] as [Observable<A>, RO<TransfomFn<A, B> | ReadonlyConverter<A, B>>, RevertFn<A, B>],
       ([v, fnget]) => {
         if (old !== NoValue && old_transform !== NoValue && curval !== NoValue && old === v && old_transform === fnget) return curval
         curval = (typeof fnget === 'function' ? fnget(v, old, curval) : fnget.transform(v, old, curval))
@@ -629,10 +630,11 @@ export class Observable<A> implements ReadonlyObservable<A>, Indexable {
         old_transform = fnget
         return curval
       },
-      (newv, old, [curr, conv]) => {
-        if (typeof conv === 'function') return tuple(NoValue, NoValue)
+      (newv, old, [curr, conv, rev]) => {
+        if (typeof rev === 'function') return tuple(rev(newv, old, curr), NoValue, NoValue)
+        if (typeof conv === 'function') return tuple(NoValue, NoValue, NoValue) // this means the set is being silently ignored. should it be an error ?
         var new_orig = (conv as Converter<A, B>).revert(newv, old, curr)
-        return tuple(new_orig, o.NoValue)
+        return tuple(new_orig, NoValue, NoValue)
       }
     )
   }
