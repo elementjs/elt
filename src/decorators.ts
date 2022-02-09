@@ -271,7 +271,7 @@ export function $on<N extends Node>(event: string | string[], _listener: Listene
  * device.
  * @category dom, toc
  */
-export function $click<N extends HTMLElement | SVGElement>(cbk: Listener<MouseEvent, N>, capture?: boolean): (node: N) => void {
+export function $click<N extends HTMLElement | SVGElement>(cbk: Listener<Event, N>, capture?: boolean): (node: N) => void {
   return function $click(node) {
     // events don't trigger on safari if not pointer.
     node.style.cursor = 'pointer'
