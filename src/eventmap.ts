@@ -73,6 +73,7 @@ export interface AllEventMap<ET extends EventTarget = HTMLElement> {
   "scroll": Event
   "show": Event
   "signalingstatechange": Event
+  "slotchange": Event
   "sourceclose": Event
   "sourceended": Event
   "sourceopen": Event
