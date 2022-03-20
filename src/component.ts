@@ -1,6 +1,6 @@
 
-import { node_add_data } from './dom'
-import type { EmptyAttributes, Attrs, Renderable, AttrsNodeType } from './elt'
+import { node_add_data } from "./dom"
+import type { EmptyAttributes, Attrs, Renderable, AttrsNodeType } from "./elt"
 
 
 /**

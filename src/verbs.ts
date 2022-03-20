@@ -3,19 +3,19 @@
  */
 import {
   o
-} from './observable'
+} from "./observable"
 
 import {
   Component,
-} from './component'
+} from "./component"
 
-import { e, Renderable, Displayer, Display, EmptyAttributes } from './elt'
+import { e, Renderable, Displayer, Display, EmptyAttributes } from "./elt"
 
 import {
   insert_before_and_init,
   node_do_remove,
-} from './dom'
-import { $observe, $inserted, $removed } from './decorators'
+} from "./dom"
+import { $observe, $inserted, $removed } from "./decorators"
 
 
 /**
@@ -46,8 +46,8 @@ export function If<T extends o.RO<any>>(
     return condition ?
       e.renderable_to_node(display(condition as any), true)
       : e.renderable_to_node(display_otherwise ?
-          (display_otherwise(null!))
-          : document.createComment('false'), true)
+        (display_otherwise(null!))
+        : document.createComment("false"), true)
   }
 
   return new If.ConditionalDisplayer(display as any, condition as any, display_otherwise as any).renderAndAttach([])
@@ -116,15 +116,15 @@ export function Repeat<T extends o.RO<any[]>>(
   render_or_options: Repeat.Options<Repeat.Item<T>> | ((arg: Repeat.RoItem<T>, idx: o.RO<number>) => Renderable),
   real_render?: (arg: Repeat.RoItem<T>, idx: o.RO<number>) => Renderable
 ): Node {
-  const options = typeof render_or_options === 'function' ? {} : render_or_options
-  const render = typeof render_or_options === 'function' ? render_or_options : real_render!
+  const options = typeof render_or_options === "function" ? {} : render_or_options
+  const render = typeof render_or_options === "function" ? render_or_options : real_render!
 
   if (!(ob instanceof o.Observable)) {
     const arr = ob as any[]
 
-    var df = document.createDocumentFragment()
-    var sep = options.separator
-    for (var i = 0, l = arr.length; i < l; i++) {
+    const df = document.createDocumentFragment()
+    const sep = options.separator
+    for (let i = 0, l = arr.length; i < l; i++) {
       df.appendChild(e.renderable_to_node(render(arr[i], i), true))
       if (i > 1 && sep) {
         df.appendChild(e.renderable_to_node(sep(i - 1), true))
@@ -186,7 +186,7 @@ export namespace Repeat {
 
     render() {
       // var old_map = new Map<
-      let res = e(document.createComment(this.constructor.name),
+      const res = e(document.createComment(this.constructor.name),
         $observe(this.obs, lst => {
           this.lst = lst || []
           const diff = lst.length - this.next_index
@@ -213,15 +213,15 @@ export namespace Repeat {
       const prop_obs = o(this.next_index)
       const ob = this.obs.p(prop_obs)
 
-      var _sep = this.options.separator
+      const _sep = this.options.separator
       if (_sep && this.next_index > 0) {
-        var sep = e.renderable_to_node(_sep(prop_obs))
+        const sep = e.renderable_to_node(_sep(prop_obs))
         if (sep) fr.appendChild(sep)
       }
 
-      var node = e.renderable_to_node(this.renderfn(ob, prop_obs), true) as unknown as RepeatPositionNode
+      let node = e.renderable_to_node(this.renderfn(ob, prop_obs), true) as unknown as RepeatPositionNode
       if (node instanceof DocumentFragment || node instanceof Comment) {
-        let p = document.createComment('marker') as unknown as RepeatPositionNode
+        const p = document.createComment("marker") as unknown as RepeatPositionNode
         fr.appendChild(node)
         fr.appendChild(p)
         node = p
@@ -242,7 +242,7 @@ export namespace Repeat {
       if (!parent) return
       const insert_point = (this.last ?? this.node).nextSibling
 
-      var fr = document.createDocumentFragment()
+      const fr = document.createDocumentFragment()
 
       while (count-- > 0) {
         if (!this.next(fr)) break
@@ -256,10 +256,10 @@ export namespace Repeat {
       if (iter == null || this.next_index === 0 || count === 0) return
       // Détruire jusqu'à la position concernée...
       this.next_index = this.next_index - count
-      let parent = iter.parentNode!
+      const parent = iter.parentNode!
 
       while (true) {
-        let next = iter.previousSibling as RepeatPositionNode | null
+        const next = iter.previousSibling as RepeatPositionNode | null
         if (iter[sym_repeat_pos]) { count-- }
         if (count === -1) { this.last = iter; break }
         parent.removeChild(iter)
@@ -304,7 +304,7 @@ export function RepeatScroll<T extends o.RO<any[]>>(
   real_render?: ((arg: Repeat.RoItem<T>, idx: number) => Renderable)
 ): Node {
   // we cheat the typesystem, which is not great, but we "know what we're doing".
-  if (typeof opts_or_render === 'function') {
+  if (typeof opts_or_render === "function") {
     return new RepeatScroll.ScrollRepeater<any>(o(ob as any) as o.Observable<any>, opts_or_render as any, {}).renderAndAttach([])
   }
 
@@ -380,10 +380,10 @@ export namespace RepeatScroll {
       if (!this.node.isConnected) return
 
       // Find parent with the overflow-y
-      var iter = this.node.parentElement
+      let iter = this.node.parentElement
       while (iter) {
-        var style = getComputedStyle(iter) as any
-        if (style.overflowY === 'auto' || style.msOverflowY === 'auto' || style.msOverflowY === 'scrollbar') {
+        const style = getComputedStyle(iter) as any
+        if (style.overflowY === "auto" || style.msOverflowY === "auto" || style.msOverflowY === "scrollbar") {
           this.parent = iter
           break
         }
@@ -391,12 +391,12 @@ export namespace RepeatScroll {
       }
 
       if (!this.parent) {
-        console.warn(`Scroll repeat needs a parent with overflow-y: auto`)
+        console.warn("Scroll repeat needs a parent with overflow-y: auto")
         this.appendChildren()
         return
       }
 
-      this.parent.addEventListener('scroll', this.onscroll)
+      this.parent.addEventListener("scroll", this.onscroll)
     }
 
     onscroll = () => {
@@ -408,7 +408,7 @@ export namespace RepeatScroll {
       // remove Scrolling
       if (!this.parent) return
 
-      this.parent.removeEventListener('scroll', this.onscroll)
+      this.parent.removeEventListener("scroll", this.onscroll)
       this.parent = null
     }
 
@@ -455,7 +455,7 @@ export namespace Switch {
     cases: [(T | ((t: T) => any)), (t: o.Observable<T>) => Renderable][] = []
     passthrough: () => Renderable = () => null
     prev_case: any = null
-    prev: Renderable = ''
+    prev: Renderable = ""
 
     constructor(public obs: o.Observable<T>) {
       super([obs])
@@ -463,9 +463,9 @@ export namespace Switch {
 
     getter([nval] : [T]): Renderable {
       const cases = this.cases
-      for (var c of cases) {
+      for (const c of cases) {
         const val = c[0]
-        if (val === nval || (typeof val === 'function' && (val as Function)(nval))) {
+        if (val === nval || (typeof val === "function" && (val as Function)(nval))) {
           if (this.prev_case === val) {
             return this.prev
           }
@@ -542,14 +542,14 @@ export function IfResolved<T>(op: o.RO<Promise<T>>,
   const o_value = o(undefined as any)
   const o_error = o(undefined)
   return Display(op_wrapped.tf((wr, _, prev) => {
-    if (wr.resolved === 'value') {
+    if (wr.resolved === "value") {
       o_value.set(wr.value)
-      if (prev !== o.NoValue && _ !== o.NoValue && (_.resolved ==='value'))
+      if (prev !== o.NoValue && _ !== o.NoValue && (_.resolved ==="value"))
         return prev
       return resolved(o_value)
-    } else if (rejected && (wr.resolved === 'error')) {
+    } else if (rejected && (wr.resolved === "error")) {
       o_error.set(wr.error)
-      if (prev !== o.NoValue && _ !== o.NoValue && (_.resolved === 'error'))
+      if (prev !== o.NoValue && _ !== o.NoValue && (_.resolved === "error"))
         return prev
       return rejected(o_error)
     }

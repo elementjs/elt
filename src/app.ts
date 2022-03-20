@@ -1,8 +1,8 @@
-import { Renderable, Display } from './elt'
-import { o } from './observable'
+import { Renderable, Display } from "./elt"
+import { o } from "./observable"
 
 
-const sym_data = Symbol('data')
+const sym_data = Symbol("data")
 
 /**
  * An app is a collection of services and their associated view map.
@@ -20,11 +20,11 @@ export class App {
     if (!ser) return views
 
     const srvs = new Set<App.Service>([ser])
-    for (var srv of srvs) {
-      for (var [name, view] of srv.views) {
+    for (const srv of srvs) {
+      for (const [name, view] of srv.views) {
         if (!views.has(name)) views.set(name, view)
       }
-      for (var req of srv.requirements)
+      for (const req of srv.requirements)
         if (!srvs.has(req)) srvs.add(req)
     }
     return views
@@ -70,7 +70,7 @@ export class App {
       // Try to activate the service
       const srv = await this.getService(si)
       // If everything went fine, then just set this service as the active one.
-      for (var ac of srv._on_activate) await ac()
+      for (const ac of srv._on_activate) await ac()
 
       srv.forEach(s => s.startObservers())
       this.o_active_service.set(srv)
@@ -95,9 +95,9 @@ export class App {
     if (!srv) return
     const new_cache = new Map<Function, App.Service>()
     const reqs = new Set<App.Service>([srv])
-    for (var r of reqs) {
+    for (const r of reqs) {
       new_cache.set(r.builder, r)
-      for (var _r of r.requirements)
+      for (const _r of r.requirements)
         if (!reqs.has(_r)) reqs.add(_r)
     }
 
@@ -109,7 +109,7 @@ export class App {
       // Stop their observers
       if (!old_srv.is_persistent && !new_cache.has(old_srv.builder)) {
         old_srv.stopObservers()
-        for (var d of old_srv._on_deinit) d()
+        for (const d of old_srv._on_deinit) d()
       }
     }
 
@@ -158,9 +158,9 @@ export namespace App {
 
     forEach(fn: (s: Service) => void) {
       const seen = new Set<Service>([this])
-      for (var s of seen) {
+      for (const s of seen) {
         fn(s)
-        for (var r of s.requirements)
+        for (const r of s.requirements)
           seen.add(r)
       }
     }

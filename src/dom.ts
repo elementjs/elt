@@ -1,5 +1,5 @@
-import { o } from './observable'
-import type { AllEventMap } from './eventmap'
+import { o } from "./observable"
+import type { AllEventMap } from "./eventmap"
 
 /**
  * CSS Style attribute definition for the style={} attribute
@@ -23,14 +23,14 @@ export type Listener<EventType extends Event, N extends Node = Node> = (ev: Even
  * stopped on `removed()`.
  * @internal
  */
-export const sym_observers = Symbol('elt-observers')
+export const sym_observers = Symbol("elt-observers")
 
 /**
  * Symbol property added on `Node` to track the status of the node ; if it's been init(), inserted() or more.
  * Its value type is `string`.
  * @internal
  */
-export const sym_mount_status = Symbol('elt-mount-status')
+export const sym_mount_status = Symbol("elt-mount-status")
 
 /**
  * This symbol is added as a property of the DOM nodes to store mixins associated with it.
@@ -40,26 +40,26 @@ export const sym_mount_status = Symbol('elt-mount-status')
  * when the number of elements gets high), the symbol solution was retained.
  * @internal
  */
-export const sym_objects = Symbol('elt-mixins')
+export const sym_objects = Symbol("elt-mixins")
 
 /**
  * A symbol property on `Node` to an array of functions to run when the node is **init**, which is to
  * say usually right when it was created but already added to a parent (which can be a `DocumentFragment`).
  * @internal
  */
-export const sym_init = Symbol('elt-init')
+export const sym_init = Symbol("elt-init")
 
 /**
  * A symbol property on `Node` to an array of functions to run when the node is **inserted** into a document.
  * @internal
  */
-export const sym_inserted = Symbol('elt-inserted')
+export const sym_inserted = Symbol("elt-inserted")
 
 /**
  * A symbol property on `Node` to an array of functions to run when the node is **removed** from a document.
  * @internal
  */
-export const sym_removed = Symbol('elt-removed')
+export const sym_removed = Symbol("elt-removed")
 
 const NODE_IS_INITED =        0x001
 const NODE_IS_INSERTED =      0x010
@@ -88,10 +88,10 @@ declare global {
 
 
 function _node_call_cbks(node: Node, sym: typeof sym_init | typeof sym_inserted | typeof sym_removed, parent?: Node) {
-  var cbks = node[sym]
+  const cbks = node[sym]
   parent = parent ?? node.parentNode!
   if (cbks) {
-    for (var i = 0, l = cbks.length; i < l; i++) {
+    for (let i = 0, l = cbks.length; i < l; i++) {
       cbks[i](node, parent)
     }
   }
@@ -100,9 +100,9 @@ function _node_call_cbks(node: Node, sym: typeof sym_init | typeof sym_inserted 
 
 
 function _node_start_observers(node: Node) {
-  var obs = node[sym_observers]
+  const obs = node[sym_observers]
   if (obs) {
-    for (var i = 0, l = obs.length; i < l; i++) {
+    for (let i = 0, l = obs.length; i < l; i++) {
       obs[i].startObserving()
     }
   }
@@ -110,9 +110,9 @@ function _node_start_observers(node: Node) {
 
 
 function _node_stop_observers(node: Node) {
-  var obs = node[sym_observers]
+  const obs = node[sym_observers]
   if (obs) {
-    for (var i = 0, l = obs.length; i < l; i++) {
+    for (let i = 0, l = obs.length; i < l; i++) {
       obs[i].stopObserving()
     }
   }
@@ -167,9 +167,9 @@ export function node_do_init(node: Node) {
   // _node_start_observers(node)
   // We now refresh all the observers so that they trigger their behaviour.
   // They are however not started, since nodes could be discarded.
-  var observers = node[sym_observers]
+  const observers = node[sym_observers]
   if (observers) {
-    for (var i = 0, l = observers.length; i < l; i++) {
+    for (let i = 0, l = observers.length; i < l; i++) {
       observers[i].refresh()
     }
   }
@@ -181,7 +181,7 @@ export function node_do_init(node: Node) {
 
 function _apply_inserted(node: Node) {
 
-  var st = node[sym_mount_status] || 0
+  const st = node[sym_mount_status] || 0
 
   node[sym_mount_status] = NODE_IS_INITED | NODE_IS_INSERTED | NODE_IS_OBSERVING // now inserted
 
@@ -203,7 +203,7 @@ export function node_do_inserted(node: Node) {
   if (node[sym_mount_status] & NODE_IS_INSERTED) return
 
   _apply_inserted(node)
-  var iter = node.firstChild
+  let iter = node.firstChild
   while (iter) {
     node_do_inserted(iter)
     iter = iter.nextSibling
@@ -216,7 +216,7 @@ export function node_do_inserted(node: Node) {
  * @internal
  */
 function _apply_removed(node: Node, prev_parent: Node) {
-  var st = node[sym_mount_status]
+  const st = node[sym_mount_status]
 
   node[sym_mount_status] = st ^ NODE_IS_OBSERVING ^ NODE_IS_INSERTED
 
@@ -239,7 +239,7 @@ function _apply_removed(node: Node, prev_parent: Node) {
  */
 export function node_do_remove(node: Node, prev_parent: Node) {
 
-  var iter = node.firstChild
+  let iter = node.firstChild
   while (iter) { // first[sym_mount_status] & NODE_IS_INSERTED
     node_do_remove(iter, node)
     iter = iter.nextSibling
@@ -290,20 +290,20 @@ const _registered_documents = new WeakSet<Document>()
  */
 export function setup_mutation_observer(node: Node) {
   if (!node.isConnected && !!node.ownerDocument)
-    throw new Error(`cannot setup mutation observer on a Node that is not connected in a document`)
+    throw new Error("cannot setup mutation observer on a Node that is not connected in a document")
 
 
-  var obs = new MutationObserver(records => {
-    for (var i = 0, l = records.length; i < l; i++) {
-      var record = records[i]
+  const obs = new MutationObserver(records => {
+    for (let i = 0, l = records.length; i < l; i++) {
+      const record = records[i]
       for (var removed = record.removedNodes, j = 0, lj = removed.length; j < lj; j++) {
-        var removed_node = removed[j]
+        const removed_node = removed[j]
         if (!removed_node.isConnected) {
           node_do_remove(removed_node, record.target)
         }
       }
       for (var added = record.addedNodes, j = 0, lj = added.length; j < lj; j++) {
-        var added_node = added[j]
+        const added_node = added[j]
         node_do_inserted(added_node)
       }
     }
@@ -313,7 +313,7 @@ export function setup_mutation_observer(node: Node) {
   const target_document = (node.ownerDocument ?? node) as Document
 
   if (!_registered_documents.has(target_document)) {
-    target_document.defaultView?.addEventListener('unload', ev => {
+    target_document.defaultView?.addEventListener("unload", ev => {
       // Calls a `removed` on all the nodes in the closing window.
       node_do_remove(target_document.firstChild!, target_document)
       obs.disconnect()
@@ -342,7 +342,7 @@ export function setup_mutation_observer(node: Node) {
  * @category low level dom, toc
  */
 export function insert_before_and_init(parent: Node, node: Node, refchild: Node | null = null) {
-  var df: DocumentFragment
+  let df: DocumentFragment
 
   if (!(node instanceof DocumentFragment)) {
     df = document.createDocumentFragment()
@@ -351,14 +351,14 @@ export function insert_before_and_init(parent: Node, node: Node, refchild: Node 
     df = node
   }
 
-  var iter = df.firstChild
+  let iter = df.firstChild
   while (iter) {
     node_do_init(iter)
     iter = iter.nextSibling
   }
 
-  var first = df.firstChild
-  var last = df.lastChild
+  const first = df.firstChild
+  const last = df.lastChild
   parent.insertBefore(df, refchild)
 
   // If the parent was in the document, then we have to call inserted() on all the
@@ -367,7 +367,7 @@ export function insert_before_and_init(parent: Node, node: Node, refchild: Node 
     iter = last
     // we do it in reverse because Display and the likes do it from previous to next.
     while (iter) {
-      var next = iter.previousSibling
+      const next = iter.previousSibling
       node_do_inserted(iter)
       if (iter === first) break
       iter = next as ChildNode | null
@@ -403,7 +403,7 @@ export function node_observe<T>(node: Node, obs: o.RO<T>, obsfn: o.Observer.Call
     return null
   }
   // Create the observer and append it to the observer array of the node
-  var obser = obs.createObserver(obsfn)
+  const obser = obs.createObserver(obsfn)
   if (observer_callback) observer_callback(obser)
   node_add_observer(node, obser)
   return obser
@@ -444,7 +444,7 @@ export function node_add_event_listener<N extends Node>(node: N, ev: string | st
   if (Array.isArray(ev))
     // we have to force typescript's hands on the listener typing, as we **know** for certain that current_target
     // is the right type here.
-    for (var e of ev) node.addEventListener(e, listener as any)
+    for (const e of ev) node.addEventListener(e, listener as any)
   else {
     node.addEventListener(ev, listener as any)
   }
@@ -475,7 +475,7 @@ export function node_unobserve(node: Node, obsfn: o.Observer<any> | o.Observer.C
 export function node_observe_attribute(node: Element, name: string, value: o.RO<string | boolean>) {
   node_observe(node, value, val => {
     if (val === true)
-      node.setAttribute(name, '')
+      node.setAttribute(name, "")
     else if (val != null && val !== false)
       node.setAttribute(name, val)
     else
@@ -493,20 +493,20 @@ export function node_observe_style(node: HTMLElement | SVGElement, style: StyleD
   if (style instanceof o.Observable) {
     node_observe(node, style, st => {
       const ns = node.style
-      var props = Object.keys(st)
-      for (var i = 0, l = props.length; i < l; i++) {
-        let x = props[i]
-        ns.setProperty(x.replace(/[A-Z]/g, m => '-' + m.toLowerCase()), st[x])
+      const props = Object.keys(st)
+      for (let i = 0, l = props.length; i < l; i++) {
+        const x = props[i]
+        ns.setProperty(x.replace(/[A-Z]/g, m => "-" + m.toLowerCase()), st[x])
       }
     })
   } else {
     // c is a MaybeObservableObject
-    var st = style as any
-    var props = Object.keys(st)
-    for (var i = 0, l = props.length; i < l; i++) {
-      let x = props[i]
+    const st = style as any
+    const props = Object.keys(st)
+    for (let i = 0, l = props.length; i < l; i++) {
+      const x = props[i]
       node_observe(node, st[x], value => {
-        node.style.setProperty(x.replace(/[A-Z]/g, m => '-' + m.toLowerCase()), value)
+        node.style.setProperty(x.replace(/[A-Z]/g, m => "-" + m.toLowerCase()), value)
       })
     }
   }
@@ -519,18 +519,18 @@ export function node_observe_style(node: HTMLElement | SVGElement, style: StyleD
  */
 export function node_observe_class(node: Element, c: ClassDefinition) {
   if (!c) return
-  if (typeof c === 'string' || c.constructor !== Object) {
+  if (typeof c === "string" || c.constructor !== Object) {
     // c is an Observable<string>
     node_observe(node, c, (str, chg) => {
       if (chg !== o.NoValue) _remove_class(node, chg as string)
       _apply_class(node, str)
     })
   } else {
-    var ob = c as { [name: string]: o.RO<any> }
+    const ob = c as { [name: string]: o.RO<any> }
     // c is a MaybeObservableObject
-    var props = Object.keys(ob)
-    for (var i = 0, l = props.length; i < l; i++) {
-      let x = props[i]
+    const props = Object.keys(ob)
+    for (let i = 0, l = props.length; i < l; i++) {
+      const x = props[i]
       node_observe(node, ob[x], applied => applied ? _apply_class(node, x) : _remove_class(node, x))
     }
   }
@@ -539,41 +539,41 @@ export function node_observe_class(node: Element, c: ClassDefinition) {
 
 function _apply_class(node: Element, c: ClassDefinition | ClassDefinition[] | null) {
   if (Array.isArray(c)) {
-    for (var i = 0, l = c.length; i < l; i++) {
+    for (let i = 0, l = c.length; i < l; i++) {
       _apply_class(node, c[i])
     }
     return
   }
   c = c == null ? null : c.toString()
   if (!c) return
-  var is_svg = node instanceof SVGElement
+  const is_svg = node instanceof SVGElement
   if (is_svg) {
-    for (var _ of c.split(/\s+/g))
+    for (const _ of c.split(/\s+/g))
       if (_) node.classList.add(_)
   } else
-    node.className += ' ' + c
+    node.className += " " + c
 }
 
 function _remove_class(node: Element, c: string) {
   if (Array.isArray(c)) {
-    for (var i = 0, l = c.length; i < l; i++) {
+    for (let i = 0, l = c.length; i < l; i++) {
       _remove_class(node, c[i])
     }
     return
   }
   c = c == null ? null! : c.toString()
   if (!c) return
-  var is_svg = node instanceof SVGElement
-  var name = node.className
-  for (var _ of c.split(/\s+/g))
+  const is_svg = node instanceof SVGElement
+  let name = node.className
+  for (const _ of c.split(/\s+/g))
     if (_) {
       if (is_svg)
         node.classList.remove(_)
       else
-        name = name.replace(' ' + _, '')
+        name = name.replace(" " + _, "")
     }
   if (!is_svg)
-    node.setAttribute('class', name)
+    node.setAttribute("class", name)
 }
 
 

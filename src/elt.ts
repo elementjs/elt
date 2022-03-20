@@ -1,8 +1,8 @@
-import { o } from './observable'
+import { o } from "./observable"
 
 import {
   Component
-} from './component'
+} from "./component"
 
 import {
   ClassDefinition,
@@ -13,7 +13,7 @@ import {
   insert_before_and_init,
   append_child_and_init,
   node_do_remove
-} from './dom'
+} from "./dom"
 
 
 ////////////////////////////////////////////////////////
@@ -92,7 +92,7 @@ function isWrappedComponent(cmp: any): cmp is WrappedComponent<any> {
 }
 
 
-var cmt_count = 0
+let cmt_count = 0
 /**
  * A [[Mixin]] made to store nodes between two comments.
  *
@@ -275,24 +275,24 @@ export function e(elt: string, ...children: Insertable<HTMLElement>[]): HTMLElem
 export function e<A extends EmptyAttributes<any>>(elt: new (a: A) => Component<A>, attrs: A, ...children: Insertable<AttrsNodeType<A>>[]): AttrsNodeType<A>
 export function e<A extends EmptyAttributes<any>>(elt: (attrs: A, children: Renderable[]) => AttrsNodeType<A>, attrs: A, ...children: Insertable<AttrsNodeType<A>>[]): AttrsNodeType<A>
 export function e<N extends Node>(elt: string | Node | Function, ...children: (Insertable<N> | Attrs<N>)[]): N {
-  if (!elt) throw new Error(`e() needs at least a string, a function or a Component`)
+  if (!elt) throw new Error("e() needs at least a string, a function or a Component")
 
   let node: N = null! // just to prevent the warnings later
 
-  var is_basic_node = typeof elt === 'string' || elt instanceof Node
+  const is_basic_node = typeof elt === "string" || elt instanceof Node
 
   // const fragment = get_dom_insertable(children) as DocumentFragment
-  var i = 0
-  var l = 0
-  var attrs: Attrs<N> = {}
-  var decorators_map: [Decorator<N>, Comment][] = []
-  var renderables: Renderable[] = []
+  let i = 0
+  let l = 0
+  const attrs: Attrs<N> = {}
+  const decorators_map: [Decorator<N>, Comment][] = []
+  const renderables: Renderable[] = []
   e.handle_raw_children(children, attrs, decorators_map, renderables)
 
   if (is_basic_node) {
     // create a simple DOM node
-    if (typeof elt === 'string') {
-      var ns = NS[elt] // || attrs.xmlns
+    if (typeof elt === "string") {
+      const ns = NS[elt] // || attrs.xmlns
       node = (ns ? document.createElementNS(ns, elt) : document.createElement(elt)) as unknown as N
     } else {
       node = elt as N
@@ -304,7 +304,7 @@ export function e<N extends Node>(elt: string | Node | Function, ...children: (I
     // a decorator applied to a comment.
     if (!(node instanceof Comment)) {
       for (i = 0, l = renderables.length; i < l; i++) {
-        var c = e.renderable_to_node(renderables[i])
+        const c = e.renderable_to_node(renderables[i])
         if (c) {
           if (!(node instanceof Comment)) append_child_and_init(node, c)
         }
@@ -315,7 +315,7 @@ export function e<N extends Node>(elt: string | Node | Function, ...children: (I
     node = new elt(attrs).renderAndAttach(renderables) as unknown as N
   } else if (isWrappedComponent(elt)) {
     node = elt.componentFn(attrs, renderables)
-  } else if (typeof elt === 'function') {
+  } else if (typeof elt === "function") {
     // elt is just a creator function
     node = elt(attrs, renderables)
   }
@@ -325,7 +325,7 @@ export function e<N extends Node>(elt: string | Node | Function, ...children: (I
 
   // Handle decorators on the node
   for (i = 0, l = decorators_map.length; i < l; i++) {
-    var item = decorators_map[i]
+    const item = decorators_map[i]
     e.handle_decorator(node, item[1], item[0])
   }
 
@@ -340,7 +340,7 @@ e.component = function component<At, N extends Node>(fn: (attrs: At, children: R
   componentFn: (at: Attrs<N> & At, children: Renderable[]) => N
 }
 {
-  var res: any = function (...args: any[]) {
+  const res: any = function (...args: any[]) {
     return E(fn as any, args)
   }
   res.componentFn = fn as any
@@ -370,7 +370,7 @@ export function Fragment(...children: (Insertable<DocumentFragment> | EmptyAttri
 const $ = Fragment
 
 
-import { Decorator, $observe, $init } from './decorators'
+import { Decorator, $observe, $init } from "./decorators"
 
 
 export namespace e {
@@ -383,7 +383,7 @@ export namespace e {
    *
    * @category toc, dom
    */
-  export const sym_render = Symbol('renderable')
+  export const sym_render = Symbol("renderable")
 
   /** @internal */
   export function is_renderable_object(c: any): c is {[sym_render](): Node} {
@@ -395,17 +395,17 @@ export namespace e {
    * @internal
    */
   export function handle_raw_children(children: (Insertable<any> | Attrs<any>)[], attrs: Attrs<any>, decorators: [Decorator<any>, Comment][], chld: Renderable[]) {
-    for (var i = 0, l = children.length; i < l; i++) {
-      var c = children[i]
+    for (let i = 0, l = children.length; i < l; i++) {
+      const c = children[i]
       if (c == null) continue
       if (Array.isArray(c)) {
         handle_raw_children(c, attrs, decorators, chld)
-      } else if (c instanceof Node || typeof c === 'string' || typeof c === 'number' || o.isReadonlyObservable(c) || is_renderable_object(c)) {
+      } else if (c instanceof Node || typeof c === "string" || typeof c === "number" || o.isReadonlyObservable(c) || is_renderable_object(c)) {
         chld.push(c)
-      } else if (typeof c === 'function') {
+      } else if (typeof c === "function") {
         // FIXME / WARNING : as it stands, this implementation is broken, as if the same decorator is called while
         // being executed, then the comment node will be messed.
-        var cmt = document.createComment('decorator ' + c.name)
+        const cmt = document.createComment("decorator " + c.name)
         // I should keep the comment / function association instead of using a map, the decorators variable should reflect that.
         chld.push(cmt)
         decorators.push([c, cmt])
@@ -423,15 +423,15 @@ export namespace e {
   export function renderable_to_node(r: Renderable, null_as_comment: true): Node
   export function renderable_to_node(r: Renderable, null_as_comment = false): Node | null {
     if (r == null)
-      return null_as_comment ? document.createComment(' null ') : null
-    else if (typeof r === 'string' || typeof r === 'number')
+      return null_as_comment ? document.createComment(" null ") : null
+    else if (typeof r === "string" || typeof r === "number")
       return document.createTextNode(r.toString())
     else if (o.isReadonlyObservable(r))
       return Display(r)
     else if (Array.isArray(r)) {
-      var df = document.createDocumentFragment()
-      for (var i = 0, l = r.length; i < l; i++) {
-        var r2 = renderable_to_node(r[i], null_as_comment as true)
+      const df = document.createDocumentFragment()
+      for (let i = 0, l = r.length; i < l; i++) {
+        const r2 = renderable_to_node(r[i], null_as_comment as true)
         if (r2) df.appendChild(r2)
       }
       return df
@@ -446,13 +446,13 @@ export namespace e {
     // if there is not result, or the result is the node itself, do nothing
     if (res == null || res === node) return
 
-    if (typeof res === 'function') {
-      var res2 = res(node)
+    if (typeof res === "function") {
+      const res2 = res(node)
       return handle_decorator_result(node, insert, res2)
     }
 
     if (Array.isArray(res)) {
-      for (var i = 0, l = res.length; i < l; i++) {
+      for (let i = 0, l = res.length; i < l; i++) {
         const ri = res[i]
         handle_decorator_result(node, insert, ri)
       }
@@ -462,7 +462,7 @@ export namespace e {
     // Ignore the nodes that may be created if there is nowhere to insert them to
     if (!insert) return
 
-    var nd = renderable_to_node(res)
+    const nd = renderable_to_node(res)
     if (nd == null) return
     // insert the resulting node right next to the comment
     insert_before_and_init(node, nd, insert)
@@ -473,7 +473,7 @@ export namespace e {
    * @internal
    */
   export function handle_decorator(node: Node, insert: Comment, decorator: Decorator<any>): void {
-    var res: ReturnType<Decorator<Node>> = decorator(node)
+    const res: ReturnType<Decorator<Node>> = decorator(node)
     handle_decorator_result(node, insert, res)
   }
 
@@ -482,18 +482,18 @@ export namespace e {
    * @internal
    */
   export function handle_attrs(node: HTMLElement, attrs: e.JSX.HTMLAttributes<any>, is_basic_node: boolean) {
-    var keys = Object.keys(attrs) as (keyof typeof attrs)[]
-    for (var i = 0, l = keys.length; i < l; i++) {
-      var key = keys[i]
-      if (key === 'class' && attrs.class) {
-        var clss = attrs.class
+    const keys = Object.keys(attrs) as (keyof typeof attrs)[]
+    for (let i = 0, l = keys.length; i < l; i++) {
+      const key = keys[i]
+      if (key === "class" && attrs.class) {
+        const clss = attrs.class
         if (Array.isArray(clss))
-          for (var j = 0, lj = clss.length; j < lj; j++) node_observe_class(node, clss[j])
+          for (let j = 0, lj = clss.length; j < lj; j++) node_observe_class(node, clss[j])
         else
           node_observe_class(node, attrs.class!)
-      } else if (key === 'style' && attrs.style) {
+      } else if (key === "style" && attrs.style) {
         node_observe_style(node, attrs.style)
-      } else if (key === 'id' || is_basic_node) {
+      } else if (key === "id" || is_basic_node) {
         node_observe_attribute(node, key, attrs[key])
       }
     }
@@ -528,18 +528,18 @@ export namespace e {
     /** @internal */
     export interface HTMLAttributes<N extends HTMLElement> extends Attrs<N> {
 
-      contenteditable?: NRO<'true' | 'false' | 'inherit'>
-      dir?: NRO<'ltr' | 'rtl' | 'auto'>
-      draggable?: NRO<'true' | 'false' | 'auto'>
-      dropzone?: NRO<'copy' | 'move' | 'link'>
+      contenteditable?: NRO<"true" | "false" | "inherit">
+      dir?: NRO<"ltr" | "rtl" | "auto">
+      draggable?: NRO<"true" | "false" | "auto">
+      dropzone?: NRO<"copy" | "move" | "link">
       lang?: NRO<string>
-      translate?: NRO<'yes' | 'no'>
+      translate?: NRO<"yes" | "no">
       xmlns?: string
 
       // Attributes shamelessly stolen from React's type definitions.
       // Standard HTML Attributes
       accept?: NRO<string>
-      'accept-charset'?: NRO<string>
+      "accept-charset"?: NRO<string>
       accesskey?: NRO<string>
       action?: NRO<string>
       allowfullscreen?: NRO<boolean>
@@ -589,7 +589,7 @@ export namespace e {
       href?: NRO<string>
       hreflang?: NRO<string>
       htmlfor?: NRO<string>
-      'http-equiv'?: NRO<string>
+      "http-equiv"?: NRO<string>
       icon?: NRO<string>
       id?: NRO<string>
       inputmode?: NRO<string>
@@ -669,7 +669,7 @@ export namespace e {
       vocab?: NRO<string>
 
       // Non-standard Attributes
-      autocapitalize?: NRO<'word' | 'words' | 'sentences' | 'sentence' | 'characters' | 'character' | 'off'>
+      autocapitalize?: NRO<"word" | "words" | "sentences" | "sentence" | "characters" | "character" | "off">
       autocorrect?: NRO<string>
       autosave?: NRO<string>
       color?: NRO<string>
@@ -686,7 +686,7 @@ export namespace e {
     /** @internal */
     export interface SVGAttributes<N extends SVGElement = SVGElement> extends Attrs<N> {
 
-      contenteditable?: NRO<'true' | 'false' | 'inherit'>
+      contenteditable?: NRO<"true" | "false" | "inherit">
       hidden?: NRO<boolean>
       accesskey?: NRO<string>
       lang?: NRO<string>
@@ -694,25 +694,25 @@ export namespace e {
       title?: NRO<string>
       xmlns?: string
 
-      'clip-path'?: string;
+      "clip-path"?: string;
       cx?: NRO<number | string>
       cy?: NRO<number | string>
       d?: NRO<string>
       dx?: NRO<number | string>
       dy?: NRO<number | string>
       fill?: NRO<string>
-      'fill-opacity'?: NRO<number | string>
-      'font-family'?: NRO<string>
-      'font-size'?: NRO<number | string>
+      "fill-opacity"?: NRO<number | string>
+      "font-family"?: NRO<string>
+      "font-size"?: NRO<number | string>
       fx?: NRO<number | string>
       fy?: NRO<number | string>
       gradientTransform?: NRO<string>
       gradientUnits?: NRO<string>
       height?: NRO<number | string>
       href?: NRO<string>
-      'marker-end'?: NRO<string>
-      'marker-mid'?: NRO<string>
-      'marker-start'?: NRO<string>
+      "marker-end"?: NRO<string>
+      "marker-mid"?: NRO<string>
+      "marker-start"?: NRO<string>
       offset?: NRO<number | string>
       opacity?: NRO<number | string>
       patternContentUnits?: NRO<string>
@@ -725,15 +725,15 @@ export namespace e {
       space?: NRO<string>
       spreadMethod?: NRO<string>
       startOffset?: NRO<string>
-      'stop-color'?: NRO<string>
-      'stop-opacity'?: NRO<number | string>
+      "stop-color"?: NRO<string>
+      "stop-opacity"?: NRO<number | string>
       stroke?: NRO<string>
-      'stroke-dasharray'?: NRO<string>
-      'stroke-linecap'?: NRO<string>
-      'stroke-opacity'?: NRO<number | string>
-      'stroke-width'?: NRO<number | string>
-      'text-anchor'?: NRO<string>
-      'text-decoration'?: NRO<string>
+      "stroke-dasharray"?: NRO<string>
+      "stroke-linecap"?: NRO<string>
+      "stroke-opacity"?: NRO<number | string>
+      "stroke-width"?: NRO<number | string>
+      "text-anchor"?: NRO<string>
+      "text-decoration"?: NRO<string>
       transform?: NRO<string>
       version?: NRO<string>
       viewBox?: NRO<string>
@@ -748,172 +748,172 @@ export namespace e {
 
     /** @internal */
     export interface IntrinsicElements {
-      a: HTMLAttributes<HTMLElementTagNameMap['a']>
-      abbr: HTMLAttributes<HTMLElementTagNameMap['abbr']>
-      address: HTMLAttributes<HTMLElementTagNameMap['address']>
-      area: HTMLAttributes<HTMLElementTagNameMap['area']>
-      article: HTMLAttributes<HTMLElementTagNameMap['article']>
-      aside: HTMLAttributes<HTMLElementTagNameMap['aside']>
-      audio: HTMLAttributes<HTMLElementTagNameMap['audio']>
-      b: HTMLAttributes<HTMLElementTagNameMap['b']>
-      base: HTMLAttributes<HTMLElementTagNameMap['base']>
-      bdi: HTMLAttributes<HTMLElementTagNameMap['bdi']>
-      bdo: HTMLAttributes<HTMLElementTagNameMap['bdo']>
+      a: HTMLAttributes<HTMLElementTagNameMap["a"]>
+      abbr: HTMLAttributes<HTMLElementTagNameMap["abbr"]>
+      address: HTMLAttributes<HTMLElementTagNameMap["address"]>
+      area: HTMLAttributes<HTMLElementTagNameMap["area"]>
+      article: HTMLAttributes<HTMLElementTagNameMap["article"]>
+      aside: HTMLAttributes<HTMLElementTagNameMap["aside"]>
+      audio: HTMLAttributes<HTMLElementTagNameMap["audio"]>
+      b: HTMLAttributes<HTMLElementTagNameMap["b"]>
+      base: HTMLAttributes<HTMLElementTagNameMap["base"]>
+      bdi: HTMLAttributes<HTMLElementTagNameMap["bdi"]>
+      bdo: HTMLAttributes<HTMLElementTagNameMap["bdo"]>
       big: HTMLAttributes<HTMLElement>
-      blockquote: HTMLAttributes<HTMLElementTagNameMap['blockquote']>
-      body: HTMLAttributes<HTMLElementTagNameMap['body']>
-      br: HTMLAttributes<HTMLElementTagNameMap['br']>
-      button: HTMLAttributes<HTMLElementTagNameMap['button']>
-      canvas: HTMLAttributes<HTMLElementTagNameMap['canvas']>
-      caption: HTMLAttributes<HTMLElementTagNameMap['caption']>
-      cite: HTMLAttributes<HTMLElementTagNameMap['cite']>
-      code: HTMLAttributes<HTMLElementTagNameMap['code']>
-      col: HTMLAttributes<HTMLElementTagNameMap['col']>
-      colgroup: HTMLAttributes<HTMLElementTagNameMap['colgroup']>
-      data: HTMLAttributes<HTMLElementTagNameMap['data']>
-      datalist: HTMLAttributes<HTMLElementTagNameMap['datalist']>
-      dd: HTMLAttributes<HTMLElementTagNameMap['dd']>
-      del: HTMLAttributes<HTMLElementTagNameMap['del']>
-      details: HTMLAttributes<HTMLElementTagNameMap['details']>
-      dfn: HTMLAttributes<HTMLElementTagNameMap['dfn']>
-      dialog: HTMLAttributes<HTMLElementTagNameMap['dialog']>
-      div: HTMLAttributes<HTMLElementTagNameMap['div']>
-      dl: HTMLAttributes<HTMLElementTagNameMap['dl']>
-      dt: HTMLAttributes<HTMLElementTagNameMap['dt']>
-      em: HTMLAttributes<HTMLElementTagNameMap['em']>
-      embed: HTMLAttributes<HTMLElementTagNameMap['embed']>
-      fieldset: HTMLAttributes<HTMLElementTagNameMap['fieldset']>
-      figcaption: HTMLAttributes<HTMLElementTagNameMap['figcaption']>
-      figure: HTMLAttributes<HTMLElementTagNameMap['figure']>
-      footer: HTMLAttributes<HTMLElementTagNameMap['footer']>
-      form: HTMLAttributes<HTMLElementTagNameMap['form']>
-      h1: HTMLAttributes<HTMLElementTagNameMap['h1']>
-      h2: HTMLAttributes<HTMLElementTagNameMap['h2']>
-      h3: HTMLAttributes<HTMLElementTagNameMap['h3']>
-      h4: HTMLAttributes<HTMLElementTagNameMap['h4']>
-      h5: HTMLAttributes<HTMLElementTagNameMap['h5']>
-      h6: HTMLAttributes<HTMLElementTagNameMap['h6']>
-      head: HTMLAttributes<HTMLElementTagNameMap['head']>
-      header: HTMLAttributes<HTMLElementTagNameMap['header']>
-      hr: HTMLAttributes<HTMLElementTagNameMap['hr']>
-      html: HTMLAttributes<HTMLElementTagNameMap['html']>
-      i: HTMLAttributes<HTMLElementTagNameMap['i']>
-      iframe: HTMLAttributes<HTMLElementTagNameMap['iframe']>
-      img: HTMLAttributes<HTMLElementTagNameMap['img']>
-      input: HTMLAttributes<HTMLElementTagNameMap['input']>
-      ins: HTMLAttributes<HTMLElementTagNameMap['ins']>
-      kbd: HTMLAttributes<HTMLElementTagNameMap['kbd']>
+      blockquote: HTMLAttributes<HTMLElementTagNameMap["blockquote"]>
+      body: HTMLAttributes<HTMLElementTagNameMap["body"]>
+      br: HTMLAttributes<HTMLElementTagNameMap["br"]>
+      button: HTMLAttributes<HTMLElementTagNameMap["button"]>
+      canvas: HTMLAttributes<HTMLElementTagNameMap["canvas"]>
+      caption: HTMLAttributes<HTMLElementTagNameMap["caption"]>
+      cite: HTMLAttributes<HTMLElementTagNameMap["cite"]>
+      code: HTMLAttributes<HTMLElementTagNameMap["code"]>
+      col: HTMLAttributes<HTMLElementTagNameMap["col"]>
+      colgroup: HTMLAttributes<HTMLElementTagNameMap["colgroup"]>
+      data: HTMLAttributes<HTMLElementTagNameMap["data"]>
+      datalist: HTMLAttributes<HTMLElementTagNameMap["datalist"]>
+      dd: HTMLAttributes<HTMLElementTagNameMap["dd"]>
+      del: HTMLAttributes<HTMLElementTagNameMap["del"]>
+      details: HTMLAttributes<HTMLElementTagNameMap["details"]>
+      dfn: HTMLAttributes<HTMLElementTagNameMap["dfn"]>
+      dialog: HTMLAttributes<HTMLElementTagNameMap["dialog"]>
+      div: HTMLAttributes<HTMLElementTagNameMap["div"]>
+      dl: HTMLAttributes<HTMLElementTagNameMap["dl"]>
+      dt: HTMLAttributes<HTMLElementTagNameMap["dt"]>
+      em: HTMLAttributes<HTMLElementTagNameMap["em"]>
+      embed: HTMLAttributes<HTMLElementTagNameMap["embed"]>
+      fieldset: HTMLAttributes<HTMLElementTagNameMap["fieldset"]>
+      figcaption: HTMLAttributes<HTMLElementTagNameMap["figcaption"]>
+      figure: HTMLAttributes<HTMLElementTagNameMap["figure"]>
+      footer: HTMLAttributes<HTMLElementTagNameMap["footer"]>
+      form: HTMLAttributes<HTMLElementTagNameMap["form"]>
+      h1: HTMLAttributes<HTMLElementTagNameMap["h1"]>
+      h2: HTMLAttributes<HTMLElementTagNameMap["h2"]>
+      h3: HTMLAttributes<HTMLElementTagNameMap["h3"]>
+      h4: HTMLAttributes<HTMLElementTagNameMap["h4"]>
+      h5: HTMLAttributes<HTMLElementTagNameMap["h5"]>
+      h6: HTMLAttributes<HTMLElementTagNameMap["h6"]>
+      head: HTMLAttributes<HTMLElementTagNameMap["head"]>
+      header: HTMLAttributes<HTMLElementTagNameMap["header"]>
+      hr: HTMLAttributes<HTMLElementTagNameMap["hr"]>
+      html: HTMLAttributes<HTMLElementTagNameMap["html"]>
+      i: HTMLAttributes<HTMLElementTagNameMap["i"]>
+      iframe: HTMLAttributes<HTMLElementTagNameMap["iframe"]>
+      img: HTMLAttributes<HTMLElementTagNameMap["img"]>
+      input: HTMLAttributes<HTMLElementTagNameMap["input"]>
+      ins: HTMLAttributes<HTMLElementTagNameMap["ins"]>
+      kbd: HTMLAttributes<HTMLElementTagNameMap["kbd"]>
       keygen: HTMLAttributes<HTMLElement> // ???
-      label: HTMLAttributes<HTMLElementTagNameMap['label']>
-      legend: HTMLAttributes<HTMLElementTagNameMap['legend']>
-      li: HTMLAttributes<HTMLElementTagNameMap['li']>
-      link: HTMLAttributes<HTMLElementTagNameMap['link']>
-      main: HTMLAttributes<HTMLElementTagNameMap['main']>
-      map: HTMLAttributes<HTMLElementTagNameMap['map']>
-      mark: HTMLAttributes<HTMLElementTagNameMap['mark']>
-      menu: HTMLAttributes<HTMLElementTagNameMap['menu']>
+      label: HTMLAttributes<HTMLElementTagNameMap["label"]>
+      legend: HTMLAttributes<HTMLElementTagNameMap["legend"]>
+      li: HTMLAttributes<HTMLElementTagNameMap["li"]>
+      link: HTMLAttributes<HTMLElementTagNameMap["link"]>
+      main: HTMLAttributes<HTMLElementTagNameMap["main"]>
+      map: HTMLAttributes<HTMLElementTagNameMap["map"]>
+      mark: HTMLAttributes<HTMLElementTagNameMap["mark"]>
+      menu: HTMLAttributes<HTMLElementTagNameMap["menu"]>
       menuitem: HTMLAttributes<HTMLElement> // ??
-      meta: HTMLAttributes<HTMLElementTagNameMap['meta']>
-      meter: HTMLAttributes<HTMLElementTagNameMap['meter']>
-      nav: HTMLAttributes<HTMLElementTagNameMap['nav']>
-      noscript: HTMLAttributes<HTMLElementTagNameMap['noscript']>
-      object: HTMLAttributes<HTMLElementTagNameMap['object']>
-      ol: HTMLAttributes<HTMLElementTagNameMap['ol']>
-      optgroup: HTMLAttributes<HTMLElementTagNameMap['optgroup']>
-      option: HTMLAttributes<HTMLElementTagNameMap['option']>
-      output: HTMLAttributes<HTMLElementTagNameMap['output']>
-      p: HTMLAttributes<HTMLElementTagNameMap['p']>
-      param: HTMLAttributes<HTMLElementTagNameMap['param']>
-      picture: HTMLAttributes<HTMLElementTagNameMap['picture']>
-      pre: HTMLAttributes<HTMLElementTagNameMap['pre']>
-      progress: HTMLAttributes<HTMLElementTagNameMap['progress']>
-      q: HTMLAttributes<HTMLElementTagNameMap['q']>
-      rp: HTMLAttributes<HTMLElementTagNameMap['rp']>
-      rt: HTMLAttributes<HTMLElementTagNameMap['rt']>
-      ruby: HTMLAttributes<HTMLElementTagNameMap['ruby']>
-      s: HTMLAttributes<HTMLElementTagNameMap['s']>
-      samp: HTMLAttributes<HTMLElementTagNameMap['samp']>
-      script: HTMLAttributes<HTMLElementTagNameMap['script']>
-      section: HTMLAttributes<HTMLElementTagNameMap['section']>
-      select: HTMLAttributes<HTMLElementTagNameMap['select']>
-      small: HTMLAttributes<HTMLElementTagNameMap['small']>
-      source: HTMLAttributes<HTMLElementTagNameMap['source']>
-      span: HTMLAttributes<HTMLElementTagNameMap['span']>
-      strong: HTMLAttributes<HTMLElementTagNameMap['strong']>
-      style: HTMLAttributes<HTMLElementTagNameMap['style']>
-      sub: HTMLAttributes<HTMLElementTagNameMap['sub']>
-      summary: HTMLAttributes<HTMLElementTagNameMap['summary']>
-      sup: HTMLAttributes<HTMLElementTagNameMap['sup']>
-      table: HTMLAttributes<HTMLElementTagNameMap['table']>
-      tbody: HTMLAttributes<HTMLElementTagNameMap['tbody']>
-      td: HTMLAttributes<HTMLElementTagNameMap['td']>
-      textarea: HTMLAttributes<HTMLElementTagNameMap['textarea']>
-      tfoot: HTMLAttributes<HTMLElementTagNameMap['tfoot']>
-      th: HTMLAttributes<HTMLElementTagNameMap['th']>
-      thead: HTMLAttributes<HTMLElementTagNameMap['thead']>
-      time: HTMLAttributes<HTMLElementTagNameMap['time']>
-      title: HTMLAttributes<HTMLElementTagNameMap['title']>
-      tr: HTMLAttributes<HTMLElementTagNameMap['tr']>
-      track: HTMLAttributes<HTMLElementTagNameMap['track']>
-      u: HTMLAttributes<HTMLElementTagNameMap['u']>
-      ul: HTMLAttributes<HTMLElementTagNameMap['ul']>
-      'var': HTMLAttributes<HTMLElementTagNameMap['var']>
-      video: HTMLAttributes<HTMLElementTagNameMap['video']>
-      wbr: HTMLAttributes<HTMLElementTagNameMap['wbr']>
+      meta: HTMLAttributes<HTMLElementTagNameMap["meta"]>
+      meter: HTMLAttributes<HTMLElementTagNameMap["meter"]>
+      nav: HTMLAttributes<HTMLElementTagNameMap["nav"]>
+      noscript: HTMLAttributes<HTMLElementTagNameMap["noscript"]>
+      object: HTMLAttributes<HTMLElementTagNameMap["object"]>
+      ol: HTMLAttributes<HTMLElementTagNameMap["ol"]>
+      optgroup: HTMLAttributes<HTMLElementTagNameMap["optgroup"]>
+      option: HTMLAttributes<HTMLElementTagNameMap["option"]>
+      output: HTMLAttributes<HTMLElementTagNameMap["output"]>
+      p: HTMLAttributes<HTMLElementTagNameMap["p"]>
+      param: HTMLAttributes<HTMLElementTagNameMap["param"]>
+      picture: HTMLAttributes<HTMLElementTagNameMap["picture"]>
+      pre: HTMLAttributes<HTMLElementTagNameMap["pre"]>
+      progress: HTMLAttributes<HTMLElementTagNameMap["progress"]>
+      q: HTMLAttributes<HTMLElementTagNameMap["q"]>
+      rp: HTMLAttributes<HTMLElementTagNameMap["rp"]>
+      rt: HTMLAttributes<HTMLElementTagNameMap["rt"]>
+      ruby: HTMLAttributes<HTMLElementTagNameMap["ruby"]>
+      s: HTMLAttributes<HTMLElementTagNameMap["s"]>
+      samp: HTMLAttributes<HTMLElementTagNameMap["samp"]>
+      script: HTMLAttributes<HTMLElementTagNameMap["script"]>
+      section: HTMLAttributes<HTMLElementTagNameMap["section"]>
+      select: HTMLAttributes<HTMLElementTagNameMap["select"]>
+      small: HTMLAttributes<HTMLElementTagNameMap["small"]>
+      source: HTMLAttributes<HTMLElementTagNameMap["source"]>
+      span: HTMLAttributes<HTMLElementTagNameMap["span"]>
+      strong: HTMLAttributes<HTMLElementTagNameMap["strong"]>
+      style: HTMLAttributes<HTMLElementTagNameMap["style"]>
+      sub: HTMLAttributes<HTMLElementTagNameMap["sub"]>
+      summary: HTMLAttributes<HTMLElementTagNameMap["summary"]>
+      sup: HTMLAttributes<HTMLElementTagNameMap["sup"]>
+      table: HTMLAttributes<HTMLElementTagNameMap["table"]>
+      tbody: HTMLAttributes<HTMLElementTagNameMap["tbody"]>
+      td: HTMLAttributes<HTMLElementTagNameMap["td"]>
+      textarea: HTMLAttributes<HTMLElementTagNameMap["textarea"]>
+      tfoot: HTMLAttributes<HTMLElementTagNameMap["tfoot"]>
+      th: HTMLAttributes<HTMLElementTagNameMap["th"]>
+      thead: HTMLAttributes<HTMLElementTagNameMap["thead"]>
+      time: HTMLAttributes<HTMLElementTagNameMap["time"]>
+      title: HTMLAttributes<HTMLElementTagNameMap["title"]>
+      tr: HTMLAttributes<HTMLElementTagNameMap["tr"]>
+      track: HTMLAttributes<HTMLElementTagNameMap["track"]>
+      u: HTMLAttributes<HTMLElementTagNameMap["u"]>
+      ul: HTMLAttributes<HTMLElementTagNameMap["ul"]>
+      "var": HTMLAttributes<HTMLElementTagNameMap["var"]>
+      video: HTMLAttributes<HTMLElementTagNameMap["video"]>
+      wbr: HTMLAttributes<HTMLElementTagNameMap["wbr"]>
 
-      svg: SVGAttributes<SVGElementTagNameMap['svg']>
-      circle: SVGAttributes<SVGElementTagNameMap['circle']>
-      clipPath: SVGAttributes<SVGElementTagNameMap['clipPath']>
-      defs: SVGAttributes<SVGElementTagNameMap['defs']>
-      desc: SVGAttributes<SVGElementTagNameMap['desc']>
-      ellipse: SVGAttributes<SVGElementTagNameMap['ellipse']>
-      feBlend: SVGAttributes<SVGElementTagNameMap['feBlend']>
-      feColorMatrix: SVGAttributes<SVGElementTagNameMap['feColorMatrix']>
-      feComponentTransfer: SVGAttributes<SVGElementTagNameMap['feComponentTransfer']>
-      feComposite: SVGAttributes<SVGElementTagNameMap['feComposite']>
-      feConvolveMatrix: SVGAttributes<SVGElementTagNameMap['feConvolveMatrix']>
-      feDiffuseLighting: SVGAttributes<SVGElementTagNameMap['feDiffuseLighting']>
-      feDisplacementMap: SVGAttributes<SVGElementTagNameMap['feDisplacementMap']>
-      feDistantLight: SVGAttributes<SVGElementTagNameMap['feDistantLight']>
-      feFlood: SVGAttributes<SVGElementTagNameMap['feFlood']>
-      feFuncA: SVGAttributes<SVGElementTagNameMap['feFuncA']>
-      feFuncB: SVGAttributes<SVGElementTagNameMap['feFuncB']>
-      feFuncG: SVGAttributes<SVGElementTagNameMap['feFuncG']>
-      feFuncR: SVGAttributes<SVGElementTagNameMap['feFuncR']>
-      feGaussianBlur: SVGAttributes<SVGElementTagNameMap['feGaussianBlur']>
-      feImage: SVGAttributes<SVGElementTagNameMap['feImage']>
-      feMerge: SVGAttributes<SVGElementTagNameMap['feMerge']>
-      feMergeNode: SVGAttributes<SVGElementTagNameMap['feMergeNode']>
-      feMorphology: SVGAttributes<SVGElementTagNameMap['feMorphology']>
-      feOffset: SVGAttributes<SVGElementTagNameMap['feOffset']>
-      fePointLight: SVGAttributes<SVGElementTagNameMap['fePointLight']>
-      feSpecularLighting: SVGAttributes<SVGElementTagNameMap['feSpecularLighting']>
-      feSpotLight: SVGAttributes<SVGElementTagNameMap['feSpotLight']>
-      feTile: SVGAttributes<SVGElementTagNameMap['feTile']>
-      feTurbulence: SVGAttributes<SVGElementTagNameMap['feTurbulence']>
-      filter: SVGAttributes<SVGElementTagNameMap['filter']>
-      foreignObject: SVGAttributes<SVGElementTagNameMap['foreignObject']>
-      g: SVGAttributes<SVGElementTagNameMap['g']>
-      image: SVGAttributes<SVGElementTagNameMap['image']>
-      line: SVGAttributes<SVGElementTagNameMap['line']>
-      linearGradient: SVGAttributes<SVGElementTagNameMap['linearGradient']>
-      marker: SVGAttributes<SVGElementTagNameMap['marker']>
-      mask: SVGAttributes<SVGElementTagNameMap['mask']>
-      metadata: SVGAttributes<SVGElementTagNameMap['metadata']>
-      path: SVGAttributes<SVGElementTagNameMap['path']>
-      pattern: SVGAttributes<SVGElementTagNameMap['pattern']>
-      polygon: SVGAttributes<SVGElementTagNameMap['polygon']>
-      polyline: SVGAttributes<SVGElementTagNameMap['polyline']>
-      radialGradient: SVGAttributes<SVGElementTagNameMap['radialGradient']>
-      rect: SVGAttributes<SVGElementTagNameMap['rect']>
-      stop: SVGAttributes<SVGElementTagNameMap['stop']>
-      switch: SVGAttributes<SVGElementTagNameMap['switch']>
-      symbol: SVGAttributes<SVGElementTagNameMap['symbol']>
-      text: SVGAttributes<SVGElementTagNameMap['text']>
-      textPath: SVGAttributes<SVGElementTagNameMap['textPath']>
-      tspan: SVGAttributes<SVGElementTagNameMap['tspan']>
-      use: SVGAttributes<SVGElementTagNameMap['use']>
-      view: SVGAttributes<SVGElementTagNameMap['view']>
+      svg: SVGAttributes<SVGElementTagNameMap["svg"]>
+      circle: SVGAttributes<SVGElementTagNameMap["circle"]>
+      clipPath: SVGAttributes<SVGElementTagNameMap["clipPath"]>
+      defs: SVGAttributes<SVGElementTagNameMap["defs"]>
+      desc: SVGAttributes<SVGElementTagNameMap["desc"]>
+      ellipse: SVGAttributes<SVGElementTagNameMap["ellipse"]>
+      feBlend: SVGAttributes<SVGElementTagNameMap["feBlend"]>
+      feColorMatrix: SVGAttributes<SVGElementTagNameMap["feColorMatrix"]>
+      feComponentTransfer: SVGAttributes<SVGElementTagNameMap["feComponentTransfer"]>
+      feComposite: SVGAttributes<SVGElementTagNameMap["feComposite"]>
+      feConvolveMatrix: SVGAttributes<SVGElementTagNameMap["feConvolveMatrix"]>
+      feDiffuseLighting: SVGAttributes<SVGElementTagNameMap["feDiffuseLighting"]>
+      feDisplacementMap: SVGAttributes<SVGElementTagNameMap["feDisplacementMap"]>
+      feDistantLight: SVGAttributes<SVGElementTagNameMap["feDistantLight"]>
+      feFlood: SVGAttributes<SVGElementTagNameMap["feFlood"]>
+      feFuncA: SVGAttributes<SVGElementTagNameMap["feFuncA"]>
+      feFuncB: SVGAttributes<SVGElementTagNameMap["feFuncB"]>
+      feFuncG: SVGAttributes<SVGElementTagNameMap["feFuncG"]>
+      feFuncR: SVGAttributes<SVGElementTagNameMap["feFuncR"]>
+      feGaussianBlur: SVGAttributes<SVGElementTagNameMap["feGaussianBlur"]>
+      feImage: SVGAttributes<SVGElementTagNameMap["feImage"]>
+      feMerge: SVGAttributes<SVGElementTagNameMap["feMerge"]>
+      feMergeNode: SVGAttributes<SVGElementTagNameMap["feMergeNode"]>
+      feMorphology: SVGAttributes<SVGElementTagNameMap["feMorphology"]>
+      feOffset: SVGAttributes<SVGElementTagNameMap["feOffset"]>
+      fePointLight: SVGAttributes<SVGElementTagNameMap["fePointLight"]>
+      feSpecularLighting: SVGAttributes<SVGElementTagNameMap["feSpecularLighting"]>
+      feSpotLight: SVGAttributes<SVGElementTagNameMap["feSpotLight"]>
+      feTile: SVGAttributes<SVGElementTagNameMap["feTile"]>
+      feTurbulence: SVGAttributes<SVGElementTagNameMap["feTurbulence"]>
+      filter: SVGAttributes<SVGElementTagNameMap["filter"]>
+      foreignObject: SVGAttributes<SVGElementTagNameMap["foreignObject"]>
+      g: SVGAttributes<SVGElementTagNameMap["g"]>
+      image: SVGAttributes<SVGElementTagNameMap["image"]>
+      line: SVGAttributes<SVGElementTagNameMap["line"]>
+      linearGradient: SVGAttributes<SVGElementTagNameMap["linearGradient"]>
+      marker: SVGAttributes<SVGElementTagNameMap["marker"]>
+      mask: SVGAttributes<SVGElementTagNameMap["mask"]>
+      metadata: SVGAttributes<SVGElementTagNameMap["metadata"]>
+      path: SVGAttributes<SVGElementTagNameMap["path"]>
+      pattern: SVGAttributes<SVGElementTagNameMap["pattern"]>
+      polygon: SVGAttributes<SVGElementTagNameMap["polygon"]>
+      polyline: SVGAttributes<SVGElementTagNameMap["polyline"]>
+      radialGradient: SVGAttributes<SVGElementTagNameMap["radialGradient"]>
+      rect: SVGAttributes<SVGElementTagNameMap["rect"]>
+      stop: SVGAttributes<SVGElementTagNameMap["stop"]>
+      switch: SVGAttributes<SVGElementTagNameMap["switch"]>
+      symbol: SVGAttributes<SVGElementTagNameMap["symbol"]>
+      text: SVGAttributes<SVGElementTagNameMap["text"]>
+      textPath: SVGAttributes<SVGElementTagNameMap["textPath"]>
+      tspan: SVGAttributes<SVGElementTagNameMap["tspan"]>
+      use: SVGAttributes<SVGElementTagNameMap["use"]>
+      view: SVGAttributes<SVGElementTagNameMap["view"]>
 
     }
 
@@ -932,229 +932,229 @@ export namespace e {
   }
 
   /** @internal */
-  export const A = mkwrapper('a')
+  export const A = mkwrapper("a")
   /** @internal */
-  export const ABBR = mkwrapper('abbr')
+  export const ABBR = mkwrapper("abbr")
   /** @internal */
-  export const ADDRESS = mkwrapper('address')
+  export const ADDRESS = mkwrapper("address")
   /** @internal */
-  export const AREA = mkwrapper('area')
+  export const AREA = mkwrapper("area")
   /** @internal */
-  export const ARTICLE = mkwrapper('article')
+  export const ARTICLE = mkwrapper("article")
   /** @internal */
-  export const ASIDE = mkwrapper('aside')
+  export const ASIDE = mkwrapper("aside")
   /** @internal */
-  export const AUDIO = mkwrapper('audio')
+  export const AUDIO = mkwrapper("audio")
   /** @internal */
-  export const B = mkwrapper('b')
+  export const B = mkwrapper("b")
   /** @internal */
-  export const BASE = mkwrapper('base')
+  export const BASE = mkwrapper("base")
   /** @internal */
-  export const BDI = mkwrapper('bdi')
+  export const BDI = mkwrapper("bdi")
   /** @internal */
-  export const BDO = mkwrapper('bdo')
+  export const BDO = mkwrapper("bdo")
   /** @internal */
-  export const BIG = mkwrapper('big')
+  export const BIG = mkwrapper("big")
   /** @internal */
-  export const BLOCKQUOTE = mkwrapper('blockquote')
+  export const BLOCKQUOTE = mkwrapper("blockquote")
   /** @internal */
-  export const BODY = mkwrapper('body')
+  export const BODY = mkwrapper("body")
   /** @internal */
-  export const BR = mkwrapper('br')
+  export const BR = mkwrapper("br")
   /** @internal */
-  export const BUTTON = mkwrapper('button')
+  export const BUTTON = mkwrapper("button")
   /** @internal */
-  export const CANVAS = mkwrapper('canvas')
+  export const CANVAS = mkwrapper("canvas")
   /** @internal */
-  export const CAPTION = mkwrapper('caption')
+  export const CAPTION = mkwrapper("caption")
   /** @internal */
-  export const CITE = mkwrapper('cite')
+  export const CITE = mkwrapper("cite")
   /** @internal */
-  export const CODE = mkwrapper('code')
+  export const CODE = mkwrapper("code")
   /** @internal */
-  export const COL = mkwrapper('col')
+  export const COL = mkwrapper("col")
   /** @internal */
-  export const COLGROUP = mkwrapper('colgroup')
+  export const COLGROUP = mkwrapper("colgroup")
   /** @internal */
-  export const DATA = mkwrapper('data')
+  export const DATA = mkwrapper("data")
   /** @internal */
-  export const DATALIST = mkwrapper('datalist')
+  export const DATALIST = mkwrapper("datalist")
   /** @internal */
-  export const DD = mkwrapper('dd')
+  export const DD = mkwrapper("dd")
   /** @internal */
-  export const DEL = mkwrapper('del')
+  export const DEL = mkwrapper("del")
   /** @internal */
-  export const DETAILS = mkwrapper('details')
+  export const DETAILS = mkwrapper("details")
   /** @internal */
-  export const DFN = mkwrapper('dfn')
+  export const DFN = mkwrapper("dfn")
   /** @internal */
-  export const DIALOG = mkwrapper('dialog')
+  export const DIALOG = mkwrapper("dialog")
   /** @internal */
-  export const DIV = mkwrapper('div')
+  export const DIV = mkwrapper("div")
   /** @internal */
-  export const DL = mkwrapper('dl')
+  export const DL = mkwrapper("dl")
   /** @internal */
-  export const DT = mkwrapper('dt')
+  export const DT = mkwrapper("dt")
   /** @internal */
-  export const EM = mkwrapper('em')
+  export const EM = mkwrapper("em")
   /** @internal */
-  export const EMBED = mkwrapper('embed')
+  export const EMBED = mkwrapper("embed")
   /** @internal */
-  export const FIELDSET = mkwrapper('fieldset')
+  export const FIELDSET = mkwrapper("fieldset")
   /** @internal */
-  export const FIGCAPTION = mkwrapper('figcaption')
+  export const FIGCAPTION = mkwrapper("figcaption")
   /** @internal */
-  export const FIGURE = mkwrapper('figure')
+  export const FIGURE = mkwrapper("figure")
   /** @internal */
-  export const FOOTER = mkwrapper('footer')
+  export const FOOTER = mkwrapper("footer")
   /** @internal */
-  export const FORM = mkwrapper('form')
+  export const FORM = mkwrapper("form")
   /** @internal */
-  export const H1 = mkwrapper('h1')
+  export const H1 = mkwrapper("h1")
   /** @internal */
-  export const H2 = mkwrapper('h2')
+  export const H2 = mkwrapper("h2")
   /** @internal */
-  export const H3 = mkwrapper('h3')
+  export const H3 = mkwrapper("h3")
   /** @internal */
-  export const H4 = mkwrapper('h4')
+  export const H4 = mkwrapper("h4")
   /** @internal */
-  export const H5 = mkwrapper('h5')
+  export const H5 = mkwrapper("h5")
   /** @internal */
-  export const H6 = mkwrapper('h6')
+  export const H6 = mkwrapper("h6")
   /** @internal */
-  export const HEAD = mkwrapper('head')
+  export const HEAD = mkwrapper("head")
   /** @internal */
-  export const HEADER = mkwrapper('header')
+  export const HEADER = mkwrapper("header")
   /** @internal */
-  export const HR = mkwrapper('hr')
+  export const HR = mkwrapper("hr")
   /** @internal */
-  export const HTML = mkwrapper('html')
+  export const HTML = mkwrapper("html")
   /** @internal */
-  export const I = mkwrapper('i')
+  export const I = mkwrapper("i")
   /** @internal */
-  export const IFRAME = mkwrapper('iframe')
+  export const IFRAME = mkwrapper("iframe")
   /** @internal */
-  export const IMG = mkwrapper('img')
+  export const IMG = mkwrapper("img")
   /** @internal */
-  export const INPUT = mkwrapper('input')
+  export const INPUT = mkwrapper("input")
   /** @internal */
-  export const INS = mkwrapper('ins')
+  export const INS = mkwrapper("ins")
   /** @internal */
-  export const KBD = mkwrapper('kbd')
+  export const KBD = mkwrapper("kbd")
   /** @internal */
-  export const KEYGEN = mkwrapper('keygen')
+  export const KEYGEN = mkwrapper("keygen")
   /** @internal */
-  export const LABEL = mkwrapper('label')
+  export const LABEL = mkwrapper("label")
   /** @internal */
-  export const LEGEND = mkwrapper('legend')
+  export const LEGEND = mkwrapper("legend")
   /** @internal */
-  export const LI = mkwrapper('li')
+  export const LI = mkwrapper("li")
   /** @internal */
-  export const LINK = mkwrapper('link')
+  export const LINK = mkwrapper("link")
   /** @internal */
-  export const MAIN = mkwrapper('main')
+  export const MAIN = mkwrapper("main")
   /** @internal */
-  export const MAP = mkwrapper('map')
+  export const MAP = mkwrapper("map")
   /** @internal */
-  export const MARK = mkwrapper('mark')
+  export const MARK = mkwrapper("mark")
   /** @internal */
-  export const MENU = mkwrapper('menu')
+  export const MENU = mkwrapper("menu")
   /** @internal */
-  export const MENUITEM = mkwrapper('menuitem')
+  export const MENUITEM = mkwrapper("menuitem")
   /** @internal */
-  export const META = mkwrapper('meta')
+  export const META = mkwrapper("meta")
   /** @internal */
-  export const METER = mkwrapper('meter')
+  export const METER = mkwrapper("meter")
   /** @internal */
-  export const NAV = mkwrapper('nav')
+  export const NAV = mkwrapper("nav")
   /** @internal */
-  export const NOSCRIPT = mkwrapper('noscript')
+  export const NOSCRIPT = mkwrapper("noscript")
   /** @internal */
-  export const OBJECT = mkwrapper('object')
+  export const OBJECT = mkwrapper("object")
   /** @internal */
-  export const OL = mkwrapper('ol')
+  export const OL = mkwrapper("ol")
   /** @internal */
-  export const OPTGROUP = mkwrapper('optgroup')
+  export const OPTGROUP = mkwrapper("optgroup")
   /** @internal */
-  export const OPTION = mkwrapper('option')
+  export const OPTION = mkwrapper("option")
   /** @internal */
-  export const OUTPUT = mkwrapper('output')
+  export const OUTPUT = mkwrapper("output")
   /** @internal */
-  export const P = mkwrapper('p')
+  export const P = mkwrapper("p")
   /** @internal */
-  export const PARAM = mkwrapper('param')
+  export const PARAM = mkwrapper("param")
   /** @internal */
-  export const PICTURE = mkwrapper('picture')
+  export const PICTURE = mkwrapper("picture")
   /** @internal */
-  export const PRE = mkwrapper('pre')
+  export const PRE = mkwrapper("pre")
   /** @internal */
-  export const PROGRESS = mkwrapper('progress')
+  export const PROGRESS = mkwrapper("progress")
   /** @internal */
-  export const Q = mkwrapper('q')
+  export const Q = mkwrapper("q")
   /** @internal */
-  export const RP = mkwrapper('rp')
+  export const RP = mkwrapper("rp")
   /** @internal */
-  export const RT = mkwrapper('rt')
+  export const RT = mkwrapper("rt")
   /** @internal */
-  export const RUBY = mkwrapper('ruby')
+  export const RUBY = mkwrapper("ruby")
   /** @internal */
-  export const S = mkwrapper('s')
+  export const S = mkwrapper("s")
   /** @internal */
-  export const SAMP = mkwrapper('samp')
+  export const SAMP = mkwrapper("samp")
   /** @internal */
-  export const SCRIPT = mkwrapper('script')
+  export const SCRIPT = mkwrapper("script")
   /** @internal */
-  export const SECTION = mkwrapper('section')
+  export const SECTION = mkwrapper("section")
   /** @internal */
-  export const SELECT = mkwrapper('select')
+  export const SELECT = mkwrapper("select")
   /** @internal */
-  export const SMALL = mkwrapper('small')
+  export const SMALL = mkwrapper("small")
   /** @internal */
-  export const SOURCE = mkwrapper('source')
+  export const SOURCE = mkwrapper("source")
   /** @internal */
-  export const SPAN = mkwrapper('span')
+  export const SPAN = mkwrapper("span")
   /** @internal */
-  export const STRONG = mkwrapper('strong')
+  export const STRONG = mkwrapper("strong")
   /** @internal */
-  export const STYLE = mkwrapper('style')
+  export const STYLE = mkwrapper("style")
   /** @internal */
-  export const SUB = mkwrapper('sub')
+  export const SUB = mkwrapper("sub")
   /** @internal */
-  export const SUMMARY = mkwrapper('summary')
+  export const SUMMARY = mkwrapper("summary")
   /** @internal */
-  export const SUP = mkwrapper('sup')
+  export const SUP = mkwrapper("sup")
   /** @internal */
-  export const TABLE = mkwrapper('table')
+  export const TABLE = mkwrapper("table")
   /** @internal */
-  export const TBODY = mkwrapper('tbody')
+  export const TBODY = mkwrapper("tbody")
   /** @internal */
-  export const TD = mkwrapper('td')
+  export const TD = mkwrapper("td")
   /** @internal */
-  export const TEXTAREA = mkwrapper('textarea')
+  export const TEXTAREA = mkwrapper("textarea")
   /** @internal */
-  export const TFOOT = mkwrapper('tfoot')
+  export const TFOOT = mkwrapper("tfoot")
   /** @internal */
-  export const TH = mkwrapper('th')
+  export const TH = mkwrapper("th")
   /** @internal */
-  export const THEAD = mkwrapper('thead')
+  export const THEAD = mkwrapper("thead")
   /** @internal */
-  export const TIME = mkwrapper('time')
+  export const TIME = mkwrapper("time")
   /** @internal */
-  export const TITLE = mkwrapper('title')
+  export const TITLE = mkwrapper("title")
   /** @internal */
-  export const TR = mkwrapper('tr')
+  export const TR = mkwrapper("tr")
   /** @internal */
-  export const TRACK = mkwrapper('track')
+  export const TRACK = mkwrapper("track")
   /** @internal */
-  export const U = mkwrapper('u')
+  export const U = mkwrapper("u")
   /** @internal */
-  export const UL = mkwrapper('ul')
+  export const UL = mkwrapper("ul")
   /** @internal */
-  export const VAR = mkwrapper('var')
+  export const VAR = mkwrapper("var")
   /** @internal */
-  export const VIDEO = mkwrapper('video')
+  export const VIDEO = mkwrapper("video")
   /** @internal */
-  export const WBR = mkwrapper('wbr')
+  export const WBR = mkwrapper("wbr")
 
   /**
    * An alias to conform to typescript's JSX
@@ -1166,12 +1166,12 @@ export namespace e {
   export const Fragment: (at: EmptyAttributes<DocumentFragment>, ch: Renderable[]) => DocumentFragment = $ //(at: Attrs, ch: DocumentFragment): e.JSX.Element
 }
 
-declare var global: any
-if (typeof global !== 'undefined' && typeof (global.E) === 'undefined') {
+declare let global: any
+if (typeof global !== "undefined" && typeof (global.E) === "undefined") {
   (global as any).E = e
 }
 
-if ('undefined' !== typeof window && typeof (window as any).E === 'undefined') {
+if ("undefined" !== typeof window && typeof (window as any).E === "undefined") {
   (window as any).E = e
 }
 

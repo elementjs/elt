@@ -1,5 +1,5 @@
 
-import { node_add_data, node_remove_data, sym_objects } from './dom'
+import { node_add_data, node_remove_data, sym_objects } from "./dom"
 
 export namespace databus {
 
@@ -22,10 +22,10 @@ export namespace databus {
   ) {
 
     if (!query?.no_self) {
-      var dt = node[sym_objects]
+      const dt = node[sym_objects]
       if (dt) {
-        for (var l = dt.length, i = 0; i < l; i++) {
-          var obj = dt[i]
+        for (let l = dt.length, i = 0; i < l; i++) {
+          const obj = dt[i]
           if (obj instanceof kls) {
             cbk(obj, node, control)
           }
@@ -39,7 +39,7 @@ export namespace databus {
     }
 
     if (!control.stopped && query?.children && node.firstChild) {
-      for (var iter: Node | null = node.firstChild; iter; iter = iter.nextSibling) {
+      for (let iter: Node | null = node.firstChild; iter; iter = iter.nextSibling) {
         forEach(iter, kls, cbk, { children: true }, control)
         if (control.stopped) return
       }
@@ -61,14 +61,14 @@ export namespace databus {
   }
 
   export function getInClosestParent<T extends object>(node: Node, kls: new (...a: any[]) => T) {
-    var res!: T
+    let res!: T
     inClosestParent(node, kls, obj => res = obj)
     if (res == null) throw new Error(`${kls.name} not found`)
     return res
   }
 
   export function getInChildren<T extends object>(node: Node, kls: new (...a: any[]) => T, cbk: (obj: T, node: Node) => any) {
-    var res: T[] = []
+    const res: T[] = []
     inClosestChild(node, kls, obj => res.push(obj))
     return res
   }

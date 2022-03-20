@@ -1,4 +1,4 @@
-import { EACH, IndexableArray, Indexable } from './indexable'
+import { EACH, IndexableArray, Indexable } from "./indexable"
 
 declare const DEBUG: boolean
 
@@ -82,7 +82,7 @@ export type ROProps<T> = { [P in keyof T]:  RO<T[P]>}
  *
  * Used in Observers and combined observables to know when a value has been set for the first time.
  */
-export const NoValue = Symbol('NoValue')
+export const NoValue = Symbol("NoValue")
 /**
  * The type associated to NoValue
  */
@@ -97,7 +97,7 @@ export type NoValue = typeof NoValue
 export function isReadonlyObservable<T>(_: RO<T>): _ is ReadonlyObservable<T>
 export function isReadonlyObservable(_: any): _ is ReadonlyObservable<any>
 export function isReadonlyObservable(_: any): _ is ReadonlyObservable<any> {
-      return _ instanceof Observable
+  return _ instanceof Observable
 }
 
 /**
@@ -258,16 +258,16 @@ export type RO<A> = ReadonlyObservable<A> | A
 /** @internal */
 export function each_recursive(obs: Observable<any>, fn: (v: Observable<any>) => void) {
 
-  var objs = [] as Observable<any>[]
-  var stack = [] as [(ChildObservableLink | null)[], number][]
+  const objs = [] as Observable<any>[]
+  const stack = [] as [(ChildObservableLink | null)[], number][]
   var [children, i] = [obs._children.arr, 0]
   objs.push(obs)
 
   while (true) {
-    var _child = children[i]
+    const _child = children[i]
     if (_child) {
-      var child = _child.child
-      var subchildren = child._children.arr
+      const child = _child.child
+      const subchildren = child._children.arr
       objs.push(child)
       if (subchildren.length) {
         stack.push([children, i + 1])
@@ -320,8 +320,8 @@ export class Queue extends IndexableArray<Observable<any>> {
   }
 
   flush() {
-    for (var i = 0, arr = this.arr; i < arr.length; i++) {
-      var obs = arr[i]
+    for (let i = 0, arr = this.arr; i < arr.length; i++) {
+      const obs = arr[i]
       if (obs == null) continue
 
       if (obs instanceof CombinedObservable) {
@@ -413,7 +413,7 @@ export class Observable<A> implements ReadonlyObservable<A>, Indexable {
    */
   stopObservers() {
     each_recursive(this, ob => {
-      if (ob.idx) queue.delete(ob);
+      if (ob.idx) queue.delete(ob)
       ob._observers.clear()
       if (ob._watched) {
         ob._watched = false
@@ -467,7 +467,7 @@ export class Observable<A> implements ReadonlyObservable<A>, Indexable {
    * ```
    */
   intercept(fn: (new_value: A, current_value: A) => A): this {
-    var orig_set = this.set.bind(this)
+    const orig_set = this.set.bind(this)
     this.set = (nval: A) => {
       orig_set(fn(nval, this._value))
     }
@@ -532,7 +532,7 @@ export class Observable<A> implements ReadonlyObservable<A>, Indexable {
   addObserver(fn: Observer.Callback<A>): Observer<A>
   addObserver(obs: Observer<A>): Observer<A>
   addObserver(_ob: Observer.Callback<A> | Observer<A>): Observer<A> {
-    if (typeof _ob === 'function') {
+    if (typeof _ob === "function") {
       _ob = this.createObserver(_ob)
     }
 
@@ -622,21 +622,21 @@ export class Observable<A> implements ReadonlyObservable<A>, Indexable {
   tf<B>(transform: RO<Converter<A, B>>): Observable<B>
   tf<B>(transform: RO<TransfomFn<A, B> | ReadonlyConverter<A, B>>): ReadonlyObservable<B>
   tf<B>(transform: RO<TransfomFn<A, B> | ReadonlyConverter<A, B>>, rev?: o.RO<RevertFn<A, B>>): ReadonlyObservable<B> {
-    var old: A | NoValue = NoValue
-    var old_transform: any = NoValue
-    var curval: B | NoValue = NoValue
+    let old: A | NoValue = NoValue
+    let old_transform: any = NoValue
+    let curval: B | NoValue = NoValue
     return combine([this, transform, rev] as [Observable<A>, RO<TransfomFn<A, B> | ReadonlyConverter<A, B>>, RevertFn<A, B>],
       ([v, fnget]) => {
         if (old !== NoValue && old_transform !== NoValue && curval !== NoValue && old === v && old_transform === fnget) return curval
-        curval = (typeof fnget === 'function' ? fnget(v, old, curval) : fnget.transform(v, old, curval))
+        curval = (typeof fnget === "function" ? fnget(v, old, curval) : fnget.transform(v, old, curval))
         old = v
         old_transform = fnget
         return curval
       },
       (newv, old, [curr, conv, rev]) => {
-        if (typeof rev === 'function') return tuple(rev(newv, old, curr), NoValue, NoValue)
-        if (typeof conv === 'function') return tuple(NoValue, NoValue, NoValue) // this means the set is being silently ignored. should it be an error ?
-        var new_orig = (conv as Converter<A, B>).revert(newv, old, curr)
+        if (typeof rev === "function") return tuple(rev(newv, old, curr), NoValue, NoValue)
+        if (typeof conv === "function") return tuple(NoValue, NoValue, NoValue) // this means the set is being silently ignored. should it be an error ?
+        const new_orig = (conv as Converter<A, B>).revert(newv, old, curr)
         return tuple(new_orig, NoValue, NoValue)
       }
     )
@@ -663,14 +663,14 @@ export class Observable<A> implements ReadonlyObservable<A>, Indexable {
   key<A, B>(this: Observable<Map<A, B>>, key: RO<A>, def?: RO<(key: A, map: Map<A, B>) => B>, delete_on_undefined = true as RO<boolean | undefined>): Observable<B | undefined> {
     return combine([this, key, def, delete_on_undefined] as [Observable<Map<A, B>>, RO<A>, RO<(key: A, map: Map<A, B>) => B>, RO<boolean>],
       ([map, key, def]) => {
-        var res = map.get(key)
+        let res = map.get(key)
         if (res === undefined && def) {
           res = def(key, map)
         }
         return res
       },
       (ret, _, [omap, okey, _2, delete_on_undefined]) => {
-        var result = new Map(omap) //.set(okey, ret)
+        const result = new Map(omap) //.set(okey, ret)
         // Is this correct ? should I **delete** when I encounter undefined ?
         if (ret !== undefined || !delete_on_undefined) result.set(okey, ret!)
         else result.delete(okey)
@@ -711,8 +711,8 @@ export class CombinedObservable<A extends any[], T = A> extends Observable<T> {
 
   watched() {
     const p = this._parents_values
-    for (var i = 0, l = this._links; i < l.length; i++) {
-      var link = l[i]
+    for (let i = 0, l = this._links; i < l.length; i++) {
+      const link = l[i]
       link.parent.addChild(link)
       p[link.child_idx] = link.parent._value
     }
@@ -720,19 +720,19 @@ export class CombinedObservable<A extends any[], T = A> extends Observable<T> {
   }
 
   unwatched() {
-    for (var i = 0, l = this._links; i < l.length; i++) {
-      var link = l[i]
+    for (let i = 0, l = this._links; i < l.length; i++) {
+      const link = l[i]
       link.parent.removeChild(link)
     }
   }
 
   refreshParentValues() {
-    var changed = false
-    for (var i = 0, l = this._links, p = this._parents_values; i < l.length; i++) {
-      var link = l[i]
-      var idx = link.child_idx
-      var old = p[idx]
-      var n = link.parent.get()
+    let changed = false
+    for (let i = 0, l = this._links, p = this._parents_values; i < l.length; i++) {
+      const link = l[i]
+      const idx = link.child_idx
+      const old = p[idx]
+      const n = link.parent.get()
       if (old !== n) {
         changed = true
         p[idx] = n
@@ -759,9 +759,9 @@ export class CombinedObservable<A extends any[], T = A> extends Observable<T> {
     if (!this._watched) this.refreshParentValues()
     const res = this.setter(value, old_value, this._parents_values)
     if (res == undefined) return
-    for (var i = 0, l = this._links, len = l.length; i < len; i++) {
-      var link = l[i]
-      var newval = res[link.child_idx]
+    for (let i = 0, l = this._links, len = l.length; i < len; i++) {
+      const link = l[i]
+      const newval = res[link.child_idx]
       if (newval !== NoValue && newval !== link.parent._value) {
         link.parent.set(newval)
       }
@@ -769,10 +769,10 @@ export class CombinedObservable<A extends any[], T = A> extends Observable<T> {
   }
 
   dependsOn(obs: {[K in keyof A]: RO<A[K]>}) {
-    var p = new Array(obs.length) as A
-    var ch = [] as ChildObservableLink[]
-    for (var l = obs.length, i = 0; i < l; i++) {
-      var ob = obs[i]
+    const p = new Array(obs.length) as A
+    const ch = [] as ChildObservableLink[]
+    for (let l = obs.length, i = 0; i < l; i++) {
+      const ob = obs[i]
       if (ob instanceof Observable) {
         p[i] = ob._value
         ch.push(new ChildObservableLink(ob, this, i))
@@ -840,7 +840,7 @@ export function proxy<T>(ob: Observable<T>): ProxyObservable<T> {
 export function combine<T extends any[], R>(deps: {[K in keyof T]: RO<T[K]>}, get: (a: T) => R): ReadonlyObservable<R>
 export function combine<T extends any[], R>(deps: {[K in keyof T]: RO<T[K]>}, get: (a: T) => R, set: (r: R, old: R | NoValue, last: T) => {[K in keyof T]: T[K] | NoValue}): Observable<R>
 export function combine<T extends any[], R>(deps: {[K in keyof T]: RO<T[K]>}, get: (a: T) => R, set?: (r: R, old: R | NoValue, last: T) => {[K in keyof T]: T[K] | NoValue}): Observable<R> {
-  var virt = new CombinedObservable<T, R>(deps)
+  const virt = new CombinedObservable<T, R>(deps)
   virt.getter = get
   virt.setter = set! // force undefined to trigger errors for readonly observables.
   return virt
@@ -870,8 +870,8 @@ export function merge<T>(obj: {[K in keyof T]: Observable<T[K]>}): Observable<T>
   const keys = Object.keys(obj) as (keyof T)[]
   const parents: RO<T[keyof T]>[] = keys.map(k => obj[k])
   return combine(parents, args => {
-    var res = {} as {[K in keyof T]: T[K]}
-    for (var i = 0; i < keys.length; i++) {
+    const res = {} as {[K in keyof T]: T[K]}
+    for (let i = 0; i < keys.length; i++) {
       res[keys[i]] = args[i]
     }
     return res
@@ -888,7 +888,7 @@ export function merge<T>(obj: {[K in keyof T]: Observable<T[K]>}): Observable<T>
     return combine(
       tuple(obj, prop, def),
       ([obj, prop, def]) => {
-        var res = obj[prop]
+        let res = obj[prop]
         if (res === undefined && def)
           res = def(prop, obj)
         return res
@@ -906,14 +906,14 @@ export function merge<T>(obj: {[K in keyof T]: Observable<T[K]>}): Observable<T>
   export function then<T extends any[], U>(o_pro: o.RO<T>, tffn: (item: {[K in keyof T]: UnPromise<T[K]>}) => U): o.ReadonlyObservable<Promise<U>>
   export function then<T, U>(o_pro: o.RO<T>, tffn: (item: UnPromise<T>) => U): o.ReadonlyObservable<Promise<U>>
   export function then(o_pro: o.RO<any>, tffn: (item: any) => any) {
-    var prevreject: undefined | ((err: any) => void)
+    let prevreject: undefined | ((err: any) => void)
     return o.tf(o_pro, (newpro) => {
-      if (prevreject) prevreject(new Error(`Promise changed, cancelling`))
+      if (prevreject) prevreject(new Error("Promise changed, cancelling"))
       return new Promise((accept, reject) => {
         prevreject = reject
         if (Array.isArray(newpro))
           Promise.all(newpro).then(val => accept(tffn(val)))
-        else if (newpro && typeof newpro['then'] === 'function')
+        else if (newpro && typeof newpro["then"] === "function")
           newpro.then((val: any) => accept(tffn(val)))
         else
           setTimeout(() => accept(tffn(newpro)), 0)
@@ -939,12 +939,12 @@ export function merge<T>(obj: {[K in keyof T]: Observable<T[K]>}): Observable<T>
    */
   export function tf<A, B>(arg: RO<A>, fn: Converter<A, B> | TransfomFn<A, B>): RO<B> {
     if (arg instanceof Observable) {
-      if (typeof fn === 'function') {
+      if (typeof fn === "function") {
         return (arg as ReadonlyObservable<A>).tf(fn)
       } else
         return (arg as ReadonlyObservable<A>).tf(fn)
     } else {
-      if (typeof fn === 'function')
+      if (typeof fn === "function")
         return fn(arg as A, NoValue, NoValue)
       else
         return fn.transform(arg as A, NoValue, NoValue)
@@ -978,7 +978,7 @@ export function merge<T>(obj: {[K in keyof T]: Observable<T[K]>}): Observable<T>
   export function and(...args: any[]): ReadonlyObservable<boolean> {
     return combine(args,
       (args) => {
-        for (var i = 0, l = args.length; i < l; i++) {
+        for (let i = 0, l = args.length; i < l; i++) {
           if (!args[i]) return false
         }
         return true
@@ -996,7 +996,7 @@ export function merge<T>(obj: {[K in keyof T]: Observable<T[K]>}): Observable<T>
   export function or(...args: any[]): ReadonlyObservable<boolean> {
     return combine(args,
       (args) => {
-        for (var i = 0, l = args.length; i < l; i++) {
+        for (let i = 0, l = args.length; i < l; i++) {
           if (args[i]) return true
         }
         return false
@@ -1039,16 +1039,16 @@ export function merge<T>(obj: {[K in keyof T]: Observable<T[K]>}): Observable<T>
   export function assign<A>(value: A[], partial: {[index: number]: assign.AssignPartial<A>}): A[]
   export function assign<A>(value: A, mutator: assign.AssignPartial<A>): A
   export function assign<A>(value: A, mutator: assign.AssignPartial<A>): A {
-    if (mutator == null || typeof mutator !== 'object' || Object.getPrototypeOf(mutator) !== Object.prototype)
+    if (mutator == null || typeof mutator !== "object" || Object.getPrototypeOf(mutator) !== Object.prototype)
       return mutator as any
 
-    if (typeof mutator === 'object') {
-      var clone: A = o.clone(value) || ({} as A) // shallow clone
-      var changed = false
+    if (typeof mutator === "object") {
+      const clone: A = o.clone(value) || ({} as A) // shallow clone
+      let changed = false
 
-      for (var name in mutator) {
-        var old_value = clone[name]
-        var new_value = assign(clone[name], mutator[name]! as any)
+      for (const name in mutator) {
+        const old_value = clone[name]
+        const new_value = assign(clone[name], mutator[name]! as any)
         changed = changed || old_value !== new_value
         clone[name] = new_value
       }
@@ -1091,16 +1091,16 @@ export function merge<T>(obj: {[K in keyof T]: Observable<T[K]>}): Observable<T>
   export function debounce(ms: number, leading?: boolean): (target: any, key: string, desc: PropertyDescriptor) => void
   export function debounce<F extends Function>(fn: F, ms: number, leading?: boolean): F
   export function debounce(fn: any, ms: any, leading: boolean = false): any {
-    var timer: number
-    var prev_res: any
-    var lead = false
+    let timer: number
+    let prev_res: any
+    let lead = false
 
     // Called as a method decorator.
     if (arguments.length === 1) {
       leading = ms
       ms = fn
       return function (target: any, key: string, desc: PropertyDescriptor) {
-        var original = desc.value
+        const original = desc.value
         desc.value = debounce(original, ms)
       }
     }
@@ -1140,23 +1140,23 @@ export function merge<T>(obj: {[K in keyof T]: Observable<T[K]>}): Observable<T>
   export function throttle<F extends Function>(fn: F, ms: number, leading?: boolean): F
   export function throttle(fn: any, ms: any, leading: boolean = false): any {
     // Called as a method decorator.
-    if (typeof fn === 'number') {
+    if (typeof fn === "number") {
       leading = ms
       ms = fn
       return function (target: any, key: string, desc: PropertyDescriptor) {
-        var original = desc.value
+        const original = desc.value
         desc.value = throttle(original, ms, leading)
       }
     }
 
-    var timer: number | null
-    var prev_res: any
-    var last_call: number = 0
-    var _args: any
-    var self: any
+    let timer: number | null
+    let prev_res: any
+    let last_call: number = 0
+    let _args: any
+    let self: any
 
     return function (this: any, ...args: any[]) {
-      var now = Date.now()
+      const now = Date.now()
 
       // If the delay expired or if this is the first time this function is called,
       // then trigger the call. Otherwise, we will have to set up the call.
@@ -1191,7 +1191,7 @@ export function merge<T>(obj: {[K in keyof T]: Observable<T[K]>}): Observable<T>
    *
    * @category observable
    */
-  export const sym_clone = Symbol('o.clone_symbol')
+  export const sym_clone = Symbol("o.clone_symbol")
 
 
   /**
@@ -1223,10 +1223,10 @@ export function merge<T>(obj: {[K in keyof T]: Observable<T[K]>}): Observable<T>
    */
   export function clone<T>(obj: T | {[o.sym_clone]: () => T}): T
   export function clone(obj: any): any {
-    if (obj == null || typeof obj === 'number' || typeof obj === 'string' || typeof obj === 'boolean')
+    if (obj == null || typeof obj === "number" || typeof obj === "string" || typeof obj === "boolean")
       return obj
-    var clone: any
-    var key: number | string
+    let clone: any
+    let key: number | string
 
     if (obj[sym_clone]) {
       return obj[sym_clone]()
@@ -1242,12 +1242,12 @@ export function merge<T>(obj: {[K in keyof T]: Observable<T[K]>}): Observable<T>
 
     if (obj instanceof RegExp) {
       return new RegExp(obj.source,
-        ''
-        + obj.global ? 'g' : ''
-        + obj.multiline ? 'm' : ''
-        + obj.unicode ? 'u' : ''
-        + obj.ignoreCase ? 'i' : ''
-        + obj.sticky ? 'y' : ''
+        ""
+        + obj.global ? "g" : ""
+        + obj.multiline ? "m" : ""
+        + obj.unicode ? "u" : ""
+        + obj.ignoreCase ? "i" : ""
+        + obj.sticky ? "y" : ""
       )
     }
 
@@ -1260,7 +1260,7 @@ export function merge<T>(obj: {[K in keyof T]: Observable<T[K]>}): Observable<T>
     }
 
     // If we got here, then we're cloning an object
-    var prototype = Object.getPrototypeOf(obj)
+    const prototype = Object.getPrototypeOf(obj)
     clone = Object.create(prototype)
 
     for (key of Object.getOwnPropertyNames(obj)) {
@@ -1269,7 +1269,7 @@ export function merge<T>(obj: {[K in keyof T]: Observable<T[K]>}): Observable<T>
         clone[key] = obj[key]
     }
 
-    for (var sym of Object.getOwnPropertySymbols(obj)) {
+    for (const sym of Object.getOwnPropertySymbols(obj)) {
       if ((obj as Object).propertyIsEnumerable(sym))
         clone[sym] = obj[sym]
     }
@@ -1304,7 +1304,7 @@ export function merge<T>(obj: {[K in keyof T]: Observable<T[K]>}): Observable<T>
       return _wrap_cache.get(obs)!
     }
 
-    var last_promise: Promise<T>
+    let last_promise: Promise<T>
     const o_result = o({ resolving: true } as wrapPromise.Result<T>)
 
     const res_obs = o.merge({pro: obs, res: o_result}).tf(({pro, res}, old) => {
@@ -1314,11 +1314,11 @@ export function merge<T>(obj: {[K in keyof T]: Observable<T[K]>}): Observable<T>
         // Changing promise, so we have to get its .then
         pro.then(pres => {
           if (last_promise !== pro) return // ignore if this is not our promise anymore
-          o_result.set({resolving: false, value: pres, resolved: 'value'})
+          o_result.set({resolving: false, value: pres, resolved: "value"})
         })
         pro.catch(perr => {
           if (last_promise !== pro) return // ignore if this is not our promise anymore
-          o_result.set({resolving: false, error: perr, resolved: 'error'})
+          o_result.set({resolving: false, error: perr, resolved: "error"})
         })
         return {...res, resolving: true} as wrapPromise.Result<T, any>
       }
@@ -1336,8 +1336,8 @@ export function merge<T>(obj: {[K in keyof T]: Observable<T[K]>}): Observable<T>
      */
     export type Result<T, Error = any> =
       | { resolving: true, resolved?: undefined }
-      | { resolving: boolean, resolved: 'value', value: T }
-      | { resolving: boolean, resolved: 'error', error: Error }
+      | { resolving: boolean, resolved: "value", value: T }
+      | { resolving: boolean, resolved: "error", error: Error }
   }
 
   /**
@@ -1351,7 +1351,7 @@ export function merge<T>(obj: {[K in keyof T]: Observable<T[K]>}): Observable<T>
       obs.set(init!)
     }
     pro.then(pr => {
-      var cur = obs.get()
+      const cur = obs.get()
       if (cur === init) obs.set(pr)
     })
     return obs
@@ -1364,7 +1364,7 @@ export function merge<T>(obj: {[K in keyof T]: Observable<T[K]>}): Observable<T>
    * @category toc, observable
    */
   export function fromPromise<T>(init: T, pro: Promise<T>): Observable<T> {
-    var res = o(init) as Observable<T>
+    const res = o(init) as Observable<T>
     pro.then(p => {
       if (res.get() === init)
         res.set(p)
@@ -1387,7 +1387,7 @@ export function merge<T>(obj: {[K in keyof T]: Observable<T[K]>}): Observable<T>
   export function unpromise<T>(obs: o.RO<Promise<T>>, def?: () => T): o.ReadonlyObservable<T | undefined> {
     const wrapped = wrapPromise(obs)
     const res: o.ReadonlyObservable<T | undefined> & {wrapped: o.ReadonlyObservable<wrapPromise.Result<T>>}  = wrapped.tf(val => {
-      if (val.resolved === 'value') return val.value
+      if (val.resolved === "value") return val.value
       return def?.()
     }) as any
 
@@ -1407,7 +1407,7 @@ export function merge<T>(obj: {[K in keyof T]: Observable<T[K]>}): Observable<T>
    * @category observable, toc
    */
   export function exclusive_lock() {
-    var locked = false
+    let locked = false
     return function exclusive_lock(fn: () => void) {
       if (locked) return
       locked = true
@@ -1444,7 +1444,7 @@ export function merge<T>(obj: {[K in keyof T]: Observable<T[K]>}): Observable<T>
      */
     startObservers() {
       if (this.is_observing) return
-      var cbk = this._callback_queue
+      const cbk = this._callback_queue
       if (cbk) {
         for (var i = 0, l = cbk.length; i < l; i++) {
           cbk[i]()
@@ -1462,7 +1462,7 @@ export function merge<T>(obj: {[K in keyof T]: Observable<T[K]>}): Observable<T>
      */
     stopObservers() {
       if (!this.is_observing) return
-      for (var obss = this._observers, i = 0, l = obss.length; i < l; i++) {
+      for (let obss = this._observers, i = 0, l = obss.length; i < l; i++) {
         obss[i].stopObserving()
       }
       this.is_observing = false

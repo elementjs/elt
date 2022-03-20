@@ -1,10 +1,10 @@
 import type {
   AllEventMap
-} from './eventmap'
+} from "./eventmap"
 
 import {
   o
-} from './observable'
+} from "./observable"
 
 import {
   ClassDefinition,
@@ -18,11 +18,11 @@ import {
   node_on,
   sym_inserted,
   sym_removed
-} from './dom'
+} from "./dom"
 
 import type {
   Renderable,
-} from './elt'
+} from "./elt"
 
 /**
  * Definition of the Decorator type, or functions that can be passed directly
@@ -49,7 +49,7 @@ export namespace $bind {
     obs: o.Observable<T>,
     node_get: (node: N) => T,
     node_set: (node: N, value: T) => void,
-    event = 'input' as string | string[]
+    event = "input" as string | string[]
   ) {
     return function (node: N) {
       const lock = o.exclusive_lock()
@@ -59,7 +59,7 @@ export namespace $bind {
       })
       node_add_event_listener(node, event, () => {
         lock(() => {
-          var new_value = node_get(node)
+          const new_value = node_get(node)
           obs.set(new_value)
           // since obs could be a transformed observable, using set() may end up setting it
           // to a *different* value. Here we make sure we keep the node *correctly* in sync
@@ -142,7 +142,7 @@ export namespace $bind {
     return setup_bind(obs,
       node => node.checked,
       (node, value) => node.checked = value,
-      'change'
+      "change"
     )
   }
 
@@ -175,7 +175,7 @@ export namespace $bind {
  */
 export function $class<N extends Element>(...clss: ClassDefinition[]) {
   return (node: N) => {
-    for (var i = 0, l = clss.length; i < l; i++) {
+    for (let i = 0, l = clss.length; i < l; i++) {
       node_observe_class(node, clss[i])
     }
   }
@@ -220,7 +220,7 @@ export function $title<N extends HTMLElement>(title: o.RO<string>) {
  */
 export function $style<N extends HTMLElement | SVGElement>(...styles: StyleDefinition[]) {
   return (node: N) => {
-    for (var i = 0, l = styles.length; i < l; i++) {
+    for (let i = 0, l = styles.length; i < l; i++) {
       node_observe_style(node, styles[i])
     }
   }
@@ -256,10 +256,10 @@ export function $on<N extends Node, K extends keyof AllEventMap<N>>(event: K, li
 export function $on<N extends Node>(event: string | string[], listener: Listener<Event, N>, useCapture?: boolean): Decorator<N>
 export function $on<N extends Node>(event: string | string[], _listener: Listener<Event, N>, useCapture = false): Decorator<N> {
   return function $on(node) {
-    if (typeof event === 'string')
+    if (typeof event === "string")
       node.addEventListener(event, ev => _listener(ev as any), useCapture)
     else {
-      for (var n of event) {
+      for (const n of event) {
         node.addEventListener(n, ev => _listener(ev as any), useCapture)
       }
     }
@@ -274,8 +274,8 @@ export function $on<N extends Node>(event: string | string[], _listener: Listene
 export function $click<N extends HTMLElement | SVGElement>(cbk: Listener<Event, N>, capture?: boolean): (node: N) => void {
   return function $click(node) {
     // events don't trigger on safari if not pointer.
-    node.style.cursor = 'pointer'
-    node_add_event_listener(node, 'click', cbk, capture)
+    node.style.cursor = "pointer"
+    node_add_event_listener(node, "click", cbk, capture)
   }
 }
 
@@ -346,25 +346,25 @@ export function $removed<N extends Node>(fn: (node: N, parent: Node) => void) {
  */
 export function $scrollable(node: HTMLElement): void {
 
-    $scrollable.setUpNoscroll(node.ownerDocument!)
+  $scrollable.setUpNoscroll(node.ownerDocument!)
 
-    var style = node.style
-    style.overflowY = 'auto'
-    style.overflowX = 'auto'
+  const style = node.style
+  style.overflowY = "auto"
+  style.overflowX = "auto"
 
-    // seems like typescript doesn't have this property yet
-    ; (style as any).webkitOverflowScrolling = 'touch'
+  // seems like typescript doesn't have this property yet
+  ; (style as any).webkitOverflowScrolling = "touch"
 
-    node_add_event_listener(node, 'touchstart', ev => {
-      if (ev.currentTarget.scrollTop == 0) {
-        node.scrollTop = 1
-      } else if (node.scrollTop + node.offsetHeight >= node.scrollHeight - 1) node.scrollTop -= 1
-    }, true)
+  node_add_event_listener(node, "touchstart", ev => {
+    if (ev.currentTarget.scrollTop == 0) {
+      node.scrollTop = 1
+    } else if (node.scrollTop + node.offsetHeight >= node.scrollHeight - 1) node.scrollTop -= 1
+  }, true)
 
-    node_add_event_listener(node, 'touchmove', ev => {
-      if (ev.currentTarget.offsetHeight < ev.currentTarget.scrollHeight)
-        (ev as $scrollable.ScrollableEvent)[$scrollable.sym_letscroll] = true
-    }, true)
+  node_add_event_listener(node, "touchmove", ev => {
+    if (ev.currentTarget.offsetHeight < ev.currentTarget.scrollHeight)
+      (ev as $scrollable.ScrollableEvent)[$scrollable.sym_letscroll] = true
+  }, true)
 }
 
 
@@ -374,7 +374,7 @@ export namespace $scrollable {
   const documents_wm = new WeakMap<Document>()
 
   /** @internal */
-  export const sym_letscroll = Symbol('elt-scrollstop')
+  export const sym_letscroll = Symbol("elt-scrollstop")
 
   /** @internal */
   export type ScrollableEvent = Event & {[sym_letscroll]?: true}
@@ -386,7 +386,7 @@ export namespace $scrollable {
   export function setUpNoscroll(dc: Document) {
     if (documents_wm.has(dc)) return
 
-    dc.body.addEventListener('touchmove', function event(ev) {
+    dc.body.addEventListener("touchmove", function event(ev) {
       // If no handler has "marked" the event as being allowed to scroll, then
       // just stop the scroll.
       if (!(ev as ScrollableEvent)[sym_letscroll]) ev.preventDefault()
