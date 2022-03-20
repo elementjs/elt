@@ -12,6 +12,9 @@ all: src/eventmap.ts dist/elt.js dist/elt.debug.js dist/elt.min.js dist/elt.debu
 watch:
 	concurrently -c green,red -n typescript,build 'tsc -w --noEmit | wtsc' 'chokidar --silent "./src/**/*.ts" -c "make"'
 
+lint:
+	eslint src
+
 src/eventmap.ts: scripts/mkeventmap.cjs node_modules/typescript/lib/lib.dom.d.ts
 	node scripts/mkeventmap.cjs > ./src/eventmap.ts
 

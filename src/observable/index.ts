@@ -1,4 +1,4 @@
-export { Indexable } from './indexable'
-export * from './observable'
-export * from './transformers'
+export { Indexable } from "./indexable"
+export * from "./observable"
+export * from "./transformers"
 

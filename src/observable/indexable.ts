@@ -13,8 +13,8 @@ export interface Indexable {
  * @internal
  */
 export function EACH<T extends Indexable>(_arr: IndexableArray<T>, fn: (arg: T) => void) {
-  for (var i = 0, arr = _arr.arr; i < arr.length; i++) {
-    var item = arr[i]
+  for (let i = 0, arr = _arr.arr; i < arr.length; i++) {
+    const item = arr[i]
     if (item == null) continue
     fn(item)
   }
@@ -45,9 +45,9 @@ export class IndexableArray<T extends Indexable> {
   actualize() {
     const arr = this.arr
     if (this.real_size !== arr.length) {
-      var newarr = new Array(this.real_size)
-      for (var i = 0, j = 0, l = arr.length; i < l; i++) {
-        var item = arr[i]
+      const newarr = new Array(this.real_size)
+      for (let i = 0, j = 0, l = arr.length; i < l; i++) {
+        const item = arr[i]
         if (item == null) continue
         newarr[j] = item
         item.idx = j
@@ -67,8 +67,8 @@ export class IndexableArray<T extends Indexable> {
 
   clear() {
     const a = this.arr
-    for (var i = 0; i < a.length; i++) {
-      var item = a[i]
+    for (let i = 0; i < a.length; i++) {
+      const item = a[i]
       if (item == null) continue
       item.idx = null
     }
