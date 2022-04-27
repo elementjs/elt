@@ -79,7 +79,8 @@ export namespace tf {
             const start = stable && old_val !== o.NoValue ? old_val.length : 0
 
             // this will only run if the old length is smaller than the new length.
-            for (var i = start, l = lst.length; i < l; i++) {
+            let i = 0, l = 0
+            for (i = start, l = lst.length; i < l; i++) {
               if (cond(lst[i], i, lst))
                 indices.push(i)
             }
@@ -87,6 +88,7 @@ export namespace tf {
             // if the array lost elements, then we have to remove those indices that are no longer relevant.
             // fortunately, this.indices is sorted and we just have to go back from the beginning.
             if (start > lst.length) {
+              // eslint-disable-next-line no-empty
               for (i = indices.length - 1; indices[i] >= lst.length && i >= 0; i--) { }
               indices = i < 0 ? [] : indices.slice(0, i + 1)
             }
