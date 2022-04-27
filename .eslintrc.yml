@@ -18,8 +18,8 @@ rules:
   "@typescript-eslint/no-inferrable-types": off
   "@typescript-eslint/no-non-null-assertion": off
   no-unused-vars:
-    - warning
-    - args: after-used
+    - warn
+    - {args: none, varsIgnorePattern: "_"} # I like to name arguments, especially in callback type definition
   indent:
     - error
     - 2
