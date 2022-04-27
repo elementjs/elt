@@ -535,7 +535,7 @@ export class Observable<A> implements ReadonlyObservable<A>, Indexable {
    *          if fn() returned o.NoValue.
    */
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  produce(fn: (current: A) => A | void | o.NoValue | A extends undefined ? typeof import("immer")["nothing"] : never): A {
+  produce(fn: (current: A) => A | void | o.NoValue | (A extends undefined ? typeof import("immer")["nothing"] : never)): A {
     throw new Error("immer must be included in your project for produce to work")
   }
 
@@ -1139,7 +1139,7 @@ export function merge<T>(obj: {[K in keyof T]: Observable<T[K]>}): Observable<T>
    * @category observable, toc
    */
   export function debounce(ms: number, leading?: boolean): (target: any, key: string, desc: PropertyDescriptor) => void
-  export function debounce<F extends Function>(fn: F, ms: number, leading?: boolean): F
+  export function debounce<F extends (...a: any[]) => any>(fn: F, ms: number, leading?: boolean): F
   export function debounce(fn: any, ms: any, leading: boolean = false): any {
     let timer: number
     let prev_res: any
@@ -1187,7 +1187,7 @@ export function merge<T>(obj: {[K in keyof T]: Observable<T[K]>}): Observable<T>
   * @category observable, toc
   */
   export function throttle(ms: number, leading?: boolean): (target: any, key: string, desc: PropertyDescriptor) => void
-  export function throttle<F extends Function>(fn: F, ms: number, leading?: boolean): F
+  export function throttle<F extends (...a: any[]) => any>(fn: F, ms: number, leading?: boolean): F
   export function throttle(fn: any, ms: any, leading: boolean = false): any {
     // Called as a method decorator.
     if (typeof fn === "number") {
@@ -1216,6 +1216,7 @@ export function merge<T>(obj: {[K in keyof T]: Observable<T[K]>}): Observable<T>
         return prev_res
       }
 
+      // eslint-disable-next-line @typescript-eslint/no-this-alias
       self = this
       _args = args
 
@@ -1275,8 +1276,6 @@ export function merge<T>(obj: {[K in keyof T]: Observable<T[K]>}): Observable<T>
   export function clone(obj: any): any {
     if (obj == null || typeof obj === "number" || typeof obj === "string" || typeof obj === "boolean")
       return obj
-    let clone: any
-    let key: number | string
 
     if (obj[sym_clone]) {
       return obj[sym_clone]()
@@ -1311,18 +1310,10 @@ export function merge<T>(obj: {[K in keyof T]: Observable<T[K]>}): Observable<T>
 
     // If we got here, then we're cloning an object
     const prototype = Object.getPrototypeOf(obj)
-    clone = Object.create(prototype)
+    const clone = Object.create(prototype)
 
-    for (key of Object.getOwnPropertyNames(obj)) {
-      // should we check for writability ? enumerability ?
-      if ((obj as Object).propertyIsEnumerable(key))
-        clone[key] = obj[key]
-    }
-
-    for (const sym of Object.getOwnPropertySymbols(obj)) {
-      if ((obj as Object).propertyIsEnumerable(sym))
-        clone[sym] = obj[sym]
-    }
+    // Copy all enumerable (and enumerable only !) properties from obj to clone
+    Object.assign(clone, obj)
 
     return clone
   }
@@ -1496,12 +1487,12 @@ export function merge<T>(obj: {[K in keyof T]: Observable<T[K]>}): Observable<T>
       if (this.is_observing) return
       const cbk = this._callback_queue
       if (cbk) {
-        for (var i = 0, l = cbk.length; i < l; i++) {
+        for (let i = 0, l = cbk.length; i < l; i++) {
           cbk[i]()
         }
         this._callback_queue = undefined
       }
-      for (var obss = this._observers, i = 0, l = obss.length; i < l; i++) {
+      for (let obss = this._observers, i = 0, l = obss.length; i < l; i++) {
         obss[i].startObserving()
       }
       this.is_observing = true

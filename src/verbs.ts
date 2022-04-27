@@ -415,8 +415,8 @@ export namespace RepeatScroll {
     render() {
       return e(
         super.render(),
-        $inserted(_ => this.inserted()),
-        $removed(_ => this.removed()),
+        $inserted(() => this.inserted()),
+        $removed(() => this.removed()),
       )
     }
 
@@ -441,7 +441,7 @@ export namespace RepeatScroll {
  */
 export function Switch<T>(obs: o.Observable<T>): Switch.Switcher<T>
 export function Switch<T>(obs: o.ReadonlyObservable<T>): Switch.ReadonlySwitcher<T>
-export function Switch<T>(obs: any): any {
+export function Switch(obs: any): any {
   return new (Switch.Switcher as any)(obs)
 }
 
@@ -465,7 +465,7 @@ export namespace Switch {
       const cases = this.cases
       for (const c of cases) {
         const val = c[0]
-        if (val === nval || (typeof val === "function" && (val as Function)(nval))) {
+        if (val === nval || (typeof val === "function" && (val as any)(nval))) {
           if (this.prev_case === val) {
             return this.prev
           }
