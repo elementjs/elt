@@ -7,16 +7,13 @@ SOURCES = $(wildcard ./src/*.ts) $(wildcard ./src/observable/*.ts) Makefile
 
 .PHONY: all
 
-all: src/eventmap.ts dist/elt.js dist/elt.debug.js dist/elt.min.js dist/elt.debug.min.js dist/elt.cjs.js dist/elt.d.ts
+all: dist/elt.js dist/elt.debug.js dist/elt.min.js dist/elt.debug.min.js dist/elt.cjs.js dist/elt.d.ts
 
 watch:
 	concurrently -c green,red -n typescript,build 'tsc -w --noEmit | wtsc' 'chokidar --silent "./src/**/*.ts" -c "make"'
 
 lint:
 	eslint src
-
-src/eventmap.ts: scripts/mkeventmap.cjs node_modules/typescript/lib/lib.dom.d.ts
-	node scripts/mkeventmap.cjs > ./src/eventmap.ts
 
 dist/elt.d.ts: $(SOURCES)
 	dts-bundle-generator --inline-declare-global --umd-module-name elt src/index.ts -o $@

@@ -1,7 +1,3 @@
-import type {
-  AllEventMap
-} from "./eventmap"
-
 import {
   o
 } from "./observable"
@@ -250,8 +246,8 @@ export function $observe<N extends Node, T>(a: o.RO<T>, cbk: (newval: T, old_val
  * @code ../examples/_on.tsx
  * @category dom, toc
  */
-export function $on<N extends Node, K extends (keyof AllEventMap<N>)[]>(name: K, listener: Listener<AllEventMap<N>[K[number]], N>, useCapture?: boolean): Decorator<N>
-export function $on<N extends Node, K extends keyof AllEventMap<N>>(event: K, listener: Listener<AllEventMap<N>[K], N>, useCapture?: boolean): Decorator<N>
+export function $on<N extends Node, K extends (keyof GlobalEventHandlersEventMap)[]>(name: K, listener: Listener<GlobalEventHandlersEventMap[K[number]], N>, useCapture?: boolean): Decorator<N>
+export function $on<N extends Node, K extends keyof GlobalEventHandlersEventMap>(event: K, listener: Listener<GlobalEventHandlersEventMap[K], N>, useCapture?: boolean): Decorator<N>
 export function $on<N extends Node>(event: string | string[], listener: Listener<Event, N>, useCapture?: boolean): Decorator<N>
 export function $on<N extends Node>(event: string | string[], _listener: Listener<Event, N>, useCapture = false): Decorator<N> {
   return function $on(node) {
