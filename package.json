@@ -6,7 +6,6 @@
   "license": "MIT",
   "browser": "./dist/elt.js",
   "main": "./dist/elt.js",
-  "jsnext:main": "./module/index.js",
   "exports": {
     "development": "./dist/elt.debug.js",
     "default": "./dist/elt.js"
