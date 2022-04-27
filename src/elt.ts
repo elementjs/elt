@@ -274,6 +274,7 @@ export function e<K extends keyof HTMLElementTagNameMap>(elt: K, ...children: (I
 export function e(elt: string, ...children: Insertable<HTMLElement>[]): HTMLElement
 export function e<A extends EmptyAttributes<any>>(elt: new (a: A) => Component<A>, attrs: A, ...children: Insertable<AttrsNodeType<A>>[]): AttrsNodeType<A>
 export function e<A extends EmptyAttributes<any>>(elt: (attrs: A, children: Renderable[]) => AttrsNodeType<A>, attrs: A, ...children: Insertable<AttrsNodeType<A>>[]): AttrsNodeType<A>
+// eslint-disable-next-line @typescript-eslint/ban-types
 export function e<N extends Node>(elt: string | Node | Function, ...children: (Insertable<N> | Attrs<N>)[]): N {
   if (!elt) throw new Error("e() needs at least a string, a function or a Component")
 
