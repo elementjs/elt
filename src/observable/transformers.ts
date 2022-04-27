@@ -169,7 +169,7 @@ export namespace tf {
         transform(lst: T[]) {
           this.length = lst.length
           const m = new Map<R, number[]>()
-          for (var i = 0, l = lst.length; i < l; i++) {
+          for (let i = 0, l = lst.length; i < l; i++) {
             const item = lst[i]
             const ex = extractor(item)
             const ls = m.get(ex) ?? m.set(ex, []).get(ex)!
@@ -182,7 +182,7 @@ export namespace tf {
             const ind = entry[1]
             const newl = new Array(ind.length) as T[]
             indices.push(ind)
-            for (var i = 0, l = ind.length; i < l; i++) {
+            for (let i = 0, l = ind.length; i < l; i++) {
               newl[i] = lst[ind[i]]
             }
             res.push([entry[0], newl])

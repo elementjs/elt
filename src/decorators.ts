@@ -41,36 +41,35 @@ import type {
 export type DecoratorResult<N extends Node> = void | Renderable | Decorator<N> | DecoratorResult<N>[]
 export type Decorator<N extends Node> = (node: N) => DecoratorResult<N>
 
+// FIXME this lacks some debounce and throttle, or a way of achieving it.
+function setup_bind<T, N extends Element>(
+  obs: o.Observable<T>,
+  node_get: (node: N) => T,
+  node_set: (node: N, value: T) => void,
+  event = "input" as string | string[]
+) {
+  return function (node: N) {
+    const lock = o.exclusive_lock()
+    /// When the observable changes, update the node
+    node_observe(node, obs, value => {
+      lock(() => { node_set(node, value) })
+    })
+    node_add_event_listener(node, event, () => {
+      lock(() => {
+        const new_value = node_get(node)
+        obs.set(new_value)
+        // since obs could be a transformed observable, using set() may end up setting it
+        // to a *different* value. Here we make sure we keep the node *correctly* in sync
+        // with its observable.
+        if (obs.get() !== new_value) {
+          node_set(node, obs.get())
+        }
+      })
+    })
+  }
+}
 
 export namespace $bind {
-
-  // FIXME this lacks some debounce and throttle, or a way of achieving it.
-  function setup_bind<T, N extends Element>(
-    obs: o.Observable<T>,
-    node_get: (node: N) => T,
-    node_set: (node: N, value: T) => void,
-    event = "input" as string | string[]
-  ) {
-    return function (node: N) {
-      const lock = o.exclusive_lock()
-      /// When the observable changes, update the node
-      node_observe(node, obs, value => {
-        lock(() => { node_set(node, value) })
-      })
-      node_add_event_listener(node, event, () => {
-        lock(() => {
-          const new_value = node_get(node)
-          obs.set(new_value)
-          // since obs could be a transformed observable, using set() may end up setting it
-          // to a *different* value. Here we make sure we keep the node *correctly* in sync
-          // with its observable.
-          if (obs.get() !== new_value) {
-            node_set(node, obs.get())
-          }
-        })
-      })
-    }
-  }
 
   /**
    * Bind an observable to an input's value.
@@ -346,7 +345,9 @@ export function $removed<N extends Node>(fn: (node: N, parent: Node) => void) {
  */
 export function $scrollable(node: HTMLElement): void {
 
-  $scrollable.setUpNoscroll(node.ownerDocument!)
+  const owner = node.ownerDocument
+  if (owner == null) throw new Error("can only setup scroll on a Node in a document")
+  $scrollable.setUpNoscroll(owner)
 
   const style = node.style
   style.overflowY = "auto"
