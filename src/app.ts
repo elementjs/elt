@@ -10,7 +10,7 @@ const sym_data = Symbol("data")
  */
 export class App {
 
-  cache = new Map<Function, App.Service>()
+  cache = new Map<(srv: App.Service) => Promise<any>, App.Service>()
 
   o_active_service = o(null as null | App.Service)
   protected _reactivate: App.ServiceCreator<any> | null = null
@@ -81,7 +81,7 @@ export class App {
       if (this._reactivate) {
         const srv = this._reactivate
         this._reactivate = null
-        return this.activate(srv)
+        this.activate(srv)
       }
     }
   }
@@ -93,7 +93,7 @@ export class App {
   cleanup() {
     const srv = this.o_active_service.get()
     if (!srv) return
-    const new_cache = new Map<Function, App.Service>()
+    const new_cache = new Map<(srv: App.Service) => Promise<any>, App.Service>()
     const reqs = new Set<App.Service>([srv])
     for (const r of reqs) {
       new_cache.set(r.builder, r)
@@ -130,7 +130,7 @@ export namespace App {
   export type ServiceCreator<T> = (srv: App.Service) => Promise<T>
 
   export class Service extends o.ObserverHolder {
-    constructor(public app: App, public builder: Function) { super() }
+    constructor(public app: App, public builder: (srv: App.Service) => any) { super() }
     _on_activate: (() => any)[] = []
     _on_deinit: (() => any)[] = []
 
