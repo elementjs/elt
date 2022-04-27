@@ -260,10 +260,10 @@ export function each_recursive(obs: Observable<any>, fn: (v: Observable<any>) =>
 
   const objs = [] as Observable<any>[]
   const stack = [] as [(ChildObservableLink | null)[], number][]
-  var [children, i] = [obs._children.arr, 0]
+  let [children, i] = [obs._children.arr, 0]
   objs.push(obs)
 
-  while (true) {
+  for (;;) {
     const _child = children[i]
     if (_child) {
       const child = _child.child
@@ -286,7 +286,7 @@ export function each_recursive(obs: Observable<any>, fn: (v: Observable<any>) =>
     }
   }
 
-  for (var i = 0, l = objs.length; i < l; i++) {
+  for (let i = 0, l = objs.length; i < l; i++) {
     fn(objs[i])
   }
 }
@@ -493,6 +493,53 @@ export class Observable<A> implements ReadonlyObservable<A>, Indexable {
   }
 
   /**
+   * Setup #o.Observable.produce.
+   *
+   * ```ts
+   * import * as immer from "immer"
+   * import { o } from "elt"
+   * o.Observable.useImmer(immer)
+   * ```
+   *
+   * @param immer The whole immer library, not just the default import
+   */
+  static useImmer(immer: typeof import("immer")) {
+    const produce = immer.produce
+    const nothing = immer.nothing
+    this.prototype.produce = function <A>(fn: (current: A) => A | void | o.NoValue) {
+      const original = this.get()
+      const res: any = produce(original, (val: A) => {
+        return fn(val)
+      })
+      if (res === nothing) {
+        this.set(undefined)
+        return undefined
+      } else if (res !== o.NoValue) {
+        this.set(res)
+        return res
+      } else {
+        return original
+      }
+    }
+  }
+
+  /**
+   * Convenience function that uses immer's `produce` function if immer is one your
+   * project's dependency and you used `o.Observable.useImmer(immer)`.
+   *
+   * If the result of `fn` is o.NoValue, the Observable is left untouched, otherwise
+   * the result of immer's produce() is passed to `set()`.
+   *
+   * @param fn The callback passed to immer
+   * @returns The object returned by produce() and that was just set(), or the original value
+   *          if fn() returned o.NoValue.
+   */
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  produce(fn: (current: A) => A | void | o.NoValue | A extends undefined ? typeof import("immer")["nothing"] : never): A {
+    throw new Error("immer must be included in your project for produce to work")
+  }
+
+  /**
    * Assign new values to the Observable.
    *
    * This method expects an object that contains new values to be assigned *recursively*
@@ -601,10 +648,12 @@ export class Observable<A> implements ReadonlyObservable<A>, Indexable {
   /**
    * @internal
    */
+  // eslint-disable-next-line @typescript-eslint/no-empty-function
   unwatched() { }
   /**
    * @internal
    */
+  // eslint-disable-next-line @typescript-eslint/no-empty-function
   watched() { }
 
   /**
@@ -669,6 +718,7 @@ export class Observable<A> implements ReadonlyObservable<A>, Indexable {
         }
         return res
       },
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       (ret, _, [omap, okey, _2, delete_on_undefined]) => {
         const result = new Map(omap) //.set(okey, ret)
         // Is this correct ? should I **delete** when I encounter undefined ?
@@ -1510,4 +1560,3 @@ export function merge<T>(obj: {[K in keyof T]: Observable<T[K]>}): Observable<T>
   }
 
 }
-
