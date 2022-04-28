@@ -178,7 +178,7 @@ export namespace Repeat {
 
     constructor(
       public obs: o.Observable<T[]>,
-      public renderfn: (ob: o.Observable<T>, n: o.ReadonlyObservable<number>) => Renderable,
+      public renderfn: (ob: o.Observable<T>, n: o.RO<number>) => Renderable,
       public options: Repeat.Options<T> = {}
     ) {
       super({})
@@ -296,12 +296,12 @@ export namespace Repeat {
  *
  * @category verbs, toc
  */
-export function RepeatScroll<T extends o.RO<any[]>>(ob: T, render: (arg: Repeat.RoItem<T>, idx: number) => Renderable): Node
-export function RepeatScroll<T extends o.RO<any[]>>(ob: T, options: RepeatScroll.Options<Repeat.Item<T>>, render: (arg: Repeat.RoItem<T>, idx: number) => Renderable): Node
+export function RepeatScroll<T extends o.RO<any[]>>(ob: T, render: (arg: Repeat.RoItem<T>, idx: o.RO<number>) => Renderable): Node
+export function RepeatScroll<T extends o.RO<any[]>>(ob: T, options: RepeatScroll.Options<Repeat.Item<T>>, render: (arg: Repeat.RoItem<T>, idx: o.RO<number>) => Renderable): Node
 export function RepeatScroll<T extends o.RO<any[]>>(
   ob: T,
-  opts_or_render: ((arg: Repeat.RoItem<T>, idx: number) => Renderable) | RepeatScroll.Options<Repeat.Item<T>>,
-  real_render?: ((arg: Repeat.RoItem<T>, idx: number) => Renderable)
+  opts_or_render: ((arg: Repeat.RoItem<T>, idx: o.RO<number>) => Renderable) | RepeatScroll.Options<Repeat.Item<T>>,
+  real_render?: ((arg: Repeat.RoItem<T>, idx: o.RO<number>) => Renderable)
 ): Node {
   // we cheat the typesystem, which is not great, but we "know what we're doing".
   if (typeof opts_or_render === "function") {
@@ -339,7 +339,7 @@ export namespace RepeatScroll {
 
     constructor(
       ob: o.Observable<T[]>,
-      renderfn: (e: o.Observable<T>, oi: o.ReadonlyObservable<number>) => Renderable,
+      renderfn: (e: o.Observable<T>, oi: o.RO<number>) => Renderable,
       public options: RepeatScroll.Options<T>
     ) {
       super(ob, renderfn, options)
