@@ -65,6 +65,8 @@ const NODE_IS_INSERTED =      0x010
 const NODE_IS_OBSERVING =     0x100
 
 
+export type LifecycleCallback<N = Node> = (n: N, parent: Node) => void
+
 // Elt adds a few symbol properties on the nodes it creates.
 declare global {
 
@@ -73,15 +75,9 @@ declare global {
     [sym_objects]?: object[]
     [sym_observers]?: o.Observer<any>[]
 
-    // Note: the following section is somewhat "incorrect", as the correct typing here
-    // would be (n: this) => void for the functions.
-    // However, doing so then prevents some simple code like
-    // var n: Node = some_node.nextSibling, since its sym_init would then be (n: ChildNode) => void.
-    // This would cause too much code to break, so too bad, but we won't do that.
-
-    [sym_init]?: ((n: Node, parent: Node) => void)[]
-    [sym_inserted]?: ((n: Node, parent: Node) => void)[]
-    [sym_removed]?: ((n: Node, parent: Node) => void)[]
+    [sym_init]?: LifecycleCallback[]
+    [sym_inserted]?: LifecycleCallback[]
+    [sym_removed]?: LifecycleCallback[]
   }
 }
 
@@ -295,13 +291,13 @@ export function setup_mutation_observer(node: Node) {
   const obs = new MutationObserver(records => {
     for (let i = 0, l = records.length; i < l; i++) {
       const record = records[i]
-      for (var removed = record.removedNodes, j = 0, lj = removed.length; j < lj; j++) {
+      for (let removed = record.removedNodes, j = 0, lj = removed.length; j < lj; j++) {
         const removed_node = removed[j]
         if (!removed_node.isConnected) {
           node_do_remove(removed_node, record.target)
         }
       }
-      for (var added = record.addedNodes, j = 0, lj = added.length; j < lj; j++) {
+      for (let added = record.addedNodes, j = 0, lj = added.length; j < lj; j++) {
         const added_node = added[j]
         node_do_inserted(added_node)
       }
@@ -312,7 +308,7 @@ export function setup_mutation_observer(node: Node) {
   const target_document = (node.ownerDocument ?? node) as Document
 
   if (!_registered_documents.has(target_document)) {
-    target_document.defaultView?.addEventListener("unload", ev => {
+    target_document.defaultView?.addEventListener("unload", () => {
       // Calls a `removed` on all the nodes in the closing window.
       node_do_remove(target_document.firstChild!, target_document)
       obs.disconnect()
@@ -397,8 +393,7 @@ export function node_observe<T>(node: Node, obs: o.RO<T>, obsfn: o.Observer.Call
     if (node[sym_mount_status] & NODE_IS_INITED)
       obsfn(obs, o.NoValue)
     else
-      // otherwise, call it when inited
-      node_on(node, sym_init, () => obsfn(obs, o.NoValue))
+      node_on_inserted(node, () => obsfn(obs, o.NoValue))
     return null
   }
   // Create the observer and append it to the observer array of the node
@@ -575,33 +570,89 @@ function _remove_class(node: Element, c: string) {
     node.setAttribute("class", name)
 }
 
+/**
+ * Run a `callback` whenever this `node` goes through the init lifecycle event.
+ * @category low level dom, toc
+ * @param node
+ * @param callback
+ */
+export function node_on_init<N extends Node>(node: N, callback: LifecycleCallback<N>) {
+  node_on(node, sym_init, callback)
+}
 
 /**
- * Register a `callback` to be called for the life-cycle event `sym` on `node`.
- * [[$init]], [[$inserted]] and [[$removed]] are more commonly used, or alternatively [[Mixin#init]], [[Mixin#inserted]] or [[Mixin#removed]]
- *
- * This is mostly used internally.
- *
- * @code ../examples/node_on.tsx
+ * Run a `callback` whenever this `node` is inserted into the DOM.
  * @category low level dom, toc
+ * @param node
+ * @param callback
  */
-export function node_on<N extends Node>(
+export function node_on_inserted<N extends Node>(node: N, callback: LifecycleCallback<N>) {
+  node_on(node, sym_inserted, callback)
+}
+
+/**
+ * Run a `callback` whenever this `node` is removed from the dom.
+ * @category low level dom, toc
+ * @param node
+ * @param callback
+ */
+export function node_on_removed<N extends Node>(node: N, callback: LifecycleCallback<N>) {
+  node_on(node, sym_removed, callback)
+}
+
+/**
+ * Unregister a previously registered `callback` for the init lifecycle event of this `node`.
+ * @category low level dom, toc
+ * @param node
+ * @param callback
+ */
+export function node_off_init<N extends Node>(node: N, callback: LifecycleCallback<N>) {
+  node_off(node, sym_init, callback)
+}
+
+/**
+ * Unregister a previously registered `callback` for the inserted lifecycle event of this `node`.
+ * @category low level dom, toc
+ * @param node
+ * @param callback
+ */
+export function node_off_inserted<N extends Node>(node: N, callback: LifecycleCallback<N>) {
+  node_off(node, sym_inserted, callback)
+}
+
+/**
+ * Unregister a previously registered `callback` for the removed lifecycle event of this `node`.
+ * @category low level dom, toc
+ * @param node
+ * @param callback
+ */
+export function node_off_removed<N extends Node>(node: N, callback: LifecycleCallback<N>) {
+  node_off(node, sym_removed, callback)
+}
+
+/* @internal */
+function node_on<N extends Node>(
   node: N,
   sym: typeof sym_init | typeof sym_inserted | typeof sym_removed,
-  callback: (n: N, parent: Node) => void
+  callback: LifecycleCallback<N>
 ) {
-  (node[sym] = node[sym] ?? []).push(callback as (n: Node, parent: Node) => void)
+  const cbks = (node[sym] ??= [])
+  cbks.push(callback as LifecycleCallback)
 }
 
 
 /**
  * Remove a previously associated `callback` from the life-cycle event `sym` for the `node`.
- * @category low level dom, toc
+ * @internal
  */
-export function node_off<N extends Node>(
+function node_off<N extends Node>(
   node: N,
   sym: typeof sym_init | typeof sym_inserted | typeof sym_removed,
-  callback: (n: N, parent: Node) => void
+  callback: LifecycleCallback<N>
 ) {
-  (node[sym] = node[sym] ?? []).filter(f => f !== callback as (n: Node, parent: Node) => void)
+  const cbks = node[sym]
+  if (cbks == null) return
+  const idx = cbks.indexOf(callback as LifecycleCallback)
+  if (idx > -1)
+    cbks.splice(idx, 1)
 }
