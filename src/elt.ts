@@ -1,10 +1,6 @@
 import { o } from "./observable"
 
 import {
-  Component
-} from "./component"
-
-import {
   ClassDefinition,
   StyleDefinition,
   node_observe_class,
@@ -12,7 +8,8 @@ import {
   node_observe_attribute,
   insert_before_and_init,
   append_child_and_init,
-  node_do_remove
+  node_do_remove,
+  node_observe
 } from "./dom"
 
 
@@ -79,16 +76,8 @@ const NS = {
 } as {[name: string]: string}
 
 
-function isComponentClass(kls: any): kls is new (attrs: Attrs<any>) => Component<any> {
-  return kls.prototype instanceof Component
-}
-
 export type WrappedComponent<N extends Node> = {
   componentFn: (at: Attrs<N>, children: Renderable[]) => N
-}
-
-function isWrappedComponent(cmp: any): cmp is WrappedComponent<any> {
-  return cmp && !!cmp.componentFn
 }
 
 
@@ -99,12 +88,11 @@ let cmt_count = 0
  * Can be used as a base to build verbs more easily.
  * @category dom, toc
  */
-export class CommentContainer extends Component<EmptyAttributes<Comment>> {
+export class CommentContainer {
 
   /** The Comment marking the end of the node handled by this Mixin */
+  node = document.createComment(`-- ${this.constructor.name} start --`)
   end = document.createComment(`-- ${this.constructor.name} ${cmt_count ++} --`)
-
-  constructor() { super({}) }
 
   /**
    * Remove all nodes between this.start and this.node
@@ -133,7 +121,7 @@ export class CommentContainer extends Component<EmptyAttributes<Comment>> {
   }
 
   render(): Comment {
-    return e(document.createComment(this.constructor.name),
+    return e(this.node,
       $init(node => node.parentNode!.insertBefore(this.end, node.nextSibling))
     )
   }
@@ -158,9 +146,11 @@ export class Displayer extends CommentContainer {
   }
 
   render() {
-    return e(super.render(), $observe(this._obs, value =>
-      this.setContents(e.renderable_to_node(value)))
-    )
+    const res = super.render()
+    node_observe(res, this._obs, value => {
+      this.setContents(e.renderable_to_node(value))
+    })
+    return res
   }
 
 }
@@ -181,7 +171,7 @@ export function Display(obs: o.RO<Renderable>): Node {
     return e.renderable_to_node(obs as Renderable, true)
   }
 
-  return new Displayer(obs).renderAndAttach([])
+  return (new Displayer(obs)).render()
 }
 
 
@@ -191,7 +181,7 @@ export function Display(obs: o.RO<Renderable>): Node {
  * to define what can go between `{ curly braces }` in JSX code.
  * @category dom, toc
  */
-export type Renderable = o.RO<string | number | Node | null | undefined | {[e.sym_render](): Node} | Renderable[]>
+export type Renderable = o.RO<string | number | Node | null | undefined | {render(): Node} | Renderable[]>
 
 /**
  * @category dom, toc
@@ -272,7 +262,6 @@ export function e<N extends Node>(elt: N, ...children: (Insertable<N> | Attrs<N>
 export function e<K extends keyof SVGElementTagNameMap>(elt: K, ...children: (Insertable<SVGElementTagNameMap[K]> | e.JSX.SVGAttributes<SVGElementTagNameMap[K]>)[]): SVGElementTagNameMap[K]
 export function e<K extends keyof HTMLElementTagNameMap>(elt: K, ...children: (Insertable<HTMLElementTagNameMap[K]> | e.JSX.HTMLAttributes<HTMLElementTagNameMap[K]>)[]): HTMLElementTagNameMap[K]
 export function e(elt: string, ...children: Insertable<HTMLElement>[]): HTMLElement
-export function e<A extends EmptyAttributes<any>>(elt: new (a: A) => Component<A>, attrs: A, ...children: Insertable<AttrsNodeType<A>>[]): AttrsNodeType<A>
 export function e<A extends EmptyAttributes<any>>(elt: (attrs: A, children: Renderable[]) => AttrsNodeType<A>, attrs: A, ...children: Insertable<AttrsNodeType<A>>[]): AttrsNodeType<A>
 // eslint-disable-next-line @typescript-eslint/ban-types
 export function e<N extends Node>(elt: string | Node | Function, ...children: (Insertable<N> | Attrs<N>)[]): N {
@@ -312,10 +301,6 @@ export function e<N extends Node>(elt: string | Node | Function, ...children: (I
       }
     }
 
-  } else if (isComponentClass(elt)) {
-    node = new elt(attrs).renderAndAttach(renderables) as unknown as N
-  } else if (isWrappedComponent(elt)) {
-    node = elt.componentFn(attrs, renderables)
   } else if (typeof elt === "function") {
     // elt is just a creator function
     node = elt(attrs, renderables)
@@ -331,22 +316,6 @@ export function e<N extends Node>(elt: string | Node | Function, ...children: (I
   }
 
   return node
-}
-
-e.component = function component<At, N extends Node>(fn: (attrs: At, children: Renderable[]) => N): {} extends At ? {
-  (attrs?: Attrs<N> & At, ...children: Insertable<N>[]): N
-  componentFn: (at: Attrs<N> & At, children: Renderable[]) => N
-} : {
-  (attrs: Attrs<N> & At, ...children: Insertable<N>[]): N
-  componentFn: (at: Attrs<N> & At, children: Renderable[]) => N
-}
-{
-  const res: any = function (...args: any[]) {
-    return E(fn as any, args)
-  }
-  res.componentFn = fn as any
-
-  return res
 }
 
 /**
@@ -371,24 +340,14 @@ export function Fragment(...children: (Insertable<DocumentFragment> | EmptyAttri
 const $ = Fragment
 
 
-import { Decorator, $observe, $init } from "./decorators"
+import { Decorator, $init } from "./decorators"
 
 
 export namespace e {
 
-  /**
-   * Implement this property on any object to be able to insert it as a node
-   * child. The signature it implements is `() => Renderable`.
-   *
-   * @code ../examples/e.sym_render.tsx
-   *
-   * @category toc, dom
-   */
-  export const sym_render = Symbol("renderable")
-
   /** @internal */
-  export function is_renderable_object(c: any): c is {[sym_render](): Node} {
-    return c && c[sym_render]
+  export function is_renderable_object(c: any): c is {render(): Node} {
+    return c && typeof c.render === "function"
   }
 
   /**
@@ -437,7 +396,7 @@ export namespace e {
       }
       return df
     } else if (is_renderable_object(r)) {
-      return r[e.sym_render]()
+      return r.render()
     } else {
       return r
     }
@@ -521,7 +480,7 @@ export namespace e {
     }
 
     /** @internal */
-    export type ElementClass = ElementClassFn<any> | Component<EmptyAttributes<any>>
+    export type ElementClass = ElementClassFn<any>
 
     ///////////////////////////////////////////////////////////////////////////
     // Now following are the default attributes for HTML and SVG nodes.

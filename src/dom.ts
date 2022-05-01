@@ -605,18 +605,3 @@ export function node_off<N extends Node>(
 ) {
   (node[sym] = node[sym] ?? []).filter(f => f !== callback as (n: Node, parent: Node) => void)
 }
-
-export function node_add_data(node: Node, object: object) {
-  (node[sym_objects] ?? (node[sym_objects] = [])).push(object)
-}
-
-export function node_remove_data(node: Node, object: object) {
-  const objs = node[sym_objects]
-  if (!objs) return
-  const idx = objs.indexOf(object)
-  if (idx > -1) objs.splice(idx, 1)
-}
-
-export function node_get_data<T extends object>(node: Node, kls: new (...a: any[]) => T) {
-  return (node[sym_objects] ?? []).filter(obj => obj instanceof kls) as T[]
-}
