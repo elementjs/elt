@@ -5,11 +5,7 @@ import {
   o
 } from "./observable"
 
-import {
-  Component,
-} from "./component"
-
-import { e, Renderable, Displayer, Display, EmptyAttributes } from "./elt"
+import { e, Renderable, Displayer, Display } from "./elt"
 
 import {
   insert_before_and_init,
@@ -40,7 +36,7 @@ export function If<T extends o.RO<any>>(
   condition: T,
   display: (arg: If.NonNullableRO<T>) => Renderable,
   display_otherwise?: (a: T) => Renderable
-): Node {
+): Renderable {
   // ts bug on condition.
   if (!((condition as any) instanceof o.Observable)) {
     return condition ?
@@ -50,7 +46,7 @@ export function If<T extends o.RO<any>>(
         : document.createComment("false"), true)
   }
 
-  return new If.ConditionalDisplayer(display as any, condition as any, display_otherwise as any).renderAndAttach([])
+  return new If.ConditionalDisplayer(display as any, condition as any, display_otherwise as any)
 }
 
 export namespace If {
@@ -133,7 +129,7 @@ export function Repeat<T extends o.RO<any[]>>(
     return df
   }
 
-  return new Repeat.Repeater(ob, render as any, options).renderAndAttach([])
+  return new Repeat.Repeater(ob, render as any, options).render()
 }
 
 export namespace Repeat {
@@ -170,23 +166,22 @@ export namespace Repeat {
    * Repeats content.
    * @internal
    */
-  export class Repeater<T> extends Component<EmptyAttributes<Comment>> {
+  export class Repeater<T> {
 
     protected last: RepeatPositionNode | null = null
     protected next_index: number = 0
     protected lst: T[] = []
+    protected node = document.createComment(this.constructor.name)
 
     constructor(
       public obs: o.Observable<T[]>,
       public renderfn: (ob: o.Observable<T>, n: o.RO<number>) => Renderable,
       public options: Repeat.Options<T> = {}
-    ) {
-      super({})
-    }
+    ) { }
 
     render() {
       // var old_map = new Map<
-      const res = e(document.createComment(this.constructor.name),
+      const res = e(this.node,
         $observe(this.obs, lst => {
           this.lst = lst || []
           const diff = lst.length - this.next_index
@@ -305,10 +300,10 @@ export function RepeatScroll<T extends o.RO<any[]>>(
 ): Node {
   // we cheat the typesystem, which is not great, but we "know what we're doing".
   if (typeof opts_or_render === "function") {
-    return new RepeatScroll.ScrollRepeater<any>(o(ob as any) as o.Observable<any>, opts_or_render as any, {}).renderAndAttach([])
+    return new RepeatScroll.ScrollRepeater<any>(o(ob as any) as o.Observable<any>, opts_or_render as any, {}).render()
   }
 
-  return new RepeatScroll.ScrollRepeater<any>(o(ob as any) as o.Observable<any>, real_render as any, opts_or_render).renderAndAttach([])
+  return new RepeatScroll.ScrollRepeater<any>(o(ob as any) as o.Observable<any>, real_render as any, opts_or_render).render()
 }
 
 export namespace RepeatScroll {
