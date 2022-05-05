@@ -381,16 +381,16 @@ export function append_child_and_init(parent: Node, child: Node) {
 
 
 /**
- * Tie the observal of an `#Observable` to the presence of this node in the DOM.
+ * Tie the observal of an `#Observable` to the presence of this `node` in the DOM.
  *
  * Used mostly by [[$observe]] and [[Mixin.observe]]
  *
  * @category low level dom, toc
  */
-export function node_observe<T>(node: Node, obs: o.RO<T>, obsfn: o.Observer.Callback<T>, observer_callback?: (obs: o.Observer<T>) => any): o.Observer<T> | null {
+export function node_observe<T>(node: Node, obs: o.RO<T>, obsfn: o.Observer.Callback<T>, observer_callback?: (obs: o.Observer<T>) => any, immediate = false): o.Observer<T> | null {
   if (!(o.isReadonlyObservable(obs))) {
     // If the node is already inited, run the callback
-    if (node[sym_mount_status] & NODE_IS_INITED)
+    if (immediate || node[sym_mount_status] & NODE_IS_INITED)
       obsfn(obs, o.NoValue)
     else
       node_on_inserted(node, () => obsfn(obs, o.NoValue))
@@ -475,7 +475,7 @@ export function node_observe_attribute(node: Element, name: string, value: o.RO<
     else
       // We can remove safely even if it doesn't exist as it won't raise an exception
       node.removeAttribute(name)
-  })
+  }, undefined, true)
 }
 
 
