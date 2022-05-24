@@ -654,7 +654,8 @@ export namespace e {
       title?: NRO<string>
       xmlns?: string
 
-      "clip-path"?: string;
+      "clip-path"?: string
+      clipPathUnits?: NRO<"userSpaceOnUse" | "objectBoundingBox">
       cx?: NRO<number | string>
       cy?: NRO<number | string>
       d?: NRO<string>
