@@ -181,7 +181,7 @@ export function Display(obs: o.RO<Renderable>): Node {
  * to define what can go between `{ curly braces }` in JSX code.
  * @category dom, toc
  */
-export type Renderable = o.RO<string | number | Node | null | undefined | {render(): Node} | Renderable[]>
+export type Renderable = o.RO<string | number | Node | null | undefined | Renderable[]>
 
 /**
  * @category dom, toc
@@ -345,11 +345,6 @@ import { Decorator, $init } from "./decorators"
 
 export namespace e {
 
-  /** @internal */
-  export function is_renderable_object(c: any): c is {render(): Node} {
-    return c && typeof c.render === "function"
-  }
-
   /**
    * FIXME : re document this !
    * @internal
@@ -360,7 +355,7 @@ export namespace e {
       if (c == null) continue
       if (Array.isArray(c)) {
         handle_raw_children(c, attrs, decorators, chld)
-      } else if (c instanceof Node || typeof c === "string" || typeof c === "number" || o.isReadonlyObservable(c) || is_renderable_object(c)) {
+      } else if (c instanceof Node || typeof c === "string" || typeof c === "number" || o.isReadonlyObservable(c)) {
         chld.push(c)
       } else if (typeof c === "function") {
         // FIXME / WARNING : as it stands, this implementation is broken, as if the same decorator is called while
@@ -395,8 +390,6 @@ export namespace e {
         if (r2) df.appendChild(r2)
       }
       return df
-    } else if (is_renderable_object(r)) {
-      return r.render()
     } else {
       return r
     }
