@@ -46,7 +46,7 @@ export function If<T extends o.RO<any>>(
         : document.createComment("false"), true)
   }
 
-  return new If.ConditionalDisplayer(display as any, condition as any, display_otherwise as any)
+  return new If.ConditionalDisplayer(display as any, condition as any, display_otherwise as any).render()
 }
 
 export namespace If {
