@@ -252,7 +252,7 @@ export interface ReadonlyObservable<A> {
  *
  * @category observable, toc
  */
-export type RO<A> = ReadonlyObservable<A> | A
+export type RO<A> = Observable<A> | ReadonlyObservable<A> | A
 
 
 /** @internal */
@@ -914,7 +914,7 @@ export function combine<T extends any[], R>(deps: {[K in keyof T]: RO<T[K]>}, ge
  *
  * @category observable, toc
  */
-export function merge<T>(obj: {[K in keyof T]: Observable<T[K]> | T[K]}): Observable<T>
+export function merge<T>(obj: {[K in keyof T]: Observable<T[K]>}): Observable<T>
 export function merge<T>(obj: {[K in keyof T]: RO<T[K]>}): ReadonlyObservable<T>
 export function merge<T>(obj: {[K in keyof T]: Observable<T[K]>}): Observable<T> {
   const keys = Object.keys(obj) as (keyof T)[]
@@ -971,13 +971,17 @@ export function merge<T>(obj: {[K in keyof T]: Observable<T[K]>}): Observable<T>
     })
   }
 
+  export function is_observable<T>(arg: RO<T>): arg is Observable<T> | ReadonlyObservable<T> {
+    return arg instanceof Observable
+  }
+
   /**
    * Get a MaybeObservable's value
    * @returns `arg.get()` if it was an Observable or `arg` itself if it was not.
    * @category observable, toc
    */
   export function get<A>(arg: RO<A>): A {
-    return arg instanceof Observable ? arg.get() : arg
+    return is_observable(arg) ? arg.get() : arg
   }
 
   /**

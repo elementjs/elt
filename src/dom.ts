@@ -490,7 +490,8 @@ export function node_observe_style(node: HTMLElement | SVGElement, style: StyleD
       const props = Object.keys(st)
       for (let i = 0, l = props.length; i < l; i++) {
         const x = props[i]
-        ns.setProperty(x.replace(/[A-Z]/g, m => "-" + m.toLowerCase()), st[x])
+        const value = st[x as any] as any
+        ns.setProperty(x.replace(/[A-Z]/g, m => "-" + m.toLowerCase()), value)
       }
     })
   } else {
