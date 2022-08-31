@@ -7,22 +7,6 @@ export interface Indexable {
 
 
 /**
- * Does a naive foreach on an IndexableArray
- * @param _arr the array
- * @param fn the function to apply
- * @internal
- */
-export function EACH<T extends Indexable>(_arr: IndexableArray<T>, fn: (arg: T) => void) {
-  for (let i = 0, arr = _arr.arr; i < arr.length; i++) {
-    const item = arr[i]
-    if (item == null) continue
-    fn(item)
-  }
-  _arr.actualize()
-}
-
-
-/**
  * An array wrapper that infects its elements with their indexes for faster deletion.
  * @internal
  */

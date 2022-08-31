@@ -1,4 +1,4 @@
-import { EACH, IndexableArray, Indexable } from "./indexable"
+import { IndexableArray, Indexable } from "./indexable"
 
 declare const DEBUG: boolean
 
@@ -330,7 +330,13 @@ export class Queue extends IndexableArray<Observable<any>> {
       }
 
       obs.idx = null
-      EACH(obs._observers, o => o.refresh())
+
+      for (let i = 0, oa = obs._observers.arr; i < oa.length; i++) {
+        const or = oa[i]
+        if (or == null) continue
+        or.refresh()
+      }
+
       arr[i] = null // just in case...
     }
     this.real_size = 0
@@ -586,8 +592,10 @@ export class Observable<A> implements ReadonlyObservable<A>, Indexable {
     const ob = _ob
     this._observers.add(_ob)
     this.checkWatch()
-    if (this.idx == null)
+    if (this.idx == null) {
+      // Refresh the observer immediately this observable is not being queued for a transaction.
       ob.refresh()
+    }
     return ob
   }
 
@@ -599,7 +607,7 @@ export class Observable<A> implements ReadonlyObservable<A>, Indexable {
     if (ch.idx != null) return
     this._children.add(ch)
     if (this.idx != null)
-      queue.add(ch.child)
+      queue.schedule(ch.child)
     this.checkWatch()
   }
 
