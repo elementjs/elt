@@ -1529,7 +1529,7 @@ export function merge<T>(obj: {[K in keyof T]: Observable<T[K]>}): Observable<T>
         if (this.is_observing)
           fn(obs as A, NoValue)
         else
-          (this._callback_queue = this._callback_queue ?? []).push(() => fn(obs as A, NoValue))
+          (this._callback_queue ??= []).push(() => fn(obs as A, NoValue))
         return null
       }
 
