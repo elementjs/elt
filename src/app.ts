@@ -8,12 +8,41 @@ const sym_data = Symbol("data")
  * An app is a collection of services and their associated view map.
  * This is all it does.
  */
-export class App {
+export class App extends o.ObserverHolder {
 
   cache = new Map<(srv: App.Service) => Promise<any>, App.Service>()
 
-  o_active_service = o(null as null | App.Service)
-  protected _reactivate: App.ServiceCreator<any> | null = null
+
+  /** Parameters inside the fragment portion of the URL, as defined */
+  o_fragment_params = o({} as {[name: string]: string})
+
+  /** Parameters that are known to be numbers by the developper are converted directly here */
+  o_fragment_params_numbers = this.o_fragment_params.tf(
+    params => {
+      let res: {[name: string]: number} = {}
+      for (let prop of Object.getOwnPropertyNames(params))
+        res[prop] = Number(params[prop])
+      return res
+    },
+    (changed, _, original) => {
+      let res: {[name: string]: string} = {}
+      for (let prop of Object.getOwnPropertyNames(changed))
+        res[prop] = Number.isFinite(changed[prop]) ? ""+changed[prop] : original[prop]
+      return res
+    }
+  )
+
+  protected _current_fragmentdef: string = ""
+
+  /** @internal the exclusive lock when changing o_fragment_params or the current service */
+  protected _lock_fragment = o.exclusive_lock()
+
+  /** An observable containing the currently active service */
+  o_active_service = o(null as null | App.Service) as o.ReadonlyObservable<App.Service>
+
+  protected _reactivate: App.ServiceBuilder<any> | null = null
+  protected _url_map: [RegExp, App.ServiceBuilder<any>][] = []
+  protected _reverse_map = new Map<App.ServiceBuilder<any>, string[]>()
 
   o_views = this.o_active_service.tf(ser => {
     const views = new Map<string, () => Renderable>()
@@ -29,6 +58,84 @@ export class App {
     }
     return views
   })
+
+  activateDefaultOrFromHash(def?: App.ServiceBuilder<any> | null) {
+    // When the hash is changed externally, we will look for a corresponding service and set
+    // the hashparams accordingly.
+    // If no service is found, then by default the one corresponding to "" will be set as active.
+
+    const newhash = window.location.hash.slice(1)
+    const fragment_params: {[name: string]: string} = {}
+
+    for (let [regexp, srvbuilder] of this._url_map) {
+      const match = regexp.exec(newhash)
+      if (match) {
+        o.transaction(() => {
+          this.o_fragment_params.set(fragment_params)
+          this.activate(srvbuilder)
+        })
+        return
+      }
+    }
+
+    if (def) {
+      this.o_fragment_params.set({})
+      this.activate(def)
+    } else {
+      console.warn("No default builder")
+    }
+  }
+
+  /**
+   * Setup listening to fragment changes
+   * @param defs The url definitions
+   */
+  setupRouter(defs: [string, App.ServiceBuilder<any>][]) {
+
+    let default_builder: App.ServiceBuilder<any> | null = null
+    let pending_hash_change = false
+    for (let [url, builder] of defs) {
+      if (url === "") {
+        default_builder = builder
+        continue
+      } else {
+        let arr = this._reverse_map.get(builder) ?? []
+        arr.push(url)
+        this._reverse_map.set(builder, arr)
+      }
+
+      let regexp = new RegExp("^" + url + "$")
+      this._url_map.push([regexp, builder])
+    }
+
+    // When the active service changes, we want to update the hash accordingly
+    this.observe(o.join(this.o_active_service, this.o_fragment_params), ([srv, params]) => {
+      if (!srv) return
+      const urls = this._reverse_map.get(srv.builder)
+      if (urls && urls[0]) {
+        window.location.hash = urls[0]
+        pending_hash_change = true
+      }
+    })
+
+    this.startObservers()
+
+    const update_from_fragment = () => {
+      // Do not try to handle hash if the change came from an observable.
+      if (pending_hash_change) {
+        pending_hash_change = false
+        return
+      }
+      this.activateDefaultOrFromHash(default_builder)
+    }
+
+    setTimeout(update_from_fragment)
+
+    window.addEventListener("hashchange", event => {
+      update_from_fragment()
+    })
+
+  }
 
   async getService<S>(si: (srv: App.Service) => Promise<S>) {
     // For a given service instanciator, we will also check if it has arguments or not.
@@ -55,7 +162,7 @@ export class App {
   /**
    * Does like require() but sets the resulting service as the active instance.
    */
-  async activate<S>(si: App.ServiceCreator<S>): Promise<void> {
+  async activate<S>(si: App.ServiceBuilder<S>): Promise<void> {
 
     const active = this.o_active_service.get()
     if (active?.builder === si) return // Do not activate if the currently active service is already the asked one.
@@ -69,11 +176,9 @@ export class App {
     try {
       // Try to activate the service
       const srv = await this.getService(si)
-      // If everything went fine, then just set this service as the active one.
-      for (const ac of srv._on_activate) await ac()
 
       srv.forEach(s => s.startObservers())
-      this.o_active_service.set(srv)
+      ;(this.o_active_service as o.Observable<App.Service>).set(srv)
     } finally {
       this.cleanup()
       this.is_activating = false
@@ -127,11 +232,10 @@ export class App {
 
 export namespace App {
 
-  export type ServiceCreator<T> = (srv: App.Service) => Promise<T>
+  export type ServiceBuilder<T> = (srv: App.Service) => Promise<T>
 
   export class Service extends o.ObserverHolder {
     constructor(public app: App, public builder: (srv: App.Service) => any) { super() }
-    _on_activate: (() => any)[] = []
     _on_deinit: (() => any)[] = []
 
     require<S>(fn: (srv: App.Service) => Promise<S>): Promise<S> {
@@ -149,7 +253,6 @@ export namespace App {
     is_persistent = false
 
     onDeinit(fn: () => any) { this._on_deinit.push(fn) }
-    onActivate(fn: () => any) { this._on_activate.push(fn) }
 
     [sym_data]: any
 

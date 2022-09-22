@@ -10,7 +10,7 @@
         "strict": true,
         "noUnusedLocals": true,
         "outDir": "./module",
-        "lib": ["es6", "dom"],
+        "lib": ["ESNext", "dom"],
         "types": []
     },
     "files": [
