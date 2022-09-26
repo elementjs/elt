@@ -10,7 +10,7 @@ SOURCES = $(wildcard ./src/*.ts) $(wildcard ./src/observable/*.ts) Makefile
 all: dist/elt.js dist/elt.debug.js dist/elt.min.js dist/elt.debug.min.js dist/elt.cjs.js dist/elt.d.ts
 
 watch:
-	concurrently -c bgGreen.black,bgRed -n typescript,build 'tsc -w --noEmit | wtsc' 'chokidar --silent "./src/**/*.ts" -c "make"'
+	tsc -w --noEmit | wtsc make
 
 lint:
 	eslint src
