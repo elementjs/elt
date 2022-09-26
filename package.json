@@ -22,7 +22,7 @@
     "@typescript-eslint/eslint-plugin": "^5.15.0",
     "@typescript-eslint/parser": "^5.15.0",
     "chai": "^4.2.0",
-    "chokidar-cli": "^1.2.0",
+    "chokidar-cli": "^3.0.0",
     "concurrently": "^3.5.0",
     "dts-bundle-generator": "^5.9.0",
     "esbuild": "^0.12.15",
