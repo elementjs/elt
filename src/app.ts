@@ -12,31 +12,6 @@ export class App extends o.ObserverHolder {
 
   cache = new Map<(srv: App.Service) => Promise<any>, App.Service>()
 
-
-  /** Parameters inside the fragment portion of the URL, as defined */
-  o_fragment_params = o({} as {[name: string]: string})
-
-  /** Parameters that are known to be numbers by the developper are converted directly here */
-  o_fragment_params_numbers = this.o_fragment_params.tf(
-    params => {
-      const res: {[name: string]: number} = {}
-      for (const prop of Object.getOwnPropertyNames(params))
-        res[prop] = Number(params[prop])
-      return res
-    },
-    (changed, _, original) => {
-      const res: {[name: string]: string} = {}
-      for (const prop of Object.getOwnPropertyNames(changed))
-        res[prop] = Number.isFinite(changed[prop]) ? ""+changed[prop] : original[prop]
-      return res
-    }
-  )
-
-  protected _current_fragmentdef: string = ""
-
-  /** @internal the exclusive lock when changing o_fragment_params or the current service */
-  protected _lock_fragment = o.exclusive_lock()
-
   /** An observable containing the currently active service */
   o_active_service = o(null as null | App.Service) as o.ReadonlyObservable<App.Service>
 
@@ -65,21 +40,16 @@ export class App extends o.ObserverHolder {
     // If no service is found, then by default the one corresponding to "" will be set as active.
 
     const newhash = window.location.hash.slice(1)
-    const fragment_params: {[name: string]: string} = {}
 
     for (const [regexp, srvbuilder] of this._url_map) {
       const match = regexp.exec(newhash)
       if (match) {
-        o.transaction(() => {
-          this.o_fragment_params.set(fragment_params)
-          this.activate(srvbuilder)
-        })
+        this.activate(srvbuilder)
         return
       }
     }
 
     if (def) {
-      this.o_fragment_params.set({})
       this.activate(def)
     } else {
       console.warn("No default builder")
@@ -109,7 +79,7 @@ export class App extends o.ObserverHolder {
     }
 
     // When the active service changes, we want to update the hash accordingly
-    this.observe(o.join(this.o_active_service, this.o_fragment_params), ([srv, params]) => {
+    this.observe(this.o_active_service, (srv) => {
       if (!srv) return
       const urls = this._reverse_map.get(srv.builder)
       if (urls && urls[0]) {
