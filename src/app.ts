@@ -19,14 +19,14 @@ export class App extends o.ObserverHolder {
   /** Parameters that are known to be numbers by the developper are converted directly here */
   o_fragment_params_numbers = this.o_fragment_params.tf(
     params => {
-      let res: {[name: string]: number} = {}
-      for (let prop of Object.getOwnPropertyNames(params))
+      const res: {[name: string]: number} = {}
+      for (const prop of Object.getOwnPropertyNames(params))
         res[prop] = Number(params[prop])
       return res
     },
     (changed, _, original) => {
-      let res: {[name: string]: string} = {}
-      for (let prop of Object.getOwnPropertyNames(changed))
+      const res: {[name: string]: string} = {}
+      for (const prop of Object.getOwnPropertyNames(changed))
         res[prop] = Number.isFinite(changed[prop]) ? ""+changed[prop] : original[prop]
       return res
     }
@@ -67,7 +67,7 @@ export class App extends o.ObserverHolder {
     const newhash = window.location.hash.slice(1)
     const fragment_params: {[name: string]: string} = {}
 
-    for (let [regexp, srvbuilder] of this._url_map) {
+    for (const [regexp, srvbuilder] of this._url_map) {
       const match = regexp.exec(newhash)
       if (match) {
         o.transaction(() => {
@@ -94,17 +94,17 @@ export class App extends o.ObserverHolder {
 
     let default_builder: App.ServiceBuilder<any> | null = null
     let pending_hash_change = false
-    for (let [url, builder] of defs) {
+    for (const [url, builder] of defs) {
       if (url === "") {
         default_builder = builder
         continue
       } else {
-        let arr = this._reverse_map.get(builder) ?? []
+        const arr = this._reverse_map.get(builder) ?? []
         arr.push(url)
         this._reverse_map.set(builder, arr)
       }
 
-      let regexp = new RegExp("^" + url + "$")
+      const regexp = new RegExp("^" + url + "$")
       this._url_map.push([regexp, builder])
     }
 
@@ -131,7 +131,7 @@ export class App extends o.ObserverHolder {
 
     setTimeout(update_from_fragment)
 
-    window.addEventListener("hashchange", event => {
+    window.addEventListener("hashchange", () => {
       update_from_fragment()
     })
 
