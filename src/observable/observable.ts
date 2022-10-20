@@ -1080,6 +1080,26 @@ export function merge<T>(obj: {[K in keyof T]: Observable<T[K]>}): Observable<T>
     return new CombinedObservable(deps)
   }
 
+
+  /**
+   * Create a ReadonlyObservable that is the result of calling `method` on `obs`'s observed value. `args` may contain observables.
+   *
+   * @param obs The base observable
+   * @param method The name of the method to be applied
+   * @param args The arguments
+   */
+  export function apply<
+    T,
+    K extends keyof T,
+    F extends T[K] extends (...args: any[]) => any ? T[K] : never,
+    Args extends Parameters<F>
+    >(obs: o.ReadonlyObservable<T>, method: K, args: {[K2 in keyof Args]: RO<Args[K2]>}): o.ReadonlyObservable<ReturnType<F>> {
+    return o.join(obs, ...(args as any)).tf(([obj, ...args]) => {
+      return (obj[method] as unknown as F).apply(obj, args)
+    })
+  }
+
+
   /**
    * Create a new object based on an original object and a mutator.
    *
