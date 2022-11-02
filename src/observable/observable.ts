@@ -1089,14 +1089,32 @@ export function merge<T>(obj: {[K in keyof T]: Observable<T[K]>}): Observable<T>
    * @param args The arguments
    */
   export function apply<
+    F extends (...args: any[]) => any,
+    Args extends Parameters<F>
+  >(
+    fn: RO<F>,
+    args: {[K in keyof Args]: RO<Args[K]>}
+  ): o.ReadonlyObservable<ReturnType<F>>
+
+  export function apply<
     T,
     K extends keyof T,
     F extends T[K] extends (...args: any[]) => any ? T[K] : never,
     Args extends Parameters<F>
-    >(obs: o.ReadonlyObservable<T>, method: K, args: {[K2 in keyof Args]: RO<Args[K2]>}): o.ReadonlyObservable<ReturnType<F>> {
-    return o.join(obs, ...(args as any)).tf(([obj, ...args]) => {
-      return (obj[method] as unknown as F).apply(obj, args)
-    })
+  >(
+    obs: o.ReadonlyObservable<T>,
+    method: K,
+    args: {[K2 in keyof Args]: RO<Args[K2]>}
+  ): o.ReadonlyObservable<ReturnType<F>>
+
+  export function apply(obs: any, method: any, args?: any) {
+    if (typeof method === "string") {
+      return o.join(obs, ...(args as any)).tf(([obj, ...args]) => {
+        return (obj[method] as any).apply(obj, args)
+      })
+    }
+    // With no string "method" argument, just apply the function with its arguments
+    return o.join(obs, ...method).tf(([fn, ...args]) => fn(...args))
   }
 
 
