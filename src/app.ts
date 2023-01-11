@@ -16,8 +16,19 @@ export class App extends o.ObserverHolder {
   o_active_service = o(null as null | App.Service) as o.ReadonlyObservable<App.Service>
 
   protected _reactivate: App.ServiceBuilder<any> | null = null
-  protected _url_map: [RegExp, App.ServiceBuilder<any>][] = []
-  protected _reverse_map = new Map<App.ServiceBuilder<any>, string[]>()
+  protected _url_map: [RegExp, App.Route][] = []
+  protected _reverse_map = new Map<App.ServiceBuilder<any>, App.Route[]>()
+  /** The lock used to prevent unneeded hash changes */
+  protected _default_service: App.Route | null = null
+
+  o_hash_variables = o({} as {[name: string]: string})
+  o_hash_numbers = this.o_hash_variables.tf(vars => {
+    const res: {[name: string]: number} = {}
+    for (let x in vars) {
+      res[x] = Number(vars[x])
+    }
+    return res
+  })
 
   o_views = this.o_active_service.tf(ser => {
     const views = new Map<string, () => Renderable>()
@@ -41,16 +52,21 @@ export class App extends o.ObserverHolder {
 
     const newhash = window.location.hash.slice(1)
 
-    for (const [regexp, srvbuilder] of this._url_map) {
+    for (const [regexp, route] of this._url_map) {
       const match = regexp.exec(newhash)
       if (match) {
-        this.activate(srvbuilder)
+        // build the variables object
+        const vars = Object.assign({}, route.defaults ?? {}, match.groups ?? {})
+        this.activate(route.builder, vars)
         return
       }
     }
 
     if (def) {
       this.activate(def)
+    } else if (this._default_service) {
+      // default values ?
+      this.activate(this._default_service.builder)
     } else {
       console.warn("No default builder")
     }
@@ -60,51 +76,117 @@ export class App extends o.ObserverHolder {
    * Setup listening to fragment changes
    * @param defs The url definitions
    */
-  setupRouter(defs: [string, App.ServiceBuilder<any>][]) {
+  setupRouter(defs: [string | null, App.ServiceBuilder<any>][] = []) {
 
-    let default_builder: App.ServiceBuilder<any> | null = null
-    let pending_hash_change = false
     for (const [url, builder] of defs) {
-      if (url === "") {
-        default_builder = builder
-        continue
-      } else {
-        const arr = this._reverse_map.get(builder) ?? []
-        arr.push(url)
-        this._reverse_map.set(builder, arr)
-      }
-
-      const regexp = new RegExp("^" + url + "$")
-      this._url_map.push([regexp, builder])
+      this.register(builder, url)
     }
 
+    const enum UpdateFrom {
+      None,
+      Observe,
+      Hash,
+    }
+
+    let update_from = 0
+
     // When the active service changes, we want to update the hash accordingly
-    this.observe(this.o_active_service, (srv) => {
-      if (!srv) return
-      const urls = this._reverse_map.get(srv.builder)
-      if (urls && urls[0]) {
-        window.location.hash = urls[0]
-        pending_hash_change = true
+    this.observe(o.join(this.o_active_service, this.o_hash_variables), ([srv, vars]) => {
+      if (srv == null) return
+      if (update_from === UpdateFrom.Hash) {
+        update_from = UpdateFrom.None
+        return
+      }
+      const url = this.getUrlFor(srv.builder, vars)
+      if (url != null) {
+        update_from = UpdateFrom.Observe
+        window.location.hash = url
       }
     })
 
     this.startObservers()
 
-    const update_from_fragment = () => {
-      // Do not try to handle hash if the change came from an observable.
-      if (pending_hash_change) {
-        pending_hash_change = false
-        return
+    const update_from_fragment = (srv: App.Route | null = null) => {
+      if (update_from === UpdateFrom.Observe) {
+        update_from = UpdateFrom.None
+      } else {
+        update_from = UpdateFrom.Hash
+        this.activateDefaultOrFromHash(srv?.builder)
       }
-      this.activateDefaultOrFromHash(default_builder)
     }
 
-    setTimeout(update_from_fragment)
+    setTimeout(() => update_from_fragment(this._default_service))
 
     window.addEventListener("hashchange", () => {
       update_from_fragment()
     })
 
+  }
+
+  register(builder: App.ServiceBuilder<any>, url: string | null, defaults: {[name: string]: any} = {}) {
+    const names = new Set<string>()
+    const regexp = new RegExp("^" + (url ?? "/?").replace(/(\/?):([^/]+)/g, (_, slash, name) => {
+      defaults[name] ??= ""
+      names.add(name)
+      return slash + `(?<${name}>[^\\/]*)`
+    }) + "$")
+
+    const route: App.Route = {
+      def: url ?? "/",
+      regexp,
+      defaults: Object.entries(defaults).reduce((acc, [key, value]) => {
+        if (!names.has(key)) throw new Error("service does not expect any param named '" + key + "'")
+        if (value != null) acc[key] = value.toString()
+        return acc
+      }, {} as {[name: string]: string}),
+      builder
+    }
+
+    if (url == null) {
+      // handle default builder !
+      this._default_service = route
+    }
+
+    const arr = this._reverse_map.get(builder) ?? []
+    arr.push(route)
+    this._reverse_map.set(builder, arr)
+    this._url_map.push([regexp, route])
+  }
+
+
+  getUrlFor(srv: App.ServiceBuilder<any>, vars: {[name: string]: any}): string | null {
+    const routes = this._reverse_map.get(srv)
+    if (!routes) {
+      return null
+      // throw new Error("service is not registered in the router")
+    }
+
+    // find the first url that consumes the most variables
+    let max_used = 0
+    let last_url = ""
+    for (let route of routes) {
+      let used = 0
+
+      let src = route.def
+
+      const str = src.replace(/:([^/]+)/g, (_, name) => {
+        let variable = vars[name]
+        if (variable != null) {
+          used++
+          return variable.toString()
+        }
+        return ""
+      })
+
+      // if we found more variables used than last time, use this url
+      // or, if no variable were used, but the regexp still produced a usable string, use this one
+      if (used > max_used || str !== "" && last_url === "" && max_used === 0) {
+        max_used = used
+        last_url = str
+      }
+    }
+
+    return last_url
   }
 
   async getService<S>(si: (srv: App.Service) => Promise<S>) {
@@ -132,10 +214,24 @@ export class App extends o.ObserverHolder {
   /**
    * Does like require() but sets the resulting service as the active instance.
    */
-  async activate<S>(si: App.ServiceBuilder<S>): Promise<void> {
+  async activate<S>(si: App.ServiceBuilder<S>, vars?: {[name: string]: string | number}, route?: App.Route): Promise<void> {
+    if (vars != null) {
+      let obj = {} as {[name: string]: string}
+      for (let x in vars) {
+        if (vars[x] != null) {
+          obj[x] = vars[x].toString()
+        }
+      }
+      vars = obj
+    }
 
     const active = this.o_active_service.get()
-    if (active?.builder === si) return // Do not activate if the currently active service is already the asked one.
+    if (active?.builder === si) {
+      //
+      this.o_hash_variables.set(vars as {[name: string]: string})
+      // still add the vars
+      return // Do not activate if the currently active service is already the asked one.
+    }
 
     if (this.is_activating) {
       this._reactivate = si
@@ -147,8 +243,13 @@ export class App extends o.ObserverHolder {
       // Try to activate the service
       const srv = await this.getService(si)
 
-      srv.forEach(s => s.startObservers())
-      ;(this.o_active_service as o.Observable<App.Service>).set(srv)
+      o.transaction(() => {
+        // what about old variables, do they get to be kept ?
+        let n = Object.assign({}, route?.defaults ?? {}, vars ?? {})
+        this.o_hash_variables.set(n)
+        srv.forEach(s => s.startObservers())
+        ;(this.o_active_service as o.Observable<App.Service>).set(srv)
+      })
     } finally {
       this.cleanup()
       this.is_activating = false
@@ -202,6 +303,13 @@ export class App extends o.ObserverHolder {
 
 export namespace App {
 
+  export type Route = {
+    def: string
+    regexp: RegExp
+    defaults: {[name: string]: string}
+    builder: ServiceBuilder<any>
+  }
+
   export type ServiceBuilder<T> = (srv: App.Service) => Promise<T>
 
   export class Service extends o.ObserverHolder {
@@ -228,6 +336,11 @@ export namespace App {
 
     views = new Map<string, () => Renderable>()
     requirements = new Set<Service>()
+
+    /** Shortcut function to set a view */
+    view(name: string, view: () => Renderable) {
+      this.views.set(name, view)
+    }
 
     forEach(fn: (s: Service) => void) {
       const seen = new Set<Service>([this])

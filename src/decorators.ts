@@ -73,8 +73,10 @@ export namespace $bind {
    *
    * @category dom, toc
    */
-  export function string(obs: o.Observable<string>): (node: HTMLInputElement | HTMLTextAreaElement) => void {
-    return setup_bind(obs, node => node.value, (node, value) => node.value = value)
+  export function string(obs: o.Observable<string | null>): (node: HTMLInputElement | HTMLTextAreaElement) => void
+  export function string(obs: o.Observable<string>): (node: HTMLInputElement | HTMLTextAreaElement) => void
+  export function string(obs: o.Observable<any>): (node: HTMLInputElement | HTMLTextAreaElement) => void {
+    return setup_bind(obs, node => node.value, (node, value) => node.value = value ?? "")
   }
 
   /**
@@ -84,11 +86,13 @@ export namespace $bind {
    *
    * @category dom, toc
    */
-  export function contenteditable(obs: o.Observable<string>, as_html?: boolean): (node: HTMLElement) => void {
+  export function contenteditable(obs: o.Observable<string>, as_html?: boolean): (node: HTMLElement) => void
+  export function contenteditable(obs: o.Observable<string | null>, as_html?: boolean): (node: HTMLElement) => void
+  export function contenteditable(obs: o.Observable<any>, as_html?: boolean): (node: HTMLElement) => void {
     return setup_bind(obs,
       node => as_html ? node.innerHTML : node.innerText,
       (node, value) => {
-        if (as_html) { node.innerHTML = value }
+        if (as_html) { node.innerHTML = value ?? "" }
         else { node.innerText = value }
       },
     )
