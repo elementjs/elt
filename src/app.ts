@@ -56,7 +56,10 @@ export class App extends o.ObserverHolder {
       const match = regexp.exec(newhash)
       if (match) {
         // build the variables object
-        const vars = Object.assign({}, route.defaults ?? {}, match.groups ?? {})
+        const vars = Object.assign({}, route.defaults ?? {}, Object.entries(match.groups ?? {}).reduce((acc, [key, value]) => {
+          acc[key] = decodeURIComponent(value)
+          return acc
+        }, {} as {[name: string]: string}))
         this.activate(route.builder, vars)
         return
       }
@@ -170,10 +173,10 @@ export class App extends o.ObserverHolder {
       let src = route.def
 
       const str = src.replace(/:([^/]+)/g, (_, name) => {
-        let variable = vars[name]
+        let variable: string | undefined = vars[name]
         if (variable != null) {
           used++
-          return variable.toString()
+          return encodeURIComponent(variable.toString())
         }
         return ""
       })
