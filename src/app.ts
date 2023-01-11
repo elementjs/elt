@@ -94,7 +94,7 @@ export class App extends o.ObserverHolder {
     let update_from = 0
 
     // When the active service changes, we want to update the hash accordingly
-    this.observe(o.join(this.o_active_service, this.o_hash_variables), ([srv, vars]) => {
+    this.observe(o.join(this.o_active_service, this.o_hash_variables), ([srv, vars], old) => {
       if (srv == null) return
       if (update_from === UpdateFrom.Hash) {
         update_from = UpdateFrom.None
@@ -103,7 +103,16 @@ export class App extends o.ObserverHolder {
       const url = this.getUrlFor(srv.builder, vars)
       if (url != null) {
         update_from = UpdateFrom.Observe
-        window.location.hash = url
+        // We're changing service, update the hash and let the history handle things
+        if (old !== o.NoValue && old[0] !== srv)
+          window.location.hash = url
+        else {
+          // otherwise we're replacing state to not pollute the history
+          const loc = window.location
+          loc.replace(
+            `${loc.href.split('#')[0]}#${url}`
+          )
+        }
       }
     })
 
