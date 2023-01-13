@@ -101,8 +101,12 @@ export class App extends o.ObserverHolder {
    * @internal
    * activate a service from the hash portion of window.location
    */
-  protected activateFromHash() {
+  activateFromHash() {
     const newhash = window.location.hash.slice(1)
+
+    // do not handle if the hash is the last one we handled
+    if (newhash === this._last_hash) return
+
     const {path, vars} = this.parseHash(newhash)
 
     const route = this._route_map.get(path)
@@ -122,25 +126,16 @@ export class App extends o.ObserverHolder {
       this.register(builder, url, vars)
     }
 
-    const enum UpdateFrom {
-      None,
-      Observe,
-      Hash,
-    }
-
-    let update_from = 0
-
     // When the active service changes, we want to update the hash accordingly
     this.observe(o.join(this.o_active_service, this.o_hash_variables), ([srv, vars], old) => {
       if (srv == null) return
 
       // Update the has portion from the currently activated service and its variables
-      update_from = UpdateFrom.Observe
       const route = this._reverse_map.get(srv.builder)
       if (!route) return // This service does not have a route, not updating the hash.
 
-      let url = route.path
-      this.o_current_path.set(url)
+      let hash = route.path
+      this.o_current_path.set(hash)
 
       const entries = Object.entries(vars).map(([key, value]) =>
         `${encodeURIComponent(key)}${!value ? "" : "=" + encodeURIComponent(value)}`
@@ -148,39 +143,36 @@ export class App extends o.ObserverHolder {
 
       // if there are variables, add them
       if (entries.length > 0) {
-        url = url + "?" + entries.join("&")
+        hash = hash + "?" + entries.join("&")
       }
+
+      // do not try to update
+      if (this._last_hash === hash) return
+      this._last_hash = hash
 
       // We're changing service, update the hash and let the history handle things
       if (old !== o.NoValue && old[0] !== srv)
-        window.location.hash = url
+        window.location.hash = hash
       else {
         // otherwise we're replacing state to not pollute the history
         const loc = window.location
         loc.replace(
-          `${loc.href.split('#')[0]}#${url}`
+          `${loc.href.split('#')[0]}#${hash}`
         )
       }
     })
 
     this.startObservers()
 
-    const update_from_fragment = (srv: App.Route | null = null) => {
-      if (update_from === UpdateFrom.Observe) {
-        update_from = UpdateFrom.None
-      } else {
-        update_from = UpdateFrom.Hash
-        this.activateFromHash()
-      }
-    }
-
-    setTimeout(() => update_from_fragment(this._default_service))
+    setTimeout(() => this.activateFromHash())
 
     window.addEventListener("hashchange", () => {
-      update_from_fragment()
+      this.activateFromHash()
     })
 
   }
+
+  protected _last_hash: string | null = null
 
   register(builder: App.ServiceBuilder<any>, url: string | null, defaults: {[name: string]: any} = {}) {
 
