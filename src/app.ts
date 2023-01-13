@@ -15,6 +15,9 @@ export class App extends o.ObserverHolder {
   /** An observable containing the currently active service */
   o_active_service = o(null as null | App.Service) as o.ReadonlyObservable<App.Service>
 
+  /** The current path mimicking the URL Hash fragment */
+  o_current_path = o("")
+
   protected _reactivate: App.ServiceBuilder<any> | null = null
 
   protected _route_map = new Map<string, App.Route>()
@@ -135,7 +138,9 @@ export class App extends o.ObserverHolder {
       update_from = UpdateFrom.Observe
       const route = this._reverse_map.get(srv.builder)
       if (!route) return // This service does not have a route, not updating the hash.
+
       let url = route.path
+      this.o_current_path.set(url)
 
       const entries = Object.entries(vars).map(([key, value]) =>
         `${encodeURIComponent(key)}${!value ? "" : "=" + encodeURIComponent(value)}`
@@ -178,6 +183,8 @@ export class App extends o.ObserverHolder {
   }
 
   register(builder: App.ServiceBuilder<any>, url: string | null, defaults: {[name: string]: any} = {}) {
+
+    if (this._route_map.has(url ?? "")) throw new Error(`route for '${url ?? ""}' is already defined`)
 
     const route: App.Route = {
       path: url ?? "",
