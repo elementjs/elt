@@ -509,7 +509,7 @@ export class Observable<A> implements ReadonlyObservable<A>, Indexable {
    *
    * @param immer The whole immer library, not just the default import
    */
-  static useImmer(immer: typeof import("immer")) {
+  static useImmer(immer: { produce: (value: any, fn: (val: any) => any) => any, nothing: any }) {
     const produce = immer.produce
     const nothing = immer.nothing
     this.prototype.produce = function <A>(fn: (current: A) => A | void | o.NoValue) {
