@@ -105,7 +105,7 @@ export class App extends o.ObserverHolder {
     const newhash = window.location.hash.slice(1)
 
     // do not handle if the hash is the last one we handled
-    if (newhash === this._last_hash) return
+    if (newhash && newhash === this._last_hash && this._last_srv === this.o_active_service.get().builder) return
 
     const {path, vars} = this.parseHash(newhash)
 
@@ -113,7 +113,7 @@ export class App extends o.ObserverHolder {
     if (!route) this.routeError(path)
 
     const vars_final = Object.assign({}, route.defaults, vars)
-    this.activate(route.builder, vars_final)
+    this.activate(route.builder, vars_final, true)
   }
 
   /**
@@ -146,14 +146,15 @@ export class App extends o.ObserverHolder {
         hash = hash + "?" + entries.join("&")
       }
 
-      // do not try to update
-      if (this._last_hash === hash) return
+      // do not try to update if the hash has not changed
+      this._last_srv = srv.builder
+      if (this._last_hash === hash && hash === window.location.hash) return
       this._last_hash = hash
 
-      // We're changing service, update the hash and let the history handle things
-      if (old !== o.NoValue && old[0] !== srv)
+      // If the variable changed because of activation, then update the hash portion
+      if (this.is_activating) {
         window.location.hash = hash
-      else {
+      } else {
         // otherwise we're replacing state to not pollute the history
         const loc = window.location
         loc.replace(
@@ -173,6 +174,7 @@ export class App extends o.ObserverHolder {
   }
 
   protected _last_hash: string | null = null
+  protected _last_srv: App.ServiceBuilder<any> | null = null
 
   register(builder: App.ServiceBuilder<any>, url: string | null, defaults: {[name: string]: any} = {}) {
 
@@ -213,14 +215,9 @@ export class App extends o.ObserverHolder {
   /**
    * Does like require() but sets the resulting service as the active instance.
    */
-  async activate<S>(si: App.ServiceBuilder<S>, vars?: {[name: string]: string}): Promise<void> {
+  async activate<S>(si: App.ServiceBuilder<S>, vars?: {[name: string]: string}, final_vars = false): Promise<void> {
 
     const active = this.o_active_service.get()
-    if (active?.builder === si) {
-      this.o_hash_variables.set(this.getHashVarsForService(active, vars ?? {}))
-      // still add the vars
-      return // Do not activate if the currently active service is already the asked one.
-    }
 
     if (this.is_activating) {
       this._reactivate = si
@@ -229,11 +226,18 @@ export class App extends o.ObserverHolder {
 
     this.is_activating = true
     try {
+
+      if (active?.builder === si) {
+        this.o_hash_variables.set(final_vars ? vars ?? {} : this.getHashVarsForService(active, vars ?? {}))
+        // still add the vars
+        return // Do not activate if the currently active service is already the asked one.
+      }
+
       // Try to activate the service
       const srv = await this.getService(si)
 
       // Get the variables with their defaults if needed
-      const v = this.getHashVarsForService(srv, vars ?? {})
+      const v = final_vars ? vars ?? {} : this.getHashVarsForService(srv, vars ?? {})
 
       o.transaction(() => {
         // what about old variables, do they get to be kept ?
