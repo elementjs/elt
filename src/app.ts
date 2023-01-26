@@ -4,6 +4,8 @@ import { o } from "./observable"
 
 const sym_data = Symbol("data")
 
+export type MaybePromise<T> = Promise<T> | T
+
 /**
  * An app is a collection of services and their associated view map.
  * This is all it does.
@@ -204,9 +206,11 @@ export class App extends o.ObserverHolder {
   }
 
   // Check the cache.
-  async require<S>(requirer: App.Service, si: (srv: App.Service) => Promise<S>): Promise<S> {
+  async require<S>(requirer: App.Service, si: MaybePromise<((srv: App.Service) => Promise<S>) | {default: (srv: App.Service) => Promise<S>}>): Promise<S> {
     // For a given service instanciator, we will also check if it has arguments or not.
-    const srv = await this.getService(si)
+    const s = await si
+
+    const srv = await this.getService(typeof s === "function" ? s : s.default)
     requirer.requirements.add(srv)
     return srv[sym_data]
   }
@@ -311,7 +315,7 @@ export namespace App {
     constructor(public app: App, public builder: (srv: App.Service) => any) { super() }
     _on_deinit: (() => any)[] = []
 
-    require<S>(fn: (srv: App.Service) => Promise<S>): Promise<S> {
+    require<S>(fn: MaybePromise<((srv: App.Service) => Promise<S>) | {default: (srv: App.Service) => Promise<S>}>): Promise<S> {
       return this.app.require(this, fn)
     }
 
