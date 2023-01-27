@@ -1,0 +1,562 @@
+# This file is used by elt to generate the generic html and svg typings
+# It was painstakingly done by reading the MDN
+# As such, it may *still* contain errors.
+_:
+  rel: &rel [alternate, author, bookmark, external, help, license, next, nofollow, noopener, noreferrer, prev, search, tag]
+  target: &target [_blank, _self, _parent, _top]
+  refer: &refer [no-referrer, no-referrer-when-downgrade, origin, origin-when-cross-origin, same-origin, strict-origin, strict-origin-when-cross-origin, unsafe-url]
+  crossorigin: &crossorigin [anonymous, use-credentials]
+  priority: &prio ["high", "low", "auto"]
+
+  svgblend: &svgblend [normal, multiply, screen, overlay, darken, lighten, color-dodge, color-burn, hard-light, soft-light, difference, exclusion, hue, saturation, color, luminosity]
+  svgin: &svgin [SourceGraphic, SourceAlpha, BackgroundImage, BackgroundAlpha, FillPaint, StrokePaint, string]
+
+globals:
+  SVG:
+    lang:
+    tabindex:
+
+  SVGFilterPrimitive:
+    x:
+    "y":
+    height:
+    result:
+    width:
+
+  SVGPresentation:
+    alignment-baseline: [auto, baseline, before-edge, text-before-edge, middle, central, after-edge, text-after-edge, ideographic, alphabetic, hanging, mathematical, inherit]
+    baseline-shift: [auto, baseline, super, sub, inherit, string]
+    clip: [auto, inherit, string]
+    clip-path: [none, inherit, string]
+    clip-rule: [nonzero, evenodd, inherit]
+    color:
+    color-interpolation: [auto, sRGB, linearRGB, inherit]
+    color-interpolation-filters: [auto, sRGB, linearRGB, inherit]
+    color-profile: [auto, sRGB, linearRGB, string, inherit]
+    color-rendering:
+    cursor:
+    d:
+    direction: [ltr, rtl, inherit]
+    display: [""]
+    dominant-baseline: [auto, text-bottom, alphabetic, ideographic, middle, central,  mathematical, hanging, text-top]
+    enable-background: [accumulate, new, inherit]
+    fill:
+    fill-opacity:
+    fill-rule: [nonzero, evenodd, inherit]
+    filter:
+    flood-color:
+    flood-opacity:
+    font-family:
+    font-size:
+    font-size-adjust:
+    font-stretch:
+    font-style: [normal, italic, oblique]
+    font-variant:
+    font-weight: [normal, bold, lighter, bolder, "100", "200", "300", "400", "500", "600", "700", "800", "900"]
+    glyph-orientation-horizontal:
+    glyph-orientation-vertical:
+    image-rendering: [auto, optimizeQuality, optimizeSpeed]
+    kerning:
+    letter-spacing:
+    lighting-color:
+    marker-end:
+    marker-mid:
+    marker-start:
+    mask:
+    opacity:
+    overflow: [visible, hidden, scroll, auto, inherit]
+    pointer-events: [bounding-box, visiblePainted, visibleFill, visibleStroke, visible, painted, fill, stroke, all, none]
+    shape-rendering:
+    solid-color:
+    solid-opacity:
+    stop-color: [currentcolor, string, inherit]
+    stop-opacity:
+    stroke:
+    stroke-dasharray:
+    stroke-dashoffset:
+    stroke-linecap: [butt, round, square]
+    stroke-linejoin: [arcs, bevel, miter, miter-clip, round]
+    stroke-miterlimit:
+    stroke-opacity:
+    stroke-width:
+    text-anchor: [start, middle, end, inherit]
+    text-decoration: [none, underline, overline, line-through, blink, inherit]
+    text-rendering: [auto, optimizeSpeed, optimizeLegibility, geometricPrecision, inherit]
+    transform:
+    unicode-bidi:
+    vector-effect: [default, non-scaling-stroke, inherit, string]
+    visibility:
+    word-spacing:
+    writing-mode: [lr-tb, rl-tb, tb-rl, lr, rl, tb, inherit]
+
+  SVGAnimationDuration:
+    begin:
+    dur:
+    end:
+    min:
+    max:
+    restart:
+    repeatCount:
+    repeatDur:
+    fill:
+
+  SVGAnimationValue:
+    calcMode: [discrete, linear, paced, spline]
+    values:
+    keyTimes:
+    keySplines:
+    from:
+    to:
+    by:
+  SVGAnimationOther:
+    attributeName:
+    additive:
+    accumulate:
+
+
+  Global:
+    # When "" is present on an attribute, it means it is boolean
+    # which means for elt that a boolean true will add the attribute with no string and false
+    # will remove it.
+    # All attributes accept the boolean false to remove them.
+
+    accesskey:
+    autocapitalize: ["off", "on", none, sentences, words, characters]
+    autofocus: [""]
+    contenteditable: ["", "true", "false", inherit]
+    dir: [ltr, rtl, auto]
+    draggable: ["true", "false"]
+    enterkeyhint: [enter, done, go, next, previous, search, send]
+    exportparts: boolean
+    hidden: ["", untilfound, hidden]
+    inert: [""]
+    inputmode: [none, text, decimal, numeric, tel, search, email, url]
+    is:
+    itemid:
+    itemprop:
+    itemref:
+    itemscope: [""] # to allow other item* to exist
+    itemtype:
+    lang: # language of an element
+    nonce:
+    part:
+    slot:
+    spellcheck: ["", "true", "default", "false"]
+    tabindex:
+    title:
+    translate: ["", "yes", "no"]
+    virtualkeyboardpolicy: [auto, manual]
+
+    # Aria should be enabled on all elements, but as of now I don't know how to handle them properly,
+    # so I'll leave them for the user to figure it out.
+    role:
+    aria-*:
+    data-*:
+
+  Link:
+      download:
+      href:
+      hreflang:
+      ping:
+      referrerpolicy: *refer
+      rel: *rel
+      target: *target
+      type:
+
+  Form:
+    disabled: [""]
+    form:
+    formaction:
+    formenctype:
+    formmethod: [post, get]
+    formnovalidate: [""]
+    formtarget: *target
+    name:  # name in the form !
+    value:  # form values
+
+elements:
+  # HTML Elements that only have the global attributes
+  abbr:
+  # acronym: # deprecated
+  address:
+  article:
+  aside:
+  b:
+  bdi:
+  body:
+  br:
+  cite:
+  code:
+  datalist:
+  dd:
+  dfn:
+  div:
+  dl:
+  dt:
+  em:
+  figure:
+  footer:
+  h1:
+  h2:
+  h3:
+  h4:
+  h5:
+  h6:
+  head:
+  header:
+  hgroup:
+  hr:
+  html:
+  i:
+  kbd:
+  legend:
+  main:
+  mark:
+  menu:
+  nav:
+  noscript:
+  p:
+  pre:
+  rp:
+  rt:
+  ruby:
+  s:
+  samp:
+  section:
+  small:
+  span:
+  strong:
+  sub:
+  summary:
+  sup:
+  table:
+  tbody:
+  template:
+  tfoot:
+  thead:
+  title:
+  tr:
+  u:
+  ul:
+  var:
+  wbr:
+
+  # HTML Elements that have more attributes
+  a:
+    _extends: Link
+  area:
+    _extends: Link
+    alt:
+    coords:
+    shape:
+    name: # deprecated
+    nohref: # deprecated
+    type: # deprecated
+  audio:
+    autoplay: [""]
+    controls: [""]
+    controlslist: #
+    crossorigin: *crossorigin
+    disableremoteplayback: [""]
+    loop: [""]
+    preload: ["", none, metadata, auto]
+    src:
+  base:
+    href:
+    target: *target
+  bdo:
+    dir: [ltr, rtl]
+  blockquote:
+    cite:
+  button:
+    _extends: Form
+    disabled: [""]
+    type: [submit, reset, button]
+  canvas:
+    height:
+    width:
+  caption:
+    align: [left, top, right, bottom]
+  col:
+    span:
+  colgroup:
+    span:
+  data:
+    value:
+  del:
+    cite:
+    datetime:
+  details:
+    open: [""]
+  dialog:
+    open: [""]
+  embed:
+    height:
+    src:
+    type:
+    width:
+  fieldset:
+    disabled: [""]
+    form:
+    name:
+  form:
+    accept:
+    accept-charset:
+    autocomplete: ["on", "off"]
+    name:
+    rel: *rel
+    action:
+    enctype:
+    method:
+    novalidate: [""]
+    target: *target
+  iframe:
+    allow:
+    allowfullscreen: [""]
+    allowpaymentrequest: [""]
+    credentialless: [""]
+    csp:
+    fetchpriority: *prio
+    height:
+    loading: [eager, lazy]
+    name:
+    referrerpolicy: *refer
+    sandbox: [allow-downloads-without-user-activation, allow-downloads, allow-forms, allow-modals, allow-orientation-lock, allow-pointer-lock, allow-popups, allow-popups-to-escape-sandbox, allow-presentation, allow-same-origin, allow-scripts, allow-storage-access-by-user-activation, allow-top-navigation, allow-top-navigation-by-user-activation]
+    src:
+    srcdoc:
+    width:
+  img:
+    alt:
+    crossorigin: *crossorigin
+    decoding: [sync, async, auto]
+    elementtiming: [""]
+    fetchpriority: *prio
+    height:
+    ismap: [""]
+    loading: [eager, lazy]
+    referrerpolicy: *refer
+    sizes:
+    src:
+    srcset:
+    width:
+    usemap:
+  input:
+    _extends: Form
+    type: [button, checkbox, color, date, datetime-local, email, file, hidden, image, month, number, password, radio, range, reset, search, submit, tel, text, time, url, week]
+    accept:
+    alt:
+    autocomplete:
+    capture:
+    checked: [""]
+    dirname:
+    height:
+    list:
+    max:
+    maxlength:
+    min:
+    minlength:
+    multiple: [""]
+    pattern:
+    placeholer:
+    readonly: [""]
+    required: [""]
+    size:
+    src:
+    step:
+    value:
+    width:
+  ins:
+    cite:
+    datetime:
+  label:
+    for:
+  li:
+    value:
+  link:
+    as: [audio, document, embed, fetch, font, image, object, script, style, track, video, worker]
+    disabled: [""]
+    crossorigin: *crossorigin
+    fetchpriority: *prio
+    href:
+    hreflang:
+    imagesizes:
+    imagesrcst:
+    integrity:
+    media:
+    prefetch:
+    referrerpolicy: *refer
+    rel:
+    sizes:
+    type:
+    blocking: ["render"]
+  map:
+    name:
+  meta:
+    charset:
+    content:
+    http-equiv:
+    name:
+  meter:
+    value:
+    min:
+    max:
+    low:
+    high:
+    optimum:
+  object:
+    data:
+    form:
+    height:
+    name:
+    standby:
+    type:
+    usemap:
+    width:
+  ol:
+    reversed: [""]
+    start:
+    type: [a, A, i, I, "1"]
+  optgroup:
+    disabled: [""]
+    label:
+  option:
+    disabled: [""]
+    label:
+    selected: [""]
+    value:
+  output:
+    for:
+    form:
+    name:
+  # not in typescript yet !
+  # portal:
+  #   referrerpolicy: *refer
+  #   src:
+  progress:
+    max:
+    value:
+  q:
+    cite:
+  script:
+    async: [""]
+    crossorigin: *crossorigin
+    defer: [""]
+    fetchpriority: *prio
+    integrity:
+    nomodule: [""]
+    nonce:
+    referrerpolicy: *refer
+    src:
+    type: ["", "text/javascript", "module", "importmap"]
+    blocking: ["render"]
+  select:
+    _extends: Form
+    autocomplete:
+    multiple: [""]
+    name:
+    required: [""]
+    size:
+  slot:
+    name:
+  source:
+    type:
+    src:
+    srcset:
+    sizes:
+    media:
+    height:
+    width:
+  style:
+    media:
+    nonce:
+    blocking: ["render"]
+    type: ["type/css"]
+  td:
+    colspan:
+    headers:
+    rowspan:
+  textarea:
+    _extends: Form
+    autocomplete: ["off", "on"]
+    autocorrect: ["off", "on"]
+    cols:
+    disabled: [""]
+    maxlength:
+    minlength:
+    placeholder:
+    readonly:
+    required: [""]
+    rows:
+    wrap: [hard, soft, "off"]
+  th:
+    abbr:
+    colspan:
+    headers:
+    rowspan:
+    scope: [row, col, rowgroup, colgroup]
+  time:
+    datetime:
+  track:
+    default: [""]
+    kind:
+    label:
+    src:
+    srclang:
+  video:
+    autoplay: [""]
+    autopictureinside: [""]
+    controls:
+    controlslist:
+    crossorigin: *crossorigin
+    disablepictureinside: [""]
+    disableremoteplayback: [""]
+    height:
+    loop: [""]
+    muted: [""]
+    playsinline: [""]
+    poster:
+    preload: ["", none, metadata, auto]
+    src:
+    width:
+  # And then SVG Elements. Unfortunately, we have to merge "a" element definitions.
+
+svgelements:
+  defs:
+  desc:
+  g:
+
+  animate:
+    _extends: [SVGAnimationValue, SVGAnimationDuration, SVGAnimationOther]
+  animateMotion:
+    _extends: [SVGAnimationValue, SVGAnimationDuration, SVGAnimationOther]
+  animateTransform:
+    _extends: [SVGAnimationValue, SVGAnimationDuration, SVGAnimationOther]
+  circle: &svgcircle
+    _extends: SVGPresentation
+    cx:
+    cy:
+    r:
+    pathLength:
+  clipPath:
+    clipPathUnits: [userSpaceOnUse, objectBoundingBox]
+  ellipse:
+    <<: *svgcircle
+    ry:
+  feBlend:
+    _extends: SVGPresentation, SVGFilterPrimitive
+    in: *svgin
+    in2: *svgin
+    mode: *svgblend
+  path:
+    _extends: SVGPresentation
+    d:
+    pathLength:
+  rect:
+    _extends: SVGPresentation
+    x:
+    y:
+    width:
+    height:
+    rx:
+    ry:
+    pathLength:

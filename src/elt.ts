@@ -12,69 +12,70 @@ import {
   node_observe
 } from "./dom"
 
+import {
+  ElementMap,
+  NRO
+} from "./tags"
 
 ////////////////////////////////////////////////////////
 
 
 const SVG = "http://www.w3.org/2000/svg"
-const NS = {
-  // SVG nodes, shamelessly stolen from React.
-  svg: SVG,
-
-  circle: SVG,
-  clipPath: SVG,
-  defs: SVG,
-  desc: SVG,
-  ellipse: SVG,
-  feBlend: SVG,
-  feColorMatrix: SVG,
-  feComponentTransfer: SVG,
-  feComposite: SVG,
-  feConvolveMatrix: SVG,
-  feDiffuseLighting: SVG,
-  feDisplacementMap: SVG,
-  feDistantLight: SVG,
-  feFlood: SVG,
-  feFuncA: SVG,
-  feFuncB: SVG,
-  feFuncG: SVG,
-  feFuncR: SVG,
-  feGaussianBlur: SVG,
-  feImage: SVG,
-  feMerge: SVG,
-  feMergeNode: SVG,
-  feMorphology: SVG,
-  feOffset: SVG,
-  fePointLight: SVG,
-  feSpecularLighting: SVG,
-  feSpotLight: SVG,
-  feTile: SVG,
-  feTurbulence: SVG,
-  filter: SVG,
-  foreignObject: SVG,
-  g: SVG,
-  image: SVG,
-  line: SVG,
-  linearGradient: SVG,
-  marker: SVG,
-  mask: SVG,
-  metadata: SVG,
-  path: SVG,
-  pattern: SVG,
-  polygon: SVG,
-  polyline: SVG,
-  radialGradient: SVG,
-  rect: SVG,
-  stop: SVG,
-  switch: SVG,
-  symbol: SVG,
-  text: SVG,
-  textPath: SVG,
-  tspan: SVG,
-  use: SVG,
-  view: SVG,
-} as {[name: string]: string}
-
+const NS = new Map<string, string>([
+  ["svg", SVG],
+  ["circle", SVG],
+  ["clipPath", SVG],
+  ["defs", SVG],
+  ["desc", SVG],
+  ["ellipse", SVG],
+  ["feBlend", SVG],
+  ["feColorMatrix", SVG],
+  ["feComponentTransfer", SVG],
+  ["feComposite", SVG],
+  ["feConvolveMatrix", SVG],
+  ["feDiffuseLighting", SVG],
+  ["feDisplacementMap", SVG],
+  ["feDistantLight", SVG],
+  ["feFlood", SVG],
+  ["feFuncA", SVG],
+  ["feFuncB", SVG],
+  ["feFuncG", SVG],
+  ["feFuncR", SVG],
+  ["feGaussianBlur", SVG],
+  ["feImage", SVG],
+  ["feMerge", SVG],
+  ["feMergeNode", SVG],
+  ["feMorphology", SVG],
+  ["feOffset", SVG],
+  ["fePointLight", SVG],
+  ["feSpecularLighting", SVG],
+  ["feSpotLight", SVG],
+  ["feTile", SVG],
+  ["feTurbulence", SVG],
+  ["filter", SVG],
+  ["foreignObject", SVG],
+  ["g", SVG],
+  ["image", SVG],
+  ["line", SVG],
+  ["linearGradient", SVG],
+  ["marker", SVG],
+  ["mask", SVG],
+  ["metadata", SVG],
+  ["path", SVG],
+  ["pattern", SVG],
+  ["polygon", SVG],
+  ["polyline", SVG],
+  ["radialGradient", SVG],
+  ["rect", SVG],
+  ["stop", SVG],
+  ["switch", SVG],
+  ["symbol", SVG],
+  ["text", SVG],
+  ["textPath", SVG],
+  ["tspan", SVG],
+  ["use", SVG],
+  ["view", SVG],
+])
 
 export type WrappedComponent<N extends Node> = {
   componentFn: (at: Attrs<N>, children: Renderable[]) => N
@@ -223,14 +224,6 @@ export type AttrsNodeType<At extends EmptyAttributes<any>> = At extends EmptyAtt
 
 
 /**
- * A helper type since all HTML / SVG attributes can be null or undefined.
- * @inline
- * @internal
- */
-export type NRO<T> = o.RO<T | null | undefined>
-
-
-/**
  * Basic attributes used on all HTML nodes, which can be reused when making components
  * to benefit from the class / style / id... attributes defined here.
  *
@@ -282,7 +275,7 @@ export function e<N extends Node>(elt: string | Node | Function, ...children: (I
   if (is_basic_node) {
     // create a simple DOM node
     if (typeof elt === "string") {
-      const ns = NS[elt] // || attrs.xmlns
+      const ns = NS.get(elt) // || attrs.xmlns
       node = (ns ? document.createElementNS(ns, elt) : document.createElement(elt)) as unknown as N
     } else {
       node = elt as N
@@ -307,7 +300,7 @@ export function e<N extends Node>(elt: string | Node | Function, ...children: (I
   }
 
   // we have to cheat a bit here.
-  e.handle_attrs(node as any, attrs, is_basic_node)
+  e.handle_attrs(node as any, attrs as any, is_basic_node)
 
   // Handle decorators on the node
   for (i = 0, l = decorators_map.length; i < l; i++) {
@@ -478,29 +471,44 @@ export namespace e {
     ///////////////////////////////////////////////////////////////////////////
     // Now following are the default attributes for HTML and SVG nodes.
 
-    /** @internal */
-    export interface HTMLAttributes<N extends HTMLElement> extends Attrs<N> {
-
+    export interface GlobalHTMLAttributes {
+      accesskey?: NRO<string>
+      autofocus?: NRO<boolean>
+      autocapitalize?: NRO<"word" | "words" | "sentences" | "sentence" | "characters" | "character" | "off">
       contenteditable?: NRO<"true" | "false" | "inherit">
+      contextmenu?: NRO<string>
+      enterkeyhint?: NRO<"enter" | "done" | "go" | "next" | "previous" | "search" | "send">
+      inputmode?: NRO<string>
+      inert?: NRO<boolean>
+      slot?: NRO<string>
+      tabindex?: NRO<number>
+      title?: NRO<string>
+
       dir?: NRO<"ltr" | "rtl" | "auto">
+      hidden?: NRO<boolean>
+
       draggable?: NRO<"true" | "false" | "auto">
       dropzone?: NRO<"copy" | "move" | "link">
       lang?: NRO<string>
       translate?: NRO<"yes" | "no">
       xmlns?: string
+      [D: `data-${string}`]: NRO<string>
+    }
+
+    /** @internal */
+    export interface HTMLAttributes<N extends HTMLElement> extends Attrs<N>, GlobalHTMLAttributes {
+
 
       // Attributes shamelessly stolen from React's type definitions.
       // Standard HTML Attributes
       accept?: NRO<string>
       "accept-charset"?: NRO<string>
-      accesskey?: NRO<string>
       action?: NRO<string>
       allowfullscreen?: NRO<boolean>
       allowtransparency?: NRO<boolean>
       alt?: NRO<string>
       async?: NRO<boolean>
       autocomplete?: NRO<string>
-      autofocus?: NRO<boolean>
       autoplay?: NRO<boolean>
       capture?: NRO<boolean>
       cellpadding?: NRO<number | string>
@@ -514,7 +522,6 @@ export namespace e {
       colspan?: NRO<number>
       content?: NRO<string>
       // contenteditable?: NRO<boolean>
-      contextmenu?: NRO<string>
       controls?: NRO<boolean>
       coords?: NRO<string>
       crossorigin?: NRO<string>
@@ -537,7 +544,6 @@ export namespace e {
       frameborder?: NRO<number | string>
       headers?: NRO<string>
       height?: NRO<number | string>
-      hidden?: NRO<boolean>
       high?: NRO<number>
       href?: NRO<string>
       hreflang?: NRO<string>
@@ -545,7 +551,6 @@ export namespace e {
       "http-equiv"?: NRO<string>
       icon?: NRO<string>
       id?: NRO<string>
-      inputmode?: NRO<string>
       integrity?: NRO<string>
       is?: NRO<string>
       keyparams?: NRO<string>
@@ -601,9 +606,7 @@ export namespace e {
       start?: NRO<number>
       step?: NRO<number | string>
       summary?: NRO<string>
-      tabindex?: NRO<number>
       target?: NRO<string>
-      title?: NRO<string>
       type?: NRO<string>
       usemap?: NRO<string>
       value?: NRO<string | number | boolean>
@@ -622,7 +625,6 @@ export namespace e {
       vocab?: NRO<string>
 
       // Non-standard Attributes
-      autocapitalize?: NRO<"word" | "words" | "sentences" | "sentence" | "characters" | "character" | "off">
       autocorrect?: NRO<string>
       autosave?: NRO<string>
       color?: NRO<string>
@@ -700,10 +702,8 @@ export namespace e {
       y?: NRO<number | string>
     }
 
-    export type IntrinsicElements =
-      { [K in keyof HTMLElementTagNameMap]: HTMLAttributes<HTMLElementTagNameMap[K]> }
-      & { [K in keyof SVGElementTagNameMap]: SVGAttributes<SVGElementTagNameMap[K]> }
-
+    // This is the line that tells JSX what attributes the basic elements like "div" or "article" have
+    export type IntrinsicElements = ElementMap
   }
 
   /**
@@ -972,8 +972,5 @@ declare global {
     export type ElementClassFn<N extends Node> = e.JSX.ElementClassFn<N>
     export type ElementClass = e.JSX.ElementClass
     export type IntrinsicElements = e.JSX.IntrinsicElements
-
-    export type HTMLAttributes<N extends HTMLElement> = e.JSX.HTMLAttributes<N>
-    export type SVGAttributes<N extends SVGElement = SVGElement> = e.JSX.SVGAttributes<N>
   }
 }
