@@ -112,13 +112,9 @@ export interface SVGAnimationOther {
 export interface Global {
   accesskey?: NRO<string | number>
   autocapitalize?: NRO<"off" | "on" | "none" | "sentences" | "words" | "characters">
-  autofocus?: NRO<"" | true>
   contenteditable?: NRO<"" | true | "true" | "false" | "inherit">
   dir?: NRO<"ltr" | "rtl" | "auto">
-  draggable?: NRO<"true" | "false">
   enterkeyhint?: NRO<"enter" | "done" | "go" | "next" | "previous" | "search" | "send">
-  exportparts?: NRO<string | number>
-  hidden?: NRO<"" | true | "untilfound" | "hidden">
   inert?: NRO<"" | true>
   inputmode?: NRO<"none" | "text" | "decimal" | "numeric" | "tel" | "search" | "email" | "url">
   is?: NRO<string | number>
@@ -127,16 +123,8 @@ export interface Global {
   itemref?: NRO<string | number>
   itemscope?: NRO<"" | true>
   itemtype?: NRO<string | number>
-  lang?: NRO<string | number>
-  nonce?: NRO<string | number>
-  part?: NRO<string | number>
-  slot?: NRO<string | number>
-  spellcheck?: NRO<"" | true | "true" | "default" | "false">
-  tabindex?: NRO<string | number>
-  title?: NRO<string | number>
   translate?: NRO<"" | true | "yes" | "no">
   virtualkeyboardpolicy?: NRO<"auto" | "manual">
-  role?: NRO<string | number>
   [K: `aria-${string}`]: NRO<string | number>
   [K: `data-${string}`]: NRO<string | number>
 }
