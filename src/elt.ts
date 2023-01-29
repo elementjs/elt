@@ -241,6 +241,20 @@ export interface Attrs<N extends Node = HTMLElement> extends EmptyAttributes<N> 
   class?: ClassDefinition | ClassDefinition[] // special attributes
   /** Style definition, see [[$style]] for use */
   style?: StyleDefinition
+  autofocus?: NRO<"" | true>
+  draggable?: NRO<"" | "true" | "false">
+  hidden?: NRO<"" | true | "untilfound" | "hidden">
+  exportparts?: NRO<string | number>
+  lang?: NRO<string | number>
+  nonce?: NRO<string | number>
+  part?: NRO<string | number>
+  slot?: NRO<string | number>
+  spellcheck?: NRO<"" | true | "true" | "default" | "false">
+  tabindex?: NRO<string | number>
+  title?: NRO<string | number>
+  role?: NRO<string | number>
+  [K: `aria-${string}`]: NRO<string | number>
+  [K: `data-${string}`]: NRO<string | number>
 }
 
 
@@ -252,9 +266,15 @@ export interface Attrs<N extends Node = HTMLElement> extends EmptyAttributes<N> 
  * @category dom, toc
  */
 export function e<N extends Node>(elt: N, ...children: (Insertable<N> | Attrs<N>)[]): N
-export function e<K extends keyof SVGElementTagNameMap>(elt: K, ...children: (Insertable<SVGElementTagNameMap[K]> | e.JSX.SVGAttributes<SVGElementTagNameMap[K]>)[]): SVGElementTagNameMap[K]
-export function e<K extends keyof HTMLElementTagNameMap>(elt: K, ...children: (Insertable<HTMLElementTagNameMap[K]> | e.JSX.HTMLAttributes<HTMLElementTagNameMap[K]>)[]): HTMLElementTagNameMap[K]
-export function e(elt: string, ...children: Insertable<HTMLElement>[]): HTMLElement
+export function e<K extends keyof ElementMap & keyof SVGElementTagNameMap>(
+  elt: K,
+  ...children: (Insertable<SVGElementTagNameMap[K]> | ElementMap[K])[]
+): SVGElementTagNameMap[K]
+export function e<K extends keyof ElementMap & keyof HTMLElementTagNameMap>(
+  elt: K,
+  ...children: (Insertable<HTMLElementTagNameMap[K]> | ElementMap[K])[]
+): HTMLElementTagNameMap[K]
+export function e(elt: string, ...children: (Insertable<HTMLElement> | Attrs<HTMLElement>)[]): HTMLElement
 export function e<A extends EmptyAttributes<any>>(elt: (attrs: A, children: Renderable[]) => AttrsNodeType<A>, attrs: A, ...children: Insertable<AttrsNodeType<A>>[]): AttrsNodeType<A>
 // eslint-disable-next-line @typescript-eslint/ban-types
 export function e<N extends Node>(elt: string | Node | Function, ...children: (Insertable<N> | Attrs<N>)[]): N {
@@ -423,11 +443,14 @@ export namespace e {
     handle_decorator_result(node, insert, res)
   }
 
+  // All these attributes are forwarded and part of the basic Attrs
+  const basic_attrs = new Set(["id", "slot", "part", "role", "tabindex", "lang", "inert", "title", "autofocus", "nonce"])
+
   /**
    * Handle attributes for simple nodes
    * @internal
    */
-  export function handle_attrs(node: HTMLElement, attrs: e.JSX.HTMLAttributes<any>, is_basic_node: boolean) {
+  export function handle_attrs(node: HTMLElement, attrs: Attrs<any>, is_basic_node: boolean) {
     const keys = Object.keys(attrs) as (keyof typeof attrs)[]
     for (let i = 0, l = keys.length; i < l; i++) {
       const key = keys[i]
@@ -439,8 +462,8 @@ export namespace e {
           node_observe_class(node, attrs.class!)
       } else if (key === "style" && attrs.style) {
         node_observe_style(node, attrs.style)
-      } else if (key === "id" || is_basic_node) {
-        node_observe_attribute(node, key, attrs[key])
+      } else if (basic_attrs.has(key) || is_basic_node) {
+        node_observe_attribute(node, key, (attrs as any)[key])
       }
     }
   }
@@ -495,213 +518,6 @@ export namespace e {
       [D: `data-${string}`]: NRO<string>
     }
 
-    /** @internal */
-    export interface HTMLAttributes<N extends HTMLElement> extends Attrs<N>, GlobalHTMLAttributes {
-
-
-      // Attributes shamelessly stolen from React's type definitions.
-      // Standard HTML Attributes
-      accept?: NRO<string>
-      "accept-charset"?: NRO<string>
-      action?: NRO<string>
-      allowfullscreen?: NRO<boolean>
-      allowtransparency?: NRO<boolean>
-      alt?: NRO<string>
-      async?: NRO<boolean>
-      autocomplete?: NRO<string>
-      autoplay?: NRO<boolean>
-      capture?: NRO<boolean>
-      cellpadding?: NRO<number | string>
-      cellspacing?: NRO<number | string>
-      charset?: NRO<string>
-      challenge?: NRO<string>
-      checked?: NRO<boolean>
-      classid?: NRO<string>
-      classname?: NRO<string>
-      cols?: NRO<number>
-      colspan?: NRO<number>
-      content?: NRO<string>
-      // contenteditable?: NRO<boolean>
-      controls?: NRO<boolean>
-      coords?: NRO<string>
-      crossorigin?: NRO<string>
-      data?: NRO<string>
-      datetime?: NRO<string>
-      default?: NRO<boolean>
-      defer?: NRO<boolean>
-      // dir?: NRO<string>
-      disabled?: NRO<boolean>
-      download?: NRO<any>
-      // draggable?: NRO<boolean>
-      enctype?: NRO<string>
-      for?: NRO<string>
-      form?: NRO<string>
-      formaction?: NRO<string>
-      formenctype?: NRO<string>
-      formmethod?: NRO<string>
-      formnovalidate?: NRO<boolean>
-      formtarget?: NRO<string>
-      frameborder?: NRO<number | string>
-      headers?: NRO<string>
-      height?: NRO<number | string>
-      high?: NRO<number>
-      href?: NRO<string>
-      hreflang?: NRO<string>
-      htmlfor?: NRO<string>
-      "http-equiv"?: NRO<string>
-      icon?: NRO<string>
-      id?: NRO<string>
-      integrity?: NRO<string>
-      is?: NRO<string>
-      keyparams?: NRO<string>
-      keytype?: NRO<string>
-      kind?: NRO<string>
-      label?: NRO<string>
-      // lang?: NRO<string>
-      list?: NRO<string>
-      loop?: NRO<boolean>
-      low?: NRO<number>
-      manifest?: NRO<string>
-      marginheight?: NRO<number>
-      marginwidth?: NRO<number>
-      max?: NRO<number | string>
-      maxlength?: NRO<number>
-      media?: NRO<string>
-      mediagroup?: NRO<string>
-      method?: NRO<string>
-      min?: NRO<number | string>
-      minlength?: NRO<number>
-      multiple?: NRO<boolean>
-      muted?: NRO<boolean>
-      name?: NRO<string>
-      novalidate?: NRO<boolean>
-      open?: NRO<boolean>
-      optimum?: NRO<number>
-      pattern?: NRO<string>
-      placeholder?: NRO<string>
-      poster?: NRO<string>
-      preload?: NRO<string>
-      radiogroup?: NRO<string>
-      readonly?: NRO<boolean>
-      rel?: NRO<string>
-      required?: NRO<boolean>
-      role?: NRO<string>
-      rows?: NRO<number>
-      rowspan?: NRO<number>
-      sandbox?: NRO<string>
-      scope?: NRO<string>
-      scoped?: NRO<boolean>
-      scrolling?: NRO<string>
-      seamless?: NRO<boolean>
-      selected?: NRO<boolean>
-      shape?: NRO<string>
-      size?: NRO<number>
-      sizes?: NRO<string>
-      span?: NRO<number>
-      spellcheck?: NRO<boolean>
-      src?: NRO<string>
-      srcdoc?: NRO<string>
-      srclang?: NRO<string>
-      srcset?: NRO<string>
-      start?: NRO<number>
-      step?: NRO<number | string>
-      summary?: NRO<string>
-      target?: NRO<string>
-      type?: NRO<string>
-      usemap?: NRO<string>
-      value?: NRO<string | number | boolean>
-      width?: NRO<number | string>
-      wmode?: NRO<string>
-      wrap?: NRO<string>
-
-      // RDFa Attributes
-      about?: NRO<string>
-      datatype?: NRO<string>
-      inlist?: NRO<any>
-      prefix?: NRO<string>
-      property?: NRO<string>
-      resource?: NRO<string>
-      typeof?: NRO<string>
-      vocab?: NRO<string>
-
-      // Non-standard Attributes
-      autocorrect?: NRO<string>
-      autosave?: NRO<string>
-      color?: NRO<string>
-      itemprop?: NRO<string>
-      itemscope?: NRO<boolean>
-      itemtype?: NRO<string>
-      itemid?: NRO<string>
-      itemref?: NRO<string>
-      results?: NRO<number>
-      security?: NRO<string>
-      unselectable?: NRO<boolean>
-    }
-
-    /** @internal */
-    export interface SVGAttributes<N extends SVGElement = SVGElement> extends Attrs<N> {
-
-      contenteditable?: NRO<"true" | "false" | "inherit">
-      hidden?: NRO<boolean>
-      accesskey?: NRO<string>
-      lang?: NRO<string>
-      tabindex?: NRO<number>
-      title?: NRO<string>
-      xmlns?: string
-
-      "clip-path"?: string
-      clipPathUnits?: NRO<"userSpaceOnUse" | "objectBoundingBox">
-      cx?: NRO<number | string>
-      cy?: NRO<number | string>
-      d?: NRO<string>
-      dx?: NRO<number | string>
-      dy?: NRO<number | string>
-      fill?: NRO<string>
-      "fill-opacity"?: NRO<number | string>
-      "font-family"?: NRO<string>
-      "font-size"?: NRO<number | string>
-      fx?: NRO<number | string>
-      fy?: NRO<number | string>
-      gradientTransform?: NRO<string>
-      gradientUnits?: NRO<string>
-      height?: NRO<number | string>
-      href?: NRO<string>
-      "marker-end"?: NRO<string>
-      "marker-mid"?: NRO<string>
-      "marker-start"?: NRO<string>
-      offset?: NRO<number | string>
-      opacity?: NRO<number | string>
-      patternContentUnits?: NRO<string>
-      patternUnits?: NRO<string>
-      points?: NRO<string>
-      preserveAspectRatio?: NRO<string>
-      r?: NRO<number | string>
-      rx?: NRO<number | string>
-      ry?: NRO<number | string>
-      space?: NRO<string>
-      spreadMethod?: NRO<string>
-      startOffset?: NRO<string>
-      "stop-color"?: NRO<string>
-      "stop-opacity"?: NRO<number | string>
-      stroke?: NRO<string>
-      "stroke-dasharray"?: NRO<string>
-      "stroke-linecap"?: NRO<string>
-      "stroke-opacity"?: NRO<number | string>
-      "stroke-width"?: NRO<number | string>
-      "text-anchor"?: NRO<string>
-      "text-decoration"?: NRO<string>
-      transform?: NRO<string>
-      version?: NRO<string>
-      viewBox?: NRO<string>
-      width?: NRO<number | string>
-      x1?: NRO<number | string>
-      x2?: NRO<number | string>
-      x?: NRO<number | string>
-      y1?: NRO<number | string>
-      y2?: NRO<number | string>
-      y?: NRO<number | string>
-    }
-
     // This is the line that tells JSX what attributes the basic elements like "div" or "article" have
     export type IntrinsicElements = ElementMap
   }
@@ -710,9 +526,9 @@ export namespace e {
    * A wrapper maker for basic elements, used to generate all of the $A, $DIV, ...
    * @internal
    */
-  export function mkwrapper<K extends keyof HTMLElementTagNameMap>(elt: K): (...args: (Insertable<HTMLElementTagNameMap[K]> | e.JSX.HTMLAttributes<HTMLElementTagNameMap[K]>)[]) => HTMLElementTagNameMap[K]
-  export function mkwrapper(elt: string): (...args: (Insertable<HTMLElement> | e.JSX.HTMLAttributes<HTMLElement>)[]) => HTMLElement
-  export function mkwrapper<K extends keyof HTMLElementTagNameMap>(elt: K): (...args: (Insertable<HTMLElementTagNameMap[K]> | e.JSX.HTMLAttributes<HTMLElementTagNameMap[K]>)[]) => HTMLElementTagNameMap[K] {
+  export function mkwrapper<K extends keyof ElementMap & keyof HTMLElementTagNameMap>(elt: K): (...args: (Insertable<HTMLElementTagNameMap[K]> | ElementMap[K])[]) => HTMLElementTagNameMap[K]
+  export function mkwrapper(elt: string): (...args: (Insertable<HTMLElement> | Attrs<HTMLElement>)[]) => HTMLElement
+  export function mkwrapper<K extends keyof HTMLElementTagNameMap & keyof ElementMap>(elt: K): (...args: (Insertable<HTMLElementTagNameMap[K]> | ElementMap[K])[]) => HTMLElementTagNameMap[K] {
     return (...args) => {
       return e<K>(elt, ...args)
     }
