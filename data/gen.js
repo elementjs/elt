@@ -63,15 +63,15 @@ function dump_attrs(entries) {
   for (let [name, val] of entries) {
     if (name.includes("*")) {
       name = name.replace("*", "${string}")
-      out(`  [K: \`${name}\`]: NRO<string>\n`)
+      out(`  [K: \`${name}\`]: NRO<string | number>\n`)
       continue
     }
     if (name.includes("-")) name = `"${name}"`
     if (Array.isArray(val)) {
-      val = val.map(v => v === "string" ? v : v === "" ? `"" | true` : `"${v}"`)
+      val = val.map(v => v === "string" || v === "number" ? v : v === "" ? `"" | true` : `"${v}"`)
       out(`  ${name}?: NRO<${val.join(" | ")}>\n`)
     } else {
-      out(`  ${name}?: NRO<string>\n`)
+      out(`  ${name}?: NRO<string | number>\n`)
     }
   }
 }

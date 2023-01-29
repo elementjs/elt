@@ -22,6 +22,8 @@ globals:
     height:
     result:
     width:
+  SVGLink:
+    href:
 
   SVGPresentation:
     alignment-baseline: [auto, baseline, before-edge, text-before-edge, middle, central, after-edge, text-after-edge, ideographic, alphabetic, hanging, mathematical, inherit]
@@ -108,6 +110,7 @@ globals:
     from:
     to:
     by:
+
   SVGAnimationOther:
     attributeName:
     additive:
@@ -447,6 +450,7 @@ elements:
     nonce:
     referrerpolicy: *refer
     src:
+    href: # for svg !
     type: ["", "text/javascript", "module", "importmap"]
     blocking: ["render"]
   select:
@@ -523,7 +527,7 @@ elements:
 svgelements:
   defs:
   desc:
-  g:
+  metadata:
 
   animate:
     _extends: [SVGAnimationValue, SVGAnimationDuration, SVGAnimationOther]
@@ -531,6 +535,7 @@ svgelements:
     _extends: [SVGAnimationValue, SVGAnimationDuration, SVGAnimationOther]
   animateTransform:
     _extends: [SVGAnimationValue, SVGAnimationDuration, SVGAnimationOther]
+    type: [translate, scale, rotate, skewX, skewY]
   circle: &svgcircle
     _extends: SVGPresentation
     cx:
@@ -543,14 +548,129 @@ svgelements:
     <<: *svgcircle
     ry:
   feBlend:
-    _extends: SVGPresentation, SVGFilterPrimitive
+    _extends: [SVGPresentation, SVGFilterPrimitive]
     in: *svgin
     in2: *svgin
     mode: *svgblend
+  feColorMatrix:
+    _extends: [SVGPresentation, SVGFilterPrimitive]
+    in: *svgin
+    type: [matrix, saturate, hueRotate, luminanceToAlpha]
+    values:
+  feComponentTransfer:
+    _extends: [SVGPresentation, SVGFilterPrimitive]
+    in: *svgin
+  feComposite:
+    _extends: [SVGPresentation, SVGFilterPrimitive]
+    in: *svgin
+    in2: *svgin
+    operator: [over, in, out, atop, xor, lighter, arithmetic]
+    k1: number
+    k2: number
+    k3: number
+    k4: number
+  feConvolveMatrix:
+    _extends: [SVGPresentation, SVGFilterPrimitive]
+    in: *svgin
+    order: number
+    kernelMatrix:
+    divisor: number
+    bias: number
+    targetX: number
+    targetY: number
+    edgeMode: [duplicate, wrap, none]
+    preserveAlpha: ["", "true", "false"]
+  feDiffuseLighting:
+    #todo
+    _extends: [SVGPresentation, SVGFilterPrimitive]
+  feDisplacementMap:
+    #todo
+    _extends: [SVGPresentation, SVGFilterPrimitive]
+  feDistantLight:
+    #todo
+    _extends: [SVGPresentation, SVGFilterPrimitive]
+  feFlood:
+    #todo
+    _extends: [SVGPresentation, SVGFilterPrimitive]
+  feFuncA:
+    #todo
+    _extends: [SVGPresentation, SVGFilterPrimitive]
+  feFuncB:
+    #todo
+    _extends: [SVGPresentation, SVGFilterPrimitive]
+  feFuncG:
+    #todo
+    _extends: [SVGPresentation, SVGFilterPrimitive]
+  feFuncR:
+    #todo
+    _extends: [SVGPresentation, SVGFilterPrimitive]
+  feGaussianBlur:
+    #todo
+    _extends: [SVGPresentation, SVGFilterPrimitive]
+  feImage:
+    #todo
+    _extends: [SVGPresentation, SVGFilterPrimitive]
+  feMerge:
+    #todo
+    _extends: [SVGPresentation, SVGFilterPrimitive]
+  feMergeNode:
+    #todo
+    _extends: [SVGPresentation, SVGFilterPrimitive]
+  feMorphology:
+    #todo
+    _extends: [SVGPresentation, SVGFilterPrimitive]
+  feOffset:
+    #todo
+    _extends: [SVGPresentation, SVGFilterPrimitive]
+  fePointLight:
+    #todo
+    _extends: [SVGPresentation, SVGFilterPrimitive]
+  feSpecularLighting:
+    #todo
+    _extends: [SVGPresentation, SVGFilterPrimitive]
+  feSpotLight:
+    #todo
+    _extends: [SVGPresentation, SVGFilterPrimitive]
+  feTile:
+    #todo
+    _extends: [SVGPresentation, SVGFilterPrimitive]
+  feTurbulence:
+    #todo
+    _extends: [SVGPresentation, SVGFilterPrimitive]
+  filter:
+    #todo
+    _extends: [SVGPresentation, SVGFilterPrimitive]
+  foreignObject: #todo
+  g:
+    _extends: SVGPresentation
+  image: #todo
+    _extends: SVGPresentation
+  line: # todo
+    _extends: SVGPresentation
+  linearGradient: #todo
+    _extends: SVGPresentation
+  marker: #todo
+    _extends: SVGPresentation
+  mask: #todo
+    _extends: [SVGPresentation, SVGLink]
+  mpath: #todo
+    _extends: [SVGPresentation, SVGLink]
   path:
     _extends: SVGPresentation
     d:
-    pathLength:
+    pathLength: number
+  pattern: #todo
+    _extends: [SVGPresentation]
+  polygon:
+    _extends: [SVGPresentation]
+    points:
+    pathLength: number
+  polyline:
+    _extends: [SVGPresentation]
+    points:
+    pathLength: number
+  radialGradient: #todo
+    _extends: [SVGPresentation]
   rect:
     _extends: SVGPresentation
     x:
@@ -560,3 +680,49 @@ svgelements:
     rx:
     ry:
     pathLength:
+  set:
+    to:
+  stop:
+    offset:
+    stop-color: [currentcolor, string]
+    stop-opactiy: number
+  svg:
+    height:
+    viewBox:
+    width:
+    x:
+    y:
+  switch:
+  symbol:
+    _extends: SVGPresentation
+  text: &svgtext
+    _extends: SVGPresentation
+    x:
+    y:
+    dx:
+    dy:
+    rotate:
+    lengthAdjust: [spacing, spacingAndGlyphs]
+    textLength:
+  textPath:
+    _extends: SVGPresentation
+    href:
+    lengthAdjust: [spacing, spacingAndGlyphs]
+    method: [align, stretch]
+    path:
+    side: [left, right]
+    spacing: [auto, exact]
+    startOffset:
+    textLength:
+  tspan:
+    <<: *svgtext
+  use:
+    _extends: SVGPresentation
+    href:
+    x:
+    y:
+    width:
+    height:
+  view:
+    viewBox:
+    preserveAspectRatio:

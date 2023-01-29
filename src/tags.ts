@@ -5,15 +5,18 @@ import type { o } from "./observable"
 export type NRO<T> = o.RO<T | null | false>
 
 export interface SVG {
-  lang?: NRO<string>
-  tabindex?: NRO<string>
+  lang?: NRO<string | number>
+  tabindex?: NRO<string | number>
 }
 export interface SVGFilterPrimitive {
-  x?: NRO<string>
-  y?: NRO<string>
-  height?: NRO<string>
-  result?: NRO<string>
-  width?: NRO<string>
+  x?: NRO<string | number>
+  y?: NRO<string | number>
+  height?: NRO<string | number>
+  result?: NRO<string | number>
+  width?: NRO<string | number>
+}
+export interface SVGLink {
+  href?: NRO<string | number>
 }
 export interface SVGPresentation {
   "alignment-baseline"?: NRO<"auto" | "baseline" | "before-edge" | "text-before-edge" | "middle" | "central" | "after-edge" | "text-after-edge" | "ideographic" | "alphabetic" | "hanging" | "mathematical" | "inherit">
@@ -21,169 +24,169 @@ export interface SVGPresentation {
   clip?: NRO<"auto" | "inherit" | string>
   "clip-path"?: NRO<"none" | "inherit" | string>
   "clip-rule"?: NRO<"nonzero" | "evenodd" | "inherit">
-  color?: NRO<string>
+  color?: NRO<string | number>
   "color-interpolation"?: NRO<"auto" | "sRGB" | "linearRGB" | "inherit">
   "color-interpolation-filters"?: NRO<"auto" | "sRGB" | "linearRGB" | "inherit">
   "color-profile"?: NRO<"auto" | "sRGB" | "linearRGB" | string | "inherit">
-  "color-rendering"?: NRO<string>
-  cursor?: NRO<string>
-  d?: NRO<string>
+  "color-rendering"?: NRO<string | number>
+  cursor?: NRO<string | number>
+  d?: NRO<string | number>
   direction?: NRO<"ltr" | "rtl" | "inherit">
   display?: NRO<"" | true>
   "dominant-baseline"?: NRO<"auto" | "text-bottom" | "alphabetic" | "ideographic" | "middle" | "central" | "mathematical" | "hanging" | "text-top">
   "enable-background"?: NRO<"accumulate" | "new" | "inherit">
-  fill?: NRO<string>
-  "fill-opacity"?: NRO<string>
+  fill?: NRO<string | number>
+  "fill-opacity"?: NRO<string | number>
   "fill-rule"?: NRO<"nonzero" | "evenodd" | "inherit">
-  filter?: NRO<string>
-  "flood-color"?: NRO<string>
-  "flood-opacity"?: NRO<string>
-  "font-family"?: NRO<string>
-  "font-size"?: NRO<string>
-  "font-size-adjust"?: NRO<string>
-  "font-stretch"?: NRO<string>
+  filter?: NRO<string | number>
+  "flood-color"?: NRO<string | number>
+  "flood-opacity"?: NRO<string | number>
+  "font-family"?: NRO<string | number>
+  "font-size"?: NRO<string | number>
+  "font-size-adjust"?: NRO<string | number>
+  "font-stretch"?: NRO<string | number>
   "font-style"?: NRO<"normal" | "italic" | "oblique">
-  "font-variant"?: NRO<string>
+  "font-variant"?: NRO<string | number>
   "font-weight"?: NRO<"normal" | "bold" | "lighter" | "bolder" | "100" | "200" | "300" | "400" | "500" | "600" | "700" | "800" | "900">
-  "glyph-orientation-horizontal"?: NRO<string>
-  "glyph-orientation-vertical"?: NRO<string>
+  "glyph-orientation-horizontal"?: NRO<string | number>
+  "glyph-orientation-vertical"?: NRO<string | number>
   "image-rendering"?: NRO<"auto" | "optimizeQuality" | "optimizeSpeed">
-  kerning?: NRO<string>
-  "letter-spacing"?: NRO<string>
-  "lighting-color"?: NRO<string>
-  "marker-end"?: NRO<string>
-  "marker-mid"?: NRO<string>
-  "marker-start"?: NRO<string>
-  mask?: NRO<string>
-  opacity?: NRO<string>
+  kerning?: NRO<string | number>
+  "letter-spacing"?: NRO<string | number>
+  "lighting-color"?: NRO<string | number>
+  "marker-end"?: NRO<string | number>
+  "marker-mid"?: NRO<string | number>
+  "marker-start"?: NRO<string | number>
+  mask?: NRO<string | number>
+  opacity?: NRO<string | number>
   overflow?: NRO<"visible" | "hidden" | "scroll" | "auto" | "inherit">
   "pointer-events"?: NRO<"bounding-box" | "visiblePainted" | "visibleFill" | "visibleStroke" | "visible" | "painted" | "fill" | "stroke" | "all" | "none">
-  "shape-rendering"?: NRO<string>
-  "solid-color"?: NRO<string>
-  "solid-opacity"?: NRO<string>
+  "shape-rendering"?: NRO<string | number>
+  "solid-color"?: NRO<string | number>
+  "solid-opacity"?: NRO<string | number>
   "stop-color"?: NRO<"currentcolor" | string | "inherit">
-  "stop-opacity"?: NRO<string>
-  stroke?: NRO<string>
-  "stroke-dasharray"?: NRO<string>
-  "stroke-dashoffset"?: NRO<string>
+  "stop-opacity"?: NRO<string | number>
+  stroke?: NRO<string | number>
+  "stroke-dasharray"?: NRO<string | number>
+  "stroke-dashoffset"?: NRO<string | number>
   "stroke-linecap"?: NRO<"butt" | "round" | "square">
   "stroke-linejoin"?: NRO<"arcs" | "bevel" | "miter" | "miter-clip" | "round">
-  "stroke-miterlimit"?: NRO<string>
-  "stroke-opacity"?: NRO<string>
-  "stroke-width"?: NRO<string>
+  "stroke-miterlimit"?: NRO<string | number>
+  "stroke-opacity"?: NRO<string | number>
+  "stroke-width"?: NRO<string | number>
   "text-anchor"?: NRO<"start" | "middle" | "end" | "inherit">
   "text-decoration"?: NRO<"none" | "underline" | "overline" | "line-through" | "blink" | "inherit">
   "text-rendering"?: NRO<"auto" | "optimizeSpeed" | "optimizeLegibility" | "geometricPrecision" | "inherit">
-  transform?: NRO<string>
-  "unicode-bidi"?: NRO<string>
+  transform?: NRO<string | number>
+  "unicode-bidi"?: NRO<string | number>
   "vector-effect"?: NRO<"default" | "non-scaling-stroke" | "inherit" | string>
-  visibility?: NRO<string>
-  "word-spacing"?: NRO<string>
+  visibility?: NRO<string | number>
+  "word-spacing"?: NRO<string | number>
   "writing-mode"?: NRO<"lr-tb" | "rl-tb" | "tb-rl" | "lr" | "rl" | "tb" | "inherit">
 }
 export interface SVGAnimationDuration {
-  begin?: NRO<string>
-  dur?: NRO<string>
-  end?: NRO<string>
-  min?: NRO<string>
-  max?: NRO<string>
-  restart?: NRO<string>
-  repeatCount?: NRO<string>
-  repeatDur?: NRO<string>
-  fill?: NRO<string>
+  begin?: NRO<string | number>
+  dur?: NRO<string | number>
+  end?: NRO<string | number>
+  min?: NRO<string | number>
+  max?: NRO<string | number>
+  restart?: NRO<string | number>
+  repeatCount?: NRO<string | number>
+  repeatDur?: NRO<string | number>
+  fill?: NRO<string | number>
 }
 export interface SVGAnimationValue {
   calcMode?: NRO<"discrete" | "linear" | "paced" | "spline">
-  values?: NRO<string>
-  keyTimes?: NRO<string>
-  keySplines?: NRO<string>
-  from?: NRO<string>
-  to?: NRO<string>
-  by?: NRO<string>
+  values?: NRO<string | number>
+  keyTimes?: NRO<string | number>
+  keySplines?: NRO<string | number>
+  from?: NRO<string | number>
+  to?: NRO<string | number>
+  by?: NRO<string | number>
 }
 export interface SVGAnimationOther {
-  attributeName?: NRO<string>
-  additive?: NRO<string>
-  accumulate?: NRO<string>
+  attributeName?: NRO<string | number>
+  additive?: NRO<string | number>
+  accumulate?: NRO<string | number>
 }
 export interface Global {
-  accesskey?: NRO<string>
+  accesskey?: NRO<string | number>
   autocapitalize?: NRO<"off" | "on" | "none" | "sentences" | "words" | "characters">
   autofocus?: NRO<"" | true>
   contenteditable?: NRO<"" | true | "true" | "false" | "inherit">
   dir?: NRO<"ltr" | "rtl" | "auto">
   draggable?: NRO<"true" | "false">
   enterkeyhint?: NRO<"enter" | "done" | "go" | "next" | "previous" | "search" | "send">
-  exportparts?: NRO<string>
+  exportparts?: NRO<string | number>
   hidden?: NRO<"" | true | "untilfound" | "hidden">
   inert?: NRO<"" | true>
   inputmode?: NRO<"none" | "text" | "decimal" | "numeric" | "tel" | "search" | "email" | "url">
-  is?: NRO<string>
-  itemid?: NRO<string>
-  itemprop?: NRO<string>
-  itemref?: NRO<string>
+  is?: NRO<string | number>
+  itemid?: NRO<string | number>
+  itemprop?: NRO<string | number>
+  itemref?: NRO<string | number>
   itemscope?: NRO<"" | true>
-  itemtype?: NRO<string>
-  lang?: NRO<string>
-  nonce?: NRO<string>
-  part?: NRO<string>
-  slot?: NRO<string>
+  itemtype?: NRO<string | number>
+  lang?: NRO<string | number>
+  nonce?: NRO<string | number>
+  part?: NRO<string | number>
+  slot?: NRO<string | number>
   spellcheck?: NRO<"" | true | "true" | "default" | "false">
-  tabindex?: NRO<string>
-  title?: NRO<string>
+  tabindex?: NRO<string | number>
+  title?: NRO<string | number>
   translate?: NRO<"" | true | "yes" | "no">
   virtualkeyboardpolicy?: NRO<"auto" | "manual">
-  role?: NRO<string>
-  [K: `aria-${string}`]: NRO<string>
-  [K: `data-${string}`]: NRO<string>
+  role?: NRO<string | number>
+  [K: `aria-${string}`]: NRO<string | number>
+  [K: `data-${string}`]: NRO<string | number>
 }
 export interface Link {
-  download?: NRO<string>
-  href?: NRO<string>
-  hreflang?: NRO<string>
-  ping?: NRO<string>
+  download?: NRO<string | number>
+  href?: NRO<string | number>
+  hreflang?: NRO<string | number>
+  ping?: NRO<string | number>
   referrerpolicy?: NRO<"no-referrer" | "no-referrer-when-downgrade" | "origin" | "origin-when-cross-origin" | "same-origin" | "strict-origin" | "strict-origin-when-cross-origin" | "unsafe-url">
   rel?: NRO<"alternate" | "author" | "bookmark" | "external" | "help" | "license" | "next" | "nofollow" | "noopener" | "noreferrer" | "prev" | "search" | "tag">
   target?: NRO<"_blank" | "_self" | "_parent" | "_top">
-  type?: NRO<string>
+  type?: NRO<string | number>
 }
 export interface Form {
   disabled?: NRO<"" | true>
-  form?: NRO<string>
-  formaction?: NRO<string>
-  formenctype?: NRO<string>
+  form?: NRO<string | number>
+  formaction?: NRO<string | number>
+  formenctype?: NRO<string | number>
   formmethod?: NRO<"post" | "get">
   formnovalidate?: NRO<"" | true>
   formtarget?: NRO<"_blank" | "_self" | "_parent" | "_top">
-  name?: NRO<string>
-  value?: NRO<string>
+  name?: NRO<string | number>
+  value?: NRO<string | number>
 }
 export interface attrs_a extends Global, Link {}
 export interface attrs_abbr extends Global {}
 export interface attrs_address extends Global {}
 export interface attrs_area extends Global, Link {
-  alt?: NRO<string>
-  coords?: NRO<string>
-  shape?: NRO<string>
-  name?: NRO<string>
-  nohref?: NRO<string>
-  type?: NRO<string>
+  alt?: NRO<string | number>
+  coords?: NRO<string | number>
+  shape?: NRO<string | number>
+  name?: NRO<string | number>
+  nohref?: NRO<string | number>
+  type?: NRO<string | number>
 }
 export interface attrs_article extends Global {}
 export interface attrs_aside extends Global {}
 export interface attrs_audio extends Global {
   autoplay?: NRO<"" | true>
   controls?: NRO<"" | true>
-  controlslist?: NRO<string>
+  controlslist?: NRO<string | number>
   crossorigin?: NRO<"anonymous" | "use-credentials">
   disableremoteplayback?: NRO<"" | true>
   loop?: NRO<"" | true>
   preload?: NRO<"" | true | "none" | "metadata" | "auto">
-  src?: NRO<string>
+  src?: NRO<string | number>
 }
 export interface attrs_b extends Global {}
 export interface attrs_base extends Global {
-  href?: NRO<string>
+  href?: NRO<string | number>
   target?: NRO<"_blank" | "_self" | "_parent" | "_top">
 }
 export interface attrs_bdi extends Global {}
@@ -191,7 +194,7 @@ export interface attrs_bdo extends Global {
   dir?: NRO<"ltr" | "rtl">
 }
 export interface attrs_blockquote extends Global {
-  cite?: NRO<string>
+  cite?: NRO<string | number>
 }
 export interface attrs_body extends Global {}
 export interface attrs_br extends Global {}
@@ -200,8 +203,8 @@ export interface attrs_button extends Global, Form {
   type?: NRO<"submit" | "reset" | "button">
 }
 export interface attrs_canvas extends Global {
-  height?: NRO<string>
-  width?: NRO<string>
+  height?: NRO<string | number>
+  width?: NRO<string | number>
 }
 export interface attrs_caption extends Global {
   align?: NRO<"left" | "top" | "right" | "bottom">
@@ -209,19 +212,19 @@ export interface attrs_caption extends Global {
 export interface attrs_cite extends Global {}
 export interface attrs_code extends Global {}
 export interface attrs_col extends Global {
-  span?: NRO<string>
+  span?: NRO<string | number>
 }
 export interface attrs_colgroup extends Global {
-  span?: NRO<string>
+  span?: NRO<string | number>
 }
 export interface attrs_data extends Global {
-  value?: NRO<string>
+  value?: NRO<string | number>
 }
 export interface attrs_datalist extends Global {}
 export interface attrs_dd extends Global {}
 export interface attrs_del extends Global {
-  cite?: NRO<string>
-  datetime?: NRO<string>
+  cite?: NRO<string | number>
+  datetime?: NRO<string | number>
 }
 export interface attrs_details extends Global {
   open?: NRO<"" | true>
@@ -235,27 +238,27 @@ export interface attrs_dl extends Global {}
 export interface attrs_dt extends Global {}
 export interface attrs_em extends Global {}
 export interface attrs_embed extends Global {
-  height?: NRO<string>
-  src?: NRO<string>
-  type?: NRO<string>
-  width?: NRO<string>
+  height?: NRO<string | number>
+  src?: NRO<string | number>
+  type?: NRO<string | number>
+  width?: NRO<string | number>
 }
 export interface attrs_fieldset extends Global {
   disabled?: NRO<"" | true>
-  form?: NRO<string>
-  name?: NRO<string>
+  form?: NRO<string | number>
+  name?: NRO<string | number>
 }
 export interface attrs_figure extends Global {}
 export interface attrs_footer extends Global {}
 export interface attrs_form extends Global {
-  accept?: NRO<string>
-  "accept-charset"?: NRO<string>
+  accept?: NRO<string | number>
+  "accept-charset"?: NRO<string | number>
   autocomplete?: NRO<"on" | "off">
-  name?: NRO<string>
+  name?: NRO<string | number>
   rel?: NRO<"alternate" | "author" | "bookmark" | "external" | "help" | "license" | "next" | "nofollow" | "noopener" | "noreferrer" | "prev" | "search" | "tag">
-  action?: NRO<string>
-  enctype?: NRO<string>
-  method?: NRO<string>
+  action?: NRO<string | number>
+  enctype?: NRO<string | number>
+  method?: NRO<string | number>
   novalidate?: NRO<"" | true>
   target?: NRO<"_blank" | "_self" | "_parent" | "_top">
 }
@@ -272,152 +275,152 @@ export interface attrs_hr extends Global {}
 export interface attrs_html extends Global {}
 export interface attrs_i extends Global {}
 export interface attrs_iframe extends Global {
-  allow?: NRO<string>
+  allow?: NRO<string | number>
   allowfullscreen?: NRO<"" | true>
   allowpaymentrequest?: NRO<"" | true>
   credentialless?: NRO<"" | true>
-  csp?: NRO<string>
+  csp?: NRO<string | number>
   fetchpriority?: NRO<"high" | "low" | "auto">
-  height?: NRO<string>
+  height?: NRO<string | number>
   loading?: NRO<"eager" | "lazy">
-  name?: NRO<string>
+  name?: NRO<string | number>
   referrerpolicy?: NRO<"no-referrer" | "no-referrer-when-downgrade" | "origin" | "origin-when-cross-origin" | "same-origin" | "strict-origin" | "strict-origin-when-cross-origin" | "unsafe-url">
   sandbox?: NRO<"allow-downloads-without-user-activation" | "allow-downloads" | "allow-forms" | "allow-modals" | "allow-orientation-lock" | "allow-pointer-lock" | "allow-popups" | "allow-popups-to-escape-sandbox" | "allow-presentation" | "allow-same-origin" | "allow-scripts" | "allow-storage-access-by-user-activation" | "allow-top-navigation" | "allow-top-navigation-by-user-activation">
-  src?: NRO<string>
-  srcdoc?: NRO<string>
-  width?: NRO<string>
+  src?: NRO<string | number>
+  srcdoc?: NRO<string | number>
+  width?: NRO<string | number>
 }
 export interface attrs_img extends Global {
-  alt?: NRO<string>
+  alt?: NRO<string | number>
   crossorigin?: NRO<"anonymous" | "use-credentials">
   decoding?: NRO<"sync" | "async" | "auto">
   elementtiming?: NRO<"" | true>
   fetchpriority?: NRO<"high" | "low" | "auto">
-  height?: NRO<string>
+  height?: NRO<string | number>
   ismap?: NRO<"" | true>
   loading?: NRO<"eager" | "lazy">
   referrerpolicy?: NRO<"no-referrer" | "no-referrer-when-downgrade" | "origin" | "origin-when-cross-origin" | "same-origin" | "strict-origin" | "strict-origin-when-cross-origin" | "unsafe-url">
-  sizes?: NRO<string>
-  src?: NRO<string>
-  srcset?: NRO<string>
-  width?: NRO<string>
-  usemap?: NRO<string>
+  sizes?: NRO<string | number>
+  src?: NRO<string | number>
+  srcset?: NRO<string | number>
+  width?: NRO<string | number>
+  usemap?: NRO<string | number>
 }
 export interface attrs_input extends Global, Form {
-  type?: NRO<"button" | "checkbox" | "color" | "date" | "datetime-local" | "email" | "file" | "hidden" | "image" | "month" | "number" | "password" | "radio" | "range" | "reset" | "search" | "submit" | "tel" | "text" | "time" | "url" | "week">
-  accept?: NRO<string>
-  alt?: NRO<string>
-  autocomplete?: NRO<string>
-  capture?: NRO<string>
+  type?: NRO<"button" | "checkbox" | "color" | "date" | "datetime-local" | "email" | "file" | "hidden" | "image" | "month" | number | "password" | "radio" | "range" | "reset" | "search" | "submit" | "tel" | "text" | "time" | "url" | "week">
+  accept?: NRO<string | number>
+  alt?: NRO<string | number>
+  autocomplete?: NRO<string | number>
+  capture?: NRO<string | number>
   checked?: NRO<"" | true>
-  dirname?: NRO<string>
-  height?: NRO<string>
-  list?: NRO<string>
-  max?: NRO<string>
-  maxlength?: NRO<string>
-  min?: NRO<string>
-  minlength?: NRO<string>
+  dirname?: NRO<string | number>
+  height?: NRO<string | number>
+  list?: NRO<string | number>
+  max?: NRO<string | number>
+  maxlength?: NRO<string | number>
+  min?: NRO<string | number>
+  minlength?: NRO<string | number>
   multiple?: NRO<"" | true>
-  pattern?: NRO<string>
-  placeholer?: NRO<string>
+  pattern?: NRO<string | number>
+  placeholer?: NRO<string | number>
   readonly?: NRO<"" | true>
   required?: NRO<"" | true>
-  size?: NRO<string>
-  src?: NRO<string>
-  step?: NRO<string>
-  value?: NRO<string>
-  width?: NRO<string>
+  size?: NRO<string | number>
+  src?: NRO<string | number>
+  step?: NRO<string | number>
+  value?: NRO<string | number>
+  width?: NRO<string | number>
 }
 export interface attrs_ins extends Global {
-  cite?: NRO<string>
-  datetime?: NRO<string>
+  cite?: NRO<string | number>
+  datetime?: NRO<string | number>
 }
 export interface attrs_kbd extends Global {}
 export interface attrs_label extends Global {
-  for?: NRO<string>
+  for?: NRO<string | number>
 }
 export interface attrs_legend extends Global {}
 export interface attrs_li extends Global {
-  value?: NRO<string>
+  value?: NRO<string | number>
 }
 export interface attrs_link extends Global {
   as?: NRO<"audio" | "document" | "embed" | "fetch" | "font" | "image" | "object" | "script" | "style" | "track" | "video" | "worker">
   disabled?: NRO<"" | true>
   crossorigin?: NRO<"anonymous" | "use-credentials">
   fetchpriority?: NRO<"high" | "low" | "auto">
-  href?: NRO<string>
-  hreflang?: NRO<string>
-  imagesizes?: NRO<string>
-  imagesrcst?: NRO<string>
-  integrity?: NRO<string>
-  media?: NRO<string>
-  prefetch?: NRO<string>
+  href?: NRO<string | number>
+  hreflang?: NRO<string | number>
+  imagesizes?: NRO<string | number>
+  imagesrcst?: NRO<string | number>
+  integrity?: NRO<string | number>
+  media?: NRO<string | number>
+  prefetch?: NRO<string | number>
   referrerpolicy?: NRO<"no-referrer" | "no-referrer-when-downgrade" | "origin" | "origin-when-cross-origin" | "same-origin" | "strict-origin" | "strict-origin-when-cross-origin" | "unsafe-url">
-  rel?: NRO<string>
-  sizes?: NRO<string>
-  type?: NRO<string>
+  rel?: NRO<string | number>
+  sizes?: NRO<string | number>
+  type?: NRO<string | number>
   blocking?: NRO<"render">
 }
 export interface attrs_main extends Global {}
 export interface attrs_map extends Global {
-  name?: NRO<string>
+  name?: NRO<string | number>
 }
 export interface attrs_mark extends Global {}
 export interface attrs_menu extends Global {}
 export interface attrs_meta extends Global {
-  charset?: NRO<string>
-  content?: NRO<string>
-  "http-equiv"?: NRO<string>
-  name?: NRO<string>
+  charset?: NRO<string | number>
+  content?: NRO<string | number>
+  "http-equiv"?: NRO<string | number>
+  name?: NRO<string | number>
 }
 export interface attrs_meter extends Global {
-  value?: NRO<string>
-  min?: NRO<string>
-  max?: NRO<string>
-  low?: NRO<string>
-  high?: NRO<string>
-  optimum?: NRO<string>
+  value?: NRO<string | number>
+  min?: NRO<string | number>
+  max?: NRO<string | number>
+  low?: NRO<string | number>
+  high?: NRO<string | number>
+  optimum?: NRO<string | number>
 }
 export interface attrs_nav extends Global {}
 export interface attrs_noscript extends Global {}
 export interface attrs_object extends Global {
-  data?: NRO<string>
-  form?: NRO<string>
-  height?: NRO<string>
-  name?: NRO<string>
-  standby?: NRO<string>
-  type?: NRO<string>
-  usemap?: NRO<string>
-  width?: NRO<string>
+  data?: NRO<string | number>
+  form?: NRO<string | number>
+  height?: NRO<string | number>
+  name?: NRO<string | number>
+  standby?: NRO<string | number>
+  type?: NRO<string | number>
+  usemap?: NRO<string | number>
+  width?: NRO<string | number>
 }
 export interface attrs_ol extends Global {
   reversed?: NRO<"" | true>
-  start?: NRO<string>
+  start?: NRO<string | number>
   type?: NRO<"a" | "A" | "i" | "I" | "1">
 }
 export interface attrs_optgroup extends Global {
   disabled?: NRO<"" | true>
-  label?: NRO<string>
+  label?: NRO<string | number>
 }
 export interface attrs_option extends Global {
   disabled?: NRO<"" | true>
-  label?: NRO<string>
+  label?: NRO<string | number>
   selected?: NRO<"" | true>
-  value?: NRO<string>
+  value?: NRO<string | number>
 }
 export interface attrs_output extends Global {
-  for?: NRO<string>
-  form?: NRO<string>
-  name?: NRO<string>
+  for?: NRO<string | number>
+  form?: NRO<string | number>
+  name?: NRO<string | number>
 }
 export interface attrs_p extends Global {}
 export interface attrs_pre extends Global {}
 export interface attrs_progress extends Global {
-  max?: NRO<string>
-  value?: NRO<string>
+  max?: NRO<string | number>
+  value?: NRO<string | number>
 }
 export interface attrs_q extends Global {
-  cite?: NRO<string>
+  cite?: NRO<string | number>
 }
 export interface attrs_rp extends Global {}
 export interface attrs_rt extends Global {}
@@ -429,40 +432,41 @@ export interface attrs_script extends Global {
   crossorigin?: NRO<"anonymous" | "use-credentials">
   defer?: NRO<"" | true>
   fetchpriority?: NRO<"high" | "low" | "auto">
-  integrity?: NRO<string>
+  integrity?: NRO<string | number>
   nomodule?: NRO<"" | true>
-  nonce?: NRO<string>
+  nonce?: NRO<string | number>
   referrerpolicy?: NRO<"no-referrer" | "no-referrer-when-downgrade" | "origin" | "origin-when-cross-origin" | "same-origin" | "strict-origin" | "strict-origin-when-cross-origin" | "unsafe-url">
-  src?: NRO<string>
+  src?: NRO<string | number>
+  href?: NRO<string | number>
   type?: NRO<"" | true | "text/javascript" | "module" | "importmap">
   blocking?: NRO<"render">
 }
 export interface attrs_section extends Global {}
 export interface attrs_select extends Global, Form {
-  autocomplete?: NRO<string>
+  autocomplete?: NRO<string | number>
   multiple?: NRO<"" | true>
-  name?: NRO<string>
+  name?: NRO<string | number>
   required?: NRO<"" | true>
-  size?: NRO<string>
+  size?: NRO<string | number>
 }
 export interface attrs_slot extends Global {
-  name?: NRO<string>
+  name?: NRO<string | number>
 }
 export interface attrs_small extends Global {}
 export interface attrs_source extends Global {
-  type?: NRO<string>
-  src?: NRO<string>
-  srcset?: NRO<string>
-  sizes?: NRO<string>
-  media?: NRO<string>
-  height?: NRO<string>
-  width?: NRO<string>
+  type?: NRO<string | number>
+  src?: NRO<string | number>
+  srcset?: NRO<string | number>
+  sizes?: NRO<string | number>
+  media?: NRO<string | number>
+  height?: NRO<string | number>
+  width?: NRO<string | number>
 }
 export interface attrs_span extends Global {}
 export interface attrs_strong extends Global {}
 export interface attrs_style extends Global {
-  media?: NRO<string>
-  nonce?: NRO<string>
+  media?: NRO<string | number>
+  nonce?: NRO<string | number>
   blocking?: NRO<"render">
   type?: NRO<"type/css">
 }
@@ -472,44 +476,44 @@ export interface attrs_sup extends Global {}
 export interface attrs_table extends Global {}
 export interface attrs_tbody extends Global {}
 export interface attrs_td extends Global {
-  colspan?: NRO<string>
-  headers?: NRO<string>
-  rowspan?: NRO<string>
+  colspan?: NRO<string | number>
+  headers?: NRO<string | number>
+  rowspan?: NRO<string | number>
 }
 export interface attrs_template extends Global {}
 export interface attrs_textarea extends Global, Form {
   autocomplete?: NRO<"off" | "on">
   autocorrect?: NRO<"off" | "on">
-  cols?: NRO<string>
+  cols?: NRO<string | number>
   disabled?: NRO<"" | true>
-  maxlength?: NRO<string>
-  minlength?: NRO<string>
-  placeholder?: NRO<string>
-  readonly?: NRO<string>
+  maxlength?: NRO<string | number>
+  minlength?: NRO<string | number>
+  placeholder?: NRO<string | number>
+  readonly?: NRO<string | number>
   required?: NRO<"" | true>
-  rows?: NRO<string>
+  rows?: NRO<string | number>
   wrap?: NRO<"hard" | "soft" | "off">
 }
 export interface attrs_tfoot extends Global {}
 export interface attrs_th extends Global {
-  abbr?: NRO<string>
-  colspan?: NRO<string>
-  headers?: NRO<string>
-  rowspan?: NRO<string>
+  abbr?: NRO<string | number>
+  colspan?: NRO<string | number>
+  headers?: NRO<string | number>
+  rowspan?: NRO<string | number>
   scope?: NRO<"row" | "col" | "rowgroup" | "colgroup">
 }
 export interface attrs_thead extends Global {}
 export interface attrs_time extends Global {
-  datetime?: NRO<string>
+  datetime?: NRO<string | number>
 }
 export interface attrs_title extends Global {}
 export interface attrs_tr extends Global {}
 export interface attrs_track extends Global {
   default?: NRO<"" | true>
-  kind?: NRO<string>
-  label?: NRO<string>
-  src?: NRO<string>
-  srclang?: NRO<string>
+  kind?: NRO<string | number>
+  label?: NRO<string | number>
+  src?: NRO<string | number>
+  srclang?: NRO<string | number>
 }
 export interface attrs_u extends Global {}
 export interface attrs_ul extends Global {}
@@ -517,29 +521,31 @@ export interface attrs_var extends Global {}
 export interface attrs_video extends Global {
   autoplay?: NRO<"" | true>
   autopictureinside?: NRO<"" | true>
-  controls?: NRO<string>
-  controlslist?: NRO<string>
+  controls?: NRO<string | number>
+  controlslist?: NRO<string | number>
   crossorigin?: NRO<"anonymous" | "use-credentials">
   disablepictureinside?: NRO<"" | true>
   disableremoteplayback?: NRO<"" | true>
-  height?: NRO<string>
+  height?: NRO<string | number>
   loop?: NRO<"" | true>
   muted?: NRO<"" | true>
   playsinline?: NRO<"" | true>
-  poster?: NRO<string>
+  poster?: NRO<string | number>
   preload?: NRO<"" | true | "none" | "metadata" | "auto">
-  src?: NRO<string>
-  width?: NRO<string>
+  src?: NRO<string | number>
+  width?: NRO<string | number>
 }
 export interface attrs_wbr extends Global {}
 export interface attrs_svg_animate extends SVG, SVGAnimationValue, SVGAnimationDuration, SVGAnimationOther {}
 export interface attrs_svg_animateMotion extends SVG, SVGAnimationValue, SVGAnimationDuration, SVGAnimationOther {}
-export interface attrs_svg_animateTransform extends SVG, SVGAnimationValue, SVGAnimationDuration, SVGAnimationOther {}
+export interface attrs_svg_animateTransform extends SVG, SVGAnimationValue, SVGAnimationDuration, SVGAnimationOther {
+  type?: NRO<"translate" | "scale" | "rotate" | "skewX" | "skewY">
+}
 export interface attrs_svg_circle extends SVG, SVGPresentation {
-  cx?: NRO<string>
-  cy?: NRO<string>
-  r?: NRO<string>
-  pathLength?: NRO<string>
+  cx?: NRO<string | number>
+  cy?: NRO<string | number>
+  r?: NRO<string | number>
+  pathLength?: NRO<string | number>
 }
 export interface attrs_svg_clipPath extends SVG {
   clipPathUnits?: NRO<"userSpaceOnUse" | "objectBoundingBox">
@@ -547,30 +553,152 @@ export interface attrs_svg_clipPath extends SVG {
 export interface attrs_svg_defs extends SVG {}
 export interface attrs_svg_desc extends SVG {}
 export interface attrs_svg_ellipse extends SVG, SVGPresentation {
-  cx?: NRO<string>
-  cy?: NRO<string>
-  r?: NRO<string>
-  pathLength?: NRO<string>
-  ry?: NRO<string>
+  cx?: NRO<string | number>
+  cy?: NRO<string | number>
+  r?: NRO<string | number>
+  pathLength?: NRO<string | number>
+  ry?: NRO<string | number>
 }
 export interface attrs_svg_feBlend extends SVG, SVGPresentation, SVGFilterPrimitive {
   in?: NRO<"SourceGraphic" | "SourceAlpha" | "BackgroundImage" | "BackgroundAlpha" | "FillPaint" | "StrokePaint" | string>
   in2?: NRO<"SourceGraphic" | "SourceAlpha" | "BackgroundImage" | "BackgroundAlpha" | "FillPaint" | "StrokePaint" | string>
   mode?: NRO<"normal" | "multiply" | "screen" | "overlay" | "darken" | "lighten" | "color-dodge" | "color-burn" | "hard-light" | "soft-light" | "difference" | "exclusion" | "hue" | "saturation" | "color" | "luminosity">
 }
-export interface attrs_svg_g extends SVG {}
-export interface attrs_svg_path extends SVG, SVGPresentation {
-  d?: NRO<string>
-  pathLength?: NRO<string>
+export interface attrs_svg_feColorMatrix extends SVG, SVGPresentation, SVGFilterPrimitive {
+  in?: NRO<"SourceGraphic" | "SourceAlpha" | "BackgroundImage" | "BackgroundAlpha" | "FillPaint" | "StrokePaint" | string>
+  type?: NRO<"matrix" | "saturate" | "hueRotate" | "luminanceToAlpha">
+  values?: NRO<string | number>
 }
+export interface attrs_svg_feComponentTransfer extends SVG, SVGPresentation, SVGFilterPrimitive {
+  in?: NRO<"SourceGraphic" | "SourceAlpha" | "BackgroundImage" | "BackgroundAlpha" | "FillPaint" | "StrokePaint" | string>
+}
+export interface attrs_svg_feComposite extends SVG, SVGPresentation, SVGFilterPrimitive {
+  in?: NRO<"SourceGraphic" | "SourceAlpha" | "BackgroundImage" | "BackgroundAlpha" | "FillPaint" | "StrokePaint" | string>
+  in2?: NRO<"SourceGraphic" | "SourceAlpha" | "BackgroundImage" | "BackgroundAlpha" | "FillPaint" | "StrokePaint" | string>
+  operator?: NRO<"over" | "in" | "out" | "atop" | "xor" | "lighter" | "arithmetic">
+  k1?: NRO<string | number>
+  k2?: NRO<string | number>
+  k3?: NRO<string | number>
+  k4?: NRO<string | number>
+}
+export interface attrs_svg_feConvolveMatrix extends SVG, SVGPresentation, SVGFilterPrimitive {
+  in?: NRO<"SourceGraphic" | "SourceAlpha" | "BackgroundImage" | "BackgroundAlpha" | "FillPaint" | "StrokePaint" | string>
+  order?: NRO<string | number>
+  kernelMatrix?: NRO<string | number>
+  divisor?: NRO<string | number>
+  bias?: NRO<string | number>
+  targetX?: NRO<string | number>
+  targetY?: NRO<string | number>
+  edgeMode?: NRO<"duplicate" | "wrap" | "none">
+  preserveAlpha?: NRO<"" | true | "true" | "false">
+}
+export interface attrs_svg_feDiffuseLighting extends SVG, SVGPresentation, SVGFilterPrimitive {}
+export interface attrs_svg_feDisplacementMap extends SVG, SVGPresentation, SVGFilterPrimitive {}
+export interface attrs_svg_feDistantLight extends SVG, SVGPresentation, SVGFilterPrimitive {}
+export interface attrs_svg_feFlood extends SVG, SVGPresentation, SVGFilterPrimitive {}
+export interface attrs_svg_feFuncA extends SVG, SVGPresentation, SVGFilterPrimitive {}
+export interface attrs_svg_feFuncB extends SVG, SVGPresentation, SVGFilterPrimitive {}
+export interface attrs_svg_feFuncG extends SVG, SVGPresentation, SVGFilterPrimitive {}
+export interface attrs_svg_feFuncR extends SVG, SVGPresentation, SVGFilterPrimitive {}
+export interface attrs_svg_feGaussianBlur extends SVG, SVGPresentation, SVGFilterPrimitive {}
+export interface attrs_svg_feImage extends SVG, SVGPresentation, SVGFilterPrimitive {}
+export interface attrs_svg_feMerge extends SVG, SVGPresentation, SVGFilterPrimitive {}
+export interface attrs_svg_feMergeNode extends SVG, SVGPresentation, SVGFilterPrimitive {}
+export interface attrs_svg_feMorphology extends SVG, SVGPresentation, SVGFilterPrimitive {}
+export interface attrs_svg_feOffset extends SVG, SVGPresentation, SVGFilterPrimitive {}
+export interface attrs_svg_fePointLight extends SVG, SVGPresentation, SVGFilterPrimitive {}
+export interface attrs_svg_feSpecularLighting extends SVG, SVGPresentation, SVGFilterPrimitive {}
+export interface attrs_svg_feSpotLight extends SVG, SVGPresentation, SVGFilterPrimitive {}
+export interface attrs_svg_feTile extends SVG, SVGPresentation, SVGFilterPrimitive {}
+export interface attrs_svg_feTurbulence extends SVG, SVGPresentation, SVGFilterPrimitive {}
+export interface attrs_svg_filter extends SVG, SVGPresentation, SVGFilterPrimitive {}
+export interface attrs_svg_foreignObject extends SVG {}
+export interface attrs_svg_g extends SVG, SVGPresentation {}
+export interface attrs_svg_image extends SVG, SVGPresentation {}
+export interface attrs_svg_line extends SVG, SVGPresentation {}
+export interface attrs_svg_linearGradient extends SVG, SVGPresentation {}
+export interface attrs_svg_marker extends SVG, SVGPresentation {}
+export interface attrs_svg_mask extends SVG, SVGPresentation, SVGLink {}
+export interface attrs_svg_metadata extends SVG {}
+export interface attrs_svg_mpath extends SVG, SVGPresentation, SVGLink {}
+export interface attrs_svg_path extends SVG, SVGPresentation {
+  d?: NRO<string | number>
+  pathLength?: NRO<string | number>
+}
+export interface attrs_svg_pattern extends SVG, SVGPresentation {}
+export interface attrs_svg_polygon extends SVG, SVGPresentation {
+  points?: NRO<string | number>
+  pathLength?: NRO<string | number>
+}
+export interface attrs_svg_polyline extends SVG, SVGPresentation {
+  points?: NRO<string | number>
+  pathLength?: NRO<string | number>
+}
+export interface attrs_svg_radialGradient extends SVG, SVGPresentation {}
 export interface attrs_svg_rect extends SVG, SVGPresentation {
-  x?: NRO<string>
-  y?: NRO<string>
-  width?: NRO<string>
-  height?: NRO<string>
-  rx?: NRO<string>
-  ry?: NRO<string>
-  pathLength?: NRO<string>
+  x?: NRO<string | number>
+  y?: NRO<string | number>
+  width?: NRO<string | number>
+  height?: NRO<string | number>
+  rx?: NRO<string | number>
+  ry?: NRO<string | number>
+  pathLength?: NRO<string | number>
+}
+export interface attrs_svg_set extends SVG {
+  to?: NRO<string | number>
+}
+export interface attrs_svg_stop extends SVG {
+  offset?: NRO<string | number>
+  "stop-color"?: NRO<"currentcolor" | string>
+  "stop-opactiy"?: NRO<string | number>
+}
+export interface attrs_svg_svg extends SVG {
+  height?: NRO<string | number>
+  viewBox?: NRO<string | number>
+  width?: NRO<string | number>
+  x?: NRO<string | number>
+  y?: NRO<string | number>
+}
+export interface attrs_svg_switch extends SVG {}
+export interface attrs_svg_symbol extends SVG, SVGPresentation {}
+export interface attrs_svg_text extends SVG, SVGPresentation {
+  x?: NRO<string | number>
+  y?: NRO<string | number>
+  dx?: NRO<string | number>
+  dy?: NRO<string | number>
+  rotate?: NRO<string | number>
+  lengthAdjust?: NRO<"spacing" | "spacingAndGlyphs">
+  textLength?: NRO<string | number>
+}
+export interface attrs_svg_textPath extends SVG, SVGPresentation {
+  href?: NRO<string | number>
+  lengthAdjust?: NRO<"spacing" | "spacingAndGlyphs">
+  method?: NRO<"align" | "stretch">
+  path?: NRO<string | number>
+  side?: NRO<"left" | "right">
+  spacing?: NRO<"auto" | "exact">
+  startOffset?: NRO<string | number>
+  textLength?: NRO<string | number>
+}
+export interface attrs_svg_tspan extends SVG, SVGPresentation {
+  x?: NRO<string | number>
+  y?: NRO<string | number>
+  dx?: NRO<string | number>
+  dy?: NRO<string | number>
+  rotate?: NRO<string | number>
+  lengthAdjust?: NRO<"spacing" | "spacingAndGlyphs">
+  textLength?: NRO<string | number>
+}
+export interface attrs_svg_use extends SVG, SVGPresentation {
+  href?: NRO<string | number>
+  x?: NRO<string | number>
+  y?: NRO<string | number>
+  width?: NRO<string | number>
+  height?: NRO<string | number>
+}
+export interface attrs_svg_view extends SVG {
+  viewBox?: NRO<string | number>
+  preserveAspectRatio?: NRO<string | number>
 }
 
 
@@ -693,7 +821,53 @@ export interface ElementMap {
   desc: Attrs<SVGElementTagNameMap["desc"]> & attrs_svg_desc
   ellipse: Attrs<SVGElementTagNameMap["ellipse"]> & attrs_svg_ellipse
   feBlend: Attrs<SVGElementTagNameMap["feBlend"]> & attrs_svg_feBlend
+  feColorMatrix: Attrs<SVGElementTagNameMap["feColorMatrix"]> & attrs_svg_feColorMatrix
+  feComponentTransfer: Attrs<SVGElementTagNameMap["feComponentTransfer"]> & attrs_svg_feComponentTransfer
+  feComposite: Attrs<SVGElementTagNameMap["feComposite"]> & attrs_svg_feComposite
+  feConvolveMatrix: Attrs<SVGElementTagNameMap["feConvolveMatrix"]> & attrs_svg_feConvolveMatrix
+  feDiffuseLighting: Attrs<SVGElementTagNameMap["feDiffuseLighting"]> & attrs_svg_feDiffuseLighting
+  feDisplacementMap: Attrs<SVGElementTagNameMap["feDisplacementMap"]> & attrs_svg_feDisplacementMap
+  feDistantLight: Attrs<SVGElementTagNameMap["feDistantLight"]> & attrs_svg_feDistantLight
+  feFlood: Attrs<SVGElementTagNameMap["feFlood"]> & attrs_svg_feFlood
+  feFuncA: Attrs<SVGElementTagNameMap["feFuncA"]> & attrs_svg_feFuncA
+  feFuncB: Attrs<SVGElementTagNameMap["feFuncB"]> & attrs_svg_feFuncB
+  feFuncG: Attrs<SVGElementTagNameMap["feFuncG"]> & attrs_svg_feFuncG
+  feFuncR: Attrs<SVGElementTagNameMap["feFuncR"]> & attrs_svg_feFuncR
+  feGaussianBlur: Attrs<SVGElementTagNameMap["feGaussianBlur"]> & attrs_svg_feGaussianBlur
+  feImage: Attrs<SVGElementTagNameMap["feImage"]> & attrs_svg_feImage
+  feMerge: Attrs<SVGElementTagNameMap["feMerge"]> & attrs_svg_feMerge
+  feMergeNode: Attrs<SVGElementTagNameMap["feMergeNode"]> & attrs_svg_feMergeNode
+  feMorphology: Attrs<SVGElementTagNameMap["feMorphology"]> & attrs_svg_feMorphology
+  feOffset: Attrs<SVGElementTagNameMap["feOffset"]> & attrs_svg_feOffset
+  fePointLight: Attrs<SVGElementTagNameMap["fePointLight"]> & attrs_svg_fePointLight
+  feSpecularLighting: Attrs<SVGElementTagNameMap["feSpecularLighting"]> & attrs_svg_feSpecularLighting
+  feSpotLight: Attrs<SVGElementTagNameMap["feSpotLight"]> & attrs_svg_feSpotLight
+  feTile: Attrs<SVGElementTagNameMap["feTile"]> & attrs_svg_feTile
+  feTurbulence: Attrs<SVGElementTagNameMap["feTurbulence"]> & attrs_svg_feTurbulence
+  filter: Attrs<SVGElementTagNameMap["filter"]> & attrs_svg_filter
+  foreignObject: Attrs<SVGElementTagNameMap["foreignObject"]> & attrs_svg_foreignObject
   g: Attrs<SVGElementTagNameMap["g"]> & attrs_svg_g
+  image: Attrs<SVGElementTagNameMap["image"]> & attrs_svg_image
+  line: Attrs<SVGElementTagNameMap["line"]> & attrs_svg_line
+  linearGradient: Attrs<SVGElementTagNameMap["linearGradient"]> & attrs_svg_linearGradient
+  marker: Attrs<SVGElementTagNameMap["marker"]> & attrs_svg_marker
+  mask: Attrs<SVGElementTagNameMap["mask"]> & attrs_svg_mask
+  metadata: Attrs<SVGElementTagNameMap["metadata"]> & attrs_svg_metadata
+  mpath: Attrs<SVGElementTagNameMap["mpath"]> & attrs_svg_mpath
   path: Attrs<SVGElementTagNameMap["path"]> & attrs_svg_path
+  pattern: Attrs<SVGElementTagNameMap["pattern"]> & attrs_svg_pattern
+  polygon: Attrs<SVGElementTagNameMap["polygon"]> & attrs_svg_polygon
+  polyline: Attrs<SVGElementTagNameMap["polyline"]> & attrs_svg_polyline
+  radialGradient: Attrs<SVGElementTagNameMap["radialGradient"]> & attrs_svg_radialGradient
   rect: Attrs<SVGElementTagNameMap["rect"]> & attrs_svg_rect
+  set: Attrs<SVGElementTagNameMap["set"]> & attrs_svg_set
+  stop: Attrs<SVGElementTagNameMap["stop"]> & attrs_svg_stop
+  svg: Attrs<SVGElementTagNameMap["svg"]> & attrs_svg_svg
+  switch: Attrs<SVGElementTagNameMap["switch"]> & attrs_svg_switch
+  symbol: Attrs<SVGElementTagNameMap["symbol"]> & attrs_svg_symbol
+  text: Attrs<SVGElementTagNameMap["text"]> & attrs_svg_text
+  textPath: Attrs<SVGElementTagNameMap["textPath"]> & attrs_svg_textPath
+  tspan: Attrs<SVGElementTagNameMap["tspan"]> & attrs_svg_tspan
+  use: Attrs<SVGElementTagNameMap["use"]> & attrs_svg_use
+  view: Attrs<SVGElementTagNameMap["view"]> & attrs_svg_view
 }
