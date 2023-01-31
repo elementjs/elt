@@ -250,7 +250,6 @@ export function remove_node(node: Node): void {
  * @internal
  */
 const _registered_documents = new WeakSet<Document>()
-const _registered_attributes_nodes = new WeakMap<Element, {[prop: string]: o.Observable<any>}>()
 
 /**
  * Setup the mutation observer that will be in charge of listening to document changes
@@ -276,16 +275,6 @@ export function setup_mutation_observer(node: Node) {
   const obs = new MutationObserver(records => {
     for (let i = 0, l = records.length; i < l; i++) {
       const record = records[i]
-      if (record.type === "attributes") {
-        const node = record.target as Element
-        const mp = _registered_attributes_nodes.get(node)
-        if (!mp) continue
-        try {
-          const name = record.attributeName!
-          mp?.[name]?.set(node.getAttribute(name))
-        } catch (e) { /* silently fail ? */ console.warn(e) }
-        continue
-      }
       for (let removed = record.removedNodes, j = 0, lj = removed.length; j < lj; j++) {
         const removed_node = removed[j]
         if (!removed_node.isConnected) {
@@ -314,7 +303,6 @@ export function setup_mutation_observer(node: Node) {
   obs.observe(node, {
     childList: true,
     subtree: true,
-    attributes: true,
   })
 
   node_do_inserted(node)
@@ -477,9 +465,19 @@ export function node_observe_attribute(node: Element, name: string, value: o.RO<
   }, undefined, true)
 
   if (value instanceof o.Observable) {
-    const obj = _registered_attributes_nodes.get(node) ?? {}
-    _registered_attributes_nodes.set(node, obj)
-    obj[name] = value
+    const mo = new MutationObserver(recs => {
+      for (let i = 0, l = recs.length; i < l; i++) {
+        try {
+          value.set?.(node.getAttribute(name)!)
+        } catch (e) { console.warn(e) }
+      }
+    })
+    node_on_inserted(node, _ => {
+      mo.observe(node, { attributes: true, attributeFilter: [name] })
+    })
+    node_on_removed(node, _ => {
+      mo.disconnect()
+    })
   }
 }
 
