@@ -250,6 +250,7 @@ export function remove_node(node: Node): void {
  * @internal
  */
 const _registered_documents = new WeakSet<Document>()
+const _registered_attributes_nodes = new WeakMap<Element, {[prop: string]: o.Observable<any>}>()
 
 /**
  * Setup the mutation observer that will be in charge of listening to document changes
@@ -268,13 +269,23 @@ const _registered_documents = new WeakSet<Document>()
  * @category dom, toc
  */
 export function setup_mutation_observer(node: Node) {
-  if (!node.isConnected && !!node.ownerDocument)
+  if (!node.isConnected && !!node.ownerDocument && !(node instanceof ShadowRoot))
     throw new Error("cannot setup mutation observer on a Node that is not connected in a document")
 
 
   const obs = new MutationObserver(records => {
     for (let i = 0, l = records.length; i < l; i++) {
       const record = records[i]
+      if (record.type === "attributes") {
+        const node = record.target as Element
+        const mp = _registered_attributes_nodes.get(node)
+        if (!mp) continue
+        try {
+          const name = record.attributeName!
+          mp?.[name]?.set(node.getAttribute(name))
+        } catch (e) { /* silently fail ? */ console.warn(e) }
+        continue
+      }
       for (let removed = record.removedNodes, j = 0, lj = removed.length; j < lj; j++) {
         const removed_node = removed[j]
         if (!removed_node.isConnected) {
@@ -302,8 +313,11 @@ export function setup_mutation_observer(node: Node) {
   // observe modifications to *all the tree*
   obs.observe(node, {
     childList: true,
-    subtree: true
+    subtree: true,
+    attributes: true,
   })
+
+  node_do_inserted(node)
 
   return obs
 }
@@ -452,14 +466,21 @@ export function node_unobserve(node: Node, obsfn: o.Observer<any> | o.Observer.C
  */
 export function node_observe_attribute(node: Element, name: string, value: o.RO<string | boolean>) {
   node_observe(node, value, val => {
-    if (val === true)
-      node.setAttribute(name, "")
-    else if (val != null && val !== false)
-      node.setAttribute(name, val)
-    else
+    if (val === true) {
+      if (node.getAttribute(name) !== "") node.setAttribute(name, "")
+    } else if (val != null && val !== false) {
+      if (val !== node.getAttribute(name)) node.setAttribute(name, val)
+    } else {
       // We can remove safely even if it doesn't exist as it won't raise an exception
       node.removeAttribute(name)
+    }
   }, undefined, true)
+
+  if (value instanceof o.Observable) {
+    const obj = _registered_attributes_nodes.get(node) ?? {}
+    _registered_attributes_nodes.set(node, obj)
+    obj[name] = value
+  }
 }
 
 
