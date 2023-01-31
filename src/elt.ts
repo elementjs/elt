@@ -1,8 +1,6 @@
 import { o } from "./observable"
 
 import {
-  ClassDefinition,
-  StyleDefinition,
   node_observe_class,
   node_observe_style,
   node_observe_attribute,
@@ -13,9 +11,14 @@ import {
 } from "./dom"
 
 import {
+  Attrs,
+  AttrsNodeType,
+  Decorator,
   ElementMap,
-  NRO
-} from "./tags"
+  EmptyAttributes,
+  Insertable,
+  Renderable,
+} from "./types"
 
 ////////////////////////////////////////////////////////
 
@@ -177,88 +180,6 @@ export function Display(obs: o.RO<Renderable>): Node {
 
 
 /**
- * Renderables are the types understood by the `Display` verb and that can be rendered into
- * the DOM without efforts or need to transform. It is used by the `Insertable` type
- * to define what can go between `{ curly braces }` in JSX code.
- * @category dom, toc
- */
-export type Renderable = o.RO<string | number | Node | null | undefined | Renderable[]>
-
-/**
- * @category dom, toc
- *
- * The Insertable type describes the types that elt can append to a Node.
- * Anything of the Insertable type can be put `<tag>between braces {'!'}</tag>`.
- *
- * The following types can be used :
- *  - `null` or `undefined` (which output nothing)
- *  - `number`
- *  - `string`
- *  - `Node`
- *  - Arrays of these types, even recursively.
- *
- * `<div>{['hello', ' ', [['world']] ]}</div>` will render `<div>hello world</div>`
- *
-*/
-export type Insertable<N extends Node> = Decorator<N> | Renderable | Insertable<N>[]
-
-/**
- * Attributes used on elements that are not actually HTML Elements
- */
-export interface EmptyAttributes<N extends Node> {
-  /**
-   * This attribute is the one used by TSX to validate what can be inserted
-   * as a child in a TSX expression.
-   */
-  $$children?: o.RO<Insertable<N>> | o.RO<Insertable<N>>[]
-}
-
-/**
- * For a given attribute type used in components, give its related `Node` type.
- *
- * @code ../examples/attrsnodetype.tsx
- *
- * @category dom, toc
- */
-export type AttrsNodeType<At extends EmptyAttributes<any>> = At extends EmptyAttributes<infer N> ? N : never
-
-
-/**
- * Basic attributes used on all HTML nodes, which can be reused when making components
- * to benefit from the class / style / id... attributes defined here.
- *
- * Attrs **must** always specify the returned node type as its type argument.
- *
- * @code ../examples/attrs.tsx
- *
- * This type should be used as first argument to all components definitions.
- * @category dom, toc
- */
-export interface Attrs<N extends Node = HTMLElement> extends EmptyAttributes<N> {
-  /** A document id */
-  id?: NRO<string | null>
-  /** Class definition(s), see [[$class]] for possible uses */
-  class?: ClassDefinition | ClassDefinition[] // special attributes
-  /** Style definition, see [[$style]] for use */
-  style?: StyleDefinition
-  autofocus?: NRO<"" | true>
-  draggable?: NRO<"" | "true" | "false">
-  hidden?: NRO<"" | true | "untilfound" | "hidden">
-  exportparts?: NRO<string | number>
-  lang?: NRO<string | number>
-  nonce?: NRO<string | number>
-  part?: NRO<string | number>
-  slot?: NRO<string | number>
-  spellcheck?: NRO<"" | true | "true" | "default" | "false">
-  tabindex?: NRO<string | number>
-  title?: NRO<string | number>
-  role?: NRO<string | number>
-  [K: `aria-${string}`]: NRO<string | number>
-  [K: `data-${string}`]: NRO<string | number>
-}
-
-
-/**
  * Create Nodes with a twist.
  *
  * This function is the base of element ; it creates Nodes and glues together
@@ -353,7 +274,7 @@ export function Fragment(...children: (Insertable<DocumentFragment> | EmptyAttri
 const $ = Fragment
 
 
-import { Decorator, $init } from "./decorators"
+import { $init } from "./decorators"
 
 
 export namespace e {
@@ -490,33 +411,6 @@ export namespace e {
 
     /** @internal */
     export type ElementClass = ElementClassFn<any>
-
-    ///////////////////////////////////////////////////////////////////////////
-    // Now following are the default attributes for HTML and SVG nodes.
-
-    export interface GlobalHTMLAttributes {
-      accesskey?: NRO<string>
-      autofocus?: NRO<boolean>
-      autocapitalize?: NRO<"word" | "words" | "sentences" | "sentence" | "characters" | "character" | "off">
-      contenteditable?: NRO<"true" | "false" | "inherit">
-      contextmenu?: NRO<string>
-      enterkeyhint?: NRO<"enter" | "done" | "go" | "next" | "previous" | "search" | "send">
-      inputmode?: NRO<string>
-      inert?: NRO<boolean>
-      slot?: NRO<string>
-      tabindex?: NRO<number>
-      title?: NRO<string>
-
-      dir?: NRO<"ltr" | "rtl" | "auto">
-      hidden?: NRO<boolean>
-
-      draggable?: NRO<"true" | "false" | "auto">
-      dropzone?: NRO<"copy" | "move" | "link">
-      lang?: NRO<string>
-      translate?: NRO<"yes" | "no">
-      xmlns?: string
-      [D: `data-${string}`]: NRO<string>
-    }
 
     // This is the line that tells JSX what attributes the basic elements like "div" or "article" have
     export type IntrinsicElements = ElementMap

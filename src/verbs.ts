@@ -5,7 +5,9 @@ import {
   o
 } from "./observable"
 
-import { e, Renderable, Displayer, Display } from "./elt"
+import { e, Displayer, Display } from "./elt"
+
+import type { Renderable } from "./types"
 
 import {
   insert_before_and_init,

@@ -12,9 +12,45 @@ _:
   svgin: &svgin [SourceGraphic, SourceAlpha, BackgroundImage, BackgroundAlpha, FillPaint, StrokePaint, string]
 
 globals:
-  SVG:
+
+  Attrs:
+    # When "" is present on an attribute, it means it is boolean
+    # which means for elt that a boolean true will add the attribute with no string and false
+    # will remove it.
+    # All attributes accept the boolean false to remove them.
+    autofocus: [""]
+    draggable: ["", "true", "false"]
+    hidden: ["", "true", "untilfound", "hidden"]
+    exportparts: [""]
     lang:
+    nonce:
+    part:
+    slot:
+    spellcheck: ["true", "false", "", "default"]
     tabindex:
+    title:
+    role:
+
+    accesskey:
+    autocapitalize: ["off", "on", none, sentences, words, characters]
+    contenteditable: ["", "true", "false", inherit]
+    dir: [ltr, rtl, auto]
+    enterkeyhint: [enter, done, go, next, previous, search, send]
+    inert: [""]
+    inputmode: [none, text, decimal, numeric, tel, search, email, url]
+    is:
+    itemid:
+    itemprop:
+    itemref:
+    itemscope: [""] # to allow other item* to exist
+    itemtype:
+    translate: ["", "yes", "no"]
+    virtualkeyboardpolicy: [auto, manual]
+
+    # Aria should be enabled on all elements, but as of now I don't know how to handle them properly,
+    # so I'll leave them for the user to figure it out.
+    aria-*:
+    data-*:
 
   SVGFilterPrimitive:
     x:
@@ -117,44 +153,6 @@ globals:
     accumulate:
 
 
-  Global:
-    # When "" is present on an attribute, it means it is boolean
-    # which means for elt that a boolean true will add the attribute with no string and false
-    # will remove it.
-    # All attributes accept the boolean false to remove them.
-
-    accesskey:
-    autocapitalize: ["off", "on", none, sentences, words, characters]
-    autofocus: [""]
-    contenteditable: ["", "true", "false", inherit]
-    dir: [ltr, rtl, auto]
-    draggable: ["true", "false"]
-    enterkeyhint: [enter, done, go, next, previous, search, send]
-    exportparts: boolean
-    hidden: ["", untilfound, hidden]
-    inert: [""]
-    inputmode: [none, text, decimal, numeric, tel, search, email, url]
-    is:
-    itemid:
-    itemprop:
-    itemref:
-    itemscope: [""] # to allow other item* to exist
-    itemtype:
-    lang: # language of an element
-    nonce:
-    part:
-    slot:
-    spellcheck: ["", "true", "default", "false"]
-    tabindex:
-    title:
-    translate: ["", "yes", "no"]
-    virtualkeyboardpolicy: [auto, manual]
-
-    # Aria should be enabled on all elements, but as of now I don't know how to handle them properly,
-    # so I'll leave them for the user to figure it out.
-    role:
-    aria-*:
-    data-*:
 
   Link:
       download:

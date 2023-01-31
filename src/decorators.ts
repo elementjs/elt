@@ -3,9 +3,6 @@ import {
 } from "./observable"
 
 import {
-  ClassDefinition,
-  StyleDefinition,
-  Listener,
   node_observe,
   node_observe_class,
   node_observe_style,
@@ -16,25 +13,12 @@ import {
 } from "./dom"
 
 import type {
-  Renderable,
-} from "./elt"
+  ClassDefinition,
+  Decorator,
+  Listener,
+  StyleDefinition,
+} from "./types"
 
-/**
- * Definition of the Decorator type, or functions that can be passed directly
- * as a component's child.
- *
- * If the decorator returns nothing, `null` or `undefined`, then nothing is inserted.
- *
- * If it returns a [[Renderable]], then it is appended to `node` where the decorator was called.
- *
- * If the result is a decorator, then it is reexecuted on the `node`.
- *
- * If the result is a [[Mixin]], then it is associated to the `node`.
- *
- * @category dom
- */
-export type DecoratorResult<N extends Node> = void | Renderable | Decorator<N> | DecoratorResult<N>[]
-export type Decorator<N extends Node> = (node: N) => DecoratorResult<N>
 
 // FIXME this lacks some debounce and throttle, or a way of achieving it.
 function setup_bind<T, N extends Element>(

@@ -1,4 +1,5 @@
-import { Renderable, Display } from "./elt"
+import { Display } from "./elt"
+import { Renderable } from "./types"
 import { o } from "./observable"
 
 
