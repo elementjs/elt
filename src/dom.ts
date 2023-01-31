@@ -1,21 +1,5 @@
 import { o } from "./observable"
-
-/**
- * CSS Style attribute definition for the style={} attribute
- */
-export type StyleDefinition =
-  o.RO<Partial<CSSStyleDeclaration>>
-  | o.ROProps<Partial<CSSStyleDeclaration>>
-
-/**
- * CSS classes for the class={} attribute
- */
-export type ClassDefinition = {[name: string]: o.RO<any>} | o.RO<string>
-
-/**
- * Used with [[$on]] or [[Mixin#on]]
- */
-export type Listener<EventType extends Event, N extends Node = Node> = (ev: EventType & { currentTarget: N }) => any
+import type { ClassDefinition, StyleDefinition, Listener } from "./types"
 
 /**
  * Symbol property on `Node` to an array of observers that are started when the node is `init()` or `inserted()` and

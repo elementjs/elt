@@ -6,10 +6,6 @@ const out = s => process.stdout.write(s)
 const c = Y.load(fs.readFileSync("htmlref.yml", "utf-8"))
 
 out(`
-import type { Attrs } from "./elt"
-import type { o } from "./observable"
-
-export type NRO<T> = o.RO<T | null | false>
 
 `)
 
@@ -23,19 +19,19 @@ const ELTS = Object.entries(c.elements).sort((a, b) => a[0] < b[0] ? -1 : a[0] >
 const SVG = Object.entries(c.svgelements).sort((a, b) => a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0)
 
 for (let [tag, desc] of ELTS) {
-  dump(tag, desc, "Global")
+  dump(tag, desc, "HTMLElementTagNameMap")
 }
 
 for (let [tag, desc] of SVG) {
-  dump(tag, desc, "SVG", "svg_")
+  dump(tag, desc, "SVGElementTagNameMap", "svg_")
 }
 
 out(`\n\nexport interface ElementMap {\n`)
 for (let [tag, _] of ELTS) {
-  out(`  ${tag}: Attrs<HTMLElementTagNameMap["${tag}"]> & attrs_${tag}\n`)
+  out(`  ${tag}: attrs_${tag}\n`)
 }
 for (let [tag, _] of SVG) {
-  out(`  ${tag}: Attrs<SVGElementTagNameMap["${tag}"]> & attrs_svg_${tag}\n`)
+  out(`  ${tag}: attrs_svg_${tag}\n`)
 }
 out(`}\n`)
 
@@ -51,7 +47,7 @@ function dump(name, desc, glb = "Global", pre = "") {
   }
 
   const entries = Object.entries(desc ?? {})
-  out(`export interface attrs_${pre}${name} extends ${glb}${ext} {`)
+  out(`export interface attrs_${pre}${name} extends Attrs<${glb}["${name}"]>${ext} {`)
   if (entries.length) {
     out("\n")
     dump_attrs(entries)

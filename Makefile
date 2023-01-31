@@ -7,13 +7,16 @@ SOURCES = $(wildcard ./src/*.ts) $(wildcard ./src/observable/*.ts) Makefile
 
 .PHONY: all
 
-all: dist/elt.js dist/elt.debug.js dist/elt.min.js dist/elt.debug.min.js dist/elt.cjs.js dist/elt.d.ts
+all: src/types.ts dist/elt.js dist/elt.debug.js dist/elt.min.js dist/elt.debug.min.js dist/elt.cjs.js dist/elt.d.ts
 
 watch:
 	tsc -w --noEmit | wtsc make
 
 lint:
 	eslint src
+
+src/types.ts: typegen/gen.js typegen/htmlref.yml
+	cd typegen && cat _types.ts > ../src/types.ts && node gen.js >> ../src/types.ts
 
 dist/elt.d.ts: $(SOURCES)
 	dts-bundle-generator --inline-declare-global --umd-module-name elt src/index.ts -o $@
