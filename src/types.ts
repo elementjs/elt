@@ -52,6 +52,12 @@ export type StyleDefinition =
   o.RO<Partial<CSSStyleDeclaration>>
   | o.ROProps<Partial<CSSStyleDeclaration>>
 
+declare global {
+  interface CSSStyleDeclaration {
+    [K: `--${string}`]: string
+  }
+}
+
 /**
  * CSS classes for the class={} attribute
  */
