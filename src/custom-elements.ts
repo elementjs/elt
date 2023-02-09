@@ -5,15 +5,17 @@ import {
 import {
   setup_mutation_observer
 } from "./dom"
+import { Attrs } from "./types"
 
 
 /**
  * Register a custome element
  * @param name the tag name
  */
-export function register(name: string): (kls: any) => void {
+export function register(name: string): (kls: any) => any {
   return kls => {
     customElements.define(name, kls)
+    return kls
   }
 }
 
@@ -48,13 +50,13 @@ export function attr(proto: EltCustomElement, name: string) {
 
 
 const sym_attrs = Symbol("observed attributes")
-export abstract class EltCustomElement extends HTMLElement {
+export abstract class EltCustomElement<T extends Attrs<any> = Attrs<HTMLElement>> extends HTMLElement {
 
   static [sym_attrs]: string[] = []
 
   static get observedAttributes() { return this[sym_attrs] }
 
-  o_attrs = o({} as {[name: string]: any})
+  o_attrs: o.Observable<{[name in keyof T]?: T[name]}> = o({})
 
   #mutation_observer: MutationObserver | null = null
 
@@ -62,7 +64,7 @@ export abstract class EltCustomElement extends HTMLElement {
     super()
   }
 
-  abstract render(): Node
+  abstract render(): Node | null
 
   /** Emit an event */
   emit(name: string, options?: CustomEventInit) {
@@ -82,9 +84,11 @@ export abstract class EltCustomElement extends HTMLElement {
   connectedCallback() {
     // Create the shadow root the first time
     if (this.shadowRoot?.childNodes.length ?? 0 === 0) {
-      const shadow = this.attachShadow({ mode: "open" })
-      shadow.appendChild(this.render())
-
+      const rendered_shadow = this.render()
+      if (rendered_shadow) {
+        const shadow = this.attachShadow({ mode: "open" })
+        shadow.appendChild(rendered_shadow)
+      }
     }
 
     if (this.shadowRoot && this.#mutation_observer == null) {
@@ -100,6 +104,6 @@ export abstract class EltCustomElement extends HTMLElement {
   }
 
   attributeChangedCallback(name: string, _old: any, newv: any) {
-    this.o_attrs.assign({[name]: newv})
+    this.o_attrs.assign({[name]: newv} as any)
   }
 }
