@@ -347,6 +347,7 @@ elements:
     accept:
     alt:
     autocomplete:
+    autocorrect: ["", "on", "off"]
     capture:
     checked: [""]
     dirname:
@@ -358,7 +359,7 @@ elements:
     minlength:
     multiple: [""]
     pattern:
-    placeholer:
+    placeholder:
     readonly: [""]
     required: [""]
     size:

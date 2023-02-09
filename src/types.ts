@@ -52,7 +52,6 @@ export type StyleDefinition =
   o.RO<Partial<CSSStyleDeclaration & { [K: `--${string}`]: string }>>
   | o.ROProps<Partial<CSSStyleDeclaration & { [K: `--${string}`]: string }>>
 
-
 /**
  * CSS classes for the class={} attribute
  */
@@ -409,6 +408,7 @@ export interface attrs_input extends Attrs<HTMLElementTagNameMap["input"]>, Form
   accept?: NRO<string | number>
   alt?: NRO<string | number>
   autocomplete?: NRO<string | number>
+  autocorrect?: NRO<"" | true | "on" | "off">
   capture?: NRO<string | number>
   checked?: NRO<"" | true>
   dirname?: NRO<string | number>
@@ -420,7 +420,7 @@ export interface attrs_input extends Attrs<HTMLElementTagNameMap["input"]>, Form
   minlength?: NRO<string | number>
   multiple?: NRO<"" | true>
   pattern?: NRO<string | number>
-  placeholer?: NRO<string | number>
+  placeholder?: NRO<string | number>
   readonly?: NRO<"" | true>
   required?: NRO<"" | true>
   size?: NRO<string | number>

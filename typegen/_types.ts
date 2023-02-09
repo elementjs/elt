@@ -49,8 +49,8 @@ export type Insertable<N extends Node> = Decorator<N> | Renderable | Insertable<
  * CSS Style attribute definition for the style={} attribute
  */
 export type StyleDefinition =
-  o.RO<Partial<CSSStyleDeclaration>>
-  | o.ROProps<Partial<CSSStyleDeclaration>>
+  o.RO<Partial<CSSStyleDeclaration & { [K: `--${string}`]: string }>>
+  | o.ROProps<Partial<CSSStyleDeclaration & { [K: `--${string}`]: string }>>
 
 /**
  * CSS classes for the class={} attribute
