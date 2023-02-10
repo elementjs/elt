@@ -50,7 +50,7 @@ export function attr(proto: EltCustomElement, name: string) {
 
 
 const sym_attrs = Symbol("observed attributes")
-export abstract class EltCustomElement<T extends Attrs<any> = Attrs<HTMLElement>> extends HTMLElement {
+export class EltCustomElement<T extends Attrs<any> = Attrs<HTMLElement>> extends HTMLElement {
 
   static [sym_attrs]: string[] = []
 
@@ -64,7 +64,7 @@ export abstract class EltCustomElement<T extends Attrs<any> = Attrs<HTMLElement>
     super()
   }
 
-  abstract render(): Node | null
+  render(): Node | null { return null }
 
   /** Emit an event */
   emit(name: string, options?: CustomEventInit) {
@@ -83,7 +83,7 @@ export abstract class EltCustomElement<T extends Attrs<any> = Attrs<HTMLElement>
 
   connectedCallback() {
     // Create the shadow root the first time
-    if (this.shadowRoot?.childNodes.length ?? 0 === 0) {
+    if (this.shadowRoot == null) {
       const rendered_shadow = this.render()
       if (rendered_shadow) {
         const shadow = this.attachShadow({ mode: "open" })
