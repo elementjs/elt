@@ -432,6 +432,29 @@ export function node_add_event_listener<N extends Node>(node: N, ev: string | st
 
 
 /**
+ * Dispatch a CustomEvent from this node that bubbles and is composed (to traverse ShadowRoots) and cancelable.
+ *
+ * @param node The node to dispatch the current event from
+ * @param event_name The name of the event
+ * @param options Additional options, such as { detail }
+ * @returns The newly created event
+ */
+export function node_dispatch(node: Node, event_name: string, options?: CustomEventInit) {
+  const event = new CustomEvent(event_name, {
+    bubbles: true,
+    cancelable: true,
+    composed: true,
+    detail: {},
+    ...options
+  });
+
+  node.dispatchEvent(event);
+
+  return event;
+}
+
+
+/**
  * Stop a node from observing an observable, even if it is still in the DOM
  * @category low level dom, toc
  */
@@ -464,6 +487,8 @@ export function node_observe_attribute(node: Element, name: string, value: o.RO<
     }
   }, undefined, true)
 
+  // If an element gets its attribute set by another source, then update the Observable.
+  // Note : This might not be a desired feature.
   if (value instanceof o.Observable) {
     const mo = new MutationObserver(recs => {
       for (let i = 0, l = recs.length; i < l; i++) {
