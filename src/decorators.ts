@@ -9,7 +9,8 @@ import {
   node_add_event_listener,
   node_on_init,
   node_on_inserted,
-  node_on_removed
+  node_on_removed,
+  setup_mutation_observer
 } from "./dom"
 
 import type {
@@ -315,6 +316,24 @@ export function $inserted<N extends Node>(fn: (node: N, parent: Node) => void) {
 export function $removed<N extends Node>(fn: (node: N, parent: Node) => void) {
   return (node: N) => {
     node_on_removed(node, fn)
+  }
+}
+
+
+/**
+ * Attach a shadow root to a node and setup an internal mutation observer
+ * @param _nodes the nodes or strings to append to the shadow root
+ * @returns A decorator
+ */
+export function $shadow(..._nodes: (string | Node)[]) {
+  return function (node: Element) {
+    const shadow = node.attachShadow({ mode: "open", delegatesFocus: true })
+    let ob: MutationObserver | undefined
+    node_on_inserted(node, () => {
+      ob = setup_mutation_observer(node.shadowRoot!)
+    })
+    node_on_removed(node, () => { ob?.disconnect() })
+    shadow.append(..._nodes)
   }
 }
 
