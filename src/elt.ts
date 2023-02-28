@@ -592,7 +592,7 @@ export namespace e {
   export const createElement = e
 
   /** @internal */
-  export const Fragment: (at: EmptyAttributes<DocumentFragment>, ch: Renderable[]) => DocumentFragment = $ //(at: Attrs, ch: DocumentFragment): e.JSX.Element
+  export const Fragment: (at: EmptyAttributes<DocumentFragment>) => DocumentFragment = $
 }
 
 declare let global: any
