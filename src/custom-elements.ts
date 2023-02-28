@@ -52,14 +52,14 @@ export function attr(options?: CustomElementAttrsOptions | EltCustomElement, nam
 
 export class EltCustomElement extends HTMLElement {
 
-  static #attrs?: string[]
+  static _attrs?: string[]
 
-  static get observedAttributes() { return this.#attrs ?? [] }
+  static get observedAttributes() { return this._attrs ?? [] }
 
   static attr<T extends EltCustomElement>(proto: T, options: CustomElementAttrsOptions) {
     const cons = proto.constructor as typeof EltCustomElement
-    cons.#attrs ??= [] // initialize it if it didn't exist
-    cons.#attrs.push(options.name)
+    cons._attrs ??= [] // initialize it if it didn't exist
+    cons._attrs.push(options.name)
     proto.observed_attrs ??= new Map()
     proto.observed_attrs.set(options.name, options)
   }
