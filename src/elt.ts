@@ -5,7 +5,6 @@ import {
   node_observe_style,
   node_observe_attribute,
   insert_before_and_init,
-  append_child_and_init,
   node_do_remove,
   node_observe
 } from "./dom"
@@ -13,7 +12,6 @@ import {
 import {
   Attrs,
   AttrsNodeType,
-  Decorator,
   ElementMap,
   EmptyAttributes,
   Insertable,
@@ -205,14 +203,6 @@ export function e<N extends Node>(elt: string | Node | Function, ...children: (I
 
   const is_basic_node = typeof elt === "string" || elt instanceof Node
 
-  // const fragment = get_dom_insertable(children) as DocumentFragment
-  let i = 0
-  let l = 0
-  const attrs: Attrs<N> = {}
-  const decorators_map: [Decorator<N>, Comment][] = []
-  const renderables: Renderable[] = []
-  e.handle_raw_children(children, attrs, decorators_map, renderables)
-
   if (is_basic_node) {
     // create a simple DOM node
     if (typeof elt === "string") {
@@ -222,32 +212,35 @@ export function e<N extends Node>(elt: string | Node | Function, ...children: (I
       node = elt as N
     }
 
-    // We have to perform this check, as decorators respond with a comment to insert their content
-    // once the component has been created, and it cannot be inserted to a comment node.
-    // In practice, the type checker should respond with an error when trying to return nodes from
-    // a decorator applied to a comment.
-    if (!(node instanceof Comment)) {
-      for (i = 0, l = renderables.length; i < l; i++) {
-        const c = e.renderable_to_node(renderables[i])
-        if (c) {
-          if (!(node instanceof Comment)) append_child_and_init(node, c)
+  } else if (typeof elt === "function") {
+    // elt is just a creator function
+    node = elt(children[0] ?? {})
+  }
+
+  function handle_child_array(array: any[]) {
+    for (let i = 0, l = array.length; i < l; i++) {
+      const child = array[i]
+      if (!child) continue
+      if (typeof child === "function") {
+        // decorator
+        const res = child(node)
+        if (res) {
+          handle_child_array([res])
+        }
+      } else if (Array.isArray(child)) {
+        handle_child_array(child)
+      } else if (child.constructor === Object) {
+        e.handle_attrs(node as any, child as any, is_basic_node)
+      } else {
+        // if not a decorator, then a potential child
+        const nd = e.renderable_to_node(child as Renderable)
+        if (nd) {
+          insert_before_and_init(node, nd)
         }
       }
     }
-
-  } else if (typeof elt === "function") {
-    // elt is just a creator function
-    node = elt(attrs, renderables)
   }
-
-  // we have to cheat a bit here.
-  e.handle_attrs(node as any, attrs as any, is_basic_node)
-
-  // Handle decorators on the node
-  for (i = 0, l = decorators_map.length; i < l; i++) {
-    const item = decorators_map[i]
-    e.handle_decorator(node, item[1], item[0])
-  }
+  handle_child_array(children)
 
   return node
 }
@@ -280,32 +273,6 @@ import { $init } from "./decorators"
 export namespace e {
 
   /**
-   * FIXME : re document this !
-   * @internal
-   */
-  export function handle_raw_children(children: (Insertable<any> | Attrs<any>)[], attrs: Attrs<any>, decorators: [Decorator<any>, Comment][], chld: Renderable[]) {
-    for (let i = 0, l = children.length; i < l; i++) {
-      const c = children[i]
-      if (c == null) continue
-      if (Array.isArray(c)) {
-        handle_raw_children(c, attrs, decorators, chld)
-      } else if (c instanceof Node || typeof c === "string" || typeof c === "number" || o.isReadonlyObservable(c)) {
-        chld.push(c)
-      } else if (typeof c === "function") {
-        // FIXME / WARNING : as it stands, this implementation is broken, as if the same decorator is called while
-        // being executed, then the comment node will be messed.
-        const cmt = document.createComment("decorator " + c.name)
-        // I should keep the comment / function association instead of using a map, the decorators variable should reflect that.
-        chld.push(cmt)
-        decorators.push([c, cmt])
-      } else {
-        // We just copy the attrs properties onto the attrs object
-        Object.assign(attrs, c)
-      }
-    }
-  }
-
-  /**
    * @internal
    */
   export function renderable_to_node(r: Renderable): Node | null
@@ -327,41 +294,6 @@ export namespace e {
     } else {
       return r
     }
-  }
-
-  export function handle_decorator_result(node: Node, insert: Comment | undefined, res: ReturnType<Decorator<Node>>): void {
-    // if there is not result, or the result is the node itself, do nothing
-    if (res == null || res === node) return
-
-    if (typeof res === "function") {
-      const res2 = res(node)
-      return handle_decorator_result(node, insert, res2)
-    }
-
-    if (Array.isArray(res)) {
-      for (let i = 0, l = res.length; i < l; i++) {
-        const ri = res[i]
-        handle_decorator_result(node, insert, ri)
-      }
-      return
-    }
-
-    // Ignore the nodes that may be created if there is nowhere to insert them to
-    if (!insert) return
-
-    const nd = renderable_to_node(res)
-    if (nd == null) return
-    // insert the resulting node right next to the comment
-    insert_before_and_init(node, nd, insert)
-
-  }
-
-  /**
-   * @internal
-   */
-  export function handle_decorator(node: Node, insert: Comment, decorator: Decorator<any>): void {
-    const res: ReturnType<Decorator<Node>> = decorator(node)
-    handle_decorator_result(node, insert, res)
   }
 
   // All these attributes are forwarded and part of the basic Attrs
@@ -406,7 +338,7 @@ export namespace e {
      * @internal
      */
     export interface ElementClassFn<N extends Node> {
-      (attrs: EmptyAttributes<N>, children: Renderable[]): N
+      (attrs: EmptyAttributes<N>): N
     }
 
     /** @internal */
