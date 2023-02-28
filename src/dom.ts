@@ -521,7 +521,7 @@ export function node_observe_style(node: HTMLElement | SVGElement, style: StyleD
         const value = st[x as any] as any
         ns.setProperty(x.replace(/[A-Z]/g, m => "-" + m.toLowerCase()), value)
       }
-    })
+    }, undefined, true)
   } else {
     // c is a MaybeObservableObject
     const st = style as any
@@ -530,7 +530,7 @@ export function node_observe_style(node: HTMLElement | SVGElement, style: StyleD
       const x = props[i]
       node_observe(node, st[x], value => {
         node.style.setProperty(x.replace(/[A-Z]/g, m => "-" + m.toLowerCase()), value)
-      })
+      }, undefined, true)
     }
   }
 }
@@ -547,14 +547,14 @@ export function node_observe_class(node: Element, c: ClassDefinition) {
     node_observe(node, c, (str, chg) => {
       if (chg !== o.NoValue) _remove_class(node, chg as string)
       _apply_class(node, str)
-    })
+    }, undefined, true)
   } else {
     const ob = c as { [name: string]: o.RO<any> }
     // c is a MaybeObservableObject
     const props = Object.keys(ob)
     for (let i = 0, l = props.length; i < l; i++) {
       const x = props[i]
-      node_observe(node, ob[x], applied => applied ? _apply_class(node, x) : _remove_class(node, x))
+      node_observe(node, ob[x], applied => applied ? _apply_class(node, x) : _remove_class(node, x), undefined, true)
     }
   }
 }
