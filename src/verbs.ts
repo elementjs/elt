@@ -12,8 +12,10 @@ import type { Renderable } from "./types"
 import {
   insert_before_and_init,
   node_do_remove,
+  node_observe,
+  node_on_inserted,
+  node_on_removed,
 } from "./dom"
-import { $observe, $inserted, $removed } from "./decorators"
 
 
 /**
@@ -183,21 +185,19 @@ export namespace Repeat {
 
     render() {
       // var old_map = new Map<
-      const res = e(this.node,
-        $observe(this.obs, lst => {
-          this.lst = lst || []
-          const diff = lst.length - this.next_index
+      node_observe(this.node, this.obs, lst => {
+        this.lst = lst || []
+        const diff = lst.length - this.next_index
 
-          if (diff > 0)
-            this.appendChildren(diff)
+        if (diff > 0)
+          this.appendChildren(diff)
 
-          if (diff < 0)
-            this.removeChildren(-diff)
+        if (diff < 0)
+          this.removeChildren(-diff)
+      })
 
-        })
-      );
-      (res as any)[sym_repeat_pos] = true
-      return res
+      ;(this.node as any)[sym_repeat_pos] = true
+      return this.node
     }
 
     /**
@@ -396,10 +396,10 @@ export namespace RepeatScroll {
       this.parent.addEventListener("scroll", this.onscroll)
     }
 
-    onscroll = () => {
+    onscroll = o.throttle(() => {
       if (!this.parent) return
       this.appendChildren()
-    }
+    }, 100)
 
     removed() {
       // remove Scrolling
@@ -410,11 +410,10 @@ export namespace RepeatScroll {
     }
 
     render() {
-      return e(
-        super.render(),
-        $inserted(() => this.inserted()),
-        $removed(() => this.removed()),
-      )
+      const node = super.render()
+      node_on_inserted(node, () => this.inserted())
+      node_on_removed(node, () => this.removed())
+      return node
     }
 
   }
