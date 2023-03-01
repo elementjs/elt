@@ -176,6 +176,28 @@ export function Display(obs: o.RO<Renderable>): Node {
   return (new Displayer(obs)).render()
 }
 
+// All these attributes are forwarded and part of the basic Attrs
+const basic_attrs = new Set(["id", "slot", "part", "role", "tabindex", "lang", "inert", "title", "autofocus", "nonce"])
+
+/**
+ * Handle attributes for simple nodes
+ * @internal
+ */
+export function handle_attrs(node: HTMLElement, attrs: Attrs<any>, is_basic_node: boolean) {
+  for (let key in attrs) {
+    if (key === "class" && attrs.class) {
+      const clss = attrs.class
+      if (Array.isArray(clss))
+        for (let j = 0, lj = clss.length; j < lj; j++) node_observe_class(node, clss[j])
+      else
+        node_observe_class(node, attrs.class!)
+    } else if (key === "style" && attrs.style) {
+      node_observe_style(node, attrs.style)
+    } else if (is_basic_node || basic_attrs.has(key)) {
+      node_observe_attribute(node, key, (attrs as any)[key])
+    }
+  }
+}
 
 /**
  * Create Nodes with a twist.
@@ -199,22 +221,21 @@ export function e<A extends EmptyAttributes<any>>(elt: (attrs: A) => AttrsNodeTy
 export function e<N extends Node>(elt: string | Node | Function, ...children: (Insertable<N> | Attrs<N>)[]): N {
   if (!elt) throw new Error("e() needs at least a string, a function or a Component")
 
-  let node: N = null! // just to prevent the warnings later
+  let node: N // just to prevent the warnings later
 
-  const is_basic_node = typeof elt === "string" || elt instanceof Node
+  let is_basic_node = true
 
-  if (is_basic_node) {
-    // create a simple DOM node
-    if (typeof elt === "string") {
-      const ns = NS.get(elt) // || attrs.xmlns
-      node = (ns ? document.createElementNS(ns, elt) : document.createElement(elt)) as unknown as N
-    } else {
-      node = elt as N
-    }
-
-  } else if (typeof elt === "function") {
+  // create a simple DOM node
+  if (typeof elt === "string") {
+    const ns = NS.get(elt) // || attrs.xmlns
+    node = (ns ? document.createElementNS(ns, elt) : document.createElement(elt)) as unknown as N
+    is_basic_node = true
+  } else if (elt instanceof Node) {
+    node = elt as N
+  } else {
     // elt is just a creator function
     node = elt(children[0] ?? {})
+    is_basic_node = false
   }
 
   function handle_child_array(array: any[]) {
@@ -230,7 +251,7 @@ export function e<N extends Node>(elt: string | Node | Function, ...children: (I
       } else if (Array.isArray(child)) {
         handle_child_array(child)
       } else if (child.constructor === Object) {
-        e.handle_attrs(node as any, child as any, is_basic_node)
+        handle_attrs(node as any, child as any, is_basic_node)
       } else {
         // if not a decorator, then a potential child
         const nd = e.renderable_to_node(child as Renderable)
@@ -293,29 +314,6 @@ export namespace e {
       return df
     } else {
       return r
-    }
-  }
-
-  // All these attributes are forwarded and part of the basic Attrs
-  const basic_attrs = new Set(["id", "slot", "part", "role", "tabindex", "lang", "inert", "title", "autofocus", "nonce"])
-
-  /**
-   * Handle attributes for simple nodes
-   * @internal
-   */
-  export function handle_attrs(node: HTMLElement, attrs: Attrs<any>, is_basic_node: boolean) {
-    for (let key in attrs) {
-      if (key === "class" && attrs.class) {
-        const clss = attrs.class
-        if (Array.isArray(clss))
-          for (let j = 0, lj = clss.length; j < lj; j++) node_observe_class(node, clss[j])
-        else
-          node_observe_class(node, attrs.class!)
-      } else if (key === "style" && attrs.style) {
-        node_observe_style(node, attrs.style)
-      } else if (is_basic_node || basic_attrs.has(key)) {
-        node_observe_attribute(node, key, (attrs as any)[key])
-      }
     }
   }
 
