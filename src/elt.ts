@@ -304,9 +304,7 @@ export namespace e {
    * @internal
    */
   export function handle_attrs(node: HTMLElement, attrs: Attrs<any>, is_basic_node: boolean) {
-    const keys = Object.keys(attrs) as (keyof typeof attrs)[]
-    for (let i = 0, l = keys.length; i < l; i++) {
-      const key = keys[i]
+    for (let key in attrs) {
       if (key === "class" && attrs.class) {
         const clss = attrs.class
         if (Array.isArray(clss))
