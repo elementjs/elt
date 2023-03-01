@@ -4,7 +4,9 @@ import {
 
 import {
   node_dispatch,
-  setup_mutation_observer
+  node_do_inserted,
+  node_do_remove,
+  node_observe,
 } from "./dom"
 
 
@@ -66,9 +68,7 @@ export class EltCustomElement extends HTMLElement {
 
   // We use an observers array since custom elements are kind enough to tell us when
   // they are being connected to the DOM, and there is thus no need to wait for the MutationObserver API
-  observers?: o.Observer<any>[]
   observed_attrs?: Map<string, CustomElementAttrsOptions>
-  mutation_observer?: MutationObserver
 
   constructor() {
     super()
@@ -91,11 +91,7 @@ export class EltCustomElement extends HTMLElement {
 
   observe<T>(observable: o.RO<T>, obsfn: o.Observer.Callback<T>) {
     if (o.isReadonlyObservable(observable)) {
-      const e = observable.createObserver(obsfn)
-      this.observers ??= []
-      this.observers.push(e)
-    } else {
-      // put it somewhere
+      node_observe(this, observable, obsfn)
     }
   }
 
@@ -116,26 +112,14 @@ export class EltCustomElement extends HTMLElement {
       }
     }
 
-    if (this.observers) {
-      for (let ob of this.observers) {
-        ob.startObserving()
-      }
-    }
-
-    if (this.shadowRoot && this.mutation_observer == null) {
-      this.mutation_observer = setup_mutation_observer(this.shadowRoot)
+    if (this.shadowRoot) {
+      node_do_inserted(this.shadowRoot)
     }
   }
 
   disconnectedCallback() {
-    if (this.mutation_observer) {
-      this.mutation_observer.disconnect()
-      this.mutation_observer = undefined
-    }
-    if (this.observers) {
-      for (let ob of this.observers) {
-        ob.stopObserving()
-      }
+    if (this.shadowRoot) {
+      node_do_remove(this.shadowRoot, null)
     }
   }
 
