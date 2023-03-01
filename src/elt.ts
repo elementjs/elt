@@ -315,7 +315,7 @@ export namespace e {
           node_observe_class(node, attrs.class!)
       } else if (key === "style" && attrs.style) {
         node_observe_style(node, attrs.style)
-      } else if (basic_attrs.has(key) || is_basic_node) {
+      } else if (is_basic_node || basic_attrs.has(key)) {
         node_observe_attribute(node, key, (attrs as any)[key])
       }
     }

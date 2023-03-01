@@ -66,7 +66,7 @@ declare global {
 }
 
 
-function _node_call_cbks(node: Node, sym: typeof sym_init | typeof sym_inserted | typeof sym_removed, parent?: Node) {
+function _node_call_cbks(node: Node, sym: typeof sym_init | typeof sym_inserted | typeof sym_removed, parent?: Node | null) {
   const cbks = node[sym]
   parent = parent ?? node.parentNode!
   if (cbks) {
@@ -194,7 +194,7 @@ export function node_do_inserted(node: Node) {
  * Apply unmount to a node.
  * @internal
  */
-function _apply_removed(node: Node, prev_parent: Node) {
+function _apply_removed(node: Node, prev_parent: Node | null) {
   const st = node[sym_mount_status]
 
   node[sym_mount_status] = st ^ NODE_IS_OBSERVING ^ NODE_IS_INSERTED
@@ -216,7 +216,7 @@ function _apply_removed(node: Node, prev_parent: Node) {
  *
  * @internal
  */
-export function node_do_remove(node: Node, prev_parent: Node) {
+export function node_do_remove(node: Node, prev_parent: Node | null) {
 
   let iter = node.firstChild
   while (iter) { // first[sym_mount_status] & NODE_IS_INSERTED

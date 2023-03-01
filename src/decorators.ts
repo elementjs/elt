@@ -10,7 +10,8 @@ import {
   node_on_init,
   node_on_inserted,
   node_on_removed,
-  setup_mutation_observer
+  node_do_inserted,
+  node_do_remove
 } from "./dom"
 
 import type {
@@ -328,11 +329,12 @@ export function $removed<N extends Node>(fn: (node: N, parent: Node) => void) {
 export function $shadow(..._nodes: (string | Node)[]) {
   return function (node: Element) {
     const shadow = node.attachShadow({ mode: "open", delegatesFocus: true })
-    let ob: MutationObserver | undefined
     node_on_inserted(node, () => {
-      ob = setup_mutation_observer(node.shadowRoot!)
+      node_do_inserted(shadow)
     })
-    node_on_removed(node, () => { ob?.disconnect() })
+    node_on_removed(node, () => {
+      node_do_remove(shadow, null)
+    })
     shadow.append(..._nodes)
   }
 }
