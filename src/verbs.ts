@@ -309,9 +309,8 @@ export namespace RepeatScroll {
 
       const append = () => {
         const p = this.parent
-        if (!p || this.next_index < this.lst.length && p.scrollHeight - (p.clientHeight + p.scrollTop) < this.threshold_height) {
+        while (!p || this.next_index < this.lst.length && p.scrollHeight - (p.clientHeight + p.scrollTop) < this.threshold_height) {
           super.appendChildren(bufsize)
-          requestAnimationFrame(append)
         }
       }
 
