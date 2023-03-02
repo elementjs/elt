@@ -94,8 +94,8 @@ requestAnimationFrame(() => setup_base_styles())
  *
  * @category verbs, toc
  */
-export function Display(obs: o.RO<Renderable>): Node {
-  const d = document.createElement("e-display")
+export function Display(obs: o.RO<Renderable>, element = "e-display"): Node {
+  const d = document.createElement(element)
   node_observe(d, obs, renderable => {
     node_clear(d)
     node_add_child(d, renderable)

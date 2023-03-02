@@ -311,21 +311,9 @@ export function node_add_child<N extends Node>(node: N, insertable: Insertable<N
     // A simple string
     node.insertBefore(document.createTextNode(insertable), refchild)
 
-  } else if (insertable instanceof DocumentFragment) {
-    let first = insertable.firstChild as Node | null
-    const last = insertable.lastChild as Node
-    node.insertBefore(insertable, refchild)
-    if (node.isConnected) {
-      while (first != null && first !== last) {
-        node_do_inserted(first)
-        first = first?.nextSibling
-      }
-    }
   } else if (insertable instanceof Node) {
     // A node being added
     node.insertBefore(insertable, refchild)
-    // If the node is Connected, call the inserted callbacks
-    if (node.isConnected) node_do_inserted(insertable)
 
   } else if (insertable instanceof Function) {
     // A decorator
@@ -389,6 +377,7 @@ export function node_observe<T>(node: Node, obs: o.RO<T>, obsfn: o.Observer.Call
   const obser = obs.createObserver(obsfn)
   if (observer_callback) observer_callback(obser)
   node_add_observer(node, obser)
+  if (immediate) obser.refresh()
   return obser
 }
 
