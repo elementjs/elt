@@ -156,7 +156,7 @@ export namespace Repeat {
     render() {
       this.node = document.createElement("e-repeat")
       node_observe(this.node, this.obs, lst => {
-        this.lst = lst || []
+        this.lst = lst ?? []
         const diff = lst.length - this.next_index
 
         if (diff > 0)
@@ -194,9 +194,6 @@ export namespace Repeat {
     }
 
     appendChildren(count: number) {
-      const parent = this.node.parentNode!
-      if (!parent) return
-
       const fr = document.createDocumentFragment()
 
       while (count-- > 0) {
