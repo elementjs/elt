@@ -27,13 +27,6 @@ export const sym_mount_status = Symbol("elt-mount-status")
 export const sym_objects = Symbol("elt-mixins")
 
 /**
- * A symbol property on `Node` to an array of functions to run when the node is **init**, which is to
- * say usually right when it was created but already added to a parent (which can be a `DocumentFragment`).
- * @internal
- */
-export const sym_init = Symbol("elt-init")
-
-/**
  * A symbol property on `Node` to an array of functions to run when the node is **inserted** into a document.
  * @internal
  */
@@ -45,7 +38,6 @@ export const sym_inserted = Symbol("elt-inserted")
  */
 export const sym_removed = Symbol("elt-removed")
 
-const NODE_IS_INITED =        0x001
 const NODE_IS_INSERTED =      0x010
 const NODE_IS_OBSERVING =     0x100
 
@@ -60,14 +52,13 @@ declare global {
     [sym_objects]?: object[]
     [sym_observers]?: o.Observer<any>[]
 
-    [sym_init]?: LifecycleCallback[]
     [sym_inserted]?: LifecycleCallback[]
     [sym_removed]?: LifecycleCallback[]
   }
 }
 
 
-function _node_call_cbks(node: Node, sym: typeof sym_init | typeof sym_inserted | typeof sym_removed) {
+function _node_call_cbks(node: Node, sym: typeof sym_inserted | typeof sym_removed) {
   const cbks = node[sym]
   if (cbks) {
     for (let i = 0, l = cbks.length; i < l; i++) {
@@ -108,15 +99,6 @@ export function node_is_observing(node: Node) {
 
 
 /**
- * Return `true` is the init() phase was already executed on this node.
- * @category low level dom, toc
- */
-export function node_is_inited(node: Node) {
-  return !!(node[sym_mount_status] & NODE_IS_INITED)
-}
-
-
-/**
  * Return `true` if the node is *considered* inserted in the document.
  *
  * There can be a slight variation between the result of this function and `node.isConnected`, since
@@ -130,42 +112,11 @@ export function node_is_inserted(node: Node) {
 }
 
 
-/**
- * Call init() functions on a node, and start its observers.
- * @internal
- */
-export function node_do_init(node: Node) {
-
-  if (!(node[sym_mount_status] & NODE_IS_INITED)) {
-    _node_call_cbks(node, sym_init)
-    // We free the inits
-    node[sym_init] = undefined
-  }
-
-
-  // _node_start_observers(node)
-  // We now refresh all the observers so that they trigger their behaviour.
-  // They are however not started, since nodes could be discarded.
-  const observers = node[sym_observers]
-  if (observers) {
-    for (let i = 0, l = observers.length; i < l; i++) {
-      observers[i].refresh()
-    }
-  }
-
-  node[sym_mount_status] = NODE_IS_INITED
-  // node[sym_mount_status] = NODE_IS_INITED | NODE_IS_OBSERVING
-}
-
-
 function _apply_inserted(node: Node) {
 
   const st = node[sym_mount_status] || 0
 
-  node[sym_mount_status] = NODE_IS_INITED | NODE_IS_INSERTED | NODE_IS_OBSERVING // now inserted
-
-  // init if it was not done
-  if (!(st & NODE_IS_INITED)) _node_call_cbks(node, sym_init)
+  node[sym_mount_status] = NODE_IS_INSERTED | NODE_IS_OBSERVING // now inserted
 
   // restart observers
   if (!(st & NODE_IS_OBSERVING)) _node_start_observers(node)
@@ -324,52 +275,6 @@ export function setup_mutation_observer(node: Node) {
 }
 
 
-/**
- * Insert a `node` to a `parent`'s child list before `refchild`, mimicking `Node.insertBefore()`.
- * This function is used by verbs and `e()` to run the `init()` and `inserted()` callbacks before
- * the mutation observer for performance reasons.
- *
- *  - Call the `init()` methods on `#Mixin`s present on the nodes that were not already mounted
- *  - Call the `inserted()` methods on `#Mixin`'s present on **all** the nodes and their descendents
- *     if `parent` is already inside the DOM.
- *
- * @category low level dom, toc
- */
-export function insert_before_and_init(parent: Node, node: Node, refchild: Node | null = null) {
-  let df: DocumentFragment
-
-  if (!(node instanceof DocumentFragment)) {
-    df = document.createDocumentFragment()
-    df.appendChild(node)
-  } else {
-    df = node
-  }
-
-  let iter = df.firstChild
-  while (iter) {
-    node_do_init(iter)
-    iter = iter.nextSibling
-  }
-
-  const first = df.firstChild
-  const last = df.lastChild
-  parent.insertBefore(df, refchild)
-
-  // If the parent was in the document, then we have to call inserted() on all the
-  // nodes we're adding.
-  if (parent.isConnected && first && last) {
-    iter = last
-    // we do it in reverse because Display and the likes do it from previous to next.
-    while (iter) {
-      const next = iter.previousSibling
-      node_do_inserted(iter)
-      if (iter === first) break
-      iter = next as ChildNode | null
-    }
-  }
-}
-
-
 const basic_attrs = new Set(["id", "slot", "part", "role", "tabindex", "lang", "inert", "title", "autofocus", "nonce"])
 
 
@@ -465,15 +370,6 @@ export function node_add_child<N extends Node>(node: N, insertable: Insertable<N
 
 
 /**
- * Alias for `#insert_before_and_mount` that mimicks `Node.appendChild()`
- * @category low level dom, toc
- */
-export function append_child_and_init(parent: Node, child: Node) {
-  insert_before_and_init(parent, child)
-}
-
-
-/**
  * Tie the observal of an `#Observable` to the presence of this `node` in the DOM.
  *
  * Used mostly by [[$observe]] and [[Mixin.observe]]
@@ -483,7 +379,7 @@ export function append_child_and_init(parent: Node, child: Node) {
 export function node_observe<T>(node: Node, obs: o.RO<T>, obsfn: o.Observer.Callback<T>, observer_callback?: (obs: o.Observer<T>) => any, immediate = false): o.Observer<T> | null {
   if (!(o.isReadonlyObservable(obs))) {
     // If the node is already inited, run the callback
-    if (immediate || node[sym_mount_status] & NODE_IS_INITED)
+    if (immediate)
       obsfn(obs, o.NoValue)
     else
       node_on_inserted(node, () => obsfn(obs, o.NoValue))
@@ -706,15 +602,6 @@ function _remove_class(node: Element, c: string) {
     node.setAttribute("class", name)
 }
 
-/**
- * Run a `callback` whenever this `node` goes through the init lifecycle event.
- * @category low level dom, toc
- * @param node
- * @param callback
- */
-export function node_on_init<N extends Node>(node: N, callback: LifecycleCallback<N>) {
-  node_on(node, sym_init, callback)
-}
 
 /**
  * Run a `callback` whenever this `node` is inserted into the DOM.
@@ -736,15 +623,6 @@ export function node_on_removed<N extends Node>(node: N, callback: LifecycleCall
   node_on(node, sym_removed, callback)
 }
 
-/**
- * Unregister a previously registered `callback` for the init lifecycle event of this `node`.
- * @category low level dom, toc
- * @param node
- * @param callback
- */
-export function node_off_init<N extends Node>(node: N, callback: LifecycleCallback<N>) {
-  node_off(node, sym_init, callback)
-}
 
 /**
  * Unregister a previously registered `callback` for the inserted lifecycle event of this `node`.
@@ -769,7 +647,7 @@ export function node_off_removed<N extends Node>(node: N, callback: LifecycleCal
 /* @internal */
 function node_on<N extends Node>(
   node: N,
-  sym: typeof sym_init | typeof sym_inserted | typeof sym_removed,
+  sym: typeof sym_inserted | typeof sym_removed,
   callback: LifecycleCallback<N>
 ) {
   const cbks = (node[sym] ??= [])
@@ -783,7 +661,7 @@ function node_on<N extends Node>(
  */
 function node_off<N extends Node>(
   node: N,
-  sym: typeof sym_init | typeof sym_inserted | typeof sym_removed,
+  sym: typeof sym_inserted | typeof sym_removed,
   callback: LifecycleCallback<N>
 ) {
   const cbks = node[sym]
