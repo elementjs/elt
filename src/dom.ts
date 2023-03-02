@@ -38,8 +38,8 @@ export const sym_inserted = Symbol("elt-inserted")
  */
 export const sym_removed = Symbol("elt-removed")
 
-const NODE_IS_INSERTED =      0x010
-const NODE_IS_OBSERVING =     0x100
+const NODE_IS_INSERTED =      0b001
+const NODE_IS_OBSERVING =     0b010
 
 
 export type LifecycleCallback<N = Node> = (n: N) => void
@@ -313,7 +313,24 @@ export function node_add_child<N extends Node>(node: N, insertable: Insertable<N
 
   } else if (insertable instanceof Node) {
     // A node being added
-    node.insertBefore(insertable, refchild)
+    if (insertable.nodeType === 11) { // DocumentFragment
+      let start = insertable.firstChild
+      if (start == null) return // there are no children to append, nothing more to do
+
+      node.insertBefore(insertable, refchild)
+
+      if (node.isConnected) {
+        do {
+          node_do_inserted(start!)
+          start = start!.nextSibling
+        } while (start && start !== refchild)
+      }
+    } else {
+      node.insertBefore(insertable, refchild)
+      if (node.isConnected) {
+        node_do_inserted(insertable)
+      }
+    }
 
   } else if (insertable instanceof Function) {
     // A decorator
