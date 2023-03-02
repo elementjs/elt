@@ -296,11 +296,13 @@ export class App extends o.ObserverHolder {
   }
 
   DisplayView(view_name: string) {
-    return Display(this.o_views.tf((v, old, prev) => {
+    const node = Display(this.o_views.tf((v, old, prev) => {
       if (old !== o.NoValue && old.get(view_name) === v.get(view_name))
         return prev as Renderable
       return v.get(view_name)?.() ?? document.createComment(`no such view ${view_name}`) as Renderable
-    })) as Comment
+    }), "e-app-view")
+    node.setAttribute("name", view_name)
+    return node
   }
 
 }

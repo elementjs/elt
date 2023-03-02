@@ -41,7 +41,7 @@ export function If<T extends o.RO<any>>(
   condition: T,
   display: (arg: If.NonNullableRO<T>) => Renderable,
   display_otherwise?: (a: T) => Renderable,
-): Renderable {
+): HTMLElement {
   const eltif = document.createElement("e-if")
   node_observe(
     eltif,
@@ -96,13 +96,13 @@ export namespace If {
  *
  * @code ../examples/repeat.tsx
  */
-export function Repeat<T extends o.RO<any[]>>(obs: T, render: (arg: Repeat.RoItem<T>, idx: o.RO<number>) => Renderable): Node
-export function Repeat<T extends o.RO<any[]>>(obs: T, options: Repeat.Options<Repeat.Item<T>>, render: (arg: Repeat.RoItem<T>, idx: o.RO<number>) => Renderable): Node
+export function Repeat<T extends o.RO<any[]>>(obs: T, render: (arg: Repeat.RoItem<T>, idx: o.RO<number>) => Renderable): HTMLElement
+export function Repeat<T extends o.RO<any[]>>(obs: T, options: Repeat.Options<Repeat.Item<T>>, render: (arg: Repeat.RoItem<T>, idx: o.RO<number>) => Renderable): HTMLElement
 export function Repeat<T extends o.RO<any[]>>(
   ob: T,
   render_or_options: Repeat.Options<Repeat.Item<T>> | ((arg: Repeat.RoItem<T>, idx: o.RO<number>) => Renderable),
   real_render?: (arg: Repeat.RoItem<T>, idx: o.RO<number>) => Renderable
-): Node {
+): HTMLElement {
   const options = typeof render_or_options === "function" ? {} : render_or_options
   const render = typeof render_or_options === "function" ? render_or_options : real_render!
 
@@ -314,12 +314,6 @@ export namespace RepeatScroll {
         }
       }
 
-      // We do not try appending immediately ; some observables may modify current
-      // items height right after this function ends, which can lead to a situation
-      // where we had few elements that were very high and went past the threshold
-      // that would get very small suddenly, but since they didn't get the chance
-      // to do that, append stops because it is past the threshold right now and
-      // thus leaves a lot of blank space.
       requestAnimationFrame(append)
     }
 
