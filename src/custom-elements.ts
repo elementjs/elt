@@ -119,7 +119,7 @@ export class EltCustomElement extends HTMLElement {
 
   disconnectedCallback() {
     if (this.shadowRoot) {
-      node_do_remove(this.shadowRoot, null)
+      node_do_remove(this.shadowRoot)
     }
   }
 

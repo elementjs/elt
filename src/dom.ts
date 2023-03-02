@@ -1,5 +1,6 @@
+import { Display } from "./elt"
 import { o } from "./observable"
-import type { ClassDefinition, StyleDefinition, Listener } from "./types"
+import type { ClassDefinition, StyleDefinition, Listener, Insertable, Attrs, Renderable } from "./types"
 
 /**
  * Symbol property on `Node` to an array of observers that are started when the node is `init()` or `inserted()` and
@@ -49,7 +50,7 @@ const NODE_IS_INSERTED =      0x010
 const NODE_IS_OBSERVING =     0x100
 
 
-export type LifecycleCallback<N = Node> = (n: N, parent: Node) => void
+export type LifecycleCallback<N = Node> = (n: N) => void
 
 // Elt adds a few symbol properties on the nodes it creates.
 declare global {
@@ -66,12 +67,11 @@ declare global {
 }
 
 
-function _node_call_cbks(node: Node, sym: typeof sym_init | typeof sym_inserted | typeof sym_removed, parent?: Node | null) {
+function _node_call_cbks(node: Node, sym: typeof sym_init | typeof sym_inserted | typeof sym_removed) {
   const cbks = node[sym]
-  parent = parent ?? node.parentNode!
   if (cbks) {
     for (let i = 0, l = cbks.length; i < l; i++) {
-      cbks[i](node, parent)
+      cbks[i](node)
     }
   }
 
@@ -194,7 +194,7 @@ export function node_do_inserted(node: Node) {
  * Apply unmount to a node.
  * @internal
  */
-function _apply_removed(node: Node, prev_parent: Node | null) {
+function _apply_removed(node: Node) {
   const st = node[sym_mount_status]
 
   node[sym_mount_status] = st ^ NODE_IS_OBSERVING ^ NODE_IS_INSERTED
@@ -204,7 +204,7 @@ function _apply_removed(node: Node, prev_parent: Node | null) {
   }
 
   if (st & NODE_IS_INSERTED) {
-    _node_call_cbks(node, sym_removed, prev_parent)
+    _node_call_cbks(node, sym_removed)
   }
 }
 
@@ -216,15 +216,15 @@ function _apply_removed(node: Node, prev_parent: Node | null) {
  *
  * @internal
  */
-export function node_do_remove(node: Node, prev_parent: Node | null) {
+export function node_do_remove(node: Node) {
 
   let iter = node.firstChild
   while (iter) { // first[sym_mount_status] & NODE_IS_INSERTED
-    node_do_remove(iter, node)
+    node_do_remove(iter)
     iter = iter.nextSibling
   }
 
-  _apply_removed(node, prev_parent)
+  _apply_removed(node)
 }
 
 
@@ -241,7 +241,20 @@ export function remove_node(node: Node): void {
   if (parent) {
     parent.removeChild(node)
   }
-  node_do_remove(node, parent) // just stop observers otherwise...
+  node_do_remove(node) // just stop observers otherwise...
+}
+
+
+/**
+ * Remove all elements within a node and call the remove callback.
+ * @category low level dom, toc
+ */
+export function node_clear(node: Node): void {
+  while (node.firstChild) {
+    const c = node.firstChild
+    node.removeChild(c)
+    node_do_remove(c)
+  }
 }
 
 
@@ -278,7 +291,7 @@ export function setup_mutation_observer(node: Node) {
       for (let removed = record.removedNodes, j = 0, lj = removed.length; j < lj; j++) {
         const removed_node = removed[j]
         if (!removed_node.isConnected) {
-          node_do_remove(removed_node, record.target)
+          node_do_remove(removed_node)
         }
       }
       for (let added = record.addedNodes, j = 0, lj = added.length; j < lj; j++) {
@@ -294,7 +307,7 @@ export function setup_mutation_observer(node: Node) {
   if (!_registered_documents.has(target_document)) {
     target_document.defaultView?.addEventListener("unload", () => {
       // Calls a `removed` on all the nodes in the closing window.
-      node_do_remove(target_document.firstChild!, target_document)
+      node_do_remove(target_document.firstChild!)
       obs.disconnect()
     })
   }
@@ -353,6 +366,100 @@ export function insert_before_and_init(parent: Node, node: Node, refchild: Node 
       if (iter === first) break
       iter = next as ChildNode | null
     }
+  }
+}
+
+
+const basic_attrs = new Set(["id", "slot", "part", "role", "tabindex", "lang", "inert", "title", "autofocus", "nonce"])
+
+
+/**
+ * Since CustomElement does not work for SVG, we handle it differently.
+ * @internal
+ */
+function node_display_in_svg(obs: o.Observable<Renderable>) {
+  const g = document.createElementNS("http://www.w3.org/2000/svg", "g")
+  g.setAttribute("x-elt-display-svg", "")
+  node_observe(g, obs, renderable => {
+    while (g.firstChild) {
+      const c = g.firstChild
+      g.removeChild(g.firstChild)
+      node_do_remove(c)
+    }
+    node_add_child(g, renderable)
+  }, undefined, true)
+  return g
+}
+
+
+/**
+ * Process an insertable and insert it where desired.
+ *
+ * @param node The parent to insert the node on
+ * @param insertable The insertable that has to be handled
+ * @param refchild The child before which to append
+ */
+export function node_add_child<N extends Node>(node: N, insertable: Insertable<N> | Attrs<N>, refchild: Node | null = null, is_basic_node = true) {
+  if (insertable == null) return
+
+  if (typeof insertable === "string") {
+    // A simple string
+    node.insertBefore(document.createTextNode(insertable), refchild)
+
+  } else if (insertable instanceof DocumentFragment) {
+    let first = insertable.firstChild as Node | null
+    const last = insertable.lastChild as Node
+    node.insertBefore(insertable, refchild)
+    if (node.isConnected) {
+      while (first != null && first !== last) {
+        node_do_inserted(first)
+        first = first?.nextSibling
+      }
+    }
+  } else if (insertable instanceof Node) {
+    // A node being added
+    node.insertBefore(insertable, refchild)
+    // If the node is Connected, call the inserted callbacks
+    if (node.isConnected) node_do_inserted(insertable)
+
+  } else if (insertable instanceof Function) {
+    // A decorator
+    const res = insertable(node)
+    if (res != null) node_add_child(node, res as Insertable<N>, refchild, is_basic_node)
+
+  } else if (o.isReadonlyObservable(insertable)) {
+    // An observable to display
+    const disp = node instanceof SVGElement ?
+      node_display_in_svg(insertable as o.Observable<Renderable>)
+      : Display(insertable)
+
+    node_add_child(node, disp, refchild, is_basic_node)
+
+  } else if (Array.isArray(insertable)) {
+    // An array of children
+    for (let i = 0, l = insertable.length; i < l; i++)
+      node_add_child(node, insertable[i], refchild, is_basic_node)
+
+  } else if (insertable.constructor === Object) {
+    // An attribute object. We assume this is an Element that is being handled
+    const _node = node as unknown as HTMLElement
+    const attrs = insertable as unknown as Attrs<HTMLElement>
+    for (let key in attrs) {
+      if (key === "class" && attrs.class) {
+        const clss = attrs.class
+        if (Array.isArray(clss))
+          for (let j = 0, lj = clss.length; j < lj; j++) node_observe_class(_node, clss[j])
+        else
+          node_observe_class(_node, attrs.class!)
+      } else if (key === "style" && attrs.style) {
+        node_observe_style(_node, attrs.style)
+      } else if (is_basic_node || basic_attrs.has(key)) {
+        node_observe_attribute(_node, key, (attrs as any)[key])
+      }
+    }
+  } else {
+    // Otherwise, make it a string and append it.
+    node.insertBefore(document.createTextNode(insertable.toString()), refchild)
   }
 }
 

@@ -1,12 +1,9 @@
 import { o } from "./observable"
 
 import {
-  node_observe_class,
-  node_observe_style,
-  node_observe_attribute,
-  insert_before_and_init,
-  node_do_remove,
-  node_observe
+  node_observe,
+  node_add_child,
+  node_clear
 } from "./dom"
 
 import {
@@ -78,84 +75,13 @@ const NS = new Map<string, string>([
   ["view", SVG],
 ])
 
-export type WrappedComponent<N extends Node> = {
-  componentFn: (at: Attrs<N>, children: Renderable[]) => N
+
+export function setup_base_styles(doc = document) {
+  const style = doc.createElement("style")
+  style.append(`e-display,e-if,e-switch,e-repeat,e-repeat-scroll,e-ritem,e-iter{ display: contents }`)
+  doc.head.appendChild(style)
 }
-
-
-let cmt_count = 0
-/**
- * A [[Mixin]] made to store nodes between two comments.
- *
- * Can be used as a base to build verbs more easily.
- * @category dom, toc
- */
-export class CommentContainer {
-
-  /** The Comment marking the end of the node handled by this Mixin */
-  node = document.createComment(`-- ${this.constructor.name} start --`)
-  end = document.createComment(`-- ${this.constructor.name} ${cmt_count ++} --`)
-
-  /**
-   * Remove all nodes between this.start and this.node
-   */
-  clear() {
-    const end = this.end
-    const node = this.node
-    const parent = node.parentNode!
-    let iter: ChildNode | null = end.previousSibling
-    while (iter !== node) {
-      parent.removeChild(iter!)
-      node_do_remove(iter!, parent)
-      iter = end.previousSibling
-    }
-  }
-
-  /**
-   * Update the contents between `this.node` and `this.end` with `cts`. `cts` may be
-   * a `DocumentFragment`.
-   */
-  setContents(cts: Node | null) {
-    this.clear()
-
-    // Insert the new comment before the end
-    if (cts) insert_before_and_init(this.node.parentNode!, cts, this.end)
-  }
-
-  render(): Comment {
-    return e(this.node,
-      $init(node => node.parentNode!.insertBefore(this.end, node.nextSibling))
-    )
-  }
-}
-
-
-
-/**
- * Displays and actualises the content of an Observable containing
- * Node, string or number into the DOM.
- *
- * This is the class that is used whenever an observable is used as
- * a child.
- */
-export class Displayer extends CommentContainer {
-
-  /**
-   * The `Displayer` expects `Renderable` values.
-   */
-  constructor(public _obs: o.RO<Renderable>) {
-    super()
-  }
-
-  render() {
-    const res = super.render()
-    node_observe(res, this._obs, value => {
-      this.setContents(e.renderable_to_node(value))
-    })
-    return res
-  }
-
-}
+requestAnimationFrame(() => setup_base_styles())
 
 
 /**
@@ -169,35 +95,14 @@ export class Displayer extends CommentContainer {
  * @category verbs, toc
  */
 export function Display(obs: o.RO<Renderable>): Node {
-  if (!(obs instanceof o.Observable)) {
-    return e.renderable_to_node(obs as Renderable, true)
-  }
-
-  return (new Displayer(obs)).render()
+  const d = document.createElement("e-display")
+  node_observe(d, obs, renderable => {
+    node_clear(d)
+    node_add_child(d, renderable)
+  }, undefined, true)
+  return d
 }
 
-// All these attributes are forwarded and part of the basic Attrs
-const basic_attrs = new Set(["id", "slot", "part", "role", "tabindex", "lang", "inert", "title", "autofocus", "nonce"])
-
-/**
- * Handle attributes for simple nodes
- * @internal
- */
-export function handle_attrs(node: HTMLElement, attrs: Attrs<any>, is_basic_node: boolean) {
-  for (let key in attrs) {
-    if (key === "class" && attrs.class) {
-      const clss = attrs.class
-      if (Array.isArray(clss))
-        for (let j = 0, lj = clss.length; j < lj; j++) node_observe_class(node, clss[j])
-      else
-        node_observe_class(node, attrs.class!)
-    } else if (key === "style" && attrs.style) {
-      node_observe_style(node, attrs.style)
-    } else if (is_basic_node || basic_attrs.has(key)) {
-      node_observe_attribute(node, key, (attrs as any)[key])
-    }
-  }
-}
 
 /**
  * Create Nodes with a twist.
@@ -238,30 +143,9 @@ export function e<N extends Node>(elt: string | Node | Function, ...children: (I
     is_basic_node = false
   }
 
-  function handle_child_array(array: any[]) {
-    for (let i = 0, l = array.length; i < l; i++) {
-      const child = array[i]
-      if (!child) continue
-      if (typeof child === "function") {
-        // decorator
-        const res = child(node)
-        if (res) {
-          handle_child_array([res])
-        }
-      } else if (Array.isArray(child)) {
-        handle_child_array(child)
-      } else if (child.constructor === Object) {
-        handle_attrs(node as any, child as any, is_basic_node)
-      } else {
-        // if not a decorator, then a potential child
-        const nd = e.renderable_to_node(child as Renderable)
-        if (nd) {
-          insert_before_and_init(node, nd)
-        }
-      }
-    }
+  for (let i = 0, l = children.length; i < l; i++) {
+    node_add_child(node, children[i], null, is_basic_node)
   }
-  handle_child_array(children)
 
   return node
 }
@@ -286,9 +170,6 @@ export function Fragment(...children: (Insertable<DocumentFragment> | EmptyAttri
 }
 
 const $ = Fragment
-
-
-import { $init } from "./decorators"
 
 
 export namespace e {

@@ -5,12 +5,13 @@ import {
   o
 } from "./observable"
 
-import { e, Displayer, Display } from "./elt"
+import { Display } from "./elt"
 
 import type { Renderable } from "./types"
 
 import {
-  insert_before_and_init,
+  node_add_child,
+  node_clear,
   node_do_remove,
   node_observe,
   node_on_inserted,
@@ -39,18 +40,30 @@ import {
 export function If<T extends o.RO<any>>(
   condition: T,
   display: (arg: If.NonNullableRO<T>) => Renderable,
-  display_otherwise?: (a: T) => Renderable
+  display_otherwise?: (a: T) => Renderable,
 ): Renderable {
-  // ts bug on condition.
-  if (!((condition as any) instanceof o.Observable)) {
-    return condition ?
-      e.renderable_to_node(display(condition as any), true)
-      : e.renderable_to_node(display_otherwise ?
-        (display_otherwise(null!))
-        : document.createComment("false"), true)
-  }
-
-  return new If.ConditionalDisplayer(display as any, condition as any, display_otherwise as any).render()
+  const eltif = document.createElement("e-if")
+  node_observe(
+    eltif,
+    o.tf<T, Renderable>(condition, (cond, old, v) => {
+      if (old !== o.NoValue && !!cond === !!old && v !== o.NoValue) return v as Renderable
+      eltif.setAttribute("condition", cond ? "true" : "false")
+      if (cond) {
+        return display(condition as If.NonNullableRO<T>)
+      } else if (display_otherwise) {
+        return display_otherwise(condition)
+      } else {
+        return null
+      }
+    }),
+    renderable => {
+      node_clear(eltif)
+      node_add_child(eltif, renderable)
+    },
+    undefined,
+    true
+  )
+  return eltif
 }
 
 export namespace If {
@@ -65,32 +78,6 @@ export namespace If {
     T extends o.Observable<infer U> ? o.Observable<NonNullable<U>> :
     T extends o.ReadonlyObservable<infer U> ? o.ReadonlyObservable<NonNullable<U>>
     : NonNullable<T>
-
-
-  /**
-   * Implementation of the `DisplayIf()` verb.
-   * @internal
-   */
-  export class ConditionalDisplayer<T extends o.ReadonlyObservable<any>> extends Displayer {
-
-    constructor(
-      protected display: (arg: If.NonNullableRO<T>) => Renderable,
-      protected condition: T,
-      protected display_otherwise?: (arg: T) => Renderable
-    ) {
-      super(condition.tf((cond, old, v) => {
-        if (old !== o.NoValue && !!cond === !!old && v !== o.NoValue) return v as Renderable
-        if (cond) {
-          return display(condition as NonNullableRO<T>)
-        } else if (display_otherwise) {
-          return display_otherwise(condition)
-        } else {
-          return null
-        }
-      }))
-    }
-
-  }
 
 }
 
@@ -119,30 +106,14 @@ export function Repeat<T extends o.RO<any[]>>(
   const options = typeof render_or_options === "function" ? {} : render_or_options
   const render = typeof render_or_options === "function" ? render_or_options : real_render!
 
-  if (!(ob instanceof o.Observable)) {
-    const arr = ob as any[]
-
-    const df = document.createDocumentFragment()
-    const sep = options.separator
-    for (let i = 0, l = arr.length; i < l; i++) {
-      df.appendChild(e.renderable_to_node(render(arr[i], i), true))
-      if (i > 1 && sep) {
-        df.appendChild(e.renderable_to_node(sep(i - 1), true))
-      }
-    }
-    return df
-  }
-
-  return new Repeat.Repeater(ob, render as any, options).render()
+  return new Repeat.Repeater(o(ob) as any, render as any, options).render()
 }
 
 export namespace Repeat {
 
   export const sym_repeat_pos = Symbol("repeat-pos")
-  export interface RepeatPositionNode extends Node {
-    [sym_repeat_pos]: o.Observable<number>
-  }
 
+  export type ERitem = HTMLElement & { [sym_repeat_pos]: o.Observable<number> }
   /**
    * A helper type that transforms a type that could be an array, an [[o.Observable]] or a [[o.ReadonlyObservable]]
    * of an array to the base type of the same type.
@@ -172,10 +143,9 @@ export namespace Repeat {
    */
   export class Repeater<T> {
 
-    protected last: RepeatPositionNode | null = null
     protected next_index: number = 0
     protected lst: T[] = []
-    protected node = document.createComment(this.constructor.name)
+    protected node!: HTMLElement
 
     constructor(
       public obs: o.Observable<T[]>,
@@ -184,7 +154,7 @@ export namespace Repeat {
     ) { }
 
     render() {
-      // var old_map = new Map<
+      this.node = document.createElement("e-repeat")
       node_observe(this.node, this.obs, lst => {
         this.lst = lst || []
         const diff = lst.length - this.next_index
@@ -194,9 +164,8 @@ export namespace Repeat {
 
         if (diff < 0)
           this.removeChildren(-diff)
-      })
+      }, undefined, true)
 
-      ;(this.node as any)[sym_repeat_pos] = true
       return this.node
     }
 
@@ -209,26 +178,16 @@ export namespace Repeat {
 
       const prop_obs = o(this.next_index)
       const ob = this.obs.p(prop_obs)
+      const node = document.createElement("e-ritem") as ERitem
 
       const _sep = this.options.separator
       if (_sep && this.next_index > 0) {
-        const sep = e.renderable_to_node(_sep(prop_obs))
-        if (sep) fr.appendChild(sep)
+        node_add_child(node, _sep(prop_obs))
       }
 
-      let node = e.renderable_to_node(this.renderfn(ob, prop_obs), true) as unknown as RepeatPositionNode
-      if (node instanceof DocumentFragment || node instanceof Comment) {
-        const p = document.createComment("marker") as unknown as RepeatPositionNode
-        fr.appendChild(node)
-        fr.appendChild(p)
-        node = p
-      } else {
-        fr.appendChild(node)
-      }
-
+      node_add_child(node, this.renderfn(ob, prop_obs))
       node[sym_repeat_pos] = prop_obs
-      this.last = node
-      // At this stage, node is the "position" element, the one we will use to keep track of
+      fr.appendChild(node)
 
       this.next_index++
       return true
@@ -237,7 +196,6 @@ export namespace Repeat {
     appendChildren(count: number) {
       const parent = this.node.parentNode!
       if (!parent) return
-      const insert_point = (this.last ?? this.node).nextSibling
 
       const fr = document.createDocumentFragment()
 
@@ -245,29 +203,23 @@ export namespace Repeat {
         if (!this.next(fr)) break
       }
 
-      insert_before_and_init(parent, fr, insert_point)
+      node_add_child(this.node, fr)
     }
 
     removeChildren(count: number) {
-      let iter = this.last
+      let iter = this.node.lastChild
       if (iter == null || this.next_index === 0 || count === 0) return
       // Détruire jusqu'à la position concernée...
       this.next_index = this.next_index - count
-      const parent = iter.parentNode!
 
       while (true) {
-        const next = iter.previousSibling as RepeatPositionNode | null
-        if (iter[sym_repeat_pos]) { count-- }
-        if (count === -1) { this.last = iter; break }
-        parent.removeChild(iter)
-        node_do_remove(iter, parent)
+        const next = iter.previousSibling as ERitem | null
+        count--
+        if (count === -1) { break }
+        this.node.removeChild(iter)
+        node_do_remove(iter)
         iter = next
-        if (iter == null || iter === this.node as unknown) { break }
-      }
-
-      // reset last if the list is now empty
-      if (this.next_index === 0) {
-        this.last = null
+        if (iter == null) { break }
       }
     }
   }
