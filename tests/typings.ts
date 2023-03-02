@@ -21,3 +21,5 @@ export var t6: o.ReadonlyObservable<number | string | undefined> = o(_ as o.Obse
 export var t7: o.Observable<number> = o(_ as o.Observable<number> | o.Observable<number>)
 
 export var t8: o.ReadonlyObservable<number | string> = o(_ as o.Observable<number> | o.Observable<string>)
+
+export type t9 = o.ReadonlyObservable<number> | undefined extends o.ReadonlyObservable<any> ? true : false

@@ -10,7 +10,9 @@ declare const DEBUG: boolean
  */
 export function o<T>(arg: T): [T] extends [o.Observable<any>] ? T :
     // when there is a mix of different observables, then we have a readonlyobservable of the combination of the types
-    [true] extends [T extends o.ReadonlyObservable<any> ? true : never] ?
+    [true] extends [T extends o.Observable<any> ? true : never] ?
+      o.ReadonlyObservable<o.ObservedType<T>>
+    : [true] extends [T extends o.ReadonlyObservable<any> ? true : never] ?
       o.ReadonlyObservable<o.ObservedType<T>>
       // if there were NO observables involved, then we obtain just a modifiable observable of the provided types.
   : o.Observable<T> {
