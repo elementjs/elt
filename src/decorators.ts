@@ -7,7 +7,6 @@ import {
   node_observe_class,
   node_observe_style,
   node_add_event_listener,
-  node_on_init,
   node_on_inserted,
   node_on_removed,
   node_do_inserted,
@@ -265,33 +264,6 @@ export function $click<N extends HTMLElement | SVGElement>(cbk: Listener<MouseEv
 
 
 /**
- * Run code soon after the `node` was created, when it has a `parent`. Beware, the `parent` in
- * init **is probably not the parent it will have in the document**.
- *
- * To avoid layout trashing (aka reflow) and needless repaints,
- * ELT tries to do most of the work in `DocumentFragment` or while the nodes are still in memory.
- *
- * When calling [[e]] (or `E()`), whenever a node appends a child to itself, `e` calls its
- * `$init` callbacks **and start the node's observers**. It does so because some verbs, like `If`
- * will only update their content when observing their condition, not before. Since `If` uses enclosing
- * comments to find out what it has to replace, it needs to have access to its parent to manipulate its
- * siblings, hence this particular way of proceeding.
- *
- * Afterwards, [[$inserted]] and [[$removed]] both start and stop observers, respectively. The first
- * time around, since [[$init]] already started them, [[$inserted]] will only run its callbacks and
- * leave the observers to do their jobs.
- *
- * @code ../examples/_init.tsx
- * @category dom, toc
- */
-export function $init<N extends Node>(fn: (node: N) => void): Decorator<N> {
-  return node => {
-    node_on_init(node, fn)
-  }
-}
-
-
-/**
  * Call the `fn` callback when the decorated `node` is inserted into the DOM with
  * itself as first argument and its parent as the second.
  *
@@ -299,7 +271,7 @@ export function $init<N extends Node>(fn: (node: N) => void): Decorator<N> {
  *
  * @category dom, toc
  */
-export function $inserted<N extends Node>(fn: (node: N, parent: Node) => void) {
+export function $inserted<N extends Node>(fn: (node: N) => void) {
   return (node: N) => {
     node_on_inserted(node, fn)
   }
@@ -314,7 +286,7 @@ export function $inserted<N extends Node>(fn: (node: N, parent: Node) => void) {
  *
  * @category dom, toc
  */
-export function $removed<N extends Node>(fn: (node: N, parent: Node) => void) {
+export function $removed<N extends Node>(fn: (node: N) => void) {
   return (node: N) => {
     node_on_removed(node, fn)
   }
@@ -333,7 +305,7 @@ export function $shadow(..._nodes: (string | Node)[]) {
       node_do_inserted(shadow)
     })
     node_on_removed(node, () => {
-      node_do_remove(shadow, null)
+      node_do_remove(shadow)
     })
     shadow.append(..._nodes)
   }
