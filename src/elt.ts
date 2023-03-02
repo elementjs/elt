@@ -78,7 +78,7 @@ const NS = new Map<string, string>([
 
 export function setup_base_styles(doc = document) {
   const style = doc.createElement("style")
-  style.append(`e-display,e-if,e-switch,e-repeat,e-repeat-scroll,e-ritem,e-iter{ display: contents }`)
+  style.append(`e-display,e-if,e-switch,e-repeat,e-repeat-scroll,e-ritem,e-iter,e-app,e-app-view{ display: contents }`)
   doc.head.appendChild(style)
 }
 requestAnimationFrame(() => setup_base_styles())
@@ -94,7 +94,7 @@ requestAnimationFrame(() => setup_base_styles())
  *
  * @category verbs, toc
  */
-export function Display(obs: o.RO<Renderable>, element = "e-display"): Node {
+export function Display(obs: o.RO<Renderable>, element = "e-display"): HTMLElement {
   const d = document.createElement(element)
   node_observe(d, obs, renderable => {
     node_clear(d)
