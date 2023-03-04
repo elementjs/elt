@@ -17,16 +17,6 @@ export const sym_observers = Symbol("elt-observers")
 export const sym_mount_status = Symbol("elt-mount-status")
 
 /**
- * This symbol is added as a property of the DOM nodes to store mixins associated with it.
- *
- * The more "correct" way of achieving this would have been to create
- * a WeakSet, but since the performance is not terrific (especially
- * when the number of elements gets high), the symbol solution was retained.
- * @internal
- */
-export const sym_objects = Symbol("elt-mixins")
-
-/**
  * A symbol property on `Node` to an array of functions to run when the node is **inserted** into a document.
  * @internal
  */
@@ -49,7 +39,6 @@ declare global {
 
   interface Node {
     [sym_mount_status]: number // we cheat on the undefined as all masking operations as undefined is considered 0
-    [sym_objects]?: object[]
     [sym_observers]?: o.Observer<any>[]
 
     [sym_inserted]?: LifecycleCallback[]
