@@ -49,18 +49,15 @@ export function Display(obs: o.RO<Renderable>, element = "e-display"): HTMLEleme
 }
 
 
-export type NodeTypeFromCreator<T> =
-  T extends string ? (
-    // If it is a string of a known HTML element, return it
-    T extends keyof HTMLElementTagNameMap ? HTMLElementTagNameMap[T]
-    // If it is a string of known SVG element, return it
-    : T extends keyof SVGElementTagNameMap ? SVGElementTagNameMap[T]
-    // Otherwise, it will be a plain HTMLElement
-    : HTMLElement
-  )
-  // If it is a creator function, return its return type
-  : T extends Node ? T
-  : never
+export type NodeTypeFromCreator<T extends string> =
+  // If it is a string of a known HTML element, return it
+  T extends keyof HTMLElementTagNameMap ? HTMLElementTagNameMap[T]
+  // If it is a string of known SVG element, return it
+  : T extends keyof SVGElementTagNameMap ? SVGElementTagNameMap[T]
+  // Otherwise, it will be a plain HTMLElement
+  : HTMLElement
+export type AttrsFor<T extends string> =
+  T extends keyof ElementMap ? ElementMap[T] : Attrs<HTMLElement>
 
 /**
  * Create Nodes with a twist.
@@ -70,7 +67,8 @@ export type NodeTypeFromCreator<T> =
  * @category dom, toc
  */
 export function e<T extends (a: A) => N, A extends Attrs<any>, N extends Node>(elt: T, ...children: (A | Insertable<N>)[]): N
-export function e<T, N extends NodeTypeFromCreator<T>>(elt: T, ...children: (Insertable<N> | Attrs<N>)[]): N
+export function e<T extends Node>(elt: T, ...children: Insertable<T>[]): T
+export function e<T extends string>(elt: T, ...children: (Insertable<NodeTypeFromCreator<T>> | AttrsFor<T>)[]): NodeTypeFromCreator<T>
 // eslint-disable-next-line @typescript-eslint/ban-types
 export function e<N extends Node>(elt: string | Node | Function, ...children: (Insertable<N> | Attrs<N>)[]): N {
   if (!elt) throw new Error("e() needs at least a string, a function or a Component")
