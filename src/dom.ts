@@ -291,7 +291,7 @@ function node_display_in_svg(obs: o.Observable<Renderable>) {
       g.removeChild(g.firstChild)
       node_do_remove(c)
     }
-    node_add_child(g, renderable)
+    node_append(g, renderable)
   }, undefined, true)
   return g
 }
@@ -304,7 +304,7 @@ function node_display_in_svg(obs: o.Observable<Renderable>) {
  * @param insertable The insertable that has to be handled
  * @param refchild The child before which to append
  */
-export function node_add_child<N extends Node>(node: N, insertable: Insertable<N> | Attrs<N>, refchild: Node | null = null, is_basic_node = true) {
+export function node_append<N extends Node>(node: N, insertable: Insertable<N> | Attrs<N>, refchild: Node | null = null, is_basic_node = true) {
   if (insertable == null) return
 
   if (typeof insertable === "string") {
@@ -335,7 +335,7 @@ export function node_add_child<N extends Node>(node: N, insertable: Insertable<N
   } else if (insertable instanceof Function) {
     // A decorator
     const res = insertable(node)
-    if (res != null) node_add_child(node, res as Insertable<N>, refchild, is_basic_node)
+    if (res != null) node_append(node, res as Insertable<N>, refchild, is_basic_node)
 
   } else if (o.isReadonlyObservable(insertable)) {
     // An observable to display
@@ -343,12 +343,12 @@ export function node_add_child<N extends Node>(node: N, insertable: Insertable<N
       node_display_in_svg(insertable as o.Observable<Renderable>)
       : Display(insertable)
 
-    node_add_child(node, disp, refchild, is_basic_node)
+    node_append(node, disp, refchild, is_basic_node)
 
   } else if (Array.isArray(insertable)) {
     // An array of children
     for (let i = 0, l = insertable.length; i < l; i++)
-      node_add_child(node, insertable[i], refchild, is_basic_node)
+      node_append(node, insertable[i], refchild, is_basic_node)
 
   } else if (insertable.constructor === Object) {
     // An attribute object. We assume this is an Element that is being handled
@@ -576,14 +576,10 @@ function _apply_class(node: Element, c: ClassDefinition | ClassDefinition[] | nu
     }
     return
   }
-  c = c == null ? null : c.toString()
-  if (!c) return
-  const is_svg = node instanceof SVGElement
-  if (is_svg) {
-    for (const _ of c.split(/\s+/g))
-      if (_) node.classList.add(_)
-  } else
-    node.className += " " + c
+  let cs = c?.toString()
+  if (!cs) return
+  const cls = node.getAttribute("class") ?? ""
+  node.setAttribute("class", cls.length ? cls + " " + cs : cs)
 }
 
 function _remove_class(node: Element, c: string) {
@@ -595,17 +591,10 @@ function _remove_class(node: Element, c: string) {
   }
   c = c == null ? null! : c.toString()
   if (!c) return
-  const is_svg = node instanceof SVGElement
-  let name = node.className
+  let name = node.getAttribute("class") ?? ""
   for (const _ of c.split(/\s+/g))
-    if (_) {
-      if (is_svg)
-        node.classList.remove(_)
-      else
-        name = name.replace(" " + _, "")
-    }
-  if (!is_svg)
-    node.setAttribute("class", name)
+    name = name.replace(" " + _, "")
+  node.setAttribute("class", name)
 }
 
 

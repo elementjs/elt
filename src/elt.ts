@@ -2,13 +2,12 @@ import { o } from "./observable"
 
 import {
   node_observe,
-  node_add_child,
+  node_append,
   node_clear
 } from "./dom"
 
 import {
   Attrs,
-  AttrsNodeType,
   ElementMap,
   EmptyAttributes,
   Insertable,
@@ -18,62 +17,8 @@ import {
 ////////////////////////////////////////////////////////
 
 
-const SVG = "http://www.w3.org/2000/svg"
-const NS = new Map<string, string>([
-  ["svg", SVG],
-  ["circle", SVG],
-  ["clipPath", SVG],
-  ["defs", SVG],
-  ["desc", SVG],
-  ["ellipse", SVG],
-  ["feBlend", SVG],
-  ["feColorMatrix", SVG],
-  ["feComponentTransfer", SVG],
-  ["feComposite", SVG],
-  ["feConvolveMatrix", SVG],
-  ["feDiffuseLighting", SVG],
-  ["feDisplacementMap", SVG],
-  ["feDistantLight", SVG],
-  ["feFlood", SVG],
-  ["feFuncA", SVG],
-  ["feFuncB", SVG],
-  ["feFuncG", SVG],
-  ["feFuncR", SVG],
-  ["feGaussianBlur", SVG],
-  ["feImage", SVG],
-  ["feMerge", SVG],
-  ["feMergeNode", SVG],
-  ["feMorphology", SVG],
-  ["feOffset", SVG],
-  ["fePointLight", SVG],
-  ["feSpecularLighting", SVG],
-  ["feSpotLight", SVG],
-  ["feTile", SVG],
-  ["feTurbulence", SVG],
-  ["filter", SVG],
-  ["foreignObject", SVG],
-  ["g", SVG],
-  ["image", SVG],
-  ["line", SVG],
-  ["linearGradient", SVG],
-  ["marker", SVG],
-  ["mask", SVG],
-  ["metadata", SVG],
-  ["path", SVG],
-  ["pattern", SVG],
-  ["polygon", SVG],
-  ["polyline", SVG],
-  ["radialGradient", SVG],
-  ["rect", SVG],
-  ["stop", SVG],
-  ["switch", SVG],
-  ["symbol", SVG],
-  ["text", SVG],
-  ["textPath", SVG],
-  ["tspan", SVG],
-  ["use", SVG],
-  ["view", SVG],
-])
+const SVG_NS = "http://www.w3.org/2000/svg"
+const SVG = new Set(["svg", "circle", "clipPath", "defs", "desc", "ellipse", "feBlend", "feColorMatrix", "feComponentTransfer", "feComposite", "feConvolveMatrix", "feDiffuseLighting", "feDisplacementMap", "feDistantLight", "feFlood", "feFuncA", "feFuncB", "feFuncG", "feFuncR", "feGaussianBlur", "feImage", "feMerge", "feMergeNode", "feMorphology", "feOffset", "fePointLight", "feSpecularLighting", "feSpotLight", "feTile", "feTurbulence", "filter", "foreignObject", "g", "image", "line", "linearGradient", "marker", "mask", "metadata", "path", "pattern", "polygon", "polyline", "radialGradient", "rect", "stop", "switch", "symbol", "text", "textPath", "tspan", "use", "view",])
 
 
 export function setup_base_styles(doc = document) {
@@ -98,11 +43,24 @@ export function Display(obs: o.RO<Renderable>, element = "e-display"): HTMLEleme
   const d = document.createElement(element)
   node_observe(d, obs, renderable => {
     node_clear(d)
-    node_add_child(d, renderable)
+    node_append(d, renderable)
   }, undefined, true)
   return d
 }
 
+
+export type NodeTypeFromCreator<T> =
+  T extends string ? (
+    // If it is a string of a known HTML element, return it
+    T extends keyof HTMLElementTagNameMap ? HTMLElementTagNameMap[T]
+    // If it is a string of known SVG element, return it
+    : T extends keyof SVGElementTagNameMap ? SVGElementTagNameMap[T]
+    // Otherwise, it will be a plain HTMLElement
+    : HTMLElement
+  )
+  // If it is a creator function, return its return type
+  : T extends Node ? T
+  : never
 
 /**
  * Create Nodes with a twist.
@@ -111,17 +69,8 @@ export function Display(obs: o.RO<Renderable>, element = "e-display"): HTMLEleme
  * Controllers, decorators, classes and style.
  * @category dom, toc
  */
-export function e<N extends Node>(elt: N, ...children: (Insertable<N> | Attrs<N>)[]): N
-export function e<K extends keyof ElementMap & keyof SVGElementTagNameMap>(
-  elt: K,
-  ...children: (Insertable<SVGElementTagNameMap[K]> | ElementMap[K])[]
-): SVGElementTagNameMap[K]
-export function e<K extends keyof ElementMap & keyof HTMLElementTagNameMap>(
-  elt: K,
-  ...children: (Insertable<HTMLElementTagNameMap[K]> | ElementMap[K])[]
-): HTMLElementTagNameMap[K]
-export function e(elt: string, ...children: (Insertable<HTMLElement> | Attrs<HTMLElement>)[]): HTMLElement
-export function e<A extends EmptyAttributes<any>>(elt: (attrs: A) => AttrsNodeType<A>, attrs: A, ...children: Insertable<AttrsNodeType<A>>[]): AttrsNodeType<A>
+export function e<T extends (a: A) => N, A extends Attrs<any>, N extends Node>(elt: T, ...children: (A | Insertable<N>)[]): N
+export function e<T, N extends NodeTypeFromCreator<T>>(elt: T, ...children: (Insertable<N> | Attrs<N>)[]): N
 // eslint-disable-next-line @typescript-eslint/ban-types
 export function e<N extends Node>(elt: string | Node | Function, ...children: (Insertable<N> | Attrs<N>)[]): N {
   if (!elt) throw new Error("e() needs at least a string, a function or a Component")
@@ -132,8 +81,7 @@ export function e<N extends Node>(elt: string | Node | Function, ...children: (I
 
   // create a simple DOM node
   if (typeof elt === "string") {
-    const ns = NS.get(elt) // || attrs.xmlns
-    node = (ns ? document.createElementNS(ns, elt) : document.createElement(elt)) as unknown as N
+    node = (SVG.has(elt) ? document.createElementNS(SVG_NS, elt) : document.createElement(elt)) as unknown as N
     is_basic_node = true
   } else if (elt instanceof Node) {
     node = elt as N
@@ -144,7 +92,7 @@ export function e<N extends Node>(elt: string | Node | Function, ...children: (I
   }
 
   for (let i = 0, l = children.length; i < l; i++) {
-    node_add_child(node, children[i], null, is_basic_node)
+    node_append(node, children[i], null, is_basic_node)
   }
 
   return node
@@ -163,40 +111,12 @@ export function e<N extends Node>(elt: string | Node | Function, ...children: (I
  *
  * @category dom, toc
  */
-export function Fragment(...children: (Insertable<DocumentFragment> | EmptyAttributes<DocumentFragment>)[]): DocumentFragment {
-  const fr = document.createDocumentFragment()
-  // This is a trick, children may contain lots of stuff
-  return e(fr, children as Renderable[])
-}
+export const Fragment = document.createDocumentFragment.bind(document)
 
 const $ = Fragment
 
 
 export namespace e {
-
-  /**
-   * @internal
-   */
-  export function renderable_to_node(r: Renderable): Node | null
-  export function renderable_to_node(r: Renderable, null_as_comment: true): Node
-  export function renderable_to_node(r: Renderable, null_as_comment = false): Node | null {
-    if (r == null)
-      return null_as_comment ? document.createComment(" null ") : null
-    else if (typeof r === "string" || typeof r === "number")
-      return document.createTextNode(r.toString())
-    else if (o.isReadonlyObservable(r))
-      return Display(r)
-    else if (Array.isArray(r)) {
-      const df = document.createDocumentFragment()
-      for (let i = 0, l = r.length; i < l; i++) {
-        const r2 = renderable_to_node(r[i], null_as_comment as true)
-        if (r2) df.appendChild(r2)
-      }
-      return df
-    } else {
-      return r
-    }
-  }
 
   /**
    * Extend the JSX namespace to be able to use .tsx code.
@@ -232,9 +152,9 @@ export namespace e {
   export function mkwrapper<K extends keyof ElementMap & keyof HTMLElementTagNameMap>(elt: K): (...args: (Insertable<HTMLElementTagNameMap[K]> | ElementMap[K])[]) => HTMLElementTagNameMap[K]
   export function mkwrapper(elt: string): (...args: (Insertable<HTMLElement> | Attrs<HTMLElement>)[]) => HTMLElement
   export function mkwrapper<K extends keyof HTMLElementTagNameMap & keyof ElementMap>(elt: K): (...args: (Insertable<HTMLElementTagNameMap[K]> | ElementMap[K])[]) => HTMLElementTagNameMap[K] {
-    return (...args) => {
-      return e<K>(elt, ...args)
-    }
+    return ((...args: any[]) => {
+      return e(elt, ...args)
+    }) as any
   }
 
   /** @internal */

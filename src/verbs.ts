@@ -10,7 +10,7 @@ import { Display } from "./elt"
 import type { Renderable } from "./types"
 
 import {
-  node_add_child,
+  node_append,
   node_clear,
   node_do_remove,
   node_observe,
@@ -58,7 +58,7 @@ export function If<T extends o.RO<any>>(
     }),
     renderable => {
       node_clear(eltif)
-      node_add_child(eltif, renderable)
+      node_append(eltif, renderable)
     },
     undefined,
     true
@@ -182,10 +182,10 @@ export namespace Repeat {
 
       const _sep = this.options.separator
       if (_sep && this.next_index > 0) {
-        node_add_child(node, _sep(prop_obs))
+        node_append(node, _sep(prop_obs))
       }
 
-      node_add_child(node, this.renderfn(ob, prop_obs))
+      node_append(node, this.renderfn(ob, prop_obs))
       node[sym_repeat_pos] = prop_obs
       fr.appendChild(node)
 
@@ -200,7 +200,7 @@ export namespace Repeat {
         if (!this.next(fr)) break
       }
 
-      node_add_child(this.node, fr)
+      node_append(this.node, fr)
     }
 
     removeChildren(count: number) {
