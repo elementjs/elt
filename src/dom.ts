@@ -137,7 +137,7 @@ export function node_do_inserted(node: Node) {
 function _apply_removed(node: Node) {
   const st = node[sym_mount_status]
 
-  node[sym_mount_status] = st ^ NODE_IS_OBSERVING ^ NODE_IS_INSERTED
+  node[sym_mount_status] = 0
 
   if (st & NODE_IS_OBSERVING) {
     _node_stop_observers(node)
@@ -552,7 +552,10 @@ export function node_observe_class(node: Element, c: ClassDefinition) {
     const props = Object.keys(ob)
     for (let i = 0, l = props.length; i < l; i++) {
       const x = props[i]
-      node_observe(node, ob[x], applied => applied ? _apply_class(node, x) : _remove_class(node, x), undefined, true)
+      node_observe(node, ob[x], (applied, chg) => {
+        if (applied) _apply_class(node, x)
+        else if (chg !== o.NoValue) _remove_class(node, x)
+      }, undefined, true)
     }
   }
 }
@@ -567,8 +570,9 @@ function _apply_class(node: Element, c: ClassDefinition | ClassDefinition[] | nu
   }
   let cs = c?.toString()
   if (!cs) return
-  const cls = node.getAttribute("class") ?? ""
-  node.setAttribute("class", cls.length ? cls + " " + cs : cs)
+  for (const _ of cs.split(/\s+/g)) {
+    if (_) node.classList.add(_)
+  }
 }
 
 function _remove_class(node: Element, c: string) {
@@ -578,12 +582,11 @@ function _remove_class(node: Element, c: string) {
     }
     return
   }
-  c = c == null ? null! : c.toString()
-  if (!c) return
-  let name = node.getAttribute("class") ?? ""
-  for (const _ of c.split(/\s+/g))
-    name = name.replace(" " + _, "")
-  node.setAttribute("class", name)
+  const cs = c?.toString()
+  if (!cs) return
+  for (const _ of cs.split(/\s+/g)) {
+    if (_) node.classList.remove(_)
+  }
 }
 
 
