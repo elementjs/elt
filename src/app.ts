@@ -37,6 +37,7 @@ export class App extends o.ObserverHolder {
     const srvs = new Set<App.Service>([ser])
     for (const srv of srvs) {
       for (const [name, view] of srv.views) {
+        (view as any).service = srv
         if (!views.has(name)) views.set(name, view)
       }
       for (const req of srv.requirements)
@@ -298,8 +299,10 @@ export class App extends o.ObserverHolder {
   DisplayView(view_name: string) {
     const node = Display(this.o_views.tf((v, old, prev) => {
       if (old !== o.NoValue && old.get(view_name) === v.get(view_name))
-        return prev as Renderable
-      return v.get(view_name)?.() ?? document.createComment(`no such view ${view_name}`) as Renderable
+      return prev as Renderable
+      const view = v.get(view_name)
+      node.setAttribute("service", (view as any)?.service?.builder.name ?? "- not defined in any service -")
+      return view?.() ?? document.createComment(`no such view ${view_name}`) as Renderable
     }), "e-app-view")
     node.setAttribute("name", view_name)
     return node
