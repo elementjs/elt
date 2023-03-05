@@ -90,12 +90,8 @@ export class EltCustomElement extends HTMLElement {
   }
 
   observe<T>(observable: o.RO<T>, obsfn: o.Observer.Callback<T>) {
-    if (o.isReadonlyObservable(observable)) {
-      node_observe(this, observable, obsfn)
-    }
+    node_observe(this, observable, obsfn)
   }
-
-  render(): Node | null { return null }
 
   /** Convenience method for [[node_dispatch]] */
   dispatch(name: string, options?: CustomEventInit) {
@@ -103,15 +99,6 @@ export class EltCustomElement extends HTMLElement {
   }
 
   connectedCallback() {
-    // Create the shadow root the first time
-    if (this.shadowRoot == null) {
-      const rendered_shadow = this.render()
-      if (rendered_shadow) {
-        const shadow = this.attachShadow({ mode: "open" })
-        shadow.appendChild(rendered_shadow)
-      }
-    }
-
     if (this.shadowRoot) {
       node_do_inserted(this.shadowRoot)
     }

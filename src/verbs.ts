@@ -56,7 +56,7 @@ export function If<T extends o.RO<any>>(
         return null
       }
     }),
-    renderable => {
+    function render_if_observable(renderable) {
       node_clear(eltif)
       node_append(eltif, renderable)
     },
@@ -157,6 +157,7 @@ export namespace Repeat {
       this.node = document.createElement("e-repeat")
       node_observe(this.node, this.obs, lst => {
         this.lst = lst ?? []
+        this.node.setAttribute("length", lst.length.toString())
         const diff = lst.length - this.next_index
 
         if (diff > 0)
@@ -179,6 +180,7 @@ export namespace Repeat {
       const prop_obs = o(this.next_index)
       const ob = this.obs.p(prop_obs)
       const node = document.createElement("e-ritem") as ERitem
+      node.setAttribute("index", this.next_index.toString())
 
       const _sep = this.options.separator
       if (_sep && this.next_index > 0) {
