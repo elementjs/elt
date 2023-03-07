@@ -295,7 +295,7 @@ export class App extends o.ObserverHolder {
 
   }
 
-  DisplayView(view_name: string) {
+  DisplayView(view_name: string): o.ReadonlyObservable<Renderable> {
     return this.o_views.tf((v, old, prev) => {
       if (old !== o.NoValue && old.get(view_name) === v.get(view_name))
       return prev as Renderable

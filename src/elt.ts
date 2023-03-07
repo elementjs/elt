@@ -107,8 +107,11 @@ export function e<N extends Node>(elt: string | Node | Function, ...children: (I
     is_basic_node = false
   }
 
-  for (let i = 0, l = children.length; i < l; i++) {
-    node_append(node, children[i], null, is_basic_node)
+  let l = children.length
+  if (l > 0)
+    node_append(node, children[0], null, is_basic_node)
+  for (let i = 1; i < l; i++) {
+    node_append(node, children[i])
   }
 
   return node
