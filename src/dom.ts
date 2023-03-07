@@ -309,8 +309,11 @@ export function node_append<N extends Node>(node: N, insertable: Insertable<N> |
 
   } else if (o.isReadonlyObservable(insertable)) {
     // An observable to display
-    const disp = node.nodeType === 1 && ((node as unknown as Element).shadowRoot != null || (node as unknown as Element).namespaceURI === "http://www.w3.org/2000/svg") ?
-      DisplayComment(insertable as o.Observable<Renderable>)
+    const disp = 
+      node.nodeType === 1 && ((node as unknown as Element).shadowRoot != null || (node as unknown as Element).namespaceURI !== "http://www.w3.org/1999/xhtml") ?
+        // If the parent node is an element but has a shadowRoot *or* is not XHTML (like SVG,) put the observed result between comments
+        DisplayComment(insertable as o.Observable<Renderable>)
+        // Otherwise, use a regular, display: contents element
       : Display(insertable, insertable?.[o.sym_display_node])
 
     node_append(node, disp, refchild, is_basic_node)
