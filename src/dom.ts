@@ -1,4 +1,4 @@
-import { Display } from "./elt"
+import { Display, DisplayComment } from "./elt"
 import { o } from "./observable"
 import type { ClassDefinition, StyleDefinition, Listener, Insertable, Attrs, Renderable } from "./types"
 
@@ -268,25 +268,6 @@ const basic_attrs = new Set(["id", "slot", "part", "role", "tabindex", "lang", "
 
 
 /**
- * Since CustomElement does not work for SVG, we handle it differently.
- * @internal
- */
-function node_display_in_svg(obs: o.Observable<Renderable>) {
-  const g = document.createElementNS("http://www.w3.org/2000/svg", "g")
-  g.setAttribute("x-elt-display-svg", "")
-  node_observe(g, obs, renderable => {
-    while (g.firstChild) {
-      const c = g.firstChild
-      g.removeChild(g.firstChild)
-      node_do_remove(c)
-    }
-    node_append(g, renderable)
-  }, undefined, true)
-  return g
-}
-
-
-/**
  * Process an insertable and insert it where desired.
  *
  * @param node The parent to insert the node on
@@ -328,8 +309,8 @@ export function node_append<N extends Node>(node: N, insertable: Insertable<N> |
 
   } else if (o.isReadonlyObservable(insertable)) {
     // An observable to display
-    const disp = node instanceof SVGElement ?
-      node_display_in_svg(insertable as o.Observable<Renderable>)
+    const disp = node.nodeType === 1 && ((node as unknown as Element).shadowRoot != null || (node as unknown as Element).namespaceURI === "http://www.w3.org/2000/svg") ?
+      DisplayComment(insertable as o.Observable<Renderable>)
       : Display(insertable)
 
     node_append(node, disp, refchild, is_basic_node)

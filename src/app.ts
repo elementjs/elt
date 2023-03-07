@@ -1,4 +1,3 @@
-import { Display } from "./elt"
 import { Renderable } from "./types"
 import { o } from "./observable"
 
@@ -297,15 +296,14 @@ export class App extends o.ObserverHolder {
   }
 
   DisplayView(view_name: string) {
-    const node = Display(this.o_views.tf((v, old, prev) => {
+    return this.o_views.tf((v, old, prev) => {
       if (old !== o.NoValue && old.get(view_name) === v.get(view_name))
       return prev as Renderable
       const view = v.get(view_name)
-      node.setAttribute("service", (view as any)?.service?.builder.name ?? "--")
+      // node.setAttribute("service", (view as any)?.service?.builder.name ?? "--")
       return view?.()
-    }), "e-app-view")
-    node.setAttribute("name", view_name)
-    return node
+    })
+    // `e-app-view "${view_name}"`)
   }
 
 }
