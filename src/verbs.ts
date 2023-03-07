@@ -11,7 +11,7 @@ import type { Renderable } from "./types"
 
 import {
   node_append,
-  node_clear,
+  // node_clear,
   node_do_remove,
   node_observe,
   node_on_inserted,
@@ -41,29 +41,17 @@ export function If<T extends o.RO<any>>(
   condition: T,
   display: (arg: If.NonNullableRO<T>) => Renderable,
   display_otherwise?: (a: T) => Renderable,
-): HTMLElement {
-  const eltif = document.createElement("e-if")
-  node_observe(
-    eltif,
-    o.tf<T, Renderable>(condition, (cond, old, v) => {
-      if (old !== o.NoValue && !!cond === !!old && v !== o.NoValue) return v as Renderable
-      eltif.setAttribute("condition", cond ? "true" : "false")
-      if (cond) {
-        return display(condition as If.NonNullableRO<T>)
-      } else if (display_otherwise) {
-        return display_otherwise(condition)
-      } else {
-        return null
-      }
-    }),
-    function render_if_observable(renderable) {
-      node_clear(eltif)
-      node_append(eltif, renderable)
-    },
-    undefined,
-    true
-  )
-  return eltif
+): o.RO<Renderable> {
+  return o.tf<T, Renderable>(condition, (cond, old, v) => {
+    if (old !== o.NoValue && !!cond === !!old && v !== o.NoValue) return v as Renderable
+    if (cond) {
+      return display(condition as If.NonNullableRO<T>)
+    } else if (display_otherwise) {
+      return display_otherwise(condition)
+    } else {
+      return null
+    }
+  })
 }
 
 export namespace If {

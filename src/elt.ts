@@ -3,6 +3,7 @@ import { o } from "./observable"
 import {
   node_observe,
   node_append,
+  node_remove,
   node_clear
 } from "./dom"
 
@@ -39,13 +40,33 @@ requestAnimationFrame(() => setup_base_styles())
  *
  * @category verbs, toc
  */
-export function Display(obs: o.RO<Renderable>, element = "e-display"): HTMLElement {
-  const d = document.createElement(element)
-  node_observe(d, obs, renderable => {
-    node_clear(d)
-    node_append(d, renderable)
+export function DisplayComment(obs: o.RO<Renderable>, kind = "e-display"): DocumentFragment {
+  const fr = document.createDocumentFragment()
+  const start = document.createComment(` ${kind} `)
+  const end = document.createComment(` end ${kind} `)
+  fr.appendChild(start)
+  fr.appendChild(end)
+  // const d = document.createElement(element)
+  node_observe(start, obs, renderable => {
+    let iter = start.nextSibling
+    while (iter && iter !== end) {
+      let next = iter?.nextSibling
+      node_remove(iter)
+      iter = next
+    }
+    // node_clear(d)
+    node_append(start.parentNode!, renderable, end)
   }, undefined, true)
-  return d
+  return fr
+}
+
+export function Display(obs: o.RO<Renderable>, kind = "e-display"): HTMLElement {
+  const elt = document.createElement(kind)
+  node_observe(elt, obs, renderable => {
+    node_clear(elt)
+    node_append(elt, renderable)
+  })
+  return elt
 }
 
 
