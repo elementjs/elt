@@ -176,12 +176,12 @@ export function node_do_remove(node: Node) {
  *
  * @category low level dom, toc
  */
-export function remove_node(node: Node): void {
+export function node_remove(node: Node): void {
+  node_do_remove(node) // just stop observers otherwise...
   const parent = node.parentNode!
   if (parent) {
     parent.removeChild(node)
   }
-  node_do_remove(node) // just stop observers otherwise...
 }
 
 
@@ -656,4 +656,14 @@ function node_off<N extends Node>(
   const idx = cbks.indexOf(callback as LifecycleCallback)
   if (idx > -1)
     cbks.splice(idx, 1)
+}
+
+
+export function animate(node: Element, keyframes: Keyframe[], options?: KeyframeAnimationOptions) {
+  const animation = node.animate(keyframes, options)
+  return new Promise<void>((accept, reject) => {
+    animation.onfinish = (ev) => accept()
+    animation.oncancel = (ev) => accept()
+    animation.onremove = (ev) => reject(ev)
+  })
 }

@@ -111,9 +111,6 @@ export function Repeat<T extends o.RO<any[]>>(
 
 export namespace Repeat {
 
-  export const sym_repeat_pos = Symbol("repeat-pos")
-
-  export type ERitem = HTMLElement & { [sym_repeat_pos]: o.Observable<number> }
   /**
    * A helper type that transforms a type that could be an array, an [[o.Observable]] or a [[o.ReadonlyObservable]]
    * of an array to the base type of the same type.
@@ -179,7 +176,7 @@ export namespace Repeat {
 
       const prop_obs = o(this.next_index)
       const ob = this.obs.p(prop_obs)
-      const node = document.createElement("e-ritem") as ERitem
+      const node = document.createElement("e-ritem")
       node.setAttribute("index", this.next_index.toString())
 
       const _sep = this.options.separator
@@ -188,7 +185,6 @@ export namespace Repeat {
       }
 
       node_append(node, this.renderfn(ob, prop_obs))
-      node[sym_repeat_pos] = prop_obs
       fr.appendChild(node)
 
       this.next_index++
@@ -212,7 +208,7 @@ export namespace Repeat {
       this.next_index = this.next_index - count
 
       while (true) {
-        const next = iter.previousSibling as ERitem | null
+        const next = iter.previousSibling as Element | null
         count--
         if (count === -1) { break }
         this.node.removeChild(iter)

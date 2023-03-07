@@ -301,8 +301,8 @@ export class App extends o.ObserverHolder {
       if (old !== o.NoValue && old.get(view_name) === v.get(view_name))
       return prev as Renderable
       const view = v.get(view_name)
-      node.setAttribute("service", (view as any)?.service?.builder.name ?? "- not defined in any service -")
-      return view?.() ?? document.createComment(`no such view ${view_name}`) as Renderable
+      node.setAttribute("service", (view as any)?.service?.builder.name ?? "--")
+      return view?.()
     }), "e-app-view")
     node.setAttribute("name", view_name)
     return node
