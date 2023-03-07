@@ -311,7 +311,7 @@ export function node_append<N extends Node>(node: N, insertable: Insertable<N> |
     // An observable to display
     const disp = node.nodeType === 1 && ((node as unknown as Element).shadowRoot != null || (node as unknown as Element).namespaceURI === "http://www.w3.org/2000/svg") ?
       DisplayComment(insertable as o.Observable<Renderable>)
-      : Display(insertable)
+      : Display(insertable, insertable?.[o.sym_display_node])
 
     node_append(node, disp, refchild, is_basic_node)
 
@@ -355,9 +355,9 @@ export function node_observe<T>(node: Node, obs: o.RO<T>, obsfn: o.Observer.Call
   if (!(o.isReadonlyObservable(obs))) {
     // If the node is already inited, run the callback
     if (immediate)
-      obsfn(obs, o.NoValue)
+      obsfn(obs as T, o.NoValue)
     else
-      node_on_inserted(node, () => obsfn(obs, o.NoValue))
+      node_on_inserted(node, () => obsfn(obs as T, o.NoValue))
     return null
   }
   // Create the observer and append it to the observer array of the node

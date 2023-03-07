@@ -212,6 +212,10 @@ export namespace Observer {
 }
 
 
+export const sym_display_node = Symbol("display-node")
+export const sym_display_attrs = Symbol("display-attrs")
+
+
 /**
  * `ReadonlyObservable` is just an interface to an actual `Observable` class but without
  * the methods that can modify the observed value.
@@ -219,6 +223,8 @@ export namespace Observer {
  * @category observable, toc
  */
 export interface ReadonlyObservable<A> {
+  [sym_display_node]?: string
+
   /** See [[o.Observable#get]] */
   get(): A
     /** See [[o.Observable#stopObservers]] */
