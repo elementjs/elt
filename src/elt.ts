@@ -87,13 +87,11 @@ export type AttrsFor<T extends string> =
  * Controllers, decorators, classes and style.
  * @category dom, toc
  */
-export function e<T extends (a: A) => N, A extends Attrs<any>, N extends Node>(elt: T, ...children: (A | Insertable<N>)[]): N
-export function e<T extends Node>(elt: T, ...children: Insertable<T>[]): T
+export function e<T extends (a: A) => N, A extends Attrs<any>, N extends Node>(elt: T, attrs: A, ...children: (A | Insertable<N>)[]): N
+export function e<T extends Node>(elt: T, ...children: (Attrs<T> | Insertable<T>)[]): T
 export function e<T extends string>(elt: T, ...children: (Insertable<NodeTypeFromCreator<T>> | AttrsFor<T>)[]): NodeTypeFromCreator<T>
 // eslint-disable-next-line @typescript-eslint/ban-types
 export function e<N extends Node>(elt: string | Node | Function, ...children: (Insertable<N> | Attrs<N>)[]): N {
-  if (!elt) throw new Error("e() needs at least a string, a function or a Component")
-
   let node: N // just to prevent the warnings later
 
   let is_basic_node = true
@@ -101,7 +99,6 @@ export function e<N extends Node>(elt: string | Node | Function, ...children: (I
   // create a simple DOM node
   if (typeof elt === "string") {
     node = (SVG.has(elt) ? document.createElementNS(SVG_NS, elt) : document.createElement(elt)) as unknown as N
-    is_basic_node = true
   } else if (elt instanceof Node) {
     node = elt as N
   } else {
