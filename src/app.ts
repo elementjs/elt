@@ -296,13 +296,15 @@ export class App extends o.ObserverHolder {
   }
 
   DisplayView(view_name: string): o.ReadonlyObservable<Renderable> {
-    return this.o_views.tf((v, old, prev) => {
+    const res = this.o_views.tf<Renderable>((v, old, prev) => {
       if (old !== o.NoValue && old.get(view_name) === v.get(view_name))
       return prev as Renderable
       const view = v.get(view_name)
       // node.setAttribute("service", (view as any)?.service?.builder.name ?? "--")
       return view?.()
     })
+    res[o.sym_display_node] = "e-app-view"
+    return res
     // `e-app-view "${view_name}"`)
   }
 

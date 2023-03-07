@@ -11,7 +11,6 @@ import type { Renderable } from "./types"
 
 import {
   node_append,
-  // node_clear,
   node_do_remove,
   node_observe,
   node_on_inserted,
@@ -42,7 +41,7 @@ export function If<T extends o.RO<any>>(
   display: (arg: If.NonNullableRO<T>) => Renderable,
   display_otherwise?: (a: T) => Renderable,
 ): o.RO<Renderable> {
-  return o.tf<T, Renderable>(condition, (cond, old, v) => {
+  const res = o.tf<T, Renderable>(condition, (cond, old, v) => {
     if (old !== o.NoValue && !!cond === !!old && v !== o.NoValue) return v as Renderable
     if (cond) {
       return display(condition as If.NonNullableRO<T>)
@@ -52,6 +51,8 @@ export function If<T extends o.RO<any>>(
       return null
     }
   })
+  if (o.isReadonlyObservable(res)) res[o.sym_display_node] = "e-if"
+  return res
 }
 
 export namespace If {
@@ -366,7 +367,9 @@ export namespace RepeatScroll {
 export function Switch<T>(obs: o.Observable<T>): Switch.Switcher<T>
 export function Switch<T>(obs: o.ReadonlyObservable<T>): Switch.ReadonlySwitcher<T>
 export function Switch(obs: any): any {
-  return new (Switch.Switcher as any)(obs)
+  const res = new (Switch.Switcher as any)(obs)
+  res[o.sym_display_node] = "e-switch"
+  return res
 }
 
 
