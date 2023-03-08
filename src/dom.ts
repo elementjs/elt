@@ -358,10 +358,15 @@ export function node_append<N extends Node>(node: N, insertable: Insertable<N> |
  *
  * @category low level dom, toc
  */
-export function node_observe<T>(node: Node, obs: o.RO<T>, obsfn: o.Observer.Callback<T>, observer_callback?: (obs: o.Observer<T>) => any, immediate = false): o.Observer<T> | null {
+export function node_observe<T>(
+  node: Node,
+  obs: o.RO<T>,
+  obsfn: o.Observer.Callback<T>,
+  options?: o.ObserveOptions<T>
+): o.Observer<T> | null {
   if (!(o.isReadonlyObservable(obs))) {
     // If the node is already inited, run the callback
-    if (immediate)
+    if (options?.immediate)
       obsfn(obs as T, o.NoValue)
     else
       node_on_inserted(node, () => obsfn(obs as T, o.NoValue))
@@ -369,9 +374,9 @@ export function node_observe<T>(node: Node, obs: o.RO<T>, obsfn: o.Observer.Call
   }
   // Create the observer and append it to the observer array of the node
   const obser = obs.createObserver(obsfn)
-  if (observer_callback) observer_callback(obser)
+  options?.observer_callback?.(obser)
   node_add_observer(node, obser)
-  if (immediate) obser.refresh()
+  if (options?.immediate) obser.refresh()
   return obser
 }
 
@@ -471,7 +476,7 @@ export function node_observe_attribute(node: Element, name: string, value: o.RO<
       // We can remove safely even if it doesn't exist as it won't raise an exception
       node.removeAttribute(name)
     }
-  }, undefined, true)
+  }, { immediate: true })
 
   // If an element gets its attribute set by another source, then update the Observable.
   // Note : This might not be a desired feature.
@@ -507,7 +512,7 @@ export function node_observe_style(node: HTMLElement | SVGElement, style: StyleD
         const value = st[x as any] as any
         ns.setProperty(x.replace(/[A-Z]/g, m => "-" + m.toLowerCase()), value)
       }
-    }, undefined, true)
+    }, { immediate: true })
   } else {
     // c is a MaybeObservableObject
     const st = style as any
@@ -516,7 +521,7 @@ export function node_observe_style(node: HTMLElement | SVGElement, style: StyleD
       const x = props[i]
       node_observe(node, st[x], value => {
         node.style.setProperty(x.replace(/[A-Z]/g, m => "-" + m.toLowerCase()), value)
-      }, undefined, true)
+      }, { immediate: true })
     }
   }
 }
@@ -533,7 +538,7 @@ export function node_observe_class(node: Element, c: ClassDefinition) {
     node_observe(node, c, (str, chg) => {
       if (chg !== o.NoValue) _remove_class(node, chg as string)
       _apply_class(node, str)
-    }, undefined, true)
+    }, { immediate: true })
   } else {
     const ob = c as { [name: string]: o.RO<any> }
     // c is a MaybeObservableObject
@@ -543,7 +548,7 @@ export function node_observe_class(node: Element, c: ClassDefinition) {
       node_observe(node, ob[x], (applied, chg) => {
         if (applied) _apply_class(node, x)
         else if (chg !== o.NoValue) _remove_class(node, x)
-      }, undefined, true)
+      }, { immediate: true })
     }
   }
 }

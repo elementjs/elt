@@ -52,7 +52,7 @@ export function DisplayComment(obs: o.RO<Renderable>, kind = "e-obs"): DocumentF
     }
     // node_clear(d)
     node_append(start.parentNode!, renderable, end)
-  }, undefined, true)
+  }, { immediate: true })
   return fr
 }
 
@@ -61,7 +61,7 @@ export function Display(obs: o.RO<Renderable>, kind = "e-obs"): HTMLElement {
   node_observe(elt, obs, renderable => {
     node_clear(elt)
     node_append(elt, renderable)
-  })
+  }, { immediate: true })
   return elt
 }
 
