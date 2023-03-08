@@ -24,7 +24,7 @@ const SVG = new Set(["svg", "circle", "clipPath", "defs", "desc", "ellipse", "fe
 
 export function setup_base_styles(doc = document) {
   const style = doc.createElement("style")
-  style.append(`e-display,e-if,e-switch,e-repeat,e-repeat-scroll,e-ritem,e-iter,e-app,e-app-view{ display: contents }`)
+  style.append(`e-obs,e-if,e-switch,e-repeat,e-repeat-scroll,e-ritem,e-iter,e-app,e-app-view{ display: contents }`)
   doc.head.appendChild(style)
 }
 requestAnimationFrame(() => setup_base_styles())
@@ -40,7 +40,7 @@ requestAnimationFrame(() => setup_base_styles())
  *
  * @category verbs, toc
  */
-export function DisplayComment(obs: o.RO<Renderable>, kind = "e-display"): DocumentFragment {
+export function DisplayComment(obs: o.RO<Renderable>, kind = "e-obs"): DocumentFragment {
   const fr = document.createDocumentFragment()
   const start = document.createComment(` ${kind} `)
   const end = document.createComment(` end ${kind} `)
@@ -60,7 +60,7 @@ export function DisplayComment(obs: o.RO<Renderable>, kind = "e-display"): Docum
   return fr
 }
 
-export function Display(obs: o.RO<Renderable>, kind = "e-display"): HTMLElement {
+export function Display(obs: o.RO<Renderable>, kind = "e-obs"): HTMLElement {
   const elt = document.createElement(kind)
   node_observe(elt, obs, renderable => {
     node_clear(elt)
