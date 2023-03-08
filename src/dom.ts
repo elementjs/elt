@@ -1,6 +1,6 @@
 import { Display, DisplayComment } from "./elt"
 import { o } from "./observable"
-import type { ClassDefinition, StyleDefinition, Listener, Insertable, Attrs, Renderable } from "./types"
+import type { ClassDefinition, StyleDefinition, Listener, Insertable, Attrs, } from "./types"
 
 /**
  * Symbol property on `Node` to an array of observers that are started when the node is `init()` or `inserted()` and
@@ -316,7 +316,7 @@ export function node_append<N extends Node>(node: N, insertable: Insertable<N> |
         || (node as unknown as Element).namespaceURI !== "http://www.w3.org/1999/xhtml"
       ) ?
         // If the parent node is an element but has a shadowRoot *or* is not XHTML (like SVG,) put the observed result between comments
-        DisplayComment(insertable as o.Observable<Renderable>, insertable?.[o.sym_display_node])
+        DisplayComment(insertable, insertable?.[o.sym_display_node])
         // Otherwise, use a regular, display: contents element
       : Display(insertable, insertable?.[o.sym_display_node])
 
