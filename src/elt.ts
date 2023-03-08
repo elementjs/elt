@@ -18,10 +18,6 @@ import {
 ////////////////////////////////////////////////////////
 
 
-const SVG_NS = "http://www.w3.org/2000/svg"
-const SVG = new Set(["svg", "circle", "clipPath", "defs", "desc", "ellipse", "feBlend", "feColorMatrix", "feComponentTransfer", "feComposite", "feConvolveMatrix", "feDiffuseLighting", "feDisplacementMap", "feDistantLight", "feFlood", "feFuncA", "feFuncB", "feFuncG", "feFuncR", "feGaussianBlur", "feImage", "feMerge", "feMergeNode", "feMorphology", "feOffset", "fePointLight", "feSpecularLighting", "feSpotLight", "feTile", "feTurbulence", "filter", "foreignObject", "g", "image", "line", "linearGradient", "marker", "mask", "metadata", "path", "pattern", "polygon", "polyline", "radialGradient", "rect", "stop", "switch", "symbol", "text", "textPath", "tspan", "use", "view",])
-
-
 export function setup_base_styles(doc = document) {
   const style = doc.createElement("style")
   style.append(`e-obs,e-if,e-switch,e-repeat,e-repeat-scroll,e-ritem,e-iter,e-app,e-app-view{ display: contents }`)
@@ -98,7 +94,65 @@ export function e<N extends Node>(elt: string | Node | Function, ...children: (I
 
   // create a simple DOM node
   if (typeof elt === "string") {
-    node = (SVG.has(elt) ? document.createElementNS(SVG_NS, elt) : document.createElement(elt)) as unknown as N
+    switch (elt) {
+      case "svg":
+      case "circle":
+      case "clipPath":
+      case "defs":
+      case "desc":
+      case "ellipse":
+      case "feBlend":
+      case "feColorMatrix":
+      case "feComponentTransfer":
+      case "feComposite":
+      case "feConvolveMatrix":
+      case "feDiffuseLighting":
+      case "feDisplacementMap":
+      case "feDistantLight":
+      case "feFlood":
+      case "feFuncA":
+      case "feFuncB":
+      case "feFuncG":
+      case "feFuncR":
+      case "feGaussianBlur":
+      case "feImage":
+      case "feMerge":
+      case "feMergeNode":
+      case "feMorphology":
+      case "feOffset":
+      case "fePointLight":
+      case "feSpecularLighting":
+      case "feSpotLight":
+      case "feTile":
+      case "feTurbulence":
+      case "filter":
+      case "foreignObject":
+      case "g":
+      case "image":
+      case "line":
+      case "linearGradient":
+      case "marker":
+      case "mask":
+      case "metadata":
+      case "path":
+      case "pattern":
+      case "polygon":
+      case "polyline":
+      case "radialGradient":
+      case "rect":
+      case "stop":
+      case "switch":
+      case "symbol":
+      case "text":
+      case "textPath":
+      case "tspan":
+      case "use":
+      case "view":
+        node = document.createElementNS("http://www.w3.org/2000/svg", elt) as unknown as N
+        break
+      default:
+        node = document.createElement(elt) as unknown as N
+    }
   } else if (elt instanceof Node) {
     node = elt as N
   } else {
