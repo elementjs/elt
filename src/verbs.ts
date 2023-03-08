@@ -151,7 +151,7 @@ export namespace Repeat {
 
         if (diff < 0)
           this.removeChildren(-diff)
-      }, undefined, true)
+      }, { immediate: true })
 
       return this.node
     }

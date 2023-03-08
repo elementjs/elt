@@ -10,7 +10,7 @@ import {
   node_on_inserted,
   node_on_removed,
   node_do_inserted,
-  node_do_remove
+  node_do_remove,
 } from "./dom"
 
 import type {
@@ -217,9 +217,9 @@ export function $style<N extends HTMLElement | SVGElement>(...styles: StyleDefin
  * @code ../examples/_observe.tsx
  * @category dom, toc
  */
-export function $observe<N extends Node, T>(a: o.RO<T>, cbk: (newval: T, old_val: T | o.NoValue, node: N) => void, obs_cbk?: (observer: o.Observer<T>) => void, immediate = false) {
+export function $observe<N extends Node, T>(a: o.RO<T>, cbk: (newval: T, old_val: T | o.NoValue, node: N) => void, options?: o.ObserveOptions<T>) {
   return (node: N) => {
-    node_observe(node, a, (nval, chg) => cbk(nval, chg, node), obs_cbk, immediate)
+    node_observe(node, a, (nval, chg) => cbk(nval, chg, node), options)
   }
 }
 

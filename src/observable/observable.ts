@@ -102,6 +102,16 @@ export function isReadonlyObservable(_: any): _ is ReadonlyObservable<any> {
   return _ instanceof Observable
 }
 
+
+/**
+ * Options when adding an observer to an ObserverHolder or a Node
+ */
+export interface ObserveOptions<T> {
+  observer_callback?: (obs: o.Observer<T>) => any,
+  immediate?: boolean
+}
+
+
 /**
  * An `Observer` observes an [[o.Observable]]. `Observable`s maintain a list of **active**
  * observers that are observing it. Whenever their value change, all the registered
@@ -1569,7 +1579,7 @@ export function merge<T>(obj: {[K in keyof T]: Observable<T[K]>}): Observable<T>
     /**
      * Does pretty much what [[$observe]] does.
      */
-    observe<A>(obs: RO<A>, fn: Observer.Callback<A>, observer_callback?: (observer: Observer<A>) => any): Observer<A> | null {
+    observe<A>(obs: RO<A>, fn: Observer.Callback<A>, options?: ObserveOptions<A>): Observer<A> | null {
       if (!(obs instanceof Observable)) {
         if (this.is_observing)
           fn(obs as A, NoValue)
@@ -1579,7 +1589,8 @@ export function merge<T>(obj: {[K in keyof T]: Observable<T[K]>}): Observable<T>
       }
 
       const observer = o(obs).createObserver(fn)
-      observer_callback?.(observer)
+      options?.observer_callback?.(observer)
+      if (options?.immediate) observer.refresh()
       return this.addObserver(observer)
     }
 
