@@ -20,7 +20,7 @@ import {
 
 export function setup_base_styles(doc = document) {
   const style = doc.createElement("style")
-  style.append(`e-obs,e-if,e-switch,e-repeat,e-repeat-scroll,e-ritem,e-iter,e-app,e-app-view{ display: contents }`)
+  style.append(`e-obs,e-if,e-switch,e-repeat,e-repeat-scroll,e-ritem,e-iter,e-app,e-app-view,e-lang{ display: contents }`)
   doc.head.appendChild(style)
 }
 requestAnimationFrame(() => setup_base_styles())
@@ -153,15 +153,15 @@ export function e<N extends Node>(elt: string | Node | Function, ...children: (I
       default:
         node = document.createElement(elt) as unknown as N
     }
-  } else if (elt instanceof Node) {
-    node = elt as N
-  } else {
+  } else if (typeof elt === "function") {
     // elt is just a creator function
     node = elt(children[0] ?? {})
     is_basic_node = false
+  } else {
+    node = elt as N
   }
 
-  let l = children.length
+  const l = children.length
   if (l > 0)
     node_append(node, children[0], null, is_basic_node)
   for (let i = 1; i < l; i++) {
