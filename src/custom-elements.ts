@@ -9,6 +9,8 @@ import {
   node_observe,
 } from "./dom"
 
+// TODO : Adopted stylesheets, reuse across components !
+
 
 /**
  * Register a custome element
@@ -89,8 +91,8 @@ export class EltCustomElement extends HTMLElement {
     }
   }
 
-  observe<T>(observable: o.RO<T>, obsfn: o.Observer.Callback<T>) {
-    node_observe(this, observable, obsfn)
+  observe<T>(observable: o.RO<T>, obsfn: o.Observer.Callback<T>, options?: o.ObserveOptions<T>) {
+    node_observe(this, observable, obsfn, options)
   }
 
   /** Convenience method for [[node_dispatch]] */
