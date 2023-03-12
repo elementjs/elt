@@ -215,7 +215,7 @@ export namespace e {
     export type ElementClass = ElementClassFn<any>
 
     // This is the line that tells JSX what attributes the basic elements like "div" or "article" have
-    export type IntrinsicElements = ElementMap
+    export type IntrinsicElements = ElementMap & {[name: string]: Attrs<HTMLElement>}
   }
 
   /**
