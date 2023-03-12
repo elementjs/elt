@@ -12,6 +12,19 @@ import {
 // TODO : Adopted stylesheets, reuse across components !
 
 
+export function css(tpl: TemplateStringsArray, ...values: any[]) {
+  const str: string[] = []
+  for (let i = 0, l = tpl.length; i < l; i++) {
+    str.push(tpl[i])
+    if (values[i] != null) {
+      str.push(values[i].toString())
+    }
+  }
+  const css = new CSSStyleSheet()
+  css.replace(str.join(""))
+  return css
+}
+
 /**
  * Register a custome element
  * @param name the tag name
