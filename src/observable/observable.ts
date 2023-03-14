@@ -1528,7 +1528,7 @@ export function merge<T>(obj: {[K in keyof T]: Observable<T[K]>}): Observable<T>
    * A helper class that manages a group of observers with a few handy methods
    * to all start or stop them from observing.
    *
-   * Meant to be extended by [[Mixin]] and [[App.Service]], or any class that has
+   * Meant to be extended by [[App.Service]], or any class that has
    * some form of life-cycle (on/off) that it wants to tie observing to.
    *
    * @category observable, toc

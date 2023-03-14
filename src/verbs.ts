@@ -200,8 +200,8 @@ export namespace Repeat {
         const next = iter.previousSibling as Element | null
         count--
         if (count === -1) { break }
-        this.node.removeChild(iter)
         node_do_remove(iter)
+        this.node.removeChild(iter)
         iter = next
         if (iter == null) { break }
       }
@@ -293,8 +293,9 @@ export namespace RepeatScroll {
 
       const append = () => {
         const p = this.parent
-        while (!p || this.next_index < this.lst.length && p.scrollHeight - (p.clientHeight + p.scrollTop) < this.threshold_height) {
+        if (!p || this.next_index < this.lst.length && p.scrollHeight - (p.clientHeight + p.scrollTop) < this.threshold_height) {
           super.appendChildren(bufsize)
+          requestAnimationFrame(append)
         }
       }
 

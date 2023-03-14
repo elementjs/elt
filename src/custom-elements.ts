@@ -11,6 +11,10 @@ import {
 
 // TODO : Adopted stylesheets, reuse across components !
 
+export const can_adopt_style_sheets =
+  window.ShadowRoot &&
+  'adoptedStyleSheets' in Document.prototype &&
+  'replace' in CSSStyleSheet.prototype;
 
 export function css(tpl: TemplateStringsArray, ...values: any[]) {
   const str: string[] = []
@@ -20,9 +24,13 @@ export function css(tpl: TemplateStringsArray, ...values: any[]) {
       str.push(values[i].toString())
     }
   }
-  const css = new CSSStyleSheet()
-  css.replace(str.join(""))
-  return css
+  if (can_adopt_style_sheets) {
+    const res = new CSSStyleSheet()
+    res.replace(str.join(""))
+    return res
+  } else {
+    return str.join("")
+  }
 }
 
 /**
@@ -70,6 +78,7 @@ export function attr(options?: CustomElementAttrsOptions | EltCustomElement, nam
 export class EltCustomElement extends HTMLElement {
 
   static _attrs?: string[]
+  static css: CSSStyleSheet | string | (CSSStyleSheet | string)[] | null = null
 
   static get observedAttributes() { return this._attrs ?? [] }
 
@@ -84,6 +93,7 @@ export class EltCustomElement extends HTMLElement {
   // We use an observers array since custom elements are kind enough to tell us when
   // they are being connected to the DOM, and there is thus no need to wait for the MutationObserver API
   observed_attrs?: Map<string, CustomElementAttrsOptions>
+  protected _initialized = false
 
   constructor() {
     super()
@@ -102,6 +112,32 @@ export class EltCustomElement extends HTMLElement {
         }
       }
     }
+
+  }
+
+  shadow(): Node | null {
+    return null
+  }
+
+  protected _buildShadow() {
+    const sh = this.shadow()
+
+    if (sh != null) {
+      const shadow = this.attachShadow({ mode: "open", delegatesFocus: true })
+
+      // Add css stylesheets to ShadowRoot
+      const _css = (this.constructor as any).css
+      if (_css != null) {
+        if (typeof _css === "string" || typeof _css[0] === "string") {
+          const st = document.createElement("style")
+          st.textContent = Array.isArray(_css) ? _css.join("\n") : _css
+          sh.insertBefore(st, null)
+        } else {
+          shadow.adoptedStyleSheets = !Array.isArray(_css) ? [_css] : _css
+        }
+      }
+      shadow.insertBefore(sh, null)
+    }
   }
 
   observe<T>(observable: o.RO<T>, obsfn: o.Observer.Callback<T>, options?: o.ObserveOptions<T>) {
@@ -114,6 +150,12 @@ export class EltCustomElement extends HTMLElement {
   }
 
   connectedCallback() {
+    if (!this._initialized) {
+      this._initialized = true
+      this._buildShadow()
+    }
+
+
     if (this.shadowRoot) {
       node_do_inserted(this.shadowRoot)
     }
