@@ -673,14 +673,17 @@ export class Observable<A> implements ReadonlyObservable<A>, Indexable {
   tf<B>(transform: RO<TransfomFn<A, B> | ReadonlyConverter<A, B>>): ReadonlyObservable<B>
   tf<B>(transform: RO<TransfomFn<A, B> | ReadonlyConverter<A, B>>, rev?: o.RO<RevertFn<A, B>>): ReadonlyObservable<B> {
     let old: A | NoValue = NoValue
-    let old_transform: any = NoValue
-    let curval: B | NoValue = NoValue
+    let old_val: B | NoValue = NoValue
     return combine([this, transform, rev] as [Observable<A>, RO<TransfomFn<A, B> | ReadonlyConverter<A, B>>, RevertFn<A, B>],
       ([v, fnget]) => {
-        if (old !== NoValue && old_transform !== NoValue && curval !== NoValue && old === v && old_transform === fnget) return curval
-        curval = (typeof fnget === "function" ? fnget(v, old, curval) : fnget.transform(v, old, curval))
-        old = v
-        old_transform = fnget
+        const curval = (typeof fnget === "function" ? fnget(v, old, old_val) : fnget.transform(v, old, old_val))
+        const arg_nb = (typeof fnget === "function" ? fnget.length : fnget.transform.length)
+        if (arg_nb > 1) {
+          old = v
+          if (arg_nb > 2) {
+            old_val = curval
+          }
+        }
         return curval
       },
       (newv, old, [curr, conv, rev]) => {
