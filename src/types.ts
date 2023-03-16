@@ -1,6 +1,6 @@
 import type { o } from "./observable"
 
-export type NRO<T> = o.RO<T | null | false>
+export type NRO<T> = o.RO<T | null | false | undefined>
 
 /**
  * Renderables are the types understood by the `Display` verb and that can be rendered into
