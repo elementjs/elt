@@ -318,11 +318,7 @@ export class Queue extends IndexableArray<Observable<any>> {
       const obs = arr[i]
       if (obs == null) continue
 
-      if (obs instanceof CombinedObservable) {
-        if (obs.refreshParentValues())
-          obs._value = obs.getter(obs._parents_values)
-      }
-
+      obs.ensureRefreshed()
       obs.idx = null
 
       for (let i = 0, oa = obs._observers.arr; i < oa.length; i++) {
@@ -425,6 +421,8 @@ export class Observable<A> implements ReadonlyObservable<A>, Indexable {
     })
   }
 
+
+  ensureRefreshed() { }
 
   /**
    * Return the underlying value of this Observable
@@ -777,6 +775,11 @@ export class CombinedObservable<A extends any[], T = A> extends Observable<T> {
       const link = l[i]
       link.parent.removeChild(link)
     }
+  }
+
+  ensureRefreshed(): void {
+    if (this.refreshParentValues())
+      this._value = this.getter(this._parents_values)
   }
 
   refreshParentValues() {
