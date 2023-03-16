@@ -275,37 +275,10 @@ export type RO<A> = Observable<A> | ReadonlyObservable<A> | A
 
 /** @internal */
 export function each_recursive(obs: Observable<any>, fn: (v: Observable<any>) => void) {
-
-  const objs = [] as Observable<any>[]
-  const stack = [] as [(ChildObservableLink | null)[], number][]
-  let [children, i] = [obs._children.arr, 0]
-  objs.push(obs)
-
-  for (;;) {
-    const _child = children[i]
-    if (_child) {
-      const child = _child.child
-      const subchildren = child._children.arr
-      objs.push(child)
-      if (subchildren.length) {
-        stack.push([children, i + 1])
-        children = subchildren
-        i = 0
-        continue
-      }
-    }
-
-    i++
-
-    if (i > children.length) {
-      if (stack.length === 0) break
-      [children, i] = stack.pop()!
-      continue
-    }
-  }
-
-  for (let i = 0, l = objs.length; i < l; i++) {
-    fn(objs[i])
+  fn(obs)
+  for (let i = 0, ch = obs._children.arr, l = ch.length; i < l; i++) {
+    const child = ch[i]
+    if (child) each_recursive(child.child, fn)
   }
 }
 
@@ -316,9 +289,12 @@ export class Queue extends IndexableArray<Observable<any>> {
 
   schedule(obs: Observable<any>) {
     const was_empty = this.real_size === 0
-    each_recursive(obs, ob => {
-      this.add(ob)
-    })
+    if (obs.idx == null) {
+      // No need to reschedule an observable
+      each_recursive(obs, ob => {
+        this.add(ob)
+      })
+    }
     if (this.transaction_count === 0 && was_empty) {
       this.flush()
     }
@@ -354,6 +330,8 @@ export class Queue extends IndexableArray<Observable<any>> {
         if (or == null) continue
         or.refresh()
       }
+
+      obs._observers.actualize()
 
       arr[i] = null // just in case...
     }
@@ -817,7 +795,7 @@ export class CombinedObservable<A extends any[], T = A> extends Observable<T> {
   }
 
   get() {
-    if (!this._watched) {
+    if (!this._watched || queue.transaction_count > 0) {
       if (this.refreshParentValues() || this._value === NoValue as any) {
         this._value = this.getter(this._parents_values)
       }
@@ -831,7 +809,7 @@ export class CombinedObservable<A extends any[], T = A> extends Observable<T> {
     if (value === this._value) return
 
     const old_value = this._value
-    if (!this._watched) this.refreshParentValues()
+    if (!this._watched || queue.transaction_count > 0) this.refreshParentValues()
     const res = this.setter(value, old_value, this._parents_values)
     if (res == undefined) return
     for (let i = 0, l = this._links, len = l.length; i < len; i++) {
