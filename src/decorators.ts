@@ -9,8 +9,10 @@ import {
   node_add_event_listener,
   node_on_inserted,
   node_on_removed,
-  node_do_inserted,
-  node_do_remove,
+  KEvent,
+  EventsForKeys,
+  $ShadowOptions,
+  node_attach_shadow,
 } from "./dom"
 
 import type {
@@ -26,7 +28,7 @@ function setup_bind<T, N extends Element>(
   obs: o.Observable<T>,
   node_get: (node: N) => T,
   node_set: (node: N, value: T) => void,
-  event = "input" as string | string[]
+  event = "input" as KEvent
 ) {
   return function (node: N) {
     const lock = o.exclusive_lock()
@@ -234,19 +236,12 @@ export function $observe<N extends Node, T>(a: o.RO<T>, cbk: (newval: T, old_val
  * @code ../examples/_on.tsx
  * @category dom, toc
  */
-export function $on<N extends Node, K extends (keyof GlobalEventHandlersEventMap)[]>(name: K, listener: Listener<GlobalEventHandlersEventMap[K[number]], N>, useCapture?: boolean): Decorator<N>
-export function $on<N extends Node, K extends keyof GlobalEventHandlersEventMap>(event: K, listener: Listener<GlobalEventHandlersEventMap[K], N>, useCapture?: boolean): Decorator<N>
-export function $on<N extends Node>(event: string | string[], listener: Listener<Event, N>, useCapture?: boolean): Decorator<N>
-export function $on<N extends Node>(event: string | string[], _listener: Listener<Event, N>, useCapture = false): Decorator<N> {
-  return function $on(node) {
-    if (typeof event === "string")
-      node.addEventListener(event, ev => _listener(ev as any), useCapture)
-    else {
-      for (const n of event) {
-        node.addEventListener(n, ev => _listener(ev as any), useCapture)
-      }
-    }
+export function $on<N extends Node, K extends KEvent | KEvent[]>(events: K, listener: Listener<EventsForKeys<K>, N>, useCapture?: boolean): Decorator<N> {
+
+  return function $on_apply(node) {
+    node_add_event_listener(node, events, listener, useCapture)
   }
+
 }
 
 /**
@@ -295,19 +290,14 @@ export function $removed<N extends Node>(fn: (node: N) => void) {
 
 /**
  * Attach a shadow root to a node and setup an internal mutation observer
- * @param _nodes the nodes or strings to append to the shadow root
+ * @param nodes the nodes or strings to append to the shadow root
  * @returns A decorator
  */
-export function $shadow(..._nodes: (string | Node)[]) {
-  return function (node: Element) {
-    const shadow = node.attachShadow({ mode: "open", delegatesFocus: true })
-    node_on_inserted(node, () => {
-      node_do_inserted(shadow)
-    })
-    node_on_removed(node, () => {
-      node_do_remove(shadow)
-    })
-    shadow.append(..._nodes)
+export function $shadow(child: Node): Decorator<HTMLElement>
+export function $shadow(opts: $ShadowOptions, child: Node): Decorator<HTMLElement>
+export function $shadow(opts?: Node | $ShadowOptions, child?: Node) {
+  return function (node: HTMLElement) {
+    node_attach_shadow(node, opts as $ShadowOptions, child as Node)
   }
 }
 

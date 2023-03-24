@@ -3,35 +3,10 @@ import {
 } from "./observable"
 
 import {
-  node_dispatch,
-  node_do_inserted,
-  node_do_remove,
   node_observe,
+  node_attach_shadow,
 } from "./dom"
 
-// TODO : Adopted stylesheets, reuse across components !
-
-export const can_adopt_style_sheets =
-  window.ShadowRoot &&
-  'adoptedStyleSheets' in Document.prototype &&
-  'replace' in CSSStyleSheet.prototype;
-
-export function css(tpl: TemplateStringsArray, ...values: any[]) {
-  const str: string[] = []
-  for (let i = 0, l = tpl.length; i < l; i++) {
-    str.push(tpl[i])
-    if (values[i] != null) {
-      str.push(values[i].toString())
-    }
-  }
-  if (can_adopt_style_sheets) {
-    const res = new CSSStyleSheet()
-    res.replace(str.join(""))
-    return res
-  } else {
-    return str.join("")
-  }
-}
 
 /**
  * Register a custome element
@@ -66,40 +41,49 @@ export function attr(custom: EltCustomElement, name: string): void
 export function attr(options?: CustomElementAttrsOptions): (custom: EltCustomElement, name: string) => void
 export function attr(options?: CustomElementAttrsOptions | EltCustomElement, name?: string) {
   if (options instanceof EltCustomElement) {
-    EltCustomElement.attr(options, { name: name!, prop: name! })
+    EltCustomElement[sym_custom_add_attr](options, { name: name!, prop: name! })
   } else {
     return function attr(proto: EltCustomElement, name: string) {
-      EltCustomElement.attr(proto, { prop: name, name: name, ...options })
+      EltCustomElement[sym_custom_add_attr](proto, { prop: name, name: name, ...options })
     }
   }
 }
 
 
+export const sym_custom_attrs = Symbol("custom_attributes")
+export const sym_custom_add_attr = Symbol("add_custom_attribute")
+
+
 export class EltCustomElement extends HTMLElement {
 
-  static _attrs?: string[]
   static css: CSSStyleSheet | string | (CSSStyleSheet | string)[] | null = null
+  static shadow_init: ShadowRootInit = {
+    mode: "open",
+    delegatesFocus: true,
+    slotAssignment: "manual",
+  }
 
-  static get observedAttributes() { return this._attrs ?? [] }
+  static get observedAttributes() { return this[sym_custom_attrs] ?? [] }
 
-  static attr<T extends EltCustomElement>(proto: T, options: CustomElementAttrsOptions) {
+  static [sym_custom_attrs]?: string[]
+  static [sym_custom_add_attr]<T extends EltCustomElement>(proto: T, options: CustomElementAttrsOptions) {
     const cons = proto.constructor as typeof EltCustomElement
-    cons._attrs ??= [] // initialize it if it didn't exist
-    cons._attrs.push(options.name)
-    proto.observed_attrs ??= new Map()
-    proto.observed_attrs.set(options.name, options)
+    cons[sym_custom_attrs] ??= [] // initialize it if it didn't exist
+    cons[sym_custom_attrs].push(options.name)
+    proto[sym_custom_attrs] ??= new Map()
+    proto[sym_custom_attrs].set(options.name, options)
   }
 
   // We use an observers array since custom elements are kind enough to tell us when
   // they are being connected to the DOM, and there is thus no need to wait for the MutationObserver API
-  observed_attrs?: Map<string, CustomElementAttrsOptions>
-  protected _initialized = false
+  [sym_custom_attrs]?: Map<string, CustomElementAttrsOptions>
+  #shadow_built = false
 
   constructor() {
     super()
 
-    if (this.observed_attrs) {
-      for (let attrs of this.observed_attrs.values()) {
+    if (this[sym_custom_attrs]) {
+      for (let attrs of this[sym_custom_attrs].values()) {
         const prop = (this as any)[attrs.prop]
         if (prop instanceof o.Observable) {
           this.observe(prop, (value, old) => {
@@ -119,24 +103,13 @@ export class EltCustomElement extends HTMLElement {
     return null
   }
 
-  protected _buildShadow() {
+  #buildShadow() {
     const sh = this.shadow()
 
     if (sh != null) {
-      const shadow = this.attachShadow({ mode: "open", delegatesFocus: true })
-
-      // Add css stylesheets to ShadowRoot
-      const _css = (this.constructor as any).css
-      if (_css != null) {
-        if (typeof _css === "string" || typeof _css[0] === "string") {
-          const st = document.createElement("style")
-          st.textContent = Array.isArray(_css) ? _css.join("\n") : _css
-          sh.insertBefore(st, null)
-        } else {
-          shadow.adoptedStyleSheets = !Array.isArray(_css) ? [_css] : _css
-        }
-      }
-      shadow.insertBefore(sh, null)
+      const con = (this.constructor as typeof EltCustomElement)
+      const init = {...con.shadow_init, css: con.css as CSSStyleSheet[] }
+      node_attach_shadow(this, init, sh)
     }
   }
 
@@ -144,32 +117,21 @@ export class EltCustomElement extends HTMLElement {
     node_observe(this, observable, obsfn, options)
   }
 
-  /** Convenience method for [[node_dispatch]] */
-  dispatch(name: string, options?: CustomEventInit) {
-    node_dispatch(this, name, options)
-  }
-
   connectedCallback() {
-    if (!this._initialized) {
-      this._initialized = true
-      this._buildShadow()
-    }
-
-
-    if (this.shadowRoot) {
-      node_do_inserted(this.shadowRoot)
+    if (!this.#shadow_built) {
+      // Only build the shadow once
+      this.#shadow_built = true
+      this.#buildShadow()
     }
   }
 
   disconnectedCallback() {
-    if (this.shadowRoot) {
-      node_do_remove(this.shadowRoot)
-    }
+
   }
 
   attributeChangedCallback(name: string, _old: any, newv: any) {
-    if (this.observed_attrs) {
-      const mapper = this.observed_attrs.get(name)
+    if (this[sym_custom_attrs]) {
+      const mapper = this[sym_custom_attrs].get(name)
       if (!mapper) return
       const cur = (this as any)[mapper.prop]
       if (cur instanceof o.Observable) {

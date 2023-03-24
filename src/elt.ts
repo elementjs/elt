@@ -4,7 +4,6 @@ import {
   node_observe,
   node_append,
   node_remove,
-  node_clear
 } from "./dom"
 
 import {
@@ -56,13 +55,30 @@ export function DisplayComment(obs: o.RO<Renderable>, kind = "e-obs"): DocumentF
   return fr
 }
 
-export function Display(obs: o.RO<Renderable>, kind = "e-obs"): HTMLElement {
-  const elt = document.createElement(kind)
-  node_observe(elt, obs, renderable => {
-    node_clear(elt)
-    node_append(elt, renderable)
+export function Display(obs: o.RO<Renderable>, kind = "e-obs"): DocumentFragment {
+  const fr = document.createDocumentFragment()
+  const start = document.createComment(` ${kind} `)
+  const end = document.createComment(` end ${kind} `)
+  fr.appendChild(start)
+  fr.appendChild(end)
+  // const d = document.createElement(element)
+  node_observe(start, obs, renderable => {
+    let iter = start.nextSibling
+    while (iter && iter !== end) {
+      let next = iter?.nextSibling
+      node_remove(iter)
+      iter = next
+    }
+    // node_clear(d)
+    node_append(start.parentNode!, renderable, end)
   }, { immediate: true })
-  return elt
+  return fr
+  // const elt = document.createElement(kind)
+  // node_observe(elt, obs, renderable => {
+  //   node_clear(elt)
+  //   node_append(elt, renderable)
+  // }, { immediate: true })
+  // return elt
 }
 
 
