@@ -351,6 +351,73 @@ export function node_append<N extends Node>(node: N, insertable: Insertable<N> |
 }
 
 
+export interface $ShadowOptions extends Partial<ShadowRootInit> {
+  css?: string | CSSStyleSheet | (CSSStyleSheet | string)[]
+}
+
+export const can_adopt_style_sheets =
+  window.ShadowRoot &&
+  'adoptedStyleSheets' in Document.prototype &&
+  'replace' in CSSStyleSheet.prototype;
+
+export function css(tpl: TemplateStringsArray, ...values: any[]) {
+  const str: string[] = []
+  for (let i = 0, l = tpl.length; i < l; i++) {
+    str.push(tpl[i])
+    if (values[i] != null) {
+      str.push(values[i].toString())
+    }
+  }
+  if (can_adopt_style_sheets) {
+    const res = new CSSStyleSheet()
+    res.replace(str.join(""))
+    return res
+  } else {
+    return str.join("")
+  }
+}
+
+/**
+ *
+ * @param node The node to create a shadow on
+ */
+export function node_attach_shadow(node: HTMLElement, opts: $ShadowOptions, child: Node): ShadowRoot
+export function node_attach_shadow(node: HTMLElement, child: Node): ShadowRoot
+export function node_attach_shadow(node: HTMLElement, opts?: ($ShadowOptions | Node), child?: Node) {
+  const op = opts instanceof Node ? null : opts as $ShadowOptions
+
+  const shadow = node.attachShadow({
+    mode: op?.mode ?? "open",
+    delegatesFocus: op?.delegatesFocus ?? true,
+    slotAssignment: op?.slotAssignment ?? "named",
+  })
+
+  let css = op?.css
+  if (css != null) {
+    if (!Array.isArray(css)) { css = [css] }
+    const sheets = css.filter(c => c instanceof CSSStyleSheet) as CSSStyleSheet[]
+    if (sheets.length) shadow.adoptedStyleSheets = [...shadow.adoptedStyleSheets, ...sheets]
+    const strings = css.filter(c => typeof c === "string")
+    if (strings.length) {
+      const style = document.createElement("style")
+      style.append(strings.join("\n"))
+      shadow.insertBefore(style, null)
+    }
+  }
+
+  shadow.insertBefore(op == null ? opts as Node : child as Node, null)
+
+  node_on_inserted(node, () => {
+    node_do_inserted(shadow)
+  })
+
+  node_on_removed(node, () => {
+    node_do_remove(shadow)
+  })
+
+  return shadow
+}
+
 /**
  * Tie the observal of an `#Observable` to the presence of this `node` in the DOM.
  *
@@ -398,27 +465,54 @@ export function node_add_observer<T>(node: Node, observer: o.Observer<T>) {
   if (node[sym_mount_status] & NODE_IS_OBSERVING) observer.startObserving()
 }
 
-
-/**
- * Attach an event `listener` to a `node`, where `event` can potentially be an array.
- *
- * The listener is typed as having `currentTarget` as the type of the node the event is added on, if known.
- *
- * Used mostly by [[Mixin.on]] and [[$on]]
- *
- * @category low level dom, toc
- */
-export function node_add_event_listener<N extends Node, K extends (keyof GlobalEventHandlersEventMap)[]>(node: N, name: K, listener: Listener<GlobalEventHandlersEventMap[K[number]], N>, useCapture?: boolean): void
-export function node_add_event_listener<N extends Node, K extends keyof GlobalEventHandlersEventMap>(node: N, event: K, listener: Listener<GlobalEventHandlersEventMap[K], N>, useCapture?: boolean): void
-export function node_add_event_listener<N extends Node>(node: N, event: string | string[], listener: Listener<Event, N>, useCapture?: boolean): void
-export function node_add_event_listener<N extends Node>(node: N, ev: string | string[], listener: Listener<Event, N>): void {
-  if (Array.isArray(ev))
-    // we have to force typescript's hands on the listener typing, as we **know** for certain that current_target
-    // is the right type here.
-    for (const e of ev) node.addEventListener(e, listener as any)
-  else {
-    node.addEventListener(ev, listener as any)
+declare global {
+  interface GlobalEventHandlersEventMap {
+    // [x: string]: Event
   }
+}
+
+export type KEvent = keyof GlobalEventHandlersEventMap
+
+export type EventForKey<K extends KEvent> =
+  K extends keyof GlobalEventHandlersEventMap ? GlobalEventHandlersEventMap[K]
+  : Event
+
+export type EventsForKeys<K extends KEvent | KEvent[]> =
+  K extends any[] ? EventForKey<K[number]>
+  : K extends KEvent ? EventForKey<K>
+  : Event
+
+export function node_add_event_listener<N extends Node, K extends KEvent | KEvent[]>(node: N, key: K, listener: Listener<EventsForKeys<K>, N>, useCapture?: boolean): void
+export function node_add_event_listener<N extends Node, K extends KEvent | KEvent[]>(target: N, node: Node, key: K, listener: Listener<EventsForKeys<K>, N>, useCapture?: boolean): void
+export function node_add_event_listener(target: Node, node: any, events: any, listener?: any, use_capture?: any): void {
+
+  if (!(node instanceof Node)) {
+    // This is the short version, node is the events
+    use_capture = listener
+    listener = events
+    events = node
+    node = target // now both target and node have the same value
+  }
+
+  function add_listener(event: string, listener: Listener<any>) {
+    if (target !== node) {
+      // If the targeted node is not the same, then we *must* remove the event listener if the node observing the events goes away. Otherwise, we get memory leaks.
+      node_on_inserted(node, () => { target.addEventListener(event, listener) })
+      node_on_removed(node, () => { target.removeEventListener(event, listener) })
+    } else {
+      node.addEventListener(event, listener)
+    }
+  }
+
+  if (Array.isArray(events)) {
+    for (let i = 0, l = events.length; i < l; i++) {
+      const event = events[i]
+      add_listener(event, listener)
+    }
+  } else {
+    add_listener(events, listener)
+  }
+
 }
 
 
