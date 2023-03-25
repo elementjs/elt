@@ -1,7 +1,5 @@
 import { o } from "./observable"
 
-export namespace tf {
-
 /**
  * Transforms to a boolean observable that switches to `true` when
  * the original `observable` has the same value than `other`.
@@ -11,7 +9,7 @@ export namespace tf {
  * @code ../../examples/tf.equals.tsx
  * @category observable, toc
  */
-export function equals<T, TT extends T>(other: o.RO<TT>) {
+export function tf_equals<T, TT extends T>(other: o.RO<TT>) {
   return o.tf(other, oth => (current: T) => current === oth)
 }
 
@@ -19,7 +17,7 @@ export function equals<T, TT extends T>(other: o.RO<TT>) {
  * Does the opposite of [[tf.equals]]
  * @category observable, toc
  */
-export function differs<T, TT extends T>(other: o.RO<TT>) {
+export function tf_differs<T, TT extends T>(other: o.RO<TT>) {
   return o.tf(other, oth => (current: T) => current !== oth)
 }
 
@@ -35,7 +33,7 @@ export function differs<T, TT extends T>(other: o.RO<TT>) {
  * This is the basis of [[tf.filter]] and [[tf.array_sort]]
  * @category observable, toc
  */
-export function array_transform<T>(fn: o.RO<number[] | ((array: T[]) => number[])>): o.RO<o.Converter<T[], T[]> & {indices: number[]}> {
+export function tf_array_transform<T>(fn: o.RO<number[] | ((array: T[]) => number[])>): o.RO<o.Converter<T[], T[]> & {indices: number[]}> {
   return o.tf(fn,
     fn => {
       return {
@@ -66,7 +64,7 @@ export function array_transform<T>(fn: o.RO<number[] | ((array: T[]) => number[]
  *    If true, only refilter if the condition changes, but keep the indices even if the array changes.
  * @category observable, toc
  */
-export function array_filter<T>(condition: o.RO<(item: T, idx: number, lst: T[]) => any>, stable: o.RO<boolean> = false): o.RO<o.Converter<T[], T[]> & {indices: number[]}> {
+export function tf_array_filter<T>(condition: o.RO<(item: T, idx: number, lst: T[]) => any>, stable: o.RO<boolean> = false): o.RO<o.Converter<T[], T[]> & {indices: number[]}> {
   return o.combine(
     o.tuple(condition, stable),
     ([cond, stable]) => {
@@ -112,8 +110,8 @@ export function array_filter<T>(condition: o.RO<(item: T, idx: number, lst: T[])
  * @param sortfn
  * @category observable, toc
  */
-export function array_sort<T>(sortfn: o.RO<(a: T, b: T) => 1 | 0 | -1>): o.RO<o.Converter<T[], T[]>> {
-  return array_transform(o.tf(sortfn, sortfn => (lst: T[]) => {
+export function tf_array_sort<T>(sortfn: o.RO<(a: T, b: T) => 1 | 0 | -1>): o.RO<o.Converter<T[], T[]>> {
+  return tf_array_transform(o.tf(sortfn, sortfn => (lst: T[]) => {
     const res: number[] = new Array(lst.length)
     for (let i = 0, l = lst.length; i < l; i++)
       res[i] = i
@@ -129,8 +127,8 @@ export function array_sort<T>(sortfn: o.RO<(a: T, b: T) => 1 | 0 | -1>): o.RO<o.
  * @code ../../examples/tf.array_sort_by.tsx
  * @category observable, toc
  */
-export function array_sort_by<T>(sorters: o.RO<([(a: T) => any, "desc" | "asc"] | ((a: T) => any))[]>): o.RO<o.Converter<T[], T[]>> {
-  return array_sort(o.tf(sorters,
+export function tf_array_sort_by<T>(sorters: o.RO<([(a: T) => any, "desc" | "asc"] | ((a: T) => any))[]>): o.RO<o.Converter<T[], T[]>> {
+  return tf_array_sort(o.tf(sorters,
     _sorters => {
       const sorters: ((a: T) => any)[] = []
       const mult = [] as (1 | -1)[]
@@ -163,7 +161,7 @@ export function array_sort_by<T>(sorters: o.RO<([(a: T) => any, "desc" | "asc"] 
  * Group by an extractor function.
  * @category observable, toc
  */
-export function array_group_by<T, R>(extractor: o.RO<(a: T) => R>): o.RO<o.Converter<T[], [R, T[]][]> & {indices: number[][], length: number}> {
+export function tf_array_group_by<T, R>(extractor: o.RO<(a: T) => R>): o.RO<o.Converter<T[], [R, T[]][]> & {indices: number[][], length: number}> {
   return o.tf(extractor, extractor => {
     return {
       length: 0 as number,
@@ -211,7 +209,7 @@ export function array_group_by<T, R>(extractor: o.RO<(a: T) => R>): o.RO<o.Conve
  * Object entries, as returned by Object.keys() and returned as an array of [key, value][]
  * @category observable, toc
  */
-export function entries<T extends object, K extends keyof T>(): o.Converter<T, [K, T[K]][]> {
+export function tf_entries<T extends object, K extends keyof T>(): o.Converter<T, [K, T[K]][]> {
   return {
     transform(item: T) {
       const res = [] as [K, T[K]][]
@@ -237,7 +235,7 @@ export function entries<T extends object, K extends keyof T>(): o.Converter<T, [
  * Object entries, as returned by Object.keys() and returned as an array of [key, value][]
  * @category observable, toc
  */
-export function map_entries<K, V>(): o.Converter<Map<K, V>, [K, V][]> {
+export function tf_map_entries<K, V>(): o.Converter<Map<K, V>, [K, V][]> {
   return {
     transform(item: Map<K, V>) {
       return [...item.entries()]
@@ -261,7 +259,7 @@ export function map_entries<K, V>(): o.Converter<Map<K, V>, [K, V][]> {
  * The values that should be in the set.
  * @category observable, toc
  */
-export function set_has<T>(...values: o.RO<T>[]): o.RO<o.Converter<Set<T>, boolean>> {
+export function tf_set_has<T>(...values: o.RO<T>[]): o.RO<o.Converter<Set<T>, boolean>> {
   return o.combine(values, (values) => {
     return {
       transform(set) {
@@ -288,7 +286,7 @@ export function set_has<T>(...values: o.RO<T>[]): o.RO<o.Converter<Set<T>, boole
 
 export type KeysOfType<T, V> = keyof { [ P in keyof T as T[P] extends V ? P : never ] : P }
 
-export function group_by_to_object<T>(extractor: o.RO<((v: T) => string) | KeysOfType<T, string | number>>): o.RO<o.Converter<T[], {[key: string]: T[]}>> {
+export function tf_group_by_to_object<T>(extractor: o.RO<((v: T) => string) | KeysOfType<T, string | number>>): o.RO<o.Converter<T[], {[key: string]: T[]}>> {
   return o.tf(extractor, extractor => {
     const _extractor = typeof extractor === "string" ? (v: T): string => v[extractor as keyof T] as string : extractor as (v: T) => string
     return {
@@ -330,7 +328,7 @@ export function group_by_to_object<T>(extractor: o.RO<((v: T) => string) | KeysO
   })
 }
 
-export function group_by_to_map<T, V>(extractor: o.RO<(v: T) => V>): o.RO<o.Converter<T[], Map<V, T[]>>> {
+export function tf_group_by_to_map<T, V>(extractor: o.RO<(v: T) => V>): o.RO<o.Converter<T[], Map<V, T[]>>> {
   return o.tf(extractor, extractor => {
     return {
       indices: {} as Map<V, number[]>,
@@ -369,6 +367,4 @@ export function group_by_to_map<T, V>(extractor: o.RO<(v: T) => V>): o.RO<o.Conv
       }
     }
   })
-}
-
 }
