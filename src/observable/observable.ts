@@ -332,7 +332,6 @@ export class Queue extends IndexableArray<Observable<any>> {
       arr[i] = null // just in case...
     }
     this.real_size = 0
-    // this.arr = []
     this.arr.length = 0
     this.transaction_count = 0
   }

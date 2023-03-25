@@ -82,13 +82,16 @@ export class EltCustomElement extends HTMLElement {
   constructor() {
     super()
 
+    // Observe our attributes observables
     if (this[sym_custom_attrs]) {
       for (let attrs of this[sym_custom_attrs].values()) {
         const prop = (this as any)[attrs.prop]
         if (prop instanceof o.Observable) {
           this.observe(prop, (value, old) => {
-            if (old === o.NoValue) return // do nothing if this is the first time we get here
-            // update the attribute !
+            // do nothing if this is the first time we get here
+            if (old === o.NoValue) return
+
+            // otherwise update the attribute
             let backval = value
             if (attrs.revert) backval = attrs.revert(backval)
             this.setAttribute(attrs.name, backval)

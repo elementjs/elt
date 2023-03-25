@@ -29,15 +29,17 @@ export class IndexableArray<T extends Indexable> {
   actualize() {
     const arr = this.arr
     if (this.real_size !== arr.length) {
-      const newarr = new Array(this.real_size)
-      for (let i = 0, j = 0, l = arr.length; i < l; i++) {
+      let j = 0
+      for (let i = 0, l = arr.length; i < l; i++) {
         const item = arr[i]
         if (item == null) continue
-        newarr[j] = item
-        item.idx = j
+        if (i !== j) {
+          arr[j] = item
+          item.idx = j
+        }
         j++
       }
-      this.arr = newarr
+      arr.length = j
     }
   }
 
