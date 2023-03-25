@@ -332,14 +332,16 @@ export function node_append<N extends Node>(node: N, insertable: Insertable<N> |
     const _node = node as unknown as HTMLElement
     const attrs = insertable as unknown as Attrs<HTMLElement>
     for (let key in attrs) {
-      if (key === "class" && attrs.class) {
-        const clss = attrs.class
-        if (Array.isArray(clss))
-          for (let j = 0, lj = clss.length; j < lj; j++) node_observe_class(_node, clss[j])
+      const value = attrs[key as keyof typeof attrs]
+      if (key === "class") {
+        if (value == null) continue
+        if (Array.isArray(value))
+          for (let j = 0, lj = value.length; j < lj; j++) node_observe_class(_node, value[j])
         else
-          node_observe_class(_node, attrs.class!)
-      } else if (key === "style" && attrs.style) {
-        node_observe_style(_node, attrs.style)
+          node_observe_class(_node, value as ClassDefinition)
+      } else if (key === "style") {
+        if (value == null) continue
+        node_observe_style(_node, value as StyleDefinition)
       } else if (is_basic_node || basic_attrs.has(key)) {
         node_observe_attribute(_node, key, (attrs as any)[key])
       }
@@ -353,9 +355,10 @@ export function node_append<N extends Node>(node: N, insertable: Insertable<N> |
 
 export interface $ShadowOptions extends Partial<ShadowRootInit> {
   css?: string | CSSStyleSheet | (CSSStyleSheet | string)[]
+
 }
 
-export const can_adopt_style_sheets =
+const can_adopt_style_sheets =
   window.ShadowRoot &&
   'adoptedStyleSheets' in Document.prototype &&
   'replace' in CSSStyleSheet.prototype;
@@ -378,21 +381,22 @@ export function css(tpl: TemplateStringsArray, ...values: any[]) {
 }
 
 /**
+ * Attach a shadow root and insert a child on it.
  *
+ * Mostly, a DocumentFragment is expected for `child`.
+ *
+ * @internal
  * @param node The node to create a shadow on
  */
-export function node_attach_shadow(node: HTMLElement, opts: $ShadowOptions, child: Node): ShadowRoot
-export function node_attach_shadow(node: HTMLElement, child: Node): ShadowRoot
-export function node_attach_shadow(node: HTMLElement, opts?: ($ShadowOptions | Node), child?: Node) {
-  const op = opts instanceof Node ? null : opts as $ShadowOptions
+export function node_attach_shadow(node: HTMLElement, opts: $ShadowOptions, child: Node, run_callbacks: boolean) {
 
   const shadow = node.attachShadow({
-    mode: op?.mode ?? "open",
-    delegatesFocus: op?.delegatesFocus ?? true,
-    slotAssignment: op?.slotAssignment ?? "named",
+    mode: opts?.mode ?? "open",
+    delegatesFocus: opts?.delegatesFocus ?? true,
+    slotAssignment: opts?.slotAssignment ?? "named",
   })
 
-  let css = op?.css
+  let css = opts?.css
   if (css != null) {
     if (!Array.isArray(css)) { css = [css] }
     const sheets = css.filter(c => c instanceof CSSStyleSheet) as CSSStyleSheet[]
@@ -405,15 +409,17 @@ export function node_attach_shadow(node: HTMLElement, opts?: ($ShadowOptions | N
     }
   }
 
-  shadow.insertBefore(op == null ? opts as Node : child as Node, null)
+  shadow.insertBefore(opts == null ? opts as Node : child as Node, null)
 
-  node_on_inserted(node, () => {
-    node_do_inserted(shadow)
-  })
+  if (run_callbacks) {
+    node_on_inserted(node, () => {
+      node_do_inserted(shadow)
+    })
 
-  node_on_removed(node, () => {
-    node_do_remove(shadow)
-  })
+    node_on_removed(node, () => {
+      node_do_remove(shadow)
+    })
+  }
 
   return shadow
 }
@@ -557,38 +563,33 @@ export function node_unobserve(node: Node, obsfn: o.Observer<any> | o.Observer.C
 
 
 /**
- * Observe an attribute and update the node as needed.
+ * Set an attribute value on a node. If the provided value is an observable, the node will then observe it and change the attribute accordingly.
+ *
+ * If the value is a string, the attribute is changed on the node and is observable on the dom. If it is `true`, the attribute is set with an empty string. If it is `false` or nullish, it is removed entirely.
+ *
+ * If the value is any other type, it will update the property of the same name on the target node. This is mostly useful when defining custom elements to expose selected properties directly to elt.
+ *
+ * Caveat: if you wish to expose custom elements to the outside world, be sure to only expose properties this way that are not essential for your component to work, as these non-string properties will most likely not be accessible by anything other than elt. This way of working is for convenience only and for typechecking purposes.
+ *
+ * This does not do the reverse : if the node decides to change the attribute value, the observable is not notified. This could be achieved using a MutationObserver.
+ *
  * @category low level dom, toc
  */
-export function node_observe_attribute(node: Element, name: string, value: o.RO<string | boolean>) {
+export function node_observe_attribute(node: Element, name: string, value: o.RO<string | boolean | null | undefined>) {
   node_observe(node, value, val => {
+    if (val == null || val === false) {
+      node.removeAttribute(name)
+      return
+    }
     if (val === true) {
       if (node.getAttribute(name) !== "") node.setAttribute(name, "")
-    } else if (val != null && val !== false) {
+    } else if (typeof val === "string") {
       if (val !== node.getAttribute(name)) node.setAttribute(name, val)
     } else {
-      // We can remove safely even if it doesn't exist as it won't raise an exception
-      node.removeAttribute(name)
+      // this is getting unsafe, but typescript should flag it as incorrect usage if it is not marked in the Attrs
+      (node as any)[name] = val
     }
   }, { immediate: true })
-
-  // If an element gets its attribute set by another source, then update the Observable.
-  // Note : This might not be a desired feature.
-  if (value instanceof o.Observable) {
-    const mo = new MutationObserver(recs => {
-      for (let i = 0, l = recs.length; i < l; i++) {
-        try {
-          value.set?.(node.getAttribute(name)!)
-        } catch (e) { console.warn(e) }
-      }
-    })
-    node_on_inserted(node, _ => {
-      mo.observe(node, { attributes: true, attributeFilter: [name] })
-    })
-    node_on_removed(node, _ => {
-      mo.disconnect()
-    })
-  }
 }
 
 

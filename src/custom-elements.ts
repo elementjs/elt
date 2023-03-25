@@ -5,7 +5,38 @@ import {
 import {
   node_observe,
   node_attach_shadow,
+  node_do_inserted,
+  node_do_remove,
 } from "./dom"
+
+
+/**
+ * Decorate an observable on class to shadow *another* property, where setting the property
+ * will in fact set the observable and getting the property will in fact get from the observable.
+ *
+ * Works on any class, not just EltCustomElement.
+ *
+ * @param obs_key The property holding the observable
+ * @returns Nothing
+ */
+export function prop_observable<T, K extends keyof T>(obs_key: K) {
+  return function decorate(target: T, key: string | symbol) {
+    // FIXME : should see if we have already have getters/setters and override them ?
+
+    // from now on, the propery is entirely managed by the observable.
+
+    // When using this custom-element with elt, it then becomes possible to override an element's internal observable with another that comes from outside.
+    Object.defineProperty(target, key, {
+      get(): T[K] {
+        return this[obs_key].get()
+      },
+      set(value: T[K]) {
+        this[obs_key].set(value)
+        return value
+      }
+    })
+  }
+}
 
 
 /**
@@ -19,14 +50,17 @@ export function register(name: string): (kls: any) => any {
   }
 }
 
-export interface CustomElementAttrsOptions {
-  /** The class property name */
-  prop: string
+export interface CustomElementAttrsTransforms {
+  /** Whether the attribute reflects its value when it is written to */
+  transform?: (val: string | null) => any
+  revert?: (val: any) => string | null
+}
+
+
+export interface CustomElementAttrsOptions extends CustomElementAttrsTransforms {
   /** The attribute name */
   name: string
-  /** Whether the attribute reflects its value when it is written to */
-  transform?: (val: string) => any
-  revert?: (val: any) => string
+  prop: string
 }
 
 /**
@@ -37,21 +71,27 @@ export interface CustomElementAttrsOptions {
  * @param proto
  * @param name
  */
-export function attr(custom: EltCustomElement, name: string): void
-export function attr(options?: CustomElementAttrsOptions): (custom: EltCustomElement, name: string) => void
-export function attr(options?: CustomElementAttrsOptions | EltCustomElement, name?: string) {
-  if (options instanceof EltCustomElement) {
-    EltCustomElement[sym_custom_add_attr](options, { name: name!, prop: name! })
-  } else {
-    return function attr(proto: EltCustomElement, name: string) {
-      EltCustomElement[sym_custom_add_attr](proto, { prop: name, name: name, ...options })
+export function attr(name?: string, transforms?: CustomElementAttrsTransforms) {
+
+  return function attr(proto: EltCustomElement, prop: string) {
+    const options: CustomElementAttrsOptions = { name: name ?? prop, prop, ...transforms }
+
+    const cons = proto.constructor as unknown as typeof EltCustomElement
+    if (!Object.prototype.hasOwnProperty.call(cons, sym_custom_attrs)) {
+      cons[sym_custom_attrs] ??= [] // initialize it if it didn't exist
     }
+    cons[sym_custom_attrs].push(options.name)
+
+    if (!Object.prototype.hasOwnProperty.call(proto, sym_custom_attrs)) {
+      proto[sym_custom_attrs] = new Map()
+    }
+
+    proto[sym_custom_attrs]!.set(options.name, options)
   }
 }
 
 
 export const sym_custom_attrs = Symbol("custom_attributes")
-export const sym_custom_add_attr = Symbol("add_custom_attribute")
 
 
 export class EltCustomElement extends HTMLElement {
@@ -65,54 +105,43 @@ export class EltCustomElement extends HTMLElement {
 
   static get observedAttributes() { return this[sym_custom_attrs] ?? [] }
 
-  static [sym_custom_attrs]?: string[]
-  static [sym_custom_add_attr]<T extends EltCustomElement>(proto: T, options: CustomElementAttrsOptions) {
-    const cons = proto.constructor as typeof EltCustomElement
-    cons[sym_custom_attrs] ??= [] // initialize it if it didn't exist
-    cons[sym_custom_attrs].push(options.name)
-    proto[sym_custom_attrs] ??= new Map()
-    proto[sym_custom_attrs].set(options.name, options)
-  }
-
-  // We use an observers array since custom elements are kind enough to tell us when
-  // they are being connected to the DOM, and there is thus no need to wait for the MutationObserver API
-  [sym_custom_attrs]?: Map<string, CustomElementAttrsOptions>
-  #shadow_built = false
+  public static [sym_custom_attrs]: string[] = []
 
   constructor() {
     super()
+    this.#initCustomAttrs()
+  }
 
-    // Observe our attributes observables
-    if (this[sym_custom_attrs]) {
-      for (let attrs of this[sym_custom_attrs].values()) {
-        const prop = (this as any)[attrs.prop]
-        if (prop instanceof o.Observable) {
-          this.observe(prop, (value, old) => {
-            // do nothing if this is the first time we get here
-            if (old === o.NoValue) return
+  #initCustomAttrs() {
+    if (!this[sym_custom_attrs]) return
+    for (let attrs of this[sym_custom_attrs]!.values()) {
+      const prop = (this as any)[attrs.prop!]
+      if (prop instanceof o.Observable) {
+        this.observe(prop, (value, old) => {
+          // do nothing if this is the first time we get here
+          if (old === o.NoValue) return
 
-            // otherwise update the attribute
-            let backval = value
-            if (attrs.revert) backval = attrs.revert(backval)
-            this.setAttribute(attrs.name, backval)
-          })
-        }
+          // otherwise update the attribute
+          let backval = value
+          if (attrs.revert) backval = attrs.revert(backval)
+          this.setAttribute(attrs.name, backval)
+        })
       }
     }
-
   }
 
   shadow(): Node | null {
     return null
   }
 
+  #shadow_built = false
   #buildShadow() {
     const sh = this.shadow()
 
     if (sh != null) {
       const con = (this.constructor as typeof EltCustomElement)
       const init = {...con.shadow_init, css: con.css as CSSStyleSheet[] }
-      node_attach_shadow(this, init, sh)
+      node_attach_shadow(this, init, sh, false)
     }
   }
 
@@ -126,22 +155,36 @@ export class EltCustomElement extends HTMLElement {
       this.#shadow_built = true
       this.#buildShadow()
     }
+
+    if (this.shadowRoot) {
+      node_do_inserted(this.shadowRoot)
+    }
   }
 
   disconnectedCallback() {
-
+    if (this.shadowRoot) {
+      node_do_remove(this.shadowRoot)
+    }
   }
 
-  attributeChangedCallback(name: string, _old: any, newv: any) {
+  attributeChangedCallback(name: string, _old: any, newv: string | null) {
     if (this[sym_custom_attrs]) {
       const mapper = this[sym_custom_attrs].get(name)
       if (!mapper) return
-      const cur = (this as any)[mapper.prop]
+      const cur = (this as any)[mapper.prop!]
+      if (mapper.transform) newv = mapper.transform(newv)
       if (cur instanceof o.Observable) {
         cur.set(newv)
       } else {
-        (this as any)[mapper.prop] = newv
+        (this as any)[mapper.prop!] = newv
       }
     }
   }
+}
+
+EltCustomElement.prototype[sym_custom_attrs] = undefined
+
+export interface EltCustomElement {
+  // This is defined on the prototype, as there is no reason to have each element instance carry the map around
+  [sym_custom_attrs]?: Map<string, CustomElementAttrsOptions>
 }
