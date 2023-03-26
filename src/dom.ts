@@ -385,10 +385,15 @@ export function css(tpl: TemplateStringsArray, ...values: any[]) {
  *
  * Mostly, a DocumentFragment is expected for `child`.
  *
+ * If css is provided on opts, adds the sheets onto the shadowroot, by adopting them if available on the browser or adding <style> nodes.
+ *
  * @internal
  * @param node The node to create a shadow on
+ * @param child The child to add onto the shadow root once created
+ * @param opts Options for the creation of the shadow root
+ * @param add_callbacks Whether to add inserted/removed callbacks (when not using EltCustomElement for instance)
  */
-export function node_attach_shadow(node: HTMLElement, child: Node, opts: $ShadowOptions, run_callbacks: boolean) {
+export function node_attach_shadow(node: HTMLElement, child: Node, opts: $ShadowOptions, add_callbacks: boolean) {
 
   const shadow = node.attachShadow({
     mode: opts?.mode ?? "open",
@@ -411,7 +416,7 @@ export function node_attach_shadow(node: HTMLElement, child: Node, opts: $Shadow
 
   shadow.insertBefore(opts == null ? opts as Node : child as Node, null)
 
-  if (run_callbacks) {
+  if (add_callbacks) {
     node_on_inserted(node, () => {
       node_do_inserted(shadow)
     })
