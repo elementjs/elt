@@ -959,10 +959,8 @@ export function merge<T>(obj: {[K in keyof T]: Observable<T[K]>}): Observable<T>
     )
   }
 
-  export type UnPromise<T> = T extends PromiseLike<infer U> ? U : T
-
-  export function then<T extends any[], U>(o_pro: o.RO<T>, tffn: (item: {[K in keyof T]: UnPromise<T[K]>}) => U): o.ReadonlyObservable<Promise<U>>
-  export function then<T, U>(o_pro: o.RO<T>, tffn: (item: UnPromise<T>) => U): o.ReadonlyObservable<Promise<U>>
+  export function then<T extends any[], U>(o_pro: o.RO<T>, tffn: (item: {[K in keyof T]: Awaited<T[K]>}) => U): o.ReadonlyObservable<Promise<U>>
+  export function then<T, U>(o_pro: o.RO<T>, tffn: (item: Awaited<T>) => U): o.ReadonlyObservable<Promise<U>>
   export function then(o_pro: o.RO<any>, tffn: (item: any) => any) {
     let prevreject: undefined | ((err: any) => void)
     return o.tf(o_pro, (newpro) => {
