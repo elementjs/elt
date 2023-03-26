@@ -107,15 +107,11 @@ export class EltCustomElement extends HTMLElement {
 
   public static [sym_custom_attrs]: string[] = []
 
-  constructor() {
-    super()
-    this.#initCustomAttrs()
-  }
-
+  #custom_attrs_inited = false
   #initCustomAttrs() {
     if (!this[sym_custom_attrs]) return
     for (let attrs of this[sym_custom_attrs]!.values()) {
-      const prop = (this as any)[attrs.prop!]
+      const prop = this[attrs.prop as keyof this]
       if (prop instanceof o.Observable) {
         this.observe(prop, (value, old) => {
           // do nothing if this is the first time we get here
@@ -150,6 +146,11 @@ export class EltCustomElement extends HTMLElement {
   }
 
   connectedCallback() {
+    if (!this.#custom_attrs_inited) {
+      this.#custom_attrs_inited = true
+      this.#initCustomAttrs()
+    }
+
     if (!this.#shadow_built) {
       // Only build the shadow once
       this.#shadow_built = true
