@@ -17,17 +17,13 @@
   },
   "type": "module",
   "devDependencies": {
-    "@types/chai": "^4.2.5",
     "@types/js-yaml": "^4.0.5",
-    "@types/mocha": "^5.2.7",
     "@typescript-eslint/eslint-plugin": "^5.15.0",
     "@typescript-eslint/parser": "^5.15.0",
-    "chai": "^4.2.0",
     "dts-bundle-generator": "^7.2.0",
     "esbuild": "0.17.13",
     "eslint": "^8.11.0",
     "js-yaml": "^4.1.0",
-    "mocha": "^6.2.2",
     "typescript": "5.0.2",
     "wtsc": "^0.1.3"
   }
