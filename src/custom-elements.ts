@@ -141,7 +141,7 @@ export class EltCustomElement extends HTMLElement {
     if (sh != null) {
       const con = (this.constructor as typeof EltCustomElement)
       const init = {...con.shadow_init, css: con.css as CSSStyleSheet[] }
-      node_attach_shadow(this, init, sh, false)
+      node_attach_shadow(this, sh, init, false)
     }
   }
 

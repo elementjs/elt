@@ -297,7 +297,11 @@ export function $shadow(child: Node): Decorator<HTMLElement>
 export function $shadow(opts: $ShadowOptions, child: Node): Decorator<HTMLElement>
 export function $shadow(opts?: Node | $ShadowOptions, child?: Node) {
   return function (node: HTMLElement) {
-    node_attach_shadow(node, opts as $ShadowOptions, child as Node, true)
+    if (child != null) {
+      node_attach_shadow(node, child as Node, opts as $ShadowOptions, true)
+    } else {
+      node_attach_shadow(node, opts as Node, {}, true)
+    }
   }
 }
 
