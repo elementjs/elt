@@ -388,7 +388,7 @@ export function css(tpl: TemplateStringsArray, ...values: any[]) {
  * @internal
  * @param node The node to create a shadow on
  */
-export function node_attach_shadow(node: HTMLElement, opts: $ShadowOptions, child: Node, run_callbacks: boolean) {
+export function node_attach_shadow(node: HTMLElement, child: Node, opts: $ShadowOptions, run_callbacks: boolean) {
 
   const shadow = node.attachShadow({
     mode: opts?.mode ?? "open",
