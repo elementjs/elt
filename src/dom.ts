@@ -1,42 +1,14 @@
 import { Display, DisplayComment } from "./elt"
 import { o } from "./observable"
 import type { ClassDefinition, StyleDefinition, Listener, Insertable, Attrs, } from "./types"
-
-/**
- * Symbol property on `Node` to an array of observers that are started when the node is `init()` or `inserted()` and
- * stopped on `removed()`.
- * @internal
- */
-export const sym_observers = Symbol("elt-observers")
-
-/**
- * Symbol property added on `Node` to track the status of the node ; if it's been init(), inserted() or more.
- * Its value type is `string`.
- * @internal
- */
-export const sym_mount_status = Symbol("elt-mount-status")
-
-/**
- * A symbol property on `Node` to an array of functions to run when the node is **inserted** into a document.
- * @internal
- */
-export const sym_inserted = Symbol("elt-inserted")
-
-/**
- * A symbol property on `Node` to an array of functions to run when the node is **removed** from a document.
- * @internal
- */
-export const sym_removed = Symbol("elt-removed")
+import { sym_mount_status, sym_observers, sym_inserted, sym_removed } from "./symbols"
 
 const NODE_IS_INSERTED =      0b001
 const NODE_IS_OBSERVING =     0b010
 
-
 export type LifecycleCallback<N = Node> = (n: N) => void
 
-// Elt adds a few symbol properties on the nodes it creates.
 declare global {
-
   interface Node {
     [sym_mount_status]: number // we cheat on the undefined as all masking operations as undefined is considered 0
     [sym_observers]?: o.Observer<any>[]
@@ -603,7 +575,7 @@ export function node_observe_attribute(node: Element, name: string, value: o.RO<
  * @category low level dom, toc
  */
 export function node_observe_style(node: HTMLElement | SVGElement, style: StyleDefinition) {
-  if (style instanceof o.Observable) {
+  if (o.is_observable(style)) {
     node_observe(node, style, st => {
       const ns = node.style
       const props = Object.keys(st)

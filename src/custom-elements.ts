@@ -9,6 +9,34 @@ import {
   node_do_remove,
 } from "./dom"
 
+import { sym_exposed, sym_observed_attrs } from "./symbols"
+
+
+declare global {
+  interface Function {
+    [sym_observed_attrs]?: string[]
+  }
+
+  interface Node {
+    [sym_exposed]?: Map<string, any>
+  }
+}
+
+export interface ExposeOptions {
+  attr?: string | null
+  prop?: string | null
+}
+
+export interface ExposeInternalOption extends Required<ExposeOptions> {
+  key: string
+}
+
+export function expose(options?: ExposeOptions) {
+  return function expose_decorate() {
+
+  }
+}
+
 
 /**
  * Decorate an observable on class to shadow *another* property, where setting the property
@@ -112,13 +140,14 @@ export class EltCustomElement extends HTMLElement {
     if (!this[sym_custom_attrs]) return
     for (let attrs of this[sym_custom_attrs]!.values()) {
       const prop = this[attrs.prop as keyof this]
-      if (prop instanceof o.Observable) {
+      if (o.is_observable(prop)) {
         this.observe(prop, (value, old) => {
           // do nothing if this is the first time we get here
           if (old === o.NoValue) return
 
           // otherwise update the attribute
-          let backval = value
+          let backval: any = value
+
           if (attrs.revert) backval = attrs.revert(backval)
           this.setAttribute(attrs.name, backval)
         })
@@ -174,8 +203,8 @@ export class EltCustomElement extends HTMLElement {
       if (!mapper) return
       const cur = (this as any)[mapper.prop!]
       if (mapper.transform) newv = mapper.transform(newv)
-      if (cur instanceof o.Observable) {
-        cur.set(newv)
+      if (o.is_observable(cur)) {
+        (cur as o.Observable<any>).set(newv)
       } else {
         (this as any)[mapper.prop!] = newv
       }

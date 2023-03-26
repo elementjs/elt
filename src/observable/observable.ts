@@ -1,5 +1,7 @@
 import { IndexableArray, Indexable } from "./indexable"
 
+import { sym_is_observable } from "../symbols"
+
 declare const DEBUG: boolean
 
 /**
@@ -16,7 +18,7 @@ export function o<T>(arg: T): [T] extends [o.Observable<any>] ? T :
       o.ReadonlyObservable<o.ObservedType<T>>
       // if there were NO observables involved, then we obtain just a modifiable observable of the provided types.
   : o.Observable<T> {
-  return arg instanceof o.Observable ? arg as any : new o.Observable(arg)
+  return o.is_observable(arg) ? arg as any : new o.Observable(arg)
 }
 
 export namespace o {
@@ -99,7 +101,7 @@ export type NoValue = typeof NoValue
 export function isReadonlyObservable<T>(_: RO<T>): _ is ReadonlyObservable<T>
 export function isReadonlyObservable(_: any): _ is ReadonlyObservable<any>
 export function isReadonlyObservable(_: any): _ is ReadonlyObservable<any> {
-  return _ instanceof Observable
+  return o.is_observable(_)
 }
 
 
@@ -735,6 +737,14 @@ export class Observable<A> implements ReadonlyObservable<A>, Indexable {
 }
 
 
+export interface Observable<A> {
+  [sym_is_observable]?: true
+}
+
+// Mark all observables with a known symbol
+Observable.prototype[sym_is_observable] = true
+
+
 /**
  * An observable that does not its own value, but that depends
  * from outside getters and setters. The `#o.virtual` helper makes creating them easier.
@@ -831,7 +841,7 @@ export class CombinedObservable<A extends any[], T = A> extends Observable<T> {
     const ch = [] as ChildObservableLink[]
     for (let l = obs.length, i = 0; i < l; i++) {
       const ob = obs[i]
-      if (ob instanceof Observable) {
+      if (o.is_observable(ob)) {
         p[i] = ob._value
         ch.push(new ChildObservableLink(ob, this, i))
       } else {
@@ -977,8 +987,10 @@ export function merge<T>(obj: {[K in keyof T]: Observable<T[K]>}): Observable<T>
     })
   }
 
-  export function is_observable<T>(arg: RO<T>): arg is Observable<T> | ReadonlyObservable<T> {
-    return arg instanceof Observable
+  export function is_observable<T>(arg: RO<T>): arg is Observable<T>
+  export function is_observable(arg: any): arg is Observable<any>
+  export function is_observable(arg: any): arg is Observable<any> {
+    return (arg as any)?.[sym_is_observable]
   }
 
   /**
@@ -987,7 +999,7 @@ export function merge<T>(obj: {[K in keyof T]: Observable<T[K]>}): Observable<T>
    * @category observable, toc
    */
   export function get<A>(arg: RO<A>): A {
-    return is_observable(arg) ? arg.get() : arg
+    return is_observable(arg) ? (arg as ReadonlyObservable<A>).get() : arg as A
   }
 
   /**
@@ -998,7 +1010,7 @@ export function merge<T>(obj: {[K in keyof T]: Observable<T[K]>}): Observable<T>
    * @category observable, toc
    */
   export function tf<A, B>(arg: RO<A>, fn: Converter<A, B> | TransfomFn<A, B>): RO<B> {
-    if (arg instanceof Observable) {
+    if (o.is_observable(arg)) {
       if (typeof fn === "function") {
         return (arg as ReadonlyObservable<A>).tf(fn)
       } else
@@ -1022,7 +1034,7 @@ export function merge<T>(obj: {[K in keyof T]: Observable<T[K]>}): Observable<T>
   export function p<A, K extends keyof A>(mobs: Observable<A>, key: K): Observable<A[K]>
   export function p<A, K extends keyof A>(mobs: RO<A>, key: K): RO<A[K]>
   export function p<A, K extends keyof A>(mobs: RO<A>, key: K): RO<A[K]> {
-    if (mobs instanceof Observable) {
+    if (o.is_observable(mobs)) {
       return mobs.p(key)
     } else {
       return (mobs as A)[key]
@@ -1561,7 +1573,7 @@ export function merge<T>(obj: {[K in keyof T]: Observable<T[K]>}): Observable<T>
      * Does pretty much what [[$observe]] does.
      */
     observe<A>(obs: RO<A>, fn: Observer.Callback<A>, options?: ObserveOptions<A>): Observer<A> | null {
-      if (!(obs instanceof Observable)) {
+      if (!(o.is_observable(obs))) {
         if (this.is_observing)
           fn(obs as A, NoValue)
         else
