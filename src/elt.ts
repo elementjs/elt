@@ -14,6 +14,9 @@ import {
   Renderable,
 } from "./types"
 
+import { sym_exposed } from "./symbols"
+import { EltCustomElement } from "./custom-elements"
+
 ////////////////////////////////////////////////////////
 
 
@@ -35,26 +38,6 @@ requestAnimationFrame(() => setup_base_styles())
  *
  * @category verbs, toc
  */
-export function DisplayComment(obs: o.RO<Renderable>, kind = "e-obs"): DocumentFragment {
-  const fr = document.createDocumentFragment()
-  const start = document.createComment(` ${kind} `)
-  const end = document.createComment(` end ${kind} `)
-  fr.appendChild(start)
-  fr.appendChild(end)
-  // const d = document.createElement(element)
-  node_observe(start, obs, renderable => {
-    let iter = start.nextSibling
-    while (iter && iter !== end) {
-      let next = iter?.nextSibling
-      node_remove(iter)
-      iter = next
-    }
-    // node_clear(d)
-    node_append(start.parentNode!, renderable, end)
-  }, { immediate: true })
-  return fr
-}
-
 export function Display(obs: o.RO<Renderable>, kind = "e-obs"): DocumentFragment {
   const fr = document.createDocumentFragment()
   const start = document.createComment(` ${kind} `)
@@ -73,12 +56,6 @@ export function Display(obs: o.RO<Renderable>, kind = "e-obs"): DocumentFragment
     node_append(start.parentNode!, renderable, end)
   }, { immediate: true })
   return fr
-  // const elt = document.createElement(kind)
-  // node_observe(elt, obs, renderable => {
-  //   node_clear(elt)
-  //   node_append(elt, renderable)
-  // }, { immediate: true })
-  // return elt
 }
 
 
@@ -182,6 +159,11 @@ export function e<N extends Node>(elt: string | Node | Function, ...children: (I
     node_append(node, children[0], null, is_basic_node)
   for (let i = 1; i < l; i++) {
     node_append(node, children[i])
+  }
+
+  if (node[sym_exposed] !== undefined) {
+    // We can safely init a custom element now that its properties have been potentially replaced by provided observables in its Attrs.
+    (node as unknown as EltCustomElement).init()
   }
 
   return node
