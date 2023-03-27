@@ -9,6 +9,7 @@ import {
   node_do_remove,
 } from "./dom"
 
+
 import { sym_exposed, sym_observed_attrs } from "./symbols"
 
 
@@ -18,51 +19,82 @@ declare global {
   }
 
   interface Node {
-    [sym_exposed]?: Map<string, any>
+    [sym_exposed]?: Map<string, ExposeInternalOption> | null
   }
 }
 
+
 export interface ExposeOptions {
+  /** The exposed attribute */
   attr?: string | null
+  /** The exposed property */
   prop?: string | null
+  /** Whether an attribute is expected to revert */
+  reverts?: boolean
 }
 
-export interface ExposeInternalOption extends Required<ExposeOptions> {
+export interface ExposeInternalOption extends ExposeOptions {
+  attr: string | null
+  prop: string | null
+  /** The internal property the attribute and/or property is mapped to */
   key: string
 }
 
-export function expose(options?: ExposeOptions) {
-  return function expose_decorate() {
-
-  }
-}
-
-
 /**
- * Decorate an observable on class to shadow *another* property, where setting the property
- * will in fact set the observable and getting the property will in fact get from the observable.
+ * If the property is an observable, ...
  *
- * Works on any class, not just EltCustomElement.
- *
- * @param obs_key The property holding the observable
- * @returns Nothing
+ * @param options expose options
+ * @returns a decorator that exposes the property.
  */
-export function prop_observable<T, K extends keyof T>(obs_key: K) {
-  return function decorate(target: T, key: string | symbol) {
-    // FIXME : should see if we have already have getters/setters and override them ?
+export function expose(options?: ExposeOptions) {
+  return function expose_decorate(target: EltCustomElement, key: string) {
+    const exp = target[sym_exposed] ??= new Map()
 
-    // from now on, the propery is entirely managed by the observable.
+    const _options: ExposeInternalOption = Object.assign({
+      prop: null,
+      attr: null,
+      key: key,
+    }, options)
 
-    // When using this custom-element with elt, it then becomes possible to override an element's internal observable with another that comes from outside.
-    Object.defineProperty(target, key, {
-      get(): T[K] {
-        return this[obs_key].get()
-      },
-      set(value: T[K]) {
-        this[obs_key].set(value)
-        return value
+    if (options == null || options.attr == null && options.prop == null) {
+      _options.prop = key
+    }
+
+    if (_options.attr && exp.has(_options.attr) || _options.prop && exp.has(_options.prop)) {
+      throw new Error(`can only expose an attr or property once`)
+    }
+
+    if (_options.attr) {
+      const cons = target.constructor as Function
+      (cons[sym_observed_attrs] ??= []).push(_options.attr)
+      exp.set(_options.attr, _options)
+    }
+
+    if (_options.prop) {
+      exp.set(_options.prop, _options)
+      if (_options.prop !== _options.key) {
+        // Do not redefine an accessor if we're exposing the very same property.
+        // The only interest in exposing a property this way is to make it "elt-aware"
+        Object.defineProperty(target, _options.prop, {
+          get(): any {
+            const g = this[key]
+            if (o.is_observable(g))
+              return this[key].get()
+            return g
+          },
+          set(value: any) {
+            const s = this[key]
+            if (o.is_observable(s)) {
+              this[key].set(value)
+            } else {
+              this[key] = value
+            }
+            return value
+          }
+        })
       }
-    })
+    }
+
   }
 }
 
@@ -78,49 +110,6 @@ export function register(name: string): (kls: any) => any {
   }
 }
 
-export interface CustomElementAttrsTransforms {
-  /** Whether the attribute reflects its value when it is written to */
-  transform?: (val: string | null) => any
-  revert?: (val: any) => string | null
-}
-
-
-export interface CustomElementAttrsOptions extends CustomElementAttrsTransforms {
-  /** The attribute name */
-  name: string
-  prop: string
-}
-
-/**
- * Decorate a property that mimicks an attribute on a CustomElement.
- *
- * If the decorated property is an observable, the attribute will observe the value to reflect it.
- *
- * @param proto
- * @param name
- */
-export function attr(name?: string, transforms?: CustomElementAttrsTransforms) {
-
-  return function attr(proto: EltCustomElement, prop: string) {
-    const options: CustomElementAttrsOptions = { name: name ?? prop, prop, ...transforms }
-
-    const cons = proto.constructor as unknown as typeof EltCustomElement
-    if (!Object.prototype.hasOwnProperty.call(cons, sym_custom_attrs)) {
-      cons[sym_custom_attrs] ??= [] // initialize it if it didn't exist
-    }
-    cons[sym_custom_attrs].push(options.name)
-
-    if (!Object.prototype.hasOwnProperty.call(proto, sym_custom_attrs)) {
-      proto[sym_custom_attrs] = new Map()
-    }
-
-    proto[sym_custom_attrs]!.set(options.name, options)
-  }
-}
-
-
-export const sym_custom_attrs = Symbol("custom_attributes")
-
 
 export class EltCustomElement extends HTMLElement {
 
@@ -131,35 +120,33 @@ export class EltCustomElement extends HTMLElement {
     slotAssignment: "manual",
   }
 
-  static get observedAttributes() { return this[sym_custom_attrs] ?? [] }
+  static get observedAttributes() { return this[sym_observed_attrs] ?? [] }
 
-  public static [sym_custom_attrs]: string[] = []
+  public static [sym_observed_attrs]: string[] = []
 
-  #custom_attrs_inited = false
+  #inited = false
   #initCustomAttrs() {
-    if (!this[sym_custom_attrs]) return
-    for (let attrs of this[sym_custom_attrs]!.values()) {
-      const prop = this[attrs.prop as keyof this]
-      if (o.is_observable(prop)) {
-        this.observe(prop, (value, old) => {
-          // do nothing if this is the first time we get here
-          if (old === o.NoValue) return
+    if (!this[sym_exposed]) return
+    for (let exp of this[sym_exposed]!.values()) {
+      // Ignore non-attributes or attributes that don't revert.
+      if (exp.attr == null || !exp.reverts) continue
 
+      const key = this[exp.key as keyof this]
+      const attr = exp.attr
+
+      if (o.is_observable(key)) {
+        this.observe(key, (value, old) => {
           // otherwise update the attribute
           let backval: any = value
 
-          if (attrs.revert) backval = attrs.revert(backval)
-          this.setAttribute(attrs.name, backval)
-        })
+          if (this.getAttribute(attr) !== backval) {
+            this.setAttribute(attr, backval)
+          }
+        }, { immediate: true })
       }
     }
   }
 
-  shadow(): Node | null {
-    return null
-  }
-
-  #shadow_built = false
   #buildShadow() {
     const sh = this.shadow()
 
@@ -170,20 +157,23 @@ export class EltCustomElement extends HTMLElement {
     }
   }
 
+  init() {
+    this.#inited = true
+    this.#buildShadow()
+    this.#initCustomAttrs()
+  }
+
+  shadow(): Node | null {
+    return null
+  }
+
   observe<T>(observable: o.RO<T>, obsfn: o.Observer.Callback<T>, options?: o.ObserveOptions<T>) {
     node_observe(this, observable, obsfn, options)
   }
 
   connectedCallback() {
-    if (!this.#custom_attrs_inited) {
-      this.#custom_attrs_inited = true
-      this.#initCustomAttrs()
-    }
-
-    if (!this.#shadow_built) {
-      // Only build the shadow once
-      this.#shadow_built = true
-      this.#buildShadow()
+    if (!this.#inited) {
+      this.init()
     }
 
     if (this.shadowRoot) {
@@ -198,23 +188,20 @@ export class EltCustomElement extends HTMLElement {
   }
 
   attributeChangedCallback(name: string, _old: any, newv: string | null) {
-    if (this[sym_custom_attrs]) {
-      const mapper = this[sym_custom_attrs].get(name)
-      if (!mapper) return
-      const cur = (this as any)[mapper.prop!]
-      if (mapper.transform) newv = mapper.transform(newv)
-      if (o.is_observable(cur)) {
-        (cur as o.Observable<any>).set(newv)
-      } else {
-        (this as any)[mapper.prop!] = newv
-      }
+    const exposed = this[sym_exposed]?.get(name)
+    if (exposed == null) return
+    const cur = (this as any)[exposed.key]
+    if (o.is_observable(cur)) {
+      (cur as o.Observable<any>).set(newv)
+    } else {
+      (this as any)[exposed.prop!] = newv
     }
   }
 }
 
-EltCustomElement.prototype[sym_custom_attrs] = undefined
+EltCustomElement.prototype[sym_exposed] = new Map()
 
 export interface EltCustomElement {
   // This is defined on the prototype, as there is no reason to have each element instance carry the map around
-  [sym_custom_attrs]?: Map<string, CustomElementAttrsOptions>
+  [sym_exposed]?: Map<string, ExposeInternalOption> | null
 }

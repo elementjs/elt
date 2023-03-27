@@ -1,7 +1,7 @@
-import { Display, DisplayComment } from "./elt"
+import { Display, } from "./elt"
 import { o } from "./observable"
 import type { ClassDefinition, StyleDefinition, Listener, Insertable, Attrs, } from "./types"
-import { sym_mount_status, sym_observers, sym_inserted, sym_removed } from "./symbols"
+import { sym_mount_status, sym_observers, sym_inserted, sym_removed, sym_exposed, } from "./symbols"
 
 const NODE_IS_INSERTED =      0b001
 const NODE_IS_OBSERVING =     0b010
@@ -281,16 +281,7 @@ export function node_append<N extends Node>(node: N, insertable: Insertable<N> |
 
   } else if (o.isReadonlyObservable(insertable)) {
     // An observable to display
-    const disp =
-      node.nodeType === 1 &&
-      (
-        (node as unknown as Element).shadowRoot != null
-        || (node as unknown as Element).namespaceURI !== "http://www.w3.org/1999/xhtml"
-      ) ?
-        // If the parent node is an element but has a shadowRoot *or* is not XHTML (like SVG,) put the observed result between comments
-        DisplayComment(insertable, insertable?.[o.sym_display_node])
-        // Otherwise, use a regular, display: contents element
-      : Display(insertable, insertable?.[o.sym_display_node])
+    const disp = Display(insertable, insertable?.[o.sym_display_node])
 
     node_append(node, disp, refchild, is_basic_node)
 
@@ -327,7 +318,6 @@ export function node_append<N extends Node>(node: N, insertable: Insertable<N> |
 
 export interface $ShadowOptions extends Partial<ShadowRootInit> {
   css?: string | CSSStyleSheet | (CSSStyleSheet | string)[]
-
 }
 
 const can_adopt_style_sheets =
@@ -553,6 +543,29 @@ export function node_unobserve(node: Node, obsfn: o.Observer<any> | o.Observer.C
  * @category low level dom, toc
  */
 export function node_observe_attribute(node: Element, name: string, value: o.RO<string | boolean | null | undefined>) {
+  const exposed = node[sym_exposed]?.get(name)
+  if (exposed != null) {
+    const key = exposed.key
+    const pvalue = node[key as keyof Node]
+    // If they're both observables, then
+    if (o.is_observable(pvalue)) {
+      if (o.is_observable(value)) {
+        // both are observable, replace the one from the element with this one
+        (node as any)[key] = value
+      } else {
+        // only the custom element is observable, set its value and be done with it
+        (node as any)[key].set(value)
+      }
+      return
+    }
+
+    // Otherwise, just set the value
+    node_observe(node, value, val => {
+      (node as any)[key] = val
+    }, { immediate: true })
+    return
+  }
+
   node_observe(node, value, val => {
     if (val == null || val === false) {
       node.removeAttribute(name)
