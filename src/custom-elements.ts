@@ -124,8 +124,8 @@ export class EltCustomElement extends HTMLElement {
 
   public static [sym_observed_attrs]: string[] = []
 
-  #inited = false
-  #initCustomAttrs() {
+  private __inited = false
+  private __initCustomAttrs() {
     if (!this[sym_exposed]) return
     for (let exp of this[sym_exposed]!.values()) {
       // Ignore non-attributes or attributes that don't revert.
@@ -147,7 +147,7 @@ export class EltCustomElement extends HTMLElement {
     }
   }
 
-  #buildShadow() {
+  private __buildShadow() {
     const sh = this.shadow()
 
     if (sh != null) {
@@ -158,9 +158,10 @@ export class EltCustomElement extends HTMLElement {
   }
 
   init() {
-    this.#inited = true
-    this.#buildShadow()
-    this.#initCustomAttrs()
+    if (this.__inited) return
+    this.__inited = true
+    this.__buildShadow()
+    this.__initCustomAttrs()
   }
 
   shadow(): Node | null {
@@ -172,7 +173,7 @@ export class EltCustomElement extends HTMLElement {
   }
 
   connectedCallback() {
-    if (!this.#inited) {
+    if (!this.__inited) {
       this.init()
     }
 
