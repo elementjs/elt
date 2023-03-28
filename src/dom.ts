@@ -329,6 +329,12 @@ const can_adopt_style_sheets =
   'adoptedStyleSheets' in Document.prototype &&
   'replace' in CSSStyleSheet.prototype;
 
+/**
+ * Create a CSSStyleSheet, suitable to be adopted by either custom elements or to use with $shadow.
+ * @param tpl A template string array
+ * @param values Interpolated values
+ * @returns A CSSStyleSheet if the browser allows it or a string
+ */
 export function css(tpl: TemplateStringsArray, ...values: any[]) {
   const str: string[] = []
   for (let i = 0, l = tpl.length; i < l; i++) {
