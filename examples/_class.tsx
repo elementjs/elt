@@ -1,9 +1,9 @@
-import { $class, o, Fragment as $, $bind } from 'elt'
+import { e, $class, o, $bind, node_append } from 'elt'
 
 const o_cls = o('class2')
 const o_bool = o(false)
 
-document.body.appendChild(<$>
+node_append(document.body, <>
   <style>
     {`.class1 {
        text-decoration: underline;
@@ -36,8 +36,8 @@ document.body.appendChild(<$>
   <div class={['class1', o_cls, {class3: o_bool}]}>
     content 2
   </div>
-  {E.DIV(
+  {e("div",
     $class('class1', o_cls, {class3: o_bool}),
     'content 3'
   )}
-</$>)
+</>)

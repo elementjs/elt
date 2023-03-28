@@ -1,4 +1,4 @@
-import { App } from 'elt'
+import { App, node_append } from 'elt'
 
 async function Service1(srv: App.Service) {
   srv.views.set('Content', () => {
@@ -30,4 +30,4 @@ async function RootService(srv: App.Service) {
 
 const app = new App()
 app.activate(RootService)
-document.body.appendChild(app.DisplayView('Main'))
+node_append(document.body, app.DisplayView('Main'))
