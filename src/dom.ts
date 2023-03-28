@@ -405,7 +405,7 @@ export function node_attach_shadow(node: HTMLElement, child: Node, opts: $Shadow
 export function node_observe<T>(
   node: Node,
   obs: o.RO<T>,
-  obsfn: o.Observer.Callback<T>,
+  obsfn: o.ObserverCallback<T>,
   options?: o.ObserveOptions<T>
 ): o.Observer<T> | null {
   if (!(o.isReadonlyObservable(obs))) {
@@ -497,7 +497,7 @@ export function node_add_event_listener(target: Node, node: any, events: any, li
  * Stop a node from observing an observable, even if it is still in the DOM
  * @group Dom
  */
-export function node_unobserve(node: Node, obsfn: o.Observer<any> | o.Observer.Callback<any>) {
+export function node_unobserve(node: Node, obsfn: o.Observer<any> | o.ObserverCallback<any>) {
   const is_observing = node[sym_mount_status] & NODE_IS_OBSERVING
   node[sym_observers] = node[sym_observers]?.filter(ob => {
     const res = ob === obsfn || ob.fn === obsfn
