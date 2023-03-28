@@ -1,4 +1,4 @@
-import { App, $click, o, If } from 'elt'
+import { App, $click, o, If, node_append } from 'elt'
 
 async function TheApp(srv: App.Service) {
 
@@ -54,4 +54,4 @@ async function InitService(srv: App.Service) {
 
 const app = new App()
 app.activate(InitService)
-document.body.appendChild(app.DisplayView('Main'))
+node_append(document.body, app.DisplayView('Main'))

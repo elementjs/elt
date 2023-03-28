@@ -1,6 +1,6 @@
-import { $on } from 'elt'
+import { $on, node_append } from 'elt'
 
-document.body.appendChild(<div>
+node_append(document.body, <div>
   {$on('click', ev => {
      if (ev.target === ev.currentTarget) {
        console.log(`The current div was clicked on, not a child.`)

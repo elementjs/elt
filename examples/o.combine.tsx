@@ -5,7 +5,9 @@ import { o } from 'elt'
 // -- this works because we never need to touch the key, just to know if it changes.
 function prop<T, K extends keyof T>(obj: o.Observable<T> | T, prop: o.RO<K>) {
   return o.combine(
-    o.tuple(obj, prop), // combine needs a tuple to not have all arguments as unions
+    // combine needs a tuple to not have all arguments as unions
+    // Also, we have to downlevel the types as typescript gets really confused with generics.
+    [obj, prop] as [T, K],
     ([obj, prop]) => obj[prop], // the getter is pretty straightforward
     (nval, _, [orig, prop]) => { // we ignore the old value of the combined observable, which is why it's named _
       // clone the original value ; remember, observables deal with immutables

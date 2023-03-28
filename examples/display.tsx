@@ -1,6 +1,6 @@
-import { o, Display, Fragment as $ } from 'elt'
+import { o, Display, node_append } from 'elt'
 
 const o_text = o('text')
-document.body.appendChild(<$>
+node_append(document.body, <>
   {o_text} is the same as {Display(o_text)}
-</$>)
+</>)

@@ -1,8 +1,8 @@
-import { o, If, $click } from 'elt'
+import { o, If, $click, node_append } from 'elt'
 
 const o_some_obj = o({prop: 'value!'} as {prop: string} | null)
 
-document.body.appendChild(<div>
+node_append(document.body, <div>
   <h1>An If example</h1>
   <div><button>
    {$click(() => {

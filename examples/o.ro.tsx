@@ -1,4 +1,4 @@
-import { Attrs, o, Fragment as $ } from 'elt'
+import { Attrs, node_append, o } from 'elt'
 
 function MyComponent(attrs: { title: o.RO<string> } & Attrs<HTMLDivElement>) {
   return <div>
@@ -7,7 +7,7 @@ function MyComponent(attrs: { title: o.RO<string> } & Attrs<HTMLDivElement>) {
 }
 
 const o_str = o('world observable !')
-document.body.appendChild(<$>
+node_append(document.body, <>
   <MyComponent title='world str !'/>
   <MyComponent title={o_str}/>
-</$>)
+</>)
