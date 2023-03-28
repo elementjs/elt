@@ -168,7 +168,7 @@ export class EltCustomElement extends HTMLElement {
     return null
   }
 
-  observe<T>(observable: o.RO<T>, obsfn: o.Observer.Callback<T>, options?: o.ObserveOptions<T>) {
+  observe<T>(observable: o.RO<T>, obsfn: o.ObserverCallback<T>, options?: o.ObserveOptions<T>) {
     node_observe(this, observable, obsfn, options)
   }
 

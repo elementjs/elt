@@ -148,13 +148,13 @@ export class Observer<A> implements Indexable {
   /**
    * The function that will be called on `refresh`
    */
-  fn: Observer.Callback<any>
+  fn: ObserverCallback<any>
 
   /**
    * Build an observer that will call `fn` whenever the value contained by
    * `observable` changes.
    */
-  constructor(fn: Observer.Callback<A>, public observable: ReadonlyObservable<A>) {
+  constructor(fn: ObserverCallback<A>, public observable: ReadonlyObservable<A>) {
     this.fn = fn
   }
 
@@ -211,17 +211,14 @@ export class Observer<A> implements Indexable {
 }
 
 
-export namespace Observer {
-  /**
-   * The type for functions that are passed to {@link o.Observer}s instances.
-   *
-   * `newval` is the new value the observable currently has, while `old_value`
-   * is the previous value or {@link o.NoValue} if this is the first time the callback
-   * is called.
-   */
-  export type Callback<T> = (newval: T, old_value: T | NoValue) => void
-
-}
+/**
+ * The type for functions that are passed to {@link o.Observer}s instances.
+ *
+ * `newval` is the new value the observable currently has, while `old_value`
+ * is the previous value or {@link o.NoValue} if this is the first time the callback
+ * is called.
+ */
+export type ObserverCallback<T> = (newval: T, old_value: T | NoValue) => void
 
 
 export const sym_display_node = Symbol("display-node")
@@ -242,12 +239,12 @@ export interface ReadonlyObservable<A> {
     /** See {@link o.Observable#stopObservers} */
   stopObservers(): void
   /** See {@link o.Observable#createObserver} */
-  createObserver(fn: Observer.Callback<A>): Observer<A>
+  createObserver(fn: ObserverCallback<A>): Observer<A>
 
   /**
    * @see o.Observable.addObserver
    */
-  addObserver(fn: Observer.Callback<A>): Observer<A>
+  addObserver(fn: ObserverCallback<A>): Observer<A>
   addObserver(obs: Observer<A>): Observer<A>
 
   /** See {@link o.Observable#removeObserver} */
@@ -389,7 +386,7 @@ export class ChildObservableLink implements Indexable {
 export class Observable<A> implements ReadonlyObservable<A>, Indexable {
 
   /** @internal */
-  _observers = new IndexableArray<Observer<A>>()
+  readonly _observers = new IndexableArray<Observer<A>>()
   /** @internal */
   _children = new IndexableArray<ChildObservableLink>()
   /** @internal */
@@ -570,7 +567,7 @@ export class Observable<A> implements ReadonlyObservable<A>, Indexable {
    *
    * > **Note**: This method should rarely be used. Prefer using {@link $observe}, {@link node_observe}, [`Mixin#observe`](#o.ObserverHolder#observe) or [`App.Service#observe`](#o.ObserverHolder#observe) for observing values.
    */
-  createObserver(fn: Observer.Callback<A>): Observer<A> {
+  createObserver(fn: ObserverCallback<A>): Observer<A> {
     return new Observer(fn, this)
   }
 
@@ -582,9 +579,9 @@ export class Observable<A> implements ReadonlyObservable<A>, Indexable {
    * @returns The newly created observer if a function was given to this method or
    *   the observable that was passed.
    */
-  addObserver(fn: Observer.Callback<A>): Observer<A>
+  addObserver(fn: ObserverCallback<A>): Observer<A>
   addObserver(obs: Observer<A>): Observer<A>
-  addObserver(_ob: Observer.Callback<A> | Observer<A>): Observer<A> {
+  addObserver(_ob: ObserverCallback<A> | Observer<A>): Observer<A> {
     if (typeof _ob === "function") {
       _ob = this.createObserver(_ob)
     }
@@ -1598,7 +1595,7 @@ export function merge<T>(obj: {[K in keyof T]: Observable<T[K]>}): Observable<T>
     /**
      * Does pretty much what {@link $observe} does.
      */
-    observe<A>(obs: RO<A>, fn: Observer.Callback<A>, options?: ObserveOptions<A>): Observer<A> | null {
+    observe<A>(obs: RO<A>, fn: ObserverCallback<A>, options?: ObserveOptions<A>): Observer<A> | null {
       if (!(o.is_observable(obs))) {
         if (this.is_observing)
           fn(obs as A, NoValue)
