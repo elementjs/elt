@@ -6,6 +6,8 @@
         "declaration": true,
         "inlineSourceMap": true,
         "experimentalDecorators": true,
+        "jsxFactory": "E",
+        "jsxFragmentFactory": "E.Fragment",
         "strict": true,
         "noUnusedLocals": true,
         "outDir": "./testsjs",

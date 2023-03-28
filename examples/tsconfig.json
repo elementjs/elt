@@ -9,6 +9,7 @@
       "strict": true,
       "jsx": "react",
       "jsxFactory": "E",
+      "jsxFragmentFactory": "E.Fragment",
       "noUnusedLocals": false,
       "noEmit": true,
       "lib": ["es6", "dom"],

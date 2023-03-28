@@ -16,11 +16,11 @@ export type Renderable = string | number | Node | null | undefined | Renderable[
  *
  * If the decorator returns nothing, `null` or `undefined`, then nothing is inserted.
  *
- * If it returns a [[Renderable]], then it is appended to `node` where the decorator was called.
+ * If it returns a {@link Renderable}, then it is appended to `node` where the decorator was called.
  *
  * If the result is a decorator, then it is reexecuted on the `node`.
  *
- * If the result is a [[Mixin]], then it is associated to the `node`.
+ * If the result is a {@link Mixin}, then it is associated to the `node`.
  *
  * @category dom
  */
@@ -40,7 +40,7 @@ export type Decorator<N extends Node> = (node: N) => DecoratorResult<N>
  *  - `Node`
  *  - Arrays of these types, even recursively.
  *
- * `<div>{['hello', ' ', [['world']] ]}</div>` will render `<div>hello world</div>`
+ * `<div>{['hello', ' ', {@link 'world'} ]}</div>` will render `<div>hello world</div>`
  *
 */
 export type Insertable<N extends Node> = Decorator<N> | Renderable | Insertable<N>[]
@@ -58,7 +58,7 @@ export type StyleDefinition =
 export type ClassDefinition = {[name: string]: o.RO<any>} | o.RO<string>
 
 /**
- * Used with [[$on]] or [[Mixin#on]]
+ * Used with {@link $on} or {@link Mixin#on}
  */
 export type Listener<EventType extends Event, N extends Node = Node> = (ev: EventType & { currentTarget: N }) => any
 
@@ -77,7 +77,9 @@ export interface EmptyAttributes<N extends Node> {
 /**
  * For a given attribute type used in components, give its related `Node` type.
  *
- * @code ../examples/attrsnodetype.tsx
+ * ```tsx
+ * [[include:../examples/attrsnodetype.tsx]]
+ * ```
  *
  * @category dom, toc
  */
@@ -90,7 +92,9 @@ export type AttrsNodeType<At extends EmptyAttributes<any>> = At extends EmptyAtt
  *
  * Attrs **must** always specify the returned node type as its type argument.
  *
- * @code ../examples/attrs.tsx
+ * ```tsx
+ * [[include:../examples/attrs.tsx]]
+ * ```
  *
  * This type should be used as first argument to all components definitions.
  * @category dom, toc
@@ -98,9 +102,9 @@ export type AttrsNodeType<At extends EmptyAttributes<any>> = At extends EmptyAtt
 export interface Attrs<N extends Node = HTMLElement> extends EmptyAttributes<N> {
   /** A document id */
   id?: NRO<string | null>
-  /** Class definition(s), see [[$class]] for possible uses */
+  /** Class definition(s), see {@link $class} for possible uses */
   class?: ClassDefinition | ClassDefinition[] // special attributes
-  /** Style definition, see [[$style]] for use */
+  /** Style definition, see {@link $style} for use */
   style?: StyleDefinition
 }
 

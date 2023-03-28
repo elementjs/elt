@@ -5,7 +5,7 @@ ESFLAGS = --sourcemap=inline --bundle --log-limit=0 --platform=browser --target=
 
 SOURCES = $(wildcard ./src/*.ts) $(wildcard ./src/observable/*.ts) Makefile
 
-.PHONY: all
+.PHONY: all docs
 
 all: src/types.ts dist/elt.js dist/elt.debug.js dist/elt.min.js dist/elt.debug.min.js dist/elt.cjs.js dist/elt.d.ts
 
@@ -35,3 +35,6 @@ dist/elt.min.js: $(SOURCES)
 
 dist/elt.debug.min.js: $(SOURCES)
 	esbuild $(ESFLAGS) --define:DEBUG=true --minify --outfile=$@ src/index.ts
+
+docs:
+	typedoc src/index.ts --watch

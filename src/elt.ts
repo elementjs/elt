@@ -34,9 +34,11 @@ requestAnimationFrame(() => setup_base_styles())
  *
  * This verb is used whenever an observable is passed as a child to a node.
  *
- * @code ../examples/display.tsx
+ * ```tsx
+ * [[include:../examples/display.tsx]]
+ * ```
  *
- * @category verbs, toc
+ * @group Verbs
  */
 export function Display(obs: o.RO<Renderable>, kind = "e-obs"): DocumentFragment {
   const fr = document.createDocumentFragment()
@@ -178,7 +180,9 @@ export function e<N extends Node>(elt: string | Node | Function, ...children: (I
  * > ends up being added to `Node`, no observable will ever run on it, no life cycle callback will
  * > ever be called on it.
  *
- * @code ../examples/fragment.tsx
+ * ```tsx
+ * [[include:../examples/fragment.tsx]]
+ * ```
  *
  * @category dom, toc
  */
