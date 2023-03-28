@@ -30,12 +30,9 @@ import { Renderable } from "./types"
  * For convenience, the truth value is given typed as a `o.Observable<NonNullable<...>>` in `display`,
  * since there is no way `null` or `undefined` could make their way here.
  *
- * @example
- *
  * ```tsx
  * [[include:../examples/if.tsx]]
  * ```
- * @example
  *
  * ```tsx
  * [[include:../examples/if2.tsx]]
