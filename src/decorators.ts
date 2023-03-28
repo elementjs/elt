@@ -56,9 +56,7 @@ export namespace $bind {
   /**
    * Bind an observable to an input's value.
    *
-   * ```tsx
-   * [[include:../examples/_bind.string.tsx]]
-   * ```
+   * @code ../examples/_bind.string.tsx
    *
    * @group Decorators
    */
@@ -71,9 +69,7 @@ export namespace $bind {
   /**
    * Bind a string observable to an html element which is contenteditable.
    *
-   * ```tsx
-   * [[include:../examples/_bind.contenteditable.tsx]]
-   * ```
+   * @code ../examples/_bind.contenteditable.tsx
    *
    * @group Decorators
    */
@@ -93,9 +89,7 @@ export namespace $bind {
    * Bind a number observable to an <input type="number"/>. Most likely won't work on anything else
    * and will set the value to `NaN`.
    *
-   * ```tsx
-   * [[include:../examples/_bind.number.tsx]]
-   * ```
+   * @code ../examples/_bind.number.tsx
    *
    * @group Decorators
    */
@@ -110,9 +104,7 @@ export namespace $bind {
    * Bind bidirectionnally a `Date | null` observable to an `input`. Will only work on inputs
    * type `"date"` `"datetime"` `"datetime-local"`.
    *
-   * ```tsx
-   * [[include:../examples/_bind.date.tsx]]
-   * ```
+   * @code ../examples/_bind.date.tsx
    *
    * @group Decorators
    */
@@ -144,9 +136,7 @@ export namespace $bind {
   /**
    * Bind a number observable to the selected index of a select element
    *
-   * ```tsx
-   * [[include:../examples/_bind.selected_index.tsx]]
-   * ```
+   * @code ../examples/_bind.selected_index.tsx
    *
    * @group Decorators
    */
@@ -167,9 +157,7 @@ export namespace $bind {
  *
  * The `class={}` attribute on all nodes works exactly the same as `$class`.
  *
- * ```tsx
- * [[include:../examples/_class.tsx]]
- * ```
+ * @code ../examples/_class.tsx
  * @group Decorators
  */
 export function $class<N extends Element>(...clss: ClassDefinition[]) {
@@ -184,9 +172,7 @@ export function $class<N extends Element>(...clss: ClassDefinition[]) {
 /**
  * Update a node's id with a potentially observable value.
  *
- * ```tsx
- * [[include:../examples/_id.tsx]]
- * ```
+ * @code ../examples/_id.tsx
  *
  * > **Note**: You can use the `id` attribute on any element, be them Components or regular nodes, as it is forwarded.
  *
@@ -203,9 +189,7 @@ export function $id<N extends Element>(id: o.RO<string>) {
  * Update a node's title with a potentially observable value.
  * Used mostly when dealing with components since their base node attributes are no longer available.
  *
- * ```tsx
- * [[include:../examples/_title.tsx]]
- * ```
+ * @code ../examples/_title.tsx
  * @group Decorators
  */
 export function $title<N extends HTMLElement>(title: o.RO<string>) {
@@ -218,9 +202,7 @@ export function $title<N extends HTMLElement>(title: o.RO<string>) {
 /**
  * Update a node's style with potentially observable varlues
  *
- * ```tsx
- * [[include:../examples/_style.tsx]]
- * ```
+ * @code ../examples/_style.tsx
  * @group Decorators
  */
 export function $style<N extends HTMLElement | SVGElement>(...styles: StyleDefinition[]) {
@@ -236,9 +218,7 @@ export function $style<N extends HTMLElement | SVGElement>(...styles: StyleDefin
  * Observe an observable and tie the observation to the node this is added to.
  * `cbk` receives the new value as well as the old, but also the node
  *
- * ```tsx
- * [[include:../examples/_observe.tsx]]
- * ```
+ * @code ../examples/_observe.tsx
  * @group Decorators
  */
 export function $observe<N extends Node, T>(a: o.RO<T>, cbk: (newval: T, old_val: T | o.NoValue, node: N) => void, options?: o.ObserveOptions<T>) {
@@ -255,9 +235,7 @@ export function $observe<N extends Node, T>(a: o.RO<T>, cbk: (newval: T, old_val
  *
  * FIXME : These are not the correct event maps associated with the node typ
  *
- * ```tsx
- * [[include:../examples/_on.tsx]]
- * ```
+ * @code ../examples/_on.tsx
  * @group Decorators
  */
 export function $on<N extends Node, K extends KEvent | KEvent[]>(events: K, listener: Listener<EventsForKeys<K>, N>, useCapture?: boolean): Decorator<N> {

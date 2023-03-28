@@ -1,5 +1,5 @@
 {
-  "plugin": [],
+  "plugin": ["typedoc-plugin-merge-modules"],
   "includes": "src",
   "excludeInternal": true,
   "excludeNotDocumented": true,
