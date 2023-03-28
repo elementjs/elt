@@ -7,8 +7,6 @@ import {
 
 import { Display } from "./elt"
 
-import type { Renderable } from "./types"
-
 import {
   node_append,
   node_do_remove,
@@ -17,10 +15,10 @@ import {
   node_on_removed,
 } from "./dom"
 
+import { Renderable } from "./types"
+
 
 /**
- * @category verbs, toc
- *
  * Display content depending on the value of a `condition`, which can be an observable.
  *
  * If `condition` is not an observable, then the call to `If` is resolved immediately without using
@@ -32,9 +30,17 @@ import {
  * For convenience, the truth value is given typed as a `o.Observable<NonNullable<...>>` in `display`,
  * since there is no way `null` or `undefined` could make their way here.
  *
- * @code ../examples/if.tsx
+ * @example
  *
- * @code ../examples/if2.tsx
+ * ```tsx
+ * [[include:../examples/if.tsx]]
+ * ```
+ * @example
+ *
+ * ```tsx
+ * [[include:../examples/if2.tsx]]
+ * ```
+ * @group Verbs
  */
 export function If<T extends o.RO<any>>(
   condition: T,
@@ -59,9 +65,11 @@ export namespace If {
 
   /**
    * Get the type of a potentially `Observable` type where `null` and `undefined` are exluded, keeping
-   * the `Readonly` status if the provided [[o.Observable]] type was `Readonly`.
+   * the `Readonly` status if the provided {@link o.Observable} type was `Readonly`.
    *
-   * @code ../examples/if.nonnullablero.tsx
+   * ```tsx
+   * [[include:../examples/if.nonnullablero.tsx]]
+   * ```
    */
   export type NonNullableRO<T> =
     T extends o.Observable<infer U> ? o.Observable<NonNullable<U>> :
@@ -72,8 +80,6 @@ export namespace If {
 
 
 /**
- * @category verbs, toc
- *
  * Repeats the `render` function for each element in `ob`, optionally separating each rendering
  * with the result of the `separator` function.
  *
@@ -83,7 +89,11 @@ export namespace If {
  * `ob` is not converted to an observable if it was not one, in which case the results are executed
  * right away and only once.
  *
- * @code ../examples/repeat.tsx
+ * ```tsx
+ * [[include:../examples/repeat.tsx]]
+ * ```
+ *
+ * @group Verbs
  */
 export function Repeat<T extends o.RO<any[]>>(obs: T, render: (arg: Repeat.RoItem<T>, idx: o.RO<number>) => Renderable): HTMLElement
 export function Repeat<T extends o.RO<any[]>>(obs: T, options: Repeat.Options<Repeat.Item<T>>, render: (arg: Repeat.RoItem<T>, idx: o.RO<number>) => Renderable): HTMLElement
@@ -101,12 +111,14 @@ export function Repeat<T extends o.RO<any[]>>(
 export namespace Repeat {
 
   /**
-   * A helper type that transforms a type that could be an array, an [[o.Observable]] or a [[o.ReadonlyObservable]]
+   * A helper type that transforms a type that could be an array, an {@link o.Observable} or a {@link o.ReadonlyObservable}
    * of an array to the base type of the same type.
    *
-   * This type is used to help with [[Repeat]]'s prototype definition.
+   * This type is used to help with {@link Repeat}'s prototype definition.
    *
-   * @code ../examples/repeat.roitem.tsx
+   * ```tsx
+   * [[include:../examples/repeat.roitem.tsx]]
+   * ```
    */
   export type RoItem<T extends o.RO<any[]>> = T extends o.Observable<(infer U)[]> ? o.Observable<U>
   : T extends o.ReadonlyObservable<(infer U)[]> ? o.ReadonlyObservable<U>
@@ -215,8 +227,6 @@ export namespace Repeat {
  * optionally separated by the results of `separator`, until the elements overflow past the
  * bottom border of the current parent marked `overflow-y: auto`.
  *
- * As the user scrolls, new items are being added. Old items are *not* discarded and stay above.
- *
  * It will generate `scroll_buffer_size` elements at a time (or 10 if not specified), waiting for
  * the next repaint with `requestAnimationFrame()` between chunks.
  *
@@ -225,9 +235,11 @@ export namespace Repeat {
  * > **Note** : while functional, RepeatScroll is not perfect. A "VirtualScroll" behaviour is in the
  * > roadmap to only maintain the right amount of elements on screen.
  *
- * @code ../examples/repeatscroll.tsx
+ * ```tsx
+ * [[include:../examples/repeatscroll.tsx]]
+ * ```
  *
- * @category verbs, toc
+ * @group Verbs
  */
 export function RepeatScroll<T extends o.RO<any[]>>(ob: T, render: (arg: Repeat.RoItem<T>, idx: o.RO<number>) => Renderable): Node
 export function RepeatScroll<T extends o.RO<any[]>>(ob: T, options: RepeatScroll.Options<Repeat.Item<T>>, render: (arg: Repeat.RoItem<T>, idx: o.RO<number>) => Renderable): Node
@@ -247,7 +259,7 @@ export function RepeatScroll<T extends o.RO<any[]>>(
 export namespace RepeatScroll {
 
   /**
-   * Options to [[RepeatScroll]]
+   * Options to {@link RepeatScroll}
    */
   export interface Options<T> extends Repeat.Options<T> {
     /**
@@ -351,19 +363,22 @@ export namespace RepeatScroll {
 
 }
 
-
-/**
+/*
  * Perform a Switch statement on an observable.
  *
- * @code ../examples/switch.tsx
+ * ```tsx
+ * [[include:../examples/switch.tsx]]
+ * ```
  *
  * `Switch()` can work with typeguards to narrow a type in the observable passed to the then callback,
  * but only with defined functions. It is however not as powerful as typescript's type guards in ifs
  * and will not recognize `typeof` or `instanceof` calls.
  *
- * @code ../examples/switch2.tsx
+ * ```tsx
+ * [[include:../examples/switch2.tsx]]
+ * ```
  *
- * @category verbs, toc
+ * @group Verbs
  */
 export function Switch<T>(obs: o.Observable<T>): Switch.Switcher<T>
 export function Switch<T>(obs: o.ReadonlyObservable<T>): Switch.ReadonlySwitcher<T>
@@ -429,13 +444,11 @@ export namespace Switch {
    * @internal
    */
   export interface ReadonlySwitcher<T> extends o.ReadonlyObservable<Renderable> {
-    /** See [[Switch.Switcher#Case]] */
+    /** See {@link Switch.Switcher#Case} */
     Case<S extends T>(value: (t: T) => t is S, fn: (v: o.ReadonlyObservable<S>) => Renderable): ReadonlySwitcher<Exclude<T, S>>
     Case(value: T, fn: (v: o.ReadonlyObservable<T>) => Renderable): this
     Case(predicate: (t: T) => any, fn: (v: o.ReadonlyObservable<T>) => Renderable): this
-    /** See [[Switch.Switcher#Else]] */
-    Else(fn: (v: o.ReadonlyObservable<T>) => Renderable): this
-  }
+    /** See {@link Switch.Switcher#Else} */
 
 }
 
@@ -444,12 +457,10 @@ export namespace Switch {
  * Display the result of `fn` if the promise is waiting for its result, or if the promise currently
  * contained in the provided observable is loading.
  *
- * To display something based on the result of the promise, use [[IfResolved]]
+ * To display something based on the result of the promise, use {@link IfResolved}
  *
- * @category toc, verbs
+ * @group Verbs
  */
-export function IfResolving(pro: o.RO<Promise<any>>, fn: () => Renderable) {
-  return If(o.wrapPromise(pro).tf(v => v.resolving), fn)
 }
 
 
@@ -458,9 +469,9 @@ export function IfResolving(pro: o.RO<Promise<any>>, fn: () => Renderable) {
  * If the promise has errored, then the `rejected` arm is executed with `o_error` filled with the
  * error.
  *
- * To display something based on the loading state of the promise, use [[IfResolving]]
+ * To display something based on the loading state of the promise, use {@link IfResolving}
  *
- * @category toc, verbs
+ * @group Verbs
  */
 export function IfResolved<T>(op: o.RO<Promise<T>>,
   resolved: (o_value: o.ReadonlyObservable<T>) => Renderable,

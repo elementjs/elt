@@ -56,9 +56,11 @@ export namespace $bind {
   /**
    * Bind an observable to an input's value.
    *
-   * @code ../examples/_bind.string.tsx
+   * ```tsx
+   * [[include:../examples/_bind.string.tsx]]
+   * ```
    *
-   * @category dom, toc
+   * @group Decorators
    */
   export function string(obs: o.Observable<string | null>): (node: HTMLInputElement | HTMLTextAreaElement) => void
   export function string(obs: o.Observable<string>): (node: HTMLInputElement | HTMLTextAreaElement) => void
@@ -69,9 +71,11 @@ export namespace $bind {
   /**
    * Bind a string observable to an html element which is contenteditable.
    *
-   * @code ../examples/_bind.contenteditable.tsx
+   * ```tsx
+   * [[include:../examples/_bind.contenteditable.tsx]]
+   * ```
    *
-   * @category dom, toc
+   * @group Decorators
    */
   export function contenteditable(obs: o.Observable<string>, as_html?: boolean): (node: HTMLElement) => void
   export function contenteditable(obs: o.Observable<string | null>, as_html?: boolean): (node: HTMLElement) => void
@@ -89,9 +93,11 @@ export namespace $bind {
    * Bind a number observable to an <input type="number"/>. Most likely won't work on anything else
    * and will set the value to `NaN`.
    *
-   * @code ../examples/_bind.number.tsx
+   * ```tsx
+   * [[include:../examples/_bind.number.tsx]]
+   * ```
    *
-   * @category dom, toc
+   * @group Decorators
    */
   export function number(obs: o.Observable<number>): (node: HTMLInputElement) => void {
     return setup_bind(obs,
@@ -104,9 +110,11 @@ export namespace $bind {
    * Bind bidirectionnally a `Date | null` observable to an `input`. Will only work on inputs
    * type `"date"` `"datetime"` `"datetime-local"`.
    *
-   * @code ../examples/_bind.date.tsx
+   * ```tsx
+   * [[include:../examples/_bind.date.tsx]]
+   * ```
    *
-   * @category dom, toc
+   * @group Decorators
    */
   export function date(obs: o.Observable<Date | null>): (node: HTMLInputElement) => void {
     return setup_bind(obs,
@@ -119,9 +127,11 @@ export namespace $bind {
    * Bind bidirectionnally a boolean observable to an input. Will only work if the input's type
    * is "radio" or "checkbox".
    *
-   * @code ../examples/_bind.boolean.tsx
+   * ```tsx
+   * [[include:../examples/_bind.boolean.tsx]]
+   * ```
    *
-   * @category dom, toc
+   * @group Decorators
    */
   export function boolean(obs: o.Observable<boolean>): (node: HTMLInputElement) => void {
     return setup_bind(obs,
@@ -134,9 +144,11 @@ export namespace $bind {
   /**
    * Bind a number observable to the selected index of a select element
    *
-   * @code ../examples/_bind.selected_index.tsx
+   * ```tsx
+   * [[include:../examples/_bind.selected_index.tsx]]
+   * ```
    *
-   * @category dom, toc
+   * @group Decorators
    */
   export function selected_index(obs: o.Observable<number>): (node: HTMLSelectElement) => void {
     return setup_bind(obs,
@@ -155,8 +167,10 @@ export namespace $bind {
  *
  * The `class={}` attribute on all nodes works exactly the same as `$class`.
  *
- * @code ../examples/_class.tsx
- * @category dom, toc
+ * ```tsx
+ * [[include:../examples/_class.tsx]]
+ * ```
+ * @group Decorators
  */
 export function $class<N extends Element>(...clss: ClassDefinition[]) {
   return (node: N) => {
@@ -170,11 +184,13 @@ export function $class<N extends Element>(...clss: ClassDefinition[]) {
 /**
  * Update a node's id with a potentially observable value.
  *
- * @code ../examples/_id.tsx
+ * ```tsx
+ * [[include:../examples/_id.tsx]]
+ * ```
  *
  * > **Note**: You can use the `id` attribute on any element, be them Components or regular nodes, as it is forwarded.
  *
- * @category dom, toc
+ * @group Decorators
  */
 export function $id<N extends Element>(id: o.RO<string>) {
   return (node: N) => {
@@ -187,8 +203,10 @@ export function $id<N extends Element>(id: o.RO<string>) {
  * Update a node's title with a potentially observable value.
  * Used mostly when dealing with components since their base node attributes are no longer available.
  *
- * @code ../examples/_title.tsx
- * @category dom, toc
+ * ```tsx
+ * [[include:../examples/_title.tsx]]
+ * ```
+ * @group Decorators
  */
 export function $title<N extends HTMLElement>(title: o.RO<string>) {
   return (node: N) => {
@@ -200,8 +218,10 @@ export function $title<N extends HTMLElement>(title: o.RO<string>) {
 /**
  * Update a node's style with potentially observable varlues
  *
- * @code ../examples/_style.tsx
- * @category dom, toc
+ * ```tsx
+ * [[include:../examples/_style.tsx]]
+ * ```
+ * @group Decorators
  */
 export function $style<N extends HTMLElement | SVGElement>(...styles: StyleDefinition[]) {
   return (node: N) => {
@@ -216,8 +236,10 @@ export function $style<N extends HTMLElement | SVGElement>(...styles: StyleDefin
  * Observe an observable and tie the observation to the node this is added to.
  * `cbk` receives the new value as well as the old, but also the node
  *
- * @code ../examples/_observe.tsx
- * @category dom, toc
+ * ```tsx
+ * [[include:../examples/_observe.tsx]]
+ * ```
+ * @group Decorators
  */
 export function $observe<N extends Node, T>(a: o.RO<T>, cbk: (newval: T, old_val: T | o.NoValue, node: N) => void, options?: o.ObserveOptions<T>) {
   return (node: N) => {
@@ -233,8 +255,10 @@ export function $observe<N extends Node, T>(a: o.RO<T>, cbk: (newval: T, old_val
  *
  * FIXME : These are not the correct event maps associated with the node typ
  *
- * @code ../examples/_on.tsx
- * @category dom, toc
+ * ```tsx
+ * [[include:../examples/_on.tsx]]
+ * ```
+ * @group Decorators
  */
 export function $on<N extends Node, K extends KEvent | KEvent[]>(events: K, listener: Listener<EventsForKeys<K>, N>, useCapture?: boolean): Decorator<N> {
 
@@ -247,7 +271,8 @@ export function $on<N extends Node, K extends KEvent | KEvent[]>(events: K, list
 /**
  * Add a callback on the click event, or touchend if we are on a mobile
  * device.
- * @category dom, toc
+ *
+ * @group Decorators
  */
 export function $click<N extends HTMLElement | SVGElement>(cbk: Listener<MouseEvent, N>, capture?: boolean): (node: N) => void {
   return function $click(node) {
@@ -262,9 +287,9 @@ export function $click<N extends HTMLElement | SVGElement>(cbk: Listener<MouseEv
  * Call the `fn` callback when the decorated `node` is inserted into the DOM with
  * itself as first argument and its parent as the second.
  *
- * See [[$init]] for examples.
+ * See {@link $init} for examples.
  *
- * @category dom, toc
+ * @group Decorators
  */
 export function $inserted<N extends Node>(fn: (node: N) => void) {
   return (node: N) => {
@@ -277,9 +302,9 @@ export function $inserted<N extends Node>(fn: (node: N) => void) {
  * Run a callback when the node is removed from its holding document, with `node`
  * as the node being removed and `parent` with its previous parent.
  *
- * See [[$init]] for examples.
+ * See {@link $init} for examples.
  *
- * @category dom, toc
+ * @group Decorators
  */
 export function $removed<N extends Node>(fn: (node: N) => void) {
   return (node: N) => {
@@ -292,6 +317,7 @@ export function $removed<N extends Node>(fn: (node: N) => void) {
  * Attach a shadow root to a node and setup an internal mutation observer
  * @param nodes the nodes or strings to append to the shadow root
  * @returns A decorator
+ * @group Decorators
  */
 export function $shadow(child: Node): Decorator<HTMLElement>
 export function $shadow(opts: $ShadowOptions, child: Node): Decorator<HTMLElement>
@@ -311,7 +337,7 @@ export function $shadow(opts?: Node | $ShadowOptions, child?: Node) {
  * trigger the ugly scroll band on mobile devices.
  *
  * Calling this functions makes anything not marked scrollable as non-scrollable.
- * @category dom, toc
+ * @group Decorators
  */
 export function $scrollable(node: HTMLElement): void {
 

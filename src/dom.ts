@@ -52,7 +52,7 @@ function _node_stop_observers(node: Node) {
 
 /**
  * Return `true` if this node is currently observing its associated observables.
- * @category low level dom, toc
+ * @group Dom
  */
 export function node_is_observing(node: Node) {
   return !!(node[sym_mount_status] & NODE_IS_OBSERVING)
@@ -66,7 +66,7 @@ export function node_is_observing(node: Node) {
  * its status is potentially updated after the node was inserted or removed from the dom, or could
  * have been forced to another value by a third party.
  *
- * @category low level dom, toc
+ * @group Dom
  */
 export function node_is_inserted(node: Node) {
   return !!(node[sym_mount_status] & NODE_IS_INSERTED)
@@ -144,9 +144,9 @@ export function node_do_remove(node: Node) {
  * Remove a `node` from the tree and call `removed` on its mixins and all the `removed` callbacks..
  *
  * This function is mostly used by verbs that don't want to wait for the mutation observer
- * callback registered in [[setup_mutation_observer]]
+ * callback registered in {@link setup_mutation_observer}
  *
- * @category low level dom, toc
+ * @group Dom
  */
 export function node_remove(node: Node): void {
   node_do_remove(node) // just stop observers otherwise...
@@ -159,7 +159,7 @@ export function node_remove(node: Node): void {
 
 /**
  * Remove all elements within a node and call the remove callback.
- * @category low level dom, toc
+ * @group Dom
  */
 export function node_clear(node: Node): void {
   while (node.firstChild) {
@@ -188,9 +188,12 @@ const _registered_documents = new WeakSet<Document>()
  * This function also registers a listener on the `unload` event of the `document` or `ownerDocument`
  * to stop all the observers when the window closes.
  *
- * @code ../examples/setup_mutation_observer.tsx
+ * ```tsx
+ * [[include:../examples/setup_mutation_observer.tsx]]
+ * ```
  *
- * @category dom, toc
+ * @deprecated
+ * @group Dom
  */
 export function setup_mutation_observer(node: Node) {
   if (!node.isConnected && !!node.ownerDocument && !(node instanceof ShadowRoot))
@@ -245,6 +248,7 @@ const basic_attrs = new Set(["id", "slot", "part", "role", "tabindex", "lang", "
  * @param node The parent to insert the node on
  * @param insertable The insertable that has to be handled
  * @param refchild The child before which to append
+ * @group Dom
  */
 export function node_append<N extends Node>(node: N, insertable: Insertable<N> | Attrs<N>, refchild: Node | null = null, is_basic_node = true) {
   if (insertable == null) return
@@ -394,9 +398,9 @@ export function node_attach_shadow(node: HTMLElement, child: Node, opts: $Shadow
 /**
  * Tie the observal of an `#Observable` to the presence of this `node` in the DOM.
  *
- * Used mostly by [[$observe]] and [[Mixin.observe]]
+ * Used mostly by {@link $observe} and {@link Mixin.observe}
  *
- * @category low level dom, toc
+ * @group Dom
  */
 export function node_observe<T>(
   node: Node,
@@ -423,13 +427,13 @@ export function node_observe<T>(
 
 /**
  * Associate an `observer` to a `node`. If the `node` is in the document, then
- * the `observer` is called as its [[o.Observable]] changes.
+ * the `observer` is called as its {@link o.Observable} changes.
  *
  * If `node` is removed from the dom, then `observer` is disconnected from
- * its [[o.Observable]]. This helps in preventing memory leaks for those variables
+ * its {@link o.Observable}. This helps in preventing memory leaks for those variables
  * that `observer` may close on.
  *
- * @category low level dom, toc
+ * @group Dom
  */
 export function node_add_observer<T>(node: Node, observer: o.Observer<T>) {
   if (node[sym_observers] == undefined)
@@ -490,31 +494,8 @@ export function node_add_event_listener(target: Node, node: any, events: any, li
 
 
 /**
- * Dispatch a CustomEvent from this node that bubbles and is composed (to traverse ShadowRoots) and cancelable.
- *
- * @param node The node to dispatch the current event from
- * @param event_name The name of the event
- * @param options Additional options, such as { detail }
- * @returns The newly created event
- */
-export function node_dispatch(node: Node, event_name: string, options?: CustomEventInit) {
-  const event = new CustomEvent(event_name, {
-    bubbles: true,
-    cancelable: true,
-    composed: true,
-    detail: {},
-    ...options
-  });
-
-  node.dispatchEvent(event);
-
-  return event;
-}
-
-
-/**
  * Stop a node from observing an observable, even if it is still in the DOM
- * @category low level dom, toc
+ * @group Dom
  */
 export function node_unobserve(node: Node, obsfn: o.Observer<any> | o.Observer.Callback<any>) {
   const is_observing = node[sym_mount_status] & NODE_IS_OBSERVING
@@ -540,7 +521,7 @@ export function node_unobserve(node: Node, obsfn: o.Observer<any> | o.Observer.C
  *
  * This does not do the reverse : if the node decides to change the attribute value, the observable is not notified. This could be achieved using a MutationObserver.
  *
- * @category low level dom, toc
+ * @group Dom
  */
 export function node_observe_attribute(node: Element, name: string, value: o.RO<string | boolean | null | undefined>) {
   const exposed = node[sym_exposed]?.get(name)
@@ -585,7 +566,7 @@ export function node_observe_attribute(node: Element, name: string, value: o.RO<
 
 /**
  * Observe a style (as JS defines it) and update the node as needed.
- * @category low level dom, toc
+ * @group Dom
  */
 export function node_observe_style(node: HTMLElement | SVGElement, style: StyleDefinition) {
   if (o.is_observable(style)) {
@@ -614,7 +595,7 @@ export function node_observe_style(node: HTMLElement | SVGElement, style: StyleD
 
 /**
  * Observe a complex class definition and update the node as needed.
- * @category low level dom, toc
+ * @group Dom
  */
 export function node_observe_class(node: Element, c: ClassDefinition) {
   if (!c) return
@@ -670,7 +651,7 @@ function _remove_class(node: Element, c: string) {
 
 /**
  * Run a `callback` whenever this `node` is inserted into the DOM.
- * @category low level dom, toc
+ * @group Dom
  * @param node
  * @param callback
  */
@@ -680,7 +661,7 @@ export function node_on_inserted<N extends Node>(node: N, callback: LifecycleCal
 
 /**
  * Run a `callback` whenever this `node` is removed from the dom.
- * @category low level dom, toc
+ * @group Dom
  * @param node
  * @param callback
  */
@@ -691,7 +672,7 @@ export function node_on_removed<N extends Node>(node: N, callback: LifecycleCall
 
 /**
  * Unregister a previously registered `callback` for the inserted lifecycle event of this `node`.
- * @category low level dom, toc
+ * @group Dom
  * @param node
  * @param callback
  */
@@ -701,7 +682,7 @@ export function node_off_inserted<N extends Node>(node: N, callback: LifecycleCa
 
 /**
  * Unregister a previously registered `callback` for the removed lifecycle event of this `node`.
- * @category low level dom, toc
+ * @group Dom
  * @param node
  * @param callback
  */

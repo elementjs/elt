@@ -8,7 +8,7 @@ declare const DEBUG: boolean
  * Make sure we have a usable observable.
  * @returns The original observable if `arg` already was one, or a new
  *   Observable holding the value of `arg` if it wasn't.
- * @category observable, toc
+ * @group Observable
  */
 export function o<T>(arg: T): [T] extends [o.Observable<any>] ? T :
     // when there is a mix of different observables, then we have a readonlyobservable of the combination of the types
@@ -25,7 +25,7 @@ export namespace o {
 
 /**
  * Get the type of the element of an observable. Works on `#o.RO` as well.
- * @category observable, toc
+ * @group Observable
  */
 export type ObservedType<T> = T extends ReadonlyObservable<infer U> ? U : T
 
@@ -51,7 +51,7 @@ export type RevertFn<A, B> = (nval: B, oval: B | NoValue, curval: A) => A | NoVa
 
 
 /**
- * For use with [[o.Observable#tf]]. The `ReadonlyConverter` only provides a transformation
+ * For use with {@link o.Observable.tf}. The `ReadonlyConverter` only provides a transformation
  * that will result in the creation of a `ReadonlyObservable`, since there is no way to
  * transform it back.
  */
@@ -63,7 +63,7 @@ export interface ReadonlyConverter<A, B> {
 }
 
 /**
- * For use with [[o.Observable#tf]]. A `Converter` object gives an [[o.Observable]] a bijection
+ * For use with {@link o.Observable.tf}. A `Converter` object gives an {@link o.Observable} a bijection
  * to another type, allowing an observable to transform into another observable type that can be set.
  */
 export interface Converter<A, B> extends ReadonlyConverter<A, B> {
@@ -76,7 +76,7 @@ export interface Converter<A, B> extends ReadonlyConverter<A, B> {
 
 
 /**
- * Transforms the type to make its values [[o.RO]]
+ * Transforms the type to make its values {@link o.RO}
  */
 export type ROProps<T> = { [P in keyof T]:  RO<T[P]>}
 
@@ -96,7 +96,7 @@ export type NoValue = typeof NoValue
  * Typeguard to check that an object is a readonlyobservable.
  *
  * It really only checks that the variable is an observable under the hood.
- * @category observable, toc
+ * @group Observable
  */
 export function isReadonlyObservable<T>(_: RO<T>): _ is ReadonlyObservable<T>
 export function isReadonlyObservable(_: any): _ is ReadonlyObservable<any>
@@ -115,7 +115,7 @@ export interface ObserveOptions<T> {
 
 
 /**
- * An `Observer` observes an [[o.Observable]]. `Observable`s maintain a list of **active**
+ * An `Observer` observes an {@link o.Observable}. `Observable`s maintain a list of **active**
  * observers that are observing it. Whenever their value change, all the registered
  * `Observer`s have their `refresh` method called.
  *
@@ -132,7 +132,7 @@ export interface ObserveOptions<T> {
  * by keeping a reference to the last value they were called with, they can provide it
  * safely to `fn`.
  *
- * @category observable, toc
+ * @group Observable
  */
 export class Observer<A> implements Indexable {
 
@@ -191,7 +191,7 @@ export class Observer<A> implements Indexable {
    * Debounce `this.refresh` by `ms` milliseconds, optionnally calling it
    * immediately the first time around if `leading` is true.
    *
-   * See [[o.debounce]].
+   * @see o.debounce
    */
   debounce(ms: number, leading?: boolean) {
     this.refresh = o.debounce(this.refresh.bind(this), ms, leading)
@@ -202,7 +202,7 @@ export class Observer<A> implements Indexable {
    * Throttle `this.refresh` by `ms` milliseconds, optionnally calling it
    * immediately the first time around if `leading` is true.
    *
-   * See [[o.throttle]].
+   * @see o.throttle
    */
   throttle(ms: number, leading?: boolean) {
     this.refresh = o.throttle(this.refresh.bind(this), ms, leading)
@@ -213,10 +213,10 @@ export class Observer<A> implements Indexable {
 
 export namespace Observer {
   /**
-   * The type for functions that are passed to [[o.Observer]]s instances.
+   * The type for functions that are passed to {@link o.Observer}s instances.
    *
    * `newval` is the new value the observable currently has, while `old_value`
-   * is the previous value or [[o.NoValue]] if this is the first time the callback
+   * is the previous value or {@link o.NoValue} if this is the first time the callback
    * is called.
    */
   export type Callback<T> = (newval: T, old_value: T | NoValue) => void
@@ -232,45 +232,49 @@ export const sym_display_attrs = Symbol("display-attrs")
  * `ReadonlyObservable` is just an interface to an actual `Observable` class but without
  * the methods that can modify the observed value.
  *
- * @category observable, toc
+ * @group Observable
  */
 export interface ReadonlyObservable<A> {
   [sym_display_node]?: string
 
-  /** See [[o.Observable#get]] */
+  /** See {@link o.Observable#get} */
   get(): A
-    /** See [[o.Observable#stopObservers]] */
+    /** See {@link o.Observable#stopObservers} */
   stopObservers(): void
-  /** See [[o.Observable#createObserver]] */
+  /** See {@link o.Observable#createObserver} */
   createObserver(fn: Observer.Callback<A>): Observer<A>
 
-  /** See [[o.Observable#addObserver]] */
+  /**
+   * @see o.Observable.addObserver
+   */
   addObserver(fn: Observer.Callback<A>): Observer<A>
   addObserver(obs: Observer<A>): Observer<A>
 
-  /** See [[o.Observable#removeObserver]] */
+  /** See {@link o.Observable#removeObserver} */
   removeObserver(ob: Observer<A>): void
 
-  /** See [[o.Observable#tf]] */
+  /** See {@link o.Observable#tf} */
   tf<B>(transform: RO<TransfomFn<A, B> | ReadonlyConverter<A, B>>): ReadonlyObservable<B>
 
-  /** See [[o.Observable#p]] */
+  /** See {@link o.Observable#p} */
   // p<A>(this: ReadonlyObservable<A[]>, key: RO<number>, def?: RO<(key: number, obj: A[]) => A>): ReadonlyObservable<A>
   p<K extends keyof A>(key: RO<K>): ReadonlyObservable<A[K]>
-  /** See [[o.Observable#key]] */
+  /** See {@link o.Observable#key} */
   key<A, B>(this: ReadonlyObservable<Map<A, B>>, key: RO<A>, def?: undefined, delete_on_undefined?: boolean): ReadonlyObservable<B | undefined>
   key<A, B>(this: ReadonlyObservable<Map<A, B>>, key: RO<A>, def: RO<(key: A, map: Map<A, B>) => B>): ReadonlyObservable<B>
 }
 
 /**
- * `RO` is a helper type that represents a value that could be both a [[o.ReadonlyObservable]]
+ * `RO` is a helper type that represents a value that could be both a {@link o.ReadonlyObservable}
  * or a non-observable.
  *
- * It is very useful when dealing with [[Attrs]] where flexibility is needed for arguments.
+ * It is very useful when dealing with {@link Attrs} where flexibility is needed for arguments.
  *
- * @code ../../examples/o.ro.tsx
+ * ```tsx
+ * [[include:../../examples/o.ro.tsx]]
+ * ```
  *
- * @category observable, toc
+ * @group Observable
  */
 export type RO<A> = Observable<A> | ReadonlyObservable<A> | A
 
@@ -349,9 +353,11 @@ const queue = new Queue()
  * Use it when you know you will modify two or more observables that trigger the same transforms
  * to avoid calling the observers each time one of the observable is modified.
  *
- * @code ../../examples/o.transaction.tsx
+ * ```tsx
+ * [[include:../../examples/o.transaction.tsx]]
+ * ```
  *
- * @category observable, toc
+ * @group Observable
  */
 export function transaction(fn: () => void) {
   queue.transaction(fn)
@@ -378,7 +384,7 @@ export class ChildObservableLink implements Indexable {
  *
  * Comes with the `.set()` and `.assign()` methods.
  *
- * @category observable, toc
+ * @group Observable
  */
 export class Observable<A> implements ReadonlyObservable<A>, Indexable {
 
@@ -398,7 +404,7 @@ export class Observable<A> implements ReadonlyObservable<A>, Indexable {
   debug?: string
 
   /**
-   * Build an observable from a value. For readability purposes, use the [[o]] function instead.
+   * Build an observable from a value. For readability purposes, use the {@link o} function instead.
    */
   constructor(public _value: A) {
     if (DEBUG) {
@@ -482,9 +488,9 @@ export class Observable<A> implements ReadonlyObservable<A>, Indexable {
    * The result of `fn` **must** be absolutely different from the current value. Arrays
    * should be `slice`d first and objects copied, otherwise the observable will not
    * trigger its observers since to it the object didn't change. For convenience, you can
-   * use [[o.clone]] or the great [immer.js](https://github.com/immerjs/immer).
+   * use {@link o.clone} or the great [immer.js](https://github.com/immerjs/immer).
    *
-   * If the return value of `fn` is [[o.NoValue]] then the observable is untouched.
+   * If the return value of `fn` is {@link o.NoValue} then the observable is untouched.
    */
   mutate(fn: (current: A) => A | o.NoValue) {
     const n = fn(this.get())
@@ -562,7 +568,7 @@ export class Observable<A> implements ReadonlyObservable<A>, Indexable {
    * Create an observer bound to this observable, but do not start it.
    * For it to start observing, one needs to call its `startObserving()` method.
    *
-   * > **Note**: This method should rarely be used. Prefer using [[$observe]], [[node_observe]], [`Mixin#observe`](#o.ObserverHolder#observe) or [`App.Service#observe`](#o.ObserverHolder#observe) for observing values.
+   * > **Note**: This method should rarely be used. Prefer using {@link $observe}, {@link node_observe}, [`Mixin#observe`](#o.ObserverHolder#observe) or [`App.Service#observe`](#o.ObserverHolder#observe) for observing values.
    */
   createObserver(fn: Observer.Callback<A>): Observer<A> {
     return new Observer(fn, this)
@@ -571,7 +577,7 @@ export class Observable<A> implements ReadonlyObservable<A>, Indexable {
   /**
    * Add an observer to this observable, which will be updated as soon as the `Observable` is set to a new value.
    *
-   * > **Note**: This method should rarely be used. Prefer using [[$observe]], [[node_observe]], [`Mixin#observe()`](#Mixin) or [`App.Service#observe()`](#App.Service#observe) for observing values.
+   * > **Note**: This method should rarely be used. Prefer using {@link $observe}, {@link node_observe}, [`Mixin#observe()`](#Mixin) or [`App.Service#observe()`](#App.Service#observe) for observing values.
    *
    * @returns The newly created observer if a function was given to this method or
    *   the observable that was passed.
@@ -666,7 +672,9 @@ export class Observable<A> implements ReadonlyObservable<A>, Indexable {
    *
    * A Converter providing both `get` and `set` operations will create a two-way observable that is settable.
    *
-   * @code ../../examples/o.observable.tf.tsx
+   * ```tsx
+   * [[include:../../examples/o.observable.tf.tsx]]
+   * ```
    *
    */
   tf<B>(tf: o.RO<TransfomFn<A, B>>, rev: o.RO<RevertFn<A, B>>): Observable<B>
@@ -703,14 +711,16 @@ export class Observable<A> implements ReadonlyObservable<A>, Indexable {
    * The `key` can itself be an observable, in which case the resulting observable will
    * change whenever either `key` or the original observable change.
    *
-   * @code ../../examples/o.observable.p.tsx
+   * ```tsx
+   * [[include:../../examples/o.observable.p.tsx]]
+   * ```
    */
   p<K extends keyof A>(key: RO<K>): Observable<A[K]> {
     return prop(this, key)
   }
 
   /**
-   * Like [[o.Observable#p]], but with `Map` objects.
+   * Like {@link o.Observable.p}, but with `Map` objects.
    */
   key<A, B>(this: Observable<Map<A, B>>, key: RO<A>, def?: undefined, delete_on_undefined?: RO<boolean | undefined>): Observable<B | undefined>
   key<A, B>(this: Observable<Map<A, B>>, key: RO<A>, def: RO<(key: A, map: Map<A, B>) => B>): Observable<B>
@@ -747,7 +757,7 @@ Observable.prototype[sym_is_observable] = true
 
 /**
  * An observable that does not its own value, but that depends
- * from outside getters and setters. The `#o.virtual` helper makes creating them easier.
+ * from outside getters and setters. The {@link o.combine} helper makes creating them easier.
  *
  * @internal
  */
@@ -894,16 +904,18 @@ export function proxy<T>(ob: Observable<T>): ProxyObservable<T> {
 /**
  * Create an observable that depends on several other observables, optionally providing a two-way transformation if `set` is given.
  *
- * This is a more involved version of [[o.join]] but without having to use `.tf()` on it which is more efficient.
+ * This is a more involved version of {@link o.join} but without having to use `.tf()` on it which is more efficient.
  * Also, this allows for creating observables depending on a combination of readable and readonly observables.
  *
  * In the `set` portion, returning a `o.NOVALUE` in the result tuple will tell the combiner that the original observable should not be touched.
  *
  * For instance, here is a possible implementation of `.p()` :
  *
- * @code ../../examples/o.combine.tsx
+ * ```tsx
+ * [[include:../../examples/o.combine.tsx]]
+ * ```
  *
- * @category observable, toc
+ * @group Observable
  */
 export function combine<T extends any[], R>(deps: {[K in keyof T]: RO<T[K]>}, get: (a: T) => R): ReadonlyObservable<R>
 export function combine<T extends any[], R>(deps: {[K in keyof T]: RO<T[K]>}, get: (a: T) => R, set: (r: R, old: R | NoValue, last: T) => {[K in keyof T]: T[K] | NoValue}): Observable<R>
@@ -925,12 +937,14 @@ export function combine<T extends any[], R>(deps: {[K in keyof T]: RO<T[K]>}, ge
  * The resulting observable is writable only if all its constituents were themselves
  * writable.
  *
- * @code ../../examples/o.merge.tsx
+ * ```tsx
+ * [[include:../../examples/o.merge.tsx]]
+ * ```
  *
  * @returns An observable which properties are the ones given in `obj` and values
  *   are the resolved values of their respective observables.
  *
- * @category observable, toc
+ * @group Observable
  */
 export function merge<T>(obj: {[K in keyof T]: Observable<T[K]>}): Observable<T>
 export function merge<T>(obj: {[K in keyof T]: RO<T[K]>}): ReadonlyObservable<T>
@@ -950,7 +964,7 @@ export function merge<T>(obj: {[K in keyof T]: Observable<T[K]>}): Observable<T>
   /**
    * Create an observable that watches a `prop` from `obj`, giving returning the result
    * of `def` if the value was `undefined`.
-   * @category observable, toc
+   * @group Observable
    */
   export function prop<T, K extends keyof T>(obj: Observable<T> | T, prop: RO<K>, def?: RO<(key: K, obj: T) => T[K]>) {
     return combine(
@@ -996,7 +1010,7 @@ export function merge<T>(obj: {[K in keyof T]: Observable<T[K]>}): Observable<T>
   /**
    * Get a MaybeObservable's value
    * @returns `arg.get()` if it was an Observable or `arg` itself if it was not.
-   * @category observable, toc
+   * @group Observable
    */
   export function get<A>(arg: RO<A>): A {
     return is_observable(arg) ? (arg as ReadonlyObservable<A>).get() : arg as A
@@ -1007,7 +1021,7 @@ export function merge<T>(obj: {[K in keyof T]: Observable<T[K]>}): Observable<T>
    * only if it was itself observable.
    * This function is meant to be used when building components to avoid creating
    * Observable objects for values that were not.
-   * @category observable, toc
+   * @group Observable
    */
   export function tf<A, B>(arg: RO<A>, fn: Converter<A, B> | TransfomFn<A, B>): RO<B> {
     if (o.is_observable(arg)) {
@@ -1029,7 +1043,7 @@ export function merge<T>(obj: {[K in keyof T]: Observable<T[K]>}): Observable<T>
    *
    * This is a convenience function for building components.
    *
-   * @category observable, toc
+   * @group Observable
    */
   export function p<A, K extends keyof A>(mobs: Observable<A>, key: K): Observable<A[K]>
   export function p<A, K extends keyof A>(mobs: RO<A>, key: K): RO<A[K]>
@@ -1045,7 +1059,7 @@ export function merge<T>(obj: {[K in keyof T]: Observable<T[K]>}): Observable<T>
    * Combine several MaybeObservables into an Observable<boolean>
    * @returns A boolean Observable that is true when all of them are true, false
    *   otherwise.
-   * @category observable, toc
+   * @group Observable
    */
   export function and(...args: any[]): ReadonlyObservable<boolean> {
     return combine(args,
@@ -1063,7 +1077,7 @@ export function merge<T>(obj: {[K in keyof T]: Observable<T[K]>}): Observable<T>
    * Combine several MaybeObservables into an Observable<boolean>
    * @returns A boolean Observable that is true when any of them is true, false
    *   otherwise.
-   * @category observable, toc
+   * @group Observable
    */
   export function or(...args: any[]): ReadonlyObservable<boolean> {
     return combine(args,
@@ -1081,8 +1095,10 @@ export function merge<T>(obj: {[K in keyof T]: Observable<T[K]>}): Observable<T>
    *
    * The resulting observable is writable only if all its constituents were themselves writable.
    *
-   * @code ../../examples/o.join.tsx
-   * @category observable, toc
+   * ```tsx
+   * [[include:../../examples/o.join.tsx]]
+   * ```
+   * @group Observable
    */
   export function join<A extends any[]>(...deps: {[K in keyof A]: Observable<A[K]>}): Observable<A>
   export function join<A extends any[]>(...deps: {[K in keyof A]: RO<A[K]>}): ReadonlyObservable<A>
@@ -1139,12 +1155,14 @@ export function merge<T>(obj: {[K in keyof T]: Observable<T[K]>}): Observable<T>
    * > than this attempt at doing bulk modifications which is not elegant.
    * > It is very probable that it will either be removed from elt or replaced by something
    * > a little more elegant.
-   * > Try [[o.transaction]] for a different approach for grouped notifications.
+   * > Try {@link o.transaction} for a different approach for grouped notifications.
    *
-   * @code ../../examples/o.assign.tsx
+   * ```tsx
+   * [[include:../../examples/o.assign.tsx]]
+   * ```
    *
    * @returns a new instance of the object if the mutator would change it
-   * @category observable, toc
+   * @group Observable
    */
   export function assign<A>(value: A[], partial: {[index: number]: assign.AssignPartial<A>}): A[]
   export function assign<A>(value: A, mutator: assign.AssignPartial<A>): A
@@ -1173,7 +1191,7 @@ export function merge<T>(obj: {[K in keyof T]: Observable<T[K]>}): Observable<T>
   export namespace assign {
 
     /**
-     * Type for [[o.assign]] arguments.
+     * Type for {@link o.assign} arguments.
      */
     export type AssignPartial<T> = {
       // Definition that I would like :
@@ -1194,9 +1212,11 @@ export function merge<T>(obj: {[K in keyof T]: Observable<T[K]>}): Observable<T>
    *
    * Also works as an es7 decorator.
    *
-   * @code ../../examples/o.debounce.tsx
+   * ```tsx
+   * [[include:../../examples/o.debounce.tsx]]
+   * ```
    *
-   * @category observable, toc
+   * @group Observable
    */
   export function debounce(ms: number, leading?: boolean): (target: any, key: string, desc: PropertyDescriptor) => void
   export function debounce<F extends (...a: any[]) => any>(fn: F, ms: number, leading?: boolean): F
@@ -1242,9 +1262,11 @@ export function merge<T>(obj: {[K in keyof T]: Observable<T[K]>}): Observable<T>
   *
   * Also works as an es7 decorator.
   *
-  * @code ../../examples/o.throttle.tsx
+  * ```tsx
+  * [[include:../../examples/o.throttle.tsx]]
+  * ```
   *
-  * @category observable, toc
+  * @group Observable
   */
   export function throttle(ms: number, leading?: boolean): (target: any, key: string, desc: PropertyDescriptor) => void
   export function throttle<F extends (...a: any[]) => any>(fn: F, ms: number, leading?: boolean): F
@@ -1298,7 +1320,9 @@ export function merge<T>(obj: {[K in keyof T]: Observable<T[K]>}): Observable<T>
    * when cloning should be performed differently than just using `Object.create` and
    * copying properties.
    *
-   * @code ../../examples/o.sym_clone.tsx
+   * ```tsx
+   * [[include:../../examples/o.sym_clone.tsx]]
+   * ```
    *
    * @category observable
    */
@@ -1311,9 +1335,11 @@ export function merge<T>(obj: {[K in keyof T]: Observable<T[K]>}): Observable<T>
    * This only exists because there is no way to declare a tuple in Typescript other than with a plain
    * array, and arrays with several types end up as an union.
    *
-   * @code ../../examples/o.tuple.tsx
+   * ```tsx
+   * [[include:../../examples/o.tuple.tsx]]
+   * ```
    *
-   * @category observable, toc
+   * @group Observable
    */
   export function tuple<T extends any[]>(...t: T): T {
     return t
@@ -1330,7 +1356,7 @@ export function merge<T>(obj: {[K in keyof T]: Observable<T[K]>}): Observable<T>
    *  - Regexp and Dates are supported.
    *
    * @returns a new instance of the passed object.
-   * @category observable, toc
+   * @group Observable
    */
   export function clone<T>(obj: T | {[o.sym_clone]: () => T}): T
   export function clone(obj: any): any {
@@ -1397,7 +1423,7 @@ export function merge<T>(obj: {[K in keyof T]: Observable<T[K]>}): Observable<T>
    * of Promise, we want to keep the last resolved value to probably keep displaying the previous
    * result while showing some loading indicator.
    *
-   * @category observable, toc
+   * @group Observable
    */
   export function wrapPromise<T>(obs: o.RO<Promise<T>>): o.ReadonlyObservable<wrapPromise.Result<T>> {
     // We cache the wrapped observable to avoid polluting memory for nothing.
@@ -1505,7 +1531,7 @@ export function merge<T>(obj: {[K in keyof T]: Observable<T[K]>}): Observable<T>
    * which could end up in an infinite loop, or when dealing with DOM Events.
    *
    * @returns a function that accepts a callback
-   * @category observable, toc
+   * @group Observable
    */
   export function exclusive_lock() {
     let locked = false
@@ -1521,10 +1547,10 @@ export function merge<T>(obj: {[K in keyof T]: Observable<T[K]>}): Observable<T>
    * A helper class that manages a group of observers with a few handy methods
    * to all start or stop them from observing.
    *
-   * Meant to be extended by [[App.Service]], or any class that has
+   * Meant to be extended by {@link App.Service}, or any class that has
    * some form of life-cycle (on/off) that it wants to tie observing to.
    *
-   * @category observable, toc
+   * @group Observable
    */
   export class ObserverHolder {
 
@@ -1570,7 +1596,7 @@ export function merge<T>(obj: {[K in keyof T]: Observable<T[K]>}): Observable<T>
     }
 
     /**
-     * Does pretty much what [[$observe]] does.
+     * Does pretty much what {@link $observe} does.
      */
     observe<A>(obs: RO<A>, fn: Observer.Callback<A>, options?: ObserveOptions<A>): Observer<A> | null {
       if (!(o.is_observable(obs))) {

@@ -1,0 +1,7 @@
+{
+  "plugin": [],
+  "includes": "src",
+  "excludeInternal": true,
+  "excludeNotDocumented": true,
+  "cleanOutputDir": true
+}

@@ -314,8 +314,14 @@ export namespace App {
     builder: ServiceBuilder<any>
   }
 
+  /**
+   * Type definition of an asynchronous function that can be used as a service in an elt App.
+   */
   export type ServiceBuilder<T> = (srv: App.Service) => Promise<T>
 
+  /**
+   * A single service.
+   */
   export class Service extends o.ObserverHolder {
     constructor(public app: App, public builder: (srv: App.Service) => any) { super() }
     _on_deinit: (() => any)[] = []

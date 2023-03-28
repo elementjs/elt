@@ -6,16 +6,18 @@ import { o } from "./observable"
  *
  * `other` may be itself an observable.
  *
- * @code ../../examples/tf.equals.tsx
- * @category observable, toc
+ * ```tsx
+ * [[include:../../examples/tf.equals.tsx]]
+ * ```
+ * @group Transformer
  */
 export function tf_equals<T, TT extends T>(other: o.RO<TT>) {
   return o.tf(other, oth => (current: T) => current === oth)
 }
 
 /**
- * Does the opposite of [[tf.equals]]
- * @category observable, toc
+ * Does the opposite of {@link tf.equals}
+ * @group Transformer
  */
 export function tf_differs<T, TT extends T>(other: o.RO<TT>) {
   return o.tf(other, oth => (current: T) => current !== oth)
@@ -30,8 +32,8 @@ export function tf_differs<T, TT extends T>(other: o.RO<TT>) {
  *
  * The resulting observable can have set() called on it.
  *
- * This is the basis of [[tf.filter]] and [[tf.array_sort]]
- * @category observable, toc
+ * This is the basis of {@link tf.filter} and {@link tf.array_sort}
+ * @group Transformer
  */
 export function tf_array_transform<T>(fn: o.RO<number[] | ((array: T[]) => number[])>): o.RO<o.Converter<T[], T[]> & {indices: number[]}> {
   return o.tf(fn,
@@ -62,7 +64,7 @@ export function tf_array_transform<T>(fn: o.RO<number[] | ((array: T[]) => numbe
  * @param condition The condition the item has to pass to be kept
  * @param stable If false, the array is refiltered for any change in the condition or array.
  *    If true, only refilter if the condition changes, but keep the indices even if the array changes.
- * @category observable, toc
+ * @group Transformer
  */
 export function tf_array_filter<T>(condition: o.RO<(item: T, idx: number, lst: T[]) => any>, stable: o.RO<boolean> = false): o.RO<o.Converter<T[], T[]> & {indices: number[]}> {
   return o.combine(
@@ -108,7 +110,7 @@ export function tf_array_filter<T>(condition: o.RO<(item: T, idx: number, lst: T
 /**
  * Transforms an array by sorting it. The sort function must return 0 in case of equality.
  * @param sortfn
- * @category observable, toc
+ * @group Transformer
  */
 export function tf_array_sort<T>(sortfn: o.RO<(a: T, b: T) => 1 | 0 | -1>): o.RO<o.Converter<T[], T[]>> {
   return tf_array_transform(o.tf(sortfn, sortfn => (lst: T[]) => {
@@ -124,8 +126,10 @@ export function tf_array_sort<T>(sortfn: o.RO<(a: T, b: T) => 1 | 0 | -1>): o.RO
  * Sort an array by extractors, given in order of importance.
  * To sort in descending order, make a tuple with 'desc' as the second argument.
  *
- * @code ../../examples/tf.array_sort_by.tsx
- * @category observable, toc
+ * ```tsx
+ * [[include:../../examples/tf.array_sort_by.tsx]]
+ * ```
+ * @group Transformer
  */
 export function tf_array_sort_by<T>(sorters: o.RO<([(a: T) => any, "desc" | "asc"] | ((a: T) => any))[]>): o.RO<o.Converter<T[], T[]>> {
   return tf_array_sort(o.tf(sorters,
@@ -159,7 +163,7 @@ export function tf_array_sort_by<T>(sorters: o.RO<([(a: T) => any, "desc" | "asc
 
 /**
  * Group by an extractor function.
- * @category observable, toc
+ * @group Transformer
  */
 export function tf_array_group_by<T, R>(extractor: o.RO<(a: T) => R>): o.RO<o.Converter<T[], [R, T[]][]> & {indices: number[][], length: number}> {
   return o.tf(extractor, extractor => {
@@ -207,7 +211,7 @@ export function tf_array_group_by<T, R>(extractor: o.RO<(a: T) => R>): o.RO<o.Co
 
 /**
  * Object entries, as returned by Object.keys() and returned as an array of [key, value][]
- * @category observable, toc
+ * @group Transformer
  */
 export function tf_entries<T extends object, K extends keyof T>(): o.Converter<T, [K, T[K]][]> {
   return {
@@ -233,7 +237,7 @@ export function tf_entries<T extends object, K extends keyof T>(): o.Converter<T
 
 /**
  * Object entries, as returned by Object.keys() and returned as an array of [key, value][]
- * @category observable, toc
+ * @group Transformer
  */
 export function tf_map_entries<K, V>(): o.Converter<Map<K, V>, [K, V][]> {
   return {
@@ -257,7 +261,7 @@ export function tf_map_entries<K, V>(): o.Converter<Map<K, V>, [K, V][]> {
  * put all the values to the `Set`, and setting it to `false` will remove all of them.
  *
  * The values that should be in the set.
- * @category observable, toc
+ * @group Transformer
  */
 export function tf_set_has<T>(...values: o.RO<T>[]): o.RO<o.Converter<Set<T>, boolean>> {
   return o.combine(values, (values) => {
@@ -286,6 +290,13 @@ export function tf_set_has<T>(...values: o.RO<T>[]): o.RO<o.Converter<Set<T>, bo
 
 export type KeysOfType<T, V> = keyof { [ P in keyof T as T[P] extends V ? P : never ] : P }
 
+
+/**
+ *
+ * @param extractor
+ * @returns
+ * @group Transformer
+ */
 export function tf_group_by_to_object<T>(extractor: o.RO<((v: T) => string) | KeysOfType<T, string | number>>): o.RO<o.Converter<T[], {[key: string]: T[]}>> {
   return o.tf(extractor, extractor => {
     const _extractor = typeof extractor === "string" ? (v: T): string => v[extractor as keyof T] as string : extractor as (v: T) => string
@@ -328,6 +339,13 @@ export function tf_group_by_to_object<T>(extractor: o.RO<((v: T) => string) | Ke
   })
 }
 
+
+/**
+ *
+ * @param extractor
+ * @returns
+ * @group Transformer
+ */
 export function tf_group_by_to_map<T, V>(extractor: o.RO<(v: T) => V>): o.RO<o.Converter<T[], Map<V, T[]>>> {
   return o.tf(extractor, extractor => {
     return {

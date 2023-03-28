@@ -17,6 +17,7 @@
   },
   "type": "module",
   "devDependencies": {
+    "@droppedcode/typedoc-plugin-relative-includes": "^1.0.4",
     "@types/js-yaml": "^4.0.5",
     "@typescript-eslint/eslint-plugin": "^5.15.0",
     "@typescript-eslint/parser": "^5.15.0",
@@ -24,6 +25,7 @@
     "esbuild": "0.17.13",
     "eslint": "^8.11.0",
     "js-yaml": "^4.1.0",
+    "typedoc": "^0.23.28",
     "typescript": "5.0.2",
     "wtsc": "^0.1.3"
   }
