@@ -273,7 +273,7 @@ export interface ReadonlyObservable<A> {
  *
  * @group Observable
  */
-export type RO<A> = Observable<A> | ReadonlyObservable<A> | A
+export type RO<A> = ReadonlyObservable<A> | A | (A extends ReadonlyObservable<any> ? never : ReadonlyObservable<A>)
 
 
 /** @internal */
@@ -680,7 +680,7 @@ export class Observable<A> implements ReadonlyObservable<A>, Indexable {
   tf<B>(transform: RO<TransfomFn<A, B> | ReadonlyConverter<A, B>>, rev?: o.RO<RevertFn<A, B>>): ReadonlyObservable<B> {
     let old: A | NoValue = NoValue
     let old_val: B | NoValue = NoValue
-    return combine([this, transform, rev] as [Observable<A>, RO<TransfomFn<A, B> | ReadonlyConverter<A, B>>, RevertFn<A, B>],
+    return combine([this, transform, rev] as [ReadonlyObservable<A>, RO<TransfomFn<A, B> | ReadonlyConverter<A, B>>, RevertFn<A, B>],
       ([v, fnget]) => {
         const curval = (typeof fnget === "function" ? fnget(v, old, old_val) : fnget.transform(v, old, old_val))
         const arg_nb = (typeof fnget === "function" ? fnget.length : fnget.transform.length)
@@ -722,7 +722,7 @@ export class Observable<A> implements ReadonlyObservable<A>, Indexable {
   key<A, B>(this: Observable<Map<A, B>>, key: RO<A>, def?: undefined, delete_on_undefined?: RO<boolean | undefined>): Observable<B | undefined>
   key<A, B>(this: Observable<Map<A, B>>, key: RO<A>, def: RO<(key: A, map: Map<A, B>) => B>): Observable<B>
   key<A, B>(this: Observable<Map<A, B>>, key: RO<A>, def?: RO<(key: A, map: Map<A, B>) => B>, delete_on_undefined = true as RO<boolean | undefined>): Observable<B | undefined> {
-    return combine([this, key, def, delete_on_undefined] as [Observable<Map<A, B>>, RO<A>, RO<(key: A, map: Map<A, B>) => B>, RO<boolean>],
+    return combine([this, key, def, delete_on_undefined] as [ReadonlyObservable<Map<A, B>>, RO<A>, RO<(key: A, map: Map<A, B>) => B>, RO<boolean>],
       ([map, key, def]) => {
         let res = map.get(key)
         if (res === undefined && def) {
@@ -965,7 +965,7 @@ export function merge<T>(obj: {[K in keyof T]: Observable<T[K]>}): Observable<T>
    */
   export function prop<T, K extends keyof T>(obj: Observable<T> | T, prop: RO<K>, def?: RO<(key: K, obj: T) => T[K]>) {
     return combine(
-      tuple(obj, prop, def),
+      tuple(obj as T, prop, def),
       ([obj, prop, def]) => {
         let res = obj[prop]
         if (res === undefined && def)
@@ -1097,9 +1097,7 @@ export function merge<T>(obj: {[K in keyof T]: Observable<T[K]>}): Observable<T>
    * ```
    * @group Observable
    */
-  export function join<A extends any[]>(...deps: {[K in keyof A]: Observable<A[K]>}): Observable<A>
-  export function join<A extends any[]>(...deps: {[K in keyof A]: RO<A[K]>}): ReadonlyObservable<A>
-  export function join<A extends any[]>(...deps: {[K in keyof A]: RO<A[K]>}): any {
+  export function join<A extends any[]>(...deps: A): A[number] extends o.Observable<any> ? Observable<{[K in keyof A]: o.ObservedType<A[K]>}> : o.ReadonlyObservable<{[K in keyof A]: o.ObservedType<A[K]>}> {
     return new CombinedObservable(deps)
   }
 
