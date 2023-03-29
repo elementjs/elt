@@ -2,7 +2,7 @@
 
 ELT is a [typescript](https://typescriptlang.org) library for building user interfaces in a web environment. It is not meant to build websites ; its purpose is to write applications.
 
-Weighing less than 15kb minified and gziped, it is meant as an alternative to React, Angular and the likes. Unlike several of them, it does *not* make use of any kind of virtual DOM. Instead, it provides the developper with an [`Observable`](#o.Observable) class and a few easy to use hooks on the node life cycle to react to their presence in the document. It also provides a [`Mixin`](#Mixin) class for those cases when writing extensible code is required.
+Weighing less than 15kb minified and gziped, it is meant as an alternative to React, Angular and the likes. Unlike several of them, it does *not* make use of any kind of virtual DOM. Instead, it provides the developper with an [`Observable`](#o.Observable) class and a few easy to use hooks on the node life cycle to react to their presence in the document.
 
 It makes use of fairly modern standards, such as `Map`, `Set`, `Symbol` and `WeakMap`. As such, it probably won't run on IE without using polyfills. In general, support is limited to less than two years old browser versions.
 
@@ -35,15 +35,13 @@ ELT offers the following concepts to get this done :
 
  * For binding data to the document in an MVVM manner, there is an [`Observable`](#o.Observable) class, which is essentially a wrapper around an immutable object that informs [`Observer`](#o.Observer)s whenever its value is changed. Observables can also be combined together or transformed to get new observables whose value change whenever their base Observable change.
 
- * Since observing an observable makes them keeps a reference to their observers in the memory, observers have to be deregistered properly when they're not used anymore. To alleviate the burden on the programmer and avoid forgetting to stop the observers -- and thus create memory leaks, ELT associates observing with nodes and whether they're in the document or not. See [`$observe()`](#$observe), [`node_observe()`](#node_observe) and [`Mixin.observe()`](#Mixin.observe).
+ * Since observing an observable makes them keeps a reference to their observers in the memory, observers have to be deregistered properly when they're not used anymore. To alleviate the burden on the programmer and avoid forgetting to stop the observers -- and thus create memory leaks, ELT associates observing with nodes and whether they're in the document or not. See [`$observe()`](#$observe), and [`node_observe()`](#node_observe).
 
  * Since the DOM does not offer a simple way to know *when* a node is added or removed from the document other than using a `MutationObserver`, ELT offers a way to react to these events by setting up the observer itself and registering callbacks directly on the `Node`s. See [`$inserted()`](#$inserted), [`$removed()`](#$removed), but also [`$init()`](#$init).
 
  * Instead of creating components that change what they render based on the values of Observables, such as an hypothetical `<If condition={...}>`, ELT uses "verbs" ; functions whose name starts with an **upper-case** letter. While a component-based approach would work perfectly, the "verb" approach is more explicit about where dynamicity is happening in the code. See [`If()`](#If), [`Repeat`](#Repeat), [`RepeatScroll`](#RepeatScroll) and [`Switch`](#Switch).
 
  * To avoid declaring a boatload of variables to modify nodes that are being created, ELT defines ["decorators"](#Decorator) which are callback functions that can be added as children of a node. See all the `$` prefixed functions followed by a **lower-case** letter. Their naming scheme was thought to differenciate them from function calls that actually *create* Nodes.
-
- * While most of the time it is simpler to use Function components and bind on `Node`s directly with decorators, it is sometimes preferable to adopt an object oriented approach. For those cases, there is the [`Mixin`](#Mixin) class, or even the [`Component`](#Component) class.
 
  * At last, ELT offers a simple way to build applications with the [`App`](#App) class and friends. While it is not mandatory to use it to get things done, it's small enough to not add much weight to the library, and convenient enough to build complex applications to justify its inclusion in the core library and not become "yet another package".
 
@@ -399,54 +397,24 @@ document.body.appendChild(<Fragment>
 ```
 
 
-## Mixins
+## Component Functions
 
-A [`Mixin`](#Mixin) is an object that is tied to a node. Just like decorators, they are part of the [`Insertable`](#Insertable) type, which means that the way to add them to a `Node` is simply to put them somewhere in their children.
-
-They serve as the basis for the `Component` class below, and have a few convenient methods, such as `.observe()` and `.listen()`, and have a way of defining `init()`, `inserted()` and `removed()` that work like their decorator counterparts.
-
-Aside from creating components with the `Component` class, their utility resides in the fact they allow a developper to write extensible classes and to encapsulate code neatly when the component has a complex and lengthy implementation.
-
-```tsx
-import { Mixin } from 'elt'
-
-// This mixin can be added on just any node.
-class MyMixin<N extends Node> extends Mixin<N> {
-  inserted(node: N) {
-    console.log(`I was inserted on`, parent)
-  }
-
-  removed(node: N, parent: Node) {
-    console.log(`I was removed from the document`)
-    console.log(`My parent was`, parent)
-  }
-}
-
-document.body.appendChild(<div>{new MyMixin()}</div>)
-```
-
-## Components
-
-Use components when you want to reuse dom structures without hassle.
-
-There are two ways of building components ; as a simple function or as a class.
-
-### Component Functions
-
-A component function takes two arguments and return a Node.
-
-The first argument is always an [`Attrs`](#Attrs) type, with the returned node type as a template argument. The second argument is always [`Renderable[]](#Renderable) and are the children that are to be added to this component.
+A component function takes an attribute object and return a Node.
 
 The `attrs` argument represents what attributes can be set on the component. In simple cases, it is enough to give the arguments with the `&` operator.
+
+Children are always appended at the toplevel element returned by the function. If you want to control where they go, use the ShadowRoot with the $shadow decorator in tandem with `<slot>`.
 
 ```tsx
 import { Attrs, Renderable } from 'elt'
 
-function MyComponent(attrs: Attrs<HTMLDivElement> & {title: string}, children: Renderable[]) {
+function MyComponent(attrs: Attrs<HTMLDivElement> & {title: string}) {
   return <div>
-      <h1>{attrs.title}</h1>
-      {/* children will be inserted in the body div. */}
-      <div class='body'>{children}</div>
+      {$shadow(<>
+        <h1>{attrs.title}</h1>
+        {/* children will be inserted in the body div. */}
+        <div class='body'><slot/></div>
+      </>)}
     </div> as HTMLDivElement
 }
 
@@ -470,26 +438,7 @@ function MyComponent(attrs: MyComponentAttrs, children: Renderable[]) {
 }
 ```
 
-### Component class
-
-A component is a subclass of `Mixin`. A custom Component must define a `.render()` method that returns the node type specified in its `Attrs` type and takes renderables as its only argument.
-
-By default, the attributes are accessible as `this.attrs` in the component methods.
-
-```tsx
-class MyComponent extends Component<Attrs<HTMLDivElement> & {title: string}> {
-
-  render(children: Renderable[]) {
-    return E.DIV(
-      E.H1(this.attrs.title),
-      E.DIV($class('body'), children)
-    )
-  }
-
-}
-```
-
-### `class`, `style` and `id`
+## `class`, `style` and `id`
 
 Since these three attributes are ubiquitous on just any element type, they are handled separately.
 
@@ -502,17 +451,3 @@ const o_cls = o('some_class')
 <MyComponent class={o_cls} id='some-id' style={{width: '350px'}}/>
 
 ```
-
-### Components and other Mixins or Decorators
-
-Decorators and Mixins can be added to components ; the node they act upon is always the root node returned by the component, as is specified in their `Attrs` definition.
-
-```tsx
-<MyComponent>
-  {$click(ev => {
-    console.log('the component was clicked on !')
-  })}
-  {$class('another_class', o_observable_classname)}
-</MyComponent>
-```
-
