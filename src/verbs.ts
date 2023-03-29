@@ -288,7 +288,11 @@ export namespace RepeatScroll {
     }
 
     scroll_buffer_size = this.options.scroll_buffer_size ?? 10
-    threshold_height = this.options.threshold_height ?? 500
+    threshold = this.options.threshold_height ?? 500
+
+    inter: IntersectionObserver | null = null
+    last_watched: Element | null = null
+
     // Have to type this manually since dts-bundler chokes on Renderable
     separator?: (n: number) => Renderable = this.options.separator
 
@@ -299,52 +303,42 @@ export namespace RepeatScroll {
     appendChildren() {
       // Instead of appending all the count, break it down to bufsize packets.
       const bufsize = this.scroll_buffer_size
+      if (bufsize <= 0) return
+      if (this.last_watched) { this.inter!.unobserve(this.last_watched) }
+      super.appendChildren(bufsize)
+      this.updateLast()
+    }
 
-      const append = () => {
-        const p = this.parent
-        if (!p || this.next_index < this.lst.length && p.scrollHeight - (p.clientHeight + p.scrollTop) < this.threshold_height) {
-          super.appendChildren(bufsize)
-          requestAnimationFrame(append)
-        }
+    updateLast() {
+      if (!this.inter) return
+      if (this.last_watched) { this.inter!.unobserve(this.last_watched) }
+      const last = this.node.lastElementChild?.lastElementChild as Element
+      if (last) {
+        this.last_watched = last
+        this.inter!.observe(this.last_watched)
       }
-
-      requestAnimationFrame(append)
     }
 
     inserted() {
       // do not process this if the node is not inserted.
       if (!this.node.isConnected) return
-
-      // Find parent with the overflow-y
-      let iter = this.node.parentElement
-      while (iter) {
-        const style = getComputedStyle(iter) as any
-        if (style.overflowY === "auto" || style.msOverflowY === "auto" || style.msOverflowY === "scrollbar") {
-          this.parent = iter
-          break
+      this.inter = new IntersectionObserver(entries => {
+        for (let e of entries) {
+          if (e.isIntersecting) {
+            this.appendChildren()
+          }
         }
-        iter = iter.parentElement
-      }
-
-      if (!this.parent) {
-        console.warn("Scroll repeat needs a parent with overflow-y: auto")
-        this.appendChildren()
-        return
-      }
-
-      this.parent.addEventListener("scroll", this.onscroll)
+      }, { rootMargin: `${this.threshold}px`, })
+      this.updateLast()
     }
-
-    onscroll = o.throttle(() => {
-      if (!this.parent) return
-      this.appendChildren()
-    }, 100)
 
     removed() {
       // remove Scrolling
-      if (!this.parent) return
+      this.inter?.disconnect()
+      this.last_watched = null
+      this.inter = null
 
-      this.parent.removeEventListener("scroll", this.onscroll)
+      if (!this.parent) return
       this.parent = null
     }
 
