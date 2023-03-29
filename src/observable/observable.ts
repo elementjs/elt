@@ -1321,7 +1321,7 @@ export function merge<T>(obj: {[K in keyof T]: Observable<T[K]>}): Observable<T>
    *
    * @category observable
    */
-  export const sym_clone = Symbol("o.clone_symbol")
+  export const sym_clone = Symbol.for("--elt-o-clone_symbol--")
 
 
   /**
@@ -1355,8 +1355,16 @@ export function merge<T>(obj: {[K in keyof T]: Observable<T[K]>}): Observable<T>
    */
   export function clone<T>(obj: T | {[o.sym_clone]: () => T}): T
   export function clone(obj: any): any {
-    if (obj == null || typeof obj === "number" || typeof obj === "string" || typeof obj === "boolean")
-      return obj
+    if (obj == null) return obj
+    switch (typeof obj) {
+      case "bigint":
+      case "boolean":
+      case "function":
+      case "number":
+      case "string":
+      case "symbol":
+        return obj
+    }
 
     if (obj[sym_clone]) {
       return obj[sym_clone]()
