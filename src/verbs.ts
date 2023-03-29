@@ -360,7 +360,7 @@ export namespace RepeatScroll {
 
 }
 
-/*
+/**
  * Perform a Switch statement on an observable.
  *
  * ```tsx
