@@ -5,8 +5,8 @@ import {
 import {
   node_observe,
   node_attach_shadow,
-  node_do_inserted,
-  node_do_remove,
+  node_do_connected,
+  node_do_disconnect,
 } from "./dom"
 
 
@@ -178,13 +178,13 @@ export class EltCustomElement extends HTMLElement {
     }
 
     if (this.shadowRoot) {
-      node_do_inserted(this.shadowRoot)
+      node_do_connected(this.shadowRoot)
     }
   }
 
   disconnectedCallback() {
     if (this.shadowRoot) {
-      node_do_remove(this.shadowRoot)
+      node_do_disconnect(this.shadowRoot)
     }
   }
 

@@ -15,8 +15,8 @@ export const sym_exposed = Symbol.for("--elt-custom-exposed--")
 export const sym_is_observable = Symbol.for("--elt-is-observable--")
 
 /**
- * Symbol property on `Node` to an array of observers that are started when the node is `init()` or `inserted()` and
- * stopped on `removed()`.
+ * Symbol property on `Node` to an array of observers that are started when the node is `connected()` and
+ * stopped on `disconnected()`.
  * @internal
  */
 export const sym_observers = Symbol.for("--elt-node-observers--")
@@ -26,16 +26,16 @@ export const sym_observers = Symbol.for("--elt-node-observers--")
  * Its value type is `string`.
  * @internal
  */
-export const sym_mount_status = Symbol("--elt-node-mount-status--")
+export const sym_connected_status = Symbol("--elt-node-connected-status--")
 
 /**
  * A symbol property on `Node` to an array of functions to run when the node is **inserted** into a document.
  * @internal
  */
-export const sym_inserted = Symbol("--elt-node-inserted-callbacks--")
+export const sym_connected = Symbol("--elt-node-connected-callbacks--")
 
 /**
  * A symbol property on `Node` to an array of functions to run when the node is **removed** from a document.
  * @internal
  */
-export const sym_removed = Symbol("--elt-node-removed-callbacks--")
+export const sym_disconnected = Symbol("--elt-node-disconnected-callbacks--")
