@@ -9,10 +9,10 @@ import { Display } from "./elt"
 
 import {
   node_append,
-  node_do_remove,
+  node_do_disconnect,
   node_observe,
-  node_on_inserted,
-  node_on_removed,
+  node_on_connected,
+  node_on_disconnected,
 } from "./dom"
 
 import { Renderable } from "./types"
@@ -209,7 +209,7 @@ export namespace Repeat {
         const next = iter.previousSibling as Element | null
         count--
         if (count === -1) { break }
-        node_do_remove(iter)
+        node_do_disconnect(iter)
         this.node.removeChild(iter)
         iter = next
         if (iter == null) { break }
@@ -319,7 +319,7 @@ export namespace RepeatScroll {
       }
     }
 
-    inserted() {
+    connected() {
       // do not process this if the node is not inserted.
       if (!this.node.isConnected) return
       this.inter = new IntersectionObserver(entries => {
@@ -332,7 +332,7 @@ export namespace RepeatScroll {
       this.updateLast()
     }
 
-    removed() {
+    disconnected() {
       // remove Scrolling
       this.inter?.disconnect()
       this.last_watched = null
@@ -344,8 +344,8 @@ export namespace RepeatScroll {
 
     render() {
       const node = super.render()
-      node_on_inserted(node, () => this.inserted())
-      node_on_removed(node, () => this.removed())
+      node_on_connected(node, () => this.connected())
+      node_on_disconnected(node, () => this.disconnected())
       return node
     }
 

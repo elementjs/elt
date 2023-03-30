@@ -1,25 +1,25 @@
 import { Display, } from "./elt"
 import { o } from "./observable"
 import type { ClassDefinition, StyleDefinition, Listener, Insertable, Attrs, } from "./types"
-import { sym_mount_status, sym_observers, sym_inserted, sym_removed, sym_exposed, } from "./symbols"
+import { sym_connected_status, sym_observers, sym_connected, sym_disconnected, sym_exposed, } from "./symbols"
 
-const NODE_IS_INSERTED =      0b001
+const NODE_IS_CONNECTED =      0b001
 const NODE_IS_OBSERVING =     0b010
 
 export type LifecycleCallback<N = Node> = (n: N) => void
 
 declare global {
   interface Node {
-    [sym_mount_status]: number // we cheat on the undefined as all masking operations as undefined is considered 0
+    [sym_connected_status]: number // we cheat on the undefined as all masking operations as undefined is considered 0
     [sym_observers]?: o.Observer<any>[]
 
-    [sym_inserted]?: LifecycleCallback[]
-    [sym_removed]?: LifecycleCallback[]
+    [sym_connected]?: LifecycleCallback[]
+    [sym_disconnected]?: LifecycleCallback[]
   }
 }
 
 
-function _node_call_cbks(node: Node, sym: typeof sym_inserted | typeof sym_removed) {
+function _node_call_cbks(node: Node, sym: typeof sym_connected | typeof sym_disconnected) {
   const cbks = node[sym]
   if (cbks) {
     for (let i = 0, l = cbks.length; i < l; i++) {
@@ -55,7 +55,7 @@ function _node_stop_observers(node: Node) {
  * @group Dom
  */
 export function node_is_observing(node: Node) {
-  return !!(node[sym_mount_status] & NODE_IS_OBSERVING)
+  return !!(node[sym_connected_status] & NODE_IS_OBSERVING)
 }
 
 
@@ -68,35 +68,35 @@ export function node_is_observing(node: Node) {
  *
  * @group Dom
  */
-export function node_is_inserted(node: Node) {
-  return !!(node[sym_mount_status] & NODE_IS_INSERTED)
+export function node_is_connected(node: Node) {
+  return !!(node[sym_connected_status] & NODE_IS_CONNECTED)
 }
 
 
-function _apply_inserted(node: Node) {
+function _apply_connected(node: Node) {
 
-  const st = node[sym_mount_status] || 0
+  const st = node[sym_connected_status] || 0
 
-  node[sym_mount_status] = NODE_IS_INSERTED | NODE_IS_OBSERVING // now inserted
+  node[sym_connected_status] = NODE_IS_CONNECTED | NODE_IS_OBSERVING // now inserted
 
   // restart observers
   if (!(st & NODE_IS_OBSERVING)) _node_start_observers(node)
 
   // then, call inserted.
-  if (!(st & NODE_IS_INSERTED)) _node_call_cbks(node, sym_inserted)
+  if (!(st & NODE_IS_CONNECTED)) _node_call_cbks(node, sym_connected)
 }
 
 
 /**
  * @internal
  */
-export function node_do_inserted(node: Node) {
-  if (node[sym_mount_status] & NODE_IS_INSERTED) return
+export function node_do_connected(node: Node) {
+  if (node[sym_connected_status] & NODE_IS_CONNECTED) return
 
-  _apply_inserted(node)
+  _apply_connected(node)
   let iter = node.firstChild
   while (iter) {
-    node_do_inserted(iter)
+    node_do_connected(iter)
     iter = iter.nextSibling
   }
 }
@@ -106,17 +106,17 @@ export function node_do_inserted(node: Node) {
  * Apply unmount to a node.
  * @internal
  */
-function _apply_removed(node: Node) {
-  const st = node[sym_mount_status]
+function _apply_disconnected(node: Node) {
+  const st = node[sym_connected_status]
 
-  node[sym_mount_status] = 0
+  node[sym_connected_status] = 0
 
   if (st & NODE_IS_OBSERVING) {
     _node_stop_observers(node)
   }
 
-  if (st & NODE_IS_INSERTED) {
-    _node_call_cbks(node, sym_removed)
+  if (st & NODE_IS_CONNECTED) {
+    _node_call_cbks(node, sym_disconnected)
   }
 }
 
@@ -128,15 +128,15 @@ function _apply_removed(node: Node) {
  *
  * @internal
  */
-export function node_do_remove(node: Node) {
+export function node_do_disconnect(node: Node) {
 
   let iter = node.firstChild
-  while (iter) { // first[sym_mount_status] & NODE_IS_INSERTED
-    node_do_remove(iter)
+  while (iter) {
+    node_do_disconnect(iter)
     iter = iter.nextSibling
   }
 
-  _apply_removed(node)
+  _apply_disconnected(node)
 }
 
 
@@ -149,7 +149,7 @@ export function node_do_remove(node: Node) {
  * @group Dom
  */
 export function node_remove(node: Node): void {
-  node_do_remove(node) // just stop observers otherwise...
+  node_do_disconnect(node) // just stop observers otherwise...
   const parent = node.parentNode!
   if (parent) {
     parent.removeChild(node)
@@ -165,7 +165,7 @@ export function node_clear(node: Node): void {
   while (node.firstChild) {
     const c = node.firstChild
     node.removeChild(c)
-    node_do_remove(c)
+    node_do_disconnect(c)
   }
 }
 
@@ -178,21 +178,14 @@ const _registered_documents = new WeakSet<Document>()
 
 /**
  * Setup the mutation observer that will be in charge of listening to document changes
- * so that the `init`, `inserted` and `removed` life-cycle callbacks are called.
+ * so that the `connected` and `disconnected` life-cycle callbacks are called.
  *
- * This should be the first thing done at the top level of a project using ELT.
- *
- * If the code opens another window, it **must** use `setup_mutation_observer` on the newly created
- * window's document or other `Node` that will hold the ELT application.
- *
- * This function also registers a listener on the `unload` event of the `document` or `ownerDocument`
- * to stop all the observers when the window closes.
+ * Only to be used when nodes will be appended by a third party library that won't call the hooks otherwise.
  *
  * ```tsx
  * [[include:../examples/setup_mutation_observer.tsx]]
  * ```
  *
- * @deprecated
  * @group Dom
  */
 export function setup_mutation_observer(node: Node) {
@@ -206,12 +199,12 @@ export function setup_mutation_observer(node: Node) {
       for (let removed = record.removedNodes, j = 0, lj = removed.length; j < lj; j++) {
         const removed_node = removed[j]
         if (!removed_node.isConnected) {
-          node_do_remove(removed_node)
+          node_do_disconnect(removed_node)
         }
       }
       for (let added = record.addedNodes, j = 0, lj = added.length; j < lj; j++) {
         const added_node = added[j]
-        node_do_inserted(added_node)
+        node_do_connected(added_node)
       }
     }
   })
@@ -222,7 +215,7 @@ export function setup_mutation_observer(node: Node) {
   if (!_registered_documents.has(target_document)) {
     target_document.defaultView?.addEventListener("unload", () => {
       // Calls a `removed` on all the nodes in the closing window.
-      node_do_remove(target_document.firstChild!)
+      node_do_disconnect(target_document.firstChild!)
       obs.disconnect()
     })
   }
@@ -233,7 +226,7 @@ export function setup_mutation_observer(node: Node) {
     subtree: true,
   })
 
-  node_do_inserted(node)
+  node_do_connected(node)
 
   return obs
 }
@@ -267,14 +260,14 @@ export function node_append<N extends Node>(node: N, insertable: Insertable<N> |
 
       if (node.isConnected) {
         do {
-          node_do_inserted(start!)
+          node_do_connected(start!)
           start = start!.nextSibling
         } while (start && start !== refchild)
       }
     } else {
       node.insertBefore(insertable, refchild)
       if (node.isConnected) {
-        node_do_inserted(insertable)
+        node_do_connected(insertable)
       }
     }
 
@@ -389,12 +382,12 @@ export function node_attach_shadow(node: HTMLElement, child: Node, opts: $Shadow
   shadow.insertBefore(opts == null ? opts as Node : child as Node, null)
 
   if (add_callbacks) {
-    node_on_inserted(node, () => {
-      node_do_inserted(shadow)
+    node_on_connected(node, () => {
+      node_do_connected(shadow)
     })
 
-    node_on_removed(node, () => {
-      node_do_remove(shadow)
+    node_on_disconnected(node, () => {
+      node_do_disconnect(shadow)
     })
   }
 
@@ -419,7 +412,7 @@ export function node_observe<T>(
     if (options?.immediate)
       obsfn(obs as T, o.NoValue)
     else
-      node_on_inserted(node, () => obsfn(obs as T, o.NoValue))
+      node_on_connected(node, () => obsfn(obs as T, o.NoValue))
     return null
   }
   // Create the observer and append it to the observer array of the node
@@ -445,7 +438,7 @@ export function node_add_observer<T>(node: Node, observer: o.Observer<T>) {
   if (node[sym_observers] == undefined)
     node[sym_observers] = []
   node[sym_observers]!.push(observer)
-  if (node[sym_mount_status] & NODE_IS_OBSERVING) observer.startObserving()
+  if (node[sym_connected_status] & NODE_IS_OBSERVING) observer.startObserving()
 }
 
 declare global {
@@ -480,8 +473,8 @@ export function node_add_event_listener(target: Node, node: any, events: any, li
   function add_listener(event: string, listener: Listener<any>) {
     if (target !== node) {
       // If the targeted node is not the same, then we *must* remove the event listener if the node observing the events goes away. Otherwise, we get memory leaks.
-      node_on_inserted(node, () => { target.addEventListener(event, listener) })
-      node_on_removed(node, () => { target.removeEventListener(event, listener) })
+      node_on_connected(node, () => { target.addEventListener(event, listener) })
+      node_on_disconnected(node, () => { target.removeEventListener(event, listener) })
     } else {
       node.addEventListener(event, listener)
     }
@@ -504,7 +497,7 @@ export function node_add_event_listener(target: Node, node: any, events: any, li
  * @group Dom
  */
 export function node_unobserve(node: Node, obsfn: o.Observer<any> | o.ObserverCallback<any>) {
-  const is_observing = node[sym_mount_status] & NODE_IS_OBSERVING
+  const is_observing = node[sym_connected_status] & NODE_IS_OBSERVING
   node[sym_observers] = node[sym_observers]?.filter(ob => {
     const res = ob === obsfn || ob.fn === obsfn
     if (res && is_observing) {
@@ -661,8 +654,8 @@ function _remove_class(node: Element, c: string) {
  * @param node
  * @param callback
  */
-export function node_on_inserted<N extends Node>(node: N, callback: LifecycleCallback<N>) {
-  node_on(node, sym_inserted, callback)
+export function node_on_connected<N extends Node>(node: N, callback: LifecycleCallback<N>) {
+  node_on(node, sym_connected, callback)
 }
 
 /**
@@ -671,8 +664,8 @@ export function node_on_inserted<N extends Node>(node: N, callback: LifecycleCal
  * @param node
  * @param callback
  */
-export function node_on_removed<N extends Node>(node: N, callback: LifecycleCallback<N>) {
-  node_on(node, sym_removed, callback)
+export function node_on_disconnected<N extends Node>(node: N, callback: LifecycleCallback<N>) {
+  node_on(node, sym_disconnected, callback)
 }
 
 
@@ -682,8 +675,8 @@ export function node_on_removed<N extends Node>(node: N, callback: LifecycleCall
  * @param node
  * @param callback
  */
-export function node_off_inserted<N extends Node>(node: N, callback: LifecycleCallback<N>) {
-  node_off(node, sym_inserted, callback)
+export function node_off_connected<N extends Node>(node: N, callback: LifecycleCallback<N>) {
+  node_off(node, sym_connected, callback)
 }
 
 /**
@@ -692,14 +685,14 @@ export function node_off_inserted<N extends Node>(node: N, callback: LifecycleCa
  * @param node
  * @param callback
  */
-export function node_off_removed<N extends Node>(node: N, callback: LifecycleCallback<N>) {
-  node_off(node, sym_removed, callback)
+export function node_off_disconnected<N extends Node>(node: N, callback: LifecycleCallback<N>) {
+  node_off(node, sym_disconnected, callback)
 }
 
 /* @internal */
 function node_on<N extends Node>(
   node: N,
-  sym: typeof sym_inserted | typeof sym_removed,
+  sym: typeof sym_connected | typeof sym_disconnected,
   callback: LifecycleCallback<N>
 ) {
   const cbks = (node[sym] ??= [])
@@ -713,7 +706,7 @@ function node_on<N extends Node>(
  */
 function node_off<N extends Node>(
   node: N,
-  sym: typeof sym_inserted | typeof sym_removed,
+  sym: typeof sym_connected | typeof sym_disconnected,
   callback: LifecycleCallback<N>
 ) {
   const cbks = node[sym]

@@ -7,8 +7,8 @@ import {
   node_observe_class,
   node_observe_style,
   node_add_event_listener,
-  node_on_inserted,
-  node_on_removed,
+  node_on_connected,
+  node_on_disconnected,
   KEvent,
   EventsForKeys,
   $ShadowOptions,
@@ -269,12 +269,17 @@ export function $click<N extends HTMLElement | SVGElement>(cbk: Listener<MouseEv
  *
  * @group Decorators
  */
-export function $inserted<N extends Node>(fn: (node: N) => void) {
+export function $connected<N extends Node>(fn: (node: N) => void) {
   return (node: N) => {
-    node_on_inserted(node, fn)
+    node_on_connected(node, fn)
   }
 }
 
+/**
+ * Alias for {@link $connected}
+ * @deprecated
+ */
+export const $inserted = $connected
 
 /**
  * Run a callback when the node is removed from its holding document, with `node`
@@ -284,12 +289,16 @@ export function $inserted<N extends Node>(fn: (node: N) => void) {
  *
  * @group Decorators
  */
-export function $removed<N extends Node>(fn: (node: N) => void) {
+export function $disconnected<N extends Node>(fn: (node: N) => void) {
   return (node: N) => {
-    node_on_removed(node, fn)
+    node_on_disconnected(node, fn)
   }
 }
-
+/**
+ * Alias for {@link $disconnected}
+ * @deprecated
+ */
+export const $removed = $disconnected
 
 /**
  * Attach a shadow root to a node and setup an internal mutation observer
