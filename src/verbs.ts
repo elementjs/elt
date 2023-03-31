@@ -278,6 +278,7 @@ export namespace RepeatScroll {
   export class ScrollRepeater<T> extends Repeat.Repeater<T> {
 
     protected parent: HTMLElement|null = null
+    instersector = document.createElement("span")
 
     constructor(
       ob: o.Observable<T[]>,
@@ -306,22 +307,12 @@ export namespace RepeatScroll {
       if (bufsize <= 0) return
       if (this.last_watched) { this.inter!.unobserve(this.last_watched) }
       super.appendChildren(bufsize)
-      this.updateLast()
-    }
-
-    updateLast() {
-      if (!this.inter) return
-      if (this.last_watched) { this.inter!.unobserve(this.last_watched) }
-      const last = this.node.lastElementChild?.lastElementChild as Element
-      if (last) {
-        this.last_watched = last
-        this.inter!.observe(this.last_watched)
-      }
     }
 
     connected() {
       // do not process this if the node is not inserted.
       if (!this.node.isConnected) return
+
       this.inter = new IntersectionObserver(entries => {
         for (let e of entries) {
           if (e.isIntersecting) {
@@ -329,7 +320,7 @@ export namespace RepeatScroll {
           }
         }
       }, { rootMargin: `${this.threshold}px`, })
-      this.updateLast()
+      this.inter.observe(this.instersector)
     }
 
     disconnected() {
@@ -346,6 +337,14 @@ export namespace RepeatScroll {
       const node = super.render()
       node_on_connected(node, () => this.connected())
       node_on_disconnected(node, () => this.disconnected())
+
+      const shadow = node.attachShadow({ mode: "open" })
+      const st = this.instersector.style
+      st.width = "0px"
+      st.height = "0px"
+      shadow.appendChild(document.createElement("slot"))
+      shadow.appendChild(this.instersector)
+
       return node
     }
 
