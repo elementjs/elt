@@ -22,7 +22,7 @@ import { EltCustomElement } from "./custom-elements"
 
 export function setup_base_styles(doc = document) {
   const style = doc.createElement("style")
-  style.append(`e-obs,e-if,e-switch,e-repeat,e-repeat-scroll,e-ritem,e-iter,e-app,e-app-view,e-lang{ display: contents }`)
+  style.append(`e-obs,e-if,e-switch,e-repeat,e-repeat-scroll,e-virtual-scroll,e-ritem,e-iter,e-app,e-app-view,e-lang{ display: contents }`)
   doc.head.appendChild(style)
 }
 requestAnimationFrame(() => setup_base_styles())

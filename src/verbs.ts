@@ -440,8 +440,9 @@ export namespace Switch {
     Case(predicate: (t: T) => any, fn: (v: o.ReadonlyObservable<T>) => Renderable): this
     /** See {@link Switch.Switcher#Else} */
 
-}
+  }
 
+}
 
 /**
  * Display the result of `fn` if the promise is waiting for its result, or if the promise currently
@@ -451,6 +452,8 @@ export namespace Switch {
  *
  * @group Verbs
  */
+export function IfResolving(pro: o.RO<Promise<any>>, fn: () => Renderable) {
+  return If(o.wrapPromise(pro).tf(v => v.resolving), fn)
 }
 
 
