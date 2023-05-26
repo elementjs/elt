@@ -279,6 +279,7 @@ export namespace RepeatScroll {
 
     protected parent: HTMLElement|null = null
     instersector = document.createElement("span")
+    intersecting = false
 
     constructor(
       ob: o.Observable<T[]>,
@@ -292,7 +293,6 @@ export namespace RepeatScroll {
     threshold = this.options.threshold_height ?? 500
 
     inter: IntersectionObserver | null = null
-    last_watched: Element | null = null
 
     // Have to type this manually since dts-bundler chokes on Renderable
     separator?: (n: number) => Renderable = this.options.separator
@@ -303,10 +303,12 @@ export namespace RepeatScroll {
      */
     appendChildren() {
       // Instead of appending all the count, break it down to bufsize packets.
-      const bufsize = this.scroll_buffer_size
-      if (bufsize <= 0) return
-      if (this.last_watched) { this.inter!.unobserve(this.last_watched) }
-      super.appendChildren(bufsize)
+      super.appendChildren(this.scroll_buffer_size)
+      requestAnimationFrame(() => {
+        if (this.intersecting) {
+          this.appendChildren()
+        }
+      })
     }
 
     connected() {
@@ -318,6 +320,7 @@ export namespace RepeatScroll {
           if (e.isIntersecting) {
             this.appendChildren()
           }
+          this.intersecting = e.isIntersecting
         }
       }, { rootMargin: `${this.threshold}px`, })
       this.inter.observe(this.instersector)
@@ -326,7 +329,6 @@ export namespace RepeatScroll {
     disconnected() {
       // remove Scrolling
       this.inter?.disconnect()
-      this.last_watched = null
       this.inter = null
 
       if (!this.parent) return
