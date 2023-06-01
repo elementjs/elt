@@ -553,7 +553,7 @@ export function node_observe_attribute(node: Element, name: string, value: o.RO<
     }
     if (val === true) {
       if (node.getAttribute(name) !== "") node.setAttribute(name, "")
-    } else if (typeof val === "string") {
+    } else if (typeof val === "string" || typeof val === "number") {
       if (val !== node.getAttribute(name)) node.setAttribute(name, val)
     } else {
       // this is getting unsafe, but typescript should flag it as incorrect usage if it is not marked in the Attrs
