@@ -254,8 +254,6 @@ export function $on<N extends Node, K extends KEvent | KEvent[]>(events: K, list
  */
 export function $click<N extends HTMLElement | SVGElement>(cbk: Listener<MouseEvent, N>, capture?: boolean): (node: N) => void {
   return function $click(node) {
-    // events don't trigger on safari if not pointer.
-    node.style.cursor = "pointer"
     node_add_event_listener(node, "click", cbk, capture)
   }
 }
