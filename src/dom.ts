@@ -244,7 +244,7 @@ const basic_attrs = new Set(["id", "slot", "part", "role", "tabindex", "lang", "
  * @group Dom
  */
 export function node_append<N extends Node>(node: N, insertable: Insertable<N> | Attrs<N>, refchild: Node | null = null, is_basic_node = true) {
-  if (insertable == null) return
+  if (insertable == null || insertable === false) return
 
   if (typeof insertable === "string") {
     // A simple string
