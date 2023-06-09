@@ -598,11 +598,11 @@ export function node_observe_style(node: HTMLElement | SVGElement, style: StyleD
  */
 export function node_observe_class(node: Element, c: ClassDefinition) {
   if (!c) return
-  if (typeof c === "string" || c.constructor !== Object) {
+  if (typeof c === "string" || typeof c === "boolean" || c.constructor !== Object) {
     // c is an Observable<string>
     node_observe(node, c, (str, chg) => {
-      if (chg !== o.NoValue) _remove_class(node, chg as string)
-      _apply_class(node, str)
+      if (chg !== o.NoValue && !!chg) _remove_class(node, chg as string)
+      if (!!str) _apply_class(node, str)
     }, { immediate: true })
   } else {
     const ob = c as { [name: string]: o.RO<any> }
