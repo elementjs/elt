@@ -236,8 +236,6 @@ export interface ReadonlyObservable<A> {
 
   /** See {@link o.Observable#get} */
   get(): A
-    /** See {@link o.Observable#stopObservers} */
-  stopObservers(): void
   /** See {@link o.Observable#createObserver} */
   createObserver(fn: ObserverCallback<A>): Observer<A>
 
@@ -408,23 +406,6 @@ export class Observable<A> implements ReadonlyObservable<A>, Indexable {
       (this as any).debug = new Error().stack
     }
   }
-
-  /**
-   * Stop this Observable from observing other observables and stop
-   * all observers currently watching this Observable.
-   */
-  stopObservers() {
-    each_recursive(this, ob => {
-      if (ob.idx) queue.delete(ob)
-      ob._observers.clear()
-      if (ob._watched) {
-        ob._watched = false
-        ob.unwatched()
-      }
-      ob._children.clear()
-    })
-  }
-
 
   ensureRefreshed() { }
 
@@ -796,6 +777,20 @@ export class CombinedObservable<A extends any[], T = A> extends Observable<T> {
     }
   }
 
+  /**
+   * Brutally disconnect this combined observable from its parents.
+   *
+   * Once this has been called, this observable will no longer be able to refresh its value.
+   *
+   * It is generally called by verbs such as Repeat and RepeatScroll, to ensure that when their observed list shrinks, then observables watching for out of bound indices may not crash the program.
+   *
+   * If this observable is still being (erroneously) watched from somewhere else, a warning is printed in the console.
+   */
+  disconnect() {
+    this.unwatched()
+    this._links = []
+  }
+
   ensureRefreshed(): void {
     if (this.refreshParentValues())
       this._value = this.getter(this._parents_values)
@@ -803,7 +798,8 @@ export class CombinedObservable<A extends any[], T = A> extends Observable<T> {
 
   refreshParentValues() {
     let changed = false
-    for (let i = 0, l = this._links, p = this._parents_values; i < l.length; i++) {
+    let i = 0
+    for (let l = this._links, p = this._parents_values; i < l.length; i++) {
       const link = l[i]
       const idx = link.child_idx
       const old = p[idx]
@@ -813,6 +809,11 @@ export class CombinedObservable<A extends any[], T = A> extends Observable<T> {
         p[idx] = n
       }
     }
+
+    if (i === 0) {
+      console.warn("tried to refresh value from a combined observable that was disconnected")
+    }
+
     return changed
   }
 
