@@ -4,8 +4,6 @@ import { o } from "./observable"
 
 const sym_data = Symbol("data")
 
-export type MaybePromise<T> = Promise<T> | T
-
 /**
  * An app is a collection of services and their associated view map.
  * This is all it does.
@@ -194,7 +192,9 @@ export class App extends o.ObserverHolder {
     this._route_map.set(route.path, route)
   }
 
-  async getService<S>(si: (srv: App.Service) => Promise<S>) {
+  async getService<S>(si__: App.ServiceBuilder<S>) {
+    const si_ = await si__
+    const si = typeof si_ === "function" ? si_ : si_.default
     const cached = this.cache.get(si)
     if (cached) {
       return cached
@@ -207,7 +207,7 @@ export class App extends o.ObserverHolder {
   }
 
   // Check the cache.
-  async require<S>(requirer: App.Service, si: MaybePromise<((srv: App.Service) => Promise<S>) | {default: (srv: App.Service) => Promise<S>}>): Promise<S> {
+  async require<S>(requirer: App.Service, si: App.ServiceBuilder<S>): Promise<S> {
     // For a given service instanciator, we will also check if it has arguments or not.
     const s = await si
 
@@ -317,7 +317,11 @@ export namespace App {
   /**
    * Type definition of an asynchronous function that can be used as a service in an elt App.
    */
-  export type ServiceBuilder<T> = (srv: App.Service) => Promise<T>
+  export type ServiceBuilder<T> =
+    ((srv: App.Service) => Promise<T>)
+    | { default: (srv: App.Service) => Promise<T> }
+    | Promise<((srv: App.Service) => Promise<T>)
+    | { default: (srv: App.Service) => Promise<T> }>
 
   /**
    * A single service.
@@ -326,7 +330,7 @@ export namespace App {
     constructor(public app: App, public builder: (srv: App.Service) => any) { super() }
     _on_deinit: (() => any)[] = []
 
-    require<S>(fn: MaybePromise<((srv: App.Service) => Promise<S>) | {default: (srv: App.Service) => Promise<S>}>): Promise<S> {
+    require<S>(fn: ServiceBuilder<S>): Promise<S> {
       return this.app.require(this, fn)
     }
 
