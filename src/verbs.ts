@@ -107,6 +107,12 @@ export function Repeat<T extends o.RO<any[]>>(
 
 export namespace Repeat {
 
+  const sym_obs = Symbol("ritem-obs")
+
+  interface RepeatItemElement extends HTMLElement {
+    [sym_obs]: o.CombinedObservable<any, any>
+  }
+
   /**
    * A helper type that transforms a type that could be an array, an {@link o.Observable} or a {@link o.ReadonlyObservable}
    * of an array to the base type of the same type.
@@ -173,8 +179,9 @@ export namespace Repeat {
         return false
 
       const prop_obs = o(this.next_index)
-      const ob = this.obs.p(prop_obs)
-      const node = document.createElement("e-ritem")
+      const ob = this.obs.p(prop_obs) as o.CombinedObservable<any, any>
+      const node = document.createElement("e-ritem") as RepeatItemElement
+      node[sym_obs] = ob
       node.setAttribute("index", this.next_index.toString())
 
       const _sep = this.options.separator
@@ -200,16 +207,17 @@ export namespace Repeat {
     }
 
     removeChildren(count: number) {
-      let iter = this.node.lastChild
+      let iter = this.node.lastChild as RepeatItemElement | null
       if (iter == null || this.next_index === 0 || count === 0) return
       // Détruire jusqu'à la position concernée...
       this.next_index = this.next_index - count
 
       while (true) {
-        const next = iter.previousSibling as Element | null
+        const next = iter.previousSibling as RepeatItemElement | null
         count--
         if (count === -1) { break }
         node_do_disconnect(iter)
+        iter[sym_obs]?.disconnect()
         this.node.removeChild(iter)
         iter = next
         if (iter == null) { break }
