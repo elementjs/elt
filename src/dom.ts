@@ -496,10 +496,10 @@ export function node_add_event_listener(target: Node, node: any, events: any, li
  * Stop a node from observing an observable, even if it is still in the DOM
  * @group Dom
  */
-export function node_unobserve(node: Node, obsfn: o.Observer<any> | o.ObserverCallback<any>) {
+export function node_unobserve(node: Node, obsfn: o.Observer<any> | o.ObserverCallback<any> | o.Observable<any>) {
   const is_observing = node[sym_connected_status] & NODE_IS_OBSERVING
   node[sym_observers] = node[sym_observers]?.filter(ob => {
-    const res = ob === obsfn || ob.fn === obsfn
+    const res = ob === obsfn || ob.fn === obsfn || ob.observable === obsfn
     if (res && is_observing) {
       // stop the observer before removing it from the list if the node was observing
       ob.stopObserving()
