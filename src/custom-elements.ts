@@ -172,6 +172,9 @@ export class EltCustomElement extends HTMLElement {
     node_observe(this, observable, obsfn, options)
   }
 
+  connected() { }
+  disconnected() { }
+
   connectedCallback() {
     if (!this.__inited) {
       this.init()
@@ -180,12 +183,16 @@ export class EltCustomElement extends HTMLElement {
     if (this.shadowRoot) {
       node_do_connected(this.shadowRoot)
     }
+
+    this.connected()
   }
 
   disconnectedCallback() {
     if (this.shadowRoot) {
       node_do_disconnect(this.shadowRoot)
     }
+
+    this.disconnected()
   }
 
   attributeChangedCallback(name: string, _old: any, newv: string | null) {
