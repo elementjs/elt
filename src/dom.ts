@@ -493,11 +493,13 @@ export function node_add_event_listener(target: Node, node: any, events: any, li
 
 
 /**
- * Stop a node from observing an observable, even if it is still in the DOM
+ * Stop a `node` from observing an observable, or an observer, or an observer function.
+ * @returns The number of deactivated observers
  * @group Dom
  */
 export function node_unobserve(node: Node, obsfn: o.Observer<any> | o.ObserverCallback<any> | o.Observable<any>) {
   const is_observing = node[sym_connected_status] & NODE_IS_OBSERVING
+  const prev_len = node[sym_observers]?.length ?? 0
   node[sym_observers] = node[sym_observers]?.filter(ob => {
     const res = ob === obsfn || ob.fn === obsfn || ob.observable === obsfn
     if (res && is_observing) {
@@ -506,6 +508,8 @@ export function node_unobserve(node: Node, obsfn: o.Observer<any> | o.ObserverCa
     }
     return !res
   })
+
+  return prev_len - (node[sym_observers]?.length??0)
 }
 
 
