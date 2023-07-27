@@ -7,6 +7,7 @@ import {
   node_attach_shadow,
   node_do_connected,
   node_do_disconnect,
+  node_unobserve,
 } from "./dom"
 
 
@@ -117,7 +118,6 @@ export class EltCustomElement extends HTMLElement {
   static shadow_init: ShadowRootInit = {
     mode: "open",
     delegatesFocus: true,
-    slotAssignment: "manual",
   }
 
   static get observedAttributes() { return this[sym_observed_attrs] ?? [] }
@@ -170,6 +170,10 @@ export class EltCustomElement extends HTMLElement {
 
   observe<T>(observable: o.RO<T>, obsfn: o.ObserverCallback<T>, options?: o.ObserveOptions<T>) {
     node_observe(this, observable, obsfn, options)
+  }
+
+  unobserve(observable: o.Observable<any> | o.Observer<any> | o.ObserverCallback<any>) {
+    return node_unobserve(this, observable)
   }
 
   connected() { }
