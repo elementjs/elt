@@ -177,9 +177,15 @@ export class App extends o.ObserverHolder {
   protected _last_hash: string | null = null
   protected _last_srv: App.ServiceBuilder<any> | null = null
 
-  register(builder: App.ServiceBuilder<any>, url: string | null, defaults: {[name: string]: any} = {}) {
+  async register(builder: App.ServiceBuilder<any>, url: string | null, defaults: {[name: string]: any} = {}) {
 
     if (this._route_map.has(url ?? "")) throw new Error(`route for '${url ?? ""}' is already defined`)
+    if (typeof builder !== "function") {
+      builder = await builder
+    }
+    if ("default" in builder) {
+      builder = builder.default
+    }
 
     const route: App.Route = {
       path: url ?? "",
@@ -232,9 +238,9 @@ export class App extends o.ObserverHolder {
     this.is_activating = true
     try {
       const v = final_vars ? vars ?? {} : this.getHashVarsForService(active, vars ?? {})
-      this.o_hash_variables.set(v)
       // console.log("activate ? ", vars, final_vars, v)
       if (active?.builder === si) {
+        this.o_hash_variables.set(v)
         // still add the vars
         return // Do not activate if the currently active service is already the asked one.
       }
@@ -247,7 +253,7 @@ export class App extends o.ObserverHolder {
 
       o.transaction(() => {
         // what about old variables, do they get to be kept ?
-        // this.o_hash_variables.set(v)
+        this.o_hash_variables.set(v)
         srv.forAllActiveServices(s => s.startObservers())
         ;(this.o_active_service as o.Observable<App.Service>).set(srv)
       })
