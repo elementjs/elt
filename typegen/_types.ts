@@ -8,7 +8,7 @@ export type NRO<T> = o.RO<T | null | false | undefined>
  * to define what can go between `{ curly braces }` in JSX code.
  * @category dom, toc
  */
-export type Renderable = string | number | Node | null | undefined | Renderable[] | o.ReadonlyObservable<Renderable>
+export type Renderable = string | number | Node | null | undefined | false | Renderable[] | o.ReadonlyObservable<Renderable>
 
 /**
  * Definition of the Decorator type, or functions that can be passed directly

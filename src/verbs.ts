@@ -43,19 +43,30 @@ export function If<T extends o.RO<any>>(
   condition: T,
   display: (arg: If.NonNullableRO<T>) => Renderable,
   display_otherwise?: (a: T) => Renderable,
-): o.RO<Renderable> {
-  const res = o.tf<T, Renderable>(condition, (cond, old, v) => {
-    if (old !== o.NoValue && !!cond === !!old && v !== o.NoValue) return v as Renderable
-    if (cond) {
-      return display(condition as If.NonNullableRO<T>)
-    } else if (display_otherwise) {
-      return display_otherwise(condition)
-    } else {
-      return null
-    }
-  })
-  if (o.isReadonlyObservable(res)) res[o.sym_display_node] = "e-if"
-  return res
+) {
+
+  // return res
+
+  const resfn = function () {
+    const res = o.tf<T, Renderable>(condition, (cond, old, v) => {
+      if (old !== o.NoValue && !!cond === !!old && v !== o.NoValue) return v as Renderable
+      if (cond) {
+        return display(condition as If.NonNullableRO<T>)
+      } else if (display_otherwise) {
+        return display_otherwise(condition)
+      } else {
+        return null
+      }
+    })
+    if (o.isReadonlyObservable(res)) res[o.sym_display_node] = "e-if"
+    return res
+  }
+
+  resfn.Else = function (otherwise: (a: T) => Renderable) {
+    display_otherwise = otherwise
+  }
+
+  return resfn
 }
 
 export namespace If {
