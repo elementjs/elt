@@ -8,7 +8,7 @@ export type NRO<T> = o.RO<T | null | false | undefined>
  * to define what can go between `{ curly braces }` in JSX code.
  * @category dom, toc
  */
-export type Renderable = string | number | Node | false | null | undefined | Renderable[] | o.ReadonlyObservable<Renderable>
+export type Renderable = string | number | Node | null | undefined | false | Renderable[] | o.ReadonlyObservable<Renderable>
 
 /**
  * Definition of the Decorator type, or functions that can be passed directly
@@ -146,6 +146,8 @@ export interface SVGFilterPrimitive {
   height?: NRO<string | number>
   result?: NRO<string | number>
   width?: NRO<string | number>
+  in?: NRO<string | number>
+  in2?: NRO<string | number>
 }
 export interface SVGLink {
   href?: NRO<string | number>
@@ -695,7 +697,11 @@ export interface attrs_svg_feConvolveMatrix extends Attrs<SVGElementTagNameMap["
   preserveAlpha?: NRO<"" | true | "true" | "false">
 }
 export interface attrs_svg_feDiffuseLighting extends Attrs<SVGElementTagNameMap["feDiffuseLighting"]>, SVGPresentation, SVGFilterPrimitive {}
-export interface attrs_svg_feDisplacementMap extends Attrs<SVGElementTagNameMap["feDisplacementMap"]>, SVGPresentation, SVGFilterPrimitive {}
+export interface attrs_svg_feDisplacementMap extends Attrs<SVGElementTagNameMap["feDisplacementMap"]>, SVGPresentation, SVGFilterPrimitive {
+  scale?: NRO<string | number>
+  xChannelSelector?: NRO<"R" | "G" | "B" | "A">
+  yChannelSelector?: NRO<"R" | "G" | "B" | "A">
+}
 export interface attrs_svg_feDistantLight extends Attrs<SVGElementTagNameMap["feDistantLight"]>, SVGPresentation, SVGFilterPrimitive {}
 export interface attrs_svg_feFlood extends Attrs<SVGElementTagNameMap["feFlood"]>, SVGPresentation, SVGFilterPrimitive {}
 export interface attrs_svg_feFuncA extends Attrs<SVGElementTagNameMap["feFuncA"]>, SVGPresentation, SVGFilterPrimitive {}
@@ -712,7 +718,13 @@ export interface attrs_svg_fePointLight extends Attrs<SVGElementTagNameMap["fePo
 export interface attrs_svg_feSpecularLighting extends Attrs<SVGElementTagNameMap["feSpecularLighting"]>, SVGPresentation, SVGFilterPrimitive {}
 export interface attrs_svg_feSpotLight extends Attrs<SVGElementTagNameMap["feSpotLight"]>, SVGPresentation, SVGFilterPrimitive {}
 export interface attrs_svg_feTile extends Attrs<SVGElementTagNameMap["feTile"]>, SVGPresentation, SVGFilterPrimitive {}
-export interface attrs_svg_feTurbulence extends Attrs<SVGElementTagNameMap["feTurbulence"]>, SVGPresentation, SVGFilterPrimitive {}
+export interface attrs_svg_feTurbulence extends Attrs<SVGElementTagNameMap["feTurbulence"]>, SVGPresentation, SVGFilterPrimitive {
+  numOctaves?: NRO<string | number>
+  seed?: NRO<string | number>
+  baseFrequency?: NRO<string | number>
+  stitchTiles?: NRO<string | number>
+  type?: NRO<string | number>
+}
 export interface attrs_svg_filter extends Attrs<SVGElementTagNameMap["filter"]>, SVGPresentation, SVGFilterPrimitive {}
 export interface attrs_svg_foreignObject extends Attrs<SVGElementTagNameMap["foreignObject"]> {}
 export interface attrs_svg_g extends Attrs<SVGElementTagNameMap["g"]>, SVGPresentation {}
