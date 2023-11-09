@@ -121,10 +121,10 @@ export class App extends o.ObserverHolder {
    * Setup listening to fragment changes
    * @param defs The url definitions
    */
-  setupRouter(defs: [url: string | null, builder: App.ServiceBuilder<any>, vars: undefined | { [name: string]: string }][] = []) {
+  async setupRouter(defs: [url: string | null, builder: App.ServiceBuilder<any>, vars: undefined | { [name: string]: string }][] = []) {
 
     for (const [url, builder, vars] of defs) {
-      this.register(builder, url, vars)
+      await this.register(builder, url, vars)
     }
 
     // When the active service changes, we want to update the hash accordingly
