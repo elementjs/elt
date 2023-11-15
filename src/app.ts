@@ -76,8 +76,8 @@ export class App extends o.ObserverHolder {
    * @param newvars the optional new variables
    * @returns a full variable object
    */
-  protected getHashVarsForService(srv: App.Service, newvars: {[name: string]: string}): {[name: string]: string} {
-    const current: any = this.o_hash_variables.get()
+  protected getHashVarsForService(srv: App.Service): {[name: string]: string} {
+    const current: any = this._params
     const build: {[name: string]: string} = {}
 
     srv?.forAllActiveServices(srv => {
@@ -97,8 +97,7 @@ export class App extends o.ObserverHolder {
       }
     })
 
-    const res = Object.assign({}, build, newvars)
-    return res
+    return build
   }
 
   /**
@@ -221,6 +220,7 @@ export class App extends o.ObserverHolder {
     if (cached) {
       return cached
     }
+
     const srv = new App.Service(this, si)
     // We set the cache **before** activating the service to allow for recursive dependencies.
     this.cache.set(si, srv)
@@ -249,8 +249,6 @@ export class App extends o.ObserverHolder {
    * Does like require() but sets the resulting service as the active instance.
    */
   async activate<S>(si: App.ServiceBuilder<S>, vars?: {[name: string]: string}, final_vars = false): Promise<void> {
-    // console.log("activate", si.name, vars, new Error())
-    const active = this.o_active_service.get()
 
     if (this.is_activating) {
       this._reactivate = si
@@ -259,26 +257,23 @@ export class App extends o.ObserverHolder {
 
     this.is_activating = true
     let old_params = this._params
+
     try {
 
-      const v = final_vars ? vars ?? {} : this.getHashVarsForService(active, vars ?? {})
+      // Merge the current params with the new ones if needed
+      const v = final_vars ? vars ?? {} : Object.assign({}, this._params, vars)
       this._params = v
-      // console.log("activate ? ", vars, final_vars, v)
-      if (active?.builder === si) {
-        this.o_hash_variables.set(v)
-        // still add the vars
-        return // Do not activate if the currently active service is already the asked one.
-      }
 
       // Try to activate the service
       const srv = await this.getService(si)
 
-      // Get the variables with their defaults if needed
-      // const v = final_vars ? vars ?? {} : this.getHashVarsForService(srv, vars ?? {})
+      // Get the final params
+      const v2 = this.getHashVarsForService(srv)
 
       o.transaction(() => {
         // what about old variables, do they get to be kept ?
-        this.o_hash_variables.set(v)
+        this._params = v2
+        this.o_hash_variables.set(v2)
         srv.forAllActiveServices(s => s.startObservers())
         ;(this.o_active_service as o.Observable<App.Service>).set(srv)
       })
