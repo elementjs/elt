@@ -2,325 +2,72 @@ import { Renderable } from "./types"
 import { o } from "./observable"
 
 
-const sym_data = Symbol("data")
 const sym_not_found = Symbol("route-not-found")
+const sym_default = Symbol("route-default")
+
+
 
 /**
  * An app is a collection of services and their associated view map.
  * This is all it does.
  */
-export class App extends o.ObserverHolder {
-  static sym_not_found = sym_not_found
+export class App {
+  static readonly UrlNotFound: typeof sym_not_found = sym_not_found
+  static readonly UrlDefault: typeof sym_default = sym_default
 
-  cache = new Map<(srv: App.Service) => Promise<any>, App.Service>()
+  o_state = o(null as App.State | null)
+  router = new App.Router(this)
+  setupRouter = this.router.setupRouter.bind(this.router)
 
   /** An observable containing the currently active service */
-  o_active_service = o(null as null | App.Service) as o.ReadonlyObservable<App.Service>
+  o_active_service = this.o_state.tf(st => st?.active)
 
   /** The current path mimicking the URL Hash fragment */
   o_current_path = o("")
 
-  protected _reactivate: App.ServiceBuilder<any> | null = null
+  o_hash_variables = this.o_state.tf(st => st?.params ?? {})
+  o_views = this.o_state.tf(st => st?.views ?? new Map())
 
-  protected _route_map = new Map<string | typeof sym_not_found | null, App.Route>()
-  protected _reverse_map = new Map<App.ServiceBuilder<any>, App.Route>()
-  protected _hash_defaults = new Map<App.ServiceBuilder<any>, {[name: string]: string}>()
-  protected _default_service: App.Route | null = null
-  _params: {[name: string]: string} = {}
-
-  o_hash_variables = o({} as {[name: string]: string})
-
-  o_views = this.o_active_service.tf(ser => {
-    const views = new Map<string, () => Renderable>()
-    if (!ser) return views
-
-    const srvs = new Set<App.Service>([ser])
-    for (const srv of srvs) {
-      for (const [name, view] of srv.views) {
-        (view as any).service = srv
-        if (!views.has(name)) views.set(name, view)
-      }
-      for (const req of srv.requirements)
-        if (!srvs.has(req)) srvs.add(req)
-    }
-    return views
-  })
-
-  protected routeError(url: string): never {
-    throw new Error("no such route : " + url)
-  }
-
-  /**
-   * @internal
-   * Parse the hash
-   * @param newhash the current hash
-   * @returns the path and the current variables
-   */
-  protected parseHash(newhash: string): {path: string, vars: {[name: string]: string}} {
-    const [path, vars_str] = newhash.split(/\?/) // separate at the first "?"
-    const vars = (vars_str ?? "").split(/&/g).reduce((acc, item) => {
-      const [key, value] = item.split(/=/)
-      if (key || value)
-        acc[decodeURIComponent(key)] = decodeURIComponent(value ?? "")
-      return acc
-    }, {} as {[name: string]: string})
-
-    return {path, vars}
-  }
-
-  /**
-   * Build a variables object from a current service, where the required variables stay
-   *
-   * @internal
-   * @param srv the service we want the variables for
-   * @param newvars the optional new variables
-   * @returns a full variable object
-   */
-  protected getHashVarsForService(srv: App.Service): {[name: string]: string} {
-    const current: any = this._params
-    const build: {[name: string]: string} = {}
-
-    srv?.forAllActiveServices(srv => {
-      // also add defaults if not present in the variables
-      const defs = this._hash_defaults.get(srv.builder)
-      if (defs) {
-        for (let x in defs) {
-          if (!build.hasOwnProperty(x)) build[x] = defs[x]
-        }
-      }
-
-      // keep the requirements
-      for (const r of [...srv._observed_params.keys(), ...srv._depended_params.keys()]) {
-        if (current.hasOwnProperty(r)) {
-          build[r] = current[r]
-        }
-      }
-    })
-
-    return build
-  }
-
-  /**
-   * @internal
-   * activate a service from the hash portion of window.location
-   */
-  activateFromHash() {
-    const newhash = window.location.hash.slice(1)
-
-    // do not handle if the hash is the last one we handled
-    if (newhash && newhash === this._last_hash && this._last_srv === this.o_active_service.get().builder) return
-
-    const {path, vars} = this.parseHash(newhash)
-
-    const route = this._route_map.get(path) ?? this._route_map.get(sym_not_found)
-    if (!route) this.routeError(path)
-
-    const vars_final = Object.assign({}, route.defaults, vars)
-    this.activate(route.builder, vars_final, true)
-  }
-
-  /**
-   * Setup listening to fragment changes
-   * @param defs The url definitions
-   */
-  async setupRouter(defs: [url: string | null | typeof sym_not_found, builder: App.ServiceBuilder<any>, vars: undefined | { [name: string]: string }][] = []) {
-
-    for (const [url, builder, vars] of defs) {
-      await this.register(builder, url, vars)
-    }
-
-    // When the active service changes, we want to update the hash accordingly
-    this.observe(o.join(this.o_active_service, this.o_hash_variables), ([srv, vars], old) => {
-      if (srv == null) return
-
-      // Update the has portion from the currently activated service and its variables
-      const route = this._reverse_map.get(srv.builder)
-      if (!route) return // This service does not have a route, not updating the hash.
-
-      let hash = route.path
-      if (typeof hash !== "string") return
-      this.o_current_path.set(hash)
-
-      const entries = Object.entries(vars).map(([key, value]) =>
-        `${encodeURIComponent(key)}${!value ? "" : "=" + encodeURIComponent(value)}`
-      )
-
-      // if there are variables, add them
-      if (entries.length > 0) {
-        hash = hash + "?" + entries.join("&")
-      }
-
-      // do not try to update if the hash has not changed
-      this._last_srv = srv.builder
-      if (this._last_hash === hash && hash === window.location.hash) return
-      this._last_hash = hash
-
-      // If the variable changed because of activation, then update the hash portion
-      if (this.is_activating) {
-        window.location.hash = hash
-      } else {
-        // otherwise we're replacing state to not pollute the history
-        const loc = window.location
-        loc.replace(
-          `${loc.href.split('#')[0]}#${hash}`
-        )
-      }
-    })
-
-    this.startObservers()
-
-    setTimeout(() => this.activateFromHash())
-
-    window.addEventListener("hashchange", () => {
-      this.activateFromHash()
-    })
-
-  }
-
-  protected _last_hash: string | null = null
-  protected _last_srv: App.ServiceBuilder<any> | null = null
-
-  async register(builder: App.ServiceBuilder<any>, url: string | null | typeof sym_not_found, defaults: {[name: string]: any} = {}) {
-
-    if (this._route_map.has(url ?? "")) throw new Error(`route for '${url?.toString() ?? ""}' is already defined`)
-    if (typeof builder !== "function") {
-      builder = await builder
-    }
-    if ("default" in builder) {
-      builder = builder.default
-    }
-
-    const route: App.Route = {
-      path: url ?? "",
-      defaults,
-      builder
-    }
-
-    this._hash_defaults.set(builder, defaults)
-    this._reverse_map.set(builder, route)
-    this._route_map.set(route.path, route)
-  }
-
-  async getService<S>(si__: App.ServiceBuilder<S>) {
-    const si_ = await si__
-    const si = typeof si_ === "function" ? si_ : si_.default
-    let cached = this.cache.get(si)
-
-    // Verify that our cached service is really on the right params
-    if (cached && cached._depended_params.size > 0) {
-      for (let [k, v] of cached._depended_params) {
-        if (this._params[k] !== v) {
-          // invalidate the cached value
-          cached = undefined
-          break
-        }
-      }
-    }
-
-    if (cached) {
-      return cached
-    }
-
-    const srv = new App.Service(this, si)
-    // We set the cache **before** activating the service to allow for recursive dependencies.
-    this.cache.set(si, srv)
-    srv[sym_data] = await si(srv)
-    return srv
-  }
+  // The staging state
+  staging: App.State | null = null
 
   // Check the cache.
-  async require<S>(requirer: App.Service, si: App.ServiceBuilder<S>): Promise<S> {
-    // For a given service instanciator, we will also check if it has arguments or not.
-    const s = await si
-
-    const srv = await this.getService(typeof s === "function" ? s : s.default)
-    requirer.requirements.add(srv)
-
-    // A requirer that depends upon a service that has params dependencies becomes dependent as well
-    for (let [k, v] of srv._depended_params) {
-      requirer._depended_params.set(k, v)
+  async require<S>(builder: App.ServiceBuilder<S>, by: App.Service): Promise<S> {
+    if (this.staging == null) {
+      throw new Error("cannot require another service outside activation")
     }
 
-    return srv[sym_data]
+    return this.staging.require(builder, by, this.o_state.get())
   }
 
-  private is_activating = false
   /**
    * Does like require() but sets the resulting service as the active instance.
    */
-  async activate<S>(si: App.ServiceBuilder<S>, vars?: {[name: string]: string}, final_vars = false): Promise<void> {
-
-    if (this.is_activating) {
-      this._reactivate = si
-      return
-    }
-
-    this.is_activating = true
-    let old_params = this._params
+  async activate<S>(builder: App.ServiceBuilder<S>, params?: App.Params): Promise<void> {
+    const current = this.o_state.get()
 
     try {
-
-      // Merge the current params with the new ones if needed
-      const v = final_vars ? vars ?? {} : Object.assign({}, this._params, vars)
-      this._params = v
-
-      // Try to activate the service
-      const srv = await this.getService(si)
-
-      // Get the final params
-      const v2 = this.getHashVarsForService(srv)
-
-      o.transaction(() => {
-        // what about old variables, do they get to be kept ?
-        this._params = v2
-        this.o_hash_variables.set(v2)
-        srv.forAllActiveServices(s => s.startObservers())
-        ;(this.o_active_service as o.Observable<App.Service>).set(srv)
-      })
-
+      this.staging = new App.State(this)
+      await this.staging.activate(builder, params, current)
+      this.o_state.set(this.staging)
+      current?.deactivate(this.staging)
+      this.staging = null
     } catch (e) {
-      console.warn(e)
-      this._params = old_params
+      if (current) {
+        this.staging?.deactivate(current)
+      }
+      this.staging = null
 
+      if (e instanceof App.Reactivate) {
+        // if some services were activated, kill them
+        return this.activate(e.builder, e.params)
+      } else {
+        // otherwise just forward the error.
+        throw e
+      }
     } finally {
-      this.cleanup()
-      this.is_activating = false
-
-      if (this._reactivate) {
-        const srv = this._reactivate
-        this._reactivate = null
-        this.activate(srv)
-      }
+      this.staging = null
     }
-  }
-
-  /**
-   * Check the cache and remove the services that are no longer in use.
-   * @internal
-   */
-  cleanup() {
-    const srv = this.o_active_service.get()
-    if (!srv) return
-    const new_cache = new Map<(srv: App.Service) => Promise<any>, App.Service>()
-    const reqs = new Set<App.Service>([srv])
-    for (const r of reqs) {
-      new_cache.set(r.builder, r)
-      for (const _r of r.requirements)
-        if (!reqs.has(_r)) reqs.add(_r)
-    }
-
-    const old_cache = this.cache
-    this.cache = new_cache
-
-    // For all the old services that are no longer in the cache, try to deinit them
-    for (const old_srv of old_cache.values()) {
-      // Stop their observers
-      if (!old_srv.is_persistent && !new_cache.has(old_srv.builder)) {
-        old_srv.stopObservers()
-        for (const d of old_srv._on_deinit) d()
-      }
-    }
-
   }
 
   DisplayView(view_name: string): o.ReadonlyObservable<Renderable> {
@@ -329,27 +76,300 @@ export class App extends o.ObserverHolder {
     })
     res[o.sym_display_node] = `e-app-view "${view_name}"`
     return res
-    // `e-app-view "${view_name}"`)
   }
 
 }
 
 export namespace App {
 
+  export type Params = {[name: string]: string}
+  export type Views = Map<string, () => Renderable>
+
+  export class Reactivate {
+    constructor(
+      public builder: App.ServiceBuilder<any>,
+      public params: Params = {},
+    ) {  }
+  }
+
+  /**
+   ** App.Router : a binding between the hash fragment of an URL and an App and its services.
+   **/
+  export class Router extends o.ObserverHolder {
+    constructor(public app: App) { super() }
+
+    protected _route_map = new Map<string | typeof sym_not_found | typeof sym_default, App.Route>()
+    protected _reverse_map = new Map<App.ServiceBuilder<any>, App.Route>()
+    protected _hash_defaults = new Map<App.ServiceBuilder<any>, {[name: string]: string}>()
+    protected _default_service: App.Route | null = null
+
+    protected routeError(url: string): never {
+      throw new Error("no such route : " + url)
+    }
+
+    /**
+     * @internal
+     * Parse the hash
+     * @param newhash the current hash
+     * @returns the path and the current variables
+     */
+    protected parseHash(newhash: string): {path: string, vars: {[name: string]: string}} {
+      const [path, vars_str] = newhash.split(/\?/) // separate at the first "?"
+      const vars = (vars_str ?? "").split(/&/g).reduce((acc, item) => {
+        const [key, value] = item.split(/=/)
+        if (key || value)
+          acc[decodeURIComponent(key)] = decodeURIComponent(value ?? "")
+        return acc
+      }, {} as {[name: string]: string})
+
+      return {path, vars}
+    }
+
+    /**
+     * @internal
+     * activate a service from the hash portion of window.location
+     */
+    activateFromHash() {
+      const newhash = window.location.hash.slice(1)
+
+      // do not handle if the hash is the last one we handled
+      if (newhash && newhash === this._last_hash && this._last_srv === this.app.o_active_service.get()?.builder) return
+
+      const {path, vars} = this.parseHash(newhash)
+
+      const route = this._route_map.get(path) ?? this._route_map.get(sym_not_found)
+      if (!route) this.routeError(path)
+
+      const vars_final = Object.assign({}, route.defaults, vars)
+      this.app.activate(route.builder, vars_final)
+    }
+
+    /**
+     * Setup listening to fragment changes
+     * @param defs The url definitions
+     */
+    async setupRouter(
+      defs: ([
+        url: string | typeof sym_not_found | typeof sym_default,
+        builder: App.ServiceBuilder<any>,
+        defaults: undefined | { [name: string]: string }
+      ] | [url: string | typeof sym_default | typeof sym_not_found, builder: App.ServiceBuilder<any>, ])[] = []) {
+
+      for (const [url, builder, vars] of defs) {
+        await this.register(builder, url, vars)
+      }
+
+      // When the active service changes, we want to update the hash accordingly
+      this.observe(o.join(this.app.o_active_service, this.app.o_hash_variables), ([srv, vars], old) => {
+        if (srv == null) return
+
+        // Update the has portion from the currently activated service and its variables
+        const route = this._reverse_map.get(srv.builder)
+        if (!route) return // This service does not have a route, not updating the hash.
+
+        let hash = route.path
+        if (typeof hash !== "string") return
+        this.app.o_current_path.set(hash)
+
+        const entries = Object.entries(vars).map(([key, value]) =>
+          `${encodeURIComponent(key)}${!value ? "" : "=" + encodeURIComponent(value)}`
+        )
+
+        // if there are variables, add them
+        if (entries.length > 0) {
+          hash = hash + "?" + entries.join("&")
+        }
+
+        // do not try to update if the hash has not changed
+        this._last_srv = srv.builder
+        if (this._last_hash === hash && hash === window.location.hash) return
+        this._last_hash = hash
+
+        // If the variable changed because of activation, then update the hash portion
+        if (this.app.staging != null) {
+          window.location.hash = hash
+        } else {
+          // otherwise we're replacing state to not pollute the history
+          const loc = window.location
+          loc.replace(
+            `${loc.href.split('#')[0]}#${hash}`
+          )
+        }
+      })
+
+      this.startObservers()
+
+      setTimeout(() => this.activateFromHash())
+
+      window.addEventListener("hashchange", () => {
+        this.activateFromHash()
+      })
+
+    }
+
+    protected _last_hash: string | null = null
+    protected _last_srv: App.ServiceBuilder<any> | null = null
+
+    async register(builder: App.ServiceBuilder<any>, url: string | typeof sym_not_found | typeof sym_default, defaults: {[name: string]: any} = {}) {
+
+      if (this._route_map.has(url ?? "")) throw new Error(`route for '${url?.toString() ?? ""}' is already defined`)
+      if (typeof builder !== "function") {
+        builder = await builder
+      }
+      if ("default" in builder) {
+        builder = builder.default
+      }
+
+      const route: App.Route = {
+        path: url,
+        defaults,
+        builder
+      }
+
+      this._hash_defaults.set(builder, defaults)
+      this._reverse_map.set(builder, route)
+      this._route_map.set(route.path, route)
+    }
+  }
+
+  /**
+   ** AppState : the current state of an application
+   **
+   **
+   **/
+  export class State {
+
+    constructor(
+      public app: App,
+    ) { }
+
+    services = new Map<App.ServiceBuilder<any>, App.Service>
+    active!: App.Service
+    views: App.Views = new Map()
+    params: Params = {}
+
+    async getService<S>(_builder: App.ServiceBuilder<S>, previous_state?: State | null) {
+      const __builder = await _builder
+      const builder = typeof __builder === "function" ? __builder : __builder.default
+
+      let previous = this.services.get(builder) ?? previous_state?.services.get(builder)
+
+      if (previous && previous._depended_params.size > 0) {
+        // check that the params are still the same, otherwise just remove
+        for (let [k, v] of previous._depended_params) {
+          if (v !== this.params[k]) {
+            previous = undefined
+            break
+          }
+        }
+        previous = undefined
+      }
+
+      // Make a new service
+      const srv = previous ?? new App.Service(this.app, builder)
+      this.addServiceDep(srv)
+
+      if (previous == null) {
+        srv.result = await builder(srv)
+      }
+
+      return srv
+    }
+
+    async require<S>(_builder: App.ServiceBuilder<S>, by?: App.Service, previous_state?: State | null): Promise<S> {
+      const srv = await this.getService(_builder, previous_state)
+
+      if (by) {
+        by.requirements.add(srv)
+        // A requirer that depends upon a service that has params dependencies becomes dependent as well
+        for (let [k, v] of Object.entries(srv._depended_params)) {
+          by._depended_params.set(k, v)
+        }
+      }
+
+      return srv.result
+    }
+
+    private addServiceDep(srv: App.Service) {
+      if (!this.services.has(srv.builder)) {
+        this.services.set(srv.builder, srv)
+        for (let req of srv.requirements) {
+          this.addServiceDep(req)
+        }
+      }
+    }
+
+    /** @internal build `this.views` */
+    private collectViews(srv: App.Service, seen = new Set<App.Service>) {
+      if (seen.has(srv)) {
+        return
+      }
+      seen.add(srv)
+
+      // Start with the requirements' views
+      for (let req of srv.requirements) {
+        this.collectViews(req, seen)
+      }
+
+      // And then add our own. Last one to speak wins.
+      for (let [name, view] of srv.views) {
+        this.views.set(name, view)
+      }
+    }
+
+    /** @internal make sure we only keep the params that are required */
+    private finalizeParams(srv: App.Service, seen = new Set<App.Service>, res = {} as Params): Params {
+      if (seen.has(srv)) return res
+      seen.add(srv)
+      for (let req of srv.requirements) this.finalizeParams(req, seen, res)
+      for (let [k, v] of srv._depended_params) {
+        res[k] = v
+      }
+      return res
+    }
+
+    /** Call deinits on the services that didn't make the cut. */
+    deactivate(other_state: State) {
+      const other_services = new Set([...other_state.services.values()])
+      for (let srv of this.services.values()) {
+        if (!other_services.has(srv)) {
+          srv.stopObservers()
+          for (let de of srv._on_deinit) {
+            de()
+          }
+        }
+      }
+    }
+
+    /** Activate a service */
+    async activate(
+      builder: App.ServiceBuilder<any>,
+      params: Params | undefined,
+      previous_state: State | null,
+    ) {
+      this.params = params ?? {}
+      this.active = await this.getService(builder, previous_state)
+      this.collectViews(this.active)
+      this.params = this.finalizeParams(this.active)
+    }
+
+  }
+
   export type Route = {
-    path: string | typeof sym_not_found
+    path: string | typeof sym_not_found | typeof sym_default
     defaults: {[name: string]: string}
     builder: ServiceBuilder<any>
   }
+
+  export type ServiceBuilderFunction<T> = (srv: App.Service) => Promise<T>
 
   /**
    * Type definition of an asynchronous function that can be used as a service in an elt App.
    */
   export type ServiceBuilder<T> =
-    ((srv: App.Service) => Promise<T>)
-    | { default: (srv: App.Service) => Promise<T> }
-    | Promise<((srv: App.Service) => Promise<T>)
-    | { default: (srv: App.Service) => Promise<T> }>
+    ServiceBuilderFunction<T>
+    | { default: ServiceBuilderFunction<T> }
+    | Promise<ServiceBuilderFunction<T> | { default: ServiceBuilderFunction<T> }>
 
   /**
    * A single service.
@@ -359,23 +379,17 @@ export namespace App {
     _on_deinit: (() => any)[] = []
 
     require<S>(fn: ServiceBuilder<S>): Promise<S> {
-      return this.app.require(this, fn)
+      return this.app.require(fn, this)
     }
 
-    dependOnParam(name: string): string {
+    param(name: string): string {
       // add the variable to the list
-      const value = this.app._params[name]
+      if (!this.app.staging) {
+        throw new Error("can only call param() during the activation phase")
+      }
+      const value = this.app.staging!.params[name]
       this._depended_params.set(name, value)
       return value
-    }
-
-    observeParam(name: string): o.Observable<string> {
-      this._observed_params.add(name)
-      return this.app.o_hash_variables.p(name)
-    }
-
-    observeNumberParam(name: string): o.Observable<number> {
-      return this.observeParam(name).tf(n => Number(n), n => n.toString())
     }
 
     DisplayView(view_name: string) {
@@ -390,7 +404,7 @@ export namespace App {
 
     onDeinit(fn: () => any) { this._on_deinit.push(fn) }
 
-    [sym_data]: any
+    result: any
 
     views = new Map<string, () => Renderable>()
 
@@ -398,23 +412,12 @@ export namespace App {
     requirements = new Set<Service>()
 
     /** */
-    _observed_params = new Set<string>()
-
-    /** */
-    _depended_params = new Map<string, string>()
+    _depended_params = new Map<string, string>
 
     /** Shortcut function to set a view */
     view(name: string, view: () => Renderable) {
       this.views.set(name, view)
-    }
-
-    forAllActiveServices(fn: (s: Service) => void) {
-      const seen = new Set<Service>([this])
-      for (const s of seen) {
-        fn(s)
-        for (const r of s.requirements)
-          seen.add(r)
-      }
+      return this
     }
   }
 

@@ -1,7 +1,7 @@
 
 export PATH := ./node_modules/.bin:$(PATH)
 
-ESFLAGS = --sourcemap=inline --bundle --log-limit=0 --platform=browser --target=es2022 --minify-syntax --tsconfig=./tsconfig.json --jsx-factory=E --jsx-fragment=E.Fragment --format=esm
+ESFLAGS = --bundle --log-limit=0 --platform=browser --target=es2022 --minify-syntax --tsconfig=./tsconfig.json --jsx-factory=E --jsx-fragment=E.Fragment --format=esm
 
 SOURCES = $(wildcard ./src/*.ts) $(wildcard ./src/observable/*.ts) Makefile
 
@@ -22,13 +22,13 @@ dist/elt.d.ts: $(SOURCES)
 	dts-bundle-generator --inline-declare-global --umd-module-name elt src/index.ts -o $@
 
 dist/elt.js: $(SOURCES)
-	esbuild $(ESFLAGS) --define:DEBUG=false --outfile=$@ src/index.ts
+	esbuild $(ESFLAGS) --define:DEBUG=false --sourcemap=inline --outfile=$@ src/index.ts
 
 dist/elt.cjs.js: $(SOURCES)
 	esbuild $(ESFLAGS) --define:DEBUG=false --format=cjs --outfile=$@ src/index.ts
 
 dist/elt.debug.js: $(SOURCES)
-	esbuild $(ESFLAGS) --define:DEBUG=true --outfile=$@ src/index.ts
+	esbuild $(ESFLAGS) --define:DEBUG=true --sourcemap=inline --outfile=$@ src/index.ts
 
 dist/elt.min.js: $(SOURCES)
 	esbuild $(ESFLAGS) --define:DEBUG=false --minify --outfile=$@ src/index.ts
