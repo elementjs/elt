@@ -40,10 +40,23 @@ export class App {
     return this.staging.require(builder, by, this.o_state.get())
   }
 
+  _reactivate: App.Reactivate | null = null
+  _activate_promise: Promise<void> | null = null
+
+  async activate<S>(builder: App.ServiceBuilder<S>, params?: App.Params): Promise<void> {
+    if (this.staging != null) {
+      this._reactivate = new App.Reactivate(builder, params)
+      return this._activate_promise!
+    }
+
+    this._activate_promise = this._activate(builder, params)
+    return this._activate_promise
+  }
+
   /**
    * Does like require() but sets the resulting service as the active instance.
    */
-  async activate<S>(builder: App.ServiceBuilder<S>, params?: App.Params): Promise<void> {
+  async _activate<S>(builder: App.ServiceBuilder<S>, params?: App.Params): Promise<void> {
     const current = this.o_state.get()
 
     try {
@@ -56,17 +69,17 @@ export class App {
       if (current) {
         this.staging?.deactivate(current)
       }
-      this.staging = null
-
-      if (e instanceof App.Reactivate) {
-        // if some services were activated, kill them
-        return this.activate(e.builder, e.params)
-      } else {
-        // otherwise just forward the error.
-        throw e
-      }
+      // just forward the error.
+      throw e
     } finally {
       this.staging = null
+
+      const re = this._reactivate
+      this._reactivate = null
+      this._activate_promise = null
+      if (re != null) {
+        return this.activate(re.builder, re.params)
+      }
     }
   }
 
