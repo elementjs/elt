@@ -3,12 +3,14 @@ import { o } from "./observable"
 
 
 const sym_data = Symbol("data")
+const sym_not_found = Symbol("route-not-found")
 
 /**
  * An app is a collection of services and their associated view map.
  * This is all it does.
  */
 export class App extends o.ObserverHolder {
+  static sym_not_found = sym_not_found
 
   cache = new Map<(srv: App.Service) => Promise<any>, App.Service>()
 
@@ -20,10 +22,11 @@ export class App extends o.ObserverHolder {
 
   protected _reactivate: App.ServiceBuilder<any> | null = null
 
-  protected _route_map = new Map<string, App.Route>()
+  protected _route_map = new Map<string | typeof sym_not_found | null, App.Route>()
   protected _reverse_map = new Map<App.ServiceBuilder<any>, App.Route>()
   protected _hash_defaults = new Map<App.ServiceBuilder<any>, {[name: string]: string}>()
   protected _default_service: App.Route | null = null
+  _params: {[name: string]: string} = {}
 
   o_hash_variables = o({} as {[name: string]: string})
 
@@ -87,7 +90,7 @@ export class App extends o.ObserverHolder {
       }
 
       // keep the requirements
-      for (const r of srv.var_requirements) {
+      for (const r of [...srv._observed_params.keys(), ...srv._depended_params.keys()]) {
         if (current.hasOwnProperty(r)) {
           build[r] = current[r]
         }
@@ -110,7 +113,7 @@ export class App extends o.ObserverHolder {
 
     const {path, vars} = this.parseHash(newhash)
 
-    const route = this._route_map.get(path)
+    const route = this._route_map.get(path) ?? this._route_map.get(sym_not_found)
     if (!route) this.routeError(path)
 
     const vars_final = Object.assign({}, route.defaults, vars)
@@ -121,7 +124,7 @@ export class App extends o.ObserverHolder {
    * Setup listening to fragment changes
    * @param defs The url definitions
    */
-  async setupRouter(defs: [url: string | null, builder: App.ServiceBuilder<any>, vars: undefined | { [name: string]: string }][] = []) {
+  async setupRouter(defs: [url: string | null | typeof sym_not_found, builder: App.ServiceBuilder<any>, vars: undefined | { [name: string]: string }][] = []) {
 
     for (const [url, builder, vars] of defs) {
       await this.register(builder, url, vars)
@@ -136,6 +139,7 @@ export class App extends o.ObserverHolder {
       if (!route) return // This service does not have a route, not updating the hash.
 
       let hash = route.path
+      if (typeof hash !== "string") return
       this.o_current_path.set(hash)
 
       const entries = Object.entries(vars).map(([key, value]) =>
@@ -177,9 +181,9 @@ export class App extends o.ObserverHolder {
   protected _last_hash: string | null = null
   protected _last_srv: App.ServiceBuilder<any> | null = null
 
-  async register(builder: App.ServiceBuilder<any>, url: string | null, defaults: {[name: string]: any} = {}) {
+  async register(builder: App.ServiceBuilder<any>, url: string | null | typeof sym_not_found, defaults: {[name: string]: any} = {}) {
 
-    if (this._route_map.has(url ?? "")) throw new Error(`route for '${url ?? ""}' is already defined`)
+    if (this._route_map.has(url ?? "")) throw new Error(`route for '${url?.toString() ?? ""}' is already defined`)
     if (typeof builder !== "function") {
       builder = await builder
     }
@@ -201,7 +205,19 @@ export class App extends o.ObserverHolder {
   async getService<S>(si__: App.ServiceBuilder<S>) {
     const si_ = await si__
     const si = typeof si_ === "function" ? si_ : si_.default
-    const cached = this.cache.get(si)
+    let cached = this.cache.get(si)
+
+    // Verify that our cached service is really on the right params
+    if (cached && cached._depended_params.size > 0) {
+      for (let [k, v] of cached._depended_params) {
+        if (this._params[k] !== v) {
+          // invalidate the cached value
+          cached = undefined
+          break
+        }
+      }
+    }
+
     if (cached) {
       return cached
     }
@@ -219,6 +235,12 @@ export class App extends o.ObserverHolder {
 
     const srv = await this.getService(typeof s === "function" ? s : s.default)
     requirer.requirements.add(srv)
+
+    // A requirer that depends upon a service that has params dependencies becomes dependent as well
+    for (let [k, v] of srv._depended_params) {
+      requirer._depended_params.set(k, v)
+    }
+
     return srv[sym_data]
   }
 
@@ -236,8 +258,11 @@ export class App extends o.ObserverHolder {
     }
 
     this.is_activating = true
+    let old_params = this._params
     try {
+
       const v = final_vars ? vars ?? {} : this.getHashVarsForService(active, vars ?? {})
+      this._params = v
       // console.log("activate ? ", vars, final_vars, v)
       if (active?.builder === si) {
         this.o_hash_variables.set(v)
@@ -260,6 +285,8 @@ export class App extends o.ObserverHolder {
 
     } catch (e) {
       console.warn(e)
+      this._params = old_params
+
     } finally {
       this.cleanup()
       this.is_activating = false
@@ -315,7 +342,7 @@ export class App extends o.ObserverHolder {
 export namespace App {
 
   export type Route = {
-    path: string
+    path: string | typeof sym_not_found
     defaults: {[name: string]: string}
     builder: ServiceBuilder<any>
   }
@@ -340,13 +367,20 @@ export namespace App {
       return this.app.require(this, fn)
     }
 
-    requireHashVar(name: string): o.Observable<string> {
-      this.var_requirements.add(name)
+    dependOnParam(name: string): string {
+      // add the variable to the list
+      const value = this.app._params[name]
+      this._depended_params.set(name, value)
+      return value
+    }
+
+    observeParam(name: string): o.Observable<string> {
+      this._observed_params.add(name)
       return this.app.o_hash_variables.p(name)
     }
 
-    requireHashNumberVar(name: string): o.Observable<number> {
-      return this.requireHashVar(name).tf(n => Number(n), n => n.toString())
+    observeNumberParam(name: string): o.Observable<number> {
+      return this.observeParam(name).tf(n => Number(n), n => n.toString())
     }
 
     DisplayView(view_name: string) {
@@ -364,8 +398,15 @@ export namespace App {
     [sym_data]: any
 
     views = new Map<string, () => Renderable>()
+
+    /** the services needed by this one to function */
     requirements = new Set<Service>()
-    var_requirements = new Set<string>()
+
+    /** */
+    _observed_params = new Set<string>()
+
+    /** */
+    _depended_params = new Map<string, string>()
 
     /** Shortcut function to set a view */
     view(name: string, view: () => Renderable) {
