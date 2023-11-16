@@ -44,12 +44,14 @@ export class App {
   _activate_promise: Promise<void> | null = null
 
   async activate<S>(builder: App.ServiceBuilder<S>, params?: App.Params): Promise<void> {
+    const full_params = Object.assign({}, this.o_state.get()?.params || {}, params || {})
+
     if (this.staging != null) {
-      this._reactivate = new App.Reactivate(builder, params)
+      this._reactivate = new App.Reactivate(builder, full_params)
       return this._activate_promise!
     }
 
-    this._activate_promise = this._activate(builder, params)
+    this._activate_promise = this._activate(builder, full_params)
     return this._activate_promise
   }
 
@@ -275,7 +277,6 @@ export namespace App {
             break
           }
         }
-        previous = undefined
       }
 
       // Make a new service
@@ -395,12 +396,16 @@ export namespace App {
       return this.app.require(fn, this)
     }
 
-    param(name: string): string {
+    param(name: string, default_value?: string): string {
       // add the variable to the list
       if (!this.app.staging) {
         throw new Error("can only call param() during the activation phase")
       }
-      const value = this.app.staging!.params[name]
+      let value = this.app.staging!.params[name]
+      if (value == null && default_value != null) {
+        value = default_value
+        this.app.staging!.params[name] = default_value
+      }
       this._depended_params.set(name, value)
       return value
     }
