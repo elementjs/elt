@@ -6,6 +6,20 @@ const sym_not_found = Symbol("route-not-found")
 const sym_default = Symbol("route-default")
 
 
+function _assign<B extends Map<any, any> | {[name: string]: string}>(base: B, ...args: (Map<any, any> | {[name: string]: any} | null | undefined)[]): B {
+  const is_map = base instanceof Map
+  for (let arg of args) {
+    if (arg == null) continue
+    for (let [k, v] of (arg instanceof Map ? arg : Object.entries(arg))) {
+      if (is_map) {
+        base.set(k, v)
+      } else {
+        base[k] = v
+      }
+    }
+  }
+  return base
+}
 
 /**
  * An app is a collection of services and their associated view map.
@@ -25,7 +39,7 @@ export class App {
   /** The current path mimicking the URL Hash fragment */
   o_current_path = o("")
 
-  o_hash_variables = this.o_state.tf(st => st?.params ?? {})
+  o_params = this.o_state.tf(st => st?.params ?? new Map())
   o_views = this.o_state.tf(st => st?.views ?? new Map())
 
   // The staging state
@@ -43,8 +57,8 @@ export class App {
   _reactivate: App.Reactivate | null = null
   _activate_promise: Promise<void> | null = null
 
-  async activate<S>(builder: App.ServiceBuilder<S>, params?: App.Params): Promise<void> {
-    const full_params = Object.assign({}, this.o_state.get()?.params || {}, params || {})
+  async activate<S>(builder: App.ServiceBuilder<S>, params?: App.Params | {[name: string]: string}): Promise<void> {
+    const full_params = _assign(new Map<string, string>, this.o_state.get()?.params, params)
 
     if (this.staging != null) {
       this._reactivate = new App.Reactivate(builder, full_params)
@@ -97,13 +111,13 @@ export class App {
 
 export namespace App {
 
-  export type Params = {[name: string]: string}
+  export type Params = Map<string, string>
   export type Views = Map<string, () => Renderable>
 
   export class Reactivate {
     constructor(
       public builder: App.ServiceBuilder<any>,
-      public params: Params = {},
+      public params: Params = new Map(),
     ) {  }
   }
 
@@ -170,12 +184,12 @@ export namespace App {
         defaults: undefined | { [name: string]: string }
       ] | [url: string | typeof sym_default | typeof sym_not_found, builder: App.ServiceBuilder<any>, ])[] = []) {
 
-      for (const [url, builder, vars] of defs) {
-        await this.register(builder, url, vars)
+      for (const [url, builder, params] of defs) {
+        await this.register(builder, url, params)
       }
 
       // When the active service changes, we want to update the hash accordingly
-      this.observe(o.join(this.app.o_active_service, this.app.o_hash_variables), ([srv, vars], old) => {
+      this.observe(o.join(this.app.o_active_service, this.app.o_params), ([srv, vars], old) => {
         if (srv == null) return
 
         // Update the has portion from the currently activated service and its variables
@@ -186,7 +200,7 @@ export namespace App {
         if (typeof hash !== "string") return
         this.app.o_current_path.set(hash)
 
-        const entries = Object.entries(vars).map(([key, value]) =>
+        const entries = [...vars].map(([key, value]) =>
           `${encodeURIComponent(key)}${!value ? "" : "=" + encodeURIComponent(value)}`
         )
 
@@ -261,7 +275,7 @@ export namespace App {
     services = new Map<App.ServiceBuilder<any>, App.Service>
     active!: App.Service
     views: App.Views = new Map()
-    params: Params = {}
+    params: Params = new Map()
 
     async getService<S>(_builder: App.ServiceBuilder<S>, previous_state?: State | null) {
       const __builder = await _builder
@@ -269,10 +283,10 @@ export namespace App {
 
       let previous = this.services.get(builder) ?? previous_state?.services.get(builder)
 
-      if (previous && previous._depended_params.size > 0) {
+      if (previous && previous.params.size > 0) {
         // check that the params are still the same, otherwise just remove
-        for (let [k, v] of previous._depended_params) {
-          if (v !== this.params[k]) {
+        for (let [k, v] of previous.params) {
+          if (v !== this.params.get(k)) {
             previous = undefined
             break
           }
@@ -296,8 +310,8 @@ export namespace App {
       if (by) {
         by.requirements.add(srv)
         // A requirer that depends upon a service that has params dependencies becomes dependent as well
-        for (let [k, v] of Object.entries(srv._depended_params)) {
-          by._depended_params.set(k, v)
+        for (let [k, v] of Object.entries(srv.params)) {
+          by.params.set(k, v)
         }
       }
 
@@ -332,12 +346,13 @@ export namespace App {
     }
 
     /** @internal make sure we only keep the params that are required */
-    private finalizeParams(srv: App.Service, seen = new Set<App.Service>, res = {} as Params): Params {
+    private finalizeParams(srv: App.Service, seen = new Set<App.Service>, res = new Map() as Params): Params {
       if (seen.has(srv)) return res
       seen.add(srv)
       for (let req of srv.requirements) this.finalizeParams(req, seen, res)
-      for (let [k, v] of srv._depended_params) {
-        res[k] = v
+      for (let [k, v] of srv.params) {
+        if (v == null) continue
+        res.set(k, v)
       }
       return res
     }
@@ -361,7 +376,7 @@ export namespace App {
       params: Params | undefined,
       previous_state: State | null,
     ) {
-      this.params = params ?? {}
+      this.params = params ?? this.params
       this.active = await this.getService(builder, previous_state)
       this.collectViews(this.active)
       this.params = this.finalizeParams(this.active)
@@ -396,17 +411,24 @@ export namespace App {
       return this.app.require(fn, this)
     }
 
-    param(name: string, default_value?: string): string {
+    param(name: string, default_value?: string): string | null {
       // add the variable to the list
       if (!this.app.staging) {
         throw new Error("can only call param() during the activation phase")
       }
-      let value = this.app.staging!.params[name]
-      if (value == null && default_value != null) {
-        value = default_value
-        this.app.staging!.params[name] = default_value
+
+      let value = this.app.staging.params.get(name) ?? default_value ?? null
+      this.params.set(name, value)
+      return value
+    }
+
+    softParam(name: string, default_value?: string): string | null {
+      if (!this.app.staging) {
+        throw new Error("can only call softParam() during the activation phase")
       }
-      this._depended_params.set(name, value)
+
+      let value = this.app.staging.params.get(name) ?? default_value ?? null
+      this.params.set(name, null)
       return value
     }
 
@@ -430,7 +452,7 @@ export namespace App {
     requirements = new Set<Service>()
 
     /** */
-    _depended_params = new Map<string, string>
+    params = new Map<string, string | null>
 
     /** Shortcut function to set a view */
     view(name: string, view: () => Renderable) {
