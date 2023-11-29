@@ -15,7 +15,7 @@ import {
   node_on_disconnected,
 } from "./dom"
 
-import { Renderable } from "./types"
+import { Insertable, Renderable } from "./types"
 
 
 /**
@@ -103,12 +103,12 @@ export namespace If {
  *
  * @group Verbs
  */
-export function Repeat<T extends o.RO<any[]>>(obs: T, render: (arg: Repeat.RoItem<T>, idx: o.RO<number>) => Renderable): HTMLElement
-export function Repeat<T extends o.RO<any[]>>(obs: T, options: Repeat.Options<Repeat.Item<T>>, render: (arg: Repeat.RoItem<T>, idx: o.RO<number>) => Renderable): HTMLElement
+export function Repeat<T extends o.RO<any[]>>(obs: T, render: Repeat.RenderItemFn<T>): HTMLElement
+export function Repeat<T extends o.RO<any[]>>(obs: T, options: Repeat.Options<Repeat.Item<T>>, render: Repeat.RenderItemFn<T>): HTMLElement
 export function Repeat<T extends o.RO<any[]>>(
   ob: T,
-  render_or_options: Repeat.Options<Repeat.Item<T>> | ((arg: Repeat.RoItem<T>, idx: o.RO<number>) => Renderable),
-  real_render?: (arg: Repeat.RoItem<T>, idx: o.RO<number>) => Renderable
+  render_or_options: Repeat.Options<Repeat.Item<T>> | (Repeat.RenderItemFn<T>),
+  real_render?: Repeat.RenderItemFn<T>
 ): HTMLElement {
   const options = typeof render_or_options === "function" ? {} : render_or_options
   const render = typeof render_or_options === "function" ? render_or_options : real_render!
@@ -141,11 +141,13 @@ export namespace Repeat {
 
   export type Item<T extends o.RO<any[]>> = T extends o.ReadonlyObservable<(infer U)[]> ? U : T
 
+  export type RenderItemFn<T extends o.RO<any[]>> = (arg : Repeat.RoItem<T>, idx: o.RO<number>) => Insertable<HTMLElement>
+
   export interface Options<T> {
     /**
      * The separator to insert between all rendering of repeated elements
      */
-    separator?: (n: o.RO<number>) => Renderable
+    separator?: (n: o.RO<number>) => Insertable<HTMLElement>
     key?: (elt: T) => any
   }
 
@@ -257,12 +259,12 @@ export namespace Repeat {
  *
  * @group Verbs
  */
-export function RepeatScroll<T extends o.RO<any[]>>(ob: T, render: (arg: Repeat.RoItem<T>, idx: o.RO<number>) => Renderable): Node
-export function RepeatScroll<T extends o.RO<any[]>>(ob: T, options: RepeatScroll.Options<Repeat.Item<T>>, render: (arg: Repeat.RoItem<T>, idx: o.RO<number>) => Renderable): Node
+export function RepeatScroll<T extends o.RO<any[]>>(ob: T, render: Repeat.RenderItemFn<T>): Node
+export function RepeatScroll<T extends o.RO<any[]>>(ob: T, options: RepeatScroll.Options<Repeat.Item<T>>, render: Repeat.RenderItemFn<T>): Node
 export function RepeatScroll<T extends o.RO<any[]>>(
   ob: T,
-  opts_or_render: ((arg: Repeat.RoItem<T>, idx: o.RO<number>) => Renderable) | RepeatScroll.Options<Repeat.Item<T>>,
-  real_render?: ((arg: Repeat.RoItem<T>, idx: o.RO<number>) => Renderable)
+  opts_or_render: (Repeat.RenderItemFn<T>) | RepeatScroll.Options<Repeat.Item<T>>,
+  real_render?: (Repeat.RenderItemFn<T>)
 ): Node {
   // we cheat the typesystem, which is not great, but we "know what we're doing".
   if (typeof opts_or_render === "function") {
@@ -314,7 +316,7 @@ export namespace RepeatScroll {
     inter: IntersectionObserver | null = null
 
     // Have to type this manually since dts-bundler chokes on Renderable
-    separator?: (n: number) => Renderable = this.options.separator
+    separator?: (n: number) => Insertable<HTMLElement> = this.options.separator
 
     /**
      * Append `count` children if the parent was not scrollable (just like Repeater),

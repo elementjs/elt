@@ -12,7 +12,9 @@ import { o } from "./observable"
  * @group Transformer
  */
 export function tf_equals<T, TT extends T>(other: o.RO<TT>) {
-  return o.tf(other, oth => (current: T) => current === oth)
+  return o.tf(other,
+    oth => (current: T) => current === oth,
+  )
 }
 
 /**
