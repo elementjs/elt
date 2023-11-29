@@ -428,7 +428,7 @@ export namespace App {
       }
 
       let value = this.app.staging.params.get(name) ?? default_value ?? null
-      this.params.set(name, null)
+      this.params.set(name, null) // should this mean
       return value
     }
 
