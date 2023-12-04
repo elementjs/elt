@@ -446,7 +446,7 @@ export class Observable<A> implements ReadonlyObservable<A>, Indexable {
     }
   }
 
-  [sym_appendable]<A extends Renderable<Node>>(this: ReadonlyObservable<A>, parent: Node, refchild: Node | null) {
+  [sym_appendable]<A extends Renderable<N>, N extends Node>(this: ReadonlyObservable<A>, parent: N, refchild: Node | null) {
     const kind = this[sym_display_node] ?? "e-obs"
     const attrs = this[sym_display_attrs]
 
@@ -463,7 +463,7 @@ export class Observable<A> implements ReadonlyObservable<A>, Indexable {
           iter = next
         }
         // node_clear(d)
-        node_append(start.parentNode!, renderable, end)
+        node_append(start.parentNode! as unknown as N, renderable, end)
       }, { immediate: true })
 
       node_append(parent, end, refchild)
@@ -485,7 +485,7 @@ export class Observable<A> implements ReadonlyObservable<A>, Indexable {
           iter = elt.firstChild
         }
         // node_clear(d)
-        node_append(elt, renderable)
+        node_append(elt, renderable as any)
       }, { immediate: true })
 
       node_append(parent, elt, refchild)
