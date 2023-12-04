@@ -27,7 +27,7 @@
     "js-yaml": "^4.1.0",
     "typedoc": "^0.23.28",
     "typedoc-plugin-merge-modules": "^4.0.1",
-    "typescript": "5.0.2",
+    "typescript": "5.3.2",
     "wtsc": "^0.1.3"
   }
 }
