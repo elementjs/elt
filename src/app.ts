@@ -103,7 +103,8 @@ export class App {
     const res = this.o_views.tf(views => views.get(view_name)).tf<Renderable>(viewfn => {
       return viewfn?.()
     })
-    res[o.sym_display_node] = `e-app-view "${view_name}"`
+    res[o.sym_display_node] = "e-app-view"
+    res[o.sym_display_attrs] = { view: view_name }
     return res
   }
 
