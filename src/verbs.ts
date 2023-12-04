@@ -38,10 +38,10 @@ import { sym_appendable } from "./symbols"
  * ```
  * @group Verbs
  */
-export function If<T extends o.RO<any>>(
+export function If<T extends o.RO<any>, N extends Node>(
   condition: T,
-  display: (arg: If.NonNullableRO<T>) => Renderable<Node>,
-  display_otherwise?: (a: o.ReadonlyObservable<T>) => Renderable<Node>,
+  display: (arg: If.NonNullableRO<T>) => Renderable<N>,
+  display_otherwise?: (a: o.ReadonlyObservable<T>) => Renderable<N>,
 ) {
 
   return new If.IfDisplayer(condition, display, display_otherwise)
@@ -63,14 +63,14 @@ export namespace If {
     T extends o.ReadonlyObservable<infer U> ? o.ReadonlyObservable<NonNullable<U>>
     : NonNullable<T>
 
-  export class IfDisplayer<T> implements Appendable<Node> {
+  export class IfDisplayer<T, N extends Node> implements Appendable<N> {
     constructor(
       public condition: o.RO<T>,
-      public _display: (arg: If.NonNullableRO<T>) => Renderable<Node>,
-      public _display_otherwise?: (a: o.ReadonlyObservable<T>) => Renderable<Node>,
+      public _display: (arg: If.NonNullableRO<T>) => Renderable<N>,
+      public _display_otherwise?: (a: o.ReadonlyObservable<T>) => Renderable<N>,
     ) {
-      this.observable = o.tf<T, Renderable<Node>>(this.condition, (cond, old, v) => {
-        if (old !== o.NoValue && !!cond === !!old && v !== o.NoValue) return v as Renderable<Node>
+      this.observable = o.tf<T, Renderable<N>>(this.condition, (cond, old, v) => {
+        if (old !== o.NoValue && !!cond === !!old && v !== o.NoValue) return v as Renderable<N>
         if (cond) {
           return this._display(this.condition as If.NonNullableRO<T>)
         } else if (this._display_otherwise) {
@@ -81,20 +81,20 @@ export namespace If {
       })
     }
 
-    observable: Renderable<Node>
+    observable: Renderable<N>
 
-    ;[sym_appendable](parent: Node, refchild: Node | null) {
+    ;[sym_appendable](parent: N, refchild: Node | null) {
       const obs = this.observable
 
       if (!o.is_observable(obs)) {
-        node_append(parent as Element, obs, refchild)
+        node_append(parent as N, obs, refchild)
         return
       }
 
       return obs[sym_appendable](parent, refchild)
     }
 
-    Else(other: (a: o.ReadonlyObservable<T>) => Renderable<Node>) {
+    Else(other: (a: o.ReadonlyObservable<T>) => Renderable<N>) {
       this._display_otherwise = other
       return this
     }
@@ -408,12 +408,11 @@ export namespace RepeatScroll {
  *
  * @group Verbs
  */
-export function Switch<T>(obs: o.Observable<T>): Switch.Switcher<T>
-export function Switch<T>(obs: o.ReadonlyObservable<T>): Switch.ReadonlySwitcher<T>
+export function Switch<T, N extends Node>(obs: o.Observable<T>): Switch.Switcher<T, N>
+export function Switch<T, N extends Node>(obs: o.ReadonlyObservable<T>): Switch.ReadonlySwitcher<T, N>
+
 export function Switch(obs: any): any {
-  const res = new (Switch.Switcher as any)(obs)
-  res[o.sym_display_node] = "e-switch"
-  return res
+  return new (Switch.Switcher as any)(obs)
 }
 
 
@@ -421,18 +420,20 @@ export namespace Switch {
   /**
    * @internal
    */
-  export class Switcher<T> extends o.CombinedObservable<[T], Renderable<ParentNode>> {
+  export class Switcher<T, N extends Node> extends o.CombinedObservable<[T], Renderable<N>> {
 
-    cases: [(T | ((t: T) => any)), (t: o.Observable<T>) => Renderable<ParentNode>][] = []
-    passthrough: () => Renderable<ParentNode> = () => null
+    [o.sym_display_node] = "e-switch"
+
+    cases: [(T | ((t: T) => any)), (t: o.Observable<T>) => Renderable<N>][] = []
+    passthrough: () => Renderable<N> = () => null
     prev_case: any = null
-    prev: Renderable<ParentNode> = ""
+    prev: Renderable<N> = ""
 
     constructor(public obs: o.Observable<T>) {
       super([obs])
     }
 
-    getter([nval] : [T]): Renderable<ParentNode> {
+    getter([nval] : [T]): Renderable<N> {
       const cases = this.cases
       for (const c of cases) {
         const val = c[0]
@@ -452,15 +453,15 @@ export namespace Switch {
     }
 
     // @ts-ignore
-    Case<S extends T>(value: (t: T) => t is S, fn: (v: o.Observable<S>) => Renderable<ParentNode>): Switcher<Exclude<T, S>>
-    Case(value: T, fn: (v: o.Observable<T>) => Renderable<ParentNode>): this
-    Case(predicate: (t: T) => any, fn: (v: o.Observable<T>) => Renderable<ParentNode>): this
-    Case(value: T | ((t: T) => any), fn: (v: o.Observable<T>) => Renderable<ParentNode>): this {
+    Case<S extends T>(value: (t: T) => t is S, fn: (v: o.Observable<S>) => Renderable<N>): Switcher<Exclude<T, S>>
+    Case(value: T, fn: (v: o.Observable<T>) => Renderable<N>): this
+    Case(predicate: (t: T) => any, fn: (v: o.Observable<T>) => Renderable<N>): this
+    Case(value: T | ((t: T) => any), fn: (v: o.Observable<T>) => Renderable<N>): this {
       this.cases.push([value, fn])
       return this as any
     }
 
-    Else(fn: () => Renderable<ParentNode>) {
+    Else(fn: () => Renderable<N>) {
       this.passthrough = fn
       return this
     }
@@ -471,11 +472,11 @@ export namespace Switch {
   /**
    * @internal
    */
-  export interface ReadonlySwitcher<T> extends o.ReadonlyObservable<Renderable<ParentNode>> {
+  export interface ReadonlySwitcher<T, N extends Node> extends o.ReadonlyObservable<Renderable<N>> {
     /** See {@link Switch.Switcher#Case} */
-    Case<S extends T>(value: (t: T) => t is S, fn: (v: o.ReadonlyObservable<S>) => Renderable<ParentNode>): ReadonlySwitcher<Exclude<T, S>>
-    Case(value: T, fn: (v: o.ReadonlyObservable<T>) => Renderable<ParentNode>): this
-    Case(predicate: (t: T) => any, fn: (v: o.ReadonlyObservable<T>) => Renderable<ParentNode>): this
+    Case<S extends T>(value: (t: T) => t is S, fn: (v: o.ReadonlyObservable<S>) => Renderable<N>): ReadonlySwitcher<Exclude<T, S>, N>
+    Case(value: T, fn: (v: o.ReadonlyObservable<T>) => Renderable<N>): this
+    Case(predicate: (t: T) => any, fn: (v: o.ReadonlyObservable<T>) => Renderable<N>): this
     /** See {@link Switch.Switcher#Else} */
 
   }
