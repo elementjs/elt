@@ -15,7 +15,7 @@ import {
   node_on_disconnected,
 } from "./dom"
 
-import { Insertable } from "./types"
+import { Renderable } from "./types"
 
 
 /**
@@ -41,15 +41,15 @@ import { Insertable } from "./types"
  */
 export function If<T extends o.RO<any>>(
   condition: T,
-  display: (arg: If.NonNullableRO<T>) => Insertable<ParentNode>,
-  display_otherwise?: (a: T) => Insertable<ParentNode>,
+  display: (arg: If.NonNullableRO<T>) => Renderable,
+  display_otherwise?: (a: T) => Renderable,
 ) {
 
   // return res
 
   const resfn = function () {
-    const res = o.tf<T, Insertable<ParentNode>>(condition, (cond, old, v) => {
-      if (old !== o.NoValue && !!cond === !!old && v !== o.NoValue) return v as Insertable<ParentNode>
+    const res = o.tf<T, Renderable>(condition, (cond, old, v) => {
+      if (old !== o.NoValue && !!cond === !!old && v !== o.NoValue) return v as Renderable
       if (cond) {
         return display(condition as If.NonNullableRO<T>)
       } else if (display_otherwise) {
@@ -62,7 +62,7 @@ export function If<T extends o.RO<any>>(
     return res
   }
 
-  resfn.Else = function (otherwise: (a: T) => Insertable<ParentNode>) {
+  resfn.Else = function (otherwise: (a: T) => Renderable) {
     display_otherwise = otherwise
   }
 
@@ -141,13 +141,13 @@ export namespace Repeat {
 
   export type Item<T extends o.RO<any[]>> = T extends o.ReadonlyObservable<(infer U)[]> ? U : T
 
-  export type RenderItemFn<T extends o.RO<any[]>> = (arg : Repeat.RoItem<T>, idx: o.RO<number>) => Insertable<HTMLElement>
+  export type RenderItemFn<T extends o.RO<any[]>> = (arg : Repeat.RoItem<T>, idx: o.RO<number>) => Renderable<HTMLElement>
 
   export interface Options<T> {
     /**
      * The separator to insert between all rendering of repeated elements
      */
-    separator?: (n: o.RO<number>) => Insertable<HTMLElement>
+    separator?: (n: o.RO<number>) => Renderable<HTMLElement>
     key?: (elt: T) => any
   }
 
@@ -163,7 +163,7 @@ export namespace Repeat {
 
     constructor(
       public obs: o.Observable<T[]>,
-      public renderfn: (ob: o.Observable<T>, n: o.RO<number>) => Insertable<HTMLElement>,
+      public renderfn: (ob: o.Observable<T>, n: o.RO<number>) => Renderable<HTMLElement>,
       public options: Repeat.Options<T> = {}
     ) { }
 
@@ -304,7 +304,7 @@ export namespace RepeatScroll {
 
     constructor(
       ob: o.Observable<T[]>,
-      renderfn: (e: o.Observable<T>, oi: o.RO<number>) => Insertable<HTMLElement>,
+      renderfn: (e: o.Observable<T>, oi: o.RO<number>) => Renderable<HTMLElement>,
       public options: RepeatScroll.Options<T>
     ) {
       super(ob, renderfn, options)
@@ -316,7 +316,7 @@ export namespace RepeatScroll {
     inter: IntersectionObserver | null = null
 
     // Have to type this manually since dts-bundler chokes on Renderable
-    separator?: (n: number) => Insertable<HTMLElement> = this.options.separator
+    separator?: (n: number) => Renderable<HTMLElement> = this.options.separator
 
     /**
      * Append `count` children if the parent was not scrollable (just like Repeater),
@@ -406,18 +406,18 @@ export namespace Switch {
   /**
    * @internal
    */
-  export class Switcher<T> extends o.CombinedObservable<[T], Insertable<ParentNode>> {
+  export class Switcher<T> extends o.CombinedObservable<[T], Renderable<ParentNode>> {
 
-    cases: [(T | ((t: T) => any)), (t: o.Observable<T>) => Insertable<ParentNode>][] = []
-    passthrough: () => Insertable<ParentNode> = () => null
+    cases: [(T | ((t: T) => any)), (t: o.Observable<T>) => Renderable<ParentNode>][] = []
+    passthrough: () => Renderable<ParentNode> = () => null
     prev_case: any = null
-    prev: Insertable<ParentNode> = ""
+    prev: Renderable<ParentNode> = ""
 
     constructor(public obs: o.Observable<T>) {
       super([obs])
     }
 
-    getter([nval] : [T]): Insertable<ParentNode> {
+    getter([nval] : [T]): Renderable<ParentNode> {
       const cases = this.cases
       for (const c of cases) {
         const val = c[0]
@@ -437,15 +437,15 @@ export namespace Switch {
     }
 
     // @ts-ignore
-    Case<S extends T>(value: (t: T) => t is S, fn: (v: o.Observable<S>) => Insertable<ParentNode>): Switcher<Exclude<T, S>>
-    Case(value: T, fn: (v: o.Observable<T>) => Insertable<ParentNode>): this
-    Case(predicate: (t: T) => any, fn: (v: o.Observable<T>) => Insertable<ParentNode>): this
-    Case(value: T | ((t: T) => any), fn: (v: o.Observable<T>) => Insertable<ParentNode>): this {
+    Case<S extends T>(value: (t: T) => t is S, fn: (v: o.Observable<S>) => Renderable<ParentNode>): Switcher<Exclude<T, S>>
+    Case(value: T, fn: (v: o.Observable<T>) => Renderable<ParentNode>): this
+    Case(predicate: (t: T) => any, fn: (v: o.Observable<T>) => Renderable<ParentNode>): this
+    Case(value: T | ((t: T) => any), fn: (v: o.Observable<T>) => Renderable<ParentNode>): this {
       this.cases.push([value, fn])
       return this as any
     }
 
-    Else(fn: () => Insertable<ParentNode>) {
+    Else(fn: () => Renderable<ParentNode>) {
       this.passthrough = fn
       return this
     }
@@ -456,11 +456,11 @@ export namespace Switch {
   /**
    * @internal
    */
-  export interface ReadonlySwitcher<T> extends o.ReadonlyObservable<Insertable<ParentNode>> {
+  export interface ReadonlySwitcher<T> extends o.ReadonlyObservable<Renderable<ParentNode>> {
     /** See {@link Switch.Switcher#Case} */
-    Case<S extends T>(value: (t: T) => t is S, fn: (v: o.ReadonlyObservable<S>) => Insertable<ParentNode>): ReadonlySwitcher<Exclude<T, S>>
-    Case(value: T, fn: (v: o.ReadonlyObservable<T>) => Insertable<ParentNode>): this
-    Case(predicate: (t: T) => any, fn: (v: o.ReadonlyObservable<T>) => Insertable<ParentNode>): this
+    Case<S extends T>(value: (t: T) => t is S, fn: (v: o.ReadonlyObservable<S>) => Renderable<ParentNode>): ReadonlySwitcher<Exclude<T, S>>
+    Case(value: T, fn: (v: o.ReadonlyObservable<T>) => Renderable<ParentNode>): this
+    Case(predicate: (t: T) => any, fn: (v: o.ReadonlyObservable<T>) => Renderable<ParentNode>): this
     /** See {@link Switch.Switcher#Else} */
 
   }
@@ -475,7 +475,7 @@ export namespace Switch {
  *
  * @group Verbs
  */
-export function IfResolving(pro: o.RO<Promise<any>>, fn: () => Insertable<ParentNode>) {
+export function IfResolving(pro: o.RO<Promise<any>>, fn: () => Renderable<ParentNode>) {
   return If(o.wrap_promise(pro).tf(v => v.resolving), fn)
 }
 
@@ -490,14 +490,14 @@ export function IfResolving(pro: o.RO<Promise<any>>, fn: () => Insertable<Parent
  * @group Verbs
  */
 export function IfResolved<T>(op: o.Observable<Promise<T>>,
-  resolved: (o_value: o.Observable<T>) => Insertable<ParentNode>,
-  rejected?: (o_error: o.Observable<any>) => Insertable<ParentNode>): DocumentFragment
+  resolved: (o_value: o.Observable<T>) => Renderable<ParentNode>,
+  rejected?: (o_error: o.Observable<any>) => Renderable<ParentNode>): DocumentFragment
 export function IfResolved<T>(op: o.RO<Promise<T>>,
-  resolved: (o_value: o.ReadonlyObservable<T>) => Insertable<ParentNode>,
-  rejected?: (o_error: o.ReadonlyObservable<any>) => Insertable<ParentNode>): DocumentFragment
+  resolved: (o_value: o.ReadonlyObservable<T>) => Renderable<ParentNode>,
+  rejected?: (o_error: o.ReadonlyObservable<any>) => Renderable<ParentNode>): DocumentFragment
 export function IfResolved<T>(op: o.Observable<Promise<T>> | o.RO<Promise<T>>,
-  resolved: (o_value: o.Observable<T>) => Insertable<ParentNode>,
-  rejected?: (o_error: o.Observable<any>) => Insertable<ParentNode>): DocumentFragment
+  resolved: (o_value: o.Observable<T>) => Renderable<ParentNode>,
+  rejected?: (o_error: o.Observable<any>) => Renderable<ParentNode>): DocumentFragment
 {
   const op_wrapped = o.wrap_promise(op)
   const o_value = o(undefined as any)

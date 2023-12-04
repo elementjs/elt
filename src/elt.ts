@@ -10,7 +10,7 @@ import {
   Attrs,
   ElementMap,
   EmptyAttributes,
-  Insertable,
+  Renderable,
 } from "./types"
 
 import { sym_exposed } from "./symbols"
@@ -39,7 +39,7 @@ requestAnimationFrame(() => setup_base_styles())
  *
  * @group Verbs
  */
-export function Display(obs: o.RO<Insertable<ParentNode>>, kind = "e-obs"): DocumentFragment {
+export function Display(obs: o.RO<Renderable<ParentNode>>, kind = "e-obs"): DocumentFragment {
   const fr = document.createDocumentFragment()
   const start = document.createComment(` ${kind} `)
   const end = document.createComment(` end ${kind} `)
@@ -77,11 +77,11 @@ export type AttrsFor<T extends string> =
  * Controllers, decorators, classes and style.
  * @category dom, toc
  */
-export function e<T extends (a: A) => N, A extends Attrs<any>, N extends Node>(elt: T, attrs: A, ...children: (A | Insertable<N>)[]): N
-export function e<T extends Node>(elt: T, ...children: (Attrs<T> | Insertable<T>)[]): T
-export function e<T extends string>(elt: T, ...children: (Insertable<NodeTypeFromCreator<T>> | AttrsFor<T>)[]): NodeTypeFromCreator<T>
+export function e<T extends (a: A) => N, A extends Attrs<any>, N extends Node>(elt: T, attrs: A, ...children: (A | Renderable<N>)[]): N
+export function e<T extends Node>(elt: T, ...children: (Attrs<T> | Renderable<T>)[]): T
+export function e<T extends string>(elt: T, ...children: (Renderable<NodeTypeFromCreator<T>> | AttrsFor<T>)[]): NodeTypeFromCreator<T>
 // eslint-disable-next-line @typescript-eslint/ban-types
-export function e<N extends Node>(elt: string | Node | Function, ...children: (Insertable<N> | Attrs<N>)[]): N {
+export function e<N extends Node>(elt: string | Node | Function, ...children: (Renderable<N> | Attrs<N>)[]): N {
   let node: N // just to prevent the warnings later
 
   let is_basic_node = true

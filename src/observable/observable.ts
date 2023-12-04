@@ -1,6 +1,7 @@
 import { IndexableArray, Indexable } from "./indexable"
 
-import { sym_is_observable } from "../symbols"
+import { sym_appendable, sym_is_observable } from "../symbols"
+import { Appendable } from "../types"
 
 declare const DEBUG: boolean
 
@@ -233,6 +234,7 @@ export const sym_display_attrs = Symbol("display-attrs")
  */
 export interface ReadonlyObservable<A> {
   [sym_display_node]?: string
+  [sym_appendable]<A extends Appendable<Node>>(this: Observable<A>, parent: Node, refchild: Node | null): void
 
   /** See {@link o.Observable#get} */
   get(): A
@@ -436,6 +438,10 @@ export class Observable<A> implements ReadonlyObservable<A>, Indexable {
       this._value = value
       queue.schedule(this)
     }
+  }
+
+  [sym_appendable]<A extends Appendable<Node>>(this: Observable<A>, parent: Node, refchild: Node | null) {
+    console.log("got here !", this)
   }
 
   /**
