@@ -1,7 +1,6 @@
-import { Display, } from "./elt"
 import { o } from "./observable"
-import type { ClassDefinition, StyleDefinition, Listener, Insertable, Attrs, } from "./types"
-import { sym_connected_status, sym_observers, sym_connected, sym_disconnected, sym_exposed, } from "./symbols"
+import type { ClassDefinition, StyleDefinition, Listener, Appendable, Attrs, Renderable, } from "./types"
+import { sym_connected_status, sym_observers, sym_connected, sym_disconnected, sym_exposed, sym_appendable, } from "./symbols"
 
 const NODE_IS_CONNECTED =      0b001
 const NODE_IS_OBSERVING =     0b010
@@ -235,6 +234,11 @@ export function setup_mutation_observer(node: Node) {
 const basic_attrs = new Set(["id", "slot", "part", "role", "tabindex", "lang", "inert", "title", "autofocus", "nonce"])
 
 
+function is_appendable(ins: any): ins is Appendable<Node> {
+  return typeof ins?.[sym_appendable] === "function"
+}
+
+
 /**
  * Process an insertable and insert it where desired.
  *
@@ -243,7 +247,7 @@ const basic_attrs = new Set(["id", "slot", "part", "role", "tabindex", "lang", "
  * @param refchild The child before which to append
  * @group Dom
  */
-export function node_append<N extends Node>(node: N, insertable: Insertable<N> | Attrs<N>, refchild: Node | null = null, is_basic_node = true) {
+export function node_append<N extends Node>(node: N, insertable: Renderable<N> | Attrs<N>, refchild: Node | null = null, is_basic_node = true) {
   if (insertable == null || insertable === false) return
 
   if (typeof insertable === "string") {
@@ -274,18 +278,17 @@ export function node_append<N extends Node>(node: N, insertable: Insertable<N> |
   } else if (insertable instanceof Function) {
     // A decorator
     const res = insertable(node)
-    if (res != null) node_append(node, res as Insertable<N>, refchild, is_basic_node)
+    if (res != null) node_append(node, res as Appendable<N>, refchild, is_basic_node)
 
-  } else if (o.isReadonlyObservable(insertable)) {
-    // An observable to display
-    const disp = Display(insertable, insertable?.[o.sym_display_node])
+  } else if (is_appendable(insertable)) {
 
-    node_append(node, disp, refchild, is_basic_node)
+    insertable[sym_appendable](node, refchild)
 
   } else if (Array.isArray(insertable)) {
     // An array of children
     for (let i = 0, l = insertable.length; i < l; i++)
       node_append(node, insertable[i], refchild, is_basic_node)
+
 
   } else if (insertable.constructor === Object) {
     // An attribute object. We assume this is an Element that is being handled

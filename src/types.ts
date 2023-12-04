@@ -1,6 +1,14 @@
 import type { o } from "./observable"
 
+import { sym_appendable } from "./symbols"
+
+export interface Appendable<N extends Node> {
+  [sym_appendable](parent: N, refchild: Node | null): void
+}
+
 export type NRO<T> = o.RO<T | null | false | undefined>
+
+export type Decorator<N extends Node> = (node: N) => Renderable<N>
 
 /**
  * Renderables are the types understood by the `Display` verb and that can be rendered into
@@ -8,42 +16,7 @@ export type NRO<T> = o.RO<T | null | false | undefined>
  * to define what can go between `{ curly braces }` in JSX code.
  * @category dom, toc
  */
-export type Renderable = string | number | Node | null | undefined | false | Renderable[] | o.ReadonlyObservable<Renderable>
-
-/**
- * Definition of the Decorator type, or functions that can be passed directly
- * as a component's child.
- *
- * If the decorator returns nothing, `null` or `undefined`, then nothing is inserted.
- *
- * If it returns a {@link Renderable}, then it is appended to `node` where the decorator was called.
- *
- * If the result is a decorator, then it is reexecuted on the `node`.
- *
- * If the result is a {@link Mixin}, then it is associated to the `node`.
- *
- * @category dom
- */
-export type DecoratorResult<N extends Node> = void | Renderable | Decorator<N> | DecoratorResult<N>[]
-export type Decorator<N extends Node> = (node: N) => DecoratorResult<N>
-
-/**
- * @category dom, toc
- *
- * The Insertable type describes the types that elt can append to a Node.
- * Anything of the Insertable type can be put `<tag>between braces {'!'}</tag>`.
- *
- * The following types can be used :
- *  - `null` or `undefined` (which output nothing)
- *  - `number`
- *  - `string`
- *  - `Node`
- *  - Arrays of these types, even recursively.
- *
- * `<div>{['hello', ' ', {@link 'world'} ]}</div>` will render `<div>hello world</div>`
- *
-*/
-export type Insertable<N extends Node = Element> = Decorator<N> | Renderable | Insertable<N>[]
+export type Renderable<N extends Node = Element> = Appendable<N> | string | number | Node | null | undefined | void | false | Decorator<N> | Renderable<N>[]
 
 /**
  * CSS Style attribute definition for the style={} attribute
@@ -71,7 +44,7 @@ export interface EmptyAttributes<N extends Node> {
    * This attribute is the one used by TSX to validate what can be inserted
    * as a child in a TSX expression.
    */
-  $$children?: o.RO<Insertable<N>> | o.RO<Insertable<N>>[]
+  $$children?: o.RO<Renderable<N>> | o.RO<Renderable<N>>[]
 }
 
 /**

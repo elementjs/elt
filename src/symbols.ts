@@ -1,5 +1,10 @@
 
 /**
+ * For classes that can be added directly as Insertable
+ */
+export const sym_appendable = Symbol.for("--elt-appendable--")
+
+/**
  * For custom element constructors, the attribute where the string array holding the observed properties is stored.
  */
 export const sym_observed_attrs = Symbol.for("--elt-custom-observed-attrs--")
