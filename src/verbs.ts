@@ -13,7 +13,8 @@ import {
   node_on_disconnected,
 } from "./dom"
 
-import { Renderable } from "./types"
+import { Appendable, Renderable } from "./types"
+import { sym_appendable } from "./symbols"
 
 
 /**
@@ -39,32 +40,12 @@ import { Renderable } from "./types"
  */
 export function If<T extends o.RO<any>>(
   condition: T,
-  display: (arg: If.NonNullableRO<T>) => Renderable,
-  display_otherwise?: (a: T) => Renderable,
+  display: (arg: If.NonNullableRO<T>) => Renderable<Node>,
+  display_otherwise?: (a: o.ReadonlyObservable<T>) => Renderable<Node>,
 ) {
 
-  // return res
+  return new If.IfDisplayer(condition, display, display_otherwise)
 
-  const resfn = function () {
-    const res = o.tf<T, Renderable>(condition, (cond, old, v) => {
-      if (old !== o.NoValue && !!cond === !!old && v !== o.NoValue) return v as Renderable
-      if (cond) {
-        return display(condition as If.NonNullableRO<T>)
-      } else if (display_otherwise) {
-        return display_otherwise(condition)
-      } else {
-        return null
-      }
-    })
-    if (o.isReadonlyObservable(res)) res[o.sym_display_node] = "e-if"
-    return res
-  }
-
-  resfn.Else = function (otherwise: (a: T) => Renderable) {
-    display_otherwise = otherwise
-  }
-
-  return resfn
 }
 
 export namespace If {
@@ -82,6 +63,42 @@ export namespace If {
     T extends o.ReadonlyObservable<infer U> ? o.ReadonlyObservable<NonNullable<U>>
     : NonNullable<T>
 
+  export class IfDisplayer<T> implements Appendable<Node> {
+    constructor(
+      public condition: o.RO<T>,
+      public _display: (arg: If.NonNullableRO<T>) => Renderable<Node>,
+      public _display_otherwise?: (a: o.ReadonlyObservable<T>) => Renderable<Node>,
+    ) {
+      this.observable = o.tf<T, Renderable<Node>>(this.condition, (cond, old, v) => {
+        if (old !== o.NoValue && !!cond === !!old && v !== o.NoValue) return v as Renderable<Node>
+        if (cond) {
+          return this._display(this.condition as If.NonNullableRO<T>)
+        } else if (this._display_otherwise) {
+          return this._display_otherwise(this.condition as o.ReadonlyObservable<T>)
+        } else {
+          return null
+        }
+      })
+    }
+
+    observable: Renderable<Node>
+
+    ;[sym_appendable](parent: Node, refchild: Node | null) {
+      const obs = this.observable
+
+      if (!o.is_observable(obs)) {
+        node_append(parent as Element, obs, refchild)
+        return
+      }
+
+      return obs[sym_appendable](parent, refchild)
+    }
+
+    Else(other: (a: o.ReadonlyObservable<T>) => Renderable<Node>) {
+      this._display_otherwise = other
+      return this
+    }
+  }
 }
 
 
@@ -473,7 +490,7 @@ export namespace Switch {
  *
  * @group Verbs
  */
-export function IfResolving(pro: o.RO<Promise<any>>, fn: () => Renderable<ParentNode>) {
+export function IfResolving(pro: o.RO<Promise<any>>, fn: () => Renderable<Node>) {
   return If(o.wrap_promise(pro).tf(v => v.resolving), fn)
 }
 
