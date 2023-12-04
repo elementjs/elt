@@ -1,6 +1,6 @@
 import { IndexableArray, Indexable } from "./indexable"
 
-import { sym_appendable, sym_display_tag } from "../symbols"
+import { sym_appendable, sym_is_observable } from "../symbols"
 import { Appendable } from "../types"
 import { node_append, node_observe, node_remove } from "../dom"
 
@@ -235,6 +235,8 @@ export const sym_display_attrs = Symbol("display-attrs")
  */
 export interface ReadonlyObservable<A> {
   [sym_display_node]?: string
+  [sym_display_attrs]?: {[name: string]: string}
+
   [sym_appendable]<A extends Appendable<Node>>(this: Observable<A>, parent: Node, refchild: Node | null): void
 
   /** See {@link o.Observable#get} */
@@ -394,6 +396,9 @@ export class ChildObservableLink implements Indexable {
  */
 export class Observable<A> implements ReadonlyObservable<A>, Indexable {
 
+  [sym_display_node]?: string
+  [sym_display_attrs]?: {[name: string]: string}
+
   /** @internal */
   readonly _observers = new IndexableArray<Observer<A>>()
   /** @internal */
@@ -442,11 +447,12 @@ export class Observable<A> implements ReadonlyObservable<A>, Indexable {
   }
 
   [sym_appendable]<A extends Appendable<Node>>(this: Observable<A>, parent: Node, refchild: Node | null) {
-    const kind = this[sym_display_tag] ?? "e-obs"
+    const kind = this[sym_display_node] ?? "e-obs"
+    const attrs = this[sym_display_attrs]
 
     if (parent instanceof SVGElement) {
       // SVG Does not like custom elements at all, so we do it with comments
-      const start = document.createComment(` ${kind} `)
+      const start = document.createComment(` ${kind}${attrs ? " " + JSON.stringify(attrs) : ""} `)
       const end = document.createComment(` end ${kind} `)
 
       node_observe(start, this, renderable => {
@@ -465,6 +471,12 @@ export class Observable<A> implements ReadonlyObservable<A>, Indexable {
     } else {
 
       const elt = document.createElement(kind)
+      if (attrs) {
+        for (let key in attrs) {
+          const val = attrs[key]
+          elt.setAttribute(key, val)
+        }
+      }
 
       node_observe(elt, this, renderable => {
         let iter = elt.firstChild
@@ -777,11 +789,11 @@ export class Observable<A> implements ReadonlyObservable<A>, Indexable {
 
 
 export interface Observable<A> {
-  [sym_display_tag]?: string
+  [sym_is_observable]?: boolean
 }
 
 // Mark all observables with a known symbol
-Observable.prototype[sym_display_tag] = "e-obs"
+Observable.prototype[sym_is_observable] = true
 
 
 /**
@@ -1054,7 +1066,7 @@ export function merge<T>(obj: {[K in keyof T]: Observable<T[K]>}): Observable<T>
   export function is_observable<T>(arg: RO<T>): arg is Observable<T>
   export function is_observable(arg: any): arg is Observable<any>
   export function is_observable(arg: any): arg is Observable<any> {
-    return (arg as any)?.[sym_display_tag]
+    return (arg as any)?.[sym_is_observable]
   }
 
   /**
