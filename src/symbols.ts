@@ -17,7 +17,7 @@ export const sym_exposed = Symbol.for("--elt-custom-exposed--")
 /**
  * If multiple instances of elt are loaded, we cannot rely on instanceof to know if an object is an observable or not.
  */
-export const sym_is_observable = Symbol.for("--elt-is-observable--")
+export const sym_display_tag = Symbol.for("--elt-display-tag--")
 
 /**
  * Symbol property on `Node` to an array of observers that are started when the node is `connected()` and

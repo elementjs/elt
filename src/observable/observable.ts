@@ -1,7 +1,8 @@
 import { IndexableArray, Indexable } from "./indexable"
 
-import { sym_appendable, sym_is_observable } from "../symbols"
+import { sym_appendable, sym_display_tag } from "../symbols"
 import { Appendable } from "../types"
+import { node_append, node_observe, node_remove } from "../dom"
 
 declare const DEBUG: boolean
 
@@ -441,7 +442,43 @@ export class Observable<A> implements ReadonlyObservable<A>, Indexable {
   }
 
   [sym_appendable]<A extends Appendable<Node>>(this: Observable<A>, parent: Node, refchild: Node | null) {
-    console.log("got here !", this)
+    const kind = this[sym_display_tag] ?? "e-obs"
+
+    if (parent instanceof SVGElement) {
+      // SVG Does not like custom elements at all, so we do it with comments
+      const start = document.createComment(` ${kind} `)
+      const end = document.createComment(` end ${kind} `)
+
+      node_observe(start, this, renderable => {
+        let iter = start.nextSibling
+        while (iter && iter !== end) {
+          let next = iter?.nextSibling
+          node_remove(iter)
+          iter = next
+        }
+        // node_clear(d)
+        node_append(start.parentNode!, renderable, end)
+      }, { immediate: true })
+
+      node_append(parent, end, refchild)
+      node_append(parent, start, end)
+    } else {
+
+      const elt = document.createElement(kind)
+
+      node_observe(elt, this, renderable => {
+        let iter = elt.firstChild
+        while (iter) {
+          node_remove(iter)
+          iter = elt.firstChild
+        }
+        // node_clear(d)
+        node_append(elt, renderable)
+      }, { immediate: true })
+
+      node_append(parent, elt, refchild)
+    }
+
   }
 
   /**
@@ -740,11 +777,11 @@ export class Observable<A> implements ReadonlyObservable<A>, Indexable {
 
 
 export interface Observable<A> {
-  [sym_is_observable]?: true
+  [sym_display_tag]?: string
 }
 
 // Mark all observables with a known symbol
-Observable.prototype[sym_is_observable] = true
+Observable.prototype[sym_display_tag] = "e-obs"
 
 
 /**
@@ -1017,7 +1054,7 @@ export function merge<T>(obj: {[K in keyof T]: Observable<T[K]>}): Observable<T>
   export function is_observable<T>(arg: RO<T>): arg is Observable<T>
   export function is_observable(arg: any): arg is Observable<any>
   export function is_observable(arg: any): arg is Observable<any> {
-    return (arg as any)?.[sym_is_observable]
+    return (arg as any)?.[sym_display_tag]
   }
 
   /**
