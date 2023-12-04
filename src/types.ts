@@ -43,7 +43,7 @@ export type Decorator<N extends Node> = (node: N) => DecoratorResult<N>
  * `<div>{['hello', ' ', {@link 'world'} ]}</div>` will render `<div>hello world</div>`
  *
 */
-export type Insertable<N extends Node> = Decorator<N> | Renderable | Insertable<N>[]
+export type Insertable<N extends Node = Element> = Decorator<N> | Renderable | Insertable<N>[]
 
 /**
  * CSS Style attribute definition for the style={} attribute

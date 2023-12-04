@@ -11,7 +11,6 @@ import {
   ElementMap,
   EmptyAttributes,
   Insertable,
-  Renderable,
 } from "./types"
 
 import { sym_exposed } from "./symbols"
@@ -40,7 +39,7 @@ requestAnimationFrame(() => setup_base_styles())
  *
  * @group Verbs
  */
-export function Display(obs: o.RO<Renderable>, kind = "e-obs"): DocumentFragment {
+export function Display(obs: o.RO<Insertable<ParentNode>>, kind = "e-obs"): DocumentFragment {
   const fr = document.createDocumentFragment()
   const start = document.createComment(` ${kind} `)
   const end = document.createComment(` end ${kind} `)
