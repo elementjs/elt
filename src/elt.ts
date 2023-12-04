@@ -1,9 +1,6 @@
-import { o } from "./observable"
 
 import {
-  node_observe,
   node_append,
-  node_remove,
 } from "./dom"
 
 import {
@@ -13,7 +10,7 @@ import {
   Renderable,
 } from "./types"
 
-import { sym_exposed } from "./symbols"
+import { sym_exposed, } from "./symbols"
 import { EltCustomElement } from "./custom-elements"
 
 ////////////////////////////////////////////////////////
@@ -25,39 +22,6 @@ export function setup_base_styles(doc = document) {
   doc.head.appendChild(style)
 }
 requestAnimationFrame(() => setup_base_styles())
-
-
-/**
- * Write and update the string value of an observable value into
- * a Text node.
- *
- * This verb is used whenever an observable is passed as a child to a node.
- *
- * ```tsx
- * [[include:../examples/display.tsx]]
- * ```
- *
- * @group Verbs
- */
-export function Display(obs: o.RO<Renderable<ParentNode>>, kind = "e-obs"): DocumentFragment {
-  const fr = document.createDocumentFragment()
-  const start = document.createComment(` ${kind} `)
-  const end = document.createComment(` end ${kind} `)
-  fr.appendChild(start)
-  fr.appendChild(end)
-  // const d = document.createElement(element)
-  node_observe(start, obs, renderable => {
-    let iter = start.nextSibling
-    while (iter && iter !== end) {
-      let next = iter?.nextSibling
-      node_remove(iter)
-      iter = next
-    }
-    // node_clear(d)
-    node_append(start.parentNode!, renderable, end)
-  }, { immediate: true })
-  return fr
-}
 
 
 export type NodeTypeFromCreator<T extends string> =

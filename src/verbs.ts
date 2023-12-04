@@ -5,8 +5,6 @@ import {
   o
 } from "./observable"
 
-import { Display } from "./elt"
-
 import {
   node_append,
   node_do_disconnect,
@@ -491,18 +489,18 @@ export function IfResolving(pro: o.RO<Promise<any>>, fn: () => Renderable<Parent
  */
 export function IfResolved<T>(op: o.Observable<Promise<T>>,
   resolved: (o_value: o.Observable<T>) => Renderable<ParentNode>,
-  rejected?: (o_error: o.Observable<any>) => Renderable<ParentNode>): DocumentFragment
+  rejected?: (o_error: o.Observable<any>) => Renderable<ParentNode>): o.ReadonlyObservable<Renderable>
 export function IfResolved<T>(op: o.RO<Promise<T>>,
   resolved: (o_value: o.ReadonlyObservable<T>) => Renderable<ParentNode>,
-  rejected?: (o_error: o.ReadonlyObservable<any>) => Renderable<ParentNode>): DocumentFragment
+  rejected?: (o_error: o.ReadonlyObservable<any>) => Renderable<ParentNode>): o.ReadonlyObservable<Renderable>
 export function IfResolved<T>(op: o.Observable<Promise<T>> | o.RO<Promise<T>>,
   resolved: (o_value: o.Observable<T>) => Renderable<ParentNode>,
-  rejected?: (o_error: o.Observable<any>) => Renderable<ParentNode>): DocumentFragment
+  rejected?: (o_error: o.Observable<any>) => Renderable<ParentNode>)
 {
   const op_wrapped = o.wrap_promise(op)
   const o_value = o(undefined as any)
   const o_error = o(undefined)
-  return Display(op_wrapped.tf((wr, _, prev) => {
+  return op_wrapped.tf((wr, _, prev) => {
     if (wr.resolved === "value") {
       o_value.set(wr.value)
       if (prev !== o.NoValue && _ !== o.NoValue && (_.resolved ==="value"))
@@ -515,5 +513,5 @@ export function IfResolved<T>(op: o.Observable<Promise<T>> | o.RO<Promise<T>>,
       return rejected(o_error)
     }
     return undefined
-  }))
+  })
 }
