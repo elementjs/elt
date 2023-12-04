@@ -323,10 +323,12 @@ export namespace RepeatScroll {
       public options: RepeatScroll.Options<T>
     ) {
       super(ob, renderfn, options)
+      this.scroll_buffer_size = this.options.scroll_buffer_size ?? 10
+      this.threshold = this.options.threshold_height ?? 500
     }
 
-    scroll_buffer_size = this.options.scroll_buffer_size ?? 10
-    threshold = this.options.threshold_height ?? 500
+    scroll_buffer_size: number
+    threshold: number
 
     inter: IntersectionObserver | null = null
 
@@ -408,9 +410,8 @@ export namespace RepeatScroll {
  *
  * @group Verbs
  */
-export function Switch<T, N extends Node>(obs: o.Observable<T>): Switch.Switcher<T, N>
-export function Switch<T, N extends Node>(obs: o.ReadonlyObservable<T>): Switch.ReadonlySwitcher<T, N>
-
+export function Switch<T, N extends Node = HTMLElement>(obs: o.Observable<T>): Switch.Switcher<T, N>
+export function Switch<T, N extends Node = HTMLElement>(obs: o.ReadonlyObservable<T>): Switch.ReadonlySwitcher<T, N>
 export function Switch(obs: any): any {
   return new (Switch.Switcher as any)(obs)
 }
