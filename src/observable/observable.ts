@@ -1418,8 +1418,6 @@ export function merge<T>(obj: {[K in keyof T]: Observable<T[K]>}): Observable<T>
   }
 
 
-  const _wrap_cache = new WeakMap<any, o.ReadonlyObservable<wrapPromise.Result<any>>>()
-
   /**
    * Wrap a promise observable into an instant observable that has information about
    * the current promise resolution status.
@@ -1438,38 +1436,50 @@ export function merge<T>(obj: {[K in keyof T]: Observable<T[K]>}): Observable<T>
    *
    * @group Observable
    */
-  export function wrapPromise<T>(obs: o.RO<Promise<T>>): o.ReadonlyObservable<wrapPromise.Result<T>> {
-    // We cache the wrapped observable to avoid polluting memory for nothing.
-    if (_wrap_cache.has(obs)) {
-      return _wrap_cache.get(obs)!
-    }
+  export function wrap_promise<T>(obs: o.Observable<Promise<T>>): o.Observable<wrap_promise.Result<T>>
+  export function wrap_promise<T>(obs: o.RO<Promise<T>>): o.ReadonlyObservable<wrap_promise.Result<T>>
+  export function wrap_promise<T>(obs: o.RO<Promise<T>>): o.ReadonlyObservable<wrap_promise.Result<T>> {
 
     let last_promise: Promise<T>
-    const o_result = o({ resolving: true } as wrapPromise.Result<T>)
+    const o_result = o({ resolving: true } as wrap_promise.Result<T>)
 
-    const res_obs = o.merge({pro: obs, res: o_result}).tf(({pro, res}, old) => {
-      last_promise = pro // We need a reference to that to compare to the result of the last .then
-      // since right now we can't cancel that
-      if (old === o.NoValue || old.pro !== pro) {
-        // Changing promise, so we have to get its .then
-        pro.then(pres => {
-          if (last_promise !== pro) return // ignore if this is not our promise anymore
-          o_result.set({resolving: false, value: pres, resolved: "value"})
-        })
-        pro.catch(perr => {
-          if (last_promise !== pro) return // ignore if this is not our promise anymore
-          o_result.set({resolving: false, error: perr, resolved: "error"})
-        })
-        return {...res, resolving: true} as wrapPromise.Result<T, any>
+    const res_obs = o.merge({pro: obs, res: o_result}).tf({
+      transform({pro, res}, old) {
+        last_promise = pro // We need a reference to that to compare to the result of the last .then
+        // since right now we can't cancel that
+        if (old === o.NoValue || old.pro !== pro) {
+          // Changing promise, so we have to get its .then
+          pro.then(pres => {
+            if (last_promise !== pro) return // ignore if this is not our promise anymore
+            o_result.set({resolving: false, value: pres, resolved: "value"})
+          })
+          pro.catch(perr => {
+            if (last_promise !== pro) return // ignore if this is not our promise anymore
+            o_result.set({resolving: false, error: perr, resolved: "error"})
+          })
+          return {...res, resolving: true}
+        }
+        return res
+      },
+      revert(nval, _, cur) {
+
+        if (nval.resolved === "value" && (cur.res.resolved !== "value" || nval.value !== cur.res.value)) {
+          last_promise = Promise.resolve(nval.value)
+          return { pro: last_promise, res: { resolved: "value", value: nval.value, resolving: false } }
+        } else if (nval.resolved === "error" && (cur.res.resolved !== "error" || nval.error !== cur.res.error)) {
+          last_promise = Promise.reject(nval.error)
+          return { pro: last_promise, res: { resolved: "error", error: nval.error, resolving: false } }
+        }
+
+        // prevent modifications otherwise ?
+        return cur
       }
-      return res
-    })
+    } as Converter<{ pro: Promise<T>, res: wrap_promise.Result<T> }, wrap_promise.Result<T>>)
 
-    _wrap_cache.set(obs, res_obs)
     return res_obs
   }
 
-  export namespace wrapPromise {
+  export namespace wrap_promise {
     /**
      * The value of an observable that wraps a promise observable.
      * @category observable
@@ -1478,61 +1488,6 @@ export function merge<T>(obj: {[K in keyof T]: Observable<T[K]>}): Observable<T>
       | { resolving: true, resolved?: undefined }
       | { resolving: boolean, resolved: "value", value: T }
       | { resolving: boolean, resolved: "error", error: Error }
-  }
-
-  /**
-   * Set the value of `obs` to `init` if it is provided and then to the value of the
-   * promise when it resolves.
-   *
-   * @category toc, observable
-   */
-  export function setFromPromise<T>(obs: Observable<T>, pro: Promise<T>, init?: T) {
-    if (arguments.length === 3) {
-      obs.set(init!)
-    }
-    pro.then(pr => {
-      const cur = obs.get()
-      if (cur === init) obs.set(pr)
-    })
-    return obs
-  }
-
-  /**
-   * Create an observable whose initial value is `init` and then turns into
-   * the value of `pro` once it resolves.
-   *
-   * @category toc, observable
-   */
-  export function fromPromise<T>(init: T, pro: Promise<T>): Observable<T> {
-    const res = o(init) as Observable<T>
-    pro.then(p => {
-      if (res.get() === init)
-        res.set(p)
-    })
-    return res
-  }
-
-  /**
-   * Transforms `obs`, an observable that holds a promise to a read only observable
-   * that updates its value when the promise has resolved. Since the first time around
-   * there is no value, the `def` callback is called to make sure there is.
-   *
-   * If the promise changes while waiting for its result, then the previous promise
-   * is ignored.
-   *
-   * The resulting observable only listens to the promise changes if it's being observed.
-   */
-  export function unpromise<T>(obs: o.RO<Promise<T>>, def: () => T): o.ReadonlyObservable<T>
-  export function unpromise<T>(obs: o.RO<Promise<T>>): o.ReadonlyObservable<T | undefined>
-  export function unpromise<T>(obs: o.RO<Promise<T>>, def?: () => T): o.ReadonlyObservable<T | undefined> {
-    const wrapped = wrapPromise(obs)
-    const res: o.ReadonlyObservable<T | undefined> & {wrapped: o.ReadonlyObservable<wrapPromise.Result<T>>}  = wrapped.tf(val => {
-      if (val.resolved === "value") return val.value
-      return def?.()
-    }) as any
-
-    res.wrapped = wrapped
-    return res
   }
 
 
