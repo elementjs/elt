@@ -325,6 +325,7 @@ export namespace RepeatScroll {
       super(ob, renderfn, options)
       this.scroll_buffer_size = this.options.scroll_buffer_size ?? 10
       this.threshold = this.options.threshold_height ?? 500
+      this.separator = this.options.separator
     }
 
     scroll_buffer_size: number
@@ -333,7 +334,7 @@ export namespace RepeatScroll {
     inter: IntersectionObserver | null = null
 
     // Have to type this manually since dts-bundler chokes on Renderable
-    separator?: (n: number) => Renderable<HTMLElement> = this.options.separator
+    separator?: (n: number) => Renderable<HTMLElement>
 
     /**
      * Append `count` children if the parent was not scrollable (just like Repeater),
@@ -454,7 +455,7 @@ export namespace Switch {
     }
 
     // @ts-ignore
-    Case<S extends T>(value: (t: T) => t is S, fn: (v: o.Observable<S>) => Renderable<N>): Switcher<Exclude<T, S>>
+    Case<S extends T>(value: (t: T) => t is S, fn: (v: o.Observable<S>) => Renderable<N>): Switcher<Exclude<T, S>, N>
     Case(value: T, fn: (v: o.Observable<T>) => Renderable<N>): this
     Case(predicate: (t: T) => any, fn: (v: o.Observable<T>) => Renderable<N>): this
     Case(value: T | ((t: T) => any), fn: (v: o.Observable<T>) => Renderable<N>): this {
