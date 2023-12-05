@@ -40,7 +40,7 @@ import { sym_appendable } from "./symbols"
  */
 export function If<T extends o.RO<any>, N extends Node>(
   condition: T,
-  display: (arg: If.NonNullableRO<T>) => Renderable<N>,
+  display?: (arg: If.NonNullableRO<T>) => Renderable<N>,
   display_otherwise?: (a: o.ReadonlyObservable<T>) => Renderable<N>,
 ) {
 
@@ -66,12 +66,12 @@ export namespace If {
   export class IfDisplayer<T, N extends Node> implements Appendable<N> {
     constructor(
       public condition: o.RO<T>,
-      public _display: (arg: If.NonNullableRO<T>) => Renderable<N>,
+      public _display?: (arg: If.NonNullableRO<T>) => Renderable<N>,
       public _display_otherwise?: (a: o.ReadonlyObservable<T>) => Renderable<N>,
     ) {
       this.observable = o.tf<T, Renderable<N>>(this.condition, (cond, old, v) => {
         if (old !== o.NoValue && !!cond === !!old && v !== o.NoValue) return v as Renderable<N>
-        if (cond) {
+        if (cond && this._display) {
           return this._display(this.condition as If.NonNullableRO<T>)
         } else if (this._display_otherwise) {
           return this._display_otherwise(this.condition as o.ReadonlyObservable<T>)
@@ -92,6 +92,11 @@ export namespace If {
       }
 
       return obs[sym_appendable](parent, refchild)
+    }
+
+    Then(display: (arg: If.NonNullableRO<T>) => Renderable<N>) {
+      this._display = display
+      return this
     }
 
     Else(other: (a: o.ReadonlyObservable<T>) => Renderable<N>) {
