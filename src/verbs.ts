@@ -504,52 +504,80 @@ export namespace RepeatScroll {
 
 
 /**
- * Display the result of `fn` if the promise is waiting for its result, or if the promise currently
- * contained in the provided observable is loading.
- *
- * To display something based on the result of the promise, use {@link IfResolved}
- *
- * @group Verbs
+ * Display UI elements according to the resolution status of the Promise living in `o_promise`.
  */
-export function IfResolving(pro: o.RO<Promise<any>>, fn: () => Renderable<Node>) {
-  return If(o.wrap_promise(pro).tf(v => v.resolving), fn)
+export function DisplayPromise<T>(o_promise: o.Observable<Promise<T>>): DisplayPromise.PromiseDisplayer<T>
+export function DisplayPromise<T>(o_promise: o.ReadonlyObservable<Promise<T>>): DisplayPromise.ReadonlyPromiseDisplayer<T>
+export function DisplayPromise<T>(o_promise: o.ReadonlyObservable<Promise<T>>) {
+  return new DisplayPromise.PromiseDisplayer(o_promise as o.Observable<Promise<T>>)
 }
 
+export namespace DisplayPromise {
 
-/**
- * Display the result of `resolved` if the promise has resolved and provide its result in `o_value`.
- * If the promise has errored, then the `rejected` arm is executed with `o_error` filled with the
- * error.
- *
- * To display something based on the loading state of the promise, use {@link IfResolving}
- *
- * @group Verbs
- */
-export function IfResolved<T>(op: o.Observable<Promise<T>>,
-  resolved: (o_value: o.Observable<T>) => Renderable<ParentNode>,
-  rejected?: (o_error: o.Observable<any>) => Renderable<ParentNode>): o.ReadonlyObservable<Renderable>
-export function IfResolved<T>(op: o.RO<Promise<T>>,
-  resolved: (o_value: o.ReadonlyObservable<T>) => Renderable<ParentNode>,
-  rejected?: (o_error: o.ReadonlyObservable<any>) => Renderable<ParentNode>): o.ReadonlyObservable<Renderable>
-export function IfResolved<T>(op: o.Observable<Promise<T>> | o.RO<Promise<T>>,
-  resolved: (o_value: o.Observable<T>) => Renderable<ParentNode>,
-  rejected?: (o_error: o.Observable<any>) => Renderable<ParentNode>)
-{
-  const op_wrapped = o.wrap_promise(op)
-  const o_value = o(undefined as any)
-  const o_error = o(undefined)
-  return op_wrapped.tf((wr, _, prev) => {
-    if (wr.resolved === "value") {
-      o_value.set(wr.value)
-      if (prev !== o.NoValue && _ !== o.NoValue && (_.resolved ==="value"))
-        return prev
-      return resolved(o_value)
-    } else if (rejected && (wr.resolved === "error")) {
-      o_error.set(wr.error)
-      if (prev !== o.NoValue && _ !== o.NoValue && (_.resolved === "error"))
-        return prev
-      return rejected(o_error)
+  export class PromiseDisplayer<T> implements Appendable<Node>, ReadonlyPromiseDisplayer<T> {
+
+    _resolved: null | ((o_result: o.Observable<T>, oo_waiting: o.ReadonlyObservable<boolean>) => Renderable<HTMLElement> ) = null
+
+    _rejected: null | ((o_error: o.Observable<any>, oo_waiting: o.ReadonlyObservable<boolean>) => Renderable<HTMLElement>) = null
+
+    _waiting: null | (() => Renderable<HTMLElement>) = null
+
+    constructor(public o_promise: o.Observable<Promise<T>>) { }
+
+    [sym_appendable](parent: Node, refchild: Node | null) {
+      const wrapped = o.wrap_promise(this.o_promise)
+
+      const pre_render = wrapped.tf(wr => {
+        if (wr.resolved === "value") {
+          return this._resolved
+        } else if (wr.resolved === "error") {
+          return this._rejected
+        }
+        return this._waiting
+      })
+
+      const render = pre_render.tf(rd => {
+        const o_cheat = wrapped as o.Observable<any>
+        if (rd === this._resolved) {
+          return rd?.(o_cheat.p("value"), o_cheat.p("resolving"))
+        } else if (rd === this._rejected) {
+          return rd?.(o_cheat.p("error"), o_cheat.p("resolving"))
+        }
+        // Last case is necessarily waiting
+        return (rd as any)?.()
+      })
+
+      render[o.sym_display_node] = "e-unpromise"
+
+      node_append(parent, render, refchild)
     }
-    return undefined
-  })
+
+    WhileWaiting(fn: () => Renderable<HTMLElement>) {
+      this._waiting = fn
+      return this
+    }
+
+    WhenResolved(
+      fn: (o_result: o.Observable<T>, oo_waiting: o.ReadonlyObservable<boolean>) => Renderable<HTMLElement>
+    ) {
+      this._resolved = fn
+      return this
+    }
+
+    UponRejection(
+      fn: (o_error: o.Observable<any>, oo_waiting: o.ReadonlyObservable<boolean>) => Renderable<HTMLElement>
+    ) {
+      this._rejected = fn
+      return this
+    }
+  }
+
+  export interface ReadonlyPromiseDisplayer<T> {
+    WhileWaiting(fn: () => Renderable<HTMLElement>): this
+    WhenResolved(
+      fn: (o_result: o.ReadonlyObservable<T>, oo_waiting: o.ReadonlyObservable<boolean>) => Renderable<HTMLElement>
+    ): this
+    UponRejection(fn: (o_error: o.ReadonlyObservable<any>, oo_waiting: o.ReadonlyObservable<boolean>) => Renderable<HTMLElement>): this
+  }
+
 }
