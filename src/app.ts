@@ -25,9 +25,19 @@ function _assign<B extends Map<any, any> | {[name: string]: string}>(base: B, ..
  * An app is a collection of services and their associated view map.
  * This is all it does.
  */
-export class App {
+export class App<R extends {[name: string]: [string, () => App.ServiceBuilder<any>, {[name: string]: string}?]} = any> {
   static readonly UrlNotFound: typeof sym_not_found = sym_not_found
   static readonly UrlDefault: typeof sym_default = sym_default
+
+  constructor(public route_defs: R) {
+    const routes = {} as any
+    for (let [varname, def] of Object.entries(route_defs)) {
+      routes[varname] = this.router.register(def[1], def[0], def[2])
+    }
+    this.routes = routes
+  }
+
+  routes: {[name in keyof R]: name extends string ? App.Route : never}
 
   o_state = o(null as App.State | null)
   router = new App.Router(this)
@@ -37,13 +47,17 @@ export class App {
   o_active_service = this.o_state.tf(st => st?.active)
 
   /** The current path mimicking the URL Hash fragment */
-  o_current_path = o("")
+  o_current_route = o(null as null | App.Route)
 
   o_params = this.o_state.tf(st => st?.params ?? new Map())
   o_views = this.o_state.tf(st => st?.views ?? new Map())
 
   // The staging state
   staging: App.State | null = null
+
+  // service<S>(builder: App.ServiceBuilder<S, R>): App.ServiceBuilder<S, R> {
+  //   return
+  // }
 
   // Check the cache.
   async require<S>(builder: App.ServiceBuilder<S>, by: App.Service): Promise<S> {
@@ -57,6 +71,7 @@ export class App {
   _reactivate: App.Reactivate | null = null
   _activate_promise: Promise<void> | null = null
 
+  /** @deprecated */
   async activate<S>(builder: App.ServiceBuilder<S>, params?: App.Params | {[name: string]: string}): Promise<void> {
     const full_params = _assign(new Map<string, string>, this.o_state.get()?.params, params)
 
@@ -115,6 +130,44 @@ export namespace App {
   export type Params = Map<string, string>
   export type Views = Map<string, () => Renderable>
 
+  export class Route {
+    constructor(
+      public router: Router,
+      public path: string | typeof sym_not_found | typeof sym_default,
+      public builder: () => ServiceBuilder<any>,
+      public defaults: {[name: string]: string} = {},
+    ) { }
+
+    async activate(params: {[name: string]: string} = {}) {
+      const r = await this.router.app.activate(this.builder(), Object.assign({}, this.defaults, params))
+
+      this.router.hash_lock(() => {
+        let hash = this.path
+        if (typeof hash !== "string") return
+
+        const entries = [...this.router.app.o_params.get()].map(([key, value]) =>
+          `${encodeURIComponent(key)}${!value ? "" : "=" + encodeURIComponent(value)}`
+        )
+
+        // if there are variables, add them
+        if (entries.length > 0) {
+          hash = hash + "?" + entries.join("&")
+        }
+
+        window.location.hash = hash
+        // } else {
+        //   // otherwise we're replacing state to not pollute the history
+        //   const loc = window.location
+        //   loc.replace(
+        //     `${loc.href.split('#')[0]}#${hash}`
+        //   )
+        // }
+      })
+      // FIXME: Update fragment !
+      return r
+    }
+  }
+
   export class Reactivate {
     constructor(
       public builder: App.ServiceBuilder<any>,
@@ -128,6 +181,7 @@ export namespace App {
   export class Router extends o.ObserverHolder {
     constructor(public app: App) { super() }
 
+    hash_lock = o.exclusive_lock()
     protected _route_map = new Map<string | typeof sym_not_found | typeof sym_default, App.Route>()
     protected _reverse_map = new Map<App.ServiceBuilder<any>, App.Route>()
     protected _hash_defaults = new Map<App.ServiceBuilder<any>, {[name: string]: string}>()
@@ -171,68 +225,19 @@ export namespace App {
       if (!route) this.routeError(path)
 
       const vars_final = Object.assign({}, route.defaults, vars)
-      this.app.activate(route.builder, vars_final)
+      route.activate(vars_final)
     }
 
     /**
      * Setup listening to fragment changes
      * @param defs The url definitions
      */
-    async setupRouter(
-      defs: ([
-        url: string | typeof sym_not_found | typeof sym_default,
-        builder: App.ServiceBuilder<any>,
-        defaults: undefined | { [name: string]: string }
-      ] | [url: string | typeof sym_default | typeof sym_not_found, builder: App.ServiceBuilder<any>, ])[] = []) {
-
-      for (const [url, builder, params] of defs) {
-        await this.register(builder, url, params)
-      }
-
-      // When the active service changes, we want to update the hash accordingly
-      this.observe(o.join(this.app.o_active_service, this.app.o_params), ([srv, vars], old) => {
-        if (srv == null) return
-
-        // Update the has portion from the currently activated service and its variables
-        const route = this._reverse_map.get(srv.builder)
-        if (!route) return // This service does not have a route, not updating the hash.
-
-        let hash = route.path
-        if (typeof hash !== "string") return
-        this.app.o_current_path.set(hash)
-
-        const entries = [...vars].map(([key, value]) =>
-          `${encodeURIComponent(key)}${!value ? "" : "=" + encodeURIComponent(value)}`
-        )
-
-        // if there are variables, add them
-        if (entries.length > 0) {
-          hash = hash + "?" + entries.join("&")
-        }
-
-        // do not try to update if the hash has not changed
-        this._last_srv = srv.builder
-        if (this._last_hash === hash && hash === window.location.hash) return
-        this._last_hash = hash
-
-        // If the variable changed because of activation, then update the hash portion
-        if (this.app.staging != null) {
-          window.location.hash = hash
-        } else {
-          // otherwise we're replacing state to not pollute the history
-          const loc = window.location
-          loc.replace(
-            `${loc.href.split('#')[0]}#${hash}`
-          )
-        }
-      })
-
-      this.startObservers()
-
+    async setupRouter() {
       setTimeout(() => this.activateFromHash())
-
       window.addEventListener("hashchange", () => {
-        this.activateFromHash()
+        this.hash_lock(() => {
+          this.activateFromHash()
+        })
       })
 
     }
@@ -240,25 +245,19 @@ export namespace App {
     protected _last_hash: string | null = null
     protected _last_srv: App.ServiceBuilder<any> | null = null
 
-    async register(builder: App.ServiceBuilder<any>, url: string | typeof sym_not_found | typeof sym_default, defaults: {[name: string]: any} = {}) {
+    register(builder: () => App.ServiceBuilder<any>, url: string | typeof sym_not_found | typeof sym_default, defaults: {[name: string]: any} = {}) {
 
       if (this._route_map.has(url ?? "")) throw new Error(`route for '${url?.toString() ?? ""}' is already defined`)
-      if (typeof builder !== "function") {
-        builder = await builder
-      }
-      if ("default" in builder) {
-        builder = builder.default
-      }
 
-      const route: App.Route = {
-        path: url,
+      const route = new App.Route(this,
+        url,
+        builder,
         defaults,
-        builder
-      }
+      )
 
-      this._hash_defaults.set(builder, defaults)
-      this._reverse_map.set(builder, route)
       this._route_map.set(route.path, route)
+
+      return route
     }
   }
 
@@ -383,12 +382,6 @@ export namespace App {
       this.params = this.finalizeParams(this.active)
     }
 
-  }
-
-  export type Route = {
-    path: string | typeof sym_not_found | typeof sym_default
-    defaults: {[name: string]: string}
-    builder: ServiceBuilder<any>
   }
 
   export type ServiceBuilderFunction<T> = (srv: App.Service) => Promise<T>
