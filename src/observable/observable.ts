@@ -494,35 +494,6 @@ export class Observable<A> implements ReadonlyObservable<A>, Indexable {
   }
 
   /**
-   * intercept is a "pre-update" trigger.
-   *
-   * It calls `fn` with the `new_value` about to be set on this observable and
-   * the `current_value`. If the result of `fn` is the old value, then the observable
-   * will not be changed.
-   *
-   * Otherwise, the observable is set to the result of the intercept function.
-   *
-   * The interception only applies to the observable it was set up on :
-   *
-   * ```tsx
-   * var o_original = o({a: 1})
-   * var o_p1 = o_original.p('a')
-   * var o_p2 = o_original.p('a')
-   *
-   * o_p1.intercept(v => v * 2)
-   * o_p1.set(2) // o_original now has {a: 4}
-   * o_p2.set(2) // o_original now has {a: 2}, the intercept is only on o_p1
-   * ```
-   */
-  intercept(fn: (new_value: A, current_value: A) => A): this {
-    const orig_set = this.set.bind(this)
-    this.set = (nval: A) => {
-      orig_set(fn(nval, this._value))
-    }
-    return this
-  }
-
-  /**
    * Convenience function to set the value of this observable depending on its
    * current value.
    *
