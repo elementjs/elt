@@ -79,6 +79,10 @@ export namespace If {
           return null
         }
       })
+
+      if (o.is_observable(this.observable)) {
+        this.observable[o.sym_display_node] = "e-if"
+      }
     }
 
     observable: Renderable<N>
@@ -123,17 +127,17 @@ export namespace If {
  *
  * @group Verbs
  */
-export function Repeat<T extends o.RO<any[]>>(obs: T, render: Repeat.RenderItemFn<T>): HTMLElement
-export function Repeat<T extends o.RO<any[]>>(obs: T, options: Repeat.Options<Repeat.Item<T>>, render: Repeat.RenderItemFn<T>): HTMLElement
+export function Repeat<T extends o.RO<any[]>>(obs: T, render: Repeat.RenderItemFn<T>): Appendable<Node>
+export function Repeat<T extends o.RO<any[]>>(obs: T, options: Repeat.Options<Repeat.Item<T>>, render: Repeat.RenderItemFn<T>): Appendable<Node>
 export function Repeat<T extends o.RO<any[]>>(
   ob: T,
   render_or_options: Repeat.Options<Repeat.Item<T>> | (Repeat.RenderItemFn<T>),
   real_render?: Repeat.RenderItemFn<T>
-): HTMLElement {
+): Appendable<Node> {
   const options = typeof render_or_options === "function" ? {} : render_or_options
   const render = typeof render_or_options === "function" ? render_or_options : real_render!
 
-  return new Repeat.Repeater(o(ob) as any, render as any, options).render()
+  return new Repeat.Repeater(o(ob) as any, render as any, options)
 }
 
 export namespace Repeat {
@@ -187,8 +191,12 @@ export namespace Repeat {
       public options: Repeat.Options<T> = {}
     ) { }
 
-    render() {
+    /**
+     * Append the repeater
+     */
+    [sym_appendable](parent: Node, refchild: Node | null) {
       this.node = document.createElement("e-repeat")
+
       node_observe(this.node, this.obs, lst => {
         this.lst = lst ?? []
         this.node.setAttribute("length", lst.length.toString())
@@ -201,7 +209,7 @@ export namespace Repeat {
           this.removeChildren(-diff)
       }, { immediate: true })
 
-      return this.node
+      node_append(parent, this.node, refchild)
     }
 
     /**
@@ -279,19 +287,19 @@ export namespace Repeat {
  *
  * @group Verbs
  */
-export function RepeatScroll<T extends o.RO<any[]>>(ob: T, render: Repeat.RenderItemFn<T>): Node
-export function RepeatScroll<T extends o.RO<any[]>>(ob: T, options: RepeatScroll.Options<Repeat.Item<T>>, render: Repeat.RenderItemFn<T>): Node
+export function RepeatScroll<T extends o.RO<any[]>>(ob: T, render: Repeat.RenderItemFn<T>): Appendable<Node>
+export function RepeatScroll<T extends o.RO<any[]>>(ob: T, options: RepeatScroll.Options<Repeat.Item<T>>, render: Repeat.RenderItemFn<T>): Appendable<Node>
 export function RepeatScroll<T extends o.RO<any[]>>(
   ob: T,
   opts_or_render: (Repeat.RenderItemFn<T>) | RepeatScroll.Options<Repeat.Item<T>>,
   real_render?: (Repeat.RenderItemFn<T>)
-): Node {
+): Appendable<Node> {
   // we cheat the typesystem, which is not great, but we "know what we're doing".
   if (typeof opts_or_render === "function") {
-    return new RepeatScroll.ScrollRepeater<any>(o(ob as any) as o.Observable<any>, opts_or_render as any, {}).render()
+    return new RepeatScroll.ScrollRepeater<any>(o(ob as any) as o.Observable<any>, opts_or_render as any, {})
   }
 
-  return new RepeatScroll.ScrollRepeater<any>(o(ob as any) as o.Observable<any>, real_render as any, opts_or_render).render()
+  return new RepeatScroll.ScrollRepeater<any>(o(ob as any) as o.Observable<any>, real_render as any, opts_or_render)
 }
 
 export namespace RepeatScroll {
@@ -379,8 +387,9 @@ export namespace RepeatScroll {
       this.parent = null
     }
 
-    render() {
-      const node = super.render()
+    [sym_appendable](parent: Node, refchild: Node | null) {
+      super[sym_appendable](parent, refchild)
+      const node = this.node
       node_on_connected(node, () => this.connected())
       node_on_disconnected(node, () => this.disconnected())
 

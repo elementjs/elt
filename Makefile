@@ -7,7 +7,7 @@ SOURCES = $(wildcard ./src/*.ts) $(wildcard ./src/observable/*.ts) Makefile
 
 .PHONY: all docs
 
-all: src/types.ts dist/elt.js dist/elt.debug.js dist/elt.min.js dist/elt.debug.min.js dist/elt.cjs.js dist/elt.d.ts
+all: src/types.ts dist/elt.js dist/elt.debug.js dist/elt.min.js dist/elt.debug.min.js dist/elt.cjs.js dist/elt.d.ts dist/elt.min.js.gz
 
 watch:
 	tsc -w --noEmit | wtsc make
@@ -32,6 +32,10 @@ dist/elt.debug.js: $(SOURCES)
 
 dist/elt.min.js: $(SOURCES)
 	esbuild $(ESFLAGS) --define:DEBUG=false --minify --outfile=$@ src/index.ts
+
+dist/elt.min.js.gz: $(SOURCES) dist/elt.min.js
+	gzip -k9f dist/elt.min.js
+	wc -c dist/elt.min.js.gz
 
 dist/elt.debug.min.js: $(SOURCES)
 	esbuild $(ESFLAGS) --define:DEBUG=true --minify --outfile=$@ src/index.ts
