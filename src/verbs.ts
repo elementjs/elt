@@ -69,7 +69,12 @@ export namespace If {
       public _display?: (arg: If.NonNullableRO<T>) => Renderable<N>,
       public _display_otherwise?: (a: o.ReadonlyObservable<T>) => Renderable<N>,
     ) {
-      this.observable = o.tf<T, Renderable<N>>(this.condition, (cond, old, v) => {
+
+    }
+
+    [sym_appendable](parent: N, refchild: Node | null) {
+
+      const renderable = o.tf<T, Renderable<N>>(this.condition, (cond, old, v) => {
         if (old !== o.NoValue && !!cond === !!old && v !== o.NoValue) return v as Renderable<N>
         if (cond && this._display) {
           return this._display(this.condition as If.NonNullableRO<T>)
@@ -80,22 +85,11 @@ export namespace If {
         }
       })
 
-      if (o.is_observable(this.observable)) {
-        this.observable[o.sym_display_node] = "e-if"
-      }
-    }
-
-    observable: Renderable<N>
-
-    ;[sym_appendable](parent: N, refchild: Node | null) {
-      const obs = this.observable
-
-      if (!o.is_observable(obs)) {
-        node_append(parent as N, obs, refchild)
-        return
+      if (o.is_observable(renderable)) {
+        renderable[o.sym_display_node] = "e-if"
       }
 
-      return obs[sym_appendable](parent, refchild)
+      node_append(parent as N, renderable, refchild)
     }
 
     Then(display: (arg: If.NonNullableRO<T>) => Renderable<N>) {
@@ -108,6 +102,106 @@ export namespace If {
       return this
     }
   }
+}
+
+
+/**
+ * Perform a Switch statement on an observable.
+ *
+ * ```tsx
+ * [[include:../examples/switch.tsx]]
+ * ```
+ *
+ * `Switch()` can work with typeguards to narrow a type in the observable passed to the then callback,
+ * but only with defined functions. It is however not as powerful as typescript's type guards in ifs
+ * and will not recognize `typeof` or `instanceof` calls.
+ *
+ * ```tsx
+ * [[include:../examples/switch2.tsx]]
+ * ```
+ *
+ * @group Verbs
+ */
+export function Switch<T, N extends Node = HTMLElement>(obs: o.Observable<T>): Switch.Switcher<T, N>
+export function Switch<T, N extends Node = HTMLElement>(obs: o.ReadonlyObservable<T>): Switch.ReadonlySwitcher<T, N>
+export function Switch(obs: any): any {
+  return new (Switch.Switcher as any)(obs)
+}
+
+
+export namespace Switch {
+  /**
+   * @internal
+   */
+  export class Switcher<T, N extends Node> implements Appendable<N> {
+
+    cases: [(T | ((t: T) => any)), (t: o.Observable<T>) => Renderable<N>][] = []
+    passthrough: () => Renderable<N> = () => null
+    prev_case: any = null
+    prev: Renderable<N> = ""
+
+    constructor(public value: o.Observable<T>) { }
+
+    [sym_appendable](parent: N, refchild: Node | null) {
+      const current_displayfn = o.tf(this.value, value => {
+        const cases = this.cases
+
+        for (const c of cases) {
+          const [cond, fn] = c
+
+          if ((typeof cond === "function") && (cond as any)(value)
+            || cond === value
+          ) {
+            return fn
+          }
+
+          return this.passthrough
+        }
+
+      })
+
+      // We use two potential renderables because we do not want the function to be called everytime
+      // this.value sees a change.
+      const renderable = o.tf(current_displayfn, fn => {
+        return fn?.(this.value)
+      })
+
+      if (o.is_observable(renderable)) {
+        renderable[o.sym_display_node] = "e-switch"
+      }
+
+      node_append(parent, renderable, refchild)
+    }
+
+    // @ts-ignore
+    Case<S extends T>(value: (t: T) => t is S, fn: (v: o.Observable<S>) => Renderable<N>): Switcher<Exclude<T, S>, N>
+    Case(value: T, fn: (v: o.Observable<T>) => Renderable<N>): this
+    Case(predicate: (t: T) => any, fn: (v: o.Observable<T>) => Renderable<N>): this
+    Case(value: T | ((t: T) => any), fn: (v: o.Observable<T>) => Renderable<N>): this {
+      this.cases.push([value, fn])
+      return this as any
+    }
+
+    Else(fn: () => Renderable<N>) {
+      this.passthrough = fn
+      return this
+    }
+
+  }
+
+
+  /**
+   * @internal
+   */
+  export interface ReadonlySwitcher<T, N extends Node> extends o.ReadonlyObservable<Renderable<N>> {
+    /** See {@link Switch.Switcher#Case} */
+    Case<S extends T>(value: (t: T) => t is S, fn: (v: o.ReadonlyObservable<S>) => Renderable<N>): ReadonlySwitcher<Exclude<T, S>, N>
+    Case(value: T, fn: (v: o.ReadonlyObservable<T>) => Renderable<N>): this
+    Case(predicate: (t: T) => any, fn: (v: o.ReadonlyObservable<T>) => Renderable<N>): this
+    /** See {@link Switch.Switcher#Else} */
+
+  }
+
 }
 
 
@@ -408,96 +502,6 @@ export namespace RepeatScroll {
 
 }
 
-/**
- * Perform a Switch statement on an observable.
- *
- * ```tsx
- * [[include:../examples/switch.tsx]]
- * ```
- *
- * `Switch()` can work with typeguards to narrow a type in the observable passed to the then callback,
- * but only with defined functions. It is however not as powerful as typescript's type guards in ifs
- * and will not recognize `typeof` or `instanceof` calls.
- *
- * ```tsx
- * [[include:../examples/switch2.tsx]]
- * ```
- *
- * @group Verbs
- */
-export function Switch<T, N extends Node = HTMLElement>(obs: o.Observable<T>): Switch.Switcher<T, N>
-export function Switch<T, N extends Node = HTMLElement>(obs: o.ReadonlyObservable<T>): Switch.ReadonlySwitcher<T, N>
-export function Switch(obs: any): any {
-  return new (Switch.Switcher as any)(obs)
-}
-
-
-export namespace Switch {
-  /**
-   * @internal
-   */
-  export class Switcher<T, N extends Node> extends o.CombinedObservable<[T], Renderable<N>> {
-
-    [o.sym_display_node] = "e-switch"
-
-    cases: [(T | ((t: T) => any)), (t: o.Observable<T>) => Renderable<N>][] = []
-    passthrough: () => Renderable<N> = () => null
-    prev_case: any = null
-    prev: Renderable<N> = ""
-
-    constructor(public obs: o.Observable<T>) {
-      super([obs])
-    }
-
-    getter([nval] : [T]): Renderable<N> {
-      const cases = this.cases
-      for (const c of cases) {
-        const val = c[0]
-        if (val === nval || (typeof val === "function" && (val as any)(nval))) {
-          if (this.prev_case === val) {
-            return this.prev
-          }
-          this.prev_case = val
-          const fn = c[1]
-          return (this.prev = fn(this.obs))
-        }
-      }
-      if (this.prev_case === this.passthrough)
-        return this.prev
-      this.prev_case = this.passthrough
-      return (this.prev = this.passthrough ? this.passthrough() : null)
-    }
-
-    // @ts-ignore
-    Case<S extends T>(value: (t: T) => t is S, fn: (v: o.Observable<S>) => Renderable<N>): Switcher<Exclude<T, S>, N>
-    Case(value: T, fn: (v: o.Observable<T>) => Renderable<N>): this
-    Case(predicate: (t: T) => any, fn: (v: o.Observable<T>) => Renderable<N>): this
-    Case(value: T | ((t: T) => any), fn: (v: o.Observable<T>) => Renderable<N>): this {
-      this.cases.push([value, fn])
-      return this as any
-    }
-
-    Else(fn: () => Renderable<N>) {
-      this.passthrough = fn
-      return this
-    }
-
-  }
-
-
-  /**
-   * @internal
-   */
-  export interface ReadonlySwitcher<T, N extends Node> extends o.ReadonlyObservable<Renderable<N>> {
-    /** See {@link Switch.Switcher#Case} */
-    Case<S extends T>(value: (t: T) => t is S, fn: (v: o.ReadonlyObservable<S>) => Renderable<N>): ReadonlySwitcher<Exclude<T, S>, N>
-    Case(value: T, fn: (v: o.ReadonlyObservable<T>) => Renderable<N>): this
-    Case(predicate: (t: T) => any, fn: (v: o.ReadonlyObservable<T>) => Renderable<N>): this
-    /** See {@link Switch.Switcher#Else} */
-
-  }
-
-}
 
 /**
  * Display the result of `fn` if the promise is waiting for its result, or if the promise currently
