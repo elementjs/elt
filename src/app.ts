@@ -126,7 +126,13 @@ export namespace App {
       public path: string,
       public builder: () => ServiceBuilder<any>,
       public defaults: {[name: string]: string} = {},
-    ) { }
+    ) {
+      this.regexp = new RegExp("^" + path.replace(/:[a-zA-Z_$0-9]+\b/g, rep => {
+        return `(?<${rep.slice(1)}>[^\b]+)`
+      }) + "$")
+    }
+
+    regexp: RegExp
 
     async activate(params: {[name: string]: string} = {}) {
       const r = await this.router.app.activate(this.builder(), Object.assign({}, this.defaults, params))
@@ -135,9 +141,16 @@ export namespace App {
         let hash = this.path
         if (typeof hash !== "string") return
 
-        const entries = [...this.router.app.o_params.get()].map(([key, value]) =>
-          `${encodeURIComponent(key)}${!value ? "" : "=" + encodeURIComponent(value)}`
-        )
+        const entries: string[] = []
+        for (let [key, value] of this.router.app.o_params.get()) {
+          let re = new RegExp(":" + key + "\\b")
+          if (re.test(hash)) {
+            // replace the variable in the hash
+            hash = hash.replace(re, value)
+          } else {
+            entries.push(`${encodeURIComponent(key)}${!value ? "" : "=" + encodeURIComponent(value)}`)
+          }
+        }
 
         // if there are variables, add them
         if (entries.length > 0) {
@@ -201,11 +214,28 @@ export namespace App {
       if (newhash && newhash === this._last_hash && this._last_srv === this.app.o_active_service.get()?.builder) return
 
       const {path, vars} = this.parseHash(newhash)
+      const route_vars: {[name: string]: string} = {}
 
-      const route = this._route_map.get(path) ?? this._route_map.get("")
+      let route = this._route_map.get(path)
+      if (route == null) {
+        for (let rt of Object.values(this.app.routes)) {
+          let match = path.match(rt.regexp)
+          if (match) {
+            route = rt
+            Object.assign(route_vars, match.groups)
+            break
+          }
+        }
+      }
+
+      // If we still haven't found the route, try to get the default
+      if (route == null) {
+        route = this._route_map.get("")
+      }
+
       if (!route) this.routeError(path)
 
-      const vars_final = Object.assign({}, route.defaults, vars)
+      const vars_final = Object.assign({}, route_vars, route.defaults, vars)
       route.activate(vars_final)
     }
 
