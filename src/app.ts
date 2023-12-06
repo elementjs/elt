@@ -2,10 +2,6 @@ import { Renderable } from "./types"
 import { o } from "./observable"
 
 
-const sym_not_found = Symbol("route-not-found")
-const sym_default = Symbol("route-default")
-
-
 function _assign<B extends Map<any, any> | {[name: string]: string}>(base: B, ...args: (Map<any, any> | {[name: string]: any} | null | undefined)[]): B {
   const is_map = base instanceof Map
   for (let arg of args) {
@@ -26,8 +22,6 @@ function _assign<B extends Map<any, any> | {[name: string]: string}>(base: B, ..
  * This is all it does.
  */
 export class App<R extends {[name: string]: [string, () => App.ServiceBuilder<any>, {[name: string]: string}?]} = any> {
-  static readonly UrlNotFound: typeof sym_not_found = sym_not_found
-  static readonly UrlDefault: typeof sym_default = sym_default
 
   constructor(public route_defs: R) {
     const routes = {} as any
@@ -54,10 +48,6 @@ export class App<R extends {[name: string]: [string, () => App.ServiceBuilder<an
 
   // The staging state
   staging: App.State | null = null
-
-  // service<S>(builder: App.ServiceBuilder<S, R>): App.ServiceBuilder<S, R> {
-  //   return
-  // }
 
   // Check the cache.
   async require<S>(builder: App.ServiceBuilder<S>, by: App.Service): Promise<S> {
@@ -133,7 +123,7 @@ export namespace App {
   export class Route {
     constructor(
       public router: Router,
-      public path: string | typeof sym_not_found | typeof sym_default,
+      public path: string,
       public builder: () => ServiceBuilder<any>,
       public defaults: {[name: string]: string} = {},
     ) { }
@@ -155,13 +145,6 @@ export namespace App {
         }
 
         window.location.hash = hash
-        // } else {
-        //   // otherwise we're replacing state to not pollute the history
-        //   const loc = window.location
-        //   loc.replace(
-        //     `${loc.href.split('#')[0]}#${hash}`
-        //   )
-        // }
       })
       // FIXME: Update fragment !
       return r
@@ -182,9 +165,7 @@ export namespace App {
     constructor(public app: App) { super() }
 
     hash_lock = o.exclusive_lock()
-    protected _route_map = new Map<string | typeof sym_not_found | typeof sym_default, App.Route>()
-    protected _reverse_map = new Map<App.ServiceBuilder<any>, App.Route>()
-    protected _hash_defaults = new Map<App.ServiceBuilder<any>, {[name: string]: string}>()
+    protected _route_map = new Map<string, App.Route>()
     protected _default_service: App.Route | null = null
 
     protected routeError(url: string): never {
@@ -221,7 +202,7 @@ export namespace App {
 
       const {path, vars} = this.parseHash(newhash)
 
-      const route = this._route_map.get(path) ?? this._route_map.get(sym_not_found)
+      const route = this._route_map.get(path) ?? this._route_map.get("")
       if (!route) this.routeError(path)
 
       const vars_final = Object.assign({}, route.defaults, vars)
@@ -245,7 +226,7 @@ export namespace App {
     protected _last_hash: string | null = null
     protected _last_srv: App.ServiceBuilder<any> | null = null
 
-    register(builder: () => App.ServiceBuilder<any>, url: string | typeof sym_not_found | typeof sym_default, defaults: {[name: string]: any} = {}) {
+    register(builder: () => App.ServiceBuilder<any>, url: string, defaults: {[name: string]: any} = {}) {
 
       if (this._route_map.has(url ?? "")) throw new Error(`route for '${url?.toString() ?? ""}' is already defined`)
 
