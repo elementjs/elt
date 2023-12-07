@@ -21,21 +21,27 @@ function _assign<B extends Map<any, any> | {[name: string]: string}>(base: B, ..
  * An app is a collection of services and their associated view map.
  * This is all it does.
  */
-export class App<R extends {[name: string]: [string, () => App.ServiceBuilder<any>, {[name: string]: string}?]} = any> {
+export class App {
 
-  constructor(public route_defs: R) {
+  constructor() { }
+
+  setupRouter<R extends {[name: string]: [string, () => App.ServiceBuilder<any>, {[name: string]: string}?]} = any>(route_defs: R): {[name in keyof R]: name extends string ? App.Route : never} {
+
     const routes = {} as any
+
     for (let [varname, def] of Object.entries(route_defs)) {
       routes[varname] = this.router.register(def[1], def[0], def[2])
     }
-    this.routes = routes
+
+    this.router.setupRouter()
+
+    return routes
   }
 
-  routes: {[name in keyof R]: name extends string ? App.Route : never}
 
   o_state = o(null as App.State | null)
   router = new App.Router(this)
-  setupRouter = this.router.setupRouter.bind(this.router)
+  // setupRouter = this.router.setupRouter.bind(this.router)
 
   /** An observable containing the currently active service */
   o_active_service = this.o_state.tf(st => st?.active)
@@ -183,7 +189,7 @@ export namespace App {
     constructor(public app: App) { super() }
 
     hash_lock = o.exclusive_lock()
-    protected _route_map = new Map<string, App.Route>()
+    protected routes = new Map<string, App.Route>()
     protected _default_service: App.Route | null = null
 
     protected routeError(url: string): never {
@@ -221,9 +227,9 @@ export namespace App {
       const {path, vars} = this.parseHash(newhash)
       const route_vars: {[name: string]: string} = {}
 
-      let route = this._route_map.get(path)
+      let route = this.routes.get(path)
       if (route == null) {
-        for (let rt of Object.values(this.app.routes)) {
+        for (let rt of this.routes.values()) {
           let match = path.match(rt.regexp)
           if (match) {
             route = rt
@@ -235,7 +241,7 @@ export namespace App {
 
       // If we still haven't found the route, try to get the default
       if (route == null) {
-        route = this._route_map.get("")
+        route = this.routes.get("")
       }
 
       if (!route) this.routeError(path)
@@ -263,7 +269,7 @@ export namespace App {
 
     register(builder: () => App.ServiceBuilder<any>, url: string, defaults: {[name: string]: any} = {}) {
 
-      if (this._route_map.has(url ?? "")) throw new Error(`route for '${url?.toString() ?? ""}' is already defined`)
+      if (this.routes.has(url ?? "")) throw new Error(`route for '${url?.toString() ?? ""}' is already defined`)
 
       const route = new App.Route(this,
         url,
@@ -271,7 +277,7 @@ export namespace App {
         defaults,
       )
 
-      this._route_map.set(route.path, route)
+      this.routes.set(route.path, route)
 
       return route
     }
