@@ -135,7 +135,8 @@ export namespace App {
     regexp: RegExp
 
     async activate(params: {[name: string]: string} = {}) {
-      const r = await this.router.app.activate(this.builder(), Object.assign({}, this.defaults, params))
+      const full_params = Object.assign({}, this.defaults, params)
+      const r = await this.router.app.activate(this.builder(), full_params)
 
       this.router.hash_lock(() => {
         let hash = this.path
@@ -150,6 +151,10 @@ export namespace App {
           } else {
             entries.push(`${encodeURIComponent(key)}${!value ? "" : "=" + encodeURIComponent(value)}`)
           }
+        }
+
+        if (/:[a-zA-Z0-9_$]+\b/.test(hash)) {
+          console.warn(`some variables are not consumed by the currently active service ("${hash}")`)
         }
 
         // if there are variables, add them
