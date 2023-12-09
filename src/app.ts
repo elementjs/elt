@@ -25,16 +25,25 @@ export class App {
 
   constructor() { }
 
-  setupRouter<R extends {[name: string]: [string, () => App.ServiceBuilder<any>, {[name: string]: string}?]} = any>(route_defs: R): {[name in keyof R]: name extends string ? App.Route : never} {
 
-    const routes = {} as any
+  setupRouter<R extends App.RouteDef>(route_defs: R): App.RoutesRes<R> {
 
-    for (let [varname, def] of Object.entries(route_defs)) {
-      routes[varname] = this.router.register(def[1], def[0], def[2])
+
+    const _register = <R2 extends App.RouteDef>(defs: R2, prefix = "") => {
+      const routes = {} as any
+      for (let [name, def] of Object.entries(defs)) {
+        const [url, srv, params] = def
+        if (typeof srv === "function") {
+          console.log(prefix + url)
+          routes[name] = this.router.register(name, srv, prefix + url, params)
+        } else {
+          routes[name] = _register(srv, url)
+        }
+      }
+      return routes
     }
-
+    const routes = _register(route_defs)
     this.router.setupRouter()
-
     return routes
   }
 
@@ -126,9 +135,17 @@ export namespace App {
   export type Params = Map<string, string>
   export type Views = Map<string, () => Renderable>
 
+  export type RouteDef = {[name: string]:
+    | [path: string, srv: (() => App.ServiceBuilder<any>), params?: {[name: string]: string}]
+    | [path: string, rt: RouteDef]
+  }
+
+  export type RoutesRes<R extends RouteDef> = {[K in keyof R]: R[K] extends [string, infer U extends RouteDef] ? RoutesRes<U> : Route}
+
   export class Route {
     constructor(
       public router: Router,
+      public name: string,
       public path: string,
       public builder: () => ServiceBuilder<any>,
       public defaults: {[name: string]: string} = {},
@@ -144,7 +161,7 @@ export namespace App {
       const full_params = Object.assign({}, this.defaults, params)
       const r = await this.router.app.activate(this.builder(), full_params)
 
-      this.router.hash_lock(() => {
+      this.router.__hash_lock(() => {
         let hash = this.path
         if (typeof hash !== "string") return
 
@@ -185,16 +202,14 @@ export namespace App {
   /**
    ** App.Router : a binding between the hash fragment of an URL and an App and its services.
    **/
-  export class Router extends o.ObserverHolder {
-    constructor(public app: App) { super() }
+  export class Router {
 
-    hash_lock = o.exclusive_lock()
-    protected routes = new Map<string, App.Route>()
-    protected _default_service: App.Route | null = null
+    constructor(public app: App) { }
 
-    protected routeError(url: string): never {
-      throw new Error("no such route : " + url)
-    }
+    o_active_route = o(null as null | App.Route)
+
+    __hash_lock = o.exclusive_lock()
+    protected __routes = new Map<string, App.Route>()
 
     /**
      * @internal
@@ -202,7 +217,7 @@ export namespace App {
      * @param newhash the current hash
      * @returns the path and the current variables
      */
-    protected parseHash(newhash: string): {path: string, vars: {[name: string]: string}} {
+    protected __parseHash(newhash: string): {path: string, vars: {[name: string]: string}} {
       const [path, vars_str] = newhash.split(/\?/) // separate at the first "?"
       const vars = (vars_str ?? "").split(/&/g).reduce((acc, item) => {
         const [key, value] = item.split(/=/)
@@ -218,18 +233,18 @@ export namespace App {
      * @internal
      * activate a service from the hash portion of window.location
      */
-    activateFromHash() {
+    protected __activateFromHash() {
       const newhash = window.location.hash.slice(1)
 
       // do not handle if the hash is the last one we handled
       if (newhash && newhash === this._last_hash && this._last_srv === this.app.o_active_service.get()?.builder) return
 
-      const {path, vars} = this.parseHash(newhash)
+      const {path, vars} = this.__parseHash(newhash)
       const route_vars: {[name: string]: string} = {}
 
-      let route = this.routes.get(path)
+      let route = this.__routes.get(path)
       if (route == null) {
-        for (let rt of this.routes.values()) {
+        for (let rt of this.__routes.values()) {
           let match = path.match(rt.regexp)
           if (match) {
             route = rt
@@ -239,15 +254,14 @@ export namespace App {
         }
       }
 
-      // If we still haven't found the route, try to get the default
       if (route == null) {
-        route = this.routes.get("")
+        throw new Error(`route "${newhash}" could not be matched to a route`)
       }
 
-      if (!route) this.routeError(path)
-
       const vars_final = Object.assign({}, route_vars, route.defaults, vars)
-      route.activate(vars_final)
+      route.activate(vars_final).then(() => {
+        this.o_active_route.set(route!)
+      })
     }
 
     /**
@@ -255,10 +269,10 @@ export namespace App {
      * @param defs The url definitions
      */
     async setupRouter() {
-      setTimeout(() => this.activateFromHash())
+      setTimeout(() => this.__activateFromHash())
       window.addEventListener("hashchange", () => {
-        this.hash_lock(() => {
-          this.activateFromHash()
+        this.__hash_lock(() => {
+          this.__activateFromHash()
         })
       })
 
@@ -267,17 +281,18 @@ export namespace App {
     protected _last_hash: string | null = null
     protected _last_srv: App.ServiceBuilder<any> | null = null
 
-    register(builder: () => App.ServiceBuilder<any>, url: string, defaults: {[name: string]: any} = {}) {
+    register(name: string, builder: () => App.ServiceBuilder<any>, url: string, defaults: {[name: string]: any} = {}) {
 
-      if (this.routes.has(url ?? "")) throw new Error(`route for '${url?.toString() ?? ""}' is already defined`)
+      if (this.__routes.has(url ?? "")) throw new Error(`route for '${url?.toString() ?? ""}' is already defined`)
 
       const route = new App.Route(this,
+        name,
         url,
         builder,
         defaults,
       )
 
-      this.routes.set(route.path, route)
+      this.__routes.set(route.path, route)
 
       return route
     }
