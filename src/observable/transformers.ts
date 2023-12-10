@@ -290,6 +290,39 @@ export function tf_set_has<T>(...values: o.RO<T>[]): o.RO<o.Converter<Set<T>, bo
   })
 }
 
+/**
+ * Make a boolean observable from the presence of given [key, value] pairs in a `Map`.
+ * If the observable can be written to, then setting the transformed to `true` will
+ * set all the pairs into the `Map`, and setting it to `false` will remove all of them.
+ *
+ * @group Transformer
+ */
+export function tf_map_has<K, V>(...values: o.RO<[K, V]>[]): o.RO<o.Converter<Map<K, V>, boolean>> {
+  return o.combine(values, (values) => {
+    return {
+      transform(map) {
+        for (let i = 0; i < values.length; i++) {
+          const [key, value] = values[i]
+          if (map.get(key) !== value)
+            return false
+        }
+        return true
+      },
+      revert(newv, _, map) {
+        const res = new Map(map)
+        for (let i = 0; i < values.length; i++) {
+          const item = values[i]
+          if (newv) res.set(item[0], item[1])
+          else if (res.get(item[0]) === item[1]) res.delete(item[0])
+        }
+        return res
+      }
+    } as o.Converter<Map<K, V>, boolean>
+
+  })
+}
+
+
 export type KeysOfType<T, V> = keyof { [ P in keyof T as T[P] extends V ? P : never ] : P }
 
 
