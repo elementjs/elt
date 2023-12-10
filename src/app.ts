@@ -134,8 +134,13 @@ export namespace App {
   export type Params = Map<string, string>
   export type Views = Map<string, () => Renderable>
 
+  export interface RouteOptions {
+    defaults?: {[name: string]: string}
+    silent?: boolean
+  }
+
   export type RouteDef = {[name: string]:
-    | [path: string, srv: (() => App.ServiceBuilder<any>), params?: {[name: string]: string}]
+    | [path: string, srv: (() => App.ServiceBuilder<any>), options?: RouteOptions]
     | [path: string, rt: RouteDef]
   }
 
@@ -147,7 +152,7 @@ export namespace App {
       public name: string,
       public path: string,
       public builder: () => ServiceBuilder<any>,
-      public defaults: {[name: string]: string} = {},
+      public options: RouteOptions = {},
     ) {
       this.regexp = new RegExp("^" + path.replace(/:[a-zA-Z_$0-9]+\b/g, rep => {
         return `(?<${rep.slice(1)}>[^\b]+)`
@@ -157,8 +162,13 @@ export namespace App {
     regexp: RegExp
 
     async activate(params: {[name: string]: string} = {}) {
-      const full_params = Object.assign({}, this.defaults, params)
+      const full_params = Object.assign({}, this.options.defaults, params)
       const r = await this.router.app.activate(this.builder(), full_params)
+
+      // Do not update the hash if this route is silent.
+      if (this.options.silent) {
+        return
+      }
 
       this.router.__hash_lock(() => {
         let hash = this.path
@@ -257,7 +267,7 @@ export namespace App {
         throw new Error(`route "${newhash}" could not be matched to a route`)
       }
 
-      const vars_final = Object.assign({}, route_vars, route.defaults, vars)
+      const vars_final = Object.assign({}, route_vars, route.options.defaults, vars)
       route.activate(vars_final).then(() => {
         this.o_active_route.set(route!)
       })
@@ -280,7 +290,7 @@ export namespace App {
     protected _last_hash: string | null = null
     protected _last_srv: App.ServiceBuilder<any> | null = null
 
-    register(name: string, builder: () => App.ServiceBuilder<any>, url: string, defaults: {[name: string]: any} = {}) {
+    register(name: string, builder: () => App.ServiceBuilder<any>, url: string, options?: RouteOptions) {
 
       if (this.__routes.has(url ?? "")) throw new Error(`route for '${url?.toString() ?? ""}' is already defined`)
 
@@ -288,7 +298,7 @@ export namespace App {
         name,
         url,
         builder,
-        defaults,
+        options,
       )
 
       this.__routes.set(route.path, route)
