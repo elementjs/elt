@@ -34,7 +34,6 @@ export class App {
       for (let [name, def] of Object.entries(defs)) {
         const [url, srv, params] = def
         if (typeof srv === "function") {
-          console.log(prefix + url)
           routes[name] = this.router.register(name, srv, prefix + url, params)
         } else {
           routes[name] = _register(srv, url)
