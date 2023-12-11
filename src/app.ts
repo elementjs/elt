@@ -72,26 +72,20 @@ export class App {
     return this.staging.require(builder, by, this.o_state.get())
   }
 
-  _reactivate: App.Reactivate | null = null
-  _activate_promise: Promise<void> | null = null
-
-  /** @deprecated */
-  async activate<S>(builder: App.ServiceBuilder<S>, params?: App.Params | {[name: string]: string}): Promise<void> {
+  async _activate<S>(builder: App.ServiceBuilder<S>, params?: App.Params | {[name: string]: string}): Promise<void> {
     const full_params = _assign(new Map<string, string>, this.o_state.get()?.params, params)
 
     if (this.staging != null) {
-      this._reactivate = new App.Reactivate(builder, full_params)
-      return this._activate_promise!
+      throw new App.Reactivate(builder, full_params)
     }
 
-    this._activate_promise = this._activate(builder, full_params)
-    return this._activate_promise
+    return this.__activate(builder, full_params)
   }
 
   /**
    * Does like require() but sets the resulting service as the active instance.
    */
-  async _activate<S>(builder: App.ServiceBuilder<S>, params?: App.Params): Promise<void> {
+  async __activate<S>(builder: App.ServiceBuilder<S>, params?: App.Params): Promise<void> {
     const current = this.o_state.get()
 
     try {
@@ -100,20 +94,19 @@ export class App {
       this.o_state.set(this.staging)
       current?.deactivate(this.staging)
       this.staging = null
-    } catch (e) {
+    } catch (react) {
+
       if (current) {
         this.staging?.deactivate(current)
       }
-      // just forward the error.
-      throw e
-    } finally {
+
       this.staging = null
 
-      const re = this._reactivate
-      this._reactivate = null
-      this._activate_promise = null
-      if (re != null) {
-        return this.activate(re.builder, re.params)
+      if (react instanceof App.Reactivate) {
+        return this._activate(react.builder, react.params)
+      } else {
+        // just forward the error.
+        throw react
       }
     }
   }
@@ -163,14 +156,16 @@ export namespace App {
 
     async activate(params: {[name: string]: string} = {}) {
       const full_params = Object.assign({}, this.options.defaults, params)
-      const r = await this.router.app.activate(this.builder(), full_params)
+      const r = await this.router.app._activate(this.builder(), full_params)
 
       // Do not update the hash if this route is silent.
       if (this.options.silent) {
         return
       }
+      console.log("I was called to activate", this)
 
       this.router.__hash_lock(() => {
+        console.log("I want to update ?", this)
         let hash = this.path
         if (typeof hash !== "string") return
 
@@ -201,11 +196,11 @@ export namespace App {
     }
   }
 
-  export class Reactivate {
+  export class Reactivate extends Error {
     constructor(
       public builder: App.ServiceBuilder<any>,
       public params: Params = new Map(),
-    ) {  }
+    ) { super("reactivation") }
   }
 
   /**
