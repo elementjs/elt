@@ -153,7 +153,7 @@ export namespace App {
       : R[K] extends [string, srv: (() => App.ServiceBuilder<any, infer T>), options?: RouteOptions] ? Route<T>
       : Route}
 
-  export class Route<T extends string = never> {
+  export class Route<T extends {[name: string]: string} = {}> {
     constructor(
       public router: Router,
       public name: string,
@@ -202,7 +202,7 @@ export namespace App {
       })
     }
 
-    async activate(_params?: {[name in T]: string | number}) {
+    async activate(..._params: {} extends T ? ([] | [{[name in keyof T]: string | number}]) : [{[name in keyof T]: string | number}]): Promise<void> {
       const params: {[name: string]: string} = {}
       for (let prop in _params) {
         let val = _params[prop]
@@ -235,7 +235,7 @@ export namespace App {
     // the last route to have called activate()
     __last_activated_route: App.Route | null = null
     __hash_lock = o.exclusive_lock()
-    protected __routes = new Map<string, App.Route>()
+    protected __routes = new Map<string, App.Route<any>>()
 
     /**
      * @internal
@@ -447,12 +447,12 @@ export namespace App {
 
   }
 
-  export type ServiceBuilderFunction<S, T extends string = never> = (srv: App.Service<T>) => Promise<S>
+  export type ServiceBuilderFunction<S, T extends {[name: string]: string} = {}> = (srv: App.Service<T>) => Promise<S>
 
   /**
    * Type definition of an asynchronous function that can be used as a service in an elt App.
    */
-  export type ServiceBuilder<S, T extends string = never> =
+  export type ServiceBuilder<S, T extends {[name: string]: string} = {}> =
     ServiceBuilderFunction<S, T>
     | { default: ServiceBuilderFunction<S, T> }
     | Promise<ServiceBuilderFunction<S, T> | { default: ServiceBuilderFunction<S, T> }>
@@ -460,22 +460,22 @@ export namespace App {
   /**
    * A single service.
    */
-  export class Service<T extends string = never> extends o.ObserverHolder {
+  export class Service<T extends {[name: string]: string} = {}> extends o.ObserverHolder {
     constructor(public app: App, public builder: (srv: App.Service) => any) { super() }
     _on_deinit: (() => any)[] = []
 
-    require<S, TP extends string, TC extends TP>(this: Service<TC>, fn: ServiceBuilder<S, TP>): Promise<S> {
+    require<S, TP extends {[name: string]: string}, TC extends TP>(this: Service<TC>, fn: ServiceBuilder<S, TP>): Promise<S> {
       return this.app.require(fn, this)
     }
 
-    param(name: T, default_value?: string): string | null {
+    param(name: keyof T, default_value?: string): string | null {
       // add the variable to the list
       if (!this.app.staging) {
         throw new Error("can only call param() during the activation phase")
       }
 
-      let value = this.app.staging.params.get(name) ?? default_value ?? null
-      this.params.set(name, value)
+      let value = this.app.staging.params.get(name as string) ?? default_value ?? null
+      this.params.set(name as string, value)
       return value
     }
 
