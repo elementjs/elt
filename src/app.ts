@@ -94,6 +94,10 @@ export class App {
       this.o_state.set(this.staging)
       current?.deactivate(this.staging)
       this.staging = null
+
+      // whoever gets here is the route that "won" if we got here through a route
+      this.router.__last_activated_route?.updateHash()
+
     } catch (react) {
 
       if (current) {
@@ -154,18 +158,13 @@ export namespace App {
 
     regexp: RegExp
 
-    async activate(params: {[name: string]: string} = {}) {
-      const full_params = Object.assign({}, this.options.defaults, params)
-      const r = await this.router.app._activate(this.builder(), full_params)
-
+    updateHash() {
       // Do not update the hash if this route is silent.
       if (this.options.silent) {
         return
       }
-      console.log("I was called to activate", this)
 
       this.router.__hash_lock(() => {
-        console.log("I want to update ?", this)
         let hash = this.path
         if (typeof hash !== "string") return
 
@@ -191,8 +190,12 @@ export namespace App {
 
         window.location.hash = hash
       })
-      // FIXME: Update fragment !
-      return r
+    }
+
+    async activate(params: {[name: string]: string} = {}) {
+      const full_params = Object.assign({}, this.options.defaults, params)
+      this.router.__last_activated_route = this
+      await this.router.app._activate(this.builder(), full_params)
     }
   }
 
@@ -212,6 +215,8 @@ export namespace App {
 
     o_active_route = o(null as null | App.Route)
 
+    // the last route to have called activate()
+    __last_activated_route: App.Route | null = null
     __hash_lock = o.exclusive_lock()
     protected __routes = new Map<string, App.Route>()
 
