@@ -134,6 +134,14 @@ export class App {
       await this.staging.activate(builder, params, current)
       this.o_state.set(this.staging)
       current?.deactivate(this.staging)
+
+      for (let srv of (this.staging.services.values())) {
+        if (!srv.is_observing) {
+          console.log("??")
+          srv.startObservers()
+        }
+      }
+
       this.staging = null
 
       // whoever gets here is the route that "won" if we got here through a route
