@@ -72,14 +72,18 @@ export class App {
     return this.staging.require(builder, by, this.o_state.get())
   }
 
+  __reactivate: App.Reactivation | null = null
+  __activation_promise: Promise<void> | null = null
   async _activate<S>(builder: App.ServiceBuilder<S>, params?: App.Params | {[name: string]: string}): Promise<void> {
     const full_params = _assign(new Map<string, string>, this.o_state.get()?.params, params)
 
     if (this.staging != null) {
-      throw new App.Reactivate(builder, full_params)
+      this.__reactivate = new App.Reactivation(builder, full_params)
+      return this.__activation_promise!
     }
 
-    return this.__activate(builder, full_params)
+    this.__activation_promise = this.__activate(builder, full_params)
+    return this.__activation_promise
   }
 
   /**
@@ -98,7 +102,7 @@ export class App {
       // whoever gets here is the route that "won" if we got here through a route
       this.router.__last_activated_route?.updateHash()
 
-    } catch (react) {
+    } catch (e) {
 
       if (current) {
         this.staging?.deactivate(current)
@@ -106,11 +110,14 @@ export class App {
 
       this.staging = null
 
-      if (react instanceof App.Reactivate) {
-        return this._activate(react.builder, react.params)
-      } else {
-        // just forward the error.
-        throw react
+      throw e
+    } finally {
+
+      this.staging = null
+      const re = this.__reactivate
+      this.__reactivate = null
+      if (re) {
+        return this.__activate(re.builder, re.params)
       }
     }
   }
@@ -199,7 +206,7 @@ export namespace App {
     }
   }
 
-  export class Reactivate extends Error {
+  export class Reactivation extends Error {
     constructor(
       public builder: App.ServiceBuilder<any>,
       public params: Params = new Map(),
@@ -242,7 +249,7 @@ export namespace App {
      * @internal
      * activate a service from the hash portion of window.location
      */
-    protected __activateFromHash() {
+    activateFromHash() {
       const newhash = window.location.hash.slice(1)
 
       // do not handle if the hash is the last one we handled
@@ -278,10 +285,10 @@ export namespace App {
      * @param defs The url definitions
      */
     async setupRouter() {
-      setTimeout(() => this.__activateFromHash())
+      setTimeout(() => this.activateFromHash())
       window.addEventListener("hashchange", () => {
         this.__hash_lock(() => {
-          this.__activateFromHash()
+          this.activateFromHash()
         })
       })
 
