@@ -199,7 +199,11 @@ export namespace App {
       })
     }
 
-    async activate(params: {[name: string]: string} = {}) {
+    async activate(_params: {[name: string]: string | number} = {}) {
+      const params: {[name: string]: string} = {}
+      for (let prop in _params) {
+        params[prop] = _params[prop].toString()
+      }
       const full_params = Object.assign({}, this.options.defaults, params)
       this.router.__last_activated_route = this
       await this.router.app._activate(this.builder(), full_params)
