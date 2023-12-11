@@ -17,6 +17,42 @@ function _assign<B extends Map<any, any> | {[name: string]: string}>(base: B, ..
   return base
 }
 
+function _decode(s: string): string | boolean | undefined | number | null {
+  let val: string | boolean | undefined | number | null = s
+  if (s[1] === "~") {
+    val = val.slice(1)
+  } else if (s[1] === "n") {
+    val = null
+  } else if (s[1] === "u") {
+    val = undefined
+  } else if (s[1] === "f") {
+    val = false
+  } else if (s[1] === "t") {
+    val = true
+  } else if (/^[.0-9-]/.test(s[1])) {
+    val = parseFloat(s.slice(1))
+  }
+  return val
+}
+
+function _encode(v: string | boolean | undefined | number | null): string {
+  // encode value and its basic type in the URL
+  if (typeof v === "string" && v[0] === "~") {
+    v = "~" + v
+  } else if (typeof v === "number") {
+    v = "~" + v
+  } else if (v === true) {
+    v = "~t"
+  } else if (v === false) {
+    v = "~f"
+  } else if (v === null) {
+    v = "~n"
+  } else if (v === undefined) {
+    v = "~u"
+  }
+  return v
+}
+
 /**
  * An app is a collection of services and their associated view map.
  * This is all it does.
@@ -25,10 +61,7 @@ export class App {
 
   constructor() { }
 
-
   setupRouter<R extends App.RouteDef>(route_defs: R): App.RoutesRes<R> {
-
-
     const _register = <R2 extends App.RouteDef>(defs: R2, prefix = "") => {
       const routes = {} as any
       for (let [name, def] of Object.entries(defs)) {
@@ -74,7 +107,7 @@ export class App {
 
   __reactivate: App.Reactivation | null = null
   __activation_promise: Promise<void> | null = null
-  async _activate<S>(builder: App.ServiceBuilder<S>, params?: App.Params | {[name: string]: string}): Promise<void> {
+  async _activate<S>(builder: App.ServiceBuilder<S, any>, params?: App.Params | {[name: string]: string}): Promise<void> {
     const full_params = _assign(new Map<string, string>, this.o_state.get()?.params, params)
 
     if (this.staging != null) {
@@ -135,7 +168,7 @@ export class App {
 
 export namespace App {
 
-  export type Params = Map<string, string>
+  export type Params = Map<string, string | number | boolean>
   export type Views = Map<string, () => Renderable>
 
   export interface RouteOptions {
@@ -153,7 +186,7 @@ export namespace App {
       : R[K] extends [string, srv: (() => App.ServiceBuilder<any, infer T>), options?: RouteOptions] ? Route<T>
       : Route}
 
-  export class Route<T extends {[name: string]: string} = {}> {
+  export class Route<T extends SrvParams = {}> {
     constructor(
       public router: Router,
       public name: string,
@@ -180,6 +213,8 @@ export namespace App {
 
         const entries: string[] = []
         for (let [key, value] of this.router.app.o_params.get()) {
+          value = _encode(value)
+
           let re = new RegExp(":" + key + "\\b")
           if (re.test(hash)) {
             // replace the variable in the hash
@@ -189,9 +224,8 @@ export namespace App {
           }
         }
 
-        if (/:[a-zA-Z0-9_$]+\b/.test(hash)) {
-          console.warn(`some variables are not consumed by the currently active service ("${hash}")`)
-        }
+        hash = hash.replace(/:[a-zA-Z0-9_$]+\b/g, "~u")
+        if (hash.includes("~u")) throw new Error("WHAT")
 
         // if there are variables, add them
         if (entries.length > 0) {
@@ -202,14 +236,8 @@ export namespace App {
       })
     }
 
-    async activate(..._params: {} extends T ? ([] | [{[name in keyof T]: string | number}]) : [{[name in keyof T]: string | number}]): Promise<void> {
-      const params: {[name: string]: string} = {}
-      for (let prop in _params) {
-        let val = _params[prop]
-        if (val != null) {
-          params[prop] = _params[prop].toString()
-        }
-      }
+    async activate(..._params: {} extends T ? ([] | [T]) : [T]): Promise<void> {
+      const params: T = _params[0] as T
       const full_params = Object.assign({}, this.options.defaults, params)
       this.router.__last_activated_route = this
       await this.router.app._activate(this.builder(), full_params)
@@ -233,7 +261,7 @@ export namespace App {
     o_active_route = o(null as null | App.Route)
 
     // the last route to have called activate()
-    __last_activated_route: App.Route | null = null
+    __last_activated_route: App.Route<any> | null = null
     __hash_lock = o.exclusive_lock()
     protected __routes = new Map<string, App.Route<any>>()
 
@@ -243,14 +271,20 @@ export namespace App {
      * @param newhash the current hash
      * @returns the path and the current variables
      */
-    protected __parseHash(newhash: string): {path: string, vars: {[name: string]: string}} {
+    protected __parseHash(newhash: string): {path: string, vars: App.SrvParams} {
       const [path, vars_str] = newhash.split(/\?/) // separate at the first "?"
       const vars = (vars_str ?? "").split(/&/g).reduce((acc, item) => {
         const [key, value] = item.split(/=/)
-        if (key || value)
-          acc[decodeURIComponent(key)] = decodeURIComponent(value ?? "")
+        if (key || value) {
+          const svalue = decodeURIComponent(value ?? "")
+          const skey = decodeURIComponent(key)
+          let val: string | number | undefined | null | boolean = svalue
+          if (val[0] === "~") {
+          }
+          acc[skey] = _decode(val)
+        }
         return acc
-      }, {} as {[name: string]: string})
+      }, {} as App.SrvParams)
 
       return {path, vars}
     }
@@ -266,7 +300,7 @@ export namespace App {
       if (newhash && newhash === this._last_hash && this._last_srv === this.app.o_active_service.get()?.builder) return
 
       const {path, vars} = this.__parseHash(newhash)
-      const route_vars: {[name: string]: string} = {}
+      const route_vars: SrvParams = {}
 
       let route = this.__routes.get(path)
       if (route == null) {
@@ -274,7 +308,10 @@ export namespace App {
           let match = path.match(rt.regexp)
           if (match) {
             route = rt
-            Object.assign(route_vars, match.groups)
+            const groups = match.groups
+            for (let name in groups) {
+              route_vars[name] = _decode(groups[name])
+            }
             break
           }
         }
@@ -447,12 +484,14 @@ export namespace App {
 
   }
 
-  export type ServiceBuilderFunction<S, T extends {[name: string]: string} = {}> = (srv: App.Service<T>) => Promise<S>
+  export type SrvParams = {[name: string]: string | number | boolean | null | undefined}
+
+  export type ServiceBuilderFunction<S, T extends SrvParams = {}> = (srv: App.Service<T>) => Promise<S>
 
   /**
    * Type definition of an asynchronous function that can be used as a service in an elt App.
    */
-  export type ServiceBuilder<S, T extends {[name: string]: string} = {}> =
+  export type ServiceBuilder<S, T extends SrvParams = {}> =
     ServiceBuilderFunction<S, T>
     | { default: ServiceBuilderFunction<S, T> }
     | Promise<ServiceBuilderFunction<S, T> | { default: ServiceBuilderFunction<S, T> }>
@@ -460,33 +499,33 @@ export namespace App {
   /**
    * A single service.
    */
-  export class Service<T extends {[name: string]: string} = {}> extends o.ObserverHolder {
+  export class Service<T extends SrvParams = {}> extends o.ObserverHolder {
     constructor(public app: App, public builder: (srv: App.Service) => any) { super() }
     _on_deinit: (() => any)[] = []
 
-    require<S, TP extends {[name: string]: string}, TC extends TP>(this: Service<TC>, fn: ServiceBuilder<S, TP>): Promise<S> {
-      return this.app.require(fn, this)
+    require<S, TP extends SrvParams, TC extends TP>(this: Service<TC>, fn: ServiceBuilder<S, TP>): Promise<S> {
+      return this.app.require(fn as any, this)
     }
 
-    param(name: keyof T, default_value?: string): string | null {
+    param<K extends keyof T>(name: K, default_value?: T[K]): T[K] {
       // add the variable to the list
       if (!this.app.staging) {
         throw new Error("can only call param() during the activation phase")
       }
 
       let value = this.app.staging.params.get(name as string) ?? default_value ?? null
-      this.params.set(name as string, value)
-      return value
+      this.params.set(name as string, value as any)
+      return value as T[K]
     }
 
-    softParam(name: string, default_value?: string): string | null {
+    param_soft<K extends keyof T>(name: K, default_value?: T[K]): T[K] {
       if (!this.app.staging) {
         throw new Error("can only call softParam() during the activation phase")
       }
 
-      let value = this.app.staging.params.get(name) ?? default_value ?? null
-      this.params.set(name, null) // should this mean
-      return value
+      let value = this.app.staging.params.get(name as string) ?? default_value ?? null
+      this.params.set(name as string, null) // should this mean
+      return value as T[K]
     }
 
     DisplayView(view_name: string) {
