@@ -144,18 +144,21 @@ export namespace App {
   }
 
   export type RouteDef = {[name: string]:
-    | [path: string, srv: (() => App.ServiceBuilder<any>), options?: RouteOptions]
+    | [path: string, srv: (() => App.ServiceBuilder<any, any>), options?: RouteOptions]
     | [path: string, rt: RouteDef]
   }
 
-  export type RoutesRes<R extends RouteDef> = {[K in keyof R]: R[K] extends [string, infer U extends RouteDef] ? RoutesRes<U> : Route}
+  export type RoutesRes<R extends RouteDef> = {[K in keyof R]:
+      R[K] extends [string, infer U extends RouteDef] ? RoutesRes<U>
+      : R[K] extends [string, srv: (() => App.ServiceBuilder<any, infer T>), options?: RouteOptions] ? Route<T>
+      : Route}
 
-  export class Route {
+  export class Route<T extends string = never> {
     constructor(
       public router: Router,
       public name: string,
       public path: string,
-      public builder: () => ServiceBuilder<any>,
+      public builder: () => ServiceBuilder<any, T>,
       public options: RouteOptions = {},
     ) {
       this.regexp = new RegExp("^" + path.replace(/:[a-zA-Z_$0-9]+\b/g, rep => {
@@ -199,10 +202,13 @@ export namespace App {
       })
     }
 
-    async activate(_params: {[name: string]: string | number} = {}) {
+    async activate(_params?: {[name in T]: string | number}) {
       const params: {[name: string]: string} = {}
       for (let prop in _params) {
-        params[prop] = _params[prop].toString()
+        let val = _params[prop]
+        if (val != null) {
+          params[prop] = _params[prop].toString()
+        }
       }
       const full_params = Object.assign({}, this.options.defaults, params)
       this.router.__last_activated_route = this
@@ -441,28 +447,28 @@ export namespace App {
 
   }
 
-  export type ServiceBuilderFunction<T> = (srv: App.Service) => Promise<T>
+  export type ServiceBuilderFunction<S, T extends string = never> = (srv: App.Service<T>) => Promise<S>
 
   /**
    * Type definition of an asynchronous function that can be used as a service in an elt App.
    */
-  export type ServiceBuilder<T> =
-    ServiceBuilderFunction<T>
-    | { default: ServiceBuilderFunction<T> }
-    | Promise<ServiceBuilderFunction<T> | { default: ServiceBuilderFunction<T> }>
+  export type ServiceBuilder<S, T extends string = never> =
+    ServiceBuilderFunction<S, T>
+    | { default: ServiceBuilderFunction<S, T> }
+    | Promise<ServiceBuilderFunction<S, T> | { default: ServiceBuilderFunction<S, T> }>
 
   /**
    * A single service.
    */
-  export class Service extends o.ObserverHolder {
+  export class Service<T extends string = never> extends o.ObserverHolder {
     constructor(public app: App, public builder: (srv: App.Service) => any) { super() }
     _on_deinit: (() => any)[] = []
 
-    require<S>(fn: ServiceBuilder<S>): Promise<S> {
+    require<S, TP extends string, TC extends TP>(this: Service<TC>, fn: ServiceBuilder<S, TP>): Promise<S> {
       return this.app.require(fn, this)
     }
 
-    param(name: string, default_value?: string): string | null {
+    param(name: T, default_value?: string): string | null {
       // add the variable to the list
       if (!this.app.staging) {
         throw new Error("can only call param() during the activation phase")
