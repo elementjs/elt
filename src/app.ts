@@ -137,7 +137,6 @@ export class App {
 
       for (let srv of (this.staging.services.values())) {
         if (!srv.is_observing) {
-          console.log("??")
           srv.startObservers()
         }
       }
@@ -517,6 +516,14 @@ export namespace App {
 
     require<S, TP extends SrvParams, TC extends TP>(this: Service<TC>, fn: ServiceBuilder<S, TP>): Promise<S> {
       return this.app.require(fn as any, this)
+    }
+
+    /**
+     * A service can activate a Route using its own params
+     */
+    activate<TP extends SrvParams, TC extends SrvParams>(this: Service<TC>, rt: Route<TP>, ...args: TC extends TP ? ([] | [TP]) : [TP]): Promise<void> {
+      const params = Object.assign({}, this.app.o_params.get(), args[0])
+      return rt.activate(params as TP)
     }
 
     param<K extends keyof T>(name: K, default_value?: T[K]): T[K] {
