@@ -114,9 +114,6 @@ export class App {
     const full_params = _assign(new Map<string, string>, this.o_state.get()?.params, params)
 
     if (this.staging != null) {
-      if (this.__reactivate) {
-        this.__reactivate._reject(new Error("another reactivation occured"))
-      }
       this.__reactivate = new App.Reactivation(builder, full_params)
       return
     }
@@ -161,8 +158,8 @@ export class App {
       const re = this.__reactivate
       this.__reactivate = null
       if (re) {
-        this.__activate(re.builder, re.params).then(() => re._accept()).catch(e => re._reject(e))
-        return Promise.reject(new Error("reactivation"))
+        const prom = this.__activate(re.builder, re.params)
+        return Promise.reject({ reason: "reactivation", service: prom })
       }
     }
   }
@@ -256,38 +253,11 @@ export namespace App {
     }
   }
 
-  export class Reactivation extends Error implements Promise<void> {
+  export class Reactivation extends Error {
     constructor(
       public builder: App.ServiceBuilder<any>,
       public params: Params = new Map(),
     ) { super("reactivation") }
-
-    _accept!: () => void
-    _reject!: (err: any) => void
-    promise = new Promise<void>((accept, reject) => {
-      this._accept = accept
-      this._reject = reject
-    })
-
-    ;[Symbol.toStringTag] = "reactivation"
-
-    finally(onfinally?: (() => void) | null | undefined): Promise<void> {
-      return this.promise.finally(onfinally)
-    }
-
-    /* implement promise */
-    then<TResult1 = void, TResult2 = never>(onfulfilled?: (() => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): Promise<TResult1 | TResult2> {
-      return this.promise.then(onfulfilled, onrejected)
-    }
-
-    /**
-     * Attaches a callback for only the rejection of the Promise.
-     * @param onrejected The callback to execute when the Promise is rejected.
-     * @returns A Promise for the completion of the callback.
-     */
-    catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null): Promise<void | TResult> {
-      return this.promise.catch(onrejected)
-    }
   }
 
   /**
