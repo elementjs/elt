@@ -1,6 +1,6 @@
 import { Renderable } from "./types"
 import { o } from "./observable"
-
+import { Deferred } from "./utils"
 
 function _assign<B extends Map<any, any> | {[name: string]: string}>(base: B, ...args: (Map<any, any> | {[name: string]: any} | null | undefined)[]): B {
   const is_map = base instanceof Map
@@ -110,21 +110,28 @@ export class App {
   }
 
   __reactivate: App.Reactivation | null = null
-  async _activate<S>(builder: App.ServiceBuilder<S, any>, params?: App.Params | {[name: string]: string}): Promise<void> {
+  async _activate<S>(builder: App.ServiceBuilder<S, any>, params?: App.Params | {[name: string]: string}): Promise<App.ActivationResult> {
     const full_params = _assign(new Map<string, string>, this.o_state.get()?.params, params)
+    const awaited = await builder
+    const builder_fn = typeof awaited === "function" ? awaited : awaited.default
 
     if (this.staging != null) {
-      this.__reactivate = new App.Reactivation(builder, full_params)
-      return
+      this.__reactivate?.reject(new Error("reactivation"))
+      this.__reactivate = new App.Reactivation(builder_fn, full_params)
+      return {
+        activated: false,
+        reactivation: this.__reactivate,
+        service: builder_fn
+      }
     }
 
-    return this.__activate(builder, full_params)
+    return this.__activate(builder_fn, full_params)
   }
 
   /**
    * Does like require() but sets the resulting service as the active instance.
    */
-  async __activate<S>(builder: App.ServiceBuilder<S>, params?: App.Params): Promise<void> {
+  async __activate<S>(builder: App.ServiceBuilderFunction<S>, params?: App.Params): Promise<App.ActivationResult> {
     const current = this.o_state.get()
 
     try {
@@ -143,7 +150,10 @@ export class App {
 
       // whoever gets here is the route that "won" if we got here through a route
       this.router.__last_activated_route?.updateHash()
-
+      return {
+        activated: true,
+        service: builder,
+      }
     } catch (e) {
 
       if (current) {
@@ -151,15 +161,18 @@ export class App {
       }
 
       this.staging = null
-
       throw e
     } finally {
       this.staging = null
       const re = this.__reactivate
       this.__reactivate = null
       if (re) {
-        const prom = this.__activate(re.builder, re.params)
-        return Promise.reject({ reason: "reactivation", service: prom })
+        this.__activate(re.builder, re.params).then(re.resolve, re.reject)
+        return {
+          activated: false,
+          service: builder,
+          reactivation: re,
+        }
       }
     }
   }
@@ -253,12 +266,25 @@ export namespace App {
     }
   }
 
-  export class Reactivation extends Error {
+  export class Reactivation extends Deferred<App.ActivationResult> {
     constructor(
-      public builder: App.ServiceBuilder<any>,
+      public builder: App.ServiceBuilderFunction<any>,
       public params: Params = new Map(),
-    ) { super("reactivation") }
+    ) { super() }
   }
+
+  export interface Activated {
+    activated: true
+    service: ServiceBuilderFunction<any>
+  }
+
+  export interface Reactivated {
+    activated: false
+    service: ServiceBuilderFunction<any>
+    reactivation: Promise<ActivationResult>
+  }
+
+  export type ActivationResult = Activated | Reactivated
 
   /**
    ** App.Router : a binding between the hash fragment of an URL and an App and its services.
