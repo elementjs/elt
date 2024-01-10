@@ -154,9 +154,9 @@ export namespace Switch {
           ) {
             return fn
           }
-
-          return this.passthrough
         }
+
+        return this.passthrough
 
       })
 

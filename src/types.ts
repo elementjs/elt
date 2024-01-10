@@ -24,6 +24,7 @@ export type Renderable<N extends Node = Element> = Appendable<N> | string | numb
 export type StyleDefinition =
   o.RO<Partial<CSSStyleDeclaration & { [K: `--${string}`]: string }>>
   | o.ROProps<Partial<CSSStyleDeclaration & { [K: `--${string}`]: string }>>
+  | o.RO<string>
 
 /**
  * CSS classes for the class={} attribute
