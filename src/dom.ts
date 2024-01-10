@@ -577,6 +577,11 @@ export function node_observe_attribute(node: Element, name: string, value: o.RO<
 export function node_observe_style(node: HTMLElement | SVGElement, style: StyleDefinition) {
   if (o.is_observable(style)) {
     node_observe(node, style, st => {
+      if (typeof st === "string") {
+        node.setAttribute("style", st)
+        return
+      }
+
       const ns = node.style
       const props = Object.keys(st)
       for (let i = 0, l = props.length; i < l; i++) {
@@ -585,6 +590,8 @@ export function node_observe_style(node: HTMLElement | SVGElement, style: StyleD
         ns.setProperty(x.replace(/[A-Z]/g, m => "-" + m.toLowerCase()), value)
       }
     }, { immediate: true })
+  } else if (typeof style === "string") {
+    node.setAttribute("style", style)
   } else {
     // c is a MaybeObservableObject
     const st = style as any
