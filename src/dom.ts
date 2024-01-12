@@ -297,13 +297,13 @@ export function node_append<N extends Node>(node: N, insertable: Renderable<N> |
     for (let key in attrs) {
       const value = attrs[key as keyof typeof attrs]
       if (key === "class") {
-        if (value == null) continue
+        if (value == null || value === false) continue
         if (Array.isArray(value))
           for (let j = 0, lj = value.length; j < lj; j++) node_observe_class(_node, value[j])
         else
           node_observe_class(_node, value as ClassDefinition)
       } else if (key === "style") {
-        if (value == null) continue
+        if (value == null || value === false) continue
         node_observe_style(_node, value as StyleDefinition)
       } else if (is_basic_node || basic_attrs.has(key)) {
         node_observe_attribute(_node, key, (attrs as any)[key])
@@ -577,6 +577,7 @@ export function node_observe_attribute(node: Element, name: string, value: o.RO<
 export function node_observe_style(node: HTMLElement | SVGElement, style: StyleDefinition) {
   if (o.is_observable(style)) {
     node_observe(node, style, st => {
+      if (st == null)
       if (typeof st === "string") {
         node.setAttribute("style", st)
         return
@@ -633,7 +634,7 @@ export function node_observe_class(node: Element, c: ClassDefinition) {
 }
 
 
-function _apply_class(node: Element, c: ClassDefinition | ClassDefinition[] | null) {
+function _apply_class(node: Element, c: ClassDefinition | ClassDefinition[] | null | false) {
   if (Array.isArray(c)) {
     for (let i = 0, l = c.length; i < l; i++) {
       _apply_class(node, c[i])

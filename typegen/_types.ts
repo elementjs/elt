@@ -110,7 +110,7 @@ export interface Attrs<N extends Node = HTMLElement> extends EmptyAttributes<N> 
   /** A document id */
   id?: NRO<string | null>
   /** Class definition(s), see {@link $class} for possible uses */
-  class?: ClassDefinition | ClassDefinition[] // special attributes
+  class?: ClassDefinition | ClassDefinition[] | null | false // special attributes
   /** Style definition, see {@link $style} for use */
-  style?: StyleDefinition
+  style?: StyleDefinition | null | false
 }
