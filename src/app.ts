@@ -247,7 +247,10 @@ export namespace App {
         }
 
         hash = hash.replace(/:[a-zA-Z0-9_$]+\b/g, "~u")
-        if (hash.includes("~u")) throw new Error("WHAT")
+        if (hash.includes("~u")) {
+          console.warn(hash)
+          throw new Error("WHAT")
+        }
 
         // if there are variables, add them
         if (entries.length > 0) {
