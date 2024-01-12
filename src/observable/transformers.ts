@@ -258,11 +258,39 @@ export function tf_map_entries<K, V>(): o.Converter<Map<K, V>, [K, V][]> {
 }
 
 /**
- * Make a boolean observable from the presence of given values in a `Set`.
- * If the observable can be written to, then setting the transformed to `true` will
- * put all the values to the `Set`, and setting it to `false` will remove all of them.
- *
- * The values that should be in the set.
+ * Make a boolean observable out of the presence of given values in the array that is to be observed. If the observable is writable, then setting the tranformed to true will put all the `values` that were not in the array into it.
+ * @group Transformer
+ */
+export function tf_array_has<T>(...values: o.RO<T>[]): o.RO<o.Converter<T[], boolean>> {
+  return o.combine(values, values => ({
+    transform(arr) {
+      for (let i = 0; i < values.length; i++) {
+        const item = values[i]
+        if (!arr.includes(item)) {
+          return false
+        }
+      }
+      return true
+    },
+    revert(bool, _, cur) {
+      if (bool) {
+        let add: T[] = []
+        for (let i = 0; i < values.length; i++) {
+          const item = values[i]
+          if (!cur.includes(item) && !add.includes(item)) {
+            add.push(item)
+          }
+        }
+
+        return add.length ? [...cur, ...add] : cur
+      }
+      return cur.filter(x => !values.includes(x))
+    }
+  }))
+}
+
+/**
+ * Make a boolean observable from the presence of given values in a `Set`. If the observable can be written to, then setting the transformed to `true` will put all the values to the `Set`, and setting it to `false` will remove all of them.
  * @group Transformer
  */
 export function tf_set_has<T>(...values: o.RO<T>[]): o.RO<o.Converter<Set<T>, boolean>> {
