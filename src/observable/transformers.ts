@@ -11,10 +11,26 @@ import { o } from "./observable"
  * ```
  * @group Transformer
  */
-export function tf_equals<T, TT extends T>(other: o.RO<TT>) {
-  return o.tf(other,
-    oth => (current: T) => current === oth,
-  )
+export function tf_equals<T, TT extends T = T, TT2 extends T = T>(other: o.RO<TT>): o.RO<o.ReadonlyConverter<T, boolean>>
+export function tf_equals<T, TT extends T = T, TT2 extends T = T>(other: o.RO<TT>, prev: o.RO<TT2>): o.RO<o.Converter<T, boolean>>
+export function tf_equals<T, TT extends T = T, TT2 extends T = T>(other: o.RO<TT>, prev?: o.RO<TT2>): o.RO<o.Converter<T, boolean>> {
+
+  if (arguments.length === 1) {
+    return o.tf(other, oth => ({
+      transform(cur: T) { return cur === oth }
+    })) as unknown as o.RO<o.Converter<T, boolean>>
+  }
+
+  return o.join(other as TT, prev as o.Observable<TT2>)
+    .tf(([oth, pr]) => ({
+      transform(current: T) {
+        return current === oth
+      },
+      revert(boo: boolean) {
+        return boo ? oth as T : pr as T
+      }
+    }))
+
 }
 
 /**
