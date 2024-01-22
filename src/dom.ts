@@ -462,8 +462,8 @@ export type EventsForKeys<K extends KEvent | KEvent[]> =
   : Event
 
 export function node_add_event_listener<N extends Node, K extends KEvent | KEvent[]>(node: N, key: K, listener: Listener<EventsForKeys<K>, N>, useCapture?: boolean): void
-export function node_add_event_listener<N extends Node, K extends KEvent | KEvent[]>(target: N, node: Node, key: K, listener: Listener<EventsForKeys<K>, N>, useCapture?: boolean): void
-export function node_add_event_listener(target: Node, node: any, events: any, listener?: any, use_capture?: any): void {
+export function node_add_event_listener<N extends EventTarget, K extends KEvent | KEvent[]>(target: N, node: Node, key: K, listener: Listener<EventsForKeys<K>, N>, useCapture?: boolean): void
+export function node_add_event_listener(target: EventTarget, node: any, events: any, listener?: any, use_capture?: any): void {
 
   if (!(node instanceof Node)) {
     // This is the short version, node is the events

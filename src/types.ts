@@ -34,7 +34,7 @@ export type ClassDefinition = {[name: string]: o.RO<any>} | o.RO<string>
 /**
  * Used with {@link $on} or {@link Mixin#on}
  */
-export type Listener<EventType extends Event, N extends Node = Node> = (ev: EventType & { currentTarget: N }) => any
+export type Listener<EventType extends Event, N extends EventTarget = Node> = (ev: EventType & { currentTarget: N }) => any
 
 
 /**
