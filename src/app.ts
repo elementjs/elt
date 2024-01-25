@@ -530,7 +530,7 @@ export namespace App {
    * Type definition of an asynchronous function that can be used as a service in an elt App.
    */
   export type ServiceBuilder<S, T extends SrvParams = {}> =
-    ServiceBuilderFunction<S, T>
+    | ServiceBuilderFunction<S, T>
     | { default: ServiceBuilderFunction<S, T> }
     | Promise<ServiceBuilderFunction<S, T> | { default: ServiceBuilderFunction<S, T> }>
 
@@ -548,9 +548,9 @@ export namespace App {
     /**
      * A service can activate a Route using its own params
      */
-    activate<TP extends SrvParams, TC extends SrvParams>(this: Service<TC>, rt: Route<TP>, ...args: TC extends TP ? ([] | [TP]) : [TP]): Promise<void> {
+    activate<TP extends SrvParams, TC extends SrvParams>(this: Service<TC>, rt: Route<TP>, ...args: TP extends TC ? [Omit<TP, keyof TC>] : TC extends TP ? ([] | [TP]) : [TP]): Promise<void> {
       const params = Object.assign({}, this.app.o_params.get(), args[0])
-      return rt.activate(params as TP)
+      return rt.activate(params as any)
     }
 
     param<K extends keyof T>(name: K, default_value?: T[K]): T[K] {
