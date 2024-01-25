@@ -587,8 +587,9 @@ export function node_observe_style(node: HTMLElement | SVGElement, style: StyleD
       const props = Object.keys(st)
       for (let i = 0, l = props.length; i < l; i++) {
         const x = props[i]
+        const css_name = x.replace(/[A-Z]/g, m => "-" + m.toLowerCase())
         const value = st[x as any] as any
-        ns.setProperty(x.replace(/[A-Z]/g, m => "-" + m.toLowerCase()), value)
+        if (value) { ns.setProperty(css_name, value) }
       }
     }, { immediate: true })
   } else if (typeof style === "string") {
@@ -599,8 +600,12 @@ export function node_observe_style(node: HTMLElement | SVGElement, style: StyleD
     const props = Object.keys(st)
     for (let i = 0, l = props.length; i < l; i++) {
       const x = props[i]
+      const css_name = x.replace(/[A-Z]/g, m => "-" + m.toLowerCase())
       node_observe(node, st[x], value => {
-        node.style.setProperty(x.replace(/[A-Z]/g, m => "-" + m.toLowerCase()), value)
+        if (value === false) {
+          node.style.removeProperty(x)
+        }
+        node.style.setProperty(css_name, value)
       }, { immediate: true })
     }
   }
