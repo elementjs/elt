@@ -548,7 +548,7 @@ export namespace App {
     /**
      * A service can activate a Route using its own params
      */
-    activate<TP extends SrvParams, TC extends SrvParams>(this: Service<TC>, rt: Route<TP>, ...args: TP extends TC ? [Omit<TP, keyof TC>] : TC extends TP ? ([] | [TP]) : [TP]): Promise<void> {
+    activate<TP extends SrvParams, TC extends SrvParams>(this: Service<TC>, rt: Route<TP>, ...args: TP extends TC ? (TC extends TP ? [] | [{}] : [Omit<TP, keyof TC>]) : TC extends TP ? ([] | [{}] | [TP]) : [TP]): Promise<void> {
       const params = Object.assign({}, this.app.o_params.get(), args[0])
       return rt.activate(params as any)
     }
