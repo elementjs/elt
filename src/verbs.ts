@@ -277,7 +277,7 @@ export namespace Repeat {
   export class Repeater<T> {
 
     protected next_index: number = 0
-    protected on_empty: (() => Appendable<Node>) | null = null
+    protected on_empty: (() => Renderable<Node>) | null = null
     protected empty_drawn = false
     protected lst: T[] = []
     protected node!: HTMLElement
@@ -321,8 +321,7 @@ export namespace Repeat {
       node_append(parent, this.node, refchild)
     }
 
-    WhenEmpty(fn: () => Appendable<Node>) {
-      console.log("empty ?")
+    WhenEmpty(fn: () => Renderable<Node>) {
       this.on_empty = fn
       return this
     }
@@ -402,13 +401,13 @@ export namespace Repeat {
  *
  * @group Verbs
  */
-export function RepeatScroll<T extends o.RO<any[]>>(ob: T, render: Repeat.RenderItemFn<T>): Appendable<Node>
-export function RepeatScroll<T extends o.RO<any[]>>(ob: T, options: RepeatScroll.Options<Repeat.Item<T>>, render: Repeat.RenderItemFn<T>): Appendable<Node>
+export function RepeatScroll<T extends o.RO<any[]>>(ob: T, render: Repeat.RenderItemFn<T>): RepeatScroll.ScrollRepeater<T>
+export function RepeatScroll<T extends o.RO<any[]>>(ob: T, options: RepeatScroll.Options<Repeat.Item<T>>, render: Repeat.RenderItemFn<T>): RepeatScroll.ScrollRepeater<T>
 export function RepeatScroll<T extends o.RO<any[]>>(
   ob: T,
   opts_or_render: (Repeat.RenderItemFn<T>) | RepeatScroll.Options<Repeat.Item<T>>,
   real_render?: (Repeat.RenderItemFn<T>)
-): Appendable<Node> {
+): RepeatScroll.ScrollRepeater<T> {
   // we cheat the typesystem, which is not great, but we "know what we're doing".
   if (typeof opts_or_render === "function") {
     return new RepeatScroll.ScrollRepeater<any>(o(ob as any) as o.Observable<any>, opts_or_render as any, {})
