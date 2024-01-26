@@ -11,6 +11,7 @@ import {
   node_observe,
   node_on_connected,
   node_on_disconnected,
+  node_remove,
 } from "./dom"
 
 import { Appendable, Renderable } from "./types"
@@ -221,17 +222,17 @@ export namespace Switch {
  *
  * @group Verbs
  */
-export function Repeat<T extends o.RO<any[]>>(obs: T, render: Repeat.RenderItemFn<T>): Appendable<Node>
-export function Repeat<T extends o.RO<any[]>>(obs: T, options: Repeat.Options<Repeat.Item<T>>, render: Repeat.RenderItemFn<T>): Appendable<Node>
+export function Repeat<T extends o.RO<any[]>>(obs: T, render: Repeat.RenderItemFn<T>): Repeat.Repeater<T>
+export function Repeat<T extends o.RO<any[]>>(obs: T, options: Repeat.Options<Repeat.Item<T>>, render: Repeat.RenderItemFn<T>): Repeat.Repeater<T>
 export function Repeat<T extends o.RO<any[]>>(
   ob: T,
   render_or_options: Repeat.Options<Repeat.Item<T>> | (Repeat.RenderItemFn<T>),
   real_render?: Repeat.RenderItemFn<T>
-): Appendable<Node> {
+): Repeat.Repeater<T> {
   const options = typeof render_or_options === "function" ? {} : render_or_options
   const render = typeof render_or_options === "function" ? render_or_options : real_render!
 
-  return new Repeat.Repeater(o(ob) as any, render as any, options)
+  return new Repeat.Repeater(o(ob) as any, render as any, options) as any as Repeat.Repeater<T>
 }
 
 export namespace Repeat {
@@ -276,6 +277,8 @@ export namespace Repeat {
   export class Repeater<T> {
 
     protected next_index: number = 0
+    protected on_empty: (() => Appendable<Node>) | null = null
+    protected empty_drawn = false
     protected lst: T[] = []
     protected node!: HTMLElement
 
@@ -296,14 +299,32 @@ export namespace Repeat {
         this.node.setAttribute("length", lst.length.toString())
         const diff = lst.length - this.next_index
 
-        if (diff > 0)
+        if (diff > 0) {
+          if (this.empty_drawn) {
+            while (this.node.firstChild) {
+              node_remove(this.node.firstChild)
+            }
+            this.empty_drawn = false
+          }
           this.appendChildren(diff)
+        }
 
         if (diff < 0)
           this.removeChildren(-diff)
+
+        if (this.lst.length === 0 && this.on_empty) {
+          this.empty_drawn = true
+          node_append(this.node, this.on_empty())
+        }
       }, { immediate: true })
 
       node_append(parent, this.node, refchild)
+    }
+
+    WhenEmpty(fn: () => Appendable<Node>) {
+      console.log("empty ?")
+      this.on_empty = fn
+      return this
     }
 
     /**
