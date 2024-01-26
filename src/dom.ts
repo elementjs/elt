@@ -589,7 +589,11 @@ export function node_observe_style(node: HTMLElement | SVGElement, style: StyleD
         const x = props[i]
         const css_name = x.replace(/[A-Z]/g, m => "-" + m.toLowerCase())
         const value = st[x as any] as any
-        if (value) { ns.setProperty(css_name, value) }
+        if (value) {
+          ns.setProperty(css_name, value)
+        } else {
+          ns.removeProperty(css_name)
+        }
       }
     }, { immediate: true })
   } else if (typeof style === "string") {
@@ -602,10 +606,11 @@ export function node_observe_style(node: HTMLElement | SVGElement, style: StyleD
       const x = props[i]
       const css_name = x.replace(/[A-Z]/g, m => "-" + m.toLowerCase())
       node_observe(node, st[x], value => {
-        if (value === false) {
-          node.style.removeProperty(x)
+        if (!value) {
+          node.style.removeProperty(css_name)
+        } else {
+          node.style.setProperty(css_name, value)
         }
-        node.style.setProperty(css_name, value)
       }, { immediate: true })
     }
   }
