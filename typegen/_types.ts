@@ -2,7 +2,7 @@ import type { o } from "./observable"
 
 import type { sym_insertable } from "./symbols"
 
-export interface Appendable<N extends Node> {
+export interface Appender<N extends Node> {
   [sym_insertable](parent: N, refchild: Node | null): void
 }
 

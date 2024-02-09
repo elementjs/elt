@@ -14,7 +14,7 @@ import {
   node_remove,
 } from "./dom"
 
-import { Appendable, Renderable } from "./types"
+import { Appender, Renderable } from "./types"
 import { sym_appendable } from "./symbols"
 
 
@@ -42,11 +42,9 @@ import { sym_appendable } from "./symbols"
 export function If<T extends o.RO<any>, N extends Node>(
   condition: T,
   display?: (arg: If.NonNullableRO<T>) => Renderable<N>,
-  display_otherwise?: (a: o.ReadonlyObservable<T>) => Renderable<N>,
+  display_otherwise?: () => Renderable<N>,
 ) {
-
   return new If.IfDisplayer(condition, display, display_otherwise)
-
 }
 
 export namespace If {
@@ -64,11 +62,14 @@ export namespace If {
     T extends o.ReadonlyObservable<infer U> ? o.ReadonlyObservable<NonNullable<U>>
     : NonNullable<T>
 
-  export class IfDisplayer<T, N extends Node> implements Appendable<N> {
+  export class IfDisplayer<T, N extends Node> implements Appender<N> {
+
+    last?: IfDisplayer<any, N>
+
     constructor(
       public condition: o.RO<T>,
       public _display?: (arg: If.NonNullableRO<T>) => Renderable<N>,
-      public _display_otherwise?: (a: o.ReadonlyObservable<T>) => Renderable<N>,
+      public _display_otherwise?: () => Renderable<N>,
     ) {
 
     }
@@ -80,7 +81,7 @@ export namespace If {
         if (cond && this._display) {
           return this._display(this.condition as If.NonNullableRO<T>)
         } else if (this._display_otherwise) {
-          return this._display_otherwise(this.condition as o.ReadonlyObservable<T>)
+          return this._display_otherwise()
         } else {
           return null
         }
@@ -98,15 +99,21 @@ export namespace If {
       return this
     }
 
-    ElseIf<T2 extends o.RO<any>, N extends Node>(
+    ElseIf<T2 extends o.RO<any>>(
       condition: T2,
       display?: (arg: If.NonNullableRO<T2>) => Renderable<N>,
     ) {
-      return new IfDisplayer(this.condition, this._display)
+      const last = this.last ?? this
+      const other = last._display_otherwise
+      const add = new IfDisplayer<T2, N>(condition, display, other)
+      this._display_otherwise = () => add
+      this.last = add
+      return this
     }
 
-    Else(other: (a: o.ReadonlyObservable<T>) => Renderable<N>) {
-      this._display_otherwise = other
+    Else(otherwise: () => Renderable<N>) {
+      const last = this.last ?? this
+      last._display_otherwise = otherwise
       return this
     }
   }
@@ -141,7 +148,7 @@ export namespace Switch {
   /**
    * @internal
    */
-  export class Switcher<T, N extends Node> implements Appendable<N> {
+  export class Switcher<T, N extends Node> implements Appender<N> {
 
     cases: [(T | ((t: T) => any)), (t: o.Observable<T>) => Renderable<N>][] = []
     passthrough: () => Renderable<N> = () => null
@@ -584,7 +591,7 @@ export function DisplayPromise<T>(o_promise: o.ReadonlyObservable<Promise<T>>) {
 
 export namespace DisplayPromise {
 
-  export class PromiseDisplayer<T> implements Appendable<Node>, ReadonlyPromiseDisplayer<T> {
+  export class PromiseDisplayer<T> implements Appender<Node>, ReadonlyPromiseDisplayer<T> {
 
     _resolved: null | ((o_result: o.Observable<T>, oo_waiting: o.ReadonlyObservable<boolean>) => Renderable<HTMLElement> ) = null
 

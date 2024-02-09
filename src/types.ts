@@ -2,7 +2,7 @@ import type { o } from "./observable"
 
 import { sym_appendable } from "./symbols"
 
-export interface Appendable<N extends Node> {
+export interface Appender<N extends Node> {
   [sym_appendable](parent: N, refchild: Node | null): void
 }
 
@@ -16,7 +16,7 @@ export type Decorator<N extends Node> = (node: N) => Renderable<N>
  * to define what can go between `{ curly braces }` in JSX code.
  * @category dom, toc
  */
-export type Renderable<N extends Node = Element> = Appendable<N> | string | number | Node | null | undefined | void | false | Decorator<N> | Renderable<N>[]
+export type Renderable<N extends Node = Element> = Appender<N> | string | number | Node | null | undefined | void | false | Decorator<N> | Renderable<N>[]
 
 /**
  * CSS Style attribute definition for the style={} attribute
