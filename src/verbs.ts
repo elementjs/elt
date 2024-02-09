@@ -98,6 +98,13 @@ export namespace If {
       return this
     }
 
+    ElseIf<T2 extends o.RO<any>, N extends Node>(
+      condition: T2,
+      display?: (arg: If.NonNullableRO<T2>) => Renderable<N>,
+    ) {
+      return new IfDisplayer(this.condition, this._display)
+    }
+
     Else(other: (a: o.ReadonlyObservable<T>) => Renderable<N>) {
       this._display_otherwise = other
       return this
@@ -278,9 +285,13 @@ export namespace Repeat {
 
     protected next_index: number = 0
     protected on_empty: (() => Renderable<Node>) | null = null
+    protected prefix: ((oo_length: o.ReadonlyObservable<number>) => Renderable<Node>) | null = null
+    protected suffix: ((oo_length: o.ReadonlyObservable<number>) => Renderable<Node>) | null = null
+    protected _suffix: Node | null = null
     protected empty_drawn = false
     protected lst: T[] = []
     protected node!: HTMLElement
+    protected oo_length = o(0)
 
     constructor(
       public obs: o.Observable<T[]>,
@@ -312,16 +323,30 @@ export namespace Repeat {
         if (diff < 0)
           this.removeChildren(-diff)
 
-        if (this.lst.length === 0 && this.on_empty) {
+        if (this.lst.length === 0 && this.on_empty && !this.empty_drawn) {
           this.empty_drawn = true
           node_append(this.node, this.on_empty())
         }
+        this.oo_length.set(lst.length)
       }, { immediate: true })
 
       node_append(parent, this.node, refchild)
     }
 
-    WhenEmpty(fn: () => Renderable<Node>) {
+    /** Render `fn` right after the last element if the observed array was not empty */
+    SuffixWith(fn: (oo_length: o.ReadonlyObservable<number>) => Renderable<Node>) {
+      this.suffix = fn
+      return this
+    }
+
+    /** Render `fn` right before the first element if the observed array  was not empty */
+    PrefixWith(fn: (oo_length: o.ReadonlyObservable<number>) => Renderable<Node>) {
+      this.prefix = fn
+      return this
+    }
+
+    /** Display this renderable if the observed array is empty */
+    DisplayWhenEmpty(fn: () => Renderable<Node>) {
       this.on_empty = fn
       return this
     }
@@ -329,14 +354,22 @@ export namespace Repeat {
     /**
      * Generate the next element to append to the list.
      */
-    next(fr: DocumentFragment): boolean {
+    protected next(fr: DocumentFragment): boolean {
       if (this.next_index >= this.lst.length)
         return false
+
+      if (this.next_index === 0 && this.prefix) {
+        const pref = document.createElement("e-ritem")
+        pref.setAttribute("prefix", "")
+        node_append(pref, this.prefix(this.oo_length))
+        node_append(fr, pref)
+      }
 
       const prop_obs = o(this.next_index)
       const ob = this.obs.p(prop_obs) as o.CombinedObservable<any, any>
       const node = document.createElement("e-ritem") as RepeatItemElement
       node[sym_obs] = ob
+
       node.setAttribute("index", this.next_index.toString())
 
       const _sep = this.options.separator
@@ -351,17 +384,29 @@ export namespace Repeat {
       return true
     }
 
-    appendChildren(count: number) {
+    protected appendChildren(count: number) {
+      if (count <= 0) return
+
       const fr = document.createDocumentFragment()
 
       while (count-- > 0) {
         if (!this.next(fr)) break
       }
 
-      node_append(this.node, fr)
+
+      node_append(this.node, fr, this._suffix)
+
+      if (this.suffix && this._suffix == null) {
+        const suf = document.createElement("e-ritem")
+        suf.setAttribute("suffix", "")
+        this._suffix = suf
+        node_append(suf, this.suffix(this.oo_length))
+        node_append(this.node, suf)
+      }
+
     }
 
-    removeChildren(count: number) {
+    protected removeChildren(count: number) {
       let iter = this.node.lastChild as RepeatItemElement | null
       if (iter == null || this.next_index === 0 || count === 0) return
       // Détruire jusqu'à la position concernée...
@@ -376,6 +421,11 @@ export namespace Repeat {
         this.node.removeChild(iter)
         iter = next
         if (iter == null) { break }
+      }
+
+      if (this.next_index === 0 && this._suffix) {
+        node_remove(this._suffix)
+        this._suffix = null
       }
     }
   }
