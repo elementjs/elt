@@ -1,5 +1,5 @@
 import { o } from "./observable"
-import type { ClassDefinition, StyleDefinition, Listener, Appendable, Attrs, Renderable, } from "./types"
+import type { ClassDefinition, StyleDefinition, Listener, Appender, Attrs, Renderable, } from "./types"
 import { sym_connected_status, sym_observers, sym_connected, sym_disconnected, sym_exposed, sym_appendable, } from "./symbols"
 
 const NODE_IS_CONNECTED =      0b001
@@ -234,7 +234,7 @@ export function setup_mutation_observer(node: Node) {
 const basic_attrs = new Set(["id", "slot", "part", "role", "tabindex", "lang", "inert", "title", "autofocus", "nonce"])
 
 
-function is_appendable(ins: any): ins is Appendable<Node> {
+function is_appendable(ins: any): ins is Appender<Node> {
   return typeof ins?.[sym_appendable] === "function"
 }
 
@@ -278,7 +278,7 @@ export function node_append<N extends Node>(node: N, insertable: Renderable<N> |
   } else if (insertable instanceof Function) {
     // A decorator
     const res = insertable(node)
-    if (res != null) node_append(node, res as Appendable<N>, refchild, is_basic_node)
+    if (res != null) node_append(node, res as Appender<N>, refchild, is_basic_node)
 
   } else if (is_appendable(insertable)) {
 

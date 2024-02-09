@@ -545,6 +545,9 @@ export namespace App {
       return this.app.require(fn as any, this)
     }
 
+    /** true if this service is the currently activated one */
+    get oo_is_active() { return this.app.o_active_service.tf(ac => ac === this) }
+
     /**
      * A service can activate a Route using its own params
      */
