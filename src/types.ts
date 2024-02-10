@@ -1,9 +1,13 @@
 import type { o } from "./observable"
 
-import { sym_appendable } from "./symbols"
+import { sym_insert } from "./symbols"
 
-export interface Appender<N extends Node> {
-  [sym_appendable](parent: N, refchild: Node | null): void
+export interface Inserter<N extends Node> {
+  /**
+   * This method is called by `node_append` for all non-primitive and non-Node elements.
+   * Usually, implementing this method ends up being calling parent.insertBefore(<new content>, refchild).
+   */
+  [sym_insert](parent: N, refchild: Node | null): void
 }
 
 export type NRO<T> = o.RO<T | null | false | undefined>
@@ -16,7 +20,7 @@ export type Decorator<N extends Node> = (node: N) => Renderable<N>
  * to define what can go between `{ curly braces }` in JSX code.
  * @category dom, toc
  */
-export type Renderable<N extends Node = Element> = Appender<N> | string | number | Node | null | undefined | void | false | Decorator<N> | Renderable<N>[]
+export type Renderable<N extends Node = Element> = Inserter<N> | string | number | Node | null | undefined | void | false | Decorator<N> | Renderable<N>[]
 
 /**
  * CSS Style attribute definition for the style={} attribute

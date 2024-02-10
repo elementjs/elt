@@ -1,6 +1,6 @@
 import { IndexableArray, Indexable } from "./indexable"
 
-import { sym_appendable, sym_is_observable } from "../symbols"
+import { sym_insert, sym_is_observable } from "../symbols"
 import { Renderable } from "../types"
 import { node_append, node_observe, node_remove } from "../dom"
 
@@ -237,7 +237,7 @@ export interface ReadonlyObservable<A> {
   [sym_display_node]?: string
   [sym_display_attrs]?: {[name: string]: string}
 
-  [sym_appendable](this: ReadonlyObservable<Renderable<Node>>, parent: Node, refchild: Node | null): void
+  [sym_insert](this: ReadonlyObservable<Renderable<Node>>, parent: Node, refchild: Node | null): void
 
   /** See {@link o.Observable#get} */
   get(): A
@@ -446,7 +446,7 @@ export class Observable<A> implements ReadonlyObservable<A>, Indexable {
     }
   }
 
-  [sym_appendable](this: ReadonlyObservable<Renderable<Node>>, parent: Node, refchild: Node | null) {
+  [sym_insert](this: ReadonlyObservable<Renderable<Node>>, parent: Node, refchild: Node | null) {
     const kind = this[sym_display_node] ?? "e-obs"
     const attrs = this[sym_display_attrs]
 

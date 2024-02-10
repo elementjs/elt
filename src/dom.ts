@@ -1,6 +1,6 @@
 import { o } from "./observable"
-import type { ClassDefinition, StyleDefinition, Listener, Appender, Attrs, Renderable, } from "./types"
-import { sym_connected_status, sym_observers, sym_connected, sym_disconnected, sym_exposed, sym_appendable, } from "./symbols"
+import type { ClassDefinition, StyleDefinition, Listener, Inserter, Attrs, Renderable, } from "./types"
+import { sym_connected_status, sym_observers, sym_connected, sym_disconnected, sym_exposed, sym_insert, } from "./symbols"
 
 const NODE_IS_CONNECTED =      0b001
 const NODE_IS_OBSERVING =     0b010
@@ -234,8 +234,8 @@ export function setup_mutation_observer(node: Node) {
 const basic_attrs = new Set(["id", "slot", "part", "role", "tabindex", "lang", "inert", "title", "autofocus", "nonce"])
 
 
-function is_appendable(ins: any): ins is Appender<Node> {
-  return typeof ins?.[sym_appendable] === "function"
+function is_appendable(ins: any): ins is Inserter<Node> {
+  return typeof ins?.[sym_insert] === "function"
 }
 
 
@@ -278,11 +278,11 @@ export function node_append<N extends Node>(node: N, insertable: Renderable<N> |
   } else if (insertable instanceof Function) {
     // A decorator
     const res = insertable(node)
-    if (res != null) node_append(node, res as Appender<N>, refchild, is_basic_node)
+    if (res != null) node_append(node, res as Inserter<N>, refchild, is_basic_node)
 
   } else if (is_appendable(insertable)) {
 
-    insertable[sym_appendable](node, refchild)
+    insertable[sym_insert](node, refchild)
 
   } else if (Array.isArray(insertable)) {
     // An array of children

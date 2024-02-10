@@ -15,7 +15,7 @@ import { EltCustomElement } from "./custom-elements"
 
 ////////////////////////////////////////////////////////
 
-
+/** @internal setup a basic css stylesheet that declares the common elt elements as display: contents */
 export function setup_base_styles(doc = document) {
   const style = doc.createElement("style")
   style.append(`e-obs,e-if,e-switch,e-repeat,e-repeat-scroll,e-virtual-scroll,e-ritem,e-iter,e-app,e-app-view,e-lang,e-unpromise{ display: contents }`)
