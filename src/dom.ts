@@ -234,7 +234,7 @@ export function setup_mutation_observer(node: Node) {
 const basic_attrs = new Set(["id", "slot", "part", "role", "tabindex", "lang", "inert", "title", "autofocus", "nonce"])
 
 
-function is_appendable(ins: any): ins is Inserter<Node> {
+function is_inserter(ins: any): ins is Inserter<Node> {
   return typeof ins?.[sym_insert] === "function"
 }
 
@@ -243,24 +243,24 @@ function is_appendable(ins: any): ins is Inserter<Node> {
  * Process an insertable and insert it where desired.
  *
  * @param node The parent to insert the node on
- * @param insertable The insertable that has to be handled
+ * @param renderable The insertable that has to be handled
  * @param refchild The child before which to append
  * @group Dom
  */
-export function node_append<N extends Node>(node: N, insertable: Renderable<N> | Attrs<N>, refchild: Node | null = null, is_basic_node = true) {
-  if (insertable == null || insertable === false) return
+export function node_append<N extends Node>(node: N, renderable: Renderable<N> | Attrs<N>, refchild: Node | null = null, is_basic_node = true) {
+  if (renderable == null || renderable === false) return
 
-  if (typeof insertable === "string") {
+  if (typeof renderable === "string") {
     // A simple string
-    node.insertBefore(document.createTextNode(insertable), refchild)
+    node.insertBefore(document.createTextNode(renderable), refchild)
 
-  } else if (insertable instanceof Node) {
+  } else if (renderable instanceof Node) {
     // A node being added
-    if (insertable.nodeType === 11) { // DocumentFragment
-      let start = insertable.firstChild
+    if (renderable.nodeType === 11) { // DocumentFragment
+      let start = renderable.firstChild
       if (start == null) return // there are no children to append, nothing more to do
 
-      node.insertBefore(insertable, refchild)
+      node.insertBefore(renderable, refchild)
 
       if (node.isConnected) {
         do {
@@ -269,31 +269,31 @@ export function node_append<N extends Node>(node: N, insertable: Renderable<N> |
         } while (start && start !== refchild)
       }
     } else {
-      node.insertBefore(insertable, refchild)
+      node.insertBefore(renderable, refchild)
       if (node.isConnected) {
-        node_do_connected(insertable)
+        node_do_connected(renderable)
       }
     }
 
-  } else if (insertable instanceof Function) {
+  } else if (renderable instanceof Function) {
     // A decorator
-    const res = insertable(node)
+    const res = renderable(node)
     if (res != null) node_append(node, res as Inserter<N>, refchild, is_basic_node)
 
-  } else if (is_appendable(insertable)) {
+  } else if (is_inserter(renderable)) {
 
-    insertable[sym_insert](node, refchild)
+    renderable[sym_insert](node, refchild)
 
-  } else if (Array.isArray(insertable)) {
+  } else if (Array.isArray(renderable)) {
     // An array of children
-    for (let i = 0, l = insertable.length; i < l; i++)
-      node_append(node, insertable[i], refchild, is_basic_node)
+    for (let i = 0, l = renderable.length; i < l; i++)
+      node_append(node, renderable[i], refchild, is_basic_node)
 
 
-  } else if (insertable.constructor === Object) {
+  } else if (renderable.constructor === Object) {
     // An attribute object. We assume this is an Element that is being handled
     const _node = node as unknown as HTMLElement
-    const attrs = insertable as unknown as Attrs<HTMLElement>
+    const attrs = renderable as unknown as Attrs<HTMLElement>
     for (let key in attrs) {
       const value = attrs[key as keyof typeof attrs]
       if (key === "class") {
@@ -311,7 +311,7 @@ export function node_append<N extends Node>(node: N, insertable: Renderable<N> |
     }
   } else {
     // Otherwise, make it a string and append it.
-    node.insertBefore(document.createTextNode(insertable.toString()), refchild)
+    node.insertBefore(document.createTextNode(renderable.toString()), refchild)
   }
 }
 
