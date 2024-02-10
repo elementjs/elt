@@ -14,8 +14,8 @@ import {
   node_remove,
 } from "./dom"
 
-import { Appender, Renderable } from "./types"
-import { sym_appendable } from "./symbols"
+import { Inserter, Renderable } from "./types"
+import { sym_insert } from "./symbols"
 
 
 /**
@@ -62,7 +62,7 @@ export namespace If {
     T extends o.ReadonlyObservable<infer U> ? o.ReadonlyObservable<NonNullable<U>>
     : NonNullable<T>
 
-  export class IfDisplayer<T, N extends Node> implements Appender<N> {
+  export class IfDisplayer<T, N extends Node> implements Inserter<N> {
 
     last?: IfDisplayer<any, N>
 
@@ -74,7 +74,7 @@ export namespace If {
 
     }
 
-    [sym_appendable](parent: N, refchild: Node | null) {
+    [sym_insert](parent: N, refchild: Node | null) {
 
       const renderable = o.tf<T, Renderable<N>>(this.condition, (cond, old, v) => {
         if (old !== o.NoValue && !!cond === !!old && v !== o.NoValue) return v as Renderable<N>
@@ -148,7 +148,7 @@ export namespace Switch {
   /**
    * @internal
    */
-  export class Switcher<T, N extends Node> implements Appender<N> {
+  export class Switcher<T, N extends Node> implements Inserter<N> {
 
     cases: [(T | ((t: T) => any)), (t: o.Observable<T>) => Renderable<N>][] = []
     passthrough: () => Renderable<N> = () => null
@@ -157,7 +157,7 @@ export namespace Switch {
 
     constructor(public value: o.Observable<T>) { }
 
-    [sym_appendable](parent: N, refchild: Node | null) {
+    [sym_insert](parent: N, refchild: Node | null) {
       const current_displayfn = o.tf(this.value, value => {
         const cases = this.cases
 
@@ -309,7 +309,7 @@ export namespace Repeat {
     /**
      * Append the repeater
      */
-    [sym_appendable](parent: Node, refchild: Node | null) {
+    [sym_insert](parent: Node, refchild: Node | null) {
       this.node = document.createElement("e-repeat")
 
       node_observe(this.node, this.obs, lst => {
@@ -558,8 +558,8 @@ export namespace RepeatScroll {
       this.parent = null
     }
 
-    [sym_appendable](parent: Node, refchild: Node | null) {
-      super[sym_appendable](parent, refchild)
+    [sym_insert](parent: Node, refchild: Node | null) {
+      super[sym_insert](parent, refchild)
       const node = this.node
       node_on_connected(node, () => this.connected())
       node_on_disconnected(node, () => this.disconnected())
@@ -591,7 +591,7 @@ export function DisplayPromise<T>(o_promise: o.ReadonlyObservable<Promise<T>>) {
 
 export namespace DisplayPromise {
 
-  export class PromiseDisplayer<T> implements Appender<Node>, ReadonlyPromiseDisplayer<T> {
+  export class PromiseDisplayer<T> implements Inserter<Node>, ReadonlyPromiseDisplayer<T> {
 
     _resolved: null | ((o_result: o.Observable<T>, oo_waiting: o.ReadonlyObservable<boolean>) => Renderable<HTMLElement> ) = null
 
@@ -601,7 +601,7 @@ export namespace DisplayPromise {
 
     constructor(public o_promise: o.Observable<Promise<T>>) { }
 
-    [sym_appendable](parent: Node, refchild: Node | null) {
+    [sym_insert](parent: Node, refchild: Node | null) {
       const wrapped = o.wrap_promise(this.o_promise)
 
       const pre_render = wrapped.tf(wr => {
