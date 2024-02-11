@@ -236,17 +236,8 @@ export namespace Switch {
  *
  * @group Verbs
  */
-export function Repeat<T extends o.RO<any[]>>(obs: T, render: Repeat.RenderItemFn<T>): Repeat.Repeater<T>
-export function Repeat<T extends o.RO<any[]>>(obs: T, options: Repeat.Options<Repeat.Item<T>>, render: Repeat.RenderItemFn<T>): Repeat.Repeater<T>
-export function Repeat<T extends o.RO<any[]>>(
-  ob: T,
-  render_or_options: Repeat.Options<Repeat.Item<T>> | (Repeat.RenderItemFn<T>),
-  real_render?: Repeat.RenderItemFn<T>
-): Repeat.Repeater<T> {
-  const options = typeof render_or_options === "function" ? {} : render_or_options
-  const render = typeof render_or_options === "function" ? render_or_options : real_render!
-
-  return new Repeat.Repeater(o(ob) as any, render as any, options) as any as Repeat.Repeater<T>
+export function Repeat<T extends o.RO<any[]>>(obs: T, render?: Repeat.RenderItemFn<T>): Repeat.Repeater<T> {
+  return new Repeat.Repeater(o(obs) as any, render as any) as any as Repeat.Repeater<T>
 }
 
 export namespace Repeat {
@@ -272,44 +263,42 @@ export namespace Repeat {
   : T extends (infer U)[] ? U
   : T;
 
-  export type Item<T extends o.RO<any[]>> = T extends o.ReadonlyObservable<(infer U)[]> ? U : T
-
   export type RenderItemFn<T extends o.RO<any[]>> = (arg : Repeat.RoItem<T>, idx: o.RO<number>) => Renderable<HTMLElement>
-
-  export interface Options<T> {
-    /**
-     * The separator to insert between all rendering of repeated elements
-     */
-    separator?: (n: o.RO<number>) => Renderable<HTMLElement>
-    key?: (elt: T) => any
-  }
 
   /**
    * Repeats content.
    * @internal
    */
-  export class Repeater<T> {
+  export class Repeater<O extends o.RO<any[]>> {
 
     protected next_index: number = 0
     protected on_empty: (() => Renderable<Node>) | null = null
     protected prefix: ((oo_length: o.ReadonlyObservable<number>) => Renderable<Node>) | null = null
     protected suffix: ((oo_length: o.ReadonlyObservable<number>) => Renderable<Node>) | null = null
+    protected separator: ((n: o.RO<number>) => Renderable<HTMLElement>) | null = null
     protected _suffix: Node | null = null
     protected empty_drawn = false
-    protected lst: T[] = []
+    protected lst: O[] = []
     protected node!: HTMLElement
     protected oo_length = o(0)
+    protected obs: o.Observable<any[]>
 
     constructor(
-      public obs: o.Observable<T[]>,
-      public renderfn: (ob: o.Observable<T>, n: o.RO<number>) => Renderable<HTMLElement>,
-      public options: Repeat.Options<T> = {}
-    ) { }
+      obs: O,
+      public renderfn: (ob: RoItem<O>, n: o.RO<number>) => Renderable<HTMLElement>,
+      // public options: Repeat.Options<T> = {}
+    ) {
+      this.obs = o(obs) as o.Observable<any[]>
+    }
 
     /**
      * Append the repeater
      */
     [sym_insert](parent: Node, refchild: Node | null) {
+      if (this.renderfn == null) {
+        throw new Error("Repeater needs a Render function")
+      }
+
       this.node = document.createElement("e-repeat")
 
       node_observe(this.node, this.obs, lst => {
@@ -340,15 +329,25 @@ export namespace Repeat {
       node_append(parent, this.node, refchild)
     }
 
-    /** Render `fn` right after the last element if the observed array was not empty */
-    SuffixWith(fn: (oo_length: o.ReadonlyObservable<number>) => Renderable<Node>) {
-      this.suffix = fn
+    RenderEach(fn: (ob: RoItem<O>, n: o.RO<number>) => Renderable<HTMLElement>) {
+      this.renderfn = fn
       return this
     }
 
     /** Render `fn` right before the first element if the observed array  was not empty */
-    PrefixWith(fn: (oo_length: o.ReadonlyObservable<number>) => Renderable<Node>) {
+    PrefixBy(fn: (oo_length: o.ReadonlyObservable<number>) => Renderable<Node>) {
       this.prefix = fn
+      return this
+    }
+
+    /** Render `fn` right after the last element if the observed array was not empty */
+    SuffixBy(fn: (oo_length: o.ReadonlyObservable<number>) => Renderable<Node>) {
+      this.suffix = fn
+      return this
+    }
+
+    SeparateWith(fn: (n: o.RO<number>) => Renderable<HTMLElement>) {
+      this.separator = fn
       return this
     }
 
@@ -379,12 +378,12 @@ export namespace Repeat {
 
       node.setAttribute("index", this.next_index.toString())
 
-      const _sep = this.options.separator
+      const _sep = this.separator
       if (_sep && this.next_index > 0) {
         node_append(node, _sep(prop_obs))
       }
 
-      node_append(node, this.renderfn(ob, prop_obs))
+      node_append(node, this.renderfn(ob as RoItem<O>, prop_obs))
       fr.appendChild(node)
 
       this.next_index++
@@ -458,67 +457,37 @@ export namespace Repeat {
  *
  * @group Verbs
  */
-export function RepeatScroll<T extends o.RO<any[]>>(ob: T, render: Repeat.RenderItemFn<T>): RepeatScroll.ScrollRepeater<T>
-export function RepeatScroll<T extends o.RO<any[]>>(ob: T, options: RepeatScroll.Options<Repeat.Item<T>>, render: Repeat.RenderItemFn<T>): RepeatScroll.ScrollRepeater<T>
-export function RepeatScroll<T extends o.RO<any[]>>(
-  ob: T,
-  opts_or_render: (Repeat.RenderItemFn<T>) | RepeatScroll.Options<Repeat.Item<T>>,
-  real_render?: (Repeat.RenderItemFn<T>)
-): RepeatScroll.ScrollRepeater<T> {
+export function RepeatScroll<T extends o.RO<any[]>>(ob: T, render?: Repeat.RenderItemFn<T>): RepeatScroll.ScrollRepeater<T> {
   // we cheat the typesystem, which is not great, but we "know what we're doing".
-  if (typeof opts_or_render === "function") {
-    return new RepeatScroll.ScrollRepeater<any>(o(ob as any) as o.Observable<any>, opts_or_render as any, {})
-  }
-
-  return new RepeatScroll.ScrollRepeater<any>(o(ob as any) as o.Observable<any>, real_render as any, opts_or_render)
+  return new RepeatScroll.ScrollRepeater(o(ob) as any, render as any)
 }
 
 export namespace RepeatScroll {
-
-  /**
-   * Options to {@link RepeatScroll}
-   */
-  export interface Options<T> extends Repeat.Options<T> {
-    /**
-     * The number of elements to generate at the same time between `requestAnimationFrame` calls.
-     */
-    scroll_buffer_size?: number
-    /**
-     * The number of pixels before the end of the container at which RepeatScroll should start
-     * generating new elements as the user scrolls.
-     */
-    threshold_height?: number
-  }
 
   /**
    * Repeats content and append it to the DOM until a certain threshold
    * is meant. Use it with `scrollable()` on the parent..
    * @internal
    */
-  export class ScrollRepeater<T> extends Repeat.Repeater<T> {
+  export class ScrollRepeater<O extends o.RO<any[]>> extends Repeat.Repeater<O> {
 
     protected parent: HTMLElement|null = null
     instersector = document.createElement("span")
     intersecting = false
-
-    constructor(
-      ob: o.Observable<T[]>,
-      renderfn: (e: o.Observable<T>, oi: o.RO<number>) => Renderable<HTMLElement>,
-      public options: RepeatScroll.Options<T>
-    ) {
-      super(ob, renderfn, options)
-      this.scroll_buffer_size = this.options.scroll_buffer_size ?? 10
-      this.threshold = this.options.threshold_height ?? 500
-      this.separator = this.options.separator
-    }
-
-    scroll_buffer_size: number
-    threshold: number
+    scroll_buffer_size = 10
+    threshold = 500
 
     inter: IntersectionObserver | null = null
 
-    // Have to type this manually since dts-bundler chokes on Renderable
-    separator?: (n: number) => Renderable<HTMLElement>
+    setScrollBufferSize(n: number) {
+      this.scroll_buffer_size = n
+      return this
+    }
+
+    setThreshold(n: number) {
+      this.threshold = n
+      return this
+    }
 
     /**
      * Append `count` children if the parent was not scrollable (just like Repeater),
@@ -540,12 +509,12 @@ export namespace RepeatScroll {
 
       this.inter = new IntersectionObserver(entries => {
         for (let e of entries) {
+          this.intersecting = e.isIntersecting
           if (e.isIntersecting) {
             this.appendChildren()
           }
-          this.intersecting = e.isIntersecting
         }
-      }, { rootMargin: `${this.threshold}px`, })
+      }, { rootMargin: `${this.threshold}px`, root: this.node.parentElement })
       this.inter.observe(this.instersector)
     }
 

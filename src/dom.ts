@@ -517,11 +517,11 @@ export function node_unobserve(node: Node, obsfn: o.Observer<any> | o.ObserverCa
 
 
 /**
- * Set an attribute value on a node. If the provided value is an observable, the node will then observe it and change the attribute accordingly.
+ * Set an attribute value on a node. If the provided `value` is an observable, the node will then observe it and change the attribute accordingly.
  *
- * If the value is a string, the attribute is changed on the node and is observable on the dom. If it is `true`, the attribute is set with an empty string. If it is `false` or nullish, it is removed entirely.
+ * If `value` is a string, the attribute is changed on the node and is observable on the dom. If it is `true`, the attribute is set with an empty string. If it is `false` or nullish, it is removed entirely.
  *
- * If the value is any other type, it will update the property of the same name on the target node. This is mostly useful when defining custom elements to expose selected properties directly to elt.
+ * If `value` is any other type, it will update the property of the same name on the target node. This is mostly useful when defining custom elements to expose selected properties directly to elt.
  *
  * Caveat: if you wish to expose custom elements to the outside world, be sure to only expose properties this way that are not essential for your component to work, as these non-string properties will most likely not be accessible by anything other than elt. This way of working is for convenience only and for typechecking purposes.
  *
