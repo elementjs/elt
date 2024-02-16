@@ -76,13 +76,13 @@ export class App {
       for (let [name, def] of Object.entries(defs)) {
         const [url, srv, params] = def
         if (typeof srv === "function") {
-          let route = this.router.register(name, srv, prefix + url, params)
+          let route = this.router.register(name, srv, url != null ? prefix + url : null, params)
           routes[name] = route
           if (name === "__error__") {
             error = route
           }
         } else {
-          routes[name] = _register(srv, url)
+          routes[name] = _register(srv, url as string)
         }
       }
 
@@ -229,7 +229,7 @@ export namespace App {
   }
 
   export type RouteDef = {[name: string]:
-    | [path: string, srv: (() => App.ServiceBuilder<any, any>), options?: RouteOptions]
+    | [path: string | null, srv: (() => App.ServiceBuilder<any, any>), options?: RouteOptions]
     | [path: string, rt: RouteDef]
   }
 
@@ -244,17 +244,19 @@ export namespace App {
     constructor(
       public router: Router,
       public name: string,
-      public path: string,
+      public path: string | null,
       public builder: () => ServiceBuilder<any, T>,
       public options: RouteOptions = {},
     ) {
-      let def = path.replace(/:[a-zA-Z_$0-9]+\b/g, rep => {
-        return `(?<${rep.slice(1)}>[^\b]+)`
-      })
-      this.regexp = new RegExp("^" + def + "$")
+      if (path != null) {
+        let def = path.replace(/:[a-zA-Z_$0-9]+\b/g, rep => {
+          return `(?<${rep.slice(1)}>[^\b]+)`
+        })
+        this.regexp = new RegExp("^" + def + "$")
+      }
     }
 
-    regexp: RegExp
+    regexp: RegExp | null = null
 
     updateHash() {
       // Do not update the hash if this route is silent.
@@ -385,6 +387,7 @@ export namespace App {
       let route = this.__routes.get(path)
       if (route == null) {
         for (let rt of this.__routes.values()) {
+          if (rt.regexp == null) continue
           let match = path.match(rt.regexp)
           if (match) {
             route = rt
@@ -424,9 +427,7 @@ export namespace App {
     protected _last_hash: string | null = null
     protected _last_srv: App.ServiceBuilder<any> | null = null
 
-    register(name: string, builder: () => App.ServiceBuilder<any>, url: string, options?: RouteOptions) {
-
-      if (this.__routes.has(url ?? "")) throw new Error(`route for '${url?.toString() ?? ""}' is already defined`)
+    register(name: string, builder: () => App.ServiceBuilder<any>, url: string | null, options?: RouteOptions) {
 
       const route = new App.Route(this,
         name,
@@ -435,7 +436,10 @@ export namespace App {
         options,
       )
 
-      this.__routes.set(route.path, route)
+      if (route.path != null) {
+        if (this.__routes.has(route.path)) throw new Error(`route for '${route.path.toString() ?? ""}' is already defined`)
+        this.__routes.set(route.path, route)
+      }
 
       return route
     }
