@@ -2,6 +2,7 @@ import { Renderable } from "./types"
 import { o } from "./observable"
 import { Deferred } from "./utils"
 
+/** @internal Kind of like Object.assign, but Map aware */
 function _assign<B extends Map<any, any> | {[name: string]: string}>(base: B, ...args: (Map<any, any> | {[name: string]: any} | null | undefined)[]): B {
   const is_map = base instanceof Map
   for (let arg of args) {
@@ -17,6 +18,7 @@ function _assign<B extends Map<any, any> | {[name: string]: string}>(base: B, ..
   return base
 }
 
+/** @internal decode a param value */
 function _decode(s: string): string | boolean | undefined | number | null {
   let val: string | boolean | undefined | number | null = s
   if (/^[.0-9-]/.test(s[0])) {
@@ -37,6 +39,7 @@ function _decode(s: string): string | boolean | undefined | number | null {
   return val
 }
 
+/** @internal encode a value into a a param */
 function _encode(v: string | boolean | undefined | number | null): string {
   // encode value and its basic type in the URL
   if (typeof v === "string" && /[~.0-9-]/.test(v[0])) {
@@ -68,14 +71,37 @@ export class App {
   setupRouter<R extends App.RouteDef>(route_defs: R): App.RoutesRes<R> {
     const _register = <R2 extends App.RouteDef>(defs: R2, prefix = "") => {
       const routes = {} as any
+      let error: App.Route<any> | null = null
+
       for (let [name, def] of Object.entries(defs)) {
         const [url, srv, params] = def
         if (typeof srv === "function") {
-          routes[name] = this.router.register(name, srv, prefix + url, params)
+          let route = this.router.register(name, srv, prefix + url, params)
+          routes[name] = route
+          if (name === "__error__") {
+            error = route
+          }
         } else {
           routes[name] = _register(srv, url)
         }
       }
+
+      const seterror = (routes: any) => {
+        for (let route of Object.values(routes)) {
+          if (route instanceof App.Route) {
+            if (route.error == null) {
+              route.error = error!
+            }
+          } else {
+            seterror(route)
+          }
+        }
+      }
+
+      if (error) {
+        seterror(routes)
+      }
+
       return routes
     }
     const routes = _register(route_defs)
@@ -92,10 +118,11 @@ export class App {
   o_active_service = this.o_state.tf(st => st?.active)
 
   /** The current path mimicking the URL Hash fragment */
-  o_current_route = o(null as null | App.Route)
+  o_current_route = o(null as null | App.Route<any>)
 
   o_params = this.o_state.tf(st => st?.params ?? new Map())
   o_views = this.o_state.tf(st => st?.views ?? new Map())
+  o_activating = o(false)
 
   // The staging state
   staging: App.State | null = null
@@ -133,6 +160,7 @@ export class App {
    */
   async __activate<S>(builder: App.ServiceBuilderFunction<S>, params?: App.Params): Promise<App.ActivationResult> {
     const current = this.o_state.get()
+    this.o_activating.set(true)
 
     try {
       this.staging = new App.State(this)
@@ -173,6 +201,8 @@ export class App {
           service: builder,
           reactivation: re,
         }
+      } else {
+        this.o_activating.set(false)
       }
     }
   }
@@ -209,6 +239,8 @@ export namespace App {
       : Route}
 
   export class Route<T extends SrvParams = {}> {
+    error?: Route<any>
+
     constructor(
       public router: Router,
       public name: string,
@@ -216,9 +248,10 @@ export namespace App {
       public builder: () => ServiceBuilder<any, T>,
       public options: RouteOptions = {},
     ) {
-      this.regexp = new RegExp("^" + path.replace(/:[a-zA-Z_$0-9]+\b/g, rep => {
+      let def = path.replace(/:[a-zA-Z_$0-9]+\b/g, rep => {
         return `(?<${rep.slice(1)}>[^\b]+)`
-      }) + "$")
+      })
+      this.regexp = new RegExp("^" + def + "$")
     }
 
     regexp: RegExp
@@ -265,7 +298,16 @@ export namespace App {
       const params: T = _params[0] as T
       const full_params = Object.assign({}, this.options.defaults, params)
       this.router.__last_activated_route = this
-      await this.router.app._activate(this.builder(), full_params)
+      try {
+        await this.router.app._activate(this.builder(), full_params)
+        this.router.app.o_current_route.set(this)
+      } catch (e) {
+        if (this.error) {
+          await this.error.activate({__error__: e})
+        } else {
+          throw e
+        }
+      }
     }
   }
 
