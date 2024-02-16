@@ -827,7 +827,7 @@ export class CombinedObservable<A extends any[], T = A> extends Observable<T> {
 
   ensureRefreshed(): void {
     if (this.refreshParentValues()) {
-      this._value = this.getter(this._parents_values)
+      this.refreshValue()
     }
   }
 
@@ -852,10 +852,14 @@ export class CombinedObservable<A extends any[], T = A> extends Observable<T> {
     return changed
   }
 
+  refreshValue() {
+    this._value = this.getter(this._parents_values)
+  }
+
   get() {
     if (!this._watched || queue.transaction_count > 0) {
       if (this.refreshParentValues() || this._value === NoValue as any) {
-        this._value = this.getter(this._parents_values)
+        this.refreshValue()
       }
     }
     return this._value
@@ -866,8 +870,10 @@ export class CombinedObservable<A extends any[], T = A> extends Observable<T> {
     if (!this._watched) this._value = this.getter(this._parents_values)
     if (value === this._value) return
 
+    if (!this._watched || queue.transaction_count > 0 || queue.flushing) {
+      this.ensureRefreshed()
+    }
     const old_value = this._value
-    if (!this._watched || queue.transaction_count > 0 || queue.flushing) this.refreshParentValues()
     const res = this.setter(value, old_value, this._parents_values)
     if (res == undefined) return
     for (let i = 0, l = this._links, len = l.length; i < len; i++) {
