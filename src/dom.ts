@@ -462,25 +462,23 @@ export type EventsForKeys<K extends KEvent | KEvent[]> =
   : Event
 
 export function node_add_event_listener<N extends Node, K extends KEvent | KEvent[]>(node: N, key: K, listener: Listener<EventsForKeys<K>, N>, useCapture?: boolean): void
-export function node_add_event_listener<N extends EventTarget, K extends KEvent | KEvent[]>(target: N, node: Node, key: K, listener: Listener<EventsForKeys<K>, N>, useCapture?: boolean): void
-export function node_add_event_listener(target: EventTarget, node: any, events: any, listener?: any, use_capture?: any): void {
+export function node_add_event_listener<N extends EventTarget, K extends KEvent | KEvent[]>(node: Node, target: N, key: K, listener: Listener<EventsForKeys<K>, N>, useCapture?: boolean): void
+export function node_add_event_listener(node: any, target: any, events: any, listener?: any, use_capture?: any): void {
 
-  if (!(node instanceof Node)) {
-    // This is the short version, node is the events
+  if (typeof target === "string" || Array.isArray(target)) {
+    // This is the short version, target is the events
     use_capture = listener
     listener = events
-    events = node
-    node = target // now both target and node have the same value
+    events = target
+    target = node // now both target and node have the same value
   }
 
   function add_listener(event: string, listener: Listener<any>) {
-    if (target !== node) {
-      // If the targeted node is not the same, then we *must* remove the event listener if the node observing the events goes away. Otherwise, we get memory leaks.
-      node_on_connected(node, () => { target.addEventListener(event, listener) })
-      node_on_disconnected(node, () => { target.removeEventListener(event, listener) })
-    } else {
-      node.addEventListener(event, listener)
-    }
+    function add() { target.addEventListener(event, listener) }
+    // If the targeted node is not the same, then we *must* remove the event listener if the node observing the events goes away. Otherwise, we get memory leaks.
+    node_on_connected(node, add)
+    if (node.isConnected) add()
+    node_on_disconnected(node, () => { target.removeEventListener(event, listener) })
   }
 
   if (Array.isArray(events)) {
