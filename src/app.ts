@@ -124,25 +124,13 @@ export class App {
   o_views = this.o_state.tf(st => st?.views ?? new Map())
   o_activating = o(false)
 
-  // The staging state
-  staging: App.State | null = null
-
-  // Check the cache.
-  async require<S>(builder: App.ServiceBuilder<S>, by: App.Service): Promise<S> {
-    if (this.staging == null) {
-      throw new Error("cannot require another service outside activation")
-    }
-
-    return this.staging.require(builder, by, this.o_state.get())
-  }
-
   __reactivate: App.Reactivation | null = null
   async _activate<S>(builder: App.ServiceBuilder<S, any>, params?: App.Params | {[name: string]: string}): Promise<App.ActivationResult> {
     const full_params = _assign(new Map<string, string>, this.o_state.get()?.params, params)
     const awaited = await builder
     const builder_fn = typeof awaited === "function" ? awaited : awaited.default
 
-    if (this.staging != null) {
+    if (this.o_activating.get()) {
       this.__reactivate?.reject(new Error("reactivation"))
       this.__reactivate = new App.Reactivation(builder_fn, full_params)
       return {
@@ -161,37 +149,33 @@ export class App {
   async __activate<S>(builder: App.ServiceBuilderFunction<S>, params?: App.Params): Promise<App.ActivationResult> {
     const current = this.o_state.get()
     this.o_activating.set(true)
+    const staging = new App.State(this)
 
     try {
-      this.staging = new App.State(this)
-      await this.staging.activate(builder, params, current)
-      this.o_state.set(this.staging)
-      current?.deactivate(this.staging)
+      await staging.activate(builder, params, current)
 
-      for (let srv of (this.staging.services.values())) {
-        if (!srv.is_observing) {
-          srv.startObservers()
+      if (!this.__reactivate) {
+        this.o_state.set(staging)
+        current?.deactivate(staging)
+
+        for (let srv of (staging.services.values())) {
+          if (!srv.is_observing) {
+            srv.startObservers()
+          }
         }
+
+        // whoever gets here is the route that "won" if we got here through a route
+        this.router.__last_activated_route?.updateHash()
       }
 
-      this.staging = null
-
-      // whoever gets here is the route that "won" if we got here through a route
-      this.router.__last_activated_route?.updateHash()
-      return {
-        activated: true,
-        service: builder,
-      }
     } catch (e) {
 
       if (current) {
-        this.staging?.deactivate(current)
+        staging?.deactivate(current)
       }
 
-      this.staging = null
       throw e
     } finally {
-      this.staging = null
       const re = this.__reactivate
       this.__reactivate = null
       if (re) {
@@ -204,6 +188,11 @@ export class App {
       } else {
         this.o_activating.set(false)
       }
+    }
+
+    return {
+      activated: true,
+      service: builder,
     }
   }
 
@@ -478,7 +467,7 @@ export namespace App {
       }
 
       // Make a new service
-      const srv = previous ?? new App.Service(this.app, builder)
+      const srv = previous ?? new App.Service(this, builder)
       this.addServiceDep(srv)
 
       if (previous == null) {
@@ -584,47 +573,43 @@ export namespace App {
    * A single service.
    */
   export class Service<T extends SrvParams = {}> extends o.ObserverHolder {
-    constructor(public app: App, public builder: (srv: App.Service) => any) { super() }
+    constructor(
+      public state: App.State,
+      public builder: (srv: App.Service) => any
+    ) { super() }
     _on_deinit: (() => any)[] = []
 
     require<S, TP extends SrvParams, TC extends TP>(this: Service<TC>, fn: ServiceBuilder<S, TP>): Promise<S> {
-      return this.app.require(fn as any, this)
+      return this.state.require(fn as any, this)
     }
 
     /** true if this service is the currently activated one */
-    get oo_is_active() { return this.app.o_active_service.tf(ac => ac === this) }
+    get oo_is_active() { return this.state.app.o_active_service.tf(ac => ac === this) }
 
     /**
      * A service can activate a Route using its own params
      */
     activate<TP extends SrvParams, TC extends SrvParams>(this: Service<TC>, rt: Route<TP>, ...args: TP extends TC ? (TC extends TP ? [] | [{}] : [Omit<TP, keyof TC>]) : TC extends TP ? ([] | [{}] | [TP]) : [TP]): Promise<void> {
-      const params = Object.assign({}, this.app.o_params.get(), args[0])
+      const params: any = {}
+      for (let [key, value] of this.state.params) { params[key] = value }
+      Object.assign(params, args[0])
       return rt.activate(params as any)
     }
 
     param<K extends keyof T>(name: K, default_value?: T[K]): T[K] {
-      // add the variable to the list
-      if (!this.app.staging) {
-        throw new Error("can only call param() during the activation phase")
-      }
-
-      let value = this.app.staging.params.get(name as string) ?? default_value ?? null
+      let value = this.state.params.get(name as string) ?? default_value ?? null
       this.params.set(name as string, value as any)
       return value as T[K]
     }
 
     param_soft<K extends keyof T>(name: K, default_value?: T[K]): T[K] {
-      if (!this.app.staging) {
-        throw new Error("can only call softParam() during the activation phase")
-      }
-
-      let value = this.app.staging.params.get(name as string) ?? default_value ?? null
+      let value = this.state.params.get(name as string) ?? default_value ?? null
       this.params.set(name as string, null) // should this mean
       return value as T[K]
     }
 
     DisplayView(view_name: string) {
-      return this.app.DisplayView(view_name)
+      return this.state.app.DisplayView(view_name)
     }
 
     /**
