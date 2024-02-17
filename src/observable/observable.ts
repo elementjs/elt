@@ -331,16 +331,21 @@ export class Queue extends IndexableArray<Observable<any>> {
       const obs = arr[i]
       if (obs == null) continue
 
-      obs.ensureRefreshed()
-      obs.idx = null
+      try {
+        obs.ensureRefreshed()
+        obs.idx = null
 
-      for (let i = 0, oa = obs._observers.arr; i < oa.length; i++) {
-        const or = oa[i]
-        if (or == null) continue
-        or.refresh()
+        for (let i = 0, oa = obs._observers.arr; i < oa.length; i++) {
+          const or = oa[i]
+          if (or == null) continue
+          or.refresh()
+        }
+
+        obs._observers.actualize()
+      } catch (e) {
+        console.error(e)
+        continue
       }
-
-      obs._observers.actualize()
 
       arr[i] = null // just in case...
     }
