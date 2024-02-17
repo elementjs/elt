@@ -22,7 +22,12 @@ function _node_call_cbks(node: Node, sym: typeof sym_connected | typeof sym_disc
   const cbks = node[sym]
   if (cbks) {
     for (let i = 0, l = cbks.length; i < l; i++) {
-      cbks[i](node)
+      try {
+        cbks[i](node)
+      } catch(e) {
+        // Callbacks should
+        console.error("connected/disconnected callbacks should not throw", e)
+      }
     }
   }
 

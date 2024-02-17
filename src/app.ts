@@ -147,7 +147,7 @@ export class App {
    * Does like require() but sets the resulting service as the active instance.
    */
   async __activate<S>(builder: App.ServiceBuilderFunction<S>, params?: App.Params): Promise<App.ActivationResult> {
-    const current = this.o_state.get()
+    let current = this.o_state.get()
     this.o_activating.set(true)
     const staging = new App.State(this)
 
@@ -157,11 +157,10 @@ export class App {
       if (!this.__reactivate) {
         this.o_state.set(staging)
         current?.deactivate(staging)
+        current = null
 
         for (let srv of (staging.services.values())) {
-          if (!srv.is_observing) {
-            srv.startObservers()
-          }
+          srv.startObservers()
         }
 
         // whoever gets here is the route that "won" if we got here through a route
@@ -197,7 +196,9 @@ export class App {
   }
 
   DisplayView(view_name: string): o.ReadonlyObservable<Renderable> {
-    const res = this.o_views.tf(views => views.get(view_name)).tf<Renderable>(viewfn => {
+    const res = this.o_views.tf(views => {
+      return views.get(view_name)
+    }).tf<Renderable>(viewfn => {
       return viewfn?.()
     })
     res[o.sym_display_node] = "e-app-view"
