@@ -6,6 +6,9 @@
   "license": "MIT",
   "browser": "./dist/elt.js",
   "main": "./dist/elt.js",
+  "engines": {
+    "node": ">=16.0.0"
+  },
   "exports": {
     "development": "./dist/elt.debug.js",
     "default": "./dist/elt.js"
