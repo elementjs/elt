@@ -267,7 +267,7 @@ export function $click<N extends HTMLElement | SVGElement>(cbk: Listener<MouseEv
  *
  * @group Decorators
  */
-export function $connected<N extends Node>(fn: (node: N) => void) {
+export function $connected<N extends Node>(fn: (node: N) => any) {
   return (node: N) => {
     node_on_connected(node, fn)
   }
