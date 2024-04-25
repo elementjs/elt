@@ -476,8 +476,14 @@ export namespace RepeatScroll {
     intersecting = false
     scroll_buffer_size = 10
     threshold = 500
+    on_end_reached: null | (() => any) = null
 
     inter: IntersectionObserver | null = null
+
+    onEndReached(fn: (() => any)) {
+      this.on_end_reached = fn
+      return this
+    }
 
     setScrollBufferSize(n: number) {
       this.scroll_buffer_size = n
@@ -495,12 +501,22 @@ export namespace RepeatScroll {
      */
     appendChildren() {
       // Instead of appending all the count, break it down to bufsize packets.
+      if (this.next_index >= this.lst.length || !this.intersecting) {
+        return
+      }
+
       super.appendChildren(this.scroll_buffer_size)
-      requestAnimationFrame(() => {
-        if (this.intersecting) {
-          this.appendChildren()
-        }
-      })
+
+      if (this.next_index >= this.lst.length - 1) {
+        this.on_end_reached?.()
+      } else if (this.intersecting) {
+        requestAnimationFrame(() => {
+          if (this.intersecting) {
+            this.appendChildren()
+            // if (this.next_index)
+          }
+        })
+      }
     }
 
     connected() {
