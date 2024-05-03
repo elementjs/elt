@@ -238,10 +238,25 @@ export function $observe<N extends Node, T>(a: o.RO<T>, cbk: (newval: T, old_val
  * @code ../examples/_on.tsx
  * @group Decorators
  */
-export function $on<N extends Node, K extends KEvent | KEvent[]>(events: K, listener: Listener<EventsForKeys<K>, N>, useCapture?: boolean): Decorator<N> {
+export function $on<N extends Node, K extends KEvent | KEvent[]>(events: K, listener: Listener<EventsForKeys<K>, N>, useCapture?: boolean | AddEventListenerOptions): Decorator<N> {
 
   return function $on_apply(node) {
     node_add_event_listener(node, events, listener, useCapture)
+  }
+
+}
+
+/**
+ * Similar to $on, except it sets once: true to the options and its caller will only be called once.
+ * @group Decorators
+ */
+export function $once<N extends Node, K extends KEvent | KEvent[]>(events: K, listener: Listener<EventsForKeys<K>, N>, useCapture?: boolean | AddEventListenerOptions): Decorator<N> {
+
+  return function $once_apply(node) {
+    const opts: AddEventListenerOptions = typeof useCapture === "boolean" ? { once: true, capture: true } : {
+      ...useCapture, once: true
+    }
+    node_add_event_listener(node, events, listener, opts)
   }
 
 }
