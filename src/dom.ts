@@ -466,8 +466,8 @@ export type EventsForKeys<K extends KEvent | KEvent[]> =
   : K extends KEvent ? EventForKey<K>
   : Event
 
-export function node_add_event_listener<N extends Node, K extends KEvent | KEvent[]>(node: N, key: K, listener: Listener<EventsForKeys<K>, N>, useCapture?: boolean): void
-export function node_add_event_listener<N extends EventTarget, K extends KEvent | KEvent[]>(node: Node, target: N, key: K, listener: Listener<EventsForKeys<K>, N>, useCapture?: boolean): void
+export function node_add_event_listener<N extends Node, K extends KEvent | KEvent[]>(node: N, key: K, listener: Listener<EventsForKeys<K>, N>, useCapture?: boolean | AddEventListenerOptions): void
+export function node_add_event_listener<N extends EventTarget, K extends KEvent | KEvent[]>(node: Node, target: N, key: K, listener: Listener<EventsForKeys<K>, N>, useCapture?: boolean | AddEventListenerOptions): void
 export function node_add_event_listener(node: any, target: any, events: any, listener?: any, use_capture?: any): void {
 
   if (typeof target === "string" || Array.isArray(target)) {
@@ -479,17 +479,17 @@ export function node_add_event_listener(node: any, target: any, events: any, lis
   }
 
   function add_listener(event: string, listener: Listener<any>) {
-    function add() { target.addEventListener(event, listener) }
+    function add() { target.addEventListener(event, listener, use_capture) }
     // If the targeted node is not the same, then we *must* remove the event listener if the node observing the events goes away. Otherwise, we get memory leaks.
     node_on_connected(node, add)
     if (node.isConnected) add()
-    node_on_disconnected(node, () => { target.removeEventListener(event, listener) })
+    node_on_disconnected(node, () => { target.removeEventListener(event, listener, use_capture) })
   }
 
   if (Array.isArray(events)) {
     for (let i = 0, l = events.length; i < l; i++) {
       const event = events[i]
-      add_listener(event, listener)
+      add_listener(event, listener, )
     }
   } else {
     add_listener(events, listener)
