@@ -86,7 +86,7 @@ export function tf_array_transform<T>(fn: o.RO<number[] | ((array: T[]) => numbe
  */
 export function tf_array_filter<T>(condition: o.RO<(item: T, idx: number, lst: T[]) => any>, stable: o.RO<boolean> = false): o.RO<o.Converter<T[], T[]> & {indices: number[]}> {
   return o.combine(
-    o.tuple(condition, stable),
+    [condition, stable] as const,
     ([cond, stable]) => {
       return {
         indices: [] as number[],
