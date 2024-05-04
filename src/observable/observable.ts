@@ -713,10 +713,10 @@ export class Observable<A> implements ReadonlyObservable<A>, Indexable {
         return curval
       },
       (newv, old, [curr, conv, rev]) => {
-        if (typeof rev === "function") return tuple(rev(newv, old, curr), NoValue, NoValue)
-        if (typeof conv === "function") return tuple(NoValue, NoValue, NoValue) // this means the set is being silently ignored. should it be an error ?
+        if (typeof rev === "function") return [rev(newv, old, curr), NoValue, NoValue] as const
+        if (typeof conv === "function") return [NoValue, NoValue, NoValue] as const // this means the set is being silently ignored. should it be an error ?
         const new_orig = (conv as Converter<A, B>).revert(newv, old, curr)
-        return tuple(new_orig, NoValue, NoValue)
+        return [new_orig, NoValue, NoValue] as const
       }
     )
   }
@@ -756,7 +756,7 @@ export class Observable<A> implements ReadonlyObservable<A>, Indexable {
         // Is this correct ? should I **delete** when I encounter undefined ?
         if (ret !== undefined || !delete_on_undefined) result.set(okey, ret!)
         else result.delete(okey)
-        return tuple(result, NoValue, NoValue, NoValue)
+        return [result, NoValue, NoValue, NoValue] as const
       }
     )
   }
@@ -1012,7 +1012,7 @@ export function merge<T>(obj: {[K in keyof T]: Observable<T[K]>}): Observable<T>
    */
   export function prop<T, K extends keyof T>(obj: Observable<T> | T, prop: RO<K>, def?: RO<(key: K, obj: T) => T[K]>) {
     return combine(
-      tuple(obj as T, prop, def),
+      [obj as T, prop, def] as const,
       ([obj, prop, def]) => {
         let res = obj[prop]
         if (res === undefined && def)
@@ -1022,7 +1022,7 @@ export function merge<T>(obj: {[K in keyof T]: Observable<T[K]>}): Observable<T>
       (nval, _, [orig, prop]) => {
         const newo = o.clone(orig)
         newo[prop] = nval
-        return tuple(newo, NoValue, NoValue)
+        return [newo, NoValue, NoValue] as const
       }
     )
   }
@@ -1369,23 +1369,6 @@ export function merge<T>(obj: {[K in keyof T]: Observable<T[K]>}): Observable<T>
    * @category observable
    */
   export const sym_clone = Symbol.for("--elt-o-clone_symbol--")
-
-
-  /**
-   * Returns its arguments as an array but typed as a tuple from Typescript's point of view.
-   *
-   * This only exists because there is no way to declare a tuple in Typescript other than with a plain
-   * array, and arrays with several types end up as an union.
-   *
-   * ```tsx
-   * [[include:../../examples/o.tuple.tsx]]
-   * ```
-   *
-   * @group Observable
-   */
-  export function tuple<T extends any[]>(...t: T): T {
-    return t
-  }
 
   /**
    * Shallow clone an object. If you want to perform deep operations, use assign instead.
