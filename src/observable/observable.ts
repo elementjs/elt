@@ -152,12 +152,15 @@ export class Observer<A> implements Indexable {
    */
   fn: ObserverCallback<any>
 
+  observable: any
+
   /**
    * Build an observer that will call `fn` whenever the value contained by
    * `observable` changes.
    */
-  constructor(fn: ObserverCallback<A>, public observable: ReadonlyObservable<A>) {
+  constructor(fn: ObserverCallback<A>, observable: ReadonlyObservable<A>) {
     this.fn = fn
+    this.observable = observable
   }
 
   /**
@@ -165,7 +168,7 @@ export class Observer<A> implements Indexable {
    */
   refresh(): void {
     const old = this.old_value
-    const new_value = (this.observable as Observable<A>)._value
+    const new_value = (this.observable as any)._value
 
     if (old !== new_value) {
       // only store the old_value if the observer will need it. Useful to not keep
@@ -233,35 +236,264 @@ export const sym_display_attrs = Symbol("display-attrs")
  *
  * @group Observable
  */
-export interface ReadonlyObservable<A> {
+export class ReadonlyObservable<A> implements Indexable {
   [sym_display_node]?: string
   [sym_display_attrs]?: {[name: string]: string}
 
-  [sym_insert](this: ReadonlyObservable<Renderable<Node>>, parent: Node, refchild: Node | null): void
+  [sym_insert](this: ReadonlyObservable<Renderable<Node>>, parent: Node, refchild: Node | null) {
+    const kind = this[sym_display_node] ?? "e-obs"
+    const attrs = this[sym_display_attrs]
 
-  /** See {@link o.Observable#get} */
-  get(): A
-  /** See {@link o.Observable#createObserver} */
-  createObserver(fn: ObserverCallback<A>): Observer<A>
+    if (parent instanceof SVGElement) {
+      // SVG Does not like custom elements at all, so we do it with comments
+      const start = document.createComment(` ${kind}${attrs ? " " + JSON.stringify(attrs) : ""} `)
+      const end = document.createComment(` end ${kind} `)
+
+      node_observe(start, this, renderable => {
+        let iter = start.nextSibling
+        while (iter && iter !== end) {
+          let next = iter?.nextSibling
+          node_remove(iter)
+          iter = next
+        }
+        // node_clear(d)
+        node_append(start.parentNode!, renderable, end)
+      }, { immediate: true })
+
+      node_append(parent, end, refchild)
+      node_append(parent, start, end)
+    } else {
+
+      const elt = document.createElement(kind)
+      if (attrs) {
+        for (let key in attrs) {
+          const val = attrs[key]
+          elt.setAttribute(key, val)
+        }
+      }
+
+      node_observe(elt, this, renderable => {
+        let iter = elt.firstChild
+        while (iter) {
+          node_remove(iter)
+          iter = elt.firstChild
+        }
+        // node_clear(d)
+        node_append(elt, renderable as any)
+      }, { immediate: true })
+
+      node_append(parent, elt, refchild)
+    }
+
+  }
+
+  /** @internal */
+  readonly _observers = new IndexableArray<Observer<A>>()
+  /** @internal */
+  _children = new IndexableArray<ChildObservableLink>()
+  /** @internal */
+  _watched = false
+
+  /** The index of this Observable in the notify queue. If null, means that it's not scheduled.
+   * @internal
+  */
+  idx = null as null | number
+
+  /** only available in development build */
+  debug?: string
+  _value: any // do not give it a type, this is on purpose.
 
   /**
-   * @see o.Observable.addObserver
+   * Build an observable from a value. For readability purposes, use the {@link o} function instead.
+   */
+  constructor(_value: A) {
+    if (DEBUG) {
+      (this as any).debug = new Error().stack
+    }
+    this._value = _value
+  }
+
+  ensureRefreshed() { }
+
+  /**
+   * Return the underlying value of this Observable
+   *
+   * NOTE: treat this value as being entirely readonly !
+   */
+  get(): A {
+    return this._value
+  }
+
+  /**
+   * Add an observer to this observable, which will be updated as soon as the `Observable` is set to a new value.
+   *
+   * > **Note**: This method should rarely be used. Prefer using {@link $observe}, {@link node_observe}, [`Mixin#observe()`](#Mixin) or [`App.Service#observe()`](#App.Service#observe) for observing values.
+   *
+   * @returns The newly created observer if a function was given to this method or
+   *   the observable that was passed.
    */
   addObserver(fn: ObserverCallback<A>): Observer<A>
   addObserver(obs: Observer<A>): Observer<A>
+  addObserver(_ob: ObserverCallback<A> | Observer<A>): Observer<A> {
+    if (typeof _ob === "function") {
+      _ob = new Observer(_ob, this)
+    }
 
-  /** See {@link o.Observable#removeObserver} */
-  removeObserver(ob: Observer<A>): void
+    const ob = _ob
+    this._observers.add(_ob)
+    this.checkWatch()
+    if (this.idx == null) {
+      // Refresh the observer immediately this observable is not being queued for a transaction.
+      ob.refresh()
+    }
+    return ob
+  }
 
-  /** See {@link o.Observable#tf} */
+
+  /**
+   * Add a child observable to this observable that will depend on it to build its own value.
+   * @internal
+   */
+  addChild(ch: ChildObservableLink) {
+    if (ch.idx != null) return
+    this._children.add(ch)
+    if (this.idx != null)
+      queue.schedule(ch.child)
+    this.checkWatch()
+  }
+
+  /**
+   * @internal
+   */
+  removeChild(ch: ChildObservableLink) {
+    if (ch.idx == null) return
+    this._children.delete(ch)
+    this.checkWatch()
+  }
+
+  /**
+   * Remove an observer from this observable. This means the Observer will not
+   * be called anymore when this Observable changes.
+   *
+   * If there are no more observers watching this Observable, then it will stop
+   * watching other Observables in turn if it did.
+   *
+   */
+  removeObserver(ob: Observer<A>): void {
+    this._observers.delete(ob)
+    this.checkWatch()
+  }
+
+  /**
+   * Check if this `Observable` is being watched or not. If it stopped being observed but is in the notification
+   * queue, remove it from there as no one is expecting its value.
+   *
+   * @internal
+   */
+  checkWatch() {
+    if (this._watched && this._observers.real_size === 0 && this._children.real_size === 0) {
+      this._watched = false
+      if (this.idx != null) queue.delete(this)
+      this.unwatched()
+    } else if (!this._watched && this._observers.real_size + this._children.real_size > 0) {
+      this._watched = true
+      this.watched()
+    }
+  }
+
+  /** Return `true` if this observable is being observed by an Observer or another Observable. */
+  isObserved() { return this._watched }
+
+  /**
+   * @internal
+   */
+  // eslint-disable-next-line @typescript-eslint/no-empty-function
+  unwatched() { }
+  /**
+   * @internal
+   */
+  // eslint-disable-next-line @typescript-eslint/no-empty-function
+  watched() { }
+
+  /**
+   * Transform this Observable into another using a transform function or a Converter.
+   *
+   * If there is only one transform function provided then the result is a ReadonlyObservable since
+   * there is no way of converting the result back.
+   *
+   * A Converter providing both `get` and `set` operations will create a two-way observable that is settable.
+   *
+   * ```tsx
+   * [[include:../../examples/o.observable.tf.tsx]]
+   * ```
+   *
+   */
+  tf<B>(tf: o.RO<TransfomFn<A, B>>, rev: o.RO<RevertFn<A, B>>): Observable<B>
+  tf<B>(transform: RO<Converter<A, B>>): Observable<B>
   tf<B>(transform: RO<TransfomFn<A, B> | ReadonlyConverter<A, B>>): ReadonlyObservable<B>
+  tf<B>(transform: RO<Converter<A, B>> | RO<TransfomFn<A, B> | ReadonlyConverter<A, B>>, rev?: o.RO<RevertFn<A, B>>): ReadonlyObservable<B> {
+    let old: A | NoValue = NoValue
+    let old_val: B | NoValue = NoValue
+    return combine([this, transform, rev] as [ReadonlyObservable<A>, RO<TransfomFn<A, B> | ReadonlyConverter<A, B>>, RevertFn<A, B>],
+      ([v, fnget]) => {
+        const curval = (typeof fnget === "function" ? fnget(v, old, old_val) : fnget.transform(v, old, old_val))
+        const arg_nb = (typeof fnget === "function" ? fnget.length : fnget.transform.length)
+        if (arg_nb > 1) {
+          old = v
+          if (arg_nb > 2) {
+            old_val = curval
+          }
+        }
+        return curval
+      },
+      (newv, old, [curr, conv, rev]) => {
+        if (typeof rev === "function") return [rev(newv, old, curr), NoValue, NoValue] as const
+        if (typeof conv === "function") return [NoValue, NoValue, NoValue] as const // this means the set is being silently ignored. should it be an error ?
+        const new_orig = (conv as Converter<A, B>).revert(newv, old, curr)
+        return [new_orig, NoValue, NoValue] as const
+      }
+    )
+  }
 
-  /** See {@link o.Observable#p} */
-  // p<A>(this: ReadonlyObservable<A[]>, key: RO<number>, def?: RO<(key: number, obj: A[]) => A>): ReadonlyObservable<A>
-  p<K extends keyof A>(key: RO<K>): ReadonlyObservable<A[K]>
-  /** See {@link o.Observable#key} */
-  key<A, B>(this: ReadonlyObservable<Map<A, B>>, key: RO<A>, def?: undefined, delete_on_undefined?: boolean): ReadonlyObservable<B | undefined>
-  key<A, B>(this: ReadonlyObservable<Map<A, B>>, key: RO<A>, def: RO<(key: A, map: Map<A, B>) => B>): ReadonlyObservable<B>
+  /**
+   * Create an observable that will hold the value of the property specified with `key`.
+   * The resulting observable is completely bi-directional.
+   *
+   * The `key` can itself be an observable, in which case the resulting observable will
+   * change whenever either `key` or the original observable change.
+   *
+   * ```tsx
+   * [[include:../../examples/o.observable.p.tsx]]
+   * ```
+   */
+  p<K extends keyof A>(key: RO<K>): Observable<A[K]> {
+    return prop(this, key)
+  }
+
+  /**
+   * Like {@link o.Observable.p}, but with `Map` objects.
+   */
+  key<A, B>(this: Observable<Map<A, B>>, key: RO<A>, def?: undefined, delete_on_undefined?: RO<boolean | undefined>): Observable<B | undefined>
+  key<A, B>(this: Observable<Map<A, B>>, key: RO<A>, def: RO<(key: A, map: Map<A, B>) => B>): Observable<B>
+  key<A, B>(this: Observable<Map<A, B>>, key: RO<A>, def?: RO<(key: A, map: Map<A, B>) => B>, delete_on_undefined = true as RO<boolean | undefined>): Observable<B | undefined> {
+    return combine([this, key, def, delete_on_undefined] as [ReadonlyObservable<Map<A, B>>, RO<A>, RO<(key: A, map: Map<A, B>) => B>, RO<boolean>],
+      ([map, key, def]) => {
+        let res = map.get(key)
+        if (res === undefined && def) {
+          res = def(key, map)
+        }
+        return res
+      },
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      (ret, _, [omap, okey, _2, delete_on_undefined]) => {
+        const result = new Map(omap) //.set(okey, ret)
+        // Is this correct ? should I **delete** when I encounter undefined ?
+        if (ret !== undefined || !delete_on_undefined) result.set(okey, ret!)
+        else result.delete(okey)
+        return [result, NoValue, NoValue, NoValue] as const
+      }
+    )
+  }
 }
 
 /**
@@ -276,7 +508,7 @@ export interface ReadonlyObservable<A> {
  *
  * @group Observable
  */
-export type RO<A> = ReadonlyObservable<A> | A | (A extends ReadonlyObservable<any> ? never : ReadonlyObservable<A>)
+export type RO<A> = ReadonlyObservable<A> | A | (A extends ReadonlyObservable<infer B> ? B : ReadonlyObservable<A>)
 
 
 /** @internal */
@@ -290,7 +522,7 @@ export function each_recursive(obs: Observable<any>, fn: (v: Observable<any>) =>
 
 
 /** @internal */
-export class Queue extends IndexableArray<Observable<any>> {
+export class Queue extends IndexableArray<ReadonlyObservable<any>> {
   transaction_count = 0
   flushing = false
 
@@ -399,45 +631,9 @@ export class ChildObservableLink implements Indexable {
  *
  * @group Observable
  */
-export class Observable<A> implements ReadonlyObservable<A>, Indexable {
+export class Observable<A> extends ReadonlyObservable<A> {
 
-  [sym_display_node]?: string
-  [sym_display_attrs]?: {[name: string]: string}
-
-  /** @internal */
-  readonly _observers = new IndexableArray<Observer<A>>()
-  /** @internal */
-  _children = new IndexableArray<ChildObservableLink>()
-  /** @internal */
-  _watched = false
-
-  /** The index of this Observable in the notify queue. If null, means that it's not scheduled.
-   * @internal
-  */
-  idx = null as null | number
-
-  /** only available in development build */
-  debug?: string
-
-  /**
-   * Build an observable from a value. For readability purposes, use the {@link o} function instead.
-   */
-  constructor(public _value: A) {
-    if (DEBUG) {
-      (this as any).debug = new Error().stack
-    }
-  }
-
-  ensureRefreshed() { }
-
-  /**
-   * Return the underlying value of this Observable
-   *
-   * NOTE: treat this value as being entirely readonly !
-   */
-  get(): A {
-    return this._value
-  }
+  declare _value: A
 
   /**
    * Set the value of the observable and notify the observers listening
@@ -449,53 +645,6 @@ export class Observable<A> implements ReadonlyObservable<A>, Indexable {
       this._value = value
       queue.schedule(this)
     }
-  }
-
-  [sym_insert](this: ReadonlyObservable<Renderable<Node>>, parent: Node, refchild: Node | null) {
-    const kind = this[sym_display_node] ?? "e-obs"
-    const attrs = this[sym_display_attrs]
-
-    if (parent instanceof SVGElement) {
-      // SVG Does not like custom elements at all, so we do it with comments
-      const start = document.createComment(` ${kind}${attrs ? " " + JSON.stringify(attrs) : ""} `)
-      const end = document.createComment(` end ${kind} `)
-
-      node_observe(start, this, renderable => {
-        let iter = start.nextSibling
-        while (iter && iter !== end) {
-          let next = iter?.nextSibling
-          node_remove(iter)
-          iter = next
-        }
-        // node_clear(d)
-        node_append(start.parentNode!, renderable, end)
-      }, { immediate: true })
-
-      node_append(parent, end, refchild)
-      node_append(parent, start, end)
-    } else {
-
-      const elt = document.createElement(kind)
-      if (attrs) {
-        for (let key in attrs) {
-          const val = attrs[key]
-          elt.setAttribute(key, val)
-        }
-      }
-
-      node_observe(elt, this, renderable => {
-        let iter = elt.firstChild
-        while (iter) {
-          node_remove(iter)
-          iter = elt.firstChild
-        }
-        // node_clear(d)
-        node_append(elt, renderable as any)
-      }, { immediate: true })
-
-      node_append(parent, elt, refchild)
-    }
-
   }
 
   /**
@@ -581,185 +730,6 @@ export class Observable<A> implements ReadonlyObservable<A>, Indexable {
     this.set(o.assign(this.get(), partial))
   }
 
-  /**
-   * Create an observer bound to this observable, but do not start it.
-   * For it to start observing, one needs to call its `startObserving()` method.
-   *
-   * > **Note**: This method should rarely be used. Prefer using {@link $observe}, {@link node_observe}, [`Mixin#observe`](#o.ObserverHolder#observe) or [`App.Service#observe`](#o.ObserverHolder#observe) for observing values.
-   */
-  createObserver(fn: ObserverCallback<A>): Observer<A> {
-    return new Observer(fn, this)
-  }
-
-  /**
-   * Add an observer to this observable, which will be updated as soon as the `Observable` is set to a new value.
-   *
-   * > **Note**: This method should rarely be used. Prefer using {@link $observe}, {@link node_observe}, [`Mixin#observe()`](#Mixin) or [`App.Service#observe()`](#App.Service#observe) for observing values.
-   *
-   * @returns The newly created observer if a function was given to this method or
-   *   the observable that was passed.
-   */
-  addObserver(fn: ObserverCallback<A>): Observer<A>
-  addObserver(obs: Observer<A>): Observer<A>
-  addObserver(_ob: ObserverCallback<A> | Observer<A>): Observer<A> {
-    if (typeof _ob === "function") {
-      _ob = this.createObserver(_ob)
-    }
-
-    const ob = _ob
-    this._observers.add(_ob)
-    this.checkWatch()
-    if (this.idx == null) {
-      // Refresh the observer immediately this observable is not being queued for a transaction.
-      ob.refresh()
-    }
-    return ob
-  }
-
-  /**
-   * Add a child observable to this observable that will depend on it to build its own value.
-   * @internal
-   */
-  addChild(ch: ChildObservableLink) {
-    if (ch.idx != null) return
-    this._children.add(ch)
-    if (this.idx != null)
-      queue.schedule(ch.child)
-    this.checkWatch()
-  }
-
-  /**
-   * @internal
-   */
-  removeChild(ch: ChildObservableLink) {
-    if (ch.idx == null) return
-    this._children.delete(ch)
-    this.checkWatch()
-  }
-
-  /**
-   * Remove an observer from this observable. This means the Observer will not
-   * be called anymore when this Observable changes.
-   *
-   * If there are no more observers watching this Observable, then it will stop
-   * watching other Observables in turn if it did.
-   *
-   */
-  removeObserver(ob: Observer<A>): void {
-    this._observers.delete(ob)
-    this.checkWatch()
-  }
-
-  /**
-   * Check if this `Observable` is being watched or not. If it stopped being observed but is in the notification
-   * queue, remove it from there as no one is expecting its value.
-   *
-   * @internal
-   */
-  checkWatch() {
-    if (this._watched && this._observers.real_size === 0 && this._children.real_size === 0) {
-      this._watched = false
-      if (this.idx != null) queue.delete(this)
-      this.unwatched()
-    } else if (!this._watched && this._observers.real_size + this._children.real_size > 0) {
-      this._watched = true
-      this.watched()
-    }
-  }
-
-  /** Return `true` if this observable is being observed by an Observer or another Observable. */
-  isObserved() { return this._watched }
-
-  /**
-   * @internal
-   */
-  // eslint-disable-next-line @typescript-eslint/no-empty-function
-  unwatched() { }
-  /**
-   * @internal
-   */
-  // eslint-disable-next-line @typescript-eslint/no-empty-function
-  watched() { }
-
-  /**
-   * Transform this Observable into another using a transform function or a Converter.
-   *
-   * If there is only one transform function provided then the result is a ReadonlyObservable since
-   * there is no way of converting the result back.
-   *
-   * A Converter providing both `get` and `set` operations will create a two-way observable that is settable.
-   *
-   * ```tsx
-   * [[include:../../examples/o.observable.tf.tsx]]
-   * ```
-   *
-   */
-  tf<B>(tf: o.RO<TransfomFn<A, B>>, rev: o.RO<RevertFn<A, B>>): Observable<B>
-  tf<B>(transform: RO<Converter<A, B>>): Observable<B>
-  tf<B>(transform: RO<TransfomFn<A, B> | ReadonlyConverter<A, B>>): ReadonlyObservable<B>
-  tf<B>(transform: RO<TransfomFn<A, B> | ReadonlyConverter<A, B>>, rev?: o.RO<RevertFn<A, B>>): ReadonlyObservable<B> {
-    let old: A | NoValue = NoValue
-    let old_val: B | NoValue = NoValue
-    return combine([this, transform, rev] as [ReadonlyObservable<A>, RO<TransfomFn<A, B> | ReadonlyConverter<A, B>>, RevertFn<A, B>],
-      ([v, fnget]) => {
-        const curval = (typeof fnget === "function" ? fnget(v, old, old_val) : fnget.transform(v, old, old_val))
-        const arg_nb = (typeof fnget === "function" ? fnget.length : fnget.transform.length)
-        if (arg_nb > 1) {
-          old = v
-          if (arg_nb > 2) {
-            old_val = curval
-          }
-        }
-        return curval
-      },
-      (newv, old, [curr, conv, rev]) => {
-        if (typeof rev === "function") return [rev(newv, old, curr), NoValue, NoValue] as const
-        if (typeof conv === "function") return [NoValue, NoValue, NoValue] as const // this means the set is being silently ignored. should it be an error ?
-        const new_orig = (conv as Converter<A, B>).revert(newv, old, curr)
-        return [new_orig, NoValue, NoValue] as const
-      }
-    )
-  }
-
-  /**
-   * Create an observable that will hold the value of the property specified with `key`.
-   * The resulting observable is completely bi-directional.
-   *
-   * The `key` can itself be an observable, in which case the resulting observable will
-   * change whenever either `key` or the original observable change.
-   *
-   * ```tsx
-   * [[include:../../examples/o.observable.p.tsx]]
-   * ```
-   */
-  p<K extends keyof A>(key: RO<K>): Observable<A[K]> {
-    return prop(this, key)
-  }
-
-  /**
-   * Like {@link o.Observable.p}, but with `Map` objects.
-   */
-  key<A, B>(this: Observable<Map<A, B>>, key: RO<A>, def?: undefined, delete_on_undefined?: RO<boolean | undefined>): Observable<B | undefined>
-  key<A, B>(this: Observable<Map<A, B>>, key: RO<A>, def: RO<(key: A, map: Map<A, B>) => B>): Observable<B>
-  key<A, B>(this: Observable<Map<A, B>>, key: RO<A>, def?: RO<(key: A, map: Map<A, B>) => B>, delete_on_undefined = true as RO<boolean | undefined>): Observable<B | undefined> {
-    return combine([this, key, def, delete_on_undefined] as [ReadonlyObservable<Map<A, B>>, RO<A>, RO<(key: A, map: Map<A, B>) => B>, RO<boolean>],
-      ([map, key, def]) => {
-        let res = map.get(key)
-        if (res === undefined && def) {
-          res = def(key, map)
-        }
-        return res
-      },
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      (ret, _, [omap, okey, _2, delete_on_undefined]) => {
-        const result = new Map(omap) //.set(okey, ret)
-        // Is this correct ? should I **delete** when I encounter undefined ?
-        if (ret !== undefined || !delete_on_undefined) result.set(okey, ret!)
-        else result.delete(okey)
-        return [result, NoValue, NoValue, NoValue] as const
-      }
-    )
-  }
 
 }
 
@@ -770,6 +740,11 @@ export interface Observable<A> {
 
 // Mark all observables with a known symbol
 Observable.prototype[sym_is_observable] = true
+
+
+export class ReadonlyCombinedObservable<A extends any[], T = A> extends ReadonlyObservable<T> {
+
+}
 
 
 /**
@@ -1595,7 +1570,7 @@ export function merge<T>(obj: {[K in keyof T]: Observable<T[K]>}): Observable<T>
         return null
       }
 
-      const observer = o(obs).createObserver(fn)
+      const observer = new Observer(fn, o(obs))
       options?.observer_callback?.(observer)
       if (options?.immediate) observer.refresh()
       return this.addObserver(observer)
