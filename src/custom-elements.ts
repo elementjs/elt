@@ -52,11 +52,45 @@ export function attr<T>(opts: any, key?: string | symbol, props?: TypedPropertyD
       ...opts,
     }
 
-    desc ??= Object.getOwnPropertyDescriptor(target, key)
-    const mp = (target[sym_attrs] ??= new Map())
+    const maybe_parent_mp = target[sym_attrs]
+    const mp = Object.hasOwn(target, sym_attrs) && maybe_parent_mp ? maybe_parent_mp : (target[sym_attrs] = new Map(maybe_parent_mp))
     if (!mp.has(_opts.name)) {
       mp.set(_opts.name, _opts)
     }
+
+    if (!_opts.revert) { return }
+
+    let setter = desc?.set
+    let getter = desc?.get
+    let lock = o.exclusive_lock()
+    let sym = Symbol()
+    const old = setter
+
+    getter ??= function (this: any) {
+      return this[sym]
+    }
+    setter = function (this: any, v: any) {
+      const self = this
+      self[sym] = v
+      lock(() => {
+        old?.call(self, v)
+        let r = typeof _opts.revert === "function" ? _opts.revert(v) : v
+        self._setAttributeOnNode(attr.name, r as string)
+      })
+    }
+
+    const new_desc = {
+      get: getter,
+      set: setter,
+      configurable: true,
+    }
+
+    if (desc == null) {
+      Object.defineProperty(target, _opts.prop, new_desc)
+    } else {
+      return new_desc
+    }
+
   }
 
   if (typeof key !== "string") {
@@ -106,57 +140,6 @@ export class EltCustomElement extends HTMLElement {
 
   }
 
-  protected _initAttributes() {
-
-    for (const attr of (this[sym_attrs]?.values() ?? [])) {
-      // Only define getters and setters if there is something to revert
-      if (!attr.revert) return
-
-      const desc = Object.getOwnPropertyDescriptor(this.constructor.prototype, attr.prop) ?? Object.getOwnPropertyDescriptor(this, attr.prop)
-      let setter = desc?.set
-      let getter = desc?.get
-      let prop_is_value = getter == null && setter == null
-      let lock = o.exclusive_lock()
-      let sym = Symbol()
-
-      if (prop_is_value) {
-
-        ;(this as any)[sym] = (this as any)[attr.prop] ?? null
-        getter = function (this: any) {
-          return this[sym]
-        }
-        setter = function (this: any, v: any) {
-          const self = this
-          lock(() => {
-            self[sym] = v
-            let r = typeof attr.revert === "function" ? attr.revert(v) : v
-            self._setAttributeOnNode(attr.name, r as string)
-          })
-        }
-      } else {
-        const old = setter
-        getter ??= function (this: any) { return (this as any)[sym] }
-        setter = function (this: any, v: any) {
-          const self = this
-          lock(() => {
-            self[sym] = v
-            old?.call(self, v)
-            let r = typeof attr.revert === "function" ? attr.revert(v) : v
-            self._setAttributeOnNode(attr.name, r as string)
-          })
-        }
-      }
-
-      Object.defineProperty(this, attr.prop, {
-        get: getter,
-        set: setter,
-        configurable: true,
-      })
-    }
-
-  }
-
-
   removeAttribute(name: string): void {
     const attr = this[sym_attrs]?.get(name)
 
@@ -196,7 +179,6 @@ export class EltCustomElement extends HTMLElement {
     this.__inited = true
     this.__buildShadow()
     this.init()
-    this._initAttributes()
   }
 
   shadow(): Node | null {
