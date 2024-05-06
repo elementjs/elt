@@ -192,11 +192,12 @@ export class EltCustomElement extends HTMLElement {
    * @param prop_name
    */
   mapPropToObservable<K extends keyof this>(prop_name: K, observable: o.Observable<this[K]>) {
-    const prop = Object.getOwnPropertyDescriptor(this, prop_name)
+    const prop = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(this), prop_name)
     if (prop?.value) {
       observable.set(prop.value)
     }
 
+    // console.log(prop, prop_name)
     const setter = prop?.set
 
     Object.defineProperty(this, prop_name, {
@@ -204,6 +205,8 @@ export class EltCustomElement extends HTMLElement {
         return observable.get()
       },
       set(value) {
+        // console.log("setting observable", prop_name, value)
+        // console.error(new Error())
         observable.set(value)
       },
       configurable: true,
