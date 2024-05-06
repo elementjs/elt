@@ -7,12 +7,12 @@ export const sym_insert = Symbol.for("--elt-inserter--")
 /**
  * For custom element constructors, the attribute where the string array holding the observed properties is stored.
  */
-export const sym_observed_attrs = Symbol.for("--elt-custom-observed-attrs--")
+export const sym_attrs = Symbol.for("--elt-custom-attrs--")
 
 /**
- * For custom element prototype, where the Map
+ * Init method of custom elements
  */
-export const sym_exposed = Symbol.for("--elt-custom-exposed--")
+export const sym_elt_init = Symbol.for("--elt-init-custom-element--")
 
 /**
  * If multiple instances of elt are loaded, we cannot rely on instanceof to know if an object is an observable or not.

@@ -2,6 +2,7 @@
 import {
   node_append,
 } from "./dom"
+import { sym_elt_init } from "./symbols"
 
 import {
   Attrs,
@@ -9,9 +10,6 @@ import {
   EmptyAttributes,
   Renderable,
 } from "./types"
-
-import { sym_exposed, } from "./symbols"
-import { EltCustomElement } from "./custom-elements"
 
 ////////////////////////////////////////////////////////
 
@@ -110,6 +108,7 @@ export function e<N extends Node>(elt: string | Node | Function, ...children: (R
         break
       default:
         node = document.createElement(elt) as unknown as N
+        node[sym_elt_init]?.()
     }
   } else if (typeof elt === "function") {
     // elt is just a creator function
@@ -124,11 +123,6 @@ export function e<N extends Node>(elt: string | Node | Function, ...children: (R
     node_append(node, children[0], null, is_basic_node)
   for (let i = 1; i < l; i++) {
     node_append(node, children[i])
-  }
-
-  if (node[sym_exposed] !== undefined) {
-    // We can safely init a custom element now that its properties have been potentially replaced by provided observables in its Attrs.
-    (node as unknown as EltCustomElement).init()
   }
 
   return node

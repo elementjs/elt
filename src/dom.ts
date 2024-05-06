@@ -1,6 +1,6 @@
 import { o } from "./observable"
 import type { ClassDefinition, StyleDefinition, Listener, Inserter, Attrs, Renderable, } from "./types"
-import { sym_connected_status, sym_observers, sym_connected, sym_disconnected, sym_exposed, sym_insert, } from "./symbols"
+import { sym_connected_status, sym_observers, sym_connected, sym_disconnected, sym_insert, sym_attrs, } from "./symbols"
 
 const NODE_IS_CONNECTED =      0b001
 const NODE_IS_OBSERVING =     0b010
@@ -424,7 +424,7 @@ export function node_observe<T>(
     return null
   }
   // Create the observer and append it to the observer array of the node
-  const obser = obs.createObserver(obsfn)
+  const obser = new o.Observer(obsfn, obs)
   options?.observer_callback?.(obser)
   node_add_observer(node, obser)
   if (options?.immediate) obser.refresh()
@@ -533,29 +533,19 @@ export function node_unobserve(node: Node, obsfn: o.Observer<any> | o.ObserverCa
  * @group Dom
  */
 export function node_observe_attribute(node: Element, name: string, value: o.RO<string | boolean | null | undefined>) {
-  const exposed = node[sym_exposed]?.get(name)
-  if (exposed != null) {
-    const key = exposed.key
-    const pvalue = node[key as keyof Node]
-    // If they're both observables, then
-    if (o.is_observable(pvalue)) {
-      if (o.is_observable(value)) {
-        // both are observable, replace the one from the element with this one
-        (node as any)[key] = value
-      } else {
-        // only the custom element is observable, set its value and be done with it
-        (node as any)[key].set(value)
-      }
-      return
-    }
 
-    // Otherwise, just set the value
+  // Try to see if we're setting an attribute on an EltCustomElement. This will bypass the setAttribute logic to allow other values than string.
+  const custom_attrs = node[sym_attrs]?.get(name)
+  if (custom_attrs != null) {
+    // Set the value without trying to interpret it.
     node_observe(node, value, val => {
-      (node as any)[key] = val
+      node.setAttribute(name, value as any)
     }, { immediate: true })
+
     return
   }
 
+  // Regular setAttribute logic
   node_observe(node, value, val => {
     if (val == null || val === false) {
       node.removeAttribute(name)
@@ -563,11 +553,8 @@ export function node_observe_attribute(node: Element, name: string, value: o.RO<
     }
     if (val === true) {
       if (node.getAttribute(name) !== "") node.setAttribute(name, "")
-    } else if (typeof val === "string" || typeof val === "number") {
-      if (val !== node.getAttribute(name)) node.setAttribute(name, val)
     } else {
-      // this is getting unsafe, but typescript should flag it as incorrect usage if it is not marked in the Attrs
-      (node as any)[name] = val
+      if (val !== node.getAttribute(name)) node.setAttribute(name, val)
     }
   }, { immediate: true })
 }

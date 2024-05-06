@@ -11,94 +11,62 @@ import {
 } from "./dom"
 
 
-import { sym_exposed, sym_observed_attrs } from "./symbols"
+import { sym_attrs, sym_elt_init } from "./symbols"
+import { Attrs } from "./types"
 
+
+export type CustomElementAttributes<T extends Element, keys extends keyof T> = Attrs<T> & {
+  [key in keys]?: o.RO<T[key]>
+}
 
 declare global {
-  interface Function {
-    [sym_observed_attrs]?: string[]
-  }
-
   interface Node {
-    [sym_exposed]?: Map<string, ExposeInternalOption> | null
+    [sym_elt_init]?(): void
+    [sym_attrs]?: Map<string, InternalAttrOptions<any>> | null
   }
 }
 
-
-export interface ExposeOptions {
-  /** The exposed attribute */
-  attr?: string | null
-  /** The exposed property */
-  prop?: string | null
-  /** Whether an attribute is expected to revert */
-  reverts?: boolean
+export interface AttrOptions<T> {
+  name: string
+  convert?(original: string | null): T
+  revert?: boolean | ((value: T) => string)
 }
 
-export interface ExposeInternalOption extends ExposeOptions {
-  attr: string | null
-  prop: string | null
-  /** The internal property the attribute and/or property is mapped to */
-  key: string
+export interface InternalAttrOptions<T> extends AttrOptions<T> {
+  prop: string
 }
 
 /**
- * If the property is an observable, ...
- *
- * @param options expose options
- * @returns a decorator that exposes the property.
+ * Mark a property as being an attribute. Elt will bypass setAttribute when it detects an attribute declared this way and will set it directly.
+ * @param opts
  */
-export function expose(options?: ExposeOptions) {
-  return function expose_decorate(target: EltCustomElement, key: string) {
-    const exp = target[sym_exposed] ??= new Map()
+export function attr<T>(opts: Partial<AttrOptions<T>>): (target: EltCustomElement, key: string, props?: TypedPropertyDescriptor<T>) => void
+export function attr<T>(target: EltCustomElement, key: string | symbol, props?: TypedPropertyDescriptor<T>): void
+export function attr<T>(opts: any, key?: string | symbol, props?: TypedPropertyDescriptor<T>): any {
 
-    const _options: ExposeInternalOption = Object.assign({
-      prop: null,
-      attr: null,
-      key: key,
-    }, options)
+  function decorate(target: EltCustomElement, key: string, desc?: TypedPropertyDescriptor<T>) {
 
-    if (options == null || options.attr == null && options.prop == null) {
-      _options.prop = key
+    let _opts: InternalAttrOptions<T> = {
+      name: key,
+      prop: key,
+      ...opts,
     }
 
-    if (_options.attr && exp.has(_options.attr) || _options.prop && exp.has(_options.prop)) {
-      throw new Error(`can only expose an attr or property once`)
+    desc ??= Object.getOwnPropertyDescriptor(target, key)
+    const mp = (target[sym_attrs] ??= new Map())
+    if (!mp.has(_opts.name)) {
+      mp.set(_opts.name, _opts)
     }
+  }
 
-    if (_options.attr) {
-      const cons = target.constructor as Function
-      (cons[sym_observed_attrs] ??= []).push(_options.attr)
-      exp.set(_options.attr, _options)
-    }
-
-    if (_options.prop) {
-      exp.set(_options.prop, _options)
-      if (_options.prop !== _options.key) {
-        // Do not redefine an accessor if we're exposing the very same property.
-        // The only interest in exposing a property this way is to make it "elt-aware"
-        Object.defineProperty(target, _options.prop, {
-          get(): any {
-            const g = this[key]
-            if (o.is_observable(g))
-              return this[key].get()
-            return g
-          },
-          set(value: any) {
-            const s = this[key]
-            if (o.is_observable(s)) {
-              this[key].set(value)
-            } else {
-              this[key] = value
-            }
-            return value
-          }
-        })
-      }
-    }
-
+  if (typeof key !== "string") {
+    return decorate
+  } else {
+    let target = opts
+    opts = {}
+    decorate(target, key, props)
   }
 }
-
 
 /**
  * Register a custome element
@@ -120,32 +88,9 @@ export class EltCustomElement extends HTMLElement {
     delegatesFocus: true,
   }
 
-  static get observedAttributes() { return this[sym_observed_attrs] ?? [] }
-
-  public static [sym_observed_attrs]: string[] = []
+  static get observedAttributes() { return [...this.prototype[sym_attrs]?.keys() ?? []] }
 
   private __inited = false
-  private __initCustomAttrs() {
-    if (!this[sym_exposed]) return
-    for (let exp of this[sym_exposed]!.values()) {
-      // Ignore non-attributes or attributes that don't revert.
-      if (exp.attr == null || !exp.reverts) continue
-
-      const key = this[exp.key as keyof this]
-      const attr = exp.attr
-
-      if (o.is_observable(key)) {
-        this.observe(key, (value, old) => {
-          // otherwise update the attribute
-          let backval: any = value
-
-          if (this.getAttribute(attr) !== backval) {
-            this.setAttribute(attr, backval)
-          }
-        }, { immediate: true })
-      }
-    }
-  }
 
   private __buildShadow() {
     const sh = this.shadow()
@@ -158,14 +103,135 @@ export class EltCustomElement extends HTMLElement {
   }
 
   init() {
+
+  }
+
+  protected _initAttributes() {
+
+    for (const attr of (this[sym_attrs]?.values() ?? [])) {
+      // Only define getters and setters if there is something to revert
+      if (!attr.revert) return
+
+      const desc = Object.getOwnPropertyDescriptor(this.constructor.prototype, attr.prop) ?? Object.getOwnPropertyDescriptor(this, attr.prop)
+      let setter = desc?.set
+      let getter = desc?.get
+      let prop_is_value = getter == null && setter == null
+      let lock = o.exclusive_lock()
+      let sym = Symbol()
+
+      if (prop_is_value) {
+
+        ;(this as any)[sym] = (this as any)[attr.prop] ?? null
+        getter = function (this: any) {
+          return this[sym]
+        }
+        setter = function (this: any, v: any) {
+          const self = this
+          lock(() => {
+            self[sym] = v
+            let r = typeof attr.revert === "function" ? attr.revert(v) : v
+            self._setAttributeOnNode(attr.name, r as string)
+          })
+        }
+      } else {
+        const old = setter
+        getter ??= function (this: any) { return (this as any)[sym] }
+        setter = function (this: any, v: any) {
+          const self = this
+          lock(() => {
+            self[sym] = v
+            old?.call(self, v)
+            let r = typeof attr.revert === "function" ? attr.revert(v) : v
+            self._setAttributeOnNode(attr.name, r as string)
+          })
+        }
+      }
+
+      Object.defineProperty(this, attr.prop, {
+        get: getter,
+        set: setter,
+        configurable: true,
+      })
+    }
+
+  }
+
+
+  removeAttribute(name: string): void {
+    const attr = this[sym_attrs]?.get(name)
+
+    if (attr == null) {
+      return super.removeAttribute(name)
+    }
+
+    (this as any)[attr.prop] = null
+  }
+
+  /** */
+  _setAttributeOnNode(name: string, value: string): void {
+    const v = value as any
+    if (v === false || v == null) {
+      this.removeAttribute(name)
+    } else {
+      super.setAttribute(name, value)
+    }
+  }
+
+  setAttribute(name: string, value: any) {
+    const attr = this[sym_attrs]?.get(name)
+
+    if (attr == null) {
+      return super.setAttribute(name, value)
+    }
+
+    if (attr.convert && typeof value === "string") {
+      value = attr.convert(value)
+    }
+
+    (this as any)[attr.prop] = value
+  }
+
+  [sym_elt_init]() {
     if (this.__inited) return
     this.__inited = true
     this.__buildShadow()
-    this.__initCustomAttrs()
+    this.init()
+    this._initAttributes()
   }
 
   shadow(): Node | null {
     return null
+  }
+
+  /**
+   * Transform the given property
+   * Property values are ignored
+   * @param observable
+   * @param prop_name
+   */
+  mapPropToObservable<K extends keyof this>(prop_name: K, observable: o.Observable<this[K]>) {
+    const prop = Object.getOwnPropertyDescriptor(this, prop_name)
+    if (prop?.value) {
+      observable.set(prop.value)
+    }
+
+    const setter = prop?.set
+
+    Object.defineProperty(this, prop_name, {
+      get() {
+        return observable.get()
+      },
+      set(value) {
+        observable.set(value)
+      },
+      configurable: true,
+    })
+
+    if (setter != null) {
+      observable.addObserver(value => {
+        setter?.(value)
+      })
+    }
   }
 
   observe<T>(observable: o.RO<T>, obsfn: o.ObserverCallback<T>, options?: o.ObserveOptions<T>) {
@@ -177,11 +243,24 @@ export class EltCustomElement extends HTMLElement {
   }
 
   connected() { }
+
   disconnected() { }
 
   connectedCallback() {
     if (!this.__inited) {
-      this.init()
+      this[sym_elt_init]()
+    }
+
+    const attrs = this[sym_attrs]?.values()
+    if (attrs) {
+      for (let attr of attrs) {
+        const actual = this.getAttribute(attr.name)
+        if (actual == null) continue
+        const current = (this as any)[attr.prop]
+        if (actual !== current) {
+          (this as any)[attr.prop] = actual
+        }
+      }
     }
 
     if (this.shadowRoot) {
@@ -199,21 +278,4 @@ export class EltCustomElement extends HTMLElement {
     this.disconnected()
   }
 
-  attributeChangedCallback(name: string, _old: any, newv: string | null) {
-    const exposed = this[sym_exposed]?.get(name)
-    if (exposed == null) return
-    const cur = (this as any)[exposed.key]
-    if (o.is_observable(cur)) {
-      (cur as o.Observable<any>).set(newv)
-    } else {
-      (this as any)[exposed.prop!] = newv
-    }
-  }
-}
-
-EltCustomElement.prototype[sym_exposed] = new Map()
-
-export interface EltCustomElement {
-  // This is defined on the prototype, as there is no reason to have each element instance carry the map around
-  [sym_exposed]?: Map<string, ExposeInternalOption> | null
 }
