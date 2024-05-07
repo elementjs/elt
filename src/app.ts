@@ -126,11 +126,18 @@ export class App {
 
   __reactivate: App.Reactivation | null = null
   async _activate<S>(builder: App.ServiceBuilder<S, any>, params?: App.Params | {[name: string]: string}): Promise<App.ActivationResult> {
+    const _was_activating_when_called = this.o_activating.get()
     const full_params = _assign(new Map<string, string>, this.o_state.get()?.params, params)
     const awaited = await builder
     const builder_fn = typeof awaited === "function" ? awaited : awaited.default
 
-    if (this.o_activating.get()) {
+    if (_was_activating_when_called && !this.o_activating.get()) {
+      const error = "un-waited activate() call detected. They MUST be awaited."
+      console.error(error)
+      throw new Error(error)
+    }
+
+    if (_was_activating_when_called) {
       this.__reactivate?.reject(new Error("reactivation"))
       this.__reactivate = new App.Reactivation(builder_fn, full_params)
       return {
@@ -273,8 +280,8 @@ export namespace App {
 
         hash = hash.replace(/:[a-zA-Z0-9_$]+\b/g, "~u")
         if (hash.includes("~u")) {
-          console.warn(hash)
-          throw new Error("WHAT")
+          console.warn(hash, this.router.app.o_params.get())
+          throw new Error("service params had an undefined value")
         }
 
         // if there are variables, add them
