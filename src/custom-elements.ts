@@ -90,7 +90,8 @@ export function attr<T>(opts: any, key?: string | symbol, props?: TypedPropertyD
 
         if (_opts.revert) {
           let r = typeof _opts.revert === "function" ? _opts.revert(v) : v
-          self._setAttributeOnNode(attr.name, r as string)
+          // console.log(attr.name, attr, r)
+          self._setAttributeOnNode(_opts.name, r as string)
         }
       })
     }
@@ -159,11 +160,14 @@ export class EltCustomElement extends HTMLElement {
   removeAttribute(name: string): void {
     const attr = this[sym_attrs]?.get(name)
 
+    super.removeAttribute(name)
+
     if (attr == null) {
-      return super.removeAttribute(name)
+      return
     }
 
     (this as any)[attr.prop] = null
+
   }
 
   /** */
@@ -171,6 +175,8 @@ export class EltCustomElement extends HTMLElement {
     const v = value as any
     if (v === false || v == null) {
       this.removeAttribute(name)
+    } else if (v === true) {
+      super.setAttribute(name, "")
     } else {
       super.setAttribute(name, value)
     }
