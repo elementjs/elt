@@ -30,10 +30,12 @@ export interface AttrOptions<T> {
   name: string
   convert?(original: string | null): T
   revert?: boolean | ((value: T) => string)
+  observable?: string
 }
 
 export interface InternalAttrOptions<T> extends AttrOptions<T> {
   prop: string
+  lock: (fn: () => void) => void
 }
 
 /**
@@ -52,13 +54,18 @@ export function attr<T>(opts: any, key?: string | symbol, props?: TypedPropertyD
       ...opts,
     }
 
+    // If the parent class had attributes, keep them
     const maybe_parent_mp = target[sym_attrs]
     const mp = Object.hasOwn(target, sym_attrs) && maybe_parent_mp ? maybe_parent_mp : (target[sym_attrs] = new Map(maybe_parent_mp))
     if (!mp.has(_opts.name)) {
       mp.set(_opts.name, _opts)
     }
 
-    if (!_opts.revert) { return }
+    if (_opts.observable) {
+      _opts.lock = o.exclusive_lock()
+    }
+
+    if (!_opts.revert && !_opts.observable) { return }
 
     let setter = desc?.set
     let getter = desc?.get
@@ -71,11 +78,20 @@ export function attr<T>(opts: any, key?: string | symbol, props?: TypedPropertyD
     }
     setter = function (this: any, v: any) {
       const self = this
-      self[sym] = v
       lock(() => {
+        const old_value = self[sym]
+        if (old_value === v) { return }
         old?.call(self, v)
-        let r = typeof _opts.revert === "function" ? _opts.revert(v) : v
-        self._setAttributeOnNode(attr.name, r as string)
+        self[sym] = v
+
+        if (_opts.observable) {
+          self[_opts.observable].set(v)
+        }
+
+        if (_opts.revert) {
+          let r = typeof _opts.revert === "function" ? _opts.revert(v) : v
+          self._setAttributeOnNode(attr.name, r as string)
+        }
       })
     }
 
@@ -178,45 +194,20 @@ export class EltCustomElement extends HTMLElement {
     if (this.__inited) return
     this.__inited = true
     this.__buildShadow()
+    for (const at of this[sym_attrs]?.values() ?? []) {
+      if (at.observable) {
+        node_observe(this, (this as any)[at.observable], value => {
+          at.lock(() => {
+            (this as any)[at.prop] = value
+          })
+        })
+      }
+    }
     this.init()
   }
 
   shadow(): Node | null {
     return null
-  }
-
-  /**
-   * Transform the given property
-   * Property values are ignored
-   * @param observable
-   * @param prop_name
-   */
-  mapPropToObservable<K extends keyof this>(prop_name: K, observable: o.Observable<this[K]>) {
-    const prop = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(this), prop_name)
-    if (prop?.value) {
-      observable.set(prop.value)
-    }
-
-    // console.log(prop, prop_name)
-    const setter = prop?.set
-
-    Object.defineProperty(this, prop_name, {
-      get() {
-        return observable.get()
-      },
-      set(value) {
-        // console.log("setting observable", prop_name, value)
-        // console.error(new Error())
-        observable.set(value)
-      },
-      configurable: true,
-    })
-
-    if (setter != null) {
-      observable.addObserver(value => {
-        setter?.(value)
-      })
-    }
   }
 
   observe<T>(observable: o.RO<T>, obsfn: o.ObserverCallback<T>, options?: o.ObserveOptions<T>) {
