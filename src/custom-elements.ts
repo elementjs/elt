@@ -14,7 +14,6 @@ import {
 import { sym_attrs, sym_elt_init } from "./symbols"
 import { Attrs } from "./types"
 
-
 export type CustomElementAttributes<T extends Element, keys extends keyof T> = Attrs<T> & {
   [key in keys]?: o.RO<T[key]>
 }
@@ -30,12 +29,13 @@ export interface AttrOptions<T> {
   name: string
   convert?(original: string | null): T
   revert?: boolean | ((value: T) => string)
-  observable?: string
 }
 
 export interface InternalAttrOptions<T> extends AttrOptions<T> {
   prop: string
+  observable: Symbol
   lock: (fn: () => void) => void
+  symbol: Symbol
 }
 
 /**
@@ -61,16 +61,12 @@ export function attr<T>(opts: any, key?: string | symbol, props?: TypedPropertyD
       mp.set(_opts.name, _opts)
     }
 
-    if (_opts.observable) {
-      _opts.lock = o.exclusive_lock()
-    }
-
-    if (!_opts.revert && !_opts.observable) { return }
+    const lock = _opts.lock = o.exclusive_lock()
+    const obs = _opts.observable = Symbol()
+    let sym = _opts.symbol = Symbol()
 
     let setter = desc?.set
     let getter = desc?.get
-    let lock = o.exclusive_lock()
-    let sym = Symbol()
     const old = setter
 
     getter ??= function (this: any) {
@@ -83,10 +79,7 @@ export function attr<T>(opts: any, key?: string | symbol, props?: TypedPropertyD
         if (old_value === v) { return }
         old?.call(self, v)
         self[sym] = v
-
-        if (_opts.observable) {
-          self[_opts.observable].set(v)
-        }
+        self[obs].set(v)
 
         if (_opts.revert) {
           let r = typeof _opts.revert === "function" ? _opts.revert(v) : v
@@ -138,8 +131,6 @@ export class EltCustomElement extends HTMLElement {
     mode: "open",
     delegatesFocus: true,
   }
-
-  static get observedAttributes() { return [...this.prototype[sym_attrs]?.keys() ?? []] }
 
   private __inited = false
 
@@ -201,15 +192,20 @@ export class EltCustomElement extends HTMLElement {
     this.__inited = true
     this.__buildShadow()
     for (const at of this[sym_attrs]?.values() ?? []) {
-      if (at.observable) {
-        node_observe(this, (this as any)[at.observable], value => {
-          at.lock(() => {
-            (this as any)[at.prop] = value
-          })
+      // initialize it to the correct value
+      const obs = (this as any)[at.observable as any] = o((this as any)[at.prop])
+      node_observe(this, obs, value => {
+        at.lock(() => {
+          (this as any)[at.prop] = value
         })
-      }
+      })
     }
     this.init()
+  }
+
+  /** */
+  attrObservable<K extends keyof this>(key: K): o.Observable<this[K]> {
+    return (this as any)[this[sym_attrs]?.get(key as string)?.observable! as any]
   }
 
   shadow(): Node | null {
