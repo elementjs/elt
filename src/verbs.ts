@@ -576,7 +576,7 @@ export function DisplayPromise<T>(o_promise: o.ReadonlyObservable<Promise<T>>) {
 
 export namespace DisplayPromise {
 
-  export class PromiseDisplayer<T> implements Inserter<Node>, ReadonlyPromiseDisplayer<T> {
+  export class PromiseDisplayer<T> implements ReadonlyPromiseDisplayer<T>, Inserter<Node> {
 
     _resolved: null | ((o_result: o.Observable<T>, oo_waiting: o.ReadonlyObservable<boolean>) => Renderable<HTMLElement> ) = null
 
@@ -634,7 +634,7 @@ export namespace DisplayPromise {
     }
   }
 
-  export interface ReadonlyPromiseDisplayer<T> {
+  export interface ReadonlyPromiseDisplayer<T> extends Inserter<Node> {
     WhileWaiting(fn: () => Renderable<HTMLElement>): this
     WhenResolved(
       fn: (o_result: o.ReadonlyObservable<T>, oo_waiting: o.ReadonlyObservable<boolean>) => Renderable<HTMLElement>
