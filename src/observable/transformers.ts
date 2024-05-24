@@ -1,5 +1,6 @@
 import { o } from "./observable"
 
+
 /**
  * Transforms to a boolean observable that switches to `true` when
  * the original `observable` has the same value than `other`.
@@ -41,6 +42,10 @@ export function tf_differs<T, TT extends T>(other: o.RO<TT>) {
   return o.tf(other, oth => (current: T) => current !== oth)
 }
 
+export interface IndexConverter<T> extends o.Converter<T[], T[]> {
+  indices: number[]
+}
+
 /**
  * Transform an observable of array into another array based on either
  * an array of numbers (which are indices) or a function that takes the
@@ -53,10 +58,10 @@ export function tf_differs<T, TT extends T>(other: o.RO<TT>) {
  * This is the basis of {@link tf.filter} and {@link tf.array_sort}
  * @group Transformer
  */
-export function tf_array_transform<T>(fn: o.RO<number[] | ((array: T[]) => number[])>): o.RO<o.Converter<T[], T[]> & {indices: number[]}> {
+export function tf_array_transform<T>(fn: o.RO<number[] | ((array: T[]) => number[])>): o.RO<IndexConverter<T>> {
   return o.tf(fn,
     fn => {
-      return {
+      const res: IndexConverter<T> = {
         indices: [] as number[],
         transform(list: T[]) {
           if (Array.isArray(fn))
@@ -73,6 +78,7 @@ export function tf_array_transform<T>(fn: o.RO<number[] | ((array: T[]) => numbe
           return res
         }
       }
+      return res
     })
 }
 
@@ -84,11 +90,11 @@ export function tf_array_transform<T>(fn: o.RO<number[] | ((array: T[]) => numbe
  *    If true, only refilter if the condition changes, but keep the indices even if the array changes.
  * @group Transformer
  */
-export function tf_array_filter<T>(condition: o.RO<(item: T, idx: number, lst: T[]) => any>, stable: o.RO<boolean> = false): o.RO<o.Converter<T[], T[]> & {indices: number[]}> {
+export function tf_array_filter<T>(condition: o.RO<(item: T, idx: number, lst: T[]) => any>, stable: o.RO<boolean> = false): o.RO<IndexConverter<T>> {
   return o.combine(
     [condition, stable] as const,
     ([cond, stable]) => {
-      return {
+      const res: IndexConverter<T> = {
         indices: [] as number[],
         transform(lst: T[], old_val: T[] | o.NoValue) {
           let indices: number[] = stable && old_val !== o.NoValue ? this.indices : []
@@ -122,6 +128,7 @@ export function tf_array_filter<T>(condition: o.RO<(item: T, idx: number, lst: T
           return res
         }
       }
+      return res
     })
 }
 

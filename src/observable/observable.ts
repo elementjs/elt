@@ -428,13 +428,13 @@ export class ReadonlyObservable<A> implements Indexable {
    * ```
    *
    */
-  tf<B>(tf: o.RO<TransfomFn<A, B>>, rev: o.RO<RevertFn<A, B>>): Observable<B>
-  tf<B>(transform: RO<Converter<A, B>>): Observable<B>
-  tf<B>(transform: RO<TransfomFn<A, B> | ReadonlyConverter<A, B>>): ReadonlyObservable<B>
-  tf<B>(transform: RO<Converter<A, B>> | RO<TransfomFn<A, B> | ReadonlyConverter<A, B>>, rev?: o.RO<RevertFn<A, B>>): ReadonlyObservable<B> {
-    let old: A | NoValue = NoValue
+  tf<B, A2 extends A = A>(tf: o.RO<TransfomFn<A2, B>>, rev: o.RO<RevertFn<A2, B>>): Observable<B>
+  tf<B, A2 extends A = A>(transform: RO<Converter<A2, B>>): Observable<B>
+  tf<B, A2 extends A = A>(transform: RO<TransfomFn<A2, B> | ReadonlyConverter<A2, B>>): ReadonlyObservable<B>
+  tf<B, A2 extends A = A>(transform: RO<Converter<A2, B>> | RO<TransfomFn<A2, B> | ReadonlyConverter<A2, B>>, rev?: o.RO<RevertFn<A2, B>>): Observable<B> {
+    let old: A2 | NoValue = NoValue
     let old_val: B | NoValue = NoValue
-    return combine([this, transform, rev] as [ReadonlyObservable<A>, RO<TransfomFn<A, B> | ReadonlyConverter<A, B>>, RevertFn<A, B>],
+    return combine([this as any, transform, rev] as [ReadonlyObservable<A2>, RO<TransfomFn<A2, B> | ReadonlyConverter<A2, B>>, RevertFn<A2, B>],
       ([v, fnget]) => {
         const curval = (typeof fnget === "function" ? fnget(v, old, old_val) : fnget.transform(v, old, old_val))
         const arg_nb = (typeof fnget === "function" ? fnget.length : fnget.transform.length)
@@ -449,7 +449,7 @@ export class ReadonlyObservable<A> implements Indexable {
       (newv, old, [curr, conv, rev]) => {
         if (typeof rev === "function") return [rev(newv, old, curr), NoValue, NoValue] as const
         if (typeof conv === "function") return [NoValue, NoValue, NoValue] as const // this means the set is being silently ignored. should it be an error ?
-        const new_orig = (conv as Converter<A, B>).revert(newv, old, curr)
+        const new_orig = (conv as Converter<A2, B>).revert(newv, old, curr)
         return [new_orig, NoValue, NoValue] as const
       }
     )
