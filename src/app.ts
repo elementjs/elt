@@ -121,7 +121,7 @@ export class App {
   o_current_route = o(null as null | App.Route<any>)
 
   o_params = this.o_state.tf(st => st?.params ?? new Map())
-  o_views = this.o_state.tf(st => st?.views ?? new Map())
+  o_views = this.o_state.tf(st => st?.views ?? new Map() as App.Views)
   o_activating = o(false)
 
   __reactivate: App.Reactivation | null = null
@@ -205,7 +205,7 @@ export class App {
   DisplayView(view_name: string): o.ReadonlyObservable<Renderable> {
     const res = this.o_views.tf(views => {
       return views.get(view_name)
-    }).tf<Renderable>(viewfn => {
+    }).tf(viewfn => {
       return viewfn?.()
     })
     res[o.sym_display_node] = "e-app-view"

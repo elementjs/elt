@@ -9,7 +9,7 @@ _:
   priority: &prio ["high", "low", "auto"]
 
   svgblend: &svgblend [normal, multiply, screen, overlay, darken, lighten, color-dodge, color-burn, hard-light, soft-light, difference, exclusion, hue, saturation, color, luminosity]
-  svgin: &svgin [SourceGraphic, SourceAlpha, BackgroundImage, BackgroundAlpha, FillPaint, StrokePaint, string]
+  svgin: &svgin [SourceGraphic, SourceAlpha, BackgroundImage, BackgroundAlpha, FillPaint, StrokePaint, string, number]
 
 globals:
 
