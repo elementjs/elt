@@ -466,6 +466,7 @@ export class ReadonlyObservable<A> implements Indexable {
    * [[include:../../examples/o.observable.p.tsx]]
    * ```
    */
+  p<K extends keyof A>(key: RO<K>): this extends Observable<A> ? Observable<A[K]> : ReadonlyObservable<A[K]>
   p<K extends keyof A>(key: RO<K>): Observable<A[K]> {
     return prop(this, key)
   }
@@ -473,9 +474,9 @@ export class ReadonlyObservable<A> implements Indexable {
   /**
    * Like {@link o.Observable.p}, but with `Map` objects.
    */
-  key<A, B>(this: Observable<Map<A, B>>, key: RO<A>, def?: undefined, delete_on_undefined?: RO<boolean | undefined>): Observable<B | undefined>
-  key<A, B>(this: Observable<Map<A, B>>, key: RO<A>, def: RO<(key: A, map: Map<A, B>) => B>): Observable<B>
-  key<A, B>(this: Observable<Map<A, B>>, key: RO<A>, def?: RO<(key: A, map: Map<A, B>) => B>, delete_on_undefined = true as RO<boolean | undefined>): Observable<B | undefined> {
+  key<A, B>(this: ReadonlyObservable<Map<A, B>>, key: RO<A>, def?: undefined, delete_on_undefined?: RO<boolean | undefined>): this extends Observable<Map<A, B>> ? Observable<B | undefined> : ReadonlyObservable<B | undefined>
+  key<A, B>(this: ReadonlyObservable<Map<A, B>>, key: RO<A>, def: RO<(key: A, map: Map<A, B>) => B>): this extends Observable<Map<A, B>> ? Observable<B> : ReadonlyObservable<B>
+  key<A, B>(this: ReadonlyObservable<Map<A, B>>, key: RO<A>, def?: RO<(key: A, map: Map<A, B>) => B>, delete_on_undefined = true as RO<boolean | undefined>): ReadonlyObservable<B | undefined> {
     return combine([this, key, def, delete_on_undefined] as [ReadonlyObservable<Map<A, B>>, RO<A>, RO<(key: A, map: Map<A, B>) => B>, RO<boolean>],
       ([map, key, def]) => {
         let res = map.get(key)
@@ -508,11 +509,11 @@ export class ReadonlyObservable<A> implements Indexable {
  *
  * @group Observable
  */
-export type RO<A> = ReadonlyObservable<A> | A | (A extends ReadonlyObservable<infer B> ? B : ReadonlyObservable<A>)
+export type RO<A> = ReadonlyObservable<A> | A
 
 
 /** @internal */
-export function each_recursive(obs: Observable<any>, fn: (v: Observable<any>) => void) {
+export function each_recursive(obs: ReadonlyObservable<any>, fn: (v: ReadonlyObservable<any>) => void) {
   fn(obs)
   for (let i = 0, ch = obs._children.arr, l = ch.length; i < l; i++) {
     const child = ch[i]
@@ -526,7 +527,7 @@ export class Queue extends IndexableArray<ReadonlyObservable<any>> {
   transaction_count = 0
   flushing = false
 
-  schedule(obs: Observable<any>) {
+  schedule(obs: ReadonlyObservable<any>) {
     const was_empty = this.real_size === 0
     if (obs.idx == null) {
       // No need to reschedule an observable
@@ -730,7 +731,6 @@ export class Observable<A> extends ReadonlyObservable<A> {
     this.set(o.assign(this.get(), partial))
   }
 
-
 }
 
 
@@ -753,7 +753,7 @@ export class ReadonlyCombinedObservable<A extends any[], T = A> extends Readonly
  *
  * @internal
  */
-export class CombinedObservable<A extends any[], T = A> extends Observable<T> {
+export class CombinedObservable<A extends any[], T = A> extends Observable<T> implements ReadonlyCombinedObservable<A, T> {
 
   /** @internal */
   _links = [] as ChildObservableLink[]
