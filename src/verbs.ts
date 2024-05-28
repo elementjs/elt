@@ -214,6 +214,7 @@ export namespace Switch {
     Case(value: T, fn: (v: o.ReadonlyObservable<T>) => Renderable<N>): this
     Case(predicate: (t: T) => any, fn: (v: o.ReadonlyObservable<T>) => Renderable<N>): this
     /** See {@link Switch.Switcher#Else} */
+    Else(fn: (v: o.ReadonlyObservable<T>) => Renderable<N>): this
 
   }
 
