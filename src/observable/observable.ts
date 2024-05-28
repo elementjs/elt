@@ -415,6 +415,10 @@ export class ReadonlyObservable<A> implements Indexable {
   // eslint-disable-next-line @typescript-eslint/no-empty-function
   watched() { }
 
+  apply<K extends keyof A, Args extends A[K] extends (...args: infer A) => any ? A : never>(method: K, args: {[K2 in keyof Args]: o.RO<Args[K2]>}): ReadonlyObservable<A[K] extends (...args: any[]) => infer B ? B : never> {
+    return o.apply(this, method, args as any) as any
+  }
+
   /**
    * Transform this Observable into another using a transform function or a Converter.
    *
@@ -428,8 +432,8 @@ export class ReadonlyObservable<A> implements Indexable {
    * ```
    *
    */
-  tf<B, A2 extends A = A>(tf: o.RO<TransfomFn<A2, B>>, rev: o.RO<RevertFn<A2, B>>): Observable<B>
   tf<B, A2 extends A = A>(transform: RO<Converter<A2, B>>): Observable<B>
+  tf<B, A2 extends A = A>(tf: o.RO<TransfomFn<A2, B>>, rev: o.RO<RevertFn<A2, B>>): Observable<B>
   tf<B, A2 extends A = A>(transform: RO<TransfomFn<A2, B> | ReadonlyConverter<A2, B>>): ReadonlyObservable<B>
   tf<B, A2 extends A = A>(transform: RO<Converter<A2, B>> | RO<TransfomFn<A2, B> | ReadonlyConverter<A2, B>>, rev?: o.RO<RevertFn<A2, B>>): Observable<B> {
     let old: A2 | NoValue = NoValue
@@ -1120,7 +1124,7 @@ export function merge<T>(obj: {[K in keyof T]: Observable<T[K]>}): Observable<T>
    * @group Observable
    */
   export function join<A extends any[]>(...deps: A): A[number] extends o.Observable<any> ? Observable<{[K in keyof A]: o.ObservedType<A[K]>}> : o.ReadonlyObservable<{[K in keyof A]: o.ObservedType<A[K]>}> {
-    return new CombinedObservable(deps)
+    return new CombinedObservable(deps) as any
   }
 
 
