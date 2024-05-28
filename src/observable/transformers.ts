@@ -238,13 +238,13 @@ export function tf_array_group_by<T, R>(extractor: o.RO<(a: T) => R>): o.RO<o.Co
  * Object entries, as returned by Object.keys() and returned as an array of [key, value][]
  * @group Transformer
  */
-export function tf_entries<T extends object, K extends keyof T>(): o.Converter<T, [K, T[K]][]> {
+export function tf_entries<T extends object>(): o.Converter<T, [keyof T, T[keyof T]][]> {
   return {
     transform(item: T) {
-      const res = [] as [K, T[K]][]
-      const keys = Object.keys(item) as K[]
+      const res = [] as [keyof T, T[keyof T]][]
+      const keys = Object.keys(item) as (keyof T)[]
       for (let i = 0, l = keys.length; i < l; i++) {
-        const k = keys[i] as K
+        const k = keys[i] as keyof T
         res.push([k, item[k]])
       }
       return res
@@ -383,7 +383,7 @@ export type KeysOfType<T, V> = keyof { [ P in keyof T as T[P] extends V ? P : ne
  * @returns
  * @group Transformer
  */
-export function tf_group_by_to_object<T>(extractor: o.RO<((v: T) => string) | KeysOfType<T, string | number>>): o.RO<o.Converter<T[], {[key: string]: T[]}>> {
+export function tf_group_by_to_object<T>(extractor: o.RO<keyof T | ((v: T) => string)>): o.RO<o.Converter<T[], {[key: string]: T[]}>> {
   return o.tf(extractor, extractor => {
     const _extractor = typeof extractor === "string" ? (v: T): string => v[extractor as keyof T] as string : extractor as (v: T) => string
     return {
