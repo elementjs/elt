@@ -237,7 +237,7 @@ export namespace Switch {
  *
  * @group Verbs
  */
-export function Repeat<T extends o.RO<any[]>>(obs: T, render?: Repeat.RenderItemFn<T>): Repeat.Repeater<T> {
+export function Repeat<T extends o.RO<any[] | null | undefined>>(obs: T, render?: Repeat.RenderItemFn<T>): Repeat.Repeater<T> {
   return new Repeat.Repeater(o(obs) as any, render as any) as any as Repeat.Repeater<T>
 }
 
@@ -259,18 +259,18 @@ export namespace Repeat {
    * [[include:../examples/repeat.roitem.tsx]]
    * ```
    */
-  export type RoItem<T extends o.RO<any[]>> = T extends o.Observable<(infer U)[]> ? o.Observable<U>
-  : T extends o.ReadonlyObservable<(infer U)[]> ? o.ReadonlyObservable<U>
-  : T extends (infer U)[] ? U
-  : T;
+  export type RoItem<T extends o.RO<any[] | null | undefined>> = T extends o.Observable<(infer U)[] | null | undefined> ? o.Observable<NonNullable<U>>
+  : T extends o.ReadonlyObservable<(infer U)[]> ? o.ReadonlyObservable<NonNullable<U>>
+  : T extends (infer U)[] ? NonNullable<U>
+  : NonNullable<T>;
 
-  export type RenderItemFn<T extends o.RO<any[]>> = (arg : Repeat.RoItem<T>, idx: o.RO<number>) => Renderable<HTMLElement>
+  export type RenderItemFn<T extends o.RO<any[] | null | undefined>> = (arg : Repeat.RoItem<T>, idx: o.RO<number>) => Renderable<HTMLElement>
 
   /**
    * Repeats content.
    * @internal
    */
-  export class Repeater<O extends o.RO<any[]>> {
+  export class Repeater<O extends o.RO<any[] | null | undefined>> {
 
     protected next_index: number = 0
     protected on_empty: (() => Renderable<Node>) | null = null
@@ -304,8 +304,8 @@ export namespace Repeat {
 
       node_observe(this.node, this.obs, lst => {
         this.lst = lst ?? []
-        this.node.setAttribute("length", lst.length.toString())
-        const diff = lst.length - this.next_index
+        this.node.setAttribute("length", this.lst.length.toString())
+        const diff = this.lst.length - this.next_index
 
         if (diff > 0) {
           if (this.empty_drawn) {
@@ -324,7 +324,7 @@ export namespace Repeat {
           this.empty_drawn = true
           node_append(this.node, this.on_empty())
         }
-        this.oo_length.set(lst.length)
+        this.oo_length.set(this.lst.length)
       }, { immediate: true })
 
       node_append(parent, this.node, refchild)

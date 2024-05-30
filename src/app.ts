@@ -159,7 +159,7 @@ export class App {
     const staging = new App.State(this)
 
     try {
-      await staging.activate(builder, params, current)
+      await staging.activate(builder, params)
 
       if (!this.__reactivate) {
         this.o_state.set(staging)
@@ -182,6 +182,7 @@ export class App {
 
       throw e
     } finally {
+      staging.previous_state = null
       const re = this.__reactivate
       this.__reactivate = null
       if (re) {
@@ -451,18 +452,21 @@ export namespace App {
 
     constructor(
       public app: App,
-    ) { }
+    ) {
+      this.previous_state = app.o_state.get()
+    }
 
+    previous_state: State | null = null
     services = new Map<App.ServiceBuilder<any>, App.Service>
     active!: App.Service
     views: App.Views = new Map()
     params: Params = new Map()
 
-    async getService<S>(_builder: App.ServiceBuilder<S>, previous_state?: State | null) {
+    async getService<S>(_builder: App.ServiceBuilder<S>) {
       const __builder = await _builder
       const builder = typeof __builder === "function" ? __builder : __builder.default
 
-      let previous = this.services.get(builder) ?? previous_state?.services.get(builder)
+      let previous = this.services.get(builder) ?? this.previous_state?.services.get(builder)
 
       if (previous && previous.params.size > 0) {
         // check that the params are still the same, otherwise just remove
@@ -485,8 +489,8 @@ export namespace App {
       return srv
     }
 
-    async require<S>(_builder: App.ServiceBuilder<S>, by?: App.Service, previous_state?: State | null): Promise<S> {
-      const srv = await this.getService(_builder, previous_state)
+    async require<S>(_builder: App.ServiceBuilder<S>, by?: App.Service): Promise<S> {
+      const srv = await this.getService(_builder)
 
       if (by) {
         by.requirements.add(srv)
@@ -555,10 +559,9 @@ export namespace App {
     async activate(
       builder: App.ServiceBuilder<any>,
       params: Params | undefined,
-      previous_state: State | null,
     ) {
       this.params = params ?? this.params
-      this.active = await this.getService(builder, previous_state)
+      this.active = await this.getService(builder)
       this.collectViews(this.active)
       this.params = this.finalizeParams(this.active)
     }
