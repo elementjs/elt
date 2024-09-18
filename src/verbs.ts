@@ -18,6 +18,45 @@ import { Inserter, Renderable } from "./types"
 import { sym_insert } from "./symbols"
 
 
+export class Verb<N extends Node> implements Inserter<N> {
+
+  attrs?: {[name: string]: string | number | null | false}
+  renderable!: o.RO<Renderable<N>>
+
+  start = document.createComment(this.constructor.name)
+  end = document.createComment("")
+
+  constructor(
+    public node_name = "",
+  ) { }
+
+  setRenderable(renderable: o.RO<Renderable<N>>) {
+    this.renderable = renderable
+    return this
+  }
+
+  setNodeName(name: string) {
+    this.node_name = name
+    return this
+  }
+
+  setAttributes(attrs: {[name: string]: string | number | null | false}) {
+    this.attrs = attrs
+    return this
+  }
+
+  [sym_insert](parent: N, refchild: Node | null) {
+    const renderable = this.renderable
+    if (o.is_observable(renderable)) {
+      renderable[o.sym_display_node] = this.node_name
+      renderable[o.sym_display_attrs] = this.attrs
+    }
+
+    node_append(parent, renderable, refchild)
+  }
+}
+
+
 /**
  * Display content depending on the value of a `condition`, which can be an observable.
  *
@@ -62,7 +101,7 @@ export namespace If {
     T extends o.ReadonlyObservable<infer U> ? o.ReadonlyObservable<NonNullable<U>>
     : NonNullable<T>
 
-  export class IfDisplayer<T, N extends Node> implements Inserter<N> {
+  export class IfDisplayer<T, N extends Node> extends Verb<N> {
 
     last?: IfDisplayer<any, N>
 
@@ -71,12 +110,10 @@ export namespace If {
       public _display?: (arg: If.NonNullableRO<T>) => Renderable<N>,
       public _display_otherwise?: () => Renderable<N>,
     ) {
-
-    }
-
-    [sym_insert](parent: N, refchild: Node | null) {
-
-      const renderable = o.tf<T, Renderable<N>>(this.condition, (cond, old, v) => {
+      super(
+        "e-if",
+      )
+      this.setRenderable(o.tf<T, Renderable<N>>(condition, (cond, old, v) => {
         if (old !== o.NoValue && !!cond === !!old && v !== o.NoValue) return v as Renderable<N>
         if (cond && this._display) {
           return this._display(this.condition as If.NonNullableRO<T>)
@@ -85,13 +122,7 @@ export namespace If {
         } else {
           return null
         }
-      })
-
-      if (o.is_observable(renderable)) {
-        renderable[o.sym_display_node] = "e-if"
-      }
-
-      node_append(parent as N, renderable, refchild)
+      }))
     }
 
     Then(display: (arg: If.NonNullableRO<T>) => Renderable<N>) {
@@ -148,17 +179,19 @@ export namespace Switch {
   /**
    * @internal
    */
-  export class Switcher<T, N extends Node> implements Inserter<N> {
+  export class Switcher<T, N extends Node> extends Verb<N> {
 
     cases: [(T | ((t: T) => any)), (t: o.Observable<T>) => Renderable<N>][] = []
     passthrough: () => Renderable<N> = () => null
     prev_case: any = null
     prev: Renderable<N> = ""
 
-    constructor(public value: o.Observable<T>) { }
+    constructor(public value: o.Observable<T>) {
+      super(
+        "e-switch",
+      )
 
-    [sym_insert](parent: N, refchild: Node | null) {
-      const current_displayfn = o.tf(this.value, value => {
+      const current_displayfn = o.tf(value, value => {
         const cases = this.cases
 
         for (const c of cases) {
@@ -172,20 +205,11 @@ export namespace Switch {
         }
 
         return this.passthrough
-
       })
 
-      // We use two potential renderables because we do not want the function to be called everytime
-      // this.value sees a change.
-      const renderable = o.tf(current_displayfn, fn => {
+      this.setRenderable(o.tf(current_displayfn, fn => {
         return fn?.(this.value)
-      })
-
-      if (o.is_observable(renderable)) {
-        renderable[o.sym_display_node] = "e-switch"
-      }
-
-      node_append(parent, renderable, refchild)
+      }),)
     }
 
     // @ts-ignore
@@ -577,7 +601,7 @@ export function DisplayPromise<T>(o_promise: o.ReadonlyObservable<Promise<T>>) {
 
 export namespace DisplayPromise {
 
-  export class PromiseDisplayer<T> implements ReadonlyPromiseDisplayer<T>, Inserter<Node> {
+  export class PromiseDisplayer<T> extends Verb<Node> implements ReadonlyPromiseDisplayer<T> {
 
     _resolved: null | ((o_result: o.Observable<T>, oo_waiting: o.ReadonlyObservable<boolean>) => Renderable<HTMLElement> ) = null
 
@@ -585,10 +609,10 @@ export namespace DisplayPromise {
 
     _waiting: null | (() => Renderable<HTMLElement>) = null
 
-    constructor(public o_promise: o.Observable<Promise<T>>) { }
+    constructor(public o_promise: o.Observable<Promise<T>>) {
+      super("e-unpromise")
 
-    [sym_insert](parent: Node, refchild: Node | null) {
-      const wrapped = o.wrap_promise(this.o_promise)
+      const wrapped = o.wrap_promise(o_promise)
 
       const pre_render = wrapped.tf(wr => {
         if (wr.resolved === "value") {
@@ -610,9 +634,7 @@ export namespace DisplayPromise {
         return (rd as any)?.()
       })
 
-      render[o.sym_display_node] = "e-unpromise"
-
-      node_append(parent, render, refchild)
+      this.setRenderable(render)
     }
 
     WhileWaiting(fn: () => Renderable<HTMLElement>) {

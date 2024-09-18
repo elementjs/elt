@@ -18,6 +18,32 @@ declare global {
 }
 
 
+/**
+ * The comment holder is a class meant to help verbs and observables maintain nodes between two comments.
+ */
+export class CommentHolder extends Comment {
+
+  end: Comment | null = null
+
+  updateRenderable(renderable: Renderable<Node>) {
+    const parent = this.parentNode!
+
+    if (this.end != null) {
+      const end = this.end
+      while (this.nextSibling != null && this.nextSibling !== end) {
+        node_remove(this.nextSibling)
+      }
+    } else {
+      this.end = document.createComment(this.textContent??"!")
+      node_append(parent, this.end, this.nextSibling)
+    }
+
+    node_append(parent, renderable, this.nextSibling)
+  }
+
+}
+
+
 function _node_call_cbks(node: Node, sym: typeof sym_connected | typeof sym_disconnected) {
   const cbks = node[sym]
   if (cbks) {
@@ -291,9 +317,9 @@ export function node_append<N extends Node>(node: N, renderable: Renderable<N> |
 
   } else if (Array.isArray(renderable)) {
     // An array of children
-    for (let i = 0, l = renderable.length; i < l; i++)
+    for (let i = 0, l = renderable.length; i < l; i++) {
       node_append(node, renderable[i], refchild, is_basic_node)
-
+    }
 
   } else if (renderable.constructor === Object) {
     // An attribute object. We assume this is an Element that is being handled
@@ -532,7 +558,7 @@ export function node_unobserve(node: Node, obsfn: o.Observer<any> | o.ObserverCa
  *
  * @group Dom
  */
-export function node_observe_attribute(node: Element, name: string, value: o.RO<string | boolean | null | undefined>) {
+export function node_observe_attribute(node: Element, name: string, value: o.RO<string | boolean | null | undefined | number>) {
 
   // Try to see if we're setting an attribute on an EltCustomElement. This will bypass the setAttribute logic to allow other values than string.
   const custom_attrs = node[sym_attrs]?.get(name)
@@ -554,7 +580,7 @@ export function node_observe_attribute(node: Element, name: string, value: o.RO<
     if (val === true) {
       if (node.getAttribute(name) !== "") node.setAttribute(name, "")
     } else {
-      if (val !== node.getAttribute(name)) node.setAttribute(name, val)
+      if (val !== node.getAttribute(name)) node.setAttribute(name, val.toString())
     }
   }, { immediate: true })
 }

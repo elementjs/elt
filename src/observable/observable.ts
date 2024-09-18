@@ -2,7 +2,7 @@ import { IndexableArray, Indexable } from "./indexable"
 
 import { sym_insert, sym_is_observable } from "../symbols"
 import { Renderable } from "../types"
-import { node_append, node_observe, node_remove } from "../dom"
+import { CommentHolder, node_append, node_observe, } from "../dom"
 
 declare const DEBUG: boolean
 
@@ -238,53 +238,17 @@ export const sym_display_attrs = Symbol("display-attrs")
  */
 export class ReadonlyObservable<A> implements Indexable {
   [sym_display_node]?: string
-  [sym_display_attrs]?: {[name: string]: string}
+  [sym_display_attrs]?: {[name: string]: string | null | false | number}
 
   [sym_insert](this: ReadonlyObservable<Renderable<Node>>, parent: Node, refchild: Node | null) {
     const kind = this[sym_display_node] ?? "e-obs"
     const attrs = this[sym_display_attrs]
 
-    if (parent instanceof SVGElement) {
-      // SVG Does not like custom elements at all, so we do it with comments
-      const start = document.createComment(` ${kind}${attrs ? " " + JSON.stringify(attrs) : ""} `)
-      const end = document.createComment(` end ${kind} `)
-
-      node_observe(start, this, renderable => {
-        let iter = start.nextSibling
-        while (iter && iter !== end) {
-          let next = iter?.nextSibling
-          node_remove(iter)
-          iter = next
-        }
-        // node_clear(d)
-        node_append(start.parentNode!, renderable, end)
-      }, { immediate: true })
-
-      node_append(parent, end, refchild)
-      node_append(parent, start, end)
-    } else {
-
-      const elt = document.createElement(kind)
-      if (attrs) {
-        for (let key in attrs) {
-          const val = attrs[key]
-          elt.setAttribute(key, val)
-        }
-      }
-
-      node_observe(elt, this, renderable => {
-        let iter = elt.firstChild
-        while (iter) {
-          node_remove(iter)
-          iter = elt.firstChild
-        }
-        // node_clear(d)
-        node_append(elt, renderable as any)
-      }, { immediate: true })
-
-      node_append(parent, elt, refchild)
-    }
-
+    const cmi = new CommentHolder(` ${kind}${attrs ? " " + JSON.stringify(attrs) : ""} `)
+    node_append(parent, cmi, refchild)
+    node_observe(cmi, this, renderable => {
+      cmi.updateRenderable(renderable)
+    }, { immediate: true })
   }
 
   /** @internal */
