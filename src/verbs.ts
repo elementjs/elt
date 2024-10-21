@@ -389,13 +389,6 @@ export namespace Repeat {
       if (this.next_index >= this.lst.length)
         return false
 
-      if (this.next_index === 0 && this.prefix) {
-        const pref = document.createElement("e-ritem")
-        pref.setAttribute("prefix", "")
-        node_append(pref, this.prefix(this.oo_length))
-        node_append(fr, pref)
-      }
-
       const prop_obs = o(this.next_index)
       const ob = this.obs.p(prop_obs) as o.CombinedObservable<any, any>
       const node = document.createElement("e-ritem") as RepeatItemElement
@@ -406,6 +399,8 @@ export namespace Repeat {
       const _sep = this.separator
       if (_sep && this.next_index > 0) {
         node_append(node, _sep(prop_obs))
+      } else if (this.next_index === 0 && this.prefix) {
+        node_append(node, this.prefix(this.oo_length))
       }
 
       node_append(node, this.renderfn(ob as RoItem<O>, prop_obs))

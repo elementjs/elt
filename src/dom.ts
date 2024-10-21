@@ -25,6 +25,7 @@ export class CommentHolder extends Comment {
 
   end: Comment | null = null
 
+  /** Change and update this nodes' content */
   updateRenderable(renderable: Renderable<Node>) {
     const parent = this.parentNode!
 
@@ -41,6 +42,35 @@ export class CommentHolder extends Comment {
     node_append(parent, renderable, this.nextSibling)
   }
 
+  /** Remove the node and its handled content from the DOM */
+  remove() {
+    if (this.end != null) {
+      const end = this.end
+      while (this.nextSibling != null && this.nextSibling !== end) {
+        node_remove(this.nextSibling)
+      }
+      node_remove(this.end)
+      node_remove(this)
+    }
+  }
+
+  /** Move this node and its contents to a new destination */
+  moveTo(parent: Node, refchild: Node | null = null) {
+    parent.insertBefore(this, refchild)
+    const end = this.end
+    if (end == null) {
+      return
+    }
+    let iter = this as Node | null
+    let next: Node | null = this.nextSibling as Node | null
+    do {
+      iter = next
+      if (iter == null) { break }
+      next = iter.nextSibling
+      parent.insertBefore(iter, refchild)
+      if (iter === end) { break }
+    } while (true)
+  }
 }
 
 
