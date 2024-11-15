@@ -383,6 +383,10 @@ export class ReadonlyObservable<A> implements Indexable {
     return o.apply(this, method, args as any) as any
   }
 
+  call<K extends keyof A, Args extends A[K] extends (...args: infer A) => any ? A : never>(method: K, ...args: {[K2 in keyof Args]: o.RO<Args[K2]>}): ReadonlyObservable<A[K] extends (...args: any[]) => infer B ? B : never> {
+    return o.apply(this, method, args as any) as any
+  }
+
   /**
    * Transform this Observable into another using a transform function or a Converter.
    *
