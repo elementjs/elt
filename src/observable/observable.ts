@@ -747,13 +747,11 @@ export class CombinedObservable<A extends any[], T = A> extends Observable<T> im
   }
 
   watched() {
-    const p = this._parents_values
     for (let i = 0, l = this._links; i < l.length; i++) {
       const link = l[i]
       link.parent.addChild(link)
-      p[link.child_idx] = link.parent._value
     }
-    this._value = this.getter(p)
+    this.ensureRefreshed()
   }
 
   unwatched() {
@@ -778,7 +776,7 @@ export class CombinedObservable<A extends any[], T = A> extends Observable<T> im
   }
 
   ensureRefreshed(): void {
-    if (this.refreshParentValues()) {
+    if (this.refreshParentValues() || this._value === NoValue as any) {
       this.refreshValue()
     }
   }
@@ -810,21 +808,16 @@ export class CombinedObservable<A extends any[], T = A> extends Observable<T> im
 
   get() {
     if (!this._watched || queue.transaction_count > 0) {
-      if (this.refreshParentValues() || this._value === NoValue as any) {
-        this.refreshValue()
-      }
+      this.ensureRefreshed()
     }
     return this._value
   }
 
   set(value: T): void {
     // Do not trigger the set chain if the value did not change.
-    if (!this._watched) this._value = this.getter(this._parents_values)
+    if (!this._watched || queue.transaction_count > 0 || queue.flushing) { this.ensureRefreshed() }
     if (value === this._value) return
 
-    if (!this._watched || queue.transaction_count > 0 || queue.flushing) {
-      this.ensureRefreshed()
-    }
     const old_value = this._value
     const res = this.setter(value, old_value, this._parents_values)
     if (res == undefined) return
@@ -1047,20 +1040,33 @@ export function merge<T>(obj: {[K in keyof T]: Observable<T[K]>}): Observable<T>
   }
 
   /**
+   * Same as o.none
+   * @param args
+   * @returns
+   */
+  export function not(...args: any[]): ReadonlyObservable<boolean> {
+    return combine(args, args => {
+      return args.every(a => !a)
+    })
+  }
+
+  /**
+   * Return true only if no argument are true
+   * @param args
+   * @returns
+   */
+  export function none(...args: any[]): ReadonlyObservable<boolean> {
+    return not(...args)
+  }
+
+  /**
    * Combine several MaybeObservables into an Observable<boolean>
    * @returns A boolean Observable that is true when all of them are true, false
    *   otherwise.
    * @group Observable
    */
   export function and(...args: any[]): ReadonlyObservable<boolean> {
-    return combine(args,
-      (args) => {
-        for (let i = 0, l = args.length; i < l; i++) {
-          if (!args[i]) return false
-        }
-        return true
-      }
-    )
+    return combine(args, args => args.every(a => !!a))
   }
 
 
@@ -1071,14 +1077,7 @@ export function merge<T>(obj: {[K in keyof T]: Observable<T[K]>}): Observable<T>
    * @group Observable
    */
   export function or(...args: any[]): ReadonlyObservable<boolean> {
-    return combine(args,
-      (args) => {
-        for (let i = 0, l = args.length; i < l; i++) {
-          if (args[i]) return true
-        }
-        return false
-      }
-    )
+    return combine(args, args => args.some(a => !!a))
   }
 
   /**
