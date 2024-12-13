@@ -819,10 +819,6 @@ export class CombinedObservable<A extends any[], T = A> extends Observable<T> im
       }
     }
 
-    if (i === 0) {
-      console.warn("tried to refresh value from a combined observable that was disconnected")
-    }
-
     return changed
   }
 
