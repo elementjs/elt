@@ -174,7 +174,16 @@ export class Observer<A> implements Indexable {
       // only store the old_value if the observer will need it. Useful to not keep
       // useless references in memory.
       this.old_value = new_value
-      this.fn(new_value, old)
+      const res = (this.fn as ObserverCallback<A>)(new_value, old)
+      // If the observer function returns a result, use it as the new value to avoid being re-triggered
+      if (res !== undefined) {
+        Promise.resolve(res).then(res => {
+          if (res === undefined) { return }
+          const nval: A = res === o.NoValue ? undefined! : res as A
+          this.old_value = nval
+          this.observable.set(nval)
+        })
+      }
     }
   }
 
@@ -223,7 +232,7 @@ export class Observer<A> implements Indexable {
  * is the previous value or {@link o.NoValue} if this is the first time the callback
  * is called.
  */
-export type ObserverCallback<T> = (newval: T, old_value: T | NoValue) => void
+export type ObserverCallback<T> = (newval: T, old_value: T | NoValue) => void | T | NoValue | Promise<T | NoValue | void>
 
 
 export const sym_display_node = Symbol("display-node")
@@ -1468,13 +1477,22 @@ export function merge<T>(obj: {[K in keyof T]: Observable<T[K]>}): Observable<T>
    * @group Observable
    */
   export function exclusive_lock() {
-    let locked = false
-    return function exclusive_lock(fn: () => void) {
-      if (locked) return
-      locked = true
-      fn()
-      locked = false
+    const o_locked = exclusive_lock.o_locked = o(false)
+    function exclusive_lock(fn: () => any) {
+      if (o_locked.get()) return
+
+      o_locked.set(true)
+      const r: any = fn()
+      if (typeof r?.then === "function") {
+        r.then(unlock, unlock)
+      } else {
+        unlock()
+      }
     }
+
+    function unlock() { o_locked.set(false) }
+
+    return exclusive_lock
   }
 
   /**
