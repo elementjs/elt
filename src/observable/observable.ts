@@ -6,6 +6,10 @@ import { CommentHolder, node_append, node_observe, } from "../dom"
 
 declare const DEBUG: boolean
 
+function _is_promise_like(a: any): a is PromiseLike<any> {
+  return typeof a?.then === "function"
+}
+
 /**
  * Make sure we have a usable observable.
  * @returns The original observable if `arg` already was one, or a new
@@ -153,6 +157,7 @@ export class Observer<A> implements Indexable {
   fn: ObserverCallback<any>
 
   observable: any
+  private _promise: any
 
   /**
    * Build an observer that will call `fn` whenever the value contained by
@@ -177,14 +182,24 @@ export class Observer<A> implements Indexable {
       const res = (this.fn as ObserverCallback<A>)(new_value, old)
       // If the observer function returns a result, use it as the new value to avoid being re-triggered
       if (res !== undefined) {
-        Promise.resolve(res).then(res => {
-          if (res === undefined) { return }
-          const nval: A = res === o.NoValue ? undefined! : res as A
-          this.old_value = nval
-          this.observable.set(nval)
-        })
+        if (_is_promise_like(res)) {
+          const pro = this._promise = Promise.resolve(res).then(res => {
+            if (res === undefined || pro !== this._promise) { return }
+            this.setObservableValue(res)
+          })
+        } else {
+          this.setObservableValue(res)
+        }
       }
     }
+  }
+
+  private setObservableValue(val: A | o.NoValue) {
+    // synchronous sets win over promises
+    this._promise = undefined
+    val = val === o.NoValue ? undefined! : val
+    this.old_value = val as A
+    this.observable.set(val as A)
   }
 
   /**
