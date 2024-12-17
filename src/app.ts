@@ -104,14 +104,14 @@ export class App {
   /** The current path mimicking the URL Hash fragment */
   o_current_route = o(null as null | App.Route<any>)
 
-  o_params = this.o_state.tf(st => st?.params ?? {})
+  o_params = o({} as App.Params)
   o_views = this.o_state.tf(st => st?.views ?? new Map() as App.Views)
   o_activating = o(false)
 
   __reactivate: App.Reactivation | null = null
-  async _activate<S>(builder: App.ServiceBuilder<S, any>, params?: App.Params | {[name: string]: string}): Promise<App.ActivationResult> {
+  async _activate<S>(builder: App.ServiceBuilder<S, any>, params?: App.Params): Promise<App.ActivationResult> {
     const _was_activating_when_called = this.o_activating.get()
-    const full_params = Object.assign({}, this.o_state.get()?.params, params)
+    const full_params = Object.assign({}, this.o_params.get(), params)
     const awaited = await builder
     const builder_fn = typeof awaited === "function" ? awaited : awaited.default
 
@@ -149,7 +149,12 @@ export class App {
         this.o_state.set(staging)
         current?.deactivate(staging)
         current = null
-        staging.commit()
+
+        o.transaction(() => {
+          this.o_params.set(staging.params.get())
+          staging.params.changeTarget(this.o_params)
+          staging.commit()
+        })
 
         // whoever gets here is the route that "won" if we got here through a route
         this.router.__last_activated_route?.updateHash()
@@ -248,8 +253,12 @@ export namespace App {
         if (typeof hash !== "string") return
 
         const entries: string[] = []
-        for (let [key, value] of Object.entries(this.router.app.o_params.get())) {
-          value = _encode(value)
+        const state = this.router.app.o_state.get()!
+        const keys = state.paramKeys();
+        const params = this.router.app.o_params.get()
+
+        for (let key of keys) {
+          const value = _encode(params[key])
 
           let re = new RegExp(":" + key + "\\b")
           if (re.test(hash)) {
@@ -441,7 +450,7 @@ export namespace App {
     services = new Map<App.ServiceBuilder<any>, App.Service>
     active!: App.Service
     views: App.Views = new Map()
-    params: Params = {}
+    params = o.proxy(o({} as Params))
 
     async getService<S>(_builder: App.ServiceBuilder<S>) {
       const __builder = await _builder
@@ -451,9 +460,10 @@ export namespace App {
 
       if (previous && previous.params_deps.size > 0) {
         // check that the params are still the same, otherwise just remove
-        for (let [k, v] of previous.params_deps) {
+        const next_params = this.params.get()
+        for (let [k, v] of Object.entries(next_params)) {
           const dep = previous.params_deps.get(k)
-          if (dep !== null && v !== dep) {
+          if (dep != null && v !== dep) {
             previous = undefined
             break
           }
@@ -468,6 +478,7 @@ export namespace App {
         srv.result = await builder(srv)
       }
 
+
       return srv
     }
 
@@ -477,7 +488,7 @@ export namespace App {
       if (by) {
         by.requirements.add(srv)
         // A requirer that depends upon a service that has params dependencies becomes dependent as well
-        for (let [k, v] of Object.entries(srv.params_deps)) {
+        for (let [k, v] of srv.params_deps) {
           by.params_deps.set(k, v)
         }
       }
@@ -512,14 +523,13 @@ export namespace App {
       }
     }
 
-    /** @internal make sure we only keep the params that are required */
-    private finalizeParams(srv: App.Service, seen = new Set<App.Service>, res: Params = {}): Params {
-      if (seen.has(srv)) return res
-      seen.add(srv)
-      for (let req of srv.requirements) this.finalizeParams(req, seen, res)
-      for (let [k, v] of srv.params_deps) {
-        if (v == null) continue
-        res[k] = v
+    /** For this state, the list of param keys that are being listened to by its services */
+    paramKeys() {
+      const res = new Set<string>()
+      for (let req of this.services.values()) {
+        for (let key of req.params_deps.keys()) {
+          res.add(key)
+        }
       }
       return res
     }
@@ -527,8 +537,7 @@ export namespace App {
     /** Committing a state means that the services it requires are now tied to this state */
     commit() {
       for (const srv of this.services.values()) {
-        srv.state = this
-        srv.o_params.set(this.params)
+        srv.state = this // update it because otherwise it won't be
         srv.startObservers()
       }
     }
@@ -551,10 +560,12 @@ export namespace App {
       builder: App.ServiceBuilder<any>,
       params: Params | undefined,
     ) {
-      this.params = params ?? this.params
+      if (params) {
+        this.params.set(params)
+      }
+
       this.active = await this.getService(builder)
       this.collectViews(this.active)
-      this.params = this.finalizeParams(this.active)
     }
 
   }
@@ -599,15 +610,27 @@ export namespace App {
     }
 
     param<K extends keyof T>(name: K, default_value?: T[K]): T[K] {
-      let value = this.state.params[name as string] ?? default_value ?? null
+      const par = this.state.params
+      const v = par.get()[name as string]
+      if (v == null && default_value) {
+        par.assign({[name as string]: default_value})
+      }
+      let value = v ?? default_value ?? null
       this.params_deps.set(name as string, value as any)
       return value as T[K]
     }
 
-    param_soft<K extends keyof T>(name: K, default_value?: T[K]): T[K] {
-      let value = this.state.params[name as string] ?? default_value ?? null
-      this.params_deps.set(name as string, null) // should this mean
-      return value as T[K]
+    param_soft<K extends keyof T>(name: K): o.Observable<T[K]>
+    param_soft<K extends keyof T>(name: K, default_value: T[K]): o.Observable<NonNullable<T[K]>>
+    param_soft<K extends keyof T>(name: K, default_value?: T[K]): o.Observable<T[K]> {
+      const par = this.state.params
+      const v = par.get()[name as string]
+      if (v == null && default_value) {
+        par.assign({[name as string]: default_value})
+      }
+      this.params_deps.set(name as string, null)
+      return this.state.params.p(name as string) as o.Observable<T[K]>
+
     }
 
     DisplayView(view_name: string) {
