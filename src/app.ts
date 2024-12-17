@@ -258,6 +258,7 @@ export namespace App {
         const params = this.router.app.o_params.get()
 
         for (let key of keys) {
+          if (params[key] === undefined) { continue }
           const value = _encode(params[key])
 
           let re = new RegExp(":" + key + "\\b")
