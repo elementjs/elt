@@ -2,22 +2,6 @@ import { Renderable } from "./types"
 import { o } from "./observable"
 import { Deferred } from "./utils"
 
-/** @internal Kind of like Object.assign, but Map aware */
-function _assign<B extends Map<any, any> | {[name: string]: string}>(base: B, ...args: (Map<any, any> | {[name: string]: any} | null | undefined)[]): B {
-  const is_map = base instanceof Map
-  for (let arg of args) {
-    if (arg == null) continue
-    for (let [k, v] of (arg instanceof Map ? arg : Object.entries(arg))) {
-      if (is_map) {
-        base.set(k, v)
-      } else {
-        base[k] = v
-      }
-    }
-  }
-  return base
-}
-
 /** @internal decode a param value */
 function _decode(s: string): string | boolean | undefined | number | null {
   let val: string | boolean | undefined | number | null = s
@@ -120,14 +104,14 @@ export class App {
   /** The current path mimicking the URL Hash fragment */
   o_current_route = o(null as null | App.Route<any>)
 
-  o_params = this.o_state.tf(st => st?.params ?? new Map())
+  o_params = this.o_state.tf(st => st?.params ?? {})
   o_views = this.o_state.tf(st => st?.views ?? new Map() as App.Views)
   o_activating = o(false)
 
   __reactivate: App.Reactivation | null = null
   async _activate<S>(builder: App.ServiceBuilder<S, any>, params?: App.Params | {[name: string]: string}): Promise<App.ActivationResult> {
     const _was_activating_when_called = this.o_activating.get()
-    const full_params = _assign(new Map<string, string>, this.o_state.get()?.params, params)
+    const full_params = Object.assign({}, this.o_state.get()?.params, params)
     const awaited = await builder
     const builder_fn = typeof awaited === "function" ? awaited : awaited.default
 
@@ -165,10 +149,7 @@ export class App {
         this.o_state.set(staging)
         current?.deactivate(staging)
         current = null
-
-        for (let srv of (staging.services.values())) {
-          srv.startObservers()
-        }
+        staging.commit()
 
         // whoever gets here is the route that "won" if we got here through a route
         this.router.__last_activated_route?.updateHash()
@@ -218,7 +199,7 @@ export class App {
 
 export namespace App {
 
-  export type Params = Map<string, string | number | boolean>
+  export type Params = {[name: string]: boolean | number | string}
   export type Views = Map<string, () => Renderable>
 
   export interface RouteOptions {
@@ -267,7 +248,7 @@ export namespace App {
         if (typeof hash !== "string") return
 
         const entries: string[] = []
-        for (let [key, value] of this.router.app.o_params.get()) {
+        for (let [key, value] of Object.entries(this.router.app.o_params.get())) {
           value = _encode(value)
 
           let re = new RegExp(":" + key + "\\b")
@@ -314,7 +295,7 @@ export namespace App {
   export class Reactivation extends Deferred<App.ActivationResult> {
     constructor(
       public builder: App.ServiceBuilderFunction<any>,
-      public params: Params = new Map(),
+      public params: Params = {},
     ) { super() }
   }
 
@@ -460,7 +441,7 @@ export namespace App {
     services = new Map<App.ServiceBuilder<any>, App.Service>
     active!: App.Service
     views: App.Views = new Map()
-    params: Params = new Map()
+    params: Params = {}
 
     async getService<S>(_builder: App.ServiceBuilder<S>) {
       const __builder = await _builder
@@ -468,10 +449,11 @@ export namespace App {
 
       let previous = this.services.get(builder) ?? this.previous_state?.services.get(builder)
 
-      if (previous && previous.params.size > 0) {
+      if (previous && previous.params_deps.size > 0) {
         // check that the params are still the same, otherwise just remove
-        for (let [k, v] of previous.params) {
-          if (v !== this.params.get(k)) {
+        for (let [k, v] of previous.params_deps) {
+          const dep = previous.params_deps.get(k)
+          if (dep !== null && v !== dep) {
             previous = undefined
             break
           }
@@ -495,8 +477,8 @@ export namespace App {
       if (by) {
         by.requirements.add(srv)
         // A requirer that depends upon a service that has params dependencies becomes dependent as well
-        for (let [k, v] of Object.entries(srv.params)) {
-          by.params.set(k, v)
+        for (let [k, v] of Object.entries(srv.params_deps)) {
+          by.params_deps.set(k, v)
         }
       }
 
@@ -531,15 +513,24 @@ export namespace App {
     }
 
     /** @internal make sure we only keep the params that are required */
-    private finalizeParams(srv: App.Service, seen = new Set<App.Service>, res = new Map() as Params): Params {
+    private finalizeParams(srv: App.Service, seen = new Set<App.Service>, res: Params = {}): Params {
       if (seen.has(srv)) return res
       seen.add(srv)
       for (let req of srv.requirements) this.finalizeParams(req, seen, res)
-      for (let [k, v] of srv.params) {
+      for (let [k, v] of srv.params_deps) {
         if (v == null) continue
-        res.set(k, v)
+        res[k] = v
       }
       return res
+    }
+
+    /** Committing a state means that the services it requires are now tied to this state */
+    commit() {
+      for (const srv of this.services.values()) {
+        srv.state = this
+        srv.o_params.set(this.params)
+        srv.startObservers()
+      }
     }
 
     /** Call deinits on the services that didn't make the cut. */
@@ -602,20 +593,20 @@ export namespace App {
      */
     activate<TP extends SrvParams, TC extends SrvParams>(this: Service<TC>, rt: Route<TP>, ...args: TP extends TC ? (TC extends TP ? [] | [{}] : [Omit<TP, keyof TC>]) : TC extends TP ? ([] | [{}] | [TP]) : [TP]): Promise<void> {
       const params: any = {}
-      for (let [key, value] of this.state.params) { params[key] = value }
+      for (let [key, value] of Object.entries(this.state.params)) { params[key] = value }
       Object.assign(params, args[0])
       return rt.activate(params as any)
     }
 
     param<K extends keyof T>(name: K, default_value?: T[K]): T[K] {
-      let value = this.state.params.get(name as string) ?? default_value ?? null
-      this.params.set(name as string, value as any)
+      let value = this.state.params[name as string] ?? default_value ?? null
+      this.params_deps.set(name as string, value as any)
       return value as T[K]
     }
 
     param_soft<K extends keyof T>(name: K, default_value?: T[K]): T[K] {
-      let value = this.state.params.get(name as string) ?? default_value ?? null
-      this.params.set(name as string, null) // should this mean
+      let value = this.state.params[name as string] ?? default_value ?? null
+      this.params_deps.set(name as string, null) // should this mean
       return value as T[K]
     }
 
@@ -639,7 +630,8 @@ export namespace App {
     requirements = new Set<Service>()
 
     /** */
-    params = new Map<string, string | null>
+    params_deps = new Map<string, string | number | boolean | null>
+    o_params = o({} as Params)
 
     /** Shortcut function to set a view */
     view(name: string, view: () => Renderable) {
