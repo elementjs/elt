@@ -50,8 +50,6 @@ function _encode(v: string | boolean | undefined | number | null): string {
  */
 export class App {
 
-  constructor() { }
-
   setupRouter<R extends App.RouteDef>(route_defs: R): App.RoutesRes<R> {
     const _register = <R2 extends App.RouteDef>(defs: R2, prefix = "") => {
       const routes = {} as any
@@ -111,7 +109,7 @@ export class App {
   __reactivate: App.Reactivation | null = null
   async _activate<S>(builder: App.ServiceBuilder<S, any>, params?: App.Params): Promise<App.ActivationResult> {
     const _was_activating_when_called = this.o_activating.get()
-    const full_params = Object.assign({}, this.o_params.get(), params)
+    const full_params = Object.assign({}, params)
     const awaited = await builder
     const builder_fn = typeof awaited === "function" ? awaited : awaited.default
 
@@ -151,7 +149,10 @@ export class App {
         current = null
 
         o.transaction(() => {
-          this.o_params.set(staging.params.get())
+          const keys = staging.paramKeys()
+          // Remove from params unneeded keys
+          const params = Object.fromEntries(Object.entries(staging.params.get()).filter(([key]) => keys.has(key)))
+          this.o_params.set(params)
           staging.params.changeTarget(this.o_params)
           staging.commit()
         })
@@ -281,12 +282,15 @@ export namespace App {
           hash = hash + "?" + entries.join("&")
         }
 
+        if (hash.trim() === document.location.hash.slice(1).trim()) {
+          return
+        }
+
         window.location.hash = hash
       })
     }
 
-    async activate(..._params: {} extends T ? ([] | [T]) : [T]): Promise<void> {
-      const params: T = _params[0] as T
+    async activateWithParams(params: T): Promise<void> {
       const full_params = Object.assign({}, this.options.defaults, params)
       this.router.__last_activated_route = this
       try {
@@ -299,6 +303,11 @@ export namespace App {
           throw e
         }
       }
+    }
+
+    async activate(..._params: {} extends T ? ([] | [T]) : [T]): Promise<void> {
+      const params: T = Object.assign({}, this.router.app.o_params.get(), _params[0] as T)
+      return this.activateWithParams(params)
     }
   }
 
@@ -394,7 +403,7 @@ export namespace App {
       }
 
       const vars_final = Object.assign({}, route_vars, route.options.defaults, vars)
-      route.activate(vars_final).then(() => {
+      route.activateWithParams(vars_final).then(() => {
         this.o_active_route.set(route!)
       })
     }
@@ -410,6 +419,22 @@ export namespace App {
           this.activateFromHash()
         })
       })
+
+      this.app.o_params.addObserver(params => {
+        // If the new params invalidate a state
+        if (this.app.o_activating.get()) { return }
+        const srv = this.app.o_active_service.get()
+        const rt = this.o_active_route.get()
+
+        if (!srv?.areParamsInvalidating(params)) {
+          // reactivate !
+          rt?.activate(params)
+          // reactivate
+        } else {
+          rt?.updateHash()
+        }
+      })
+
 
     }
 
@@ -459,16 +484,9 @@ export namespace App {
 
       let previous = this.services.get(builder) ?? this.previous_state?.services.get(builder)
 
-      if (previous && previous.params_deps.size > 0) {
-        // check that the params are still the same, otherwise just remove
-        const next_params = this.params.get()
-        for (let [k, v] of Object.entries(next_params)) {
-          const dep = previous.params_deps.get(k)
-          if (dep != null && v !== dep) {
-            previous = undefined
-            break
-          }
-        }
+      if (previous?.areParamsInvalidating(this.params.get())) {
+        // Do not keep the previous version if hard params disallow it
+        previous = undefined
       }
 
       // Make a new service
@@ -608,6 +626,22 @@ export namespace App {
       for (let [key, value] of Object.entries(this.state.params)) { params[key] = value }
       Object.assign(params, args[0])
       return rt.activate(params as any)
+    }
+
+    /**
+     * Return true if the provided params would cause this service to be invalid
+     * @internal
+     */
+    areParamsInvalidating(params: Params) {
+      if (this.params_deps.size > 0) {
+        for (let [k, v] of Object.entries(params)) {
+          const dep = this.params_deps.get(k)
+          if (dep != null && v !== dep) {
+            return true
+          }
+        }
+      }
+      return false
     }
 
     param<K extends keyof T>(name: K, default_value?: T[K]): T[K] {
