@@ -383,6 +383,7 @@ export namespace App {
       const route_vars: SrvParams = {}
 
       let route = this.__routes.get(path)
+
       if (route == null) {
         for (let rt of this.__routes.values()) {
           if (rt.regexp == null) continue

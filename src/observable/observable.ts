@@ -462,7 +462,8 @@ export class ReadonlyObservable<A> implements Indexable {
    * [[include:../../examples/o.observable.p.tsx]]
    * ```
    */
-  p<K extends keyof A>(key: RO<K>): this extends Observable<A> ? Observable<A[K]> : ReadonlyObservable<A[K]>
+  p<K extends keyof A>(this: Observable<A>, key: RO<K>): Observable<A[K]>
+  p<K extends keyof A>(this: ReadonlyObservable<A>, key: RO<K>): ReadonlyObservable<A[K]>
   p<K extends keyof A>(key: RO<K>): Observable<A[K]> {
     return prop(this, key)
   }
@@ -927,7 +928,7 @@ export function combine<T extends any[], R>(deps: {[K in keyof T]: RO<T[K]>}, ge
   const virt = new CombinedObservable<T, R>(deps)
   virt.getter = get
   virt.setter = set! // force undefined to trigger errors for readonly observables.
-  return virt
+  return virt as any
 }
 
 
