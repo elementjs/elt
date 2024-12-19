@@ -20,7 +20,7 @@ export type Decorator<N extends Node> = (node: N) => Renderable<N>
  * to define what can go between `{ curly braces }` in JSX code.
  * @category dom, toc
  */
-export type Renderable<N extends Node = Element> = Inserter<N> | string | number | Node | null | undefined | void | false | Decorator<N> | Renderable<N>[]
+export type Renderable<N extends Node = Element> = Inserter<N> | string | number | Node | null | undefined | void | false | Decorator<N> | Iterable<Renderable<N>>
 
 /**
  * CSS Style attribute definition for the style={} attribute

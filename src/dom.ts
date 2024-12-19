@@ -345,10 +345,10 @@ export function node_append<N extends Node>(node: N, renderable: Renderable<N> |
 
     renderable[sym_insert](node, refchild)
 
-  } else if (Array.isArray(renderable)) {
+  } else if (typeof (renderable as any)[Symbol.iterator] === "function") {
     // An array of children
-    for (let i = 0, l = renderable.length; i < l; i++) {
-      node_append(node, renderable[i], refchild, is_basic_node)
+    for (const item of renderable as Iterable<N>) {
+      node_append(node, item, refchild, is_basic_node)
     }
 
   } else if (renderable.constructor === Object) {
