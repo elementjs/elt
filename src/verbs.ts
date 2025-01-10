@@ -106,19 +106,19 @@ export namespace If {
     last?: IfDisplayer<any, N>
 
     constructor(
-      public condition: o.RO<T>,
-      public _display?: (arg: If.NonNullableRO<T>) => Renderable<N>,
-      public _display_otherwise?: () => Renderable<N>,
+      public _if: o.RO<T>,
+      public _then?: (arg: If.NonNullableRO<T>) => Renderable<N>,
+      public _else?: () => Renderable<N>,
     ) {
       super(
         "e-if",
       )
-      this.setRenderable(o.tf<T, Renderable<N>>(condition, (cond, old, v) => {
+      this.setRenderable(o.tf<T, Renderable<N>>(_if, (cond, old, v) => {
         if (old !== o.NoValue && !!cond === !!old && v !== o.NoValue) return v as Renderable<N>
-        if (cond && this._display) {
-          return this._display(this.condition as If.NonNullableRO<T>)
-        } else if (this._display_otherwise) {
-          return this._display_otherwise()
+        if (cond && this._then) {
+          return this._then(this._if as If.NonNullableRO<T>)
+        } else if (this._else) {
+          return this._else()
         } else {
           return null
         }
@@ -126,7 +126,7 @@ export namespace If {
     }
 
     Then(display: (arg: If.NonNullableRO<T>) => Renderable<N>) {
-      this._display = display
+      this._then = display
       return this
     }
 
@@ -135,16 +135,15 @@ export namespace If {
       display?: (arg: If.NonNullableRO<T2>) => Renderable<N>,
     ) {
       const last = this.last ?? this
-      const other = last._display_otherwise
-      const add = new IfDisplayer<T2, N>(condition, display, other)
-      this._display_otherwise = () => add
+      const add = new IfDisplayer<T2, N>(condition, display)
+      last._else = () => add
       this.last = add
       return this
     }
 
     Else(otherwise: () => Renderable<N>) {
       const last = this.last ?? this
-      last._display_otherwise = otherwise
+      last._else = otherwise
       return this
     }
   }
