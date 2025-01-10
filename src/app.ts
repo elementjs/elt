@@ -637,7 +637,7 @@ export namespace App {
       if (this.params_deps.size > 0) {
         for (let [k, v] of Object.entries(params)) {
           const dep = this.params_deps.get(k)
-          if (dep != null && v !== dep) {
+          if (dep !== null && v !== dep) {
             return true
           }
         }
@@ -651,7 +651,7 @@ export namespace App {
       if (v == null && default_value) {
         par.assign({[name as string]: default_value})
       }
-      let value = v ?? default_value ?? null
+      let value = v ?? default_value ?? undefined
       this.params_deps.set(name as string, value as any)
       return value as T[K]
     }
