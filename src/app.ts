@@ -666,7 +666,6 @@ export namespace App {
       }
       this.params_deps.set(name as string, null)
       return this.state.params.p(name as string) as o.Observable<T[K]>
-
     }
 
     DisplayView(view_name: string) {
