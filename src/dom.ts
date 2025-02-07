@@ -317,7 +317,7 @@ export function node_append<N extends Node>(node: N, renderable: Renderable<N> |
 
   } else if (renderable instanceof Node) {
     // A node being added
-    if (renderable.nodeType === 11) { // DocumentFragment
+    if (renderable.nodeType === Node.DOCUMENT_FRAGMENT_NODE) { // DocumentFragment
       let start = renderable.firstChild
       if (start == null) return // there are no children to append, nothing more to do
 
