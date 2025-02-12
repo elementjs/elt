@@ -330,6 +330,7 @@ export function node_append<N extends Node>(node: N, renderable: Renderable<N> |
         } while (start && start !== refchild)
       }
     } else {
+
       node.insertBefore(renderable, refchild)
       if (node.isConnected) {
         node_do_connected(renderable)
