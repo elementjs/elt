@@ -388,7 +388,7 @@ export interface attrs_img extends Attrs<HTMLElementTagNameMap["img"]> {
   usemap?: NRO<string | number>
 }
 export interface attrs_input extends Attrs<HTMLElementTagNameMap["input"]>, Form {
-  type?: NRO<"button" | "checkbox" | "color" | "date" | "datetime-local" | "email" | "file" | "hidden" | "image" | "month" | number | "password" | "radio" | "range" | "reset" | "search" | "submit" | "tel" | "text" | "time" | "url" | "week">
+  type?: NRO<"button" | "checkbox" | "color" | "date" | "datetime-local" | "email" | "file" | "hidden" | "image" | "month" | "number" | "password" | "radio" | "range" | "reset" | "search" | "submit" | "tel" | "text" | "time" | "url" | "week">
   accept?: NRO<string | number>
   alt?: NRO<string | number>
   autocomplete?: NRO<string | number>
