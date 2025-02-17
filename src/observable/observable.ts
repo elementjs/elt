@@ -741,10 +741,10 @@ export class Observable<A> extends ReadonlyObservable<A> {
 
 export interface Observable<A> {
   [sym_is_observable]?: boolean
-path<K1 extends keyof A>(this: ReadonlyObservable<A>, key: K1): ReadonlyObservable<A[K1]>
-  path<K1 extends keyof A, K2 extends keyof A[K1]>(this: ReadonlyObservable<A>, key: K1, key2: K2): ReadonlyObservable<A[K1][K2]>
-  path<K1 extends keyof A, K2 extends keyof A[K1], K3 extends keyof A[K1][K2]>(this: ReadonlyObservable<A>, key: K1, key2: K2, key3: K3): ReadonlyObservable<A[K1][K2][K3]>
-  path<K1 extends keyof A, K2 extends keyof A[K1], K3 extends keyof A[K1][K2], K4 extends keyof A[K1][K2][K3]>(this: ReadonlyObservable<A>, key: K1, key2: K2, key3: K3, key4: K4): ReadonlyObservable<A[K1][K2][K3][K4]>
+  path<K1 extends keyof A>(this: Observable<A>, key: K1): Observable<A[K1]>
+  path<K1 extends keyof A, K2 extends keyof A[K1]>(this: Observable<A>, key: K1, key2: K2): Observable<A[K1][K2]>
+  path<K1 extends keyof A, K2 extends keyof A[K1], K3 extends keyof A[K1][K2]>(this: Observable<A>, key: K1, key2: K2, key3: K3): Observable<A[K1][K2][K3]>
+  path<K1 extends keyof A, K2 extends keyof A[K1], K3 extends keyof A[K1][K2], K4 extends keyof A[K1][K2][K3]>(this: Observable<A>, key: K1, key2: K2, key3: K3, key4: K4): Observable<A[K1][K2][K3][K4]>
 }
 
 // Mark all observables with a known symbol
@@ -1008,6 +1008,7 @@ export function merge<T>(obj: {[K in keyof T]: Observable<T[K]>}): Observable<T>
     : never
 
   export function path<T, K extends string[]>(obj: Observable<T>, ...path: K): o.Observable<Path<T, K>> {
+
     return combine(
       [obj, ...path] as const,
       ([obj, ...path]) => {
@@ -1016,20 +1017,13 @@ export function merge<T>(obj: {[K in keyof T]: Observable<T[K]>}): Observable<T>
       (nval: any, _: any, [obj, ...path]) => {
         const resobj = o.clone(obj)
         let iter: any = resobj
-        for (let i = 0, l = path.length; i < l; i++) {
+        for (let i = 0, l = path.length - 1; i < l; i++) {
           const key = path[i]
-          if (i === l - 1) {
-            iter[key] = nval
-          } else {
-            // handle undefined ?
-            if (iter[key] === undefined) {
-              iter[key] = {}
-            } else {
-              iter = o.clone(iter[key])
-            }
-          }
+          iter[key] = iter[key] != null ? o.clone(iter[key]) : {}
+          iter = iter[key]
         }
 
+        iter[path[path.length - 1]] = nval
         return [resobj, ...new Array(path.length).fill(NoValue)] as any
       }
     )
