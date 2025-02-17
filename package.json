@@ -13,7 +13,7 @@
     "development": "./dist/elt.debug.js",
     "default": "./dist/elt.js"
   },
-  "typings": "./dist/elt.d.ts",
+  "typings": "./dist/index.d.ts",
   "scripts": {
     "build": "make",
     "prepublish": "npm run build"
@@ -24,7 +24,6 @@
     "@types/js-yaml": "^4.0.5",
     "@typescript-eslint/eslint-plugin": "^5.15.0",
     "@typescript-eslint/parser": "^5.15.0",
-    "dts-bundle-generator": "^9.0.0",
     "esbuild": "^0.21.4",
     "eslint": "^8.11.0",
     "js-yaml": "^4.1.0",

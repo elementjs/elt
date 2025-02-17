@@ -382,34 +382,6 @@ export interface $ShadowOptions extends Partial<ShadowRootInit> {
   css?: string | CSSStyleSheet | (CSSStyleSheet | string)[]
 }
 
-const can_adopt_style_sheets =
-  window.ShadowRoot &&
-  'adoptedStyleSheets' in Document.prototype &&
-  'replace' in CSSStyleSheet.prototype;
-
-/**
- * Create a CSSStyleSheet, suitable to be adopted by either custom elements or to use with $shadow.
- * @param tpl A template string array
- * @param values Interpolated values
- * @returns A CSSStyleSheet if the browser allows it or a string
- */
-export function css(tpl: TemplateStringsArray, ...values: any[]) {
-  const str: string[] = []
-  for (let i = 0, l = tpl.length; i < l; i++) {
-    str.push(tpl[i])
-    if (values[i] != null) {
-      str.push(values[i].toString())
-    }
-  }
-  if (can_adopt_style_sheets) {
-    const res = new CSSStyleSheet()
-    res.replace(str.join(""))
-    return res
-  } else {
-    return str.join("")
-  }
-}
-
 /**
  * Attach a shadow root and insert a child on it.
  *

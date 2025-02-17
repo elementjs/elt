@@ -22,6 +22,8 @@ import type {
   StyleDefinition,
 } from "./types"
 
+import { css } from "./css"
+
 
 // FIXME this lacks some debounce and throttle, or a way of achieving it.
 function setup_bind<T, N extends Element>(
@@ -330,6 +332,8 @@ export function $shadow(opts?: Node | $ShadowOptions, child?: Node) {
     }
   }
 }
+
+$shadow.css = css
 
 
 /**
