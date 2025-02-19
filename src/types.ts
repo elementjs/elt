@@ -22,12 +22,14 @@ export type Decorator<N extends Node> = (node: N) => Renderable<N>
  */
 export type Renderable<N extends Node = Element> = Inserter<N> | string | number | Node | null | undefined | void | false | Decorator<N> | Iterable<Renderable<N>>
 
+export type PartialStyle = Partial<{[name in keyof CSSStyleDeclaration]: CSSStyleDeclaration[name] | false} & { [K: `--${string}`]: string | false }>
+
 /**
  * CSS Style attribute definition for the style={} attribute
  */
 export type StyleDefinition =
-  o.RO<Partial<{[name in keyof CSSStyleDeclaration]: CSSStyleDeclaration[name] | false} & { [K: `--${string}`]: string | false }>>
-  | o.ROProps<Partial<{[name in keyof CSSStyleDeclaration]: CSSStyleDeclaration[name] | false} & { [K: `--${string}`]: string | false }>>
+  o.RO<PartialStyle>
+  | o.ROProps<PartialStyle>
   | o.RO<string>
 
 /**
