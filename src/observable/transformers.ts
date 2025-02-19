@@ -1,6 +1,17 @@
 import { o } from "./observable"
 
 
+export function tf_nonnull<T>(null_value: T): o.RO<o.Converter<T | null, T>> {
+  return o.tf(null_value, null_value => ({
+    transform(val: T | null) {
+      return val ?? null_value
+    },
+    revert(val: T) {
+      return val === null_value ? null : val
+    }
+  }))
+}
+
 /**
  * Transforms to a boolean observable that switches to `true` when
  * the original `observable` has the same value than `other`.
