@@ -17,14 +17,9 @@ function _is_promise_like(a: any): a is PromiseLike<any> {
  *   Observable holding the value of `arg` if it wasn't.
  * @group Observable
  */
-export function o<T>(arg: T): [T] extends [o.Observable<any>] ? T :
+export function o<T>(arg: T): [T] extends [o.ReadonlyObservable<any>] ? T : o.Observable<T> {
     // when there is a mix of different observables, then we have a readonlyobservable of the combination of the types
-    [true] extends [T extends o.Observable<any> ? true : never] ?
-      o.ReadonlyObservable<o.ObservedType<T>>
-    : [true] extends [T extends o.ReadonlyObservable<any> ? true : never] ?
-      o.ReadonlyObservable<o.ObservedType<T>>
-      // if there were NO observables involved, then we obtain just a modifiable observable of the provided types.
-  : o.Observable<T> {
+
   return o.is_observable(arg) ? arg as any : new o.Observable(arg)
 }
 
@@ -899,13 +894,15 @@ export class ProxyObservable<T> extends CombinedObservable<[T], T> {
 
   changeTarget(obs: Observable<T>) {
     if (this._watched) {
-      // unwatch the observable
+      // unwatch the previous dependencies
       this.unwatched()
     }
     this.dependsOn([obs])
     if (this._watched) {
       this.watched()
-      queue.schedule(this) // refresh to the value of the new observable.
+      // we force the refreshing of the value because dependsOn fetches the last values and ensureRefreshed() won't return true.
+      this.refreshValue()
+      queue.schedule(this) // Now tell all our children that we changed.
     }
   }
 }
