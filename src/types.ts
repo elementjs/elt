@@ -104,7 +104,7 @@ export interface Attrs {
   role?: NRO<string | number>
   accesskey?: NRO<string | number>
   autocapitalize?: NRO<"off" | "on" | "none" | "sentences" | "words" | "characters">
-  contenteditable?: NRO<"" | true | "true" | "false" | "inherit">
+  contenteditable?: NRO<"" | true | "true" | "false" | "inherit" | "plaintext-only">
   dir?: NRO<"ltr" | "rtl" | "auto">
   enterkeyhint?: NRO<"enter" | "done" | "go" | "next" | "previous" | "search" | "send">
   inert?: NRO<"" | true>
