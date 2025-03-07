@@ -49,7 +49,7 @@ export class VirtualScroller<O extends o.RO<any[]>> implements Inserter<Element>
   container!: HTMLElement // <e-virtual-repeat style={this.oo_padding}/> as HTMLElement
 
   /** Disable using a pool of items */
-  allow_reuse = true
+  allow_reuse = false
 
   item_size = 64
 
@@ -160,7 +160,9 @@ export class VirtualScroller<O extends o.RO<any[]>> implements Inserter<Element>
         return
       }
 
+      /** Bounds of the first element */
       const bounds_first = this.getBounds(first)
+      /** Bounds of the bottom-most element that was rendered */
       const bounds_last = this.getBounds(last)
 
       if (this.pos_end !== this.pos_start) {
@@ -242,6 +244,7 @@ export class VirtualScroller<O extends o.RO<any[]>> implements Inserter<Element>
     let res = {top: Infinity, bottom: -Infinity, height: 0}
 
     const measure = (elt: HTMLElement, pt: Element | null = null) => {
+
       const bbox = elt.getBoundingClientRect()
       const ptt = elt.offsetParent
 
