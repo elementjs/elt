@@ -1,13 +1,13 @@
 import { o } from "./observable"
 
 
-export function tf_nonnull<T>(null_value: T): o.RO<o.Converter<T | null, T>> {
+export function tf_nonnull<T>(null_value: NonNullable<T>): o.RO<o.Converter<T, NonNullable<T>>> {
   return o.tf(null_value, null_value => ({
-    transform(val: T | null) {
-      return val ?? null_value
+    transform(val: T) {
+      return (val ?? null_value) as NonNullable<T>
     },
-    revert(val: T) {
-      return val === null_value ? null : val
+    revert(val: NonNullable<T>) {
+      return (val === null_value ? null : val) as T
     }
   }))
 }

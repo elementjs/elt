@@ -216,6 +216,10 @@ export class EltCustomElement extends HTMLElement {
     node_observe(this, observable, obsfn, options)
   }
 
+  observeChanges<T>(observable: o.RO<T>, obsfn: o.ObserverCallback<T>, options?: o.ObserveOptions<T>) {
+    node_observe(this, observable, obsfn, { ...options, changes_only: true })
+  }
+
   unobserve(observable: o.Observable<any> | o.Observer<any> | o.ObserverCallback<any>) {
     return node_unobserve(this, observable)
   }

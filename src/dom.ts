@@ -446,14 +446,16 @@ export function node_observe<T>(
 ): o.Observer<T> | null {
   if (!(o.isReadonlyObservable(obs))) {
     // If the node is already inited, run the callback
-    if (options?.immediate)
-      obsfn(obs as T, o.NoValue)
-    else
-      node_on_connected(node, () => obsfn(obs as T, o.NoValue))
+    if (!options?.changes_only) {
+      if (options?.immediate)
+        obsfn(obs as T, o.NoValue)
+      else
+        node_on_connected(node, () => obsfn(obs as T, o.NoValue))
+    }
     return null
   }
   // Create the observer and append it to the observer array of the node
-  const obser = new o.Observer(obsfn, obs)
+  const obser = options?.changes_only ? new o.SilentObserver(obsfn, obs) : new o.Observer(obsfn, obs)
   options?.observer_callback?.(obser)
   node_add_observer(node, obser)
   if (options?.immediate) obser.refresh()

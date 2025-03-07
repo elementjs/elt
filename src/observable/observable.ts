@@ -113,6 +113,7 @@ export function isReadonlyObservable(_: any): _ is ReadonlyObservable<any> {
 export interface ObserveOptions<T> {
   observer_callback?: (obs: o.Observer<T>) => any,
   immediate?: boolean
+  changes_only?: boolean
 }
 
 
@@ -164,6 +165,25 @@ export class Observer<A> implements Indexable {
     this.observable = observable
   }
 
+  evalNewalue(new_value: A) {
+    // only store the old_value if the observer will need it. Useful to not keep
+    // useless references in memory.
+    const old = this.old_value
+    this.old_value = new_value
+    const res = (this.fn as ObserverCallback<A>)(new_value, old)
+    // If the observer function returns a result, use it as the new value to avoid being re-triggered
+    if (res !== undefined) {
+      if (_is_promise_like(res)) {
+        const pro = this._promise = Promise.resolve(res).then(res => {
+          if (res === undefined || pro !== this._promise) { return }
+          this.setObservableValue(res)
+        })
+      } else {
+        this.setObservableValue(res)
+      }
+    }
+  }
+
   /**
    * Called by the `observable` currently being watched.
    */
@@ -172,21 +192,7 @@ export class Observer<A> implements Indexable {
     const new_value = (this.observable as any)._value
 
     if (old !== new_value) {
-      // only store the old_value if the observer will need it. Useful to not keep
-      // useless references in memory.
-      this.old_value = new_value
-      const res = (this.fn as ObserverCallback<A>)(new_value, old)
-      // If the observer function returns a result, use it as the new value to avoid being re-triggered
-      if (res !== undefined) {
-        if (_is_promise_like(res)) {
-          const pro = this._promise = Promise.resolve(res).then(res => {
-            if (res === undefined || pro !== this._promise) { return }
-            this.setObservableValue(res)
-          })
-        } else {
-          this.setObservableValue(res)
-        }
-      }
+      this.evalNewalue(new_value)
     }
   }
 
@@ -235,6 +241,15 @@ export class Observer<A> implements Indexable {
   }
 }
 
+export class SilentObserver<A> extends Observer<A> {
+  evalNewalue(new_value: A) {
+    if (this.old_value === o.NoValue) {
+      this.old_value = new_value
+      return
+    }
+    super.evalNewalue(new_value)
+  }
+}
 
 /**
  * The type for functions that are passed to {@link o.Observer}s instances.
@@ -1592,10 +1607,14 @@ export function merge<T>(obj: {[K in keyof T]: Observable<T[K]>}): Observable<T>
         return null
       }
 
-      const observer = new Observer(fn, o(obs))
+      const observer = options?.changes_only ? new SilentObserver(fn, o(obs)) : new Observer(fn, o(obs))
       options?.observer_callback?.(observer)
       if (options?.immediate) observer.refresh()
       return this.addObserver(observer)
+    }
+
+    observeChanges<A>(obs: RO<A>, fn: ObserverCallback<A>, options?: ObserveOptions<A>): Observer<A> | null {
+      return this.observe(obs, fn, { ...options, changes_only: true })
     }
 
     /**

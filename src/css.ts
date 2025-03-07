@@ -42,6 +42,8 @@ class CSSMaker {
 type LiteralString<T> = string extends T ? never : T;
 type LiteralStringArray<T extends any[]> = {[K in keyof T]: LiteralString<T[K]>}
 
+type ToUnderscores<T> = T extends `${infer Head}-${infer Tail}` ? `${Head}_${ToUnderscores<Tail>}` : T
+
 const can_adopt_style_sheets =
   window.ShadowRoot &&
   'adoptedStyleSheets' in Document.prototype &&
@@ -58,7 +60,7 @@ let _id = 0
 export function css<K extends string[]>(
   this: unknown,
   tpl: TemplateStringsArray, ...args: K
-): {[name in Exclude<LiteralStringArray<K>[number], `--${string}` | `#${string}` | `var(${string})`> as name extends `.${infer U}` ? U : never]: string} & CSSMaker {
+): {[name in Exclude<LiteralStringArray<K>[number], `#${string}` | `var(${string})`> as name extends `.${infer U}` ? U : name extends `--${infer U}` ? `__${ToUnderscores<U>}` : name]: string} & CSSMaker {
 
   const res: CSSMaker & {[name: string]: string} = new CSSMaker() as any
   const _css_array: string[] = []

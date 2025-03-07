@@ -223,10 +223,17 @@ export function $style<N extends HTMLElement | SVGElement>(...styles: StyleDefin
  * @code ../examples/_observe.tsx
  * @group Decorators
  */
+
+export function $observe<N extends Node, T>(a: o.RO<T>, cbk: (newval: T, old_val: T, node: N) => void, options: o.ObserveOptions<T> & { changes_only: true }): Decorator<N>
+export function $observe<N extends Node, T>(a: o.RO<T>, cbk: (newval: T, old_val: T | o.NoValue, node: N) => void, options?: o.ObserveOptions<T>): Decorator<N>
 export function $observe<N extends Node, T>(a: o.RO<T>, cbk: (newval: T, old_val: T | o.NoValue, node: N) => void, options?: o.ObserveOptions<T>) {
   return (node: N) => {
     node_observe(node, a, (nval, chg) => cbk(nval, chg, node), options)
   }
+}
+
+export function $observe_changes<N extends Node, T>(a: o.RO<T>, cbk: (newval: T, old_val: T, node: N) => void, options?: o.ObserveOptions<T>): Decorator<N> {
+  return $observe(a, cbk, { ...options, changes_only: true })
 }
 
 /**
