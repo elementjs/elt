@@ -874,20 +874,29 @@ export class CombinedObservable<A extends any[], T = A> extends Observable<T> im
     }
   }
 
-  dependsOn(obs: {[K in keyof A]: RO<A[K]>}) {
-    const p = new Array(obs.length) as A
-    const ch = [] as ChildObservableLink[]
-    for (let l = obs.length, i = 0; i < l; i++) {
-      const ob = obs[i]
-      if (o.is_observable(ob)) {
-        p[i] = ob._value
-        ch.push(new ChildObservableLink(ob, this, i))
-      } else {
-        p[i] = ob
+  addDependency(obs: RO<any>, refresh = false) {
+    const lp = this._parents_values.length
+
+    if (o.is_observable(obs)) {
+      const link = new ChildObservableLink(obs, this, lp)
+      this._links.push(link)
+      this._parents_values.push(refresh ? o.get(obs) : obs._value)
+      if (this._watched) {
+        link.parent.addChild(link)
       }
+    } else {
+      this._parents_values.push(obs)
     }
-    this._links = ch
-    this._parents_values = p
+  }
+
+  dependsOn(obs: {[K in keyof A]: RO<A[K]>}) {
+    this._parents_values = [] as any
+    this._links = []
+
+    for (let o of obs) {
+      this.addDependency(o)
+    }
+
     return this
   }
 
@@ -1149,6 +1158,43 @@ export function merge<T>(obj: {[K in keyof T]: Observable<T[K]>}): Observable<T>
    */
   export function join<A extends any[]>(...deps: A): A[number] extends o.Observable<any> ? Observable<{[K in keyof A]: o.ObservedType<A[K]>}> : o.ReadonlyObservable<{[K in keyof A]: o.ObservedType<A[K]>}> {
     return new CombinedObservable(deps) as any
+  }
+
+
+  export function expression<T>(fn: (get: <A>(obs: o.ReadonlyObservable<A>) => A, old: <A>(obs: o.ReadonlyObservable<A>) => A | NoValue) => T): o.ReadonlyObservable<T> {
+
+    const cmb = new CombinedObservable([])
+    const mp = new WeakMap<o.ReadonlyObservable<any>, number>()
+    let old = [] as any[]
+
+    let i = 0
+    cmb.getter = ((values: any[]) => {
+
+      function _get(m: o.ReadonlyObservable<any>) {
+        if (!mp.has(m)) {
+          mp.set(m, i++)
+          cmb.addDependency(m, true)
+        }
+
+        // console.log(values, mp.get(m))
+        return cmb._parents_values[mp.get(m)!]
+      }
+
+      function _old(m: o.ReadonlyObservable<any>) {
+        if (mp.has(m)) {
+          return old[mp.get(m)!] ?? NoValue
+        } else {
+          cmb.addDependency(m, true)
+          return NoValue
+        }
+      }
+
+      let res = fn(_get, _old as any) as T
+      old = values
+      return res
+    }) as any
+
+    return cmb as any
   }
 
 
