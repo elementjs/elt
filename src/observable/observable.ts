@@ -1161,24 +1161,39 @@ export function merge<T>(obj: {[K in keyof T]: Observable<T[K]>}): Observable<T>
   }
 
 
-  export function expression<T>(fn: (get: <A>(obs: o.ReadonlyObservable<A>) => A, old: <A>(obs: o.ReadonlyObservable<A>) => A | NoValue) => T): o.ReadonlyObservable<T> {
+  export function expression<T>(
+    fn: (get: <A>(obs: o.RO<A>) => A, old: <A>(obs: o.RO<A>) => A | NoValue, prev: T | NoValue) => T,
+  ): o.ReadonlyObservable<T>
+  export function expression<T>(
+    fn: (get: <A>(obs: o.RO<A>) => A, old: <A>(obs: o.RO<A>) => A | NoValue, prev: T | NoValue) => T,
+    fn_revert: (value: T, set: <A>(obs: o.Observable<A>, val: A) => void, prev: T | NoValue, get: <A>(obs: o.RO<A>) => A) => any[]
+  ): o.Observable<T>
+  export function expression<T>(
+    fn: (get: <A>(obs: o.RO<A>) => A, old: <A>(obs: o.RO<A>) => A | NoValue, prev: T | NoValue) => T,
+    fn_revert?: (value: T, set: <A>(obs: o.Observable<A>, val: A) => void, prev: T | NoValue, get: <A>(obs: o.RO<A>) => A) => any[]
+  ): o.ReadonlyObservable<T> {
 
     const cmb = new CombinedObservable([])
     const mp = new WeakMap<o.ReadonlyObservable<any>, number>()
     let old = [] as any[]
+    let prev = NoValue as T | NoValue
 
     let i = 0
-    cmb.getter = ((values: any[]) => {
 
-      function _get(m: o.ReadonlyObservable<any>) {
-        if (!mp.has(m)) {
-          mp.set(m, i++)
-          cmb.addDependency(m, true)
-        }
-
-        // console.log(values, mp.get(m))
-        return cmb._parents_values[mp.get(m)!]
+    function _get(m: o.RO<any>) {
+      if (!o.is_observable(m)) {
+        return m
       }
+
+      if (!mp.has(m)) {
+        mp.set(m, i++)
+        cmb.addDependency(m, true)
+      }
+
+      // console.log(values, mp.get(m))
+      return cmb._parents_values[mp.get(m)!]
+    }
+    cmb.getter = ((values: any[]) => {
 
       function _old(m: o.ReadonlyObservable<any>) {
         if (mp.has(m)) {
@@ -1189,10 +1204,31 @@ export function merge<T>(obj: {[K in keyof T]: Observable<T[K]>}): Observable<T>
         }
       }
 
-      let res = fn(_get, _old as any) as T
-      old = values
+      let res = fn(_get, _old as any, prev) as T
+      if (fn.length >= 1) {
+        old = values
+      }
+      if (fn.length >= 2) {
+        prev = res
+      }
       return res
     }) as any
+
+    if (fn_revert) {
+      cmb.setter = ((nval: T, oval: T | NoValue, values: any[]) => {
+        let res = new Array(cmb._links.length).fill(NoValue)
+        function _set(m: o.Observable<any>, val: any) {
+          const idx = mp.get(m)
+          if (idx == null) {
+            throw new Error("setting a previously unknown observable")
+          }
+          res[idx] = val
+        }
+
+        fn_revert(nval, _set, oval, _get)
+        return res
+      }) as any
+    }
 
     return cmb as any
   }
@@ -1687,4 +1723,11 @@ export function merge<T>(obj: {[K in keyof T]: Observable<T[K]>}): Observable<T>
     }
   }
 
+  export interface IReadonlyObservable<Get> {
+    get(): Get
+  }
+
+  export interface IObservable<Get, Set> extends IReadonlyObservable<Get> {
+    set(value: Set): void
+  }
 }
