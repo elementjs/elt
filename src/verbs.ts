@@ -542,6 +542,17 @@ export namespace RepeatScroll {
       // do not process this if the node is not inserted.
       if (!this.node.isConnected) return
 
+      let scrollable_parent = this.node.parentElement!
+      while (scrollable_parent) {
+        // Vérifier le style calculé de l'élément
+        const st = getComputedStyle(scrollable_parent)
+        if (scrollable_parent.parentElement == null || st.overflow === "auto" || st.overflow === "scroll") {
+          break
+        }
+        // Passer à l'élément parent
+        scrollable_parent = scrollable_parent.parentElement!
+      }
+
       this.inter = new IntersectionObserver(entries => {
         for (let e of entries) {
           this.intersecting = e.isIntersecting
@@ -549,7 +560,7 @@ export namespace RepeatScroll {
             this.appendChildren()
           }
         }
-      }, { rootMargin: `${this.threshold}px`, root: this.node.parentElement })
+      }, { rootMargin: `${this.threshold}px`, root: scrollable_parent })
       this.inter.observe(this.instersector)
     }
 
