@@ -1189,11 +1189,11 @@ export function merge<T>(obj: {[K in keyof T]: Observable<T[K]>}): Observable<T>
   ): o.ReadonlyObservable<T>
   export function expression<T>(
     fn: (get: <A>(obs: o.RO<A>) => A, old: <A>(obs: o.RO<A>) => A | NoValue, prev: T | NoValue) => T,
-    fn_revert: (value: T, set: <A>(obs: o.Observable<A>, val: A) => void, prev: T | NoValue, get: <A>(obs: o.RO<A>) => A) => any[]
+    fn_revert: (value: T, set: <A>(obs: o.Observable<A>, val: A) => void, prev: T | NoValue, get: <A>(obs: o.RO<A>) => A) => any
   ): o.Observable<T>
   export function expression<T>(
     fn: (get: <A>(obs: o.RO<A>) => A, old: <A>(obs: o.RO<A>) => A | NoValue, prev: T | NoValue) => T,
-    fn_revert?: (value: T, set: <A>(obs: o.Observable<A>, val: A) => void, prev: T | NoValue, get: <A>(obs: o.RO<A>) => A) => any[]
+    fn_revert?: (value: T, set: <A>(obs: o.Observable<A>, val: A) => void, prev: T | NoValue, get: <A>(obs: o.RO<A>) => A) => any
   ): o.ReadonlyObservable<T> {
 
     const cmb = new CombinedObservable([])
