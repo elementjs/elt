@@ -25,6 +25,34 @@ export function o<T>(arg: T): [T] extends [o.ReadonlyObservable<any>] ? T : o.Ob
 
 export namespace o {
 
+
+export interface IReadonlyObservable<Get> {
+  get(): Get
+}
+
+export interface IObservable<Get, Set> extends IReadonlyObservable<Get> {
+  set(value: Set): void
+}
+
+/**
+ * `RO` is a helper type that represents a value that could be both a {@link o.ReadonlyObservable}
+ * or a non-observable.
+ *
+ * It is very useful when dealing with {@link Attrs} where flexibility is needed for arguments.
+ *
+ * ```tsx
+ * [[include:../../examples/o.ro.tsx]]
+ * ```
+ *
+ * @group Observable
+ */
+export type RO<A> = IReadonlyObservable<A> | A
+export type UnRO<A> =
+  A extends IReadonlyObservable<infer B> ? B
+  : A
+
+export type UnROArray<A extends any[]> = {[K in keyof A]: UnRO<A[K]>}
+
 /**
  * Get the type of the element of an observable. Works on `#o.RO` as well.
  * @group Observable
@@ -438,10 +466,10 @@ export class ReadonlyObservable<A> implements Indexable {
   tf<B, A2 extends A = A>(transform: RO<Converter<A2, B>>): Observable<B>
   tf<B, A2 extends A = A>(tf: o.RO<TransfomFn<A2, B>>, rev: o.RO<RevertFn<A2, B>>): Observable<B>
   tf<B, A2 extends A = A>(transform: RO<TransfomFn<A2, B> | ReadonlyConverter<A2, B>>): ReadonlyObservable<B>
-  tf<B, A2 extends A = A>(transform: RO<Converter<A2, B>> | RO<TransfomFn<A2, B> | ReadonlyConverter<A2, B>>, rev?: o.RO<RevertFn<A2, B>>): Observable<B> {
+  tf<B, A2 extends A = A>(transform: RO<Converter<A2, B>> | RO<TransfomFn<A2, B> | ReadonlyConverter<A2, B>>, rev?: RO<RevertFn<A2, B>>): Observable<B> {
     let old: A2 | NoValue = NoValue
     let old_val: B | NoValue = NoValue
-    return combine([this as any, transform, rev] as [ReadonlyObservable<A2>, RO<TransfomFn<A2, B> | ReadonlyConverter<A2, B>>, RevertFn<A2, B>],
+    return combine([this as unknown as IReadonlyObservable<A2>, transform, rev] as const,
       ([v, fnget]) => {
         const curval = (typeof fnget === "function" ? fnget(v, old, old_val) : fnget.transform(v, old, old_val))
         const arg_nb = (typeof fnget === "function" ? fnget.length : fnget.transform.length)
@@ -490,10 +518,11 @@ export class ReadonlyObservable<A> implements Indexable {
   /**
    * Like {@link o.Observable.p}, but with `Map` objects.
    */
-  key<A, B>(this: ReadonlyObservable<Map<A, B>>, key: RO<A>, def?: undefined, delete_on_undefined?: RO<boolean | undefined>): this extends Observable<Map<A, B>> ? Observable<B | undefined> : ReadonlyObservable<B | undefined>
-  key<A, B>(this: ReadonlyObservable<Map<A, B>>, key: RO<A>, def: RO<(key: A, map: Map<A, B>) => B>): this extends Observable<Map<A, B>> ? Observable<B> : ReadonlyObservable<B>
-  key<A, B>(this: ReadonlyObservable<Map<A, B>>, key: RO<A>, def?: RO<(key: A, map: Map<A, B>) => B>, delete_on_undefined = true as RO<boolean | undefined>): ReadonlyObservable<B | undefined> {
-    return combine([this, key, def, delete_on_undefined] as [ReadonlyObservable<Map<A, B>>, RO<A>, RO<(key: A, map: Map<A, B>) => B>, RO<boolean>],
+  key<A, B>(this: IReadonlyObservable<Map<A, B>>, key: RO<A>, def?: undefined, delete_on_undefined?: RO<boolean | undefined>): this extends Observable<Map<A, B>> ? Observable<B | undefined> : ReadonlyObservable<B | undefined>
+  key<A, B>(this: IReadonlyObservable<Map<A, B>>, key: RO<A>, def: RO<(key: A, map: Map<A, B>) => B>): this extends Observable<Map<A, B>> ? Observable<B> : ReadonlyObservable<B>
+  key<A, B>(this: IReadonlyObservable<Map<A, B>>, key: RO<A>, def?: RO<(key: A, map: Map<A, B>) => B>, delete_on_undefined = true as RO<boolean | undefined>): ReadonlyObservable<B | undefined> {
+
+    return combine([this, key, def, delete_on_undefined] as const,
       ([map, key, def]) => {
         let res = map.get(key)
         if (res === undefined && def) {
@@ -512,20 +541,6 @@ export class ReadonlyObservable<A> implements Indexable {
     )
   }
 }
-
-/**
- * `RO` is a helper type that represents a value that could be both a {@link o.ReadonlyObservable}
- * or a non-observable.
- *
- * It is very useful when dealing with {@link Attrs} where flexibility is needed for arguments.
- *
- * ```tsx
- * [[include:../../examples/o.ro.tsx]]
- * ```
- *
- * @group Observable
- */
-export type RO<A> = ReadonlyObservable<A> | A
 
 
 /** @internal */
@@ -956,6 +971,14 @@ export function proxy<T>(ob: Observable<T>): ProxyObservable<T> {
  *
  * @group Observable
  */
+// export function combine<T extends any[], R>(deps: T, get: (a: UnROArray<T>) => R): ReadonlyObservable<R>
+// export function combine<T extends any[], R>(deps: T, get: (a: UnROArray<T>) => R, set: (r: R, old: R | NoValue, last: UnROArray<T>) => {[K in keyof UnROArray<T>]: UnROArray<T>[K] | NoValue}): Observable<R>
+// export function combine<T extends any[], R>(deps: T, get: (a: UnROArray<T>) => R, set?: (r: R, old: R | NoValue, last: UnROArray<T>) => {[K in keyof UnROArray<T>]: UnROArray<T>[K] | NoValue}): Observable<R> {
+//   const virt = new CombinedObservable<T, R>(deps)
+//   virt.getter = get
+//   virt.setter = set! // force undefined to trigger errors for readonly observables.
+//   return virt as any
+// }
 export function combine<T extends any[], R>(deps: {[K in keyof T]: RO<T[K]>}, get: (a: T) => R): ReadonlyObservable<R>
 export function combine<T extends any[], R>(deps: {[K in keyof T]: RO<T[K]>}, get: (a: T) => R, set: (r: R, old: R | NoValue, last: T) => {[K in keyof T]: T[K] | NoValue}): Observable<R>
 export function combine<T extends any[], R>(deps: {[K in keyof T]: RO<T[K]>}, get: (a: T) => R, set?: (r: R, old: R | NoValue, last: T) => {[K in keyof T]: T[K] | NoValue}): Observable<R> {
@@ -989,7 +1012,7 @@ export function merge<T>(obj: {[K in keyof T]: Observable<T[K]>}): Observable<T>
 export function merge<T>(obj: {[K in keyof T]: RO<T[K]>}): ReadonlyObservable<T>
 export function merge<T>(obj: {[K in keyof T]: Observable<T[K]>}): Observable<T> {
   const keys = Object.keys(obj) as (keyof T)[]
-  const parents: RO<T[keyof T]>[] = keys.map(k => obj[k])
+  const parents: IReadonlyObservable<T[keyof T]>[] = keys.map(k => obj[k])
   return combine(parents, args => {
     const res = {} as {[K in keyof T]: T[K]}
     for (let i = 0; i < keys.length; i++) {
@@ -1721,13 +1744,5 @@ export function merge<T>(obj: {[K in keyof T]: Observable<T[K]>}): Observable<T>
         this._observers.splice(idx, 1)
       }
     }
-  }
-
-  export interface IReadonlyObservable<Get> {
-    get(): Get
-  }
-
-  export interface IObservable<Get, Set> extends IReadonlyObservable<Get> {
-    set(value: Set): void
   }
 }
