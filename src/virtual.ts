@@ -21,6 +21,10 @@ const debug = {
   green: "color: #66f100; font-weight: bold;",
 }
 
+export function VirtualScroll<O extends o.RO<any[]>>(obs: O, renderfn?: (ob: Repeat.RoItem<O>, n: o.RO<number>) => Renderable<HTMLElement>) {
+  return new VirtualScroller(obs, renderfn)
+}
+
 /** */
 export class VirtualScroller<O extends o.RO<any[]>> implements Inserter<Element> {
 
@@ -406,7 +410,14 @@ export class VirtualScroller<O extends o.RO<any[]>> implements Inserter<Element>
       })
     })
 
-    node_observe(this.container, this.obs, lst => {
+    node_observe(this.container, this.obs, (lst, old) => {
+      // eval being asynchronous, we make sure to destroy
+      if (old !== o.NoValue && old.length > lst.length && this.pos_end >= lst.length) {
+        while (this.pos_end > lst.length - 1) {
+          this.shelveBottom()
+        }
+      }
+
       // Tell the scroller that we're scrolling, even though we're not, so that eval appends stuff until it can't.
       this.scroll_direction = 1
       // Do not change the position, but maybe reevaluate boundaries ?
