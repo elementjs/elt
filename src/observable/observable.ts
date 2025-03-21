@@ -28,10 +28,13 @@ export namespace o {
 
 export interface IReadonlyObservable<Get> {
   get(): Get
+  addObserver(fn: ObserverCallback<Get>): Observer<Get>
+  addObserver(fn: Observer<Get>): Observer<Get>
 }
 
 export interface IObservable<Get, Set> extends IReadonlyObservable<Get> {
   set(value: Set): void
+  mutate(fn: (current: Get) => Set | NoValue): this
 }
 
 /**
@@ -57,7 +60,7 @@ export type UnROArray<A extends any[]> = {[K in keyof A]: UnRO<A[K]>}
  * Get the type of the element of an observable. Works on `#o.RO` as well.
  * @group Observable
  */
-export type ObservedType<T> = T extends ReadonlyObservable<infer U> ? U : T
+export type ObservedType<T> = T extends IReadonlyObservable<infer U> ? U : T
 
 /**
  * Signature of the transform functions that transform an observable of a given type
@@ -502,15 +505,15 @@ export class ReadonlyObservable<A> implements Indexable {
    * ```
    */
   p<K extends keyof A>(this: Observable<A>, key: RO<K>): Observable<A[K]>
-  p<K extends keyof A>(this: ReadonlyObservable<A>, key: RO<K>): ReadonlyObservable<A[K]>
+  p<K extends keyof A>(this: IReadonlyObservable<A>, key: RO<K>): ReadonlyObservable<A[K]>
   p<K extends keyof A>(key: RO<K>): Observable<A[K]> {
     return prop(this, key)
   }
 
-  path<K1 extends keyof A>(this: ReadonlyObservable<A>, key: K1): ReadonlyObservable<A[K1]>
-  path<K1 extends keyof A, K2 extends keyof A[K1]>(this: ReadonlyObservable<A>, key: K1, key2: K2): ReadonlyObservable<A[K1][K2]>
-  path<K1 extends keyof A, K2 extends keyof A[K1], K3 extends keyof A[K1][K2]>(this: ReadonlyObservable<A>, key: K1, key2: K2, key3: K3): ReadonlyObservable<A[K1][K2][K3]>
-  path<K1 extends keyof A, K2 extends keyof A[K1], K3 extends keyof A[K1][K2], K4 extends keyof A[K1][K2][K3]>(this: ReadonlyObservable<A>, key: K1, key2: K2, key3: K3, key4: K4): ReadonlyObservable<A[K1][K2][K3][K4]>
+  path<K1 extends keyof A>(this: IReadonlyObservable<A>, key: K1): ReadonlyObservable<A[K1]>
+  path<K1 extends keyof A, K2 extends keyof A[K1]>(this: IReadonlyObservable<A>, key: K1, key2: K2): ReadonlyObservable<A[K1][K2]>
+  path<K1 extends keyof A, K2 extends keyof A[K1], K3 extends keyof A[K1][K2]>(this: IReadonlyObservable<A>, key: K1, key2: K2, key3: K3): ReadonlyObservable<A[K1][K2][K3]>
+  path<K1 extends keyof A, K2 extends keyof A[K1], K3 extends keyof A[K1][K2], K4 extends keyof A[K1][K2][K3]>(this: IReadonlyObservable<A>, key: K1, key2: K2, key3: K3, key4: K4): ReadonlyObservable<A[K1][K2][K3][K4]>
   path(...pth: any[]): any {
     return path(this as any, ...pth)
   }
@@ -695,6 +698,7 @@ export class Observable<A> extends ReadonlyObservable<A> {
     if (n !== NoValue) {
       this.set(n)
     }
+    return this
   }
 
   /**
@@ -1183,6 +1187,18 @@ export function merge<T>(obj: {[K in keyof T]: Observable<T[K]>}): Observable<T>
     return new CombinedObservable(deps) as any
   }
 
+
+  /**
+   * Combine a template string with an array of observables to create a new observable that is the result of the template string interpolation.
+   */
+  export function str(arr: TemplateStringsArray, ...args: RO<null | undefined | {toString: () => string}>[]): o.ReadonlyObservable<string> {
+    return combine(args, (args) => {
+      return arr.reduce((acc, str, i) => {
+        acc.push(str, args[i]?.toString() ?? "")
+        return acc
+      }, [] as string[]).join("")
+    })
+  }
 
   export function expression<T>(
     fn: (get: <A>(obs: o.RO<A>) => A, old: <A>(obs: o.RO<A>) => A | NoValue, prev: T | NoValue) => T,
