@@ -27,9 +27,9 @@ import { css } from "./css"
 
 // FIXME this lacks some debounce and throttle, or a way of achieving it.
 function setup_bind<T, N extends Element>(
-  obs: o.Observable<T>,
+  obs: o.IObservable<T | null | undefined, T>,
   node_get: (node: N) => T,
-  node_set: (node: N, value: T) => void,
+  node_set: (node: N, value: T | null | undefined) => void,
   event = "input" as KEvent
 ) {
   return function (node: N) {
@@ -98,7 +98,7 @@ export namespace $bind {
   export function number(obs: o.Observable<number>): (node: HTMLInputElement) => void {
     return setup_bind(obs,
       node => node.valueAsNumber,
-      (node, value) => node.valueAsNumber = value
+      (node, value) => node.valueAsNumber = value!
     )
   }
 
@@ -113,7 +113,7 @@ export namespace $bind {
   export function date(obs: o.Observable<Date | null>): (node: HTMLInputElement) => void {
     return setup_bind(obs,
       node => node.valueAsDate,
-      (node, value) => node.valueAsDate = value
+      (node, value) => node.valueAsDate = value ?? null
     )
   }
 
@@ -127,10 +127,10 @@ export namespace $bind {
    *
    * @group Decorators
    */
-  export function boolean(obs: o.Observable<boolean>): (node: HTMLInputElement) => void {
+  export function boolean(obs: o.IObservable<boolean | undefined | null, boolean>): (node: HTMLInputElement) => void {
     return setup_bind(obs,
       node => node.checked,
-      (node, value) => node.checked = value,
+      (node, value) => node.checked = !!value,
       "change"
     )
   }
@@ -145,7 +145,9 @@ export namespace $bind {
   export function selected_index(obs: o.Observable<number>): (node: HTMLSelectElement) => void {
     return setup_bind(obs,
       node => node.selectedIndex,
-      (node, value) => node.selectedIndex = value
+      (node, value) => {
+        node.selectedIndex = value!
+      }
     )
   }
 }
