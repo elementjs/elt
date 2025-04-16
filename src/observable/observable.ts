@@ -49,6 +49,7 @@ export interface IObservable<Get, Set> extends IReadonlyObservable<Get> {
  *
  * @group Observable
  */
+export type O<A, A2 extends A = A> = IObservable<A2, A> | A
 export type RO<A> = IReadonlyObservable<A> | A
 export type UnRO<A> =
   A extends IReadonlyObservable<infer B> ? B
@@ -1032,7 +1033,9 @@ export function merge<T>(obj: {[K in keyof T]: Observable<T[K]>}): Observable<T>
    * of `def` if the value was `undefined`.
    * @group Observable
    */
-  export function prop<T, K extends keyof T>(obj: Observable<T> | T, prop: RO<K>, def?: RO<(key: K, obj: T) => T[K]>) {
+  export function prop<T, K extends keyof T>(obj: RO<T>, prop: RO<K>, def?: RO<(key: K, obj: T) => T[K]>): ReadonlyObservable<T[K]>
+  export function prop<T, K extends keyof T>(obj: O<T>, prop: RO<K>, def?: RO<(key: K, obj: T) => T[K]>): Observable<T[K]>
+  export function prop<T, K extends keyof T>(obj: IObservable<T, T> | T, prop: RO<K>, def?: RO<(key: K, obj: T) => T[K]>) {
     return combine(
       [obj as T, prop, def] as const,
       ([obj, prop, def]) => {
