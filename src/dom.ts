@@ -338,6 +338,10 @@ export function node_append<N extends Node>(node: N, renderable: Renderable<N> |
     }
 
   } else if (renderable instanceof Function) {
+    if (node.nodeType === Node.DOCUMENT_FRAGMENT_NODE) {
+      console.warn("decorators should not be used on fragments")
+    }
+
     // A decorator
     const res = renderable(node)
     if (res != null) node_append(node, res as Inserter<N>, refchild, is_basic_node)

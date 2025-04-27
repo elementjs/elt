@@ -111,7 +111,7 @@ export class VirtualScroller<O extends o.RO<any[]>> implements Inserter<Element>
     obs: O,
     public renderfn?: (ob: Repeat.RoItem<O>, n: o.RO<number>) => Renderable<HTMLElement>
   ) {
-    this.obs = o(obs as any)
+    this.obs = o(obs as any) as o.Observable<O[]>
   }
 
   /** Re-render the viewport by trying to set the nth element around the top of the screen */
@@ -413,9 +413,10 @@ export class VirtualScroller<O extends o.RO<any[]>> implements Inserter<Element>
     node_observe(this.container, this.obs, (lst, old) => {
       // eval being asynchronous, we make sure to destroy
       if (old !== o.NoValue && old.length > lst.length && this.pos_end >= lst.length) {
-        while (this.pos_end > lst.length - 1) {
+        while (this.pos_end > lst.length - 2) {
           this.shelveBottom()
         }
+        // console.log(lst, old, this.pos_end)
       }
 
       // Tell the scroller that we're scrolling, even though we're not, so that eval appends stuff until it can't.

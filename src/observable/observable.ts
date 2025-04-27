@@ -17,7 +17,10 @@ function _is_promise_like(a: any): a is PromiseLike<any> {
  *   Observable holding the value of `arg` if it wasn't.
  * @group Observable
  */
-export function o<T>(arg: T): [T] extends [o.ReadonlyObservable<any>] ? T : o.Observable<T> {
+export function o<T>(arg: T):
+[o.ReadonlyObservable<any>] extends [T] ? o.ReadonlyObservable<o.UnRO<T>>
+: o.Observable<o.UnRO<T>>
+{
     // when there is a mix of different observables, then we have a readonlyobservable of the combination of the types
 
   return o.is_observable(arg) ? arg as any : new o.Observable(arg)
@@ -52,7 +55,8 @@ export interface IObservable<Get, Set> extends IReadonlyObservable<Get> {
 export type O<A, A2 extends A = A> = IObservable<A2, A> | A
 export type RO<A> = IReadonlyObservable<A> | A
 export type UnRO<A> =
-  A extends IReadonlyObservable<infer B> ? B
+  A extends IObservable<any, infer C> ? C
+  : A extends IReadonlyObservable<infer B> ? B
   : A
 
 export type UnROArray<A extends any[]> = {[K in keyof A]: UnRO<A[K]>}
@@ -507,7 +511,7 @@ export class ReadonlyObservable<A> implements Indexable {
    */
   p<K extends keyof A>(this: Observable<A>, key: RO<K>): Observable<A[K]>
   p<K extends keyof A>(this: IReadonlyObservable<A>, key: RO<K>): ReadonlyObservable<A[K]>
-  p<K extends keyof A>(key: RO<K>): Observable<A[K]> {
+  p<K extends keyof A>(key: RO<K>) {
     return prop(this, key)
   }
 
