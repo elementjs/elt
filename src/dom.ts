@@ -338,10 +338,6 @@ export function node_append<N extends Node>(node: N, renderable: Renderable<N> |
     }
 
   } else if (renderable instanceof Function) {
-    if (node.nodeType === Node.DOCUMENT_FRAGMENT_NODE) {
-      console.warn("decorators should not be used on fragments")
-    }
-
     // A decorator
     const res = renderable(node)
     if (res != null) node_append(node, res as Inserter<N>, refchild, is_basic_node)
@@ -448,6 +444,11 @@ export function node_observe<T>(
   obsfn: o.ObserverCallback<T>,
   options?: o.ObserveOptions<T>
 ): o.Observer<T> | null {
+  if (node.nodeType === Node.DOCUMENT_FRAGMENT_NODE) {
+    console.warn("observing on a fragment does nothing")
+    return null
+  }
+
   if (!(o.isReadonlyObservable(obs))) {
     // If the node is already inited, run the callback
     if (!options?.changes_only) {
