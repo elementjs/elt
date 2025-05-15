@@ -78,9 +78,11 @@ export class Verb<N extends Node> implements Inserter<N> {
  * ```
  * @group Verbs
  */
+export type Truthy<T> = T extends false | 0 | "" | null | undefined ? never : T
+
 export function If<T extends o.RO<any>, N extends Node>(
   condition: T,
-  display?: (arg: If.NonNullableRO<T>) => Renderable<N>,
+  display?: (arg: If.TruthyRO<T>) => Renderable<N>,
   display_otherwise?: () => Renderable<N>,
 ) {
   return new If.IfDisplayer(condition, display, display_otherwise)
@@ -96,10 +98,10 @@ export namespace If {
    * [[include:../examples/if.nonnullablero.tsx]]
    * ```
    */
-  export type NonNullableRO<T> =
-    T extends o.Observable<infer U> ? o.Observable<NonNullable<U>> :
-    T extends o.ReadonlyObservable<infer U> ? o.ReadonlyObservable<NonNullable<U>>
-    : NonNullable<T>
+  export type TruthyRO<T> =
+    T extends o.Observable<infer U> ? o.Observable<Truthy<U>> :
+    T extends o.ReadonlyObservable<infer U> ? o.ReadonlyObservable<Truthy<U>>
+    : Truthy<T>
 
   export class IfDisplayer<T, N extends Node> extends Verb<N> {
 
@@ -107,7 +109,7 @@ export namespace If {
 
     constructor(
       public _if: o.RO<T>,
-      public _then?: (arg: If.NonNullableRO<T>) => Renderable<N>,
+      public _then?: (arg: If.TruthyRO<T>) => Renderable<N>,
       public _else?: () => Renderable<N>,
     ) {
       super(
@@ -116,7 +118,7 @@ export namespace If {
       this.setRenderable(o.tf<T, Renderable<N>>(_if, (cond, old, v) => {
         if (old !== o.NoValue && !!cond === !!old && v !== o.NoValue) return v as Renderable<N>
         if (cond && this._then) {
-          return this._then(this._if as If.NonNullableRO<T>)
+          return this._then(this._if as If.TruthyRO<T>)
         } else if (this._else) {
           return this._else()
         } else {
@@ -125,14 +127,14 @@ export namespace If {
       }))
     }
 
-    Then(display: (arg: If.NonNullableRO<T>) => Renderable<N>) {
+    Then(display: (arg: If.TruthyRO<T>) => Renderable<N>) {
       this._then = display
       return this
     }
 
     ElseIf<T2 extends o.RO<any>>(
       condition: T2,
-      display?: (arg: If.NonNullableRO<T2>) => Renderable<N>,
+      display?: (arg: If.TruthyRO<T2>) => Renderable<N>,
     ) {
       const last = this.last ?? this
       const add = new IfDisplayer<T2, N>(condition, display)
@@ -535,6 +537,13 @@ export namespace RepeatScroll {
             // if (this.next_index)
           }
         })
+      }
+    }
+
+    protected removeChildren(count: number): void {
+      super.removeChildren(count)
+      if (this.next_index >= this.lst.length - 1) {
+        this.on_end_reached?.()
       }
     }
 
