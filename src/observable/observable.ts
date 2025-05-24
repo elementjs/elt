@@ -23,7 +23,7 @@ export function o<T>(arg: T):
 {
     // when there is a mix of different observables, then we have a readonlyobservable of the combination of the types
 
-  return o.is_observable(arg) ? arg as any : new o.Observable(arg)
+  return o.is_observable(arg) ? arg as any : new o.Observable(arg) as any
 }
 
 export namespace o {

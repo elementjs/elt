@@ -371,6 +371,18 @@ export function node_append<N extends Node>(node: N, renderable: Renderable<N> |
         node_observe_attribute(_node, key, (attrs as any)[key])
       }
     }
+  } else if (typeof (renderable as any).then === "function") {
+    const _pro = renderable as Promise<Renderable<N>>
+    const cmt = document.createComment("promise-loading")
+    node.insertBefore(cmt, refchild)
+    _pro.then(res => {
+      if (!cmt.parentNode) return
+      node_append(cmt.parentNode as unknown as N, res, cmt)
+      cmt.textContent = "promise-resolved"
+    }).catch(e => {
+      console.error(e)
+      cmt.textContent = "promise-error: " + e.toString()
+    })
   } else {
     // Otherwise, make it a string and append it.
     node.insertBefore(document.createTextNode(renderable.toString()), refchild)
