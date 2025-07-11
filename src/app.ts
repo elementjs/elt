@@ -2,6 +2,28 @@ import { Renderable } from "./types"
 import { o } from "./observable"
 import { Deferred } from "./utils"
 
+const sym_view_fns = Symbol("view_fns")
+
+/**
+ * view decorator for Service class objects, compatible with both old and new style typescript/javascript decorators.
+*/
+export function view<R extends Renderable>(target: any, prop: string, descriptor: TypedPropertyDescriptor<() => R>): void
+export function view<R extends Renderable>(view_fn: () => R, prop: ClassMethodDecoratorContext<any, () => R>): void
+export function view(target: any, prop: any, descriptor?: TypedPropertyDescriptor<any>) {
+  if (descriptor != null) {
+    if (!Object.hasOwn(target, sym_view_fns)) {
+      // Try to get views on the prototype
+      target[sym_view_fns] = (target[sym_view_fns] ?? [])
+    }
+    target[sym_view_fns].push(descriptor.value)
+  } else {
+    let _prop = prop as ClassMethodDecoratorContext<any, () => Renderable>
+    _prop.addInitializer(function(this: InstanceType<ReturnType<typeof App.serviceFactory>>) {
+      this.srv.views.set(_prop.name as string, _prop.access.get(this).bind(this))
+    })
+  }
+}
+
 /** @internal decode a param value */
 function _decode(s: string): string | boolean | undefined | number | null {
   let val: string | boolean | undefined | number | null = s
@@ -110,8 +132,7 @@ export class App {
   async _activate<S>(builder: App.ServiceBuilder<S, any>, params?: App.Params): Promise<App.ActivationResult> {
     const _was_activating_when_called = this.o_activating.get()
     const full_params = Object.assign({}, params)
-    const awaited = await builder
-    const builder_fn = typeof awaited === "function" ? awaited : awaited.default
+    const builder_fn = await App.unpack_builder(builder)
 
     if (_was_activating_when_called && !this.o_activating.get()) {
       const error = "un-waited activate() call detected. They MUST be awaited."
@@ -480,8 +501,7 @@ export namespace App {
     params = o.proxy(o({} as Params))
 
     async getService<S>(_builder: App.ServiceBuilder<S>) {
-      const __builder = await _builder
-      const builder = typeof __builder === "function" ? __builder : __builder.default
+      const builder = await unpack_builder(_builder)
 
       let previous = this.services.get(builder) ?? this.previous_state?.services.get(builder)
 
@@ -592,15 +612,77 @@ export namespace App {
 
   export type SrvParams = {[name: string]: string | number | boolean | null | undefined}
 
-  export type ServiceBuilderFunction<S, T extends SrvParams = {}> = (srv: App.Service<T>) => Promise<S>
+  export type ServiceBuilderFunction<S, T extends SrvParams = {}> = ((srv: App.Service<T>) => Promise<S>) & {default?: undefined, [sym_service_init]?: undefined}
+  export type ServiceBuilderFactoriedObject<S, T extends SrvParams = {}> = { [sym_service_init]: (srv: App.Service<T>) => Promise<S>, default?: undefined }
+  export type ServiceBuilderConcreteType<S, T extends SrvParams = {}> = ServiceBuilderFactoriedObject<S, T> | ServiceBuilderFunction<S, T>
 
   /**
    * Type definition of an asynchronous function that can be used as a service in an elt App.
    */
   export type ServiceBuilder<S, T extends SrvParams = {}> =
-    | ServiceBuilderFunction<S, T>
-    | { default: ServiceBuilderFunction<S, T> }
-    | Promise<ServiceBuilderFunction<S, T> | { default: ServiceBuilderFunction<S, T> }>
+    | ServiceBuilderConcreteType<S, T>
+    | { default: ServiceBuilderConcreteType<S, T> }
+    | Promise<ServiceBuilderConcreteType<S, T> | { default: ServiceBuilderConcreteType<S, T> }>
+
+  export async function unpack_builder<S, T extends SrvParams = {}>(builder: ServiceBuilder<S, T>): Promise<ServiceBuilderFunction<S, T>> {
+
+    if (builder instanceof Promise) {
+      builder = await builder
+    }
+
+    if (builder.default) {
+      builder = builder.default
+    }
+
+    if (typeof builder[sym_service_init] === "function") {
+      return builder[sym_service_init].bind(builder)
+    }
+
+    return builder
+  }
+
+  export const sym_service_init = Symbol("service_init")
+
+  /** Base class for service objects */
+  export function serviceFactory<O, S extends SrvParams = {}>(init: (srv: App.Service<S>) => Promise<O>) {
+    return class ServiceObject {
+      static async [sym_service_init](this: typeof ServiceObject, srv: App.Service<S>) {
+        const res = await init(srv)
+        let res2 = new this(srv, res)
+        for (const v of (res2 as any)[sym_view_fns] ?? []) {
+          srv.views.set(v.name, v.bind(res2))
+        }
+        return res2
+      }
+
+      constructor(public srv: App.Service<S>, public init_result: O) {
+        Object.assign(this, init_result)
+        srv._on_deinit.push(() => {
+          this.deinit()
+        })
+        this.init()
+      }
+
+      get is_persistent() {
+        return this.srv.is_persistent
+      }
+
+      set is_persistent(value: boolean) {
+        this.srv.is_persistent = value
+      }
+
+      async init() { }
+      async deinit() { }
+    } as unknown as {
+      [sym_service_init]: (srv: App.Service<S>) => Promise<O>
+      new(srv: App.Service<S>, init_result: O): {
+        srv: App.Service<S>
+        init_result: O
+        init(): Promise<any>
+        deinit(): Promise<any>
+      } & {[K in keyof O]: O[K]}
+    }
+  }
 
   /**
    * A single service.
