@@ -308,6 +308,8 @@ export namespace Repeat {
     protected node!: HTMLElement
     protected oo_length = o(0)
     protected obs: o.Observable<any[]>
+    protected key: ((ob: RoItem<O>) => any) | null = null
+    protected key_map: Map<any, RoItem<O>> = new Map()
 
     constructor(
       obs: O,
@@ -350,9 +352,19 @@ export namespace Repeat {
           node_append(this.node, this.on_empty())
         }
         this.oo_length.set(this.lst.length)
+
+        if (this.key) {
+
+        }
+        // If we had a key, now we perform the great shuffling
       }, { immediate: true })
 
       node_append(parent, this.node, refchild)
+    }
+
+    /** For all rendered items, check if the key changed and move it to its correct position */
+    protected updateKeys() {
+      //
     }
 
     RenderEach(fn: (ob: RoItem<O>, n: o.RO<number>) => Renderable<HTMLElement>) {
@@ -392,19 +404,24 @@ export namespace Repeat {
 
       const prop_obs = o(this.next_index)
       const ob = this.obs.p(prop_obs) as o.CombinedObservable<any, any>
-      const node = document.createElement("e-ritem") as RepeatItemElement
+      const node = document.createElement("e-repeat-item") as RepeatItemElement
       node[sym_obs] = ob
-
       node.setAttribute("index", this.next_index.toString())
+      node_append(node, this.renderfn(ob as RoItem<O>, prop_obs))
 
       const _sep = this.separator
       if (_sep && this.next_index > 0) {
-        node_append(node, _sep(prop_obs))
+        const sep = document.createElement("e-repeat-separator")
+        sep.setAttribute("index", this.next_index.toString())
+        node_append(sep, _sep(prop_obs))
+        fr.appendChild(sep)
       } else if (this.next_index === 0 && this.prefix) {
-        node_append(node, this.prefix(this.oo_length))
+        const pref = document.createElement("e-repeat-prefix")
+        node_append(pref, this.prefix(this.oo_length))
+        fr.appendChild(pref)
       }
 
-      node_append(node, this.renderfn(ob as RoItem<O>, prop_obs))
+
       fr.appendChild(node)
 
       this.next_index++
@@ -424,7 +441,7 @@ export namespace Repeat {
       node_append(this.node, fr, this._suffix)
 
       if (this.suffix && this._suffix == null) {
-        const suf = document.createElement("e-ritem")
+        const suf = document.createElement("e-repeat-suffix")
         suf.setAttribute("suffix", "")
         this._suffix = suf
         node_append(suf, this.suffix(this.oo_length))

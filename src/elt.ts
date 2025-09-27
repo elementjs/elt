@@ -16,7 +16,7 @@ import {
 /** @internal setup a basic css stylesheet that declares the common elt elements as display: contents */
 export function setup_base_styles(doc = document) {
   const style = doc.createElement("style")
-  style.append(`e-obs,e-if,e-switch,e-repeat,e-repeat-scroll,e-virtual-scroll,e-ritem,e-iter,e-app,e-app-view,e-lang,e-unpromise{ display: contents }`)
+  style.append(`e-obs,e-if,e-switch,e-repeat,e-repeat-scroll,e-virtual-scroll,e-repeat-item,e-repeat-separator,e-repeat-prefix,e-repeat-suffix,e-app,e-app-view,e-lang,e-unpromise{ display: contents }`)
   doc.head.appendChild(style)
 }
 requestAnimationFrame(() => setup_base_styles())
