@@ -178,7 +178,7 @@ export class Observer<A> implements Indexable {
   /**
    * The last value they've been called with.
    */
-  protected old_value: A | NoValue = NoValue
+  old_value: A | NoValue = NoValue
   /**
    * Used to speed up access
    * @internal

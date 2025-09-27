@@ -9,6 +9,7 @@ import {
   node_append,
   node_do_disconnect,
   node_observe,
+  node_observe_attribute,
   node_on_connected,
   node_on_disconnected,
   node_remove,
@@ -271,7 +272,7 @@ export namespace Repeat {
   const sym_obs = Symbol("ritem-obs")
 
   interface RepeatItemElement extends HTMLElement {
-    [sym_obs]: o.CombinedObservable<any, any>
+    [sym_obs]: o.Observable<number>
   }
 
   /**
@@ -308,8 +309,7 @@ export namespace Repeat {
     protected node!: HTMLElement
     protected oo_length = o(0)
     protected obs: o.Observable<any[]>
-    protected key: ((ob: RoItem<O>) => any) | null = null
-    protected key_map: Map<any, RoItem<O>> = new Map()
+    protected observer: o.Observer<any[]> | null = null
 
     constructor(
       obs: O,
@@ -329,7 +329,7 @@ export namespace Repeat {
 
       this.node = document.createElement("e-repeat")
 
-      node_observe(this.node, this.obs, lst => {
+      this.observer = node_observe(this.node, this.obs, lst => {
         this.lst = lst ?? []
         this.node.setAttribute("length", this.lst.length.toString())
         const diff = this.lst.length - this.next_index
@@ -353,18 +353,10 @@ export namespace Repeat {
         }
         this.oo_length.set(this.lst.length)
 
-        if (this.key) {
-
-        }
         // If we had a key, now we perform the great shuffling
       }, { immediate: true })
 
       node_append(parent, this.node, refchild)
-    }
-
-    /** For all rendered items, check if the key changed and move it to its correct position */
-    protected updateKeys() {
-      //
     }
 
     RenderEach(fn: (ob: RoItem<O>, n: o.RO<number>) => Renderable<HTMLElement>) {
@@ -395,6 +387,21 @@ export namespace Repeat {
       return this
     }
 
+    /* childProp is a special-case version of .prop that avoids retrigering the list observer since if the change comes from this observable, we know that the list order and size have not changed. */
+    childProp(idx: o.ReadonlyObservable<number>) {
+      return o.combine<[RoItem<O>[], number], RoItem<O>>([this.obs, idx as o.Observable<number>],
+        ([obj, prop]) => {
+          return obj[prop]
+        },
+        (nval, _, [orig, prop]) => {
+          const newo = o.clone(orig)
+          newo[prop] = nval
+          this.observer!.old_value = newo // that's the cheating part.
+          return [newo, o.NoValue] as const
+        }
+      )
+    }
+
     /**
      * Generate the next element to append to the list.
      */
@@ -403,10 +410,10 @@ export namespace Repeat {
         return false
 
       const prop_obs = o(this.next_index)
-      const ob = this.obs.p(prop_obs) as o.CombinedObservable<any, any>
+      const ob = this.childProp(prop_obs)
       const node = document.createElement("e-repeat-item") as RepeatItemElement
-      node[sym_obs] = ob
-      node.setAttribute("index", this.next_index.toString())
+      node[sym_obs] = prop_obs
+      node_observe_attribute(node, "index", prop_obs)
       node_append(node, this.renderfn(ob as RoItem<O>, prop_obs))
 
       const _sep = this.separator
