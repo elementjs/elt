@@ -269,10 +269,42 @@ export function Repeat<T extends o.RO<any[] | null | undefined>>(obs: T, render?
 
 export namespace Repeat {
 
-  const sym_obs = Symbol("ritem-obs")
+  export const sym_obs = Symbol("ritem-obs")
 
   interface RepeatItemElement extends HTMLElement {
-    [sym_obs]: o.Observable<number>
+    [sym_obs]: RepeatObservable<any>
+    nextSibling: RepeatItemElement | null
+    previousSibling: RepeatItemElement | null
+  }
+
+  /** A special observable that is not a combined one to prevent unneeded updates when setting a property of the observed array.
+   * Repeat, RepeatScroll and RepeatVirtual are directly responsible for updating the sub-observables they create.
+  */
+  export class RepeatObservable<T> extends o.Observable<T> {
+
+    constructor(
+      value: T,
+      public repeat: Repeater<o.Observable<T[]>>,
+      public prop: number,
+      public repeat_key?: any,
+    ) {
+      super(value)
+    }
+
+    // Normal set behaviour that doesn't change the original array
+    repeatSet(value: T) {
+      super.set(value)
+    }
+
+    set(value: T) {
+      super.set(value)
+
+      this.repeat.update_lock(() => {
+        const newlst = o.clone(this.repeat.obs.get())
+        newlst[this.prop] = value
+        this.repeat.obs.set(newlst)
+      })
+    }
   }
 
   /**
@@ -298,18 +330,19 @@ export namespace Repeat {
    */
   export class Repeater<O extends o.RO<any[] | null | undefined>> {
 
-    protected next_index: number = 0
     protected on_empty: (() => Renderable<Node>) | null = null
-    protected prefix: ((oo_length: o.ReadonlyObservable<number>) => Renderable<Node>) | null = null
-    protected suffix: ((oo_length: o.ReadonlyObservable<number>) => Renderable<Node>) | null = null
+    protected prefix: ((o_lst: O) => Renderable<Node>) | null = null
+    protected suffix: ((o_lst: O) => Renderable<Node>) | null = null
     protected separator: ((n: o.RO<number>) => Renderable<HTMLElement>) | null = null
     protected _suffix: Node | null = null
     protected empty_drawn = false
-    protected lst: O[] = []
+    protected lst: RoItem<O>[] = []
     protected node!: HTMLElement
-    protected oo_length = o(0)
-    protected obs: o.Observable<any[]>
-    protected observer: o.Observer<any[]> | null = null
+    obs: o.Observable<any[]>
+    observer: o.Observer<any[]> | null = null
+    protected keyfn: ((item: RoItem<O>) => any) | null = null
+    update_lock = o.exclusive_lock()
+    protected node_map = new Map<any, RepeatItemElement>()
 
     constructor(
       obs: O,
@@ -330,29 +363,10 @@ export namespace Repeat {
       this.node = document.createElement("e-repeat")
 
       this.observer = node_observe(this.node, this.obs, lst => {
-        this.lst = lst ?? []
-        this.node.setAttribute("length", this.lst.length.toString())
-        const diff = this.lst.length - this.next_index
-
-        if (diff > 0) {
-          if (this.empty_drawn) {
-            while (this.node.firstChild) {
-              node_remove(this.node.firstChild)
-            }
-            this.empty_drawn = false
-          }
-          this.appendChildren(diff)
-        }
-
-        if (diff < 0)
-          this.removeChildren(-diff)
-
-        if (this.lst.length === 0 && this.on_empty && !this.empty_drawn) {
-          this.empty_drawn = true
-          node_append(this.node, this.on_empty())
-        }
-        this.oo_length.set(this.lst.length)
-
+        this.update_lock(() => {
+          this.updateChildrenPre(lst ?? [])
+        })
+        // this.lst = lst ?? []
         // If we had a key, now we perform the great shuffling
       }, { immediate: true })
 
@@ -365,13 +379,13 @@ export namespace Repeat {
     }
 
     /** Render `fn` right before the first element if the observed array  was not empty */
-    PrefixBy(fn: (oo_length: o.ReadonlyObservable<number>) => Renderable<Node>) {
+    PrefixBy(fn: (o_lst: O) => Renderable<Node>) {
       this.prefix = fn
       return this
     }
 
     /** Render `fn` right after the last element if the observed array was not empty */
-    SuffixBy(fn: (oo_length: o.ReadonlyObservable<number>) => Renderable<Node>) {
+    SuffixBy(fn: (o_lst: O) => Renderable<Node>) {
       this.suffix = fn
       return this
     }
@@ -387,97 +401,200 @@ export namespace Repeat {
       return this
     }
 
-    /* childProp is a special-case version of .prop that avoids retrigering the list observer since if the change comes from this observable, we know that the list order and size have not changed. */
-    childProp(idx: o.ReadonlyObservable<number>) {
-      return o.combine<[RoItem<O>[], number], RoItem<O>>([this.obs, idx as o.Observable<number>],
-        ([obj, prop]) => {
-          return obj[prop]
-        },
-        (nval, _, [orig, prop]) => {
-          const newo = o.clone(orig)
-          newo[prop] = nval
-          this.observer!.old_value = newo // that's the cheating part.
-          return [newo, o.NoValue] as const
+    /** Compute the range of children that need to be updated */
+    protected updateChildrenPre(new_lst: RoItem<O>[]) {
+      const keyfn = this.keyfn
+
+      let iter = this.node.firstChild as RepeatItemElement | null
+      let end = this.node.lastChild as RepeatItemElement | null
+
+      const keys: any[] = new Array(new_lst.length)
+      let key_map = new Map<any, number>()
+      for (let i = 0; i < new_lst.length; i++) {
+        const item = new_lst[i]
+        const key = keyfn?.(item) ?? item
+        keys[i] = key
+        key_map.set(key, i)
+      }
+
+      let idx = 0
+
+      if (iter != null) {
+        if (iter.tagName === "E-REPEAT-PREFIX") {
+          iter = iter.nextSibling
         }
-      )
+
+        while (iter != null) {
+          const obs = iter[sym_obs]
+          let new_idx = key_map.get(obs.key)
+          if (new_idx != null && new_idx === idx) {
+            idx++
+            iter = iter.nextSibling
+            continue
+          }
+          break
+        }
+      }
+
+      let end_idx = new_lst.length
+      if (end != null) {
+        if (end.tagName === "E-REPEAT-SUFFIX") {
+          end = end.previousSibling
+        }
+
+        while (end != null && end !== iter) {
+          const obs = end[sym_obs]
+          let new_idx = key_map.get(obs.key)
+          if (new_idx != null && new_idx === end_idx - 1) {
+            obs.prop = end_idx - 1
+            end_idx--
+            end = end.previousSibling
+            continue
+          }
+          break
+        }
+        end = end?.nextSibling ?? null
+      }
+
+      if (idx > end_idx) {
+        // We're _done_
+        return
+      }
+
+      // After this, iter is on the first node that we don't know what to do with and end is where we will stop
+
+      let dead_nodes = new Set<RepeatItemElement>()
+      let dead_nodes_iter = dead_nodes.values()
+      let created = 0
+
+      const reuse_dead_node =(node: RepeatItemElement, iter: Node | null, idx: number) => {
+        dead_nodes.delete(node)
+        const obs = node[sym_obs]
+        obs.prop = idx
+        obs.key = keys[idx]
+        obs.repeatSet(new_lst[idx])
+        this.node_map.set(obs.key, node)
+        this.node.insertBefore(node, iter)
+      }
+
+      do {
+        if (iter == null || iter === end) {
+          break
+        }
+
+        const obs = iter[sym_obs]
+        const key = keys[idx] // The wanted key at this index
+
+        if (obs.key === key) {
+          // Well, now, this is fantastic, this is exactly what we wanted
+          obs.prop = idx
+          obs.repeatSet(new_lst[idx])
+          idx++
+          iter = iter.nextSibling
+          continue
+        }
+
+        const new_idx = key_map.get(obs.key)
+        if (new_idx == null) {
+          // This node is dead, mark it as such
+          dead_nodes.add(iter)
+          this.node_map.delete(obs.key)
+          iter = iter.nextSibling
+          continue
+        }
+
+        // At this position, we want `key`. So we try and pull it.
+        const prev = this.node_map.get(key)
+        if (prev != null) {
+          // We're pulling the node from wherever it is at.
+          const obs = prev[sym_obs]
+          obs.prop = idx
+          obs.repeatSet(new_lst[idx])
+          this.node.insertBefore(prev, iter)
+          idx++ // it was found, so we can advance
+          continue
+        }
+
+        // Well, seems like key is new, since we haven't found it
+
+        if (dead_nodes.size > 0) {
+          // Try to reuse a dead node
+          let node = dead_nodes_iter.next().value!
+          reuse_dead_node(node, iter, idx++)
+          continue
+        }
+
+        console.log("create new node")
+
+        created++
+        const nd = this.create(new_lst, key, idx)
+        idx++
+        node_append(this.node, nd, iter)
+
+      } while (true)
+
+      if (iter == null || iter === end) {
+        // We're at the end of what we had to handle, so we just create the remaining nodes
+        let next = dead_nodes_iter.next()
+
+        while (idx < end_idx && !next.done) {
+          reuse_dead_node(next.value, iter, idx++)
+          next = dead_nodes_iter.next()
+        }
+
+        while (idx < end_idx) {
+          const nd = this.create(new_lst, keys[idx], idx)
+          idx++
+          node_append(this.node, nd, iter)
+        }
+      } else if (idx >= end_idx) {
+        // All the nodes we meant to create/insert are already there, so until iter is on end, the rest is dead nodes
+        while (iter != null && iter !== end) {
+          const obs = iter[sym_obs]
+          let nd = iter
+          iter = iter.nextSibling
+          this.node_map.delete(obs.key)
+          node_remove(nd)
+        }
+      }
+
+      for (let dead of dead_nodes) {
+        node_remove(dead)
+      }
     }
 
     /**
      * Generate the next element to append to the list.
      */
-    protected next(fr: DocumentFragment): boolean {
-      if (this.next_index >= this.lst.length)
-        return false
+    protected create(lst: O[], key: any, index: number) {
+      const item = lst[index]
+      const ob = new RepeatObservable(item, this, index)
+      ob.key = key
+      ob.prop = index
 
-      const prop_obs = o(this.next_index)
-      const ob = this.childProp(prop_obs)
       const node = document.createElement("e-repeat-item") as RepeatItemElement
-      node[sym_obs] = prop_obs
-      node_observe_attribute(node, "index", prop_obs)
-      node_append(node, this.renderfn(ob as RoItem<O>, prop_obs))
+      node[sym_obs] = ob
 
       const _sep = this.separator
-      if (_sep && this.next_index > 0) {
+      if (_sep && index > 0) {
         const sep = document.createElement("e-repeat-separator")
-        sep.setAttribute("index", this.next_index.toString())
-        node_append(sep, _sep(prop_obs))
-        fr.appendChild(sep)
-      } else if (this.next_index === 0 && this.prefix) {
+        sep.setAttribute("index", index.toString())
+        node_append(sep, _sep(prop_obs), node.firstChild)
+        node.appendChild(sep)
+      } else if (index === 0 && this.prefix) {
         const pref = document.createElement("e-repeat-prefix")
-        node_append(pref, this.prefix(this.oo_length))
-        fr.appendChild(pref)
+        node_append(pref, this.prefix(this.obs as O))
+        node.appendChild(pref)
       }
 
-
-      fr.appendChild(node)
-
-      this.next_index++
-      return true
+      node_append(node, this.renderfn(ob, index))
+      this.node_map.set(key, node)
+      return node
     }
 
-    protected appendChildren(count: number) {
-      if (count <= 0) return
-
-      const fr = document.createDocumentFragment()
-
-      while (count-- > 0) {
-        if (!this.next(fr)) break
-      }
-
-
-      node_append(this.node, fr, this._suffix)
-
-      if (this.suffix && this._suffix == null) {
-        const suf = document.createElement("e-repeat-suffix")
-        suf.setAttribute("suffix", "")
-        this._suffix = suf
-        node_append(suf, this.suffix(this.oo_length))
-        node_append(this.node, suf)
-      }
-
-    }
-
-    protected removeChildren(count: number) {
-      let iter = this.node.lastChild as RepeatItemElement | null
-      if (iter == null || this.next_index === 0 || count === 0) return
-      // Détruire jusqu'à la position concernée...
-      this.next_index = this.next_index - count
-
-      while (true) {
-        const next = iter.previousSibling as RepeatItemElement | null
-        count--
-        if (count === -1) { break }
-        node_do_disconnect(iter)
-        iter[sym_obs]?.disconnect()
-        this.node.removeChild(iter)
-        iter = next
-        if (iter == null) { break }
-      }
-
-      if (this.next_index === 0 && this._suffix) {
-        node_remove(this._suffix)
-        this._suffix = null
-      }
+    withKeyFunction(fn: (item: RoItem<O>) => any) {
+      this.keyfn = fn
+      return this
     }
   }
 }
@@ -517,13 +634,21 @@ export namespace RepeatScroll {
   export class ScrollRepeater<O extends o.RO<any[]>> extends Repeat.Repeater<O> {
 
     protected parent: HTMLElement|null = null
-    instersector = document.createElement("span")
+    instersector = this.createIntersector()
     intersecting = false
     scroll_buffer_size = 10
     threshold = 500
+    last_index = 0
     on_end_reached: null | (() => any) = null
+    real_lst: Repeat.RoItem<O>[] = []
 
     inter: IntersectionObserver | null = null
+
+    createIntersector() {
+      const intersector = document.createElement("span")
+      intersector.style.gridColumn = "1 / -1"
+      return intersector
+    }
 
     onEndReached(fn: (() => any)) {
       this.on_end_reached = fn
@@ -540,35 +665,40 @@ export namespace RepeatScroll {
       return this
     }
 
-    /**
-     * Append `count` children if the parent was not scrollable (just like Repeater),
-     * or append elements until we've added past the bottom of the container.
-     */
-    appendChildren() {
-      // Instead of appending all the count, break it down to bufsize packets.
-      if (this.next_index >= this.lst.length || !this.intersecting) {
-        return
-      }
+    //
+    protected updateChildrenPre(new_lst: Repeat.RoItem<O>[]): void {
+      //
+      this.real_lst = new_lst
+      this.last_index = Math.min(this.last_index, new_lst.length)
+      if (this.intersecting && this.last_index < this.real_lst.length) {
+        let new_last_index = Math.min(this.last_index + this.scroll_buffer_size, this.real_lst.length)
+        const lst = new_lst.slice(0, new_last_index)
+        this.last_index = new_last_index
+        super.updateChildrenPre(lst)
 
-      super.appendChildren(this.scroll_buffer_size)
-
-      if (this.next_index >= this.lst.length - 1) {
-        this.on_end_reached?.()
-      } else if (this.intersecting) {
         requestAnimationFrame(() => {
-          if (this.intersecting) {
-            this.appendChildren()
-            // if (this.next_index)
+          if (this.real_lst === new_lst && this.intersecting && this.last_index < this.real_lst.length) {
+            this.updateChildrenPre(new_lst)
           }
         })
+      } else {
+        const lst_update = new_lst.slice(0, this.last_index)
+        super.updateChildrenPre(lst_update)
       }
     }
 
-    protected removeChildren(count: number): void {
-      super.removeChildren(count)
-      if (this.next_index >= this.lst.length - 1) {
-        this.on_end_reached?.()
+    appendChildren() {
+      const fragment = document.createDocumentFragment()
+      const to = Math.min(this.last_index + this.scroll_buffer_size, this.real_lst.length)
+      for (let i = this.last_index; i < to; i++) {
+        const r = this.create(this.real_lst, i)
+        const ob = r[Repeat.sym_obs]
+        this.key_map.set(ob.key ?? this.real_lst[i], r)
+        node_append(fragment, r)
+        this.last_index++
       }
+      node_append(this.node, fragment)
+      this.lst = this.real_lst.slice(0, this.last_index)
     }
 
     connected() {
@@ -589,8 +719,10 @@ export namespace RepeatScroll {
       this.inter = new IntersectionObserver(entries => {
         for (let e of entries) {
           this.intersecting = e.isIntersecting
-          if (e.isIntersecting) {
+          if (e.isIntersecting && this.last_index < this.real_lst.length) {
             this.appendChildren()
+            // Shoud create more children !
+            // this.appendChildren()
           }
         }
       }, { rootMargin: `${this.threshold}px`, root: scrollable_parent })
