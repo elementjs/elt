@@ -653,6 +653,7 @@ export namespace App {
       static async [sym_service_init](this: typeof ServiceObject, srv: App.Service<S>) {
         const res = await init(srv)
         let res2 = new this(srv, res)
+        res2.init()
         for (const v of (res2 as any)[sym_view_fns] ?? []) {
           srv.views.set(v.name, v.bind(res2))
         }
@@ -664,7 +665,6 @@ export namespace App {
         srv._on_deinit.push(() => {
           this.deinit()
         })
-        this.init()
       }
 
       get is_persistent() {
