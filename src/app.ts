@@ -613,7 +613,11 @@ export namespace App {
   export type SrvParams = {[name: string]: string | number | boolean | null | undefined}
 
   export type ServiceBuilderFunction<S, T extends SrvParams = {}> = ((srv: App.Service<T>) => Promise<S>) & {default?: undefined, [sym_service_init]?: undefined}
-  export type ServiceBuilderFactoriedObject<S, T extends SrvParams = {}> = { [sym_service_init]: (srv: App.Service<T>) => Promise<S>, default?: undefined }
+  export type ServiceBuilderFactoriedObject<S, T extends SrvParams = {}> = {
+      [sym_service_init]: (srv: App.Service<T>) => Promise<any>,
+      default?: undefined
+      new (...a: any[]): S
+  }
   export type ServiceBuilderConcreteType<S, T extends SrvParams = {}> = ServiceBuilderFactoriedObject<S, T> | ServiceBuilderFunction<S, T>
 
   /**
