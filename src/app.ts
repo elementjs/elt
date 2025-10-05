@@ -156,7 +156,7 @@ export class App {
   /**
    * Does like require() but sets the resulting service as the active instance.
    */
-  async __activate<S>(builder: App.ServiceBuilderFunction<S>, params?: App.Params): Promise<App.ActivationResult> {
+  async __activate<S>(builder: App.ServiceBuilderConcreteType<S>, params?: App.Params): Promise<App.ActivationResult> {
     let current = this.o_state.get()
     this.o_activating.set(true)
     const staging = new App.State(this)
@@ -334,19 +334,19 @@ export namespace App {
 
   export class Reactivation extends Deferred<App.ActivationResult> {
     constructor(
-      public builder: App.ServiceBuilderFunction<any>,
+      public builder: App.ServiceBuilderConcreteType<any>,
       public params: Params = {},
     ) { super() }
   }
 
   export interface Activated {
     activated: true
-    service: ServiceBuilderFunction<any>
+    service: ServiceBuilderConcreteType<any>
   }
 
   export interface Reactivated {
     activated: false
-    service: ServiceBuilderFunction<any>
+    service: ServiceBuilderConcreteType<any>
     reactivation: Promise<ActivationResult>
   }
 
@@ -495,7 +495,7 @@ export namespace App {
     }
 
     previous_state: State | null = null
-    services = new Map<App.ServiceBuilder<any>, App.Service>
+    services = new Map<App.ServiceBuilderConcreteType<any>, App.Service>
     active!: App.Service
     views: App.Views = new Map()
     params = o.proxy(o({} as Params))
@@ -515,9 +515,9 @@ export namespace App {
       this.addServiceDep(srv)
 
       if (previous == null) {
-        srv.result = await builder(srv)
+        const builder_fn = typeof builder[sym_service_init] === "function" ? builder[sym_service_init].bind(builder) : builder
+        srv.result = await builder_fn(srv)
       }
-
 
       return srv
     }
@@ -613,6 +613,7 @@ export namespace App {
   export type SrvParams = {[name: string]: string | number | boolean | null | undefined}
 
   export type ServiceBuilderFunction<S, T extends SrvParams = {}> = ((srv: App.Service<T>) => Promise<S>) & {default?: undefined, [sym_service_init]?: undefined}
+
   export type ServiceBuilderFactoriedObject<S, T extends SrvParams = {}> = {
       [sym_service_init]: (srv: App.Service<T>) => Promise<any>,
       default?: undefined
@@ -628,7 +629,7 @@ export namespace App {
     | { default: ServiceBuilderConcreteType<S, T> }
     | Promise<ServiceBuilderConcreteType<S, T> | { default: ServiceBuilderConcreteType<S, T> }>
 
-  export async function unpack_builder<S, T extends SrvParams = {}>(builder: ServiceBuilder<S, T>): Promise<ServiceBuilderFunction<S, T>> {
+  export async function unpack_builder<S, T extends SrvParams = {}>(builder: ServiceBuilder<S, T>): Promise<ServiceBuilderConcreteType<S, T>> {
 
     if (builder instanceof Promise) {
       builder = await builder
@@ -639,7 +640,7 @@ export namespace App {
     }
 
     if (typeof builder[sym_service_init] === "function") {
-      return builder[sym_service_init].bind(builder)
+      return builder
     }
 
     return builder
@@ -649,7 +650,7 @@ export namespace App {
 
   /** Base class for service objects */
   export function serviceFactory<O, S extends SrvParams = {}>(init: (srv: App.Service<S>) => Promise<O>) {
-    return class ServiceObject {
+    class ServiceObject {
       static async [sym_service_init](this: typeof ServiceObject, srv: App.Service<S>) {
         const res = await init(srv)
         let res2 = new this(srv, res)
@@ -677,7 +678,9 @@ export namespace App {
 
       async init() { }
       async deinit() { }
-    } as unknown as {
+    }
+
+    return ServiceObject as unknown as {
       [sym_service_init]: (srv: App.Service<S>) => Promise<O>
       new(srv: App.Service<S>, init_result: O): {
         srv: App.Service<S>
@@ -694,7 +697,7 @@ export namespace App {
   export class Service<T extends SrvParams = {}> extends o.ObserverHolder {
     constructor(
       public state: App.State,
-      public builder: (srv: App.Service) => any
+      public builder: App.ServiceBuilderConcreteType<any>
     ) { super() }
     _on_deinit: (() => any)[] = []
 
