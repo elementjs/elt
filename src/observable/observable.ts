@@ -53,7 +53,7 @@ export interface IObservable<Get, Set> extends IReadonlyObservable<Get> {
  * @group Observable
  */
 export type O<A, A2 extends A = A> = IObservable<A2, A> | A
-export type RO<A> = IReadonlyObservable<A> | A
+export type RO<A, R = A> = IObservable<A, R> | IReadonlyObservable<A> | A
 export type UnRO<A> =
   A extends IObservable<any, infer C> ? C
   : A extends IReadonlyObservable<infer B> ? B
@@ -1239,22 +1239,27 @@ export function merge<T>(obj: {[K in keyof T]: Observable<T[K]>}): Observable<T>
       // console.log(values, mp.get(m))
       return cmb._parents_values[mp.get(m)!]
     }
-    cmb.getter = ((values: any[]) => {
 
-      function _old(m: o.ReadonlyObservable<any>) {
-        if (mp.has(m)) {
-          return old[mp.get(m)!] ?? NoValue
-        } else {
-          cmb.addDependency(m, true)
-          return NoValue
-        }
+    function _old(m: o.RO<any>) {
+      if (!o.is_observable(m)) {
+        return NoValue
       }
 
-      let res = fn(_get, _old as any, prev) as T
-      if (fn.length >= 1) {
-        old = values
+      if (mp.has(m)) {
+        const prev = old[mp.get(m)!]
+        return prev === undefined ? NoValue : prev
+      } else {
+        cmb.addDependency(m, true)
+        return NoValue
       }
-      if (fn.length >= 2) {
+    }
+
+    cmb.getter = (() => {
+      let res = fn(_get, _old, prev) as T
+      if (fn.length > 1) {
+        old = cmb._parents_values.slice()
+      }
+      if (fn.length > 2) {
         prev = res
       }
       return res
