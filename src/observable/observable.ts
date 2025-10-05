@@ -1436,7 +1436,11 @@ export function merge<T>(obj: {[K in keyof T]: Observable<T[K]>}): Observable<T>
   * Create a throttled function that will only call the wrapped function at most every `ms` milliseconds.
   *
   * If `leading` is true, then the first time this function is called it will
-  * call `fn` immediately. Otherwise, it will wait `ms` milliseconds before triggering it for the first time.
+  * call `fn` immediately.
+  *
+  * If `leading` is a number, then the first time it is called it will wait `leading` milliseconds before triggering the function, and then activate every `ms` milliseconds. If it is not called within `ms` milliseconds after that, it will reset to waiting `leading` milliseconds again.
+  *
+  * Otherwise, it will wait `ms` milliseconds before triggering each time.
   *
   * Also works as an es7 decorator.
   *
@@ -1446,9 +1450,9 @@ export function merge<T>(obj: {[K in keyof T]: Observable<T[K]>}): Observable<T>
   *
   * @group Observable
   */
-  export function throttle(ms: number, leading?: boolean): (target: any, key: string, desc: PropertyDescriptor) => void
-  export function throttle<F extends (...a: any[]) => any>(fn: F, ms: number, leading?: boolean): F
-  export function throttle(fn: any, ms: any, leading: boolean = false): any {
+  export function throttle(ms: number, leading?: boolean | number): (target: any, key: string, desc: PropertyDescriptor) => void
+  export function throttle<F extends (...a: any[]) => any>(fn: F, ms: number, leading?: boolean | number): F
+  export function throttle(fn: any, ms: any, leading: boolean | number= false): any {
     // Called as a method decorator.
     if (typeof fn === "number") {
       leading = ms
@@ -1470,9 +1474,13 @@ export function merge<T>(obj: {[K in keyof T]: Observable<T[K]>}): Observable<T>
 
       // If the delay expired or if this is the first time this function is called,
       // then trigger the call. Otherwise, we will have to set up the call.
-      if ((leading && last_call === 0) || last_call + ms <= now) {
+      if ((leading === true && last_call === 0) || last_call > 0 && last_call + ms <= now && typeof leading !== "number") {
         prev_res = fn.apply(this, args)
         last_call = now
+        if (timer) {
+          window.clearTimeout(timer)
+          timer = null
+        }
         return prev_res
       }
 
@@ -1486,7 +1494,7 @@ export function merge<T>(obj: {[K in keyof T]: Observable<T[K]>}): Observable<T>
           last_call = Date.now()
           _args = null
           timer = null
-        }, ms - (now - (last_call || now)))
+        }, (typeof leading === "number" && (last_call === 0 || last_call + ms <= now) ? leading : ms) - (now - (last_call || now)))
       }
 
       return prev_res
