@@ -271,7 +271,7 @@ export class Observer<A> implements Indexable {
    *
    * @see o.throttle
    */
-  throttle(ms: number, leading?: boolean) {
+  throttle(ms: number, leading?: boolean | number) {
     this.refresh = o.throttle(this.refresh.bind(this), ms, leading)
     return this
   }
