@@ -3,7 +3,6 @@ import { IndexableArray, Indexable } from "./indexable"
 import { sym_insert, sym_is_observable } from "../symbols"
 import { Renderable } from "../types"
 import { CommentHolder, node_append, node_observe } from "../dom"
-
 ;(window as any).DEBUG ??= false
 declare const DEBUG: boolean
 
@@ -19,9 +18,11 @@ function _is_promise_like(a: any): a is PromiseLike<any> {
  */
 export function o<T>(
   arg: T
-): [o.ReadonlyObservable<any>] extends [T]
-  ? o.ReadonlyObservable<o.UnRO<T>>
-  : o.Observable<o.UnRO<T>> {
+): [T] extends [o.Observable<infer U>]
+  ? o.Observable<U>
+  : [T] extends [o.IReadonlyObservable<infer U>]
+  ? o.ReadonlyObservable<U>
+  : o.Observable<T> {
   // when there is a mix of different observables, then we have a readonlyobservable of the combination of the types
 
   return o.is_observable(arg) ? (arg as any) : (new o.Observable(arg) as any)

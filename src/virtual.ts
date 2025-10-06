@@ -1,9 +1,15 @@
-
 import { Inserter, Renderable } from "./types"
 
 import { o } from "./observable"
 
-import { node_add_event_listener, node_append, node_observe, node_on_connected, node_on_disconnected, node_remove } from "./dom"
+import {
+  node_add_event_listener,
+  node_append,
+  node_observe,
+  node_on_connected,
+  node_on_disconnected,
+  node_remove,
+} from "./dom"
 
 import { Repeat } from "./verbs"
 
@@ -21,13 +27,25 @@ const debug = {
   green: "color: #66f100; font-weight: bold;",
 }
 
-export function VirtualScroll<O extends o.RO<any[]>>(obs: O, renderfn?: (ob: Repeat.RoItem<O>, n: o.RO<number>) => Renderable<HTMLElement>) {
-  return new VirtualScroller(obs, renderfn)
+export function VirtualScroll<
+  T,
+  O extends o.IReadonlyObservable<T[] | null | undefined>
+>(
+  obs: O,
+  renderfn?: (
+    ob: O extends o.IObservable<T[] | null | undefined, T[]>
+      ? o.Observable<T>
+      : o.ReadonlyObservable<T>,
+    n: o.ReadonlyObservable<number>
+  ) => Renderable<HTMLElement>
+) {
+  return new VirtualScroller(obs as any, renderfn as any)
 }
 
 /** */
-export class VirtualScroller<O extends o.RO<any[]>> implements Inserter<Element> {
-
+export class VirtualScroller<O extends o.RO<any[]>>
+  implements Inserter<Element>
+{
   obs: o.Observable<any[]>
 
   configure(fn: (arg: this) => any) {
@@ -44,10 +62,12 @@ export class VirtualScroller<O extends o.RO<any[]>> implements Inserter<Element>
   o_padding_top = o(0)
   o_padding_bottom = o(0)
 
-  oo_padding = o.merge({top: this.o_padding_top, bot: this.o_padding_bottom}).tf(st => ({
-    paddingTop: `${st.top}px`,
-    paddingBottom: `${st.bot}px`,
-  }))
+  oo_padding = o
+    .merge({ top: this.o_padding_top, bot: this.o_padding_bottom })
+    .tf((st) => ({
+      paddingTop: `${st.top}px`,
+      paddingBottom: `${st.bot}px`,
+    }))
 
   /** The container */
   container!: HTMLElement // <e-virtual-repeat style={this.oo_padding}/> as HTMLElement
@@ -68,8 +88,6 @@ export class VirtualScroller<O extends o.RO<any[]>> implements Inserter<Element>
   protected rendered = new Map<number, RItem>()
   protected pool: RItem[] = []
 
-
-
   protected _observer = new ResizeObserver(() => {
     // console.log("resized")
     this.eval()
@@ -85,7 +103,7 @@ export class VirtualScroller<O extends o.RO<any[]>> implements Inserter<Element>
   /** If parent is not provided, we look for it recursively */
   findNearestParent() {
     // Find our parent element, the one with the
-    let iter: HTMLElement | null = this.container//.parentElement
+    let iter: HTMLElement | null = this.container //.parentElement
     while (iter && iter !== document.body) {
       const st = getComputedStyle(iter)
 
@@ -104,19 +122,20 @@ export class VirtualScroller<O extends o.RO<any[]>> implements Inserter<Element>
 
       iter = iter.parentElement
     }
-
   }
 
   constructor(
     obs: O,
-    public renderfn?: (ob: Repeat.RoItem<O>, n: o.RO<number>) => Renderable<HTMLElement>
+    public renderfn?: (
+      ob: Repeat.RoItem<O>,
+      n: o.RO<number>
+    ) => Renderable<HTMLElement>
   ) {
     this.obs = o(obs as any) as o.Observable<O[]>
   }
 
   /** Re-render the viewport by trying to set the nth element around the top of the screen */
   setPosition(n: number) {
-
     const count = this.obs.get().length
     if (count === 0 || this.overflow_parent == null) {
       if (this.pos_end !== this.pos_start) {
@@ -170,7 +189,9 @@ export class VirtualScroller<O extends o.RO<any[]>> implements Inserter<Element>
       const bounds_last = this.getBounds(last)
 
       if (this.pos_end !== this.pos_start) {
-        const new_item_size = (bounds_last.bottom - bounds_first.top) / (this.pos_end - this.pos_start)
+        const new_item_size =
+          (bounds_last.bottom - bounds_first.top) /
+          (this.pos_end - this.pos_start)
         const item_diff = new_item_size - this.item_size
         this.item_size = this.item_size + item_diff / 10 // try not to modify
       }
@@ -180,24 +201,38 @@ export class VirtualScroller<O extends o.RO<any[]>> implements Inserter<Element>
       const region = this.overflow_parent.getBoundingClientRect()
 
       let modif = false
-      if (!scrolling_upwards && region.top - this.threshold > bounds_first.bottom) {
+      if (
+        !scrolling_upwards &&
+        region.top - this.threshold > bounds_first.bottom
+      ) {
         this.shelveTop()
         modif = true
       }
 
-      if (!scrolling_upwards && this.pos_end < this.obs.get().length  && region.bottom + this.threshold >= bounds_last.top) {
+      if (
+        !scrolling_upwards &&
+        this.pos_end < this.obs.get().length &&
+        region.bottom + this.threshold >= bounds_last.top
+      ) {
         if (this.append()) {
           modif = true
         }
       }
 
-      if (this.scroll_direction < 0 && this.pos_start > 0 && region.top - this.threshold <= bounds_first.bottom) {
+      if (
+        this.scroll_direction < 0 &&
+        this.pos_start > 0 &&
+        region.top - this.threshold <= bounds_first.bottom
+      ) {
         if (this.prepend()) {
           modif = true
         }
       }
 
-      if (this.scroll_direction < 0 && region.bottom + this.threshold < bounds_last.top) {
+      if (
+        this.scroll_direction < 0 &&
+        region.bottom + this.threshold < bounds_last.top
+      ) {
         this.shelveBottom()
         modif = true
       }
@@ -206,7 +241,6 @@ export class VirtualScroller<O extends o.RO<any[]>> implements Inserter<Element>
         break
       }
     } while (true)
-
   }
 
   protected measureTopDiff(elt: RItem) {
@@ -245,10 +279,9 @@ export class VirtualScroller<O extends o.RO<any[]>> implements Inserter<Element>
 
   /** measure the bounds relative to the viewport for a given element */
   protected getBounds(r: RItem) {
-    let res = {top: Infinity, bottom: -Infinity, height: 0}
+    let res = { top: Infinity, bottom: -Infinity, height: 0 }
 
     const measure = (elt: HTMLElement, pt: Element | null = null) => {
-
       const bbox = elt.getBoundingClientRect()
       const ptt = elt.offsetParent
 
@@ -357,7 +390,7 @@ export class VirtualScroller<O extends o.RO<any[]>> implements Inserter<Element>
       node_append(r, this.renderfn!(ob as any, r._idx))
     }
 
-    r.setAttribute("index", ""+idx)
+    r.setAttribute("index", "" + idx)
     this.rendered.set(idx, r)
     r._idx.set(idx)
     return r
@@ -367,10 +400,9 @@ export class VirtualScroller<O extends o.RO<any[]>> implements Inserter<Element>
 
   /** Insert our scroller */
   [sym_insert](parent: HTMLElement, refchild: Node | null): void {
-
     if (!this.container) {
       this.container = e("e-repeat")
-      node_observe(this.container, this.oo_padding, padding => {
+      node_observe(this.container, this.oo_padding, (padding) => {
         Object.assign(parent.style, padding)
       })
     }
@@ -380,7 +412,6 @@ export class VirtualScroller<O extends o.RO<any[]>> implements Inserter<Element>
     })
 
     node_on_connected(this.container, () => {
-
       if (this.overflow_parent == null) {
         this.findNearestParent()
       }
@@ -391,28 +422,37 @@ export class VirtualScroller<O extends o.RO<any[]>> implements Inserter<Element>
 
       this.setPosition(0)
 
-      node_add_event_listener(this.container, this.overflow_parent, "scroll", ev => {
-        if (this.expect_scroll_event) {
-          this.expect_scroll_event = false
-          // Do not handle the event because we *know* it would be triggered
-          return
+      node_add_event_listener(
+        this.container,
+        this.overflow_parent,
+        "scroll",
+        (ev) => {
+          if (this.expect_scroll_event) {
+            this.expect_scroll_event = false
+            // Do not handle the event because we *know* it would be triggered
+            return
+          }
+
+          const st = this.overflow_parent.scrollTop
+
+          if (this.scroll_last_top !== st) {
+            // console.log(st, this.scroll_last_top, this.scroll_direction)
+            this.scroll_direction = st - this.scroll_last_top
+            this.scroll_last_top = st
+          }
+
+          this.eval()
         }
-
-        const st = this.overflow_parent.scrollTop
-
-        if (this.scroll_last_top !== st) {
-          // console.log(st, this.scroll_last_top, this.scroll_direction)
-          this.scroll_direction = st - this.scroll_last_top
-          this.scroll_last_top = st
-        }
-
-        this.eval()
-      })
+      )
     })
 
     node_observe(this.container, this.obs, (lst, old) => {
       // eval being asynchronous, we make sure to destroy
-      if (old !== o.NoValue && old.length > lst.length && this.pos_end >= lst.length) {
+      if (
+        old !== o.NoValue &&
+        old.length > lst.length &&
+        this.pos_end >= lst.length
+      ) {
         while (this.pos_end > lst.length - 2) {
           this.shelveBottom()
         }
@@ -433,9 +473,10 @@ export class VirtualScroller<O extends o.RO<any[]>> implements Inserter<Element>
     }
   }
 
-  RenderEach(renderfn: (ob: Repeat.RoItem<O>, n: o.RO<number>) => Renderable<HTMLElement>) {
+  RenderEach(
+    renderfn: (ob: Repeat.RoItem<O>, n: o.RO<number>) => Renderable<HTMLElement>
+  ) {
     this.renderfn = renderfn
     return this
   }
-
 }
