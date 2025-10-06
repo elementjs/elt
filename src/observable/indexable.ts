@@ -5,7 +5,6 @@ export interface Indexable {
   idx: number | null
 }
 
-
 /**
  * An array wrapper that infects its elements with their indexes for faster deletion.
  * @internal

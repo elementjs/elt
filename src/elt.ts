@@ -1,36 +1,32 @@
-
-import {
-  node_append,
-} from "./dom"
+import { node_append } from "./dom"
 import { sym_elt_init } from "./symbols"
 
-import {
-  Attrs,
-  ElementMap,
-  EmptyAttributes,
-  Renderable,
-} from "./types"
+import { Attrs, ElementMap, EmptyAttributes, Renderable } from "./types"
 
 ////////////////////////////////////////////////////////
 
 /** @internal setup a basic css stylesheet that declares the common elt elements as display: contents */
 export function setup_base_styles(doc = document) {
   const style = doc.createElement("style")
-  style.append(`e-obs,e-if,e-switch,e-repeat,e-repeat-scroll,e-virtual-scroll,e-repeat-item,e-repeat-separator,e-repeat-prefix,e-repeat-suffix,e-app,e-app-view,e-lang,e-unpromise{ display: contents }`)
+  style.append(
+    `e-obs,e-if,e-switch,e-repeat,e-repeat-scroll,e-virtual-scroll,e-repeat-item,e-repeat-separator,e-repeat-prefix,e-repeat-suffix,e-app,e-app-view,e-lang,e-unpromise{ display: contents }`
+  )
   doc.head.appendChild(style)
 }
 requestAnimationFrame(() => setup_base_styles())
 
-
 export type NodeTypeFromCreator<T extends string> =
   // If it is a string of a known HTML element, return it
-  T extends keyof HTMLElementTagNameMap ? HTMLElementTagNameMap[T]
-  // If it is a string of known SVG element, return it
-  : T extends keyof SVGElementTagNameMap ? SVGElementTagNameMap[T]
-  // Otherwise, it will be a plain HTMLElement
-  : HTMLElement
-export type AttrsFor<T extends string> =
-  T extends keyof ElementMap ? ElementMap[T] : Attrs<HTMLElement>
+  T extends keyof HTMLElementTagNameMap
+    ? HTMLElementTagNameMap[T]
+    : // If it is a string of known SVG element, return it
+    T extends keyof SVGElementTagNameMap
+    ? SVGElementTagNameMap[T]
+    : // Otherwise, it will be a plain HTMLElement
+      HTMLElement
+export type AttrsFor<T extends string> = T extends keyof ElementMap
+  ? ElementMap[T]
+  : Attrs<HTMLElement>
 
 /**
  * Create Nodes with a twist.
@@ -39,11 +35,24 @@ export type AttrsFor<T extends string> =
  * Controllers, decorators, classes and style.
  * @category dom, toc
  */
-export function e<T extends (a: A) => N, A extends Attrs<any>, N extends Node>(elt: T, attrs: A, ...children: (A | Renderable<N>)[]): N
-export function e<T extends Node>(elt: T, ...children: (Attrs<T> | Renderable<T>)[]): T
-export function e<T extends string>(elt: T, ...children: (Renderable<NodeTypeFromCreator<T>> | AttrsFor<T>)[]): NodeTypeFromCreator<T>
+export function e<T extends (a: A) => N, A extends Attrs<any>, N extends Node>(
+  elt: T,
+  attrs: A,
+  ...children: (A | Renderable<N>)[]
+): N
+export function e<T extends Node>(
+  elt: T,
+  ...children: (Attrs<T> | Renderable<T>)[]
+): T
+export function e<T extends string>(
+  elt: T,
+  ...children: (Renderable<NodeTypeFromCreator<T>> | AttrsFor<T>)[]
+): NodeTypeFromCreator<T>
 // eslint-disable-next-line @typescript-eslint/ban-types
-export function e<N extends Node>(elt: string | Node | Function, ...children: (Renderable<N> | Attrs<N>)[]): N {
+export function e<N extends Node>(
+  elt: string | Node | Function,
+  ...children: (Renderable<N> | Attrs<N>)[]
+): N {
   let node: N // just to prevent the warnings later
 
   let is_basic_node = true
@@ -104,7 +113,10 @@ export function e<N extends Node>(elt: string | Node | Function, ...children: (R
       case "tspan":
       case "use":
       case "view":
-        node = document.createElementNS("http://www.w3.org/2000/svg", elt) as unknown as N
+        node = document.createElementNS(
+          "http://www.w3.org/2000/svg",
+          elt
+        ) as unknown as N
         break
       default:
         node = document.createElement(elt) as unknown as N
@@ -119,8 +131,7 @@ export function e<N extends Node>(elt: string | Node | Function, ...children: (R
   }
 
   const l = children.length
-  if (l > 0)
-    node_append(node, children[0], null, is_basic_node)
+  if (l > 0) node_append(node, children[0], null, is_basic_node)
   for (let i = 1; i < l; i++) {
     node_append(node, children[i])
   }
@@ -147,9 +158,7 @@ export const Fragment = document.createDocumentFragment.bind(document)
 
 const $ = Fragment
 
-
 export namespace e {
-
   /**
    * Extend the JSX namespace to be able to use .tsx code.
    */
@@ -174,7 +183,9 @@ export namespace e {
     export type ElementClass = ElementClassFn<any>
 
     // This is the line that tells JSX what attributes the basic elements like "div" or "article" have
-    export type IntrinsicElements = ElementMap & {[name: string]: Attrs<HTMLElement>}
+    export type IntrinsicElements = ElementMap & {
+      [name: string]: Attrs<HTMLElement>
+    }
   }
 
   /**
@@ -184,20 +195,21 @@ export namespace e {
   export const createElement = e
 
   /** @internal */
-  export const Fragment: (at: EmptyAttributes<DocumentFragment>) => DocumentFragment = $
+  export const Fragment: (
+    at: EmptyAttributes<DocumentFragment>
+  ) => DocumentFragment = $
 }
 
 declare let global: any
-if (typeof global !== "undefined" && typeof (global.E) === "undefined") {
-  (global as any).E = e
+if (typeof global !== "undefined" && typeof global.E === "undefined") {
+  ;(global as any).E = e
 }
 
 if ("undefined" !== typeof window && typeof (window as any).E === "undefined") {
-  (window as any).E = e
+  ;(window as any).E = e
 }
 
 declare global {
-
   const E: typeof e
 
   namespace E.JSX {

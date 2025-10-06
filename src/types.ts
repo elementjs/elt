@@ -20,28 +20,45 @@ export type Decorator<N extends Node> = (node: N) => Renderable<N>
  * to define what can go between `{ curly braces }` in JSX code.
  * @category dom, toc
  */
-export type Renderable<N extends Node = Element> = o.IReadonlyObservable<Renderable<N>> | Inserter<N> | string | number | Node | null | undefined | void | false | Decorator<N> | Iterable<Renderable<N>> | Promise<Renderable<N>>
+export type Renderable<N extends Node = Element> =
+  | o.IReadonlyObservable<Renderable<N>>
+  | Inserter<N>
+  | string
+  | number
+  | Node
+  | null
+  | undefined
+  | void
+  | false
+  | Decorator<N>
+  | Iterable<Renderable<N>>
+  | Promise<Renderable<N>>
 
-export type PartialStyle = Partial<{[name in keyof CSSStyleDeclaration]: CSSStyleDeclaration[name] | false} & { [K: `--${string}`]: string | false }>
+export type PartialStyle = Partial<
+  { [name in keyof CSSStyleDeclaration]: CSSStyleDeclaration[name] | false } & {
+    [K: `--${string}`]: string | false
+  }
+>
 
 /**
  * CSS Style attribute definition for the style={} attribute
  */
 export type StyleDefinition =
-  o.RO<PartialStyle>
+  | o.RO<PartialStyle>
   | o.ROProps<PartialStyle>
   | o.RO<string>
 
 /**
  * CSS classes for the class={} attribute
  */
-export type ClassDefinition = {[name: string]: o.RO<any>} | o.RO<string>
+export type ClassDefinition = { [name: string]: o.RO<any> } | o.RO<string>
 
 /**
  * Used with {@link $on} or {@link Mixin#on}
  */
-export type Listener<EventType extends Event, N extends EventTarget = Node> = (ev: EventType & { currentTarget: N }) => any
-
+export type Listener<EventType extends Event, N extends EventTarget = Node> = (
+  ev: EventType & { currentTarget: N }
+) => any
 
 /**
  * Attributes used on elements that are not actually HTML Elements
@@ -63,8 +80,8 @@ export interface EmptyAttributes<N extends Node> {
  *
  * @category dom, toc
  */
-export type AttrsNodeType<At extends EmptyAttributes<any>> = At extends EmptyAttributes<infer N> ? N : never
-
+export type AttrsNodeType<At extends EmptyAttributes<any>> =
+  At extends EmptyAttributes<infer N> ? N : never
 
 /**
  * Basic attributes used on all HTML nodes, which can be reused when making components
@@ -79,7 +96,8 @@ export type AttrsNodeType<At extends EmptyAttributes<any>> = At extends EmptyAtt
  * This type should be used as first argument to all components definitions.
  * @category dom, toc
  */
-export interface Attrs<N extends Node = HTMLElement> extends EmptyAttributes<N> {
+export interface Attrs<N extends Node = HTMLElement>
+  extends EmptyAttributes<N> {
   /** A document id */
   id?: NRO<string | null>
   /** Class definition(s), see {@link $class} for possible uses */
@@ -87,7 +105,6 @@ export interface Attrs<N extends Node = HTMLElement> extends EmptyAttributes<N> 
   /** Style definition, see {@link $style} for use */
   style?: StyleDefinition | null | false
 }
-
 
 export interface Attrs {
   autofocus?: NRO<"" | true>
@@ -103,12 +120,20 @@ export interface Attrs {
   title?: NRO<string | number>
   role?: NRO<string | number>
   accesskey?: NRO<string | number>
-  autocapitalize?: NRO<"off" | "on" | "none" | "sentences" | "words" | "characters">
-  contenteditable?: NRO<"" | true | "true" | "false" | "inherit" | "plaintext-only">
+  autocapitalize?: NRO<
+    "off" | "on" | "none" | "sentences" | "words" | "characters"
+  >
+  contenteditable?: NRO<
+    "" | true | "true" | "false" | "inherit" | "plaintext-only"
+  >
   dir?: NRO<"ltr" | "rtl" | "auto">
-  enterkeyhint?: NRO<"enter" | "done" | "go" | "next" | "previous" | "search" | "send">
+  enterkeyhint?: NRO<
+    "enter" | "done" | "go" | "next" | "previous" | "search" | "send"
+  >
   inert?: NRO<"" | true>
-  inputmode?: NRO<"none" | "text" | "decimal" | "numeric" | "tel" | "search" | "email" | "url">
+  inputmode?: NRO<
+    "none" | "text" | "decimal" | "numeric" | "tel" | "search" | "email" | "url"
+  >
   is?: NRO<string | number>
   itemid?: NRO<string | number>
   itemprop?: NRO<string | number>
@@ -133,8 +158,24 @@ export interface SVGLink {
   href?: NRO<string | number>
 }
 export interface SVGPresentation {
-  "alignment-baseline"?: NRO<"auto" | "baseline" | "before-edge" | "text-before-edge" | "middle" | "central" | "after-edge" | "text-after-edge" | "ideographic" | "alphabetic" | "hanging" | "mathematical" | "inherit">
-  "baseline-shift"?: NRO<"auto" | "baseline" | "super" | "sub" | "inherit" | string>
+  "alignment-baseline"?: NRO<
+    | "auto"
+    | "baseline"
+    | "before-edge"
+    | "text-before-edge"
+    | "middle"
+    | "central"
+    | "after-edge"
+    | "text-after-edge"
+    | "ideographic"
+    | "alphabetic"
+    | "hanging"
+    | "mathematical"
+    | "inherit"
+  >
+  "baseline-shift"?: NRO<
+    "auto" | "baseline" | "super" | "sub" | "inherit" | string
+  >
   clip?: NRO<"auto" | "inherit" | string>
   "clip-path"?: NRO<"none" | "inherit" | string>
   "clip-rule"?: NRO<"nonzero" | "evenodd" | "inherit">
@@ -147,7 +188,17 @@ export interface SVGPresentation {
   d?: NRO<string | number>
   direction?: NRO<"ltr" | "rtl" | "inherit">
   display?: NRO<"" | true>
-  "dominant-baseline"?: NRO<"auto" | "text-bottom" | "alphabetic" | "ideographic" | "middle" | "central" | "mathematical" | "hanging" | "text-top">
+  "dominant-baseline"?: NRO<
+    | "auto"
+    | "text-bottom"
+    | "alphabetic"
+    | "ideographic"
+    | "middle"
+    | "central"
+    | "mathematical"
+    | "hanging"
+    | "text-top"
+  >
   "enable-background"?: NRO<"accumulate" | "new" | "inherit">
   fill?: NRO<string | number>
   "fill-opacity"?: NRO<string | number>
@@ -161,7 +212,21 @@ export interface SVGPresentation {
   "font-stretch"?: NRO<string | number>
   "font-style"?: NRO<"normal" | "italic" | "oblique">
   "font-variant"?: NRO<string | number>
-  "font-weight"?: NRO<"normal" | "bold" | "lighter" | "bolder" | "100" | "200" | "300" | "400" | "500" | "600" | "700" | "800" | "900">
+  "font-weight"?: NRO<
+    | "normal"
+    | "bold"
+    | "lighter"
+    | "bolder"
+    | "100"
+    | "200"
+    | "300"
+    | "400"
+    | "500"
+    | "600"
+    | "700"
+    | "800"
+    | "900"
+  >
   "glyph-orientation-horizontal"?: NRO<string | number>
   "glyph-orientation-vertical"?: NRO<string | number>
   "image-rendering"?: NRO<"auto" | "optimizeQuality" | "optimizeSpeed">
@@ -174,7 +239,18 @@ export interface SVGPresentation {
   mask?: NRO<string | number>
   opacity?: NRO<string | number>
   overflow?: NRO<"visible" | "hidden" | "scroll" | "auto" | "inherit">
-  "pointer-events"?: NRO<"bounding-box" | "visiblePainted" | "visibleFill" | "visibleStroke" | "visible" | "painted" | "fill" | "stroke" | "all" | "none">
+  "pointer-events"?: NRO<
+    | "bounding-box"
+    | "visiblePainted"
+    | "visibleFill"
+    | "visibleStroke"
+    | "visible"
+    | "painted"
+    | "fill"
+    | "stroke"
+    | "all"
+    | "none"
+  >
   "shape-rendering"?: NRO<string | number>
   "solid-color"?: NRO<string | number>
   "solid-opacity"?: NRO<string | number>
@@ -189,14 +265,24 @@ export interface SVGPresentation {
   "stroke-opacity"?: NRO<string | number>
   "stroke-width"?: NRO<string | number>
   "text-anchor"?: NRO<"start" | "middle" | "end" | "inherit">
-  "text-decoration"?: NRO<"none" | "underline" | "overline" | "line-through" | "blink" | "inherit">
-  "text-rendering"?: NRO<"auto" | "optimizeSpeed" | "optimizeLegibility" | "geometricPrecision" | "inherit">
+  "text-decoration"?: NRO<
+    "none" | "underline" | "overline" | "line-through" | "blink" | "inherit"
+  >
+  "text-rendering"?: NRO<
+    | "auto"
+    | "optimizeSpeed"
+    | "optimizeLegibility"
+    | "geometricPrecision"
+    | "inherit"
+  >
   transform?: NRO<string | number>
   "unicode-bidi"?: NRO<string | number>
   "vector-effect"?: NRO<"default" | "non-scaling-stroke" | "inherit" | string>
   visibility?: NRO<string | number>
   "word-spacing"?: NRO<string | number>
-  "writing-mode"?: NRO<"lr-tb" | "rl-tb" | "tb-rl" | "lr" | "rl" | "tb" | "inherit">
+  "writing-mode"?: NRO<
+    "lr-tb" | "rl-tb" | "tb-rl" | "lr" | "rl" | "tb" | "inherit"
+  >
 }
 export interface SVGAnimationDuration {
   begin?: NRO<string | number>
@@ -228,8 +314,31 @@ export interface Link {
   href?: NRO<string | number>
   hreflang?: NRO<string | number>
   ping?: NRO<string | number>
-  referrerpolicy?: NRO<"no-referrer" | "no-referrer-when-downgrade" | "origin" | "origin-when-cross-origin" | "same-origin" | "strict-origin" | "strict-origin-when-cross-origin" | "unsafe-url">
-  rel?: NRO<"alternate" | "author" | "bookmark" | "external" | "help" | "license" | "next" | "nofollow" | "noopener" | "noreferrer" | "prev" | "search" | "tag">
+  referrerpolicy?: NRO<
+    | "no-referrer"
+    | "no-referrer-when-downgrade"
+    | "origin"
+    | "origin-when-cross-origin"
+    | "same-origin"
+    | "strict-origin"
+    | "strict-origin-when-cross-origin"
+    | "unsafe-url"
+  >
+  rel?: NRO<
+    | "alternate"
+    | "author"
+    | "bookmark"
+    | "external"
+    | "help"
+    | "license"
+    | "next"
+    | "nofollow"
+    | "noopener"
+    | "noreferrer"
+    | "prev"
+    | "search"
+    | "tag"
+  >
   target?: NRO<"_blank" | "_self" | "_parent" | "_top">
   type?: NRO<string | number>
 }
@@ -246,7 +355,8 @@ export interface Form {
 }
 export interface attrs_a extends Attrs<HTMLElementTagNameMap["a"]>, Link {}
 export interface attrs_abbr extends Attrs<HTMLElementTagNameMap["abbr"]> {}
-export interface attrs_address extends Attrs<HTMLElementTagNameMap["address"]> {}
+export interface attrs_address
+  extends Attrs<HTMLElementTagNameMap["address"]> {}
 export interface attrs_area extends Attrs<HTMLElementTagNameMap["area"]>, Link {
   alt?: NRO<string | number>
   coords?: NRO<string | number>
@@ -255,7 +365,8 @@ export interface attrs_area extends Attrs<HTMLElementTagNameMap["area"]>, Link {
   nohref?: NRO<string | number>
   type?: NRO<string | number>
 }
-export interface attrs_article extends Attrs<HTMLElementTagNameMap["article"]> {}
+export interface attrs_article
+  extends Attrs<HTMLElementTagNameMap["article"]> {}
 export interface attrs_aside extends Attrs<HTMLElementTagNameMap["aside"]> {}
 export interface attrs_audio extends Attrs<HTMLElementTagNameMap["audio"]> {
   autoplay?: NRO<"" | true>
@@ -276,12 +387,15 @@ export interface attrs_bdi extends Attrs<HTMLElementTagNameMap["bdi"]> {}
 export interface attrs_bdo extends Attrs<HTMLElementTagNameMap["bdo"]> {
   dir?: NRO<"ltr" | "rtl">
 }
-export interface attrs_blockquote extends Attrs<HTMLElementTagNameMap["blockquote"]> {
+export interface attrs_blockquote
+  extends Attrs<HTMLElementTagNameMap["blockquote"]> {
   cite?: NRO<string | number>
 }
 export interface attrs_body extends Attrs<HTMLElementTagNameMap["body"]> {}
 export interface attrs_br extends Attrs<HTMLElementTagNameMap["br"]> {}
-export interface attrs_button extends Attrs<HTMLElementTagNameMap["button"]>, Form {
+export interface attrs_button
+  extends Attrs<HTMLElementTagNameMap["button"]>,
+    Form {
   disabled?: NRO<"" | true>
   type?: NRO<"submit" | "reset" | "button">
 }
@@ -297,13 +411,15 @@ export interface attrs_code extends Attrs<HTMLElementTagNameMap["code"]> {}
 export interface attrs_col extends Attrs<HTMLElementTagNameMap["col"]> {
   span?: NRO<string | number>
 }
-export interface attrs_colgroup extends Attrs<HTMLElementTagNameMap["colgroup"]> {
+export interface attrs_colgroup
+  extends Attrs<HTMLElementTagNameMap["colgroup"]> {
   span?: NRO<string | number>
 }
 export interface attrs_data extends Attrs<HTMLElementTagNameMap["data"]> {
   value?: NRO<string | number>
 }
-export interface attrs_datalist extends Attrs<HTMLElementTagNameMap["datalist"]> {}
+export interface attrs_datalist
+  extends Attrs<HTMLElementTagNameMap["datalist"]> {}
 export interface attrs_dd extends Attrs<HTMLElementTagNameMap["dd"]> {}
 export interface attrs_del extends Attrs<HTMLElementTagNameMap["del"]> {
   cite?: NRO<string | number>
@@ -326,7 +442,8 @@ export interface attrs_embed extends Attrs<HTMLElementTagNameMap["embed"]> {
   type?: NRO<string | number>
   width?: NRO<string | number>
 }
-export interface attrs_fieldset extends Attrs<HTMLElementTagNameMap["fieldset"]> {
+export interface attrs_fieldset
+  extends Attrs<HTMLElementTagNameMap["fieldset"]> {
   disabled?: NRO<"" | true>
   form?: NRO<string | number>
   name?: NRO<string | number>
@@ -338,7 +455,21 @@ export interface attrs_form extends Attrs<HTMLElementTagNameMap["form"]> {
   "accept-charset"?: NRO<string | number>
   autocomplete?: NRO<"on" | "off">
   name?: NRO<string | number>
-  rel?: NRO<"alternate" | "author" | "bookmark" | "external" | "help" | "license" | "next" | "nofollow" | "noopener" | "noreferrer" | "prev" | "search" | "tag">
+  rel?: NRO<
+    | "alternate"
+    | "author"
+    | "bookmark"
+    | "external"
+    | "help"
+    | "license"
+    | "next"
+    | "nofollow"
+    | "noopener"
+    | "noreferrer"
+    | "prev"
+    | "search"
+    | "tag"
+  >
   action?: NRO<string | number>
   enctype?: NRO<string | number>
   method?: NRO<string | number>
@@ -367,8 +498,32 @@ export interface attrs_iframe extends Attrs<HTMLElementTagNameMap["iframe"]> {
   height?: NRO<string | number>
   loading?: NRO<"eager" | "lazy">
   name?: NRO<string | number>
-  referrerpolicy?: NRO<"no-referrer" | "no-referrer-when-downgrade" | "origin" | "origin-when-cross-origin" | "same-origin" | "strict-origin" | "strict-origin-when-cross-origin" | "unsafe-url">
-  sandbox?: NRO<"allow-downloads-without-user-activation" | "allow-downloads" | "allow-forms" | "allow-modals" | "allow-orientation-lock" | "allow-pointer-lock" | "allow-popups" | "allow-popups-to-escape-sandbox" | "allow-presentation" | "allow-same-origin" | "allow-scripts" | "allow-storage-access-by-user-activation" | "allow-top-navigation" | "allow-top-navigation-by-user-activation">
+  referrerpolicy?: NRO<
+    | "no-referrer"
+    | "no-referrer-when-downgrade"
+    | "origin"
+    | "origin-when-cross-origin"
+    | "same-origin"
+    | "strict-origin"
+    | "strict-origin-when-cross-origin"
+    | "unsafe-url"
+  >
+  sandbox?: NRO<
+    | "allow-downloads-without-user-activation"
+    | "allow-downloads"
+    | "allow-forms"
+    | "allow-modals"
+    | "allow-orientation-lock"
+    | "allow-pointer-lock"
+    | "allow-popups"
+    | "allow-popups-to-escape-sandbox"
+    | "allow-presentation"
+    | "allow-same-origin"
+    | "allow-scripts"
+    | "allow-storage-access-by-user-activation"
+    | "allow-top-navigation"
+    | "allow-top-navigation-by-user-activation"
+  >
   src?: NRO<string | number>
   srcdoc?: NRO<string | number>
   width?: NRO<string | number>
@@ -382,15 +537,49 @@ export interface attrs_img extends Attrs<HTMLElementTagNameMap["img"]> {
   height?: NRO<string | number>
   ismap?: NRO<"" | true>
   loading?: NRO<"eager" | "lazy">
-  referrerpolicy?: NRO<"no-referrer" | "no-referrer-when-downgrade" | "origin" | "origin-when-cross-origin" | "same-origin" | "strict-origin" | "strict-origin-when-cross-origin" | "unsafe-url">
+  referrerpolicy?: NRO<
+    | "no-referrer"
+    | "no-referrer-when-downgrade"
+    | "origin"
+    | "origin-when-cross-origin"
+    | "same-origin"
+    | "strict-origin"
+    | "strict-origin-when-cross-origin"
+    | "unsafe-url"
+  >
   sizes?: NRO<string | number>
   src?: NRO<string | number>
   srcset?: NRO<string | number>
   width?: NRO<string | number>
   usemap?: NRO<string | number>
 }
-export interface attrs_input extends Attrs<HTMLElementTagNameMap["input"]>, Form {
-  type?: NRO<"button" | "checkbox" | "color" | "date" | "datetime-local" | "email" | "file" | "hidden" | "image" | "month" | "number" | "password" | "radio" | "range" | "reset" | "search" | "submit" | "tel" | "text" | "time" | "url" | "week">
+export interface attrs_input
+  extends Attrs<HTMLElementTagNameMap["input"]>,
+    Form {
+  type?: NRO<
+    | "button"
+    | "checkbox"
+    | "color"
+    | "date"
+    | "datetime-local"
+    | "email"
+    | "file"
+    | "hidden"
+    | "image"
+    | "month"
+    | "number"
+    | "password"
+    | "radio"
+    | "range"
+    | "reset"
+    | "search"
+    | "submit"
+    | "tel"
+    | "text"
+    | "time"
+    | "url"
+    | "week"
+  >
   accept?: NRO<string | number>
   alt?: NRO<string | number>
   autocomplete?: NRO<string | number>
@@ -428,7 +617,20 @@ export interface attrs_li extends Attrs<HTMLElementTagNameMap["li"]> {
   value?: NRO<string | number>
 }
 export interface attrs_link extends Attrs<HTMLElementTagNameMap["link"]> {
-  as?: NRO<"audio" | "document" | "embed" | "fetch" | "font" | "image" | "object" | "script" | "style" | "track" | "video" | "worker">
+  as?: NRO<
+    | "audio"
+    | "document"
+    | "embed"
+    | "fetch"
+    | "font"
+    | "image"
+    | "object"
+    | "script"
+    | "style"
+    | "track"
+    | "video"
+    | "worker"
+  >
   disabled?: NRO<"" | true>
   crossorigin?: NRO<"anonymous" | "use-credentials">
   fetchpriority?: NRO<"high" | "low" | "auto">
@@ -439,7 +641,16 @@ export interface attrs_link extends Attrs<HTMLElementTagNameMap["link"]> {
   integrity?: NRO<string | number>
   media?: NRO<string | number>
   prefetch?: NRO<string | number>
-  referrerpolicy?: NRO<"no-referrer" | "no-referrer-when-downgrade" | "origin" | "origin-when-cross-origin" | "same-origin" | "strict-origin" | "strict-origin-when-cross-origin" | "unsafe-url">
+  referrerpolicy?: NRO<
+    | "no-referrer"
+    | "no-referrer-when-downgrade"
+    | "origin"
+    | "origin-when-cross-origin"
+    | "same-origin"
+    | "strict-origin"
+    | "strict-origin-when-cross-origin"
+    | "unsafe-url"
+  >
   rel?: NRO<string | number>
   sizes?: NRO<string | number>
   type?: NRO<string | number>
@@ -466,7 +677,8 @@ export interface attrs_meter extends Attrs<HTMLElementTagNameMap["meter"]> {
   optimum?: NRO<string | number>
 }
 export interface attrs_nav extends Attrs<HTMLElementTagNameMap["nav"]> {}
-export interface attrs_noscript extends Attrs<HTMLElementTagNameMap["noscript"]> {}
+export interface attrs_noscript
+  extends Attrs<HTMLElementTagNameMap["noscript"]> {}
 export interface attrs_object extends Attrs<HTMLElementTagNameMap["object"]> {
   data?: NRO<string | number>
   form?: NRO<string | number>
@@ -482,7 +694,8 @@ export interface attrs_ol extends Attrs<HTMLElementTagNameMap["ol"]> {
   start?: NRO<string | number>
   type?: NRO<"a" | "A" | "i" | "I" | "1">
 }
-export interface attrs_optgroup extends Attrs<HTMLElementTagNameMap["optgroup"]> {
+export interface attrs_optgroup
+  extends Attrs<HTMLElementTagNameMap["optgroup"]> {
   disabled?: NRO<"" | true>
   label?: NRO<string | number>
 }
@@ -499,7 +712,8 @@ export interface attrs_output extends Attrs<HTMLElementTagNameMap["output"]> {
 }
 export interface attrs_p extends Attrs<HTMLElementTagNameMap["p"]> {}
 export interface attrs_pre extends Attrs<HTMLElementTagNameMap["pre"]> {}
-export interface attrs_progress extends Attrs<HTMLElementTagNameMap["progress"]> {
+export interface attrs_progress
+  extends Attrs<HTMLElementTagNameMap["progress"]> {
   max?: NRO<string | number>
   value?: NRO<string | number>
 }
@@ -519,14 +733,26 @@ export interface attrs_script extends Attrs<HTMLElementTagNameMap["script"]> {
   integrity?: NRO<string | number>
   nomodule?: NRO<"" | true>
   nonce?: NRO<string | number>
-  referrerpolicy?: NRO<"no-referrer" | "no-referrer-when-downgrade" | "origin" | "origin-when-cross-origin" | "same-origin" | "strict-origin" | "strict-origin-when-cross-origin" | "unsafe-url">
+  referrerpolicy?: NRO<
+    | "no-referrer"
+    | "no-referrer-when-downgrade"
+    | "origin"
+    | "origin-when-cross-origin"
+    | "same-origin"
+    | "strict-origin"
+    | "strict-origin-when-cross-origin"
+    | "unsafe-url"
+  >
   src?: NRO<string | number>
   href?: NRO<string | number>
   type?: NRO<"" | true | "text/javascript" | "module" | "importmap">
   blocking?: NRO<"render">
 }
-export interface attrs_section extends Attrs<HTMLElementTagNameMap["section"]> {}
-export interface attrs_select extends Attrs<HTMLElementTagNameMap["select"]>, Form {
+export interface attrs_section
+  extends Attrs<HTMLElementTagNameMap["section"]> {}
+export interface attrs_select
+  extends Attrs<HTMLElementTagNameMap["select"]>,
+    Form {
   autocomplete?: NRO<string | number>
   multiple?: NRO<"" | true>
   name?: NRO<string | number>
@@ -555,7 +781,8 @@ export interface attrs_style extends Attrs<HTMLElementTagNameMap["style"]> {
   type?: NRO<"type/css">
 }
 export interface attrs_sub extends Attrs<HTMLElementTagNameMap["sub"]> {}
-export interface attrs_summary extends Attrs<HTMLElementTagNameMap["summary"]> {}
+export interface attrs_summary
+  extends Attrs<HTMLElementTagNameMap["summary"]> {}
 export interface attrs_sup extends Attrs<HTMLElementTagNameMap["sup"]> {}
 export interface attrs_table extends Attrs<HTMLElementTagNameMap["table"]> {}
 export interface attrs_tbody extends Attrs<HTMLElementTagNameMap["tbody"]> {}
@@ -564,8 +791,11 @@ export interface attrs_td extends Attrs<HTMLElementTagNameMap["td"]> {
   headers?: NRO<string | number>
   rowspan?: NRO<string | number>
 }
-export interface attrs_template extends Attrs<HTMLElementTagNameMap["template"]> {}
-export interface attrs_textarea extends Attrs<HTMLElementTagNameMap["textarea"]>, Form {
+export interface attrs_template
+  extends Attrs<HTMLElementTagNameMap["template"]> {}
+export interface attrs_textarea
+  extends Attrs<HTMLElementTagNameMap["textarea"]>,
+    Form {
   autocomplete?: NRO<"off" | "on">
   autocorrect?: NRO<"off" | "on">
   cols?: NRO<string | number>
@@ -620,53 +850,160 @@ export interface attrs_video extends Attrs<HTMLElementTagNameMap["video"]> {
   width?: NRO<string | number>
 }
 export interface attrs_wbr extends Attrs<HTMLElementTagNameMap["wbr"]> {}
-export interface attrs_svg_animate extends Attrs<SVGElementTagNameMap["animate"]>, SVGAnimationValue, SVGAnimationDuration, SVGAnimationOther {}
-export interface attrs_svg_animateMotion extends Attrs<SVGElementTagNameMap["animateMotion"]>, SVGAnimationValue, SVGAnimationDuration, SVGAnimationOther {}
-export interface attrs_svg_animateTransform extends Attrs<SVGElementTagNameMap["animateTransform"]>, SVGAnimationValue, SVGAnimationDuration, SVGAnimationOther {
+export interface attrs_svg_animate
+  extends Attrs<SVGElementTagNameMap["animate"]>,
+    SVGAnimationValue,
+    SVGAnimationDuration,
+    SVGAnimationOther {}
+export interface attrs_svg_animateMotion
+  extends Attrs<SVGElementTagNameMap["animateMotion"]>,
+    SVGAnimationValue,
+    SVGAnimationDuration,
+    SVGAnimationOther {}
+export interface attrs_svg_animateTransform
+  extends Attrs<SVGElementTagNameMap["animateTransform"]>,
+    SVGAnimationValue,
+    SVGAnimationDuration,
+    SVGAnimationOther {
   type?: NRO<"translate" | "scale" | "rotate" | "skewX" | "skewY">
 }
-export interface attrs_svg_circle extends Attrs<SVGElementTagNameMap["circle"]>, SVGPresentation {
+export interface attrs_svg_circle
+  extends Attrs<SVGElementTagNameMap["circle"]>,
+    SVGPresentation {
   cx?: NRO<string | number>
   cy?: NRO<string | number>
   r?: NRO<string | number>
   pathLength?: NRO<string | number>
 }
-export interface attrs_svg_clipPath extends Attrs<SVGElementTagNameMap["clipPath"]> {
+export interface attrs_svg_clipPath
+  extends Attrs<SVGElementTagNameMap["clipPath"]> {
   clipPathUnits?: NRO<"userSpaceOnUse" | "objectBoundingBox">
 }
 export interface attrs_svg_defs extends Attrs<SVGElementTagNameMap["defs"]> {}
 export interface attrs_svg_desc extends Attrs<SVGElementTagNameMap["desc"]> {}
-export interface attrs_svg_ellipse extends Attrs<SVGElementTagNameMap["ellipse"]>, SVGPresentation {
+export interface attrs_svg_ellipse
+  extends Attrs<SVGElementTagNameMap["ellipse"]>,
+    SVGPresentation {
   cx?: NRO<string | number>
   cy?: NRO<string | number>
   r?: NRO<string | number>
   pathLength?: NRO<string | number>
   ry?: NRO<string | number>
 }
-export interface attrs_svg_feBlend extends Attrs<SVGElementTagNameMap["feBlend"]>, SVGPresentation, SVGFilterPrimitive {
-  in?: NRO<"SourceGraphic" | "SourceAlpha" | "BackgroundImage" | "BackgroundAlpha" | "FillPaint" | "StrokePaint" | string>
-  in2?: NRO<"SourceGraphic" | "SourceAlpha" | "BackgroundImage" | "BackgroundAlpha" | "FillPaint" | "StrokePaint" | string>
-  mode?: NRO<"normal" | "multiply" | "screen" | "overlay" | "darken" | "lighten" | "color-dodge" | "color-burn" | "hard-light" | "soft-light" | "difference" | "exclusion" | "hue" | "saturation" | "color" | "luminosity">
+export interface attrs_svg_feBlend
+  extends Attrs<SVGElementTagNameMap["feBlend"]>,
+    SVGPresentation,
+    SVGFilterPrimitive {
+  in?: NRO<
+    | "SourceGraphic"
+    | "SourceAlpha"
+    | "BackgroundImage"
+    | "BackgroundAlpha"
+    | "FillPaint"
+    | "StrokePaint"
+    | string
+  >
+  in2?: NRO<
+    | "SourceGraphic"
+    | "SourceAlpha"
+    | "BackgroundImage"
+    | "BackgroundAlpha"
+    | "FillPaint"
+    | "StrokePaint"
+    | string
+  >
+  mode?: NRO<
+    | "normal"
+    | "multiply"
+    | "screen"
+    | "overlay"
+    | "darken"
+    | "lighten"
+    | "color-dodge"
+    | "color-burn"
+    | "hard-light"
+    | "soft-light"
+    | "difference"
+    | "exclusion"
+    | "hue"
+    | "saturation"
+    | "color"
+    | "luminosity"
+  >
 }
-export interface attrs_svg_feColorMatrix extends Attrs<SVGElementTagNameMap["feColorMatrix"]>, SVGPresentation, SVGFilterPrimitive {
-  in?: NRO<"SourceGraphic" | "SourceAlpha" | "BackgroundImage" | "BackgroundAlpha" | "FillPaint" | "StrokePaint" | string>
+export interface attrs_svg_feColorMatrix
+  extends Attrs<SVGElementTagNameMap["feColorMatrix"]>,
+    SVGPresentation,
+    SVGFilterPrimitive {
+  in?: NRO<
+    | "SourceGraphic"
+    | "SourceAlpha"
+    | "BackgroundImage"
+    | "BackgroundAlpha"
+    | "FillPaint"
+    | "StrokePaint"
+    | string
+  >
   type?: NRO<"matrix" | "saturate" | "hueRotate" | "luminanceToAlpha">
   values?: NRO<string | number>
 }
-export interface attrs_svg_feComponentTransfer extends Attrs<SVGElementTagNameMap["feComponentTransfer"]>, SVGPresentation, SVGFilterPrimitive {
-  in?: NRO<"SourceGraphic" | "SourceAlpha" | "BackgroundImage" | "BackgroundAlpha" | "FillPaint" | "StrokePaint" | string>
+export interface attrs_svg_feComponentTransfer
+  extends Attrs<SVGElementTagNameMap["feComponentTransfer"]>,
+    SVGPresentation,
+    SVGFilterPrimitive {
+  in?: NRO<
+    | "SourceGraphic"
+    | "SourceAlpha"
+    | "BackgroundImage"
+    | "BackgroundAlpha"
+    | "FillPaint"
+    | "StrokePaint"
+    | string
+  >
 }
-export interface attrs_svg_feComposite extends Attrs<SVGElementTagNameMap["feComposite"]>, SVGPresentation, SVGFilterPrimitive {
-  in?: NRO<"SourceGraphic" | "SourceAlpha" | "BackgroundImage" | "BackgroundAlpha" | "FillPaint" | "StrokePaint" | string>
-  in2?: NRO<"SourceGraphic" | "SourceAlpha" | "BackgroundImage" | "BackgroundAlpha" | "FillPaint" | "StrokePaint" | string>
-  operator?: NRO<"over" | "in" | "out" | "atop" | "xor" | "lighter" | "arithmetic">
+export interface attrs_svg_feComposite
+  extends Attrs<SVGElementTagNameMap["feComposite"]>,
+    SVGPresentation,
+    SVGFilterPrimitive {
+  in?: NRO<
+    | "SourceGraphic"
+    | "SourceAlpha"
+    | "BackgroundImage"
+    | "BackgroundAlpha"
+    | "FillPaint"
+    | "StrokePaint"
+    | string
+  >
+  in2?: NRO<
+    | "SourceGraphic"
+    | "SourceAlpha"
+    | "BackgroundImage"
+    | "BackgroundAlpha"
+    | "FillPaint"
+    | "StrokePaint"
+    | string
+  >
+  operator?: NRO<
+    "over" | "in" | "out" | "atop" | "xor" | "lighter" | "arithmetic"
+  >
   k1?: NRO<string | number>
   k2?: NRO<string | number>
   k3?: NRO<string | number>
   k4?: NRO<string | number>
 }
-export interface attrs_svg_feConvolveMatrix extends Attrs<SVGElementTagNameMap["feConvolveMatrix"]>, SVGPresentation, SVGFilterPrimitive {
-  in?: NRO<"SourceGraphic" | "SourceAlpha" | "BackgroundImage" | "BackgroundAlpha" | "FillPaint" | "StrokePaint" | string>
+export interface attrs_svg_feConvolveMatrix
+  extends Attrs<SVGElementTagNameMap["feConvolveMatrix"]>,
+    SVGPresentation,
+    SVGFilterPrimitive {
+  in?: NRO<
+    | "SourceGraphic"
+    | "SourceAlpha"
+    | "BackgroundImage"
+    | "BackgroundAlpha"
+    | "FillPaint"
+    | "StrokePaint"
+    | string
+  >
   order?: NRO<string | number>
   kernelMatrix?: NRO<string | number>
   divisor?: NRO<string | number>
@@ -676,60 +1013,150 @@ export interface attrs_svg_feConvolveMatrix extends Attrs<SVGElementTagNameMap["
   edgeMode?: NRO<"duplicate" | "wrap" | "none">
   preserveAlpha?: NRO<"" | true | "true" | "false">
 }
-export interface attrs_svg_feDiffuseLighting extends Attrs<SVGElementTagNameMap["feDiffuseLighting"]>, SVGPresentation, SVGFilterPrimitive {}
-export interface attrs_svg_feDisplacementMap extends Attrs<SVGElementTagNameMap["feDisplacementMap"]>, SVGPresentation, SVGFilterPrimitive {
+export interface attrs_svg_feDiffuseLighting
+  extends Attrs<SVGElementTagNameMap["feDiffuseLighting"]>,
+    SVGPresentation,
+    SVGFilterPrimitive {}
+export interface attrs_svg_feDisplacementMap
+  extends Attrs<SVGElementTagNameMap["feDisplacementMap"]>,
+    SVGPresentation,
+    SVGFilterPrimitive {
   scale?: NRO<string | number>
   xChannelSelector?: NRO<"R" | "G" | "B" | "A">
   yChannelSelector?: NRO<"R" | "G" | "B" | "A">
 }
-export interface attrs_svg_feDistantLight extends Attrs<SVGElementTagNameMap["feDistantLight"]>, SVGPresentation, SVGFilterPrimitive {}
-export interface attrs_svg_feFlood extends Attrs<SVGElementTagNameMap["feFlood"]>, SVGPresentation, SVGFilterPrimitive {}
-export interface attrs_svg_feFuncA extends Attrs<SVGElementTagNameMap["feFuncA"]>, SVGPresentation, SVGFilterPrimitive {}
-export interface attrs_svg_feFuncB extends Attrs<SVGElementTagNameMap["feFuncB"]>, SVGPresentation, SVGFilterPrimitive {}
-export interface attrs_svg_feFuncG extends Attrs<SVGElementTagNameMap["feFuncG"]>, SVGPresentation, SVGFilterPrimitive {}
-export interface attrs_svg_feFuncR extends Attrs<SVGElementTagNameMap["feFuncR"]>, SVGPresentation, SVGFilterPrimitive {}
-export interface attrs_svg_feGaussianBlur extends Attrs<SVGElementTagNameMap["feGaussianBlur"]>, SVGPresentation, SVGFilterPrimitive {}
-export interface attrs_svg_feImage extends Attrs<SVGElementTagNameMap["feImage"]>, SVGPresentation, SVGFilterPrimitive {}
-export interface attrs_svg_feMerge extends Attrs<SVGElementTagNameMap["feMerge"]>, SVGPresentation, SVGFilterPrimitive {}
-export interface attrs_svg_feMergeNode extends Attrs<SVGElementTagNameMap["feMergeNode"]>, SVGPresentation, SVGFilterPrimitive {}
-export interface attrs_svg_feMorphology extends Attrs<SVGElementTagNameMap["feMorphology"]>, SVGPresentation, SVGFilterPrimitive {}
-export interface attrs_svg_feOffset extends Attrs<SVGElementTagNameMap["feOffset"]>, SVGPresentation, SVGFilterPrimitive {}
-export interface attrs_svg_fePointLight extends Attrs<SVGElementTagNameMap["fePointLight"]>, SVGPresentation, SVGFilterPrimitive {}
-export interface attrs_svg_feSpecularLighting extends Attrs<SVGElementTagNameMap["feSpecularLighting"]>, SVGPresentation, SVGFilterPrimitive {}
-export interface attrs_svg_feSpotLight extends Attrs<SVGElementTagNameMap["feSpotLight"]>, SVGPresentation, SVGFilterPrimitive {}
-export interface attrs_svg_feTile extends Attrs<SVGElementTagNameMap["feTile"]>, SVGPresentation, SVGFilterPrimitive {}
-export interface attrs_svg_feTurbulence extends Attrs<SVGElementTagNameMap["feTurbulence"]>, SVGPresentation, SVGFilterPrimitive {
+export interface attrs_svg_feDistantLight
+  extends Attrs<SVGElementTagNameMap["feDistantLight"]>,
+    SVGPresentation,
+    SVGFilterPrimitive {}
+export interface attrs_svg_feFlood
+  extends Attrs<SVGElementTagNameMap["feFlood"]>,
+    SVGPresentation,
+    SVGFilterPrimitive {}
+export interface attrs_svg_feFuncA
+  extends Attrs<SVGElementTagNameMap["feFuncA"]>,
+    SVGPresentation,
+    SVGFilterPrimitive {}
+export interface attrs_svg_feFuncB
+  extends Attrs<SVGElementTagNameMap["feFuncB"]>,
+    SVGPresentation,
+    SVGFilterPrimitive {}
+export interface attrs_svg_feFuncG
+  extends Attrs<SVGElementTagNameMap["feFuncG"]>,
+    SVGPresentation,
+    SVGFilterPrimitive {}
+export interface attrs_svg_feFuncR
+  extends Attrs<SVGElementTagNameMap["feFuncR"]>,
+    SVGPresentation,
+    SVGFilterPrimitive {}
+export interface attrs_svg_feGaussianBlur
+  extends Attrs<SVGElementTagNameMap["feGaussianBlur"]>,
+    SVGPresentation,
+    SVGFilterPrimitive {}
+export interface attrs_svg_feImage
+  extends Attrs<SVGElementTagNameMap["feImage"]>,
+    SVGPresentation,
+    SVGFilterPrimitive {}
+export interface attrs_svg_feMerge
+  extends Attrs<SVGElementTagNameMap["feMerge"]>,
+    SVGPresentation,
+    SVGFilterPrimitive {}
+export interface attrs_svg_feMergeNode
+  extends Attrs<SVGElementTagNameMap["feMergeNode"]>,
+    SVGPresentation,
+    SVGFilterPrimitive {}
+export interface attrs_svg_feMorphology
+  extends Attrs<SVGElementTagNameMap["feMorphology"]>,
+    SVGPresentation,
+    SVGFilterPrimitive {}
+export interface attrs_svg_feOffset
+  extends Attrs<SVGElementTagNameMap["feOffset"]>,
+    SVGPresentation,
+    SVGFilterPrimitive {}
+export interface attrs_svg_fePointLight
+  extends Attrs<SVGElementTagNameMap["fePointLight"]>,
+    SVGPresentation,
+    SVGFilterPrimitive {}
+export interface attrs_svg_feSpecularLighting
+  extends Attrs<SVGElementTagNameMap["feSpecularLighting"]>,
+    SVGPresentation,
+    SVGFilterPrimitive {}
+export interface attrs_svg_feSpotLight
+  extends Attrs<SVGElementTagNameMap["feSpotLight"]>,
+    SVGPresentation,
+    SVGFilterPrimitive {}
+export interface attrs_svg_feTile
+  extends Attrs<SVGElementTagNameMap["feTile"]>,
+    SVGPresentation,
+    SVGFilterPrimitive {}
+export interface attrs_svg_feTurbulence
+  extends Attrs<SVGElementTagNameMap["feTurbulence"]>,
+    SVGPresentation,
+    SVGFilterPrimitive {
   numOctaves?: NRO<string | number>
   seed?: NRO<string | number>
   baseFrequency?: NRO<string | number>
   stitchTiles?: NRO<string | number>
   type?: NRO<string | number>
 }
-export interface attrs_svg_filter extends Attrs<SVGElementTagNameMap["filter"]>, SVGPresentation, SVGFilterPrimitive {}
-export interface attrs_svg_foreignObject extends Attrs<SVGElementTagNameMap["foreignObject"]> {}
-export interface attrs_svg_g extends Attrs<SVGElementTagNameMap["g"]>, SVGPresentation {}
-export interface attrs_svg_image extends Attrs<SVGElementTagNameMap["image"]>, SVGPresentation {}
-export interface attrs_svg_line extends Attrs<SVGElementTagNameMap["line"]>, SVGPresentation {}
-export interface attrs_svg_linearGradient extends Attrs<SVGElementTagNameMap["linearGradient"]>, SVGPresentation {}
-export interface attrs_svg_marker extends Attrs<SVGElementTagNameMap["marker"]>, SVGPresentation {}
-export interface attrs_svg_mask extends Attrs<SVGElementTagNameMap["mask"]>, SVGPresentation, SVGLink {}
-export interface attrs_svg_metadata extends Attrs<SVGElementTagNameMap["metadata"]> {}
-export interface attrs_svg_mpath extends Attrs<SVGElementTagNameMap["mpath"]>, SVGPresentation, SVGLink {}
-export interface attrs_svg_path extends Attrs<SVGElementTagNameMap["path"]>, SVGPresentation {
+export interface attrs_svg_filter
+  extends Attrs<SVGElementTagNameMap["filter"]>,
+    SVGPresentation,
+    SVGFilterPrimitive {}
+export interface attrs_svg_foreignObject
+  extends Attrs<SVGElementTagNameMap["foreignObject"]> {}
+export interface attrs_svg_g
+  extends Attrs<SVGElementTagNameMap["g"]>,
+    SVGPresentation {}
+export interface attrs_svg_image
+  extends Attrs<SVGElementTagNameMap["image"]>,
+    SVGPresentation {}
+export interface attrs_svg_line
+  extends Attrs<SVGElementTagNameMap["line"]>,
+    SVGPresentation {}
+export interface attrs_svg_linearGradient
+  extends Attrs<SVGElementTagNameMap["linearGradient"]>,
+    SVGPresentation {}
+export interface attrs_svg_marker
+  extends Attrs<SVGElementTagNameMap["marker"]>,
+    SVGPresentation {}
+export interface attrs_svg_mask
+  extends Attrs<SVGElementTagNameMap["mask"]>,
+    SVGPresentation,
+    SVGLink {}
+export interface attrs_svg_metadata
+  extends Attrs<SVGElementTagNameMap["metadata"]> {}
+export interface attrs_svg_mpath
+  extends Attrs<SVGElementTagNameMap["mpath"]>,
+    SVGPresentation,
+    SVGLink {}
+export interface attrs_svg_path
+  extends Attrs<SVGElementTagNameMap["path"]>,
+    SVGPresentation {
   d?: NRO<string | number>
   pathLength?: NRO<string | number>
 }
-export interface attrs_svg_pattern extends Attrs<SVGElementTagNameMap["pattern"]>, SVGPresentation {}
-export interface attrs_svg_polygon extends Attrs<SVGElementTagNameMap["polygon"]>, SVGPresentation {
+export interface attrs_svg_pattern
+  extends Attrs<SVGElementTagNameMap["pattern"]>,
+    SVGPresentation {}
+export interface attrs_svg_polygon
+  extends Attrs<SVGElementTagNameMap["polygon"]>,
+    SVGPresentation {
   points?: NRO<string | number>
   pathLength?: NRO<string | number>
 }
-export interface attrs_svg_polyline extends Attrs<SVGElementTagNameMap["polyline"]>, SVGPresentation {
+export interface attrs_svg_polyline
+  extends Attrs<SVGElementTagNameMap["polyline"]>,
+    SVGPresentation {
   points?: NRO<string | number>
   pathLength?: NRO<string | number>
 }
-export interface attrs_svg_radialGradient extends Attrs<SVGElementTagNameMap["radialGradient"]>, SVGPresentation {}
-export interface attrs_svg_rect extends Attrs<SVGElementTagNameMap["rect"]>, SVGPresentation {
+export interface attrs_svg_radialGradient
+  extends Attrs<SVGElementTagNameMap["radialGradient"]>,
+    SVGPresentation {}
+export interface attrs_svg_rect
+  extends Attrs<SVGElementTagNameMap["rect"]>,
+    SVGPresentation {
   x?: NRO<string | number>
   y?: NRO<string | number>
   width?: NRO<string | number>
@@ -753,9 +1180,14 @@ export interface attrs_svg_svg extends Attrs<SVGElementTagNameMap["svg"]> {
   x?: NRO<string | number>
   y?: NRO<string | number>
 }
-export interface attrs_svg_switch extends Attrs<SVGElementTagNameMap["switch"]> {}
-export interface attrs_svg_symbol extends Attrs<SVGElementTagNameMap["symbol"]>, SVGPresentation {}
-export interface attrs_svg_text extends Attrs<SVGElementTagNameMap["text"]>, SVGPresentation {
+export interface attrs_svg_switch
+  extends Attrs<SVGElementTagNameMap["switch"]> {}
+export interface attrs_svg_symbol
+  extends Attrs<SVGElementTagNameMap["symbol"]>,
+    SVGPresentation {}
+export interface attrs_svg_text
+  extends Attrs<SVGElementTagNameMap["text"]>,
+    SVGPresentation {
   x?: NRO<string | number>
   y?: NRO<string | number>
   dx?: NRO<string | number>
@@ -764,7 +1196,9 @@ export interface attrs_svg_text extends Attrs<SVGElementTagNameMap["text"]>, SVG
   lengthAdjust?: NRO<"spacing" | "spacingAndGlyphs">
   textLength?: NRO<string | number>
 }
-export interface attrs_svg_textPath extends Attrs<SVGElementTagNameMap["textPath"]>, SVGPresentation {
+export interface attrs_svg_textPath
+  extends Attrs<SVGElementTagNameMap["textPath"]>,
+    SVGPresentation {
   href?: NRO<string | number>
   lengthAdjust?: NRO<"spacing" | "spacingAndGlyphs">
   method?: NRO<"align" | "stretch">
@@ -774,7 +1208,9 @@ export interface attrs_svg_textPath extends Attrs<SVGElementTagNameMap["textPath
   startOffset?: NRO<string | number>
   textLength?: NRO<string | number>
 }
-export interface attrs_svg_tspan extends Attrs<SVGElementTagNameMap["tspan"]>, SVGPresentation {
+export interface attrs_svg_tspan
+  extends Attrs<SVGElementTagNameMap["tspan"]>,
+    SVGPresentation {
   x?: NRO<string | number>
   y?: NRO<string | number>
   dx?: NRO<string | number>
@@ -783,7 +1219,9 @@ export interface attrs_svg_tspan extends Attrs<SVGElementTagNameMap["tspan"]>, S
   lengthAdjust?: NRO<"spacing" | "spacingAndGlyphs">
   textLength?: NRO<string | number>
 }
-export interface attrs_svg_use extends Attrs<SVGElementTagNameMap["use"]>, SVGPresentation {
+export interface attrs_svg_use
+  extends Attrs<SVGElementTagNameMap["use"]>,
+    SVGPresentation {
   href?: NRO<string | number>
   x?: NRO<string | number>
   y?: NRO<string | number>
@@ -794,7 +1232,6 @@ export interface attrs_svg_view extends Attrs<SVGElementTagNameMap["view"]> {
   viewBox?: NRO<string | number>
   preserveAspectRatio?: NRO<string | number>
 }
-
 
 export interface ElementMap {
   a: attrs_a

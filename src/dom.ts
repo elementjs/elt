@@ -1,9 +1,23 @@
 import { o } from "./observable"
-import type { ClassDefinition, StyleDefinition, Listener, Inserter, Attrs, Renderable, } from "./types"
-import { sym_connected_status, sym_observers, sym_connected, sym_disconnected, sym_insert, sym_attrs, } from "./symbols"
+import type {
+  ClassDefinition,
+  StyleDefinition,
+  Listener,
+  Inserter,
+  Attrs,
+  Renderable,
+} from "./types"
+import {
+  sym_connected_status,
+  sym_observers,
+  sym_connected,
+  sym_disconnected,
+  sym_insert,
+  sym_attrs,
+} from "./symbols"
 
-const NODE_IS_CONNECTED =      0b001
-const NODE_IS_OBSERVING =     0b010
+const NODE_IS_CONNECTED = 0b001
+const NODE_IS_OBSERVING = 0b010
 
 export type LifecycleCallback<N = Node> = (n: N) => void
 
@@ -17,12 +31,10 @@ declare global {
   }
 }
 
-
 /**
  * The comment holder is a class meant to help verbs and observables maintain nodes between two comments.
  */
 export class CommentHolder extends Comment {
-
   end: Comment | null = null
 
   /** Change and update this nodes' content */
@@ -35,7 +47,7 @@ export class CommentHolder extends Comment {
         node_remove(this.nextSibling)
       }
     } else {
-      this.end = document.createComment(this.textContent??"!")
+      this.end = document.createComment(this.textContent ?? "!")
       node_append(parent, this.end, this.nextSibling)
     }
 
@@ -65,30 +77,34 @@ export class CommentHolder extends Comment {
     let next: Node | null = this.nextSibling as Node | null
     do {
       iter = next
-      if (iter == null) { break }
+      if (iter == null) {
+        break
+      }
       next = iter.nextSibling
       parent.insertBefore(iter, refchild)
-      if (iter === end) { break }
+      if (iter === end) {
+        break
+      }
     } while (true)
   }
 }
 
-
-function _node_call_cbks(node: Node, sym: typeof sym_connected | typeof sym_disconnected) {
+function _node_call_cbks(
+  node: Node,
+  sym: typeof sym_connected | typeof sym_disconnected
+) {
   const cbks = node[sym]
   if (cbks) {
     for (let i = 0, l = cbks.length; i < l; i++) {
       try {
         cbks[i](node)
-      } catch(e) {
+      } catch (e) {
         // Callbacks should
         console.error("connected/disconnected callbacks should not throw", e)
       }
     }
   }
-
 }
-
 
 function _node_start_observers(node: Node) {
   const obs = node[sym_observers]
@@ -99,7 +115,6 @@ function _node_start_observers(node: Node) {
   }
 }
 
-
 function _node_stop_observers(node: Node) {
   const obs = node[sym_observers]
   if (obs) {
@@ -109,7 +124,6 @@ function _node_stop_observers(node: Node) {
   }
 }
 
-
 /**
  * Return `true` if this node is currently observing its associated observables.
  * @group Dom
@@ -117,7 +131,6 @@ function _node_stop_observers(node: Node) {
 export function node_is_observing(node: Node) {
   return !!(node[sym_connected_status] & NODE_IS_OBSERVING)
 }
-
 
 /**
  * Return `true` if the node is *considered* inserted in the document.
@@ -132,9 +145,7 @@ export function node_is_connected(node: Node) {
   return !!(node[sym_connected_status] & NODE_IS_CONNECTED)
 }
 
-
 function _apply_connected(node: Node) {
-
   const st = node[sym_connected_status] || 0
 
   node[sym_connected_status] = NODE_IS_CONNECTED | NODE_IS_OBSERVING // now inserted
@@ -145,7 +156,6 @@ function _apply_connected(node: Node) {
   // then, call inserted.
   if (!(st & NODE_IS_CONNECTED)) _node_call_cbks(node, sym_connected)
 }
-
 
 /**
  * @internal
@@ -160,7 +170,6 @@ export function node_do_connected(node: Node) {
     iter = iter.nextSibling
   }
 }
-
 
 /**
  * Apply unmount to a node.
@@ -189,7 +198,6 @@ function _apply_disconnected(node: Node) {
  * @internal
  */
 export function node_do_disconnect(node: Node) {
-
   let iter = node.firstChild
   while (iter) {
     node_do_disconnect(iter)
@@ -198,7 +206,6 @@ export function node_do_disconnect(node: Node) {
 
   _apply_disconnected(node)
 }
-
 
 /**
  * Remove a `node` from the tree and call `removed` on its mixins and all the `removed` callbacks..
@@ -216,7 +223,6 @@ export function node_remove(node: Node): void {
   }
 }
 
-
 /**
  * Remove all elements within a node and call the remove callback.
  * @group Dom
@@ -228,7 +234,6 @@ export function node_clear(node: Node): void {
     node_do_disconnect(c)
   }
 }
-
 
 /**
  * This is where we keep track of the registered documents.
@@ -249,20 +254,33 @@ const _registered_documents = new WeakSet<Document>()
  * @group Dom
  */
 export function setup_mutation_observer(node: Node) {
-  if (!node.isConnected && !!node.ownerDocument && !(node instanceof ShadowRoot))
-    throw new Error("cannot setup mutation observer on a Node that is not connected in a document")
+  if (
+    !node.isConnected &&
+    !!node.ownerDocument &&
+    !(node instanceof ShadowRoot)
+  )
+    throw new Error(
+      "cannot setup mutation observer on a Node that is not connected in a document"
+    )
 
-
-  const obs = new MutationObserver(records => {
+  const obs = new MutationObserver((records) => {
     for (let i = 0, l = records.length; i < l; i++) {
       const record = records[i]
-      for (let removed = record.removedNodes, j = 0, lj = removed.length; j < lj; j++) {
+      for (
+        let removed = record.removedNodes, j = 0, lj = removed.length;
+        j < lj;
+        j++
+      ) {
         const removed_node = removed[j]
         if (!removed_node.isConnected) {
           node_do_disconnect(removed_node)
         }
       }
-      for (let added = record.addedNodes, j = 0, lj = added.length; j < lj; j++) {
+      for (
+        let added = record.addedNodes, j = 0, lj = added.length;
+        j < lj;
+        j++
+      ) {
         const added_node = added[j]
         node_do_connected(added_node)
       }
@@ -291,14 +309,22 @@ export function setup_mutation_observer(node: Node) {
   return obs
 }
 
-
-const basic_attrs = new Set(["id", "slot", "part", "role", "tabindex", "lang", "inert", "title", "autofocus", "nonce"])
-
+const basic_attrs = new Set([
+  "id",
+  "slot",
+  "part",
+  "role",
+  "tabindex",
+  "lang",
+  "inert",
+  "title",
+  "autofocus",
+  "nonce",
+])
 
 function is_inserter(ins: any): ins is Inserter<Node> {
   return typeof ins?.[sym_insert] === "function"
 }
-
 
 /**
  * Process an insertable and insert it where desired.
@@ -308,16 +334,21 @@ function is_inserter(ins: any): ins is Inserter<Node> {
  * @param refchild The child before which to append
  * @group Dom
  */
-export function node_append<N extends Node>(node: N, renderable: Renderable<N> | Attrs<N>, refchild: Node | null = null, is_basic_node = true) {
+export function node_append<N extends Node>(
+  node: N,
+  renderable: Renderable<N> | Attrs<N>,
+  refchild: Node | null = null,
+  is_basic_node = true
+) {
   if (renderable == null || renderable === false) return
 
   if (typeof renderable === "string") {
     // A simple string
     node.insertBefore(document.createTextNode(renderable), refchild)
-
   } else if (renderable instanceof Node) {
     // A node being added
-    if (renderable.nodeType === Node.DOCUMENT_FRAGMENT_NODE) { // DocumentFragment
+    if (renderable.nodeType === Node.DOCUMENT_FRAGMENT_NODE) {
+      // DocumentFragment
       let start = renderable.firstChild
       if (start == null) return // there are no children to append, nothing more to do
 
@@ -330,28 +361,23 @@ export function node_append<N extends Node>(node: N, renderable: Renderable<N> |
         } while (start && start !== refchild)
       }
     } else {
-
       node.insertBefore(renderable, refchild)
       if (node.isConnected) {
         node_do_connected(renderable)
       }
     }
-
   } else if (renderable instanceof Function) {
     // A decorator
     const res = renderable(node)
-    if (res != null) node_append(node, res as Inserter<N>, refchild, is_basic_node)
-
+    if (res != null)
+      node_append(node, res as Inserter<N>, refchild, is_basic_node)
   } else if (is_inserter(renderable)) {
-
     renderable[sym_insert](node, refchild)
-
   } else if (typeof (renderable as any)[Symbol.iterator] === "function") {
     // An array of children
     for (const item of renderable as Iterable<N>) {
       node_append(node, item, refchild, is_basic_node)
     }
-
   } else if (renderable.constructor === Object) {
     // An attribute object. We assume this is an Element that is being handled
     const _node = node as unknown as HTMLElement
@@ -361,9 +387,9 @@ export function node_append<N extends Node>(node: N, renderable: Renderable<N> |
       if (key === "class") {
         if (value == null || value === false) continue
         if (Array.isArray(value))
-          for (let j = 0, lj = value.length; j < lj; j++) node_observe_class(_node, value[j])
-        else
-          node_observe_class(_node, value as ClassDefinition)
+          for (let j = 0, lj = value.length; j < lj; j++)
+            node_observe_class(_node, value[j])
+        else node_observe_class(_node, value as ClassDefinition)
       } else if (key === "style") {
         if (value == null || value === false) continue
         node_observe_style(_node, value as StyleDefinition)
@@ -375,20 +401,21 @@ export function node_append<N extends Node>(node: N, renderable: Renderable<N> |
     const _pro = renderable as Promise<Renderable<N>>
     const cmt = document.createComment("promise-loading")
     node.insertBefore(cmt, refchild)
-    _pro.then(res => {
-      if (!cmt.parentNode) return
-      node_append(cmt.parentNode as unknown as N, res, cmt)
-      cmt.textContent = "promise-resolved"
-    }).catch(e => {
-      console.error(e)
-      cmt.textContent = "promise-error: " + e.toString()
-    })
+    _pro
+      .then((res) => {
+        if (!cmt.parentNode) return
+        node_append(cmt.parentNode as unknown as N, res, cmt)
+        cmt.textContent = "promise-resolved"
+      })
+      .catch((e) => {
+        console.error(e)
+        cmt.textContent = "promise-error: " + e.toString()
+      })
   } else {
     // Otherwise, make it a string and append it.
     node.insertBefore(document.createTextNode(renderable.toString()), refchild)
   }
 }
-
 
 export interface $ShadowOptions extends Partial<ShadowRootInit> {
   css?: string | CSSStyleSheet | (CSSStyleSheet | string)[]
@@ -407,8 +434,12 @@ export interface $ShadowOptions extends Partial<ShadowRootInit> {
  * @param opts Options for the creation of the shadow root
  * @param add_callbacks Whether to add inserted/removed callbacks (when not using EltCustomElement for instance)
  */
-export function node_attach_shadow(node: HTMLElement, child: Node, opts: $ShadowOptions, add_callbacks: boolean) {
-
+export function node_attach_shadow(
+  node: HTMLElement,
+  child: Node,
+  opts: $ShadowOptions,
+  add_callbacks: boolean
+) {
   const shadow = node.attachShadow({
     mode: opts?.mode ?? "open",
     delegatesFocus: opts?.delegatesFocus ?? true,
@@ -417,10 +448,15 @@ export function node_attach_shadow(node: HTMLElement, child: Node, opts: $Shadow
 
   let css = opts?.css
   if (css != null) {
-    if (!Array.isArray(css)) { css = [css] }
-    const sheets = css.filter(c => c instanceof CSSStyleSheet) as CSSStyleSheet[]
-    if (sheets.length) shadow.adoptedStyleSheets = [...shadow.adoptedStyleSheets, ...sheets]
-    const strings = css.filter(c => typeof c === "string")
+    if (!Array.isArray(css)) {
+      css = [css]
+    }
+    const sheets = css.filter(
+      (c) => c instanceof CSSStyleSheet
+    ) as CSSStyleSheet[]
+    if (sheets.length)
+      shadow.adoptedStyleSheets = [...shadow.adoptedStyleSheets, ...sheets]
+    const strings = css.filter((c) => typeof c === "string")
     if (strings.length) {
       const style = document.createElement("style")
       style.append(strings.join("\n"))
@@ -428,7 +464,7 @@ export function node_attach_shadow(node: HTMLElement, child: Node, opts: $Shadow
     }
   }
 
-  shadow.insertBefore(opts == null ? opts as Node : child as Node, null)
+  shadow.insertBefore(opts == null ? (opts as Node) : (child as Node), null)
 
   if (add_callbacks) {
     node_on_connected(node, () => {
@@ -461,24 +497,23 @@ export function node_observe<T>(
     return null
   }
 
-  if (!(o.isReadonlyObservable(obs))) {
+  if (!o.isReadonlyObservable(obs)) {
     // If the node is already inited, run the callback
     if (!options?.changes_only) {
-      if (options?.immediate)
-        obsfn(obs as T, o.NoValue)
-      else
-        node_on_connected(node, () => obsfn(obs as T, o.NoValue))
+      if (options?.immediate) obsfn(obs as T, o.NoValue)
+      else node_on_connected(node, () => obsfn(obs as T, o.NoValue))
     }
     return null
   }
   // Create the observer and append it to the observer array of the node
-  const obser = options?.changes_only ? new o.SilentObserver(obsfn, obs) : new o.Observer(obsfn, obs)
+  const obser = options?.changes_only
+    ? new o.SilentObserver(obsfn, obs)
+    : new o.Observer(obsfn, obs)
   options?.observer_callback?.(obser)
   node_add_observer(node, obser)
   if (options?.immediate) obser.refresh()
   return obser
 }
-
 
 /**
  * Associate an `observer` to a `node`. If the `node` is in the document, then
@@ -491,8 +526,7 @@ export function node_observe<T>(
  * @group Dom
  */
 export function node_add_observer<T>(node: Node, observer: o.Observer<T>) {
-  if (node[sym_observers] == undefined)
-    node[sym_observers] = []
+  if (node[sym_observers] == undefined) node[sym_observers] = []
   node[sym_observers]!.push(observer)
   if (node[sym_connected_status] & NODE_IS_OBSERVING) observer.startObserving()
 }
@@ -506,18 +540,42 @@ declare global {
 export type KEvent = keyof GlobalEventHandlersEventMap
 
 export type EventForKey<K extends KEvent> =
-  K extends keyof GlobalEventHandlersEventMap ? GlobalEventHandlersEventMap[K]
+  K extends keyof GlobalEventHandlersEventMap
+    ? GlobalEventHandlersEventMap[K]
+    : Event
+
+export type EventsForKeys<K extends KEvent | KEvent[]> = K extends any[]
+  ? EventForKey<K[number]>
+  : K extends KEvent
+  ? EventForKey<K>
   : Event
 
-export type EventsForKeys<K extends KEvent | KEvent[]> =
-  K extends any[] ? EventForKey<K[number]>
-  : K extends KEvent ? EventForKey<K>
-  : Event
-
-export function node_add_event_listener<N extends Node, K extends KEvent | KEvent[]>(node: N, key: K, listener: Listener<EventsForKeys<K>, N>, useCapture?: boolean | AddEventListenerOptions): void
-export function node_add_event_listener<N extends EventTarget, K extends KEvent | KEvent[]>(node: Node, target: N, key: K, listener: Listener<EventsForKeys<K>, N>, useCapture?: boolean | AddEventListenerOptions): void
-export function node_add_event_listener(node: any, target: any, events: any, listener?: any, use_capture?: any): void {
-
+export function node_add_event_listener<
+  N extends Node,
+  K extends KEvent | KEvent[]
+>(
+  node: N,
+  key: K,
+  listener: Listener<EventsForKeys<K>, N>,
+  useCapture?: boolean | AddEventListenerOptions
+): void
+export function node_add_event_listener<
+  N extends EventTarget,
+  K extends KEvent | KEvent[]
+>(
+  node: Node,
+  target: N,
+  key: K,
+  listener: Listener<EventsForKeys<K>, N>,
+  useCapture?: boolean | AddEventListenerOptions
+): void
+export function node_add_event_listener(
+  node: any,
+  target: any,
+  events: any,
+  listener?: any,
+  use_capture?: any
+): void {
   if (typeof target === "string" || Array.isArray(target)) {
     // This is the short version, target is the events
     use_capture = listener
@@ -527,34 +585,39 @@ export function node_add_event_listener(node: any, target: any, events: any, lis
   }
 
   function add_listener(event: string, listener: Listener<any>) {
-    function add() { target.addEventListener(event, listener, use_capture) }
+    function add() {
+      target.addEventListener(event, listener, use_capture)
+    }
     // If the targeted node is not the same, then we *must* remove the event listener if the node observing the events goes away. Otherwise, we get memory leaks.
     node_on_connected(node, add)
     if (node.isConnected) add()
-    node_on_disconnected(node, () => { target.removeEventListener(event, listener, use_capture) })
+    node_on_disconnected(node, () => {
+      target.removeEventListener(event, listener, use_capture)
+    })
   }
 
   if (Array.isArray(events)) {
     for (let i = 0, l = events.length; i < l; i++) {
       const event = events[i]
-      add_listener(event, listener, )
+      add_listener(event, listener)
     }
   } else {
     add_listener(events, listener)
   }
-
 }
-
 
 /**
  * Stop a `node` from observing an observable, or an observer, or an observer function.
  * @returns The number of deactivated observers
  * @group Dom
  */
-export function node_unobserve(node: Node, obsfn: o.Observer<any> | o.ObserverCallback<any> | o.Observable<any>) {
+export function node_unobserve(
+  node: Node,
+  obsfn: o.Observer<any> | o.ObserverCallback<any> | o.Observable<any>
+) {
   const is_observing = node[sym_connected_status] & NODE_IS_OBSERVING
   const prev_len = node[sym_observers]?.length ?? 0
-  node[sym_observers] = node[sym_observers]?.filter(ob => {
+  node[sym_observers] = node[sym_observers]?.filter((ob) => {
     const res = ob === obsfn || ob.fn === obsfn || ob.observable === obsfn
     if (res && is_observing) {
       // stop the observer before removing it from the list if the node was observing
@@ -563,9 +626,8 @@ export function node_unobserve(node: Node, obsfn: o.Observer<any> | o.ObserverCa
     return !res
   })
 
-  return prev_len - (node[sym_observers]?.length??0)
+  return prev_len - (node[sym_observers]?.length ?? 0)
 }
-
 
 /**
  * Set an attribute value on a node. If the provided `value` is an observable, the node will then observe it and change the attribute accordingly.
@@ -580,60 +642,81 @@ export function node_unobserve(node: Node, obsfn: o.Observer<any> | o.ObserverCa
  *
  * @group Dom
  */
-export function node_observe_attribute(node: Element, name: string, value: o.RO<string | boolean | null | undefined | number>) {
-
+export function node_observe_attribute(
+  node: Element,
+  name: string,
+  value: o.RO<string | boolean | null | undefined | number>
+) {
   // Try to see if we're setting an attribute on an EltCustomElement. This will bypass the setAttribute logic to allow other values than string.
   const custom_attrs = node[sym_attrs]?.get(name)
   if (custom_attrs != null) {
     // Set the value without trying to interpret it.
-    node_observe(node, value, val => {
-      node.setAttribute(name, value as any)
-    }, { immediate: true })
+    node_observe(
+      node,
+      value,
+      (val) => {
+        node.setAttribute(name, value as any)
+      },
+      { immediate: true }
+    )
 
     return
   }
 
   // Regular setAttribute logic
-  node_observe(node, value, val => {
-    if (val == null || val === false) {
-      node.removeAttribute(name)
-      return
-    }
-    if (val === true) {
-      if (node.getAttribute(name) !== "") node.setAttribute(name, "")
-    } else {
-      if (val !== node.getAttribute(name)) node.setAttribute(name, val.toString())
-    }
-  }, { immediate: true })
+  node_observe(
+    node,
+    value,
+    (val) => {
+      if (val == null || val === false) {
+        node.removeAttribute(name)
+        return
+      }
+      if (val === true) {
+        if (node.getAttribute(name) !== "") node.setAttribute(name, "")
+      } else {
+        if (val !== node.getAttribute(name))
+          node.setAttribute(name, val.toString())
+      }
+    },
+    { immediate: true }
+  )
 }
-
 
 /**
  * Observe a style (as JS defines it) and update the node as needed.
  * @group Dom
  */
-export function node_observe_style(node: HTMLElement | SVGElement, style: StyleDefinition) {
+export function node_observe_style(
+  node: HTMLElement | SVGElement,
+  style: StyleDefinition
+) {
   if (o.is_observable(style)) {
-    node_observe(node, style, st => {
-      if (st == null)
-      if (typeof st === "string") {
-        node.setAttribute("style", st)
-        return
-      }
+    node_observe(
+      node,
+      style,
+      (st) => {
+        if (st == null)
+          if (typeof st === "string") {
+            node.setAttribute("style", st)
+            return
+          }
 
-      const ns = node.style
-      const props = Object.keys(st)
-      for (let i = 0, l = props.length; i < l; i++) {
-        const x = props[i]
-        const css_name = x.replace(/[A-Z]/g, m => "-" + m.toLowerCase())
-        const value = st[x as any] as any
-        if (value) {
-          ns.setProperty(css_name, value)
-        } else {
-          ns.removeProperty(css_name)
+        const ns = node.style
+        const props = Object.keys(st)
+        for (let i = 0, l = props.length; i < l; i++) {
+          const x = props[i]
+          const css_name = x.replace(/[A-Z]/g, (m) => "-" + m.toLowerCase())
+          const value = st[x as any] as any
+          if (value) {
+            ns.setProperty(css_name, value)
+          } else {
+            ns.removeProperty(css_name)
+          }
         }
-      }
-    }, { immediate: true })
+      },
+      { immediate: true }
+    )
   } else if (typeof style === "string") {
     node.setAttribute("style", style)
   } else {
@@ -642,18 +725,22 @@ export function node_observe_style(node: HTMLElement | SVGElement, style: StyleD
     const props = Object.keys(st)
     for (let i = 0, l = props.length; i < l; i++) {
       const x = props[i]
-      const css_name = x.replace(/[A-Z]/g, m => "-" + m.toLowerCase())
-      node_observe(node, st[x], value => {
-        if (!value) {
-          node.style.removeProperty(css_name)
-        } else {
-          node.style.setProperty(css_name, value)
-        }
-      }, { immediate: true })
+      const css_name = x.replace(/[A-Z]/g, (m) => "-" + m.toLowerCase())
+      node_observe(
+        node,
+        st[x],
+        (value) => {
+          if (!value) {
+            node.style.removeProperty(css_name)
+          } else {
+            node.style.setProperty(css_name, value)
+          }
+        },
+        { immediate: true }
+      )
     }
   }
 }
-
 
 /**
  * Observe a complex class definition and update the node as needed.
@@ -661,28 +748,44 @@ export function node_observe_style(node: HTMLElement | SVGElement, style: StyleD
  */
 export function node_observe_class(node: Element, c: ClassDefinition) {
   if (!c) return
-  if (typeof c === "string" || typeof c === "boolean" || c.constructor !== Object) {
+  if (
+    typeof c === "string" ||
+    typeof c === "boolean" ||
+    c.constructor !== Object
+  ) {
     // c is an Observable<string>
-    node_observe(node, c, (str, chg) => {
-      if (chg !== o.NoValue && !!chg) _remove_class(node, chg as string)
-      if (!!str) _apply_class(node, str)
-    }, { immediate: true })
+    node_observe(
+      node,
+      c,
+      (str, chg) => {
+        if (chg !== o.NoValue && !!chg) _remove_class(node, chg as string)
+        if (!!str) _apply_class(node, str)
+      },
+      { immediate: true }
+    )
   } else {
     const ob = c as { [name: string]: o.RO<any> }
     // c is a MaybeObservableObject
     const props = Object.keys(ob)
     for (let i = 0, l = props.length; i < l; i++) {
       const x = props[i]
-      node_observe(node, ob[x], (applied, chg) => {
-        if (applied) _apply_class(node, x)
-        else if (chg !== o.NoValue) _remove_class(node, x)
-      }, { immediate: true })
+      node_observe(
+        node,
+        ob[x],
+        (applied, chg) => {
+          if (applied) _apply_class(node, x)
+          else if (chg !== o.NoValue) _remove_class(node, x)
+        },
+        { immediate: true }
+      )
     }
   }
 }
 
-
-function _apply_class(node: Element, c: ClassDefinition | ClassDefinition[] | null | false) {
+function _apply_class(
+  node: Element,
+  c: ClassDefinition | ClassDefinition[] | null | false
+) {
   if (Array.isArray(c)) {
     for (let i = 0, l = c.length; i < l; i++) {
       _apply_class(node, c[i])
@@ -710,14 +813,16 @@ function _remove_class(node: Element, c: string) {
   }
 }
 
-
 /**
  * Run a `callback` whenever this `node` is inserted into the DOM.
  * @group Dom
  * @param node
  * @param callback
  */
-export function node_on_connected<N extends Node>(node: N, callback: LifecycleCallback<N>) {
+export function node_on_connected<N extends Node>(
+  node: N,
+  callback: LifecycleCallback<N>
+) {
   node_on(node, sym_connected, callback)
 }
 
@@ -727,10 +832,12 @@ export function node_on_connected<N extends Node>(node: N, callback: LifecycleCa
  * @param node
  * @param callback
  */
-export function node_on_disconnected<N extends Node>(node: N, callback: LifecycleCallback<N>) {
+export function node_on_disconnected<N extends Node>(
+  node: N,
+  callback: LifecycleCallback<N>
+) {
   node_on(node, sym_disconnected, callback)
 }
-
 
 /**
  * Unregister a previously registered `callback` for the inserted lifecycle event of this `node`.
@@ -738,7 +845,10 @@ export function node_on_disconnected<N extends Node>(node: N, callback: Lifecycl
  * @param node
  * @param callback
  */
-export function node_off_connected<N extends Node>(node: N, callback: LifecycleCallback<N>) {
+export function node_off_connected<N extends Node>(
+  node: N,
+  callback: LifecycleCallback<N>
+) {
   node_off(node, sym_connected, callback)
 }
 
@@ -748,7 +858,10 @@ export function node_off_connected<N extends Node>(node: N, callback: LifecycleC
  * @param node
  * @param callback
  */
-export function node_off_disconnected<N extends Node>(node: N, callback: LifecycleCallback<N>) {
+export function node_off_disconnected<N extends Node>(
+  node: N,
+  callback: LifecycleCallback<N>
+) {
   node_off(node, sym_disconnected, callback)
 }
 
@@ -762,7 +875,6 @@ function node_on<N extends Node>(
   cbks.push(callback as LifecycleCallback)
 }
 
-
 /**
  * Remove a previously associated `callback` from the life-cycle event `sym` for the `node`.
  * @internal
@@ -775,12 +887,14 @@ function node_off<N extends Node>(
   const cbks = node[sym]
   if (cbks == null) return
   const idx = cbks.indexOf(callback as LifecycleCallback)
-  if (idx > -1)
-    cbks.splice(idx, 1)
+  if (idx > -1) cbks.splice(idx, 1)
 }
 
-
-export function animate(node: Element, keyframes: Keyframe[], options?: KeyframeAnimationOptions) {
+export function animate(
+  node: Element,
+  keyframes: Keyframe[],
+  options?: KeyframeAnimationOptions
+) {
   const animation = node.animate(keyframes, options)
   return new Promise<void>((accept, reject) => {
     animation.onfinish = (ev) => accept()

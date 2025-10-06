@@ -1,14 +1,15 @@
 import { o } from "./observable"
 
-
-export function tf_nonnull<T>(null_value: NonNullable<T>): o.RO<o.Converter<T, NonNullable<T>>> {
-  return o.tf(null_value, null_value => ({
+export function tf_nonnull<T>(
+  null_value: NonNullable<T>
+): o.RO<o.Converter<T, NonNullable<T>>> {
+  return o.tf(null_value, (null_value) => ({
     transform(val: T) {
       return (val ?? null_value) as NonNullable<T>
     },
     revert(val: NonNullable<T>) {
       return (val === null_value ? null : val) as T
-    }
+    },
   }))
 }
 
@@ -23,26 +24,33 @@ export function tf_nonnull<T>(null_value: NonNullable<T>): o.RO<o.Converter<T, N
  * ```
  * @group Transformer
  */
-export function tf_equals<T, TT extends T = T, TT2 extends T = T>(other: o.RO<TT>): o.RO<o.ReadonlyConverter<T, boolean>>
-export function tf_equals<T, TT extends T = T, TT2 extends T = T>(other: o.RO<TT>, prev: o.RO<TT2>): o.RO<o.Converter<T, boolean>>
-export function tf_equals<T, TT extends T = T, TT2 extends T = T>(other: o.RO<TT>, prev?: o.RO<TT2>): o.RO<o.Converter<T, boolean>> {
-
+export function tf_equals<T, TT extends T = T, TT2 extends T = T>(
+  other: o.RO<TT>
+): o.RO<o.ReadonlyConverter<T, boolean>>
+export function tf_equals<T, TT extends T = T, TT2 extends T = T>(
+  other: o.RO<TT>,
+  prev: o.RO<TT2>
+): o.RO<o.Converter<T, boolean>>
+export function tf_equals<T, TT extends T = T, TT2 extends T = T>(
+  other: o.RO<TT>,
+  prev?: o.RO<TT2>
+): o.RO<o.Converter<T, boolean>> {
   if (arguments.length === 1) {
-    return o.tf(other, oth => ({
-      transform(cur: T) { return cur === oth }
+    return o.tf(other, (oth) => ({
+      transform(cur: T) {
+        return cur === oth
+      },
     })) as unknown as o.RO<o.Converter<T, boolean>>
   }
 
-  return o.join(other as TT, prev as o.Observable<TT2>)
-    .tf(([oth, pr]) => ({
-      transform(current: T) {
-        return current === oth
-      },
-      revert(boo: boolean) {
-        return boo ? oth as T : pr as T
-      }
-    }))
-
+  return o.join(other as TT, prev as o.Observable<TT2>).tf(([oth, pr]) => ({
+    transform(current: T) {
+      return current === oth
+    },
+    revert(boo: boolean) {
+      return boo ? (oth as T) : (pr as T)
+    },
+  }))
 }
 
 /**
@@ -50,7 +58,7 @@ export function tf_equals<T, TT extends T = T, TT2 extends T = T>(other: o.RO<TT
  * @group Transformer
  */
 export function tf_differs<T, TT extends T>(other: o.RO<TT>) {
-  return o.tf(other, oth => (current: T) => current !== oth)
+  return o.tf(other, (oth) => (current: T) => current !== oth)
 }
 
 export interface IndexConverter<T> extends o.Converter<T[], T[]> {
@@ -69,28 +77,27 @@ export interface IndexConverter<T> extends o.Converter<T[], T[]> {
  * This is the basis of {@link tf.filter} and {@link tf.array_sort}
  * @group Transformer
  */
-export function tf_array_transform<T>(fn: o.RO<number[] | ((array: T[]) => number[])>): o.RO<IndexConverter<T>> {
-  return o.tf(fn,
-    fn => {
-      const res: IndexConverter<T> = {
-        indices: [] as number[],
-        transform(list: T[]) {
-          if (Array.isArray(fn))
-            this.indices = fn
-          else
-            this.indices = fn(list)
-          return this.indices.map(i => list[i])
-        },
-        revert(newval, _, current) {
-          const res = current.slice()
-          for (let i = 0, idx = this.indices; i < idx.length; i++) {
-            res[idx[i]] = newval[i]
-          }
-          return res
+export function tf_array_transform<T>(
+  fn: o.RO<number[] | ((array: T[]) => number[])>
+): o.RO<IndexConverter<T>> {
+  return o.tf(fn, (fn) => {
+    const res: IndexConverter<T> = {
+      indices: [] as number[],
+      transform(list: T[]) {
+        if (Array.isArray(fn)) this.indices = fn
+        else this.indices = fn(list)
+        return this.indices.map((i) => list[i])
+      },
+      revert(newval, _, current) {
+        const res = current.slice()
+        for (let i = 0, idx = this.indices; i < idx.length; i++) {
+          res[idx[i]] = newval[i]
         }
-      }
-      return res
-    })
+        return res
+      },
+    }
+    return res
+  })
 }
 
 /**
@@ -101,46 +108,52 @@ export function tf_array_transform<T>(fn: o.RO<number[] | ((array: T[]) => numbe
  *    If true, only refilter if the condition changes, but keep the indices even if the array changes.
  * @group Transformer
  */
-export function tf_array_filter<T>(condition: o.RO<(item: T, idx: number, lst: T[]) => any>, stable: o.RO<boolean> = false): o.RO<IndexConverter<T>> {
-  return o.combine(
-    [condition, stable] as const,
-    ([cond, stable]) => {
-      const res: IndexConverter<T> = {
-        indices: [] as number[],
-        transform(lst: T[], old_val: T[] | o.NoValue) {
-          let indices: number[] = stable && old_val !== o.NoValue ? this.indices : []
+export function tf_array_filter<T>(
+  condition: o.RO<(item: T, idx: number, lst: T[]) => any>,
+  stable: o.RO<boolean> = false
+): o.RO<IndexConverter<T>> {
+  return o.combine([condition, stable] as const, ([cond, stable]) => {
+    const res: IndexConverter<T> = {
+      indices: [] as number[],
+      transform(lst: T[], old_val: T[] | o.NoValue) {
+        let indices: number[] =
+          stable && old_val !== o.NoValue ? this.indices : []
 
-          // If the filter is stable, then start adding values at the end if the array changed length
-          const start = stable && old_val !== o.NoValue ? old_val.length : 0
+        // If the filter is stable, then start adding values at the end if the array changed length
+        const start = stable && old_val !== o.NoValue ? old_val.length : 0
 
-          // this will only run if the old length is smaller than the new length.
-          let i = 0, l = 0
-          for (i = start, l = lst.length; i < l; i++) {
-            if (cond(lst[i], i, lst))
-              indices.push(i)
-          }
-
-          // if the array lost elements, then we have to remove those indices that are no longer relevant.
-          // fortunately, this.indices is sorted and we just have to go back from the beginning.
-          if (start > lst.length) {
-            // eslint-disable-next-line no-empty
-            for (i = indices.length - 1; indices[i] >= lst.length && i >= 0; i--) { }
-            indices = i < 0 ? [] : indices.slice(0, i + 1)
-          }
-
-          this.indices = indices
-          return indices.map(i => lst[i]) as T[]
-        },
-        revert(newval, _, current) {
-          const res = current.slice()
-          for (let i = 0, idx = this.indices; i < idx.length; i++) {
-            res[idx[i]] = newval[i]
-          }
-          return res
+        // this will only run if the old length is smaller than the new length.
+        let i = 0,
+          l = 0
+        for (i = start, l = lst.length; i < l; i++) {
+          if (cond(lst[i], i, lst)) indices.push(i)
         }
-      }
-      return res
-    })
+
+        // if the array lost elements, then we have to remove those indices that are no longer relevant.
+        // fortunately, this.indices is sorted and we just have to go back from the beginning.
+        if (start > lst.length) {
+          // eslint-disable-next-line no-empty
+          for (
+            i = indices.length - 1;
+            indices[i] >= lst.length && i >= 0;
+            i--
+          ) {}
+          indices = i < 0 ? [] : indices.slice(0, i + 1)
+        }
+
+        this.indices = indices
+        return indices.map((i) => lst[i]) as T[]
+      },
+      revert(newval, _, current) {
+        const res = current.slice()
+        for (let i = 0, idx = this.indices; i < idx.length; i++) {
+          res[idx[i]] = newval[i]
+        }
+        return res
+      },
+    }
+    return res
+  })
 }
 
 /**
@@ -148,14 +161,17 @@ export function tf_array_filter<T>(condition: o.RO<(item: T, idx: number, lst: T
  * @param sortfn
  * @group Transformer
  */
-export function tf_array_sort<T>(sortfn: o.RO<(a: T, b: T) => 1 | 0 | -1>): o.RO<o.Converter<T[], T[]>> {
-  return tf_array_transform(o.tf(sortfn, sortfn => (lst: T[]) => {
-    const res: number[] = new Array(lst.length)
-    for (let i = 0, l = lst.length; i < l; i++)
-      res[i] = i
-    res.sort((a, b) => sortfn(lst[a], lst[b]))
-    return res
-  }))
+export function tf_array_sort<T>(
+  sortfn: o.RO<(a: T, b: T) => 1 | 0 | -1>
+): o.RO<o.Converter<T[], T[]>> {
+  return tf_array_transform(
+    o.tf(sortfn, (sortfn) => (lst: T[]) => {
+      const res: number[] = new Array(lst.length)
+      for (let i = 0, l = lst.length; i < l; i++) res[i] = i
+      res.sort((a, b) => sortfn(lst[a], lst[b]))
+      return res
+    })
+  )
 }
 
 /**
@@ -167,9 +183,11 @@ export function tf_array_sort<T>(sortfn: o.RO<(a: T, b: T) => 1 | 0 | -1>): o.RO
  * ```
  * @group Transformer
  */
-export function tf_array_sort_by<T>(sorters: o.RO<([(a: T) => any, "desc" | "asc"] | ((a: T) => any))[]>): o.RO<o.Converter<T[], T[]>> {
-  return tf_array_sort(o.tf(sorters,
-    _sorters => {
+export function tf_array_sort_by<T>(
+  sorters: o.RO<([(a: T) => any, "desc" | "asc"] | ((a: T) => any))[]>
+): o.RO<o.Converter<T[], T[]>> {
+  return tf_array_sort(
+    o.tf(sorters, (_sorters) => {
       const sorters: ((a: T) => any)[] = []
       const mult = [] as (1 | -1)[]
       for (let i = 0, l = _sorters.length; i < l; i++) {
@@ -188,21 +206,25 @@ export function tf_array_sort_by<T>(sorters: o.RO<([(a: T) => any, "desc" | "asc
         for (let i = 0, l = sorters.length; i < l; i++) {
           const _a = sorters[i](a)
           const _b = sorters[i](b)
-          if (_a < _b) return -1 * mult[i] as 1 | -1
-          if (_a > _b) return 1 * mult[i] as 1 | -1
+          if (_a < _b) return (-1 * mult[i]) as 1 | -1
+          if (_a > _b) return (1 * mult[i]) as 1 | -1
         }
         return 0
       }
-    }
-  ))
+    })
+  )
 }
 
 /**
  * Group by an extractor function.
  * @group Transformer
  */
-export function tf_array_group_by<T, R>(extractor: o.RO<(a: T) => R>): o.RO<o.Converter<T[], [R, T[]][]> & {indices: number[][], length: number}> {
-  return o.tf(extractor, extractor => {
+export function tf_array_group_by<T, R>(
+  extractor: o.RO<(a: T) => R>
+): o.RO<
+  o.Converter<T[], [R, T[]][]> & { indices: number[][]; length: number }
+> {
+  return o.tf(extractor, (extractor) => {
     return {
       length: 0 as number,
       indices: [] as number[][],
@@ -240,7 +262,7 @@ export function tf_array_group_by<T, R>(extractor: o.RO<(a: T) => R>): o.RO<o.Co
           }
         }
         return res
-      }
+      },
     }
   })
 }
@@ -249,7 +271,10 @@ export function tf_array_group_by<T, R>(extractor: o.RO<(a: T) => R>): o.RO<o.Co
  * Object entries, as returned by Object.keys() and returned as an array of [key, value][]
  * @group Transformer
  */
-export function tf_entries<T extends object>(): o.Converter<T, [keyof T, T[keyof T]][]> {
+export function tf_entries<T extends object>(): o.Converter<
+  T,
+  [keyof T, T[keyof T]][]
+> {
   return {
     transform(item: T) {
       const res = [] as [keyof T, T[keyof T]][]
@@ -267,7 +292,7 @@ export function tf_entries<T extends object>(): o.Converter<T, [keyof T, T[keyof
         nres[entry[0]] = entry[1]
       }
       return nres
-    }
+    },
   }
 }
 
@@ -287,7 +312,7 @@ export function tf_map_entries<K, V>(): o.Converter<Map<K, V>, [K, V][]> {
         nres.set(entry[0], entry[1])
       }
       return nres
-    }
+    },
   }
 }
 
@@ -295,8 +320,10 @@ export function tf_map_entries<K, V>(): o.Converter<Map<K, V>, [K, V][]> {
  * Make a boolean observable out of the presence of given values in the array that is to be observed. If the observable is writable, then setting the tranformed to true will put all the `values` that were not in the array into it.
  * @group Transformer
  */
-export function tf_array_has<T>(...values: o.RO<T>[]): o.RO<o.Converter<T[], boolean>> {
-  return o.combine(values, values => ({
+export function tf_array_has<T>(
+  ...values: o.RO<T>[]
+): o.RO<o.Converter<T[], boolean>> {
+  return o.combine(values, (values) => ({
     transform(arr) {
       for (let i = 0; i < values.length; i++) {
         const item = values[i]
@@ -318,8 +345,8 @@ export function tf_array_has<T>(...values: o.RO<T>[]): o.RO<o.Converter<T[], boo
 
         return add.length ? [...cur, ...add] : cur
       }
-      return cur.filter(x => !values.includes(x))
-    }
+      return cur.filter((x) => !values.includes(x))
+    },
   }))
 }
 
@@ -327,14 +354,15 @@ export function tf_array_has<T>(...values: o.RO<T>[]): o.RO<o.Converter<T[], boo
  * Make a boolean observable from the presence of given values in a `Set`. If the observable can be written to, then setting the transformed to `true` will put all the values to the `Set`, and setting it to `false` will remove all of them.
  * @group Transformer
  */
-export function tf_set_has<T>(...values: o.RO<T>[]): o.RO<o.Converter<Set<T>, boolean>> {
+export function tf_set_has<T>(
+  ...values: o.RO<T>[]
+): o.RO<o.Converter<Set<T>, boolean>> {
   return o.combine(values, (values) => {
     return {
       transform(set) {
         for (let i = 0; i < values.length; i++) {
           const item = values[i]
-          if (!set.has(item))
-            return false
+          if (!set.has(item)) return false
         }
         return true
       },
@@ -346,9 +374,8 @@ export function tf_set_has<T>(...values: o.RO<T>[]): o.RO<o.Converter<Set<T>, bo
           else res.delete(item)
         }
         return res
-      }
+      },
     } as o.Converter<Set<T>, boolean>
-
   })
 }
 
@@ -359,14 +386,15 @@ export function tf_set_has<T>(...values: o.RO<T>[]): o.RO<o.Converter<Set<T>, bo
  *
  * @group Transformer
  */
-export function tf_map_has<K, V>(...values: o.RO<[K, V]>[]): o.RO<o.Converter<Map<K, V>, boolean>> {
+export function tf_map_has<K, V>(
+  ...values: o.RO<[K, V]>[]
+): o.RO<o.Converter<Map<K, V>, boolean>> {
   return o.combine(values, (values) => {
     return {
       transform(map) {
         for (let i = 0; i < values.length; i++) {
           const [key, value] = values[i]
-          if (map.get(key) !== value)
-            return false
+          if (map.get(key) !== value) return false
         }
         return true
       },
@@ -378,15 +406,14 @@ export function tf_map_has<K, V>(...values: o.RO<[K, V]>[]): o.RO<o.Converter<Ma
           else if (res.get(item[0]) === item[1]) res.delete(item[0])
         }
         return res
-      }
+      },
     } as o.Converter<Map<K, V>, boolean>
-
   })
 }
 
-
-export type KeysOfType<T, V> = keyof { [ P in keyof T as T[P] extends V ? P : never ] : P }
-
+export type KeysOfType<T, V> = keyof {
+  [P in keyof T as T[P] extends V ? P : never]: P
+}
 
 /**
  *
@@ -394,8 +421,12 @@ export type KeysOfType<T, V> = keyof { [ P in keyof T as T[P] extends V ? P : ne
  * @returns
  * @group Transformer
  */
-export function tf_array_to_object<T, Key extends string | number | symbol, Extractor extends o.RO<(v: T) => Key>>(extractor: Extractor): o.RO<o.Converter<T[], {[name in Key]: T}>> {
-  return o.tf(extractor, extractor => {
+export function tf_array_to_object<
+  T,
+  Key extends string | number | symbol,
+  Extractor extends o.RO<(v: T) => Key>
+>(extractor: Extractor): o.RO<o.Converter<T[], { [name in Key]: T }>> {
+  return o.tf(extractor, (extractor) => {
     return {
       transform(orig) {
         const res = {} as any
@@ -408,11 +439,10 @@ export function tf_array_to_object<T, Key extends string | number | symbol, Extr
       },
       revert(nval) {
         return [...Object.values(nval)] as T[]
-      }
+      },
     }
   })
 }
-
 
 /**
  *
@@ -420,14 +450,19 @@ export function tf_array_to_object<T, Key extends string | number | symbol, Extr
  * @returns
  * @group Transformer
  */
-export function tf_group_by_to_object<T>(extractor: o.RO<keyof T | ((v: T) => string)>): o.RO<o.Converter<T[], {[key: string]: T[]}>> {
-  return o.tf(extractor, extractor => {
-    const _extractor = typeof extractor === "string" ? (v: T): string => v[extractor as keyof T] as string : extractor as (v: T) => string
+export function tf_group_by_to_object<T>(
+  extractor: o.RO<keyof T | ((v: T) => string)>
+): o.RO<o.Converter<T[], { [key: string]: T[] }>> {
+  return o.tf(extractor, (extractor) => {
+    const _extractor =
+      typeof extractor === "string"
+        ? (v: T): string => v[extractor as keyof T] as string
+        : (extractor as (v: T) => string)
     return {
-      indices: {} as {[name: string]: number[]},
+      indices: {} as { [name: string]: number[] },
       transform(orig) {
-        const obj: {[username: string]: T[]} = {}
-        const indices = this.indices = {} as {[name: string]: number[]}
+        const obj: { [username: string]: T[] } = {}
+        const indices = (this.indices = {} as { [name: string]: number[] })
         for (let i = 0, l = orig.length; i < l; i++) {
           const val = orig[i]
           const ex = _extractor(val)
@@ -457,7 +492,7 @@ export function tf_group_by_to_object<T>(extractor: o.RO<keyof T | ((v: T) => st
           }
         }
         return newarr
-      }
+      },
     }
   })
 }
@@ -468,8 +503,10 @@ export function tf_group_by_to_object<T>(extractor: o.RO<keyof T | ((v: T) => st
  * @returns
  * @group Transformer
  */
-export function tf_array_to_map<T, V>(extractor: o.RO<(v: T) => V>): o.RO<o.Converter<T[], Map<V, T>>> {
-  return o.tf(extractor, extractor => {
+export function tf_array_to_map<T, V>(
+  extractor: o.RO<(v: T) => V>
+): o.RO<o.Converter<T[], Map<V, T>>> {
+  return o.tf(extractor, (extractor) => {
     return {
       transform(orig) {
         const mp = new Map<V, T>()
@@ -482,11 +519,10 @@ export function tf_array_to_map<T, V>(extractor: o.RO<(v: T) => V>): o.RO<o.Conv
       },
       revert(nval) {
         return [...nval.values()]
-      }
+      },
     }
   })
 }
-
 
 /**
  *
@@ -494,13 +530,15 @@ export function tf_array_to_map<T, V>(extractor: o.RO<(v: T) => V>): o.RO<o.Conv
  * @returns
  * @group Transformer
  */
-export function tf_group_by_to_map<T, V>(extractor: o.RO<(v: T) => V>): o.RO<o.Converter<T[], Map<V, T[]>>> {
-  return o.tf(extractor, extractor => {
+export function tf_group_by_to_map<T, V>(
+  extractor: o.RO<(v: T) => V>
+): o.RO<o.Converter<T[], Map<V, T[]>>> {
+  return o.tf(extractor, (extractor) => {
     return {
       indices: {} as Map<V, number[]>,
       transform(orig) {
         const mp = new Map<V, T[]>()
-        const indices = this.indices = new Map<V, number[]>()
+        const indices = (this.indices = new Map<V, number[]>())
         for (let i = 0, l = orig.length; i < l; i++) {
           const val = orig[i]
           const ex = extractor(val)
@@ -530,7 +568,7 @@ export function tf_group_by_to_map<T, V>(extractor: o.RO<(v: T) => V>): o.RO<o.C
           }
         }
         return newarr
-      }
+      },
     }
   })
 }

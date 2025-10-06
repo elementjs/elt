@@ -2,9 +2,9 @@ import { IndexableArray, Indexable } from "./indexable"
 
 import { sym_insert, sym_is_observable } from "../symbols"
 import { Renderable } from "../types"
-import { CommentHolder, node_append, node_observe, } from "../dom"
+import { CommentHolder, node_append, node_observe } from "../dom"
 
-((window as any).DEBUG ??= false)
+;(window as any).DEBUG ??= false
 declare const DEBUG: boolean
 
 function _is_promise_like(a: any): a is PromiseLike<any> {
@@ -17,1035 +17,1209 @@ function _is_promise_like(a: any): a is PromiseLike<any> {
  *   Observable holding the value of `arg` if it wasn't.
  * @group Observable
  */
-export function o<T>(arg: T):
-[o.ReadonlyObservable<any>] extends [T] ? o.ReadonlyObservable<o.UnRO<T>>
-: o.Observable<o.UnRO<T>>
-{
-    // when there is a mix of different observables, then we have a readonlyobservable of the combination of the types
+export function o<T>(
+  arg: T
+): [o.ReadonlyObservable<any>] extends [T]
+  ? o.ReadonlyObservable<o.UnRO<T>>
+  : o.Observable<o.UnRO<T>> {
+  // when there is a mix of different observables, then we have a readonlyobservable of the combination of the types
 
-  return o.is_observable(arg) ? arg as any : new o.Observable(arg) as any
+  return o.is_observable(arg) ? (arg as any) : (new o.Observable(arg) as any)
 }
 
 export namespace o {
-
-
-export interface IReadonlyObservable<Get> {
-  get(): Get
-  addObserver(fn: ObserverCallback<Get>): Observer<Get>
-  addObserver(fn: Observer<Get>): Observer<Get>
-}
-
-export interface IObservable<Get, Set> extends IReadonlyObservable<Get> {
-  set(value: Set): void
-  mutate(fn: (current: Get) => Set | NoValue): this
-}
-
-/**
- * `RO` is a helper type that represents a value that could be both a {@link o.ReadonlyObservable}
- * or a non-observable.
- *
- * It is very useful when dealing with {@link Attrs} where flexibility is needed for arguments.
- *
- * ```tsx
- * [[include:../../examples/o.ro.tsx]]
- * ```
- *
- * @group Observable
- */
-export type O<A, A2 extends A = A> = IObservable<A2, A> | A
-export type RO<A, R = A> = IObservable<A, R> | IReadonlyObservable<A> | A
-export type UnRO<A> =
-  A extends IObservable<any, infer C> ? C
-  : A extends IReadonlyObservable<infer B> ? B
-  : A
-
-export type UnROArray<A extends any[]> = {[K in keyof A]: UnRO<A[K]>}
-
-/**
- * Get the type of the element of an observable. Works on `#o.RO` as well.
- * @group Observable
- */
-export type ObservedType<T> = T extends IReadonlyObservable<infer U> ? U : T
-
-/**
- * Signature of the transform functions that transform an observable of a given type
- * to another observable of another type.
- *
- * `nval` is the new current value of
- * the **original** observable, `oval` is the old value of the **original** observable and `curval` is the current value of the
- * **transformed** observable that is about to be replaced.
- */
-export type TransfomFn<A, B> = (nval: A, oval: A | NoValue, curval: B | NoValue) => B
-
-/**
- * Signature of the function that reverts a value from a transformed observable
- * back to the original observable.
- *
- * `nval` is the current value of the **transformed** observable,
- * `oval` the previous value of the **transformed** observable and `curval` the current
- * value of the **original** observable that is about to be changed.
- */
-export type RevertFn<A, B> = (nval: B, oval: B | NoValue, curval: A) => A | NoValue
-
-
-/**
- * For use with {@link o.Observable.tf}. The `ReadonlyConverter` only provides a transformation
- * that will result in the creation of a `ReadonlyObservable`, since there is no way to
- * transform it back.
- */
-export interface ReadonlyConverter<A, B> {
-  /**
-   * The transform function
-   */
-  transform: TransfomFn<A, B>
-}
-
-/**
- * For use with {@link o.Observable.tf}. A `Converter` object gives an {@link o.Observable} a bijection
- * to another type, allowing an observable to transform into another observable type that can be set.
- */
-export interface Converter<A, B> extends ReadonlyConverter<A, B> {
-  /**
-   * The transform function to get the transformed value back to the original
-   * observable.
-   */
-  revert: RevertFn<A, B>
-}
-
-
-/**
- * Transforms the type to make its values {@link o.RO}
- */
-export type ROProps<T> = { [P in keyof T]:  RO<T[P]>}
-
-
-/**
- * A constant symbol representing the fact that there is no value.
- *
- * Used in Observers and combined observables to know when a value has been set for the first time.
- */
-export const NoValue = Symbol("NoValue")
-/**
- * The type associated to NoValue
- */
-export type NoValue = typeof NoValue
-
-/**
- * Typeguard to check that an object is a readonlyobservable.
- *
- * It really only checks that the variable is an observable under the hood.
- * @group Observable
- */
-export function isReadonlyObservable<T>(_: RO<T>): _ is ReadonlyObservable<T>
-export function isReadonlyObservable(_: any): _ is ReadonlyObservable<any>
-export function isReadonlyObservable(_: any): _ is ReadonlyObservable<any> {
-  return o.is_observable(_)
-}
-
-
-/**
- * Options when adding an observer to an ObserverHolder or a Node
- */
-export interface ObserveOptions<T> {
-  observer_callback?: (obs: o.Observer<T>) => any,
-  immediate?: boolean
-  changes_only?: boolean
-}
-
-
-/**
- * An `Observer` observes an {@link o.Observable}. `Observable`s maintain a list of **active**
- * observers that are observing it. Whenever their value change, all the registered
- * `Observer`s have their `refresh` method called.
- *
- * An `Observer` is built with a function that will be called when it is refreshed and
- * the value **changed** from the previous value it knew.
- *
- * This behaviour has implications for memory usage ; all `Observers` keep a reference
- * to the last value they were called with, since this is the value they will pass as
- * the `old_value` to their wrapped function.
- *
- * They behave this way because an Observer can be stopped and then started again.
- * In between, the observable they watch could have been changed several times. The `fn`
- * function they wrap may make assumptions on what value it has seen itself. Thus,
- * by keeping a reference to the last value they were called with, they can provide it
- * safely to `fn`.
- *
- * @group Observable
- */
-export class Observer<A> implements Indexable {
-
-  /**
-   * The last value they've been called with.
-   */
-  old_value: A | NoValue = NoValue
-  /**
-   * Used to speed up access
-   * @internal
-   */
-  idx = null
-  /**
-   * The function that will be called on `refresh`
-   */
-  fn: ObserverCallback<any>
-
-  observable: any
-  private _promise: any
-
-  /**
-   * Build an observer that will call `fn` whenever the value contained by
-   * `observable` changes.
-   */
-  constructor(fn: ObserverCallback<A>, observable: ReadonlyObservable<A>) {
-    this.fn = fn
-    this.observable = observable
+  export interface IReadonlyObservable<Get> {
+    get(): Get
+    addObserver(fn: ObserverCallback<Get>): Observer<Get>
+    addObserver(fn: Observer<Get>): Observer<Get>
   }
 
-  evalNewalue(new_value: A) {
-    // only store the old_value if the observer will need it. Useful to not keep
-    // useless references in memory.
-    const old = this.old_value
-    this.old_value = new_value
-    const res = (this.fn as ObserverCallback<A>)(new_value, old)
-    // If the observer function returns a result, use it as the new value to avoid being re-triggered
-    if (res !== undefined) {
-      if (_is_promise_like(res)) {
-        const pro = this._promise = Promise.resolve(res).then(res => {
-          if (res === undefined || pro !== this._promise) { return }
-          this.setObservableValue(res)
-        })
-      } else {
-        this.setObservableValue(res)
-      }
-    }
+  export interface IObservable<Get, Set> extends IReadonlyObservable<Get> {
+    set(value: Set): void
+    mutate(fn: (current: Get) => Set | NoValue): this
   }
 
   /**
-   * Called by the `observable` currently being watched.
-   */
-  refresh(): void {
-    const old = this.old_value
-    const new_value = (this.observable as any)._value
-
-    if (old !== new_value) {
-      this.evalNewalue(new_value)
-    }
-  }
-
-  private setObservableValue(val: A | o.NoValue) {
-    // synchronous sets win over promises
-    this._promise = undefined
-    val = val === o.NoValue ? undefined! : val
-    this.old_value = val as A
-    this.observable.set(val as A)
-  }
-
-  /**
-   * Register on the `observable` to be `refresh`ed whenever it changes.
-   */
-  startObserving() {
-    this.observable.addObserver(this)
-  }
-
-  /**
-   * Stop being notified by the observable.
-   */
-  stopObserving() {
-    this.observable.removeObserver(this)
-  }
-
-  /**
-   * Debounce `this.refresh` by `ms` milliseconds, optionnally calling it
-   * immediately the first time around if `leading` is true.
+   * `RO` is a helper type that represents a value that could be both a {@link o.ReadonlyObservable}
+   * or a non-observable.
    *
-   * @see o.debounce
+   * It is very useful when dealing with {@link Attrs} where flexibility is needed for arguments.
+   *
+   * ```tsx
+   * [[include:../../examples/o.ro.tsx]]
+   * ```
+   *
+   * @group Observable
    */
-  debounce(ms: number, leading?: boolean) {
-    this.refresh = o.debounce(this.refresh.bind(this), ms, leading)
-    return this
+  export type O<A, A2 extends A = A> = IObservable<A2, A> | A
+  export type RO<A, R = A> = IObservable<A, R> | IReadonlyObservable<A> | A
+  export type UnRO<A> = A extends IObservable<any, infer C>
+    ? C
+    : A extends IReadonlyObservable<infer B>
+    ? B
+    : A
+
+  export type UnROArray<A extends any[]> = { [K in keyof A]: UnRO<A[K]> }
+
+  /**
+   * Get the type of the element of an observable. Works on `#o.RO` as well.
+   * @group Observable
+   */
+  export type ObservedType<T> = T extends IReadonlyObservable<infer U> ? U : T
+
+  /**
+   * Signature of the transform functions that transform an observable of a given type
+   * to another observable of another type.
+   *
+   * `nval` is the new current value of
+   * the **original** observable, `oval` is the old value of the **original** observable and `curval` is the current value of the
+   * **transformed** observable that is about to be replaced.
+   */
+  export type TransfomFn<A, B> = (
+    nval: A,
+    oval: A | NoValue,
+    curval: B | NoValue
+  ) => B
+
+  /**
+   * Signature of the function that reverts a value from a transformed observable
+   * back to the original observable.
+   *
+   * `nval` is the current value of the **transformed** observable,
+   * `oval` the previous value of the **transformed** observable and `curval` the current
+   * value of the **original** observable that is about to be changed.
+   */
+  export type RevertFn<A, B> = (
+    nval: B,
+    oval: B | NoValue,
+    curval: A
+  ) => A | NoValue
+
+  /**
+   * For use with {@link o.Observable.tf}. The `ReadonlyConverter` only provides a transformation
+   * that will result in the creation of a `ReadonlyObservable`, since there is no way to
+   * transform it back.
+   */
+  export interface ReadonlyConverter<A, B> {
+    /**
+     * The transform function
+     */
+    transform: TransfomFn<A, B>
   }
 
   /**
-   * Throttle `this.refresh` by `ms` milliseconds, optionnally calling it
-   * immediately the first time around if `leading` is true.
-   *
-   * @see o.throttle
+   * For use with {@link o.Observable.tf}. A `Converter` object gives an {@link o.Observable} a bijection
+   * to another type, allowing an observable to transform into another observable type that can be set.
    */
-  throttle(ms: number, leading?: boolean | number) {
-    this.refresh = o.throttle(this.refresh.bind(this), ms, leading)
-    return this
+  export interface Converter<A, B> extends ReadonlyConverter<A, B> {
+    /**
+     * The transform function to get the transformed value back to the original
+     * observable.
+     */
+    revert: RevertFn<A, B>
   }
-}
 
-export class SilentObserver<A> extends Observer<A> {
-  evalNewalue(new_value: A) {
-    if (this.old_value === o.NoValue) {
+  /**
+   * Transforms the type to make its values {@link o.RO}
+   */
+  export type ROProps<T> = { [P in keyof T]: RO<T[P]> }
+
+  /**
+   * A constant symbol representing the fact that there is no value.
+   *
+   * Used in Observers and combined observables to know when a value has been set for the first time.
+   */
+  export const NoValue = Symbol("NoValue")
+  /**
+   * The type associated to NoValue
+   */
+  export type NoValue = typeof NoValue
+
+  /**
+   * Typeguard to check that an object is a readonlyobservable.
+   *
+   * It really only checks that the variable is an observable under the hood.
+   * @group Observable
+   */
+  export function isReadonlyObservable<T>(_: RO<T>): _ is ReadonlyObservable<T>
+  export function isReadonlyObservable(_: any): _ is ReadonlyObservable<any>
+  export function isReadonlyObservable(_: any): _ is ReadonlyObservable<any> {
+    return o.is_observable(_)
+  }
+
+  /**
+   * Options when adding an observer to an ObserverHolder or a Node
+   */
+  export interface ObserveOptions<T> {
+    observer_callback?: (obs: o.Observer<T>) => any
+    immediate?: boolean
+    changes_only?: boolean
+  }
+
+  /**
+   * An `Observer` observes an {@link o.Observable}. `Observable`s maintain a list of **active**
+   * observers that are observing it. Whenever their value change, all the registered
+   * `Observer`s have their `refresh` method called.
+   *
+   * An `Observer` is built with a function that will be called when it is refreshed and
+   * the value **changed** from the previous value it knew.
+   *
+   * This behaviour has implications for memory usage ; all `Observers` keep a reference
+   * to the last value they were called with, since this is the value they will pass as
+   * the `old_value` to their wrapped function.
+   *
+   * They behave this way because an Observer can be stopped and then started again.
+   * In between, the observable they watch could have been changed several times. The `fn`
+   * function they wrap may make assumptions on what value it has seen itself. Thus,
+   * by keeping a reference to the last value they were called with, they can provide it
+   * safely to `fn`.
+   *
+   * @group Observable
+   */
+  export class Observer<A> implements Indexable {
+    /**
+     * The last value they've been called with.
+     */
+    old_value: A | NoValue = NoValue
+    /**
+     * Used to speed up access
+     * @internal
+     */
+    idx = null
+    /**
+     * The function that will be called on `refresh`
+     */
+    fn: ObserverCallback<any>
+
+    observable: any
+    private _promise: any
+
+    /**
+     * Build an observer that will call `fn` whenever the value contained by
+     * `observable` changes.
+     */
+    constructor(fn: ObserverCallback<A>, observable: ReadonlyObservable<A>) {
+      this.fn = fn
+      this.observable = observable
+    }
+
+    evalNewalue(new_value: A) {
+      // only store the old_value if the observer will need it. Useful to not keep
+      // useless references in memory.
+      const old = this.old_value
       this.old_value = new_value
-      return
-    }
-    super.evalNewalue(new_value)
-  }
-}
-
-/**
- * The type for functions that are passed to {@link o.Observer}s instances.
- *
- * `newval` is the new value the observable currently has, while `old_value`
- * is the previous value or {@link o.NoValue} if this is the first time the callback
- * is called.
- */
-export type ObserverCallback<T> = (newval: T, old_value: T | NoValue) => void | T | NoValue | Promise<T | NoValue | void>
-
-
-export const sym_display_node = Symbol("display-node")
-export const sym_display_attrs = Symbol("display-attrs")
-
-
-/**
- * `ReadonlyObservable` is just an interface to an actual `Observable` class but without
- * the methods that can modify the observed value.
- *
- * @group Observable
- */
-export class ReadonlyObservable<A> implements Indexable {
-  [sym_display_node]?: string
-  [sym_display_attrs]?: {[name: string]: string | null | false | number}
-
-  [sym_insert](this: ReadonlyObservable<Renderable<Node>>, parent: Node, refchild: Node | null) {
-    const kind = this[sym_display_node] ?? "e-obs"
-    const attrs = this[sym_display_attrs]
-
-    const cmi = new CommentHolder(` ${kind}${attrs ? " " + JSON.stringify(attrs) : ""} `)
-    node_append(parent, cmi, refchild)
-    node_observe(cmi, this, renderable => {
-      cmi.updateRenderable(renderable)
-    }, { immediate: true })
-  }
-
-  /** @internal */
-  readonly _observers = new IndexableArray<Observer<A>>()
-  /** @internal */
-  _children = new IndexableArray<ChildObservableLink>()
-  /** @internal */
-  _watched = false
-
-  /** The index of this Observable in the notify queue. If null, means that it's not scheduled.
-   * @internal
-  */
-  idx = null as null | number
-
-  /** only available in development build */
-  debug?: string
-  _value: any // do not give it a type, this is on purpose.
-
-  /**
-   * Build an observable from a value. For readability purposes, use the {@link o} function instead.
-   */
-  constructor(_value: A) {
-    if (DEBUG) {
-      (this as any).debug = new Error().stack
-    }
-    this._value = _value
-  }
-
-  ensureRefreshed() { }
-
-  /**
-   * Return the underlying value of this Observable
-   *
-   * NOTE: treat this value as being entirely readonly !
-   */
-  get(): A {
-    return this._value
-  }
-
-  /**
-   * Add an observer to this observable, which will be updated as soon as the `Observable` is set to a new value.
-   *
-   * > **Note**: This method should rarely be used. Prefer using {@link $observe}, {@link node_observe}, [`Mixin#observe()`](#Mixin) or [`App.Service#observe()`](#App.Service#observe) for observing values.
-   *
-   * @returns The newly created observer if a function was given to this method or
-   *   the observable that was passed.
-   */
-  addObserver(fn: ObserverCallback<A>): Observer<A>
-  addObserver(obs: Observer<A>): Observer<A>
-  addObserver(_ob: ObserverCallback<A> | Observer<A>): Observer<A> {
-    if (typeof _ob === "function") {
-      _ob = new Observer(_ob, this)
+      const res = (this.fn as ObserverCallback<A>)(new_value, old)
+      // If the observer function returns a result, use it as the new value to avoid being re-triggered
+      if (res !== undefined) {
+        if (_is_promise_like(res)) {
+          const pro = (this._promise = Promise.resolve(res).then((res) => {
+            if (res === undefined || pro !== this._promise) {
+              return
+            }
+            this.setObservableValue(res)
+          }))
+        } else {
+          this.setObservableValue(res)
+        }
+      }
     }
 
-    const ob = _ob
-    this._observers.add(_ob)
-    this.checkWatch()
-    if (this.idx == null) {
-      // Refresh the observer immediately this observable is not being queued for a transaction.
-      ob.refresh()
+    /**
+     * Called by the `observable` currently being watched.
+     */
+    refresh(): void {
+      const old = this.old_value
+      const new_value = (this.observable as any)._value
+
+      if (old !== new_value) {
+        this.evalNewalue(new_value)
+      }
     }
-    return ob
-  }
 
+    private setObservableValue(val: A | o.NoValue) {
+      // synchronous sets win over promises
+      this._promise = undefined
+      val = val === o.NoValue ? undefined! : val
+      this.old_value = val as A
+      this.observable.set(val as A)
+    }
 
-  /**
-   * Add a child observable to this observable that will depend on it to build its own value.
-   * @internal
-   */
-  addChild(ch: ChildObservableLink) {
-    if (ch.idx != null) return
-    this._children.add(ch)
-    if (this.idx != null)
-      queue.schedule(ch.child)
-    this.checkWatch()
-  }
+    /**
+     * Register on the `observable` to be `refresh`ed whenever it changes.
+     */
+    startObserving() {
+      this.observable.addObserver(this)
+    }
 
-  /**
-   * @internal
-   */
-  removeChild(ch: ChildObservableLink) {
-    if (ch.idx == null) return
-    this._children.delete(ch)
-    this.checkWatch()
-  }
+    /**
+     * Stop being notified by the observable.
+     */
+    stopObserving() {
+      this.observable.removeObserver(this)
+    }
 
-  /**
-   * Remove an observer from this observable. This means the Observer will not
-   * be called anymore when this Observable changes.
-   *
-   * If there are no more observers watching this Observable, then it will stop
-   * watching other Observables in turn if it did.
-   *
-   */
-  removeObserver(ob: Observer<A>): void {
-    this._observers.delete(ob)
-    this.checkWatch()
-  }
+    /**
+     * Debounce `this.refresh` by `ms` milliseconds, optionnally calling it
+     * immediately the first time around if `leading` is true.
+     *
+     * @see o.debounce
+     */
+    debounce(ms: number, leading?: boolean) {
+      this.refresh = o.debounce(this.refresh.bind(this), ms, leading)
+      return this
+    }
 
-  /**
-   * Check if this `Observable` is being watched or not. If it stopped being observed but is in the notification
-   * queue, remove it from there as no one is expecting its value.
-   *
-   * @internal
-   */
-  checkWatch() {
-    if (this._watched && this._observers.real_size === 0 && this._children.real_size === 0) {
-      this._watched = false
-      if (this.idx != null) queue.delete(this)
-      this.unwatched()
-    } else if (!this._watched && this._observers.real_size + this._children.real_size > 0) {
-      this._watched = true
-      this.watched()
+    /**
+     * Throttle `this.refresh` by `ms` milliseconds, optionnally calling it
+     * immediately the first time around if `leading` is true.
+     *
+     * @see o.throttle
+     */
+    throttle(ms: number, leading?: boolean | number) {
+      this.refresh = o.throttle(this.refresh.bind(this), ms, leading)
+      return this
     }
   }
 
-  /** Return `true` if this observable is being observed by an Observer or another Observable. */
-  isObserved() { return this._watched }
-
-  /**
-   * @internal
-   */
-  // eslint-disable-next-line @typescript-eslint/no-empty-function
-  unwatched() { }
-  /**
-   * @internal
-   */
-  // eslint-disable-next-line @typescript-eslint/no-empty-function
-  watched() { }
-
-  apply<K extends keyof A, Args extends A[K] extends (...args: infer A) => any ? A : never>(method: K, args: {[K2 in keyof Args]: o.RO<Args[K2]>}): ReadonlyObservable<A[K] extends (...args: any[]) => infer B ? B : never> {
-    return o.apply(this, method, args as any) as any
-  }
-
-  call<K extends keyof A, Args extends A[K] extends (...args: infer A) => any ? A : never>(method: K, ...args: {[K2 in keyof Args]: o.RO<Args[K2]>}): ReadonlyObservable<A[K] extends (...args: any[]) => infer B ? B : never> {
-    return o.apply(this, method, args as any) as any
+  export class SilentObserver<A> extends Observer<A> {
+    evalNewalue(new_value: A) {
+      if (this.old_value === o.NoValue) {
+        this.old_value = new_value
+        return
+      }
+      super.evalNewalue(new_value)
+    }
   }
 
   /**
-   * Transform this Observable into another using a transform function or a Converter.
+   * The type for functions that are passed to {@link o.Observer}s instances.
    *
-   * If there is only one transform function provided then the result is a ReadonlyObservable since
-   * there is no way of converting the result back.
-   *
-   * A Converter providing both `get` and `set` operations will create a two-way observable that is settable.
-   *
-   * ```tsx
-   * [[include:../../examples/o.observable.tf.tsx]]
-   * ```
-   *
+   * `newval` is the new value the observable currently has, while `old_value`
+   * is the previous value or {@link o.NoValue} if this is the first time the callback
+   * is called.
    */
-  tf<B, A2 extends A = A>(transform: RO<Converter<A2, B>>): Observable<B>
-  tf<B, A2 extends A = A>(tf: o.RO<TransfomFn<A2, B>>, rev: o.RO<RevertFn<A2, B>>): Observable<B>
-  tf<B, A2 extends A = A>(transform: RO<TransfomFn<A2, B> | ReadonlyConverter<A2, B>>): ReadonlyObservable<B>
-  tf<B, A2 extends A = A>(transform: RO<Converter<A2, B>> | RO<TransfomFn<A2, B> | ReadonlyConverter<A2, B>>, rev?: RO<RevertFn<A2, B>>): Observable<B> {
-    let old: A2 | NoValue = NoValue
-    let old_val: B | NoValue = NoValue
-    return combine([this as unknown as IReadonlyObservable<A2>, transform, rev] as const,
-      ([v, fnget]) => {
-        const curval = (typeof fnget === "function" ? fnget(v, old, old_val) : fnget.transform(v, old, old_val))
-        const arg_nb = (typeof fnget === "function" ? fnget.length : fnget.transform.length)
-        if (arg_nb > 1) {
-          old = v
-          if (arg_nb > 2) {
-            old_val = curval
+  export type ObserverCallback<T> = (
+    newval: T,
+    old_value: T | NoValue
+  ) => void | T | NoValue | Promise<T | NoValue | void>
+
+  export const sym_display_node = Symbol("display-node")
+  export const sym_display_attrs = Symbol("display-attrs")
+
+  /**
+   * `ReadonlyObservable` is just an interface to an actual `Observable` class but without
+   * the methods that can modify the observed value.
+   *
+   * @group Observable
+   */
+  export class ReadonlyObservable<A> implements Indexable {
+    [sym_display_node]?: string;
+    [sym_display_attrs]?: { [name: string]: string | null | false | number };
+
+    [sym_insert](
+      this: ReadonlyObservable<Renderable<Node>>,
+      parent: Node,
+      refchild: Node | null
+    ) {
+      const kind = this[sym_display_node] ?? "e-obs"
+      const attrs = this[sym_display_attrs]
+
+      const cmi = new CommentHolder(
+        ` ${kind}${attrs ? " " + JSON.stringify(attrs) : ""} `
+      )
+      node_append(parent, cmi, refchild)
+      node_observe(
+        cmi,
+        this,
+        (renderable) => {
+          cmi.updateRenderable(renderable)
+        },
+        { immediate: true }
+      )
+    }
+
+    /** @internal */
+    readonly _observers = new IndexableArray<Observer<A>>()
+    /** @internal */
+    _children = new IndexableArray<ChildObservableLink>()
+    /** @internal */
+    _watched = false
+
+    /** The index of this Observable in the notify queue. If null, means that it's not scheduled.
+     * @internal
+     */
+    idx = null as null | number
+
+    /** only available in development build */
+    debug?: string
+    _value: any // do not give it a type, this is on purpose.
+
+    /**
+     * Build an observable from a value. For readability purposes, use the {@link o} function instead.
+     */
+    constructor(_value: A) {
+      if (DEBUG) {
+        ;(this as any).debug = new Error().stack
+      }
+      this._value = _value
+    }
+
+    ensureRefreshed() {}
+
+    /**
+     * Return the underlying value of this Observable
+     *
+     * NOTE: treat this value as being entirely readonly !
+     */
+    get(): A {
+      return this._value
+    }
+
+    /**
+     * Add an observer to this observable, which will be updated as soon as the `Observable` is set to a new value.
+     *
+     * > **Note**: This method should rarely be used. Prefer using {@link $observe}, {@link node_observe}, [`Mixin#observe()`](#Mixin) or [`App.Service#observe()`](#App.Service#observe) for observing values.
+     *
+     * @returns The newly created observer if a function was given to this method or
+     *   the observable that was passed.
+     */
+    addObserver(fn: ObserverCallback<A>): Observer<A>
+    addObserver(obs: Observer<A>): Observer<A>
+    addObserver(_ob: ObserverCallback<A> | Observer<A>): Observer<A> {
+      if (typeof _ob === "function") {
+        _ob = new Observer(_ob, this)
+      }
+
+      const ob = _ob
+      this._observers.add(_ob)
+      this.checkWatch()
+      if (this.idx == null) {
+        // Refresh the observer immediately this observable is not being queued for a transaction.
+        ob.refresh()
+      }
+      return ob
+    }
+
+    /**
+     * Add a child observable to this observable that will depend on it to build its own value.
+     * @internal
+     */
+    addChild(ch: ChildObservableLink) {
+      if (ch.idx != null) return
+      this._children.add(ch)
+      if (this.idx != null) queue.schedule(ch.child)
+      this.checkWatch()
+    }
+
+    /**
+     * @internal
+     */
+    removeChild(ch: ChildObservableLink) {
+      if (ch.idx == null) return
+      this._children.delete(ch)
+      this.checkWatch()
+    }
+
+    /**
+     * Remove an observer from this observable. This means the Observer will not
+     * be called anymore when this Observable changes.
+     *
+     * If there are no more observers watching this Observable, then it will stop
+     * watching other Observables in turn if it did.
+     *
+     */
+    removeObserver(ob: Observer<A>): void {
+      this._observers.delete(ob)
+      this.checkWatch()
+    }
+
+    /**
+     * Check if this `Observable` is being watched or not. If it stopped being observed but is in the notification
+     * queue, remove it from there as no one is expecting its value.
+     *
+     * @internal
+     */
+    checkWatch() {
+      if (
+        this._watched &&
+        this._observers.real_size === 0 &&
+        this._children.real_size === 0
+      ) {
+        this._watched = false
+        if (this.idx != null) queue.delete(this)
+        this.unwatched()
+      } else if (
+        !this._watched &&
+        this._observers.real_size + this._children.real_size > 0
+      ) {
+        this._watched = true
+        this.watched()
+      }
+    }
+
+    /** Return `true` if this observable is being observed by an Observer or another Observable. */
+    isObserved() {
+      return this._watched
+    }
+
+    /**
+     * @internal
+     */
+    // eslint-disable-next-line @typescript-eslint/no-empty-function
+    unwatched() {}
+    /**
+     * @internal
+     */
+    // eslint-disable-next-line @typescript-eslint/no-empty-function
+    watched() {}
+
+    apply<
+      K extends keyof A,
+      Args extends A[K] extends (...args: infer A) => any ? A : never
+    >(
+      method: K,
+      args: { [K2 in keyof Args]: o.RO<Args[K2]> }
+    ): ReadonlyObservable<
+      A[K] extends (...args: any[]) => infer B ? B : never
+    > {
+      return o.apply(this, method, args as any) as any
+    }
+
+    call<
+      K extends keyof A,
+      Args extends A[K] extends (...args: infer A) => any ? A : never
+    >(
+      method: K,
+      ...args: { [K2 in keyof Args]: o.RO<Args[K2]> }
+    ): ReadonlyObservable<
+      A[K] extends (...args: any[]) => infer B ? B : never
+    > {
+      return o.apply(this, method, args as any) as any
+    }
+
+    /**
+     * Transform this Observable into another using a transform function or a Converter.
+     *
+     * If there is only one transform function provided then the result is a ReadonlyObservable since
+     * there is no way of converting the result back.
+     *
+     * A Converter providing both `get` and `set` operations will create a two-way observable that is settable.
+     *
+     * ```tsx
+     * [[include:../../examples/o.observable.tf.tsx]]
+     * ```
+     *
+     */
+    tf<B, A2 extends A = A>(transform: RO<Converter<A2, B>>): Observable<B>
+    tf<B, A2 extends A = A>(
+      tf: o.RO<TransfomFn<A2, B>>,
+      rev: o.RO<RevertFn<A2, B>>
+    ): Observable<B>
+    tf<B, A2 extends A = A>(
+      transform: RO<TransfomFn<A2, B> | ReadonlyConverter<A2, B>>
+    ): ReadonlyObservable<B>
+    tf<B, A2 extends A = A>(
+      transform:
+        | RO<Converter<A2, B>>
+        | RO<TransfomFn<A2, B> | ReadonlyConverter<A2, B>>,
+      rev?: RO<RevertFn<A2, B>>
+    ): Observable<B> {
+      let old: A2 | NoValue = NoValue
+      let old_val: B | NoValue = NoValue
+      return combine(
+        [this as unknown as IReadonlyObservable<A2>, transform, rev] as const,
+        ([v, fnget]) => {
+          const curval =
+            typeof fnget === "function"
+              ? fnget(v, old, old_val)
+              : fnget.transform(v, old, old_val)
+          const arg_nb =
+            typeof fnget === "function" ? fnget.length : fnget.transform.length
+          if (arg_nb > 1) {
+            old = v
+            if (arg_nb > 2) {
+              old_val = curval
+            }
           }
+          return curval
+        },
+        (newv, old, [curr, conv, rev]) => {
+          if (typeof rev === "function")
+            return [rev(newv, old, curr), NoValue, NoValue] as const
+          if (typeof conv === "function")
+            return [NoValue, NoValue, NoValue] as const // this means the set is being silently ignored. should it be an error ?
+          const new_orig = (conv as Converter<A2, B>).revert(newv, old, curr)
+          return [new_orig, NoValue, NoValue] as const
         }
-        return curval
-      },
-      (newv, old, [curr, conv, rev]) => {
-        if (typeof rev === "function") return [rev(newv, old, curr), NoValue, NoValue] as const
-        if (typeof conv === "function") return [NoValue, NoValue, NoValue] as const // this means the set is being silently ignored. should it be an error ?
-        const new_orig = (conv as Converter<A2, B>).revert(newv, old, curr)
-        return [new_orig, NoValue, NoValue] as const
-      }
-    )
+      )
+    }
+
+    /**
+     * Create an observable that will hold the value of the property specified with `key`.
+     * The resulting observable is completely bi-directional.
+     *
+     * The `key` can itself be an observable, in which case the resulting observable will
+     * change whenever either `key` or the original observable change.
+     *
+     * ```tsx
+     * [[include:../../examples/o.observable.p.tsx]]
+     * ```
+     */
+    p<K extends keyof A>(this: Observable<A>, key: RO<K>): Observable<A[K]>
+    p<K extends keyof A>(
+      this: IReadonlyObservable<A>,
+      key: RO<K>
+    ): ReadonlyObservable<A[K]>
+    p<K extends keyof A>(key: RO<K>) {
+      return prop(this, key)
+    }
+
+    path<K1 extends keyof A>(
+      this: IReadonlyObservable<A>,
+      key: K1
+    ): ReadonlyObservable<A[K1]>
+    path<K1 extends keyof A, K2 extends keyof A[K1]>(
+      this: IReadonlyObservable<A>,
+      key: K1,
+      key2: K2
+    ): ReadonlyObservable<A[K1][K2]>
+    path<
+      K1 extends keyof A,
+      K2 extends keyof A[K1],
+      K3 extends keyof A[K1][K2]
+    >(
+      this: IReadonlyObservable<A>,
+      key: K1,
+      key2: K2,
+      key3: K3
+    ): ReadonlyObservable<A[K1][K2][K3]>
+    path<
+      K1 extends keyof A,
+      K2 extends keyof A[K1],
+      K3 extends keyof A[K1][K2],
+      K4 extends keyof A[K1][K2][K3]
+    >(
+      this: IReadonlyObservable<A>,
+      key: K1,
+      key2: K2,
+      key3: K3,
+      key4: K4
+    ): ReadonlyObservable<A[K1][K2][K3][K4]>
+    path(...pth: any[]): any {
+      return path(this as any, ...pth)
+    }
+
+    /**
+     * Like {@link o.Observable.p}, but with `Map` objects.
+     */
+    key<A, B>(
+      this: IReadonlyObservable<Map<A, B>>,
+      key: RO<A>,
+      def?: undefined,
+      delete_on_undefined?: RO<boolean | undefined>
+    ): this extends Observable<Map<A, B>>
+      ? Observable<B | undefined>
+      : ReadonlyObservable<B | undefined>
+    key<A, B>(
+      this: IReadonlyObservable<Map<A, B>>,
+      key: RO<A>,
+      def: RO<(key: A, map: Map<A, B>) => B>
+    ): this extends Observable<Map<A, B>>
+      ? Observable<B>
+      : ReadonlyObservable<B>
+    key<A, B>(
+      this: IReadonlyObservable<Map<A, B>>,
+      key: RO<A>,
+      def?: RO<(key: A, map: Map<A, B>) => B>,
+      delete_on_undefined = true as RO<boolean | undefined>
+    ): ReadonlyObservable<B | undefined> {
+      return combine(
+        [this, key, def, delete_on_undefined] as const,
+        ([map, key, def]) => {
+          let res = map.get(key)
+          if (res === undefined && def) {
+            res = def(key, map)
+          }
+          return res
+        },
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        (ret, _, [omap, okey, _2, delete_on_undefined]) => {
+          const result = new Map(omap) //.set(okey, ret)
+          // Is this correct ? should I **delete** when I encounter undefined ?
+          if (ret !== undefined || !delete_on_undefined) result.set(okey, ret!)
+          else result.delete(okey)
+          return [result, NoValue, NoValue, NoValue] as const
+        }
+      )
+    }
   }
 
+  /** @internal */
+  export function each_recursive(
+    obs: ReadonlyObservable<any>,
+    fn: (v: ReadonlyObservable<any>) => void
+  ) {
+    fn(obs)
+    for (let i = 0, ch = obs._children.arr, l = ch.length; i < l; i++) {
+      const child = ch[i]
+      if (child) each_recursive(child.child, fn)
+    }
+  }
+
+  /** @internal */
+  export class Queue extends IndexableArray<ReadonlyObservable<any>> {
+    transaction_count = 0
+    flushing = false
+
+    schedule(obs: ReadonlyObservable<any>) {
+      const was_empty = this.real_size === 0
+      if (obs.idx == null) {
+        // No need to reschedule an observable
+        each_recursive(obs, (ob) => {
+          this.add(ob)
+        })
+      }
+
+      if (this.transaction_count === 0 && was_empty && this.real_size > 0) {
+        this.flush()
+      }
+    }
+
+    unschedule(obs: Observable<any>) {
+      each_recursive(obs, (ob) => this.delete(ob))
+    }
+
+    transaction(fn: () => void) {
+      this.transaction_count++
+      fn()
+      this.transaction_count--
+      if (this.transaction_count === 0) {
+        this.flush()
+      }
+    }
+
+    flush() {
+      if (this.flushing) {
+        return
+      }
+
+      this.flushing = true
+      for (let i = 0, arr = this.arr; i < arr.length; i++) {
+        const obs = arr[i]
+        if (obs == null) continue
+
+        try {
+          obs.ensureRefreshed()
+          obs.idx = null
+
+          for (let i = 0, oa = obs._observers.arr; i < oa.length; i++) {
+            const or = oa[i]
+            if (or == null) continue
+            or.refresh()
+          }
+
+          obs._observers.actualize()
+        } catch (e) {
+          console.error(e)
+          continue
+        }
+
+        arr[i] = null // just in case...
+      }
+      this.real_size = 0
+      this.arr.length = 0
+      this.transaction_count = 0
+      this.flushing = false
+    }
+  }
+
+  /** @internal */
+  const queue = new Queue()
+
   /**
-   * Create an observable that will hold the value of the property specified with `key`.
-   * The resulting observable is completely bi-directional.
+   * Start an observable transaction, where the observers of all the observables being
+   * set or assigned to during the callback are only called at the end.
    *
-   * The `key` can itself be an observable, in which case the resulting observable will
-   * change whenever either `key` or the original observable change.
+   * Use it when you know you will modify two or more observables that trigger the same transforms
+   * to avoid calling the observers each time one of the observable is modified.
    *
    * ```tsx
-   * [[include:../../examples/o.observable.p.tsx]]
-   * ```
-   */
-  p<K extends keyof A>(this: Observable<A>, key: RO<K>): Observable<A[K]>
-  p<K extends keyof A>(this: IReadonlyObservable<A>, key: RO<K>): ReadonlyObservable<A[K]>
-  p<K extends keyof A>(key: RO<K>) {
-    return prop(this, key)
-  }
-
-  path<K1 extends keyof A>(this: IReadonlyObservable<A>, key: K1): ReadonlyObservable<A[K1]>
-  path<K1 extends keyof A, K2 extends keyof A[K1]>(this: IReadonlyObservable<A>, key: K1, key2: K2): ReadonlyObservable<A[K1][K2]>
-  path<K1 extends keyof A, K2 extends keyof A[K1], K3 extends keyof A[K1][K2]>(this: IReadonlyObservable<A>, key: K1, key2: K2, key3: K3): ReadonlyObservable<A[K1][K2][K3]>
-  path<K1 extends keyof A, K2 extends keyof A[K1], K3 extends keyof A[K1][K2], K4 extends keyof A[K1][K2][K3]>(this: IReadonlyObservable<A>, key: K1, key2: K2, key3: K3, key4: K4): ReadonlyObservable<A[K1][K2][K3][K4]>
-  path(...pth: any[]): any {
-    return path(this as any, ...pth)
-  }
-
-  /**
-   * Like {@link o.Observable.p}, but with `Map` objects.
-   */
-  key<A, B>(this: IReadonlyObservable<Map<A, B>>, key: RO<A>, def?: undefined, delete_on_undefined?: RO<boolean | undefined>): this extends Observable<Map<A, B>> ? Observable<B | undefined> : ReadonlyObservable<B | undefined>
-  key<A, B>(this: IReadonlyObservable<Map<A, B>>, key: RO<A>, def: RO<(key: A, map: Map<A, B>) => B>): this extends Observable<Map<A, B>> ? Observable<B> : ReadonlyObservable<B>
-  key<A, B>(this: IReadonlyObservable<Map<A, B>>, key: RO<A>, def?: RO<(key: A, map: Map<A, B>) => B>, delete_on_undefined = true as RO<boolean | undefined>): ReadonlyObservable<B | undefined> {
-
-    return combine([this, key, def, delete_on_undefined] as const,
-      ([map, key, def]) => {
-        let res = map.get(key)
-        if (res === undefined && def) {
-          res = def(key, map)
-        }
-        return res
-      },
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      (ret, _, [omap, okey, _2, delete_on_undefined]) => {
-        const result = new Map(omap) //.set(okey, ret)
-        // Is this correct ? should I **delete** when I encounter undefined ?
-        if (ret !== undefined || !delete_on_undefined) result.set(okey, ret!)
-        else result.delete(okey)
-        return [result, NoValue, NoValue, NoValue] as const
-      }
-    )
-  }
-}
-
-
-/** @internal */
-export function each_recursive(obs: ReadonlyObservable<any>, fn: (v: ReadonlyObservable<any>) => void) {
-  fn(obs)
-  for (let i = 0, ch = obs._children.arr, l = ch.length; i < l; i++) {
-    const child = ch[i]
-    if (child) each_recursive(child.child, fn)
-  }
-}
-
-
-/** @internal */
-export class Queue extends IndexableArray<ReadonlyObservable<any>> {
-  transaction_count = 0
-  flushing = false
-
-  schedule(obs: ReadonlyObservable<any>) {
-    const was_empty = this.real_size === 0
-    if (obs.idx == null) {
-      // No need to reschedule an observable
-      each_recursive(obs, ob => {
-        this.add(ob)
-      })
-    }
-
-    if (this.transaction_count === 0 && was_empty && this.real_size > 0) {
-      this.flush()
-    }
-  }
-
-  unschedule(obs: Observable<any>) {
-    each_recursive(obs, ob => this.delete(ob))
-  }
-
-  transaction(fn: () => void) {
-    this.transaction_count++
-    fn()
-    this.transaction_count--
-    if (this.transaction_count === 0) {
-      this.flush()
-    }
-  }
-
-  flush() {
-    if (this.flushing) {
-      return
-    }
-
-    this.flushing = true
-    for (let i = 0, arr = this.arr; i < arr.length; i++) {
-      const obs = arr[i]
-      if (obs == null) continue
-
-      try {
-        obs.ensureRefreshed()
-        obs.idx = null
-
-        for (let i = 0, oa = obs._observers.arr; i < oa.length; i++) {
-          const or = oa[i]
-          if (or == null) continue
-          or.refresh()
-        }
-
-        obs._observers.actualize()
-      } catch (e) {
-        console.error(e)
-        continue
-      }
-
-      arr[i] = null // just in case...
-    }
-    this.real_size = 0
-    this.arr.length = 0
-    this.transaction_count = 0
-    this.flushing = false
-  }
-}
-
-/** @internal */
-const queue = new Queue()
-
-/**
- * Start an observable transaction, where the observers of all the observables being
- * set or assigned to during the callback are only called at the end.
- *
- * Use it when you know you will modify two or more observables that trigger the same transforms
- * to avoid calling the observers each time one of the observable is modified.
- *
- * ```tsx
- * [[include:../../examples/o.transaction.tsx]]
- * ```
- *
- * @group Observable
- */
-export function transaction(fn: () => void) {
-  queue.transaction(fn)
-}
-
-
-/** @internal */
-export class ChildObservableLink implements Indexable {
-  idx = null
-
-  constructor(
-    public parent: Observable<any>,
-    public child: CombinedObservable<any>,
-    public child_idx: number,
-  ) { }
-
-  refresh() {
-    this.child._parents_values[this.child_idx] = this.parent._value
-  }
-}
-
-/**
- * The "writable" version of an Observable, counter-part to the `#o.ReadonlyObservable`.
- *
- * Comes with the `.set()` and `.assign()` methods.
- *
- * @group Observable
- */
-export class Observable<A> extends ReadonlyObservable<A> {
-
-  declare _value: A
-
-  /**
-   * Set the value of the observable and notify the observers listening
-   * to this object of this new value.
-   */
-  set(value: A): void {
-    const old = this._value
-    if (old !== value) {
-      this._value = value
-      queue.schedule(this)
-    }
-  }
-
-  /**
-   * Convenience function to set the value of this observable depending on its
-   * current value.
-   *
-   * The result of `fn` **must** be absolutely different from the current value. Arrays
-   * should be `slice`d first and objects copied, otherwise the observable will not
-   * trigger its observers since to it the object didn't change. For convenience, you can
-   * use {@link o.clone} or the great [immer.js](https://github.com/immerjs/immer).
-   *
-   * If the return value of `fn` is {@link o.NoValue} then the observable is untouched.
-   */
-  mutate(fn: (current: A) => A | o.NoValue) {
-    const n = fn(this.get())
-    if (n !== NoValue) {
-      this.set(n)
-    }
-    return this
-  }
-
-  /**
-   * Setup #o.Observable.produce.
-   *
-   * ```ts
-   * import * as immer from "immer"
-   * import { o } from "elt"
-   * o.Observable.useImmer(immer)
+   * [[include:../../examples/o.transaction.tsx]]
    * ```
    *
-   * @param immer The whole immer library, not just the default import
+   * @group Observable
    */
-  static useImmer(immer: { produce: (value: any, fn: (val: any) => any) => any, nothing: any }) {
-    const produce = immer.produce
-    const nothing = immer.nothing
-    this.prototype.produce = function <A>(fn: (current: A) => A | void | o.NoValue) {
-      const original = this.get()
-      const res: any = produce(original, (val: A) => {
-        return fn(val)
-      })
-      if (res === nothing) {
-        this.set(undefined)
-        return undefined
-      } else if (res !== o.NoValue) {
-        this.set(res)
-        return res
-      } else {
-        return original
-      }
-    }
+  export function transaction(fn: () => void) {
+    queue.transaction(fn)
   }
-
-  /**
-   * Convenience function that uses immer's `produce` function if immer is one your project's dependency and you used `o.Observable.useImmer(immer)`.
-   *
-   * If the result of `fn` is o.NoValue, the Observable is left untouched, otherwise the result of immer's produce() is passed to `set()`.
-   *
-   * You will have to force the type of immer's `nothing` if you want to return undefined, as there is no type dependency to immer to avoid downloading it and bundling it if not necessary.
-   *
-   * @param fn The callback passed to immer
-   * @returns The object returned by produce() and that was just set(), or the original value if fn() returned o.NoValue.
-   */
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  produce(fn: (current: A) => A | void | o.NoValue): A {
-    throw new Error("immer must be included in your project for produce to work")
-  }
-
-  /**
-   * Assign new values to the Observable.
-   *
-   * This method expects an object that contains new values to be assigned *recursively*
-   * to the corresponding properties of the current value held by the Observable.
-   *
-   * A value is assigned if it is anything else than a plain object.
-   *
-   * If assigning to an array, the object's keys are array indexes.
-   *
-   * Since Observables values are treated as immutable, assign
-   *
-   */
-  assign<U>(this: Observable<U[]>, partial: {[index: number]: assign.AssignPartial<U>}): void
-  assign(partial: assign.AssignPartial<A>): void
-  assign(partial: any): void {
-    this.set(o.assign(this.get(), partial))
-  }
-
-}
-
-
-export interface Observable<A> {
-  [sym_is_observable]?: boolean
-  path<K1 extends keyof A>(this: Observable<A>, key: K1): Observable<A[K1]>
-  path<K1 extends keyof A, K2 extends keyof A[K1]>(this: Observable<A>, key: K1, key2: K2): Observable<A[K1][K2]>
-  path<K1 extends keyof A, K2 extends keyof A[K1], K3 extends keyof A[K1][K2]>(this: Observable<A>, key: K1, key2: K2, key3: K3): Observable<A[K1][K2][K3]>
-  path<K1 extends keyof A, K2 extends keyof A[K1], K3 extends keyof A[K1][K2], K4 extends keyof A[K1][K2][K3]>(this: Observable<A>, key: K1, key2: K2, key3: K3, key4: K4): Observable<A[K1][K2][K3][K4]>
-}
-
-// Mark all observables with a known symbol
-Observable.prototype[sym_is_observable] = true
-
-
-export class ReadonlyCombinedObservable<A extends any[], T = A> extends ReadonlyObservable<T> {
-
-}
-
-
-/**
- * An observable that does not its own value, but that depends
- * from outside getters and setters. The {@link o.combine} helper makes creating them easier.
- *
- * @internal
- */
-export class CombinedObservable<A extends any[], T = A> extends Observable<T> implements ReadonlyCombinedObservable<A, T> {
 
   /** @internal */
-  _links = [] as ChildObservableLink[]
+  export class ChildObservableLink implements Indexable {
+    idx = null
 
-  /** @internal */
-  _parents_values: A = [] as any
+    constructor(
+      public parent: Observable<any>,
+      public child: CombinedObservable<any>,
+      public child_idx: number
+    ) {}
 
-  constructor(deps: {[K in keyof A]: RO<A[K]>}) {
-    super(NoValue as any)
-    this.dependsOn(deps)
-  }
-
-  getter(values: A): T {
-    return values.slice() as any as T
-  }
-
-  setter(nval: T, oval: T | NoValue, last: A): {[K in keyof A]: A[K] | NoValue} {
-    return nval as any as A // by default, just forward the type
-  }
-
-  watched() {
-    for (let i = 0, l = this._links; i < l.length; i++) {
-      const link = l[i]
-      link.parent.addChild(link)
-    }
-    this.ensureRefreshed()
-  }
-
-  unwatched() {
-    for (let i = 0, l = this._links; i < l.length; i++) {
-      const link = l[i]
-      link.parent.removeChild(link)
+    refresh() {
+      this.child._parents_values[this.child_idx] = this.parent._value
     }
   }
 
   /**
-   * Brutally disconnect this combined observable from its parents.
+   * The "writable" version of an Observable, counter-part to the `#o.ReadonlyObservable`.
    *
-   * Once this has been called, this observable will no longer be able to refresh its value.
+   * Comes with the `.set()` and `.assign()` methods.
    *
-   * It is generally called by verbs such as Repeat and RepeatScroll, to ensure that when their observed list shrinks, then observables watching for out of bound indices may not crash the program.
-   *
-   * If this observable is still being (erroneously) watched from somewhere else, a warning is printed in the console.
+   * @group Observable
    */
-  disconnect() {
-    this.unwatched()
-    this._links = []
-  }
+  export class Observable<A> extends ReadonlyObservable<A> {
+    declare _value: A
 
-  ensureRefreshed(): void {
-    if (this.refreshParentValues() || this._value === NoValue as any) {
-      this.refreshValue()
-    }
-  }
-
-  refreshParentValues() {
-    let changed = false
-    let i = 0
-    for (let l = this._links, p = this._parents_values; i < l.length; i++) {
-      const link = l[i]
-      const idx = link.child_idx
-      const old = p[idx]
-      const n = link.parent.get()
-      if (old !== n) {
-        changed = true
-        p[idx] = n
+    /**
+     * Set the value of the observable and notify the observers listening
+     * to this object of this new value.
+     */
+    set(value: A): void {
+      const old = this._value
+      if (old !== value) {
+        this._value = value
+        queue.schedule(this)
       }
     }
 
-    return changed
-  }
-
-  refreshValue() {
-    this._value = this.getter(this._parents_values)
-  }
-
-  get() {
-    if (!this._watched || queue.transaction_count > 0) {
-      this.ensureRefreshed()
+    /**
+     * Convenience function to set the value of this observable depending on its
+     * current value.
+     *
+     * The result of `fn` **must** be absolutely different from the current value. Arrays
+     * should be `slice`d first and objects copied, otherwise the observable will not
+     * trigger its observers since to it the object didn't change. For convenience, you can
+     * use {@link o.clone} or the great [immer.js](https://github.com/immerjs/immer).
+     *
+     * If the return value of `fn` is {@link o.NoValue} then the observable is untouched.
+     */
+    mutate(fn: (current: A) => A | o.NoValue) {
+      const n = fn(this.get())
+      if (n !== NoValue) {
+        this.set(n)
+      }
+      return this
     }
-    return this._value
-  }
 
-  set(value: T): void {
-    // Do not trigger the set chain if the value did not change.
-    if (!this._watched || queue.transaction_count > 0 || queue.flushing) { this.ensureRefreshed() }
-    if (value === this._value) return
-
-    const old_value = this._value
-    const res = this.setter(value, old_value, this._parents_values)
-    if (res == undefined) return
-    for (let i = 0, l = this._links, len = l.length; i < len; i++) {
-      const link = l[i]
-      const newval = res[link.child_idx]
-      if (newval !== NoValue && newval !== link.parent._value) {
-        link.parent.set(newval)
+    /**
+     * Setup #o.Observable.produce.
+     *
+     * ```ts
+     * import * as immer from "immer"
+     * import { o } from "elt"
+     * o.Observable.useImmer(immer)
+     * ```
+     *
+     * @param immer The whole immer library, not just the default import
+     */
+    static useImmer(immer: {
+      produce: (value: any, fn: (val: any) => any) => any
+      nothing: any
+    }) {
+      const produce = immer.produce
+      const nothing = immer.nothing
+      this.prototype.produce = function <A>(
+        fn: (current: A) => A | void | o.NoValue
+      ) {
+        const original = this.get()
+        const res: any = produce(original, (val: A) => {
+          return fn(val)
+        })
+        if (res === nothing) {
+          this.set(undefined)
+          return undefined
+        } else if (res !== o.NoValue) {
+          this.set(res)
+          return res
+        } else {
+          return original
+        }
       }
     }
+
+    /**
+     * Convenience function that uses immer's `produce` function if immer is one your project's dependency and you used `o.Observable.useImmer(immer)`.
+     *
+     * If the result of `fn` is o.NoValue, the Observable is left untouched, otherwise the result of immer's produce() is passed to `set()`.
+     *
+     * You will have to force the type of immer's `nothing` if you want to return undefined, as there is no type dependency to immer to avoid downloading it and bundling it if not necessary.
+     *
+     * @param fn The callback passed to immer
+     * @returns The object returned by produce() and that was just set(), or the original value if fn() returned o.NoValue.
+     */
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    produce(fn: (current: A) => A | void | o.NoValue): A {
+      throw new Error(
+        "immer must be included in your project for produce to work"
+      )
+    }
+
+    /**
+     * Assign new values to the Observable.
+     *
+     * This method expects an object that contains new values to be assigned *recursively*
+     * to the corresponding properties of the current value held by the Observable.
+     *
+     * A value is assigned if it is anything else than a plain object.
+     *
+     * If assigning to an array, the object's keys are array indexes.
+     *
+     * Since Observables values are treated as immutable, assign
+     *
+     */
+    assign<U>(
+      this: Observable<U[]>,
+      partial: { [index: number]: assign.AssignPartial<U> }
+    ): void
+    assign(partial: assign.AssignPartial<A>): void
+    assign(partial: any): void {
+      this.set(o.assign(this.get(), partial))
+    }
   }
 
-  addDependency(obs: RO<any>, refresh = false) {
-    const lp = this._parents_values.length
+  export interface Observable<A> {
+    [sym_is_observable]?: boolean
+    path<K1 extends keyof A>(this: Observable<A>, key: K1): Observable<A[K1]>
+    path<K1 extends keyof A, K2 extends keyof A[K1]>(
+      this: Observable<A>,
+      key: K1,
+      key2: K2
+    ): Observable<A[K1][K2]>
+    path<
+      K1 extends keyof A,
+      K2 extends keyof A[K1],
+      K3 extends keyof A[K1][K2]
+    >(
+      this: Observable<A>,
+      key: K1,
+      key2: K2,
+      key3: K3
+    ): Observable<A[K1][K2][K3]>
+    path<
+      K1 extends keyof A,
+      K2 extends keyof A[K1],
+      K3 extends keyof A[K1][K2],
+      K4 extends keyof A[K1][K2][K3]
+    >(
+      this: Observable<A>,
+      key: K1,
+      key2: K2,
+      key3: K3,
+      key4: K4
+    ): Observable<A[K1][K2][K3][K4]>
+  }
 
-    if (o.is_observable(obs)) {
-      const link = new ChildObservableLink(obs, this, lp)
-      this._links.push(link)
-      this._parents_values.push(refresh ? o.get(obs) : obs._value)
-      if (this._watched) {
+  // Mark all observables with a known symbol
+  Observable.prototype[sym_is_observable] = true
+
+  export class ReadonlyCombinedObservable<
+    A extends any[],
+    T = A
+  > extends ReadonlyObservable<T> {}
+
+  /**
+   * An observable that does not its own value, but that depends
+   * from outside getters and setters. The {@link o.combine} helper makes creating them easier.
+   *
+   * @internal
+   */
+  export class CombinedObservable<A extends any[], T = A>
+    extends Observable<T>
+    implements ReadonlyCombinedObservable<A, T>
+  {
+    /** @internal */
+    _links = [] as ChildObservableLink[]
+
+    /** @internal */
+    _parents_values: A = [] as any
+
+    constructor(deps: { [K in keyof A]: RO<A[K]> }) {
+      super(NoValue as any)
+      this.dependsOn(deps)
+    }
+
+    getter(values: A): T {
+      return values.slice() as any as T
+    }
+
+    setter(
+      nval: T,
+      oval: T | NoValue,
+      last: A
+    ): { [K in keyof A]: A[K] | NoValue } {
+      return nval as any as A // by default, just forward the type
+    }
+
+    watched() {
+      for (let i = 0, l = this._links; i < l.length; i++) {
+        const link = l[i]
         link.parent.addChild(link)
       }
-    } else {
-      this._parents_values.push(obs)
-    }
-  }
-
-  dependsOn(obs: {[K in keyof A]: RO<A[K]>}) {
-    this._parents_values = [] as any
-    this._links = []
-
-    for (let o of obs) {
-      this.addDependency(o)
+      this.ensureRefreshed()
     }
 
-    return this
-  }
+    unwatched() {
+      for (let i = 0, l = this._links; i < l.length; i++) {
+        const link = l[i]
+        link.parent.removeChild(link)
+      }
+    }
 
-}
-
-export class ProxyObservable<T> extends CombinedObservable<[T], T> {
-  constructor(obs: Observable<T>) {
-    super([obs])
-  }
-
-  getter(values: [T]) {
-    return values[0]
-  }
-
-  setter(nval: T) {
-    if ((nval as any) === o.NoValue) return o.NoValue as any as [T]
-    return [nval] as [T]
-  }
-
-  changeTarget(obs: Observable<T>) {
-    if (this._watched) {
-      // unwatch the previous dependencies
+    /**
+     * Brutally disconnect this combined observable from its parents.
+     *
+     * Once this has been called, this observable will no longer be able to refresh its value.
+     *
+     * It is generally called by verbs such as Repeat and RepeatScroll, to ensure that when their observed list shrinks, then observables watching for out of bound indices may not crash the program.
+     *
+     * If this observable is still being (erroneously) watched from somewhere else, a warning is printed in the console.
+     */
+    disconnect() {
       this.unwatched()
+      this._links = []
     }
-    this.dependsOn([obs])
-    if (this._watched) {
-      this.watched()
-      // we force the refreshing of the value because dependsOn fetches the last values and ensureRefreshed() won't return true.
-      this.refreshValue()
-      queue.schedule(this) // Now tell all our children that we changed.
+
+    ensureRefreshed(): void {
+      if (this.refreshParentValues() || this._value === (NoValue as any)) {
+        this.refreshValue()
+      }
+    }
+
+    refreshParentValues() {
+      let changed = false
+      let i = 0
+      for (let l = this._links, p = this._parents_values; i < l.length; i++) {
+        const link = l[i]
+        const idx = link.child_idx
+        const old = p[idx]
+        const n = link.parent.get()
+        if (old !== n) {
+          changed = true
+          p[idx] = n
+        }
+      }
+
+      return changed
+    }
+
+    refreshValue() {
+      this._value = this.getter(this._parents_values)
+    }
+
+    get() {
+      if (!this._watched || queue.transaction_count > 0) {
+        this.ensureRefreshed()
+      }
+      return this._value
+    }
+
+    set(value: T): void {
+      // Do not trigger the set chain if the value did not change.
+      if (!this._watched || queue.transaction_count > 0 || queue.flushing) {
+        this.ensureRefreshed()
+      }
+      if (value === this._value) return
+
+      const old_value = this._value
+      const res = this.setter(value, old_value, this._parents_values)
+      if (res == undefined) return
+      for (let i = 0, l = this._links, len = l.length; i < len; i++) {
+        const link = l[i]
+        const newval = res[link.child_idx]
+        if (newval !== NoValue && newval !== link.parent._value) {
+          link.parent.set(newval)
+        }
+      }
+    }
+
+    addDependency(obs: RO<any>, refresh = false) {
+      const lp = this._parents_values.length
+
+      if (o.is_observable(obs)) {
+        const link = new ChildObservableLink(obs, this, lp)
+        this._links.push(link)
+        this._parents_values.push(refresh ? o.get(obs) : obs._value)
+        if (this._watched) {
+          link.parent.addChild(link)
+        }
+      } else {
+        this._parents_values.push(obs)
+      }
+    }
+
+    dependsOn(obs: { [K in keyof A]: RO<A[K]> }) {
+      this._parents_values = [] as any
+      this._links = []
+
+      for (let o of obs) {
+        this.addDependency(o)
+      }
+
+      return this
     }
   }
-}
 
-
-/**
- * Create an observable that is a proxy to another that can be changed afterwards
- * with changeTarget
- */
-export function proxy<T>(ob: Observable<T>): ProxyObservable<T> {
-  return new ProxyObservable(ob)
-}
-
-/**
- * Create an observable that depends on several other observables, optionally providing a two-way transformation if `set` is given.
- *
- * This is a more involved version of {@link o.join} but without having to use `.tf()` on it which is more efficient.
- * Also, this allows for creating observables depending on a combination of readable and readonly observables.
- *
- * In the `set` portion, returning a `o.NOVALUE` in the result tuple will tell the combiner that the original observable should not be touched.
- *
- * For instance, here is a possible implementation of `.p()` :
- *
- * ```tsx
- * [[include:../../examples/o.combine.tsx]]
- * ```
- *
- * @group Observable
- */
-// export function combine<T extends any[], R>(deps: T, get: (a: UnROArray<T>) => R): ReadonlyObservable<R>
-// export function combine<T extends any[], R>(deps: T, get: (a: UnROArray<T>) => R, set: (r: R, old: R | NoValue, last: UnROArray<T>) => {[K in keyof UnROArray<T>]: UnROArray<T>[K] | NoValue}): Observable<R>
-// export function combine<T extends any[], R>(deps: T, get: (a: UnROArray<T>) => R, set?: (r: R, old: R | NoValue, last: UnROArray<T>) => {[K in keyof UnROArray<T>]: UnROArray<T>[K] | NoValue}): Observable<R> {
-//   const virt = new CombinedObservable<T, R>(deps)
-//   virt.getter = get
-//   virt.setter = set! // force undefined to trigger errors for readonly observables.
-//   return virt as any
-// }
-export function combine<T extends any[], R>(deps: {[K in keyof T]: RO<T[K]>}, get: (a: T) => R): ReadonlyObservable<R>
-export function combine<T extends any[], R>(deps: {[K in keyof T]: RO<T[K]>}, get: (a: T) => R, set: (r: R, old: R | NoValue, last: T) => {[K in keyof T]: T[K] | NoValue}): Observable<R>
-export function combine<T extends any[], R>(deps: {[K in keyof T]: RO<T[K]>}, get: (a: T) => R, set?: (r: R, old: R | NoValue, last: T) => {[K in keyof T]: T[K] | NoValue}): Observable<R> {
-  const virt = new CombinedObservable<T, R>(deps)
-  virt.getter = get
-  virt.setter = set! // force undefined to trigger errors for readonly observables.
-  return virt as any
-}
-
-
-/**
- * Create an `Observable` from an object whose values may be observables.
- *
- * The observed value becomes an object resembling `obj`. Observers on a merged
- * observable are called whenever the value of one of the underlying observable
- * changes.
- *
- * The resulting observable is writable only if all its constituents were themselves
- * writable.
- *
- * ```tsx
- * [[include:../../examples/o.merge.tsx]]
- * ```
- *
- * @returns An observable which properties are the ones given in `obj` and values
- *   are the resolved values of their respective observables.
- *
- * @group Observable
- */
-export function merge<T>(obj: {[K in keyof T]: Observable<T[K]>}): Observable<T>
-export function merge<T>(obj: {[K in keyof T]: RO<T[K]>}): ReadonlyObservable<T>
-export function merge<T>(obj: {[K in keyof T]: Observable<T[K]>}): Observable<T> {
-  const keys = Object.keys(obj) as (keyof T)[]
-  const parents: IReadonlyObservable<T[keyof T]>[] = keys.map(k => obj[k])
-  return combine(parents, args => {
-    const res = {} as {[K in keyof T]: T[K]}
-    for (let i = 0; i < keys.length; i++) {
-      res[keys[i]] = args[i]
+  export class ProxyObservable<T> extends CombinedObservable<[T], T> {
+    constructor(obs: Observable<T>) {
+      super([obs])
     }
-    return res
-  }, back => keys.map(k => (back as any)[k as any]))
-}
 
+    getter(values: [T]) {
+      return values[0]
+    }
+
+    setter(nval: T) {
+      if ((nval as any) === o.NoValue) return o.NoValue as any as [T]
+      return [nval] as [T]
+    }
+
+    changeTarget(obs: Observable<T>) {
+      if (this._watched) {
+        // unwatch the previous dependencies
+        this.unwatched()
+      }
+      this.dependsOn([obs])
+      if (this._watched) {
+        this.watched()
+        // we force the refreshing of the value because dependsOn fetches the last values and ensureRefreshed() won't return true.
+        this.refreshValue()
+        queue.schedule(this) // Now tell all our children that we changed.
+      }
+    }
+  }
+
+  /**
+   * Create an observable that is a proxy to another that can be changed afterwards
+   * with changeTarget
+   */
+  export function proxy<T>(ob: Observable<T>): ProxyObservable<T> {
+    return new ProxyObservable(ob)
+  }
+
+  /**
+   * Create an observable that depends on several other observables, optionally providing a two-way transformation if `set` is given.
+   *
+   * This is a more involved version of {@link o.join} but without having to use `.tf()` on it which is more efficient.
+   * Also, this allows for creating observables depending on a combination of readable and readonly observables.
+   *
+   * In the `set` portion, returning a `o.NOVALUE` in the result tuple will tell the combiner that the original observable should not be touched.
+   *
+   * For instance, here is a possible implementation of `.p()` :
+   *
+   * ```tsx
+   * [[include:../../examples/o.combine.tsx]]
+   * ```
+   *
+   * @group Observable
+   */
+  // export function combine<T extends any[], R>(deps: T, get: (a: UnROArray<T>) => R): ReadonlyObservable<R>
+  // export function combine<T extends any[], R>(deps: T, get: (a: UnROArray<T>) => R, set: (r: R, old: R | NoValue, last: UnROArray<T>) => {[K in keyof UnROArray<T>]: UnROArray<T>[K] | NoValue}): Observable<R>
+  // export function combine<T extends any[], R>(deps: T, get: (a: UnROArray<T>) => R, set?: (r: R, old: R | NoValue, last: UnROArray<T>) => {[K in keyof UnROArray<T>]: UnROArray<T>[K] | NoValue}): Observable<R> {
+  //   const virt = new CombinedObservable<T, R>(deps)
+  //   virt.getter = get
+  //   virt.setter = set! // force undefined to trigger errors for readonly observables.
+  //   return virt as any
+  // }
+  export function combine<T extends any[], R>(
+    deps: { [K in keyof T]: RO<T[K]> },
+    get: (a: T) => R
+  ): ReadonlyObservable<R>
+  export function combine<T extends any[], R>(
+    deps: { [K in keyof T]: RO<T[K]> },
+    get: (a: T) => R,
+    set: (r: R, old: R | NoValue, last: T) => { [K in keyof T]: T[K] | NoValue }
+  ): Observable<R>
+  export function combine<T extends any[], R>(
+    deps: { [K in keyof T]: RO<T[K]> },
+    get: (a: T) => R,
+    set?: (
+      r: R,
+      old: R | NoValue,
+      last: T
+    ) => { [K in keyof T]: T[K] | NoValue }
+  ): Observable<R> {
+    const virt = new CombinedObservable<T, R>(deps)
+    virt.getter = get
+    virt.setter = set! // force undefined to trigger errors for readonly observables.
+    return virt as any
+  }
+
+  /**
+   * Create an `Observable` from an object whose values may be observables.
+   *
+   * The observed value becomes an object resembling `obj`. Observers on a merged
+   * observable are called whenever the value of one of the underlying observable
+   * changes.
+   *
+   * The resulting observable is writable only if all its constituents were themselves
+   * writable.
+   *
+   * ```tsx
+   * [[include:../../examples/o.merge.tsx]]
+   * ```
+   *
+   * @returns An observable which properties are the ones given in `obj` and values
+   *   are the resolved values of their respective observables.
+   *
+   * @group Observable
+   */
+  export function merge<T>(obj: {
+    [K in keyof T]: Observable<T[K]>
+  }): Observable<T>
+  export function merge<T>(obj: {
+    [K in keyof T]: RO<T[K]>
+  }): ReadonlyObservable<T>
+  export function merge<T>(obj: {
+    [K in keyof T]: Observable<T[K]>
+  }): Observable<T> {
+    const keys = Object.keys(obj) as (keyof T)[]
+    const parents: IReadonlyObservable<T[keyof T]>[] = keys.map((k) => obj[k])
+    return combine(
+      parents,
+      (args) => {
+        const res = {} as { [K in keyof T]: T[K] }
+        for (let i = 0; i < keys.length; i++) {
+          res[keys[i]] = args[i]
+        }
+        return res
+      },
+      (back) => keys.map((k) => (back as any)[k as any])
+    )
+  }
 
   /**
    * Create an observable that watches a `prop` from `obj`, giving returning the result
    * of `def` if the value was `undefined`.
    * @group Observable
    */
-  export function prop<T, K extends keyof T>(obj: RO<T>, prop: RO<K>, def?: RO<(key: K, obj: T) => T[K]>): ReadonlyObservable<T[K]>
-  export function prop<T, K extends keyof T>(obj: O<T>, prop: RO<K>, def?: RO<(key: K, obj: T) => T[K]>): Observable<T[K]>
-  export function prop<T, K extends keyof T>(obj: IObservable<T, T> | T, prop: RO<K>, def?: RO<(key: K, obj: T) => T[K]>) {
+  export function prop<T, K extends keyof T>(
+    obj: RO<T>,
+    prop: RO<K>,
+    def?: RO<(key: K, obj: T) => T[K]>
+  ): ReadonlyObservable<T[K]>
+  export function prop<T, K extends keyof T>(
+    obj: O<T>,
+    prop: RO<K>,
+    def?: RO<(key: K, obj: T) => T[K]>
+  ): Observable<T[K]>
+  export function prop<T, K extends keyof T>(
+    obj: IObservable<T, T> | T,
+    prop: RO<K>,
+    def?: RO<(key: K, obj: T) => T[K]>
+  ) {
     return combine(
       [obj as T, prop, def] as const,
       ([obj, prop, def]) => {
         let res = obj[prop]
-        if (res === undefined && def)
-          res = def(prop, obj)
+        if (res === undefined && def) res = def(prop, obj)
         return res
       },
       (nval, _, [orig, prop]) => {
@@ -1056,15 +1230,18 @@ export function merge<T>(obj: {[K in keyof T]: Observable<T[K]>}): Observable<T>
     )
   }
 
-
-  export type Path<T, K extends string[]> =
-    K extends [keyof T] ? T[K[0]]
-    : K extends [infer P, ...infer K2] ?
-      P extends keyof T ? Path<T[P], Extract<K2, string[]>> : never
+  export type Path<T, K extends string[]> = K extends [keyof T]
+    ? T[K[0]]
+    : K extends [infer P, ...infer K2]
+    ? P extends keyof T
+      ? Path<T[P], Extract<K2, string[]>>
+      : never
     : never
 
-  export function path<T, K extends string[]>(obj: Observable<T>, ...path: K): o.Observable<Path<T, K>> {
-
+  export function path<T, K extends string[]>(
+    obj: Observable<T>,
+    ...path: K
+  ): o.Observable<Path<T, K>> {
     return combine(
       [obj, ...path] as const,
       ([obj, ...path]) => {
@@ -1085,8 +1262,14 @@ export function merge<T>(obj: {[K in keyof T]: Observable<T[K]>}): Observable<T>
     )
   }
 
-  export function then<T extends any[], U>(o_pro: o.RO<T>, tffn: (item: {[K in keyof T]: Awaited<T[K]>}) => U): o.ReadonlyObservable<Promise<U>>
-  export function then<T, U>(o_pro: o.RO<T>, tffn: (item: Awaited<T>) => U): o.ReadonlyObservable<Promise<U>>
+  export function then<T extends any[], U>(
+    o_pro: o.RO<T>,
+    tffn: (item: { [K in keyof T]: Awaited<T[K]> }) => U
+  ): o.ReadonlyObservable<Promise<U>>
+  export function then<T, U>(
+    o_pro: o.RO<T>,
+    tffn: (item: Awaited<T>) => U
+  ): o.ReadonlyObservable<Promise<U>>
   export function then(o_pro: o.RO<any>, tffn: (item: any) => any) {
     let prevreject: undefined | ((err: any) => void)
     return o.tf(o_pro, (newpro) => {
@@ -1094,11 +1277,10 @@ export function merge<T>(obj: {[K in keyof T]: Observable<T[K]>}): Observable<T>
       return new Promise((accept, reject) => {
         prevreject = reject
         if (Array.isArray(newpro))
-          Promise.all(newpro).then(val => accept(tffn(val)))
+          Promise.all(newpro).then((val) => accept(tffn(val)))
         else if (newpro && typeof newpro["then"] === "function")
           newpro.then((val: any) => accept(tffn(val)))
-        else
-          setTimeout(() => accept(tffn(newpro)), 0)
+        else setTimeout(() => accept(tffn(newpro)), 0)
       })
     })
   }
@@ -1115,7 +1297,9 @@ export function merge<T>(obj: {[K in keyof T]: Observable<T[K]>}): Observable<T>
    * @group Observable
    */
   export function get<A>(arg: RO<A>): A {
-    return is_observable(arg) ? (arg as ReadonlyObservable<A>).get() : arg as A
+    return is_observable(arg)
+      ? (arg as ReadonlyObservable<A>).get()
+      : (arg as A)
   }
 
   /**
@@ -1125,17 +1309,17 @@ export function merge<T>(obj: {[K in keyof T]: Observable<T[K]>}): Observable<T>
    * Observable objects for values that were not.
    * @group Observable
    */
-  export function tf<A, B>(arg: RO<A>, fn: Converter<A, B> | TransfomFn<A, B>): RO<B> {
+  export function tf<A, B>(
+    arg: RO<A>,
+    fn: Converter<A, B> | TransfomFn<A, B>
+  ): RO<B> {
     if (o.is_observable(arg)) {
       if (typeof fn === "function") {
         return (arg as ReadonlyObservable<A>).tf(fn)
-      } else
-        return (arg as ReadonlyObservable<A>).tf(fn)
+      } else return (arg as ReadonlyObservable<A>).tf(fn)
     } else {
-      if (typeof fn === "function")
-        return fn(arg as A, NoValue, NoValue)
-      else
-        return fn.transform(arg as A, NoValue, NoValue)
+      if (typeof fn === "function") return fn(arg as A, NoValue, NoValue)
+      else return fn.transform(arg as A, NoValue, NoValue)
     }
   }
 
@@ -1145,8 +1329,8 @@ export function merge<T>(obj: {[K in keyof T]: Observable<T[K]>}): Observable<T>
    * @returns
    */
   export function not(...args: any[]): ReadonlyObservable<boolean> {
-    return combine(args, args => {
-      return args.every(a => !a)
+    return combine(args, (args) => {
+      return args.every((a) => !a)
     })
   }
 
@@ -1166,9 +1350,8 @@ export function merge<T>(obj: {[K in keyof T]: Observable<T[K]>}): Observable<T>
    * @group Observable
    */
   export function and(...args: any[]): ReadonlyObservable<boolean> {
-    return combine(args, args => args.every(a => !!a))
+    return combine(args, (args) => args.every((a) => !!a))
   }
-
 
   /**
    * Combine several MaybeObservables into an Observable<boolean>
@@ -1177,7 +1360,7 @@ export function merge<T>(obj: {[K in keyof T]: Observable<T[K]>}): Observable<T>
    * @group Observable
    */
   export function or(...args: any[]): ReadonlyObservable<boolean> {
-    return combine(args, args => args.some(a => !!a))
+    return combine(args, (args) => args.some((a) => !!a))
   }
 
   /**
@@ -1190,35 +1373,64 @@ export function merge<T>(obj: {[K in keyof T]: Observable<T[K]>}): Observable<T>
    * ```
    * @group Observable
    */
-  export function join<A extends any[]>(...deps: A): A[number] extends o.Observable<any> ? Observable<{[K in keyof A]: o.ObservedType<A[K]>}> : o.ReadonlyObservable<{[K in keyof A]: o.ObservedType<A[K]>}> {
+  export function join<A extends any[]>(
+    ...deps: A
+  ): A[number] extends o.Observable<any>
+    ? Observable<{ [K in keyof A]: o.ObservedType<A[K]> }>
+    : o.ReadonlyObservable<{ [K in keyof A]: o.ObservedType<A[K]> }> {
     return new CombinedObservable(deps) as any
   }
-
 
   /**
    * Combine a template string with an array of observables to create a new observable that is the result of the template string interpolation.
    */
-  export function str(arr: TemplateStringsArray, ...args: RO<null | undefined | {toString: () => string}>[]): o.ReadonlyObservable<string> {
+  export function str(
+    arr: TemplateStringsArray,
+    ...args: RO<null | undefined | { toString: () => string }>[]
+  ): o.ReadonlyObservable<string> {
     return combine(args, (args) => {
-      return arr.reduce((acc, str, i) => {
-        acc.push(str, args[i]?.toString() ?? "")
-        return acc
-      }, [] as string[]).join("")
+      return arr
+        .reduce((acc, str, i) => {
+          acc.push(str, args[i]?.toString() ?? "")
+          return acc
+        }, [] as string[])
+        .join("")
     })
   }
 
   export function expression<T>(
-    fn: (get: <A>(obs: o.RO<A>) => A, old: <A>(obs: o.RO<A>) => A | NoValue, prev: T | NoValue) => T,
+    fn: (
+      get: <A>(obs: o.RO<A>) => A,
+      old: <A>(obs: o.RO<A>) => A | NoValue,
+      prev: T | NoValue
+    ) => T
   ): o.ReadonlyObservable<T>
   export function expression<T>(
-    fn: (get: <A>(obs: o.RO<A>) => A, old: <A>(obs: o.RO<A>) => A | NoValue, prev: T | NoValue) => T,
-    fn_revert: (value: T, set: <A>(obs: o.Observable<A>, val: A) => void, prev: T | NoValue, get: <A>(obs: o.RO<A>) => A) => any
+    fn: (
+      get: <A>(obs: o.RO<A>) => A,
+      old: <A>(obs: o.RO<A>) => A | NoValue,
+      prev: T | NoValue
+    ) => T,
+    fn_revert: (
+      value: T,
+      set: <A>(obs: o.Observable<A>, val: A) => void,
+      prev: T | NoValue,
+      get: <A>(obs: o.RO<A>) => A
+    ) => any
   ): o.Observable<T>
   export function expression<T>(
-    fn: (get: <A>(obs: o.RO<A>) => A, old: <A>(obs: o.RO<A>) => A | NoValue, prev: T | NoValue) => T,
-    fn_revert?: (value: T, set: <A>(obs: o.Observable<A>, val: A) => void, prev: T | NoValue, get: <A>(obs: o.RO<A>) => A) => any
+    fn: (
+      get: <A>(obs: o.RO<A>) => A,
+      old: <A>(obs: o.RO<A>) => A | NoValue,
+      prev: T | NoValue
+    ) => T,
+    fn_revert?: (
+      value: T,
+      set: <A>(obs: o.Observable<A>, val: A) => void,
+      prev: T | NoValue,
+      get: <A>(obs: o.RO<A>) => A
+    ) => any
   ): o.ReadonlyObservable<T> {
-
     const cmb = new CombinedObservable([])
     const mp = new WeakMap<o.ReadonlyObservable<any>, number>()
     let old = [] as any[]
@@ -1284,7 +1496,6 @@ export function merge<T>(obj: {[K in keyof T]: Observable<T[K]>}): Observable<T>
     return cmb as any
   }
 
-
   /**
    * Create a ReadonlyObservable that is the result of calling `method` on `obs`'s observed value. `args` may contain observables.
    *
@@ -1297,7 +1508,7 @@ export function merge<T>(obj: {[K in keyof T]: Observable<T[K]>}): Observable<T>
     Args extends Parameters<F>
   >(
     fn: RO<F>,
-    args: {[K in keyof Args]: RO<Args[K]>}
+    args: { [K in keyof Args]: RO<Args[K]> }
   ): o.ReadonlyObservable<ReturnType<F>>
 
   export function apply<
@@ -1308,7 +1519,7 @@ export function merge<T>(obj: {[K in keyof T]: Observable<T[K]>}): Observable<T>
   >(
     obs: o.ReadonlyObservable<T>,
     method: K,
-    args: {[K2 in keyof Args]: RO<Args[K2]>}
+    args: { [K2 in keyof Args]: RO<Args[K2]> }
   ): o.ReadonlyObservable<ReturnType<F>>
 
   export function apply(obs: any, method: any, args?: any) {
@@ -1320,7 +1531,6 @@ export function merge<T>(obj: {[K in keyof T]: Observable<T[K]>}): Observable<T>
     // With no string "method" argument, just apply the function with its arguments
     return o.join(obs, ...method).tf(([fn, ...args]) => fn(...args))
   }
-
 
   /**
    * Create a new object based on an original object and a mutator.
@@ -1342,10 +1552,17 @@ export function merge<T>(obj: {[K in keyof T]: Observable<T[K]>}): Observable<T>
    * @returns a new instance of the object if the mutator would change it
    * @group Observable
    */
-  export function assign<A>(value: A[], partial: {[index: number]: assign.AssignPartial<A>}): A[]
+  export function assign<A>(
+    value: A[],
+    partial: { [index: number]: assign.AssignPartial<A> }
+  ): A[]
   export function assign<A>(value: A, mutator: assign.AssignPartial<A>): A
   export function assign<A>(value: A, mutator: assign.AssignPartial<A>): A {
-    if (mutator == null || typeof mutator !== "object" || Object.getPrototypeOf(mutator) !== Object.prototype)
+    if (
+      mutator == null ||
+      typeof mutator !== "object" ||
+      Object.getPrototypeOf(mutator) !== Object.prototype
+    )
       return mutator as any
 
     if (typeof mutator === "object") {
@@ -1367,16 +1584,16 @@ export function merge<T>(obj: {[K in keyof T]: Observable<T[K]>}): Observable<T>
   }
 
   export namespace assign {
-
     /**
      * Type for {@link o.assign} arguments.
      */
     export type AssignPartial<T> = {
       // Definition that I would like :
-      [P in keyof T]?:
-        T[P] extends (infer U)[] ? {[index: number]: U | AssignPartial<U>} :
-        T[P] extends object ? T[P] | AssignPartial<T[P]> :
-        T[P]
+      [P in keyof T]?: T[P] extends (infer U)[]
+        ? { [index: number]: U | AssignPartial<U> }
+        : T[P] extends object
+        ? T[P] | AssignPartial<T[P]>
+        : T[P]
     }
   }
 
@@ -1396,8 +1613,15 @@ export function merge<T>(obj: {[K in keyof T]: Observable<T[K]>}): Observable<T>
    *
    * @group Observable
    */
-  export function debounce(ms: number, leading?: boolean): (target: any, key: string, desc: PropertyDescriptor) => void
-  export function debounce<F extends (...a: any[]) => any>(fn: F, ms: number, leading?: boolean): F
+  export function debounce(
+    ms: number,
+    leading?: boolean
+  ): (target: any, key: string, desc: PropertyDescriptor) => void
+  export function debounce<F extends (...a: any[]) => any>(
+    fn: F,
+    ms: number,
+    leading?: boolean
+  ): F
   export function debounce(fn: any, ms: any, leading: boolean = false): any {
     let timer: number
     let prev_res: any
@@ -1425,34 +1649,47 @@ export function merge<T>(obj: {[K in keyof T]: Observable<T[K]>}): Observable<T>
       }
 
       timer = window.setTimeout(() => {
-        if (!lead) { prev_res = fn.apply(this, args) }
+        if (!lead) {
+          prev_res = fn.apply(this, args)
+        }
         lead = false
       }, ms)
       return prev_res
     }
   }
 
- /**
-  * Create a throttled function that will only call the wrapped function at most every `ms` milliseconds.
-  *
-  * If `leading` is true, then the first time this function is called it will
-  * call `fn` immediately.
-  *
-  * If `leading` is a number, then the first time it is called it will wait `leading` milliseconds before triggering the function, and then activate every `ms` milliseconds. If it is not called within `ms` milliseconds after that, it will reset to waiting `leading` milliseconds again.
-  *
-  * Otherwise, it will wait `ms` milliseconds before triggering each time.
-  *
-  * Also works as an es7 decorator.
-  *
-  * ```tsx
-  * [[include:../../examples/o.throttle.tsx]]
-  * ```
-  *
-  * @group Observable
-  */
-  export function throttle(ms: number, leading?: boolean | number): (target: any, key: string, desc: PropertyDescriptor) => void
-  export function throttle<F extends (...a: any[]) => any>(fn: F, ms: number, leading?: boolean | number): F
-  export function throttle(fn: any, ms: any, leading: boolean | number= false): any {
+  /**
+   * Create a throttled function that will only call the wrapped function at most every `ms` milliseconds.
+   *
+   * If `leading` is true, then the first time this function is called it will
+   * call `fn` immediately.
+   *
+   * If `leading` is a number, then the first time it is called it will wait `leading` milliseconds before triggering the function, and then activate every `ms` milliseconds. If it is not called within `ms` milliseconds after that, it will reset to waiting `leading` milliseconds again.
+   *
+   * Otherwise, it will wait `ms` milliseconds before triggering each time.
+   *
+   * Also works as an es7 decorator.
+   *
+   * ```tsx
+   * [[include:../../examples/o.throttle.tsx]]
+   * ```
+   *
+   * @group Observable
+   */
+  export function throttle(
+    ms: number,
+    leading?: boolean | number
+  ): (target: any, key: string, desc: PropertyDescriptor) => void
+  export function throttle<F extends (...a: any[]) => any>(
+    fn: F,
+    ms: number,
+    leading?: boolean | number
+  ): F
+  export function throttle(
+    fn: any,
+    ms: any,
+    leading: boolean | number = false
+  ): any {
     // Called as a method decorator.
     if (typeof fn === "number") {
       leading = ms
@@ -1474,7 +1711,10 @@ export function merge<T>(obj: {[K in keyof T]: Observable<T[K]>}): Observable<T>
 
       // If the delay expired or if this is the first time this function is called,
       // then trigger the call. Otherwise, we will have to set up the call.
-      if ((leading === true && last_call === 0) || last_call > 0 && last_call + ms <= now && typeof leading !== "number") {
+      if (
+        (leading === true && last_call === 0) ||
+        (last_call > 0 && last_call + ms <= now && typeof leading !== "number")
+      ) {
         prev_res = fn.apply(this, args)
         last_call = now
         if (timer) {
@@ -1494,7 +1734,11 @@ export function merge<T>(obj: {[K in keyof T]: Observable<T[K]>}): Observable<T>
           last_call = Date.now()
           _args = null
           timer = null
-        }, (typeof leading === "number" && (last_call === 0 || last_call + ms <= now) ? leading : ms) - (now - (last_call || now)))
+        }, (typeof leading === "number" &&
+        (last_call === 0 || last_call + ms <= now)
+          ? leading
+          : ms) -
+          (now - (last_call || now)))
       }
 
       return prev_res
@@ -1527,7 +1771,7 @@ export function merge<T>(obj: {[K in keyof T]: Observable<T[K]>}): Observable<T>
    * @returns a new instance of the passed object.
    * @group Observable
    */
-  export function clone<T>(obj: T | {[o.sym_clone]: () => T}): T
+  export function clone<T>(obj: T | { [o.sym_clone]: () => T }): T
   export function clone(obj: any): any {
     if (obj == null) return obj
     switch (typeof obj) {
@@ -1553,13 +1797,19 @@ export function merge<T>(obj: {[K in keyof T]: Observable<T[K]>}): Observable<T>
     }
 
     if (obj instanceof RegExp) {
-      return new RegExp(obj.source,
-        ""
-        + obj.global ? "g" : ""
-        + obj.multiline ? "m" : ""
-        + obj.unicode ? "u" : ""
-        + obj.ignoreCase ? "i" : ""
-        + obj.sticky ? "y" : ""
+      return new RegExp(
+        obj.source,
+        "" + obj.global
+          ? "g"
+          : "" + obj.multiline
+          ? "m"
+          : "" + obj.unicode
+          ? "u"
+          : "" + obj.ignoreCase
+          ? "i"
+          : "" + obj.sticky
+          ? "y"
+          : ""
       )
     }
 
@@ -1581,7 +1831,6 @@ export function merge<T>(obj: {[K in keyof T]: Observable<T[K]>}): Observable<T>
     return clone
   }
 
-
   /**
    * Wrap a promise observable into an instant observable that has information about
    * the current promise resolution status.
@@ -1600,45 +1849,61 @@ export function merge<T>(obj: {[K in keyof T]: Observable<T[K]>}): Observable<T>
    *
    * @group Observable
    */
-  export function wrap_promise<T>(obs: o.Observable<Promise<T>>): o.Observable<wrap_promise.Result<T>>
-  export function wrap_promise<T>(obs: o.RO<Promise<T>>): o.ReadonlyObservable<wrap_promise.Result<T>>
-  export function wrap_promise<T>(obs: o.RO<Promise<T>>): o.ReadonlyObservable<wrap_promise.Result<T>> {
-
+  export function wrap_promise<T>(
+    obs: o.Observable<Promise<T>>
+  ): o.Observable<wrap_promise.Result<T>>
+  export function wrap_promise<T>(
+    obs: o.RO<Promise<T>>
+  ): o.ReadonlyObservable<wrap_promise.Result<T>>
+  export function wrap_promise<T>(
+    obs: o.RO<Promise<T>>
+  ): o.ReadonlyObservable<wrap_promise.Result<T>> {
     let last_promise: Promise<T>
     const o_result = o({ resolving: true } as wrap_promise.Result<T>)
 
-    const res_obs = o.merge({pro: obs, res: o_result}).tf({
-      transform({pro, res}, old) {
+    const res_obs = o.merge({ pro: obs, res: o_result }).tf({
+      transform({ pro, res }, old) {
         last_promise = pro // We need a reference to that to compare to the result of the last .then
         // since right now we can't cancel that
         if (old === o.NoValue || old.pro !== pro) {
           // Changing promise, so we have to get its .then
-          pro.then(pres => {
+          pro.then((pres) => {
             if (last_promise !== pro) return // ignore if this is not our promise anymore
-            o_result.set({resolving: false, value: pres, resolved: "value"})
+            o_result.set({ resolving: false, value: pres, resolved: "value" })
           })
-          pro.catch(perr => {
+          pro.catch((perr) => {
             if (last_promise !== pro) return // ignore if this is not our promise anymore
-            o_result.set({resolving: false, error: perr, resolved: "error"})
+            o_result.set({ resolving: false, error: perr, resolved: "error" })
           })
-          return {...res, resolving: true}
+          return { ...res, resolving: true }
         }
         return res
       },
       revert(nval, _, cur) {
-
-        if (nval.resolved === "value" && (cur.res.resolved !== "value" || nval.value !== cur.res.value)) {
+        if (
+          nval.resolved === "value" &&
+          (cur.res.resolved !== "value" || nval.value !== cur.res.value)
+        ) {
           last_promise = Promise.resolve(nval.value)
-          return { pro: last_promise, res: { resolved: "value", value: nval.value, resolving: false } }
-        } else if (nval.resolved === "error" && (cur.res.resolved !== "error" || nval.error !== cur.res.error)) {
+          return {
+            pro: last_promise,
+            res: { resolved: "value", value: nval.value, resolving: false },
+          }
+        } else if (
+          nval.resolved === "error" &&
+          (cur.res.resolved !== "error" || nval.error !== cur.res.error)
+        ) {
           last_promise = Promise.reject(nval.error)
-          return { pro: last_promise, res: { resolved: "error", error: nval.error, resolving: false } }
+          return {
+            pro: last_promise,
+            res: { resolved: "error", error: nval.error, resolving: false },
+          }
         }
 
         // prevent modifications otherwise ?
         return cur
-      }
-    } as Converter<{ pro: Promise<T>, res: wrap_promise.Result<T> }, wrap_promise.Result<T>>)
+      },
+    } as Converter<{ pro: Promise<T>; res: wrap_promise.Result<T> }, wrap_promise.Result<T>>)
 
     return res_obs
   }
@@ -1649,11 +1914,10 @@ export function merge<T>(obj: {[K in keyof T]: Observable<T[K]>}): Observable<T>
      * @category observable
      */
     export type Result<T, Error = any> =
-      | { resolving: true, resolved?: undefined }
-      | { resolving: boolean, resolved: "value", value: T }
-      | { resolving: boolean, resolved: "error", error: Error }
+      | { resolving: true; resolved?: undefined }
+      | { resolving: boolean; resolved: "value"; value: T }
+      | { resolving: boolean; resolved: "error"; error: Error }
   }
-
 
   /**
    * Returns a function that accepts a callback. While this callback is running, all subsequent
@@ -1666,7 +1930,7 @@ export function merge<T>(obj: {[K in keyof T]: Observable<T[K]>}): Observable<T>
    * @group Observable
    */
   export function exclusive_lock() {
-    const o_locked = exclusive_lock.o_locked = o(false)
+    const o_locked = (exclusive_lock.o_locked = o(false))
     function exclusive_lock(fn: () => any) {
       if (o_locked.get()) return
 
@@ -1679,7 +1943,9 @@ export function merge<T>(obj: {[K in keyof T]: Observable<T[K]>}): Observable<T>
       }
     }
 
-    function unlock() { o_locked.set(false) }
+    function unlock() {
+      o_locked.set(false)
+    }
 
     return exclusive_lock
   }
@@ -1694,7 +1960,6 @@ export function merge<T>(obj: {[K in keyof T]: Observable<T[K]>}): Observable<T>
    * @group Observable
    */
   export class ObserverHolder {
-
     /** @internal */
     _observers: o.Observer<any>[] = []
 
@@ -1739,33 +2004,41 @@ export function merge<T>(obj: {[K in keyof T]: Observable<T[K]>}): Observable<T>
     /**
      * Does pretty much what {@link $observe} does.
      */
-    observe<A>(obs: RO<A>, fn: ObserverCallback<A>, options?: ObserveOptions<A>): Observer<A> | null {
-      if (!(o.is_observable(obs))) {
-        if (this.is_observing)
-          fn(obs as A, NoValue)
-        else
-          (this._callback_queue ??= []).push(() => fn(obs as A, NoValue))
+    observe<A>(
+      obs: RO<A>,
+      fn?: ObserverCallback<A>,
+      options?: ObserveOptions<A>
+    ): Observer<A> | null {
+      fn ??= () => {}
+      if (!o.is_observable(obs)) {
+        if (this.is_observing) fn(obs as A, NoValue)
+        else (this._callback_queue ??= []).push(() => fn(obs as A, NoValue))
         return null
       }
 
-      const observer = options?.changes_only ? new SilentObserver(fn, o(obs)) : new Observer(fn, o(obs))
+      const observer = options?.changes_only
+        ? new SilentObserver(fn, o(obs))
+        : new Observer(fn, o(obs))
       options?.observer_callback?.(observer)
       if (options?.immediate) observer.refresh()
       return this.addObserver(observer)
     }
 
-    observeChanges<A>(obs: RO<A>, fn: ObserverCallback<A>, options?: ObserveOptions<A>): Observer<A> | null {
+    observeChanges<A>(
+      obs: RO<A>,
+      fn: ObserverCallback<A>,
+      options?: ObserveOptions<A>
+    ): Observer<A> | null {
       return this.observe(obs, fn, { ...options, changes_only: true })
     }
 
     /**
      * Add an observer to the observers array.
      */
-    addObserver(observer: Observer<any>) : Observer<any> {
+    addObserver(observer: Observer<any>): Observer<any> {
       this._observers.push(observer)
 
-      if (this.is_observing)
-        observer.startObserving()
+      if (this.is_observing) observer.startObserving()
 
       return observer
     }

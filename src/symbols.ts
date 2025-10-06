@@ -1,4 +1,3 @@
-
 /**
  * For classes that can be added directly as Insertable
  */

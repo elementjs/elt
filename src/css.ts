@@ -1,11 +1,12 @@
-
 let _id = 0
 export class CSSBuilder {
-
   __raw: string[] = []
   sheet: CSSStyleSheet = new CSSStyleSheet()
 
-  css = (arr: TemplateStringsArray | string, ...args: (string|number|string[])[]): string => {
+  css = (
+    arr: TemplateStringsArray | string,
+    ...args: (string | number | string[])[]
+  ): string => {
     const id = _id++
     let class_name: undefined | string = undefined
 
@@ -49,12 +50,13 @@ export class CSSBuilder {
     if (css[start] === ".") {
       loop: do {
         const c = css[end]
-        if (c >= "a" && c <= "z"
-          || c >= "A" && c <= "Z"
-          || c >= "0" && c <= "9"
-          || c === "$"
-          || c === "-"
-          || c === "_"
+        if (
+          (c >= "a" && c <= "z") ||
+          (c >= "A" && c <= "Z") ||
+          (c >= "0" && c <= "9") ||
+          c === "$" ||
+          c === "-" ||
+          c === "_"
         ) {
           end++
         } else {
