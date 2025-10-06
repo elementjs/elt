@@ -11,8 +11,6 @@ import {
   node_remove,
 } from "./dom"
 
-import { Repeat } from "./verbs"
-
 import { e } from "./elt"
 
 import { sym_insert } from "./symbols"
@@ -127,7 +125,11 @@ export class VirtualScroller<O extends o.RO<any[]>>
   constructor(
     obs: O,
     public renderfn?: (
-      ob: Repeat.RoItem<O>,
+      ob: O extends o.IObservable<(infer T)[] | null | undefined, (infer T)[]>
+        ? o.Observable<T>
+        : O extends o.ReadonlyObservable<(infer T)[] | null | undefined>
+        ? o.ReadonlyObservable<T>
+        : never,
       n: o.RO<number>
     ) => Renderable<HTMLElement>
   ) {
@@ -474,7 +476,14 @@ export class VirtualScroller<O extends o.RO<any[]>>
   }
 
   RenderEach(
-    renderfn: (ob: Repeat.RoItem<O>, n: o.RO<number>) => Renderable<HTMLElement>
+    renderfn: (
+      ob: O extends o.IObservable<(infer T)[] | null | undefined, (infer T)[]>
+        ? o.Observable<T>
+        : O extends o.ReadonlyObservable<(infer T)[] | null | undefined>
+        ? o.ReadonlyObservable<T>
+        : never,
+      n: o.RO<number>
+    ) => Renderable<HTMLElement>
   ) {
     this.renderfn = renderfn
     return this
