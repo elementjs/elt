@@ -290,31 +290,31 @@ export function Repeat(obs: any, render?: any): Repeat.Repeater<any, any, any> {
 export namespace Repeat {
   export const sym_obs = Symbol("ritem-obs")
 
-  interface RepeatItemElement<
-    T,
-    O extends o.IReadonlyObservable<T[] | null | undefined>,
-    E extends o.ReadonlyObservable<T>
-  > extends HTMLElement {
-    [sym_obs]: RepeatObservable<T, O, E>
-    nextSibling: RepeatItemElement<T, O, E> | null
-    previousSibling: RepeatItemElement<T, O, E> | null
+  interface RepeatItemElement<T> extends HTMLElement {
+    [sym_obs]: RepeatObservable<T>
+    nextSibling: RepeatItemElement<T> | null
+    previousSibling: RepeatItemElement<T> | null
   }
 
   /** A special observable that is not a combined one to prevent unneeded updates when setting a property of the observed array.
    * Repeat, RepeatScroll and RepeatVirtual are directly responsible for updating the sub-observables they create.
    */
-  export class RepeatObservable<
-    T,
-    O extends o.IReadonlyObservable<T[] | null | undefined>,
-    E extends o.ReadonlyObservable<T>
-  > extends o.Observable<T> {
+  export class RepeatObservable<T> extends o.CombinedObservable<
+    [T[], number],
+    T
+  > {
     constructor(
       value: T,
-      public repeat: Repeater<T, O, E>,
-      public prop: number,
+      public key: any,
+      public repeat: Repeater<T, any, any>,
+      public o_prop: o.Observable<number>,
       public repeat_key?: any
     ) {
-      super(value)
+      super([repeat.obs, o_prop])
+    }
+
+    getter(values: [T[], number]) {
+      return values[0][values[1]]
     }
 
     // Normal set behaviour that doesn't change the original array
@@ -322,20 +322,26 @@ export namespace Repeat {
       super.set(value)
     }
 
-    set(value: T) {
-      super.set(value)
-
-      this.repeat.update_lock(() => {
-        const newlst = o.clone(this.repeat.obs.get() as T[])
-        newlst[this.prop] = value
-        ;(
-          this.repeat.obs as unknown as o.IObservable<
-            T[] | null | undefined,
-            T[]
-          >
-        ).set(newlst)
-      })
+    setter(value: T, oval: T | o.NoValue, current: [T[], number]) {
+      const newlst = o.clone(current[0])
+      newlst[current[1]] = value
+      return [newlst, o.NoValue] as [T[], number | o.NoValue]
     }
+
+    // set(value: T) {
+    //   super.set(value)
+
+    //   this.repeat.update_lock(() => {
+    //     const newlst = o.clone(this.repeat.obs.get() as T[])
+    //     newlst[this.o_prop] = value
+    //     ;(
+    //       this.repeat.obs as unknown as o.IObservable<
+    //         T[] | null | undefined,
+    //         T[]
+    //       >
+    //     ).set(newlst)
+    //   })
+    // }
   }
 
   export type RenderItemFn<E extends o.IReadonlyObservable<any>> = (
@@ -370,7 +376,7 @@ export namespace Repeat {
     observer: o.Observer<T[] | null | undefined> | null = null
     protected keyfn: ((item: T) => any) | null = null
     update_lock = o.exclusive_lock()
-    protected node_map = new Map<any, RepeatItemElement<T, O, E>>()
+    protected node_map = new Map<any, RepeatItemElement<T>>()
 
     constructor(
       public obs: O,
@@ -473,8 +479,8 @@ export namespace Repeat {
     protected updateChildren(new_lst: T[]) {
       const keyfn = this.keyfn
 
-      let iter = this.node.firstChild as RepeatItemElement<T, O, E> | null
-      let end = this.node.lastChild as RepeatItemElement<T, O, E> | null
+      let iter = this.node.firstChild as RepeatItemElement<T> | null
+      let end = this.node.lastChild as RepeatItemElement<T> | null
 
       const keys: any[] = new Array(new_lst.length)
       let key_map = new Map<any, number>()
@@ -514,7 +520,7 @@ export namespace Repeat {
           const obs = end[sym_obs]
           let new_idx = key_map.get(obs.key)
           if (new_idx != null && new_idx === end_idx - 1) {
-            obs.prop = end_idx - 1
+            obs.o_prop.set(end_idx - 1)
             end_idx--
             end = end.previousSibling
             continue
@@ -531,18 +537,18 @@ export namespace Repeat {
 
       // After this, iter is on the first node that we don't know what to do with and end is where we will stop
 
-      let dead_nodes = new Set<RepeatItemElement<T, O, E>>()
+      let dead_nodes = new Set<RepeatItemElement<T>>()
       let dead_nodes_iter = dead_nodes.values()
       let created = 0
 
       const reuse_dead_node = (
-        node: RepeatItemElement<T, O, E>,
+        node: RepeatItemElement<T>,
         iter: Node | null,
         idx: number
       ) => {
         dead_nodes.delete(node)
         const obs = node[sym_obs]
-        obs.prop = idx
+        obs.o_prop.set(idx)
         obs.key = keys[idx]
         obs.repeatSet(new_lst[idx])
         this.node_map.set(obs.key, node)
@@ -559,7 +565,7 @@ export namespace Repeat {
 
         if (obs.key === key) {
           // Well, now, this is fantastic, this is exactly what we wanted
-          obs.prop = idx
+          obs.o_prop.set(idx)
           obs.repeatSet(new_lst[idx])
           idx++
           iter = iter.nextSibling
@@ -580,7 +586,7 @@ export namespace Repeat {
         if (prev != null) {
           // We're pulling the node from wherever it is at.
           const obs = prev[sym_obs]
-          obs.prop = idx
+          obs.o_prop.set(idx)
           obs.repeatSet(new_lst[idx])
           this.node.insertBefore(prev, iter)
           idx++ // it was found, so we can advance
@@ -638,15 +644,11 @@ export namespace Repeat {
     protected create(lst: T[], key: any, index: number) {
       const item = lst[index]
       const o_prop_obs = o(index)
-      const ob = new RepeatObservable(item, this, index)
-      ob.key = key
-      ob.prop = index
+      const ob = new RepeatObservable(item, key, this, o_prop_obs)
 
-      const node = document.createElement("e-repeat-item") as RepeatItemElement<
-        T,
-        O,
-        E
-      >
+      const node = document.createElement(
+        "e-repeat-item"
+      ) as RepeatItemElement<T>
       node[sym_obs] = ob
 
       const _sep = this.separator
