@@ -571,18 +571,25 @@ export namespace App {
         previous = undefined
       }
 
+      if (previous != null) {
+        if (previous.result_promise != null) {
+          // It may be building
+          await previous.result_promise
+        }
+        this.addServiceDep(previous)
+        return previous
+      }
       // Make a new service
-      const srv = previous ?? new App.Service(this, builder)
+      const srv = new App.Service(this, builder)
       this.addServiceDep(srv)
 
-      if (previous == null) {
-        const builder_fn =
-          typeof builder[sym_service_init] === "function"
-            ? builder[sym_service_init].bind(builder)
-            : builder
-        srv.result = await builder_fn(srv)
-      }
-
+      const builder_fn =
+        typeof builder[sym_service_init] === "function"
+          ? builder[sym_service_init].bind(builder)
+          : builder
+      srv.result_promise = builder_fn(srv)
+      srv.result = await srv.result_promise
+      srv.result_promise = null
       return srv
     }
 
@@ -899,6 +906,7 @@ export namespace App {
     }
 
     result: any
+    result_promise: Promise<any> | null = null
 
     views = new Map<string, () => Renderable>()
 
