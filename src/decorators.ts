@@ -246,7 +246,7 @@ export function $style<N extends HTMLElement | SVGElement>(
 
 export function $observe<N extends Node, T>(
   a: o.RO<T>,
-  cbk?: (newval: T, old_val: T, node: N) => void,
+  cbk?: (newval: T, old_val: T | o.NoValue, node: N) => void,
   options?: o.ObserveOptions<T> & { changes_only: true }
 ): Decorator<N>
 export function $observe<N extends Node, T>(
