@@ -267,7 +267,7 @@ export function $observe<N extends Node, T>(
 
 export function $observe_changes<N extends Node, T>(
   a: o.RO<T>,
-  cbk: (newval: T, old_val: T, node: N) => void,
+  cbk: (newval: T, old_val: T | o.NoValue, node: N) => void,
   options?: o.ObserveOptions<T>
 ): Decorator<N> {
   return $observe(a, cbk, { ...options, changes_only: true })
