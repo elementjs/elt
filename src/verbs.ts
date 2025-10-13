@@ -269,18 +269,18 @@ export namespace Switch {
  */
 export function Repeat<
   T,
-  O extends o.IReadonlyObservable<T[] | null | undefined>,
-  E extends o.ReadonlyObservable<T>
->(
-  obs: o.IReadonlyObservable<T[] | null | undefined>,
-  render?: Repeat.RenderItemFn<E>
-): Repeat.Repeater<T, O, E>
-export function Repeat<
-  T,
   O extends o.IObservable<T[] | null | undefined, T[]>,
   E extends o.Observable<T>
 >(
   obs: o.IObservable<T[] | null | undefined, T[]>,
+  render?: Repeat.RenderItemFn<E>
+): Repeat.Repeater<T, O, E>
+export function Repeat<
+  T,
+  O extends o.IReadonlyObservable<T[] | null | undefined>,
+  E extends o.ReadonlyObservable<T>
+>(
+  obs: o.IReadonlyObservable<T[] | null | undefined>,
   render?: Repeat.RenderItemFn<E>
 ): Repeat.Repeater<T, O, E>
 export function Repeat(obs: any, render?: any): Repeat.Repeater<any, any, any> {
@@ -860,12 +860,14 @@ export namespace RepeatScroll {
  * Display UI elements according to the resolution status of the Promise living in `o_promise`.
  */
 export function DisplayPromise<T>(
-  o_promise: o.Observable<Promise<T>>
+  o_promise: o.IObservable<Promise<T>, Promise<T>>
 ): DisplayPromise.PromiseDisplayer<T>
 export function DisplayPromise<T>(
-  o_promise: o.ReadonlyObservable<Promise<T>>
+  o_promise: o.IReadonlyObservable<Promise<T>>
 ): DisplayPromise.ReadonlyPromiseDisplayer<T>
-export function DisplayPromise<T>(o_promise: o.ReadonlyObservable<Promise<T>>) {
+export function DisplayPromise<T>(
+  o_promise: o.IReadonlyObservable<Promise<T>>
+) {
   return new DisplayPromise.PromiseDisplayer(
     o_promise as o.Observable<Promise<T>>
   )
