@@ -29,7 +29,7 @@ export type Renderable<N extends Node = Element> =
   | null
   | undefined
   | void
-  | false
+  | boolean
   | Decorator<N>
   | Iterable<Renderable<N>>
   | Promise<Renderable<N>>

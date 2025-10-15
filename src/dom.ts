@@ -340,7 +340,7 @@ export function node_append<N extends Node>(
   refchild: Node | null = null,
   is_basic_node = true
 ) {
-  if (renderable == null || renderable === false) return
+  if (renderable == null || typeof renderable === "boolean") return
 
   if (typeof renderable === "string") {
     // A simple string
