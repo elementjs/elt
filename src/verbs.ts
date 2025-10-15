@@ -657,10 +657,6 @@ export namespace Repeat {
         sep.setAttribute("index", index.toString())
         node_append(sep, _sep(o_prop_obs), node.firstChild)
         node.appendChild(sep)
-      } else if (index === 0 && this.prefix) {
-        const pref = document.createElement("e-repeat-prefix")
-        node_append(pref, this.prefix(this.obs as O))
-        node.appendChild(pref)
       }
 
       node_append(node, this.renderfn(ob as unknown as E, o_prop_obs))
