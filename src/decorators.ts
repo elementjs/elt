@@ -39,11 +39,17 @@ function setup_bind<T, N extends Element>(
       lock(() => {
         const new_value = node_get(node)
         obs.set(new_value)
-        // since obs could be a transformed observable, using set() may end up setting it
-        // to a *different* value. Here we make sure we keep the node *correctly* in sync
-        // with its observable.
-        if (obs.get() !== new_value) {
-          node_set(node, obs.get())
+        const is_still_watched = (obs as unknown as o.ReadonlyObservable<any>)
+          .is_watched
+
+        if (is_still_watched) {
+          // since obs could be a transformed observable, using set() may end up setting it
+          // to a *different* value. Here we make sure we keep the node *correctly* in sync
+          // with its observable. We make absolutely sure however that it is still being watched because the .set might also have triggered the removal of the node watching the change, because the observable is dependant for instance of a Repeat node with elements having disappeared
+          let val = obs.get()
+          if (val !== new_value) {
+            node_set(node, val)
+          }
         }
       })
     })

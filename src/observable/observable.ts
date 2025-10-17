@@ -343,8 +343,8 @@ export namespace o {
     readonly _observers = new IndexableArray<Observer<A>>()
     /** @internal */
     _children = new IndexableArray<ChildObservableLink>()
-    /** @internal */
-    _watched = false
+    /** true if there is an observer actively watching this observable */
+    is_watched = false
 
     /** The index of this Observable in the notify queue. If null, means that it's not scheduled.
      * @internal
@@ -360,7 +360,8 @@ export namespace o {
      */
     constructor(_value: A) {
       if (DEBUG) {
-        ;(this as any).debug = new Error().stack
+        const err = new Error()
+        ;(this as any).debug = err.stack?.replace(/^.*observable.*$\n/m, "")
       }
       this._value = _value
     }
@@ -442,25 +443,25 @@ export namespace o {
      */
     checkWatch() {
       if (
-        this._watched &&
+        this.is_watched &&
         this._observers.real_size === 0 &&
         this._children.real_size === 0
       ) {
-        this._watched = false
+        this.is_watched = false
         if (this.idx != null) queue.delete(this)
         this.unwatched()
       } else if (
-        !this._watched &&
+        !this.is_watched &&
         this._observers.real_size + this._children.real_size > 0
       ) {
-        this._watched = true
+        this.is_watched = true
         this.watched()
       }
     }
 
     /** Return `true` if this observable is being observed by an Observer or another Observable. */
     isObserved() {
-      return this._watched
+      return this.is_watched
     }
 
     /**
@@ -1016,7 +1017,7 @@ export namespace o {
     }
 
     get() {
-      if (!this._watched || queue.transaction_count > 0) {
+      if (!this.is_watched || queue.transaction_count > 0) {
         this.ensureRefreshed()
       }
       return this._value
@@ -1024,7 +1025,7 @@ export namespace o {
 
     set(value: T): void {
       // Do not trigger the set chain if the value did not change.
-      if (!this._watched || queue.transaction_count > 0 || queue.flushing) {
+      if (!this.is_watched || queue.transaction_count > 0 || queue.flushing) {
         this.ensureRefreshed()
       }
       if (value === this._value) return
@@ -1048,7 +1049,7 @@ export namespace o {
         const link = new ChildObservableLink(obs, this, lp)
         this._links.push(link)
         this._parents_values.push(refresh ? o.get(obs) : obs._value)
-        if (this._watched) {
+        if (this.is_watched) {
           link.parent.addChild(link)
         }
       } else {
@@ -1083,12 +1084,12 @@ export namespace o {
     }
 
     changeTarget(obs: Observable<T>) {
-      if (this._watched) {
+      if (this.is_watched) {
         // unwatch the previous dependencies
         this.unwatched()
       }
       this.dependsOn([obs])
-      if (this._watched) {
+      if (this.is_watched) {
         this.watched()
         // we force the refreshing of the value because dependsOn fetches the last values and ensureRefreshed() won't return true.
         this.refreshValue()
