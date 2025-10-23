@@ -779,11 +779,12 @@ export namespace App {
     }
     _on_deinit: (() => any)[] = []
 
-    static requirements<O extends { [name: string]: ServiceBuilder<any> }>(
-      maker: () => O
-    ) {
-      return this.factory(async function (srv: App.Service) {
-        const obj = maker()
+    static requirements<
+      O extends { [name: string]: ServiceBuilder<any> },
+      S extends SrvParams
+    >(maker: (srv: App.Service<S>) => O) {
+      return this.factory(async function (srv: App.Service<S>) {
+        const obj = maker(srv)
         const keys = Object.keys(obj)
         const promises = Promise.all(keys.map((key) => srv.require(obj[key])))
         const res = await promises
