@@ -290,7 +290,7 @@ export function Repeat(obs: any, render?: any): Repeat.Repeater<any, any, any> {
 export namespace Repeat {
   export const sym_obs = Symbol("ritem-obs")
 
-  interface RepeatItemElement<T> extends HTMLElement {
+  export interface RepeatItemElement<T> extends HTMLElement {
     [sym_obs]: RepeatObservable<T>
     nextSibling: RepeatItemElement<T> | null
     previousSibling: RepeatItemElement<T> | null
