@@ -191,22 +191,20 @@ export class App {
         this.o_state.set(staging)
         current?.deactivate(staging)
         current = null
+        const keys = staging.paramKeys()
+        const params = Object.fromEntries(
+          Object.entries(staging.params.get()).filter(([key]) => keys.has(key))
+        )
+        this.router.__last_activated_route?.updateHash(keys, params)
 
         o.transaction(() => {
-          const keys = staging.paramKeys()
           // Remove from params unneeded keys
-          const params = Object.fromEntries(
-            Object.entries(staging.params.get()).filter(([key]) =>
-              keys.has(key)
-            )
-          )
           this.o_params.set(params)
           staging.params.changeTarget(this.o_params)
           staging.commit()
         })
 
         // whoever gets here is the route that "won" if we got here through a route
-        this.router.__last_activated_route?.updateHash()
       }
     } catch (e) {
       if (current) {
@@ -301,7 +299,7 @@ export namespace App {
 
     regexp: RegExp | null = null
 
-    updateHash() {
+    updateHash(keys: Set<string>, params: SrvParams) {
       // Do not update the hash if this route is silent.
       if (this.options.silent) {
         return
@@ -312,9 +310,6 @@ export namespace App {
         if (typeof hash !== "string") return
 
         const entries: string[] = []
-        const state = this.router.app.o_state.get()!
-        const keys = state.paramKeys()
-        const params = this.router.app.o_params.get()
 
         for (let key of keys) {
           if (params[key] === undefined) {
@@ -350,11 +345,14 @@ export namespace App {
           return
         }
 
-        window.location.hash = hash
+        if (window.location.hash !== hash) {
+          window.location.hash = hash
+          this.router._last_hash = hash
+        }
       })
     }
 
-    async activateWithParams(params: T): Promise<void> {
+    async _activateWithParams(params: T): Promise<void> {
       const full_params = Object.assign({}, this.options.defaults, params)
       this.router.__last_activated_route = this
       try {
@@ -369,12 +367,23 @@ export namespace App {
       }
     }
 
+    async activateWithParams(params: T): Promise<void> {
+      if (document.startViewTransition) {
+        document.startViewTransition(() => {
+          return this._activateWithParams(params)
+        })
+      } else {
+        return this._activateWithParams(params)
+      }
+    }
+
     async activate(..._params: {} extends T ? [] | [T] : [T]): Promise<void> {
       const params: T = Object.assign(
         {},
         this.router.app.o_params.get(),
         _params[0] as T
       )
+
       return this.activateWithParams(params)
     }
   }
@@ -412,6 +421,8 @@ export namespace App {
     // the last route to have called activate()
     __last_activated_route: App.Route<any> | null = null
     __hash_lock = o.exclusive_lock()
+    __last_hash: string | null = null
+
     protected __routes = new Map<string, App.Route<any>>()
 
     /**
@@ -451,10 +462,12 @@ export namespace App {
       // do not handle if the hash is the last one we handled
       if (
         newhash &&
-        newhash === this._last_hash &&
-        this._last_srv === this.app.o_active_service.get()?.builder
-      )
+        newhash === this._last_hash // &&
+        // this._last_srv === this.app.o_active_service.get()?.builder
+      ) {
         return
+      }
+      this._last_hash = newhash
 
       const { path, vars } = this.__parseHash(newhash)
       const route_vars: SrvParams = {}
@@ -499,7 +512,7 @@ export namespace App {
       setTimeout(() => this.activateFromHash())
       window.addEventListener("hashchange", () => {
         this.__hash_lock(() => {
-          this.activateFromHash()
+          return this.activateFromHash()
         })
       })
 
@@ -516,12 +529,13 @@ export namespace App {
           rt?.activate(params)
           // reactivate
         } else {
-          rt?.updateHash()
+          const keys = srv?.state?.paramKeys() ?? new Set<string>()
+          rt?.updateHash(keys, params)
         }
       })
     }
 
-    protected _last_hash: string | null = null
+    _last_hash: string | null = null
     protected _last_srv: App.ServiceBuilder<any> | null = null
 
     register(
