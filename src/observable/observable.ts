@@ -1416,7 +1416,7 @@ export namespace o {
     fn_revert: (
       value: T,
       set: <A>(obs: o.Observable<A>, val: A) => void,
-      prev: T | NoValue,
+      prev: T,
       get: <A>(obs: o.RO<A>) => A
     ) => any
   ): o.Observable<T>
@@ -1429,7 +1429,7 @@ export namespace o {
     fn_revert?: (
       value: T,
       set: <A>(obs: o.Observable<A>, val: A) => void,
-      prev: T | NoValue,
+      prev: T,
       get: <A>(obs: o.RO<A>) => A
     ) => any
   ): o.ReadonlyObservable<T> {
@@ -1480,7 +1480,7 @@ export namespace o {
     }) as any
 
     if (fn_revert) {
-      cmb.setter = ((nval: T, oval: T | NoValue, values: any[]) => {
+      cmb.setter = ((nval: T, oval: T, values: any[]) => {
         let res = new Array(cmb._links.length).fill(NoValue)
         function _set(m: o.Observable<any>, val: any) {
           const idx = mp.get(m)
