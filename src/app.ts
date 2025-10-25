@@ -455,14 +455,16 @@ export namespace App {
     /**
      * @internal
      * activate a service from the hash portion of window.location
+     * @param force if true, the service will be activated even if the hash did not change (useful for login)
      */
-    activateFromHash() {
+    activateFromHash(force = false) {
       const newhash = window.location.hash.slice(1)
 
       // do not handle if the hash is the last one we handled
       if (
         newhash &&
-        newhash === this._last_hash // &&
+        newhash === this._last_hash &&
+        !force // &&
         // this._last_srv === this.app.o_active_service.get()?.builder
       ) {
         return
