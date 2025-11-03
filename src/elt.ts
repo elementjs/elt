@@ -9,7 +9,7 @@ import { Attrs, ElementMap, EmptyAttributes, Renderable } from "./types"
 export function setup_base_styles(doc = document) {
   const style = doc.createElement("style")
   style.append(
-    `e-obs,e-if,e-switch,e-repeat,e-repeat-scroll,e-virtual-scroll,e-repeat-item,e-repeat-separator,e-repeat-prefix,e-repeat-suffix,e-app,e-app-view,e-lang,e-unpromise{ display: contents }`
+    `e-obs,e-if,e-switch,e-repeat,e-repeat-scroll,e-virtual-scroll,e-repeat-item,e-repeat-separator,e-repeat-prefix,e-repeat-suffix,e-repeat-empty,e-app,e-app-view,e-lang,e-unpromise{ display: contents }`
   )
   doc.head.appendChild(style)
 }
