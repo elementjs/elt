@@ -267,100 +267,93 @@ export namespace Switch {
  *
  * @group Verbs
  */
-export function Repeat<
-  T,
-  O extends o.IObservable<T[] | null | undefined, T[]>,
-  E extends o.Observable<T>
->(
-  obs: o.IObservable<T[] | null | undefined, T[]>,
-  render?: Repeat.RenderItemFn<E>
-): Repeat.Repeater<T, O, E>
-export function Repeat<
-  T,
-  O extends o.IReadonlyObservable<T[] | null | undefined>,
-  E extends o.ReadonlyObservable<T>
->(
-  obs: o.IReadonlyObservable<T[] | null | undefined>,
-  render?: Repeat.RenderItemFn<E>
-): Repeat.Repeater<T, O, E>
-export function Repeat(obs: any, render?: any): Repeat.Repeater<any, any, any> {
-  return new Repeat.Repeater(o(obs) as any, render as any)
+export function Repeat<Obs extends Repeat.RepeatedObservable<any>>(
+  obs: Obs,
+  render?: Repeat.RenderItemFn<Obs>
+): Repeat.Repeater<Obs> {
+  return new Repeat.Repeater(obs, render)
 }
 
 export namespace Repeat {
   export const sym_obs = Symbol("ritem-obs")
 
-  export interface RepeatItemElement<T> extends HTMLElement {
-    [sym_obs]: RepeatObservable<T>
-    nextSibling: RepeatItemElement<T> | null
-    previousSibling: RepeatItemElement<T> | null
+  export type RepeatedObservable<T> = o.IReadonlyObservable<
+    T[] | null | undefined
+  >
+
+  export interface RepeatItemElement<Obs extends RepeatedObservable<any>>
+    extends HTMLElement {
+    [sym_obs]: RepeatObservable<Obs>
+    nextSibling: RepeatItemElement<Obs> | null
+    previousSibling: RepeatItemElement<Obs> | null
   }
 
   /** A special observable that is not a combined one to prevent unneeded updates when setting a property of the observed array.
    * Repeat, RepeatScroll and RepeatVirtual are directly responsible for updating the sub-observables they create.
    */
-  export class RepeatObservable<T> extends o.CombinedObservable<
-    [T[], number],
-    T
+  export class RepeatObservable<
+    Obs extends RepeatedObservable<any>
+  > extends o.CombinedObservable<
+    [NonNullable<o.ObservedType<Obs>>, number],
+    ItemType<Obs>
   > {
     constructor(
-      value: T,
       public key: any,
-      public repeat: Repeater<T, any, any>,
+      public repeat: Repeater<Obs>,
       public o_prop: o.Observable<number>,
       public repeat_key?: any
     ) {
-      super([repeat.obs, o_prop])
+      super([repeat.obs as o.RO<NonNullable<o.ObservedType<Obs>>>, o_prop])
     }
 
-    getter(values: [T[], number]) {
-      return values[0][values[1]]
+    getter(values: [o.ObservedType<Obs>, number]) {
+      return values[0]?.[values[1]]
     }
 
     // Normal set behaviour that doesn't change the original array
-    repeatSet(value: T) {
+    repeatSet(value: ItemType<Obs>) {
       super.set(value)
     }
 
-    setter(value: T, oval: T | o.NoValue, current: [T[], number]) {
+    setter(
+      value: ItemType<Obs>,
+      oval: ItemType<Obs> | o.NoValue,
+      current: [NonNullable<o.ObservedType<Obs>>, number]
+    ) {
       const newlst = o.clone(current[0])
       newlst[current[1]] = value
-      return [newlst, o.NoValue] as [T[], number | o.NoValue]
+      return [newlst, o.NoValue] as [
+        NonNullable<o.ObservedType<Obs>>,
+        number | o.NoValue
+      ]
     }
-
-    // set(value: T) {
-    //   super.set(value)
-
-    //   this.repeat.update_lock(() => {
-    //     const newlst = o.clone(this.repeat.obs.get() as T[])
-    //     newlst[this.o_prop] = value
-    //     ;(
-    //       this.repeat.obs as unknown as o.IObservable<
-    //         T[] | null | undefined,
-    //         T[]
-    //       >
-    //     ).set(newlst)
-    //   })
-    // }
   }
 
-  export type RenderItemFn<E extends o.IReadonlyObservable<any>> = (
-    arg: E,
+  export type RenderItemFn<Obs extends RepeatedObservable<any>> = (
+    arg: Obs extends o.Observable<any>
+      ? o.Observable<ItemType<Obs>>
+      : o.ReadonlyObservable<ItemType<Obs>>,
     idx: o.IReadonlyObservable<number>
   ) => Renderable<HTMLElement>
+
+  export type ItemType<
+    Obs extends o.IReadonlyObservable<any[] | null | undefined>
+  > = Obs extends o.IReadonlyObservable<infer Array | null | undefined>
+    ? Array extends (infer T)[]
+      ? T
+      : never
+    : never
 
   /**
    * Repeats content.
    * @internal
    */
   export class Repeater<
-    T,
-    O extends o.IReadonlyObservable<T[] | null | undefined>,
-    E extends o.ReadonlyObservable<T>
+    Obs extends o.IReadonlyObservable<any[] | null | undefined>
   > {
     protected on_empty: (() => Renderable<Node>) | null = null
-    protected prefix: ((o_lst: O) => Renderable<Node>) | null = null
-    protected suffix: ((o_lst: O) => Renderable<Node>) | null = null
+    protected prefix: ((o_lst: Obs) => Renderable<Node>) | null = null
+    protected suffix: ((o_lst: Obs) => Renderable<Node>) | null = null
     protected separator:
       | ((n: o.ReadonlyObservable<number>) => Renderable<HTMLElement>)
       | null = null
@@ -371,19 +364,16 @@ export namespace Repeat {
     protected node_suffix: Node | null = null
     protected node_prefix: Node | null = null
 
-    protected lst: T[] = []
+    protected lst: ItemType<Obs>[] = []
     protected node!: HTMLElement
-    observer: o.Observer<T[] | null | undefined> | null = null
-    protected keyfn: ((item: T) => any) | null = null
+    observer: o.Observer<ItemType<Obs>[] | null | undefined> | null = null
+    protected keyfn: ((item: ItemType<Obs>) => any) | null = null
     update_lock = o.exclusive_lock()
-    protected node_map = new Map<any, RepeatItemElement<T>>()
+    protected node_map = new Map<any, RepeatItemElement<Obs>>()
 
     constructor(
-      public obs: O,
-      public renderfn: (
-        ob: E,
-        n: o.ReadonlyObservable<number>
-      ) => Renderable<HTMLElement> // public options: Repeat.Options<T> = {}
+      public obs: Obs,
+      public renderfn?: RenderItemFn<Obs> // public options: Repeat.Options<T> = {}
     ) {}
 
     /**
@@ -401,7 +391,9 @@ export namespace Repeat {
         this.obs,
         (lst) => {
           this.update_lock(() => {
-            this.updateChildrenPre(lst ?? [])
+            this.updateChildrenPre(
+              (lst as unknown as NonNullable<o.ObservedType<Obs>>) ?? []
+            )
           })
           // this.lst = lst ?? []
           // If we had a key, now we perform the great shuffling
@@ -412,19 +404,19 @@ export namespace Repeat {
       node_append(parent, this.node, refchild)
     }
 
-    RenderEach(fn: RenderItemFn<E>) {
+    RenderEach(fn: RenderItemFn<Obs>) {
       this.renderfn = fn
       return this
     }
 
     /** Render `fn` right before the first element if the observed array  was not empty */
-    PrefixBy(fn: (o_lst: O) => Renderable<Node>) {
+    PrefixBy(fn: (o_lst: Obs) => Renderable<Node>) {
       this.prefix = fn
       return this
     }
 
     /** Render `fn` right after the last element if the observed array was not empty */
-    SuffixBy(fn: (o_lst: O) => Renderable<Node>) {
+    SuffixBy(fn: (o_lst: Obs) => Renderable<Node>) {
       this.suffix = fn
       return this
     }
@@ -440,7 +432,7 @@ export namespace Repeat {
       return this
     }
 
-    protected updateChildrenPre(new_lst: T[]) {
+    protected updateChildrenPre(new_lst: NonNullable<o.ObservedType<Obs>>) {
       if (new_lst.length > 0) {
         if (this.node_empty != null) {
           node_remove(this.node_empty)
@@ -476,11 +468,11 @@ export namespace Repeat {
     }
 
     /** Compute the range of children that need to be updated */
-    protected updateChildren(new_lst: T[]) {
+    protected updateChildren(new_lst: NonNullable<o.ObservedType<Obs>>) {
       const keyfn = this.keyfn
 
-      let iter = this.node.firstChild as RepeatItemElement<T> | null
-      let end = this.node.lastChild as RepeatItemElement<T> | null
+      let iter = this.node.firstChild as RepeatItemElement<Obs> | null
+      let end = this.node.lastChild as RepeatItemElement<Obs> | null
 
       const keys: any[] = new Array(new_lst.length)
       let key_map = new Map<any, number>()
@@ -537,12 +529,12 @@ export namespace Repeat {
 
       // After this, iter is on the first node that we don't know what to do with and end is where we will stop
 
-      let dead_nodes = new Set<RepeatItemElement<T>>()
+      let dead_nodes = new Set<RepeatItemElement<Obs>>()
       let dead_nodes_iter = dead_nodes.values()
       let created = 0
 
       const reuse_dead_node = (
-        node: RepeatItemElement<T>,
+        node: RepeatItemElement<Obs>,
         iter: Node | null,
         idx: number
       ) => {
@@ -641,14 +633,18 @@ export namespace Repeat {
     /**
      * Generate the next element to append to the list.
      */
-    protected create(lst: T[], key: any, index: number) {
-      const item = lst[index]
+    protected create(
+      lst: NonNullable<o.ObservedType<Obs>>,
+      key: any,
+      index: number
+    ) {
+      // const item = lst[index]
       const o_prop_obs = o(index)
-      const ob = new RepeatObservable(item, key, this, o_prop_obs)
+      const ob = new RepeatObservable(key, this, o_prop_obs)
 
       const node = document.createElement(
         "e-repeat-item"
-      ) as RepeatItemElement<T>
+      ) as RepeatItemElement<Obs>
       node[sym_obs] = ob
 
       const _sep = this.separator
@@ -659,12 +655,12 @@ export namespace Repeat {
         node.appendChild(sep)
       }
 
-      node_append(node, this.renderfn(ob as unknown as E, o_prop_obs))
+      node_append(node, this.renderfn?.(ob as any, o_prop_obs))
       this.node_map.set(key, node)
       return node
     }
 
-    withKeyFunction(fn: (item: T) => any) {
+    withKeyFunction(fn: (item: NonNullable<ItemType<Obs>>) => any) {
       this.keyfn = fn
       return this
     }
@@ -690,16 +686,12 @@ export namespace Repeat {
  *
  * @group Verbs
  */
-export function RepeatScroll<
-  T,
-  O extends o.IReadonlyObservable<T[] | null | undefined>,
-  E extends o.ReadonlyObservable<T>
->(
-  ob: O,
-  render?: Repeat.RenderItemFn<E>
-): RepeatScroll.ScrollRepeater<T, O, E> {
+export function RepeatScroll<Obs extends Repeat.RepeatedObservable<any>>(
+  ob: Obs,
+  render?: Repeat.RenderItemFn<Obs>
+): RepeatScroll.ScrollRepeater<Obs> {
   // we cheat the typesystem, which is not great, but we "know what we're doing".
-  return new RepeatScroll.ScrollRepeater(o(ob) as any, render as any)
+  return new RepeatScroll.ScrollRepeater(ob, render)
 }
 
 export namespace RepeatScroll {
@@ -709,10 +701,8 @@ export namespace RepeatScroll {
    * @internal
    */
   export class ScrollRepeater<
-    T,
-    O extends o.IReadonlyObservable<T[] | null | undefined>,
-    E extends o.ReadonlyObservable<T>
-  > extends Repeat.Repeater<T, O, E> {
+    Obs extends Repeat.RepeatedObservable<any>
+  > extends Repeat.Repeater<Obs> {
     protected parent: HTMLElement | null = null
     instersector = this.createIntersector()
     intersecting = false
@@ -720,7 +710,7 @@ export namespace RepeatScroll {
     threshold = 500
     last_index = 0
     on_end_reached: null | (() => any) = null
-    real_lst: T[] = []
+    real_lst = [] as NonNullable<o.ObservedType<Obs>>
 
     inter: IntersectionObserver | null = null
 
@@ -746,7 +736,9 @@ export namespace RepeatScroll {
     }
 
     //
-    protected updateChildrenPre(new_lst: T[]): void {
+    protected updateChildrenPre(
+      new_lst: NonNullable<o.ObservedType<Obs>>
+    ): void {
       //
       this.real_lst = new_lst
       this.last_index = Math.min(this.last_index, new_lst.length)
@@ -757,7 +749,7 @@ export namespace RepeatScroll {
         )
         const lst = new_lst.slice(0, new_last_index)
         this.last_index = new_last_index
-        super.updateChildrenPre(lst)
+        super.updateChildrenPre(lst as NonNullable<o.ObservedType<Obs>>)
 
         requestAnimationFrame(() => {
           if (
@@ -770,7 +762,7 @@ export namespace RepeatScroll {
         })
       } else {
         const lst_update = new_lst.slice(0, this.last_index)
-        super.updateChildrenPre(lst_update)
+        super.updateChildrenPre(lst_update as NonNullable<o.ObservedType<Obs>>)
       }
     }
 
