@@ -10,6 +10,13 @@ function _is_promise_like(a: any): a is PromiseLike<any> {
   return typeof a?.then === "function"
 }
 
+/** Returns true if the type is a strict readonly observable, false otherwise. This is used in the o() function, and it works because for a union of types, if just one of the types is readonly, then it becomes a union of true with never, which evaluates to true below. */
+type HasStrictReadonly<T> = T extends o.IObservable<any, any>
+  ? never
+  : T extends o.IReadonlyObservable<any>
+  ? true
+  : never
+
 /**
  * Make sure we have a usable observable.
  * @returns The original observable if `arg` already was one, or a new
@@ -18,13 +25,9 @@ function _is_promise_like(a: any): a is PromiseLike<any> {
  */
 export function o<T>(
   arg: T
-): [T] extends [o.Observable<infer U>]
-  ? o.Observable<U>
-  : [T] extends [o.IReadonlyObservable<infer U>]
-  ? o.ReadonlyObservable<U>
-  : o.Observable<T> {
-  // when there is a mix of different observables, then we have a readonlyobservable of the combination of the types
-
+): true extends HasStrictReadonly<T>
+  ? o.ReadonlyObservable<o.ObservedType<T>>
+  : o.Observable<o.ObservedType<T>> {
   return o.is_observable(arg) ? (arg as any) : (new o.Observable(arg) as any)
 }
 
@@ -53,7 +56,7 @@ export namespace o {
    * @group Observable
    */
   export type O<A, A2 extends A = A> = IObservable<A2, A> | A
-  export type RO<A, R = A> = IObservable<A, R> | IReadonlyObservable<A> | A
+  export type RO<A> = IReadonlyObservable<A> | A
   export type UnRO<A> = A extends IObservable<any, infer C>
     ? C
     : A extends IReadonlyObservable<infer B>
