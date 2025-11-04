@@ -139,7 +139,7 @@ export class App {
   o_active_service = this.o_state.tf((st) => st?.active)
 
   /** The current path mimicking the URL Hash fragment */
-  o_current_route = o(null as null | App.Route<any>)
+  o_current_route = this.router.o_active_route
 
   o_params = o({} as App.Params)
   o_views = this.o_state.tf((st) => st?.views ?? (new Map() as App.Views))
@@ -358,6 +358,7 @@ export namespace App {
       try {
         await this.router.app._activate(this.builder(), full_params)
         this.router.app.o_current_route.set(this)
+        this.router.o_active_route.set(this)
       } catch (e) {
         if (this.error) {
           await this.error.activate({ __error__: e })
@@ -416,7 +417,7 @@ export namespace App {
   export class Router {
     constructor(public app: App) {}
 
-    o_active_route = o(null as null | App.Route)
+    o_active_route = o(null as null | App.Route<any>)
 
     // the last route to have called activate()
     __last_activated_route: App.Route<any> | null = null
@@ -501,9 +502,7 @@ export namespace App {
         route.options.defaults,
         vars
       )
-      route.activateWithParams(vars_final).then(() => {
-        this.o_active_route.set(route!)
-      })
+      route.activateWithParams(vars_final)
     }
 
     /**
