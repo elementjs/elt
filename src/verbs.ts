@@ -367,7 +367,7 @@ export namespace Repeat {
     protected lst: ItemType<Obs>[] = []
     protected node!: HTMLElement
     observer: o.Observer<ItemType<Obs>[] | null | undefined> | null = null
-    protected keyfn: ((item: ItemType<Obs>) => any) | null = null
+    protected keyfn: ((item: ItemType<Obs>, index: number) => any) | null = null
     update_lock = o.exclusive_lock()
     protected node_map = new Map<any, RepeatItemElement<Obs>>()
 
@@ -478,7 +478,7 @@ export namespace Repeat {
       let key_map = new Map<any, number>()
       for (let i = 0; i < new_lst.length; i++) {
         const item = new_lst[i]
-        const key = keyfn?.(item) ?? item
+        const key = keyfn?.(item, i) ?? item ?? `--repeat-key-${i}`
         keys[i] = key
         key_map.set(key, i)
       }
@@ -548,7 +548,7 @@ export namespace Repeat {
       }
 
       do {
-        if (iter == null || iter === end) {
+        if (iter == null || iter === end || idx >= keys.length) {
           break
         }
 
