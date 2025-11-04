@@ -28,6 +28,13 @@ export type AttrsFor<T extends string> = T extends keyof ElementMap
   ? ElementMap[T]
   : Attrs<HTMLElement>
 
+// Just to avoid Comment allocations
+let refchild_counter = 0
+let refchildren = new Array<Comment>(
+  32
+) /** pre-allocate a size 32, but there is little chance that it will ever reach that size. */
+refchildren.length = 0
+
 /**
  * Create Nodes with a twist.
  *
@@ -127,12 +134,19 @@ export function e<N extends Node>(
     // elt is just a creator function
     node =
       elt.length > 1
-        ? elt(children[0] ?? {}, (refchild = document.createComment("ref")))
+        ? elt(
+            children[0] ?? {},
+            (refchild = refchildren[refchild_counter++] ??=
+              document.createComment("ref" + refchild_counter))
+          )
         : elt(children[0] ?? {})
 
     // if refchild was given but not inserted, set it back to null
-    if (refchild?.parentNode == null) {
-      refchild = null
+    if (refchild != null) {
+      if (refchild.parentNode == null) {
+        refchild_counter--
+        refchild = null
+      }
     }
     is_basic_node = false
   } else {
@@ -144,6 +158,7 @@ export function e<N extends Node>(
   }
 
   if (refchild != null) {
+    refchild_counter--
     refchild.remove()
   }
 
