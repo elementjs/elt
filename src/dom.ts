@@ -326,6 +326,19 @@ function is_inserter(ins: any): ins is Inserter<Node> {
   return typeof ins?.[sym_insert] === "function"
 }
 
+function insert_before(
+  node: Node,
+  new_child: Node,
+  refchild: Node | null,
+  is_basic_node = false
+) {
+  if (is_basic_node === false && refchild != null) {
+    ;(refchild as Comment).before(new_child)
+  } else {
+    node.insertBefore(new_child, refchild)
+  }
+}
+
 /**
  * Process an insertable and insert it where desired.
  *
@@ -344,7 +357,12 @@ export function node_append<N extends Node>(
 
   if (typeof renderable === "string") {
     // A simple string
-    node.insertBefore(document.createTextNode(renderable), refchild)
+    insert_before(
+      node,
+      document.createTextNode(renderable),
+      refchild,
+      is_basic_node
+    )
   } else if (renderable instanceof Node) {
     // A node being added
     if (renderable.nodeType === Node.DOCUMENT_FRAGMENT_NODE) {
@@ -352,7 +370,7 @@ export function node_append<N extends Node>(
       let start = renderable.firstChild
       if (start == null) return // there are no children to append, nothing more to do
 
-      node.insertBefore(renderable, refchild)
+      insert_before(node, renderable, refchild, is_basic_node)
 
       if (node.isConnected) {
         do {
@@ -361,7 +379,7 @@ export function node_append<N extends Node>(
         } while (start && start !== refchild)
       }
     } else {
-      node.insertBefore(renderable, refchild)
+      insert_before(node, renderable, refchild, is_basic_node)
       if (node.isConnected) {
         node_do_connected(renderable)
       }
@@ -400,7 +418,7 @@ export function node_append<N extends Node>(
   } else if (typeof (renderable as any).then === "function") {
     const _pro = renderable as Promise<Renderable<N>>
     const cmt = document.createComment("promise-loading")
-    node.insertBefore(cmt, refchild)
+    insert_before(node, cmt, refchild, is_basic_node)
     _pro
       .then((res) => {
         if (!cmt.parentNode) return
@@ -413,7 +431,12 @@ export function node_append<N extends Node>(
       })
   } else {
     // Otherwise, make it a string and append it.
-    node.insertBefore(document.createTextNode(renderable.toString()), refchild)
+    insert_before(
+      node,
+      document.createTextNode(renderable.toString()),
+      refchild,
+      is_basic_node
+    )
   }
 }
 

@@ -35,11 +35,11 @@ export type AttrsFor<T extends string> = T extends keyof ElementMap
  * Controllers, decorators, classes and style.
  * @category dom, toc
  */
-export function e<T extends (a: A) => N, A extends Attrs<any>, N extends Node>(
-  elt: T,
-  attrs: A,
-  ...children: (A | Renderable<N>)[]
-): N
+export function e<
+  T extends (a: A, refchild: Comment) => N,
+  A extends Attrs<any>,
+  N extends Node
+>(elt: T, attrs: A, ...children: (A | Renderable<N>)[]): N
 export function e<T extends Node>(
   elt: T,
   ...children: (Attrs<T> | Renderable<T>)[]
@@ -56,6 +56,7 @@ export function e<N extends Node>(
   let node: N // just to prevent the warnings later
 
   let is_basic_node = true
+  let refchild: Comment | null = null
 
   // create a simple DOM node
   if (typeof elt === "string") {
@@ -124,16 +125,26 @@ export function e<N extends Node>(
     }
   } else if (typeof elt === "function") {
     // elt is just a creator function
-    node = elt(children[0] ?? {})
+    node =
+      elt.length > 1
+        ? elt(children[0] ?? {}, (refchild = document.createComment("ref")))
+        : elt(children[0] ?? {})
+
+    // if refchild was given but not inserted, set it back to null
+    if (refchild?.parentNode == null) {
+      refchild = null
+    }
     is_basic_node = false
   } else {
     node = elt as N
   }
 
-  const l = children.length
-  if (l > 0) node_append(node, children[0], null, is_basic_node)
-  for (let i = 1; i < l; i++) {
-    node_append(node, children[i])
+  for (let i = 0, l = children.length; i < l; i++) {
+    node_append(node, children[i], refchild, is_basic_node)
+  }
+
+  if (refchild != null) {
+    refchild.remove()
   }
 
   return node
@@ -176,7 +187,7 @@ export namespace e {
      * @internal
      */
     export interface ElementClassFn<N extends Node> {
-      (attrs: EmptyAttributes<N>): N
+      (attrs: EmptyAttributes<N>, refchild: Comment): N
     }
 
     /** @internal */
