@@ -32,22 +32,9 @@ export class CSSBuilder {
       css = _css.join("")
     }
 
-    let start = 0
-    loop: do {
-      switch (css[start]) {
-        case "\n":
-        case "\r":
-        case "\t":
-        case " ":
-          start++
-          continue
-        default:
-          break loop
-      }
-    } while (true)
-
-    let end = start + 1
-    if (css[start] === ".") {
+    css = css.trim()
+    let end = 1
+    if (css[0] === ".") {
       loop: do {
         const c = css[end]
         if (
@@ -65,8 +52,8 @@ export class CSSBuilder {
       } while (true)
     }
 
-    if (end > start + 1) {
-      class_name = css.slice(start + 1, end) + `-${id}`
+    if (end > 1) {
+      class_name = css.slice(1, end) + `-${id}`
       css = `.${class_name}` + css.slice(end)
     }
 
