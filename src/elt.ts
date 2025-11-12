@@ -15,6 +15,48 @@ export function setup_base_styles(doc = document) {
 }
 requestAnimationFrame(() => setup_base_styles())
 
+/** A RefChild given to ElementClassFn functions to insert their content */
+export class RefChild extends Comment {
+  private with_content: ((refchild: RefChild) => Renderable<Node>) | null = null
+  private content_ref: Comment = document.createComment(`with-content`)
+
+  constructor() {
+    super(`ref${refchild_counter++}`)
+  }
+
+  get isUsed() {
+    return this.parentNode != null || this.content_ref.parentNode != null
+  }
+
+  IfUsed(fn: (refchild: RefChild) => Renderable<Node>) {
+    this.with_content = fn
+    this.content_ref = document.createComment(`${this.textContent}-content`)
+    return this.content_ref
+  }
+
+  before(...nodes: (Node | string)[]) {
+    const ref = this.content_ref
+    if (this.with_content != null && ref.parentNode != null) {
+      node_append(ref.parentNode, this.with_content(this), ref)
+      ref.remove()
+      this.with_content = null
+    }
+    super.before(...nodes)
+  }
+
+  remove() {
+    this.with_content = null
+    super.remove()
+  }
+}
+
+// Just to avoid Comment allocations
+let refchild_counter = 0
+let refchildren = new Array<RefChild>(
+  32
+) /** pre-allocate a size 32, but there is little chance that it will ever reach that size. */
+refchildren.length = 0
+
 export type NodeTypeFromCreator<T extends string> =
   // If it is a string of a known HTML element, return it
   T extends keyof HTMLElementTagNameMap
@@ -28,13 +70,6 @@ export type AttrsFor<T extends string> = T extends keyof ElementMap
   ? ElementMap[T]
   : Attrs<HTMLElement>
 
-// Just to avoid Comment allocations
-let refchild_counter = 0
-let refchildren = new Array<Comment>(
-  32
-) /** pre-allocate a size 32, but there is little chance that it will ever reach that size. */
-refchildren.length = 0
-
 /**
  * Create Nodes with a twist.
  *
@@ -43,7 +78,7 @@ refchildren.length = 0
  * @category dom, toc
  */
 export function e<
-  T extends (a: A, refchild: Comment) => N,
+  T extends (a: A, refchild: RefChild) => N,
   A extends Attrs<any>,
   N extends Node
 >(elt: T, attrs: A, ...children: (A | Renderable<N>)[]): N
@@ -63,7 +98,7 @@ export function e<N extends Node>(
   let node: N // just to prevent the warnings later
 
   let is_basic_node = true
-  let refchild: Comment | null = null
+  let refchild: RefChild | null = null
 
   // create a simple DOM node
   if (typeof elt === "string") {
@@ -136,14 +171,13 @@ export function e<N extends Node>(
       elt.length > 1
         ? elt(
             children[0] ?? {},
-            (refchild = refchildren[refchild_counter++] ??=
-              document.createComment("ref" + refchild_counter))
+            (refchild = refchildren[refchild_counter++] ??= new RefChild())
           )
         : elt(children[0] ?? {})
 
     // if refchild was given but not inserted, set it back to null
     if (refchild != null) {
-      if (refchild.parentNode == null) {
+      if (!refchild.isUsed) {
         refchild_counter--
         refchild = null
       }
@@ -202,7 +236,7 @@ export namespace e {
      * @internal
      */
     export interface ElementClassFn<N extends Node> {
-      (attrs: EmptyAttributes<N>, refchild: Comment): N
+      (attrs: EmptyAttributes<N>, refchild: RefChild): N
     }
 
     /** @internal */
