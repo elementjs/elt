@@ -241,7 +241,7 @@ describe("PropObservable", function () {
       called_a.twice
 
       testd.set(9)
-      called_d.once.with(9, 9, 1)
+      called_d.once.with(9)
 
       arr0.set(44)
       called_0.once.with(44)
