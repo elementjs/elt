@@ -1055,7 +1055,7 @@ export namespace o {
       if (o.is_observable(obs)) {
         const link = new ChildObservableLink(obs, this, lp)
         this._links.push(link)
-        this._parents_values.push(refresh ? o.get(obs) : obs._value)
+        this._parents_values.push(refresh ? o.get(obs) : o.NoValue)
         if (this.is_watched) {
           link.parent.addChild(link)
         }
@@ -1335,7 +1335,7 @@ export namespace o {
    */
   export function not(...args: any[]): ReadonlyObservable<boolean> {
     return combine(args, (args) => {
-      return args.every((a) => !a)
+      return args.every((a) => !!a === false)
     })
   }
 
