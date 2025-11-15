@@ -69,7 +69,11 @@ export namespace o {
    * Get the type of the element of an observable. Works on `#o.RO` as well.
    * @group Observable
    */
-  export type ObservedType<T> = T extends IReadonlyObservable<infer U> ? U : T
+  export type ObservedType<T> = T extends ReadonlyObservable<infer U>
+    ? U
+    : T extends IReadonlyObservable<infer U>
+    ? U
+    : T
 
   /**
    * Signature of the transform functions that transform an observable of a given type
@@ -1289,7 +1293,7 @@ export namespace o {
   export function is_observable<T>(arg: RO<T>): arg is Observable<T>
   export function is_observable(arg: any): arg is Observable<any>
   export function is_observable(arg: any): arg is Observable<any> {
-    return (arg as any)?.[sym_is_observable]
+    return !!(arg as any)?.[sym_is_observable]
   }
 
   /**

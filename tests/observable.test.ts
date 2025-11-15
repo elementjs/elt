@@ -4,8 +4,6 @@ import { test, expect, describe, beforeEach } from "bun:test"
 
 import {
   o,
-  tf_equals,
-  tf_differs,
   tf_array_filter,
   tf_array_sort,
   tf_array_sort_by,
@@ -641,12 +639,13 @@ describe("Boolean Combinators", function () {
 
     const spy = spyon(inverted)
     obs.set(false)
+    expect(inverted.get()).toBe(true)
     spy.was.called.once.with(true)
   })
 
   test("o.none() is alias for o.not()", () => {
     const obs = o(true)
-    const none = o.none(test)
+    const none = o.none(obs)
 
     expect(none.get()).toBe(false)
   })
@@ -767,43 +766,6 @@ describe("Utility Functions", function () {
 })
 
 describe("Transformers", function () {
-  describe("tf_equals()", function () {
-    test("checks equality to value", () => {
-      const obs = o(5)
-      const equals = obs.tf(tf_equals(5))
-
-      expect(equals.get()).toBe(true)
-
-      obs.set(10)
-      expect(equals.get()).toBe(false)
-    })
-
-    test("setting true/false updates observable", () => {
-      const obs = o(5)
-      const targetValue = 10
-      const equals = obs.tf(tf_equals(targetValue))
-
-      expect(equals.get()).toBe(false)
-
-      if (equals instanceof o.Observable) {
-        equals.set(true)
-        expect(obs.get()).toBe(10)
-      }
-    })
-  })
-
-  describe("tf_differs()", function () {
-    test("checks inequality to value", () => {
-      const obs = o(5)
-      const differs = obs.tf(tf_differs(5))
-
-      expect(differs.get()).toBe(false)
-
-      obs.set(10)
-      expect(differs.get()).toBe(true)
-    })
-  })
-
   describe("tf_array_filter()", function () {
     test("filters array by predicate", () => {
       const arr = o([1, 2, 3, 4, 5])

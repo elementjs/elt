@@ -1,53 +1,5 @@
 import { o } from "./observable"
 
-/**
- * Transforms to a boolean observable that switches to `true` when
- * the original `observable` has the same value than `other`.
- *
- * `other` may be itself an observable.
- *
- * ```tsx
- * [[include:../../examples/tf.equals.tsx]]
- * ```
- * @group Transformer
- */
-export function tf_equals<T, TT extends T = T, TT2 extends T = T>(
-  other: o.RO<TT>
-): o.RO<o.ReadonlyConverter<T, boolean>>
-export function tf_equals<T, TT extends T = T, TT2 extends T = T>(
-  other: o.RO<TT>,
-  prev: o.RO<TT2>
-): o.RO<o.Converter<T, boolean>>
-export function tf_equals<T, TT extends T = T, TT2 extends T = T>(
-  other: o.RO<TT>,
-  prev?: o.RO<TT2>
-): o.RO<o.Converter<T, boolean>> {
-  if (arguments.length === 1) {
-    return o.tf(other, (oth) => ({
-      transform(cur: T) {
-        return cur === oth
-      },
-    })) as unknown as o.RO<o.Converter<T, boolean>>
-  }
-
-  return o.join(other as TT, prev as o.Observable<TT2>).tf(([oth, pr]) => ({
-    transform(current: T) {
-      return current === oth
-    },
-    revert(boo: boolean) {
-      return boo ? (oth as T) : (pr as T)
-    },
-  }))
-}
-
-/**
- * Does the opposite of {@link tf.equals}
- * @group Transformer
- */
-export function tf_differs<T, TT extends T>(other: o.RO<TT>) {
-  return o.tf(other, (oth) => (current: T) => current !== oth)
-}
-
 export interface IndexConverter<T> extends o.Converter<T[], T[]> {
   indices: number[]
 }
@@ -314,7 +266,7 @@ export function tf_array_has<T>(
     transform(arr) {
       for (let i = 0; i < values.length; i++) {
         const item = values[i]
-        if (!arr.includes(item)) {
+        if (!arr.includes(item as T)) {
           return false
         }
       }
@@ -325,8 +277,8 @@ export function tf_array_has<T>(
         let add: T[] = []
         for (let i = 0; i < values.length; i++) {
           const item = values[i]
-          if (!cur.includes(item) && !add.includes(item)) {
-            add.push(item)
+          if (!cur.includes(item as T) && !add.includes(item as T)) {
+            add.push(item as T)
           }
         }
 
@@ -349,7 +301,7 @@ export function tf_set_has<T>(
       transform(set) {
         for (let i = 0; i < values.length; i++) {
           const item = values[i]
-          if (!set.has(item)) return false
+          if (!set.has(item as T)) return false
         }
         return true
       },
@@ -357,8 +309,8 @@ export function tf_set_has<T>(
         const res = new Set(set)
         for (let i = 0; i < values.length; i++) {
           const item = values[i]
-          if (newv) res.add(item)
-          else res.delete(item)
+          if (newv) res.add(item as T)
+          else res.delete(item as T)
         }
         return res
       },
