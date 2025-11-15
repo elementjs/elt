@@ -1219,13 +1219,13 @@ export namespace o {
     return combine(
       [obj as T, prop, def] as const,
       ([obj, prop, def]) => {
-        let res = obj[prop]
-        if (res === undefined && def) res = def(prop, obj)
+        let res = (obj as T)[prop as K]
+        if (res === undefined && def) res = def(prop as K, obj as T)
         return res
       },
       (nval, _, [orig, prop]) => {
         const newo = o.clone(orig)
-        newo[prop] = nval
+        ;(newo as T)[prop as K] = nval as T[K]
         return [newo, NoValue, NoValue] as const
       }
     )

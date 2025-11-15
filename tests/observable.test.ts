@@ -4,7 +4,6 @@ import { test, expect, describe, beforeEach } from "bun:test"
 
 import {
   o,
-  tf_nonnull,
   tf_equals,
   tf_differs,
   tf_array_filter,
@@ -95,29 +94,14 @@ class Calls {
 
 function spyon<T>(obs: o.ReadonlyObservable<T>) {
   let spy = new Calls()
+
   obs.addObserver(function (value, changes) {
-    spy.call(value) // , changes.new_value, changes.old_value)
+    if (changes !== o.NoValue) {
+      spy.call(value) // , changes.new_value, changes.old_value)
+    }
   })
   return spy
 }
-
-// var o_deep = o({a: 1, b: {c: 1}})
-// var o_simple = o(0)
-// var o_deep_a = o_deep.p('a')
-// var o_deep_c = o_deep.p('b').p('c')
-// var deep_spy = spyon(o_deep)
-// var deep_c_spy = spyon(o_deep_c)
-// var deep_a_spy = spyon(o_deep_a)
-
-beforeEach(() => {
-  // o_deep = o({a: 1, b: {c: 1}})
-  // o_simple = o(0)
-  // o_deep_a = o_deep.p('a')
-  // o_deep_c = o_deep.p('b').p('c')
-  // deep_spy = spyon(o_deep)
-  // deep_c_spy = spyon(o_deep_c)
-  // deep_a_spy = spyon(o_deep_a)
-})
 
 describe("Observable", function () {
   describe("basic operations", function () {
@@ -783,27 +767,6 @@ describe("Utility Functions", function () {
 })
 
 describe("Transformers", function () {
-  describe("tf_nonnull()", function () {
-    test("provides default for null/undefined", () => {
-      const obs = o<number | null>(null)
-      const nonnull = obs.tf(tf_nonnull(42 as const))
-
-      expect(nonnull.get()).toBe(42)
-
-      obs.set(10)
-      expect(nonnull.get()).toBe(10)
-    })
-
-    test("setting nonnull value sets observable", () => {
-      const obs = o<number | null>(null)
-      const defaultVal = 42
-      const nonnull = obs.tf(tf_nonnull(defaultVal))
-
-      nonnull.set(defaultVal)
-      expect(obs.get()).toBe(42)
-    })
-  })
-
   describe("tf_equals()", function () {
     test("checks equality to value", () => {
       const obs = o(5)
