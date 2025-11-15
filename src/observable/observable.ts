@@ -1125,14 +1125,6 @@ export namespace o {
    *
    * @group Observable
    */
-  // export function combine<T extends any[], R>(deps: T, get: (a: UnROArray<T>) => R): ReadonlyObservable<R>
-  // export function combine<T extends any[], R>(deps: T, get: (a: UnROArray<T>) => R, set: (r: R, old: R | NoValue, last: UnROArray<T>) => {[K in keyof UnROArray<T>]: UnROArray<T>[K] | NoValue}): Observable<R>
-  // export function combine<T extends any[], R>(deps: T, get: (a: UnROArray<T>) => R, set?: (r: R, old: R | NoValue, last: UnROArray<T>) => {[K in keyof UnROArray<T>]: UnROArray<T>[K] | NoValue}): Observable<R> {
-  //   const virt = new CombinedObservable<T, R>(deps)
-  //   virt.getter = get
-  //   virt.setter = set! // force undefined to trigger errors for readonly observables.
-  //   return virt as any
-  // }
   export function combine<T extends any[], R>(
     deps: { [K in keyof T]: RO<T[K]> },
     get: (a: T) => R

@@ -59,7 +59,7 @@ class Calls {
   }
 
   callback() {
-    var self = this
+    let self = this
     return () => {
       ;(this.call as any).apply(self, arguments)
     }
@@ -94,7 +94,7 @@ class Calls {
 ////////////////////////////////////////////////////////////////////
 
 function spyon<T>(obs: o.ReadonlyObservable<T>) {
-  var spy = new Calls()
+  let spy = new Calls()
   obs.addObserver(function (value, changes) {
     spy.call(value) // , changes.new_value, changes.old_value)
   })
@@ -121,22 +121,22 @@ beforeEach(() => {
 
 describe("Observable", function () {
   describe("basic operations", function () {
-    var test = o(0)
+    let obs = o(0)
 
-    var spytest = spyon(test)
-    var spytest2 = spyon(test)
+    let spytest = spyon(obs)
+    let spytest2 = spyon(obs)
 
     beforeEach(() => {
-      test.set(0)
-      spytest = spyon(test)
-      spytest2 = spyon(test)
+      obs.set(0)
+      spytest = spyon(obs)
+      spytest2 = spyon(obs)
     })
 
     test("addObserver is called immediately", () => {
       spytest2.was.called.once
       spytest2.was.called.with(0)
 
-      test.set(4)
+      obs.set(4)
 
       spytest2.was.called.once
       spytest2.was.called.with(4)
@@ -144,18 +144,18 @@ describe("Observable", function () {
 
     test("updateOnly is not called immediately", () => {
       spytest.was.never.called
-      test.set(3)
+      obs.set(3)
       spytest.was.called.with(3)
       spytest.was.called.once
     })
 
     test("set correctly changes the value", () => {
-      test.set(4)
-      expect(test.get()).toBe(4)
+      obs.set(4)
+      expect(obs.get()).toBe(4)
     })
 
     test("observers are not called again when the value is the same", () => {
-      test.set(0)
+      obs.set(0)
       spytest.was.never.called
       spytest2.was.called.once
     })
@@ -166,10 +166,10 @@ describe("Observable", function () {
       expect(o.or(true, false).get()).toBe(true)
       expect(o.and(true, false).get()).toBe(false)
 
-      var t1 = o(true)
-      var t2 = o(false)
-      var t = o.and(t1, t2)
-      var sp = spyon(t)
+      const t1 = o(true)
+      const t2 = o(false)
+      const t = o.and(t1, t2)
+      const sp = spyon(t)
       expect(t.get()).toBe(false)
       t2.set(true)
       sp.called.once.with(true)
@@ -179,31 +179,31 @@ describe("Observable", function () {
 
   describe("mutate() and assign()", function () {
     test("mutate() updates based on current value", () => {
-      const test = o(5)
-      const spy = spyon(test)
-      test.mutate((v) => v * 2)
-      expect(test.get()).toBe(10)
+      const obs = o(5)
+      const spy = spyon(obs)
+      obs.mutate((v) => v * 2)
+      expect(obs.get()).toBe(10)
       spy.was.called.once.with(10)
     })
 
     test("mutate() works with objects", () => {
-      const test = o({ a: 1, b: 2 })
-      test.mutate((v) => ({ ...v, a: v.a + 1 }))
-      expect(test.get()).toEqual({ a: 2, b: 2 })
+      const obs = o({ a: 1, b: 2 })
+      obs.mutate((v) => ({ ...v, a: v.a + 1 }))
+      expect(obs.get()).toEqual({ a: 2, b: 2 })
     })
 
     test("assign() recursively updates object properties", () => {
-      const test = o({ a: 1, b: { c: 2, d: 3 }, e: 4 })
-      const spy = spyon(test)
-      test.assign({ b: { c: 5 } })
-      expect(test.get()).toEqual({ a: 1, b: { c: 5, d: 3 }, e: 4 })
+      const obs = o({ a: 1, b: { c: 2, d: 3 }, e: 4 })
+      const spy = spyon(obs)
+      obs.assign({ b: { c: 5 } })
+      expect(obs.get()).toEqual({ a: 1, b: { c: 5, d: 3 }, e: 4 })
       spy.was.called.once
     })
 
     test("assign() updates nested properties", () => {
-      const test = o({ a: { b: { c: 1 } } })
-      test.assign({ a: { b: { c: 2 } } })
-      expect(test.get().a.b.c).toBe(2)
+      const obs = o({ a: { b: { c: 1 } } })
+      obs.assign({ a: { b: { c: 2 } } })
+      expect(obs.get().a.b.c).toBe(2)
     })
   })
 
@@ -212,23 +212,23 @@ describe("Observable", function () {
 
 describe("PropObservable", function () {
   describe("Basics", () => {
-    const test = o({ a: 1, b: 2, c: { d: 1 } })
-    const testa = test.p("a")
-    const testc = test.p("c")
+    const obs = o({ a: 1, b: 2, c: { d: 1 } })
+    const testa = obs.p("a")
+    const testc = obs.p("c")
     const testd = testc.p("d")
     const arr = o<number[]>([1, 2, 3])
     const arr0 = arr.p(0)
     const nest = o({ a: { b: { c: true } } })
     const nestc = nest.p("a").p("b").p("c")
 
-    var called_a = spyon(testa)
-    var called_d = spyon(testd)
-    var called_test = spyon(test)
-    var called_0 = spyon(arr0)
-    var called_nest_c = spyon(nestc)
+    let called_a = spyon(testa)
+    let called_d = spyon(testd)
+    let called_test = spyon(obs)
+    let called_0 = spyon(arr0)
+    let called_nest_c = spyon(nestc)
 
     beforeEach(() => {
-      called_test = spyon(test)
+      called_test = spyon(obs)
       called_a = spyon(testa)
       called_d = spyon(testd)
       called_0 = spyon(arr0)
@@ -245,7 +245,7 @@ describe("PropObservable", function () {
       testa.set(5)
       called_test.was.called.once.with({ a: 5, b: 2, c: { d: 1 } })
 
-      expect(test.get().a).toBe(5)
+      expect(obs.get().a).toBe(5)
     })
 
     test("observers are called on a child when set on a child", () => {
@@ -253,7 +253,7 @@ describe("PropObservable", function () {
 
       called_a.with(6)
 
-      test.assign({ a: 7 })
+      obs.assign({ a: 7 })
 
       called_a.with(7)
       called_a.twice
@@ -266,12 +266,12 @@ describe("PropObservable", function () {
     })
 
     test("observers are not called on a different child", () => {
-      test.assign({ b: 43 })
+      obs.assign({ b: 43 })
       called_a.was.not.called
     })
 
     test("observers are called on a child when parent is set", () => {
-      test.set({ a: 49, b: 23, c: { d: 4 } })
+      obs.set({ a: 49, b: 23, c: { d: 4 } })
 
       called_a.with(49)
       called_d.with(4)
@@ -290,7 +290,7 @@ describe("PropObservable", function () {
       called_d.never
       testd.set(1)
       called_d.once.with(1)
-      test.assign({ c: { d: 2 } })
+      obs.assign({ c: { d: 2 } })
       called_d.once.with(2)
     })
 
@@ -305,9 +305,9 @@ describe("PropObservable", function () {
 })
 
 describe("TransformObservable", function () {
-  var tests = o(5)
-  var ttf = tests.tf((a) => a + 10)
-  var ttf2 = tests.tf({
+  let tests = o(5)
+  let ttf = tests.tf((a) => a + 10)
+  let ttf2 = tests.tf({
     transform: (v) => v + 20,
     revert: (v) => v * 2,
   })
@@ -323,7 +323,7 @@ describe("TransformObservable", function () {
   })
 
   test("observers are fired", () => {
-    var tt = spyon(ttf2)
+    let tt = spyon(ttf2)
     tests.set(8)
     tt.was.called.once
   })
@@ -484,13 +484,13 @@ describe("Transactions", function () {
   })
 
   test("observers are notified after transaction completes", () => {
-    const test = o(1)
-    const spy = spyon(test)
+    const obs = o(1)
+    const spy = spyon(obs)
 
     o.transaction(() => {
-      test.set(2)
-      test.set(3)
-      test.set(4)
+      obs.set(2)
+      obs.set(3)
+      obs.set(4)
     })
 
     // Only notified of final value
@@ -540,7 +540,7 @@ describe("ProxyObservable", function () {
 
 describe("Observer Lifecycle", function () {
   test("Observer can be stopped and started", () => {
-    const test = o(5)
+    const obs = o(5)
     let callCount = 0
     const observer = new o.Observer(() => {
       callCount++
@@ -549,16 +549,16 @@ describe("Observer Lifecycle", function () {
     observer.startObserving()
     expect(callCount).toBe(1) // Initial call
 
-    test.set(10)
+    obs.set(10)
     expect(callCount).toBe(2)
 
     observer.stopObserving()
-    test.set(15)
+    obs.set(15)
     expect(callCount).toBe(2) // Not called after stop
   })
 
   test("SilentObserver ignores first change", () => {
-    const test = o(5)
+    const obs = o(5)
     let callCount = 0
     let lastValue: number | undefined
 
@@ -570,13 +570,13 @@ describe("Observer Lifecycle", function () {
     observer.startObserving()
     expect(callCount).toBe(0) // Not called initially
 
-    test.set(10)
+    obs.set(10)
     expect(callCount).toBe(1)
     expect(lastValue).toBe(10)
   })
 
   test("Observer.debounce() delays notifications", async () => {
-    const test = o(0)
+    const obs = o(0)
     let callCount = 0
     let lastValue = 0
 
@@ -588,9 +588,9 @@ describe("Observer Lifecycle", function () {
     observer.startObserving()
     observer.debounce(50)
 
-    test.set(1)
-    test.set(2)
-    test.set(3)
+    obs.set(1)
+    obs.set(2)
+    obs.set(3)
 
     // Should not be called immediately
     expect(callCount).toBe(1) // Only initial call
@@ -603,7 +603,7 @@ describe("Observer Lifecycle", function () {
   })
 
   test("Observer.throttle() limits notification rate", async () => {
-    const test = o(0)
+    const obs = o(0)
     let callCount = 0
 
     const observer = new o.Observer(() => {
@@ -613,9 +613,9 @@ describe("Observer Lifecycle", function () {
     observer.startObserving()
     observer.throttle(50)
 
-    test.set(1)
-    test.set(2)
-    test.set(3)
+    obs.set(1)
+    obs.set(2)
+    obs.set(3)
 
     // Initial call + first throttled call
     expect(callCount).toBeGreaterThanOrEqual(1)
@@ -628,7 +628,7 @@ describe("Observer Lifecycle", function () {
 
   test("ObserverHolder manages multiple observers", () => {
     const holder = new o.ObserverHolder()
-    const test = o(5)
+    const obs = o(5)
     let callCount = 0
 
     holder.observe(test, () => {
@@ -636,11 +636,11 @@ describe("Observer Lifecycle", function () {
     })
     expect(callCount).toBe(1)
 
-    test.set(10)
+    obs.set(10)
     expect(callCount).toBe(2)
 
     holder.stopObservers()
-    test.set(15)
+    obs.set(15)
     expect(callCount).toBe(2) // Not called after stop
 
     holder.startObservers()
@@ -650,18 +650,18 @@ describe("Observer Lifecycle", function () {
 
 describe("Boolean Combinators", function () {
   test("o.not() inverts boolean observable", () => {
-    const test = o(true)
+    const obs = o(true)
     const inverted = o.not(test)
 
     expect(inverted.get()).toBe(false)
 
     const spy = spyon(inverted)
-    test.set(false)
+    obs.set(false)
     spy.was.called.once.with(true)
   })
 
   test("o.none() is alias for o.not()", () => {
-    const test = o(true)
+    const obs = o(true)
     const none = o.none(test)
 
     expect(none.get()).toBe(false)
@@ -694,22 +694,22 @@ describe("Boolean Combinators", function () {
 
 describe("Additional Methods", function () {
   test(".path() accesses nested properties", () => {
-    const test = o({ a: { b: { c: 42 } } })
-    const pathObs = test.path("a", "b", "c")
+    const obs = o({ a: { b: { c: 42 } } })
+    const pathObs = obs.path("a", "b", "c")
 
     expect(pathObs.get()).toBe(42)
 
     const spy = spyon(pathObs)
-    test.set({ a: { b: { c: 100 } } })
+    obs.set({ a: { b: { c: 100 } } })
     spy.was.called.once.with(100)
   })
 
   test(".path() is bidirectional", () => {
-    const test = o({ a: { b: { c: 42 } } })
-    const pathObs = test.path("a", "b", "c")
+    const obs = o({ a: { b: { c: 42 } } })
+    const pathObs = obs.path("a", "b", "c")
 
     pathObs.set(100)
-    expect(test.get().a.b.c).toBe(100)
+    expect(obs.get().a.b.c).toBe(100)
   })
 
   test(".key() accesses Map keys", () => {
@@ -733,24 +733,24 @@ describe("Additional Methods", function () {
   })
 
   test(".apply() calls methods on the value", () => {
-    const test = o("hello")
-    const upper = test.apply("toUpperCase", [])
+    const obs = o("hello")
+    const upper = obs.apply("toUpperCase", [])
 
     expect(upper.get()).toBe("HELLO")
 
     const spy = spyon(upper)
-    test.set("world")
+    obs.set("world")
     spy.was.called.once.with("WORLD")
   })
 
   test(".call() calls methods with arguments", () => {
-    const test = o("hello world")
-    const sliced = test.call("slice", 0, 5)
+    const obs = o("hello world")
+    const sliced = obs.call("slice", 0, 5)
 
     expect(sliced.get()).toBe("hello")
 
     const spy = spyon(sliced)
-    test.set("greetings everyone")
+    obs.set("greetings everyone")
     spy.was.called.once.with("greet")
   })
 })
@@ -785,58 +785,58 @@ describe("Utility Functions", function () {
 describe("Transformers", function () {
   describe("tf_nonnull()", function () {
     test("provides default for null/undefined", () => {
-      const test = o<number | null>(null)
-      const nonnull = test.tf(tf_nonnull(42 as const))
+      const obs = o<number | null>(null)
+      const nonnull = obs.tf(tf_nonnull(42 as const))
 
       expect(nonnull.get()).toBe(42)
 
-      test.set(10)
+      obs.set(10)
       expect(nonnull.get()).toBe(10)
     })
 
     test("setting nonnull value sets observable", () => {
-      const test = o<number | null>(null)
+      const obs = o<number | null>(null)
       const defaultVal = 42
-      const nonnull = test.tf(tf_nonnull(defaultVal))
+      const nonnull = obs.tf(tf_nonnull(defaultVal))
 
       nonnull.set(defaultVal)
-      expect(test.get()).toBe(42)
+      expect(obs.get()).toBe(42)
     })
   })
 
   describe("tf_equals()", function () {
     test("checks equality to value", () => {
-      const test = o(5)
-      const equals = test.tf(tf_equals(5))
+      const obs = o(5)
+      const equals = obs.tf(tf_equals(5))
 
       expect(equals.get()).toBe(true)
 
-      test.set(10)
+      obs.set(10)
       expect(equals.get()).toBe(false)
     })
 
     test("setting true/false updates observable", () => {
-      const test = o(5)
+      const obs = o(5)
       const targetValue = 10
-      const equals = test.tf(tf_equals(targetValue))
+      const equals = obs.tf(tf_equals(targetValue))
 
       expect(equals.get()).toBe(false)
 
       if (equals instanceof o.Observable) {
         equals.set(true)
-        expect(test.get()).toBe(10)
+        expect(obs.get()).toBe(10)
       }
     })
   })
 
   describe("tf_differs()", function () {
     test("checks inequality to value", () => {
-      const test = o(5)
-      const differs = test.tf(tf_differs(5))
+      const obs = o(5)
+      const differs = obs.tf(tf_differs(5))
 
       expect(differs.get()).toBe(false)
 
-      test.set(10)
+      obs.set(10)
       expect(differs.get()).toBe(true)
     })
   })
@@ -983,11 +983,11 @@ describe("Transformers", function () {
 
 /*
 describe('MergeObservable', function () {
-  var test1 = o(5)
-  var test2 = o('zobi')
-  var test3 = o({a: 1})
-  var testm = o.merge({test1, test2, test3, non_obs: 42})
-  var test3p = testm.p('test3').p('a')
+  let test1 = o(5)
+  let test2 = o('zobi')
+  let test3 = o({a: 1})
+  let testm = o.merge({test1, test2, test3, non_obs: 42})
+  let test3p = testm.p('test3').p('a')
 
   test('getting newly created properties work', () => {
     expect(testm.get('test1')).toBe(5)
@@ -1006,14 +1006,14 @@ describe('MergeObservable', function () {
   })
 
   test('setting a prop on a non-observable subprop works', () => {
-    var spy = spyon(testm.p('non_obs'))
+    let spy = spyon(testm.p('non_obs'))
     testm.set('non_obs', 44)
     expect(testm.get('non_obs')).toBe(44)
     spy.was.called.once.with(44)
   })
 
   test('setting individual properties is repercuted into the original observable', () => {
-    var spy = spyon(testm)
+    let spy = spyon(testm)
     testm.set('test1', 8)
     testm.set('test2', 'hoha')
     testm.set('non_obs', 23)
@@ -1025,7 +1025,7 @@ describe('MergeObservable', function () {
   })
 
   test('pause and resume work like usual', () => {
-    var spy = spyon(testm)
+    let spy = spyon(testm)
     testm.pauseObserving()
     testm.set('test1', 8)
     testm.set('test2', 'hoha')
@@ -1041,31 +1041,31 @@ describe('MergeObservable', function () {
 })
 
 describe('IndexableObservable', function () {
-  var c = o(4)
-  var test = o.indexable({a: 1, b: 2, c: c})
+  let c = o(4)
+  let indexable = o.indexable({a: 1, b: 2, c: c})
 
   test('getting maybe observables or observable values should work', () => {
-    expect(test.get('a')).toBe(1)
-    expect(test.get('c')).toBe(4)
+    expect(indexable.get('a')).toBe(1)
+    expect(indexable.get('c')).toBe(4)
 
     c.set(8)
-    expect(test.get('c')).toBe(8)
+    expect(indexable.get('c')).toBe(8)
   })
 
   test('can set internal values without problems', () => {
-    test.set('c', 9)
-    expect(test.get('c')).toBe(9)
+    indexable.set('c', 9)
+    expect(indexable.get('c')).toBe(9)
   })
 
   test('can be added dependencies', () => {
-    var d = o(11)
-    test.addDependency('d', d)
-    expect(test.get('d')).toBe(11)
+    let d = o(11)
+    indexable.addDependency('d', d)
+    expect(indexable.get('d')).toBe(11)
   })
 
   test('can have dependencies removed', () => {
-    test.removeDependency('d')
-    expect(test.get('d')).toBe(undefined)
+    indexable.removeDependency('d')
+    expect(indexable.get('d')).toBe(undefined)
   })
 
 })
