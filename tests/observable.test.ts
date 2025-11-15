@@ -357,7 +357,7 @@ describe("CombinedObservable", function () {
         const [aVal, bVal] = deps.map((d) => o.get(d))
         return aVal + bVal
       },
-      (sum, deps) => {
+      (sum, _, deps) => {
         return [o.NoValue, sum - deps[0]]
       }
     )

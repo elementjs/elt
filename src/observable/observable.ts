@@ -1126,13 +1126,17 @@ export namespace o {
    * @group Observable
    */
   export function combine<T extends any[], R>(
-    deps: { [K in keyof T]: RO<T[K]> },
-    get: (a: T) => R
+    deps: T,
+    get: (a: { [name in keyof T]: ObservedType<T[name]> }) => R
   ): ReadonlyObservable<R>
   export function combine<T extends any[], R>(
-    deps: { [K in keyof T]: RO<T[K]> },
-    get: (a: T) => R,
-    set: (r: R, old: R | NoValue, last: T) => { [K in keyof T]: T[K] | NoValue }
+    deps: T,
+    get: (a: { [name in keyof T]: ObservedType<T[name]> }) => R,
+    set: (
+      r: R,
+      old: R | NoValue,
+      last: { [name in keyof T]: ObservedType<T[name]> }
+    ) => { [K in keyof T]: ObservedType<T[K]> | NoValue }
   ): Observable<R>
   export function combine<T extends any[], R>(
     deps: { [K in keyof T]: RO<T[K]> },
