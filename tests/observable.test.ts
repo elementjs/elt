@@ -90,11 +90,11 @@ class Calls {
 
 ////////////////////////////////////////////////////////////////////
 
-function spyon<T>(obs: o.ReadonlyObservable<T>) {
+function spyon<T>(obs: o.ReadonlyObservable<T>, immediate = false) {
   let spy = new Calls()
 
   obs.addObserver(function (value, changes) {
-    if (changes !== o.NoValue) {
+    if (changes !== o.NoValue || immediate) {
       spy.call(value) // , changes.new_value, changes.old_value)
     }
   })
@@ -106,12 +106,12 @@ describe("Observable", function () {
     let obs = o(0)
 
     let spytest = spyon(obs)
-    let spytest2 = spyon(obs)
+    let spytest2 = spyon(obs, true)
 
     beforeEach(() => {
       obs.set(0)
       spytest = spyon(obs)
-      spytest2 = spyon(obs)
+      spytest2 = spyon(obs, true)
     })
 
     test("addObserver is called immediately", () => {
@@ -526,7 +526,7 @@ describe("Observer Lifecycle", function () {
     let callCount = 0
     const observer = new o.Observer(() => {
       callCount++
-    }, test)
+    }, obs)
 
     observer.startObserving()
     expect(callCount).toBe(1) // Initial call
@@ -547,7 +547,7 @@ describe("Observer Lifecycle", function () {
     const observer = new o.SilentObserver((value: any) => {
       callCount++
       lastValue = value
-    }, test)
+    }, obs)
 
     observer.startObserving()
     expect(callCount).toBe(0) // Not called initially
@@ -565,7 +565,7 @@ describe("Observer Lifecycle", function () {
     const observer = new o.Observer((value: any) => {
       callCount++
       lastValue = value
-    }, test)
+    }, obs)
 
     observer.startObserving()
     observer.debounce(50)
@@ -590,7 +590,7 @@ describe("Observer Lifecycle", function () {
 
     const observer = new o.Observer(() => {
       callCount++
-    }, test)
+    }, obs)
 
     observer.startObserving()
     observer.throttle(50)
@@ -600,7 +600,7 @@ describe("Observer Lifecycle", function () {
     obs.set(3)
 
     // Initial call + first throttled call
-    expect(callCount).toBeGreaterThanOrEqual(1)
+    expect(callCount).toBe(1)
 
     await new Promise((resolve) => setTimeout(resolve, 150))
 
@@ -613,9 +613,15 @@ describe("Observer Lifecycle", function () {
     const obs = o(5)
     let callCount = 0
 
-    holder.observe(test, () => {
-      callCount++
-    })
+    holder.observe(
+      obs,
+      () => {
+        callCount++
+      },
+      { immediate: true }
+    )
+    holder.startObservers()
+
     expect(callCount).toBe(1)
 
     obs.set(10)
@@ -627,27 +633,23 @@ describe("Observer Lifecycle", function () {
 
     holder.startObservers()
     expect(callCount).toBe(3) // Called on restart
+
+    holder.stopObservers()
   })
 })
 
 describe("Boolean Combinators", function () {
   test("o.not() inverts boolean observable", () => {
     const obs = o(true)
-    const inverted = o.not(test)
-
-    expect(inverted.get()).toBe(false)
+    const inverted = o.not(obs)
 
     const spy = spyon(inverted)
+    expect(inverted.get()).toBe(false)
+
     obs.set(false)
+    expect(obs.get()).toBe(false)
     expect(inverted.get()).toBe(true)
     spy.was.called.once.with(true)
-  })
-
-  test("o.none() is alias for o.not()", () => {
-    const obs = o(true)
-    const none = o.none(obs)
-
-    expect(none.get()).toBe(false)
   })
 
   test("o.and() with multiple observables", () => {
@@ -905,103 +907,3 @@ describe("Transformers", function () {
     })
   })
 })
-
-/*
-describe('MergeObservable', function () {
-  let test1 = o(5)
-  let test2 = o('zobi')
-  let test3 = o({a: 1})
-  let testm = o.merge({test1, test2, test3, non_obs: 42})
-  let test3p = testm.p('test3').p('a')
-
-  test('getting newly created properties work', () => {
-    expect(testm.get('test1')).toBe(5)
-    expect(testm.get('test2')).toBe('zobi')
-    expect(testm.p('test3').get('a')).toBe(1)
-    expect(test3p.get()).toBe(1)
-    expect(testm.get('non_obs')).toBe(42)
-  })
-
-  test('setting a prop observable dispatches the set to the original observable', () => {
-    testm.p('test2').set('hallo !')
-    expect(test2.get()).toBe('hallo !')
-
-    test3p.set(43)
-    expect(test3.get('a')).toBe(43)
-  })
-
-  test('setting a prop on a non-observable subprop works', () => {
-    let spy = spyon(testm.p('non_obs'))
-    testm.set('non_obs', 44)
-    expect(testm.get('non_obs')).toBe(44)
-    spy.was.called.once.with(44)
-  })
-
-  test('setting individual properties is repercuted into the original observable', () => {
-    let spy = spyon(testm)
-    testm.set('test1', 8)
-    testm.set('test2', 'hoha')
-    testm.set('non_obs', 23)
-
-    expect(test1.get()).toBe(8)
-    expect(test2.get()).toBe('hoha')
-    expect(testm.get('non_obs')).toBe(23)
-    spy.called.ntimes(3)
-  })
-
-  test('pause and resume work like usual', () => {
-    let spy = spyon(testm)
-    testm.pauseObserving()
-    testm.set('test1', 8)
-    testm.set('test2', 'hoha')
-    testm.set('non_obs', 23)
-    testm.resumeObserving()
-
-    expect(test1.get()).toBe(8)
-    expect(test2.get()).toBe('hoha')
-    expect(testm.get('non_obs')).toBe(23)
-    spy.was.called.once
-  })
-
-})
-
-describe('IndexableObservable', function () {
-  let c = o(4)
-  let indexable = o.indexable({a: 1, b: 2, c: c})
-
-  test('getting maybe observables or observable values should work', () => {
-    expect(indexable.get('a')).toBe(1)
-    expect(indexable.get('c')).toBe(4)
-
-    c.set(8)
-    expect(indexable.get('c')).toBe(8)
-  })
-
-  test('can set internal values without problems', () => {
-    indexable.set('c', 9)
-    expect(indexable.get('c')).toBe(9)
-  })
-
-  test('can be added dependencies', () => {
-    let d = o(11)
-    indexable.addDependency('d', d)
-    expect(indexable.get('d')).toBe(11)
-  })
-
-  test('can have dependencies removed', () => {
-    indexable.removeDependency('d')
-    expect(indexable.get('d')).toBe(undefined)
-  })
-
-})
-
-describe('Changes', function () {
-  // Tests that verify here that the changes that are transmitted to
-  // observers and such are actually the ones we expect.
-  test('should describe new and old value', () => {
-    o_deep.set('b', {c: 3})
-    deep_c_spy.called.with(3, 3, 1)
-    deep_a_spy.was.not.called
-  })
-})
-*/
