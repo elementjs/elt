@@ -69,11 +69,7 @@ export namespace o {
    * Get the type of the element of an observable. Works on `#o.RO` as well.
    * @group Observable
    */
-  export type ObservedType<T> = T extends ReadonlyObservable<infer U>
-    ? U
-    : T extends IReadonlyObservable<infer U>
-    ? U
-    : T
+  export type ObservedType<T> = T extends IReadonlyObservable<infer U> ? U : T
 
   /**
    * Signature of the transform functions that transform an observable of a given type
@@ -1135,12 +1131,24 @@ export namespace o {
   ): ReadonlyObservable<R>
   export function combine<T extends any[], R>(
     deps: T,
-    get: (a: { [name in keyof T]: ObservedType<T[name]> }) => R,
+    get: (a: {
+      [name in keyof T]: ObservedType<
+        Extract<T[name], IReadonlyObservable<any>>
+      >
+    }) => R,
     set: (
       r: R,
       old: R | NoValue,
-      last: { [name in keyof T]: ObservedType<T[name]> }
-    ) => { [K in keyof T]: ObservedType<T[K]> | NoValue }
+      last: {
+        [name in keyof T]: ObservedType<
+          Extract<T[name], IReadonlyObservable<any>>
+        >
+      }
+    ) => {
+      [K in keyof T]:
+        | ObservedType<Extract<T[K], IReadonlyObservable<any>>>
+        | NoValue
+    }
   ): Observable<R>
   export function combine<T extends any[], R>(
     deps: { [K in keyof T]: RO<T[K]> },
