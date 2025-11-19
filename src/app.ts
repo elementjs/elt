@@ -363,6 +363,7 @@ export namespace App {
         if (this.error) {
           await this.error.activate({ __error__: e })
         } else {
+          console.error(e)
           throw e
         }
       }
@@ -502,7 +503,8 @@ export namespace App {
         route.options.defaults,
         vars
       )
-      route.activateWithParams(vars_final)
+
+      return route.activateWithParams(vars_final)
     }
 
     /**
