@@ -773,7 +773,7 @@ export namespace RepeatScroll {
         this.real_lst.length
       )
       for (let i = this.last_index; i < to; i++) {
-        const key = this.keyfn?.(this.real_lst[i]) ?? this.real_lst[i]
+        const key = this.keyfn?.(this.real_lst[i], i) ?? this.real_lst[i]
         const r = this.create(this.real_lst, key, i)
         node_append(fragment, r)
         this.last_index++
