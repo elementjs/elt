@@ -772,6 +772,11 @@ export namespace RepeatScroll {
         this.last_index + this.scroll_buffer_size,
         this.real_lst.length
       )
+
+      if (to <= this.last_index) {
+        return false
+      }
+
       for (let i = this.last_index; i < to; i++) {
         const key = this.keyfn?.(this.real_lst[i], i) ?? this.real_lst[i]
         const r = this.create(this.real_lst, key, i)
@@ -780,6 +785,7 @@ export namespace RepeatScroll {
       }
       node_append(this.node, fragment)
       this.lst = this.real_lst.slice(0, this.last_index)
+      return true
     }
 
     connected() {
@@ -801,15 +807,20 @@ export namespace RepeatScroll {
         scrollable_parent = scrollable_parent.parentElement!
       }
 
+      // While we are intersecting, keep appending
+      const tryInserting = () => {
+        if (this.intersecting && this.last_index < this.real_lst.length) {
+          if (this.appendChildren()) {
+            setTimeout(tryInserting, 0)
+          }
+        }
+      }
+
       this.inter = new IntersectionObserver(
         (entries) => {
           for (let e of entries) {
             this.intersecting = e.isIntersecting
-            if (e.isIntersecting && this.last_index < this.real_lst.length) {
-              this.appendChildren()
-              // Shoud create more children !
-              // this.appendChildren()
-            }
+            tryInserting()
           }
         },
         { rootMargin: `${this.threshold}px`, root: scrollable_parent }
