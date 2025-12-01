@@ -258,6 +258,10 @@ export namespace e {
   export const Fragment: (
     at: EmptyAttributes<DocumentFragment>
   ) => DocumentFragment = $
+
+  export const component = <T extends object, N extends Node>(
+    fn: (attrs: T, ch: RefChild) => N
+  ): ((a: Attrs<N> & T, ch: RefChild) => N) => fn
 }
 
 declare let global: any
