@@ -781,8 +781,8 @@ export function node_observe_class(node: Element, c: ClassDefinition) {
       node,
       c,
       (str, chg) => {
-        if (chg !== o.NoValue && !!chg) _remove_class(node, chg as string)
-        if (!!str) _apply_class(node, str)
+        if (chg !== o.NoValue && !!chg) node_remove_class(node, chg as string)
+        if (!!str) node_apply_class(node, str)
       },
       { immediate: true }
     )
@@ -796,8 +796,8 @@ export function node_observe_class(node: Element, c: ClassDefinition) {
         node,
         ob[x],
         (applied, chg) => {
-          if (applied) _apply_class(node, x)
-          else if (chg !== o.NoValue) _remove_class(node, x)
+          if (applied) node_apply_class(node, x)
+          else if (chg !== o.NoValue) node_remove_class(node, x)
         },
         { immediate: true }
       )
@@ -805,13 +805,13 @@ export function node_observe_class(node: Element, c: ClassDefinition) {
   }
 }
 
-function _apply_class(
+export function node_apply_class(
   node: Element,
   c: ClassDefinition | ClassDefinition[] | null | false
 ) {
   if (Array.isArray(c)) {
     for (let i = 0, l = c.length; i < l; i++) {
-      _apply_class(node, c[i])
+      node_apply_class(node, c[i])
     }
     return
   }
@@ -822,10 +822,10 @@ function _apply_class(
   }
 }
 
-function _remove_class(node: Element, c: string) {
+export function node_remove_class(node: Element, c: string) {
   if (Array.isArray(c)) {
     for (let i = 0, l = c.length; i < l; i++) {
-      _remove_class(node, c[i])
+      node_remove_class(node, c[i])
     }
     return
   }
