@@ -765,6 +765,10 @@ export function node_observe_style(
   }
 }
 
+function _is_plain_class_object(c: any): c is { [name: string]: o.RO<any> } {
+  return c.constructor === Object
+}
+
 /**
  * Observe a complex class definition and update the node as needed.
  * @group Dom
@@ -774,7 +778,7 @@ export function node_observe_class(node: Element, c: ClassDefinition) {
   if (
     typeof c === "string" ||
     typeof c === "boolean" ||
-    c.constructor !== Object
+    !_is_plain_class_object(c)
   ) {
     // c is an Observable<string>
     node_observe(
@@ -807,7 +811,7 @@ export function node_observe_class(node: Element, c: ClassDefinition) {
 
 export function node_apply_class(
   node: Element,
-  c: ClassDefinition | ClassDefinition[] | null | false
+  c: string | string[] | null | false
 ) {
   if (Array.isArray(c)) {
     for (let i = 0, l = c.length; i < l; i++) {
@@ -822,7 +826,7 @@ export function node_apply_class(
   }
 }
 
-export function node_remove_class(node: Element, c: string) {
+export function node_remove_class(node: Element, c: string | string[]) {
   if (Array.isArray(c)) {
     for (let i = 0, l = c.length; i < l; i++) {
       node_remove_class(node, c[i])
