@@ -1,21 +1,18 @@
 {
-    "compilerOptions": {
-        "target": "es2022",
-        "module": "esnext",
-        "moduleResolution": "node",
-        "declaration": true,
-        "emitDeclarationOnly": true,
-        "inlineSourceMap": true,
-        "inlineSources": true,
-        "experimentalDecorators": true,
-        "strict": true,
-        "noUnusedLocals": true,
-        "outDir": "./dist",
-        "lib": ["ESNext", "dom"],
-        "types": []
-    },
-    "files": [
-        "./src/index.ts"
-    ]
-
+  "compilerOptions": {
+    "target": "es2022",
+    "module": "esnext",
+    "moduleResolution": "node",
+    "declaration": true,
+    "emitDeclarationOnly": true,
+    "inlineSourceMap": true,
+    "inlineSources": true,
+    "experimentalDecorators": true,
+    "strict": true,
+    "noUnusedLocals": true,
+    "outDir": "./dist",
+    "lib": ["ESNext", "dom"],
+    "types": []
+  },
+  "files": ["./src/index.ts"]
 }

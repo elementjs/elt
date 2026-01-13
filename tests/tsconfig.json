@@ -1,17 +1,17 @@
 {
-    "compilerOptions": {
-        "target": "es6",
-        "module": "esnext",
-        "moduleResolution": "node",
-        "declaration": true,
-        "inlineSourceMap": true,
-        "experimentalDecorators": true,
-        "jsxFactory": "E",
-        "jsxFragmentFactory": "E.Fragment",
-        "strict": true,
-        "noUnusedLocals": true,
-        "outDir": "./testsjs",
-        "lib": ["es6", "dom"],
-        "types": []
-    },
+  "compilerOptions": {
+    "target": "es6",
+    "module": "esnext",
+    "moduleResolution": "node",
+    "declaration": true,
+    "inlineSourceMap": true,
+    "experimentalDecorators": true,
+    "jsxFactory": "E",
+    "jsxFragmentFactory": "E.Fragment",
+    "strict": true,
+    "noUnusedLocals": true,
+    "outDir": "./testsjs",
+    "lib": ["es6", "dom"],
+    "types": ["@types/bun"]
+  }
 }

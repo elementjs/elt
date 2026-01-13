@@ -159,21 +159,7 @@ describe("Observable", function () {
     })
   })
 
-  describe("mutate() and assign()", function () {
-    test("mutate() updates based on current value", () => {
-      const obs = o(5)
-      const spy = spyon(obs)
-      obs.mutate((v) => v * 2)
-      expect(obs.get()).toBe(10)
-      spy.was.called.once.with(10)
-    })
-
-    test("mutate() works with objects", () => {
-      const obs = o({ a: 1, b: 2 })
-      obs.mutate((v) => ({ ...v, a: v.a + 1 }))
-      expect(obs.get()).toEqual({ a: 2, b: 2 })
-    })
-
+  describe("assign()", function () {
     test("assign() recursively updates object properties", () => {
       const obs = o({ a: 1, b: { c: 2, d: 3 }, e: 4 })
       const spy = spyon(obs)
@@ -709,11 +695,9 @@ describe("Additional Methods", function () {
     expect(keyObs.get()).toBe("value1")
 
     const spy = spyon(keyObs)
-    map.mutate((m) => {
-      const newMap = new Map(m)
-      newMap.set("key1", "newValue")
-      return newMap
-    })
+    const new_map = new Map(map.get())
+    new_map.set("key1", "newValue")
+    map.set(new_map)
     spy.was.called.once.with("newValue")
   })
 
@@ -855,11 +839,9 @@ describe("Transformers", function () {
 
       expect(hasB2.get()).toBe(true)
 
-      map.mutate((m) => {
-        const newMap = new Map(m)
-        newMap.set("b", 3)
-        return newMap
-      })
+      const new_map = new Map(map.get())
+      new_map.set("b", 3)
+      map.set(new_map)
       expect(hasB2.get()).toBe(false)
     })
   })

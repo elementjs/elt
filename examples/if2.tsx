@@ -6,7 +6,7 @@ node_append(document.body, <div>
   <h1>An If example</h1>
   <div><button>
    {$click(() => {
-     o_some_obj.mutate(v => !!v ? null : {prop: 'clicked'})
+     o_some_obj.set(!!o.get(o_some_obj) ? null : {prop: 'clicked'})
    })}
    Inverse
  </button></div>

@@ -40,7 +40,6 @@ export namespace o {
 
   export interface IObservable<Get, Set> extends IReadonlyObservable<Get> {
     set(value: Set): void
-    mutate(fn: (current: Get) => Set | NoValue): this
   }
 
   /**
@@ -793,25 +792,6 @@ export namespace o {
         this._value = value
         queue.schedule(this)
       }
-    }
-
-    /**
-     * Convenience function to set the value of this observable depending on its
-     * current value.
-     *
-     * The result of `fn` **must** be absolutely different from the current value. Arrays
-     * should be `slice`d first and objects copied, otherwise the observable will not
-     * trigger its observers since to it the object didn't change. For convenience, you can
-     * use {@link o.clone} or the great [immer.js](https://github.com/immerjs/immer).
-     *
-     * If the return value of `fn` is {@link o.NoValue} then the observable is untouched.
-     */
-    mutate(fn: (current: A) => A | o.NoValue) {
-      const n = fn(this.get())
-      if (n !== NoValue) {
-        this.set(n)
-      }
-      return this
     }
 
     /**
