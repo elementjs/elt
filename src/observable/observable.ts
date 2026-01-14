@@ -786,7 +786,7 @@ export namespace o {
      * Set the value of the observable and notify the observers listening
      * to this object of this new value.
      */
-    set(value: A): void {
+    set<A2 extends A>(value: A2): void {
       const old = this._value
       if (old !== value) {
         this._value = value

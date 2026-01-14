@@ -9,13 +9,6 @@ declare module "./observable" {
        */
       mutate(mutator: (value: A) => void): void
     }
-
-    interface IObservable<Get, Set> extends IReadonlyObservable<Get> {
-      /**
-       * Mutate the value of the observable using a mutative function.
-       */
-      mutate(mutator: (value: Set) => void): void
-    }
   }
 }
 
