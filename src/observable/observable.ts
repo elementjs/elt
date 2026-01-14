@@ -795,59 +795,6 @@ export namespace o {
     }
 
     /**
-     * Setup #o.Observable.produce.
-     *
-     * ```ts
-     * import * as immer from "immer"
-     * import { o } from "elt"
-     * o.Observable.useImmer(immer)
-     * ```
-     *
-     * @param immer The whole immer library, not just the default import
-     */
-    static useImmer(immer: {
-      produce: (value: any, fn: (val: any) => any) => any
-      nothing: any
-    }) {
-      const produce = immer.produce
-      const nothing = immer.nothing
-      this.prototype.produce = function <A>(
-        fn: (current: A) => A | void | o.NoValue
-      ) {
-        const original = this.get()
-        const res: any = produce(original, (val: A) => {
-          return fn(val)
-        })
-        if (res === nothing) {
-          this.set(undefined)
-          return undefined
-        } else if (res !== o.NoValue) {
-          this.set(res)
-          return res
-        } else {
-          return original
-        }
-      }
-    }
-
-    /**
-     * Convenience function that uses immer's `produce` function if immer is one your project's dependency and you used `o.Observable.useImmer(immer)`.
-     *
-     * If the result of `fn` is o.NoValue, the Observable is left untouched, otherwise the result of immer's produce() is passed to `set()`.
-     *
-     * You will have to force the type of immer's `nothing` if you want to return undefined, as there is no type dependency to immer to avoid downloading it and bundling it if not necessary.
-     *
-     * @param fn The callback passed to immer
-     * @returns The object returned by produce() and that was just set(), or the original value if fn() returned o.NoValue.
-     */
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    produce(fn: (current: A) => A | void | o.NoValue): A {
-      throw new Error(
-        "immer must be included in your project for produce to work"
-      )
-    }
-
-    /**
      * Assign new values to the Observable.
      *
      * This method expects an object that contains new values to be assigned *recursively*
