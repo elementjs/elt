@@ -569,48 +569,15 @@ export namespace o {
      * [[include:../../examples/o.observable.p.tsx]]
      * ```
      */
+    p<R>(this: Observable<A>, key: RO<(obj: A) => R>): Observable<R>
+    p<R>(this: IReadonlyObservable<A>, key: RO<(obj: A) => R>): ReadonlyObservable<R>
     p<K extends keyof A>(this: Observable<A>, key: RO<K>): Observable<A[K]>
     p<K extends keyof A>(
       this: IReadonlyObservable<A>,
       key: RO<K>
     ): ReadonlyObservable<A[K]>
-    p<K extends keyof A>(key: RO<K>) {
+    p(key: any): any {
       return prop(this, key)
-    }
-
-    path<K1 extends keyof A>(
-      this: IReadonlyObservable<A>,
-      key: K1
-    ): ReadonlyObservable<A[K1]>
-    path<K1 extends keyof A, K2 extends keyof A[K1]>(
-      this: IReadonlyObservable<A>,
-      key: K1,
-      key2: K2
-    ): ReadonlyObservable<A[K1][K2]>
-    path<
-      K1 extends keyof A,
-      K2 extends keyof A[K1],
-      K3 extends keyof A[K1][K2]
-    >(
-      this: IReadonlyObservable<A>,
-      key: K1,
-      key2: K2,
-      key3: K3
-    ): ReadonlyObservable<A[K1][K2][K3]>
-    path<
-      K1 extends keyof A,
-      K2 extends keyof A[K1],
-      K3 extends keyof A[K1][K2],
-      K4 extends keyof A[K1][K2][K3]
-    >(
-      this: IReadonlyObservable<A>,
-      key: K1,
-      key2: K2,
-      key3: K3,
-      key4: K4
-    ): ReadonlyObservable<A[K1][K2][K3][K4]>
-    path(...pth: any[]): any {
-      return path(this as any, ...pth)
     }
 
     /**
@@ -819,34 +786,6 @@ export namespace o {
 
   export interface Observable<A> {
     [sym_is_observable]?: boolean
-    path<K1 extends keyof A>(this: Observable<A>, key: K1): Observable<A[K1]>
-    path<K1 extends keyof A, K2 extends keyof A[K1]>(
-      this: Observable<A>,
-      key: K1,
-      key2: K2
-    ): Observable<A[K1][K2]>
-    path<
-      K1 extends keyof A,
-      K2 extends keyof A[K1],
-      K3 extends keyof A[K1][K2]
-    >(
-      this: Observable<A>,
-      key: K1,
-      key2: K2,
-      key3: K3
-    ): Observable<A[K1][K2][K3]>
-    path<
-      K1 extends keyof A,
-      K2 extends keyof A[K1],
-      K3 extends keyof A[K1][K2],
-      K4 extends keyof A[K1][K2][K3]
-    >(
-      this: Observable<A>,
-      key: K1,
-      key2: K2,
-      key3: K3,
-      key4: K4
-    ): Observable<A[K1][K2][K3][K4]>
   }
 
   // Mark all observables with a known symbol
@@ -1140,64 +1079,83 @@ export namespace o {
    * of `def` if the value was `undefined`.
    * @group Observable
    */
+  export function prop<T, R>(
+    obj: RO<T>,
+    prop: (obj: T) => R,
+    def?: RO<(obj: T) => R>
+  ): ReadonlyObservable<R>
+  export function prop<T, R>(
+    obj: O<T>,
+    prop: (obj: T) => R,
+    def?: RO<(obj: T) => R>
+  ): Observable<R>
   export function prop<T, K extends keyof T>(
     obj: RO<T>,
     prop: RO<K>,
-    def?: RO<(key: K, obj: T) => T[K]>
+    def?: RO<(obj: T) => T[K]>
   ): ReadonlyObservable<T[K]>
   export function prop<T, K extends keyof T>(
     obj: O<T>,
     prop: RO<K>,
-    def?: RO<(key: K, obj: T) => T[K]>
+    def?: RO<(obj: T) => T[K]>
   ): Observable<T[K]>
-  export function prop<T, K extends keyof T>(
+  export function prop<T>(
     obj: IObservable<T, T> | T,
-    prop: RO<K>,
-    def?: RO<(key: K, obj: T) => T[K]>
+    prop: string | ((obj: T) => any),
+    def?: RO<(obj: T) => any>
   ) {
+    if (typeof prop === "function") {
+      // Assigner: lazily-built function that immutably writes a value at the nested path
+      // implied by the getter (e.g. obj => obj.foo.bar → path ['foo','bar']).
+      // It tolerates ?. chaining, but will create simple objects for non-existent paths.
+      let assigner: (obj: T, newv: any) => T = null!
+      let last_prop: any = null
+      function make_assigner() {
+        
+        const body = last_prop.toString() as string
+        const brk = /\??\.(?<name>[^.\[?]+)|\??\["(?<name>(\\"|[^"])+)\"|\??\['(?<name>(\\'|[^'])+)']\]/g
+        const path = [...body.matchAll(brk).map(match => match.groups!.name)].reverse()
+        assigner = (obj: T, newv: any) => {
+          let a: any = newv
+          for (const key of path) {
+            a = {[key]: a}
+          }
+          if (obj == null) {
+            return a
+          }
+          return assign(obj, a)
+        }
+      }
+
+      return combine(
+        [obj, prop, def] as const,
+        ([obj, prop, def]) => {
+          const res = (prop as (obj: T) => any)(obj as T)
+          if (res === undefined && def) return def(obj as T)
+          return res
+        },
+        (nval, _, [orig, prop]) => {
+          if (prop !== last_prop) {
+            last_prop = prop
+            make_assigner()
+          }
+          const newo = assigner(orig, nval)
+          // ;(newo)[prop] = nval
+          return [newo, NoValue, NoValue] as const
+        }
+      )
+    }
     return combine(
       [obj as T, prop, def] as const,
       ([obj, prop, def]) => {
-        let res = (obj as T)[prop as K]
-        if (res === undefined && def) res = def(prop as K, obj as T)
+        let res: any = (obj as T)[prop]
+        if (res === undefined && def) res = def(obj as T) 
         return res
       },
       (nval, _, [orig, prop]) => {
         const newo = o.clone(orig)
-        ;(newo as T)[prop as K] = nval as T[K]
+        ;(newo)[prop] = nval
         return [newo, NoValue, NoValue] as const
-      }
-    )
-  }
-
-  export type Path<T, K extends string[]> = K extends [keyof T]
-    ? T[K[0]]
-    : K extends [infer P, ...infer K2]
-    ? P extends keyof T
-      ? Path<T[P], Extract<K2, string[]>>
-      : never
-    : never
-
-  export function path<T, K extends string[]>(
-    obj: Observable<T>,
-    ...path: K
-  ): o.Observable<Path<T, K>> {
-    return combine(
-      [obj, ...path] as const,
-      ([obj, ...path]) => {
-        return path.reduce((acc: any, key) => acc?.[key], obj)
-      },
-      (nval: any, _: any, [obj, ...path]) => {
-        const resobj = o.clone(obj)
-        let iter: any = resobj
-        for (let i = 0, l = path.length - 1; i < l; i++) {
-          const key = path[i]
-          iter[key] = iter[key] != null ? o.clone(iter[key]) : {}
-          iter = iter[key]
-        }
-
-        iter[path[path.length - 1]] = nval
-        return [resobj, ...new Array(path.length).fill(NoValue)] as any
       }
     )
   }

@@ -395,6 +395,64 @@ describe("o.merge() and o.join()", function () {
   })
 })
 
+describe("o.p(fn)", function () {
+  test("o.p(function) works as getter with simple expression", () => {
+    const obj = o({ a: 1, b: 2, c: { d: 3 } })
+    const sub = obj.p((x) => x.a)
+    expect(sub.get()).toBe(1)
+    obj.assign({ a: 10 })
+    expect(sub.get()).toBe(10)
+  })
+
+  test("o.p(function) works as getter with nested path", () => {
+    const obj = o({ a: { b: { c: 42 } } })
+    const sub = obj.p((x) => x.a.b.c)
+    expect(sub.get()).toBe(42)
+    obj.assign({ a: { b: { c: 100 } } })
+    expect(sub.get()).toBe(100)
+  })
+
+  test("o.p(function) works as getter with bracket access", () => {
+    const obj = o({ key: "value", other: 0 })
+    const sub = obj.p((x) => x["key"])
+    expect(sub.get()).toBe("value")
+    obj.assign({ key: "updated" })
+    expect(sub.get()).toBe("updated")
+  })
+
+  test("o.p(function) works as setter with simple expression", () => {
+    const obj = o({ a: 1, b: 2 })
+    const sub = obj.p((x) => x.a)
+    sub.set(99)
+    expect(obj.get()).toEqual({ a: 99, b: 2 })
+    expect(sub.get()).toBe(99)
+  })
+
+  test("o.p(function) works as setter with nested path", () => {
+    const obj = o({ a: { b: { c: 1 } } })
+    const sub = obj.p((x) => x.a.b.c)
+    sub.set(88)
+    expect(obj.get()).toEqual({ a: { b: { c: 88 } } })
+    expect(sub.get()).toBe(88)
+  })
+
+  test("o.p(function) works as setter with nested path and ?. chaining", () => {
+    const obj = o({ } as { a?: { b?: { c?: number } } })
+    const sub = obj.p((x) => x.a?.b?.c)
+    sub.set(88)
+    expect(obj.get()).toEqual({ a: { b: { c: 88 } } })
+    expect(sub.get()).toBe(88)
+  })
+
+  test("o.p(function) works as setter with bracket access", () => {
+    const obj = o({ key: "old", other: 1 })
+    const sub = obj.p((x) => x["key"])
+    sub.set("new")
+    expect(obj.get()).toEqual({ key: "new", other: 1 })
+    expect(sub.get()).toBe("new")
+  })
+})
+
 describe("o.expression()", function () {
   test("o.expression() creates combined observable with dynamic dependencies", () => {
     const a = o(5)
@@ -664,24 +722,6 @@ describe("Boolean Combinators", function () {
 })
 
 describe("Additional Methods", function () {
-  test(".path() accesses nested properties", () => {
-    const obs = o({ a: { b: { c: 42 } } })
-    const pathObs = obs.path("a", "b", "c")
-
-    expect(pathObs.get()).toBe(42)
-
-    const spy = spyon(pathObs)
-    obs.set({ a: { b: { c: 100 } } })
-    spy.was.called.once.with(100)
-  })
-
-  test(".path() is bidirectional", () => {
-    const obs = o({ a: { b: { c: 42 } } })
-    const pathObs = obs.path("a", "b", "c")
-
-    pathObs.set(100)
-    expect(obs.get().a.b.c).toBe(100)
-  })
 
   test(".key() accesses Map keys", () => {
     const map = o(
