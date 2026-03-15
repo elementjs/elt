@@ -3,7 +3,7 @@ import type {
   ClassDefinition,
   StyleDefinition,
   Listener,
-  Inserter,
+  Appender,
   Attrs,
   Renderable,
 } from "./types"
@@ -322,7 +322,7 @@ const basic_attrs = new Set([
   "nonce",
 ])
 
-function is_inserter(ins: any): ins is Inserter<Node> {
+function is_appender(ins: any): ins is Appender<Node> {
   return typeof ins?.[sym_insert] === "function"
 }
 
@@ -388,8 +388,8 @@ export function node_append<N extends Node>(
     // A decorator
     const res = renderable(node)
     if (res != null)
-      node_append(node, res as Inserter<N>, refchild, is_basic_node)
-  } else if (is_inserter(renderable)) {
+      node_append(node, res, refchild, is_basic_node)
+  } else if (is_appender(renderable)) {
     renderable[sym_insert](node, refchild)
   } else if (typeof (renderable as any)[Symbol.iterator] === "function") {
     // An array of children
@@ -416,7 +416,7 @@ export function node_append<N extends Node>(
       }
     }
   } else if (typeof (renderable as any).then === "function") {
-    const _pro = renderable as Promise<Renderable<N>>
+    const _pro = renderable as unknown as Promise<Renderable<N>>
     const cmt = document.createComment("promise-loading")
     insert_before(node, cmt, refchild, is_basic_node)
     _pro

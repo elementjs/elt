@@ -12,9 +12,9 @@ import {
 } from "./dom"
 
 import { sym_insert } from "./symbols"
-import { Inserter, Renderable } from "./types"
+import { Appender, Renderable } from "./types"
 
-export class Verb<N extends Node> implements Inserter<N> {
+export class Verb<N extends Node> implements Appender<N> {
   attrs?: { [name: string]: string | number | null | false }
   renderable!: o.RO<Renderable<N>>
 
@@ -947,7 +947,7 @@ export namespace DisplayPromise {
     }
   }
 
-  export interface ReadonlyPromiseDisplayer<T> extends Inserter<Node> {
+  export interface ReadonlyPromiseDisplayer<T> extends Appender<Node> {
     WhileWaiting(fn: () => Renderable<HTMLElement>): this
     WhenResolved(
       fn: (

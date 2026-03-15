@@ -1,9 +1,9 @@
 import type { o } from "./observable"
 
-import type { sym_insertable } from "./symbols"
+import type { sym_insert } from "./symbols"
 
 export interface Appender<N extends Node> {
-  [sym_insertable](parent: N, refchild: Node | null): void
+  [sym_insert](parent: N, refchild: Node | null): void
 }
 
 export type NRO<T> = o.RO<T | null | false | undefined>
@@ -14,7 +14,7 @@ export type NRO<T> = o.RO<T | null | false | undefined>
  * to define what can go between `{ curly braces }` in JSX code.
  * @category dom, toc
  */
-export type Renderable<N extends Node = Element> = Appendable<N> | string | number | Node | null | undefined | false | Decorator<N> | Renderable<N>[]
+export type Renderable<N extends Node = Element> = Appender<N> | string | number | Node | null | undefined | false | Decorator<N> | Renderable<N>[] | o.IReadonlyObservable<Renderable<N>>
 
 /**
  * Definition of the Decorator type, or functions that can be passed directly
@@ -30,26 +30,9 @@ export type Renderable<N extends Node = Element> = Appendable<N> | string | numb
  *
  * @category dom
  */
-export type DecoratorResult<N extends Node> = void | Renderable | Decorator<N> | DecoratorResult<N>[]
+export type DecoratorResult<N extends Node> = void | Renderable<N>
 export type Decorator<N extends Node> = (node: N) => DecoratorResult<N>
 
-/**
- * @category dom, toc
- *
- * The Insertable type describes the types that elt can append to a Node.
- * Anything of the Insertable type can be put `<tag>between braces {'!'}</tag>`.
- *
- * The following types can be used :
- *  - `null` or `undefined` (which output nothing)
- *  - `number`
- *  - `string`
- *  - `Node`
- *  - Arrays of these types, even recursively.
- *
- * `<div>{['hello', ' ', {@link 'world'} ]}</div>` will render `<div>hello world</div>`
- *
-*/
-export type Insertable<N extends Node> = Decorator<N> | Renderable | Insertable<N>[]
 
 /**
  * CSS Style attribute definition for the style={} attribute
@@ -67,7 +50,7 @@ export type ClassDefinition = {[name: string]: o.RO<any>} | o.RO<string>
 /**
  * Used with {@link $on} or {@link Mixin#on}
  */
-export type Listener<EventType extends Event, N extends Node = Node> = (ev: EventType & { currentTarget: N }) => any
+export type Listener<EventType extends Event, N extends EventTarget = EventTarget> = (ev: EventType & { currentTarget: N }) => any
 
 
 /**
@@ -78,7 +61,7 @@ export interface EmptyAttributes<N extends Node> {
    * This attribute is the one used by TSX to validate what can be inserted
    * as a child in a TSX expression.
    */
-  $$children?: o.RO<Insertable<N>> | o.RO<Insertable<N>>[]
+  $$children?: Renderable<N>
 }
 
 /**
@@ -113,10 +96,7 @@ export interface Attrs<N extends Node = HTMLElement> extends EmptyAttributes<N> 
   class?: ClassDefinition | ClassDefinition[] | null | false // special attributes
   /** Style definition, see {@link $style} for use */
   style?: StyleDefinition | null | false
-}
 
-
-export interface Attrs {
   autofocus?: NRO<"" | true>
   draggable?: NRO<"" | true | "true" | "false">
   hidden?: NRO<"" | true | "true" | "untilfound" | "hidden">
@@ -131,7 +111,7 @@ export interface Attrs {
   role?: NRO<string | number>
   accesskey?: NRO<string | number>
   autocapitalize?: NRO<"off" | "on" | "none" | "sentences" | "words" | "characters">
-  contenteditable?: NRO<"" | true | "true" | "false" | "inherit">
+  contenteditable?: NRO<"" | true | "true" | "plaintext-only" | "false" | "inherit">
   dir?: NRO<"ltr" | "rtl" | "auto">
   enterkeyhint?: NRO<"enter" | "done" | "go" | "next" | "previous" | "search" | "send">
   inert?: NRO<"" | true>
@@ -146,7 +126,10 @@ export interface Attrs {
   virtualkeyboardpolicy?: NRO<"auto" | "manual">
   [K: `aria-${string}`]: NRO<string | number>
   [K: `data-${string}`]: NRO<string | number>
+
 }
+
+
 export interface SVGFilterPrimitive {
   x?: NRO<string | number>
   y?: NRO<string | number>
