@@ -34,19 +34,19 @@ export class RefChild extends Comment {
     return this.content_ref
   }
 
-  before(...nodes: (Node | string)[]) {
+  override before(...nodes: (Node | string)[]) {
     const ref = this.content_ref
     if (this.with_content != null && ref.parentNode != null) {
       node_append(ref.parentNode, this.with_content(this), ref)
       ref.remove()
       this.with_content = null
     }
-    super.before(...nodes)
+    return super.before(...nodes)
   }
 
-  remove() {
+  override remove() {
     this.with_content = null
-    super.remove()
+    return super.remove()
   }
 }
 

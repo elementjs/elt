@@ -164,7 +164,7 @@ export class EltCustomElement extends HTMLElement {
 
   init() {}
 
-  removeAttribute(name: string): void {
+  override removeAttribute(name: string): void {
     const attr = this[sym_attrs]?.get(name)
 
     super.removeAttribute(name)
@@ -188,7 +188,7 @@ export class EltCustomElement extends HTMLElement {
     }
   }
 
-  setAttribute(name: string, value: any) {
+  override setAttribute(name: string, value: any) {
     const attr = this[sym_attrs]?.get(name)
 
     if (attr == null) {
@@ -202,7 +202,7 @@ export class EltCustomElement extends HTMLElement {
     ;(this as any)[attr.prop] = value
   }
 
-  [sym_elt_init]() {
+  override [sym_elt_init]() {
     if (this.__inited) return
     this.__inited = true
     this.__buildShadow()

@@ -55,7 +55,7 @@ export class CommentHolder extends Comment {
   }
 
   /** Remove the node and its handled content from the DOM */
-  remove() {
+  override remove() {
     if (this.end != null) {
       const end = this.end
       while (this.nextSibling != null && this.nextSibling !== end) {
@@ -64,6 +64,7 @@ export class CommentHolder extends Comment {
       node_remove(this.end)
       node_remove(this)
     }
+    return super.remove()
   }
 
   /** Move this node and its contents to a new destination */

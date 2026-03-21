@@ -822,7 +822,7 @@ export namespace App {
       init: (srv: App.Service<S>) => Promise<O>
     ) {
       class ServiceObject extends ServiceClass<S> {
-        static [sym_service_init_concrete] = init
+        static override [sym_service_init_concrete] = init
       }
 
       return ServiceObject as unknown as {

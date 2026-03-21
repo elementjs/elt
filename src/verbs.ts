@@ -298,7 +298,7 @@ export namespace Repeat {
     ItemType<Obs>
   > {
     constructor(
-      public key: any,
+      public override key: any,
       public repeat: Repeater<Obs>,
       public o_prop: o.Observable<number>,
       public repeat_key?: any
@@ -306,7 +306,7 @@ export namespace Repeat {
       super([repeat.obs as o.RO<NonNullable<o.ObservedType<Obs>>>, o_prop])
     }
 
-    getter(values: [o.ObservedType<Obs>, number]) {
+    override getter(values: [o.ObservedType<Obs>, number]) {
       return values[0]?.[values[1]]
     }
 
@@ -315,7 +315,7 @@ export namespace Repeat {
       super.set(value)
     }
 
-    setter(
+    override setter(
       value: ItemType<Obs>,
       oval: ItemType<Obs> | o.NoValue,
       current: [NonNullable<o.ObservedType<Obs>>, number]
@@ -736,7 +736,7 @@ export namespace RepeatScroll {
     }
 
     //
-    protected updateChildrenPre(
+    protected override updateChildrenPre(
       new_lst: NonNullable<o.ObservedType<Obs>>
     ): void {
       //
@@ -837,7 +837,7 @@ export namespace RepeatScroll {
       this.parent = null
     }
 
-    [sym_insert](parent: Node, refchild: Node | null) {
+    override [sym_insert](parent: Node, refchild: Node | null) {
       super[sym_insert](parent, refchild)
       const node = this.node
       node_on_connected(node, () => this.connected())

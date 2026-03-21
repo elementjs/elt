@@ -1,4 +1,4 @@
-import { Inserter, Renderable } from "./types"
+import { Appender, Renderable } from "./types"
 
 import { o } from "./observable"
 
@@ -42,7 +42,7 @@ export function VirtualScroll<
 
 /** */
 export class VirtualScroller<O extends o.RO<any[]>>
-  implements Inserter<Element>
+  implements Appender<Element>
 {
   obs: o.Observable<any[]>
 

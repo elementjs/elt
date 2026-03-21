@@ -15,7 +15,7 @@ types:
 	tsc
 
 watch:
-	tsc -w | wtsc make files
+	tsgo -w --noEmit | wtsc
 
 lint:
 	eslint src

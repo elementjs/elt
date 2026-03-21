@@ -285,7 +285,7 @@ export namespace o {
   }
 
   export class SilentObserver<A> extends Observer<A> {
-    evalNewalue(new_value: A) {
+    override evalNewalue(new_value: A) {
       if (this.old_value === o.NoValue) {
         this.old_value = new_value
         return
@@ -829,7 +829,7 @@ export namespace o {
       return nval as any as A // by default, just forward the type
     }
 
-    watched() {
+    override watched() {
       for (let i = 0, l = this._links; i < l.length; i++) {
         const link = l[i]
         link.parent.addChild(link)
@@ -837,7 +837,7 @@ export namespace o {
       this.ensureRefreshed()
     }
 
-    unwatched() {
+    override unwatched() {
       for (let i = 0, l = this._links; i < l.length; i++) {
         const link = l[i]
         link.parent.removeChild(link)
@@ -858,7 +858,7 @@ export namespace o {
       this._links = []
     }
 
-    ensureRefreshed(): void {
+    override ensureRefreshed(): void {
       if (this.refreshParentValues() || this._value === (NoValue as any)) {
         this.refreshValue()
       }
@@ -885,14 +885,14 @@ export namespace o {
       this._value = this.getter(this._parents_values)
     }
 
-    get() {
+    override get() {
       if (!this.is_watched || queue.transaction_count > 0) {
         this.ensureRefreshed()
       }
       return this._value
     }
 
-    set(value: T): void {
+    override set(value: T): void {
       // Do not trigger the set chain if the value did not change.
       if (!this.is_watched || queue.transaction_count > 0 || queue.flushing) {
         this.ensureRefreshed()
@@ -943,11 +943,11 @@ export namespace o {
       super([obs])
     }
 
-    getter(values: [T]) {
+    override getter(values: [T]) {
       return values[0]
     }
 
-    setter(nval: T) {
+    override setter(nval: T) {
       if ((nval as any) === o.NoValue) return o.NoValue as any as [T]
       return [nval] as [T]
     }
@@ -1111,7 +1111,7 @@ export namespace o {
       let assigner: (obj: T, newv: any) => T = null!
       let last_prop: any = null
       function make_assigner() {
-        
+
         const body = last_prop.toString() as string
         const brk = /\??\.(?<name>[^.\[?]+)|\??\["(?<name>(\\"|[^"])+)\"|\??\['(?<name>(\\'|[^'])+)']\]/g
         const path = [...body.matchAll(brk).map(match => match.groups!.name)].reverse()
@@ -1149,7 +1149,7 @@ export namespace o {
       [obj as T, prop, def] as const,
       ([obj, prop, def]) => {
         let res: any = (obj as T)[prop]
-        if (res === undefined && def) res = def(obj as T) 
+        if (res === undefined && def) res = def(obj as T)
         return res
       },
       (nval, _, [orig, prop]) => {
