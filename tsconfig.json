@@ -3,6 +3,11 @@
     "target": "es2022",
     "module": "esnext",
     "moduleResolution": "node",
+
+    "jsx": "react",
+    "jsxFactory": "E",
+    "jsxFragmentFactory": "E.Fragment",
+
     "declaration": true,
     "emitDeclarationOnly": true,
     "inlineSourceMap": true,
