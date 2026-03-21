@@ -1,4 +1,4 @@
-import { Appender, Renderable } from "./types"
+import type { Appender, Renderable } from "./types"
 
 import { o } from "./observable"
 

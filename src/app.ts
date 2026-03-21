@@ -1,4 +1,4 @@
-import { Renderable } from "./types"
+import { type Renderable } from "./types"
 import { o } from "./observable"
 import { Deferred } from "./utils"
 

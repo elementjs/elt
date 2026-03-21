@@ -7,9 +7,9 @@ import {
   node_add_event_listener,
   node_on_connected,
   node_on_disconnected,
-  KEvent,
-  EventsForKeys,
-  $ShadowOptions,
+  type KEvent,
+  type EventsForKeys,
+  type $ShadowOptions,
   node_attach_shadow,
 } from "./dom"
 

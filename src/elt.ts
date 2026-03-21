@@ -1,7 +1,7 @@
 import { node_append } from "./dom"
 import { sym_elt_init } from "./symbols"
 
-import { Attrs, ElementMap, EmptyAttributes, Renderable } from "./types"
+import type { Attrs, ElementMap, EmptyAttributes, Renderable } from "./types"
 
 ////////////////////////////////////////////////////////
 

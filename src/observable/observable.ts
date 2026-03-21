@@ -1,7 +1,7 @@
-import { IndexableArray, Indexable } from "./indexable"
+import { IndexableArray, type Indexable } from "./indexable"
 
 import { sym_insert, sym_is_observable } from "../symbols"
-import { Renderable } from "../types"
+import type { Renderable } from "../types"
 import { CommentHolder, node_append, node_observe } from "../dom"
 ;(window as any).DEBUG ??= false
 declare const DEBUG: boolean

@@ -9,7 +9,7 @@ import {
 } from "./dom"
 
 import { sym_attrs, sym_elt_init } from "./symbols"
-import { Attrs } from "./types"
+import { type Attrs } from "./types"
 
 export type CustomElementAttributes<
   T extends Element,

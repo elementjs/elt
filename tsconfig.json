@@ -9,7 +9,7 @@
     "inlineSources": true,
     "experimentalDecorators": true,
 
-
+    "verbatimModuleSyntax": true,
     "strict": true,
     "noFallthroughCasesInSwitch": true,
     "noImplicitOverride": true,

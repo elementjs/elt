@@ -12,7 +12,7 @@ import {
 } from "./dom"
 
 import { sym_insert } from "./symbols"
-import { Appender, Renderable } from "./types"
+import type { Appender, Renderable } from "./types"
 
 export class Verb<N extends Node> implements Appender<N> {
   attrs?: { [name: string]: string | number | null | false }
