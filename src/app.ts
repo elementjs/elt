@@ -142,7 +142,9 @@ export class App {
   o_current_route = this.router.o_active_route
 
   o_params = o({} as App.Params)
-  o_views = this.o_state.tf((st) => st?.views ?? (new Map() as App.Views))
+  o_views = this.o_state.tf((st) => {
+    return st?.views ?? (new Map() as App.Views)
+  })
   o_activating = o(false)
 
   __reactivate: App.Reactivation | null = null
@@ -370,6 +372,18 @@ export namespace App {
     }
 
     async activateWithParams(params: T): Promise<void> {
+      const full_params = Object.assign({}, this.options.defaults, params)
+      const current_route = this.router.o_active_route.get()
+      if (current_route === this) {
+        const current_service = this.router.app.o_active_service.get()
+
+        // Do not reactivate if the params are not invalidating and just set them on the application.
+        if (!current_service?.areParamsInvalidating(full_params as any)) {
+          this.router.app.o_params.set(full_params)
+          return
+        }
+      }
+
       if (document.startViewTransition) {
         document.startViewTransition(() => {
           return this._activateWithParams(params)
@@ -527,10 +541,9 @@ export namespace App {
         const srv = this.app.o_active_service.get()
         const rt = this.o_active_route.get()
 
-        if (!srv?.areParamsInvalidating(params)) {
+        if (srv == null || srv.areParamsInvalidating(params)) {
           // reactivate !
           rt?.activate(params)
-          // reactivate
         } else {
           const keys = srv?.state?.paramKeys() ?? new Set<string>()
           rt?.updateHash(keys, params)
