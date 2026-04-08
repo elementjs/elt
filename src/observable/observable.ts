@@ -1101,7 +1101,7 @@ export namespace o {
   ): Observable<T[K]>
   export function prop<T>(
     obj: IObservable<T, T> | T,
-    prop: string | ((obj: T) => any),
+    prop: string | ((obj: T) => any) | string[],
     def?: RO<(obj: T) => any>
   ) {
     if (typeof prop === "function") {
@@ -1110,8 +1110,8 @@ export namespace o {
       // It tolerates ?. chaining, but will create simple objects for non-existent paths.
       let assigner: (obj: T, newv: any) => T = null!
       let last_prop: any = null
-      function make_assigner() {
 
+      function make_assigner() {
         const body = last_prop.toString() as string
         const brk = /\??\.(?<name>[^.\[?]+)|\??\["(?<name>(\\"|[^"])+)\"|\??\['(?<name>(\\'|[^'])+)']\]/g
         const path = [...body.matchAll(brk).map(match => match.groups!.name)].reverse()
