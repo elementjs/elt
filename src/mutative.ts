@@ -3,6 +3,9 @@ import { create } from "mutative"
 
 declare module "./observable" {
   namespace o {
+    interface IObservable<Get, Set> {
+      mutate(mutator: (value: Set) => void): void
+    }
     interface Observable<A> {
       /**
        * Mutate the value of the observable using a mutative function.
