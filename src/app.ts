@@ -10,11 +10,11 @@ const sym_view_fns = Symbol("view_fns")
 export function view<R extends Renderable>(
   target: any,
   prop: string,
-  descriptor: TypedPropertyDescriptor<(parent?: () => Renderable) => R>
+  descriptor: TypedPropertyDescriptor<() => R>
 ): void
 export function view<R extends Renderable>(
-  view_fn: (parent?: () => Renderable) => R,
-  prop: ClassMethodDecoratorContext<any, (parent?: () => Renderable) => R>
+  view_fn: () => R,
+  prop: ClassMethodDecoratorContext<any, () => R>
 ): void
 export function view(
   target: any,
@@ -28,7 +28,7 @@ export function view(
     }
     target[sym_view_fns].push(descriptor.value)
   } else {
-    let _prop = prop as ClassMethodDecoratorContext<any, (parent?: () => Renderable) => Renderable>
+    let _prop = prop as ClassMethodDecoratorContext<any, () => Renderable>
     _prop.addInitializer(function (this: App.ServiceClass) {
       this.srv.views.set(
         _prop.name as string,
@@ -663,12 +663,6 @@ export namespace App {
 
       // And then add our own. Last one to speak wins.
       for (let [name, view] of srv.views) {
-        // If a view is being redefined, wrap it with its parent
-        const prev = this.views.get(name)
-        if (prev != null) {
-          const new_view = view
-          view = () => new_view(prev!)
-        }
         this.views.set(name, view)
       }
     }
@@ -945,7 +939,7 @@ export namespace App {
     result: any
     result_promise: Promise<any> | null = null
 
-    views = new Map<string, (parent?: () => Renderable) => Renderable>()
+    views = new Map<string, () => Renderable>()
 
     /** the services needed by this one to function */
     requirements = new Set<Service>()
