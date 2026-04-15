@@ -233,7 +233,8 @@ export class VirtualScroller<O extends o.RO<any[]>>
 
       if (
         this.scroll_direction < 0 &&
-        region.bottom + this.threshold < bounds_last.top
+        region.bottom + this.threshold < bounds_last.top &&
+        this.pos_end > 0
       ) {
         this.shelveBottom()
         modif = true
@@ -333,6 +334,7 @@ export class VirtualScroller<O extends o.RO<any[]>>
   /** Shelve a RItem for later use */
   protected shelveBottom() {
     const end = this.container.lastChild as RItem
+
     const shelved_idx = end._idx.get()
     this.pos_end = shelved_idx - 1
 
@@ -343,6 +345,7 @@ export class VirtualScroller<O extends o.RO<any[]>>
     this.rendered.delete(shelved_idx)
     node_remove(end)
     this.pool.push(end)
+
     this.resizeEnd()
   }
 
@@ -455,8 +458,11 @@ export class VirtualScroller<O extends o.RO<any[]>>
         old.length > lst.length &&
         this.pos_end >= lst.length
       ) {
-        while (this.pos_end > lst.length - 2) {
+        while (this.pos_end >= lst.length) {
           this.shelveBottom()
+        }
+        if (this.pos_end < this.pos_start) {
+          this.pos_end = this.pos_start
         }
         // console.log(lst, old, this.pos_end)
       }
