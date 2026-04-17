@@ -336,7 +336,7 @@ export class VirtualScroller<O extends o.RO<any[]>>
     const end = this.container.lastChild as RItem
 
     const shelved_idx = end._idx.get()
-    this.pos_end = shelved_idx - 1
+    this.pos_end = shelved_idx
 
     if (this.debug >= 3) {
       console.log(`%cshelve ${shelved_idx}`, debug.red)
@@ -456,11 +456,12 @@ export class VirtualScroller<O extends o.RO<any[]>>
       if (
         old !== o.NoValue &&
         old.length > lst.length &&
-        this.pos_end >= lst.length
+        this.pos_end > lst.length
       ) {
-        while (this.pos_end >= lst.length) {
+        while (this.pos_end > lst.length) {
           this.shelveBottom()
         }
+
         if (this.pos_end < this.pos_start) {
           this.pos_end = this.pos_start
         }
