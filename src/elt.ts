@@ -1,3 +1,4 @@
+import { css } from "./css"
 import { node_append } from "./dom"
 import { sym_elt_init } from "./symbols"
 
@@ -5,15 +6,10 @@ import type { Attrs, ElementMap, EmptyAttributes, Renderable } from "./types"
 
 ////////////////////////////////////////////////////////
 
-/** @internal setup a basic css stylesheet that declares the common elt elements as display: contents */
-export function setup_base_styles(doc = document) {
-  const style = doc.createElement("style")
-  style.append(
-    `e-obs,e-if,e-switch,e-repeat,e-repeat-scroll,e-virtual-scroll,e-repeat-item,e-ritem,e-repeat-separator,e-repeat-prefix,e-repeat-suffix,e-repeat-empty,e-app,e-app-view,e-lang,e-unpromise{ display: contents }`
-  )
-  doc.head.appendChild(style)
+css`e-obs,e-if,e-switch,e-repeat,e-repeat-scroll,e-virtual-scroll,e-repeat-item,e-ritem,e-repeat-separator,e-repeat-prefix,e-repeat-suffix,e-repeat-empty,e-app,e-app-view,e-lang,e-unpromise {
+  display: contents
 }
-requestAnimationFrame(() => setup_base_styles())
+`
 
 /** A RefChild given to ElementClassFn functions to insert their content */
 export class RefChild extends Comment {
