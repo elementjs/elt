@@ -124,6 +124,7 @@ export interface Attrs<N extends Node = HTMLElement> extends EmptyAttributes<N> 
   itemtype?: NRO<string | number>
   translate?: NRO<"" | true | "yes" | "no">
   virtualkeyboardpolicy?: NRO<"auto" | "manual">
+  popover?: NRO<"manual" | "auto">
   [K: `aria-${string}`]: NRO<string | number>
   [K: `data-${string}`]: NRO<string | number>
 

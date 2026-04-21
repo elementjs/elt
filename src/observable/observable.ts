@@ -1365,6 +1365,7 @@ export namespace o {
     }
 
     cmb.getter = (() => {
+
       let res = fn(_get, _old, prev) as T
       if (fn.length > 1) {
         old = cmb._parents_values.slice()

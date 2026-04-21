@@ -8,13 +8,13 @@ const sym_view_fns = Symbol("view_fns")
  * view decorator for Service class objects, compatible with both old and new style typescript/javascript decorators.
  */
 export function view<R extends Renderable>(
+  view_fn: () => R,
+  prop: ClassMethodDecoratorContext<any, () => R>
+): void
+export function view<R extends Renderable>(
   target: any,
   prop: string,
   descriptor: TypedPropertyDescriptor<() => R>
-): void
-export function view<R extends Renderable>(
-  view_fn: () => R,
-  prop: ClassMethodDecoratorContext<any, () => R>
 ): void
 export function view(
   target: any,

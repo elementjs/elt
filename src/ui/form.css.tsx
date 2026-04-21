@@ -1,8 +1,31 @@
-import { css } from "elt"
-import * as c from "./colors"
-// input[type="file"]::file-selector-button,
+import { css, type ClassDefinition, type NRO } from "elt"
+import { theme } from "./theme"
 
-export const form = css`
+const colors = theme.colors
+
+declare module "elt" {
+
+  interface attrs_button {
+    class?: ClassDefinition | ClassDefinition[] | null | false | NRO<"primary" | "text">
+  }
+}
+
+css`
+  label {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    cursor: pointer;
+
+    &:hover {
+      background-color: ${colors.tint.light};
+    }
+  }
+
+  button, input[type="checkbox"], input[type="radio"] {
+    cursor: pointer;
+  }
+
   button,
   input:not([type]),
   input[type="text"],
@@ -13,62 +36,93 @@ export const form = css`
   textarea,
   select,
   fieldset {
-    cursor: pointer;
-    border: 1px solid ${c.fg(70)};
-    padding: var(--e-cell-padding, 0.5em);
-    border-radius: var(--e-border-radius, 5px);
-    background: var(--e-color-bg);
-    border-color: ${c.fg(70)};
-    color: var(--e-color-fg);
-    font-size: 0.75em;
-    line-height: normal;
+    border: 1px solid ${colors.text.faded};
+    padding: ${theme.settings.cellPadding};
+    border-radius: ${theme.settings.borderRadius};
+    background: ${colors.bg};
+    color: ${colors.text};
+    font-size: ${theme.settings.formFontSize};
+    vertical-align: baseline;
 
     transition:
       background 0.2s ease,
       box-shadow 0.2s ease;
 
     &:hover {
-      background: ${c.bg(97)};
+      background: ${colors.bg.ultra_light};
     }
 
     &:focus-visible {
-      box-shadow: 0 0 0 3px ${c.tint(50)};
+      box-shadow: 0 0 0 3px ${colors.tint.mid};
     }
-
-    color: var(--fg);
   }
 
   ::placeholder {
-    color: ${c.fg(90)};
+    color: ${colors.text.mid};
+  }
+
+  input[type="checkbox"] {
+    appearance: none;
+    width: 1em;
+    height: 1em;
+    border: 1px solid ${colors.text.faded};
+    border-radius: 4px;
+    cursor: pointer;
+    position: relative;
+    display: inline-block;
+    transition: border-color .25s;
+  }
+
+  /* The animated SVG checkmark */
+  input[type="checkbox"]::after {
+    position: absolute;
+    top: -0.1em;
+    left: 0.2em;
+    height: 100%;
+    font-size: 0.75em;
+    font-weight: bold;
+
+    /* Color comes from here (can use var()) */
+    color: ${colors.tint};
+    content: "✔";
+
+    /* Animation: from bottom-left, rotated */
+    transform-origin: bottom left;
+    transform: scale(0) rotate(-20deg);
+    opacity: 0;
+
+    transition:
+      transform .25s cubic-bezier(.2, .7, .3, 1),
+      opacity .25s ease-out;
+  }
+  /* Checked state */
+  input[type="checkbox"]:checked {
+    border-color: ${colors.tint};
+  }
+
+  input[type="checkbox"]:checked::after {
+    transform: scale(1) rotate(0deg);
+    opacity: 1;
+  }
+
+  label, button {
+    user-select: none;
   }
 
   button {
-    user-select: none;
     /* transition: transform 1ms ease, background 1ms ease, box-shadow 1ms ease;*/
     /* box-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);*/
 
-    &.text {
-      background: transparent;
-      border: none;
-      padding: 0;
-      font-size: 0.75em;
-      color: ${c.fg(100)};
-    }
-
-    &.primary {
-      border: 1px solid var(--tint);
-    }
-
     &:hover:not([disabled]) {
-      background: oklch(from var(--tint) l c h / 0.01);
+      background: ${colors.tint.light};
     }
 
     &:active:not([disabled]) {
-      background: var(--btn-active);
+      background: ${colors.tint.light};
       box-shadow:
-        inset 0px 4px 6px rgba(0, 0, 0, 0.1),
-        inset 0px -4px 6px rgba(255, 255, 255, 0.1);
-      transform: scale(0.98) translateY(1px);
+        inset 0px 4px 6px ${colors.text.from_bg(theme.settings.intensityLight, 0.4)},
+        inset 0px -4px 6px ${colors.text.from_bg(theme.settings.intensityLight, 0.1)};
+      transform: scale(0.99) translateY(1px);
       transform-origin: top center;
     }
 
@@ -85,12 +139,60 @@ export const form = css`
   }
 
   ::-webkit-scrollbar-track {
-    background: ${c.tint(20)};
+    background: ${colors.tint.light};
   }
 
   ::-webkit-scrollbar-thumb {
-    background: ${c.tint(80)};
+    background: ${colors.tint.faded};
     /* borderRadius: calc(1rem / 4) */
   }
 
 `
+
+
+
+export const form_box = css`.form-box {
+  & > :not(:last-child) {
+    border-right: none;
+    border-bottom-right-radius: 0;
+    border-top-right-radius: 0;
+  }
+  & > :not(:first-child) {
+    border-bottom-left-radius: 0;
+    border-top-left-radius: 0;
+  }
+}`
+
+export const form_primary = css`.form-primary {
+  border-color: ${colors.tint};
+  color: ${colors.tint};
+}`
+
+export const form_primary_background = css`.form-primary-background {
+  background-color: ${colors.tint};
+  border-color: ${colors.tint};
+  color: ${colors.bg};
+}`
+
+export const button_tint = css`.button-tint {
+  color: ${colors.tint};
+  border: 1px solid ${colors.tint.faded};
+}`
+console.log("cls_button_tint", button_tint)
+
+export const button_full = css`.button-full {
+  color: ${colors.bg};
+  background-color: ${colors.tint};
+  border: 1px solid ${colors.tint};
+
+  &:hover:not([disabled]) {
+    background: ${colors.tint.faded};
+  }
+}`
+
+export const button_text = css`.button-text {
+  background: transparent;
+  border: none;
+  padding: 0;
+  color: ${colors.text};
+}`

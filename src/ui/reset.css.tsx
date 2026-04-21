@@ -1,6 +1,11 @@
 import { css } from "elt"
 
 export const reset = css`
+  * {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+
   /* 1. Use a more-intuitive box-sizing model */
   *,
   *::before,
@@ -35,7 +40,7 @@ export const reset = css`
   video,
   canvas,
   svg {
-    display: block;
+    display: inline-block;
     max-width: 100%;
   }
 

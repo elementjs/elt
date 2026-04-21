@@ -74,9 +74,10 @@ css`
   --e-spacing-3x-large: 256px;
   --e-spacing-4x-large: 512px;
 }
-e-box[inline] { display: inline-box; }
+e-box { display: block; }
+e-box[inline] { display: inline-block; }
 
-e-flex { display: flex; flex-direction: row; flex-wrap: nowrap; }
+e-flex { display: flex; flex-direction: row; flex-wrap: nowrap; align-items: baseline; }
 e-flex[inline] { display: inline-flex; }
 e-flex[column] { flex-direction: column; }
 e-flex[reverse] { flex-direction: row-reverse; }

@@ -1,46 +1,32 @@
 import { css } from "elt"
 
-// document.addEventListener("open", ev => {
-//   console.log("open", ev)
-// }, { capture: true, })
-
-// document.addEventListener("close", ev => {
-//   console.log("close", ev)
-// })
-
-// document.addEventListener("cancel", ev => {
-//   console.log("cancel", ev)
-// }, { capture: true, })
-
 export const dialog = css`
 dialog {
   margin: 0;
   position: fixed;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
   overflow: hidden;
 
-  display: flex;
-  flex-direction: column;
+  /* modern centering */
+  inset: 0;
+  margin: auto;
+
   gap: 1rem;
 
   border: none;
   border-radius: var(--e-frame-border-radius);
-  background: white;
+  background: var(--e-color-bg);
   box-shadow: 0 10px 40px rgba(0,0,0,0.3);
   width: 400px;
   max-width: 90vw;
-  transition: opacity 0.3s ease, transform 0.3s ease;
   opacity: 0;
-  transform: translate(-50%, -50%);
+
+  transform-origin: center top;
 
   transition: opacity 0.25s ease, transform 0.25s ease;
 }
 
 dialog[open] {
   opacity: 1;
-  transform: translate(-50%, -50%);
 }
 
 dialog::backdrop {
