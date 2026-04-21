@@ -85,17 +85,12 @@ export namespace $bind {
    */
   export function contenteditable(
     obs: o.IObservable<string | null | undefined, string>,
-    as_html?: boolean
   ): (node: HTMLElement) => void {
     return setup_bind(
       obs,
-      (node) => (as_html ? node.innerHTML : node.innerText),
+      (node) => node.innerText,
       (node, value) => {
-        if (as_html) {
-          node.innerHTML = value ?? ""
-        } else {
-          node.innerText = value ?? ""
-        }
+        node.innerText = value ?? ""
       }
     )
   }
