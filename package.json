@@ -8,8 +8,8 @@
   "exports": {
     ".": "./src/index.ts",
     "./*": "./src/*.ts",
-    "./ui": "./src/ui/index.tsx",
-    "./ui/*": "./src/ui/*"
+    "./ui": "./ui/index.tsx",
+    "./ui/*": "./ui/*"
   },
   "scripts": {
     "test": "mocha --require ts-node/register --extensions ts tests/test-observable.ts"
