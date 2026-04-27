@@ -53,7 +53,7 @@ function getOkLch<T extends BaseColorScheme>(colors: T): {[key in keyof T]: OkLc
     const cs = getComputedStyle(el).color
     let match = cs.match(/oklch\((?<l>[^ ]+)\s+(?<c>[^ ]+)\s+(?<h>[^)]+)\)/)
     if (match) {
-      res[key as keyof T] = new OkLch(parseFloat(match.groups!.l), parseFloat(match.groups!.c), parseFloat(match.groups!.h))
+      res[key as keyof T] = new OkLch(parseFloat(match.groups?.l ?? "0"), parseFloat(match.groups?.c ?? "0"), parseFloat(match.groups?.h ?? "0"))
     }
   }
 
@@ -97,7 +97,7 @@ export class Theme<ColorScheme extends BaseColorScheme> {
     }
 
     // Now set the theme settings
-    this._set(theme.settings ?? {}, "borderRadius", "5px")
+    this._set(theme.settings ?? {}, "borderRadius", "6px")
     this._set(theme.settings ?? {}, "frameBorderRadius", "12px")
     this._set(theme.settings ?? {}, "intensityVeryLight", "5%")
     this._set(theme.settings ?? {}, "intensityLight", "10%")
@@ -131,16 +131,23 @@ export class Theme<ColorScheme extends BaseColorScheme> {
   }
 
   @memoize
-  get css_dark_colors() {
+  protected get all_colors() {
     return Object.entries(this.colors).map(([name, color]) => {
-      return `--e-color-${name}: ${color.dark_value};`
+      return `--e-light-color-${name}: ${color.light_value}; --e-dark-color-${name}: ${color.dark_value};`
+    }).join("")
+  }
+
+  @memoize
+  get css_dark_colors() {
+    return Object.keys(this.colors).map((name) => {
+      return `--e-color-${name}: var(--e-dark-color-${name});`
     }).join("")
   }
 
   @memoize
   get css_light_colors() {
-    return Object.entries(this.colors).map(([name, color]) => {
-      return `--e-color-${name}: ${color.light_value};`
+    return Object.keys(this.colors).map((name) => {
+      return `--e-color-${name}: var(--e-light-color-${name});`
     }).join("")
   }
 
@@ -162,6 +169,7 @@ export class Theme<ColorScheme extends BaseColorScheme> {
   @memoize
   get class_light() {
     return css`.e-light-theme {
+      ${this.all_colors}
       ${this.css_settings}
       ${this.css_light_colors}
       ${this.init}
@@ -171,6 +179,7 @@ export class Theme<ColorScheme extends BaseColorScheme> {
   @memoize
   get class_dark() {
     return css`.e-dark-theme {
+      ${this.all_colors}
       ${this.css_settings}
       ${this.css_dark_colors}
       ${this.init}
@@ -180,13 +189,13 @@ export class Theme<ColorScheme extends BaseColorScheme> {
   @memoize
   get class_dynamic() {
     return css`.e-dynamic-theme {
+      ${this.all_colors}
       ${this.css_settings}
       ${this.css_light_colors}
       ${this.init}
 
       @media (prefers-color-scheme: dark) {
         & {
-          ${this.css_settings}
           ${this.css_dark_colors}
         }
     }
@@ -226,6 +235,8 @@ export class Color<Colors extends BaseColorScheme> {
     if (this._as_tint_class == null) {
       this._as_tint_class = css`.e-color-${this.name}-tint {
         --e-color-tint: var(--e-color-${this.name});
+        --e-light-color-tint: var(--e-light-color-${this.name});
+        --e-dark-color-tint: var(--e-dark-color-${this.name});
       }`
     }
     return this._as_tint_class
@@ -238,32 +249,12 @@ export class Color<Colors extends BaseColorScheme> {
   @memoize
   get as_background() {
     const cls = css`.e-color-${this.name}-background {
-      --e-color-bg: ${this.light_value};
-      --e-color-text: ${this.theme.colors.bg.light_value};
-      --e-color-tint: ${this.theme.colors.bg.light_value};
+      --e-color-bg: var(--e-light-color-${this.name});
+      --e-color-text: var(--e-light-color-bg);
+      --e-color-tint: var(--e-light-color-bg);
       background-color: var(--e-color-bg);
       color: var(--e-color-text);
       border-color: var(--e-color-bg);
-
-      ${this.theme.class_light} & {
-        --e-color-bg: ${this.light_value};
-        --e-color-text: ${this.theme.colors.bg.light_value};
-        --e-color-tint: ${this.theme.colors.bg.light_value};
-      }
-
-      ${this.theme.class_dark} & {
-        --e-color-bg: ${this.dark_value};
-        --e-color-text: ${this.theme.colors.bg.dark_value};
-        --e-color-tint: ${this.theme.colors.bg.dark_value};
-      }
-
-      media (prefers-color-scheme: dark) {
-        & {
-          --e-color-bg: ${this.dark_value};
-          --e-color-text: ${this.theme.colors.bg.dark_value};
-          --e-color-tint: ${this.theme.colors.bg.dark_value};
-        }
-      }
     }`
 
     return cls
@@ -351,6 +342,7 @@ export const theme = new Theme({
     blue_purple: "#4A2ECF",
     purple: "#7A1FA2",
     magenta: "#C2188F",
+    grey: "oklch(0.7 0 0)",
   },
   dark: {
     text: "#ffffff",

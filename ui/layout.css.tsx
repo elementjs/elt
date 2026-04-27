@@ -1,4 +1,5 @@
 import { type Attrs, type NRO, css, e } from "elt"
+import { theme } from "./theme"
 
 declare module "elt" {
   interface ElementMap {
@@ -57,6 +58,10 @@ for (let att of ["gap", "pad"]) {
     css`:is(e-flex,e-grid,e-box)[${att}="${sp}"] { --e-${att}-vertical: var(--e-spacing-${less}); --e-${att}-horizontal: var(--e-spacing-${sp}); }`
   }
 }
+
+css`body, html {
+  scrollbar-color: ${theme.colors.tint} ${theme.colors.tint.ultra_light};
+}`
 
 css`
 :root {

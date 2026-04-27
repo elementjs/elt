@@ -3,7 +3,19 @@ import { theme } from "./theme"
 
 const colors = theme.colors
 
-css`label {
+declare module "elt" {
+  interface attrs_button {
+    "e-variant"?: NRO<"text" | "tint" | "full">
+  }
+
+  interface attrs_input {
+    "e-variant"?: NRO<"tint">
+  }
+}
+
+css`
+@layer components {
+label {
   display: inline-flex;
   align-items: center;
   gap: 4px;
@@ -12,13 +24,13 @@ css`label {
   &:hover {
     background-color: ${colors.tint.light};
   }
-}`
+}
 
-css`button, input[type="checkbox"], input[type="radio"] {
+button, input[type="checkbox"], input[type="radio"] {
   cursor: pointer;
-}`
+}
 
-css`button,
+button,
 input:not([type]),
 input[type="text"],
 input[type="password"],
@@ -52,25 +64,27 @@ fieldset {
   &:focus-visible {
     box-shadow: 0 0 0 3px ${colors.tint.mid};
   }
-}`
+}
 
-css`input[type="date"]::-webkit-calendar-picker-indicator,
+input[type="date"]::-webkit-calendar-picker-indicator,
 input[type="time"]::-webkit-calendar-picker-indicator,
 input[type="datetime-local"]::-webkit-calendar-picker-indicator {
-  display: none;
-}`
+  @media (prefers-color-scheme: dark) {
+    filter: invert(1);
+  }
+}
 
-css`input[type="date"],
+input[type="date"],
 input[type="time"],
 input[type="datetime-local"] {
   height: calc(${theme.settings.formFontSize} * 2 + 1px);
-}`
+}
 
-css`::placeholder {
+::placeholder {
   color: ${colors.text.mid};
-}`
+}
 
-css`input[type="checkbox"] {
+input[type="checkbox"] {
   appearance: none;
   width: 1em;
   height: 1em;
@@ -80,10 +94,10 @@ css`input[type="checkbox"] {
   position: relative;
   display: inline-block;
   transition: border-color .25s;
-}`
+}
 
-  /* The animated SVG checkmark */
-css`input[type="checkbox"]::after {
+/* The animated SVG checkmark */
+input[type="checkbox"]::after {
   position: absolute;
   top: -0.1em;
   left: 0.2em;
@@ -103,23 +117,35 @@ css`input[type="checkbox"]::after {
   transition:
     transform .25s cubic-bezier(.2, .7, .3, 1),
     opacity .25s ease-out;
-}`
+}
 
-  /* Checked state */
-css`input[type="checkbox"]:checked {
+/* Checked state */
+input[type="checkbox"]:checked {
   border-color: ${colors.tint};
-}`
+}
 
-css`input[type="checkbox"]:checked::after {
+input[type="checkbox"]:checked::after {
   transform: scale(1) rotate(0deg);
   opacity: 1;
-}`
+}
 
-css`label, button {
+label, button {
   user-select: none;
-}`
+}
 
-css`button {
+/** Horizontal divider */
+hr {
+  border: none;
+  border-top: 1px solid ${colors.text.light};
+  height: 1px;
+  width: 100%;
+
+  &[e-variant="tint"] {
+    border-color: ${colors.tint.light};
+  }
+}
+
+button {
   /* transition: transform 1ms ease, background 1ms ease, box-shadow 1ms ease;*/
   /* box-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);*/
 
@@ -137,34 +163,50 @@ css`button {
   }
 
   &[disabled] {
-    opacity: 0.5;
+    opacity: 0.3;
     cursor: not-allowed;
-  }
-}`
-
-css`::-webkit-scrollbar {
-  position: absolute;
-  width: calc(1rem / 2);
-  height: calc(1rem / 2);
-}`
-
-css`::-webkit-scrollbar-track {
-  background: ${colors.tint.light};
-}`
-
-css`::-webkit-scrollbar-thumb {
-  background: ${colors.tint.faded};
-  /* borderRadius: calc(1rem / 4) */
-}`
-
-declare module "elt" {
-  interface attrs_button {
-    "e-variant"?: NRO<"text" | "full">
   }
 }
 
+::-webkit-scrollbar {
+  position: absolute;
+  width: calc(1rem / 2);
+  height: calc(1rem / 2);
+}
 
-css`e-box {
+::-webkit-scrollbar-track {
+  background: ${colors.tint.light};
+}
+
+::-webkit-scrollbar-thumb {
+  background: ${colors.tint.faded};
+  /* borderRadius: calc(1rem / 4) */
+}
+
+button[e-variant="text"] {
+  border: 0;
+  color: ${colors.tint};
+  background: transparent;
+}
+
+button[e-variant="tint"], input[e-variant="tint"] {
+  border-color: ${colors.tint};
+  color: ${colors.tint};
+  &::placeholder {
+    color: ${colors.tint.mid};
+  }
+}
+
+button[e-variant="full"] {
+  --e-color-bg: var(--e-light-color-tint);
+  --e-color-text: var(--e-light-color-bg);
+  --e-color-tint: var(--e-light-color-bg);
+  color: var(--e-color-text);
+  border-color: var(--e-color-bg);
+  background-color: var(--e-color-bg);
+}
+
+e-box {
   & > :not(:last-child) {
     border-right: none;
     border-bottom-right-radius: 0;
@@ -174,27 +216,5 @@ css`e-box {
     border-bottom-left-radius: 0;
     border-top-left-radius: 0;
   }
-}`
-
-export const form_primary = css`.form-primary {
-  border-color: ${colors.tint};
-  color: ${colors.tint};
-}`
-
-export const form_primary_background = css`.form-primary-background {
-  background-color: ${colors.tint};
-  border-color: ${colors.tint};
-  color: ${colors.bg};
-}`
-
-export const button_tint = css`.button-tint {
-  color: ${colors.tint};
-  border: 1px solid ${colors.tint.faded};
-}`
-
-export const button_text = css`.button-text {
-  background: transparent;
-  border: none;
-  padding: 0;
-  color: ${colors.text};
+}
 }`
