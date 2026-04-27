@@ -91,13 +91,9 @@ export class Theme<ColorScheme extends BaseColorScheme> {
         // Keep the most luminous color
         const new_l = delta_dark > delta ? light_value.l : dark_l + delta
         dark[name as keyof BaseColorScheme] = new OkLch(new_l, light_value.c, light_value.h)
-      } else {
-        console.log(`${name} is in both light and dark`, light_value.toString(), dark[name as keyof BaseColorScheme].toString())
       }
       const color = new Color(this, name as Extract<keyof ColorScheme, string>, light[name as keyof BaseColorScheme].toString(), dark[name as keyof BaseColorScheme].toString())
       this.colors[name as keyof ColorScheme] = color
-      // this.__light_colors.push(color.toString())
-      // this.__dark_colors.push(color.toString())
     }
 
     // Now set the theme settings
@@ -116,6 +112,10 @@ export class Theme<ColorScheme extends BaseColorScheme> {
 
     this._set(theme.settings ?? {}, "cellPadding", "0.25em 0.5em")
     this._set(theme.settings ?? {}, "formFontSize", "14px")
+
+    let _ = this.class_light
+    _ = this.class_dark
+    _ = this.class_dynamic
   }
 
   settings: ThemeSettings = {} as ThemeSettings
@@ -217,6 +217,7 @@ export class Color<Colors extends BaseColorScheme> {
     public light_value: string,
     public dark_value: string,
   ) {
+
   }
 
   /** Change the tint to be this color instead. This is a class name. */

@@ -20,9 +20,9 @@ const cls_spinner = css`.spinner {
     animation: spinner-dash 1.5s ease-in-out infinite;
   }
 
-}
+}`
 
-@keyframes spinner-dash {
+css`@keyframes spinner-dash {
   0% {
     stroke-dasharray: 0 150;
     stroke-dashoffset: 0;
@@ -33,9 +33,9 @@ const cls_spinner = css`.spinner {
     stroke-dasharray: 42 150;
     stroke-dashoffset: -59;
   }
-}
+}`
 
-@keyframes spinner_zKoa {
+css`@keyframes spinner_zKoa {
   100% {
     transform: rotate(360deg);
   }

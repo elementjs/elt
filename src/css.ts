@@ -29,7 +29,7 @@ function rewrite_css(
     css = _css.join("")
   }
 
-  css = css.trim()
+  // css = css.trim()
   let end = 1
   if (css[0] === ".") {
     loop: do {
@@ -58,8 +58,8 @@ function rewrite_css(
 }
 
 export class CSSBuilder {
-  __raw: string[] = []
   sheet: CSSStyleSheet = new CSSStyleSheet()
+  last = 0
 
   css = (
     arr: TemplateStringsArray | string,
@@ -67,22 +67,8 @@ export class CSSBuilder {
   ): string => {
 
     const { css, class_name } = rewrite_css(arr, ...args)
-
-    this.__raw.push(css)
-    this.update()
-
+    this.sheet.insertRule(css, this.last++)
     return class_name ?? ""
-  }
-
-  _frame_id: number | null = null
-  update() {
-    if (this._frame_id == null) {
-      this._frame_id = requestAnimationFrame(() => {
-        this._frame_id = null
-        const css = this.__raw.join("")
-        this.sheet.replace(css)
-      })
-    }
   }
 
   adopt(by: Document | ShadowRoot) {

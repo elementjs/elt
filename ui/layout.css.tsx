@@ -1,4 +1,4 @@
-import { type Attrs, type NRO, css } from "elt"
+import { type Attrs, type NRO, css, e } from "elt"
 
 declare module "elt" {
   interface ElementMap {
@@ -43,21 +43,18 @@ let spaces = ["3x-small", "2x-small", "x-small", "small", "medium", "large", "x-
 let align = ["center", "start", "end", "self-start", "baseline", "first baseline", "last baseline", "safe center", "unsafe center", "normal", "stretch", "space-evenly", "space-around", "space-between"]
 
 for (let al of align) {
-  more.push(`
-:is(e-flex,e-grid)[align="${al}"] { align-items: ${al}; }
-:is(e-flex,e-grid)[justify="${al}"] { justify-content: ${al}; }
-:is(e-flex,e-grid,e-box)[self-justify="${al}"] { justify-self: ${al}; }
-:is(e-flex,e-grid,e-box)[self-align="${al}"] { align-self: ${al}; }
-`)
+  css`:is(e-flex,e-grid)[align="${al}"] { align-items: ${al}; }`
+  css`:is(e-flex,e-grid)[justify="${al}"] { justify-content: ${al}; }`
+  css`:is(e-flex,e-grid,e-box)[self-justify="${al}"] { justify-self: ${al}; }`
+  css`:is(e-flex,e-grid,e-box)[self-align="${al}"] { align-self: ${al}; }`
 }
 
 for (let att of ["gap", "pad"]) {
   for (let i = 0, l = spaces.length; i < l; i++) {
-    const sp = spaces[i]
-    const less = spaces[i - 1] ?? spaces[i]
-    more.push(`
-:is(e-flex,e-grid,e-box)[${att}="${sp}"] { --e-${att}-vertical: var(--e-spacing-${less}); --e-${att}-horizontal: var(--e-spacing-${sp}); }
-`)
+    const sp = spaces[i]!
+    const less = spaces[i - 1]! ?? spaces[i]!
+    css`:is(e-flex,e-grid,e-box)[${att}="${sp}"] { --e-${att}-vertical: var(--e-spacing-${less}); --e-${att}-horizontal: var(--e-spacing-${sp}); }`
+    css`:is(e-flex,e-grid,e-box)[${att}="${sp}"] { --e-${att}-vertical: var(--e-spacing-${less}); --e-${att}-horizontal: var(--e-spacing-${sp}); }`
   }
 }
 
@@ -74,47 +71,37 @@ css`
   --e-spacing-3x-large: 256px;
   --e-spacing-4x-large: 512px;
 }
-e-box { display: block; }
-e-box[inline] { display: inline-block; }
+`
+css`e-box { display: block; }`
+css`e-box[inline] { display: inline-block; }`
 
-e-flex { display: flex; flex-direction: row; flex-wrap: nowrap; align-items: baseline; }
-e-flex[inline] { display: inline-flex; }
-e-flex[column] { flex-direction: column; }
-e-flex[reverse] { flex-direction: row-reverse; }
-e-flex[column][reverse] { flex-direction: column-reverse; }
-e-flex[wrap] { flex-wrap: wrap !important; }
+css`e-flex { display: flex; flex-direction: row; flex-wrap: nowrap; align-items: baseline; }`
+css`e-flex[inline] { display: inline-flex; }`
+css`e-flex[column] { flex-direction: column; }`
+css`e-flex[reverse] { flex-direction: row-reverse; }`
+css`e-flex[column][reverse] { flex-direction: column-reverse; }`
+css`e-flex[wrap] { flex-wrap: wrap !important; }`
 
-:is(e-flex,e-grid,e-box) {
+css`:is(e-flex,e-grid,e-box) {
   --e-gap-vertical: var(--e-spacing-small);
   --e-gap-horizontal: var(--e-spacing-medium);
   --e-pad-vertical: var(--e-spacing-small);
   --e-pad-horizontal: var(--e-spacing-medium);
-}
+}`
 
-:is(e-flex,e-grid,e-box)[scheme="primary"] {
-  border-color: var(--sl-color-primary-200);
-}
+css`:is(e-flex,e-grid,e-box)[relative] {
+  position: relative;
+}`
 
-:is(e-flex,e-grid,e-box)[hover]:hover {
-  background-color: var(--sl-color-neutral-50);
-  cursor: pointer;
-}
-:is(e-flex,e-grid,e-box)[hover]:active {
-  background-color: var(--sl-color-neutral-100);
-  cursor: pointer;
-}
-:is(e-flex,e-grid,e-box)[hover][scheme="primary"]:hover {
-  background-color: var(--sl-color-primary-50);
-}
-:is(e-flex,e-grid,e-box)[hover][scheme="primary"]:active {
-  background-color: var(--sl-color-primary-100);
-}
+css`:is(e-flex,e-grid,e-box)[grow] {
+  flex-grow: 1;
+  flex-basis: 0;
+}`
 
-:is(e-flex,e-grid,e-box)[relative] { position: relative; }
-:is(e-flex,e-grid,e-box)[grow] { flex-grow: 1; flex-basis: 0; }
-:is(e-flex,e-grid,e-box)[pad] { padding: var(--e-pad-vertical) var(--e-pad-horizontal); }
-:is(e-flex,e-grid)[gap] { gap: var(--e-gap-vertical) var(--e-gap-horizontal); }
+css`:is(e-flex,e-grid,e-box)[pad] {
+  padding: var(--e-pad-vertical) var(--e-pad-horizontal);
+}`
 
-${more.join("")}
-
+css`:is(e-flex,e-grid)[gap] {
+  gap: var(--e-gap-vertical) var(--e-gap-horizontal); }
 `

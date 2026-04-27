@@ -1,6 +1,6 @@
 import { css } from "elt"
 
-export const dialog = css`
+css`
 dialog {
   margin: 0;
   position: fixed;
@@ -23,34 +23,34 @@ dialog {
   transform-origin: center top;
 
   transition: opacity 0.25s ease, transform 0.25s ease;
-}
+}`
 
-dialog[open] {
+css`dialog[open] {
   opacity: 1;
-}
+}`
 
-dialog::backdrop {
+css`dialog::backdrop {
   background: rgba(0, 0, 0, 0.5);
   backdrop-filter: blur(3px);
   transition: opacity 0.25s ease;
   opacity: 0;
-}
+}`
 
-dialog[open]::backdrop {
+css`dialog[open]::backdrop {
   opacity: 1;
-}
+}`
 
-dialog > header {
+css`dialog > header {
   font-weight: bolder;
-}
+}`
 
-dialog > footer {
+css`dialog > footer {
   display: flex;
   gap: 1rem;
   justify-content: end;
-}
+}`
 
-dialog button.close {
+css`dialog button.close {
   position: absolute;
   top: 0;
   right: 0;
@@ -60,10 +60,10 @@ dialog button.close {
   font-size: 1.5rem;
   color: var(--fg);
   opacity: 0.5;
-}
+}`
 
 /* Keyframes */
-@keyframes dialog-pop {
+css`@keyframes dialog-pop {
   from {
     opacity: 0;
     transform: scale(0.92);
@@ -72,10 +72,9 @@ dialog button.close {
     opacity: 1;
     transform: scale(1);
   }
-}
+}`
 
-@keyframes backdrop-fade {
+css`@keyframes backdrop-fade {
   from { opacity: 0; }
   to   { opacity: 1; }
-}
-`
+}`
