@@ -3,6 +3,11 @@ import { theme } from "./theme"
 
 const colors = theme.colors
 
+/** Tight viewBox around the polyline so the mark scales up inside the box; stroke is mask alpha. */
+const CHECKBOX_CHECK_MASK = encodeURIComponent(
+  '<svg xmlns="http://www.w3.org/2000/svg" viewBox="24 56 216 160"><polyline points="40 144 96 200 224 72" fill="none" stroke="white" stroke-linecap="round" stroke-linejoin="round" stroke-width="32"/></svg>'
+)
+
 declare module "elt" {
   interface attrs_button {
     "e-variant"?: NRO<"text" | "tint" | "full">
@@ -100,27 +105,28 @@ input[type="checkbox"] {
   transition: border-color .25s;
 }
 
-/* The animated SVG checkmark */
+/* Animated check: SVG polyline as mask, tight viewBox so it fills the control */
 input[type="checkbox"]::after {
+  content: "";
   position: absolute;
-  top: -0.1em;
-  left: 0.2em;
-  height: 100%;
-  font-size: 0.75em;
-  font-weight: bold;
+  inset: 5%;
+  background-color: ${colors.tint};
+  -webkit-mask-image: url("data:image/svg+xml,${CHECKBOX_CHECK_MASK}");
+  mask-image: url("data:image/svg+xml,${CHECKBOX_CHECK_MASK}");
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  mask-position: center;
 
-  /* Color comes from here (can use var()) */
-  color: ${colors.tint};
-  content: "✔";
-
-  /* Animation: from bottom-left, rotated */
   transform-origin: bottom left;
   transform: scale(0) rotate(-20deg);
   opacity: 0;
 
   transition:
-    transform .25s cubic-bezier(.2, .7, .3, 1),
-    opacity .25s ease-out;
+    transform .2s cubic-bezier(.2, .7, .3, 1),
+    opacity .2s ease-out;
 }
 
 /* Checked state */
