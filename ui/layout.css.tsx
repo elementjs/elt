@@ -44,69 +44,70 @@ let spaces = ["3x-small", "2x-small", "x-small", "small", "medium", "large", "x-
 let align = ["center", "start", "end", "self-start", "baseline", "first baseline", "last baseline", "safe center", "unsafe center", "normal", "stretch", "space-evenly", "space-around", "space-between"]
 
 for (let al of align) {
-  css`:is(e-flex,e-grid)[align="${al}"] { align-items: ${al}; }`
-  css`:is(e-flex,e-grid)[justify="${al}"] { justify-content: ${al}; }`
-  css`:is(e-flex,e-grid,e-box)[self-justify="${al}"] { justify-self: ${al}; }`
-  css`:is(e-flex,e-grid,e-box)[self-align="${al}"] { align-self: ${al}; }`
+  more.push(`:is(e-flex,e-grid)[align="${al}"] { align-items: ${al}; }`)
+  more.push(`:is(e-flex,e-grid)[justify="${al}"] { justify-content: ${al}; }`)
+  more.push(`:is(e-flex,e-grid,e-box)[self-justify="${al}"] { justify-self: ${al}; }`)
+  more.push(`:is(e-flex,e-grid,e-box)[self-align="${al}"] { align-self: ${al}; }`)
 }
 
 for (let att of ["gap", "pad"]) {
   for (let i = 0, l = spaces.length; i < l; i++) {
     const sp = spaces[i]!
     const less = spaces[i - 1]! ?? spaces[i]!
-    css`:is(e-flex,e-grid,e-box)[${att}="${sp}"] { --e-${att}-vertical: var(--e-spacing-${less}); --e-${att}-horizontal: var(--e-spacing-${sp}); }`
-    css`:is(e-flex,e-grid,e-box)[${att}="${sp}"] { --e-${att}-vertical: var(--e-spacing-${less}); --e-${att}-horizontal: var(--e-spacing-${sp}); }`
+    more.push(`:is(e-flex,e-grid,e-box)[${att}="${sp}"] { --e-${att}-vertical: var(--e-spacing-${less}); --e-${att}-horizontal: var(--e-spacing-${sp}); }`)
+    more.push(`:is(e-flex,e-grid,e-box)[${att}="${sp}"] { --e-${att}-vertical: var(--e-spacing-${less}); --e-${att}-horizontal: var(--e-spacing-${sp}); }`)
   }
 }
 
-css`body, html {
-  scrollbar-color: ${theme.colors.tint} ${theme.colors.tint.ultra_light};
-}`
-
 css`
-:root {
-  --e-spacing-3x-small: 1px;
-  --e-spacing-2x-small: 2px;
-  --e-spacing-x-small: 4px;
-  --e-spacing-small: 8px;
-  --e-spacing-medium: 16px;
-  --e-spacing-large: 32px;
-  --e-spacing-x-large: 64px;
-  --e-spacing-2x-large: 128px;
-  --e-spacing-3x-large: 256px;
-  --e-spacing-4x-large: 512px;
-}
-`
-css`e-box { display: block; }`
-css`e-box[inline] { display: inline-block; }`
+@layer base {
+  :root {
+    --e-spacing-3x-small: 1px;
+    --e-spacing-2x-small: 2px;
+    --e-spacing-x-small: 4px;
+    --e-spacing-small: 8px;
+    --e-spacing-medium: 16px;
+    --e-spacing-large: 32px;
+    --e-spacing-x-large: 64px;
+    --e-spacing-2x-large: 128px;
+    --e-spacing-3x-large: 256px;
+    --e-spacing-4x-large: 512px;
+  }
 
-css`e-flex { display: flex; flex-direction: row; flex-wrap: nowrap; align-items: baseline; }`
-css`e-flex[inline] { display: inline-flex; }`
-css`e-flex[column] { flex-direction: column; }`
-css`e-flex[reverse] { flex-direction: row-reverse; }`
-css`e-flex[column][reverse] { flex-direction: column-reverse; }`
-css`e-flex[wrap] { flex-wrap: wrap !important; }`
+  e-box { display: block; }
+  e-box[inline] { display: inline-block; }
 
-css`:is(e-flex,e-grid,e-box) {
+  e-flex { display: flex; flex-direction: row; flex-wrap: nowrap; align-items: baseline; }
+  e-flex[inline] { display: inline-flex; }
+  e-flex[column] { flex-direction: column; }
+  e-flex[reverse] { flex-direction: row-reverse; }
+  e-flex[column][reverse] { flex-direction: column-reverse; }
+  e-flex[wrap] { flex-wrap: wrap !important; }
+
+  :is(e-flex,e-grid,e-box) {
   --e-gap-vertical: var(--e-spacing-small);
   --e-gap-horizontal: var(--e-spacing-medium);
   --e-pad-vertical: var(--e-spacing-small);
   --e-pad-horizontal: var(--e-spacing-medium);
-}`
+  }
 
-css`:is(e-flex,e-grid,e-box)[relative] {
-  position: relative;
-}`
+  :is(e-flex,e-grid,e-box)[relative] {
+    position: relative;
+  }
 
-css`:is(e-flex,e-grid,e-box)[grow] {
-  flex-grow: 1;
-  flex-basis: 0;
-}`
+  :is(e-flex,e-grid,e-box)[grow] {
+    flex-grow: 1;
+    flex-basis: 0;
+  }
 
-css`:is(e-flex,e-grid,e-box)[pad] {
-  padding: var(--e-pad-vertical) var(--e-pad-horizontal);
-}`
+  :is(e-flex,e-grid,e-box)[pad] {
+    padding: var(--e-pad-vertical) var(--e-pad-horizontal);
+  }
 
-css`:is(e-flex,e-grid)[gap] {
-  gap: var(--e-gap-vertical) var(--e-gap-horizontal); }
+  :is(e-flex,e-grid)[gap] {
+    gap: var(--e-gap-vertical) var(--e-gap-horizontal);
+  }
+
+  ${more.join("\n")}
+}
 `

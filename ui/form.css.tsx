@@ -30,6 +30,10 @@ button, input[type="checkbox"], input[type="radio"] {
   cursor: pointer;
 }
 
+label {
+  font-size: ${theme.settings.formFontSize};
+}
+
 button,
 input:not([type]),
 input[type="text"],
@@ -166,21 +170,6 @@ button {
     opacity: 0.3;
     cursor: not-allowed;
   }
-}
-
-::-webkit-scrollbar {
-  position: absolute;
-  width: calc(1rem / 2);
-  height: calc(1rem / 2);
-}
-
-::-webkit-scrollbar-track {
-  background: ${colors.tint.light};
-}
-
-::-webkit-scrollbar-thumb {
-  background: ${colors.tint.faded};
-  /* borderRadius: calc(1rem / 4) */
 }
 
 button[e-variant="text"] {

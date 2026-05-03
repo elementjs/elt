@@ -1,12 +1,15 @@
 import { css } from "elt"
+import { theme } from "./theme"
 
 // This is going to be our layer order
-css`@layer reset, base, tokens, components, utilities, overrides;`
+css`@layer reset, base, theme, components, utilities, overrides;`
 
 css`@layer reset {
   * {
-  -webkit-tap-highlight-color: transparent;
-}
+    -webkit-tap-highlight-color: transparent;
+    scrollbar-width: thin;
+    scrollbar-color: ${theme.colors.tint.mid} ${theme.colors.tint.ultra_light};
+  }
 
 
   /* 1. Use a more-intuitive box-sizing model */
