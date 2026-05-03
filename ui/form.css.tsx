@@ -95,8 +95,8 @@ input[type="datetime-local"] {
 
 input[type="checkbox"] {
   appearance: none;
-  width: 1em;
-  height: 1em;
+  width: 1rem;
+  height: 1rem;
   border: 1px solid ${colors.text.faded};
   border-radius: 4px;
   cursor: pointer;
@@ -137,15 +137,15 @@ input[type="checkbox"]:checked::after {
 
 /* Toggle switch (checkbox + e-variant="switch") */
 input[type="checkbox"][e-variant="switch"] {
-  --e-switch-width: 1.8em;
-  --e-switch-height: 1em;
-  --e-switch-thumb: calc(var(--e-switch-height) - 2px);
+  --e-switch-width: 2em;
+  --e-switch-height: 1rem;
+  --e-switch-thumb: var(--e-switch-height);
   box-sizing: border-box;
   position: relative;
   width: var(--e-switch-width);
   height: calc(var(--e-switch-height) + 2px);
   vertical-align: middle;
-  border-radius: var(--e-border-radius);
+  border-radius: 9999px;
   border: 1px solid ${colors.text.light};
   background-color: ${colors.text.light};
   transition:
@@ -164,15 +164,15 @@ input[type="checkbox"][e-variant="switch"]:focus-visible {
 }
 
 input[type="checkbox"][e-variant="switch"]::after {
-  left: 2px;
-  top: 2px;
-  width: calc(var(--e-switch-thumb) - 1px);
-  height: calc(var(--e-switch-thumb) - 1px);
-  border-radius: var(--e-border-radius);
+  top: 0;
+  left: 0;
+  width: calc(var(--e-switch-height) - 2px);
+  height: calc(var(--e-switch-height) - 2px);
+  border-radius: 50%;
   -webkit-mask-image: none;
   mask-image: none;
   transform-origin: center;
-  transform: translateX(0);
+  transform: translateX(2px) translateY(1px);
   opacity: 1;
   background-color: ${colors.text.mid};
   transition:
@@ -183,7 +183,8 @@ input[type="checkbox"][e-variant="switch"]::after {
 input[type="checkbox"][e-variant="switch"]:checked::after {
   background-color: ${colors.tint};
   transform:
-    translateX(calc(var(--e-switch-width) - var(--e-switch-height) - 2px));
+    translateY(1px)
+    translateX(calc(var(--e-switch-width) - var(--e-switch-height) - 1px));
 }
 
 label, button {
