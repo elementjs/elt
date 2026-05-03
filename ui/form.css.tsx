@@ -102,6 +102,7 @@ input[type="checkbox"] {
   cursor: pointer;
   position: relative;
   display: inline-block;
+  transition: box-shadow 0.2s ease;
 }
 
 /* Animated check: SVG polyline as mask, tight viewBox so it fills the control */
@@ -151,7 +152,7 @@ input[type="checkbox"][e-variant="switch"] {
   transition:
     background-color 0.22s ease-out,
     border-color 0.22s ease-out,
-    box-shadow 0.2s ease;
+  ;
 }
 
 input[type="checkbox"][e-variant="switch"]:checked {
@@ -159,7 +160,7 @@ input[type="checkbox"][e-variant="switch"]:checked {
   background-color: ${colors.tint.mid};
 }
 
-input[type="checkbox"][e-variant="switch"]:focus-visible {
+input[type="checkbox"]:focus-visible {
   box-shadow: 0 0 0 3px ${colors.tint.mid};
 }
 
