@@ -5,7 +5,7 @@ const colors = theme.colors
 
 /** Tight viewBox around the polyline so the mark scales up inside the box; stroke is mask alpha. */
 const CHECKBOX_CHECK_MASK = encodeURIComponent(
-  '<svg xmlns="http://www.w3.org/2000/svg" viewBox="24 56 216 160"><polyline points="40 144 96 200 224 72" fill="none" stroke="white" stroke-linecap="round" stroke-linejoin="round" stroke-width="32"/></svg>'
+  '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256"><polyline points="40 144 96 200 224 72" fill="none" stroke="white" stroke-linecap="round" stroke-linejoin="round" stroke-width="32"/></svg>'
 )
 
 declare module "elt" {
@@ -102,7 +102,6 @@ input[type="checkbox"] {
   cursor: pointer;
   position: relative;
   display: inline-block;
-  transition: border-color .25s;
 }
 
 /* Animated check: SVG polyline as mask, tight viewBox so it fills the control */
@@ -113,12 +112,8 @@ input[type="checkbox"]::after {
   background-color: ${colors.tint};
   -webkit-mask-image: url("data:image/svg+xml,${CHECKBOX_CHECK_MASK}");
   mask-image: url("data:image/svg+xml,${CHECKBOX_CHECK_MASK}");
-  -webkit-mask-size: contain;
-  mask-size: contain;
   -webkit-mask-repeat: no-repeat;
   mask-repeat: no-repeat;
-  -webkit-mask-position: center;
-  mask-position: center;
 
   transform-origin: bottom left;
   transform: scale(0) rotate(-20deg);
@@ -126,7 +121,8 @@ input[type="checkbox"]::after {
 
   transition:
     transform .2s cubic-bezier(.2, .7, .3, 1),
-    opacity .2s ease-out;
+    opacity .2s ease-out,
+    mask-position .2s ease-out;
 }
 
 /* Checked state */
@@ -147,9 +143,9 @@ input[type="checkbox"][e-variant="switch"] {
   box-sizing: border-box;
   position: relative;
   width: var(--e-switch-width);
-  height: var(--e-switch-height);
+  height: calc(var(--e-switch-height) + 2px);
   vertical-align: middle;
-  border-radius: 9999px;
+  border-radius: var(--e-border-radius);
   border: 1px solid ${colors.text.light};
   background-color: ${colors.text.light};
   transition:
@@ -168,15 +164,15 @@ input[type="checkbox"][e-variant="switch"]:focus-visible {
 }
 
 input[type="checkbox"][e-variant="switch"]::after {
-  top: 50%;
-  left: 1px;
-  width: var(--e-switch-thumb);
-  height: var(--e-switch-thumb);
-  border-radius: 50%;
+  left: 2px;
+  top: 2px;
+  width: calc(var(--e-switch-thumb) - 1px);
+  height: calc(var(--e-switch-thumb) - 1px);
+  border-radius: var(--e-border-radius);
   -webkit-mask-image: none;
   mask-image: none;
   transform-origin: center;
-  transform: translateY(-50%) translateX(0);
+  transform: translateX(0);
   opacity: 1;
   background-color: ${colors.text.mid};
   transition:
@@ -186,8 +182,8 @@ input[type="checkbox"][e-variant="switch"]::after {
 
 input[type="checkbox"][e-variant="switch"]:checked::after {
   background-color: ${colors.tint};
-  transform: translateY(-50%)
-    translateX(calc(var(--e-switch-width) - var(--e-switch-height) - 1px));
+  transform:
+    translateX(calc(var(--e-switch-width) - var(--e-switch-height) - 2px));
 }
 
 label, button {
