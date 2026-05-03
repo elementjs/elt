@@ -14,7 +14,7 @@ declare module "elt" {
   }
 
   interface attrs_input {
-    "e-variant"?: NRO<"tint">
+    "e-variant"?: NRO<"tint" | "switch">
   }
 }
 
@@ -137,6 +137,57 @@ input[type="checkbox"]:checked {
 input[type="checkbox"]:checked::after {
   transform: scale(1) rotate(0deg);
   opacity: 1;
+}
+
+/* Toggle switch (checkbox + e-variant="switch") */
+input[type="checkbox"][e-variant="switch"] {
+  --e-switch-width: 1.8em;
+  --e-switch-height: 1em;
+  --e-switch-thumb: calc(var(--e-switch-height) - 2px);
+  box-sizing: border-box;
+  position: relative;
+  width: var(--e-switch-width);
+  height: var(--e-switch-height);
+  vertical-align: middle;
+  border-radius: 9999px;
+  border: 1px solid ${colors.text.light};
+  background-color: ${colors.text.light};
+  transition:
+    background-color 0.22s ease-out,
+    border-color 0.22s ease-out,
+    box-shadow 0.2s ease;
+}
+
+input[type="checkbox"][e-variant="switch"]:checked {
+  border-color: ${colors.tint};
+  background-color: ${colors.tint.mid};
+}
+
+input[type="checkbox"][e-variant="switch"]:focus-visible {
+  box-shadow: 0 0 0 3px ${colors.tint.mid};
+}
+
+input[type="checkbox"][e-variant="switch"]::after {
+  top: 50%;
+  left: 1px;
+  width: var(--e-switch-thumb);
+  height: var(--e-switch-thumb);
+  border-radius: 50%;
+  -webkit-mask-image: none;
+  mask-image: none;
+  transform-origin: center;
+  transform: translateY(-50%) translateX(0);
+  opacity: 1;
+  background-color: ${colors.text.mid};
+  transition:
+    transform 0.2s cubic-bezier(0.2, 0.85, 0.25, 1),
+    background-color 0.2s ease;
+}
+
+input[type="checkbox"][e-variant="switch"]:checked::after {
+  background-color: ${colors.tint};
+  transform: translateY(-50%)
+    translateX(calc(var(--e-switch-width) - var(--e-switch-height) - 1px));
 }
 
 label, button {
