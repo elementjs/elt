@@ -10,6 +10,7 @@ export interface ThemeSettings {
 
   fontSize: string
   formFontSize: string
+  focusRingSize: string
 
   monospaceFontFamily: string
   fontFamily: string
@@ -106,12 +107,14 @@ export class Theme<ColorScheme extends BaseColorScheme> {
     this._set(theme.settings ?? {}, "intensityStrong", "80%")
     this._set(theme.settings ?? {}, "intensityVeryStrong", "60%")
     this._set(theme.settings ?? {}, "monospaceFontFamily", "monospace")
-    this._set(theme.settings ?? {}, "fontFamily", `"Segoe UI", "apple-system", "BlinkMacSystemFont", "Helvetica Neue", Helvetica, Arial, sans-serif`)
+    this._set(theme.settings ?? {}, "fontFamily", `"SF Pro", "Inter", "Noto Sans", system-ui, "apple-system", "BlinkMacSystemFont", "Helvetica Neue", Helvetica, Arial, sans-serif`)
     this._set(theme.settings ?? {}, "fontSize", "16px")
     this._set(theme.settings ?? {}, "lineHeight", "1.5")
 
     this._set(theme.settings ?? {}, "cellPadding", "0.25em 0.5em")
     this._set(theme.settings ?? {}, "formFontSize", "14px")
+
+    this._set(theme.settings ?? {}, "focusRingSize", "3px")
 
     let _ = this.class_light
     _ = this.class_dark

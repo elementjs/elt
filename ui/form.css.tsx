@@ -72,6 +72,7 @@ input[type="datetime-local"],
 textarea,
 select,
 fieldset {
+
   appearance: none;
   -webkit-appearance: none;
   background-color: ${colors.bg};
@@ -83,15 +84,15 @@ fieldset {
   vertical-align: baseline;
 
   transition:
-    background 0.2s ease,
-    box-shadow 0.2s ease;
+    background 0.1s ease,
+    box-shadow 0.1s ease;
 
   &:hover {
     background: ${colors.bg.ultra_light};
   }
 
   &:focus-visible {
-    box-shadow: 0 0 0 3px ${colors.tint.mid};
+    box-shadow: 0 0 0 ${theme.settings.focusRingSize} oklch(from ${colors.tint} l c h / 0.8);
   }
 }
 
@@ -122,7 +123,7 @@ input[type="checkbox"] {
   cursor: pointer;
   position: relative;
   display: inline-block;
-  transition: box-shadow 0.2s ease;
+  transition: box-shadow 0.1s ease;
 }
 
 /* Animated check: SVG polyline as mask, tight viewBox so it fills the control */
@@ -139,6 +140,7 @@ input[type="checkbox"]::after {
   transform-origin: bottom left;
   transform: scale(0) rotate(-20deg);
   opacity: 0;
+
 
   transition:
     transform .2s cubic-bezier(.2, .7, .3, 1),
@@ -181,7 +183,7 @@ input[type="checkbox"][e-variant="switch"]:checked {
 }
 
 input[type="checkbox"]:focus-visible {
-  box-shadow: 0 0 0 3px ${colors.tint.mid};
+  box-shadow: 0 0 0 ${theme.settings.focusRingSize} oklch(from ${colors.tint} l c h / 0.8);
 }
 
 input[type="checkbox"][e-variant="switch"]::after {
@@ -225,7 +227,7 @@ hr {
 }
 
 button {
-  transition: transform 5ms ease, background 0.2s ease, box-shadow 0.2s ease;
+  transition: transform 5ms ease, background 0.1s ease, box-shadow 0.1s ease;
   transform-origin: bottom;
   /* box-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);*/
 
@@ -275,17 +277,9 @@ button[e-variant="off"] {
   border: 1px solid ${colors.text.mid};
   color: ${colors.text.mid};
   background: ${colors.text.ultra_light};
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.1),
-    inset 0 -1px 0 rgba(0, 0, 0, 0.1)
-    ;
 }
 
 button[e-variant="on"] {
-  box-shadow:
-    inset 0 -1px 0 rgba(255, 255, 255, 0.1),
-    inset 0 1px 0 rgba(0, 0, 0, 0.1)
-    ;
   text-shadow:
     0 1px 0 rgba(0, 0, 0, 0.5);       /* inner shadow illusion */
   & svg {
@@ -294,12 +288,24 @@ button[e-variant="on"] {
 }
 
 e-box {
-  & > :not(:last-child) {
+  position: relative;
+  z-index: 0;
+
+  & button {
+    position: relative;
+    z-index: 0;
+  }
+
+  & :focus-visible {
+    z-index: 1;
+  }
+
+  & > :is(button, input):not(:last-child) {
     border-right: none;
     border-bottom-right-radius: 0;
     border-top-right-radius: 0;
   }
-  & > :not(:first-child) {
+  & > :is(button, input):not(:first-child) {
     border-bottom-left-radius: 0;
     border-top-left-radius: 0;
   }
