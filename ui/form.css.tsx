@@ -225,7 +225,8 @@ hr {
 }
 
 button {
-  transition: transform 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+  transition: transform 5ms ease, background 0.2s ease, box-shadow 0.2s ease;
+  transform-origin: bottom;
   /* box-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);*/
 
   &:hover:not([disabled]) {
@@ -237,8 +238,7 @@ button {
     box-shadow:
       inset 0px 4px 6px ${colors.text.from_bg(theme.settings.intensityLight, 0.4)},
       inset 0px -4px 6px ${colors.text.from_bg(theme.settings.intensityLight, 0.1)};
-    transform: scale(0.99) translateY(1px);
-    transform-origin: top center;
+    transform: scaleY(0.99) translateY(0.5px);
   }
 
   &[disabled] {
