@@ -34,6 +34,7 @@ css`@layer reset {
   }
 
 body {
+    font-size: clamp(1rem, 0.9rem + 0.5vw, 1.125rem);
     /* 4. Add accessible line-height */
     line-height: 1.5;
     /* 5. Improve text rendering */
