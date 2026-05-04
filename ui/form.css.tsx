@@ -1,4 +1,4 @@
-import { css, type NRO } from "elt"
+import { css, type NRO, $bind, o, node_observe } from "elt"
 import { theme } from "./theme"
 
 const colors = theme.colors
@@ -15,6 +15,26 @@ declare module "elt" {
 
   interface attrs_input {
     "e-variant"?: NRO<"tint" | "switch">
+  }
+
+  export namespace $bind {
+    export function toggler(obs: o.IObservable<boolean | null | undefined, boolean>): (node: HTMLButtonElement) => void
+  }
+}
+
+$bind.toggler = function (obs: o.IObservable<boolean | null | undefined, boolean>): (node: HTMLButtonElement) => void {
+  return function (node: HTMLButtonElement) {
+    node.addEventListener("click", () => {
+      obs.set(!obs.get())
+    })
+    node_observe(node, obs, (value) => {
+      if (value) {
+        node.setAttribute("e-variant", "on")
+      } else {
+        node.setAttribute("e-variant", "off")
+      }
+    })
+
   }
 }
 
@@ -282,6 +302,10 @@ e-box {
   & > :not(:first-child) {
     border-bottom-left-radius: 0;
     border-top-left-radius: 0;
+  }
+
+  & :is(button[e-variant="on"], button[e-variant="full"]):not(:first-child) {
+    border-left-color: ${colors.text.mid};
   }
 }
 }`
