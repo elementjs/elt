@@ -205,7 +205,7 @@ hr {
 }
 
 button {
-  /* transition: transform 1ms ease, background 1ms ease, box-shadow 1ms ease;*/
+  transition: transform 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
   /* box-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);*/
 
   &:hover:not([disabled]) {
@@ -227,11 +227,6 @@ button {
   }
 }
 
-button[e-variant="off"] {
-  border: 1px solid ${colors.tint};
-  color: ${colors.text.mid};
-  background: ${colors.text.ultra_light};
-}
 
 button[e-variant="text"] {
   border: 0;
@@ -254,6 +249,28 @@ button[e-variant="full"], button[e-variant="on"] {
   color: var(--e-color-text);
   border-color: var(--e-color-bg);
   background-color: var(--e-color-bg);
+}
+
+button[e-variant="off"] {
+  border: 1px solid ${colors.text.mid};
+  color: ${colors.text.mid};
+  background: ${colors.text.ultra_light};
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.1),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.1)
+    ;
+}
+
+button[e-variant="on"] {
+  box-shadow:
+    inset 0 -1px 0 rgba(255, 255, 255, 0.1),
+    inset 0 1px 0 rgba(0, 0, 0, 0.1)
+    ;
+  text-shadow:
+    0 1px 0 rgba(0, 0, 0, 0.5);       /* inner shadow illusion */
+  & svg {
+    filter: drop-shadow(0 -1px 0 rgba(0, 0, 0, 0.5));
+  }
 }
 
 e-box {
