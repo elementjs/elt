@@ -12,6 +12,7 @@
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
 
+    "noEmit": true,
     "verbatimModuleSyntax": true,
     "strict": true,
     "noFallthroughCasesInSwitch": true,
