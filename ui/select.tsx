@@ -2,7 +2,7 @@ import { type Attrs, o, type Renderable, $click, css, Repeat } from "elt"
 import { popup } from "./popup"
 import { theme } from "./theme"
 const colors = theme.colors
-import { CaretDown } from "./icons"
+import { CaretDown, Check } from "./icons"
 
 /**
  * A select component that does not use the native select element for custom rendering of options.
@@ -48,7 +48,7 @@ export function Select<T, T2 = T>(at: SelectAttributes<T, T2>) {
                 at.model?.set(o.get(oo_option_value))
                 fut.resolve(o.get(oo_option_value))
               })}
-              <e-box class="selected-icon"></e-box>
+              <e-box class="selected-icon">{oo_is_selected.tf(selected => selected && Check())}</e-box>
               {o_option.tf(opt => at.label_fn ? at.label_fn(opt) : opt?.toString())}
             </e-flex>
           })}
@@ -97,10 +97,6 @@ const cls_item = css`.item {
     padding: 0 4px;
     text-align: center;
     width: 16px;
-  }
-
-  &.selected .selected-icon::before {
-    content: "✓";
   }
 
   &.selected {
