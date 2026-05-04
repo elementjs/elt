@@ -274,9 +274,9 @@ button[e-variant="full"], button[e-variant="on"] {
 }
 
 button[e-variant="off"] {
-  border: 1px solid ${colors.text.mid};
-  color: ${colors.text.mid};
-  background: ${colors.text.ultra_light};
+  border: 1px solid ${colors.tint.mid};
+  color: ${colors.tint.mid};
+  background: ${colors.tint.light};
 }
 
 button[e-variant="on"] {
@@ -296,22 +296,45 @@ e-box {
     z-index: 0;
   }
 
+  &[variant="vertical"] {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+
+    & > :is(button, input):not(:last-child) {
+      border-bottom: none;
+      border-bottom-right-radius: 0;
+      border-bottom-left-radius: 0;
+    }
+    & > :is(button, input):not(:first-child) {
+      border-top-right-radius: 0;
+      border-top-left-radius: 0;
+    }
+
+    & :is(button[e-variant="on"], button[e-variant="full"]):not(:first-child) {
+      border-top-color: ${colors.tint.light};
+    }
+  }
+
+
   & :focus-visible {
     z-index: 1;
   }
 
-  & > :is(button, input):not(:last-child) {
-    border-right: none;
-    border-bottom-right-radius: 0;
-    border-top-right-radius: 0;
-  }
-  & > :is(button, input):not(:first-child) {
-    border-bottom-left-radius: 0;
-    border-top-left-radius: 0;
-  }
+  &:not([variant="vertical"]) {
+    & > :is(button, input):not(:last-child) {
+      border-right: none;
+      border-bottom-right-radius: 0;
+      border-top-right-radius: 0;
+    }
+    & > :is(button, input):not(:first-child) {
+      border-bottom-left-radius: 0;
+      border-top-left-radius: 0;
+    }
 
-  & :is(button[e-variant="on"], button[e-variant="full"]):not(:first-child) {
-    border-left-color: ${colors.text.mid};
+    & :is(button[e-variant="on"], button[e-variant="full"]):not(:first-child) {
+      border-left-color: ${colors.tint.light};
+    }
   }
 }
 }`

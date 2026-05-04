@@ -100,8 +100,8 @@ export class Theme<ColorScheme extends BaseColorScheme> {
     // Now set the theme settings
     this._set(theme.settings ?? {}, "borderRadius", "6px")
     this._set(theme.settings ?? {}, "frameBorderRadius", "12px")
-    this._set(theme.settings ?? {}, "intensityVeryLight", "5%")
-    this._set(theme.settings ?? {}, "intensityLight", "10%")
+    this._set(theme.settings ?? {}, "intensityVeryLight", "10%")
+    this._set(theme.settings ?? {}, "intensityLight", "20%")
     this._set(theme.settings ?? {}, "intensityMid", "50%")
     this._set(theme.settings ?? {}, "intensityFaded", "80%")
     this._set(theme.settings ?? {}, "intensityStrong", "80%")

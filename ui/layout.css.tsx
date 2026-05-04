@@ -28,7 +28,7 @@ export interface CommonAttrs extends Attrs<HTMLElement> {
 }
 
 export interface EBoxAttrs extends CommonAttrs {
-
+  variant?: NRO<"vertical">
 }
 
 export interface EFlexAttrs extends CommonAttrs {
