@@ -10,7 +10,7 @@ const CHECKBOX_CHECK_MASK = encodeURIComponent(
 
 declare module "elt" {
   interface attrs_button {
-    "e-variant"?: NRO<"text" | "tint" | "full">
+    "e-variant"?: NRO<"text" | "tint" | "full" | "off" | "on">
   }
 
   interface attrs_input {
@@ -227,6 +227,12 @@ button {
   }
 }
 
+button[e-variant="off"] {
+  border: 1px solid ${colors.tint};
+  color: ${colors.text.mid};
+  background: ${colors.text.ultra_light};
+}
+
 button[e-variant="text"] {
   border: 0;
   color: ${colors.tint};
@@ -241,7 +247,7 @@ button[e-variant="tint"], input[e-variant="tint"] {
   }
 }
 
-button[e-variant="full"] {
+button[e-variant="full"], button[e-variant="on"] {
   --e-color-bg: var(--e-light-color-tint);
   --e-color-text: var(--e-light-color-bg);
   --e-color-tint: var(--e-light-color-bg);
