@@ -11,7 +11,6 @@ css`@layer reset {
     scrollbar-color: ${theme.colors.tint.mid} ${theme.colors.tint.ultra_light};
   }
 
-
   /* 1. Use a more-intuitive box-sizing model */
 *,
   *::before,

@@ -46,8 +46,10 @@ label {
   gap: 4px;
   cursor: pointer;
 
-  &:hover {
-    background-color: ${colors.tint.light};
+  @media (hover: hover) and (pointer: fine) {
+    &:hover {
+      background-color: ${colors.tint.light};
+    }
   }
 }
 
@@ -87,12 +89,14 @@ fieldset {
     background 0.1s ease,
     box-shadow 0.1s ease;
 
-  &:hover {
-    background: ${colors.bg.ultra_light};
+  @media (hover: hover) and (pointer: fine) {
+    &:hover {
+      background: ${colors.bg.ultra_light};
+    }
   }
 
   &:focus-visible {
-    box-shadow: 0 0 0 ${theme.settings.focusRingSize} oklch(from ${colors.tint} l c h / 0.8);
+    box-shadow: 0 0 0 ${theme.settings.focusRingSize} ${colors.tint.mid};
   }
 }
 
@@ -175,6 +179,9 @@ input[type="checkbox"][e-variant="switch"] {
     background-color 0.22s ease-out,
     border-color 0.22s ease-out,
   ;
+  box-shadow:
+    inset 0 -1px 2px rgba(255, 255, 255, 0.2),
+    inset 0 1px 2px rgba(0, 0, 0, 0.2);
 }
 
 input[type="checkbox"][e-variant="switch"]:checked {
@@ -183,7 +190,7 @@ input[type="checkbox"][e-variant="switch"]:checked {
 }
 
 input[type="checkbox"]:focus-visible {
-  box-shadow: 0 0 0 ${theme.settings.focusRingSize} oklch(from ${colors.tint} l c h / 0.8);
+  box-shadow: 0 0 0 ${theme.settings.focusRingSize} ${colors.tint.mid};
 }
 
 input[type="checkbox"][e-variant="switch"]::after {
@@ -201,6 +208,9 @@ input[type="checkbox"][e-variant="switch"]::after {
   transition:
     transform 0.2s cubic-bezier(0.2, 0.85, 0.25, 1),
     background-color 0.2s ease;
+  box-shadow:
+    0 -1px 2px rgba(255, 255, 255, 0.2),
+    0 1px 2px rgba(0, 0, 0, 0.2);
 }
 
 input[type="checkbox"][e-variant="switch"]:checked::after {
@@ -229,10 +239,11 @@ hr {
 button {
   transition: transform 5ms ease, background 0.1s ease, box-shadow 0.1s ease;
   transform-origin: bottom;
-  /* box-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);*/
 
-  &:hover:not([disabled]) {
-    background: ${colors.tint.light};
+  @media (hover: hover) and (pointer: fine) {
+    &:hover:not([disabled]) {
+      background: ${colors.tint.light};
+    }
   }
 
   &:active:not([disabled]) {
@@ -271,6 +282,13 @@ button[e-variant="full"], button[e-variant="on"] {
   color: var(--e-color-text);
   border-color: var(--e-color-bg);
   background-color: var(--e-color-bg);
+
+  text-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.2),
+    0 -1px 0 rgba(0, 0, 0, 0.2);       /* inner shadow illusion */
+  & svg {
+    filter: drop-shadow(0 1px 0 rgba(255, 255, 255, 0.2)) drop-shadow(0 -1px 0 rgba(0, 0, 0, 0.2));
+  }
 }
 
 button[e-variant="off"] {
@@ -281,17 +299,22 @@ button[e-variant="off"] {
 
 button[e-variant="on"] {
   text-shadow:
-    0 1px 0 rgba(0, 0, 0, 0.5);       /* inner shadow illusion */
+  0 -1px 0 rgba(255, 255, 255, 0.2),
+  0 1.5px 0 rgba(0, 0, 0, 0.2);       /* inner shadow illusion */
   & svg {
-    filter: drop-shadow(0 -1px 0 rgba(0, 0, 0, 0.5));
+    filter: drop-shadow(0 -1px 0 rgba(255, 255, 255, 0.2)) drop-shadow(0 1px 0 rgba(0, 0, 0, 0.2));
   }
+
+  box-shadow:
+    inset 0 -1px 2px rgba(255, 255, 255, 0.2),
+    inset 0 1px 2px rgba(0, 0, 0, 0.2);
 }
 
 e-box {
   position: relative;
   z-index: 0;
 
-  & button {
+  & :is(button, input) {
     position: relative;
     z-index: 0;
   }

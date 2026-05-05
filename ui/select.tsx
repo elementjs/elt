@@ -103,8 +103,10 @@ const cls_item = css`.item {
     background-color: ${colors.tint.ultra_light};
   }
 
-  &:hover, &:hover .selected-icon {
-    background-color: ${colors.tint.light};
+  @media (hover: hover) and (pointer: fine) {
+    &:hover, &:hover .selected-icon {
+      background-color: ${colors.tint.light};
+    }
   }
 
 }`
