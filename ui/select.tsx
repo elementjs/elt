@@ -39,7 +39,7 @@ export function Select<T, T2 = T>(at: SelectAttributes<T, T2>) {
     {$click(async ev => {
       o_open.set(true)
       try {
-        await popup(ev.currentTarget, fut => <>
+        await popup(ev.currentTarget, fut => <menu>
           {Repeat(o(at.options).tf(opts => [...opts]), o_option => {
             const oo_option_value = o_option.tf(opt => convert_fn(opt))
             const oo_is_selected = o.expression(get => get(at.model) === get(oo_option_value))
@@ -52,7 +52,7 @@ export function Select<T, T2 = T>(at: SelectAttributes<T, T2>) {
               {o_option.tf(opt => at.label_fn ? at.label_fn(opt) : opt?.toString())}
             </e-flex>
           })}
-        </>
+        </menu>
         , { parent: ev.currentTarget.parentElement!, arrow: true })
       } finally {
         o_open.set(false)

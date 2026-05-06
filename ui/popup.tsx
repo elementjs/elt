@@ -208,7 +208,7 @@ const cls_popup = css`.popup {
   overflow: hidden;
   background-color: ${colors.bg};
   color: ${colors.text};
-  border: 1px solid ${colors.text.faded};
+  border: 1px solid ${colors.text.mid};
   box-shadow: 0 4px 8px ${colors.text.light},
   0 2px 4px ${colors.text.light};
 

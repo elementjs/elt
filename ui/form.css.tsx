@@ -1,4 +1,4 @@
-import { css, type NRO, $bind, o, node_observe } from "elt"
+import { css, type NRO, $bind, o, node_observe, type Attrs } from "elt"
 import { theme } from "./theme"
 
 const colors = theme.colors
@@ -77,9 +77,9 @@ fieldset {
 
   appearance: none;
   -webkit-appearance: none;
-  background-color: ${colors.bg};
+  background-color: transparent;
   color: ${colors.text};
-  border: 1px solid ${colors.text.faded};
+  border: 1px solid ${colors.text.mid};
   padding: ${theme.settings.cellPadding};
   border-radius: ${theme.settings.borderRadius};
   font-size: ${theme.settings.formFontSize};
@@ -314,16 +314,17 @@ button[e-variant="on"] {
     inset 1px 1px 1px rgba(0, 0, 0, 0.3);
 }
 
-e-box {
+e-button-box {
   position: relative;
   z-index: 0;
+  display: inline-flex;
 
   & :is(button, input) {
     position: relative;
     z-index: 0;
   }
 
-  &[variant="vertical"] {
+  &[e-variant="vertical"] {
     display: flex;
     flex-direction: column;
     gap: 0;
@@ -338,7 +339,9 @@ e-box {
       border-top-left-radius: 0;
     }
 
-    & :is(button[e-variant="on"], button[e-variant="full"]):not(:first-child) {
+    & > :is(button[e-variant="on"],
+    & > button[e-variant="full"]):not(:first-child)
+    {
       border-top-color: ${colors.tint.light};
     }
   }
@@ -348,20 +351,34 @@ e-box {
     z-index: 1;
   }
 
-  &:not([variant="vertical"]) {
-    & > :is(button, input):not(:last-child) {
+  &:not([e-variant="vertical"]) {
+    & > :is(button, input):not(:last-child)
+    {
       border-right: none;
       border-bottom-right-radius: 0;
       border-top-right-radius: 0;
     }
+
     & > :is(button, input):not(:first-child) {
       border-bottom-left-radius: 0;
       border-top-left-radius: 0;
     }
 
-    & :is(button[e-variant="on"], button[e-variant="full"]):not(:first-child) {
+    & > :is(button[e-variant="on"],
+    & > button[e-variant="full"]):not(:first-child) {
       border-left-color: ${colors.tint.ultra_light};
     }
   }
 }
 }`
+
+declare module "elt" {
+  interface ElementMap {
+    "e-button-box": EButtonBoxAttrs
+  }
+}
+
+
+export interface EButtonBoxAttrs extends Attrs {
+  "e-variant"?: NRO<"vertical">
+}

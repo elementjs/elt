@@ -22,6 +22,8 @@ export interface ThemeSettings {
   intensityStrong: string
   intensityVeryStrong: string
 
+  pressedShadow: string
+  depressedShadow: string
 }
 
 export type BaseColorScheme= {
@@ -114,7 +116,10 @@ export class Theme<ColorScheme extends BaseColorScheme> {
     this._set(theme.settings ?? {}, "cellPadding", "0.25em 0.5em")
     this._set(theme.settings ?? {}, "formFontSize", "14px")
 
-    this._set(theme.settings ?? {}, "focusRingSize", "3px")
+    this._set(theme.settings ?? {}, "focusRingSize", "2px")
+
+    this._set(theme.settings ?? {}, "pressedShadow", "0 0 0 1px var(--e-color-text)")
+    this._set(theme.settings ?? {}, "depressedShadow", "0 0 0 1px var(--e-color-text)")
 
     let _ = this.class_light
     _ = this.class_dark
