@@ -294,7 +294,11 @@ button[e-variant="full"], button[e-variant="on"] {
 button[e-variant="off"] {
   border: 1px solid ${colors.tint.mid};
   color: ${colors.tint.mid};
-  background: ${colors.tint.light};
+  background: ${colors.bg};
+
+  box-shadow:
+    inset 1px 1px 1px rgba(255, 255, 255, 0.1),
+    inset -1px -1px 1px rgba(0, 0, 0, 0.1);
 }
 
 button[e-variant="on"] {
@@ -306,8 +310,8 @@ button[e-variant="on"] {
   }
 
   box-shadow:
-    inset 0 -1px 2px rgba(255, 255, 255, 0.2),
-    inset 0 1px 2px rgba(0, 0, 0, 0.2);
+    inset -1px -1px 1px rgba(255, 255, 255, 0.3),
+    inset 1px 1px 1px rgba(0, 0, 0, 0.3);
 }
 
 e-box {
@@ -356,7 +360,7 @@ e-box {
     }
 
     & :is(button[e-variant="on"], button[e-variant="full"]):not(:first-child) {
-      border-left-color: ${colors.tint.light};
+      border-left-color: ${colors.tint.ultra_light};
     }
   }
 }
