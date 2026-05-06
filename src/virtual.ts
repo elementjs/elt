@@ -389,7 +389,7 @@ export class VirtualScroller<O extends o.RO<any[]>>
     let r = this.allow_reuse ? this.pool.pop() : null
 
     if (r == null) {
-      r = document.createElement("e-ritem") as RItem
+      r = document.createElement("e-repeat-item") as RItem
       r._idx = o(idx)
       const ob = this.obs.p(r._idx)
       node_append(r, this.renderfn!(ob as any, r._idx))
