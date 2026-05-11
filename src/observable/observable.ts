@@ -1296,16 +1296,18 @@ export namespace o {
     })
   }
 
+  export type ExpressionGetterFn = <A extends any[]>(...obs: A) => true extends A[1] ? UnRO<A[0]> | NoValue : UnRO<A[0]>
+
   export function expression<T>(
     fn: (
-      get: <A>(obs: o.RO<A>) => A,
+      get: ExpressionGetterFn,
       old: <A>(obs: o.RO<A>) => A | NoValue,
       prev: T | NoValue
     ) => T
   ): o.ReadonlyObservable<T>
   export function expression<T>(
     fn: (
-      get: <A>(obs: o.RO<A>) => A,
+      get: ExpressionGetterFn,
       old: <A>(obs: o.RO<A>) => A | NoValue,
       prev: T | NoValue
     ) => T,
@@ -1318,7 +1320,7 @@ export namespace o {
   ): o.Observable<T>
   export function expression<T>(
     fn: (
-      get: <A>(obs: o.RO<A>) => A,
+      get: ExpressionGetterFn,
       old: <A>(obs: o.RO<A>) => A | NoValue,
       prev: T | NoValue
     ) => T,
@@ -1336,8 +1338,8 @@ export namespace o {
 
     let i = 0
 
-    function _get(m: o.RO<any>) {
-      if (!o.is_observable(m)) {
+    function _get(m: o.RO<any>, updated: boolean = false) {
+      if (!o.is_observable(m) && !updated) {
         return m
       }
 
@@ -1347,7 +1349,17 @@ export namespace o {
       }
 
       // console.log(values, mp.get(m))
-      return cmb._parents_values[mp.get(m)!]
+      const res = cmb._parents_values[mp.get(m)!]
+
+      if (updated) {
+        const old = _old(m)
+        if (old === NoValue || old === res) {
+          return NoValue
+        }
+        return res
+      }
+
+      return res
     }
 
     function _old(m: o.RO<any>) {
