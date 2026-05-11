@@ -147,9 +147,9 @@ input[type="checkbox"]::after {
 
 
   transition:
-    transform .2s cubic-bezier(.2, .7, .3, 1),
-    opacity .2s ease-out,
-    mask-position .2s ease-out;
+    transform .1s cubic-bezier(.2, .7, .3, 1),
+    opacity .1s ease-out,
+    mask-position .1s ease-out;
 }
 
 /* Checked state */
@@ -176,8 +176,8 @@ input[type="checkbox"][e-variant="switch"] {
   border: 1px solid ${colors.text.light};
   background-color: ${colors.text.light};
   transition:
-    background-color 0.22s ease-out,
-    border-color 0.22s ease-out,
+    background-color 0.1s ease-out,
+    border-color 0.1s ease-out,
   ;
   box-shadow:
     inset 0 -1px 2px rgba(255, 255, 255, 0.2),
@@ -206,8 +206,8 @@ input[type="checkbox"][e-variant="switch"]::after {
   opacity: 1;
   background-color: ${colors.text.mid};
   transition:
-    transform 0.2s cubic-bezier(0.2, 0.85, 0.25, 1),
-    background-color 0.2s ease;
+    transform 0.1s cubic-bezier(0.2, 0.85, 0.25, 1),
+    background-color 0.1s ease;
   box-shadow:
     0 -1px 2px rgba(255, 255, 255, 0.2),
     0 1px 2px rgba(0, 0, 0, 0.2);
@@ -248,9 +248,6 @@ button {
 
   &:active:not([disabled]) {
     background: ${colors.tint.light};
-    box-shadow:
-      inset 0px 4px 6px ${colors.text.from_bg(theme.settings.intensityLight, 0.4)},
-      inset 0px -4px 6px ${colors.text.from_bg(theme.settings.intensityLight, 0.1)};
     transform: scaleY(0.99) translateY(0.5px);
   }
 
@@ -279,15 +276,17 @@ button[e-variant="full"], button[e-variant="on"] {
   --e-color-bg: var(--e-light-color-tint);
   --e-color-text: var(--e-light-color-bg);
   --e-color-tint: var(--e-light-color-bg);
+  --e-color-shadow-raise: rgba(255, 255, 255, 0.2);
+  --e-color-shadow-drop: rgba(0, 0, 0, 0.2);
   color: var(--e-color-text);
   border-color: var(--e-color-bg);
   background-color: var(--e-color-bg);
 
   text-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.2),
-    0 -1px 0 rgba(0, 0, 0, 0.2);       /* inner shadow illusion */
+    0px 1px 0 var(--e-color-shadow-raise),
+    0px -1px 0 var(--e-color-shadow-drop);       /* inner shadow illusion */
   & svg {
-    filter: drop-shadow(0 1px 0 rgba(255, 255, 255, 0.2)) drop-shadow(0 -1px 0 rgba(0, 0, 0, 0.2));
+    filter: drop-shadow(0px 1px 0 var(--e-color-shadow-raise)) drop-shadow(0px -1px 0 var(--e-color-shadow-drop));
   }
 }
 
@@ -297,21 +296,15 @@ button[e-variant="off"] {
   background: ${colors.bg};
 
   box-shadow:
-    inset 1px 1px 1px rgba(255, 255, 255, 0.1),
-    inset -1px -1px 1px rgba(0, 0, 0, 0.1);
+    inset 1px 1px 0 var(--e-color-shadow-drop),
+    inset -1px -1px 0 var(--e-color-shadow-raise),
 }
 
 button[e-variant="on"] {
-  text-shadow:
-  0 -1px 0 rgba(255, 255, 255, 0.2),
-  0 1.5px 0 rgba(0, 0, 0, 0.2);       /* inner shadow illusion */
-  & svg {
-    filter: drop-shadow(0 -1px 0 rgba(255, 255, 255, 0.2)) drop-shadow(0 1px 0 rgba(0, 0, 0, 0.2));
-  }
 
   box-shadow:
-    inset -1px -1px 1px rgba(255, 255, 255, 0.3),
-    inset 1px 1px 1px rgba(0, 0, 0, 0.3);
+    inset 0px -1px 0 var(--e-color-shadow-raise),
+    inset 0px 1px 0 var(--e-color-shadow-drop);
 }
 
 e-button-box {

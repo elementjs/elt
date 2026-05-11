@@ -21,12 +21,9 @@ export interface ThemeSettings {
   intensityFaded: string
   intensityStrong: string
   intensityVeryStrong: string
-
-  pressedShadow: string
-  depressedShadow: string
 }
 
-export type BaseColorScheme= {
+export type BaseColorScheme = {
   bg: string
   text: string
   tint: string
@@ -118,9 +115,6 @@ export class Theme<ColorScheme extends BaseColorScheme> {
 
     this._set(theme.settings ?? {}, "focusRingSize", "2px")
 
-    this._set(theme.settings ?? {}, "pressedShadow", "0 0 0 1px var(--e-color-text)")
-    this._set(theme.settings ?? {}, "depressedShadow", "0 0 0 1px var(--e-color-text)")
-
     let _ = this.class_light
     _ = this.class_dark
     _ = this.class_dynamic
@@ -177,6 +171,8 @@ export class Theme<ColorScheme extends BaseColorScheme> {
   @memoize
   get class_light() {
     return css`.e-light-theme {
+      --e-color-shadow-raise: rgba(255, 255, 255, 0.2);
+      --e-color-shadow-drop: rgba(0, 0, 0, 0.2);
       ${this.all_colors}
       ${this.css_settings}
       ${this.css_light_colors}
@@ -191,6 +187,8 @@ export class Theme<ColorScheme extends BaseColorScheme> {
       ${this.css_settings}
       ${this.css_dark_colors}
       ${this.init}
+      --e-color-shadow-raise: rgba(0, 0, 0, 0.2);
+      --e-color-shadow-drop: rgba(255, 255, 255, 0.2);
     }`
   }
 
@@ -201,10 +199,14 @@ export class Theme<ColorScheme extends BaseColorScheme> {
       ${this.css_settings}
       ${this.css_light_colors}
       ${this.init}
+      --e-color-shadow-raise: rgba(255, 255, 255, 0.2);
+      --e-color-shadow-drop: rgba(0, 0, 0, 0.2);
 
       @media (prefers-color-scheme: dark) {
         & {
           ${this.css_dark_colors}
+          --e-color-shadow-raise: rgba(0, 0, 0, 0.2);
+          --e-color-shadow-drop: rgba(255, 255, 255, 0.2);
         }
     }
 
@@ -337,7 +339,6 @@ export const theme = new Theme({
     text: "#1c1c1b",
     bg: "#ffffff",
     tint: "#005FCC",
-
     red: "#D11C3B",
     red_orange: "#E44A1C",
     orange: "#F57F17",
