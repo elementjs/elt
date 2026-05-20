@@ -84,5 +84,3 @@ export const MagnifyingGlass = /** @__PURE__ */ () => _(vb,vd,s(rt,w,"256",h,"25
 export const X = /** @__PURE__ */ () => _(vb,vd,s(rt,w,"256",h,"256",f,n),s(l,x1,"200",y1,"56",x2,"56",y2,"200",st,cc,sc,ro,sj,ro,sw,"16"),s(l,x1,"200",y1,"200",x2,"56",y2,"56",st,cc,sc,ro,sj,ro,sw,"16"))
 
 export const Check = /** @__PURE__ */ () => _(vb,vd,s(rt,w,"256",h,"256",f,n),s(py,ps,"40 144 96 200 224 72",f,n,st,cc,sc,ro,sj,ro,sw,"16"))
-
-export const SearchIcon = /** @__PURE__ */ () => _(vb,vd,s(rt,w,"256",h,"256",f,n),s(c,cx,"112",cy,"112",r,"80",f,n,st,cc,sc,ro,sj,ro,sw,"16"),s(l,x1,"168.57",y1,"168.57",x2,"224",y2,"224",f,n,st,cc,sc,ro,sj,ro,sw,"16"))
