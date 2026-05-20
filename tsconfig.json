@@ -22,9 +22,8 @@
     "noUnusedLocals": true,
     "noUnusedParameters": false,
     "noPropertyAccessFromIndexSignature": false,
-
     "lib": ["ESNext", "dom"],
     "types": []
   },
-  "files": ["./src/index.ts", "./src/ui/index.tsx"]
+  "files": ["./src/index.ts", "./ui/index.tsx"]
 }

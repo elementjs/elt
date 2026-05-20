@@ -13,7 +13,7 @@ export * from "./spinner"
 export * from "./nav"
 export * from "./date"
 export * from "./icons"
-export * from "./searchbar"
+export * from "./search"
 
 import { o } from "elt"
 import { theme } from "./theme"

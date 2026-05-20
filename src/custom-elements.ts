@@ -143,6 +143,22 @@ export function register(name: string): (kls: any) => any {
   }
 }
 
+/**
+ * A wrapper element that calls connected / disconnected callbacks on its children elements when connected / disconnected.
+ * Useful when using third-party libraries unaware of elt's lifecycle callbacks, or as an alternative to using `node_append` for the root node of the application.
+ */
+@register("e-wrap")
+export class EltWrapper extends HTMLElement {
+  connectedCallback() {
+    this.style.display = "contents"
+    node_do_connected(this)
+  }
+
+  disconnectedCallback() {
+    node_do_disconnect(this)
+  }
+}
+
 export class EltCustomElement extends HTMLElement {
   static css: CSSStyleSheet | string | (CSSStyleSheet | string)[] | null = null
   static shadow_init: ShadowRootInit = {

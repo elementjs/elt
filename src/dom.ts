@@ -209,10 +209,7 @@ export function node_do_disconnect(node: Node) {
 }
 
 /**
- * Remove a `node` from the tree and call `removed` on its mixins and all the `removed` callbacks..
- *
- * This function is mostly used by verbs that don't want to wait for the mutation observer
- * callback registered in {@link setup_mutation_observer}
+ * Remove a `node` from the tree and call `removed` on its mixins and all the `removed` callbacks. A node inserted with `node_append` should be removed with this function.
  *
  * @group Dom
  */
