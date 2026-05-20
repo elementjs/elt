@@ -281,13 +281,14 @@ button[e-variant="full"], button[e-variant="on"] {
   color: var(--e-color-text);
   border-color: var(--e-color-bg);
   background-color: var(--e-color-bg);
+}
 
-  text-shadow:
-    0px 1px 0 var(--e-color-shadow-raise),
-    0px -1px 0 var(--e-color-shadow-drop);       /* inner shadow illusion */
-  & svg {
-    filter: drop-shadow(0px 1px 0 var(--e-color-shadow-raise)) drop-shadow(0px -1px 0 var(--e-color-shadow-drop));
-  }
+button[e-variant="full"] {
+  border: none;
+  box-shadow:
+      inset 0px 1px var(--e-color-shadow-raise),
+      inset 0px -1px var(--e-color-shadow-drop);
+
 }
 
 button[e-variant="off"] {

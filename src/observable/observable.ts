@@ -1,3 +1,18 @@
+/**
+ * Observable module
+ * @module Observable
+ *
+ * Contains most of the observable related code. Most of it is in the o namespace/function.
+ *
+ * Observables are the core of elt's MVVM system.
+ * They are a wrapper around an immutable value that can be observed for changes that can be transformed and combined with others to create new observables.
+ * Care is taken and should be respected to make sure that the value is immutable and that the observables are readonly when they should be.
+ *
+ * Observing an Observable must be done through `$observe`, `node_observe` or classes that extend `ObserverHolder` to make sure observers are unregistered properly and memory is not leaked.
+ *
+ * Key exports : Observable, o, o.expression, o.RO
+ */
+
 import { IndexableArray, type Indexable } from "./indexable"
 
 import { sym_insert, sym_is_observable } from "../symbols"
@@ -794,7 +809,9 @@ export namespace o {
   export class ReadonlyCombinedObservable<
     A extends any[],
     T = A
-  > extends ReadonlyObservable<T> {}
+  > extends ReadonlyObservable<T> {
+
+  }
 
   /**
    * An observable that does not its own value, but that depends
@@ -1264,7 +1281,7 @@ export namespace o {
   /**
    * Merges several MaybeObservables into a single Observable in an array.
    *
-   * The resulting observable is writable only if all its constituents were themselves writable.
+   * The resulting observable is writable only if _all_ its constituents were themselves writable.
    *
    * ```tsx
    * [[include:../../examples/o.join.tsx]]
@@ -1296,40 +1313,70 @@ export namespace o {
     })
   }
 
-  export type ExpressionGetterFn = <A extends any[]>(...obs: A) => true extends A[1] ? UnRO<A[0]> | NoValue : UnRO<A[0]>
+  export type FnExpressionGet = <A>(obs: RO<A>) => A
+  export type FnExpressionChange = <A>(obs: RO<A>) => A | NoValue
+  export type FnExpressionTransform<T> = (
+    get: FnExpressionGet,
+    old: FnExpressionChange,
+    updated: FnExpressionChange,
+    prev: T | NoValue,
+  ) => T
 
+  export type FnExpressionRevert<T> = (
+    value: T,
+    set: <A>(obs: Observable<A>, val: A) => void,
+    prev: T,
+  ) => any
+
+  /**
+   * Create a derived observable from a function that reads and subscribes to other observables dynamically via `get`. This function is useful to create observables that are the result of complex computations on other observables without having to manually subscribe to them with `join` or `merge`.
+   *
+   * It is recommended to mostly use this function for all observable composing / deriving, although it should be noted that it is slightly slower than using `join`, `merge` or `tf` directly, as it uses a WeakMap to track dependencies. However, as Observables are not meant to be called frequently or be part of tight loops, the performance difference should be negligible.
+   *
+   * The function `fn` is called with the following arguments:
+   * - `get`: a function that returns the value of an observable
+   * - `old`: a function that returns the old value of an observable, or NoValue if this is the first time the observable was called
+   * - `updated`: a function that returns the value of the observable if it has changed or NoValue if this is the first time the observable was triggered or if its value has not changed since the previous invocation of `expression`.
+   * - `prev`: the last value returned by `expression`, or NoValue if this was the first time.
+   *
+   * To make the resultant observable writable, you can provide a `fn_revert` function that will be called when set with the following arguments:
+   *
+   * - `value`: the value that is being set
+   * - `set`: a function that sets the value of an observable, likely one that was get() in `fn` that needs changes to be reverted to.
+   * - `prev`: the value the resulting observable had before being written to.
+   *
+   * @example
+   * ```tsx
+   * const o_other = o(10)
+   * const o_other2 = o(20)
+   * // At its simplest
+   * const obs = o.expression(get => {
+   *   return get(o_other) + get(o_other2)
+   * })
+   *
+   * const oo_only_interesting_if_changes = ...
+   * const obs = o.expression((_get, _old, updated) => {
+   *   const val = updated(oo_only_interesting_if_changes)
+   *   if (val !== NoValue) {
+   *     // Use val
+   *     return something_else
+   *   }
+   *   return prev
+   * })
+   * ```
+   *
+   * @group Observable
+   */
   export function expression<T>(
-    fn: (
-      get: ExpressionGetterFn,
-      old: <A>(obs: o.RO<A>) => A | NoValue,
-      prev: T | NoValue
-    ) => T
+    fn: FnExpressionTransform<T>,
   ): o.ReadonlyObservable<T>
   export function expression<T>(
-    fn: (
-      get: ExpressionGetterFn,
-      old: <A>(obs: o.RO<A>) => A | NoValue,
-      prev: T | NoValue
-    ) => T,
-    fn_revert: (
-      value: T,
-      set: <A>(obs: o.Observable<A>, val: A) => void,
-      prev: T,
-      get: <A>(obs: o.RO<A>) => A
-    ) => any
+    fn: FnExpressionTransform<T>,
+    fn_revert: FnExpressionRevert<T>,
   ): o.Observable<T>
   export function expression<T>(
-    fn: (
-      get: ExpressionGetterFn,
-      old: <A>(obs: o.RO<A>) => A | NoValue,
-      prev: T | NoValue
-    ) => T,
-    fn_revert?: (
-      value: T,
-      set: <A>(obs: o.Observable<A>, val: A) => void,
-      prev: T,
-      get: <A>(obs: o.RO<A>) => A
-    ) => any
+    fn: FnExpressionTransform<T>,
+    fn_revert?: FnExpressionRevert<T>,
   ): o.ReadonlyObservable<T> {
     const cmb = new CombinedObservable([])
     const mp = new WeakMap<o.ReadonlyObservable<any>, number>()
@@ -1338,8 +1385,8 @@ export namespace o {
 
     let i = 0
 
-    function _get(m: o.RO<any>, updated: boolean = false) {
-      if (!o.is_observable(m) && !updated) {
+    function _get(m: o.RO<any>) {
+      if (!o.is_observable(m)) {
         return m
       }
 
@@ -1348,18 +1395,21 @@ export namespace o {
         cmb.addDependency(m, true)
       }
 
-      // console.log(values, mp.get(m))
-      const res = cmb._parents_values[mp.get(m)!]
+      return cmb._parents_values[mp.get(m)!]
+    }
 
-      if (updated) {
-        const old = _old(m)
-        if (old === NoValue || old === res) {
-          return NoValue
-        }
-        return res
+    function _updated(m: o.RO<any>) {
+      if (!o.is_observable(m)) {
+        return false
+      }
+      const val = _get(m)
+      const oval = _old(m)
+
+      if (oval === NoValue || oval === val) {
+        return NoValue
       }
 
-      return res
+      return val
     }
 
     function _old(m: o.RO<any>) {
@@ -1378,10 +1428,13 @@ export namespace o {
 
     cmb.getter = (() => {
 
-      let res = fn(_get, _old, prev) as T
+      let res = fn(_get, _old, _updated, prev) as T
+
+      // The following two ifs are to avoid storing unnecessary references to the parent values and the previous value if the function does not need them, as this can hold a lot of memory for nothing if the values are big.
       if (fn.length > 1) {
         old = cmb._parents_values.slice()
       }
+
       if (fn.length > 2) {
         prev = res
       }
@@ -1399,7 +1452,7 @@ export namespace o {
           res[idx] = val
         }
 
-        fn_revert(nval, _set, oval, _get)
+        fn_revert(nval, _set, oval)
         return res
       }) as any
     }

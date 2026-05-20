@@ -1,3 +1,11 @@
+/**
+ * @module CSS
+ *
+ * A minimalistic approach to JavaScript CSS manipulation.
+ *
+ * Key exports : css
+ */
+
 let _id = 0
 
 function rewrite_css(
@@ -78,4 +86,19 @@ export class CSSBuilder {
 
 let global_builder = new CSSBuilder()
 global_builder.adopt(document)
+
+/**
+ * Create style rules, one rule at a time, to make sure the rules are correct CSS.
+ * It is recommended to name resulting class names variables as `cls_<name>` and not export them as much as possible to track their usage and avoid unused code.
+ * To specify several rules at once, either use the `css` function multiple times, or put them in a [@layer](https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/At-rules/@layer) block.
+ *
+ * @returns If the rule starts with a dot, the result of the function is a unique class name that can be reused. Otherwise, it's an empty string.
+ *
+ *
+ * @example
+ *
+ * const cls_name = css`.foo { color: red; }`
+ * css`div > .${cls_name} { color: blue; }`
+ * css`@layer theme { .${cls_name} { color: green; } }`
+ */
 export const css = global_builder.css

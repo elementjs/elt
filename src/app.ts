@@ -1,3 +1,16 @@
+/**
+ * @module app
+ *
+ * Facilities to create complex applications :
+ *   - interdependent services that can be activated and deactivated as they are needed
+ *   - A "router" that handles URL updates and app state changes. Only imports services as needed ; friendly to chunking and lazy loading.
+ *   - View system where services declare their UI views, resolved in requirement order.
+ *
+ * Services can be defined as classes or as a simpler single asynchronous function.
+ *
+ * Key exports: App, App.Service, App.Service.factory, view
+ */
+
 import { type Renderable } from "./types"
 import { o } from "./observable"
 import { Deferred } from "./utils"
