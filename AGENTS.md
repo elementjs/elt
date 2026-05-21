@@ -8,7 +8,7 @@ Observables are meant to be transformed/mixed with others. Setting a combined ob
 
 JSX children may contain decorators that are inline callbacks called at node creation. A lot of behaviour is tied to them. Otherwise, they must be `Renderable`, or `Observable<Renderable>` to be displayed in the DOM.
 
-Has the concept of "Verbs" ; they're not Nodes but logic that change the DOM in a more complex manner, like repeating arrays or displaying nodes conditionally, according to Observable values and changes.
+Has the concept of "Verbs" (UpperCased functions) ; they're not Nodes but logic that change the DOM in a more complex manner, like repeating arrays or displaying nodes conditionally, according to Observable values and changes. Verbs imply dynamicity. Observables provide them changing values.
 
 This library is NOT React. There is no virtual-dom. DOM Nodes are returned and handled as they are. Verbs + observables drive updates.
 
@@ -21,7 +21,9 @@ This library is NOT React. There is no virtual-dom. DOM Nodes are returned and h
 ## Patterns
 
 - Components: (attrs: Attrs<HTMLDivElement> & { ... } ) => <div></div>
-  Some attrs are global and will be set on the resulting node even if not used in the Component : id, slot, part, role, tabindex, lang, inert, title, autofocus, nonce
+- Some attrs are global and will be set on the resulting node even if not used in the Component : id, slot, part, role, tabindex, lang, inert, title, autofocus, nonce
+- class attribute is also "global", but is more sophisticated and understands o.RO<string | string[]> or {[class_name]: o.RO<truthy>}
+- style attribute is global and understands o.RO<string>, but also o.RO<{[camelCaseName]: string}> and {[camelCaseCSSAttribute]: o.RO<string>}
 - Forms : $bind.string | number | boolean | ...
 - Dynamic UI: If / Switch / Repeat / RepeatScroll / VirtualScroll / Observable<Renderable>
 - DOM updates are synchronous. Make sure UI updates are done at opportune times.
@@ -29,14 +31,15 @@ This library is NOT React. There is no virtual-dom. DOM Nodes are returned and h
 - o.* contain most of the Observable code. o(value) creates an observable or just returns the observable.
 - $... indicate decorators ; functions meant to run as Node callbacks upon creation
 - CapitalizedFunctions are verbs and denote dynamicity
-- Attributes for components should take `o.RO<Type>` when appropriate to ensure dynamicity
-- e() / E() / `<jsx.Code/>` create real DOM Nodes
+- Attributes for components should take `o.RO<Type>` when appropriate to ensure dynamicity, unless obviously not possible or not useful
+- e() / E() / `<jsx.Code/>` create real DOM Nodes. JSX is unfortunately always typed as Element : cast it (`<div/> as HTMLDivElement`). e/E do not have that problem.
 
 ## Observable Patterns
 
 - o(value) → .get() / .set(); values treated as immutable (clone on nested updates for simple cases; see module header).
 - obs.mutate(fn) via src/mutative.ts (needs mutative peer dep) for complex revert / nested edits.
 - .tf(fn) read-only; .tf({ transform, revert }) or .tf(Converter) bidirectional. src/observable/transformers has pre-built .tf() converters for Map/Set/Array.
+- o.tf(maybe_obs, cbk) helper for o.RO
 - .p('key') .p(0) for objects/array / .key() for Map.
 - o.combine, o.merge, o.join for creating complex Observable depending on others, but quite low-level. o.expression() is the preferred, more readable way.
 - o.RO<T> = observable | plain T — many APIs accept both, encouraged in attrs for custom elements
@@ -46,6 +49,69 @@ This library is NOT React. There is no virtual-dom. DOM Nodes are returned and h
 
 ## App Patterns
 
+`App` (`src/app.ts`) wires lazy-loaded services, hash routing, and a merged view map. verify against `src/app.ts`.
+
+### Bootstrap (typical)
+
+1. `const app = new App()`
+2. `const router = app.setupRouter({ ... })` — registers routes, returns a typed `router` object (keep it app-wide). Also starts hash listening (`hashchange` + initial `activateFromHash`).
+3. Mount UI once: `node_append(root, app.DisplayView("Main"))` — returns `o.RO<Renderable>`; updates when the active service or view map changes.
+4. Activate a screen: `await router.someRoute.activate()` or, from inside a service, `await srv.activate(router.otherRoute, { extraParam: "x" })`. **Every `activate` must be awaited** (concurrent calls without awaiting throw).
+
+Routes with `path: null` are **not** matched from the URL; use them for programmatic-only entry points.
+
+### Route definitions (`App.RouteDef`)
+
+Each named route is either:
+
+- **Leaf:** `[path, serviceBuilder, options?]`
+  - `path`: hash path (no `#`), e.g. `"users/:id"` — `:name` segments become regexp capture groups.
+  - `serviceBuilder`: `() => import("./svc")` (lazy), `() => MyService`, or the builder directly. Resolved via `import()` / `default` export / `App.unpack_builder`.
+  - `options`: `{ defaults?: {...}, silent?: true }` — `silent` skips hash updates on activation.
+- **Nested:** `[urlPrefix, { childRoute: [...], ... }]` — prefixes child paths.
+- **Error handler:** `__error__: [path, () => errorService, ...]` — used when another route’s activation throws; `activate({ __error__: err })`.
+
+Prefer `() => import("./file")` for code-splitting.
+
+### Services (pick one style)
+
+| Style | When | Views | Dependencies |
+|-------|------|-------|----------------|
+| **Async function** | Few screens, small API surface | `srv.view("Name", () => ...)` or `srv.views.set(...)` | `await srv.require(OtherBuilder)` in the function body |
+| **`App.ServiceClass` subclass** | `init` / `deinit`, several methods | `@view` on methods (name = method name) | `await srv.require(...)` in `init()` |
+| **`App.Service.requirements(() => ({ dep: () => import(...) }))`** | Class + declared deps | `@view` on subclass | Deps loaded before `init`; exposed on `init_result` / instance |
+| **`App.Service.factory(async (srv) => ({ ... }))`** | Class-like without inheritance | `srv.view(...)` in factory | Same as function + returned object becomes instance API |
+
+`require` / `requirements` build a dependency tree; services are created once per activation (reused if `is_persistent` or params still valid).
+
+### Views and shadowing
+
+- Views are `() => Renderable` registered by name (e.g. `"Main"`, `"Content"`).
+- On activation, `State.collectViews` walks **`srv.require()` dependencies first**, then registers the **active service’s** views — **same name: active service wins** over required services (not “closest route”).
+- Compose UI with `app.DisplayView("Content")` or `srv.DisplayView("Content")` inside another view’s JSX.
+- `app.o_views` holds the merged map; `app.o_active_service` is the current `App.Service`.
+
+### Params and URL
+
+- Route/service params live in `app.o_params` (proxy observable).
+- **`srv.param("key", default?)`** — hard binding: changing this value **invalidates** the service (forces re-activation).
+- **`srv.param_soft("key", default?)`** — `o.Observable` slice of params; does not invalidate on change.
+- Successful activation updates `location.hash` from the route path + params (`Route.updateHash`), unless `silent`.
+
+### Lifecycle hooks
+
+- **`srv.onDeinit(fn)`** — run when service is dropped on deactivation (unless persistent).
+- **`srv.is_persistent = true`** — keep instance across activations when params still valid.
+- Class-based: override `init()` / `deinit()` on `App.ServiceClass`.
+
+### Activation without routing
+
+`App` has no public `app.activate(builder)` — use a router (even a single `path: null` route) and `await router.only.activate()`, or activate from hash after `setupRouter`. Direct `app._activate` is internal.
+
+### Useful observables
+
+- `app.o_active_service`, `app.o_current_route`, `app.o_activating`
+- `srv.oo_is_active` — whether this service instance is the active one
 
 ## Pitfalls
 
@@ -87,5 +153,13 @@ ui/ - A fairly big library that ships theming and widgets. Included in this repo
 
 - Always look for CPU/RAM efficient algorithms
 - Factorize code ; DRY
-- Comment non-obvious patterns. Comment introduced functions. Be terse but document enough.
+- Comment and explain non-obvious patterns and introduced functions. Be terse but sufficient.
 - When using observables that are renderable, unless the expression is short (just `.p()/.key()` or a tf that mostly just calls a function), create `oo_`/`o_` observables outside JSX code for readability.
+- Use up to date baseline available standards, refrain from using prefixed/vendor css/js.
+- if using elt/ui refer to its AGENTS.md
+
+## Migrating from older elt codebases
+
+- Apps that used the osun library should only use css. osun's style({[camelCasedCssProperties]: value}) should become css`.class_name { regular css }` and rule() individual `css` calls, or if part of a big stylesheet, wrap it in `@layer application`. Do not bother with -webkit prefix.
+- observable .join() and .merge() should be migrated to o.expression(), unless they're very simple
+- if they used elt-shoelace, or the legacy elt-ui package, refer to `ui/AGENTS.md` for their migration.

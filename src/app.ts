@@ -775,6 +775,9 @@ export namespace App {
   export const sym_service_init = Symbol("service_init")
   export const sym_service_init_concrete = Symbol("service_init_concrete")
 
+  /**
+   * Base class for class-based services when not using any dependencies
+   */
   export class ServiceClass<T extends SrvParams = {}> {
     static [sym_service_init_concrete] = (srv: App.Service<any>) => ({})
 
