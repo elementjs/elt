@@ -36,16 +36,98 @@ This library is NOT React. There is no virtual-dom. DOM Nodes are returned and h
 
 ## Observable Patterns
 
-- o(value) → .get() / .set(); values treated as immutable (clone on nested updates for simple cases; see module header).
-- obs.mutate(fn) via src/mutative.ts (needs mutative peer dep) for complex revert / nested edits.
-- .tf(fn) read-only; .tf({ transform, revert }) or .tf(Converter) bidirectional. src/observable/transformers has pre-built .tf() converters for Map/Set/Array.
-- o.tf(maybe_obs, cbk) helper for o.RO
-- .p('key') .p(0) for objects/array / .key() for Map.
-- o.combine, o.merge, o.join for creating complex Observable depending on others, but quite low-level. o.expression() is the preferred, more readable way.
-- o.RO<T> = observable | plain T — many APIs accept both, encouraged in attrs for custom elements
-- Only o.RO<Renderable> belong in JSX children; observables of other types need .tf() to Renderable
-- o.transaction(() => ...) to dispatch several values at once and avoid recomputing uselessly if some dependencies would get triggered several times ; Observables have an evaluation queue. Or instead of o.transaction, o.merge({dep1, dep2}).set({dep1: new_val1, dep2: newval2}) will achieve the same.
-- o.clone() immutability helper
+Authoritative source: `src/observable/observable.ts` and JSDoc on exports.
+
+### Naming (convention in apps)
+
+- **`o_*`** — source state (`o_user`, `o_items`, `o_query`) or writable derived.
+- **`oo_*`** — readonly derived (`oo_visible_users`, `oo_filtered_ids`, `oo_config`). Not enforced by the library.
+
+### Core rules
+
+- `o(value)` → `.get()` / `.set()`. Values are **immutable** at the observable boundary (replace wholes, use `o.clone` / `assign` / `mutate` for nested edits).
+- **`o.RO<T>`** = `Observable<T> | T` — pass either; use **`o.get(x)`** when you need the value from an `RO`.
+- **JSX children:** only `o.RO<Renderable>` (or plain renderables). Other types → `.tf(...)` first.
+- **`import "elt/mutative"`** at app entry when using `obs.mutate()`.
+
+### Prefer `o.expression` for derived state
+
+Default way to compose observables (replaces most `join` / `merge` + manual subscribe):
+
+```ts
+const oo_selected = o.expression(get =>
+  get(store.oo_visible_items)[get(store.o_selected_idx)] ?? get(store.o_default_item)
+)
+```
+
+Signature: `(get, old, updated, prev) => T`
+
+- **`get(obs)`** — subscribe and read.
+- **`old(obs)`** — previous value at this run (`o.NoValue` first time).
+- **`updated(obs)`** — value only if that dep changed since last run; else `o.NoValue`.
+- **`prev`** — last result of this expression (`o.NoValue` first time).
+
+Use **`old` / `prev` to skip heavy recomputation** when only some deps changed — compare `get(dep) === old(dep)` and return `prev` when unrelated deps are unchanged.
+
+Optional 2nd arg → **writable** expression (revert writes back to source observables).
+
+### `.tf` / transformers
+
+- Read-only: `obs.tf(x => ...)`, `o.tf(maybe_ro, fn)`.
+- Bidirectional: `.tf({ transform, revert })` or a `Converter` from `src/observable/transformers.ts`.
+- Common: `tf_array_to_map`, `tf_set_has`, `tf_map_has` — e.g. URL filters via `param_soft("tags").tf({ transform, revert })`.
+- **`.p('key')` / `.p(0)`** on objects/arrays; **`.key(id)`** on `Map` observables (e.g. `o_items_by_id.key(o_selected_id)`).
+
+### Scoped bundles: `o.merge` / `o.join`
+
+- **`o.merge({ a: obs1, b: obs2 })`** — one observable object; good scope for form/API context. Writable `.set({ a: v })` can revert into members.
+- **`o.join(a, b, c).tf(([a,b,c]) => ...)`** — tuple pipeline; also inside `$observe(o.join(...), cb)` for multi-source side effects.
+
+Use `o.combine` only when expression is awkward; **`o.expression` is the default.**
+
+### Batching updates
+
+After async fetch, update several sources once:
+
+```ts
+o.transaction(() => {
+  this.o_users.set(users)
+  this.o_targets.set(new Map(...))
+  this.o_refreshing.set(false)
+})
+```
+
+Same effect: `o.merge({ ... }).set({ ... })`. Avoids redundant derived recomputation mid-batch.
+
+### Side effects vs display
+
+- **Display:** put `o.expression` / `oo_*` in JSX, or `.tf()` to `Renderable`.
+- **Side effects (DOM, map, logging):** `$observe(o.expression(get => { ... }))` or `$observe(o.join(...), cb)` — runs when the node is connected.
+- **`o.debounce` / `o.throttle`** on callbacks driven by observables (search, map refresh, etc.).
+
+### Promises
+
+- **`DisplayPromise(promise_obs)`** — `.WhileWaiting` / `.WhenResolved` / `.UponRejection`. Prefer over raw promise children when you need loading/error UI.
+- Bare **`o(Promise)`** in JSX works via `node_append` but only shows resolved content; use `DisplayPromise` for structure.
+
+### App state + observables
+
+- Shared **store service** holds `o_*` state; feature services `await srv.require(StoreService)` and derive `oo_*` locally or on the class.
+- **Route params:** `srv.param_soft("filters").tf(...)` for URL-synced values without full re-activation; `srv.param` when changes must rebuild the service.
+- **UI tied to routing:** `o.expression(get => get(app.o_current_route) === get(route))` for active nav styling.
+
+### Quick map
+
+| Need | Use |
+|------|-----|
+| Derived from several deps | `o.expression(get => ...)` |
+| Skip work if dep unchanged | `old(dep)`, `updated(dep)`, `prev` |
+| Map/array in template | `.p()`, `.tf()`, `Repeat(obs, fn)` |
+| Map lookup by key | `o_map.key(key_obs)` |
+| Form field | `$bind.*` on `o.Observable` |
+| class/style toggle | `o.expression(...).tf(...)` or `{[cls]: obs}` |
+| Async UI block | `DisplayPromise` |
+| Heavy filter/list | expression + `old`/`prev` cache pattern |
 
 ## App Patterns
 
@@ -54,9 +136,10 @@ This library is NOT React. There is no virtual-dom. DOM Nodes are returned and h
 ### Bootstrap (typical)
 
 1. `const app = new App()`
-2. `const router = app.setupRouter({ ... })` — registers routes, returns a typed `router` object (keep it app-wide). Also starts hash listening (`hashchange` + initial `activateFromHash`).
-3. Mount UI once: `node_append(root, app.DisplayView("Main"))` — returns `o.RO<Renderable>`; updates when the active service or view map changes.
-4. Activate a screen: `await router.someRoute.activate()` or, from inside a service, `await srv.activate(router.otherRoute, { extraParam: "x" })`.
+2. `export const router = app.setupRouter({ init: ["", () => import("./init")], home: ["/home", () => import("./home")], ... })` — typed `router` object, hash listening started.
+3. `node_append(document.body, app.DisplayView("Main"))` once (often in `requestAnimationFrame`).
+4. `app.router.activateFromHash()` after mount so landing `""` route runs (init service may `await router.home.activate()` etc.).
+5. In views: `await srv.require(StoreService)` for shared state; `route.activate()` / `srv.activate(router.other)` for navigation.
 
 **Always `await` activation** — an activation can be **interrupted** (e.g. not logged in → redirect to login before the original route finishes). Un-awaited concurrent `activate` calls throw; awaiting keeps the chain consistent. If `App._activate` returns `activated: false` with a `reactivation` promise, await that too.
 
