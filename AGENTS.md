@@ -56,20 +56,22 @@ This library is NOT React. There is no virtual-dom. DOM Nodes are returned and h
 1. `const app = new App()`
 2. `const router = app.setupRouter({ ... })` — registers routes, returns a typed `router` object (keep it app-wide). Also starts hash listening (`hashchange` + initial `activateFromHash`).
 3. Mount UI once: `node_append(root, app.DisplayView("Main"))` — returns `o.RO<Renderable>`; updates when the active service or view map changes.
-4. Activate a screen: `await router.someRoute.activate()` or, from inside a service, `await srv.activate(router.otherRoute, { extraParam: "x" })`. **Every `activate` must be awaited** (concurrent calls without awaiting throw).
+4. Activate a screen: `await router.someRoute.activate()` or, from inside a service, `await srv.activate(router.otherRoute, { extraParam: "x" })`.
 
-Routes with `path: null` are **not** matched from the URL; use them for programmatic-only entry points.
+**Always `await` activation** — an activation can be **interrupted** (e.g. not logged in → redirect to login before the original route finishes). Un-awaited concurrent `activate` calls throw; awaiting keeps the chain consistent. If `App._activate` returns `activated: false` with a `reactivation` promise, await that too.
+
+**Landing route (empty hash):** On load or when `#` is empty, `activateFromHash` resolves `path` to `""`. Register the default screen with path `""` (e.g. `init: ["", () => import("./init")]`) — same role as a root path. Other literals such as `"/"` match `#/`, not a bare empty hash.
 
 ### Route definitions (`App.RouteDef`)
 
 Each named route is either:
 
 - **Leaf:** `[path, serviceBuilder, options?]`
-  - `path`: hash path (no `#`), e.g. `"users/:id"` — `:name` segments become regexp capture groups.
+  - `path`: hash path (no `#`), e.g. `""` for landing, `"users/:id"` for param routes — `:name` segments become regexp capture groups. `path: null` in the tuple becomes an internal route with no URL key (activate only via `router.name.activate()`, not from hash).
   - `serviceBuilder`: `() => import("./svc")` (lazy), `() => MyService`, or the builder directly. Resolved via `import()` / `default` export / `App.unpack_builder`.
   - `options`: `{ defaults?: {...}, silent?: true }` — `silent` skips hash updates on activation.
 - **Nested:** `[urlPrefix, { childRoute: [...], ... }]` — prefixes child paths.
-- **Error handler:** `__error__: [path, () => errorService, ...]` — used when another route’s activation throws; `activate({ __error__: err })`.
+- **Error handler:** `__error__: [path, () => errorService, ...]` — on activation failure, the failing route’s `route.error` handler runs with **only** `{ __error__: caught }`; the error UI is entirely up to that service. With **nested** route groups, `setupRouter` assigns each leaf the **`__error__` from its own group**; a parent group’s `__error__` fills in only where no inner handler was set (closest handler wins).
 
 Prefer `() => import("./file")` for code-splitting.
 
@@ -84,18 +86,20 @@ Prefer `() => import("./file")` for code-splitting.
 
 `require` / `requirements` build a dependency tree; services are created once per activation (reused if `is_persistent` or params still valid).
 
+**`await srv.require(builder)` return value** — whatever the required service produces: for function services, the object returned from the async builder; for class-based services, the instantiated instance (with `init_result` merged in). That value is what the requirer receives.
+
 ### Views and shadowing
 
 - Views are `() => Renderable` registered by name (e.g. `"Main"`, `"Content"`).
 - On activation, `State.collectViews` walks **`srv.require()` dependencies first**, then registers the **active service’s** views — **same name: active service wins** over required services (not “closest route”).
-- Compose UI with `app.DisplayView("Content")` or `srv.DisplayView("Content")` inside another view’s JSX.
+- Compose UI with `app.DisplayView("Content")` or `srv.DisplayView("Content")` inside another view’s JSX. Unknown or missing view name → `undefined` renderable → **nothing displayed**.
 - `app.o_views` holds the merged map; `app.o_active_service` is the current `App.Service`.
 
 ### Params and URL
 
 - Route/service params live in `app.o_params` (proxy observable).
-- **`srv.param("key", default?)`** — hard binding: changing this value **invalidates** the service (forces re-activation).
-- **`srv.param_soft("key", default?)`** — `o.Observable` slice of params; does not invalidate on change.
+- **`srv.param("key", default?)`** — hard binding (`params_deps`): if this value changes, the service is **invalidating** → full **re-activation** on the current route.
+- **`srv.param_soft("key", default?)`** — observable slice of params; **not** invalidating. When `o_params` changes without invalidating params, the router only **`updateHash`** (sync URL), no re-activation (`app.ts` `o_params` observer).
 - Successful activation updates `location.hash` from the route path + params (`Route.updateHash`), unless `silent`.
 
 ### Lifecycle hooks
@@ -106,7 +110,7 @@ Prefer `() => import("./file")` for code-splitting.
 
 ### Activation without routing
 
-`App` has no public `app.activate(builder)` — use a router (even a single `path: null` route) and `await router.only.activate()`, or activate from hash after `setupRouter`. Direct `app._activate` is internal.
+`App` has no public `app.activate(builder)` — use a router with a landing route (`path: ""`) and/or `await router.someRoute.activate()`. Hash navigation is automatic after `setupRouter`. Direct `app._activate` is internal.
 
 ### Useful observables
 
@@ -147,7 +151,7 @@ ui/ - A fairly big library that ships theming and widgets. Included in this repo
 - camelCase methods
 - MixedCase class names
 - snake_case variables (and functions)
-- Readonly observables (mostly simple transforms) are prefixed with `oo_`. Regular, writable observables (even resulting from join/merge/expression) start with `o_`.
+- Readonly observables (mostly simple transforms) are prefixed with `oo_`. Regular or writable observables (even resulting from join/merge/expression) start with `o_`.
 
 ## General instructions
 
@@ -161,5 +165,6 @@ ui/ - A fairly big library that ships theming and widgets. Included in this repo
 ## Migrating from older elt codebases
 
 - Apps that used the osun library should only use css. osun's style({[camelCasedCssProperties]: value}) should become css`.class_name { regular css }` and rule() individual `css` calls, or if part of a big stylesheet, wrap it in `@layer application`. Do not bother with -webkit prefix.
+- classes variables should be `cls_<name>`. all css should be top level and unless reused in other modules should not be exported. unused classes should be deleted.
 - observable .join() and .merge() should be migrated to o.expression(), unless they're very simple
 - if they used elt-shoelace, or the legacy elt-ui package, refer to `ui/AGENTS.md` for their migration.
