@@ -13,8 +13,6 @@ export type SpacingValues = "3x-small" | "2x-small" | "x-small" | "small" | "med
 
 export type AlignValues = "center" | "start" | "end" | "self-start" | "baseline" | "first baseline" | "last baseline" | "safe center" | "unsafe center" | "normal" | "stretch" | "space-evenly" | "space-around" | "space-between"
 
-export type Scheme = "neutral" | "primary"
-
 export interface CommonAttrs extends Attrs<HTMLElement> {
   inline?: NRO<boolean>
   relative?: NRO<boolean>
@@ -22,7 +20,6 @@ export interface CommonAttrs extends Attrs<HTMLElement> {
   gap?: NRO<boolean | SpacingValues>
   pad?: NRO<boolean | SpacingValues>
   "hover"?: NRO<boolean>
-  "scheme"?: NRO<Scheme>
   "self-align"?: NRO<AlignValues>
   "self-justify"?: NRO<AlignValues>
 }

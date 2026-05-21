@@ -6,6 +6,13 @@ Sub-library that provides widgets and facilities for UI building. Rather minimal
 
 Tries to style base HTML elements rather than always defining new ones, unless impossible due to their limitations.
 
+Defines a color system based on mixing colors with background or text in OKLCH and a general theming system.
+
+## When modifying elt/ui itself
+
+- If adding icons, take them from elt-phosphor (not a dependency, look for it in elt-demo's node_modules if in the right workspace, complain otherwise)
+- Do not add dependencies
+
 ## Migrating from elt-shoelace or elt-ui
 
 - Most of the widgets kept their names or have an equivalent of same name

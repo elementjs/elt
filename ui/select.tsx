@@ -17,6 +17,9 @@ export interface SelectAttributes<T, T2 = T> extends Attrs<HTMLButtonElement> {
   placeholder?: o.RO<Renderable>
 }
 
+/**
+ * Select component that does not use the native select. Use instead of <select> whenever the observable is more than just a string or its representation is not the string itself, which is most of the time.
+ */
 export function Select<T, T2 = T>(at: SelectAttributes<T, T2>) {
   const convert_fn = at.convert_fn ?? ((opt: T2) => opt as unknown as T)
   const oo_values_map = o.tf(at.options, opts => new Map([...opts].map(opt => [convert_fn(opt), opt])))

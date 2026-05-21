@@ -7,17 +7,17 @@ import "./form.css"
 
 export * from "./popup"
 export * from "./select"
-export * as colors from "./theme"
+export * from "./theme"
 export * from "./utils"
 export * from "./spinner"
 export * from "./nav"
 export * from "./date"
 export * from "./icons"
 export * from "./search"
+export * from "./timepicker"
 
 import { o } from "elt"
 import { theme } from "./theme"
-export { theme }
 
 /**
  * An observable that forces the theme to be either the "default" one that respects the @media (prefers-color-scheme: dark) rules, or the "dark" or "light" theme.
