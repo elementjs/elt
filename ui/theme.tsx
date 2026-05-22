@@ -106,7 +106,7 @@ export class Theme<ColorScheme extends BaseColorScheme> {
     this._set(theme.settings ?? {}, "intensityStrong", "80%")
     this._set(theme.settings ?? {}, "intensityVeryStrong", "60%")
     this._set(theme.settings ?? {}, "monospaceFontFamily", "monospace")
-    this._set(theme.settings ?? {}, "fontFamily", `"SF Pro", "Inter", "Noto Sans", system-ui, "apple-system", "BlinkMacSystemFont", "Helvetica Neue", Helvetica, Arial, sans-serif`)
+    this._set(theme.settings ?? {}, "fontFamily", `"IBM Plex Sans", system-ui, sans-serif`)
     this._set(theme.settings ?? {}, "fontSize", "16px")
     this._set(theme.settings ?? {}, "lineHeight", "1.5")
 

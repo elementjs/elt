@@ -75,6 +75,10 @@ function s(tag: string, ...args: (string | Element)[]) {
 
 export const CaretDown = /** @__PURE__ */ () => _(vb,vd,s(rt,w,"256",h,"256",f,n),s(py,ps,"208 96 128 176 48 96",f,n,st,cc,sc,ro,sj,ro,sw,"16"))
 
+export const CaretLeft = /** @__PURE__ */ () => _(vb,vd,s(rt,w,"256",h,"256",f,n),s(py,ps,"160 208 96 128 160 48",f,n,st,cc,sc,ro,sj,ro,sw,"16"))
+
+export const CaretRight = /** @__PURE__ */ () => _(vb,vd,s(rt,w,"256",h,"256",f,n),s(py,ps,"96 48 160 128 96 208",f,n,st,cc,sc,ro,sj,ro,sw,"16"))
+
 export const Calendar = /** @__PURE__ */ () => _(vb,vd,s(rt,w,"256",h,"256",f,n),s(rt,x,"40",y,"40",w,"176",h,"176",rx,"8",f,n,st,cc,sc,ro,sj,ro,sw,"16"),s(l,x1,"176",y1,"24",x2,"176",y2,"56",f,n,st,cc,sc,ro,sj,ro,sw,"16"),s(l,x1,"80",y1,"24",x2,"80",y2,"56",f,n,st,cc,sc,ro,sj,ro,sw,"16"),s(l,x1,"40",y1,"88",x2,"216",y2,"88",f,n,st,cc,sc,ro,sj,ro,sw,"16"),s(py,ps,"88 128 104 120 104 184",f,n,st,cc,sc,ro,sj,ro,sw,"16"),s(p,d,"M138.14,128a16,16,0,1,1,26.64,17.63L136,184h32",f,n,st,cc,sc,ro,sj,ro,sw,"16"))
 
 export const Clock = /** @__PURE__ */ () => _(vb,vd,s(rt,w,"256",h,"256",f,n),s(c,cx,"128",cy,"128",r,"96",f,n,st,cc,sc,ro,sj,ro,sw,"16"),s(py,ps,"128 72 128 128 184 128",f,n,st,cc,sc,ro,sj,ro,sw,"16"))

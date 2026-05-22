@@ -34,25 +34,42 @@ This library is NOT React. There is no virtual-dom. DOM Nodes are returned and h
 - Attributes for components should take `o.RO<Type>` when appropriate to ensure dynamicity, unless obviously not possible or not useful
 - e() / E() / `<jsx.Code/>` create real DOM Nodes. JSX is unfortunately always typed as Element : cast it (`<div/> as HTMLDivElement`). e/E do not have that problem.
 
+## Decorators
+
+- Put in JSX children, not attributes (this is NOT React)
+
+```typescript
+<div>
+  {$observe(o_my_obs, value => {
+    // value changed !
+  })}
+  {$click(ev => {
+    // click callback
+  })}
+</div>
+```
+
 ## Observable Patterns
 
 Authoritative source: `src/observable/observable.ts` and JSDoc on exports.
 
 ### Naming (convention in apps)
 
-- **`o_*`** — source state (`o_user`, `o_items`, `o_query`) or writable derived.
+- **`o_*`** — source state (`o_user`, `o_items`, `o_query`) or writable Observables.
 - **`oo_*`** — readonly derived (`oo_visible_users`, `oo_filtered_ids`, `oo_config`). Not enforced by the library.
 
 ### Core rules
 
+- Observing observable MUST be done with $observe() or Service .observe() method. No addObserver unless absolutely necessary.
 - `o(value)` → `.get()` / `.set()`. Values are **immutable** at the observable boundary (replace wholes, use `o.clone` / `assign` / `mutate` for nested edits).
-- **`o.RO<T>`** = `Observable<T> | T` — pass either; use **`o.get(x)`** when you need the value from an `RO`.
+- **`o.RO<T>`** = `Observable<T> | T` — pass either; use **`o.get(x)`** when you need the value from an `RO` outside observation, when the value is needed at the moment.
 - **JSX children:** only `o.RO<Renderable>` (or plain renderables). Other types → `.tf(...)` first.
 - **`import "elt/mutative"`** at app entry when using `obs.mutate()`.
+- When creating MVVM, o.exclusive_lock helps in avoiding infinite loops of DOM updating model -> model updated -> model update DOM -> ...
 
 ### Prefer `o.expression` for derived state
 
-Default way to compose observables (replaces most `join` / `merge` + manual subscribe):
+Default way to compose observables (replaces most `join` / `merge`):
 
 ```ts
 const oo_selected = o.expression(get =>

@@ -257,7 +257,6 @@ button {
   }
 }
 
-
 button[e-variant="text"] {
   border: 0;
   color: ${colors.tint};
@@ -284,11 +283,10 @@ button[e-variant="full"], button[e-variant="on"] {
 }
 
 button[e-variant="full"] {
-  border: none;
-  box-shadow:
-      inset 0px 1px var(--e-color-shadow-raise),
-      inset 0px -1px var(--e-color-shadow-drop);
-
+  border-top-color: var(--e-color-shadow-raise);
+  border-left-color: var(--e-color-shadow-raise);
+  border-right-color: var(--e-color-shadow-drop);
+  border-bottom-color: var(--e-color-shadow-drop);
 }
 
 button[e-variant="off"] {
