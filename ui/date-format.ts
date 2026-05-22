@@ -221,6 +221,44 @@ export function segment_at(layout: DateFormatLayout, index: number): DateFormatS
   return null
 }
 
+function distance_to_segment(index: number, seg: DateFormatSegment): number {
+  const last = seg.end - 1
+  if (index < seg.start) return seg.start - index
+  if (index > last) return index - last
+  return 0
+}
+
+/**
+ * Segment to edit for a caret position — same as {@link segment_at}, or the nearest
+ * segment when the index is on a literal or a gap between parts.
+ */
+export function segment_at_caret(layout: DateFormatLayout, index: number): DateFormatSegment | null {
+  const hit = segment_at(layout, index)
+  if (hit) return hit
+
+  if (is_literal_index(layout, index)) {
+    const before = layout.segments.filter(s => s.end === index)
+    if (before.length) return before[before.length - 1]!
+    const after = layout.segments.find(s => s.start === index)
+    if (after) return after
+  }
+
+  let best: DateFormatSegment | null = null
+  let best_dist = Infinity
+  for (const seg of layout.segments) {
+    const dist = distance_to_segment(index, seg)
+    if (dist < best_dist) {
+      best_dist = dist
+      best = seg
+      continue
+    }
+    if (dist === best_dist && best && seg.start > best.start) {
+      best = seg
+    }
+  }
+  return best
+}
+
 /** True if `index` is a locale separator — typing should jump over it. */
 export function is_literal_index(layout: DateFormatLayout, index: number): boolean {
   return layout.literals.some(l => l.index === index)

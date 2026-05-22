@@ -7,7 +7,7 @@ import {
   parse_segments,
   format_unavailable,
   rebuild_from_segments,
-  segment_at,
+  segment_at_caret,
   segments_complete,
   values_to_date,
 } from "./date-format"
@@ -128,7 +128,7 @@ export class DateInputController {
       const layout = this.ctx.get_layout()
       if (!layout) return
       requestAnimationFrame(() =>
-        this.#select_segment(segment_at(layout, this.input.selectionStart ?? 0))
+        this.#select_segment(segment_at_caret(layout, this.input.selectionStart ?? 0))
       )
     })
 
@@ -141,7 +141,7 @@ export class DateInputController {
     const layout = this.ctx.get_layout()
     if (!layout) return
     const start = this.input.selectionStart ?? 0
-    const seg = segment_at(layout, start)
+    const seg = segment_at_caret(layout, start)
 
     if (ev.key === "ArrowLeft" || ev.key === "ArrowRight") {
       ev.preventDefault()

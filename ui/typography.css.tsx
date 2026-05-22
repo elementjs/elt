@@ -4,6 +4,7 @@
  */
 
 import { css } from "elt"
+import { theme } from "./theme"
 import "./layout.css.tsx"
 
 css`@layer typography {
@@ -127,12 +128,12 @@ css`@layer typography {
       font-size: 0.9em;
 
       & th, & td {
-        padding: 0.5em 0.75em;
+        padding: ${theme.settings.cellPadding};
         text-align: start;
         border-block-end: 1px solid color-mix(in oklab, currentColor 15%, transparent);
       }
       & th {
-        font-weight: 600;
+        font-weight: bolder;
         border-block-end-color: color-mix(in oklab, currentColor 40%, transparent);
       }
       & tr:last-child td { border-block-end: none; }
