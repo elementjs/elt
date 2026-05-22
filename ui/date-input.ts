@@ -53,7 +53,7 @@ export class DateInputController {
     if (!layout) return
     if (this.#editing) return
     if (m == null) {
-      this.#write_text(this.ctx.clearable ? "" : format_unavailable(layout))
+      this.#write_text(format_unavailable(layout))
       return
     }
     this.#write_text(rebuild_from_segments(layout, date_to_values(m, layout)))

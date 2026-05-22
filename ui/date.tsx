@@ -18,7 +18,7 @@ import {
   week_start_js,
 } from "./date-format"
 import { setup_input_api, type DateInputController } from "./date-input"
-import { Calendar, CaretLeft, CaretRight, Clock } from "./icons"
+import { Calendar, CaretLeft, CaretRight, Clock, X } from "./icons"
 import { popup } from "./popup"
 import { Select } from "./select"
 import { TimePickerPanel } from "./timepicker"
@@ -58,6 +58,7 @@ export interface DatePickerNullable extends DateTimePickerAttributesBAse {
 
 export interface DatePickerNotNullable extends DateTimePickerAttributesBAse {
   model: o.IObservable<Date | null, Date>
+  clearable?: false
 }
 
 export type DatePickerAttrs = DatePickerNullable | DatePickerNotNullable
@@ -200,6 +201,10 @@ export function DateTimePicker(at: DatePickerAttrs) {
         lock(() => input_ctrl?.apply_model(at.model.get()))
       })}
     </input>
+    {o.tf(at.clearable, c => c && <button type="button" e-variant="tint" title="Clear">
+      {$click(() => set_model(null))}
+      <X/>
+    </button>)}
     {o.tf(opts.show_time, v => v &&
       <button type="button" e-variant="tint" title="Time">
         {$click(async ev => {
