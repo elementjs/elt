@@ -4,3 +4,5 @@ build
 tests
 examples
 typegen
+demo
+bun.workspace.toml
