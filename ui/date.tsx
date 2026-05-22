@@ -38,6 +38,12 @@ export interface DateTimePickerAttributesBAse extends Attrs<HTMLElement> {
   /** if true, display 0-11 for hours and AM/PM instead of 0-23 */
   am_pm?: o.RO<boolean>
 
+  /** the step for the minute selector. Default is 1. */
+  minute_step?: o.RO<number>
+
+  /** the step for the second selector. Default is 1. */
+  second_step?: o.RO<number>
+
   /** if true, show the seconds selector */
   seconds?: o.RO<boolean>
 
@@ -62,6 +68,8 @@ function picker_options(at: DatePickerAttrs) {
     show_time: o.tf(at.show_time, t => t ?? false),
     am_pm: o.tf(at.am_pm, a => a ?? false),
     seconds: o.tf(at.seconds, s => s ?? false),
+    minute_step: o.tf(at.minute_step, s => Math.max(1, Math.trunc(s ?? 1))),
+    second_step: o.tf(at.second_step, s => Math.max(1, Math.trunc(s ?? 1))),
   }
 }
 
@@ -98,6 +106,8 @@ export function DateTimePicker(at: DatePickerAttrs) {
     set_model,
     clearable,
     lock,
+    minute_step: o.get(opts.minute_step),
+    second_step: o.get(opts.second_step),
   })
 
   const open_calendar = async (anchor: HTMLElement) => {
@@ -202,6 +212,8 @@ export function DateTimePicker(at: DatePickerAttrs) {
               o_date={o_cur}
               am_pm={o.get(opts.am_pm)}
               seconds={o.get(opts.seconds)}
+              minute_step={o.get(opts.minute_step)}
+              second_step={o.get(opts.second_step)}
               on_change={d => set_model(d)}
             />
           ), { arrow: true })

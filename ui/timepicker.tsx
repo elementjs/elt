@@ -1,91 +1,105 @@
 import { $click, $connected, css, o, type Renderable } from "elt"
 import { theme } from "./theme"
 
+/** Pixels of vertical drag per one step (up/down). */
+const DRAG_PX_PER_STEP = 22
+
 export interface ScrollColumnOpts {
   label?: Renderable
   min: number
   max: number
   loop?: boolean
+  /** Increment per arrow, wheel notch, or drag step. Default 1. */
+  step_size?: number
   format: (n: number) => string
-  value: number
+  /** Current value (read on each interaction — do not cache in listeners). */
+  get_value: () => number
   on_change: (n: number) => void
 }
 
 /** One scrollable numeric column with adjacent values and step buttons. */
 export function ScrollColumn(opts: ScrollColumnOpts) {
-  const step = (delta: number) => {
-    let v = opts.value + delta
+  const span = () => opts.max - opts.min + 1
+
+  const normalize = (v: number) => {
     if (opts.loop) {
-      const span = opts.max - opts.min + 1
-      v = opts.min + ((v - opts.min) % span + span) % span
-    } else {
-      v = Math.max(opts.min, Math.min(opts.max, v))
+      return opts.min + ((v - opts.min) % span() + span()) % span()
     }
-    opts.on_change(v)
+    return Math.max(opts.min, Math.min(opts.max, v))
   }
 
-  const prev = opts.loop
-    ? opts.value <= opts.min ? opts.max : opts.value - 1
-    : Math.max(opts.min, opts.value - 1)
-  const next = opts.loop
-    ? opts.value >= opts.max ? opts.min : opts.value + 1
-    : Math.min(opts.max, opts.value + 1)
+  const inc = (delta: number) => (opts.step_size ?? 1) * delta
+
+  const step = (delta: number) => {
+    opts.on_change(normalize(opts.get_value() + inc(delta)))
+  }
+
+  const adjacent = (delta: number) => {
+    const v = opts.get_value()
+    if (opts.loop) {
+      return normalize(v + inc(delta))
+    }
+    return Math.max(opts.min, Math.min(opts.max, v + inc(delta)))
+  }
 
   return <e-box class={cls_column}>
     {$connected((node: HTMLElement) => {
-    let touch_y = 0
-    let touch_vel = 0
-    let touch_id: number | null = null
-    let raf = 0
+      let touch_id: number | null = null
+      let touch_y = 0
+      let drag_accum = 0
 
-    const on_wheel = (ev: WheelEvent) => {
-      ev.preventDefault()
-      step(ev.deltaY > 0 ? 1 : -1)
-    }
-
-    const inertia = () => {
-      if (Math.abs(touch_vel) < 0.35) return
-      if (touch_vel > 0) step(1)
-      else step(-1)
-      touch_vel *= 0.92
-      raf = requestAnimationFrame(inertia)
-    }
-
-    node.addEventListener("wheel", on_wheel, { passive: false })
-    node.addEventListener("touchstart", ev => {
-      const t = ev.changedTouches[0]
-      if (!t) return
-      touch_id = t.identifier
-      touch_y = t.clientY
-      touch_vel = 0
-      cancelAnimationFrame(raf)
-    })
-    node.addEventListener("touchmove", ev => {
-      if (touch_id == null) return
-      const t = [...ev.changedTouches].find(x => x.identifier === touch_id)
-      if (!t) return
-      ev.preventDefault()
-      const dy = t.clientY - touch_y
-      touch_y = t.clientY
-      touch_vel = dy
-      if (Math.abs(dy) > 18) {
-        step(dy > 0 ? -1 : 1)
-        touch_y = t.clientY
+      const on_wheel = (ev: WheelEvent) => {
+        ev.preventDefault()
+        step(ev.deltaY > 0 ? 1 : -1)
       }
-    }, { passive: false })
-    node.addEventListener("touchend", () => {
-      touch_id = null
-      cancelAnimationFrame(raf)
-      raf = requestAnimationFrame(inertia)
-    })
+
+      const apply_drag = (dy: number) => {
+        drag_accum += dy
+        while (drag_accum >= DRAG_PX_PER_STEP) {
+          step(-1)
+          drag_accum -= DRAG_PX_PER_STEP
+        }
+        while (drag_accum <= -DRAG_PX_PER_STEP) {
+          step(1)
+          drag_accum += DRAG_PX_PER_STEP
+        }
+      }
+
+      node.addEventListener("wheel", on_wheel, { passive: false })
+      node.addEventListener("touchstart", ev => {
+        const t = ev.changedTouches[0]
+        if (!t) return
+        touch_id = t.identifier
+        touch_y = t.clientY
+        drag_accum = 0
+      }, { passive: true })
+      node.addEventListener("touchmove", ev => {
+        if (touch_id == null) return
+        const t = [...ev.changedTouches].find(x => x.identifier === touch_id)
+        if (!t) return
+        ev.preventDefault()
+        const dy = t.clientY - touch_y
+        touch_y = t.clientY
+        apply_drag(dy)
+      }, { passive: false })
+      node.addEventListener("touchend", ev => {
+        if (touch_id == null) return
+        const t = [...ev.changedTouches].find(x => x.identifier === touch_id)
+        if (t) touch_id = null
+        drag_accum = 0
+      })
+      node.addEventListener("touchcancel", () => {
+        touch_id = null
+        drag_accum = 0
+      })
     })}
     <button type="button" e-variant="text" class={cls_step}>
       {$click(() => step(-1))}
       ▲
     </button>
-    <span class={cls_adj}>{opts.format(prev)}</span>
-    <span class={cls_val}>{opts.format(opts.value)}</span>
-    <span class={cls_adj}>{opts.format(next)}</span>
+    <span class={cls_adj}>{opts.format(adjacent(-1))}</span>
+    <span class={cls_val}>{opts.format(opts.get_value())}</span>
+    <span class={cls_adj}>{opts.format(adjacent(1))}</span>
     <button type="button" e-variant="text" class={cls_step}>
       {$click(() => step(1))}
       ▼
@@ -98,7 +112,13 @@ export interface TimePickerPanelOpts {
   o_date: o.Observable<Date>
   am_pm: boolean
   seconds: boolean
+  minute_step?: number
+  second_step?: number
   on_change: (d: Date) => void
+}
+
+function hour12(d: Date): number {
+  return d.getHours() % 12 || 12
 }
 
 export function TimePickerPanel(opts: TimePickerPanelOpts) {
@@ -113,12 +133,12 @@ export function TimePickerPanel(opts: TimePickerPanelOpts) {
 
   if (opts.am_pm) {
     cols.push(o.expression(get => {
-      const d = get(opts.o_date)
+      get(opts.o_date)
       return ScrollColumn({
         min: 0,
         max: 1,
         loop: true,
-        value: d.getHours() >= 12 ? 1 : 0,
+        get_value: () => (opts.o_date.get().getHours() >= 12 ? 1 : 0),
         format: v => day_period_text(opts.locale, v === 0),
         on_change: v => patch(dt => {
           const h = dt.getHours() % 12
@@ -129,20 +149,18 @@ export function TimePickerPanel(opts: TimePickerPanelOpts) {
   }
 
   cols.push(o.expression(get => {
-    const d = get(opts.o_date)
+    get(opts.o_date)
     return ScrollColumn({
       min: opts.am_pm ? 1 : 0,
       max: opts.am_pm ? 12 : 23,
-      loop: opts.am_pm,
-      value: opts.am_pm ? (d.getHours() % 12 || 12) : d.getHours(),
+      loop: true,
+      get_value: () => opts.am_pm ? hour12(opts.o_date.get()) : opts.o_date.get().getHours(),
       format: n => String(n).padStart(2, "0"),
       on_change: h => patch(dt => {
         if (opts.am_pm) {
           const pm = dt.getHours() >= 12
-          let hour = h % 12
-          if (hour === 0) hour = 12
-          if (hour === 12) dt.setHours(pm ? 12 : 0)
-          else dt.setHours(pm ? hour + 12 : hour)
+          if (h === 12) dt.setHours(pm ? 12 : 0)
+          else dt.setHours(pm ? h + 12 : h)
         } else {
           dt.setHours(h)
         }
@@ -150,13 +168,17 @@ export function TimePickerPanel(opts: TimePickerPanelOpts) {
     })
   }))
 
+  const minute_step = Math.max(1, Math.min(30, Math.trunc(opts.minute_step ?? 1)))
+  const second_step = Math.max(1, Math.min(30, Math.trunc(opts.second_step ?? 1)))
+
   cols.push(o.expression(get => {
-    const d = get(opts.o_date)
+    get(opts.o_date)
     return ScrollColumn({
       min: 0,
       max: 59,
       loop: true,
-      value: d.getMinutes(),
+      step_size: minute_step,
+      get_value: () => opts.o_date.get().getMinutes(),
       format: n => String(n).padStart(2, "0"),
       on_change: m => patch(dt => dt.setMinutes(m)),
     })
@@ -164,12 +186,13 @@ export function TimePickerPanel(opts: TimePickerPanelOpts) {
 
   if (opts.seconds) {
     cols.push(o.expression(get => {
-      const d = get(opts.o_date)
+      get(opts.o_date)
       return ScrollColumn({
         min: 0,
         max: 59,
         loop: true,
-        value: d.getSeconds(),
+        step_size: second_step,
+        get_value: () => opts.o_date.get().getSeconds(),
         format: n => String(n).padStart(2, "0"),
         on_change: s => patch(dt => dt.setSeconds(s)),
       })

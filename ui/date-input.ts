@@ -1,5 +1,6 @@
 import {
   type DateFormatLayout,
+  type SegmentKind,
   clamp_segment,
   date_to_values,
   is_literal_index,
@@ -16,6 +17,22 @@ export interface DateInputControllerCtx {
   set_model: (d: Date | null) => void
   clearable: boolean
   lock: (fn: () => void) => void
+  minute_step?: number
+  second_step?: number
+}
+
+function segment_arrow_step(kind: SegmentKind, ctx: DateInputControllerCtx): number {
+  if (kind === "minute") return Math.max(1, Math.trunc(ctx.minute_step ?? 1))
+  if (kind === "second") return Math.max(1, Math.trunc(ctx.second_step ?? 1))
+  return 1
+}
+
+function bump_segment(kind: SegmentKind, cur: number, delta: number, ctx: DateInputControllerCtx): number {
+  const step = segment_arrow_step(kind, ctx) * delta
+  if (kind === "minute" || kind === "second") {
+    return ((cur + step) % 60 + 60) % 60
+  }
+  return clamp_segment(kind, cur + step, { [kind]: cur + step })
 }
 
 /** Segmented date/time text input: display, edit, validate, sync with an observable model. */
@@ -143,7 +160,10 @@ export class DateInputController {
       const vals = parse_segments(layout, this.input.value)
       const cur = vals[seg.kind] ?? 0
       const delta = ev.key === "ArrowUp" ? 1 : -1
-      vals[seg.kind] = clamp_segment(seg.kind, cur + delta, vals)
+      vals[seg.kind] = bump_segment(seg.kind, cur, delta, this.ctx)
+      for (const s of layout.segments) {
+        if (vals[s.kind] != null) vals[s.kind] = clamp_segment(s.kind, vals[s.kind]!, vals)
+      }
       this.#write_text(rebuild_from_segments(layout, vals), [seg.start, seg.end])
       return
     }
