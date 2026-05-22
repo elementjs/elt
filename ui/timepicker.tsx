@@ -131,23 +131,6 @@ export function TimePickerPanel(opts: TimePickerPanelOpts) {
 
   const cols: Renderable[] = []
 
-  if (opts.am_pm) {
-    cols.push(o.expression(get => {
-      get(opts.o_date)
-      return ScrollColumn({
-        min: 0,
-        max: 1,
-        loop: true,
-        get_value: () => (opts.o_date.get().getHours() >= 12 ? 1 : 0),
-        format: v => day_period_text(opts.locale, v === 0),
-        on_change: v => patch(dt => {
-          const h = dt.getHours() % 12
-          dt.setHours(v === 1 ? (h === 0 ? 12 : h + 12) : (h === 12 ? 0 : h))
-        }),
-      })
-    }))
-  }
-
   cols.push(o.expression(get => {
     get(opts.o_date)
     return ScrollColumn({
@@ -195,6 +178,23 @@ export function TimePickerPanel(opts: TimePickerPanelOpts) {
         get_value: () => opts.o_date.get().getSeconds(),
         format: n => String(n).padStart(2, "0"),
         on_change: s => patch(dt => dt.setSeconds(s)),
+      })
+    }))
+  }
+
+  if (opts.am_pm) {
+    cols.push(o.expression(get => {
+      get(opts.o_date)
+      return ScrollColumn({
+        min: 0,
+        max: 1,
+        loop: true,
+        get_value: () => (opts.o_date.get().getHours() >= 12 ? 1 : 0),
+        format: v => day_period_text(opts.locale, v === 0),
+        on_change: v => patch(dt => {
+          const h = dt.getHours() % 12
+          dt.setHours(v === 1 ? (h === 0 ? 12 : h + 12) : (h === 12 ? 0 : h))
+        }),
       })
     }))
   }

@@ -309,7 +309,7 @@ button[e-variant="on"] {
 e-button-box {
   position: relative;
   z-index: 0;
-  display: inline-flex;
+  display: flex;
 
   & :is(button, input) {
     position: relative;

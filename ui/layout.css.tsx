@@ -1,5 +1,4 @@
 import { type Attrs, type NRO, css, e } from "elt"
-import { theme } from "./theme"
 
 declare module "elt" {
   interface ElementMap {
@@ -26,6 +25,7 @@ export interface CommonAttrs extends Attrs<HTMLElement> {
 
 export interface EBoxAttrs extends CommonAttrs {
   variant?: NRO<"vertical">
+  typographic?: NRO<boolean>
 }
 
 export interface EFlexAttrs extends CommonAttrs {

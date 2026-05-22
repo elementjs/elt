@@ -189,7 +189,7 @@ export function DateTimePicker(at: DatePickerAttrs) {
     {$connected((box: HTMLElement) => {
       o_locale.set(resolve_locale(box))
     })}
-    <input type="text" autocomplete="off" spellcheck={false}>
+    <input type="text" autocomplete="off" spellcheck={false} class={cls_date_input}>
       {(input: HTMLInputElement) => {
         input_ctrl = setup_input_api(input, input_ctx())
         lock(() => input_ctrl!.apply_model(at.model.get()))
@@ -287,4 +287,8 @@ const cls_day = css`.date-day {
       background: ${colors.tint.ultra_light};
     }
   }
+}`
+
+const cls_date_input = css`.date-input {
+  cursor: default;
 }`

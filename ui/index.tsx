@@ -4,6 +4,7 @@ import "./reset.css"
 import "./layout.css"
 import "./dialog.css"
 import "./form.css"
+import "./typography.css"
 
 export * from "./popup"
 export * from "./select"
@@ -15,6 +16,7 @@ export * from "./date"
 export * from "./icons"
 export * from "./search"
 export * from "./timepicker"
+
 
 import { o } from "elt"
 import { theme } from "./theme"
