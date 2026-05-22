@@ -56,7 +56,8 @@ export default class Base extends BaseReqs {
 
         <p>
           <e-flex gap wrap>
-            <DateTimePicker model={o(new Date())} show_time/>
+            <DateTimePicker model={o(null as Date | null)} show_time/>
+            <DateTimePicker lang="fr" model={o(new Date() as Date | null)}/>
           </e-flex>
         </p>
 

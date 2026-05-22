@@ -99,8 +99,6 @@ function _eval_popup_click(ev: MouseEvent) {
   }
   // If we get here, no popup contained the click, we close them all
   if (!found_contain) {
-    ev.preventDefault()
-    ev.stopPropagation()
     _close_popups()
   }
 }
@@ -220,6 +218,7 @@ export function popup<T>(
     popups.add(popup)
     popups_futures.set(popup, fut)
     const cleanup = autoUpdate(anchor, popup, updatePosition)
+
     fut.finally(() => {
       cleanup()
     })

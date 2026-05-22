@@ -1,19 +1,30 @@
-/** Locale-aware segmented date/time formatting for DateTimePicker. */
+/**
+ * Locale-aware segmented date/time formatting for DateTimePicker.
+ *
+ * A fixed reference date is formatted with `Intl` so we learn segment order,
+ * widths, and literal separators; the input then edits that template in place.
+ */
 
 export type SegmentKind = "year" | "month" | "day" | "hour" | "minute" | "second" | "dayPeriod"
 
+/** Numeric value for each editable field parsed from or written to the input. */
 export type SegmentValues = Partial<Record<SegmentKind, number>>
 
 export interface DateFormatSegment {
   kind: SegmentKind
+  /** Inclusive start index in the composed input string. */
   start: number
+  /** Exclusive end index. */
   end: number
+  /** Character width of this field in the template. */
   digits: number
 }
 
+/** Immutable description of one locale-specific datetime text mask. */
 export interface DateFormatLayout {
   locale: string
   segments: DateFormatSegment[]
+  /** Separator characters at fixed indices (/, space, :, etc.). */
   literals: { index: number, char: string }[]
   length: number
 }
@@ -31,8 +42,10 @@ const WEEKDAY_TO_JS: Record<WeekdayName, number> = {
   saturday: 6,
 }
 
+/** Stable sample instant so `formatToParts` yields predictable segment widths. */
 const REF_DATE = new Date(2000, 10, 22, 13, 45, 56)
 
+/** Closest BCP 47 tag: nearest `lang` on ancestors, else document or navigator. */
 export function resolve_locale(el: Element | null): string {
   let node: Element | null = el
   while (node != null) {
@@ -43,6 +56,10 @@ export function resolve_locale(el: Element | null): string {
   return document.documentElement.lang || navigator.language
 }
 
+/**
+ * First day of the calendar week as `Date.getDay()` (0 = Sunday).
+ * Explicit `week_starts_on` wins; otherwise `Intl.Locale.weekInfo` when available.
+ */
 export function week_start_js(week_starts_on: WeekdayName | undefined, locale: string): number {
   if (week_starts_on != null) return WEEKDAY_TO_JS[week_starts_on]
   try {
@@ -60,6 +77,10 @@ export interface LayoutOptions {
   am_pm: boolean
 }
 
+/**
+ * Build the editable mask for the picker (segment bounds + literals) from `Intl`
+ * for the given locale and which date/time parts are shown.
+ */
 export function build_layout(locale: string, opts: LayoutOptions): DateFormatLayout {
   const fmt_opts: Intl.DateTimeFormatOptions = {}
   if (opts.show_date) {
@@ -101,6 +122,7 @@ function pad(n: number, digits: number): string {
   return String(n).padStart(digits, "0")
 }
 
+/** Localized AM/PM (or equivalent) trimmed to the segment width from the mask. */
 function day_period_text(locale: string, am: boolean, digits: number): string {
   const sample = new Intl.DateTimeFormat(locale, { hour: "numeric", hour12: true })
     .formatToParts(am ? new Date(2000, 0, 1, 9, 0) : new Date(2000, 0, 1, 21, 0))
@@ -108,11 +130,15 @@ function day_period_text(locale: string, am: boolean, digits: number): string {
   return sample.slice(0, digits).padEnd(digits, " ")
 }
 
-/** Placeholder string with `-` in each segment and locale literals between. */
+/** Full mask with `-` in every segment — shown when there is no model value. */
 export function format_unavailable(layout: DateFormatLayout): string {
   return rebuild_from_segments(layout, {})
 }
 
+/**
+ * Compose the input string: literals fixed, known segments clamped and padded,
+ * missing segments as `-` (placeholder, not zero).
+ */
 export function rebuild_from_segments(layout: DateFormatLayout, vals: SegmentValues): string {
   const buf = new Array<string>(layout.length).fill(" ")
   for (const lit of layout.literals) buf[lit.index] = lit.char
@@ -135,10 +161,15 @@ export function rebuild_from_segments(layout: DateFormatLayout, vals: SegmentVal
   return buf.join("")
 }
 
+/** Day count for `month` (1–12); used to clamp the day segment. */
 export function days_in_month(year: number, month: number): number {
   return new Date(year, month, 0).getDate()
 }
 
+/**
+ * Keep a single segment within sensible bounds while typing.
+ * Day max depends on year/month when known; otherwise 1–31.
+ */
 export function clamp_segment(kind: SegmentKind, value: number, ctx: SegmentValues): number {
   switch (kind) {
     case "year":
@@ -165,6 +196,7 @@ export function clamp_segment(kind: SegmentKind, value: number, ctx: SegmentValu
   }
 }
 
+/** Read segment numbers from the current input text; `-` and empty slices are skipped. */
 export function parse_segments(layout: DateFormatLayout, text: string): SegmentValues {
   const vals: SegmentValues = {}
   for (const seg of layout.segments) {
@@ -181,6 +213,7 @@ export function parse_segments(layout: DateFormatLayout, text: string): SegmentV
   return vals
 }
 
+/** Which segment contains the caret (for select-all-on-click and arrow keys). */
 export function segment_at(layout: DateFormatLayout, index: number): DateFormatSegment | null {
   for (const seg of layout.segments) {
     if (index >= seg.start && index < seg.end) return seg
@@ -188,10 +221,12 @@ export function segment_at(layout: DateFormatLayout, index: number): DateFormatS
   return null
 }
 
+/** True if `index` is a locale separator — typing should jump over it. */
 export function is_literal_index(layout: DateFormatLayout, index: number): boolean {
   return layout.literals.some(l => l.index === index)
 }
 
+/** Every segment has a value — required before building a `Date` from the input. */
 export function segments_complete(layout: DateFormatLayout, vals: SegmentValues): boolean {
   for (const seg of layout.segments) {
     if (vals[seg.kind] == null) return false
@@ -199,6 +234,7 @@ export function segments_complete(layout: DateFormatLayout, vals: SegmentValues)
   return true
 }
 
+/** Split a `Date` into segment numbers matching the current layout. */
 export function date_to_values(d: Date, layout: DateFormatLayout): SegmentValues {
   const vals: SegmentValues = {}
   for (const seg of layout.segments) {
@@ -219,6 +255,10 @@ export function date_to_values(d: Date, layout: DateFormatLayout): SegmentValues
   return vals
 }
 
+/**
+ * Build a local `Date` from parsed segments; `null` if incomplete or calendar-invalid
+ * (e.g. 31 February). Applies 12h + dayPeriod rules when present.
+ */
 export function values_to_date(layout: DateFormatLayout, vals: SegmentValues): Date | null {
   if (!segments_complete(layout, vals)) return null
   const y = vals.year!
@@ -237,10 +277,12 @@ export function values_to_date(layout: DateFormatLayout, vals: SegmentValues): D
   return d
 }
 
+/** Calendar day pick: replace Y-M-D, keep time-of-day from `base`. */
 export function apply_date_part(base: Date, y: number, mo: number, da: number): Date {
   return new Date(y, mo - 1, da, base.getHours(), base.getMinutes(), base.getSeconds())
 }
 
+/** Time-only edit: replace clock fields on the same calendar day as `base`. */
 export function apply_time_part(base: Date, vals: SegmentValues): Date {
   let h = vals.hour ?? base.getHours()
   const min = vals.minute ?? base.getMinutes()
@@ -253,6 +295,7 @@ export function apply_time_part(base: Date, vals: SegmentValues): Date {
   return new Date(base.getFullYear(), base.getMonth(), base.getDate(), h, min, sec)
 }
 
+/** Six rows × seven columns for the month popup; includes leading/trailing outside days. */
 export function calendar_month_cells(view: Date, week_start: number): { date: Date, in_month: boolean }[] {
   const y = view.getFullYear()
   const m = view.getMonth()
@@ -268,12 +311,14 @@ export function calendar_month_cells(view: Date, week_start: number): { date: Da
   return cells
 }
 
+/** Month labels for the calendar toolbar select (index 0 = January). */
 export function month_names(locale: string): string[] {
   return Array.from({ length: 12 }, (_, i) =>
     new Intl.DateTimeFormat(locale, { month: "long" }).format(new Date(2000, i, 1))
   )
 }
 
+/** Narrow weekday headers, ordered from `week_start`. */
 export function weekday_labels(locale: string, week_start: number): string[] {
   return Array.from({ length: 7 }, (_, i) => {
     const day = (week_start + i) % 7

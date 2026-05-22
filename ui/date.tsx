@@ -6,7 +6,6 @@ import {
   Repeat,
   type Attrs,
   css,
-  $on,
 } from "elt"
 import {
   apply_date_part,
@@ -18,7 +17,7 @@ import {
   weekday_labels,
   week_start_js,
 } from "./date-format"
-import { setup_segmented_date_input } from "./date-input"
+import { setup_input_api, type DateInputController } from "./date-input"
 import { Calendar, CaretLeft, CaretRight, Clock } from "./icons"
 import { popup } from "./popup"
 import { Select } from "./select"
@@ -70,7 +69,7 @@ export function DateTimePicker(at: DatePickerAttrs) {
   const clearable = "clearable" in at && at.clearable === true
   const opts = picker_options(at)
   const o_locale = o("")
-  let input_api: ReturnType<typeof setup_segmented_date_input> | null = null
+  let input_ctrl: DateInputController | null = null
 
   const oo_layout = o.expression(get => {
     const locale = get(o_locale)
@@ -88,25 +87,18 @@ export function DateTimePicker(at: DatePickerAttrs) {
   const lock = o.exclusive_lock()
 
   const set_model = (d: Date | null) => {
-    lock(() => {
-      if (d == null && clearable) at.model.set(null)
-      else if (d != null) at.model.set(d)
-    })
+    if (d == null && clearable) at.model.set(null)
+    else if (d != null) at.model.set(d)
   }
 
   const get_model = () => at.model.get()
 
-  const ensure_input_api = (input: HTMLInputElement) => {
-    if (input_api) return
-    const layout = oo_layout.get()
-    if (!layout) return
-    input_api = setup_segmented_date_input(input, {
-      get_layout: () => oo_layout.get()!,
-      set_model,
-      clearable,
-      lock,
-    })
-  }
+  const input_ctx = () => ({
+    get_layout: () => oo_layout.get(),
+    set_model,
+    clearable,
+    lock,
+  })
 
   const open_calendar = async (anchor: HTMLElement) => {
     const locale = o_locale.get()
@@ -187,23 +179,15 @@ export function DateTimePicker(at: DatePickerAttrs) {
       o_locale.set(resolve_locale(box))
     })}
     <input type="text" autocomplete="off" spellcheck={false}>
-      {$on("change", ev => {
-        const input = ev.currentTarget
-        lock(() => {
-          // update model from input
-          input_api?.commit()
-        })
+      {(input: HTMLInputElement) => {
+        input_ctrl = setup_input_api(input, input_ctx())
+        lock(() => input_ctrl!.apply_model(at.model.get()))
+      }}
+      {$observe(at.model, val => {
+        lock(() => input_ctrl?.apply_model(val))
       })}
-      {$observe(oo_layout, (layout, _old, input) => {
-        if (!layout) return
-        ensure_input_api(input)
-        lock(() => input_api!.apply_model(at.model.get(), layout))
-      })}
-      {$observe(at.model, (val, _old, input) => {
-        const layout = oo_layout.get()
-        if (!layout) return
-        ensure_input_api(input)
-        lock(() => input_api!.apply_model(val, layout))
+      {$observe(oo_layout, () => {
+        lock(() => input_ctrl?.apply_model(at.model.get()))
       })}
     </input>
     {o.tf(opts.show_time, v => v &&
@@ -222,13 +206,13 @@ export function DateTimePicker(at: DatePickerAttrs) {
             />
           ), { arrow: true })
         })}
-        <Clock/>
+        {Clock()}
       </button>
     )}
     {o.tf(opts.show_date, v => v &&
       <button type="button" e-variant="tint" title="Date">
-        {$click(ev => { open_calendar(ev.currentTarget) })}
-        <Calendar/>
+        {$click(ev => { void open_calendar(ev.currentTarget) })}
+        {Calendar()}
       </button>
     )}
   </e-button-box> as HTMLElement
