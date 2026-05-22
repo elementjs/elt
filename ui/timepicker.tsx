@@ -50,7 +50,7 @@ export function ScrollColumn(opts: ScrollColumnOpts) {
 
       const on_wheel = (ev: WheelEvent) => {
         ev.preventDefault()
-        step(ev.deltaY > 0 ? 1 : -1)
+        step(ev.deltaY > 0 ? -1 : 1)
       }
 
       const apply_drag = (dy: number) => {
@@ -97,9 +97,9 @@ export function ScrollColumn(opts: ScrollColumnOpts) {
       {$click(() => step(-1))}
       ▲
     </button>
-    <span class={cls_adj}>{opts.format(adjacent(-1))}</span>
-    <span class={cls_val}>{opts.format(opts.get_value())}</span>
     <span class={cls_adj}>{opts.format(adjacent(1))}</span>
+    <span class={cls_val}>{opts.format(opts.get_value())}</span>
+    <span class={cls_adj}>{opts.format(adjacent(-1))}</span>
     <button type="button" e-variant="text" class={cls_step}>
       {$click(() => step(1))}
       ▼
