@@ -4,6 +4,7 @@ import {
   date_to_values,
   is_literal_index,
   parse_segments,
+  format_unavailable,
   rebuild_from_segments,
   segment_at,
   segments_complete,
@@ -25,7 +26,8 @@ export function setup_segmented_date_input(input: HTMLInputElement, ctx: Segment
     const vals = parse_segments(ctx.get_layout(), text)
     const complete = segments_complete(ctx.get_layout(), vals)
     const d = complete ? values_to_date(ctx.get_layout(), vals) : null
-    if (!complete && !(ctx.clearable && text.trim() === "")) {
+    const empty = text.trim() === "" || text.includes("-")
+    if (!complete && !(ctx.clearable && empty)) {
       input.setCustomValidity("Incomplete date")
     } else if (complete && d == null) {
       input.setCustomValidity("Invalid date")
@@ -45,7 +47,7 @@ export function setup_segmented_date_input(input: HTMLInputElement, ctx: Segment
   const apply_model = (m: Date | null, layout: DateFormatLayout) => {
     if (editing) return
     if (m == null) {
-      write_text(ctx.clearable ? "" : rebuild_from_segments(layout, {}))
+      write_text(ctx.clearable ? "" : format_unavailable(layout))
       return
     }
     write_text(rebuild_from_segments(layout, date_to_values(m, layout)))
@@ -69,7 +71,7 @@ export function setup_segmented_date_input(input: HTMLInputElement, ctx: Segment
     const layout = ctx.get_layout()
     const text = input.value
     ctx.lock(() => {
-      if (ctx.clearable && text.trim() === "") {
+      if (ctx.clearable && (text.trim() === "" || text === format_unavailable(layout))) {
         ctx.set_model(null)
         refresh_validity(text)
         return

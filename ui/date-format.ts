@@ -108,19 +108,28 @@ function day_period_text(locale: string, am: boolean, digits: number): string {
   return sample.slice(0, digits).padEnd(digits, " ")
 }
 
+/** Placeholder string with `-` in each segment and locale literals between. */
+export function format_unavailable(layout: DateFormatLayout): string {
+  return rebuild_from_segments(layout, {})
+}
+
 export function rebuild_from_segments(layout: DateFormatLayout, vals: SegmentValues): string {
   const buf = new Array<string>(layout.length).fill(" ")
   for (const lit of layout.literals) buf[lit.index] = lit.char
   for (const seg of layout.segments) {
     const v = vals[seg.kind]
     if (seg.kind === "dayPeriod") {
-      const text = day_period_text(layout.locale, (v ?? 0) === 0, seg.digits)
-      for (let i = 0; i < seg.digits; i++) buf[seg.start + i] = text[i] ?? " "
+      if (v == null) {
+        for (let i = 0; i < seg.digits; i++) buf[seg.start + i] = "-"
+      } else {
+        const text = day_period_text(layout.locale, v === 0, seg.digits)
+        for (let i = 0; i < seg.digits; i++) buf[seg.start + i] = text[i] ?? " "
+      }
     } else if (v != null) {
       const text = pad(clamp_segment(seg.kind, v, vals), seg.digits)
       for (let i = 0; i < seg.digits; i++) buf[seg.start + i] = text[i]!
     } else {
-      for (let i = 0; i < seg.digits; i++) buf[seg.start + i] = "0"
+      for (let i = 0; i < seg.digits; i++) buf[seg.start + i] = "-"
     }
   }
   return buf.join("")
@@ -165,8 +174,8 @@ export function parse_segments(layout: DateFormatLayout, text: string): SegmentV
       vals.dayPeriod = slice.trim().toLowerCase().startsWith(pm_sample[0] ?? "p") ? 1 : 0
       continue
     }
-    const digits = slice.replace(/\D/g, "")
-    if (digits.length === 0) continue
+    const digits = slice.replace(/[^0-9]/g, "")
+    if (digits.length === 0 || /^-+$/.test(slice)) continue
     vals[seg.kind] = clamp_segment(seg.kind, Number(digits), { ...vals, [seg.kind]: Number(digits) })
   }
   return vals

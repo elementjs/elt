@@ -2,17 +2,16 @@ import {
   $click,
   $connected,
   $observe,
-  If,
   o,
   Repeat,
   type Attrs,
   css,
+  $on,
 } from "elt"
 import {
   apply_date_part,
   build_layout,
   calendar_month_cells,
-  type DateFormatLayout,
   type WeekdayName,
   month_names,
   resolve_locale,
@@ -89,20 +88,24 @@ export function DateTimePicker(at: DatePickerAttrs) {
   const lock = o.exclusive_lock()
 
   const set_model = (d: Date | null) => {
-    if (d == null && clearable) at.model.set(null)
-    else if (d != null) at.model.set(d)
+    lock(() => {
+      if (d == null && clearable) at.model.set(null)
+      else if (d != null) at.model.set(d)
+    })
   }
 
   const get_model = () => at.model.get()
 
-  const oo_picker_state = o.expression(get => {
-    const layout = get(oo_layout)
-    if (!layout) return null
-    return { layout, model: get(at.model) as Date | null }
-  })
-
-  const push_model_to_input = (m: Date | null, layout: DateFormatLayout) => {
-    lock(() => input_api?.apply_model(m, layout))
+  const ensure_input_api = (input: HTMLInputElement) => {
+    if (input_api) return
+    const layout = oo_layout.get()
+    if (!layout) return
+    input_api = setup_segmented_date_input(input, {
+      get_layout: () => oo_layout.get()!,
+      set_model,
+      clearable,
+      lock,
+    })
   }
 
   const open_calendar = async (anchor: HTMLElement) => {
@@ -121,28 +124,11 @@ export function DateTimePicker(at: DatePickerAttrs) {
       }
     )
     const oo_cells = o.expression(get => calendar_month_cells(get(o_view), week_start))
-    const oo_selected = o.expression(get => get(at.model))
 
     const year_delta = (delta: number) => {
       const d = new Date(o_view.get())
       d.setFullYear(d.getFullYear() + delta)
       o_view.set(d)
-    }
-
-    const pick_day = (cell_date: Date) => {
-      const layout = oo_layout.get()
-      if (!layout) return
-      const base = get_model() ?? default_popup_date()
-      const d = apply_date_part(
-        base,
-        cell_date.getFullYear(),
-        cell_date.getMonth() + 1,
-        cell_date.getDate()
-      )
-      lock(() => {
-        set_model(d)
-        input_api?.apply_model(d, layout)
-      })
     }
 
     await popup(anchor, () => (
@@ -160,7 +146,7 @@ export function DateTimePicker(at: DatePickerAttrs) {
           <Select
             model={o_month}
             options={[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]}
-            label_fn={i => months[i]!}
+            label_fn={i => months[i]}
           />
         </e-flex>
         <e-grid class={cls_grid}>
@@ -169,22 +155,31 @@ export function DateTimePicker(at: DatePickerAttrs) {
             const oo_in_month = o_cell.tf(c => c.in_month)
             const oo_day_num = o_cell.tf(c => c.date.getDate())
             const oo_selected_day = o.expression(get => {
-              const sel = get(oo_selected)
+              const current = get(at.model)
               const cell = get(o_cell)
-              return same_day(cell.date, sel)
+              return same_day(cell.date, current)
             })
             return <button
               type="button"
               e-variant="text"
               class={[cls_day, oo_in_month.tf(v => !v && "outside"), oo_selected_day.tf(s => s && "selected")]}
             >
-              {$click(() => pick_day(o_cell.get().date))}
+              {$click(() => {
+                const cell = o_cell.get().date
+                const base = get_model() ?? default_popup_date()
+                set_model(apply_date_part(
+                  base,
+                  cell.getFullYear(),
+                  cell.getMonth() + 1,
+                  cell.getDate()
+                ))
+              })}
               {oo_day_num}
             </button>
           })}
         </e-grid>
       </e-box>
-    ), { parent: anchor.parentElement!, arrow: true })
+    ), { arrow: true })
   }
 
   return <e-button-box>
@@ -192,17 +187,23 @@ export function DateTimePicker(at: DatePickerAttrs) {
       o_locale.set(resolve_locale(box))
     })}
     <input type="text" autocomplete="off" spellcheck={false}>
-      {$observe(oo_picker_state, (state, _old, input) => {
-        if (!state) return
-        if (!input_api) {
-          input_api = setup_segmented_date_input(input, {
-            get_layout: () => oo_layout.get()!,
-            set_model,
-            clearable,
-            lock,
-          })
-        }
-        push_model_to_input(state.model, state.layout)
+      {$on("change", ev => {
+        const input = ev.currentTarget
+        lock(() => {
+          // update model from input
+          input_api?.commit()
+        })
+      })}
+      {$observe(oo_layout, (layout, _old, input) => {
+        if (!layout) return
+        ensure_input_api(input)
+        lock(() => input_api!.apply_model(at.model.get(), layout))
+      })}
+      {$observe(at.model, (val, _old, input) => {
+        const layout = oo_layout.get()
+        if (!layout) return
+        ensure_input_api(input)
+        lock(() => input_api!.apply_model(val, layout))
       })}
     </input>
     {o.tf(opts.show_time, v => v &&
@@ -217,24 +218,17 @@ export function DateTimePicker(at: DatePickerAttrs) {
               o_date={o_cur}
               am_pm={o.get(opts.am_pm)}
               seconds={o.get(opts.seconds)}
-              on_change={d => {
-                const layout = oo_layout.get()
-                if (!layout) return
-                lock(() => {
-                  set_model(d)
-                  input_api?.apply_model(d, layout)
-                })
-              }}
+              on_change={d => set_model(d)}
             />
-          ), { parent: ev.currentTarget.parentElement!, arrow: true })
+          ), { arrow: true })
         })}
-        {Clock()}
+        <Clock/>
       </button>
     )}
     {o.tf(opts.show_date, v => v &&
       <button type="button" e-variant="tint" title="Date">
-        {$click(ev => { void open_calendar(ev.currentTarget) })}
-        {Calendar()}
+        {$click(ev => { open_calendar(ev.currentTarget) })}
+        <Calendar/>
       </button>
     )}
   </e-button-box> as HTMLElement

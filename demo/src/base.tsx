@@ -25,7 +25,7 @@ export default class Base extends BaseReqs {
 
   @view
   Main() {
-    return <e-flex column class={[cls_fullscreen, cls_noto_sans]} style={{fontFamily: this.o_font}}>
+    return <e-flex column class={[cls_fullscreen]} style={{fontFamily: this.o_font}}>
       <header class={[cls_header, theme.class_light, theme.colors.blue.as_background]}>
         <nav>
           <button>𝑒</button>
@@ -49,11 +49,16 @@ export default class Base extends BaseReqs {
             { font: "Ubuntu", icon: P.LinuxLogo },
             { font: "Roboto", icon: P.AndroidLogo },
             { font: "Public Sans", icon: P.GoogleLogo },
-            { font: "Nunito Sans", icon: P.GoogleLogo },
           ].map(({ font, icon }) => {
             return <button style={{fontFamily: font}}>{$bind.toggler(this.o_font.tf(tf_set(font)))} {font} {icon()}</button>
           })}
         </e-button-box>
+
+        <p>
+          <e-flex gap wrap>
+            <DateTimePicker model={o(new Date())} show_time/>
+          </e-flex>
+        </p>
 
         <e-flex gap wrap>
 
@@ -125,9 +130,6 @@ export default class Base extends BaseReqs {
 
         <h3>elt-ui date pickers</h3>
 
-        <e-flex gap wrap>
-          <DateTimePicker model={o(new Date())} show_time/>
-        </e-flex>
 
         <button e-variant="text">Text button</button>
 
@@ -152,18 +154,4 @@ const cls_fullscreen = css`.fullscreen {
 const cls_header = css`.header {
   display: flex;
   width: 100%;
-}`
-
-const cls_public_sans = css`.public-sans {
-    font-family: "Public Sans", sans-serif;
-    font-optical-sizing: auto;
-    font-weight: <weight>;
-    font-style: normal;
-}`
-
-const cls_noto_sans = css`.noto-sans {
-  font-family: "Nunito Sans", sans-serif;
-  font-variation-settings:
-      "wdth" 100,
-      "YTLC" 500;
 }`

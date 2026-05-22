@@ -47,7 +47,7 @@ export function Select<T, T2 = T>(at: SelectAttributes<T, T2>) {
             const oo_option_value = o_option.tf(opt => convert_fn(opt))
             const oo_is_selected = o.expression(get => get(at.model) === get(oo_option_value))
             return <e-flex class={[cls_item, oo_is_selected.tf(selected => selected && "selected")]}>
-              {$click(() => {
+              {$click(ev => {
                 at.model?.set(o.get(oo_option_value))
                 fut.resolve(o.get(oo_option_value))
               })}
@@ -56,7 +56,7 @@ export function Select<T, T2 = T>(at: SelectAttributes<T, T2>) {
             </e-flex>
           })}
         </menu>
-        , { parent: ev.currentTarget.parentElement!, arrow: true })
+        , { arrow: true })
       } finally {
         o_open.set(false)
       }
