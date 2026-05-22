@@ -20,6 +20,36 @@ export type PopupResolution<T> =
 const popups = new Set<Element>()
 const popups_futures = new WeakMap<Element, Future<any | undefined>>()
 
+/** Find a suitable parent for a popup ; stops at a popup or a top layer element, or document.body if no root is found.
+ * This helps avoid closing popups when clicking on a child of a popup.
+ */
+function find_parent_node(el: Node) {
+  while (el != null && el != document.body) {
+    // Open modal dialogs are promoted to the top layer
+    if (el instanceof HTMLDialogElement && el.open) {
+      return el
+    }
+
+    if (popups.has(el as Element)) {
+      return el
+    }
+
+    // Elements with the Popover API open are also in the top layer
+    if (
+      el instanceof HTMLElement &&
+      el.hasAttribute('popover') &&
+      el.matches(':popover-open')
+    ) {
+      return el
+    }
+
+    el = el.parentElement!
+  }
+
+  return document.body
+
+}
+
 async function _popup_resolve(p: Element) {
   popups.delete(p)
   popups_futures.get(p)?.resolve(sym_popup_closed)
@@ -100,15 +130,16 @@ export function popup<T>(
 
   const doc = anchor.ownerDocument
   const fut = new Future<T | typeof sym_popup_closed>()
-  fut.then(val => {
-    if (val !== sym_popup_closed) {
-      _close_popups()
-    }
-  })
-
   const popup = <e-box class={cls_popup} popover="manual">
     {fn(fut)}
   </e-box> as HTMLElement
+
+  fut.then(val => {
+    if (val !== sym_popup_closed) {
+      _popup_resolve(popup)
+    }
+  })
+
 
 
   // Figure out if we were created from inside a popup, in which case
@@ -133,7 +164,7 @@ export function popup<T>(
   setTimeout(async () => {
     // node_append(anchor.parentElement!, popup_root, anchor.nextSibling)
 
-    node_append(opts.parent ?? doc.body, popup)
+    node_append(opts.parent ?? find_parent_node(anchor), popup)
 
     popup.showPopover()
     popup.classList.add("open")
