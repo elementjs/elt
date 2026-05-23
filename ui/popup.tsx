@@ -5,13 +5,13 @@
  * Some popup handling.
  */
 
-import { css, node_append, node_do_disconnect, node_remove } from "elt"
+import { $scrollable, css, node_append, node_do_disconnect, node_remove } from "elt"
 import { animate, animate_hide, animate_show, stop_animations } from "./animation"
 import { theme } from "./theme"
 import { Future } from "./utils"
 const colors = theme.colors
 
-import { arrow, autoPlacement, autoUpdate, computePosition, type ComputePositionConfig, flip, hide } from "@floating-ui/dom"
+import { arrow, autoPlacement, autoUpdate, computePosition, type ComputePositionConfig, flip, hide, offset } from "@floating-ui/dom"
 
 export type PopupResolution<T> =
   | { resolution: "value", value: T }
@@ -105,6 +105,32 @@ function _eval_popup_click(ev: MouseEvent) {
 
 export const sym_popup_closed = Symbol("popup closed")
 
+const ARROW_SIZE = 12
+const ARROW_HALF = ARROW_SIZE / 2
+
+/** Apply floating-ui arrow coords; static edge comes from final placement (see floating-ui arrow docs). */
+function apply_arrow_position(arro: HTMLElement, placement: string, data: { x?: number, y?: number, centerOffset: number }) {
+  const side = placement.split("-")[0] as "top" | "bottom" | "left" | "right"
+  arro.dataset.placement = side
+  arro.style.left = ""
+  arro.style.top = ""
+  arro.style.right = ""
+  arro.style.bottom = ""
+
+  if (side === "bottom" || side === "top") {
+    if (data.x != null) arro.style.left = `${data.x}px`
+    // Popup below anchor → arrow on top edge; above → on bottom edge.
+    if (side === "bottom") arro.style.top = `${-ARROW_HALF}px`
+    else arro.style.bottom = `${-ARROW_HALF}px`
+  } else {
+    if (data.y != null) arro.style.top = `${data.y}px`
+    if (side === "right") arro.style.left = `${-ARROW_HALF}px`
+    else arro.style.right = `${-ARROW_HALF}px`
+  }
+
+  arro.style.visibility = data.centerOffset !== 0 ? "hidden" : "visible"
+}
+
 const transform_origins = new Map<string, string>([
   ["top-start", "bottom left"],
   ["top", "bottom center"],
@@ -129,7 +155,10 @@ export function popup<T>(
   const doc = anchor.ownerDocument
   const fut = new Future<T | typeof sym_popup_closed>()
   const popup = <e-box class={cls_popup} popover="manual">
-    {fn(fut)}
+    <e-box class={cls_popup_content}>
+      {$scrollable}
+      {fn(fut)}
+    </e-box>
   </e-box> as HTMLElement
 
   fut.then(val => {
@@ -137,8 +166,6 @@ export function popup<T>(
       _popup_resolve(popup)
     }
   })
-
-
 
   // Figure out if we were created from inside a popup, in which case
   // we do not close the previous pop-ups
@@ -162,26 +189,29 @@ export function popup<T>(
   setTimeout(async () => {
     // node_append(anchor.parentElement!, popup_root, anchor.nextSibling)
 
+    const arro = opts.arrow ? <e-box class={cls_arrow} /> as HTMLElement : null
+    if (arro) {
+      // Sibling after scrollable content; z-index keeps it above the panel fill.
+      node_append(popup, arro)
+    }
+
     node_append(opts.parent ?? find_parent_node(anchor), popup)
 
     popup.showPopover()
     popup.classList.add("open")
-    const arro = opts.arrow ? <e-box class={cls_arrow} /> as HTMLElement : null
-    if (arro) {
-      // node_append(popup, arro)
-    }
+
 
     async function updatePosition() {
       const { x, y, middlewareData, placement } = await computePosition(anchor, popup, {
         ...opts,
         middleware: [
-          // offset(10),
+          offset(arro ? ARROW_HALF + 8 : 0),
           autoPlacement({
             allowedPlacements: ["top-start", "top", "top-end", "bottom-start", "bottom", "bottom-end", ]
           }),
           flip(),
           hide(),
-          ...(opts.arrow ? [arrow({ element: arro! })] : []),
+          ...(arro ? [arrow({ element: arro, padding: 8 })] : []),
         ],
       })
 
@@ -197,15 +227,7 @@ export function popup<T>(
       popup.style.left = `${x}px`
       popup.style.top = `${y}px`
       if (arro && middlewareData.arrow) {
-        // console.log(placement)
-        // console.log(middlewareData.arrow)
-        // const a = middlewareData.arrow
-        // if (a.x != null) {
-        //   arro.style.left = `${middlewareData.arrow?.x}px`
-        // }
-        // if (a.y != null) {
-        //   arro.style.top = `${middlewareData.arrow?.y}px`
-        // }
+        apply_arrow_position(arro, placement, middlewareData.arrow)
       }
     }
 
@@ -232,16 +254,19 @@ popup.closed = sym_popup_closed
 
 const cls_popup = css`.popup {
   position: absolute;
-  max-height: 80vh;
-  max-width: 320px;
+  overflow: visible;
   border-radius: var(--e-border-radius);
-  overflow: hidden;
   background-color: ${colors.bg};
   color: ${colors.text};
   border: 1px solid ${colors.text.mid};
-  box-shadow: 0 4px 8px ${colors.text.light},
-  0 2px 4px ${colors.text.light};
-
+  box-shadow:
+    0 4px 8px ${colors.text.light},
+    0 2px 4px ${colors.text.light};
+}`
+const cls_popup_content = css`.popup-content {
+  overflow: hidden;
+  max-height: 80vh;
+  max-width: 320px;
 }`
 
 /* Not sure if interesting
@@ -256,16 +281,17 @@ const cls_popup = css`.popup {
 */
 
 const cls_arrow = css`.arrow {
-  width: 12px;
-  height: 12px;
+  width: ${ARROW_SIZE}px;
+  height: ${ARROW_SIZE}px;
   position: absolute;
-  overflow: visible; /* important */
+  pointer-events: none;
+  z-index: 1;
 
   &::before {
     content: "";
     position: absolute;
     inset: 0;
-    background: ${colors.bg}; /* same as panel */
+    background: ${colors.bg};
     transform: rotate(45deg);
   }
 
@@ -274,9 +300,24 @@ const cls_arrow = css`.arrow {
     position: absolute;
     inset: 0;
     transform: rotate(45deg);
-    border: 1px solid ${colors.tint.mid}; /* same as panel */
+    border: 1px solid ${colors.text.mid};
     border-bottom: none;
     border-right: none;
     border-radius: 2px;
+  }
+
+  &[data-placement="top"]::before,
+  &[data-placement="top"]::after {
+    transform: rotate(225deg);
+  }
+
+  &[data-placement="left"]::before,
+  &[data-placement="left"]::after {
+    transform: rotate(135deg);
+  }
+
+  &[data-placement="right"]::before,
+  &[data-placement="right"]::after {
+    transform: rotate(-45deg);
   }
 }`

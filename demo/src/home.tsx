@@ -26,6 +26,14 @@ export default class HomeScreen extends App.Service.requirements(() => ({
   Content() {
     return <e-box typographic pad>
       <h1>Home <EltLogo full/></h1>
+
+      <p>
+        <Select
+          options={["Option 1", "Option 2", "Option 3"]}
+          model={o("Option 1")}
+        />
+      </p>
+
       <h3>Font</h3>
       <p>Note: SF Pro and Segoe UI are only available on macOS and Windows, respectively, unless you install them locally. Recommended fonts are IBM Plex Sans, Segoe UI, and system-ui if none are available.</p>
       <e-button-box>
@@ -124,27 +132,6 @@ export default class HomeScreen extends App.Service.requirements(() => ({
 
       <button e-variant="text">Text button</button>
 
-      <Select
-        options={["Option 1", "Option 2", "Option 3"]}
-        model={o("Option 1")}
-      />
-
-
-
     </e-box>
-  }
-
-  @view
-  Content2() {
-    return <e-flex column>
-      <h1>Home</h1>
-
-      <e-box typographic pad style={{width: "100%"}}>
-        {$scrollable}
-
-
-      </e-box>
-
-    </e-flex>
   }
 }
