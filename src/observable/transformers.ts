@@ -5,6 +5,22 @@ export interface IndexConverter<T> extends o.Converter<T[], T[]> {
 }
 
 /**
+ * Transform a value to a boolean based on whether it is equal to the given value, setting it when assigned true. Does nothing when assigned false.
+ * @param value The value to compare to
+ * @returns A converter that transforms a value to a boolean based on whether it is equal to the given value
+ */
+export function tf_equals<T>(value: T): o.Converter<T, boolean> {
+  return {
+    transform(val: T) {
+      return val === value
+    },
+    revert(newv, _, val) {
+      return newv ? value : o.NoValue
+    }
+  }
+}
+
+/**
  * Transform an observable of array into another array based on either
  * an array of numbers (which are indices) or a function that takes the
  * array and returns indices.

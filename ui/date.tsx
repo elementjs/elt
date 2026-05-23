@@ -29,6 +29,8 @@ const colors = theme.colors
 export interface DateTimePickerAttributesBAse extends Attrs<HTMLElement> {
   week_starts_on?: o.RO<"monday" | "tuesday" | "wednesday" | "thursday" | "friday" | "saturday" | "sunday">
 
+  variant?: o.RO<"full" | "tint">
+
   /** if true, show the date selector. Default is true. */
   show_date?: o.RO<boolean>
 
@@ -79,6 +81,8 @@ export function DateTimePicker(at: DatePickerAttrs) {
   const opts = picker_options(at)
   const o_locale = o("")
   let input_ctrl: DateInputController | null = null
+
+  const oo_variant = o.tf(at.variant, v => v ?? "tint")
 
   const oo_layout = o.expression(get => {
     const locale = get(o_locale)
@@ -201,12 +205,12 @@ export function DateTimePicker(at: DatePickerAttrs) {
         lock(() => input_ctrl?.apply_model(at.model.get()))
       })}
     </input>
-    {o.tf(at.clearable, c => c && <button type="button" e-variant="tint" title="Clear">
+    {o.tf(at.clearable, c => c && <button type="button" e-variant={oo_variant} title="Clear">
       {$click(() => set_model(null))}
       <X/>
     </button>)}
     {o.tf(opts.show_time, v => v &&
-      <button type="button" e-variant="tint" title="Time">
+      <button type="button" e-variant={oo_variant} title="Time">
         {$click(async ev => {
           const locale = o_locale.get()
           if (!locale) return
@@ -227,7 +231,7 @@ export function DateTimePicker(at: DatePickerAttrs) {
       </button>
     )}
     {o.tf(opts.show_date, v => v &&
-      <button type="button" e-variant="tint" title="Date">
+      <button type="button" e-variant={oo_variant} title="Date">
         {$click(ev => { void open_calendar(ev.currentTarget) })}
         {Calendar()}
       </button>
