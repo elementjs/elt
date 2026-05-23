@@ -107,6 +107,7 @@ export const sym_popup_closed = Symbol("popup closed")
 
 const ARROW_SIZE = 12
 const ARROW_HALF = ARROW_SIZE / 2
+const ARROW_OFFSET = ARROW_HALF * Math.SQRT2
 
 /** Apply floating-ui arrow coords; static edge comes from final placement (see floating-ui arrow docs). */
 function apply_arrow_position(arro: HTMLElement, placement: string, data: { x?: number, y?: number, centerOffset: number }) {
@@ -192,7 +193,7 @@ export function popup<T>(
     const arro = opts.arrow ? <e-box class={cls_arrow} /> as HTMLElement : null
     if (arro) {
       // Sibling after scrollable content; z-index keeps it above the panel fill.
-      node_append(popup, arro)
+      node_append(popup, arro, popup.firstChild)
     }
 
     node_append(opts.parent ?? find_parent_node(anchor), popup)
@@ -205,7 +206,7 @@ export function popup<T>(
       const { x, y, middlewareData, placement } = await computePosition(anchor, popup, {
         ...opts,
         middleware: [
-          offset(arro ? ARROW_HALF + 8 : 0),
+          offset(arro ? ARROW_OFFSET : 0),
           autoPlacement({
             allowedPlacements: ["top-start", "top", "top-end", "bottom-start", "bottom", "bottom-end", ]
           }),
@@ -259,9 +260,8 @@ const cls_popup = css`.popup {
   background-color: ${colors.bg};
   color: ${colors.text};
   border: 1px solid ${colors.text.mid};
-  box-shadow:
-    0 4px 8px ${colors.text.light},
-    0 2px 4px ${colors.text.light};
+  filter: drop-shadow(
+    1px 1px 2px ${colors.text.light});
 }`
 const cls_popup_content = css`.popup-content {
   overflow: hidden;
@@ -285,7 +285,7 @@ const cls_arrow = css`.arrow {
   height: ${ARROW_SIZE}px;
   position: absolute;
   pointer-events: none;
-  z-index: 1;
+  z-index: -1;
 
   &::before {
     content: "";
@@ -300,7 +300,7 @@ const cls_arrow = css`.arrow {
     position: absolute;
     inset: 0;
     transform: rotate(45deg);
-    border: 1px solid ${colors.text.mid};
+    border: 1.41px solid ${colors.text.mid};
     border-bottom: none;
     border-right: none;
     border-radius: 2px;

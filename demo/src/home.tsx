@@ -129,6 +129,12 @@ export default class HomeScreen extends App.Service.requirements(() => ({
 
       <h3>elt-ui date pickers</h3>
 
+      <p>
+        <Select
+          options={["Option 1", "Option 2", "Option 3"]}
+          model={o("Option 1")}
+        />
+      </p>
 
       <button e-variant="text">Text button</button>
 
