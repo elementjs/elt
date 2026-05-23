@@ -1,7 +1,34 @@
 import { css } from "elt"
+import { theme } from "./theme"
 
 css`menu {
-  display: grid;
+  display: flex;
+  flex-direction: column;
   grid-template-columns: [left] 32px [content] 1fr [right] 32px;
-  gap: 0 4px;
+  gap: 0;
+  padding: 4px;
+
+  & > :is(h1, h2, h3, h4, h5, h6) {
+    margin: 0;
+    padding: 0;
+    font-size: 1rem;
+    font-weight: 600;
+    color: ${theme.colors.text.mid};
+    text-wrap: balance;
+  }
+
+  & > hr {
+    margin-top: 4px;
+    margin-bottom: 4px;
+  }
+
+  :is(h1, h2, h3, h4, h5, h6, a, button) {
+    padding: 4px 16px 4px 16px;
+  }
+
+  & > li > button, & > button, & > a, & > li > a {
+    border: none;
+    text-align: start;
+    border-radius: 0;
+  }
 }`

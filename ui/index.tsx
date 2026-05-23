@@ -16,6 +16,7 @@ export * from "./date"
 export * from "./icons"
 export * from "./search"
 export * from "./timepicker"
+export * from "./menu"
 
 
 import { o } from "elt"

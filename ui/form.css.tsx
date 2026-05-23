@@ -227,9 +227,9 @@ label, button {
 /** Horizontal divider */
 hr {
   border: none;
-  border-top: 1px solid ${colors.text.light};
   height: 1px;
   width: 100%;
+  background-color: ${colors.text.light};
 
   &[e-variant="tint"] {
     border-color: ${colors.tint.light};

@@ -9,13 +9,6 @@ import "./layout.css.tsx"
 
 css`@layer typography {
   e-box[typographic] {
-    & > :first-child {
-      margin-block-start: 0;
-    }
-    & > :last-child {
-      margin-block-end: 0;
-    }
-
     /* ── Base rhythm ───────────────────────────────────────── */
     display: block;
     font-size: 1rem;

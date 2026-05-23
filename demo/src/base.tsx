@@ -2,7 +2,7 @@ import { $click, $scrollable, App, css, o, view } from "elt"
 import { theme } from "elt/ui"
 
 import * as P from "elt-phosphor"
-import routes from "./routes"
+import routes, { widget_menu } from "./routes"
 import { EltLogo } from "./widgets/logo"
 
 export default class Base extends App.ServiceClass {
@@ -25,9 +25,7 @@ export default class Base extends App.ServiceClass {
       <e-flex grow class={cls_main} align="stretch">
         <menu class={cls_aside_nav}>
           {$scrollable}
-          <button>{$click(() => routes.home.activate())} Home</button>
-          <hr/>
-          <button>{$click(() => routes.typography.activate())}<P.TextT/> Typography </button>
+          {widget_menu()}
         </menu>
         <e-flex column grow>
           {$scrollable}
@@ -40,10 +38,7 @@ export default class Base extends App.ServiceClass {
 }
 
 const cls_aside_nav = css`.aside_nav {
-  display: flex;
   width: 240px;
-  flex-direction: column;
-  gap: 8px;
   border-right: 1px solid ${theme.colors.text.mid};
 }`
 
