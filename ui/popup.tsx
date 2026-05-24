@@ -105,12 +105,8 @@ function _eval_popup_click(ev: MouseEvent) {
 
 export const sym_popup_closed = Symbol("popup closed")
 
-const ARROW_STROKE = 1
-const ARROW_RX = 2
 const ARROW_WIDTH = 12
 /** Side length; base span along panel ≈ S×√2, outward tip distance ≈ S/√2. */
-const ARROW_SQUARE = Math.round(ARROW_WIDTH / Math.SQRT2)
-const HS = ARROW_SQUARE / 2 - 0.5
 const ARROW_OFFSET = ARROW_WIDTH / 2
 
 type ArrowPlacement = "top" | "bottom" | "left" | "right"
@@ -146,11 +142,11 @@ function popup_arrow(o_state: o.Observable<ArrowState>) {
     if (side === "bottom" || side === "top") {
       if (ax != null) style.left = `${ax}px`
       if (side === "top") style.top = `calc(-1 * var(--arrow-size, 12px) / 2)`
-      else style.bottom = `calc(var(--arrow-size, 12px) / 2)`
+      else style.bottom = `calc(-1 * var(--arrow-size, 12px) / 2)`
     } else {
       if (ay != null) style.top = `${ay}px`
       if (side === "left") style.left = `calc(-1 * var(--arrow-size, 12px) / 2)`
-      else style.right = `calc(var(--arrow-size, 12px) / 2)`
+      else style.right = `calc(-1 * var(--arrow-size, 12px) / 2)`
     }
 
     return style
@@ -240,9 +236,8 @@ export function popup<T>(
       const { x, y, middlewareData, placement } = await computePosition(anchor, popup, {
         ...opts,
         middleware: [
-          offset(arro ? ARROW_OFFSET : 0),
           autoPlacement({
-            allowedPlacements: ["right-start", "right", "right-end", "left-start", "left", "left-end", "top-start", "top", "top-end", "bottom-start", "bottom", "bottom-end",]
+            allowedPlacements: ["top", "top-start", "top-end", "bottom", "bottom-start", "bottom-end",]
           }),
           flip(),
           hide(),
@@ -261,10 +256,23 @@ export function popup<T>(
 
       popup.style.left = `${x}px`
       popup.style.top = `${y}px`
+
       if (arro && middlewareData.arrow) {
+        const side = popup_placement_to_arrow_placement(placement)
+        const _arr = `var(--arrow-size, 12px) / 2.8284`
+        if (side === "bottom") {
+          popup.style.top = `calc(${y}px - ${_arr})`
+        } else if (side === "top") {
+          popup.style.top = `calc(${y}px + ${_arr})`
+        } else if (side === "left") {
+          popup.style.left = `calc(${x}px - ${_arr})`
+        } else if (side === "right") {
+          popup.style.left = `calc(${x}px + ${_arr})`
+        }
+
         const data = middlewareData.arrow
         o_arrow_state.set({
-          side: popup_placement_to_arrow_placement(placement),
+          side,
           ax: data.x ?? null,
           ay: data.y ?? null,
           visible: !middlewareData.hide?.referenceHidden,
@@ -301,7 +309,7 @@ const cls_popup = css`.popup {
   color: ${colors.text};
   border: 1px solid ${colors.text.mid};
   filter: drop-shadow(
-    1px 1px 2px ${colors.text.light});
+    0px 0px 4px ${colors.text.light});
 }`
 const cls_popup_content = css`.popup-content {
   overflow: hidden;
@@ -340,21 +348,22 @@ const cls_arrow_placer = css`.arrow-placer {
   &[data-placement="top"] {
     transform:
       translateX(calc(var(--arrow-size, 12px) / 2))
-      translateY(calc(var(--arrow-size, 12px) / 2));
+      translateY(calc(var(--arrow-size, 12px) / 2 + 1px));
   }
   &[data-placement="bottom"] {
     transform:
       translateX(calc(var(--arrow-size, 12px) / 2))
+      translateY(-1px)
       ;
   }
   &[data-placement="left"] {
     transform:
-      translateX(calc(var(--arrow-size, 12px) / 2))
+      translateX(calc(var(--arrow-size, 12px) / 2 + 1px))
       translateY(calc(var(--arrow-size, 12px) / 2));
   }
   &[data-placement="right"] {
     transform:
-      translateX(calc(var(--arrow-size, 12px) / 2))
+      translateX(calc(var(--arrow-size, 12px) / 2 - 1px))
       translateY(calc(var(--arrow-size, 12px) / 2));
   }
 }`
