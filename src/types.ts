@@ -6,7 +6,7 @@ export interface Appender<N extends Node> {
   [sym_insert](parent: N, refchild: Node | null): void
 }
 
-export type NRO<T> = o.RO<T | null | false | undefined>
+export type NRO<T> = o.RO<T | null | false | undefined | { valueOf: () => T } | (T extends string ? { toString(): string } : never)>
 
 /**
  * Renderables are the types understood by the `Display` verb and that can be rendered into
