@@ -5,7 +5,7 @@
  * Some popup handling.
  */
 
-import { $scrollable, css, node_append, node_do_disconnect, node_remove } from "elt"
+import { $scrollable, css, node_append, node_do_disconnect, node_remove, o } from "elt"
 import { animate, animate_hide, animate_show, stop_animations } from "./animation"
 import { theme } from "./theme"
 import { Future } from "./utils"
@@ -105,34 +105,67 @@ function _eval_popup_click(ev: MouseEvent) {
 
 export const sym_popup_closed = Symbol("popup closed")
 
-const ARROW_SIZE = 12
-const ARROW_HALF = ARROW_SIZE / 2
-const ARROW_OFFSET = ARROW_HALF * Math.SQRT2
+const ARROW_STROKE = 1
+const ARROW_RX = 2
+const ARROW_WIDTH = 12
+/** Side length; base span along panel ≈ S×√2, outward tip distance ≈ S/√2. */
+const ARROW_SQUARE = Math.round(ARROW_WIDTH / Math.SQRT2)
+const HS = ARROW_SQUARE / 2 - 0.5
+const ARROW_OFFSET = ARROW_WIDTH / 2
 
-/** Apply floating-ui arrow coords; static edge comes from final placement (see floating-ui arrow docs). */
-function apply_arrow_position(arro: HTMLElement, placement: string, data: { x?: number, y?: number, centerOffset: number }) {
-  const side = placement.split("-")[0] as "top" | "bottom" | "left" | "right"
-  arro.dataset.placement = side
-  arro.style.left = ""
-  arro.style.top = ""
-  arro.style.right = ""
-  arro.style.bottom = ""
+type ArrowPlacement = "top" | "bottom" | "left" | "right"
 
-  if (side === "bottom" || side === "top") {
-    if (data.x != null) arro.style.left = `${data.x}px`
-    // Popup below anchor → arrow on top edge; above → on bottom edge.
-    if (side === "bottom") arro.style.top = `${-ARROW_HALF}px`
-    else arro.style.bottom = `${-ARROW_HALF}px`
-  } else {
-    if (data.y != null) arro.style.top = `${data.y}px`
-    if (side === "right") arro.style.left = `${-ARROW_HALF}px`
-    else arro.style.right = `${-ARROW_HALF}px`
-  }
-
-  arro.style.visibility = data.centerOffset !== 0 ? "hidden" : "visible"
+/** Arrow state as per floating-ui's arrow middleware */
+interface ArrowState {
+  side: ArrowPlacement
+  ax: number | null
+  ay: number | null
+  visible: boolean
 }
 
-const transform_origins = new Map<string, string>([
+function popup_placement_to_arrow_placement(placement: string): ArrowPlacement {
+  const pp = placement.split("-")[0] as ArrowPlacement
+  if (pp === "top") return "bottom"
+  if (pp === "bottom") return "top"
+  if (pp === "left") return "right"
+  if (pp === "right") return "left"
+  throw new Error(`Invalid popup placement: ${placement}`)
+}
+
+function popup_arrow(o_state: o.Observable<ArrowState>) {
+
+  const oo_outer_arrow_position = o.expression(get => {
+    const { side, ax, ay, visible } = get(o_state)
+    const style: Partial<CSSStyleDeclaration> = {
+      visibility: visible ? "visible" : "hidden",
+      left: "",
+      top: "",
+      right: "",
+      bottom: "",
+    }
+    if (side === "bottom" || side === "top") {
+      if (ax != null) style.left = `${ax}px`
+      if (side === "top") style.top = `calc(-1 * var(--arrow-size, 12px) / 2)`
+      else style.bottom = `calc(var(--arrow-size, 12px) / 2)`
+    } else {
+      if (ay != null) style.top = `${ay}px`
+      if (side === "left") style.left = `calc(-1 * var(--arrow-size, 12px) / 2)`
+      else style.right = `calc(var(--arrow-size, 12px) / 2)`
+    }
+
+    return style
+  })
+
+  return <e-box style={oo_outer_arrow_position} class={[cls_outer_arrow, o_state.p("side")]}>
+    <e-box class={cls_arrow_placer} data-placement={o_state.p("side")}>
+      <e-box class={cls_arrow_inner}/>
+    </e-box>
+  </e-box> as HTMLElement
+}
+
+
+/** Transform origins for the animation of the appearing/disappearing of the popup relative to its resolved position by floating-ui */
+const popup_transform_origins = new Map<string, string>([
   ["top-start", "bottom left"],
   ["top", "bottom center"],
   ["top-end", "bottom right"],
@@ -190,7 +223,8 @@ export function popup<T>(
   setTimeout(async () => {
     // node_append(anchor.parentElement!, popup_root, anchor.nextSibling)
 
-    const arro = opts.arrow ? <e-box class={cls_arrow} /> as HTMLElement : null
+    const o_arrow_state = o<ArrowState>({ side: "bottom", ax: null, ay: null, visible: true })
+    const arro = opts.arrow ? popup_arrow(o_arrow_state) : null
     if (arro) {
       // Sibling after scrollable content; z-index keeps it above the panel fill.
       node_append(popup, arro, popup.firstChild)
@@ -208,7 +242,7 @@ export function popup<T>(
         middleware: [
           offset(arro ? ARROW_OFFSET : 0),
           autoPlacement({
-            allowedPlacements: ["top-start", "top", "top-end", "bottom-start", "bottom", "bottom-end", ]
+            allowedPlacements: ["right-start", "right", "right-end", "left-start", "left", "left-end", "top-start", "top", "top-end", "bottom-start", "bottom", "bottom-end",]
           }),
           flip(),
           hide(),
@@ -216,7 +250,7 @@ export function popup<T>(
         ],
       })
 
-      const transform_origin = transform_origins.get(placement)
+      const transform_origin = popup_transform_origins.get(placement)
       if (transform_origin != null) {
         popup.style.transformOrigin = transform_origin
       }
@@ -228,7 +262,13 @@ export function popup<T>(
       popup.style.left = `${x}px`
       popup.style.top = `${y}px`
       if (arro && middlewareData.arrow) {
-        apply_arrow_position(arro, placement, middlewareData.arrow)
+        const data = middlewareData.arrow
+        o_arrow_state.set({
+          side: popup_placement_to_arrow_placement(placement),
+          ax: data.x ?? null,
+          ay: data.y ?? null,
+          visible: !middlewareData.hide?.referenceHidden,
+        })
       }
     }
 
@@ -280,44 +320,56 @@ const cls_popup_content = css`.popup-content {
   }
 */
 
-const cls_arrow = css`.arrow {
-  width: ${ARROW_SIZE}px;
-  height: ${ARROW_SIZE}px;
+const cls_arrow_inner = css`.arrow-inner {
+  position: absolute;
+  border: 1px solid ${colors.text.mid};
+  transform: rotate(45deg);
+  top: calc(-1 * var(--arrow-size, 12px) / 2.8284);
+  left: calc(-1 * var(--arrow-size, 12px) / 2.8284);
+  transform-origin: center;
+  width: calc(var(--arrow-size, 12px) / 1.4142);
+  height: calc(var(--arrow-size, 12px) / 1.4142);
+  background-color: ${colors.bg};
+  border-radius: 2px;
+}`
+
+const cls_arrow_placer = css`.arrow-placer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  &[data-placement="top"] {
+    transform:
+      translateX(calc(var(--arrow-size, 12px) / 2))
+      translateY(calc(var(--arrow-size, 12px) / 2));
+  }
+  &[data-placement="bottom"] {
+    transform:
+      translateX(calc(var(--arrow-size, 12px) / 2))
+      ;
+  }
+  &[data-placement="left"] {
+    transform:
+      translateX(calc(var(--arrow-size, 12px) / 2))
+      translateY(calc(var(--arrow-size, 12px) / 2));
+  }
+  &[data-placement="right"] {
+    transform:
+      translateX(calc(var(--arrow-size, 12px) / 2))
+      translateY(calc(var(--arrow-size, 12px) / 2));
+  }
+}`
+
+const cls_outer_arrow = css`.outer-arrow {
+  --arrow-size: var(--e-arrow-size, 12px);
   position: absolute;
   pointer-events: none;
-  z-index: -1;
+  overflow: hidden;
+  width: var(--arrow-size);
+  height: calc(var(--arrow-size) * 0.5);
+  background-color: transparent;
 
-  &::before {
-    content: "";
-    position: absolute;
-    inset: 0;
-    background: ${colors.bg};
-    transform: rotate(45deg);
-  }
-
-  &::after {
-    content: "";
-    position: absolute;
-    inset: 0;
-    transform: rotate(45deg);
-    border: 1.41px solid ${colors.text.mid};
-    border-bottom: none;
-    border-right: none;
-    border-radius: 2px;
-  }
-
-  &[data-placement="top"]::before,
-  &[data-placement="top"]::after {
-    transform: rotate(225deg);
-  }
-
-  &[data-placement="left"]::before,
-  &[data-placement="left"]::after {
-    transform: rotate(135deg);
-  }
-
-  &[data-placement="right"]::before,
-  &[data-placement="right"]::after {
-    transform: rotate(-45deg);
+  &.right, &.left {
+    width: calc(var(--arrow-size) * 0.5);
+    height: var(--arrow-size);
   }
 }`

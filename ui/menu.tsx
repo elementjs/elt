@@ -29,6 +29,6 @@ css`menu {
   & > li > button, & > button, & > a, & > li > a {
     border: none;
     text-align: start;
-    border-radius: 0;
+    border-radius: 2px;
   }
 }`

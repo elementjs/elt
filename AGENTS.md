@@ -34,6 +34,16 @@ This library is NOT React. There is no virtual-dom. DOM Nodes are returned and h
 - Attributes for components should take `o.RO<Type>` when appropriate to ensure dynamicity, unless obviously not possible or not useful
 - e() / E() / `<jsx.Code/>` create real DOM Nodes. JSX is unfortunately always typed as Element : cast it (`<div/> as HTMLDivElement`). e/E do not have that problem.
 
+## SVG
+
+SVG Elements are natively understood by elt.
+
+```typescript
+<svg viewBox="0 0 128 128">
+  <g transform="..."><path .../></g>
+</svg>
+```
+
 ## Decorators
 
 - Put in JSX children, not attributes (this is NOT React)
