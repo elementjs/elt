@@ -40,11 +40,14 @@ $bind.toggler = function (obs: o.IObservable<boolean | null | undefined, boolean
 
 css`
 @layer components {
+
 label {
   display: inline-flex;
   align-items: center;
   gap: 4px;
   cursor: pointer;
+  font-size: ${theme.settings.formFontSize};
+  border-radius: 2px;
 
   @media (hover: hover) and (pointer: fine) {
     &:hover {
@@ -55,10 +58,6 @@ label {
 
 button, input[type="checkbox"], input[type="radio"] {
   cursor: pointer;
-}
-
-label {
-  font-size: ${theme.settings.formFontSize};
 }
 
 button,
@@ -98,6 +97,14 @@ fieldset {
   &:focus-visible {
     box-shadow: 0 0 0 ${theme.settings.focusRingSize} ${colors.tint.mid};
   }
+}
+
+fieldset > legend {
+  color: ${colors.text.faded};
+  font-size: ${theme.settings.formFontSize};
+  background-color: ${colors.bg};
+  padding: 0 6px;
+  margin-bottom: -0.4em;
 }
 
 input[type="date"]::-webkit-calendar-picker-indicator,
@@ -239,19 +246,20 @@ hr {
 button {
   transition: transform 5ms ease, background 0.1s ease, box-shadow 0.1s ease;
   transform-origin: bottom;
+  min-width: 3ch;
 
   @media (hover: hover) and (pointer: fine) {
-    &:hover:not([disabled]) {
+    &:hover:not(:disabled) {
       background: ${colors.tint.light};
     }
   }
 
-  &:active:not([disabled]) {
+  &:active:not(:disabled) {
     background: ${colors.tint.light};
     transform: scaleY(0.99) translateY(0.5px);
   }
 
-  &[disabled] {
+  &:disabled {
     opacity: 0.3;
     cursor: not-allowed;
   }
@@ -310,6 +318,10 @@ e-button-box {
   position: relative;
   z-index: 0;
   display: flex;
+
+  p > & {
+    display: inline-flex;
+  }
 
   & :is(button, input) {
     position: relative;

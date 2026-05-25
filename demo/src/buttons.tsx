@@ -7,7 +7,7 @@ export default class ButtonsScreen extends App.Service.requirements(() => ({
   @view
   Content() {
     return <e-box typographic pad>
-      <h1>Buttons</h1>
+      {this.base.DisplayTitle()}
     </e-box>
   }
 

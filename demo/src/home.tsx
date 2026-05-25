@@ -1,7 +1,7 @@
-import { $bind, $scrollable, App, view, o } from "elt"
-import { Select, DateTimePicker, theme } from "elt/ui"
+import { $bind, App, o, view } from "elt"
 import * as P from "elt-phosphor"
 import * as D from "elt-phosphor/duotone"
+import { Select, theme } from "elt/ui"
 import { EltLogo } from "./widgets/logo"
 
 function tf_set(value: string): o.Converter<string, boolean> {
@@ -20,18 +20,13 @@ export default class HomeScreen extends App.Service.requirements(() => ({
   base: import("./base")
 })) {
 
-  o_date = o(null as Date | null)
-
   @view
   Content() {
     return <e-box typographic pad>
       <h1>Home <EltLogo full/></h1>
 
       <p>
-        <Select
-          options={["Option 1", "Option 2", "Option 3"]}
-          model={o("Option 1")}
-        />
+        Press <kbd>/</kbd> on your keyboard to bring up the search menu.
       </p>
 
       <h3>Font</h3>
@@ -51,13 +46,6 @@ export default class HomeScreen extends App.Service.requirements(() => ({
           return <button style={{fontFamily: font}}>{$bind.toggler(this.base.o_font.tf(tf_set(font)))} {font} {icon()}</button>
         })}
       </e-button-box>
-
-      <p>
-        <e-flex gap wrap>
-          <DateTimePicker clearable variant="full" model={this.o_date} show_time minute_step={5}/>
-          <DateTimePicker lang="fr" model={this.o_date} am_pm show_time seconds/>
-        </e-flex>
-      </p>
 
       <e-flex gap wrap>
 

@@ -60,7 +60,7 @@ export interface DatePickerNullable extends DateTimePickerAttributesBAse {
 
 export interface DatePickerNotNullable extends DateTimePickerAttributesBAse {
   model: o.IObservable<Date | null, Date>
-  clearable?: false
+  clearable?: false | o.IReadonlyObservable<boolean>
 }
 
 export type DatePickerAttrs = DatePickerNullable | DatePickerNotNullable
@@ -77,7 +77,7 @@ function picker_options(at: DatePickerAttrs) {
 }
 
 export function DateTimePicker(at: DatePickerAttrs) {
-  const clearable = "clearable" in at && at.clearable === true
+  const clearable = o.tf(at.clearable, cl => cl === true)
   const opts = picker_options(at)
   const o_locale = o("")
   let input_ctrl: DateInputController | null = null
@@ -100,7 +100,7 @@ export function DateTimePicker(at: DatePickerAttrs) {
   const lock = o.exclusive_lock()
 
   const set_model = (d: Date | null) => {
-    if (d == null && clearable) at.model.set(null)
+    if (d == null && o.get(clearable)) at.model.set(null)
     else if (d != null) at.model.set(d)
   }
 

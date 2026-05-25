@@ -105,7 +105,7 @@ export class Theme<ColorScheme extends BaseColorScheme> {
     this._set(theme.settings ?? {}, "intensityFaded", "80%")
     this._set(theme.settings ?? {}, "intensityStrong", "80%")
     this._set(theme.settings ?? {}, "intensityVeryStrong", "60%")
-    this._set(theme.settings ?? {}, "monospaceFontFamily", "monospace")
+    this._set(theme.settings ?? {}, "monospaceFontFamily", "'IBM Plex Mono', 'Cascadia Code', 'Fira Code', monospace")
     this._set(theme.settings ?? {}, "fontFamily", `"IBM Plex Sans", system-ui, sans-serif`)
     this._set(theme.settings ?? {}, "fontSize", "16px")
     this._set(theme.settings ?? {}, "lineHeight", "1.5")

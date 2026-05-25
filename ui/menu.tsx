@@ -6,7 +6,13 @@ css`menu {
   flex-direction: column;
   grid-template-columns: [left] 32px [content] 1fr [right] 32px;
   gap: 0;
-  padding: 4px;
+  padding: 8px;
+
+  /* Icons on buttons and links that appear at the start create a space */
+  & > :is(button, a) > span:first-child:has(:is(svg:first-child, img:first-child)) {
+    width: 1em;
+    margin-right: 8px;
+  }
 
   & > :is(h1, h2, h3, h4, h5, h6) {
     margin: 0;
@@ -23,7 +29,7 @@ css`menu {
   }
 
   :is(h1, h2, h3, h4, h5, h6, a, button) {
-    padding: 4px 16px 4px 16px;
+    padding: 4px 8px 4px 8px;
   }
 
   & > li > button, & > button, & > a, & > li > a {

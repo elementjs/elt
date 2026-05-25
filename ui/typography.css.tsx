@@ -8,6 +8,22 @@ import { theme } from "./theme"
 import "./layout.css.tsx"
 
 css`@layer typography {
+  kbd {
+    font-family: ${theme.settings.monospaceFontFamily};
+    font-size: 0.75em;
+    padding: 0em 0.3em;
+    font-weight: 500;
+    border: 1px solid ${theme.colors.text.faded};
+    border-bottom-width: 2px;
+    min-width: 3.25ch;
+    display: inline-block;
+    text-align: center;
+    border-radius: ${theme.settings.borderRadius};
+    background: ${theme.colors.text.ultra_light};
+    color: ${theme.colors.text.faded};
+  }
+
+
   e-box[typographic] {
     /* ── Base rhythm ───────────────────────────────────────── */
     display: block;

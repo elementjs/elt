@@ -94,6 +94,7 @@ const cls_item = css`.item {
   cursor: pointer;
   user-select: none;
   font-size: ${theme.settings.formFontSize};
+  border-radius: 2px;
 
   & .selected-icon {
     color: ${colors.tint};
