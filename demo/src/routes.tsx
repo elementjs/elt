@@ -13,6 +13,7 @@ export const routes = app.setupRouter({
   typography: ["/typography", () => import("./typography")],
   date: ["/date", () => import("./date")],
   visual_test: ["/visual-test", () => import("./screen-visual-test")],
+  layout: ["/layout", () => import("./screen-layout")],
   init: ["", () => import("./init")]
 })
 
@@ -44,7 +45,7 @@ export const widget_menu = () => <>
   <h3>UI</h3>
   {R(routes.ui_usage, P.Play, "Usage")}
   {R(null, P.PaintBrushBroad, "Theming")}
-  {R(null, P.AppWindow, "Layout")}
+  {R(routes.layout, P.AppWindow, "Layout")}
   {R(routes.typography, P.TextT, "Typography")}
   {R(null, P.Keyboard, "Keymap")}
   <hr/>

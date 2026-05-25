@@ -46,6 +46,11 @@ label {
     content: "\u200B"
   }
 
+  &:has(:disabled) {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
   display: inline-flex;
   align-items: center;
   gap: 4px;
@@ -54,7 +59,7 @@ label {
   border-radius: 2px;
 
   @media (hover: hover) and (pointer: fine) {
-    &:hover {
+    &:hover:not(:has(:disabled)) {
       background-color: ${colors.tint.light};
     }
   }
@@ -67,6 +72,7 @@ button, input[type="checkbox"], input[type="radio"] {
 button,
 input:not([type]),
 input[type="text"],
+input[type="number"],
 input[type="password"],
 input[type="button"],
 input[type="submit"],
@@ -111,6 +117,12 @@ fieldset > legend {
   margin-bottom: -0.4em;
 }
 
+fieldset {
+  width: fit-content;
+  padding: 8px 16px;
+}
+
+
 input[type="date"]::-webkit-calendar-picker-indicator,
 input[type="time"]::-webkit-calendar-picker-indicator,
 input[type="datetime-local"]::-webkit-calendar-picker-indicator {
@@ -131,8 +143,8 @@ input[type="datetime-local"] {
 
 input[type="checkbox"] {
   appearance: none;
-  width: 1rem;
-  height: 1rem;
+  width: 1em;
+  height: 1em;
   border: 1px solid ${colors.text.faded};
   border-radius: 4px;
   cursor: pointer;

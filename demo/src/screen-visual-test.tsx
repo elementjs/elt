@@ -13,7 +13,7 @@ export default class ScreenVisualTest extends App.Service.requirements(() => ({
   Content() {
     return <e-box typographic pad class={this.o_color.tf(col => theme.colors[col].as_tint)}>
       {this.base.DisplayTitle()}
-      <p>This screen is used to test the visual appearance of the components.</p>
+      <p>This screen is used to test the visual appearance of the components. The source code for this screen in <code>demo/src/screen-visual-test.tsx</code> is also an excellent example of how to them and basic elt facilities.</p>
 
       <h3>Form</h3>
 
@@ -47,22 +47,30 @@ export default class ScreenVisualTest extends App.Service.requirements(() => ({
       </e-flex>
 
       <p>
-        <fieldset disabled>
-          <legend>Disabled</legend>
-          <e-flex gap>
-            <button>{$click(() => { console.log("clicked") })}Button</button>
-            <button e-variant="text">text</button>
-            <button e-variant="tint">tint</button>
-            <button e-variant="full">full</button>
-            <button e-variant="off">off</button>
-            <button e-variant="on">on</button>
-          </e-flex>
-        </fieldset>
+        {() => {
+          const o_disabled = o(true)
+          return <fieldset disabled={o_disabled}>
+            <legend><label><input type="checkbox">{$bind.boolean(o_disabled)}</input> Disabled</label></legend>
+            <e-flex gap>
+              <button>Button</button>
+              <button e-variant="text">text</button>
+              <button e-variant="tint">tint</button>
+              <button e-variant="full">full</button>
+              <button e-variant="off">off</button>
+              <button e-variant="on">on</button>
+            </e-flex>
+          </fieldset>
+        }}
+
       </p>
-      <e-button-box>
-        <input type="text" placeholder="Enter your text" />
-        <button><P.MagnifyingGlass/></button>
-      </e-button-box>
+      <e-flex gap>
+        <e-button-box>
+          <input type="text" placeholder="Enter your text" />
+          <button><P.MagnifyingGlass/></button>
+        </e-button-box>
+
+        <input type="number" placeholder="number"/>
+      </e-flex>
       <e-flex gap>
         <label><input type="checkbox" e-variant="switch"/> Switch</label>
         <label><input type="checkbox" e-variant="switch" checked/> Switch checked</label>
@@ -90,7 +98,7 @@ export default class ScreenVisualTest extends App.Service.requirements(() => ({
         const o_clearable = o(false)
         const o_seconds = o(false)
         const o_am_pm = o(false)
-        return <e-flex gap align="baseline">
+        return <e-flex gap>
           <DateTimePicker
             model={o(new Date())}
             show_date={o_show_date}
