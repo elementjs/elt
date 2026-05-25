@@ -42,6 +42,10 @@ css`
 @layer components {
 
 label {
+  &::before {
+    content: "\u200B"
+  }
+
   display: inline-flex;
   align-items: center;
   gap: 4px;
@@ -318,6 +322,7 @@ e-button-box {
   position: relative;
   z-index: 0;
   display: flex;
+  align-items: baseline;
 
   p > & {
     display: inline-flex;

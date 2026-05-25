@@ -90,7 +90,7 @@ export default class ScreenVisualTest extends App.Service.requirements(() => ({
         const o_clearable = o(false)
         const o_seconds = o(false)
         const o_am_pm = o(false)
-        return <e-flex gap>
+        return <e-flex gap align="baseline">
           <DateTimePicker
             model={o(new Date())}
             show_date={o_show_date}
