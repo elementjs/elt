@@ -30,6 +30,7 @@ export default class TypographyScreen extends App.Service.requirements(() => ({
           { font: "Ubuntu", icon: P.LinuxLogo },
           { font: "Roboto", icon: P.AndroidLogo },
           { font: "Public Sans", icon: P.GoogleLogo },
+          { font: "DejaVu Sans", icon: P.LinuxLogo },
         ].map(({ font, icon }) => {
           return <button style={{fontFamily: font}}>{$bind.toggler(this.base.o_font.tf(tf_equals(font)))} {font} {icon()}</button>
         })}

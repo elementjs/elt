@@ -18,7 +18,7 @@ export default class Base extends App.ServiceClass {
 
   @view
   Main() {
-    return <e-flex column class={[cls_fullscreen]} style={{fontFamily: this.o_font}}>
+    return <e-flex column class={[cls_fullscreen]} style={{fontFamily: this.o_font.tf(ft => `${ft}, system-ui`)}}>
       {/* <header class={[cls_header, theme.class_light, theme.colors.blue.as_background]}>
         <nav>
           <EltLogo/>

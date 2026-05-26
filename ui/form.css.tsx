@@ -271,8 +271,8 @@ button {
   }
 
   &:active:not(:disabled) {
-    background: ${colors.tint.light};
-    transform: scaleY(0.99) translateY(0.5px);
+    background: ${colors.tint.ultra_light};
+    transform: translateY(0.5px);
   }
 
   &:disabled {
