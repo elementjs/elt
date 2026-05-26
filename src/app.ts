@@ -312,6 +312,20 @@ export namespace App {
       }
     }
 
+    url() {
+      return `${window.location.origin}${window.location.pathname}#${this.path}`
+    }
+
+    urlFor(params: T) {
+      const pr = {...params}
+      const replaced = this.path?.replace(/:[a-zA-Z_$0-9]+\b/g, rep => {
+        const res = _encode(pr[rep.slice(1)])
+        delete pr[rep.slice(1)]
+        return res
+      })
+      return `${window.location.origin}${window.location.pathname}#${replaced}?${Object.entries(pr).map(([key, value]) => `${key}=${_encode(value)}`).join("&")}`
+    }
+
     regexp: RegExp | null = null
 
     updateHash(keys: Set<string>, params: SrvParams) {
