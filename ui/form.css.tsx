@@ -10,49 +10,24 @@ const CHECKBOX_CHECK_MASK = encodeURIComponent(
 
 declare module "elt" {
   interface attrs_button {
-    "e-variant"?: NRO<"text" | "tint" | "full" | "off" | "on">
+    "e-variant"?: NRO<"text" | "tint" | "full">
   }
 
   interface attrs_input {
-    "e-variant"?: NRO<"tint" | "switch">
+    "e-variant"?: NRO<"tint" | "switch" | "toggle">
   }
 
-  export namespace $bind {
-    export function toggler(obs: o.IObservable<boolean | null | undefined, boolean>): (node: HTMLButtonElement) => void
-  }
-}
-
-$bind.toggler = function (obs: o.IObservable<boolean | null | undefined, boolean>): (node: HTMLButtonElement) => void {
-  return function (node: HTMLButtonElement) {
-    node.addEventListener("click", () => {
-      obs.set(!obs.get())
-    })
-    node_observe(node, obs, (value) => {
-      if (value) {
-        node.setAttribute("e-variant", "on")
-      } else {
-        node.setAttribute("e-variant", "off")
-      }
-    })
-
-  }
 }
 
 css`
 @layer components {
 
 label {
-  &::before {
-    content: "\u200B"
-  }
-
   &:has(:disabled) {
     opacity: 0.5;
     cursor: not-allowed;
   }
 
-  display: inline-flex;
-  align-items: center;
   gap: 4px;
   cursor: pointer;
   font-size: ${theme.settings.formFontSize};
@@ -63,6 +38,10 @@ label {
       background-color: ${colors.tint.light};
     }
   }
+}
+
+input[type="checkbox"][e-variant="toggle"] {
+  display: none;
 }
 
 button, input[type="checkbox"], input[type="radio"] {
@@ -82,8 +61,8 @@ input[type="time"],
 input[type="datetime-local"],
 textarea,
 select,
+label:has(> input[type="checkbox"][e-variant="toggle"]),
 fieldset {
-
   appearance: none;
   -webkit-appearance: none;
   background-color: transparent;
@@ -92,7 +71,6 @@ fieldset {
   padding: ${theme.settings.cellPadding};
   border-radius: ${theme.settings.borderRadius};
   font-size: ${theme.settings.formFontSize};
-  vertical-align: baseline;
 
   transition:
     background 0.1s ease,
@@ -149,8 +127,8 @@ input[type="checkbox"] {
   border-radius: 4px;
   cursor: pointer;
   position: relative;
-  display: inline-block;
   transition: box-shadow 0.1s ease;
+  top: 0.1em;
 }
 
 /* Animated check: SVG polyline as mask, tight viewBox so it fills the control */
@@ -194,7 +172,6 @@ input[type="checkbox"][e-variant="switch"] {
   position: relative;
   width: var(--e-switch-width);
   height: calc(var(--e-switch-height) + 2px);
-  vertical-align: middle;
   border-radius: 9999px;
   border: 1px solid ${colors.text.light};
   background-color: ${colors.text.light};
@@ -259,7 +236,7 @@ hr {
   }
 }
 
-button {
+button, label:has(> input[type="checkbox"][e-variant="toggle"]) {
   transition: transform 5ms ease, background 0.1s ease, box-shadow 0.1s ease;
   transform-origin: bottom;
   min-width: 3ch;
@@ -295,7 +272,7 @@ button[e-variant="tint"], input[e-variant="tint"] {
   }
 }
 
-button[e-variant="full"], button[e-variant="on"] {
+button[e-variant="full"], label:has(> input[type="checkbox"][e-variant="toggle"]:checked) {
   --e-color-bg: var(--e-light-color-tint);
   --e-color-text: var(--e-light-color-bg);
   --e-color-tint: var(--e-light-color-bg);
@@ -313,7 +290,7 @@ button[e-variant="full"] {
   border-bottom-color: var(--e-color-shadow-drop);
 }
 
-button[e-variant="off"] {
+label:has(> input[type="checkbox"][e-variant="toggle"]:not(:checked)) {
   border: 1px solid ${colors.tint.mid};
   color: ${colors.tint.mid};
   background: ${colors.bg};
@@ -323,7 +300,7 @@ button[e-variant="off"] {
     inset -1px -1px 0 var(--e-color-shadow-raise),
 }
 
-button[e-variant="on"] {
+label:has(> input[type="checkbox"][e-variant="toggle"]:checked) {
 
   box-shadow:
     inset 0px -1px 0 var(--e-color-shadow-raise),
@@ -340,7 +317,7 @@ e-button-box {
     display: inline-flex;
   }
 
-  & :is(button, input) {
+  & :is(button, input, label) {
     position: relative;
     z-index: 0;
   }
@@ -350,18 +327,18 @@ e-button-box {
     flex-direction: column;
     gap: 0;
 
-    & > :is(button, input):not(:last-child) {
+    & > :is(button, input, label):not(:last-child) {
       border-bottom: none;
       border-bottom-right-radius: 0;
       border-bottom-left-radius: 0;
     }
-    & > :is(button, input):not(:first-child) {
+    & > :is(button, input, label):not(:first-child) {
       border-top-right-radius: 0;
       border-top-left-radius: 0;
     }
 
     & > :is(button[e-variant="on"],
-    & > button[e-variant="full"]):not(:first-child)
+    & > (button[e-variant="full"]), label):not(:first-child),
     {
       border-top-color: ${colors.tint.light};
     }
@@ -373,20 +350,20 @@ e-button-box {
   }
 
   &:not([e-variant="vertical"]) {
-    & > :is(button, input):not(:last-child)
+    & > :is(button, input, label):not(:last-child)
     {
       border-right: none;
       border-bottom-right-radius: 0;
       border-top-right-radius: 0;
     }
 
-    & > :is(button, input):not(:first-child) {
+    & > :is(button, input, label):not(:first-child) {
       border-bottom-left-radius: 0;
       border-top-left-radius: 0;
     }
 
     & > :is(button[e-variant="on"],
-    & > button[e-variant="full"]):not(:first-child) {
+    & > (button[e-variant="full"]), label):not(:first-child) {
       border-left-color: ${colors.tint.ultra_light};
     }
   }

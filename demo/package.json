@@ -5,6 +5,9 @@
     "@types/bun": "latest"
   },
   "dependencies": {
-    "elt-phosphor": "^2.1.2"
+    "@floating-ui/dom": "^1.7.6",
+    "elt": "../",
+    "elt-phosphor": "^2.1.2",
+    "mutative": "^1.3.0"
   }
 }

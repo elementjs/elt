@@ -12,7 +12,8 @@
     "./*": "./src/*.ts"
   },
   "scripts": {
-    "test": "mocha --require ts-node/register --extensions ts tests/test-observable.ts"
+    "test": "mocha --require ts-node/register --extensions ts tests/test-observable.ts",
+    "demo": "bun demo/index.html"
   },
   "type": "module",
   "devDependencies": {

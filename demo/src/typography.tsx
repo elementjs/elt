@@ -1,5 +1,6 @@
 import { $bind, App, tf_equals, view } from "elt"
 import * as P from "elt-phosphor"
+import routes from "./routes"
 
 export default class TypographyScreen extends App.Service.requirements(() => ({
   base: import("./base")
@@ -19,22 +20,9 @@ export default class TypographyScreen extends App.Service.requirements(() => ({
 
       <p>However, since embedding a font is not always desirable or even possible, they are extensively on the default fonts of various operating systems.</p>
 
-      <e-button-box>
-        {[
-          { font: "IBM Plex Sans", icon: P.WindowsLogo },
-          { font: "system-ui", icon: P.ComputerTower },
-          { font: "SF Pro", icon: P.AppleLogo },
-          { font: "Inter", icon: P.LinuxLogo },
-          { font: "Noto Sans", icon: P.GoogleLogo },
-          { font: "Segoe UI", icon: P.WindowsLogo },
-          { font: "Ubuntu", icon: P.LinuxLogo },
-          { font: "Roboto", icon: P.AndroidLogo },
-          { font: "Public Sans", icon: P.GoogleLogo },
-          { font: "DejaVu Sans", icon: P.LinuxLogo },
-        ].map(({ font, icon }) => {
-          return <button style={{fontFamily: font}}>{$bind.toggler(this.base.o_font.tf(tf_equals(font)))} {font} {icon()}</button>
-        })}
-      </e-button-box>
+      <p>Some fonts are built with different metrics than others with different platforms in mind, which can perturb alignments and vertical rhythm. The <a href={routes.visual_test.url()}>visual test screen</a> allows you to play with these parameters. The font chooser below comes with agreeable presets for each fonts that were tried using these controls.</p>
+
+      <this.base.FontChooser/>
 
     </e-box>
   }

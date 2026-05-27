@@ -1,6 +1,6 @@
-import { $bind, $click, App, o, view } from "elt"
-import { DateTimePicker, Select, theme } from "elt/ui"
+import { $bind, App, o, tf_equals, view } from "elt"
 import * as P from "elt-phosphor"
+import { DateTimePicker, Select, theme } from "elt/ui"
 
 
 export default class ScreenVisualTest extends App.Service.requirements(() => ({
@@ -17,22 +17,22 @@ export default class ScreenVisualTest extends App.Service.requirements(() => ({
 
       <h3>Form</h3>
 
-      <p>
+      <e-flex gap>
+
         <e-button-box>
           {(Object.keys(theme.colors).filter(color => !["bg", "text", "tint"].includes(color)) as (keyof typeof theme.colors)[]).map(color => {
-            return <button
-              e-variant={this.o_color.tf(col => col === color ? "on" : "off")}
+            return <label
               class={theme.colors[color].as_tint}
             >
-              {$click(() => {
-                this.o_color.set(color)
-              })}
-              <P.TextAa/>
-            </button>
+              <input type="checkbox" e-variant="toggle">{$bind.boolean(this.o_color.tf(tf_equals(color)))}</input>
+              <P.PaintRoller/>
+            </label>
           })}
-
         </e-button-box>
-      </p>
+
+        <this.base.FontChooser/>
+
+      </e-flex>
 
       <e-flex gap>
         <e-button-box>
@@ -42,8 +42,6 @@ export default class ScreenVisualTest extends App.Service.requirements(() => ({
         <button e-variant="text">text <P.Heart/></button>
         <button e-variant="tint">tint <P.Heart/></button>
         <button e-variant="full">full <P.Heart/></button>
-        <button e-variant="off">off <P.Heart/></button>
-        <button e-variant="on">on <P.Heart/></button>
       </e-flex>
 
       <p>
@@ -56,8 +54,6 @@ export default class ScreenVisualTest extends App.Service.requirements(() => ({
               <button e-variant="text">text</button>
               <button e-variant="tint">tint</button>
               <button e-variant="full">full</button>
-              <button e-variant="off">off</button>
-              <button e-variant="on">on</button>
             </e-flex>
           </fieldset>
         }}
@@ -78,8 +74,13 @@ export default class ScreenVisualTest extends App.Service.requirements(() => ({
       </e-flex>
       <e-flex gap>
         <label><input type="checkbox" name="checkbox"/> Checkbox</label>
-        <label><input type="checkbox" name="checkbox" checked/> Checked</label>
+        <label><input type="checkbox" name="checkbox" checked/>Checked</label>
         <label><input disabled type="checkbox" name="checkbox" value="3"/> Disabled</label>
+      </e-flex>
+      <e-flex gap>
+        <label><input type="checkbox" e-variant="toggle"/> Toggle</label>
+        <label><input type="checkbox" e-variant="toggle" checked/> Toggle checked</label>
+        <label><input type="checkbox" e-variant="toggle" disabled/> Toggle disabled</label>
       </e-flex>
 
       <h3>Selects</h3>

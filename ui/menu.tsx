@@ -8,19 +8,34 @@ css`menu {
   gap: 0;
   padding: 8px;
 
+  & > :is(h1, h2, h3, h4, h5, h6) {
+    margin: 0;
+    padding: 0;
+    font-size: 1em;
+    font-weight: bolder;
+    color: ${theme.colors.text.faded};
+    letter-spacing: 0.08ch;
+    word-spacing: 0.2ch;
+    text-wrap: balance;
+  }
+
   /* Icons on buttons and links that appear at the start create a space */
-  & > :is(button, a) > span:first-child:has(:is(svg:first-child, img:first-child)) {
+  & > :is(button, a, label) > span:first-child:has(:is(svg:first-child, img:first-child)) {
     width: 1em;
     margin-right: 8px;
   }
 
-  & > :is(h1, h2, h3, h4, h5, h6) {
-    margin: 0;
-    padding: 0;
-    font-size: 1rem;
-    font-weight: 600;
-    color: ${theme.colors.text.mid};
-    text-wrap: balance;
+  & > h2 {
+    font-size: 0.925em;
+  }
+  & > h3 {
+    font-size: 0.875em;
+  }
+  & > h4 {
+    font-size: 0.8em;
+  }
+  & > h5 {
+    font-size: 0.75em;
   }
 
   & > hr {
@@ -28,11 +43,11 @@ css`menu {
     margin-bottom: 4px;
   }
 
-  :is(h1, h2, h3, h4, h5, h6, a, button) {
+  :is(h1, h2, h3, h4, h5, h6, a, button, label) {
     padding: 4px 8px 4px 8px;
   }
 
-  & > li > button, & > button, & > a, & > li > a {
+  & > li > :is(button, a, label), & > :is(button, a, label) {
     border: none;
     text-align: start;
     border-radius: 2px;
