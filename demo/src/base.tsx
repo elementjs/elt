@@ -13,7 +13,7 @@ export type FontStyle = {
 export default class Base extends App.ServiceClass {
 
   fonts = {
-    cantarell: { fontFamily: "Cantarell", fontWeight: "400", letterSpacing: "-0.02em" },
+    cantarell: { fontFamily: "Cantarell", fontWeight: "400", },
     inter: { fontFamily: "Inter", fontWeight: "400" },
     google_sans: { fontFamily: "Google Sans", fontWeight: "400" },
     open_sans: { fontFamily: "Open Sans", fontWeight: "400" },
@@ -28,7 +28,7 @@ export default class Base extends App.ServiceClass {
   } satisfies Record<string, FontStyle>
 
 
-  o_font_style = o(this.fonts.cantarell as FontStyle)
+  o_font_style = o(this.fonts.public_sans as FontStyle)
 
   oo_style = o.expression(get => {
     const ft = get(this.o_font_style)

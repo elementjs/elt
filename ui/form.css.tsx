@@ -165,8 +165,8 @@ input[type="checkbox"]:checked::after {
 
 /* Toggle switch (checkbox + e-variant="switch") */
 input[type="checkbox"][e-variant="switch"] {
-  --e-switch-width: 2em;
-  --e-switch-height: 1rem;
+  --e-switch-width: 1.5em;
+  --e-switch-height: .75em;
   --e-switch-thumb: var(--e-switch-height);
   box-sizing: border-box;
   position: relative;

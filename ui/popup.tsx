@@ -237,7 +237,7 @@ export function popup<T>(
         ...opts,
         middleware: [
           autoPlacement({
-            allowedPlacements: ["top", "top-start", "top-end", "bottom", "bottom-start", "bottom-end",]
+            allowedPlacements: [...(opts.placement ? [opts.placement] : []), "top", "top-start", "top-end", "bottom", "bottom-start", "bottom-end",]
           }),
           flip(),
           hide(),

@@ -42,11 +42,13 @@ export const widget_menu = () => <>
   {R(null, P.SneakerMove, "Verbs")}
   {R(null, P.AppWindow, "App")}
   <hr/>
-  <h3>UI</h3>
+  <h3>UI Theming</h3>
   {R(routes.ui_usage, P.Play, "Usage")}
-  {R(null, P.PaintBrushBroad, "Theming")}
-  {R(routes.layout, P.AppWindow, "Layout")}
+  {R(null, P.PaintBrushBroad, "Colors")}
+  {R(routes.layout, P.Layout, "Layout")}
   {R(routes.typography, P.TextT, "Typography")}
+  <hr/>
+  <h3>UI Helpers</h3>
   {R(null, P.Keyboard, "Keymap")}
   <hr/>
   <h3>UI Widgets</h3>

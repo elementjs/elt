@@ -126,26 +126,56 @@ css`@layer typography {
     /* ── Horizontal rule ───────────────────────────────────── */
     & hr {
       border: none;
-      border-block-start: 1px solid color-mix(in oklab, currentColor 20%, transparent);
+      border-block-start: 1px ${theme.colors.text.mid};
       margin-block: 2em;
     }
 
     /* ── Table ─────────────────────────────────────────────── */
     & table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 0.9em;
+      width: fit-content;
+      border-collapse: separate;
+      border: none;
+      border-spacing: 0;
 
-      & th, & td {
+      tbody, thead, th, td, tr {
+        border: none;
+      }
+
+      font-size: 0.8em;
+
+      & > thead > tr:first-child > :is(th, td):first-child {
+        border-top-left-radius: ${theme.settings.borderRadius};
+      }
+      & > thead > tr:first-child > :is(th, td):last-child {
+        border-top-right-radius: ${theme.settings.borderRadius};
+      }
+
+      & > :is(tbody:last-child, tfoot) > tr:last-child > :is(th, td):first-child {
+        border-bottom-left-radius: ${theme.settings.borderRadius};
+      }
+      & > :is(tbody:last-child, tfoot) > tr:last-child > :is(th, td):last-child {
+        border-bottom-right-radius: ${theme.settings.borderRadius};
+      }
+
+      & > :is(thead, tr:first-child) :is(th, td) {
+        border-top: 1px solid ${theme.colors.text.light};
+      }
+
+      & :is(th, td):last-child {
+        border-right: 1px solid ${theme.colors.text.light};
+      }
+
+      :is(th, td) {
+        border-left: 1px solid ${theme.colors.text.light};
+        border-bottom: 1px solid ${theme.colors.text.light};
         padding: ${theme.settings.cellPadding};
         text-align: start;
-        border-block-end: 1px solid color-mix(in oklab, currentColor 15%, transparent);
       }
+
       & th {
+        background: ${theme.colors.text.ultra_light};
         font-weight: bolder;
-        border-block-end-color: color-mix(in oklab, currentColor 40%, transparent);
       }
-      & tr:last-child td { border-block-end: none; }
     }
 
     /* ── Figure / caption ──────────────────────────────────── */
@@ -162,7 +192,7 @@ css`@layer typography {
 
     /* ── Details / summary ─────────────────────────────────── */
     & details {
-      border: 1px solid color-mix(in oklab, currentColor 20%, transparent);
+      border: 1px solid ${theme.colors.text.mid};
       border-radius: 0.375em;
       padding: 0.5em 1em;
 
@@ -176,7 +206,14 @@ css`@layer typography {
     }
 
     /* ── Inline ────────────────────────────────────────────── */
-    & a { color: inherit; text-underline-offset: 0.2em; }
+    & a {
+      color: ${theme.colors.tint};
+      text-underline-offset: 0.2em;
+      text-decoration: underline dotted;
+      &:visited {
+        color: ${theme.colors.tint.faded};
+      }
+    }
     & :is(strong, b) { font-weight: bolder; }
     & em { font-style: italic; }
     & mark {

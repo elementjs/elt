@@ -116,6 +116,32 @@ export default class ScreenVisualTest extends App.Service.requirements(() => ({
         </e-flex>
       }}
 
+      <h3>Tables</h3>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Column 1</th>
+            <th>Column 2</th>
+            <th>Column 3</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Row 1, Column 1</td>
+            <td>Row 1, Column 2</td>
+            <td>Row 1, Column 3</td>
+          </tr>
+        </tbody>
+        <tfoot>
+          <tr>
+            <td>Footer 1</td>
+            <td>Footer 2</td>
+            <td>Footer 3</td>
+          </tr>
+        </tfoot>
+      </table>
+
     </e-box>
   }
 

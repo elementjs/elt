@@ -12,10 +12,8 @@ css`menu {
     margin: 0;
     padding: 0;
     font-size: 1em;
-    font-weight: bolder;
+    font-weight: bold;
     color: ${theme.colors.text.faded};
-    letter-spacing: 0.08ch;
-    word-spacing: 0.2ch;
     text-wrap: balance;
   }
 

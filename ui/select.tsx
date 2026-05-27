@@ -56,7 +56,7 @@ export function Select<T, T2 = T>(at: SelectAttributes<T, T2>) {
             </e-flex>
           })}
         </menu>
-        , { arrow: true })
+        , { arrow: true, placement: "right-start" })
       } finally {
         o_open.set(false)
       }
