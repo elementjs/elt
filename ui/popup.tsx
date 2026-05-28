@@ -11,7 +11,7 @@ import { theme } from "./theme"
 import { Future } from "./utils"
 const colors = theme.colors
 
-import { arrow, autoPlacement, autoUpdate, computePosition, type ComputePositionConfig, flip, hide, offset } from "@floating-ui/dom"
+import { arrow, autoPlacement, autoUpdate, computePosition, type ComputePositionConfig, flip, hide } from "@floating-ui/dom"
 
 export type PopupResolution<T> =
   | { resolution: "value", value: T }
@@ -146,7 +146,7 @@ function popup_arrow(o_state: o.Observable<ArrowState>) {
     } else {
       if (ay != null) style.top = `${ay}px`
       if (side === "left") style.left = `calc(-1 * var(--arrow-size, 12px) / 2)`
-      else style.right = `calc(-1 * var(--arrow-size, 12px) / 2)`
+      else style.right = `calc(-1 * var(--arrow-size, 12px))`
     }
 
     return style
@@ -265,9 +265,9 @@ export function popup<T>(
         } else if (side === "top") {
           popup.style.top = `calc(${y}px + ${_arr})`
         } else if (side === "left") {
-          popup.style.left = `calc(${x}px - ${_arr})`
-        } else if (side === "right") {
           popup.style.left = `calc(${x}px + ${_arr})`
+        } else if (side === "right") {
+          popup.style.left = `calc(${x}px - ${_arr})`
         }
 
         const data = middlewareData.arrow
