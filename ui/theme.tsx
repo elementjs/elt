@@ -110,7 +110,7 @@ export class Theme<ColorScheme extends BaseColorScheme> {
     this._set(theme.settings ?? {}, "fontSize", "16px")
     this._set(theme.settings ?? {}, "lineHeight", "1.5")
 
-    this._set(theme.settings ?? {}, "cellPadding", "0.25em 0.5em")
+    this._set(theme.settings ?? {}, "cellPadding", "3px 6px")
     this._set(theme.settings ?? {}, "formFontSize", "14px")
 
     this._set(theme.settings ?? {}, "focusRingSize", "2px")
