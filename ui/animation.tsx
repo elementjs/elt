@@ -37,11 +37,11 @@ export function animate(el: HTMLElement, keyframes: Keyframe[], options?: Keyfra
 
 
 export const animate_show: Keyframe[] = [
-  { opacity: 0, scale: 0.95, },
-  { opacity: 1, scale: 1 }
+  { opacity: 0, transform: "translateY(3px)" },
+  { opacity: 1,  }
 ]
 
 export const animate_hide: Keyframe[] = [
-  { opacity: 1, scale: 1 },
-  { opacity: 0, scale: 0.95 }
+  { opacity: 1, },
+  { opacity: 0, transform: "translateY(3px)" }
 ]

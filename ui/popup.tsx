@@ -58,7 +58,7 @@ async function _popup_resolve(p: Element) {
   _p.classList.remove("open")
   node_do_disconnect(_p)
   await stop_animations(_p)
-  await animate(_p, animate_hide, { duration: 150, easing: "cubic-bezier(0.22, 1, 0.36, 1)" })
+  await animate(_p, animate_hide, { duration: 150, easing: "cubic-bezier(0.22, 1, 0.36, 1)", fill: "forwards" })
   node_remove(p)
 }
 
@@ -233,7 +233,7 @@ export function popup<T>(
 
 
     async function updatePosition() {
-      const { x, y, middlewareData, placement } = await computePosition(anchor, popup, {
+      let { x, y, middlewareData, placement } = await computePosition(anchor, popup, {
         ...opts,
         middleware: [
           autoPlacement({
@@ -244,6 +244,8 @@ export function popup<T>(
           ...(arro ? [arrow({ element: arro, padding: 8 })] : []),
         ],
       })
+      x = Math.round(x)
+      y = Math.round(y)
 
       const transform_origin = popup_transform_origins.get(placement)
       if (transform_origin != null) {
@@ -259,7 +261,7 @@ export function popup<T>(
 
       if (arro && middlewareData.arrow) {
         const side = popup_placement_to_arrow_placement(placement)
-        const _arr = `var(--arrow-size, 12px) / 2.8284`
+        const _arr = `round(var(--arrow-size, 12px) / 2.8284, 1px)`
         if (side === "bottom") {
           popup.style.top = `calc(${y}px - ${_arr})`
         } else if (side === "top") {
@@ -273,8 +275,8 @@ export function popup<T>(
         const data = middlewareData.arrow
         o_arrow_state.set({
           side,
-          ax: data.x ?? null,
-          ay: data.y ?? null,
+          ax: Math.round(data.x ?? 0),
+          ay: Math.round(data.y ?? 0),
           visible: !middlewareData.hide?.referenceHidden,
         })
       }
@@ -332,11 +334,11 @@ const cls_arrow_inner = css`.arrow-inner {
   position: absolute;
   border: 1px solid ${colors.text.mid};
   transform: rotate(45deg);
-  top: calc(-1 * var(--arrow-size, 12px) / 2.8284);
-  left: calc(-1 * var(--arrow-size, 12px) / 2.8284);
+  top: calc(-1 * round(var(--arrow-size, 12px) / 2.8284, 1px));
+  left: calc(-1 * round(var(--arrow-size, 12px) / 2.8284, 1px));
   transform-origin: center;
-  width: calc(var(--arrow-size, 12px) / 1.4142);
-  height: calc(var(--arrow-size, 12px) / 1.4142);
+  width: calc(round(var(--arrow-size, 12px) / 1.4142, 1px));
+  height: calc(round(var(--arrow-size, 12px) / 1.4142, 1px));
   background-color: ${colors.bg};
   border-radius: 2px;
 }`
