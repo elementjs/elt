@@ -1,6 +1,6 @@
-import { $bind, App, o, tf_equals, view } from "elt"
+import { $bind, App, o, tf_equals, view, $click, node_append } from "elt"
 import * as P from "elt-phosphor"
-import { DateTimePicker, Select, theme } from "elt/ui"
+import { DateTimePicker, Select, theme, show_dialog } from "elt/ui"
 
 
 export default class ScreenVisualTest extends App.Service.requirements(() => ({
@@ -14,6 +14,13 @@ export default class ScreenVisualTest extends App.Service.requirements(() => ({
     return <e-box typographic pad class={this.o_color.tf(col => theme.colors[col].as_tint)}>
       {this.base.DisplayTitle()}
       <p>This screen is used to test the visual appearance of the components. The source code for this screen in <code>demo/src/screen-visual-test.tsx</code> is also an excellent example of how to them and basic elt facilities.</p>
+
+      <button>
+        {$click(() => {
+          this.showDialog()
+        })}
+        Show dialog
+      </button>
 
       <h3>Form</h3>
 
@@ -143,6 +150,26 @@ export default class ScreenVisualTest extends App.Service.requirements(() => ({
       </table>
 
     </e-box>
+  }
+
+  showDialog() {
+    show_dialog({ clickOutsideToClose: true }, fut => <>
+      <header>Title here</header>
+      <e-box typographic pad>
+        <h3>
+          Testing a little
+        </h3>
+        <p>Let's see what dialogs have in store !</p>
+
+      </e-box>
+      <footer>
+        <button>
+          {$click(() => fut.reject(null))}
+          No
+        </button>
+        <button e-variant="full">OK</button>
+      </footer>
+    </>).finally(() => { return null })
   }
 
 }

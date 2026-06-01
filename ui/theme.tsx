@@ -4,6 +4,7 @@ export interface ThemeSettings {
 
   lineHeight: string
   cellPadding: string
+  panelPadding: string
 
   borderRadius: string
   frameBorderRadius: string
@@ -19,6 +20,8 @@ export interface ThemeSettings {
   intensityLight: string
   intensityMid: string
   intensityFaded: string
+  intensitySlightlyFaded: string
+
   intensityStrong: string
   intensityVeryStrong: string
 }
@@ -103,14 +106,16 @@ export class Theme<ColorScheme extends BaseColorScheme> {
     this._set(theme.settings ?? {}, "intensityLight", "20%")
     this._set(theme.settings ?? {}, "intensityMid", "50%")
     this._set(theme.settings ?? {}, "intensityFaded", "80%")
-    this._set(theme.settings ?? {}, "intensityStrong", "80%")
-    this._set(theme.settings ?? {}, "intensityVeryStrong", "60%")
+    this._set(theme.settings ?? {}, "intensitySlightlyFaded", "90%")
+    this._set(theme.settings ?? {}, "intensityStrong", "10%")
+    this._set(theme.settings ?? {}, "intensityVeryStrong", "50%")
     this._set(theme.settings ?? {}, "monospaceFontFamily", "'IBM Plex Mono', 'Cascadia Code', 'Fira Code', monospace")
     this._set(theme.settings ?? {}, "fontFamily", `"IBM Plex Sans", system-ui, sans-serif`)
     this._set(theme.settings ?? {}, "fontSize", "16px")
     this._set(theme.settings ?? {}, "lineHeight", "1.5")
 
     this._set(theme.settings ?? {}, "cellPadding", "3px 6px")
+    this._set(theme.settings ?? {}, "panelPadding", "8px 16px")
     this._set(theme.settings ?? {}, "formFontSize", "14px")
 
     this._set(theme.settings ?? {}, "focusRingSize", "2px")
@@ -322,6 +327,10 @@ export class Color<Colors extends BaseColorScheme> {
    */
   get faded() {
     return this.from_bg(theme.settings.intensityFaded)
+  }
+
+  get slightly_faded() {
+    return this.from_bg(theme.settings.intensitySlightlyFaded)
   }
 
   get strong() {

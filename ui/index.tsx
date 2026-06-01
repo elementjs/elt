@@ -2,10 +2,11 @@ import "./theme"
 
 import "./reset.css"
 import "./layout.css"
-import "./dialog.css"
 import "./form.css"
 import "./typography.css"
 
+export * from "./animation"
+export * from "./dialog"
 export * from "./popup"
 export * from "./select"
 export * from "./theme"

@@ -27,7 +27,7 @@ export function animate(el: HTMLElement, keyframes: Keyframe[], options?: Keyfra
 
     const animation = el.animate(keyframes, {
       ...options,
-      duration: prefers_reduced_motion() ? 0 : options!.duration
+      duration: prefers_reduced_motion() ? 0 : options?.duration ?? 100
     })
 
     animation.addEventListener('cancel', resolve, { once: true });
