@@ -48,6 +48,5 @@ css`menu {
   & > li > :is(button, a, label), & > :is(button, a, label) {
     border: none;
     text-align: start;
-    border-radius: 2px;
   }
 }`

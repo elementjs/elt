@@ -78,6 +78,7 @@ fieldset {
   font-size: ${theme.settings.formFontSize};
 
   transition:
+    outline 0.1s ease,
     background 0.1s ease,
     box-shadow 0.1s ease;
 

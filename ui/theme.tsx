@@ -263,21 +263,35 @@ export class Color<Colors extends BaseColorScheme> {
   }
 
   /**
+   *
+   */
+  @memoize
+  get css_as_background() {
+    return `
+    --e-color-bg: var(--e-light-color-${this.name});
+    --e-color-text: var(--e-light-color-bg);
+    --e-color-tint: var(--e-light-color-bg);
+    background-color: var(--e-color-bg);
+    color: var(--e-color-text);
+    border-color: var(--e-color-bg);
+    `
+  }
+
+  /**
    * This is a class name.
    * Set background to be this color, with the light background becoming the text color _and_ tint.
    */
   @memoize
   get as_background() {
     const cls = css`.e-color-${this.name}-background {
-      --e-color-bg: var(--e-light-color-${this.name});
-      --e-color-text: var(--e-light-color-bg);
-      --e-color-tint: var(--e-light-color-bg);
-      background-color: var(--e-color-bg);
-      color: var(--e-color-text);
-      border-color: var(--e-color-bg);
+      ${this.css_as_background}
     }`
 
     return cls
+  }
+
+  valueOf() {
+    return this.toString()
   }
 
   /** The variable name, to be used inside CSS rules. */

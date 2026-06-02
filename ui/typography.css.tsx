@@ -143,6 +143,15 @@ css`@layer typography {
 
       font-size: 0.8em;
 
+      /* reset buttons and inputs to be the whole cell */
+      & :is(th, td):has(> :is(button, label, input):first-child:last-child) {
+        padding: 0;
+        & :first-child {
+          border: none;
+          border-radius: 0;
+        }
+      }
+
       & > thead > tr:first-child > :is(th, td):first-child {
         border-top-left-radius: ${theme.settings.borderRadius};
       }

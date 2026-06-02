@@ -15,12 +15,14 @@ export default class ScreenVisualTest extends App.Service.requirements(() => ({
       {this.base.DisplayTitle()}
       <p>This screen is used to test the visual appearance of the components. The source code for this screen in <code>demo/src/screen-visual-test.tsx</code> is also an excellent example of how to them and basic elt facilities.</p>
 
-      <button>
-        {$click(() => {
-          this.showDialog()
-        })}
-        Show dialog
-      </button>
+      <p>
+        <button>
+          {$click(() => {
+            this.showDialog()
+          })}
+          Show dialog
+        </button>
+      </p>
 
       <h3>Form</h3>
 

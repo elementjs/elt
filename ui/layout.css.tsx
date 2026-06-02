@@ -1,4 +1,5 @@
-import { type Attrs, type NRO, css, e } from "elt"
+import { type Attrs, type NRO, css } from "elt";
+import { theme } from "./theme"
 
 declare module "elt" {
   interface ElementMap {
@@ -57,7 +58,7 @@ for (let att of ["gap", "pad"]) {
 }
 
 css`
-@layer base {
+@layer components {
   :root {
     --e-spacing-3x-small: 1px;
     --e-spacing-2x-small: 2px;
@@ -69,6 +70,27 @@ css`
     --e-spacing-2x-large: 128px;
     --e-spacing-3x-large: 256px;
     --e-spacing-4x-large: 512px;
+  }
+
+  header {
+    ${theme.css_light_colors};
+    ${theme.colors.tint.css_as_background};
+
+    padding: ${theme.settings.paddingPanelVertical} ${theme.settings.paddingPanelHorizontal};
+    gap: ${theme.settings.paddingCellVertical} ${theme.settings.paddingCellHorizontal};
+    width: 100%;
+    display: flex;
+    flex-direction: row;
+    align-items: baseline;
+
+    & button {
+      font-size: 1rem;
+      border-color: transparent;
+
+      &:first-child {
+        margin-left: calc(-1 * ${theme.settings.paddingCellHorizontal});
+      }
+    }
   }
 
   e-box { display: block; }
