@@ -7,6 +7,12 @@
  */
 
 let _id = 0
+let spaces: {[name: string]: boolean} = {
+  " ": true,
+  "\t": true,
+  "\n": true,
+  "\r": true,
+}
 
 function rewrite_css(
   arr: TemplateStringsArray | string,
@@ -38,8 +44,13 @@ function rewrite_css(
   }
 
   // css = css.trim()
-  let end = 1
-  if (css[0] === ".") {
+  let start = 0
+  while (spaces[css[start]]) {
+    start++
+  }
+  let end = start + 1
+  if (css[start] === ".") {
+    start++
     loop: do {
       const c = css[end]
       if (
@@ -57,8 +68,8 @@ function rewrite_css(
     } while (true)
   }
 
-  if (end > 1) {
-    class_name = css.slice(1, end) + `-${id}`
+  if (end > start + 1) {
+    class_name = css.slice(start, end) + `-${id}`
     css = `.${class_name}` + css.slice(end)
   }
 
