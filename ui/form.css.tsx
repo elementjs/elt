@@ -1,5 +1,5 @@
-import { css, type NRO, $bind, o, node_observe, type Attrs } from "elt"
-import { theme } from "./theme"
+import { css, type Attrs, type NRO } from "elt";
+import { theme } from "./theme";
 
 const colors = theme.colors
 
@@ -28,14 +28,19 @@ label {
     cursor: not-allowed;
   }
 
+  border-radius: ${theme.settings.borderRadius};
   gap: 4px;
   cursor: pointer;
   font-size: ${theme.settings.formFontSize};
-  border-radius: 2px;
 
   @media (hover: hover) and (pointer: fine) {
     &:hover:not(:has(:disabled)) {
       background-color: ${colors.tint.light};
+      box-shadow:
+        6px 3px 0 ${colors.tint.light},
+        6px -3px 0 ${colors.tint.light},
+        -6px 3px 0 ${colors.tint.light},
+        -6px -3px 0 ${colors.tint.light};
     }
   }
 }
@@ -68,7 +73,7 @@ fieldset {
   background-color: transparent;
   color: ${colors.text};
   border: 1px solid ${colors.text.mid};
-  padding: ${theme.settings.cellPadding};
+  padding: ${theme.settings.paddingCellVertical} ${theme.settings.paddingCellHorizontal};
   border-radius: ${theme.settings.borderRadius};
   font-size: ${theme.settings.formFontSize};
 
@@ -239,7 +244,6 @@ hr {
 button, label:has(> input[type="checkbox"][e-variant="toggle"]) {
   transition: transform 5ms ease, background 0.1s ease, box-shadow 0.1s ease;
   transform-origin: bottom;
-  min-width: 3ch;
 
   @media (hover: hover) and (pointer: fine) {
     &:hover:not(:disabled) {

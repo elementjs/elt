@@ -3,8 +3,10 @@ import { css, memoize } from "elt"
 export interface ThemeSettings {
 
   lineHeight: string
-  cellPadding: string
-  panelPadding: string
+  paddingPanelVertical: string
+  paddingPanelHorizontal: string
+  paddingCellVertical: string
+  paddingCellHorizontal: string
 
   borderRadius: string
   frameBorderRadius: string
@@ -114,8 +116,11 @@ export class Theme<ColorScheme extends BaseColorScheme> {
     this._set(theme.settings ?? {}, "fontSize", "16px")
     this._set(theme.settings ?? {}, "lineHeight", "1.5")
 
-    this._set(theme.settings ?? {}, "cellPadding", "3px 6px")
-    this._set(theme.settings ?? {}, "panelPadding", "8px 16px")
+    this._set(theme.settings ?? {}, "paddingCellVertical", "3px")
+    this._set(theme.settings ?? {}, "paddingCellHorizontal", "6px")
+    this._set(theme.settings ?? {}, "paddingPanelVertical", "8px")
+    this._set(theme.settings ?? {}, "paddingPanelHorizontal", "16px")
+
     this._set(theme.settings ?? {}, "formFontSize", "14px")
 
     this._set(theme.settings ?? {}, "focusRingSize", "2px")

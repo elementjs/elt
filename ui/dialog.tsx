@@ -103,7 +103,7 @@ dialog {
 
   & > header {
     ${theme.css_light_colors}
-    padding: var(--e-padding-panel, 10px 16px);
+    padding: ${theme.settings.paddingPanelVertical} ${theme.settings.paddingPanelHorizontal};
     background-color: ${theme.colors.tint};
     color: ${theme.colors.bg};
   }
