@@ -1,11 +1,11 @@
-import { $bind, App, o, tf_equals, view, $click, node_append } from "elt"
-import * as P from "elt-phosphor"
-import { DateTimePicker, Select, theme, show_dialog } from "elt/ui"
+import { $bind, $click, o, ServiceBase, tf_equals, view } from "elt";
+import * as P from "elt-phosphor";
+import { DateTimePicker, Select, show_dialog, theme } from "elt/ui";
 
 
-export default class ScreenVisualTest extends App.Service.requirements(() => ({
+export default class ScreenVisualTest extends ServiceBase({
   base: import("./base")
-})) {
+}) {
 
   o_color = o<keyof typeof theme.colors>("blue")
 

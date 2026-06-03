@@ -8,7 +8,7 @@
  *
  * Services can be defined as classes or as a simpler single asynchronous function.
  *
- * Key exports: App, App.Service, App.Service.factory, view
+ * Key exports: App, Service, Service.factory, view
  */
 
 import { type Renderable } from "./types"
@@ -16,6 +16,91 @@ import { o } from "./observable"
 import { Deferred } from "./utils"
 
 const sym_view_fns = Symbol("view_fns")
+
+/**
+ * Type definition of an asynchronous function that can be used as a service in an elt App.
+ */
+export type ServiceBuilder<S, T extends ServiceParams = {}> =
+  | ServiceBuilderConcreteType<S, T>
+  | { default: ServiceBuilderConcreteType<S, T> }
+  | Promise<
+      | ServiceBuilderConcreteType<S, T>
+      | { default: ServiceBuilderConcreteType<S, T> }
+    >
+
+export type ServiceParams = {
+  [name: string]: string | number | boolean | null | undefined
+}
+
+export type Params = { [name: string]: boolean | number | string }
+
+export type ServiceBuilderFunction<S, T extends ServiceParams = {}> = ((
+  srv: Service<T>
+) => Promise<S>) & { default?: undefined; [sym_service_init]?: undefined }
+
+export type ServiceBuilderFactoriedObject<S, T extends ServiceParams = {}> = {
+  [sym_service_init]: (srv: Service<T>) => Promise<any>
+  default?: undefined
+  new (...a: any[]): S
+}
+export type ServiceBuilderConcreteType<S, T extends ServiceParams = {}> =
+  | ServiceBuilderFactoriedObject<S, T>
+  | ServiceBuilderFunction<S, T>
+
+export async function unpack_builder<S, T extends ServiceParams = {}>(
+  builder: ServiceBuilder<S, T>
+): Promise<ServiceBuilderConcreteType<S, T>> {
+  if (builder instanceof Promise) {
+    builder = await builder
+  }
+
+  if (builder.default) {
+    builder = builder.default
+  }
+
+  if (typeof builder[sym_service_init] === "function") {
+    return builder
+  }
+
+  return builder
+}
+
+export const sym_service_init = Symbol("service_init")
+export const sym_service_init_concrete = Symbol("service_init_concrete")
+
+
+export function ServiceBase<
+  O extends { [name: string]: ServiceBuilder<any> },
+  S extends ServiceParams
+>(maker: O | ((srv: Service<S>) => O)) {
+  return ServiceFactory(async function (srv: Service<S>) {
+    const obj = typeof maker === "function" ? maker(srv) : maker
+    const keys = Object.keys(obj)
+    const promises = Promise.all(keys.map((key) => srv.require(obj[key])))
+    const res = await promises
+    return Object.fromEntries(
+      keys.map((key, index) => [key, res[index]])
+    ) as { [name in keyof O]: O[name] extends ServiceBuilder<infer T> ? T : never }
+  })
+}
+
+export function ServiceFactory<O, S extends ServiceParams = {}>(
+  init: (srv: Service<S>) => Promise<O>
+) {
+  class ServiceObject extends ServiceClass<S> {
+    static override [sym_service_init_concrete] = init
+  }
+
+  return ServiceObject as unknown as {
+    [sym_service_init]: (srv: Service<S>) => Promise<O>
+    new (srv: Service<S>, init_result: O): {
+      srv: Service<S>
+      init_result: O
+      init(): Promise<any>
+      deinit(): Promise<any>
+    } & { [K in keyof O]: O[K] }
+  }
+}
 
 /**
  * view decorator for Service class objects, compatible with both old and new style typescript/javascript decorators.
@@ -42,7 +127,7 @@ export function view(
     target[sym_view_fns].push(descriptor.value)
   } else {
     let _prop = prop as ClassMethodDecoratorContext<any, () => Renderable>
-    _prop.addInitializer(function (this: App.ServiceClass) {
+    _prop.addInitializer(function (this: ServiceClass) {
       this.srv.views.set(
         _prop.name as string,
         _prop.access.get(this).bind(this)
@@ -154,7 +239,7 @@ export class App {
   /** The current path mimicking the URL Hash fragment */
   o_current_route = this.router.o_active_route
 
-  o_params = o({} as App.Params)
+  o_params = o({} as Params)
   o_views = this.o_state.tf((st) => {
     return st?.views ?? (new Map() as App.Views)
   })
@@ -162,12 +247,12 @@ export class App {
 
   __reactivate: App.Reactivation | null = null
   async _activate<S>(
-    builder: App.ServiceBuilder<S, any>,
-    params?: App.Params
+    builder: ServiceBuilder<S, any>,
+    params?: Params
   ): Promise<App.ActivationResult> {
     const _was_activating_when_called = this.o_activating.get()
     const full_params = Object.assign({}, params)
-    const builder_fn = await App.unpack_builder(builder)
+    const builder_fn = await unpack_builder(builder)
 
     if (_was_activating_when_called && !this.o_activating.get()) {
       const error = "un-waited activate() call detected. They MUST be awaited."
@@ -192,8 +277,8 @@ export class App {
    * Does like require() but sets the resulting service as the active instance.
    */
   async __activate<S>(
-    builder: App.ServiceBuilderConcreteType<S>,
-    params?: App.Params
+    builder: ServiceBuilderConcreteType<S>,
+    params?: Params
   ): Promise<App.ActivationResult> {
     let current = this.o_state.get()
     this.o_activating.set(true)
@@ -264,7 +349,7 @@ export class App {
 }
 
 export namespace App {
-  export type Params = { [name: string]: boolean | number | string }
+
   export type Views = Map<string, () => Renderable>
 
   export interface RouteOptions {
@@ -276,7 +361,7 @@ export namespace App {
     [name: string]:
       | [
           path: string | null,
-          srv: () => App.ServiceBuilder<any, any>,
+          srv: () => ServiceBuilder<any, any>,
           options?: RouteOptions
         ]
       | [path: string, rt: RouteDef]
@@ -287,14 +372,14 @@ export namespace App {
       ? RoutesRes<U>
       : R[K] extends [
           string,
-          srv: () => App.ServiceBuilder<any, infer T>,
+          srv: () => ServiceBuilder<any, infer T>,
           options?: RouteOptions
         ]
       ? Route<T>
       : Route
   }
 
-  export class Route<T extends SrvParams = {}> {
+  export class Route<T extends ServiceParams = {}> {
     error?: Route<any>
 
     constructor(
@@ -328,7 +413,7 @@ export namespace App {
 
     regexp: RegExp | null = null
 
-    updateHash(keys: Set<string>, params: SrvParams) {
+    updateHash(keys: Set<string>, params: ServiceParams) {
       // Do not update the hash if this route is silent.
       if (this.options.silent) {
         return
@@ -433,7 +518,7 @@ export namespace App {
 
   export class Reactivation extends Deferred<App.ActivationResult> {
     constructor(
-      public builder: App.ServiceBuilderConcreteType<any>,
+      public builder: ServiceBuilderConcreteType<any>,
       public params: Params = {}
     ) {
       super()
@@ -476,7 +561,7 @@ export namespace App {
      */
     protected __parseHash(newhash: string): {
       path: string
-      vars: App.SrvParams
+      vars: ServiceParams
     } {
       const [path, vars_str] = newhash.split(/\?/) // separate at the first "?"
       const vars = (vars_str ?? "").split(/&/g).reduce((acc, item) => {
@@ -490,7 +575,7 @@ export namespace App {
           acc[skey] = _decode(val)
         }
         return acc
-      }, {} as App.SrvParams)
+      }, {} as ServiceParams)
 
       return { path, vars }
     }
@@ -515,7 +600,7 @@ export namespace App {
       this._last_hash = newhash
 
       const { path, vars } = this.__parseHash(newhash)
-      const route_vars: SrvParams = {}
+      const route_vars: ServiceParams = {}
 
       let route = this.__routes.get(path)
 
@@ -579,11 +664,11 @@ export namespace App {
     }
 
     _last_hash: string | null = null
-    protected _last_srv: App.ServiceBuilder<any> | null = null
+    protected _last_srv: ServiceBuilder<any> | null = null
 
     register(
       name: string,
-      builder: () => App.ServiceBuilder<any>,
+      builder: () => ServiceBuilder<any>,
       url: string | null,
       options?: RouteOptions
     ) {
@@ -612,12 +697,12 @@ export namespace App {
     }
 
     previous_state: State | null = null
-    services = new Map<App.ServiceBuilderConcreteType<any>, App.Service>()
-    active!: App.Service
+    services = new Map<ServiceBuilderConcreteType<any>, Service>()
+    active!: Service
     views: App.Views = new Map()
     params = o.proxy(o({} as Params))
 
-    async getService<S>(_builder: App.ServiceBuilder<S>) {
+    async getService<S>(_builder: ServiceBuilder<S>) {
       const builder = await unpack_builder(_builder)
 
       let previous =
@@ -637,7 +722,7 @@ export namespace App {
         return previous
       }
       // Make a new service
-      const srv = new App.Service(this, builder)
+      const srv = new Service(this, builder)
       this.addServiceDep(srv)
 
       const builder_fn =
@@ -651,8 +736,8 @@ export namespace App {
     }
 
     async require<S>(
-      _builder: App.ServiceBuilder<S>,
-      by?: App.Service
+      _builder: ServiceBuilder<S>,
+      by?: Service
     ): Promise<S> {
       const srv = await this.getService(_builder)
 
@@ -667,7 +752,7 @@ export namespace App {
       return srv.result
     }
 
-    private addServiceDep(srv: App.Service) {
+    private addServiceDep(srv: Service) {
       if (!this.services.has(srv.builder)) {
         this.services.set(srv.builder, srv)
         for (let req of srv.requirements) {
@@ -677,7 +762,7 @@ export namespace App {
     }
 
     /** @internal build `this.views` */
-    private collectViews(srv: App.Service, seen = new Set<App.Service>()) {
+    private collectViews(srv: Service, seen = new Set<Service>()) {
       if (seen.has(srv)) {
         return
       }
@@ -728,7 +813,7 @@ export namespace App {
 
     /** Activate a service */
     async activate(
-      builder: App.ServiceBuilder<any>,
+      builder: ServiceBuilder<any>,
       params: Params | undefined
     ) {
       if (params) {
@@ -739,249 +824,167 @@ export namespace App {
       this.collectViews(this.active)
     }
   }
+}
 
-  export type SrvParams = {
-    [name: string]: string | number | boolean | null | undefined
+
+/**
+ * Base class for class-based services when not using any dependencies
+ */
+export class ServiceClass<T extends ServiceParams = {}> {
+  static [sym_service_init_concrete] = (srv: Service<any>) => ({})
+
+  static async [sym_service_init]<T extends ServiceParams>(
+    this: typeof ServiceClass,
+    srv: Service<T>
+  ) {
+    const obj = await this[sym_service_init_concrete](srv)
+    let sc = new this(srv, obj)
+    sc.init()
+    for (const v of (sc as any)[sym_view_fns] ?? []) {
+      srv.views.set(v.name, v.bind(sc))
+    }
+    return sc
   }
 
-  export type ServiceBuilderFunction<S, T extends SrvParams = {}> = ((
-    srv: App.Service<T>
-  ) => Promise<S>) & { default?: undefined; [sym_service_init]?: undefined }
-
-  export type ServiceBuilderFactoriedObject<S, T extends SrvParams = {}> = {
-    [sym_service_init]: (srv: App.Service<T>) => Promise<any>
-    default?: undefined
-    new (...a: any[]): S
-  }
-  export type ServiceBuilderConcreteType<S, T extends SrvParams = {}> =
-    | ServiceBuilderFactoriedObject<S, T>
-    | ServiceBuilderFunction<S, T>
-
-  /**
-   * Type definition of an asynchronous function that can be used as a service in an elt App.
-   */
-  export type ServiceBuilder<S, T extends SrvParams = {}> =
-    | ServiceBuilderConcreteType<S, T>
-    | { default: ServiceBuilderConcreteType<S, T> }
-    | Promise<
-        | ServiceBuilderConcreteType<S, T>
-        | { default: ServiceBuilderConcreteType<S, T> }
-      >
-
-  export async function unpack_builder<S, T extends SrvParams = {}>(
-    builder: ServiceBuilder<S, T>
-  ): Promise<ServiceBuilderConcreteType<S, T>> {
-    if (builder instanceof Promise) {
-      builder = await builder
-    }
-
-    if (builder.default) {
-      builder = builder.default
-    }
-
-    if (typeof builder[sym_service_init] === "function") {
-      return builder
-    }
-
-    return builder
+  constructor(public srv: Service<T>, public init_result: unknown) {
+    Object.assign(this, init_result)
+    srv._on_deinit.push(() => {
+      this.deinit()
+    })
   }
 
-  export const sym_service_init = Symbol("service_init")
-  export const sym_service_init_concrete = Symbol("service_init_concrete")
+  get is_persistent() {
+    return this.srv.is_persistent
+  }
 
-  /**
-   * Base class for class-based services when not using any dependencies
-   */
-  export class ServiceClass<T extends SrvParams = {}> {
-    static [sym_service_init_concrete] = (srv: App.Service<any>) => ({})
+  set is_persistent(value: boolean) {
+    this.srv.is_persistent = value
+  }
 
-    static async [sym_service_init]<T extends SrvParams>(
-      this: typeof ServiceClass,
-      srv: App.Service<T>
-    ) {
-      const obj = await this[sym_service_init_concrete](srv)
-      let sc = new this(srv, obj)
-      sc.init()
-      for (const v of (sc as any)[sym_view_fns] ?? []) {
-        srv.views.set(v.name, v.bind(sc))
-      }
-      return sc
-    }
+  async init() {}
+  async deinit() {}
+}
 
-    constructor(public srv: App.Service<T>, public init_result: unknown) {
-      Object.assign(this, init_result)
-      srv._on_deinit.push(() => {
-        this.deinit()
-      })
-    }
+/**
+ * A single service.
+ */
+export class Service<T extends ServiceParams = {}> extends o.ObserverHolder {
+  constructor(
+    public state: App.State,
+    public builder: ServiceBuilderConcreteType<any>
+  ) {
+    super()
+  }
+  _on_deinit: (() => any)[] = []
 
-    get is_persistent() {
-      return this.srv.is_persistent
-    }
+  require<S, TP extends ServiceParams, TC extends TP>(
+    this: Service<TC>,
+    fn: ServiceBuilder<S, TP>
+  ): Promise<S> {
+    return this.state.require(fn as any, this)
+  }
 
-    set is_persistent(value: boolean) {
-      this.srv.is_persistent = value
-    }
-
-    async init() {}
-    async deinit() {}
+  /** true if this service is the currently activated one */
+  get oo_is_active() {
+    return this.state.app.o_active_service.tf((ac) => ac === this)
   }
 
   /**
-   * A single service.
+   * A service can activate a Route using its own params
    */
-  export class Service<T extends SrvParams = {}> extends o.ObserverHolder {
-    constructor(
-      public state: App.State,
-      public builder: App.ServiceBuilderConcreteType<any>
-    ) {
-      super()
+  activate<TP extends ServiceParams, TC extends ServiceParams>(
+    this: Service<TC>,
+    rt: App.Route<TP>,
+    ...args: TP extends TC
+      ? TC extends TP
+        ? [] | [{}]
+        : [Omit<TP, keyof TC>]
+      : TC extends TP
+      ? [] | [{}] | [TP]
+      : [TP]
+  ): Promise<void> {
+    const params: any = {}
+    for (let [key, value] of Object.entries(this.state.params)) {
+      params[key] = value
     }
-    _on_deinit: (() => any)[] = []
+    Object.assign(params, args[0])
+    return rt.activate(params as any)
+  }
 
-    static requirements<
-      O extends { [name: string]: ServiceBuilder<any> },
-      S extends SrvParams
-    >(maker: (srv: App.Service<S>) => O) {
-      return this.factory(async function (srv: App.Service<S>) {
-        const obj = maker(srv)
-        const keys = Object.keys(obj)
-        const promises = Promise.all(keys.map((key) => srv.require(obj[key])))
-        const res = await promises
-        return Object.fromEntries(
-          keys.map((key, index) => [key, res[index]])
-        ) as { [name in keyof O]: O[name] extends ServiceBuilder<infer T> ? T : never }
-      })
-    }
-
-    /** Base class for service objects */
-    static factory<O, S extends SrvParams = {}>(
-      init: (srv: App.Service<S>) => Promise<O>
-    ) {
-      class ServiceObject extends ServiceClass<S> {
-        static override [sym_service_init_concrete] = init
-      }
-
-      return ServiceObject as unknown as {
-        [sym_service_init]: (srv: App.Service<S>) => Promise<O>
-        new (srv: App.Service<S>, init_result: O): {
-          srv: App.Service<S>
-          init_result: O
-          init(): Promise<any>
-          deinit(): Promise<any>
-        } & { [K in keyof O]: O[K] }
-      }
-    }
-
-    require<S, TP extends SrvParams, TC extends TP>(
-      this: Service<TC>,
-      fn: ServiceBuilder<S, TP>
-    ): Promise<S> {
-      return this.state.require(fn as any, this)
-    }
-
-    /** true if this service is the currently activated one */
-    get oo_is_active() {
-      return this.state.app.o_active_service.tf((ac) => ac === this)
-    }
-
-    /**
-     * A service can activate a Route using its own params
-     */
-    activate<TP extends SrvParams, TC extends SrvParams>(
-      this: Service<TC>,
-      rt: Route<TP>,
-      ...args: TP extends TC
-        ? TC extends TP
-          ? [] | [{}]
-          : [Omit<TP, keyof TC>]
-        : TC extends TP
-        ? [] | [{}] | [TP]
-        : [TP]
-    ): Promise<void> {
-      const params: any = {}
-      for (let [key, value] of Object.entries(this.state.params)) {
-        params[key] = value
-      }
-      Object.assign(params, args[0])
-      return rt.activate(params as any)
-    }
-
-    /**
-     * Return true if the provided params would cause this service to be invalid
-     * @internal
-     */
-    areParamsInvalidating(params: Params) {
-      if (this.params_deps.size > 0) {
-        for (let [k, v] of Object.entries(params)) {
-          const dep = this.params_deps.get(k)
-          if (dep !== null && v !== dep) {
-            return true
-          }
+  /**
+   * Return true if the provided params would cause this service to be invalid
+   * @internal
+   */
+  areParamsInvalidating(params: Params) {
+    if (this.params_deps.size > 0) {
+      for (let [k, v] of Object.entries(params)) {
+        const dep = this.params_deps.get(k)
+        if (dep !== null && v !== dep) {
+          return true
         }
       }
-      return false
     }
+    return false
+  }
 
-    param<K extends keyof T>(name: K, default_value?: T[K]): T[K] {
-      const par = this.state.params
-      const v = par.get()[name as string]
-      if (v == null && default_value) {
-        par.assign({ [name as string]: default_value })
-      }
-      let value = v ?? default_value ?? undefined
-      this.params_deps.set(name as string, value as any)
-      return value as T[K]
+  param<K extends keyof T>(name: K, default_value?: T[K]): T[K] {
+    const par = this.state.params
+    const v = par.get()[name as string]
+    if (v == null && default_value) {
+      par.assign({ [name as string]: default_value })
     }
+    let value = v ?? default_value ?? undefined
+    this.params_deps.set(name as string, value as any)
+    return value as T[K]
+  }
 
-    param_soft<K extends keyof T>(name: K): o.Observable<T[K]>
-    param_soft<K extends keyof T>(
-      name: K,
-      default_value: T[K]
-    ): o.Observable<NonNullable<T[K]>>
-    param_soft<K extends keyof T>(
-      name: K,
-      default_value?: T[K]
-    ): o.Observable<T[K]> {
-      const par = this.state.params
-      const v = par.get()[name as string]
-      if (v == null && default_value) {
-        par.assign({ [name as string]: default_value })
-      }
-      this.params_deps.set(name as string, null)
-      return this.state.params.p(name as string) as o.Observable<T[K]>
+  param_soft<K extends keyof T>(name: K): o.Observable<T[K]>
+  param_soft<K extends keyof T>(
+    name: K,
+    default_value: T[K]
+  ): o.Observable<NonNullable<T[K]>>
+  param_soft<K extends keyof T>(
+    name: K,
+    default_value?: T[K]
+  ): o.Observable<T[K]> {
+    const par = this.state.params
+    const v = par.get()[name as string]
+    if (v == null && default_value) {
+      par.assign({ [name as string]: default_value })
     }
+    this.params_deps.set(name as string, null)
+    return this.state.params.p(name as string) as o.Observable<T[K]>
+  }
 
-    DisplayView(view_name: string) {
-      return this.state.app.DisplayView(view_name)
-    }
+  DisplayView(view_name: string) {
+    return this.state.app.DisplayView(view_name)
+  }
 
-    /**
-     * Set this property to true to make this service persistent ; once created,
-     * it will never be deinited.
-     */
-    is_persistent = false
+  /**
+   * Set this property to true to make this service persistent ; once created,
+   * it will never be deinited.
+   */
+  is_persistent = false
 
-    onDeinit(fn: () => any) {
-      this._on_deinit.push(fn)
-    }
+  onDeinit(fn: () => any) {
+    this._on_deinit.push(fn)
+  }
 
-    result: any
-    result_promise: Promise<any> | null = null
+  result: any
+  result_promise: Promise<any> | null = null
 
-    views = new Map<string, () => Renderable>()
+  views = new Map<string, () => Renderable>()
 
-    /** the services needed by this one to function */
-    requirements = new Set<Service>()
+  /** the services needed by this one to function */
+  requirements = new Set<Service>()
 
-    /** */
-    params_deps = new Map<string, string | number | boolean | null>()
-    o_params = o({} as Params)
+  /** */
+  params_deps = new Map<string, string | number | boolean | null>()
+  o_params = o({} as Params)
 
-    /** Shortcut function to set a view */
-    view(name: string, view: () => Renderable) {
-      this.views.set(name, view)
-      return this
-    }
+  /** Shortcut function to set a view */
+  view(name: string, view: () => Renderable) {
+    this.views.set(name, view)
+    return this
   }
 }

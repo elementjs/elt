@@ -1,8 +1,8 @@
-import { App, view } from "elt"
+import { ServiceBase, view } from "elt"
 
-export default class ScreenUIUsage extends App.Service.requirements(() => ({
+export default class ScreenUIUsage extends ServiceBase({
   base: import("./base")
-})) {
+}) {
 
   @view
   Content() {

@@ -1,10 +1,10 @@
-import { App, o, view } from "elt"
+import { ServiceBase, view, o } from "elt"
 import { Select } from "elt/ui"
 
 
-export default class ScreenSelect extends App.Service.requirements(() => ({
+export default class ScreenSelect extends ServiceBase({
   base: import("./base")
-})) {
+}) {
 
   @view
   Content() {

@@ -1,24 +1,10 @@
-import { $bind, App, o, view } from "elt"
-import * as P from "elt-phosphor"
-import * as D from "elt-phosphor/duotone"
-import { Select, theme } from "elt/ui"
-import { EltLogo } from "./widgets/logo"
-
-function tf_set(value: string): o.Converter<string, boolean> {
-  return {
-    transform(val: string) {
-      return val === value
-    },
-    revert(newv, _, val) {
-      return newv ? value : val
-    }
-  }
-}
+import { ServiceBase, view } from "elt";
+import { EltLogo } from "./widgets/logo";
 
 
-export default class HomeScreen extends App.Service.requirements(() => ({
+export default class HomeScreen extends ServiceBase({
   base: import("./base")
-})) {
+}) {
 
   @view
   Content() {

@@ -1,9 +1,9 @@
-import { App, view } from "elt"
+import { ServiceBase, view } from "elt"
 import routes from "./routes"
 
-export default class ScreenLayout extends App.Service.requirements(() => ({
+export default class ScreenLayout extends ServiceBase({
   base: import("./base")
-})) {
+}) {
 
   @view
   Content() {

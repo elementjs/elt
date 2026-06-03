@@ -1,10 +1,10 @@
-import { App, o, view } from "elt"
+import { ServiceBase, view, o } from "elt"
 import { DateTimePicker } from "elt/ui"
 
 
-export default class DateScreen extends App.Service.requirements(() => ({
+export default class DateScreen extends ServiceBase({
   base: import("./base")
-})) {
+}) {
 
   o_date = o(null as Date | null)
 

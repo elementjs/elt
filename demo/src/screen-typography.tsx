@@ -1,10 +1,9 @@
-import { $bind, App, tf_equals, view } from "elt"
-import * as P from "elt-phosphor"
+import { ServiceBase, view } from "elt"
 import routes from "./routes"
 
-export default class TypographyScreen extends App.Service.requirements(() => ({
+export default class TypographyScreen extends ServiceBase({
   base: import("./base")
-})) {
+}) {
 
   @view
   Content() {

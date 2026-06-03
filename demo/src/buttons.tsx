@@ -1,8 +1,8 @@
-import { App, view } from "elt"
+import { ServiceBase, view } from "elt"
 
-export default class ButtonsScreen extends App.Service.requirements(() => ({
+export default class ButtonsScreen extends ServiceBase({
   base: import("./base")
-})) {
+}) {
 
   @view
   Content() {

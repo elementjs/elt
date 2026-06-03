@@ -1,12 +1,7 @@
-import { App } from "elt"
+import { ServiceBase } from "elt"
 
-export const InitDeps = App.Service.factory(async (srv) => {
-    await srv.require(import("./base"))
-    return {
-
-    }
-})
-
-export default class Init extends InitDeps {
+export default class Init extends ServiceBase({
+  base: import("./base"),
+}) {
 
 }
