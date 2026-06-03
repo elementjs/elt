@@ -1,7 +1,7 @@
-import { ServiceBase, view } from "elt"
+import { Service, view } from "elt"
 import routes from "./routes"
 
-export default class TypographyScreen extends ServiceBase({
+export default class TypographyScreen extends Service({
   base: import("./base")
 }) {
 

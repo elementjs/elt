@@ -1,6 +1,6 @@
-import { ServiceBase, view } from "elt"
+import { Service, view } from "elt"
 
-export default class ButtonsScreen extends ServiceBase({
+export default class ButtonsScreen extends Service({
   base: import("./base")
 }) {
 

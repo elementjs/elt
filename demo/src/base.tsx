@@ -1,4 +1,4 @@
-import { $bind, $click, $scrollable, App, css, o, tf_equals, view, ServiceBase } from "elt"
+import { $bind, $click, $scrollable, App, css, o, tf_equals, view, Service } from "elt"
 import { popup, theme } from "elt/ui"
 import * as P from "elt-phosphor"
 
@@ -10,7 +10,7 @@ export type FontStyle = {
   letterSpacing?: string,
 }
 
-export default class Base extends ServiceBase({}) {
+export default class Base extends Service({}) {
 
   fonts = {
     cantarell: { fontFamily: "Cantarell", fontWeight: "400", },

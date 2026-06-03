@@ -1,9 +1,9 @@
-import { $bind, $click, o, ServiceBase, tf_equals, view } from "elt";
+import { $bind, $click, o, Service, tf_equals, view } from "elt";
 import * as P from "elt-phosphor";
 import { DateTimePicker, Select, show_dialog, theme } from "elt/ui";
 
 
-export default class ScreenVisualTest extends ServiceBase({
+export default class ScreenVisualTest extends Service({
   base: import("./base")
 }) {
 

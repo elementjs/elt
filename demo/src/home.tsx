@@ -1,8 +1,8 @@
-import { ServiceBase, view } from "elt";
+import { Service, view } from "elt";
 import { EltLogo } from "./widgets/logo";
 
 
-export default class HomeScreen extends ServiceBase({
+export default class HomeScreen extends Service({
   base: import("./base")
 }) {
 

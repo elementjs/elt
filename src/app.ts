@@ -33,11 +33,11 @@ export type ServiceParams = {
 }
 
 export type ServiceBuilderFunction<S, T extends ServiceParams = {}> = ((
-  srv: Service<T>
+  srv: ServiceHelper<T>
 ) => Promise<S>) & { default?: undefined; [sym_service_init]?: undefined }
 
 export type ServiceBuilderFactoriedObject<S, T extends ServiceParams = {}> = {
-  [sym_service_init]: (srv: Service<T>) => Promise<any>
+  [sym_service_init]: (srv: ServiceHelper<T>) => Promise<any>
   default?: undefined
   new (...a: any[]): S
 }
@@ -67,11 +67,12 @@ export const sym_service_init = Symbol("service_init")
 export const sym_service_init_concrete = Symbol("service_init_concrete")
 
 
-export function ServiceBase<
+export function Service<
   O extends { [name: string]: ServiceBuilder<any> },
   S extends ServiceParams
->(maker: O | ((srv: Service<S>) => O)) {
-  return ServiceFactory(async function (srv: Service<S>) {
+>(maker?: O | ((srv: ServiceHelper<S>) => O)) {
+  return ServiceFactory(async function(srv: ServiceHelper<S>) {
+    maker ??= {} as O
     const obj = typeof maker === "function" ? maker(srv) : maker
     const keys = Object.keys(obj)
     const promises = Promise.all(keys.map((key) => srv.require(obj[key])))
@@ -83,16 +84,16 @@ export function ServiceBase<
 }
 
 export function ServiceFactory<O, S extends ServiceParams = {}>(
-  init: (srv: Service<S>) => Promise<O>
+  init: (srv: ServiceHelper<S>) => Promise<O>
 ) {
   class ServiceObject extends ServiceClass<S> {
     static override [sym_service_init_concrete] = init
   }
 
   return ServiceObject as unknown as {
-    [sym_service_init]: (srv: Service<S>) => Promise<O>
-    new (srv: Service<S>, init_result: O): {
-      srv: Service<S>
+    [sym_service_init]: (srv: ServiceHelper<S>) => Promise<O>
+    new (srv: ServiceHelper<S>, init_result: O): {
+      srv: ServiceHelper<S>
       init_result: O
       init(): Promise<any>
       deinit(): Promise<any>
@@ -695,8 +696,8 @@ export namespace App {
     }
 
     previous_state: State | null = null
-    services = new Map<ServiceBuilderConcreteType<any>, Service>()
-    active!: Service
+    services = new Map<ServiceBuilderConcreteType<any>, ServiceHelper>()
+    active!: ServiceHelper
     views: App.Views = new Map()
     params = o.proxy(o({} as ServiceParams))
 
@@ -720,7 +721,7 @@ export namespace App {
         return previous
       }
       // Make a new service
-      const srv = new Service(this, builder)
+      const srv = new ServiceHelper(this, builder)
       this.addServiceDep(srv)
 
       const builder_fn =
@@ -735,7 +736,7 @@ export namespace App {
 
     async require<S>(
       _builder: ServiceBuilder<S>,
-      by?: Service
+      by?: ServiceHelper
     ): Promise<S> {
       const srv = await this.getService(_builder)
 
@@ -750,7 +751,7 @@ export namespace App {
       return srv.result
     }
 
-    private addServiceDep(srv: Service) {
+    private addServiceDep(srv: ServiceHelper) {
       if (!this.services.has(srv.builder)) {
         this.services.set(srv.builder, srv)
         for (let req of srv.requirements) {
@@ -760,7 +761,7 @@ export namespace App {
     }
 
     /** @internal build `this.views` */
-    private collectViews(srv: Service, seen = new Set<Service>()) {
+    private collectViews(srv: ServiceHelper, seen = new Set<ServiceHelper>()) {
       if (seen.has(srv)) {
         return
       }
@@ -829,11 +830,11 @@ export namespace App {
  * Base class for class-based services when not using any dependencies
  */
 export class ServiceClass<T extends ServiceParams = {}> {
-  static [sym_service_init_concrete] = (srv: Service<any>) => ({})
+  static [sym_service_init_concrete] = (srv: ServiceHelper<any>) => ({})
 
   static async [sym_service_init]<T extends ServiceParams>(
     this: typeof ServiceClass,
-    srv: Service<T>
+    srv: ServiceHelper<T>
   ) {
     const obj = await this[sym_service_init_concrete](srv)
     let sc = new this(srv, obj)
@@ -844,7 +845,7 @@ export class ServiceClass<T extends ServiceParams = {}> {
     return sc
   }
 
-  constructor(public srv: Service<T>, public init_result: unknown) {
+  constructor(public srv: ServiceHelper<T>, public init_result: unknown) {
     Object.assign(this, init_result)
     srv._on_deinit.push(() => {
       this.deinit()
@@ -866,7 +867,7 @@ export class ServiceClass<T extends ServiceParams = {}> {
 /**
  * A single service.
  */
-export class Service<T extends ServiceParams = {}> extends o.ObserverHolder {
+export class ServiceHelper<T extends ServiceParams = {}> extends o.ObserverHolder {
   constructor(
     public state: App.State,
     public builder: ServiceBuilderConcreteType<any>
@@ -876,7 +877,7 @@ export class Service<T extends ServiceParams = {}> extends o.ObserverHolder {
   _on_deinit: (() => any)[] = []
 
   require<S, TP extends ServiceParams, TC extends TP>(
-    this: Service<TC>,
+    this: ServiceHelper<TC>,
     fn: ServiceBuilder<S, TP>
   ): Promise<S> {
     return this.state.require(fn as any, this)
@@ -891,7 +892,7 @@ export class Service<T extends ServiceParams = {}> extends o.ObserverHolder {
    * A service can activate a Route using its own params
    */
   activate<TP extends ServiceParams, TC extends ServiceParams>(
-    this: Service<TC>,
+    this: ServiceHelper<TC>,
     rt: App.Route<TP>,
     ...args: TP extends TC
       ? TC extends TP
@@ -974,7 +975,7 @@ export class Service<T extends ServiceParams = {}> extends o.ObserverHolder {
   views = new Map<string, () => Renderable>()
 
   /** the services needed by this one to function */
-  requirements = new Set<Service>()
+  requirements = new Set<ServiceHelper>()
 
   /** */
   params_deps = new Map<string, string | number | boolean | null>()

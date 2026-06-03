@@ -1,7 +1,7 @@
-import { ServiceBase, view } from "elt"
+import { Service, view } from "elt"
 import routes from "./routes"
 
-export default class ScreenLayout extends ServiceBase({
+export default class ScreenLayout extends Service({
   base: import("./base")
 }) {
 

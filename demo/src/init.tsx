@@ -1,6 +1,6 @@
-import { ServiceBase } from "elt"
+import { Service } from "elt"
 
-export default class Init extends ServiceBase({
+export default class Init extends Service({
   base: import("./base"),
 }) {
 

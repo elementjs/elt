@@ -1,8 +1,8 @@
-import { ServiceBase, view, o } from "elt"
+import { Service, view, o } from "elt"
 import { DateTimePicker } from "elt/ui"
 
 
-export default class DateScreen extends ServiceBase({
+export default class DateScreen extends Service({
   base: import("./base")
 }) {
 
