@@ -32,8 +32,6 @@ export type ServiceParams = {
   [name: string]: string | number | boolean | null | undefined
 }
 
-export type Params = { [name: string]: boolean | number | string }
-
 export type ServiceBuilderFunction<S, T extends ServiceParams = {}> = ((
   srv: Service<T>
 ) => Promise<S>) & { default?: undefined; [sym_service_init]?: undefined }
@@ -239,7 +237,7 @@ export class App {
   /** The current path mimicking the URL Hash fragment */
   o_current_route = this.router.o_active_route
 
-  o_params = o({} as Params)
+  o_params = o({} as ServiceParams)
   o_views = this.o_state.tf((st) => {
     return st?.views ?? (new Map() as App.Views)
   })
@@ -248,7 +246,7 @@ export class App {
   __reactivate: App.Reactivation | null = null
   async _activate<S>(
     builder: ServiceBuilder<S, any>,
-    params?: Params
+    params?: ServiceParams
   ): Promise<App.ActivationResult> {
     const _was_activating_when_called = this.o_activating.get()
     const full_params = Object.assign({}, params)
@@ -278,7 +276,7 @@ export class App {
    */
   async __activate<S>(
     builder: ServiceBuilderConcreteType<S>,
-    params?: Params
+    params?: ServiceParams
   ): Promise<App.ActivationResult> {
     let current = this.o_state.get()
     this.o_activating.set(true)
@@ -519,7 +517,7 @@ export namespace App {
   export class Reactivation extends Deferred<App.ActivationResult> {
     constructor(
       public builder: ServiceBuilderConcreteType<any>,
-      public params: Params = {}
+      public params: ServiceParams = {}
     ) {
       super()
     }
@@ -700,7 +698,7 @@ export namespace App {
     services = new Map<ServiceBuilderConcreteType<any>, Service>()
     active!: Service
     views: App.Views = new Map()
-    params = o.proxy(o({} as Params))
+    params = o.proxy(o({} as ServiceParams))
 
     async getService<S>(_builder: ServiceBuilder<S>) {
       const builder = await unpack_builder(_builder)
@@ -814,7 +812,7 @@ export namespace App {
     /** Activate a service */
     async activate(
       builder: ServiceBuilder<any>,
-      params: Params | undefined
+      params: ServiceParams | undefined
     ) {
       if (params) {
         this.params.set(params)
@@ -915,7 +913,7 @@ export class Service<T extends ServiceParams = {}> extends o.ObserverHolder {
    * Return true if the provided params would cause this service to be invalid
    * @internal
    */
-  areParamsInvalidating(params: Params) {
+  areParamsInvalidating(params: ServiceParams) {
     if (this.params_deps.size > 0) {
       for (let [k, v] of Object.entries(params)) {
         const dep = this.params_deps.get(k)
@@ -980,7 +978,7 @@ export class Service<T extends ServiceParams = {}> extends o.ObserverHolder {
 
   /** */
   params_deps = new Map<string, string | number | boolean | null>()
-  o_params = o({} as Params)
+  o_params = o({} as ServiceParams)
 
   /** Shortcut function to set a view */
   view(name: string, view: () => Renderable) {
