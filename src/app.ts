@@ -70,7 +70,7 @@ export const sym_service_init_concrete = Symbol("service_init_concrete")
 export function Service<
   O extends { [name: string]: ServiceBuilder<any> },
   S extends ServiceParams
->(maker?: O | ((srv: ServiceHelper<S>) => O)) {
+>(maker?: O | ((srv: ServiceHelper<S>) => O), _params?: S) {
   return ServiceFactory(async function(srv: ServiceHelper<S>) {
     maker ??= {} as O
     const obj = typeof maker === "function" ? maker(srv) : maker
