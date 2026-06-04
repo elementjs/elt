@@ -220,7 +220,7 @@ export function popup<T>(
     // node_append(anchor.parentElement!, popup_root, anchor.nextSibling)
 
     const o_arrow_state = o<ArrowState>({ side: "bottom", ax: null, ay: null, visible: true })
-    const arro = opts.arrow ? popup_arrow(o_arrow_state) : null
+    const arro = opts.arrow !== false ? popup_arrow(o_arrow_state) : null
     if (arro) {
       // Sibling after scrollable content; z-index keeps it above the panel fill.
       node_append(popup, arro, popup.firstChild)
