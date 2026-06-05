@@ -32,9 +32,7 @@ export type ServiceParams = {
   [name: string]: string | number | boolean | null | undefined
 }
 
-export type ServiceBuilderFunction<S, T extends ServiceParams = {}> = ((
-  srv: ServiceHelper<T>
-) => Promise<S>) & { default?: undefined; [sym_service_init]?: undefined }
+export type ServiceBuilderFunction<S, T extends ServiceParams = {}> = ((helper: ServiceHelper<T>) => Promise<S>) & { default?: undefined; [sym_service_init]?: undefined }
 
 export type ServiceBuilderFactoriedObject<S, T extends ServiceParams = {}> = {
   [sym_service_init]: (srv: ServiceHelper<T>) => Promise<any>
@@ -68,10 +66,10 @@ export const sym_service_init_concrete = Symbol("service_init_concrete")
 
 
 export function Service<
-  O extends { [name: string]: ServiceBuilder<any> },
-  S extends ServiceParams
->(maker?: O | ((srv: ServiceHelper<S>) => O), _params?: S) {
-  return ServiceFactory(async function(srv: ServiceHelper<S>) {
+  P extends ServiceParams = {},
+  O extends { [name: string]: ServiceBuilder<any, P> } = {},
+>(maker?: O | ((srv: ServiceHelper<P>) => O), _params?: P) {
+  return ServiceFactory(async function(srv: ServiceHelper<P>) {
     maker ??= {} as O
     const obj = typeof maker === "function" ? maker(srv) : maker
     const keys = Object.keys(obj)
@@ -445,7 +443,6 @@ export namespace App {
 
         hash = hash.replace(/:[a-zA-Z0-9_$]+\b/g, "~u")
         if (hash.includes("~u")) {
-          console.warn(hash, this.router.app.o_params.get())
           throw new Error("service params had an undefined value")
         }
 
@@ -926,13 +923,14 @@ export class ServiceHelper<T extends ServiceParams = {}> extends o.ObserverHolde
     return false
   }
 
+  /** gets a service parameter and locks it ; should the parameter change (in the URL, or directly in the App State,) then this service will have to be recreated instead of reused. */
   param<K extends keyof T>(name: K, default_value?: T[K]): T[K] {
     const par = this.state.params
     const v = par.get()[name as string]
     if (v == null && default_value) {
       par.assign({ [name as string]: default_value })
     }
-    let value = v ?? default_value ?? undefined
+    let value = v ?? default_value ?? v
     this.params_deps.set(name as string, value as any)
     return value as T[K]
   }
