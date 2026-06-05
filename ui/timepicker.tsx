@@ -210,7 +210,7 @@ function day_period_text(locale: string, am: boolean): string {
 
 const cls_panel = css`.time-panel {
   display: flex;
-  padding: ${theme.settings.cellPadding};
+  padding: ${theme.settings.paddingCellVertical} ${theme.settings.paddingCellHorizontal};
   max-height: 220px;
   overflow: hidden;
 }`

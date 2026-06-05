@@ -100,7 +100,7 @@ export function DateTimePicker(at: DatePickerAttrs) {
   const lock = o.exclusive_lock()
 
   const set_model = (d: Date | null) => {
-    if (d == null && o.get(clearable)) at.model.set(null)
+    if (d == null && o.get(clearable)) at.model.set(null!)
     else if (d != null) at.model.set(d)
   }
 
@@ -109,7 +109,7 @@ export function DateTimePicker(at: DatePickerAttrs) {
   const input_ctx = () => ({
     get_layout: () => oo_layout.get(),
     set_model,
-    clearable,
+    clearable: o.get(clearable),
     lock,
     minute_step: o.get(opts.minute_step),
     second_step: o.get(opts.second_step),
@@ -247,7 +247,7 @@ function same_day(a: Date, b: Date | null): boolean {
 }
 
 const cls_calendar = css`.date-calendar {
-  padding: ${theme.settings.cellPadding};
+  padding: ${theme.settings.paddingCellVertical} ${theme.settings.paddingCellHorizontal};
   min-width: 260px;
 }`
 

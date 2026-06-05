@@ -41,7 +41,7 @@ css`menu {
     margin-bottom: 4px;
   }
 
-  :is(h1, h2, h3, h4, h5, h6, a, button, label, e-box, e-flex) {
+  :is(h1, h2, h3, h4, h5, h6, a, button, label, e-box, e-flex, e-button-box) {
     padding: 4px 8px 4px 8px;
   }
 
