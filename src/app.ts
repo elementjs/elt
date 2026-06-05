@@ -305,12 +305,22 @@ export class App {
         )
         this.router.__last_activated_route?.updateHash(keys, params)
 
-        o.transaction(() => {
-          // Remove from params unneeded keys
-          this.o_params.set(params)
-          staging.params.changeTarget(this.o_params)
-          staging.commit()
-        })
+        const _commit = () => {
+          o.transaction(() => {
+            // Remove from params unneeded keys
+            this.o_params.set(params)
+            staging.params.changeTarget(this.o_params)
+            staging.commit()
+          })
+        }
+
+        if (document.startViewTransition && !document.activeViewTransition) {
+          document.startViewTransition(() => {
+            return _commit()
+          })
+        } else {
+          _commit()
+        }
 
         // whoever gets here is the route that "won" if we got here through a route
       }
@@ -503,13 +513,8 @@ export namespace App {
         }
       }
 
-      if (document.startViewTransition) {
-        document.startViewTransition(() => {
-          return this._activateWithParams(params)
-        })
-      } else {
-        return this._activateWithParams(params)
-      }
+
+      return this._activateWithParams(params)
     }
 
     async activate(..._params: {} extends T ? [] | [T] : [T]): Promise<void> {
