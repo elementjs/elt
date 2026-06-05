@@ -32,37 +32,56 @@ export type ServiceParams = {
   [name: string]: string | number | boolean | null | undefined
 }
 
-export type ServiceBuilderFunction<S, T extends ServiceParams = {}> = ((helper: ServiceHelper<T>) => Promise<S>) & { default?: undefined; [sym_service_init]?: undefined }
+export type ServiceBuilderFunction<S, T extends ServiceParams = {}> = ((helper: ServiceHelper<T>) => Promise<S>)
 
-export type ServiceBuilderFactoriedObject<S, T extends ServiceParams = {}> = {
-  [sym_service_init]: (srv: ServiceHelper<T>) => Promise<any>
-  default?: undefined
+export type ServiceBuilderFactoriedObject<S extends ServiceClass<T>, T extends ServiceParams = {}> = {
+  // [sym_service_preinit]: (srv: ServiceHelper<T>) => Promise<any>
   new (...a: any[]): S
 }
 export type ServiceBuilderConcreteType<S, T extends ServiceParams = {}> =
-  | ServiceBuilderFactoriedObject<S, T>
+  | S extends ServiceClass<any> ? ServiceBuilderFactoriedObject<S, T> : never
+  // | typeof ServiceClass<T>
   | ServiceBuilderFunction<S, T>
 
-export async function unpack_builder<S, T extends ServiceParams = {}>(
+async function _get_builder<S, T extends ServiceParams = {}>(
   builder: ServiceBuilder<S, T>
 ): Promise<ServiceBuilderConcreteType<S, T>> {
   if (builder instanceof Promise) {
     builder = await builder
   }
 
-  if (builder.default) {
-    builder = builder.default
+  if ((builder as any)?.default) {
+    builder = (builder as any).default
   }
 
-  if (typeof builder[sym_service_init] === "function") {
-    return builder
-  }
-
-  return builder
+  return builder as ServiceBuilderConcreteType<S, T>
 }
 
-export const sym_service_init = Symbol("service_init")
-export const sym_service_init_concrete = Symbol("service_init_concrete")
+function _is_service_class(kls: any): kls is typeof ServiceClass {
+  return typeof (kls as any)?.prototype?.[sym_service_preinit] == "function"
+}
+
+function _service_class_init<T extends ServiceParams>(
+  kls: ServiceBuilderConcreteType<any, T>,
+): ServiceBuilderFunction<any, T> {
+
+  if (_is_service_class(kls)) {
+    return async function(srv: ServiceHelper<T>) {
+      const obj = await kls.prototype[sym_service_preinit](srv)
+      let sc = new kls(srv, obj)
+      sc.init()
+      for (const v of (sc as any)[sym_view_fns] ?? []) {
+        srv.views.set(v.name, v.bind(sc))
+      }
+      return sc
+    }
+  }
+
+  return kls as ServiceBuilderFunction<any, T>
+}
+
+
+export const sym_service_preinit = Symbol("service_preinit")
 
 
 export function Service<
@@ -85,18 +104,10 @@ export function ServiceFactory<O, S extends ServiceParams = {}>(
   init: (srv: ServiceHelper<S>) => Promise<O>
 ) {
   class ServiceObject extends ServiceClass<S> {
-    static override [sym_service_init_concrete] = init
   }
+  ServiceObject.prototype[sym_service_preinit] = init
 
-  return ServiceObject as unknown as {
-    [sym_service_init]: (srv: ServiceHelper<S>) => Promise<O>
-    new (srv: ServiceHelper<S>, init_result: O): {
-      srv: ServiceHelper<S>
-      init_result: O
-      init(): Promise<any>
-      deinit(): Promise<any>
-    } & { [K in keyof O]: O[K] }
-  }
+  return ServiceObject as new (...a: any[]) => (ServiceClass<S> & {[name in keyof O]: O[name]})
 }
 
 /**
@@ -249,7 +260,7 @@ export class App {
   ): Promise<App.ActivationResult> {
     const _was_activating_when_called = this.o_activating.get()
     const full_params = Object.assign({}, params)
-    const builder_fn = await unpack_builder(builder)
+    const builder_fn = await _get_builder(builder)
 
     if (_was_activating_when_called && !this.o_activating.get()) {
       const error = "un-waited activate() call detected. They MUST be awaited."
@@ -699,7 +710,7 @@ export namespace App {
     params = o.proxy(o({} as ServiceParams))
 
     async getService<S>(_builder: ServiceBuilder<S>) {
-      const builder = await unpack_builder(_builder)
+      const builder = await _get_builder(_builder)
 
       let previous =
         this.services.get(builder) ?? this.previous_state?.services.get(builder)
@@ -721,10 +732,10 @@ export namespace App {
       const srv = new ServiceHelper(this, builder)
       this.addServiceDep(srv)
 
-      const builder_fn =
-        typeof builder[sym_service_init] === "function"
-          ? builder[sym_service_init].bind(builder)
-          : builder
+      const builder_fn = _service_class_init(builder)
+        // typeof builder[sym_service_init] === "function"
+        //   ? builder[sym_service_init].bind(builder)
+        //   : builder
       srv.result_promise = builder_fn(srv)
       srv.result = await srv.result_promise
       srv.result_promise = null
@@ -827,20 +838,7 @@ export namespace App {
  * Base class for class-based services when not using any dependencies
  */
 export class ServiceClass<T extends ServiceParams = {}> {
-  static [sym_service_init_concrete] = (srv: ServiceHelper<any>) => ({})
-
-  static async [sym_service_init]<T extends ServiceParams>(
-    this: typeof ServiceClass,
-    srv: ServiceHelper<T>
-  ) {
-    const obj = await this[sym_service_init_concrete](srv)
-    let sc = new this(srv, obj)
-    sc.init()
-    for (const v of (sc as any)[sym_view_fns] ?? []) {
-      srv.views.set(v.name, v.bind(sc))
-    }
-    return sc
-  }
+  [sym_service_preinit](srv: ServiceHelper<T>): Promise<any> { return {} as any }
 
   constructor(public srv: ServiceHelper<T>, public init_result: unknown) {
     Object.assign(this, init_result)
