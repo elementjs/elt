@@ -790,7 +790,7 @@ export namespace RepeatScroll {
         node_append(fragment, r)
         this.last_index++
       }
-      node_append(this.node, fragment)
+      node_append(this.__list.parentNode!, fragment, this.__list.end)
       this.lst = this.real_lst.slice(0, this.last_index)
       return true
     }
@@ -850,12 +850,10 @@ export namespace RepeatScroll {
       node_on_connected(node, () => this.connected())
       node_on_disconnected(node, () => this.disconnected())
 
-      const shadow = node.attachShadow({ mode: "open" })
       const st = this.instersector.style
       st.width = "0px"
       st.height = "0px"
-      shadow.appendChild(document.createElement("slot"))
-      shadow.appendChild(this.instersector)
+      node_append(this.__suffix.parentNode!, this.instersector, this.__suffix.end?.nextSibling)
 
       return node
     }
