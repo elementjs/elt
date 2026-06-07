@@ -4,7 +4,9 @@
 import { o } from "./observable"
 
 import {
+  CommentHolder,
   node_append,
+  node_do_disconnect,
   node_observe,
   node_on_connected,
   node_on_disconnected,
@@ -281,11 +283,9 @@ export namespace Repeat {
     T[] | null | undefined
   >
 
-  export interface RepeatItemElement<Obs extends RepeatedObservable<any>>
-    extends HTMLElement {
-    [sym_obs]: RepeatObservable<Obs>
-    nextSibling: RepeatItemElement<Obs> | null
-    previousSibling: RepeatItemElement<Obs> | null
+  export class RepeatItemElement<Obs extends RepeatedObservable<any>>
+    extends CommentHolder {
+    [sym_obs]!: RepeatObservable<Obs>
   }
 
   /** A special observable that is not a combined one to prevent unneeded updates when setting a property of the observed array.
@@ -334,7 +334,7 @@ export namespace Repeat {
       ? o.Observable<ItemType<Obs>>
       : o.ReadonlyObservable<ItemType<Obs>>,
     idx: o.IReadonlyObservable<number>
-  ) => Renderable<HTMLElement>
+  ) => Renderable<Node>
 
   export type ItemType<
     Obs extends o.IReadonlyObservable<any[] | null | undefined>
@@ -358,14 +358,13 @@ export namespace Repeat {
       | ((n: o.ReadonlyObservable<number>) => Renderable<HTMLElement>)
       | null = null
 
-    protected _suffix: Node | null = null
-
-    protected node_empty: Node | null = null
-    protected node_suffix: Node | null = null
-    protected node_prefix: Node | null = null
+    protected __prefix = new CommentHolder("repeat-prefix")
+    protected __empty = new CommentHolder("repeat-empty")
+    protected __suffix = new CommentHolder("repeat-suffix")
+    protected __list = new CommentHolder("repeat-list")
 
     protected lst: ItemType<Obs>[] = []
-    protected node!: HTMLElement
+    // protected node!: Comment
     observer: o.Observer<ItemType<Obs>[] | null | undefined> | null = null
     protected keyfn: ((item: ItemType<Obs>, index: number) => any) | null = null
     update_lock = o.exclusive_lock()
@@ -384,15 +383,25 @@ export namespace Repeat {
         throw new Error("Repeater needs a Render function")
       }
 
-      this.node = document.createElement("e-repeat")
+      // this.node = document.createComment("e-repeat")
+
+      node_append(parent, this.__prefix, refchild)
+      node_append(parent, this.__empty, refchild)
+      node_append(parent, this.__list, refchild)
+      node_append(parent, this.__suffix, refchild)
+      this.__prefix.updateRenderable(null)
+      this.__empty.updateRenderable(null)
+      this.__suffix.updateRenderable(null)
+      this.__list.updateRenderable(null)
 
       this.observer = node_observe(
-        this.node,
+        this.__list,
         this.obs,
-        (lst) => {
+        (lst, old_lst) => {
           this.update_lock(() => {
             this.updateChildrenPre(
-              (lst as unknown as NonNullable<o.ObservedType<Obs>>) ?? []
+              (lst as unknown as NonNullable<o.ObservedType<Obs>>) ?? [],
+              (old_lst as unknown as NonNullable<o.ObservedType<Obs>>) ?? []
             )
           })
           // this.lst = lst ?? []
@@ -401,7 +410,6 @@ export namespace Repeat {
         { immediate: true }
       )
 
-      node_append(parent, this.node, refchild)
     }
 
     RenderEach(fn: RenderItemFn<Obs>) {
@@ -432,47 +440,32 @@ export namespace Repeat {
       return this
     }
 
-    protected updateChildrenPre(new_lst: NonNullable<o.ObservedType<Obs>>) {
-      if (new_lst.length > 0) {
-        if (this.node_empty != null) {
-          node_remove(this.node_empty)
-          this.node_empty = null
+    protected updateChildrenPre(new_lst: NonNullable<o.ObservedType<Obs>>, old_lst: NonNullable<o.ObservedType<Obs>> | o.NoValue) {
+      if (new_lst.length > 0 && (old_lst === o.NoValue || old_lst.length === 0)) {
+        if (this.__empty.hasContent) {
+          this.__empty.empty()
         }
-        if (this.node_prefix == null && this.prefix != null) {
-          this.node_prefix = document.createElement("e-repeat-prefix")
-          node_append(this.node_prefix, this.prefix(this.obs))
-          node_append(this.node, this.node_prefix)
+        if (this.prefix != null) {
+          this.__prefix.updateRenderable(this.prefix(this.obs))
         }
-        if (this.node_suffix == null && this.suffix != null) {
-          this.node_suffix = document.createElement("e-repeat-suffix")
-          node_append(this.node_suffix, this.suffix(this.obs))
-          node_append(this.node, this.node_suffix)
+        if (this.suffix != null) {
+          this.__suffix.updateRenderable(this.suffix(this.obs))
         }
       }
       this.updateChildren(new_lst)
-      if (new_lst.length === 0) {
-        if (this.node_empty == null && this.on_empty) {
-          this.node_empty = document.createElement("e-repeat-empty")
-          node_append(this.node_empty, this.on_empty())
-          node_append(this.node, this.node_empty)
+      if (new_lst.length === 0 && (old_lst === o.NoValue || old_lst.length > 0)) {
+        if (this.on_empty) {
+          this.__empty.updateRenderable(this.on_empty())
         }
-        if (this.node_prefix != null) {
-          node_remove(this.node_prefix)
-          this.node_prefix = null
-        }
-        if (this.node_suffix != null) {
-          node_remove(this.node_suffix)
-          this.node_suffix = null
-        }
+        this.__prefix.empty()
+        this.__list.empty()
+        this.__suffix.empty()
       }
     }
 
     /** Compute the range of children that need to be updated */
     protected updateChildren(new_lst: NonNullable<o.ObservedType<Obs>>) {
       const keyfn = this.keyfn
-
-      let iter = this.node.firstChild as RepeatItemElement<Obs> | null
-      let end = this.node.lastChild as RepeatItemElement<Obs> | null
 
       const keys: any[] = new Array(new_lst.length)
       let key_map = new Map<any, number>()
@@ -483,44 +476,41 @@ export namespace Repeat {
         key_map.set(key, i)
       }
 
+      let iter = this.__list as RepeatItemElement<Obs> | null
+      let end = this.__list.end!.previousSibling as RepeatItemElement<Obs> | null
+
       let idx = 0
 
-      if (iter != null) {
-        while (iter != null && iter.tagName !== "E-REPEAT-ITEM") {
-          iter = iter.nextSibling
-        }
-
-        while (iter != null) {
-          const obs = iter[sym_obs]
+      // Start by figuring out at the beginning and the end what will not have to be touched
+      while (iter != null && iter !== end) {
+        const obs = iter[sym_obs]
+        if (obs != null) {
           let new_idx = key_map.get(obs.key)
           if (new_idx != null && new_idx === idx) {
             idx++
-            iter = iter.nextSibling
-            continue
+          } else {
+            break
           }
-          break
         }
+        iter = iter.nextSibling as RepeatItemElement<Obs> | null
       }
 
       let end_idx = new_lst.length
-      if (end != null) {
-        while (end != null && end.tagName !== "E-REPEAT-ITEM") {
-          end = end.previousSibling
-        }
-
-        while (end != null && end !== iter) {
-          const obs = end[sym_obs]
+      while (end != null && end !== iter) {
+        const obs = end[sym_obs]
+        if (obs != null) {
           let new_idx = key_map.get(obs.key)
           if (new_idx != null && new_idx === end_idx - 1) {
-            obs.o_prop.set(end_idx - 1)
+            obs.o_prop.set(end_idx - 1) // the list size may have changed, so we need to update the index
             end_idx--
-            end = end.previousSibling
             continue
+          } else {
+            break
           }
-          break
         }
-        end = end?.nextSibling ?? null
+        end = end.previousSibling as RepeatItemElement<Obs> | null
       }
+      end = (end?.nextSibling ?? null) as RepeatItemElement<Obs> | null
 
       if (idx > end_idx) {
         // We're _done_
@@ -529,25 +519,34 @@ export namespace Repeat {
 
       // After this, iter is on the first node that we don't know what to do with and end is where we will stop
 
-      let dead_nodes = new Set<RepeatItemElement<Obs>>()
-      let dead_nodes_iter = dead_nodes.values()
+      let dead_nodes = new Map<RepeatItemElement<Obs>, DocumentFragment>()
+      let dead_nodes_iter = dead_nodes.entries()
       let created = 0
 
       const reuse_dead_node = (
-        node: RepeatItemElement<Obs>,
         iter: Node | null,
         idx: number
       ) => {
+        let next = dead_nodes_iter.next()
+        if (next.done) {
+          return false
+        }
+        let [node, fragment] = next.value!
         dead_nodes.delete(node)
         const obs = node[sym_obs]
         obs.o_prop.set(idx)
         obs.key = keys[idx]
         obs.repeatSet(new_lst[idx])
         this.node_map.set(obs.key, node)
-        this.node.insertBefore(node, iter)
+        this.__list.parentNode!.insertBefore(fragment, iter)
       }
 
       do {
+        // position ourselves on the next iter
+        while (iter != null && iter !== end && iter[sym_obs] == null) {
+          iter = iter.nextSibling as RepeatItemElement<Obs> | null
+        }
+
         if (iter == null || iter === end || idx >= keys.length) {
           break
         }
@@ -560,16 +559,19 @@ export namespace Repeat {
           obs.o_prop.set(idx)
           obs.repeatSet(new_lst[idx])
           idx++
-          iter = iter.nextSibling
+          iter = iter.nextSibling as RepeatItemElement<Obs> | null
           continue
         }
 
         const new_idx = key_map.get(obs.key)
         if (new_idx == null) {
           // This node is dead, mark it as such
-          dead_nodes.add(iter)
+          let to_remove = iter
+          iter = iter.end!.nextSibling as RepeatItemElement<Obs> | null
+          let fr = document.createDocumentFragment()
+          to_remove.moveTo(fr)
+          dead_nodes.set(to_remove, fr)
           this.node_map.delete(obs.key)
-          iter = iter.nextSibling
           continue
         }
 
@@ -580,7 +582,7 @@ export namespace Repeat {
           const obs = prev[sym_obs]
           obs.o_prop.set(idx)
           obs.repeatSet(new_lst[idx])
-          this.node.insertBefore(prev, iter)
+          prev.moveTo(this.__list.parentNode!, iter)
           idx++ // it was found, so we can advance
           continue
         }
@@ -589,44 +591,48 @@ export namespace Repeat {
 
         if (dead_nodes.size > 0) {
           // Try to reuse a dead node
-          let node = dead_nodes_iter.next().value!
-          reuse_dead_node(node, iter, idx++)
+
+          reuse_dead_node(iter, idx++)
           continue
         }
 
         created++
         const nd = this.create(new_lst, key, idx)
         idx++
-        node_append(this.node, nd, iter)
+        nd.moveTo(this.__list.parentNode!, iter)
+        // node_append(this.node, nd, iter)
       } while (true)
 
       if (iter == null || iter === end) {
-        // We're at the end of what we had to handle, so we just create the remaining nodes
-        let next = dead_nodes_iter.next()
 
-        while (idx < end_idx && !next.done) {
-          reuse_dead_node(next.value, iter, idx++)
-          next = dead_nodes_iter.next()
+        while (idx < end_idx && dead_nodes.size > 0) {
+          reuse_dead_node(iter, idx++)
         }
 
         while (idx < end_idx) {
           const nd = this.create(new_lst, keys[idx], idx)
           idx++
-          node_append(this.node, nd, iter)
+          nd.moveTo(this.__list.parentNode!, iter)
+          // node_append(this.node, nd, iter)
         }
       } else if (idx >= end_idx) {
         // All the nodes we meant to create/insert are already there, so until iter is on end, the rest is dead nodes
         while (iter != null && iter !== end) {
           const obs = iter[sym_obs]
-          let nd = iter
-          iter = iter.nextSibling
-          this.node_map.delete(obs.key)
-          node_remove(nd)
+          if (obs != null) {
+            let nd = iter
+            const fragment = document.createDocumentFragment()
+            nd.moveTo(fragment)
+            dead_nodes.set(nd, fragment)
+            this.node_map.delete(obs.key)
+            node_remove(nd)
+          }
+          iter = iter.nextSibling as RepeatItemElement<Obs> | null
         }
       }
 
-      for (let dead of dead_nodes) {
-        node_remove(dead)
+      for (let dead of dead_nodes.values()) {
+        node_do_disconnect(dead)
       }
     }
 
@@ -642,10 +648,10 @@ export namespace Repeat {
       const o_prop_obs = o(index)
       const ob = new RepeatObservable(key, this, o_prop_obs)
 
-      const node = document.createElement(
-        "e-repeat-item"
-      ) as RepeatItemElement<Obs>
+      const fragment = document.createDocumentFragment()
+      const node = new RepeatItemElement<Obs>("e-repeat-item")
       node[sym_obs] = ob
+      node_append(fragment, node)
 
       const _sep = this.separator
       if (_sep && index > 0) {
@@ -655,7 +661,7 @@ export namespace Repeat {
         node.appendChild(sep)
       }
 
-      node_append(node, this.renderfn?.(ob as any, o_prop_obs))
+      node.updateRenderable(this.renderfn?.(ob as any, o_prop_obs))
       this.node_map.set(key, node)
       return node
     }
@@ -737,7 +743,8 @@ export namespace RepeatScroll {
 
     //
     protected override updateChildrenPre(
-      new_lst: NonNullable<o.ObservedType<Obs>>
+      new_lst: NonNullable<o.ObservedType<Obs>>,
+      old_lst: NonNullable<o.ObservedType<Obs>> | o.NoValue
     ): void {
       //
       this.real_lst = new_lst
@@ -749,7 +756,7 @@ export namespace RepeatScroll {
         )
         const lst = new_lst.slice(0, new_last_index)
         this.last_index = new_last_index
-        super.updateChildrenPre(lst as NonNullable<o.ObservedType<Obs>>)
+        super.updateChildrenPre(lst as NonNullable<o.ObservedType<Obs>>, old_lst)
 
         requestAnimationFrame(() => {
           if (
@@ -757,12 +764,12 @@ export namespace RepeatScroll {
             this.intersecting &&
             this.last_index < this.real_lst.length
           ) {
-            this.updateChildrenPre(new_lst)
+            this.updateChildrenPre(new_lst, old_lst)
           }
         })
       } else {
         const lst_update = new_lst.slice(0, this.last_index)
-        super.updateChildrenPre(lst_update as NonNullable<o.ObservedType<Obs>>)
+        super.updateChildrenPre(lst_update as NonNullable<o.ObservedType<Obs>>, old_lst)
       }
     }
 
@@ -790,9 +797,9 @@ export namespace RepeatScroll {
 
     connected() {
       // do not process this if the node is not inserted.
-      if (!this.node.isConnected) return
+      if (!this.__list.isConnected) return
 
-      let scrollable_parent = this.node.parentElement!
+      let scrollable_parent = this.__list.parentElement!
       while (scrollable_parent) {
         // Vérifier le style calculé de l'élément
         const st = getComputedStyle(scrollable_parent)
@@ -839,7 +846,7 @@ export namespace RepeatScroll {
 
     override [sym_insert](parent: Node, refchild: Node | null) {
       super[sym_insert](parent, refchild)
-      const node = this.node
+      const node = this.__list
       node_on_connected(node, () => this.connected())
       node_on_disconnected(node, () => this.disconnected())
 

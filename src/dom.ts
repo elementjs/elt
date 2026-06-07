@@ -47,11 +47,25 @@ export class CommentHolder extends Comment {
         node_remove(this.nextSibling)
       }
     } else {
-      this.end = document.createComment(this.textContent ?? "!")
+      this.end = document.createComment((this.textContent ?? "") + " end")
       node_append(parent, this.end, this.nextSibling)
     }
 
     node_append(parent, renderable, this.nextSibling)
+  }
+
+  empty() {
+    if (this.end == null || this.end.parentNode !== this.parentNode) {
+      return
+    }
+    const end = this.end
+    while (this.nextSibling != null && this.nextSibling !== end) {
+      node_remove(this.nextSibling)
+    }
+  }
+
+  get hasContent() {
+    return this.nextSibling !== this.end
   }
 
   /** Remove the node and its handled content from the DOM */
@@ -69,20 +83,22 @@ export class CommentHolder extends Comment {
 
   /** Move this node and its contents to a new destination */
   moveTo(parent: Node, refchild: Node | null = null) {
-    parent.insertBefore(this, refchild)
+    let iter = this as Node | null
+    let next: Node | null = this.nextSibling as Node | null
+
+    node_append(parent, this, refchild)
+
     const end = this.end
     if (end == null) {
       return
     }
-    let iter = this as Node | null
-    let next: Node | null = this.nextSibling as Node | null
     do {
       iter = next
       if (iter == null) {
         break
       }
       next = iter.nextSibling
-      parent.insertBefore(iter, refchild)
+      node_append(parent, iter, refchild)
       if (iter === end) {
         break
       }
