@@ -33,7 +33,8 @@ export class Route<T extends ServiceParams = {}> {
         delete pr[rep.slice(1)]
         return res
       })
-      return `${window.location.origin}${window.location.pathname}#${replaced}?${Object.entries(pr).map(([key, value]) => `${key}=${_encode(value)}`).join("&")}`
+      const query_part = Object.entries(pr).map(([key, value]) => `${key}=${_encode(value)}`).join("&")
+      return `${window.location.origin}${window.location.pathname}#${replaced}${query_part.length > 0 ? "?" + query_part : ""}`
     }
 
     regexp: RegExp | null = null
