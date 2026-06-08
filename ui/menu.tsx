@@ -49,4 +49,11 @@ css`menu {
     border: none;
     text-align: start;
   }
+
+  & > :is(e-box) button {
+    padding: 0;
+    height: 100%;
+    width: 24px;
+    border: none;
+  }
 }`

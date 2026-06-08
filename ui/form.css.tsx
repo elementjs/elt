@@ -296,13 +296,15 @@ button[e-variant="full"] {
 }
 
 label:has(> input[type="checkbox"][e-variant="toggle"]:not(:checked)) {
-  border: 1px solid ${colors.tint.mid};
-  color: ${colors.tint.mid};
-  background: ${colors.bg};
+  border: 1px solid ${colors.text.mid};
+  background-color: ${colors.bg};
+  color: ${colors.text};
+  --e-color-shadow-raise: rgba(255, 255, 255, 0.2);
+  --e-color-shadow-drop: rgba(0, 0, 0, 0.2);
 
   box-shadow:
-    inset 1px 1px 0 var(--e-color-shadow-drop),
-    inset -1px -1px 0 var(--e-color-shadow-raise),
+    inset 0px 1px 0 var(--e-color-shadow-drop),
+    inset 0px -1px 0 var(--e-color-shadow-raise);
 }
 
 label:has(> input[type="checkbox"][e-variant="toggle"]:checked) {

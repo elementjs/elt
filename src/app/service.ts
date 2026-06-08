@@ -26,11 +26,11 @@ export function Service<
 export function ServiceFactory<O, S extends ServiceParams = {}>(
   init: (srv: ServiceHelper<S>) => Promise<O>
 ) {
-  class ServiceObject extends ServiceClass<S> {
+  class ServiceObject extends ServiceResult<S> {
   }
   ServiceObject.prototype[sym_service_preinit] = init
 
-  return ServiceObject as new (...a: any[]) => (ServiceClass<S> & {[name in keyof O]: O[name]})
+  return ServiceObject as new (...a: any[]) => (ServiceResult<S> & {[name in keyof O]: O[name]})
 }
 
 
@@ -59,7 +59,7 @@ export function view(
     target[sym_view_fns].push(descriptor.value)
   } else {
     let _prop = prop as ClassMethodDecoratorContext<any, () => Renderable>
-    _prop.addInitializer(function (this: ServiceClass) {
+    _prop.addInitializer(function (this: ServiceResult) {
       this.srv.views.set(
         _prop.name as string,
         _prop.access.get(this).bind(this)
@@ -82,12 +82,12 @@ export type ServiceBuilder<S, T extends ServiceParams = {}> =
 
 export type ServiceBuilderFunction<S, T extends ServiceParams = {}> = ((helper: ServiceHelper<T>) => Promise<S>)
 
-export type ServiceBuilderFactoriedObject<S extends ServiceClass<T>, T extends ServiceParams = {}> = {
+export type ServiceBuilderFactoriedObject<S extends ServiceResult<T>, T extends ServiceParams = {}> = {
   // [sym_service_preinit]: (srv: ServiceHelper<T>) => Promise<any>
   new (...a: any[]): S
 }
 export type ServiceBuilderConcreteType<S, T extends ServiceParams = {}> =
-  | S extends ServiceClass<any> ? ServiceBuilderFactoriedObject<S, T> : never
+  | S extends ServiceResult<any> ? ServiceBuilderFactoriedObject<S, T> : never
   // | typeof ServiceClass<T>
   | ServiceBuilderFunction<S, T>
 
@@ -105,7 +105,7 @@ export async function _get_builder<S, T extends ServiceParams = {}>(
   return builder as ServiceBuilderConcreteType<S, T>
 }
 
-function _is_service_class(kls: any): kls is typeof ServiceClass {
+function _is_service_class(kls: any): kls is typeof ServiceResult {
   return typeof (kls as any)?.prototype?.[sym_service_preinit] == "function"
 }
 
@@ -135,7 +135,7 @@ export const sym_service_preinit = Symbol("service_preinit")
 /**
  * Base class for class-based services when not using any dependencies
  */
-export class ServiceClass<T extends ServiceParams = {}> {
+export class ServiceResult<T extends ServiceParams = {}> {
   [sym_service_preinit](srv: ServiceHelper<T>): Promise<any> { return {} as any }
 
   constructor(public srv: ServiceHelper<T>, public init_result: unknown) {
