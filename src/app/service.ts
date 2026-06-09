@@ -205,9 +205,9 @@ export class ServiceHelper<T extends ServiceParams = {}> extends o.ObserverHolde
    */
   areParamsInvalidating(params: ServiceParams) {
     if (this.params_deps.size > 0) {
-      for (let [k, v] of Object.entries(params)) {
-        const dep = this.params_deps.get(k)
-        if (dep !== undefined && v !== dep) {
+      for (let [k, v] of this.params_deps.entries()) {
+        let actual = params[k as keyof ServiceParams]
+        if (v !== actual) {
           return true
         }
       }

@@ -131,7 +131,6 @@ export class Route<T extends ServiceParams = {}> {
     async activate(..._params: {} extends T ? [] | [T] : [T]): Promise<void> {
       const params: T = Object.assign(
         {},
-        this.router.app.o_params.get(),
         _params[0] as T
       )
 

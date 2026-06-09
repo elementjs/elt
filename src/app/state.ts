@@ -138,11 +138,9 @@ export class State {
   /** Activate a service */
   async activate(
     builder: ServiceBuilder<any>,
-    params: ServiceParams | undefined
+    params: ServiceParams = {}
   ) {
-    if (params) {
-      this.params.set(params)
-    }
+    this.params.set(params)
 
     let persistents = new Set<ServiceHelper>()
 
@@ -155,6 +153,7 @@ export class State {
     }
 
     this.active = await this.getService(builder)
+    console.log([...this.services.keys().map(s => s.name)])
     for (let s of persistents) {
       this.collectViews(s)
     }
