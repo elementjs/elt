@@ -78,7 +78,8 @@ export class Router {
           route = rt
           const groups = match.groups
           for (let name in groups) {
-            route_vars[name] = _decode(groups[name])
+            const dec = decodeURIComponent(groups[name])
+            route_vars[name] = _decode(dec)
           }
           break
         }
