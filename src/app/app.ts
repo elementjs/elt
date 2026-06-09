@@ -234,10 +234,7 @@ export class App {
 
   /** Display a view, optionally wrapping it with another function */
   DisplayView(view_name: string, cbk?: (view: () => Renderable) => Renderable): o.ReadonlyObservable<Renderable> {
-    const res = this.o_views
-      .tf((views) => {
-        return views.get(view_name)
-      })
+    const res = this.o_views.key(view_name)
       .tf((viewfn) => {
         if (cbk != null && viewfn != null) {
           return cbk(viewfn)
