@@ -195,11 +195,7 @@ export class ServiceHelper<T extends ServiceParams = {}> extends o.ObserverHolde
       ? [] | [{}] | [TP]
       : [TP]
   ): Promise<void> {
-    const params: any = {}
-    for (let [key, value] of Object.entries(this.state.params)) {
-      params[key] = value
-    }
-    Object.assign(params, args[0])
+    const params: any = Object.assign({}, this.state.params.get(), args[0])
     return rt.activate(params as any)
   }
 
@@ -211,7 +207,7 @@ export class ServiceHelper<T extends ServiceParams = {}> extends o.ObserverHolde
     if (this.params_deps.size > 0) {
       for (let [k, v] of Object.entries(params)) {
         const dep = this.params_deps.get(k)
-        if (dep !== null && v !== dep) {
+        if (dep !== undefined && v !== dep) {
           return true
         }
       }

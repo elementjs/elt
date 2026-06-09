@@ -70,10 +70,9 @@ export class Route<T extends ServiceParams = {}> {
           }
         }
 
-        hash = hash.replace(/:[a-zA-Z0-9_$]+\b/g, "~u")
-        if (hash.includes("~u")) {
-          throw new Error("service params had an undefined value")
-        }
+        hash = hash.replace(/:[a-zA-Z0-9_$]+\b/g, not_found => {
+          throw new Error(`${not_found} was not provided in the route params`)
+        })
 
         // if there are variables, add them
         if (entries.length > 0) {
