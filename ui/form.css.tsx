@@ -375,6 +375,29 @@ e-button-box {
     }
   }
 }
+
+input[type="color"] {
+  /* Size */
+  width: 1em;
+  height: 1em;
+
+  /* Remove default border/background */
+
+  background: none;
+  padding: 0;
+  cursor: pointer;
+  border-radius: 50%; /* makes it circular */
+}
+
+input[type="color"]::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+
+input[type="color"]::-webkit-color-swatch {
+  border: 1px solid ${theme.colors.text};
+  border-radius: 50%; /* match parent shape */
+}
+
 }`
 
 declare module "elt" {
