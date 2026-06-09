@@ -119,6 +119,7 @@ export class State {
       srv.state = this // update it because otherwise it won't be
       srv.startObservers()
     }
+    this.previous_state = null
   }
 
   /** Call deinits on the services that didn't make the cut. */
@@ -143,7 +144,20 @@ export class State {
       this.params.set(params)
     }
 
+    let persistents = new Set<ServiceHelper>()
+
+    for (let srv of this.previous_state?.services.values() ?? []) {
+      if (srv.is_persistent && !srv.areParamsInvalidating(params ?? {})) {
+        // keep a persistent service that is not invalidated
+        persistents.add(srv)
+        this.addServiceDep(srv)
+      }
+    }
+
     this.active = await this.getService(builder)
+    for (let s of persistents) {
+      this.collectViews(s)
+    }
     this.collectViews(this.active)
   }
 }

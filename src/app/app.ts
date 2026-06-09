@@ -194,13 +194,13 @@ export class App {
           })
         }
 
-        if (document.startViewTransition && !document.activeViewTransition) {
-          document.startViewTransition(() => {
-            return _commit()
-          })
-        } else {
-          _commit()
-        }
+        // if (document.startViewTransition && !document.activeViewTransition) {
+        //   document.startViewTransition(() => {
+        //     return _commit()
+        //   })
+        // } else {
+        _commit()
+        // }
 
         // whoever gets here is the route that "won" if we got here through a route
       }
