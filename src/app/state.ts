@@ -153,7 +153,6 @@ export class State {
     }
 
     this.active = await this.getService(builder)
-    console.log([...this.services.keys().map(s => s.name)])
     for (let s of persistents) {
       this.collectViews(s)
     }
