@@ -249,17 +249,21 @@ export class Color<Colors extends BaseColorScheme> {
 
   }
 
+
+
+  @memoize
+  get css_as_tint() {
+    return `--e-color-tint: var(--e-color-${this.name});
+    --e-light-color-tint: var(--e-light-color-${this.name});
+    --e-dark-color-tint: var(--e-dark-color-${this.name});`
+  }
+
   /** Change the tint to be this color instead. This is a class name. */
-  protected _as_tint_class: string | null = null
+  @memoize
   get as_tint() {
-    if (this._as_tint_class == null) {
-      this._as_tint_class = css`.e-color-${this.name}-tint {
-        --e-color-tint: var(--e-color-${this.name});
-        --e-light-color-tint: var(--e-light-color-${this.name});
-        --e-dark-color-tint: var(--e-dark-color-${this.name});
-      }`
-    }
-    return this._as_tint_class
+    return css`.e-color-${this.name}-tint {
+      ${this.css_as_tint}
+    }`
   }
 
   /**
