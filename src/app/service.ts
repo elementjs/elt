@@ -8,8 +8,8 @@ const sym_view_fns = Symbol("view_fns")
 
 
 export function Service<
-  P extends ServiceParams = {},
-  O extends { [name: string]: ServiceBuilder<any, P> } = {},
+  P extends ServiceParams,
+  O extends { [name: string]: ServiceBuilder<any, P> },
 >(maker?: O | ((srv: ServiceHelper<P>) => O), _params?: P) {
   return ServiceFactory(async function(srv: ServiceHelper<P>) {
     maker ??= {} as O
@@ -245,8 +245,8 @@ export class ServiceHelper<T extends ServiceParams = {}> extends o.ObserverHolde
     return this.state.params.p(name as string) as o.Observable<T[K]>
   }
 
-  DisplayView(view_name: string) {
-    return this.state.app.DisplayView(view_name)
+  DisplayView(view_name: string, cbk?: (view: () => Renderable) => Renderable) {
+    return this.state.app.DisplayView(view_name, cbk)
   }
 
   /**

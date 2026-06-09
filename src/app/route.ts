@@ -16,11 +16,15 @@ export class Route<T extends ServiceParams = {}> {
     ) {
       if (path != null) {
         let def = path.replace(/:[a-zA-Z_$0-9]+\b/g, (rep) => {
-          return `(?<${rep.slice(1)}>[^\b]+)`
+          let param = rep.slice(1)
+          this.route_params.add(param)
+          return `(?<${param}>[^\b]+)`
         })
         this.regexp = new RegExp("^" + def + "$")
       }
     }
+
+    route_params = new Set<string>()
 
     url() {
       return `${window.location.origin}${window.location.pathname}#${this.path}`
