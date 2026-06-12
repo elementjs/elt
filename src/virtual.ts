@@ -56,16 +56,21 @@ export class VirtualScroller<O extends o.RO<any[]>>
 
   /** The parent element that has overflow. Is usually automatically detected */
   overflow_parent: HTMLElement = null!
+  /** The parent element that is a child in the overflow parent */
+  prev_parent: HTMLElement = null!
 
   o_padding_top = o(0)
   o_padding_bottom = o(0)
 
-  oo_padding = o
-    .merge({ top: this.o_padding_top, bot: this.o_padding_bottom })
-    .tf((st) => ({
-      paddingTop: `${st.top}px`,
-      paddingBottom: `${st.bot}px`,
-    }))
+  padder_top = e("div", { style: { paddingTop: this.o_padding_top.tf((st) => `${st??0}px`) } })
+  padder_bottom = e("div", { style: { paddingBottom: this.o_padding_bottom.tf((st) => `${st??0}px`) } })
+
+  // oo_padding = o
+  //   .merge({ top: this.o_padding_top, bot: this.o_padding_bottom })
+  //   .tf((st) => ({
+  //     paddingTop: `${st.top}px`,
+  //     paddingBottom: `${st.bot}px`,
+  //   }))
 
   /** The container */
   container!: HTMLElement // <e-virtual-repeat style={this.oo_padding}/> as HTMLElement
@@ -101,6 +106,7 @@ export class VirtualScroller<O extends o.RO<any[]>>
   /** If parent is not provided, we look for it recursively */
   findNearestParent() {
     // Find our parent element, the one with the
+    let prev_parent: HTMLElement | null = this.container
     let iter: HTMLElement | null = this.container //.parentElement
     while (iter && iter !== document.body) {
       const st = getComputedStyle(iter)
@@ -109,15 +115,18 @@ export class VirtualScroller<O extends o.RO<any[]>>
 
       if (v === "auto" || v === "scroll") {
         this.overflow_parent = iter
+        this.prev_parent = prev_parent!
         break
       }
 
       v = st.getPropertyValue("overflow-y")
       if (v === "auto" || v === "scroll") {
         this.overflow_parent = iter
+        this.prev_parent = prev_parent!
         break
       }
 
+      prev_parent = iter
       iter = iter.parentElement
     }
   }
@@ -405,6 +414,7 @@ export class VirtualScroller<O extends o.RO<any[]>>
 
   /** Insert our scroller */
   [sym_insert](parent: HTMLElement, refchild: Node | null): void {
+
     if (!this.container) {
       this.container = e("e-repeat")
       node_observe(this.container, this.oo_padding, (padding) => {
@@ -419,6 +429,9 @@ export class VirtualScroller<O extends o.RO<any[]>>
     node_on_connected(this.container, () => {
       if (this.overflow_parent == null) {
         this.findNearestParent()
+        node_append(this.overflow_parent, this.padder_top, this.prev_parent)
+        node_append(this.overflow_parent, this.padder_bottom, this.prev_parent.nextElementSibling)
+        console.log(this.prev_parent, this.overflow_parent)
       }
 
       if (this.overflow_parent == null) {
