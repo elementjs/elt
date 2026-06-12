@@ -1,15 +1,9 @@
-import { css } from "./css"
 import { node_append } from "./dom"
 import { sym_elt_init } from "./symbols"
 
 import type { Attrs, ElementMap, EmptyAttributes, Renderable } from "./types"
 
 ////////////////////////////////////////////////////////
-
-css`e-obs,e-if,e-switch,e-repeat,e-repeat-scroll,e-virtual-scroll,e-repeat-item,e-repeat-separator,e-repeat-prefix,e-repeat-suffix,e-repeat-empty,e-app,e-app-view,e-lang,e-unpromise {
-  display: contents
-}
-`
 
 /** A RefChild given to ElementClassFn functions to insert their content */
 export class RefChild extends Comment {
