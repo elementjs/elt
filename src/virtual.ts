@@ -6,6 +6,7 @@ import {
   CommentHolder,
   node_add_event_listener,
   node_append,
+  node_do_disconnect,
   node_observe,
   node_on_connected,
   node_on_disconnected,
@@ -179,7 +180,9 @@ export class VirtualScroller<O extends o.RO<any[]>>
   }
 
   protected shelve_item(item: VirtualItem) {
-    item.moveTo(document.createDocumentFragment())
+    let fr = document.createDocumentFragment()
+    item.moveTo(fr)
+    node_do_disconnect(fr)
     this.pool.push(item)
   }
 
