@@ -183,6 +183,45 @@ export class VirtualScroller<O extends o.RO<any[]>>
     this.pool.push(item)
   }
 
+  protected clearRendered() {
+    let item = this.first_item()
+    while (item != null) {
+      this.rendered.delete(item._idx.get())
+      this.shelve_item(item)
+      item = this.first_item()
+    }
+    this.pos_start = 0
+    this.pos_end = 0
+  }
+
+  /** Rough index from scroll offset; item_size is only an estimate */
+  protected estimateIndexFromScroll(scroll_top: number) {
+    const count = this.obs.get().length
+    if (count === 0) {
+      return 0
+    }
+    return Math.max(
+      0,
+      Math.min(count - 1, Math.floor(scroll_top / this.item_size))
+    )
+  }
+
+  protected jump_threshold() {
+    return Math.max(this.threshold, this.overflow_parent.clientHeight)
+  }
+
+  /** True when the rendered window no longer overlaps the viewport */
+  protected viewportMismatch(
+    region: DOMRect,
+    bounds_first: { top: number; bottom: number },
+    bounds_last: { top: number; bottom: number }
+  ) {
+    return (
+      bounds_last.bottom < region.top - this.threshold ||
+      bounds_first.top > region.bottom + this.threshold
+    )
+  }
+
   constructor(
     obs: O,
     public renderfn?: (
@@ -197,41 +236,27 @@ export class VirtualScroller<O extends o.RO<any[]>>
     this.obs = o(obs as any) as o.Observable<O[]>
   }
 
-  /** Re-render the viewport by trying to set the nth element around the top of the screen */
+  /** Re-render the viewport around index `n`, replacing whatever was rendered */
   setPosition(n: number) {
     const count = this.obs.get().length
     if (count === 0 || this.overflow_parent == null) {
-      if (this.pos_end !== this.pos_start) {
-        this.pos_start = 0
-        this.pos_end = 0
-      }
+      this.clearRendered()
       return
     }
 
+    this.clearRendered()
     this.pos_start = Math.max(n, 0)
     this.pos_end = this.pos_start
+    this.o_padding_top.set(this.pos_start * this.item_size)
 
-    // let index_ritem: RItem
-
-    // The great question : should we reuse items that are already correctly rendered ?
-
-    //
     const viewport_height = this.overflow_parent.clientHeight
-
     const theo_nb_items = Math.ceil(viewport_height / this.item_size + 10)
-    const to_end = Math.min(count, this.pos_start + theo_nb_items)
-    // this.pos_end = to_end
-
-    // we should probably figure out if we need to shelve ritems
+    const to_end = Math.min(count - 1, this.pos_start + theo_nb_items)
 
     for (let i = this.pos_start; i <= to_end; i++) {
       this.append()
     }
 
-    // Before calling eval(), we want to reposition the viewport to indeed place the item whose position we wanted to attain to the desired place.
-    // Right now, we only do "top"
-
-    // We end up calling eval() to make sure whatever we rendered actually makes sense
     this.eval()
   }
 
@@ -251,6 +276,18 @@ export class VirtualScroller<O extends o.RO<any[]>>
       /** Bounds of the bottom-most element that was rendered */
       const bounds_last = this.getBounds(last)
 
+      const region = this.overflow_parent.getBoundingClientRect()
+
+      if (this.viewportMismatch(region, bounds_first, bounds_last)) {
+        const idx = this.estimateIndexFromScroll(
+          this.overflow_parent.scrollTop
+        )
+        if (idx < this.pos_start || idx >= this.pos_end) {
+          this.setPosition(idx)
+          return
+        }
+      }
+
       if (this.pos_end !== this.pos_start) {
         const new_item_size =
           (bounds_last.bottom - bounds_first.top) /
@@ -260,8 +297,6 @@ export class VirtualScroller<O extends o.RO<any[]>>
       }
 
       const scrolling_upwards = this.scroll_direction < 0
-
-      const region = this.overflow_parent.getBoundingClientRect()
 
       let modif = false
       if (
@@ -513,10 +548,20 @@ export class VirtualScroller<O extends o.RO<any[]>>
           }
 
           const st = this.overflow_parent.scrollTop
+          const prev_top = this.scroll_last_top
+
+          if (prev_top >= 0) {
+            const delta = st - prev_top
+            if (Math.abs(delta) > this.jump_threshold()) {
+              this.scroll_direction = delta
+              this.scroll_last_top = st
+              this.setPosition(this.estimateIndexFromScroll(st))
+              return
+            }
+          }
 
           if (this.scroll_last_top !== st) {
-            // console.log(st, this.scroll_last_top, this.scroll_direction)
-            this.scroll_direction = st - this.scroll_last_top
+            this.scroll_direction = st - prev_top
             this.scroll_last_top = st
           }
 
