@@ -109,7 +109,7 @@ export namespace o {
    */
   export type RevertFn<A, B> = (
     nval: B,
-    oval: B | NoValue,
+    oval: B,
     curval: A
   ) => A | NoValue
 
@@ -564,10 +564,10 @@ export namespace o {
         },
         (newv, old, [curr, conv, rev]) => {
           if (typeof rev === "function")
-            return [rev(newv, old, curr), NoValue, NoValue] as const
+            return [rev(newv, old as B, curr), NoValue, NoValue] as const
           if (typeof conv === "function")
             return [NoValue, NoValue, NoValue] as const // this means the set is being silently ignored. should it be an error ?
-          const new_orig = (conv as Converter<A2, B>).revert(newv, old, curr)
+          const new_orig = (conv as Converter<A2, B>).revert(newv, old as B, curr)
           return [new_orig, NoValue, NoValue] as const
         }
       )
