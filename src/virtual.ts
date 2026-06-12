@@ -219,9 +219,35 @@ export class VirtualScroller<O extends o.RO<any[]>>
     bounds_first: { top: number; bottom: number },
     bounds_last: { top: number; bottom: number }
   ) {
+    if (!this.boundsValid(bounds_first) || !this.boundsValid(bounds_last)) {
+      return false
+    }
     return (
       bounds_last.bottom < region.top - this.threshold ||
       bounds_first.top > region.bottom + this.threshold
+    )
+  }
+
+  protected boundsValid(bounds: {
+    top: number
+    bottom: number
+    height?: number
+  }) {
+    return (
+      bounds.top !== Infinity &&
+      bounds.bottom !== -Infinity &&
+      (bounds.height == null || bounds.height > 0)
+    )
+  }
+
+  /** Rendered content does not yet reach the bottom of the scrollport */
+  protected needsFillBelow(
+    region: DOMRect,
+    bounds_last: { top: number; bottom: number; height?: number }
+  ) {
+    return (
+      this.boundsValid(bounds_last) &&
+      bounds_last.bottom < region.bottom + this.threshold
     )
   }
 
@@ -281,6 +307,15 @@ export class VirtualScroller<O extends o.RO<any[]>>
 
       const region = this.overflow_parent.getBoundingClientRect()
 
+      if (
+        !this.boundsValid(bounds_first) ||
+        !this.boundsValid(bounds_last)
+      ) {
+        // Layout may not be ready on the first frame (popup open, tall viewport).
+        this.eval()
+        return
+      }
+
       if (this.viewportMismatch(region, bounds_first, bounds_last)) {
         const idx = this.estimateIndexFromScroll(
           this.overflow_parent.scrollTop
@@ -311,9 +346,9 @@ export class VirtualScroller<O extends o.RO<any[]>>
       }
 
       if (
-        !scrolling_upwards &&
+        this.scroll_direction >= 0 &&
         this.pos_end < this.obs.get().length &&
-        region.bottom + this.threshold >= bounds_last.top
+        this.needsFillBelow(region, bounds_last)
       ) {
         if (this.append()) {
           modif = true
@@ -531,6 +566,7 @@ export class VirtualScroller<O extends o.RO<any[]>>
             ? this.container.end!.nextSibling
             : this.prev_parent.nextSibling
         node_append(this.overflow_parent, this.padder_bottom, padder_bottom_ref)
+        this._observer.observe(this.overflow_parent)
       }
 
       if (this.overflow_parent == null) {
