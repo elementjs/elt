@@ -529,6 +529,7 @@ export class VirtualScroller<O extends o.RO<any[]>>
   protected next(idx: number) {
     let r = this.allow_reuse ? this.pool.pop() : null
 
+    // Important, CommentHolder needs a parent to insert its end, so we have to prepare it like that.
     const fr = document.createDocumentFragment()
     if (r == null) {
       r = new VirtualItem("virtual-scroll-item " + idx)
