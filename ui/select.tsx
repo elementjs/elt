@@ -1,8 +1,8 @@
-import { type Attrs, o, type Renderable, $click, css, Repeat, $scrollable, VirtualScroll } from "elt"
+import { $click, $scrollable, type Attrs, css, o, type Renderable, VirtualScroll } from "elt"
+import { CaretDown, Check } from "./icons"
 import { popup } from "./popup"
 import { theme } from "./theme"
 const colors = theme.colors
-import { CaretDown, Check } from "./icons"
 
 /**
  * A select component that does not use the native select element for custom rendering of options.

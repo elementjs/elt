@@ -130,75 +130,6 @@ css`@layer typography {
       margin-block: 2em;
     }
 
-    & e-box[table-container] {
-      border-radius: ${theme.settings.borderRadius};
-      border: 1px solid ${theme.colors.text.mid};
-      max-width: 100%;
-      width: fit-content;
-
-      & thead tr:has(th) {
-        position: sticky;
-        top: 0;
-      }
-    }
-
-    /* ── Table ─────────────────────────────────────────────── */
-    & table {
-      width: fit-content;
-      border-collapse: separate;
-      border: none;
-      border-spacing: 0;
-
-      tbody, thead, th, td, tr {
-        border: none;
-      }
-
-      font-size: 0.8em;
-
-      /* reset buttons and inputs to be the whole cell */
-      & :is(th, td):has(> :is(button, label, input):first-child:last-child) {
-        padding: 0;
-        & :first-child {
-          border: none;
-          border-radius: 0;
-        }
-      }
-
-      & > thead > tr:first-child > :is(th, td):first-child {
-        border-top-left-radius: ${theme.settings.borderRadius};
-      }
-      & > thead > tr:first-child > :is(th, td):last-child {
-        border-top-right-radius: ${theme.settings.borderRadius};
-      }
-
-      & > :is(tbody:last-child, tfoot) > tr:last-child > :is(th, td):first-child {
-        border-bottom-left-radius: ${theme.settings.borderRadius};
-      }
-      & > :is(tbody:last-child, tfoot) > tr:last-child > :is(th, td):last-child {
-        border-bottom-right-radius: ${theme.settings.borderRadius};
-      }
-
-      & > :is(thead, tr:first-child) :is(th, td) {
-        border-top: 1px solid ${theme.colors.text.light};
-      }
-
-      & :is(th, td):last-child {
-        border-right: 1px solid ${theme.colors.text.light};
-      }
-
-      :is(th, td) {
-        border-left: 1px solid ${theme.colors.text.light};
-        border-bottom: 1px solid ${theme.colors.text.light};
-        padding: ${theme.settings.paddingCellVertical} ${theme.settings.paddingCellHorizontal};
-        text-align: start;
-      }
-
-      & th {
-        background: ${theme.colors.text.ultra_light};
-        font-weight: bolder;
-      }
-    }
-
     /* ── Figure / caption ──────────────────────────────────── */
     & figure {
       margin-inline: 0;
@@ -249,4 +180,88 @@ css`@layer typography {
     }
     & s { opacity: 0.6; }
   }
+
+  /* ── Table ─────────────────────────────────────────────── */
+  :is(e-box[table-container], e-box[typographic]) table {
+    width: fit-content;
+    border-collapse: separate;
+    border: none;
+    border-spacing: 0;
+
+    tbody, thead, th, td, tr {
+      border: none;
+    }
+
+    font-size: 0.8em;
+
+    /* reset buttons and inputs to be the whole cell */
+    & :is(th, td):has(> :is(button, label, input):first-child:last-child) {
+      padding: 0;
+      & :first-child {
+        border: none;
+        border-radius: 0;
+      }
+    }
+
+    & > thead > tr:first-child > :is(th, td):first-child {
+      border-top-left-radius: ${theme.settings.borderRadius};
+    }
+    & > thead > tr:first-child > :is(th, td):last-child {
+      border-top-right-radius: ${theme.settings.borderRadius};
+    }
+
+    & > :is(tbody:last-child, tfoot) > tr:last-child > :is(th, td):first-child {
+      border-bottom-left-radius: ${theme.settings.borderRadius};
+    }
+    & > :is(tbody:last-child, tfoot) > tr:last-child > :is(th, td):last-child {
+      border-bottom-right-radius: ${theme.settings.borderRadius};
+    }
+
+    & > :is(thead, tr:first-child) :is(th, td) {
+      border-top: 1px solid ${theme.colors.text.light};
+    }
+
+    & :is(th, td):last-child {
+      border-right: 1px solid ${theme.colors.text.light};
+    }
+
+    :is(th, td) {
+      border-left: 1px solid ${theme.colors.text.light};
+      border-bottom: 1px solid ${theme.colors.text.light};
+      padding: ${theme.settings.paddingCellVertical} ${theme.settings.paddingCellHorizontal};
+      text-align: start;
+    }
+
+    & th {
+      background: ${theme.colors.text.ultra_light};
+      font-weight: bolder;
+    }
+  }
+
+  e-box[table-container] {
+    border-radius: ${theme.settings.borderRadius};
+    /* Clip the scrollbar to the rounded corners. 1px is the border width. */
+    clip-path: inset(0 round ${theme.settings.borderRadius});
+
+    outline: 2px solid ${theme.colors.text.mid};
+    max-width: 100%;
+    width: fit-content;
+
+    min-height: 0; /* necessary to allow shrinking */
+    flex: 0 1 auto; /* shrink to fit, but don't grow ! */
+
+    & thead tr:has(th) {
+      position: sticky;
+      top: 0;
+    }
+
+    & table > thead > tr:first-child > :is(th, td):last-child {
+      border-top-right-radius: 0;
+    }
+
+    & table > :is(tbody:last-child, tfoot) > tr:last-child > :is(th, td):last-child {
+      border-bottom-right-radius: 0;
+    }
+  }
+
 }`
