@@ -27,6 +27,7 @@ export interface CommonAttrs extends Attrs<HTMLElement> {
 export interface EBoxAttrs extends CommonAttrs {
   variant?: NRO<"vertical">
   typographic?: NRO<boolean>
+  "table-container"?: NRO<boolean>
 }
 
 export interface EFlexAttrs extends CommonAttrs {

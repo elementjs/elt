@@ -130,6 +130,18 @@ css`@layer typography {
       margin-block: 2em;
     }
 
+    & e-box[table-container] {
+      border-radius: ${theme.settings.borderRadius};
+      border: 1px solid ${theme.colors.text.mid};
+      max-width: 100%;
+      width: fit-content;
+
+      & thead tr:has(th) {
+        position: sticky;
+        top: 0;
+      }
+    }
+
     /* ── Table ─────────────────────────────────────────────── */
     & table {
       width: fit-content;
