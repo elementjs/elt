@@ -27,14 +27,14 @@ const debug = {
 }
 
 export function VirtualScroll<
-  T,
-  O extends o.IReadonlyObservable<T[] | null | undefined>
+  O extends o.IReadonlyObservable<any[] | null | undefined>
 >(
   obs: O,
   renderfn?: (
-    ob: O extends o.IObservable<T[] | null | undefined, T[]>
+    ob: O extends o.IObservable<(infer T)[] | null | undefined, any[]>
       ? o.Observable<T>
-      : o.ReadonlyObservable<T>,
+      : O extends o.IReadonlyObservable<(infer T)[] | null | undefined> ? o.ReadonlyObservable<T>
+      : never,
     n: o.ReadonlyObservable<number>
   ) => Renderable<HTMLElement>
 ) {

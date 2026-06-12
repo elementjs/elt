@@ -1,4 +1,4 @@
-import { type Attrs, o, type Renderable, $click, css, Repeat } from "elt"
+import { type Attrs, o, type Renderable, $click, css, Repeat, $scrollable, VirtualScroll } from "elt"
 import { popup } from "./popup"
 import { theme } from "./theme"
 const colors = theme.colors
@@ -43,7 +43,8 @@ export function Select<T, T2 = T>(at: SelectAttributes<T, T2>) {
       o_open.set(true)
       try {
         await popup(ev.currentTarget, fut => <menu>
-          {Repeat(o(at.options).tf(opts => [...opts]), o_option => {
+          {$scrollable}
+          {VirtualScroll(o(at.options).tf(opts => [...opts]), o_option => {
             const oo_option_value = o_option.tf(opt => convert_fn(opt))
             const oo_is_selected = o.expression(get => get(at.model) === get(oo_option_value))
             return <e-flex class={[cls_item, oo_is_selected.tf(selected => selected && "selected")]}>
