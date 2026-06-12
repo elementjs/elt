@@ -37,7 +37,7 @@ declare global {
 export class CommentHolder extends Comment {
   end: Comment | null = null
 
-  /** Change and update this nodes' content */
+  /** Change and update this nodes' content. Will only work if the CommentHolder has a parent ; use a DocumentFragment when preparing the node. */
   updateRenderable(renderable: Renderable<Node>) {
     const parent = this.parentNode!
 
