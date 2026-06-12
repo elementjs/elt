@@ -5,6 +5,7 @@ import { type State } from "./state"
 import { type Route } from "./route"
 
 const sym_view_fns = Symbol("view_fns")
+const sym_soft_param_dep = Symbol("soft_param_dep")
 
 
 export function Service<
@@ -207,12 +208,18 @@ export class ServiceHelper<T extends ServiceParams = {}> extends o.ObserverHolde
     if (this.params_deps.size > 0) {
       for (let [k, v] of this.params_deps.entries()) {
         let actual = params[k as keyof ServiceParams]
-        if (v !== actual) {
+        if (v !== sym_soft_param_dep && v !== actual) {
           return true
         }
       }
     }
     return false
+  }
+
+  /** Overrides a hard parameter in this service. This service will not be invalidated by the change ; other services that did, however, will. */
+  overrideParam<K extends keyof T>(name: K, value: T[K]) {
+    this.params_deps.set(name as string, value as any)
+    this.state.params.assign({ [name as string]: value })
   }
 
   /** gets a service parameter and locks it ; should the parameter change (in the URL, or directly in the App State,) then this service will have to be recreated instead of reused. */
@@ -227,6 +234,7 @@ export class ServiceHelper<T extends ServiceParams = {}> extends o.ObserverHolde
     return value as T[K]
   }
 
+  /** Gets an observable parameter value and do not lock it ; should the param change, it will be updated in the hash and the params observable, but this will not trigger an invalidation of this service. */
   param_soft<K extends keyof T>(name: K): o.Observable<T[K]>
   param_soft<K extends keyof T>(
     name: K,
@@ -241,7 +249,7 @@ export class ServiceHelper<T extends ServiceParams = {}> extends o.ObserverHolde
     if (v == null && default_value) {
       par.assign({ [name as string]: default_value })
     }
-    this.params_deps.set(name as string, null)
+    this.params_deps.set(name as string, sym_soft_param_dep)
     return this.state.params.p(name as string) as o.Observable<T[K]>
   }
 
@@ -268,7 +276,7 @@ export class ServiceHelper<T extends ServiceParams = {}> extends o.ObserverHolde
   requirements = new Set<ServiceHelper>()
 
   /** */
-  params_deps = new Map<string, string | number | boolean | null>()
+  params_deps = new Map<string, string | number | boolean | null | typeof sym_soft_param_dep>()
   o_params = o({} as ServiceParams)
 
   /** Shortcut function to set a view */
