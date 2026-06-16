@@ -271,10 +271,13 @@ button[e-variant="text"] {
 
 button[e-variant="tint"], input[e-variant="tint"] {
   border-color: ${colors.tint};
-  color: ${colors.tint};
   &::placeholder {
     color: ${colors.tint.mid};
   }
+}
+
+button[e-variant="tint"] {
+  color: ${colors.tint};
 }
 
 button[e-variant="full"], label:has(> input[type="checkbox"][e-variant="toggle"]:checked) {

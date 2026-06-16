@@ -22,6 +22,11 @@ export interface CommonAttrs extends Attrs<HTMLElement> {
   "hover"?: NRO<boolean>
   "self-align"?: NRO<AlignValues>
   "self-justify"?: NRO<AlignValues>
+  "max-width"?: NRO<boolean>
+  "max-height"?: NRO<boolean>
+  "full-screen"?: NRO<boolean>
+  "full-width"?: NRO<boolean>
+  "full-height"?: NRO<boolean>
 }
 
 export interface EBoxAttrs extends CommonAttrs {
@@ -109,6 +114,11 @@ css`
   --e-gap-horizontal: var(--e-spacing-medium);
   --e-pad-vertical: var(--e-spacing-small);
   --e-pad-horizontal: var(--e-spacing-medium);
+    &[max-width] { max-width: 100%; }
+    &[max-height] { max-height: 100%; }
+    &[full-screen] { width: 100%; height: 100%; }
+    &[full-width] { width: 100%; }
+    &[full-height] { height: 100%; }
   }
 
   :is(e-flex,e-grid,e-box)[relative] {
