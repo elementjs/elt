@@ -1896,6 +1896,7 @@ export namespace o {
           (cur.res.resolved !== "error" || nval.error !== cur.res.error)
         ) {
           last_promise = Promise.reject(nval.error)
+          last_promise.catch(() => {})
           return {
             pro: last_promise,
             res: { resolved: "error", error: nval.error, resolving: false },
