@@ -453,6 +453,118 @@ describe("o.p(fn)", function () {
   })
 })
 
+describe("o.p(dynamic key)", function () {
+  test("o.p(o(key)) follows observable key changes", () => {
+    const obj = o({ a: 1, b: 2 })
+    const o_key = o<"a" | "b">("a")
+    const sub = obj.p(o_key)
+
+    expect(sub.get()).toBe(1)
+
+    const spy = spyon(sub)
+    o_key.set("b")
+    expect(sub.get()).toBe(2)
+    spy.was.called.once.with(2)
+  })
+
+  test("o.p(o(key)) setter writes to the active key", () => {
+    const obj = o({ a: 1, b: 2 })
+    const o_key = o<"a" | "b">("b")
+    const sub = obj.p(o_key)
+
+    sub.set(20)
+    expect(obj.get()).toEqual({ a: 1, b: 20 })
+    expect(sub.get()).toBe(20)
+
+    o_key.set("a")
+    expect(sub.get()).toBe(1)
+    sub.set(10)
+    expect(obj.get()).toEqual({ a: 10, b: 20 })
+  })
+
+  test("o.prop(obj, o(key)) matches .p(o(key))", () => {
+    const obj = o({ x: "a", y: "b" })
+    const o_key = o<"x" | "y">("x")
+    const sub = o.prop(obj, o_key)
+
+    expect(sub.get()).toBe("a")
+    o_key.set("y")
+    expect(sub.get()).toBe("b")
+    sub.set("z")
+    expect(obj.get()).toEqual({ x: "a", y: "z" })
+  })
+})
+
+describe("o.p(path[])", function () {
+  test("o.p([...]) works as getter with nested path", () => {
+    const obj = o({ a: { b: { c: 42 } } })
+    const sub = obj.p(["a", "b", "c"])
+    expect(sub.get()).toBe(42)
+    obj.assign({ a: { b: { c: 100 } } })
+    expect(sub.get()).toBe(100)
+  })
+
+  test("o.p([...]) works as setter with nested path", () => {
+    const obj = o({ a: { b: { c: 1 } } })
+    const sub = obj.p(["a", "b", "c"])
+    sub.set(88)
+    expect(obj.get()).toEqual({ a: { b: { c: 88 } } })
+    expect(sub.get()).toBe(88)
+  })
+
+  test("o.p([...]) creates missing nested objects on set", () => {
+    const obj = o({} as { a?: { b?: { c?: number } } })
+    const sub = obj.p(["a", "b", "c"])
+    sub.set(7)
+    expect(obj.get()).toEqual({ a: { b: { c: 7 } } })
+  })
+
+  test("o.p(o(path)) follows observable path changes", () => {
+    const obj = o({ x: { v: 1 }, y: { v: 2 } })
+    const o_path = o(["x", "v"])
+    const sub = obj.p(o_path)
+
+    expect(sub.get()).toBe(1)
+
+    const spy = spyon(sub)
+    o_path.set(["y", "v"])
+    expect(sub.get()).toBe(2)
+    spy.was.called.once.with(2)
+  })
+
+  test("o.p(o(path)) setter writes along the active path", () => {
+    const obj = o({ x: { v: 1 }, y: { v: 2 } })
+    const o_path = o(["y", "v"])
+    const sub = obj.p(o_path)
+
+    sub.set(99)
+    expect(obj.get()).toEqual({ x: { v: 1 }, y: { v: 99 } })
+
+    o_path.set(["x", "v"])
+    expect(sub.get()).toBe(1)
+    sub.set(11)
+    expect(obj.get()).toEqual({ x: { v: 11 }, y: { v: 99 } })
+  })
+
+  test("o.prop(obj, [...]) matches .p([...])", () => {
+    const obj = o({ a: { b: { c: 5 } } })
+    const sub = o.prop(obj, ["a", "b", "c"])
+    expect(sub.get()).toBe(5)
+    sub.set(6)
+    expect(obj.get().a.b.c).toBe(6)
+  })
+
+  test("o.prop(obj, o(path)) matches .p(o(path))", () => {
+    const obj = o({ one: { n: 1 }, two: { n: 2 } })
+    const o_path = o(["two", "n"])
+    const sub = o.prop(obj, o_path)
+
+    expect(sub.get()).toBe(2)
+    o_path.set(["one", "n"])
+    expect(sub.get()).toBe(1)
+  })
+})
+
 describe("o.expression()", function () {
   test("o.expression() creates combined observable with dynamic dependencies", () => {
     const a = o(5)

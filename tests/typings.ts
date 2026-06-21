@@ -23,3 +23,26 @@ export var t7: o.Observable<number> = o(_ as o.Observable<number> | o.Observable
 export var t8: o.ReadonlyObservable<number | string> = o(_ as o.Observable<number> | o.Observable<string>)
 
 export type t9 = o.ReadonlyObservable<number> | undefined extends o.ReadonlyObservable<any> ? true : false
+
+// .p() / o.prop() typing
+{
+  const obj = o({ a: 1, b: { c: "x" } })
+
+  var tp1: o.Observable<number> = obj.p("a")
+  var tp2: o.Observable<string> = obj.p((x) => x.b.c)
+  var tp3: o.Observable<number | { c: string }> = obj.p(o<"a">("a"))
+  var tp4: o.Observable<number | { c: string }> = obj.p(o<"a" | "b">("a"))
+
+  // path arrays are runtime-only; type as unknown
+  var tp5: o.Observable<unknown> = obj.p(["b", "c"])
+  var tp6: o.Observable<unknown> = obj.p(["b", "c"] as const)
+  var tp7: o.Observable<unknown> = obj.p(o(["b", "c"]))
+  var tp8: o.Observable<unknown> = obj.p(o(["b", "c"] as const))
+
+  var tprop1: o.Observable<number> = o.prop(obj, "a")
+  var tprop2: o.Observable<string> = o.prop(obj, (x) => x.b.c)
+  var tprop3: o.Observable<unknown> = o.prop(obj, ["b", "c"])
+  var tprop4: o.Observable<unknown> = o.prop(obj, o(["b", "c"]))
+
+  void tp1, tp2, tp3, tp4, tp5, tp6, tp7, tp8, tprop1, tprop2, tprop3, tprop4
+}

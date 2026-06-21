@@ -580,6 +580,10 @@ export namespace o {
      * The `key` can itself be an observable, in which case the resulting observable will
      * change whenever either `key` or the original observable change.
      *
+     * `key` may also be a path array (e.g. `["a", "b", "c"]`) including as an observable,
+     * to reach nested properties without a getter function. Path arrays are typed as
+     * `unknown`; use a getter `(obj) => obj.a.b` when a precise type is needed.
+     *
      * ```tsx
      * [[include:../../examples/o.observable.p.tsx]]
      * ```
@@ -591,6 +595,14 @@ export namespace o {
       this: IReadonlyObservable<A>,
       key: RO<K>
     ): ReadonlyObservable<A[K]>
+    p(
+      this: Observable<A>,
+      key: readonly PropertyKey[] | RO<readonly PropertyKey[]>
+    ): Observable<unknown>
+    p(
+      this: IReadonlyObservable<A>,
+      key: readonly PropertyKey[] | RO<readonly PropertyKey[]>
+    ): ReadonlyObservable<unknown>
     p(key: any): any {
       return prop(this, key)
     }
@@ -1097,30 +1109,36 @@ export namespace o {
    * @group Observable
    */
   export function prop<T, R>(
-    obj: RO<T>,
-    prop: (obj: T) => R,
-    def?: RO<(obj: T) => R>
-  ): ReadonlyObservable<R>
-  export function prop<T, R>(
     obj: O<T>,
     prop: (obj: T) => R,
     def?: RO<(obj: T) => R>
   ): Observable<R>
-  export function prop<T, K extends keyof T>(
+  export function prop<T, R>(
     obj: RO<T>,
-    prop: RO<K>,
-    def?: RO<(obj: T) => T[K]>
-  ): ReadonlyObservable<T[K]>
+    prop: (obj: T) => R,
+    def?: RO<(obj: T) => R>
+  ): ReadonlyObservable<R>
   export function prop<T, K extends keyof T>(
     obj: O<T>,
     prop: RO<K>,
     def?: RO<(obj: T) => T[K]>
   ): Observable<T[K]>
+  export function prop<T, K extends keyof T>(
+    obj: RO<T>,
+    prop: RO<K>,
+    def?: RO<(obj: T) => T[K]>
+  ): ReadonlyObservable<T[K]>
   export function prop<T>(
-    obj: IObservable<T, T> | T,
-    prop: string | ((obj: T) => any) | string[],
-    def?: RO<(obj: T) => any>
-  ) {
+    obj: O<T>,
+    prop: readonly PropertyKey[] | RO<readonly PropertyKey[]>,
+    def?: RO<(obj: T) => unknown>
+  ): Observable<unknown>
+  export function prop<T>(
+    obj: RO<T>,
+    prop: readonly PropertyKey[] | RO<readonly PropertyKey[]>,
+    def?: RO<(obj: T) => unknown>
+  ): ReadonlyObservable<unknown>
+  export function prop<T>(obj: any, prop: any, def?: any): any {
     // Assigner: lazily-built function that immutably writes a value at the nested path
     // implied by the getter (e.g. obj => obj.foo.bar → path ['foo','bar']).
     // It tolerates ?. chaining, but will create simple objects for non-existent paths.
@@ -1138,11 +1156,11 @@ export namespace o {
       }
     }
 
-    function make_setter_from_path(path: string[]) {
+    function make_setter_from_path(path: readonly (string | number)[]) {
       return (obj: T, newv: any) => {
         let a: any = newv
-        for (const key of path) {
-          a = {[key]: a}
+        for (let i = path.length - 1; i >= 0; i--) {
+          a = {[path[i]]: a}
         }
         if (obj == null) {
           return a
@@ -1154,7 +1172,7 @@ export namespace o {
     function make_function_assigner() {
       const body = last_prop.toString() as string
       const brk = /\??\.(?<name>[^.\[?]+)|\??\["(?<name>(\\"|[^"])+)\"|\??\['(?<name>(\\'|[^'])+)']\]/g
-      const path = [...body.matchAll(brk).map(match => match.groups!.name)].reverse()
+      const path = [...body.matchAll(brk).map(match => match.groups!.name)]
       return make_setter_from_path(path)
     }
 
@@ -1192,7 +1210,6 @@ export namespace o {
       },
       (nval, _, [orig]) => {
         const newo = setter(orig, nval)
-        // ;(newo)[prop] = nval
         return [newo, NoValue, NoValue] as const
       }
     )
