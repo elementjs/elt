@@ -20,6 +20,7 @@ This library is NOT React. There is no virtual-dom. DOM Nodes are returned and h
 
 ## Patterns
 
+- node_append(nodes_created_with_elt) : necessary to launch lifecycle hooks and observable logic
 - Components: (attrs: Attrs<HTMLDivElement> & { ... } ) => <div></div>
 - Some attrs are global and will be set on the resulting node even if not used in the Component : id, slot, part, role, tabindex, lang, inert, title, autofocus, nonce
 - class attribute is also "global", but is more sophisticated and understands o.RO<string | string[]> or {[class_name]: o.RO<truthy>}

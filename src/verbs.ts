@@ -476,10 +476,35 @@ export namespace Repeat {
         key_map.set(key, i)
       }
 
-      let iter = this.__list as RepeatItemElement<Obs> | null
+      let iter = this.__list.nextSibling as RepeatItemElement<Obs> | null
       let end = this.__list.end!.previousSibling as RepeatItemElement<Obs> | null
 
       let idx = 0
+
+      const parent = this.__list.parentNode!
+      const list_insert_ref = (before: Node | null) => before ?? this.__list.end!
+
+      const place_item = (
+        node: RepeatItemElement<Obs>,
+        before: Node | null
+      ) => {
+        node.moveTo(parent, list_insert_ref(before))
+      }
+
+      const sync_item = (node: RepeatItemElement<Obs>, at: number) => {
+        const obs = node[sym_obs]
+        obs.o_prop.set(at)
+        obs.key = keys[at]
+        obs.repeatSet(new_lst[at])
+      }
+
+      const pull_item = (key: any, at: number, before: Node | null) => {
+        const prev = this.node_map.get(key)
+        if (prev == null) return false
+        sync_item(prev, at)
+        place_item(prev, before)
+        return true
+      }
 
       // Start by figuring out at the beginning and the end what will not have to be touched
       while (iter != null && iter !== end) {
@@ -538,7 +563,8 @@ export namespace Repeat {
         obs.key = keys[idx]
         obs.repeatSet(new_lst[idx])
         this.node_map.set(obs.key, node)
-        this.__list.parentNode!.insertBefore(fragment, iter)
+        parent.insertBefore(fragment, list_insert_ref(iter))
+        return true
       }
 
       do {
@@ -559,7 +585,7 @@ export namespace Repeat {
           obs.o_prop.set(idx)
           obs.repeatSet(new_lst[idx])
           idx++
-          iter = iter.nextSibling as RepeatItemElement<Obs> | null
+          iter = iter.end!.nextSibling as RepeatItemElement<Obs> | null
           continue
         }
 
@@ -576,14 +602,8 @@ export namespace Repeat {
         }
 
         // At this position, we want `key`. So we try and pull it.
-        const prev = this.node_map.get(key)
-        if (prev != null) {
-          // We're pulling the node from wherever it is at.
-          const obs = prev[sym_obs]
-          obs.o_prop.set(idx)
-          obs.repeatSet(new_lst[idx])
-          prev.moveTo(this.__list.parentNode!, iter)
-          idx++ // it was found, so we can advance
+        if (pull_item(key, idx, iter)) {
+          idx++
           continue
         }
 
@@ -591,28 +611,31 @@ export namespace Repeat {
 
         if (dead_nodes.size > 0) {
           // Try to reuse a dead node
-
-          reuse_dead_node(iter, idx++)
+          if (reuse_dead_node(iter, idx)) idx++
           continue
         }
 
         created++
         const nd = this.create(new_lst, key, idx)
         idx++
-        nd.moveTo(this.__list.parentNode!, iter)
+        place_item(nd, iter)
         // node_append(this.node, nd, iter)
       } while (true)
 
       if (iter == null || iter === end) {
 
         while (idx < end_idx && dead_nodes.size > 0) {
-          reuse_dead_node(iter, idx++)
+          if (reuse_dead_node(iter, idx)) idx++
         }
 
         while (idx < end_idx) {
+          if (pull_item(keys[idx], idx, iter)) {
+            idx++
+            continue
+          }
           const nd = this.create(new_lst, keys[idx], idx)
           idx++
-          nd.moveTo(this.__list.parentNode!, iter)
+          place_item(nd, iter)
           // node_append(this.node, nd, iter)
         }
       } else if (idx >= end_idx) {
@@ -621,13 +644,16 @@ export namespace Repeat {
           const obs = iter[sym_obs]
           if (obs != null) {
             let nd = iter
+            const after = nd.end!.nextSibling as RepeatItemElement<Obs> | null
             const fragment = document.createDocumentFragment()
             nd.moveTo(fragment)
             dead_nodes.set(nd, fragment)
             this.node_map.delete(obs.key)
             node_remove(nd)
+            iter = after
+          } else {
+            iter = iter.nextSibling as RepeatItemElement<Obs> | null
           }
-          iter = iter.nextSibling as RepeatItemElement<Obs> | null
         }
       }
 
