@@ -4,7 +4,27 @@ import { test, expect, describe } from "bun:test"
 
 import { o } from "../src/observable"
 import { Repeat } from "../src/verbs"
-import { node_append, node_remove } from "../src/dom"
+import { $observe } from "../src/decorators"
+import { node_append, node_remove, node_is_observing } from "../src/dom"
+
+type Item = { id: string; label: string }
+
+class observe_track {
+  count = 0
+
+  constructor(
+    public node: HTMLElement,
+    obs: o.RO<unknown>
+  ) {
+    $observe(obs, () => {
+      this.count++
+    })(node)
+  }
+
+  observing() {
+    return node_is_observing(this.node)
+  }
+}
 
 type RepeatOptions = {
   keyfn?: (item: string) => string
@@ -85,6 +105,49 @@ function query_one(container: HTMLElement, class_name: string) {
 
 function tear_down(container: HTMLElement) {
   node_remove(container)
+}
+
+function count_by_class(root: HTMLElement, class_name: string) {
+  return elements_by_class(root, class_name).length
+}
+
+function mount_fragment_repeat(
+  lst: o.Observable<Item[]>,
+  tracks_by_id: Map<string, { label: observe_track; badge: observe_track }>
+) {
+  const container = document.createElement("div")
+  const repeater = Repeat(lst, (item, idx) => {
+    const frag = document.createDocumentFragment()
+    const wrap = document.createElement("div")
+    wrap.className = "complex-item"
+
+    const label = document.createElement("span")
+    label.className = "complex-label"
+    const badge = document.createElement("span")
+    badge.className = "complex-badge"
+    const tail = document.createElement("span")
+    tail.className = "complex-tail"
+
+    const id = item.get().id
+    tracks_by_id.set(id, {
+      label: new observe_track(label, item.tf(x => x.label)),
+      badge: new observe_track(badge, idx),
+    })
+
+    node_append(label, item.tf(x => x.label))
+    node_append(badge, idx.tf(i => `n${i}`))
+    node_append(tail, item.tf(x => `tail-${x.id}`))
+
+    node_append(wrap, label)
+    node_append(wrap, badge)
+    node_append(frag, wrap)
+    node_append(frag, tail)
+    return frag
+  }).withKeyFunction(item => item.id)
+
+  node_append(container, repeater)
+  node_append(document.body, container)
+  return { container, repeater }
 }
 
 describe("Repeat", () => {
@@ -425,6 +488,136 @@ describe("Repeat", () => {
         o_lst.set([...seq])
         expect(item_texts(container)).toEqual(seq)
       }
+      tear_down(container)
+    })
+  })
+
+  describe("complex fragment items and observer lifecycle", () => {
+    test("renders fragment roots with multiple observed subtrees", () => {
+      const o_lst = o<Item[]>([
+        { id: "a", label: "A" },
+        { id: "b", label: "B" },
+      ])
+      const tracks = new Map<string, { label: observe_track; badge: observe_track }>()
+      const { container } = mount_fragment_repeat(o_lst, tracks)
+
+      expect(count_by_class(container, "complex-item")).toBe(2)
+      expect(count_by_class(container, "complex-tail")).toBe(2)
+      expect(elements_by_class(container, "complex-label").map(el => el.textContent)).toEqual([
+        "A",
+        "B",
+      ])
+      expect(elements_by_class(container, "complex-badge").map(el => el.textContent)).toEqual([
+        "n0",
+        "n1",
+      ])
+      expect(elements_by_class(container, "complex-tail").map(el => el.textContent)).toEqual([
+        "tail-a",
+        "tail-b",
+      ])
+
+      const a = tracks.get("a")!
+      const b = tracks.get("b")!
+      expect(a.label.count).toBe(1)
+      expect(a.badge.count).toBe(1)
+      expect(b.label.count).toBe(1)
+      expect(b.badge.count).toBe(1)
+      expect(a.label.observing()).toBe(true)
+      expect(b.label.observing()).toBe(true)
+
+      tear_down(container)
+    })
+
+    test("shrinking the list disconnects observers on removed items", () => {
+      const o_lst = o<Item[]>([
+        { id: "a", label: "A" },
+        { id: "b", label: "B" },
+      ])
+      const tracks = new Map<string, { label: observe_track; badge: observe_track }>()
+      const { container } = mount_fragment_repeat(o_lst, tracks)
+
+      const b = tracks.get("b")!
+      const b_label_count = b.label.count
+
+      o_lst.set([{ id: "a", label: "A1" }])
+
+      expect(count_by_class(container, "complex-tail")).toBe(1)
+      expect(elements_by_class(container, "complex-tail")[0].textContent).toBe("tail-a")
+      expect(b.label.observing()).toBe(false)
+      expect(b.badge.observing()).toBe(false)
+
+      o_lst.set([{ id: "a", label: "A2" }])
+      expect(b.label.count).toBe(b_label_count)
+      expect(tracks.get("a")!.label.count).toBeGreaterThan(b_label_count)
+
+      tear_down(container)
+    })
+
+    test("clearing the list removes fragment nodes and stops all item observers", () => {
+      const o_lst = o<Item[]>([
+        { id: "a", label: "A" },
+        { id: "b", label: "B" },
+      ])
+      const tracks = new Map<string, { label: observe_track; badge: observe_track }>()
+      const { container } = mount_fragment_repeat(o_lst, tracks)
+
+      o_lst.set([])
+      expect(count_by_class(container, "complex-item")).toBe(0)
+      expect(count_by_class(container, "complex-tail")).toBe(0)
+
+      for (const entry of tracks.values()) {
+        expect(entry.label.observing()).toBe(false)
+        expect(entry.badge.observing()).toBe(false)
+      }
+
+      const a_label_count = tracks.get("a")!.label.count
+      o_lst.set([{ id: "c", label: "C" }])
+      expect(tracks.get("a")!.label.count).toBe(a_label_count)
+
+      tear_down(container)
+    })
+
+    test("node_remove on the mount root stops repeat and item observers", () => {
+      const o_lst = o<Item[]>([{ id: "a", label: "A" }])
+      const tracks = new Map<string, { label: observe_track; badge: observe_track }>()
+      const { container } = mount_fragment_repeat(o_lst, tracks)
+
+      const a = tracks.get("a")!
+      const count_before = a.label.count
+
+      node_remove(container)
+      expect(a.label.observing()).toBe(false)
+      expect(a.badge.observing()).toBe(false)
+
+      o_lst.set([{ id: "a", label: "changed" }])
+      expect(a.label.count).toBe(count_before)
+    })
+
+    test("keyed reuse keeps observers on surviving fragment items", () => {
+      const o_lst = o<Item[]>([
+        { id: "a", label: "A" },
+        { id: "b", label: "B" },
+      ])
+      const tracks = new Map<string, { label: observe_track; badge: observe_track }>()
+      const { container } = mount_fragment_repeat(o_lst, tracks)
+
+      const a_label_node = tracks.get("a")!.label.node
+      const b_label_node = tracks.get("b")!.label.node
+
+      o_lst.set([
+        { id: "b", label: "B2" },
+        { id: "a", label: "A2" },
+      ])
+
+      expect(tracks.get("a")!.label.node).toBe(a_label_node)
+      expect(tracks.get("b")!.label.node).toBe(b_label_node)
+      expect(elements_by_class(container, "complex-label").map(el => el.textContent)).toEqual([
+        "B2",
+        "A2",
+      ])
+      expect(tracks.get("a")!.label.observing()).toBe(true)
+      expect(tracks.get("b")!.label.observing()).toBe(true)
+
       tear_down(container)
     })
   })
