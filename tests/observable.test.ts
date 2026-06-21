@@ -471,8 +471,8 @@ describe("o.expression()", function () {
     const b = o(10)
     const expr = o.expression(
       (get) => get(a) + get(b),
-      (sum, set, _, get) => {
-        set(a, sum - get(b))
+      (sum, set, _) => {
+        set(a, sum - o.get(b))
       }
     )
 

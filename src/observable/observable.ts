@@ -1121,57 +1121,78 @@ export namespace o {
     prop: string | ((obj: T) => any) | string[],
     def?: RO<(obj: T) => any>
   ) {
-    if (typeof prop === "function") {
-      // Assigner: lazily-built function that immutably writes a value at the nested path
-      // implied by the getter (e.g. obj => obj.foo.bar → path ['foo','bar']).
-      // It tolerates ?. chaining, but will create simple objects for non-existent paths.
-      let assigner: (obj: T, newv: any) => T = null!
-      let last_prop: any = null
+    // Assigner: lazily-built function that immutably writes a value at the nested path
+    // implied by the getter (e.g. obj => obj.foo.bar → path ['foo','bar']).
+    // It tolerates ?. chaining, but will create simple objects for non-existent paths.
+    let setter: (obj: T, newv: any) => T = null!
+    let getter: (obj: T) => any
+    let last_prop: any = null
 
-      function make_assigner() {
-        const body = last_prop.toString() as string
-        const brk = /\??\.(?<name>[^.\[?]+)|\??\["(?<name>(\\"|[^"])+)\"|\??\['(?<name>(\\'|[^'])+)']\]/g
-        const path = [...body.matchAll(brk).map(match => match.groups!.name)].reverse()
-        assigner = (obj: T, newv: any) => {
-          let a: any = newv
-          for (const key of path) {
-            a = {[key]: a}
-          }
-          if (obj == null) {
-            return a
-          }
-          return assign(obj, a)
+    function make_getter_from_path(path: string[]) {
+      return (obj: T) => {
+        let a: any = obj
+        for (const key of path) {
+          a = a?.[key]
         }
+        return a
       }
+    }
 
-      return combine(
-        [obj, prop, def] as const,
-        ([obj, prop, def]) => {
-          const res = (prop as (obj: T) => any)(obj as T)
-          if (res === undefined && def) return def(obj as T)
-          return res
-        },
-        (nval, _, [orig, prop]) => {
-          if (prop !== last_prop) {
-            last_prop = prop
-            make_assigner()
-          }
-          const newo = assigner(orig, nval)
-          // ;(newo)[prop] = nval
-          return [newo, NoValue, NoValue] as const
+    function make_setter_from_path(path: string[]) {
+      return (obj: T, newv: any) => {
+        let a: any = newv
+        for (const key of path) {
+          a = {[key]: a}
         }
+        if (obj == null) {
+          return a
+        }
+        return assign(obj, a)
+      }
+    }
+
+    function make_function_assigner() {
+      const body = last_prop.toString() as string
+      const brk = /\??\.(?<name>[^.\[?]+)|\??\["(?<name>(\\"|[^"])+)\"|\??\['(?<name>(\\'|[^'])+)']\]/g
+      const path = [...body.matchAll(brk).map(match => match.groups!.name)].reverse()
+      return make_setter_from_path(path)
+    }
+
+    function eval_prop(prop: any) {
+      last_prop = prop
+      if (typeof prop === "function") {
+        setter = make_function_assigner()
+        getter = prop
+      } else if (Array.isArray(prop)) {
+        setter = make_setter_from_path(prop)
+        getter = make_getter_from_path(prop)
+      } else {
+        setter = (obj: T, value: any) => assign(obj, { [prop]: value })
+        getter = (obj: T) => obj[prop as keyof T]
+      }
+    }
+
+    if (!o.is_observable(prop)) {
+      eval_prop(prop)
+      return combine([obj] as const,
+        ([obj]) => getter(obj),
+        (nval, _, [orig]) => [setter(orig, nval), NoValue, NoValue] as any
       )
     }
+
     return combine(
-      [obj as T, prop, def] as const,
-      ([obj, prop, def]) => {
-        let res: any = (obj as T)[prop]
-        if (res === undefined && def) res = def(obj as T)
+      [obj, prop, def] as const,
+      ([obj, prop, def]: [T, any, any]) => {
+        if (prop !== last_prop) {
+          eval_prop(prop)
+        }
+        const res = getter(obj)
+        if (res === undefined && def) return def(obj as T)
         return res
       },
-      (nval, _, [orig, prop]) => {
-        const newo = o.clone(orig)
-        ;(newo)[prop] = nval
+      (nval, _, [orig]) => {
+        const newo = setter(orig, nval)
+        // ;(newo)[prop] = nval
         return [newo, NoValue, NoValue] as const
       }
     )
