@@ -6,15 +6,6 @@ import { o } from "../src/observable"
 import { VirtualScroll } from "../src/virtual"
 import { node_append, node_remove } from "../src/dom"
 
-// happy-dom stubs used by VirtualScroll
-globalThis.ResizeObserver = class {
-  observe() {}
-  disconnect() {}
-  unobserve() {}
-} as typeof ResizeObserver
-
-globalThis.SyntaxError = window.SyntaxError
-
 const ITEM_HEIGHT = 64
 const VIEWPORT_HEIGHT = 300
 

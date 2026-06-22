@@ -21,5 +21,7 @@ Object.assign(globalThis, {
   EventTarget: window.EventTarget,
   requestAnimationFrame: window.requestAnimationFrame,
   cancelAnimationFrame: window.cancelAnimationFrame,
+  getComputedStyle: window.getComputedStyle.bind(window),
+  ResizeObserver: window.ResizeObserver,
   DEBUG: false, // Set DEBUG flag for tests
 })
