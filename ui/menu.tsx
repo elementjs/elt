@@ -3,7 +3,7 @@ import { theme } from "./theme"
 
 css`menu {
   display: grid;
-  grid-template-columns: [left] 32px [content] 1fr [right] 32px;
+  grid-template-columns: [left] 32px [content] minmax(0, 1fr) [right] 32px;
   align-items: start;
   align-content: start;
   gap: 0;
@@ -52,7 +52,7 @@ css`menu {
     margin-bottom: 4px;
   }
 
-  :is(h1, h2, h3, h4, h5, h6, a, button, label, e-box, e-flex, e-button-box) {
+  & > :is(h1, h2, h3, h4, h5, h6, a, button, label, e-box, e-flex, e-button-box) {
     padding: 4px 8px 4px 8px;
   }
 

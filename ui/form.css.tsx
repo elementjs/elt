@@ -36,11 +36,11 @@ label {
   @media (hover: hover) and (pointer: fine) {
     &:hover:not(:has(:disabled)) {
       background-color: ${colors.tint.light};
-      box-shadow:
+      /*box-shadow:
         6px 3px 0 ${colors.tint.light},
         6px -3px 0 ${colors.tint.light},
         -6px 3px 0 ${colors.tint.light},
-        -6px -3px 0 ${colors.tint.light};
+        -6px -3px 0 ${colors.tint.light};*/
     }
   }
 }
