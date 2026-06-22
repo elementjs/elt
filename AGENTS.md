@@ -4,7 +4,7 @@
 
 Opinionated typescript DOM manipulation library. JSX code returns DOM Nodes. MVVM approach using own Observable internal micro library.
 
-Observables are meant to be transformed/mixed with others. Setting a combined observable can revert change in all the sources. Transformed observables can be bijective. Since forgetting to unobserve an Observable leads to memory leaks, most the the library is architectured around tying observance to the presence of Nodes in the DOM ; connecting it starts observance, disconnecting it stops it.
+Observables are entirely synchronous and meant to be transformed/mixed with others. Setting a combined observable can revert change in all the sources. Transformed observables can be bijective. Since forgetting to unobserve an Observable leads to memory leaks, most the the library is architectured around tying observance to the presence of Nodes in the DOM ; connecting it starts observance, disconnecting it stops it.
 
 JSX children may contain decorators that are inline callbacks called at node creation. A lot of behaviour is tied to them. Otherwise, they must be `Renderable`, or `Observable<Renderable>` to be displayed in the DOM.
 
@@ -71,12 +71,14 @@ Authoritative source: `src/observable/observable.ts` and JSDoc on exports.
 
 ### Core rules
 
+- **Propagation is synchronous.** `obs.set(v)` flushes immediately — observers, dependent observables and DOM bindings all run before `set()` returns. Inside `o.transaction(fn)` the flush is deferred to the end of `fn`, then runs synchronously. There is no microtask/rAF batching at the observable layer; if you want DOM work batched to a frame, do it yourself (`requestAnimationFrame`).
+- **`set` is equality-gated** (strict `===`, no deep compare): `obs.set(v)` is a no-op when `v === current`, so an idempotent updater called every frame is cheap (bindings only refire on real change). Conversely, mutating a value in place and re-`set`-ting the same reference notifies nothing — replace the whole value.
 - Observing observable MUST be done with $observe() or Service .observe() method. No addObserver unless absolutely necessary.
 - `o(value)` → `.get()` / `.set()`. Values are **immutable** at the observable boundary (replace wholes, use `o.clone` / `assign` / `mutate` for nested edits).
 - **`o.RO<T>`** = `Observable<T> | T` — pass either; use **`o.get(x)`** when you need the value from an `RO` outside observation, when the value is needed at the moment.
 - **JSX children:** only `o.RO<Renderable>` (or plain renderables). Other types → `.tf(...)` first.
 - **`import "elt/mutative"`** at app entry when using `obs.mutate()`.
-- When creating MVVM, o.exclusive_lock helps in avoiding infinite loops of DOM updating model -> model updated -> model update DOM -> ...
+- When creating MVVM, o.exclusive_lock helps in avoiding infinite loops of DOM updating model -> model updated -> model update DOM -> ... **Caveat: it is non-reentrant** — calling the lock while it is already held silently *skips* the inner function (returns `undefined`, body never runs). So a method guarded by a lock that re-enters itself (directly, or via a synchronous observable notification it triggers) is a no-op the second time. Don't rely on such a nested call to do work, and don't cache "I did X" state across it unless the state is written *inside* the locked body.
 
 ### Prefer `o.expression` for derived state
 
@@ -234,6 +236,8 @@ Prefer `() => import("./file")` for code-splitting.
 - $observe, $connected, $disconnected and everything that relates to nodes observing works only if they are inserted/removed using `node_append` or `node_remove`, or by wrapping in `<e-wrap></e-wrap>` (not preferred.) App views and all the verbs do so transparently. Mostly the developper using elt must insert the root-most node this way, or be sure to wrap their nodes in `<e-wrap></e-wrap>` when dealing with unaware third-party libraries that expect DOM nodes from callbacks. `setup_mutation_observer` is possible for making it entirely transparent but overkill.
 - Fragment / `<> </>`, looks like a Node, but is not one, cannot have life-cycle run on them. No observance can take place on them. Decorators _are_ executed, though.
 - JSX expressions are a black box per typescript limitations. Cast `<div>...</div> as HTMLDivElement` accordingly.
+- **Layout-measuring verbs (VirtualScroll, anything reading `getBoundingClientRect`/`scrollTop`): never interleave reads and writes.** Because observable propagation is synchronous, setting an observable that drives the DOM (or writing `scrollTop`) forces a reflow on the *next* layout read. A loop of measure → mutate one item → measure again is O(n) forced reflows in a single frame and was the cause of VirtualScroll's jank. Pattern: read everything once, compute the whole target from that snapshot, do a single batch of writes, and converge over subsequent frames (re-schedule via rAF) rather than within one. Keep all of it inside a `requestAnimationFrame`.
+- **Virtualized scrolling: keep content stable via the top spacer, never by writing `scrollTop`.** Writing `scrollTop` while the user is scrolling fights the browser's own scroll loop and flickers; near the ends the clamped value also desyncs any "was this my write?" bookkeeping. Instead, after a windowing change, measure how far a still-rendered anchor row moved and absorb that shift into the *top spacer* height (`spacer -= shift`). Make the top spacer measurement-driven (carry the real heights of shelved/prepended rows), NOT `index * estimate` — recomputing it from an estimate on every reconcile is what makes rows jump/disappear. Snap the spacer to exactly 0 at index 0 to drain accumulated drift. The bottom spacer can stay a pure estimate (changing it never moves on-screen content). Also set `overflow-anchor: none` on the scrollport so native scroll anchoring doesn't double-correct against the manual spacer adjustment.
 
 ## Architecture
 

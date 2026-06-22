@@ -621,4 +621,104 @@ describe("Repeat", () => {
       tear_down(container)
     })
   })
+
+  describe("ForView", () => {
+    function mount_view_repeat(
+      lst: o.Observable<string[]>,
+      o_start: o.Observable<number>,
+      o_end: o.Observable<number>
+    ) {
+      const container = document.createElement("div")
+      const repeater = Repeat(lst, (item, idx) => {
+        const span = document.createElement("span")
+        span.className = "repeat-item"
+        node_append(span, item)
+        return span
+      })
+        .ForView(o_start, o_end)
+        .withKeyFunction(item => item)
+
+      node_append(container, repeater)
+      node_append(document.body, container)
+      return { container, repeater, o_start, o_end }
+    }
+
+    test("renders only indices in the view window", () => {
+      const o_lst = o(["a", "b", "c", "d", "e"])
+      const { container } = mount_view_repeat(o_lst, o(1), o(4))
+
+      expect(item_texts(container)).toEqual(["b", "c", "d"])
+      tear_down(container)
+    })
+
+    test("updates when the view window shifts", () => {
+      const o_lst = o(["a", "b", "c", "d", "e"])
+      const o_start = o(0)
+      const o_end = o(2)
+      const { container, o_start: start, o_end: end } = mount_view_repeat(
+        o_lst,
+        o_start,
+        o_end
+      )
+
+      expect(item_texts(container)).toEqual(["a", "b"])
+
+      start.set(2)
+      end.set(5)
+      expect(item_texts(container)).toEqual(["c", "d", "e"])
+
+      tear_down(container)
+    })
+
+    test("reuses keyed nodes when the view slides over stable items", () => {
+      const o_lst = o(["a", "b", "c", "d", "e"])
+      const o_start = o(0)
+      const o_end = o(3)
+      const { container, o_start: start, o_end: end } = mount_view_repeat(
+        o_lst,
+        o_start,
+        o_end
+      )
+
+      const first_b = elements_by_class(container, "repeat-item").find(
+        el => el.textContent === "b"
+      )!
+
+      start.set(1)
+      end.set(4)
+      const second_b = elements_by_class(container, "repeat-item").find(
+        el => el.textContent === "b"
+      )!
+
+      expect(second_b).toBe(first_b)
+      expect(item_texts(container)).toEqual(["b", "c", "d"])
+
+      tear_down(container)
+    })
+
+    test("reconcileView updates an explicit window imperatively", () => {
+      const o_lst = o(["a", "b", "c", "d", "e"])
+      const { container, repeater } = mount_view_repeat(o_lst, o(0), o(5))
+
+      expect(item_texts(container)).toEqual(["a", "b", "c", "d", "e"])
+
+      repeater.reconcileView(2, 4)
+      expect(item_texts(container)).toEqual(["c", "d"])
+
+      tear_down(container)
+    })
+
+    test("list mutations inside the view stay in sync", () => {
+      const o_lst = o(["a", "b", "c", "d", "e"])
+      const { container } = mount_view_repeat(o_lst, o(1), o(4))
+
+      o_lst.set(["x", "b", "y", "d", "e"])
+      expect(item_texts(container)).toEqual(["b", "y", "d"])
+
+      o_lst.set(["x", "b"])
+      expect(item_texts(container)).toEqual(["b"])
+
+      tear_down(container)
+    })
+  })
 })

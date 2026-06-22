@@ -8,9 +8,7 @@ import {
   node_append,
   node_do_disconnect,
   node_observe,
-  node_on_connected,
-  node_on_disconnected,
-  node_remove,
+  node_remove
 } from "./dom"
 
 import { sym_insert } from "./symbols"
@@ -366,6 +364,9 @@ export namespace Repeat {
     protected lst: ItemType<Obs>[] = []
     // protected node!: Comment
     observer: o.Observer<ItemType<Obs>[] | null | undefined> | null = null
+    protected view_observer: o.Observer<[number, number]> | null = null
+    protected o_view_start: o.Observable<number> | null = null
+    protected o_view_end: o.Observable<number> | null = null
     protected keyfn: ((item: ItemType<Obs>, index: number) => any) | null = null
     update_lock = o.exclusive_lock()
     protected node_map = new Map<any, RepeatItemElement<Obs>>()
@@ -404,12 +405,19 @@ export namespace Repeat {
               (old_lst as unknown as NonNullable<o.ObservedType<Obs>>) ?? []
             )
           })
-          // this.lst = lst ?? []
-          // If we had a key, now we perform the great shuffling
         },
         { immediate: true }
       )
 
+      if (this.o_view_start != null && this.o_view_end != null) {
+        this.view_observer = node_observe(
+          this.__list,
+          o.join(this.o_view_start, this.o_view_end),
+          () => {
+            this.reconcile_view()
+          }
+        )
+      }
     }
 
     RenderEach(fn: RenderItemFn<Obs>) {
@@ -440,6 +448,79 @@ export namespace Repeat {
       return this
     }
 
+    /**
+     * Only render and reconcile list indices in `[start, end)`.
+     * `end` is exclusive, matching slice / virtual-window semantics.
+     */
+    ForView(start: o.Observable<number>, end: o.Observable<number>) {
+      this.o_view_start = o(start)
+      this.o_view_end = o(end)
+      return this
+    }
+
+    /** Reconcile the current list against an explicit index window. */
+    reconcileView(start: number, end: number) {
+      this.update_lock(() => {
+        const lst =
+          (o.get(this.obs) as unknown as NonNullable<o.ObservedType<Obs>>) ??
+          []
+        this.updateChildren(lst, { start, end })
+      })
+      return this
+    }
+
+    protected reconcile_view() {
+      this.update_lock(() => {
+        const lst =
+          (o.get(this.obs) as unknown as NonNullable<o.ObservedType<Obs>>) ??
+          []
+        this.updateChildren(lst)
+      })
+    }
+
+    protected resolve_view(
+      length: number,
+      override?: { start: number; end: number }
+    ) {
+      if (override != null) {
+        const start = Math.max(0, Math.min(length, Math.floor(override.start)))
+        const end = Math.max(start, Math.min(length, Math.floor(override.end)))
+        return { start, end }
+      }
+      if (this.o_view_start == null || this.o_view_end == null) {
+        return { start: 0, end: length }
+      }
+      const start = Math.max(
+        0,
+        Math.min(length, Math.floor(o.get(this.o_view_start)))
+      )
+      const end = Math.max(
+        start,
+        Math.min(length, Math.floor(o.get(this.o_view_end)))
+      )
+      return { start, end }
+    }
+
+    /** Move in-view nodes that fell outside the window off-DOM but keep them keyed. */
+    protected evict_outside_view(view_start: number, view_end: number) {
+      let iter = this.__list.nextSibling as RepeatItemElement<Obs> | null
+      while (iter != null && iter !== this.__list.end) {
+        const next = (iter.end?.nextSibling ??
+          iter.nextSibling) as RepeatItemElement<Obs> | null
+        const obs = iter[sym_obs]
+        if (obs != null) {
+          const abs = obs.o_prop.get()
+          if (abs < view_start || abs >= view_end) {
+            const fr = document.createDocumentFragment()
+            iter.moveTo(fr)
+            iter = next
+            continue
+          }
+        }
+        iter = next
+      }
+    }
+
     protected updateChildrenPre(new_lst: NonNullable<o.ObservedType<Obs>>, old_lst: NonNullable<o.ObservedType<Obs>> | o.NoValue) {
       if (new_lst.length > 0 && (old_lst === o.NoValue || old_lst.length === 0)) {
         if (this.__empty.hasContent) {
@@ -464,12 +545,25 @@ export namespace Repeat {
     }
 
     /** Compute the range of children that need to be updated */
-    protected updateChildren(new_lst: NonNullable<o.ObservedType<Obs>>) {
+    protected updateChildren(
+      new_lst: NonNullable<o.ObservedType<Obs>>,
+      view_override?: { start: number; end: number }
+    ) {
       const keyfn = this.keyfn
+      const { start: view_start, end: view_end } = this.resolve_view(
+        new_lst.length,
+        view_override
+      )
+      const view_active =
+        view_start !== 0 || view_end !== new_lst.length
+
+      if (view_active) {
+        this.evict_outside_view(view_start, view_end)
+      }
 
       const keys: any[] = new Array(new_lst.length)
       let key_map = new Map<any, number>()
-      for (let i = 0; i < new_lst.length; i++) {
+      for (let i = view_start; i < view_end; i++) {
         const item = new_lst[i]
         const key = keyfn?.(item, i) ?? item ?? `--repeat-key-${i}`
         keys[i] = key
@@ -479,7 +573,7 @@ export namespace Repeat {
       let iter = this.__list.nextSibling as RepeatItemElement<Obs> | null
       let end = this.__list.end!.previousSibling as RepeatItemElement<Obs> | null
 
-      let idx = 0
+      let idx = view_start
 
       const parent = this.__list.parentNode!
       const list_insert_ref = (before: Node | null) => before ?? this.__list.end!
@@ -520,7 +614,7 @@ export namespace Repeat {
         iter = iter.nextSibling as RepeatItemElement<Obs> | null
       }
 
-      let end_idx = new_lst.length
+      let end_idx = view_end
       while (end != null && end !== iter) {
         const obs = end[sym_obs]
         if (obs != null) {
@@ -573,7 +667,7 @@ export namespace Repeat {
           iter = iter.nextSibling as RepeatItemElement<Obs> | null
         }
 
-        if (iter == null || iter === end || idx >= keys.length) {
+        if (iter == null || iter === end || idx >= view_end) {
           break
         }
 
@@ -616,10 +710,9 @@ export namespace Repeat {
         }
 
         created++
-        const nd = this.create(new_lst, key, idx)
+        const nd = this.create(new_lst, key, idx, view_start)
         idx++
         place_item(nd, iter)
-        // node_append(this.node, nd, iter)
       } while (true)
 
       if (iter == null || iter === end) {
@@ -633,10 +726,9 @@ export namespace Repeat {
             idx++
             continue
           }
-          const nd = this.create(new_lst, keys[idx], idx)
+          const nd = this.create(new_lst, keys[idx], idx, view_start)
           idx++
           place_item(nd, iter)
-          // node_append(this.node, nd, iter)
         }
       } else if (idx >= end_idx) {
         // All the nodes we meant to create/insert are already there, so until iter is on end, the rest is dead nodes
@@ -668,7 +760,8 @@ export namespace Repeat {
     protected create(
       lst: NonNullable<o.ObservedType<Obs>>,
       key: any,
-      index: number
+      index: number,
+      view_start = 0
     ) {
       // const item = lst[index]
       const o_prop_obs = o(index)
@@ -680,7 +773,7 @@ export namespace Repeat {
       node_append(fragment, node)
 
       const _sep = this.separator
-      if (_sep && index > 0) {
+      if (_sep && index > view_start) {
         const sep = document.createElement("e-repeat-separator")
         sep.setAttribute("index", index.toString())
         node_append(sep, _sep(o_prop_obs), node.firstChild)
