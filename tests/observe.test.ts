@@ -104,6 +104,28 @@ describe("$observe", () => {
     expect(inner).toBe(1)
   })
 
+  test("moving to a disconnected parent stops observation", () => {
+    const obs = o(1)
+    let count = 0
+    const el = document.createElement("div")
+    $observe(obs, () => {
+      count++
+    })(el)
+
+    node_append(document.body, el)
+    expect(count).toBe(1)
+    expect(node_is_observing(el)).toBe(true)
+
+    const staging = document.createDocumentFragment()
+    node_append(staging, el)
+    expect(node_is_observing(el)).toBe(false)
+    expect(node_is_connected(el)).toBe(false)
+    expect(el.isConnected).toBe(false)
+
+    obs.set(2)
+    expect(count).toBe(1)
+  })
+
   test("re-appending restarts observation", () => {
     const obs = o(1)
     let count = 0

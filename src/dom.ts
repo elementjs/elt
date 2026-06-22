@@ -396,6 +396,8 @@ export function node_append<N extends Node>(
       insert_before(node, renderable, refchild, is_basic_node)
       if (node.isConnected) {
         node_do_connected(renderable)
+      } else if (node_is_connected(renderable)) {
+        node_do_disconnect(renderable)
       }
     }
   } else if (renderable instanceof Function) {

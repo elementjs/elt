@@ -653,11 +653,12 @@ export namespace Repeat {
         let [node, fragment] = next.value!
         dead_nodes.delete(node)
         const obs = node[sym_obs]
+        const value = new_lst[idx]
         obs.o_prop.set(idx)
         obs.key = keys[idx]
-        obs.repeatSet(new_lst[idx])
         this.node_map.set(obs.key, node)
-        parent.insertBefore(fragment, list_insert_ref(iter))
+        node_append(parent, fragment, list_insert_ref(iter))
+        obs.repeatSet(value)
         return true
       }
 
