@@ -2,11 +2,22 @@ import { css } from "elt"
 import { theme } from "./theme"
 
 css`menu {
-  display: flex;
-  flex-direction: column;
+  display: grid;
   grid-template-columns: [left] 32px [content] 1fr [right] 32px;
+  align-items: start;
+  align-content: start;
   gap: 0;
   padding: 8px;
+
+  & > * {
+    grid-column: 1 / -1;
+  }
+
+  & > label {
+    display: grid;
+    grid-template-columns: subgrid;
+    align-items: baseline;
+  }
 
   & > :is(h1, h2, h3, h4, h5, h6) {
     margin: 0;
