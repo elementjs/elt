@@ -175,6 +175,10 @@ export class Theme<ColorScheme extends BaseColorScheme> {
       `color: var(--e-color-text);`,
       `background-color: var(--e-color-bg);`,
       `line-height: var(--e-line-height, ${this.settings.lineHeight});`,
+      `::selection {
+        background-color: oklch(from var(--e-color-tint) l c h / 0.25);
+        color: var(--e-color-text);
+      }`,
     ].join("")
   }
 

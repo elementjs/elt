@@ -22,6 +22,15 @@ declare module "elt" {
 css`
 @layer components {
 
+a {
+  cursor: pointer;
+  color: ${colors.tint};
+  &:hover {
+    text-decoration: underline;
+    background-color: ${colors.tint.light};
+  }
+}
+
 label {
   &:has(:disabled) {
     opacity: 0.5;

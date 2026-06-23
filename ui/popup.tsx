@@ -105,10 +105,6 @@ function _eval_popup_click(ev: MouseEvent) {
 
 export const sym_popup_closed = Symbol("popup closed")
 
-const ARROW_WIDTH = 12
-/** Side length; base span along panel ≈ S×√2, outward tip distance ≈ S/√2. */
-const ARROW_OFFSET = ARROW_WIDTH / 2
-
 type ArrowPlacement = "top" | "bottom" | "left" | "right"
 
 /** Arrow state as per floating-ui's arrow middleware */
@@ -179,7 +175,7 @@ const popup_transform_origins = new Map<string, string>([
 export function popup<T>(
   anchor: Element,
   fn: (fut: Future<T | typeof sym_popup_closed>) => Node,
-  opts: Partial<ComputePositionConfig> & { parent?: Element | null, arrow?: boolean }
+  opts?: Partial<ComputePositionConfig> & { parent?: Element | null, arrow?: boolean }
 ) {
 
   const doc = anchor.ownerDocument
@@ -220,13 +216,13 @@ export function popup<T>(
     // node_append(anchor.parentElement!, popup_root, anchor.nextSibling)
 
     const o_arrow_state = o<ArrowState>({ side: "bottom", ax: null, ay: null, visible: true })
-    const arro = opts.arrow !== false ? popup_arrow(o_arrow_state) : null
+    const arro = opts?.arrow !== false ? popup_arrow(o_arrow_state) : null
     if (arro) {
       // Sibling after scrollable content; z-index keeps it above the panel fill.
       node_append(popup, arro, popup.firstChild)
     }
 
-    node_append(opts.parent ?? find_parent_node(anchor), popup)
+    node_append(opts?.parent ?? find_parent_node(anchor), popup)
 
     popup.showPopover()
     popup.classList.add("open")
@@ -237,7 +233,7 @@ export function popup<T>(
         ...opts,
         middleware: [
           autoPlacement({
-            allowedPlacements: [...(opts.placement ? [opts.placement] : []), "top", "top-start", "top-end", "bottom", "bottom-start", "bottom-end",]
+            allowedPlacements: [...(opts?.placement ? [opts.placement] : []), "top", "top-start", "top-end", "bottom", "bottom-start", "bottom-end",]
           }),
           flip(),
           hide(),

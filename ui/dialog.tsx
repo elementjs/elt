@@ -63,7 +63,7 @@ export function show_dialog<T>(opts: DialogOptions | DialogCallback<T>, cbk?: Di
   return future.finally(() => {
     close_dialog()
   }).catch(e => {
-    console.warn(e)
+    // console.warn(e)
   })
 }
 

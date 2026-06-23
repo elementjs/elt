@@ -1,8 +1,8 @@
 import {
   $connected,
   $disconnected,
-  $observe,
   css,
+  node_observe,
   o,
   type attrs_textarea,
   type NRO,
@@ -48,10 +48,8 @@ function resize_to_content(
   min_lines: number,
   max_lines: number
 ) {
-  const min_l = Math.max(0, min_lines)
-  let max_l = Number.isFinite(max_lines)
-    ? Math.max(min_l, max_lines)
-    : Number.MAX_SAFE_INTEGER
+  const min_l = Math.max(1, min_lines)
+  let max_l = Number.isFinite(max_lines) ? max_lines : Number.MAX_SAFE_INTEGER
 
   const lh = line_height_px(ta)
   const extra = box_vertical_extra(ta)
@@ -104,85 +102,32 @@ function setup_auto_grow(ta: HTMLTextAreaElement, resize: () => void) {
   }
 }
 
-export function $auto_grow(at: HTMLTextAreaElement): Renderable<HTMLTextAreaElement> {
-  const oo_min_lines = o(at.minLength)
-  const oo_max_lines = o(at.maxLength)
+export function $auto_grow(opts?: {max?: o.RO<number>, min?: o.RO<number>}): Renderable<HTMLTextAreaElement> {
+  return (ta: HTMLTextAreaElement) => {
+    const oo_min_lines = o(opts?.min ?? 1)
+    const oo_max_lines = o(opts?.max ?? Number.MAX_SAFE_INTEGER)
+    let teardown: (() => void) | null = null
 
-  return [
-    $connected(ta => {
-      setup_auto_grow(ta, () => {
-        const min = oo_min_lines.get()
-        const max = Math.max(min, oo_max_lines.get())
-        resize_to_content(ta, min, max)
-      })
-    }),
-  ]
-}
-
-export function TextArea(at: TextAreaAttrs) {
-  const oo_min_lines = o.expression(get => {
-    const ml = get(at["min-lines"])
-    if (ml != null && ml !== false) {
-      return Math.max(0, Math.trunc(Number(ml)))
+    const resize = () => {
+      const min = oo_min_lines.get()
+      const max = oo_max_lines.get()
+      resize_to_content(ta, min, max)
     }
-    const r = get(at.rows)
-    if (r != null && r !== false) {
-      return Math.max(0, Math.trunc(Number(r)))
-    }
-    return 1
-  })
 
-  const oo_max_lines = o.expression(get => {
-    const mx = get(at["max-lines"])
-    if (mx == null || mx === false) {
-      return Number.POSITIVE_INFINITY
-    }
-    return Math.max(0, Math.trunc(Number(mx)))
-  })
+    node_observe(ta, o.join(oo_min_lines, oo_max_lines), () => {
+      resize
+    })
 
-  let resize_hook: (() => void) | null = null
-  let teardown: (() => void) | null = null
-
-  return (
-    <textarea
-      class={at.auto && cls_auto_textarea}
-      autocomplete={at.autocomplete}
-      autocorrect={at.autocorrect}
-      cols={at.cols}
-      disabled={at.disabled}
-      form={at.form}
-      maxlength={at.maxlength}
-      minlength={at.minlength}
-      name={at.name}
-      placeholder={at.placeholder}
-      readonly={at.readonly}
-      required={at.required}
-      rows={at.auto ? undefined : at.rows}
-      wrap={at.wrap}
-    >
-      {at.auto &&
-        $connected((ta: HTMLTextAreaElement) => {
-          teardown?.()
-
-          const resize = () => {
-            const min = oo_min_lines.get()
-            const max = Math.max(min, oo_max_lines.get())
-            resize_to_content(ta, min, max)
-          }
-
-          resize_hook = resize
-          teardown = setup_auto_grow(ta, resize)
-        })}
-      {at.auto &&
-        $disconnected(() => {
-          teardown?.()
-          teardown = null
-          resize_hook = null
-        })}
-      {at.auto &&
-        $observe(o.join(oo_min_lines, oo_max_lines), () => {
-          resize_hook?.()
-        })}
-    </textarea>
-  ) as HTMLTextAreaElement
+    return [
+      $connected(ta => {
+        ta.style.overflowY = "hidden"
+        ta.style.resize = "none"
+        teardown = setup_auto_grow(ta, resize)
+      }),
+      $disconnected(() => {
+        teardown?.()
+        teardown = null
+      }),
+    ]
+  }
 }
