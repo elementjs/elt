@@ -203,20 +203,6 @@ css`@layer typography {
       }
     }
 
-    & > thead > tr:first-child > :is(th, td):first-child {
-      border-top-left-radius: ${theme.settings.borderRadius};
-    }
-    & > thead > tr:first-child > :is(th, td):last-child {
-      border-top-right-radius: ${theme.settings.borderRadius};
-    }
-
-    & > :is(tbody:last-child, tfoot) > tr:last-child > :is(th, td):first-child {
-      border-bottom-left-radius: ${theme.settings.borderRadius};
-    }
-    & > :is(tbody:last-child, tfoot) > tr:last-child > :is(th, td):last-child {
-      border-bottom-right-radius: ${theme.settings.borderRadius};
-    }
-
     & > :is(thead, tr:first-child) :is(th, td) {
       border-top: 1px solid ${theme.colors.text.light};
     }
@@ -240,10 +226,6 @@ css`@layer typography {
 
   e-box[table-container] {
     border-radius: ${theme.settings.borderRadius};
-    /* Clip the scrollbar to the rounded corners. 1px is the border width. */
-    clip-path: inset(0 round ${theme.settings.borderRadius});
-
-    outline: 2px solid ${theme.colors.text.mid};
     max-width: 100%;
     width: fit-content;
 
@@ -253,14 +235,6 @@ css`@layer typography {
     & thead tr:has(th) {
       position: sticky;
       top: 0;
-    }
-
-    & table > thead > tr:first-child > :is(th, td):last-child {
-      border-top-right-radius: 0;
-    }
-
-    & table > :is(tbody:last-child, tfoot) > tr:last-child > :is(th, td):last-child {
-      border-bottom-right-radius: 0;
     }
   }
 
