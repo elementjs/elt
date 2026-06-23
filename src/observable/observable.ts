@@ -1158,14 +1158,55 @@ export namespace o {
 
     function make_setter_from_path(path: readonly (string | number)[]) {
       return (obj: T, newv: any) => {
-        let a: any = newv
-        for (let i = path.length - 1; i >= 0; i--) {
-          a = {[path[i]]: a}
+        if (path.length === 0) return newv
+
+        function is_container(v: any): v is Record<PropertyKey, any> | any[] {
+          return v != null && typeof v === "object"
         }
-        if (obj == null) {
-          return a
+
+        function is_index_key(key: string | number) {
+          return (
+            typeof key === "number" ||
+            (typeof key === "string" && /^\d+$/.test(key))
+          )
         }
-        return assign(obj, a)
+
+        // Intermediate nodes along the path; numeric keys prefer arrays.
+        function empty_for(key: string | number) {
+          return is_index_key(key) ? [] : {}
+        }
+
+        function copy_container(base: Record<PropertyKey, any> | any[]) {
+          return Array.isArray(base) ? base.slice() : o.clone(base)
+        }
+
+        function set_at(base: any, depth: number): [any, boolean] {
+          const key = path[depth]
+          const last = depth === path.length - 1
+
+          if (last) {
+            if (!is_container(base)) return [{ [key]: newv }, true]
+            if (base[key] === newv) return [base, false]
+            const clone = copy_container(base)
+            clone[key] = newv
+            return [clone, true]
+          }
+
+          const next_key = path[depth + 1]
+          const child = is_container(base) ? base[key] : undefined
+          const child_base = is_container(child) ? child : empty_for(next_key)
+          const [new_child, child_changed] = set_at(child_base, depth + 1)
+          if (!child_changed) return [base, false]
+
+          if (!is_container(base)) return [{ [key]: new_child }, true]
+
+          const clone = copy_container(base)
+          clone[key] = new_child
+          return [clone, true]
+        }
+
+        const [result, changed] = set_at(obj, 0)
+        return changed ? result : obj
       }
     }
 

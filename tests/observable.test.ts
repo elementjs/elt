@@ -565,6 +565,83 @@ describe("o.p(path[])", function () {
   })
 })
 
+describe("o.p path setter overwrite", function () {
+  test("o.p([...]) replaces a string intermediate with an object chain", () => {
+    const obj = o({ a: "hello", b: 1 })
+    const sub = obj.p(["a", "b", "c"])
+
+    sub.set(42)
+    expect(obj.get()).toEqual({ a: { b: { c: 42 } }, b: 1 })
+    expect(sub.get()).toBe(42)
+  })
+
+  test("o.p(fn) replaces a string intermediate with an object chain", () => {
+    const obj = o({ a: "hello", b: 1 })
+    const sub = obj.p((x) => x.a?.b?.c)
+
+    expect(sub.get()).toBe(undefined)
+    sub.set(42)
+    expect(obj.get()).toEqual({ a: { b: { c: 42 } }, b: 1 })
+    expect(sub.get()).toBe(42)
+  })
+
+  test("o.p([...]) replaces a number intermediate with an object chain", () => {
+    const obj = o({ a: 0, b: 1 })
+    const sub = obj.p(["a", "b", "c"])
+
+    sub.set("nested")
+    expect(obj.get()).toEqual({ a: { b: { c: "nested" } }, b: 1 })
+    expect(sub.get()).toBe("nested")
+  })
+
+  test("o.p([...]) builds an array branch for a numeric path segment through a primitive", () => {
+    const obj = o({ items: "not-array" as unknown as { 0?: { name?: string } } })
+    const sub = obj.p(["items", 0, "name"])
+
+    sub.set("x")
+    expect(obj.get()).toEqual({ items: [{ name: "x" }] })
+    expect(sub.get()).toBe("x")
+  })
+
+  test("o.p([...]) replaces a primitive array element with a nested object", () => {
+    const obj = o(["hello", 2])
+    const sub = obj.p([0, "x"])
+
+    sub.set(1)
+    expect(obj.get()).toEqual([{ x: 1 }, 2])
+    expect(sub.get()).toBe(1)
+  })
+
+  test("o.p([...]) returns the same root reference when the value is unchanged", () => {
+    const obj = o({ a: { b: { c: 1 } } })
+    const sub = obj.p(["a", "b", "c"])
+    const before = obj.get()
+
+    sub.set(1)
+    expect(obj.get()).toBe(before)
+    expect(sub.get()).toBe(1)
+  })
+
+  test("o.p([...]) preserves references on unmodified branches", () => {
+    const other = { kept: true }
+    const obj = o({ a: { b: { c: 1 } }, other })
+    const sub = obj.p(["a", "b", "c"])
+
+    sub.set(2)
+    expect(obj.get().other).toBe(other)
+    expect(obj.get().a.b.c).toBe(2)
+  })
+
+  test("o.prop(obj, [...]) replaces a string intermediate with an object chain", () => {
+    const obj = o({ a: "hello" })
+    const sub = o.prop(obj, ["a", "b", "c"])
+
+    sub.set(7)
+    expect(obj.get()).toEqual({ a: { b: { c: 7 } } })
+    expect(sub.get()).toBe(7)
+  })
+})
+
 describe("o.expression()", function () {
   test("o.expression() creates combined observable with dynamic dependencies", () => {
     const a = o(5)
