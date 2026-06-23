@@ -104,20 +104,28 @@ function setup_auto_grow(ta: HTMLTextAreaElement, resize: () => void) {
   }
 }
 
-export function TextArea(at: TextAreaAttrs) {
-  const {
-    auto,
-    "min-lines": min_lines,
-    "max-lines": max_lines,
-    rows,
-  } = at
+export function $auto_grow(at: HTMLTextAreaElement): Renderable<HTMLTextAreaElement> {
+  const oo_min_lines = o(at.minLength)
+  const oo_max_lines = o(at.maxLength)
 
+  return [
+    $connected(ta => {
+      setup_auto_grow(ta, () => {
+        const min = oo_min_lines.get()
+        const max = Math.max(min, oo_max_lines.get())
+        resize_to_content(ta, min, max)
+      })
+    }),
+  ]
+}
+
+export function TextArea(at: TextAreaAttrs) {
   const oo_min_lines = o.expression(get => {
-    const ml = get(min_lines)
+    const ml = get(at["min-lines"])
     if (ml != null && ml !== false) {
       return Math.max(0, Math.trunc(Number(ml)))
     }
-    const r = get(rows)
+    const r = get(at.rows)
     if (r != null && r !== false) {
       return Math.max(0, Math.trunc(Number(r)))
     }
@@ -125,7 +133,7 @@ export function TextArea(at: TextAreaAttrs) {
   })
 
   const oo_max_lines = o.expression(get => {
-    const mx = get(max_lines)
+    const mx = get(at["max-lines"])
     if (mx == null || mx === false) {
       return Number.POSITIVE_INFINITY
     }
@@ -136,11 +144,23 @@ export function TextArea(at: TextAreaAttrs) {
   let teardown: (() => void) | null = null
 
   return (
-    <textarea class={[auto && cls_auto_textarea]}>
-      {!auto && rows != null && rows !== false
-        ? ({ rows } as unknown as Renderable<HTMLTextAreaElement>)
-        : null}
-      {auto &&
+    <textarea
+      class={at.auto && cls_auto_textarea}
+      autocomplete={at.autocomplete}
+      autocorrect={at.autocorrect}
+      cols={at.cols}
+      disabled={at.disabled}
+      form={at.form}
+      maxlength={at.maxlength}
+      minlength={at.minlength}
+      name={at.name}
+      placeholder={at.placeholder}
+      readonly={at.readonly}
+      required={at.required}
+      rows={at.auto ? undefined : at.rows}
+      wrap={at.wrap}
+    >
+      {at.auto &&
         $connected((ta: HTMLTextAreaElement) => {
           teardown?.()
 
@@ -153,13 +173,13 @@ export function TextArea(at: TextAreaAttrs) {
           resize_hook = resize
           teardown = setup_auto_grow(ta, resize)
         })}
-      {auto &&
+      {at.auto &&
         $disconnected(() => {
           teardown?.()
           teardown = null
           resize_hook = null
         })}
-      {auto &&
+      {at.auto &&
         $observe(o.join(oo_min_lines, oo_max_lines), () => {
           resize_hook?.()
         })}
