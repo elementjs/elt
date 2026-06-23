@@ -18,7 +18,7 @@ export * from "./icons"
 export * from "./search"
 export * from "./timepicker"
 export * from "./menu"
-
+export * from "./textarea"
 
 import { o } from "elt"
 import { theme } from "./theme"
