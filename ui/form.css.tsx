@@ -321,13 +321,13 @@ e-button-box {
   position: relative;
   z-index: 0;
   display: flex;
-  align-items: baseline;
+  align-items: stretch;
 
   p > & {
     display: inline-flex;
   }
 
-  & :is(button, input, label) {
+  & :is(button, input, label, textarea) {
     position: relative;
     z-index: 0;
   }
@@ -337,7 +337,7 @@ e-button-box {
     flex-direction: column;
     gap: 0;
 
-    & > :is(button, input, label):not(:last-child) {
+    & > :is(button, input, label, textarea):not(:last-child) {
       border-bottom: none;
       border-bottom-right-radius: 0;
       border-bottom-left-radius: 0;
@@ -354,13 +354,12 @@ e-button-box {
     }
   }
 
-
   & :focus-visible {
     z-index: 1;
   }
 
   &:not([e-variant="vertical"]) {
-    & > :is(button, input, label):not(:last-child)
+    & > :is(button, input, label, textarea):not(:last-child)
     {
       border-right: none;
       border-bottom-right-radius: 0;
