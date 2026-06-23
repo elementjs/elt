@@ -1186,14 +1186,14 @@ export namespace o {
 
           if (last) {
             if (!is_container(base)) return [{ [key]: newv }, true]
-            if (base[key] === newv) return [base, false]
+            if (base[key as any] === newv) return [base, false]
             const clone = copy_container(base)
-            clone[key] = newv
+            clone[key as any] = newv
             return [clone, true]
           }
 
           const next_key = path[depth + 1]
-          const child = is_container(base) ? base[key] : undefined
+          const child = is_container(base) ? base[key as any] : undefined
           const child_base = is_container(child) ? child : empty_for(next_key)
           const [new_child, child_changed] = set_at(child_base, depth + 1)
           if (!child_changed) return [base, false]
@@ -1201,7 +1201,7 @@ export namespace o {
           if (!is_container(base)) return [{ [key]: new_child }, true]
 
           const clone = copy_container(base)
-          clone[key] = new_child
+          clone[key as any] = new_child
           return [clone, true]
         }
 
