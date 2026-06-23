@@ -597,11 +597,11 @@ export namespace o {
     ): ReadonlyObservable<A[K]>
     p(
       this: Observable<A>,
-      key: readonly PropertyKey[] | RO<readonly PropertyKey[]>
+      key: RO<readonly PropertyKey[]>
     ): Observable<unknown>
     p(
       this: IReadonlyObservable<A>,
-      key: readonly PropertyKey[] | RO<readonly PropertyKey[]>
+      key: RO<readonly PropertyKey[]>
     ): ReadonlyObservable<unknown>
     p(key: any): any {
       return prop(this, key)
@@ -1130,12 +1130,12 @@ export namespace o {
   ): ReadonlyObservable<T[K]>
   export function prop<T>(
     obj: O<T>,
-    prop: readonly PropertyKey[] | RO<readonly PropertyKey[]>,
+    prop: RO<readonly PropertyKey[]>,
     def?: RO<(obj: T) => unknown>
   ): Observable<unknown>
   export function prop<T>(
     obj: RO<T>,
-    prop: readonly PropertyKey[] | RO<readonly PropertyKey[]>,
+    prop: RO<readonly PropertyKey[]>,
     def?: RO<(obj: T) => unknown>
   ): ReadonlyObservable<unknown>
   export function prop<T>(obj: any, prop: any, def?: any): any {
