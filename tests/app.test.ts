@@ -6,29 +6,29 @@ import { test, expect, describe } from "bun:test"
 import { App } from "../src/app"
 import type { ServiceBuilderFunction, ServiceHelper } from "../src/app/service"
 
-function home_srv(srv: ServiceHelper) {
+async function home_srv(srv: ServiceHelper) {
   srv.views.set("Main", () => "home")
 }
 
-function user_srv(srv: ServiceHelper<{ id: string }>) {
+async function user_srv(srv: ServiceHelper<{ id: string }>) {
   user_srv.builds = (user_srv.builds ?? 0) + 1
   srv.param("id")
   srv.views.set("Main", () => "user")
 }
 user_srv.builds = 0
 
-function list_srv(srv: ServiceHelper<{ filter?: string }>) {
+async function list_srv(srv: ServiceHelper<{ filter?: string }>) {
   list_srv.builds = (list_srv.builds ?? 0) + 1
   srv.param_soft("filter", "")
   srv.views.set("Main", () => "list")
 }
 list_srv.builds = 0
 
-const base_srv: ServiceBuilderFunction<{}> = (srv) => {
+const base_srv: ServiceBuilderFunction<void> = async (srv) => {
   srv.views.set("Slot", () => "base")
 }
 
-const leaf_srv: ServiceBuilderFunction<{}> = async (srv) => {
+const leaf_srv: ServiceBuilderFunction<void> = async (srv) => {
   await srv.require(base_srv)
   srv.views.set("Slot", () => "leaf")
 }

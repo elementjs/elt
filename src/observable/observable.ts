@@ -51,6 +51,8 @@ export namespace o {
     get(): Get
     addObserver(fn: ObserverCallback<Get>): Observer<Get>
     addObserver(fn: Observer<Get>): Observer<Get>
+    tf<B>(fn: TransfomFn<Get, B>): IReadonlyObservable<B>
+    tf<B>(fn: TransfomFn<Get, B>, revert: RevertFn<Get, B>): IObservable<B, Get>
   }
 
   export interface IObservable<Get, Set> extends IReadonlyObservable<Get> {
@@ -79,6 +81,10 @@ export namespace o {
     : A
 
   export type UnROArray<A extends any[]> = { [K in keyof A]: UnRO<A[K]> }
+
+  export type ArrayElement<T> = T extends readonly (infer E)[] ? E : never;
+
+  export type ObservedArrayElement<T> = ArrayElement<ObservedType<T>>
 
   /**
    * Get the type of the element of an observable. Works on `#o.RO` as well.

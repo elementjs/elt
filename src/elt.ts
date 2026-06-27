@@ -84,10 +84,8 @@ export type AttrsFor<T extends string> = T extends keyof ElementMap
  * @category dom, toc
  */
 export function e<
-  T extends (a: A, refchild: RefChild) => N,
-  A extends Attrs<any>,
-  N extends Node
->(elt: T, attrs: A, ...children: (A | Renderable<N>)[]): N
+  T extends (a: any, refchild: RefChild) => Node,
+>(elt: T, attrs: Parameters<T>[0], ...children: (Renderable<ReturnType<typeof elt>> | Attrs<HTMLElement>)[]): ReturnType<typeof elt>
 export function e<T extends Node>(
   elt: T,
   ...children: (Attrs<T> | Renderable<T>)[]
@@ -99,7 +97,7 @@ export function e<T extends string>(
 // eslint-disable-next-line @typescript-eslint/ban-types
 export function e<N extends Node>(
   elt: string | Node | Function,
-  ...children: (Renderable<N> | Attrs<N>)[]
+  ...children: (Renderable<N> | Attrs<N> | any)[]
 ): N {
   let node: N // just to prevent the warnings later
 

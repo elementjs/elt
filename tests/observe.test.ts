@@ -71,7 +71,7 @@ describe("$observe", () => {
     })(el)
 
     node_append(document.body, el)
-    expect(received).toBe(el)
+    expect(received as Node | null).toBe(el)
     node_remove(el)
   })
 

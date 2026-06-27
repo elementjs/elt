@@ -3,16 +3,16 @@ import "./setup.ts"
 
 import { test, expect, describe } from "bun:test"
 
-import { e, RefChild, type Attrs } from "../src/elt"
+import { e, RefChild, type Attrs } from "../src"
 import { node_append } from "../src/dom"
 
-function panel(attrs: { title: string }, refchild: RefChild) {
+function panel(attrs: { title: string } & Attrs<HTMLDivElement>, refchild: RefChild) {
   return e(
     "div",
     { class: "panel" },
     e("h2", {}, attrs.title),
     refchild.IfChildren(ref => e("div", { class: "panel-body" }, ref))
-  ) as HTMLDivElement
+  )
 }
 
 function insert_after(_attrs: Attrs<HTMLDivElement>, ref: RefChild) {
@@ -21,7 +21,7 @@ function insert_after(_attrs: Attrs<HTMLDivElement>, ref: RefChild) {
     { class: "host" },
     e("span", { class: "marker" }, "insert here"),
     ref
-  ) as HTMLDivElement
+  )
 }
 
 function box(attrs: Attrs<HTMLDivElement>) {
@@ -54,7 +54,7 @@ describe("RefChild", () => {
       panel,
       { title: "x" },
       e("span", {}, "c")
-    ) as HTMLDivElement
+    )
 
     expect(alone.querySelector(".panel-body")).toBeNull()
     expect(with_child.querySelector(".panel-body")).not.toBeNull()

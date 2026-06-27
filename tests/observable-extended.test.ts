@@ -342,7 +342,7 @@ describe("Observable extended", () => {
         { type: "b", v: 2 },
         { type: "a", v: 3 },
       ])
-      const grouped = arr.tf(tf_array_group_by((item) => item.type))
+      const grouped = arr.tf(tf_array_group_by((item: o.ObservedArrayElement<typeof arr>) => item.type))
       const result = grouped.get()
       const a_group = result.find(([k]) => k === "a")
       expect(a_group?.[1].map((x) => x.v)).toEqual([1, 3])
@@ -368,7 +368,7 @@ describe("Observable extended", () => {
         { kind: "b", n: 2 },
         { kind: "a", n: 3 },
       ])
-      const grouped = arr.tf(tf_group_by_to_object("kind"))
+      const grouped = arr.tf(tf_group_by_to_object<o.ObservedArrayElement<typeof arr>>("kind"))
       const obj = grouped.get()
       expect(obj.a.map((x) => x.n)).toEqual([1, 3])
       expect(obj.b.map((x) => x.n)).toEqual([2])
@@ -379,7 +379,7 @@ describe("Observable extended", () => {
         { kind: "a", n: 1 },
         { kind: "b", n: 2 },
       ])
-      const grouped = arr.tf(tf_group_by_to_map((item) => item.kind))
+      const grouped = arr.tf(tf_group_by_to_map((item: o.ObservedArrayElement<typeof arr>) => item.kind))
       const m = grouped.get()
       expect(m.get("a")?.[0].n).toBe(1)
       expect(m.get("b")?.[0].n).toBe(2)
@@ -387,7 +387,7 @@ describe("Observable extended", () => {
 
     test("tf_array_filter() stable mode keeps indices on array growth", () => {
       const arr = o([1, 2, 3])
-      const odds = arr.tf(tf_array_filter((n) => n % 2 === 1, true))
+      const odds = arr.tf(tf_array_filter((n: number) => n % 2 === 1, true))
       expect(odds.get()).toEqual([1, 3])
 
       arr.set([1, 2, 3, 4, 5])
@@ -455,7 +455,7 @@ describe("Observable extended", () => {
   describe("CombinedObservable disconnect", () => {
     test("disconnect stops parent dependency tracking", () => {
       const a = o(1)
-      const combined = o.combine([a], ([x]) => x * 2)
+      const combined = o.combine([a], ([x]) => x * 2) as o.CombinedObservable<any>
       const s = spy(combined)
 
       combined.disconnect()

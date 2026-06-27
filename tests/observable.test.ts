@@ -575,7 +575,8 @@ describe("o.p(path[])", function () {
 
 describe("o.p path setter overwrite", function () {
   test("o.p([...]) replaces a string intermediate with an object chain", () => {
-    const obj = o({ a: "hello", b: 1 })
+    type Tested = {a: string, b: number} | {a: { b: { c: number } }, b: number}
+    const obj = o({ a: "hello", b: 1 } as Tested)
     const sub = obj.p(["a", "b", "c"])
 
     sub.set(42)
@@ -584,8 +585,9 @@ describe("o.p path setter overwrite", function () {
   })
 
   test("o.p(fn) replaces a string intermediate with an object chain", () => {
-    const obj = o({ a: "hello", b: 1 })
-    const sub = obj.p((x) => x.a?.b?.c)
+    type Tested = {a: string, b: number} | {a: { b: { c: number } }, b: number}
+    const obj = o({ a: "hello", b: 1 } as Tested)
+    const sub = obj.p((x) => (x.a as any)?.b?.c)
 
     expect(sub.get()).toBe(undefined)
     sub.set(42)
@@ -594,7 +596,8 @@ describe("o.p path setter overwrite", function () {
   })
 
   test("o.p([...]) replaces a number intermediate with an object chain", () => {
-    const obj = o({ a: 0, b: 1 })
+    type Tested = {a: number, b: number} | {a: { b: { c: string } }, b: number}
+    const obj = o({ a: 0, b: 1 } as Tested)
     const sub = obj.p(["a", "b", "c"])
 
     sub.set("nested")
@@ -612,7 +615,7 @@ describe("o.p path setter overwrite", function () {
   })
 
   test("o.p([...]) replaces a primitive array element with a nested object", () => {
-    const obj = o(["hello", 2])
+    const obj = o(["hello", 2] as [string | {x: number}, number])
     const sub = obj.p([0, "x"])
 
     sub.set(1)
@@ -641,7 +644,7 @@ describe("o.p path setter overwrite", function () {
   })
 
   test("o.prop(obj, [...]) replaces a string intermediate with an object chain", () => {
-    const obj = o({ a: "hello" })
+    const obj = o({ a: "hello" } as {a: string | {b: {c: number}}})
     const sub = o.prop(obj, ["a", "b", "c"])
 
     sub.set(7)
@@ -1086,7 +1089,7 @@ describe("Transformers", function () {
   describe("tf_entries()", function () {
     test("converts object to entries array", () => {
       const obj = o({ a: 1, b: 2, c: 3 })
-      const entries = obj.tf(tf_entries())
+      const entries = obj.tf(tf_entries<o.ObservedType<typeof obj>>())
 
       const result = entries.get()
       expect(Array.isArray(result)).toBe(true)

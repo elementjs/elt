@@ -2,6 +2,7 @@
 This file tests some typing contracts. It should never have errors
 */
 
+import type { Renderable } from '../src';
 import { o } from '../src/observable'
 
 var _: any
@@ -27,6 +28,13 @@ export var t7: o.Observable<number> = o(_ as o.Observable<number> | o.Observable
 export var t8: o.ReadonlyObservable<number | string> = o(_ as o.Observable<number> | o.Observable<string>)
 
 export type t9 = o.ReadonlyObservable<number> | undefined extends o.ReadonlyObservable<any> ? true : false
+
+declare var __: any
+
+{
+  var rd: Renderable<HTMLDivElement> = __ as HTMLAnchorElement
+  void rd
+}
 
 // .p() / o.prop() typing
 {
