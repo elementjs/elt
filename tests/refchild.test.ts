@@ -3,8 +3,9 @@ import "./setup.ts"
 
 import { test, expect, describe } from "bun:test"
 
-import { e, RefChild, type Attrs } from "../src"
+import { e, RefChild } from "../src/elt"
 import { node_append } from "../src/dom"
+import type { Attrs } from "../src/types"
 
 function panel(attrs: { title: string } & Attrs<HTMLDivElement>, refchild: RefChild) {
   return e(
