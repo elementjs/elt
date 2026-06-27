@@ -39,7 +39,7 @@ ELT offers the following concepts to get this done :
 
  * Since the DOM does not offer a simple way to know *when* a node is added or removed from the document other than using a `MutationObserver`, ELT offers a way to react to these events by setting up the observer itself and registering callbacks directly on the `Node`s. See [`$inserted()`](#$inserted), [`$removed()`](#$removed), but also [`$init()`](#$init).
 
- * Instead of creating components that change what they render based on the values of Observables, such as an hypothetical `<If condition={...}>`, ELT uses "verbs" ; functions whose name starts with an **upper-case** letter. While a component-based approach would work perfectly, the "verb" approach is more explicit about where dynamicity is happening in the code. See [`If()`](#If), [`Repeat`](#Repeat), [`RepeatScroll`](#RepeatScroll) and [`Switch`](#Switch).
+ * Instead of creating components that change what they render based on the values of Observables, such as an hypothetical `<If condition={...}>`, ELT uses "verbs" ; functions whose name starts with an **upper-case** letter. While a component-based approach would work perfectly, the "verb" approach is more explicit about where dynamicity is happening in the code. See [`If()`](#If), [`Repeat`](#Repeat), [`VirtualScroll`](#VirtualScroll) and [`Switch`](#Switch).
 
  * To avoid declaring a boatload of variables to modify nodes that are being created, ELT defines ["decorators"](#Decorator) which are callback functions that can be added as children of a node. See all the `$` prefixed functions followed by a **lower-case** letter. Their naming scheme was thought to differenciate them from function calls that actually *create* Nodes.
 
@@ -50,11 +50,11 @@ ELT offers the following concepts to get this done :
 
 ## About this documentation
 
-All the examples should be runnable, testable and modifiable.
+All the examples should be runnable, testable and modifiable. In this repository, **`tests/`** and **`demo/`** are the canonical references.
 
 The documentation is set up to use the `E()` version of `e()`. They're the same, but ELT infects the global namespace and adds `E()` on `window` to make it more convenient (only if `E` did not exist before, of course). This saves `import` statements and hopefully makes for a less cluttered documentation.
 
-Also, [`setup_mutation_observer`](#setup_setup_mutation_observer) is called automatically in the examples to reduce verbosity.
+Runnable apps live in **`demo/`**; mount the root with **`node_append`** (see Getting started below).
 
 
 ## Installation
@@ -79,12 +79,17 @@ In your `tsconfig.json`, you will need to add the following :
 
 > **Note**: You can also use `"jsxFactory": "E"` instead of `jsxNamespace`, but to use fragments, you have to `import { Fragment } from 'elt'` and then use the `<Fragment></Fragment>` construct instead of `<></>`. You may of course rename it to something terser, such as `import { Fragment as $ }` and `<$></$>`. The plus side of this approach is that typescript will only generate `E()` calls instead of `E.createElement()`, resulting in smaller, easier to read compiled code.
 
-At last, you need to setup the [`MutationObserver`](https://developer.mozilla.org/en-US/docs/Web/API/MutationObserver) which will call the life-cycle callbacks used extensively by elt. This has to be done only once *per document*, see [`setup_mutation_observer`](#setup_mutation_observer)
+At last, mount elt UI with [`node_append`](#node_append) on the root view (see `demo/src/app.tsx`) so connected/disconnected hooks run. Only set up [`setup_mutation_observer`](#setup_mutation_observer) when a **third-party** library inserts nodes with raw `appendChild` / `removeChild`.
 
-```jsx
-import { setup_mutation_observer } from 'elt'
-setup_mutation_observer(document)
-// you
+```tsx
+import { o, $bind, node_append } from 'elt'
+
+const o_says = o('hello world')
+
+node_append(document.body, <div>
+  <p><input>{$bind.string(o_says)}</input></p>
+  <p>Element says {o_says} !</p>
+</div>)
 ```
 
 ## Using it with a module loader
@@ -92,13 +97,11 @@ setup_mutation_observer(document)
 You can use the library through import statements. It is perfectly fine to use with webpack, rollup or parcel, although as of now no effort was put to make elt [tree-shakable](https://webpack.js.org/guides/tree-shaking/).
 
 ```tsx
-import { o, $bind, setup_mutation_observer } from 'elt'
-
-setup_mutation_observer(document)
+import { o, $bind, node_append } from 'elt'
 
 const o_says = o('hello world')
 
-document.body.appendChild(<div>
+node_append(document.body, <div>
   <p><input>{$bind.string(o_says)}</input></p>
   <p>Element says {o_says} !</p>
 </div>)
@@ -109,8 +112,7 @@ document.body.appendChild(<div>
 ELT supports being used as an umd module in a regular `<script>` import, in which case its global name is elt.
 
 ```jsx
-const { o, $bind, setup_mutation_observer } = elt
-setup_mutation_observer(document)
+const { o, $bind, node_append } = elt
 // ... profit !
 ```
 
@@ -125,9 +127,8 @@ This means that the result of a tsx expression (or a `e()` call) is directly ins
 
 ```jsx
 // You can write that.
-import { setup_mutation_observer } from 'elt'
-setup_mutation_observer(document)
-document.body.appendChild(<div class='some-class'>Hello</div>)
+import { node_append } from 'elt'
+node_append(document.body, <div class='some-class'>Hello</div>)
 ```
 
 Typescript's TSX is awesome. Unfortunately, as of today (version 3.8), its system still considers a TSX element as the type defined as the `JSX.Element` type, which is why as far as the type system is concerned, `var div = <div/>` will always have the type `Node`.
@@ -266,7 +267,7 @@ They usually work in concert with Observables to control the presence of nodes i
 
 For instance, [`If`](#If) will render its then arm only if the given observable is truthy, and the else otherwise.
 
-[`Repeat`](#Repeat) repeats the contents of an array, with an optional separator. [`RepeatScroll`](#RepeatScroll) does the same, but stops rendering elements once they overflow past the bottom of the [`$scrollable`](#$scrollable) block they're in.
+[`Repeat`](#Repeat) repeats the contents of an array, with an optional separator. [`VirtualScroll`](#VirtualScroll) window-renders long lists: only rows near the viewport exist in the DOM, with spacers for the rest (see AGENTS.md pitfalls before tuning it).
 
 ## Node Decorators
 
@@ -326,16 +327,16 @@ They can be transformed, and these transformations can be bidirectional.
 import { o, $click } from 'elt'
 
 const o_obj = o({a: 1, b: 'hello'})
-const o_a = o_obj.p('a') // o_a is a new Observable that watches the 'a' property. Its type is o.Observable<number>
+const o_a = o_obj.p('a') // one-level binding — fine for forms and display
 o_a.set(3)
 
 const o_tf = o_a.tf({transform: val => val * 2, revert: (nval: number) => nval / 2})
 o_tf.get() // 6
-o_tf.set(8) // o_a is now 4, and o_obj is {a: 4, b: '!!!'}
+o_tf.set(8) // o_a is now 4, and o_obj is {a: 4, b: 'hello'}
 
 // A transform can also be unidirectionnal
 const o_tf2 = o_a.tf(val => val * 3)
-o_tf2.get() // 9
+o_tf2.get() // 12
 // But then, the resulting observable is read only !
 o_tf2.set(3) // Compile error ! Runtime error too !
 
@@ -346,7 +347,7 @@ document.body.appendChild(<div>
       Set o_a
     </button>
     <button>
-      {$click(() => o_obj.p('b').set('!!!'))}
+      {$click(() => o_obj.assign({ b: '!!!' }))}
       Set o_b
     </button>
   </div>
@@ -356,12 +357,14 @@ document.body.appendChild(<div>
 
 The value in an observable is **immutable**. Whenever a modifying method is called, the object inside it is cloned.
 
+**Updating nested data:** use **`obs.assign({ ... })`** for simple partial merges, or **`obs.mutate(fn)`** (with `import "elt/mutative"`) for complex edits. Avoid chaining **`obs.p('a').p('b').set(x)`** in application code — each `.p()` creates another combined observable. A single `.p('key')` is appropriate for binding one field in the UI; deep writes belong in `.assign()` / `.mutate()`.
+
 ```tsx
 import { o } from 'elt'
 
 const o_obj = o({a: 1, b: 'b'})
 const prev = o_obj.get()
-o_obj.p('b').set('something else')
+o_obj.assign({ b: 'something else' })
 
 document.body.appendChild(<span>{prev === o_obj.get() ? 'true' : 'false'}</span>)
 ```
@@ -399,11 +402,25 @@ document.body.appendChild(<Fragment>
 
 ## Component Functions
 
-A component function takes an attribute object and return a Node.
+A component function takes an attribute object and returns a Node.
 
 The `attrs` argument represents what attributes can be set on the component. In simple cases, it is enough to give the arguments with the `&` operator.
 
-Children are always appended at the toplevel element returned by the function. If you want to control where they go, use the ShadowRoot with the $shadow decorator in tandem with `<slot>`.
+### JSX children and placement
+
+**JSX children** are appended at the component **`RefChild`** (two-parameter components) or the **root node** (single-parameter). There is no implicit `children` prop.
+
+| Goal | Approach |
+|------|----------|
+| Children after part of the markup | `(attrs, ref) => <div><header/><span>{ref}</span></div>` |
+| Wrapper exists only when children are passed | `refchild.IfChildren(ref => <div class="body">{ref}</div>)` |
+
+Bare `{ref}` and `IfChildren()` are **mutually exclusive** in a single two-arg component.
+| Fixed extra regions | `footer?: Renderable` (and similar attrs) |
+| Several child destinations | `$shadow` + named `<slot>` |
+| Dynamic lists / conditionals | Verbs (`If`, `Repeat`, `VirtualScroll`, …) |
+
+**Global attrs** on `<MyComponent class={…} id="…" title="…" />` are applied to the returned root by elt — the component does not need to forward them from `attrs` manually (unlike typical React prop spreading).
 
 ```tsx
 import { Attrs, Renderable } from 'elt'
@@ -412,14 +429,14 @@ function MyComponent(attrs: Attrs<HTMLDivElement> & {title: string}) {
   return <div>
       {$shadow(<>
         <h1>{attrs.title}</h1>
-        {/* children will be inserted in the body div. */}
+        {/* default JSX children land in the slot below */}
         <div class='body'><slot/></div>
       </>)}
     </div> as HTMLDivElement
 }
 
-document.body.appendChild(<MyComponent title='Some title'>
-  Content <span>that will be</span> appended.
+node_append(document.body, <MyComponent title='Some title'>
+  Content <span>that will be</span> appended via the slot.
 </MyComponent>)
 ```
 
@@ -433,21 +450,14 @@ interface MyComponentAttrs extends Attrs<HTMLDivElement> {
   more_content?: Renderable
 }
 
-function MyComponent(attrs: MyComponentAttrs, children: Renderable[]) {
-  /// ...
+function MyComponent(attrs: MyComponentAttrs) {
+  return <div>
+    <h1>{attrs.title}</h1>
+    {attrs.more_content}
+  </div> as HTMLDivElement
 }
 ```
 
 ## `class`, `style` and `id`
 
-Since these three attributes are ubiquitous on just any element type, they are handled separately.
-
-They're still passed along the `attrs` objects given to the components, but they don't have to be handled. They're applied automatically to the root node returned by the component.
-
-```tsx
-const o_cls = o('some_class')
-
-// this is valid and works on any component
-<MyComponent class={o_cls} id='some-id' style={{width: '350px'}}/>
-
-```
+See **Global attrs** above — these are handled automatically on component roots as well as on plain elements.

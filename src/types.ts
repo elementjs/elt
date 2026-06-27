@@ -68,7 +68,7 @@ export interface EmptyAttributes<N extends Node> {
  * For a given attribute type used in components, give its related `Node` type.
  *
  * ```tsx
- * [[include:../examples/attrsnodetype.tsx]]
+ * type Div = AttrsNodeType<Attrs<HTMLDivElement>> // HTMLDivElement
  * ```
  *
  * @category dom, toc
@@ -82,8 +82,12 @@ export type AttrsNodeType<At extends EmptyAttributes<any>> = At extends EmptyAtt
  *
  * Attrs **must** always specify the returned node type as its type argument.
  *
+ * Global attrs (`id`, `class`, `style`, `title`, …) on `<MyComp class={…} />` are applied to the component root automatically — no manual forwarding.
+ *
  * ```tsx
- * [[include:../examples/attrs.tsx]]
+ * function Row(at: Attrs<HTMLDivElement> & { label: string }) {
+ *   return <div>{at.label}</div> as HTMLDivElement
+ * }
  * ```
  *
  * This type should be used as first argument to all components definitions.

@@ -1,3 +1,7 @@
+/*
+This file tests some typing contracts. It should never have errors
+*/
+
 import { o } from '../src/observable'
 
 var _: any

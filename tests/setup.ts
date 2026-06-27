@@ -25,3 +25,7 @@ Object.assign(globalThis, {
   ResizeObserver: window.ResizeObserver,
   DEBUG: false, // Set DEBUG flag for tests
 })
+
+// happy-dom querySelector uses window.SyntaxError for invalid selectors
+;(window as typeof window & { SyntaxError: typeof SyntaxError }).SyntaxError =
+  globalThis.SyntaxError

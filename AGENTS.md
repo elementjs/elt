@@ -10,7 +10,11 @@ JSX children may contain decorators that are inline callbacks called at node cre
 
 Has the concept of "Verbs" (UpperCased functions) ; they're not Nodes but logic that change the DOM in a more complex manner, like repeating arrays or displaying nodes conditionally, according to Observable values and changes. Verbs imply dynamicity. Observables provide them changing values.
 
-This library is NOT React. There is no virtual-dom. DOM Nodes are returned and handled as they are. Verbs + observables drive updates.
+This library is NOT React. There is no virtual DOM. DOM Nodes are returned and handled as they are. Verbs + observables drive updates.
+
+## Where to look
+
+Behavior is defined by **`tests/`** (canonical) and **`demo/`** (runnable UI). JSDoc in `src/` carries succinct inline examples.
 
 ## Before writing code
 
@@ -20,13 +24,18 @@ This library is NOT React. There is no virtual-dom. DOM Nodes are returned and h
 
 ## Patterns
 
-- node_append(nodes_created_with_elt) : necessary to launch lifecycle hooks and observable logic
-- Components: (attrs: Attrs<HTMLDivElement> & { ... } ) => <div></div>
-- Some attrs are global and will be set on the resulting node even if not used in the Component : id, slot, part, role, tabindex, lang, inert, title, autofocus, nonce
-- class attribute is also "global", but is more sophisticated and understands o.RO<string | string[]> or {[class_name]: o.RO<truthy>}
-- style attribute is global and understands o.RO<string>, but also o.RO<{[camelCaseName]: string}> and {[camelCaseCSSAttribute]: o.RO<string>}
+- node_append(nodes_created_with_elt) : necessary to launch lifecycle hooks and observable logic. Prefer it over raw `appendChild` for elt nodes. `setup_mutation_observer` is only needed when a third-party library inserts nodes without going through `node_append`.
+- Components: `(attrs: Attrs<HTMLDivElement> & { ... } ) => <div></div>` or `(attrs, refchild: RefChild) => ...` when children must not land on the root.
+- **JSX children** of `<Component>...</Component>` are appended at the **`RefChild` insertion point** (two-arg components) or the **root node** (single-arg). There is no implicit `children` prop.
+  - **`ref` in the tree** — `(attrs, ref) => <div><span>label</span>{ref}</div>`: fixed insertion point (always present).
+  - **`refchild.IfChildren(ref => …)`** — scaffold (e.g. a body `div`) exists **only when children are provided**; pass `ref` inside that container.
+  - **Bare `{ref}` and `IfChildren()` are mutually exclusive** — pick one per two-arg component.
+  - **`Renderable` attrs** — e.g. `footer?: Renderable` for explicit slots.
+  - **`$shadow` + `<slot>`** — several child destinations (named slots).
+  - **Verbs** (`If`, `Repeat`, `VirtualScroll`, …) — Appenders; not normal children.
+- **Global attrs** on `<Comp id class style title … />`: `node_append` applies them to the component **root** after it returns. The component **may** read them from `attrs` but **need not** forward them — elt sets them globally (`src/dom.ts`, `basic_attrs`).
 - Forms : $bind.string | number | boolean | ...
-- Dynamic UI: If / Switch / Repeat / RepeatScroll / VirtualScroll / Observable<Renderable>
+- Dynamic UI: If / Switch / Repeat / VirtualScroll / Observable<Renderable>
 - DOM updates are synchronous. Make sure UI updates are done at opportune times.
 
 - o.* contain most of the Observable code. o(value) creates an observable or just returns the observable.
@@ -74,7 +83,9 @@ Authoritative source: `src/observable/observable.ts` and JSDoc on exports.
 - **Propagation is synchronous.** `obs.set(v)` flushes immediately — observers, dependent observables and DOM bindings all run before `set()` returns. Inside `o.transaction(fn)` the flush is deferred to the end of `fn`, then runs synchronously. There is no microtask/rAF batching at the observable layer; if you want DOM work batched to a frame, do it yourself (`requestAnimationFrame`).
 - **`set` is equality-gated** (strict `===`, no deep compare): `obs.set(v)` is a no-op when `v === current`, so an idempotent updater called every frame is cheap (bindings only refire on real change). Conversely, mutating a value in place and re-`set`-ting the same reference notifies nothing — replace the whole value.
 - Observing observable MUST be done with $observe() or Service .observe() method. No addObserver unless absolutely necessary.
-- `o(value)` → `.get()` / `.set()`. Values are **immutable** at the observable boundary (replace wholes, use `o.clone` / `assign` / `mutate` for nested edits).
+- `o(value)` → `.get()` / `.set()`. Values are **immutable** at the observable boundary (replace wholes).
+- **Nested object updates:** prefer **`obs.assign({ ... })`** or **`o.clone` + patch + `obs.set()`** for simple shallow/deep partial merges. Prefer **`obs.mutate(fn)`** (with `import "elt/mutative"`) for complex in-place edits and writable-expression reverts. **Avoid chaining `.p().p().set()`** — each `.p()` builds a combined observable; fine for a **single** path binding (e.g. form field on one key, or assertions in tests), not for ad-hoc deep writes. Use `.assign()` / `.mutate()` instead.
+- **`.p(...).set(v)`** (one level or path from function/array) overwrites at that path (replaces primitives with object/array chains). **`obs.assign(partial)`** merges recursively. Do not confuse the two.
 - **`o.RO<T>`** = `Observable<T> | T` — pass either; use **`o.get(x)`** when you need the value from an `RO` outside observation, when the value is needed at the moment.
 - **JSX children:** only `o.RO<Renderable>` (or plain renderables). Other types → `.tf(...)` first.
 - **`import "elt/mutative"`** at app entry when using `obs.mutate()`.
@@ -106,7 +117,7 @@ Optional 2nd arg → **writable** expression (revert writes back to source obser
 - Read-only: `obs.tf(x => ...)`, `o.tf(maybe_ro, fn)`.
 - Bidirectional: `.tf({ transform, revert })` or a `Converter` from `src/observable/transformers.ts`.
 - Common: `tf_array_to_map`, `tf_set_has`, `tf_map_has` — e.g. URL filters via `param_soft("tags").tf({ transform, revert })`.
-- **`.p('key')` / `.p(0)`** on objects/arrays; **`.key(id)`** on `Map` observables (e.g. `o_items_by_id.key(o_selected_id)`).
+- **`.p('key')` / `.p(0)`** on objects/arrays — readonly/write binding to one path; use in UI and tests, not stacked for deep patches. **`.key(id)`** on `Map` observables (e.g. `o_items_by_id.key(o_selected_id)`).
 
 ### Scoped bundles: `o.merge` / `o.join`
 
@@ -153,15 +164,16 @@ Same effect: `o.merge({ ... }).set({ ... })`. Avoids redundant derived recomputa
 | Derived from several deps | `o.expression(get => ...)` |
 | Skip work if dep unchanged | `old(dep)`, `updated(dep)`, `prev` |
 | Map/array in template | `.p()`, `.tf()`, `Repeat(obs, fn)` |
+| Patch nested object (app code) | `obs.assign()` or `obs.mutate()` |
+| Bind one field in UI | `.p('key')`, `$bind.*` |
 | Map lookup by key | `o_map.key(key_obs)` |
-| Form field | `$bind.*` on `o.Observable` |
 | class/style toggle | `o.expression(...).tf(...)` or `{[cls]: obs}` |
 | Async UI block | `DisplayPromise` |
 | Heavy filter/list | expression + `old`/`prev` cache pattern |
 
 ## App Patterns
 
-`App` (`src/app.ts`) wires lazy-loaded services, hash routing, and a merged view map. verify against `src/app.ts`.
+`App` (`src/app/`) wires lazy-loaded services, hash routing, and a merged view map. Canonical shape: `demo/src/routes.tsx`, `demo/src/base.tsx`. Verify behavior against `src/app/app.ts`.
 
 ### Bootstrap (typical)
 
@@ -188,18 +200,16 @@ Each named route is either:
 
 Prefer `() => import("./file")` for code-splitting.
 
-### Services (pick one style)
+### Services (canonical shapes)
 
-| Style | When | Views | Dependencies |
-|-------|------|-------|----------------|
-| **Async function** | Few screens, small API surface | `srv.view("Name", () => ...)` or `srv.views.set(...)` | `await srv.require(OtherBuilder)` in the function body |
-| **`App.ServiceClass` subclass** | `init` / `deinit`, several methods | `@view` on methods (name = method name) | `await srv.require(...)` in `init()` |
-| **`App.Service.requirements(() => ({ dep: () => import(...) }))`** | Class + declared deps | `@view` on subclass | Deps loaded before `init`; exposed on `init_result` / instance |
-| **`App.Service.factory(async (srv) => ({ ... }))`** | Class-like without inheritance | `srv.view(...)` in factory | Same as function + returned object becomes instance API |
+| Style | When | Views |
+|-------|------|-------|
+| **`async (srv) => { … }`** wrapped as `[path, () => my_srv]` | Few screens, simple API | `srv.views.set("Name", () => …)` |
+| **`class X extends Service({ deps })` + `@view`** | Several methods, `init` / `deinit` | `@view` on methods (`demo/` style) |
+
+`Service.factory` / older `requirements` patterns exist but are niche. Route builders are **`() => ServiceBuilder`** — the function returns the service builder, it is not the builder itself.
 
 `require` / `requirements` build a dependency tree; services are created once per activation (reused if `is_persistent` or params still valid).
-
-**`await srv.require(builder)` return value** — whatever the required service produces: for function services, the object returned from the async builder; for class-based services, the instantiated instance (with `init_result` merged in). That value is what the requirer receives.
 
 ### Views and shadowing
 
@@ -241,7 +251,7 @@ Prefer `() => import("./file")` for code-splitting.
 
 ## Architecture
 
-src/app.ts - micro library for complex application engineering
+src/app/ - micro library for complex application engineering (app.ts, service.ts, router.ts, route.ts, state.ts, params.ts)
 src/css.ts - minimal CSS-in-js, generates scoped class names, ensures CSS is valid
 src/custom-elements.ts - CustomElement facilities, not favored.
 src/decorators.ts - behavioural decorators, like $bind, $observe
@@ -255,8 +265,8 @@ src/observable/observable.ts - core Observable library, important.
 src/observable/transformers.ts - useful functions to use with Observable.tf(), notably to play with Map/Set/Array.
 src/types.ts - type definitions, mostly JSX related
 src/utils.ts - Deferred, helpers
-src/verbs.ts -  If, Repeat, RepeatScroll, Switch
-src/virtual.ts - virtual repeater for endless scrolling
+src/verbs.ts - If, Repeat, Switch, DisplayPromise
+src/virtual.ts - VirtualScroll (virtual list windowing; replaces the old RepeatScroll idea)
 
 ui/ - A fairly big library that ships theming and widgets. Included in this repo for convenience and because it follows this library closely.
 

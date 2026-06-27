@@ -1,3 +1,4 @@
+///<reference types="bun">
 import "./setup.ts"
 
 import { test, expect, describe } from "bun:test"
@@ -129,6 +130,39 @@ describe("Observable extended", () => {
       const a = o(3)
       const expr = o.expression((get) => get(a) + get(7))
       expect(expr.get()).toBe(10)
+    })
+
+    test("writable expression reverts through fn_revert", () => {
+      const o_a = o(1)
+      const o_b = o(10)
+      const sum = o.expression(
+        (get) => get(o_a) + get(o_b),
+        (value, set) => {
+          set(o_a, value - o_b.get())
+        }
+      )
+
+      expect(sum.get()).toBe(11)
+      sum.set(20)
+      expect(o_a.get()).toBe(10)
+      expect(o_b.get()).toBe(10)
+      expect(sum.get()).toBe(20)
+    })
+
+    test("writable expression can split a set across several sources", () => {
+      const o_x = o(3)
+      const o_y = o(7)
+      const total = o.expression(
+        (get) => get(o_x) + get(o_y),
+        (value, set) => {
+          set(o_x, Math.floor(value / 2))
+          set(o_y, value - Math.floor(value / 2))
+        }
+      )
+
+      total.set(11)
+      expect(o_x.get() + o_y.get()).toBe(11)
+      expect(total.get()).toBe(11)
     })
   })
 

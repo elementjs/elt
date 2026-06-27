@@ -1,3 +1,4 @@
+///<reference types="bun">
 import { test, expect, describe } from "bun:test"
 
 describe("Basic Observable Test", () => {

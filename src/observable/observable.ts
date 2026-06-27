@@ -64,7 +64,8 @@ export namespace o {
    * It is very useful when dealing with {@link Attrs} where flexibility is needed for arguments.
    *
    * ```tsx
-   * [[include:../../examples/o.ro.tsx]]
+   * type Label = o.RO<string> // string | o.ReadonlyObservable<string>
+   * function Row(at: { title: Label }) { ... }
    * ```
    *
    * @group Observable
@@ -525,7 +526,9 @@ export namespace o {
      * A Converter providing both `get` and `set` operations will create a two-way observable that is settable.
      *
      * ```tsx
-     * [[include:../../examples/o.observable.tf.tsx]]
+     * const o_n = o(2)
+     * const o_dbl = o_n.tf(n => n * 2) // read-only
+     * const o_pair = o_n.tf({ transform: n => [n, n * 2], revert: ([n]) => n })
      * ```
      *
      */
@@ -585,7 +588,9 @@ export namespace o {
      * `unknown`; use a getter `(obj) => obj.a.b` when a precise type is needed.
      *
      * ```tsx
-     * [[include:../../examples/o.observable.p.tsx]]
+     * const obj = o({ a: 1, b: { c: 2 } })
+     * const o_a = obj.p("a") // bind one field — prefer obj.assign() for ad-hoc deep writes
+     * o_a.set(3)
      * ```
      */
     p<R>(this: Observable<A>, key: RO<(obj: A) => R>): Observable<R>
@@ -597,11 +602,11 @@ export namespace o {
     ): ReadonlyObservable<A[K]>
     p(
       this: Observable<A>,
-      key: RO<PropertyKey[] | PropertyKey>
+      key: RO<readonly PropertyKey[] | PropertyKey>
     ): Observable<unknown>
     p(
       this: IReadonlyObservable<A>,
-      key: RO<PropertyKey[] | PropertyKey>
+      key: RO<readonly PropertyKey[] | PropertyKey>
     ): ReadonlyObservable<unknown>
     p(key: any): any {
       return prop(this, key)
@@ -742,7 +747,10 @@ export namespace o {
    * to avoid calling the observers each time one of the observable is modified.
    *
    * ```tsx
-   * [[include:../../examples/o.transaction.tsx]]
+   * o.transaction(() => {
+   *   o_a.set(1)
+   *   o_b.set(2)
+   * })
    * ```
    *
    * @group Observable
@@ -878,7 +886,7 @@ export namespace o {
      *
      * Once this has been called, this observable will no longer be able to refresh its value.
      *
-     * It is generally called by verbs such as Repeat and RepeatScroll, to ensure that when their observed list shrinks, then observables watching for out of bound indices may not crash the program.
+     * It is generally called by verbs such as Repeat and VirtualScroll, to ensure that when their observed list shrinks, then observables watching for out of bound indices may not crash the program.
      *
      * If this observable is still being (erroneously) watched from somewhere else, a warning is printed in the console.
      */
@@ -1012,10 +1020,10 @@ export namespace o {
    *
    * In the `set` portion, returning a `o.NOVALUE` in the result tuple will tell the combiner that the original observable should not be touched.
    *
-   * For instance, here is a possible implementation of `.p()` :
+   * Used internally (e.g. by `.p()`). Prefer {@link o.expression} for new code.
    *
    * ```tsx
-   * [[include:../../examples/o.combine.tsx]]
+   * o.combine([a, b], ([a, b]) => a + b, (sum, _, [oa, ob]) => [sum - ob, ob])
    * ```
    *
    * @group Observable
@@ -1070,8 +1078,11 @@ export namespace o {
    * The resulting observable is writable only if all its constituents were themselves
    * writable.
    *
+   * Prefer {@link o.expression} unless you need a writable object bundle.
+   *
    * ```tsx
-   * [[include:../../examples/o.merge.tsx]]
+   * const merged = o.merge({ x: o(1), y: o("a") })
+   * merged.set({ x: 2, y: "b" })
    * ```
    *
    * @returns An observable which properties are the ones given in `obj` and values
@@ -1130,12 +1141,12 @@ export namespace o {
   ): ReadonlyObservable<T[K]>
   export function prop<T>(
     obj: O<T>,
-    prop: RO<PropertyKey[] | PropertyKey>,
+    prop: RO<readonly PropertyKey[] | PropertyKey>,
     def?: RO<(obj: T) => unknown>
   ): Observable<unknown>
   export function prop<T>(
     obj: RO<T>,
-    prop: RO<PropertyKey[] | PropertyKey>,
+    prop: RO<readonly PropertyKey[] | PropertyKey>,
     def?: RO<(obj: T) => unknown>
   ): ReadonlyObservable<unknown>
   export function prop<T>(obj: any, prop: any, def?: any): any {
@@ -1362,8 +1373,11 @@ export namespace o {
    *
    * The resulting observable is writable only if _all_ its constituents were themselves writable.
    *
+   * Prefer {@link o.expression} for new code.
+   *
    * ```tsx
-   * [[include:../../examples/o.join.tsx]]
+   * const both = o.join(o(1), o(2))
+   * both.set([10, 20])
    * ```
    * @group Observable
    */
@@ -1582,14 +1596,11 @@ export namespace o {
    * object is returned instead. This behaviour is intented to avoid triggering
    * observers when not needed.
    *
-   * > **Note**: the immer library is much nicer when dealing with complex mutations
-   * > than this attempt at doing bulk modifications which is not elegant.
-   * > It is very probable that it will either be removed from elt or replaced by something
-   * > a little more elegant.
-   * > Try {@link o.transaction} for a different approach for grouped notifications.
+   * **Use for simple partial merges** when intermediates are already objects.
+   * For complex edits prefer {@link o.Observable.mutate} (with `import "elt/mutative"`).
    *
    * ```tsx
-   * [[include:../../examples/o.assign.tsx]]
+   * obs.assign({ profile: { name: "Ada" } })
    * ```
    *
    * @returns a new instance of the object if the mutator would change it
@@ -1651,7 +1662,8 @@ export namespace o {
    * Also works as an es7 decorator.
    *
    * ```tsx
-   * [[include:../../examples/o.debounce.tsx]]
+   * const run = o.debounce((q: string) => search(q), 300)
+   * run("a"); run("ab"); // search runs once, 300ms after the last call
    * ```
    *
    * @group Observable
@@ -1714,7 +1726,7 @@ export namespace o {
    * Also works as an es7 decorator.
    *
    * ```tsx
-   * [[include:../../examples/o.throttle.tsx]]
+   * const run = o.throttle(() => tick(), 100)
    * ```
    *
    * @group Observable
@@ -1794,7 +1806,7 @@ export namespace o {
    * copying properties.
    *
    * ```tsx
-   * [[include:../../examples/o.sym_clone.tsx]]
+   * class Vec { constructor(public x: number, public y: number) {} [o.sym_clone]() { return new Vec(this.x, this.y) } }
    * ```
    *
    * @category observable

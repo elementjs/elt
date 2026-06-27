@@ -1,7 +1,6 @@
 import {
   $connected,
   $disconnected,
-  css,
   node_observe,
   o,
   type attrs_textarea,
@@ -18,11 +17,6 @@ declare module "elt" {
 }
 
 export type TextAreaAttrs = attrs_textarea
-
-const cls_auto_textarea = css`.auto-textarea {
-  resize: none;
-  overflow-y: hidden;
-}`
 
 function line_height_px(ta: HTMLTextAreaElement) {
   const st = getComputedStyle(ta)

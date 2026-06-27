@@ -5,7 +5,22 @@ import type { Attrs, ElementMap, EmptyAttributes, Renderable } from "./types"
 
 ////////////////////////////////////////////////////////
 
-/** A RefChild given to ElementClassFn functions to insert their content */
+/**
+ * Marker passed as the second argument to two-parameter components (`fn.length > 1`).
+ * JSX children are inserted at the **`RefChild` insertion point** in the returned tree,
+ * or at the root when no insertion point is declared.
+ *
+ * Pick **one** placement mode per component — they are **mutually exclusive**:
+ *
+ * - **Bare `ref` in the tree** — fixed insertion point, always present:
+ *   `(attrs, ref) => <div><span>here: {ref}</span></div>`
+ * - **`IfChildren(fn)`** — scaffold exists only when JSX children were passed; pass `ref` inside `fn`'s container:
+ *   `(attrs, ref) => <div><span>Always present content</span>{ref.IfChildren(ref => <div class="body">{ref} - only when children given</div>)}</div>`
+ *
+ * Do not combine bare `{ref}` and `IfChildren()` in the same component.
+ *
+ * @see tests/refchild.test.ts
+ */
 export class RefChild extends Comment {
   private with_content: ((refchild: RefChild) => Renderable<Node>) | null = null
   private content_ref: Comment = document.createComment(`with-content`)
@@ -18,7 +33,8 @@ export class RefChild extends Comment {
     return this.parentNode != null || this.content_ref.parentNode != null
   }
 
-  IfUsed(fn: (refchild: RefChild) => Renderable<Node>) {
+  /** Scaffold from `fn` exists only when the component received children; pass `ref` into that container. Mutually exclusive with bare `{ref}` in the tree. */
+  IfChildren(fn: (refchild: RefChild) => Renderable<Node>) {
     this.with_content = fn
     this.content_ref = document.createComment(`${this.textContent}-content`)
     return this.content_ref
@@ -199,8 +215,10 @@ export function e<N extends Node>(
  * > ever be called on it.
  *
  * ```tsx
- * [[include:../examples/fragment.tsx]]
+ * <>{$observe(o_x, x => { ... })}<span>{o_x}</span></>
  * ```
+ *
+ * Prefer a real element when you need `$connected` / `$observe` lifecycle.
  *
  * @category dom, toc
  */

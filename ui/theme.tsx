@@ -124,10 +124,6 @@ export class Theme<ColorScheme extends BaseColorScheme> {
     this._set(theme.settings ?? {}, "formFontSize", "14px")
 
     this._set(theme.settings ?? {}, "focusRingSize", "2px")
-
-    let _ = this.class_light
-    _ = this.class_dark
-    _ = this.class_dynamic
   }
 
   settings: ThemeSettings = {} as ThemeSettings

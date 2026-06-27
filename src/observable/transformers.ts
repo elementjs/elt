@@ -134,7 +134,7 @@ export function tf_array_sort<T>(
  * To sort in descending order, make a tuple with 'desc' as the second argument.
  *
  * ```tsx
- * [[include:../../examples/tf.array_sort_by.tsx]]
+ * o_items.tf(tf_array_sort_by([(x: Item) => x.name, "desc"], x => x.category))
  * ```
  * @group Transformer
  */

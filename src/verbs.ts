@@ -62,11 +62,11 @@ export class Verb<N extends Node> implements Appender<N> {
  * since there is no way `null` or `undefined` could make their way here.
  *
  * ```tsx
- * [[include:../examples/if.tsx]]
+ * If(o_ready, o_ready => <span>{o_ready}</span>).Else(() => <span>wait</span>)
  * ```
  *
  * ```tsx
- * [[include:../examples/if2.tsx]]
+ * If(o_user, u => <p>{u.name}</p>)
  * ```
  * @group Verbs
  */
@@ -84,10 +84,6 @@ export namespace If {
   /**
    * Get the type of a potentially `Observable` type where `null` and `undefined` are exluded, keeping
    * the `Readonly` status if the provided {@link o.Observable} type was `Readonly`.
-   *
-   * ```tsx
-   * [[include:../examples/if.nonnullablero.tsx]]
-   * ```
    */
   export type TruthyRO<T> = T extends o.Observable<infer U>
     ? o.Observable<Truthy<U>>
@@ -147,16 +143,16 @@ export namespace If {
  * Perform a Switch statement on an observable.
  *
  * ```tsx
- * [[include:../examples/switch.tsx]]
+ * Switch(o_mode)
+ *   .Case("edit", () => <input />)
+ *   .Case("view", () => <span>read only</span>)
+ *   .Case(mode => mode === "forbidden" || mode === "something_else", () => <span>???</span>)
+ * })
  * ```
  *
  * `Switch()` can work with typeguards to narrow a type in the observable passed to the then callback,
  * but only with defined functions. It is however not as powerful as typescript's type guards in ifs
- * and will not recognize `typeof` or `instanceof` calls.
- *
- * ```tsx
- * [[include:../examples/switch2.tsx]]
- * ```
+ * and will not recognize `typeof` or `instanceof` calls. See `demo/` for richer usage.
  *
  * @group Verbs
  */
@@ -262,7 +258,7 @@ export namespace Switch {
  * right away and only once.
  *
  * ```tsx
- * [[include:../examples/repeat.tsx]]
+ * Repeat(o_items, o_item => <li>{o_item.p("field")}</li>)
  * ```
  *
  * @group Verbs
@@ -287,7 +283,7 @@ export namespace Repeat {
   }
 
   /** A special observable that is not a combined one to prevent unneeded updates when setting a property of the observed array.
-   * Repeat, RepeatScroll and RepeatVirtual are directly responsible for updating the sub-observables they create.
+   * Repeat and VirtualScroll are directly responsible for updating the sub-observables they create.
    */
   export class RepeatObservable<
     Obs extends RepeatedObservable<any>

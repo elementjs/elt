@@ -1,3 +1,4 @@
+///<reference types="bun">
 import "./setup.ts"
 
 import { test, expect, describe } from "bun:test"

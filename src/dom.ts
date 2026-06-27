@@ -261,8 +261,10 @@ const _registered_documents = new WeakSet<Document>()
  *
  * Only to be used when nodes will be appended by a third party library that won't call the hooks otherwise.
  *
+ * Only when third-party code uses raw `appendChild` / `removeChild`. Prefer {@link node_append} for elt trees.
+ *
  * ```tsx
- * [[include:../examples/setup_mutation_observer.tsx]]
+ * setup_mutation_observer(document.documentElement)
  * ```
  *
  * @group Dom

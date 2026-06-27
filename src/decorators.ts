@@ -60,7 +60,9 @@ export namespace $bind {
   /**
    * Bind an observable to an input's value.
    *
-   * @code ../examples/_bind.string.tsx
+   * ```tsx
+   * <input type="text">{$bind.string(o_text)}</input>
+   * ```
    *
    * @group Decorators
    */
@@ -79,7 +81,9 @@ export namespace $bind {
   /**
    * Bind a string observable to an html element which is contenteditable.
    *
-   * @code ../examples/_bind.contenteditable.tsx
+   * ```tsx
+   * <div contenteditable>{$bind.contenteditable(o_text)}</div>
+   * ```
    *
    * @group Decorators
    */
@@ -99,7 +103,9 @@ export namespace $bind {
    * Bind a number observable to an <input type="number"/>. Most likely won't work on anything else
    * and will set the value to `NaN`.
    *
-   * @code ../examples/_bind.number.tsx
+   * ```tsx
+   * <input type="number">{$bind.number(o_count)}</input>
+   * ```
    *
    * @group Decorators
    */
@@ -119,7 +125,9 @@ export namespace $bind {
    * Bind bidirectionnally a `Date | null` observable to an `input`. Will only work on inputs
    * type `"date"` `"datetime"` `"datetime-local"`.
    *
-   * @code ../examples/_bind.date.tsx
+   * ```tsx
+   * <input type="date">{$bind.date(o_day)}</input>
+   * ```
    *
    * @group Decorators
    */
@@ -138,7 +146,7 @@ export namespace $bind {
    * is "radio" or "checkbox".
    *
    * ```tsx
-   * [[include:../examples/_bind.boolean.tsx]]
+   * <input type="checkbox">{$bind.boolean(o_on)}</input>
    * ```
    *
    * @group Decorators
@@ -157,7 +165,9 @@ export namespace $bind {
   /**
    * Bind a number observable to the selected index of a select element
    *
-   * @code ../examples/_bind.selected_index.tsx
+   * ```tsx
+   * <select>{$bind.selected_index(o_idx)}</select>
+   * ```
    *
    * @group Decorators
    */
@@ -182,7 +192,9 @@ export namespace $bind {
  *
  * The `class={}` attribute on all nodes works exactly the same as `$class`.
  *
- * @code ../examples/_class.tsx
+ * ```tsx
+ * <div>{$class(o_cls, { active: o_on })}</div>
+ * ```
  * @group Decorators
  */
 export function $class<N extends Element>(...clss: ClassDefinition[]) {
@@ -196,9 +208,11 @@ export function $class<N extends Element>(...clss: ClassDefinition[]) {
 /**
  * Update a node's id with a potentially observable value.
  *
- * @code ../examples/_id.tsx
+ * ```tsx
+ * <div>{$id(o_id)}</div>
+ * ```
  *
- * > **Note**: You can use the `id` attribute on any element, be them Components or regular nodes, as it is forwarded.
+ * > **Note**: `id` on a component call is a global attr and is applied to the root automatically.
  *
  * @group Decorators
  */
@@ -210,9 +224,11 @@ export function $id<N extends Element>(id: o.RO<string>) {
 
 /**
  * Update a node's title with a potentially observable value.
- * Used mostly when dealing with components since their base node attributes are no longer available.
  *
- * @code ../examples/_title.tsx
+ * ```tsx
+ * <div>{$title(o_tip)}</div>
+ * ```
+ *
  * @group Decorators
  */
 export function $title<N extends HTMLElement>(title: o.RO<string>) {
@@ -222,9 +238,11 @@ export function $title<N extends HTMLElement>(title: o.RO<string>) {
 }
 
 /**
- * Update a node's style with potentially observable varlues
+ * Update a node's style with potentially observable values
  *
- * @code ../examples/_style.tsx
+ * ```tsx
+ * <div>{$style({ width: o_w })}</div>
+ * ```
  * @group Decorators
  */
 export function $style<N extends HTMLElement | SVGElement>(
@@ -241,7 +259,9 @@ export function $style<N extends HTMLElement | SVGElement>(
  * Observe an observable and tie the observation to the node this is added to.
  * `cbk` receives the new value as well as the old, but also the node
  *
- * @code ../examples/_observe.tsx
+ * ```tsx
+ * <div>{$observe(o_x, v => console.log(v))}</div>
+ * ```
  * @group Decorators
  */
 
@@ -277,12 +297,15 @@ export function $observe_changes<N extends Node, T>(
 /**
  * Use to bind to an event directly in the jsx phase.
  *
+ * ```tsx
+ * <button>{$on("click", ev => console.log(ev.currentTarget))}</button>
+ * ```
+ *
  * For convenience, the resulting event object is typed as the original events coupled
  * with `{ currentTarget: N }`, where N is the node type the event is being registered on.
  *
  * FIXME : These are not the correct event maps associated with the node typ
  *
- * @code ../examples/_on.tsx
  * @group Decorators
  */
 export function $on<N extends Node, K extends KEvent | KEvent[]>(
@@ -319,6 +342,10 @@ export function $once<N extends Node, K extends KEvent | KEvent[]>(
 /**
  * Add a callback on the click event, or touchend if we are on a mobile
  * device.
+ *
+ * ```tsx
+ * <button>{$click(() => o_count.set(o_count.get() + 1))}</button>
+ * ```
  *
  * @group Decorators
  */
@@ -372,6 +399,13 @@ export const $removed = $disconnected
 
 /**
  * Attach a shadow root to a node and setup an internal mutation observer
+ *
+ * ```tsx
+ * <div>{$shadow(<><h1>Title</h1><slot /></>)}</div>
+ * ```
+ *
+ * Use named `<slot>` elements when children must land in several places.
+ *
  * @param nodes the nodes or strings to append to the shadow root
  * @returns A decorator
  * @group Decorators
@@ -396,6 +430,11 @@ export function $shadow(opts?: Node | $ShadowOptions, child?: Node) {
  * trigger the ugly scroll band on mobile devices.
  *
  * Calling this functions makes anything not marked scrollable as non-scrollable.
+ *
+ * ```tsx
+ * <div class="scrollport">{$scrollable}<Repeat(o_items, ...)/></div>
+ * ```
+ *
  * @group Decorators
  */
 export function $scrollable(node: HTMLElement): void {

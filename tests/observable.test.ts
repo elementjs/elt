@@ -1,3 +1,4 @@
+///<reference types="bun">
 import "./setup.ts"
 
 import { test, expect, describe, beforeEach } from "bun:test"
@@ -172,6 +173,13 @@ describe("Observable", function () {
       const obs = o({ a: { b: { c: 1 } } })
       obs.assign({ a: { b: { c: 2 } } })
       expect(obs.get().a.b.c).toBe(2)
+    })
+
+    test("assign() throws when merging through a string intermediate", () => {
+      const obs = o({ a: "hello" })
+      expect(() => obs.assign({ a: { b: 2 } } as any)).toThrow()
+      // assign merges recursively — only valid when intermediates are objects.
+      // Replace wholesale, use .p([...]).set(), or mutate() to change type at a path.
     })
   })
 
