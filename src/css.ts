@@ -7,7 +7,7 @@
  */
 
 let _id = 0
-let spaces: {[name: string]: boolean} = {
+const spaces: {[name: string]: boolean} = {
   " ": true,
   "\t": true,
   "\n": true,
@@ -19,14 +19,14 @@ function rewrite_css(
   ...args: (string | number | string[] | {toString(): string})[]
 ) {
   const id = _id++
-  let class_name: undefined | string = undefined
+  let class_name: undefined | string
 
   let css: string
 
   if (typeof arr === "string") {
     css = arr
   } else {
-    let _css: string[] = []
+    const _css: string[] = []
     for (let i = 0; i < arr.length; i++) {
       const tpl_part = arr[i]
       _css.push(tpl_part)
@@ -69,8 +69,8 @@ function rewrite_css(
   }
 
   if (end > start + 1) {
-    class_name = css.slice(start, end) + `-${id}`
-    css = `.${class_name}` + css.slice(end)
+    class_name = `${css.slice(start, end)}-${id}`
+    css = `.${class_name}${css.slice(end)}`
   }
 
   return { css, class_name }
@@ -84,19 +84,27 @@ export class CSSBuilder {
     arr: TemplateStringsArray | string,
     ...args: (string | number | string[] | {toString(): string})[]
   ): string => {
-
-    const { css, class_name } = rewrite_css(arr, ...args)
-    this.sheet.insertRule(css, this.last++)
-    return class_name ?? ""
+    // wrapper to make sure the first call to a non-adopted css will adopt it globally
+    // made that way to make css side-effect free
+    this.adopt(document)
+    return this.css(arr, ...args)
   }
 
   adopt(by: Document | ShadowRoot) {
     by.adoptedStyleSheets.push(this.sheet)
+
+    this.css = (
+      arr: TemplateStringsArray | string,
+      ...args: (string | number | string[] | {toString(): string})[]
+    ): string => {
+      const { css, class_name } = rewrite_css(arr, ...args)
+      this.sheet.insertRule(css, this.last++)
+      return class_name ?? ""
+    }
   }
 }
 
-let global_builder = new CSSBuilder()
-global_builder.adopt(document)
+const global_builder = new CSSBuilder()
 
 /**
  * Create style rules, one rule at a time, to make sure the rules are correct CSS.

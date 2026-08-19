@@ -5,6 +5,7 @@
   "description": "",
   "license": "MIT",
   "main": "./src/index.ts",
+  "sideEffects": ["./src/css.ts", "./src/mutative.ts"],
   "exports": {
     ".": "./src/index.ts",
     "./ui": "./ui/index.tsx",
@@ -18,6 +19,7 @@
   },
   "type": "module",
   "devDependencies": {
+    "@biomejs/biome": "^2.5.8",
     "@floating-ui/dom": "^1.7.6",
     "@types/bun": "^1.3.14",
     "@types/js-yaml": "^4.0.9",
