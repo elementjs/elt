@@ -4,6 +4,7 @@ Docs are in `./docs`. Use of this library is in `docks/using-elt-agent.md`.
 
 # Instructions
 
+- Write so most developers get it without knowing scoped community slang; define our terms; never reuse a common word in a special sense when “toolbar”, “header”, or “frame around the content” would do unless the term is universally understood, like "packaging" or "drill-down".
 - Do NOT add dependencies by yourself
 - ALWAYS Create regression and integration tests when working on new features or when features did not already have them.
 - Test your claims/assertions instead of only recalling when your confidence level is not impeccable
@@ -12,7 +13,6 @@ Docs are in `./docs`. Use of this library is in `docks/using-elt-agent.md`.
 - Always prompt the user whenever you deem an important architectural decision is to be made (adding/removing a library, implementation details/philosophy, performance concerns)
 - Explain the code through comments when implementing
 - If there is a TODO.md file somewhere, keep it updated with what's been done
-- When writing specs / docs / comments and answering questions, use plain english over lingo and buzzwords ; stay clear and legible by non-senior developers.
 - When alerting me on problems or inconsistencies, use examples if the explanation is complex
 - Maintain `./docs` <-> code relevance
 
