@@ -4,6 +4,10 @@ The Object Editor is a graphical widget that edits a JavaScript value.
 
 > Why: The goal is any JavaScript value. JSON-like data is the usual case, not the only case.
 
+## General instructions
+
+Do not write `css` blocks unless absolutely necessary ; use e-flex for layouting as much as is possible, as well as default styles from elt/ui's typography. Advise when needing to create own styles.
+
 ## Scope
 
 **In the first version**
@@ -13,10 +17,10 @@ The Object Editor is a graphical widget that edits a JavaScript value.
 - Unknown mode (no schema) and schema mode
 - The same widgets in every layout
 - Import/export as add-on modules (interface and planned formats; details later)
-- Undo/redo history
-- Keyboard use of widgets directly (focus in controls; no Excel marquee yet)
+- Undo/redo history (shell toolbar; committed root snapshots)
+- Keyboard use of widgets directly (focus in controls; native control keys only — Enter/blur commit; no global shortcut table yet)
 - Short “preview” text on buttons that open a nested composite
-- Exact search/filter rules (a search field may already appear on the toolbar)
+- Search/filter on composite toolbars (rules in Layer 2)
 
 When no schema is given, the editor still uses a **default** set of rules: it can show richer JavaScript types, but type changes stay JSON-compatible unless a schema says otherwise.
 
@@ -26,12 +30,16 @@ When no schema is given, the editor still uses a **default** set of rules: it ca
 
 - Excel-like **marquee** (optional overlay + fake focus; see Layer 1b notes)
 - Full marquee keyboard navigation and TSV multi-cell clipboard
+- Global editor keyboard shortcut table (clear toward null, insert/delete row, Ctrl+Z bindings, …)
 - Multiple open trees (tabs / side-by-side panes) — see Layer 1b
 - Excel import wizard beyond an empty add-on slot
 - Packaging as an HTML custom element (thin wrapper over the `elt/ui` component when done)
 - Array “show object fields inline” (sticky index + object fields beside it) — dropped for now; use composite previews and drill-down instead
 
-**Gate:** Do not start implementation until the **shell / widget / DOM model** (below) is decided and written as binding rules. Product layers 2–6 may stay incomplete; the model must not.
+**Gates (do not start implementation until both are binding rules):**
+
+1. **Shell / widget / DOM model** (Layer 1b) — mostly locked; keep it consistent with later edits. Includes the **shell toolbar** (undo/redo, optional global import/export, host slots).
+2. **Schema + widget config mock** (Layers 4–5) — typed widget configs (`kind` + args), how options reach widget instances, schema resolution, and the **default unknown schema** written out as data in the spec. Product details in Layers 2–3 and Layer 6 may stay incomplete; these two must not.
 
 ---
 
@@ -80,11 +88,13 @@ Unless the schema forbids it, the user may change the type of the current node (
 - `empty` — empty target (empty array / object / Map / Set as appropriate)
 - further named strategies as needed (e.g. convert to Map)
 
-**Composite → composite** does not always run one silent conversion. The UI asks what to do, offering the **named strategies** the target widget declares (plus schema limits), for example empty target, convert with values, convert to Map (not the default pick).
+**Composite → composite** does not always run one silent conversion. The UI asks what to do, offering the **named strategies** the target declares (plus schema limits), for example empty target, convert with values, convert to Map (not the default pick).
 
-Each widget declares which **named conversion strategies** it accepts as a target. The type-change UI is built from that list and the schema. Warning text when data is dropped is owned by the strategy (or a shared string table keyed by strategy id).
+**Conversion lives on values / named strategies**, not on the DOM widget as the primary API. Each target kind (or its registry entry) declares which **strategy ids** it accepts. The type-change UI is built from that list and the schema. Warning text when data is dropped is owned by the strategy (or a shared string table keyed by strategy id).
 
-> Why: Named strategies keep menus predictable and easier to translate than free-form `importFrom` only.
+Scalars may also expose a best-effort coerce (see Layer 4) used when no named strategy applies: attempt convert, on failure offer default after confirm.
+
+> Why: Named strategies keep menus predictable and easier to translate than a single free-form `from` on the widget class.
 
 ### Widgets all the way down
 
@@ -96,6 +106,8 @@ Each widget declares which **named conversion strategies** it accepts as a targe
 ### Editor shell
 
 The **object editor** is a **shell**. It opens a widget for an **observable** (the root, or a derived observable from a parent composite). Widgets do not own the column strip or popup host; they **ask the shell** to open by dispatching `elt-object-editor-open`. The shell chooses column vs popup (schema and shell options).
+
+The shell owns **chrome above the column strip**: a **shell toolbar** with at least undo/redo, optional global import/export entry points, and **slots** for the host application to insert extra controls. This is distinct from each composite’s own title/toolbar inside a column.
 
 When the event originates inside a column that is not the rightmost, the shell **truncates** columns to the right of that column, then opens the new view. When drilling from the rightmost relevant column, it **appends** a column (unless popups are preferred).
 
@@ -119,7 +131,7 @@ This section chooses how the shell and widgets sit on elt and the DOM. Until the
 
 1. Every mounted widget is bound to an **`o.Observable`** for its value (root: the caller’s observable; children: derived observables created by the **parent composite**).
 2. **Open** asks the shell to show a widget for **`o_value`** in the event detail (schema resolved by the shell from registries + runtime type). Not a recomputed root-relative path.
-3. **Column truncation** uses DOM: which **column** contains the event target / `currentTarget`, then close columns to the right, then append (or popup).
+3. **Column truncation:** the DOM is used only to **discover** which column contains the event target / `currentTarget`. The shell keeps an **internal ordered stack** of column hosts (Appender / `sym_insert`, with `close()` and the mounted `o_value`). On open from a non-rightmost column, the shell closes every column to the right in that stack, then appends (or popups). The DOM is not the source of truth for the stack.
 
 **Why not path-as-mount-key:** Set has no coordinates; Map keys may be objects; the editing surface for a Set is already a **projection**.
 
@@ -127,7 +139,12 @@ This section chooses how the shell and widgets sit on elt and the DOM. Until the
 
 - Prefer a **dedicated converter / `.tf`** (object-editor-specific is fine) for Set ↔ array (and similarly Map ↔ entries if needed): stable row keys, reuse of per-element observables across updates, write-back into the Set.
 - Opening a child uses the **row’s observable** from that projection, reused while the row key lives.
-- VirtualScroll/Repeat **key** rules align with that converter’s element identity (object reference, or primitive unique in a Set).
+- VirtualScroll/Repeat **key** rules align with that converter’s element identity (see **Row / element identity** below — not array index).
+
+**Row / element identity:** VirtualScroll / per-row observables need a **stable unique key** that survives reorder and immutable writes. **Array index is not sufficient** (drag-reorder moves the same element to a new index). Map keys can work when the key is the identity; Set-of-objects and array-of-objects need something else.
+
+> Question: How to mint and preserve that unique id — editor-local `WeakMap` + migrate on `o.clone` write-back; non-enumerable symbol on the value (lost today under `o.clone`/`Object.assign` unless clone is taught to copy a well-known `sym_unique`); enumerable symbol (survives clone, pollutes `getOwnPropertySymbols`); or another scheme? Same mechanism for Array rows and Set members, or different per composite?
+> Thoughts: Prefer not to block Gate 1 on picking the mechanism, but v1 lists/tables will need an answer before VirtualScroll key reuse is correct under reorder.
 
 Widgets need **their value observable**. They do not need a root-relative path for mounting. A **display path / title** (breadcrumb in the column header) may be derived later for humans; it is not the mount key.
 
@@ -145,7 +162,11 @@ Naïve `.p()` is unsafe when a parent value becomes non-composite (`undefined`, 
 
 > Why: Outside writers and import are first-class; the column stack must follow validity, not assume stable composites forever.
 
-**Invalid-mount detection (v1):** each **column** (and each mounted cell/row observable the column cares about for validity of its open children) is watched with an observe tied to that mount. Whenever an observable is mounted into the editor stack, the shell (or column host) runs the validity check on updates. On invalid: close that column and all to its right (root scalar special case above).
+**Dead-column detection (v1):** each **column** is watched with an observe tied to its mounted `o_value`. When that observable is no longer a valid mount for the column’s widget (parent lost, type replaced under it, projection row gone and not reusable), the shell **closes that column and every column to its right** (root scalar special case above). This is **stack hygiene**, not the same concern as projection converters.
+
+**Projection / safe child converters (separate):** parent composites use dedicated helpers for Set ↔ array, Map ↔ entries, and non-throwing child access when a parent slot disappears (derived observables go to a defined empty/invalid state). Those helpers feed VirtualScroll keys and write-back; they do not themselves close columns.
+
+> Question: Exact API shape of the projection / safe-child helpers — one shared converter pattern, or separate helpers per composite? Sketch here or in a types stub.
 
 ### Display path, breadcrumbs, multiple trees
 
@@ -198,8 +219,12 @@ Composite body lists use **VirtualScroll** and `node_append`. Open events bubble
 | Cell/row mount | **E — parent** composite creates children + converters          |
 | Mount identity | **Observable**, not path                                        |
 | Selection v1   | No marquee; per-widget focus only                               |
-| Widget shape   | Internal Widget classes + `elt/ui` visuals; schema registers customs |
+| Widget shape   | Internal Widget classes + `elt/ui` visuals; schema registers customs via `WidgetConfig.kind` |
 | Open detail    | `{ o_value, title }` — breadcrumbs from column titles           |
+| Schema widget  | `WidgetConfig` (`kind` + args), not bare string id              |
+| Column stack   | Shell-owned hosts; DOM only to locate source column             |
+| Widget ctor    | `new Widget(o_value, config?)`                                  |
+| Undo           | Root snapshot ring; shell toolbar; dead-column rules on write   |
 
 ---
 
@@ -208,6 +233,16 @@ Composite body lists use **VirtualScroll** and `node_append`. Open events bubble
 ### Opening the editor
 
 The caller mounts the **shell** on a root observable (and optional schema; see Layer 5). The shell opens the root observable and shows that widget inside the column/popup host.
+
+### Shell toolbar
+
+Above the column strip, the shell shows its **own** toolbar (not the composite title row):
+
+- **Undo / redo** controls (see Layer 5 — Undo / redo)
+- Optional **global** import/export entry points (what add-ons allow at the root)
+- **Host slots** — places for the library user to insert extra controls when mounting the shell
+
+Composite toolbars (search, per-node `...`) stay inside each column/popup.
 
 ### Columns / drill-down
 
@@ -221,12 +256,21 @@ When the shell/schema uses a **popup** instead of a column: the user closes it w
 
 Every composite widget has a sticky title row and toolbar at the top (content of the column/popup; the shell owns the outer frame). The shell shows **breadcrumbs** for the current column stack (from each column’s open `title`, see Layer 1b).
 
+By default the title row shows the value’s **constructor name** and a short cardinality hint when useful (for example `Array [12]`, `Object {4}`, `Map {3}`). Schema may replace or hide that label. Breadcrumb `title` segments (key / index labels) remain separate from this type chrome.
+
 Unknown mode toolbar includes:
 
-- a search field (filters the listed rows; exact rules in first version — specify in a later pass of this layer)
+- a search field (filters the listed rows — rules below)
 - a `...` menu for import/export on this node (what the add-ons and schema allow), and for changing this node’s type or layout (warn if data would be lost)
 
 Schema mode **starts from the same toolbar** as unknown mode. The schema **opts out** of pieces it does not want (hide or remove actions), rather than starting empty and opting in.
+
+**Search / filter (v1):**
+
+- Match against **keys and values** (stringified / preview text as shown for that row; not a deep recursive walk of unopened nested composites beyond what the row already displays).
+- **Case sensitivity** is optional: a small toggle on the search field (VS Code–style); default case-**in**sensitive.
+- **Table:** filter **rows** only (do not hide data columns).
+- Empty query clears the filter (all rows visible again).
 
 ### Lists
 
@@ -236,7 +280,7 @@ Composite lists that can grow use **VirtualScroll**, not `Repeat`, including sma
 
 ### Focus (v1)
 
-No marquee. Pointer and keyboard go to real controls inside widgets. Opening a composite is via the preview control (click / keyboard activate).
+No marquee. Pointer and keyboard go to real controls inside widgets. Opening a composite is via the preview control (click / keyboard activate). Native control keys apply (for example Enter / blur to commit). No global editor shortcut table in v1 (see Scope — Later).
 
 > Thoughts: Excel-like marquee, multi-cell TSV, and optional overlay are **later** (design notes in Layer 1b).
 
@@ -258,7 +302,7 @@ Default widget for a composite value:
 
 Other unknown types are shown as Object, unless a schema treats them as scalar (for example `Date`).
 
-**Table vs Array:** scan the **first few** elements (see Table) for key-wise similar objects and switch to Table when they match. A schema can force Array or Table. The user can override when unknown mode (or schema) allows type/layout change.
+**Table vs Array:** auto-detect uses the **first-row** rule (see Table). A schema can force Array or Table. The user can override when unknown mode (or schema) allows type/layout change.
 
 ### Object
 
@@ -278,7 +322,7 @@ Map entries can be **reordered** with drag and drop (Maps keep insertion order).
 
 Each row shows a numeric index and the element’s widget. When allowed, the user can drag indices to reorder.
 
-New elements: same insert controls as Set (hover `+` on boundaries, keyboard shortcut) at positions the schema allows.
+New elements: same insert controls as Set (hover `+` on boundaries; keyboard bindings later) at positions the schema allows.
 
 Nested objects use the **composite preview** and drill-down into a new column — not fields shown inline beside the index.
 
@@ -286,7 +330,7 @@ Nested objects use the **composite preview** and drill-down into a new column �
 
 List presentation like Array:
 
-- User **appends** or **inserts** entries (hover `+` on boundaries; keyboard shortcut)
+- User **appends** or **inserts** entries (hover `+` on boundaries; keyboard bindings later)
 - **Reorder** with drag and drop (Sets keep insertion order)
 - Duplicate values are rejected
 
@@ -294,9 +338,24 @@ After insert/append, the new entry is **`null`**, unless the schema provides a *
 
 ### Table
 
-For arrays of objects that share a similar set of keys: each row is one element, each column is one key.
+For arrays of objects that look tabular: each row is one element, each data column is one key from the column set.
 
-**Auto “similar”:** scan at most the **first 5** elements; they must share the **same key set** to become a table. A schema may set columns manually instead (or force table/array).
+**Auto-detect (first-row):**
+
+- The array must be non-empty. The **first** element must be a non-null plain object (not an array).
+- Column set = `Object.keys` of the first row (that key order).
+- Scan at most the **first 10** elements: every sampled element must be a non-null plain object and must own **every** key of the first row (`Object.hasOwn`). Extra keys on sampled rows do **not** fail detection.
+- Empty array, non-object first element, or a failed sample → Array (list), not Table.
+- A schema may set `columns` manually instead (or force table/array via `presentation`).
+
+**Layout (v1):**
+
+- A leading **`#` index column** always shows the row index (same role as the index in Array mode). It is not a data key and is not resizable as a field column unless the implementation needs a fixed narrow width.
+- Data column headers are **resizable** (drag handle on the header cell). `specs/resizable.tsx` is a reference sketch only — not a binding implementation.
+- The table uses **`width: max-content`**. Its host is a **horizontally scrollable** container when the table is wider than the column body.
+- The **header row is sticky** (`thead` stays visible while the body scrolls vertically). Vertical body scroll uses VirtualScroll like other composites.
+
+**Editing:**
 
 - Adding a column adds that key on **every** row object
 - Deleting a column removes that key from **every** row object
@@ -307,7 +366,7 @@ For arrays of objects that share a similar set of keys: each row is one element,
 - A row **missing** a column key shows an empty/`undefined`-style cell for that column (not a hidden extra structure).
 - A row with **extra** keys not in the column set does **not** show those keys in the table. That data remains on the object; the user can switch to Array-of-objects (unknown mode) or open that row as an object to see everything.
 
-> Why: Auto-detect is imperfect on purpose; unknown mode keeps an escape hatch to Array.
+> Why: Auto-detect is imperfect on purpose; unknown mode keeps an escape hatch to Array. First-row columns match the common “uniform records” case without requiring every row’s key set to be identical up front.
 
 **Divergence (first version):** when any row has keys outside the table column set, the Table widget exposes `o_has_extra_keys: o.Observable<boolean>` (or equivalent). The toolbar shows a **small warning icon** with tooltip along the lines of “Some rows have keys not shown as columns.”
 
@@ -319,24 +378,57 @@ Cells for a column key that is **absent** on that row use the **undefined** widg
 
 The same widget code is used for a given kind of value whether it appears as an object field, an array element, a table cell, or the root. Composites are widgets too (Layer 1).
 
+### Widget config (schema-facing)
+
+Schemas do **not** name widgets by bare string id alone. A **widget config** is a discriminated object: a **`kind`** (registry key) plus **kind-specific arguments**.
+
+```typescript
+/** Schema-facing widget choice — kind + args. Expand members as widgets are named. */
+type WidgetConfig =
+  | { kind: "null" }
+  | { kind: "undefined" }
+  | { kind: "textarea" }
+  | { kind: "text"; mask?: string }
+  | { kind: "number"; decimals?: boolean }
+  | { kind: "boolean" }
+  | { kind: "toggle" }
+  | { kind: "select"; options: ReadonlyArray<string | number | boolean>; allow_other?: boolean; from_column?: boolean }
+  | { kind: "date" } | { kind: "datetime" } | { kind: "time" }
+  | { kind: "color" }
+  | { kind: "preview" } // composite: short text; activates → elt-object-editor-open
+  | { kind: "object" } | { kind: "array" } | { kind: "set" } | { kind: "map" } | { kind: "table" }
+  | { kind: string; [arg: string]: unknown } // custom / registry extension
+```
+
+> Why: Arguments belong with the kind (select options, masks, …). A parallel `widget_options` bag next to a string id drifts out of sync.
+> Question: Final `kind` list and per-kind arg fields — keep expanding this union in the mock until it matches Layer 4 catalogs; drop the open `{ kind: string; … }` escape once customs have a fixed registration shape.
+> Question: `select` options typing — keep a homogeneous primitive union as above, or generic/`SchemaScalar` tied to the value type (closer to `elt/ui` Select)? Full “schema is a TS generic of the value tree” is not required for Gate 2.
+
+The **runtime** Widget (DOM Appender) is separate from `WidgetConfig`. The registry maps `kind` → class/factory; construction is **`new Widget(o_value, config)`** (config may be omitted only for kinds with no args).
+
 ### Contract
 
 ```typescript
 interface Widget {
-  // Bound to the cell or root observable (parent composite or shell provided).
-  constructor(o_value: o.Observable<unknown>)
+  // Bound observable + schema-facing config (kind-specific args).
+  constructor(o_value: o.Observable<unknown>, config?: WidgetConfig)
   getErrorObservable(): o.ReadonlyObservable<string>
   // Inserted by the parent (Renderable).
   [sym_insert](parent: Node, ref_child?: Node): void
-  // Named conversion strategies this widget accepts as target — exact API TBD.
+  // Optional: strategy ids this kind accepts as conversion *target* — exact shape TBD.
 }
 ```
 
-> Thoughts: Contract still not final on conversion strategy methods. Destroy-and-recreate on type change is the v1 default. Marquee is out of v1.
+> Why: Constructor second argument keeps destroy-and-recreate simple (`new Widget(sameObs, newConfig)`), avoids half-initialized instances, and matches registry lookup. Changing only args implies recreate (acceptable in v1).
+
+**Conversion API (v1 direction):** prefer **named strategy functions / a converter registry** (Layer 1). Widget (or registry entry) lists accepted **strategy ids** for the type-change menu. Optional best-effort coerce on a scalar kind (attempt convert; on failure, after user confirm, use that kind’s default) is allowed as sugar — it does **not** replace named strategies for composites.
+
+> Question: Exact method/registry names for “accepted strategy ids” and “run strategy” — free functions vs statics on the widget class.
+> Thoughts: Destroy-and-recreate on type change is the v1 default. Marquee is out of v1.
 
 Widgets that allow type change show a `...` control on hover and/or focus (scalars). Composite widgets also change type from the toolbar `...`.
 
-In unknown mode, a keyboard shortcut will clear or replace toward `null` (for example Ctrl+Delete). Exact keys are part of the first-version shortcut list.
+Global editor keyboard shortcuts (clear toward `null`, insert/delete row, …) are **not** in v1 — see Scope Later. Native control behavior (Enter / blur commit, activate preview) remains.
 
 ### Widgets in the default / unknown schema
 
@@ -360,20 +452,29 @@ Missing object/table fields use the **undefined** display widget where the schem
 
 ### Widgets for developers (not in the default unknown catalog)
 
-Available to register or assign through a schema:
+Available to register or assign through a schema (`WidgetConfig`):
 
 - explicit `undefined` scalar (if the schema allows)
 - single-line text input (mask / one line)
 - toggle / on-off buttons
 - select — fixed options; optional “other”; optional fill from values already present in a table column
 
+### Preview text (`kind: "preview"`)
+
+Default label is a **string** (enough for the button and `title` tooltip in v1):
+
+- Plain **object / array:** stringify the first one or two entries (key/value or index/value), then `…` if more remain.
+- Other prototypes / class instances: **constructor name**, then the same first-property snippet when useful.
+- **Map / Set:** same idea on the projected entries/values.
+- Optional escape hatch: if the value defines an object-editor **`[sym_preview]()`** (returns `string` or `Renderable`), use that instead. Symbol stays object-editor-local unless a second consumer needs it later.
+
 ---
 
-## Layer 5 — Schema (stub)
+## Layer 5 — Schema
 
 A schema limits and adjusts behavior at a node: allowed types and widgets, key rules, column vs popup, import/export, toolbar opt-outs, conversion allow-list, date/color heuristic opt-out, defaults for new array/set items, and so on.
 
-**Default (unknown) schema** is always defined. Callers may:
+**Default (unknown) schema** is always defined **in this spec as concrete data** (not only described in prose). Callers may:
 
 - **supplement** it (merge / extend — e.g. turn off color detection, add a constructor mapping), or
 - **replace** it with a fully defined schema
@@ -383,6 +484,8 @@ so both “tweak unknown” and “hand a whole schema” work without two diffe
 Schemas **deep-merge** when extending the default (or another base) so a few properties can be overridden. Passing a **new schema object** built as a full definition **replaces** instead of merging.
 
 A schema may also be **registered for a constructor** on a **global** registry used in unknown mode (so common types get good widgets without a per-editor schema). Callers can still pass a fully defined schema into an editor instance to override.
+
+Widget **kinds** resolve through a **widget registry** (`kind` → factory). Constructor→schema registration stays global for unknown mode.
 
 **v1: native schema only** (no JSON Schema import). Optional JSON Schema subset → native importer is later if ever.
 
@@ -399,7 +502,7 @@ type SchemaNode =
 
 interface SchemaCommon {
   /** Force or restrict widget; default = resolve from value + unknown schema. */
-  widget?: string // registry id
+  widget?: WidgetConfig
   /** Prefer popup instead of column when this node is opened. */
   open_as?: "column" | "popup"
   /** Opt out of toolbar pieces inherited from unknown defaults. */
@@ -415,7 +518,6 @@ interface SchemaScalar extends SchemaCommon {
   /** Allowed JS/runtime types for type change, if restricted. */
   types?: Array<"null" | "undefined" | "string" | "number" | "boolean" | "date" | string>
   allow_undefined?: boolean
-  widget_options?: Record<string, unknown> // mask, select options, …
 }
 
 interface SchemaObject extends SchemaCommon {
@@ -437,7 +539,7 @@ interface SchemaArray extends SchemaCommon {
   item_default?: unknown | (() => unknown)
   /** Force table vs list when items are objects; default = auto-detect. */
   presentation?: "list" | "table" | "auto"
-  /** Table columns when presentation is table (otherwise auto from first rows). */
+  /** Table columns when presentation is table (otherwise auto from first row). */
   columns?: string[]
 }
 
@@ -461,8 +563,38 @@ interface Schema extends SchemaCommon {
 }
 ```
 
-> Why: Mirrors layouts we already named (object/array/set/map/scalar), encodes toolbar opt-out, open_as, conversions, item_default, table columns — without dragging JSON Schema validation semantics into the UI model.
-> Question: Registry of `widget` string ids — global map only, or also per-shell map that overrides global? (Constructor registration already global for unknown mode.)
+> Why: Mirrors layouts we already named (object/array/set/map/scalar), encodes toolbar opt-out, open_as, conversions, item_default, table columns — without dragging JSON Schema validation semantics into the UI model. Widget choice is `WidgetConfig` (`kind` + args), not a bare string id.
+
+### Default unknown schema (mock — required before coding)
+
+The spec must include the **full default `Schema` object** used when the caller passes nothing (heuristics, toolbar defaults, composite `widget` / `presentation`, scalar fallbacks). Until that literal exists here (or in `specs/object-schemas.md` linked from this section), Gate 2 is open.
+
+> Question: Paste the default unknown `Schema` (+ any constructor registry entries for `Date`, etc.) as a code block in this section or in `specs/object-schemas.md`.
+
+### Resolution
+
+Given: optional root/schema arg, constructor registry, runtime value (and parent `SchemaNode` when descending).
+
+The editor resolves a **`SchemaNode` + `WidgetConfig`** for each mounted value. Array vs Table follows `presentation` / first-row auto-detect. Preview vs in-place follows the resolved widget `kind` (e.g. `Date` registered as date widget, not object drill-in).
+
+> Question: Write the resolution algorithm as numbered steps (merge vs replace at the root; when constructor registry applies; how `properties` / `items` / `additional_properties` pick the child node; what happens when `widget` is omitted).
+> Question: Widget registry scope — **global only**, or **global + per-shell override**? (Constructor→schema registration is already global for unknown mode.)
+
+### Type-change targets (unknown mode)
+
+> Question: Binding list of type/layout targets offered in unknown mode (null, string, number, boolean, object, array, Map, Set, …) and which **named conversion strategies** appear for each composite→composite edge. Schema `conversions` filters this list.
+
+### Undo / redo (v1)
+
+Commit timing (Layer 1) defines *when* a new value is written. The shell keeps a history of **committed root snapshots** (immutable values already held by the root observable).
+
+- **Depth** `n` is **configurable** (sensible default in the 30–50 range).
+- **Undo** moves back in the stack; **redo** moves forward.
+- Any **new** commit after undo **truncates** the redo side.
+- Controls live on the **shell toolbar** (Layer 2). Global Ctrl+Z / Ctrl+Shift+Z bindings wait with the shortcut table (Scope — Later); toolbar buttons are enough for v1.
+- After undo/redo writes the root, **dead-column detection** (Layer 1b) closes columns that are no longer valid mounts — no separate undo rule.
+
+> Why: Observables already traffic in immutable values; snapshotting the root is the straightforward history model.
 
 ---
 
@@ -489,6 +621,13 @@ The add-on API must support **replace** and **merge** (and related variants), an
 **Core** exposes a small interface that add-ons **use** for merge/replace and navigation after import (add-ons do not each reinvent merge). Add-ons still own format parsing/serializing.
 
 > Thoughts: Sketch next: `id`, `label`, `canExport(node)`, `canImport(node)`, `export(node)`, `import(raw, ctx)` where `ctx` offers `replace(value)`, `merge(value)`, and navigation via shell `open` on an observable — not path strings.
+> Question: v1 floor for import/export — empty `...` slot only; JSON clipboard replace on the current node; or strike import/export from v1 Scope until the add-on interface is written?
+
+### Table / spreadsheet import (not v1)
+
+When importing CSV/TSV (and similar) into an object-array or Table node, prefer **map by header**: if the paste/file has a header row, match columns to object keys by header name. When the current node is already a Table (or has a known column set), allow import **without** the user re-specifying columns — map by header when headers are present, otherwise by position into the existing column order.
+
+> Why: Spreadsheet round-trips are the main table import path; header mapping avoids brittle positional-only merges. Deferred so Layer 6 stays a slot in v1.
 
 ---
 
