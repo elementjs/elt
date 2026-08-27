@@ -726,8 +726,8 @@ describe("Transactions", function () {
 
 describe("ProxyObservable", function () {
 /** Wrap an observable as a value inside another (o() would return the same ref). */
-function hold<T>(obs: o.Observable<T>) {
-  return new o.Observable(obs as unknown)
+function hold<T>(obs: o.Observable<T>): o.Observable<unknown> {
+  return new o.Observable(obs) as o.Observable<unknown>
 }
 
   test("o.proxy() creates changeable proxy", () => {
@@ -869,7 +869,7 @@ function hold<T>(obs: o.Observable<T>) {
   })
 
   test("chain expands when outer starts holding an observable", () => {
-    const outer = o(1 as unknown)
+    const outer = o(1) as o.Observable<unknown>
     const proxy = o.proxy(outer)
     const spy = spyon(proxy)
 

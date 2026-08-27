@@ -766,12 +766,15 @@ export namespace o {
   }
 
   /** @internal */
-  export class ChildObservableLink implements Indexable {
+  export class ChildObservableLink<
+    A extends unknown[] = unknown[],
+    T = unknown,
+  > implements Indexable {
     idx = null
 
     constructor(
       public parent: Observable<unknown>,
-      public child: CombinedObservable<unknown[]>,
+      public child: CombinedObservable<A, T>,
       public child_idx: number
     ) {}
 
@@ -1003,16 +1006,25 @@ export namespace o {
     return true
   }
 
-  export class ProxyObservable<T = unknown> extends CombinedObservable<
-    unknown[],
-    T
-  > {
+  /** Non-empty dependency path for {@link ProxyObservable}. */
+  type ProxyPath = [ReadonlyObservable<unknown>, ...ReadonlyObservable<unknown>[]]
+
+  type ProxySetterResult = [
+    NoValue | ReadonlyObservable<unknown>,
+    ...(NoValue | ReadonlyObservable<unknown>)[],
+  ]
+
+  function asProxyPath(path: ReadonlyObservable<unknown>[]): ProxyPath {
+    return path as unknown as ProxyPath
+  }
+
+  export class ProxyObservable<T = unknown> extends CombinedObservable<ProxyPath, T> {
     /** Current watch list; path[0] is the root passed to proxy / changeTarget. */
     _path: ReadonlyObservable<unknown>[] = []
 
     constructor(root: ReadonlyObservable<unknown>) {
       const path = resolveProxyPath(root)
-      super(path as any)
+      super(asProxyPath(path))
       this._path = path
     }
 
@@ -1022,7 +1034,7 @@ export namespace o {
         this.unwatched()
       }
       this._path = newPath
-      this.dependsOn(newPath as any)
+      this.dependsOn(asProxyPath(newPath))
       if (watched) {
         this.watched()
         this.refreshValue()
@@ -1047,7 +1059,7 @@ export namespace o {
       super.ensureRefreshed()
     }
 
-    override getter(_values: readonly unknown[]): T {
+    override getter(_values: ProxyPath): T {
       const terminal = this._path[this._path.length - 1]
       return terminal.get() as T
     }
@@ -1055,11 +1067,9 @@ export namespace o {
     override setter(
       nval: T,
       _oval: T | NoValue,
-      _last: unknown[]
-    ): { [K in keyof readonly unknown[]]: unknown | NoValue } {
-      const noop = this._path.map(() => o.NoValue) as {
-        [K in keyof readonly unknown[]]: unknown | NoValue
-      }
+      _last: ProxyPath
+    ): ProxySetterResult {
+      const noop = this._path.map(() => o.NoValue) as unknown as ProxySetterResult
       if ((nval as any) === o.NoValue) return noop
       const terminal = this._path[this._path.length - 1]
       if (terminal instanceof Observable) {
@@ -1068,9 +1078,13 @@ export namespace o {
       return noop
     }
 
-    changeTarget(obs: Observable<unknown>) {
+    changeTarget<U>(obs: ReadonlyObservable<U>) {
       this.relink(resolveProxyPath(obs))
     }
+  }
+
+  export type ProxyChangeTarget = {
+    changeTarget<U>(obs: ReadonlyObservable<U>): void
   }
 
   export type ReadonlyProxyfinal<Obs> = Obs extends ReadonlyObservable<infer T> ? ReadonlyProxyfinal<T>
@@ -1105,7 +1119,8 @@ export namespace o {
    * outer.set(o(10)) // p follows the new inner observable
    */
   export function proxy<T>(ob: T) {
-    return new ProxyObservable(ob as ReadonlyObservable<unknown>) as unknown as ProxyFinalObservable<T> & { changeTarget(obs: T): void  }
+    return new ProxyObservable(ob as ReadonlyObservable<unknown>) as unknown as ProxyFinalObservable<T> &
+      ProxyChangeTarget
   }
 
   /**
