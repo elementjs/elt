@@ -1,7 +1,7 @@
 ///<reference types="bun">
 import "./setup.ts"
 
-import { test, expect, describe } from "bun:test"
+import { test, expect, describe, afterEach } from "bun:test"
 
 import { App } from "../src/app"
 import type { ServiceBuilderFunction, ServiceHelper } from "../src/app/service"
@@ -34,6 +34,10 @@ const leaf_srv: ServiceBuilderFunction<void> = async (srv) => {
 }
 
 describe("App", () => {
+  afterEach(() => {
+    window.location.hash = ""
+  })
+
   test("route activation registers views on the app", async () => {
     const app = new App()
     const router = app.setupRouter({

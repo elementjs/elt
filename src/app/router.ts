@@ -66,6 +66,9 @@ export class Router {
     this._last_hash = newhash
 
     const { path, vars } = this.__parseHash(newhash)
+    if (!path) {
+      return
+    }
     const route_vars: ServiceParams = {}
 
     let route = this.__routes.get(path)
@@ -87,7 +90,7 @@ export class Router {
     }
 
     if (route == null) {
-      throw new Error(`route "${newhash}" could not be matched to a route`)
+      return
     }
 
     const vars_final = Object.assign(
