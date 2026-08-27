@@ -770,8 +770,8 @@ export namespace o {
     idx = null
 
     constructor(
-      public parent: Observable<any>,
-      public child: CombinedObservable<any>,
+      public parent: Observable<unknown>,
+      public child: CombinedObservable<unknown[]>,
       public child_idx: number
     ) {}
 
@@ -1004,7 +1004,7 @@ export namespace o {
   }
 
   export class ProxyObservable<T = unknown> extends CombinedObservable<
-    readonly unknown[],
+    unknown[],
     T
   > {
     /** Current watch list; path[0] is the root passed to proxy / changeTarget. */
@@ -1055,7 +1055,7 @@ export namespace o {
     override setter(
       nval: T,
       _oval: T | NoValue,
-      _last: readonly unknown[]
+      _last: unknown[]
     ): { [K in keyof readonly unknown[]]: unknown | NoValue } {
       const noop = this._path.map(() => o.NoValue) as {
         [K in keyof readonly unknown[]]: unknown | NoValue
@@ -1104,8 +1104,8 @@ export namespace o {
    * inner.set(6) // p observers fire
    * outer.set(o(10)) // p follows the new inner observable
    */
-  export function proxy<T>(ob: T): ReadonlyProxyfinal<T> {
-    return new ProxyObservable(ob as ReadonlyObservable<unknown>) as any
+  export function proxy<T>(ob: T) {
+    return new ProxyObservable(ob as ReadonlyObservable<unknown>) as unknown as ProxyFinalObservable<T> & { changeTarget(obs: T): void  }
   }
 
   /**
