@@ -981,41 +981,131 @@ export namespace o {
     }
   }
 
-  export class ProxyObservable<T> extends CombinedObservable<[T], T> {
-    constructor(obs: Observable<T>) {
-      super([obs])
+  /** @internal Resolve observable chain: [root, …, terminal] while values are observables. */
+  function resolveProxyPath(root: ReadonlyObservable<unknown>): ReadonlyObservable<unknown>[] {
+    const path: ReadonlyObservable<unknown>[] = [root]
+    let v: unknown = root.get()
+    while (o.is_observable(v)) {
+      path.push(v)
+      v = v.get()
+    }
+    return path
+  }
+
+  function sameProxyPath(
+    a: ReadonlyObservable<unknown>[],
+    b: ReadonlyObservable<unknown>[]
+  ): boolean {
+    if (a.length !== b.length) return false
+    for (let i = 0; i < a.length; i++) {
+      if (a[i] !== b[i]) return false
+    }
+    return true
+  }
+
+  export class ProxyObservable<T = unknown> extends CombinedObservable<
+    readonly unknown[],
+    T
+  > {
+    /** Current watch list; path[0] is the root passed to proxy / changeTarget. */
+    _path: ReadonlyObservable<unknown>[] = []
+
+    constructor(root: ReadonlyObservable<unknown>) {
+      const path = resolveProxyPath(root)
+      super(path as any)
+      this._path = path
     }
 
-    override getter(values: [T]) {
-      return values[0]
-    }
-
-    override setter(nval: T) {
-      if ((nval as any) === o.NoValue) return o.NoValue as any as [T]
-      return [nval] as [T]
-    }
-
-    changeTarget(obs: Observable<T>) {
-      if (this.is_watched) {
-        // unwatch the previous dependencies
+    private relink(newPath: ReadonlyObservable<unknown>[], schedule = true) {
+      const watched = this.is_watched
+      if (watched) {
         this.unwatched()
       }
-      this.dependsOn([obs])
-      if (this.is_watched) {
+      this._path = newPath
+      this.dependsOn(newPath as any)
+      if (watched) {
         this.watched()
-        // we force the refreshing of the value because dependsOn fetches the last values and ensureRefreshed() won't return true.
         this.refreshValue()
-        queue.schedule(this) // Now tell all our children that we changed.
+        if (schedule) {
+          queue.schedule(this)
+        }
       }
+    }
+
+    /** Re-resolve from path[0] when a link now points at a different observable. */
+    private ensurePathSynced() {
+      const root = this._links[0]?.parent as ReadonlyObservable<unknown> | undefined
+      if (root == null) return
+      const newPath = resolveProxyPath(root)
+      if (!sameProxyPath(newPath, this._path)) {
+        this.relink(newPath, false)
+      }
+    }
+
+    override ensureRefreshed(): void {
+      this.ensurePathSynced()
+      super.ensureRefreshed()
+    }
+
+    override getter(_values: readonly unknown[]): T {
+      const terminal = this._path[this._path.length - 1]
+      return terminal.get() as T
+    }
+
+    override setter(
+      nval: T,
+      _oval: T | NoValue,
+      _last: readonly unknown[]
+    ): { [K in keyof readonly unknown[]]: unknown | NoValue } {
+      const noop = this._path.map(() => o.NoValue) as {
+        [K in keyof readonly unknown[]]: unknown | NoValue
+      }
+      if ((nval as any) === o.NoValue) return noop
+      const terminal = this._path[this._path.length - 1]
+      if (terminal instanceof Observable) {
+        terminal.set(nval as any)
+      }
+      return noop
+    }
+
+    changeTarget(obs: Observable<unknown>) {
+      this.relink(resolveProxyPath(obs))
     }
   }
 
+  export type ReadonlyProxyfinal<Obs> = Obs extends ReadonlyObservable<infer T> ? ReadonlyProxyfinal<T>
+    : ReadonlyObservable<Obs>
+
+  export type ProxyFinalObservable<Obs> =
+    Obs extends Observable<infer U> ? ProxyFinalObservable<U>
+    : Obs extends ReadonlyObservable<infer T> ? ReadonlyProxyfinal<T>
+    : Observable<Obs>
+
   /**
-   * Create an observable that is a proxy to another that can be changed afterwards
-   * with changeTarget
+   * Follow a chain of observables down to the innermost one and behave as that observable.
+   *
+   * Start from `root` (the argument, or a new root after {@link changeTarget}). Walk
+   * `root.get()`, and while the result is itself an observable, keep going. The
+   * **terminal** observable is the last one in that walk; this proxy's `.get()`,
+   * `.set()` (if the terminal is writable), and observers all use the terminal.
+   *
+   * The root may be any observable, including a derived one (e.g. `.p("field")` when
+   * that field holds an observable).
+   *
+   * Whenever a value along the chain changes to a **different** observable instance,
+   * the proxy stops watching the old branch and watches the new one. Replacing the
+   * root is done with {@link changeTarget}.
+   *
+   * @example
+   * const inner = o(5)
+   * const outer = o(inner)
+   * const p = o.proxy(outer)
+   * p.get() // 5 — not `inner`
+   * inner.set(6) // p observers fire
+   * outer.set(o(10)) // p follows the new inner observable
    */
-  export function proxy<T>(ob: Observable<T>): ProxyObservable<T> {
-    return new ProxyObservable(ob)
+  export function proxy<T>(ob: T): ReadonlyProxyfinal<T> {
+    return new ProxyObservable(ob as ReadonlyObservable<unknown>) as any
   }
 
   /**

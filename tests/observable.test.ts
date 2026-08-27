@@ -725,6 +725,11 @@ describe("Transactions", function () {
 })
 
 describe("ProxyObservable", function () {
+/** Wrap an observable as a value inside another (o() would return the same ref). */
+function hold<T>(obs: o.Observable<T>) {
+  return new o.Observable(obs as unknown)
+}
+
   test("o.proxy() creates changeable proxy", () => {
     const a = o(5)
     const b = o(10)
@@ -761,6 +766,150 @@ describe("ProxyObservable", function () {
 
     proxy.changeTarget(b)
     spy.was.called.once.with(10)
+  })
+
+  test("unwraps nested observables to terminal value", () => {
+    const inner = o(5)
+    const outer = hold(inner)
+    const proxy = o.proxy(outer)
+
+    expect(proxy.get()).toBe(5)
+    expect(proxy.get()).not.toBe(inner)
+  })
+
+  test("nested chain notifies when terminal value changes", () => {
+    const inner = o(5)
+    const outer = hold(inner)
+    const proxy = o.proxy(outer)
+    const spy = spyon(proxy)
+
+    inner.set(6)
+    spy.was.called.once.with(6)
+  })
+
+  test("nested chain set writes terminal not outer", () => {
+    const inner = o(5)
+    const outer = hold(inner)
+    const proxy = o.proxy(outer)
+
+    proxy.set(9)
+    expect(inner.get()).toBe(9)
+    expect(outer.get()).toBe(inner)
+  })
+
+  test("follows when outer is repointed to another observable", () => {
+    const inner1 = o(1)
+    const inner2 = o(2)
+    const outer = hold(inner1)
+    const proxy = o.proxy(outer)
+    const spy = spyon(proxy)
+
+    outer.set(inner2)
+    expect(proxy.get()).toBe(2)
+    spy.was.called.once.with(2)
+
+    inner1.set(99)
+    expect(proxy.get()).toBe(2)
+  })
+
+  test("three-hop chain unwraps and follows relinks", () => {
+    const a = o(7)
+    const b = hold(a)
+    const c = hold(b)
+    const proxy = o.proxy(c)
+    const spy = spyon(proxy)
+
+    expect(proxy.get()).toBe(7)
+    a.set(8)
+    spy.was.called.once.with(8)
+
+    const a2 = o(30)
+    const b2 = hold(a2)
+    c.set(b2)
+    expect(proxy.get()).toBe(30)
+    a.set(100)
+    expect(proxy.get()).toBe(30)
+  })
+
+  test("unwraps .p() when property holds an observable", () => {
+    const err = o("e1")
+    const holder = o({ err })
+    const proxy = o.proxy(holder.p("err"))
+
+    expect(proxy.get()).toBe("e1")
+  })
+
+  test(".p() proxy follows when holder swaps observable field", () => {
+    const err1 = o("e1")
+    const err2 = o("e2")
+    const holder = o({ err: err1 } as { err: typeof err1 })
+    const proxy = o.proxy(holder.p("err"))
+    const spy = spyon(proxy)
+
+    holder.set({ err: err2 })
+    expect(proxy.get()).toBe("e2")
+    spy.was.called.once.with("e2")
+
+    err1.set("stale")
+    expect(proxy.get()).toBe("e2")
+  })
+
+  test("chain collapses when outer stops holding an observable", () => {
+    const inner = o(5)
+    const outer = hold(inner)
+    const proxy = o.proxy(outer)
+    const spy = spyon(proxy)
+
+    outer.set(42)
+    expect(proxy.get()).toBe(42)
+    spy.was.called.once.with(42)
+
+    inner.set(99)
+    expect(proxy.get()).toBe(42)
+  })
+
+  test("chain expands when outer starts holding an observable", () => {
+    const outer = o(1 as unknown)
+    const proxy = o.proxy(outer)
+    const spy = spyon(proxy)
+
+    const inner = o(5)
+    outer.set(inner)
+    expect(proxy.get()).toBe(5)
+    spy.was.called.once.with(5)
+  })
+
+  test("changeTarget can install a nested chain", () => {
+    const inner = o(3)
+    const outer = hold(inner)
+    const proxy = o.proxy(o(0))
+
+    proxy.changeTarget(outer)
+    expect(proxy.get()).toBe(3)
+
+    inner.set(4)
+    expect(proxy.get()).toBe(4)
+  })
+
+  test("unwatched get resyncs after outer relink", () => {
+    const inner1 = o(1)
+    const inner2 = o(2)
+    const outer = hold(inner1)
+    const proxy = o.proxy(outer)
+
+    expect(proxy.get()).toBe(1)
+    outer.set(inner2)
+    expect(proxy.get()).toBe(2)
+  })
+
+  test("proxy set does not write non-writable parents in chain", () => {
+    const inner = o(5)
+    const outer = hold(inner)
+    const proxy = o.proxy(outer)
+
+    proxy.set(11)
+    expect(inner.get()).toBe(11)
+    expect(outer.get()).toBe(inner)
   })
 })
 
