@@ -911,6 +911,181 @@ function hold<T>(obs: o.Observable<T>): o.Observable<unknown> {
     expect(inner.get()).toBe(11)
     expect(outer.get()).toBe(inner)
   })
+
+  test("four-hop chain follows when a middle link is repointed", () => {
+    const d = o(1)
+    const c = hold(d)
+    const b = hold(c)
+    const a = hold(b)
+    const proxy = o.proxy(a)
+    const spy = spyon(proxy)
+
+    expect(proxy.get()).toBe(1)
+
+    const d2 = o(2)
+    const c2 = hold(d2)
+    b.set(c2)
+    expect(proxy.get()).toBe(2)
+    spy.was.called.once.with(2)
+
+    d.set(99)
+    expect(proxy.get()).toBe(2)
+
+    d2.set(20)
+    expect(proxy.get()).toBe(20)
+    spy.was.called.once.with(20)
+  })
+
+  test("mid-chain repoint relinks when terminal value stays the same", () => {
+    const d = o(1)
+    const c = hold(d)
+    const b = hold(c)
+    const a = hold(b)
+    const proxy = o.proxy(a)
+    const spy = spyon(proxy)
+
+    const d2 = o(1)
+    const c2 = hold(d2)
+    b.set(c2)
+
+    d.set(99)
+    expect(proxy.get()).toBe(1)
+    spy.was.not.called
+
+    d2.set(5)
+    expect(proxy.get()).toBe(5)
+    spy.was.called.once.with(5)
+  })
+
+  test("derived root follows deep mid-chain repoint", () => {
+    const d = o(1)
+    const c = hold(d)
+    const b = hold(c)
+    const holder = o({ root: b })
+    const proxy = o.proxy(holder.p("root"))
+    const spy = spyon(proxy)
+
+    const d2 = o(2)
+    const c2 = hold(d2)
+    b.set(c2)
+    expect(proxy.get()).toBe(2)
+    spy.was.called.once.with(2)
+
+    d.set(99)
+    expect(proxy.get()).toBe(2)
+  })
+
+  test("derived root follows inner-middle repoint without holder change", () => {
+    const d = o(1)
+    const c = hold(d)
+    const b = hold(c)
+    const holder = o({ root: b })
+    const proxy = o.proxy(holder.p("root"))
+    const spy = spyon(proxy)
+
+    const d2 = o(3)
+    const c2 = hold(d2)
+    c.set(c2)
+    expect(proxy.get()).toBe(3)
+    spy.was.called.once.with(3)
+
+    d.set(99)
+    expect(proxy.get()).toBe(3)
+  })
+
+  test("unwatched proxy resyncs after mid-chain repoint", () => {
+    const d = o(1)
+    const c = hold(d)
+    const b = hold(c)
+    const a = hold(b)
+    const proxy = o.proxy(a)
+
+    const d2 = o(1)
+    const c2 = hold(d2)
+    b.set(c2)
+
+    d.set(99)
+    expect(proxy.get()).toBe(1)
+
+    d2.set(8)
+    expect(proxy.get()).toBe(8)
+  })
+
+  test("mid-chain repoint inside transaction still relinks before flush ends", () => {
+    const d = o(1)
+    const c = hold(d)
+    const b = hold(c)
+    const a = hold(b)
+    const proxy = o.proxy(a)
+    const spy = spyon(proxy)
+
+    const d2 = o(2)
+    const c2 = hold(d2)
+    o.transaction(() => {
+      b.set(c2)
+    })
+    expect(proxy.get()).toBe(2)
+    spy.was.called.once.with(2)
+
+    d.set(99)
+    expect(proxy.get()).toBe(2)
+  })
+
+  test("stale terminal in same transaction as mid-chain repoint is ignored", () => {
+    const d = o(1)
+    const c = hold(d)
+    const b = hold(c)
+    const a = hold(b)
+    const proxy = o.proxy(a)
+    const spy = spyon(proxy)
+
+    const d2 = o(2)
+    const c2 = hold(d2)
+    o.transaction(() => {
+      b.set(c2)
+      d.set(99)
+    })
+    expect(proxy.get()).toBe(2)
+    spy.was.called.once.with(2)
+  })
+
+  test("four-hop chain follows when an inner-middle link is repointed", () => {
+    const d = o(1)
+    const c = hold(d)
+    const b = hold(c)
+    const a = hold(b)
+    const proxy = o.proxy(a)
+    const spy = spyon(proxy)
+
+    const d2 = o(3)
+    const c2 = hold(d2)
+    c.set(c2)
+    expect(proxy.get()).toBe(3)
+    spy.was.called.once.with(3)
+
+    d.set(99)
+    expect(proxy.get()).toBe(3)
+
+    d2.set(30)
+    expect(proxy.get()).toBe(30)
+  })
+
+  test("deep chain grows when a middle link starts holding an observable", () => {
+    const b = o(5) as o.Observable<unknown>
+    const a = hold(b)
+    const proxy = o.proxy(a)
+    const spy = spyon(proxy)
+
+    expect(proxy.get()).toBe(5)
+
+    const inner = o(9)
+    b.set(inner)
+    expect(proxy.get()).toBe(9)
+    spy.was.called.once.with(9)
+
+    b.set(7)
+    expect(proxy.get()).toBe(7)
+  })
 })
 
 describe("Observer Lifecycle", function () {

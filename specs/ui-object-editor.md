@@ -41,6 +41,12 @@ When no schema is given, the editor still uses a **default** set of rules: it ca
 1. **Shell / widget / DOM model** (Layer 1b) — mostly locked; keep it consistent with later edits. Includes the **shell toolbar** (undo/redo, optional global import/export, host slots).
 2. **Schema + widget config mock** (Layers 4–5) — typed widget configs (`kind` + args), how options reach widget instances, schema resolution, and the **default unknown schema** written out as data in the spec. Product details in Layers 2–3 and Layer 6 may stay incomplete; these two must not.
 
+## Type definitions (source of truth)
+
+TypeScript mocks for widgets, factories, and schema nodes live in **`specs/object-editor-types.ts`**. The markdown spec states behavior; keep the shapes in that file and amend both when they diverge. Do not duplicate full `interface` / `type` blocks here.
+
+> Thoughts: Precursor UI remains in `specs/object-editor.tsx` (not the type mock).
+
 ---
 
 ## Layer 1 — Value model
@@ -144,6 +150,7 @@ This section chooses how the shell and widgets sit on elt and the DOM. Until the
 **Row / element identity:** VirtualScroll / per-row observables need a **stable unique key** that survives reorder and immutable writes. **Array index is not sufficient** (drag-reorder moves the same element to a new index). Map keys can work when the key is the identity; Set-of-objects and array-of-objects need something else.
 
 > Question: How to mint and preserve that unique id — editor-local `WeakMap` + migrate on `o.clone` write-back; non-enumerable symbol on the value (lost today under `o.clone`/`Object.assign` unless clone is taught to copy a well-known `sym_unique`); enumerable symbol (survives clone, pollutes `getOwnPropertySymbols`); or another scheme? Same mechanism for Array rows and Set members, or different per composite?
+> A: There should be a key function given to array/sets schemas. When providing a keyless schema, they will take the index. In "JSON" mode, it will _mutably_ attribute the symbol in enumerable mode (actually just doing `obj[sym_whatever] = nettwindex++`), since serializing doesn't show it. This is something that could be documented.
 > Thoughts: Prefer not to block Gate 1 on picking the mechanism, but v1 lists/tables will need an answer before VirtualScroll key reuse is correct under reorder.
 
 Widgets need **their value observable**. They do not need a root-relative path for mounting. A **display path / title** (breadcrumb in the column header) may be derived later for humans; it is not the mount key.
@@ -167,6 +174,7 @@ Naïve `.p()` is unsafe when a parent value becomes non-composite (`undefined`, 
 **Projection / safe child converters (separate):** parent composites use dedicated helpers for Set ↔ array, Map ↔ entries, and non-throwing child access when a parent slot disappears (derived observables go to a defined empty/invalid state). Those helpers feed VirtualScroll keys and write-back; they do not themselves close columns.
 
 > Question: Exact API shape of the projection / safe-child helpers — one shared converter pattern, or separate helpers per composite? Sketch here or in a types stub.
+> A: Probably a shared converter that will work for any value, remember what the last type was to remember how to update it ba
 
 ### Display path, breadcrumbs, multiple trees
 
@@ -188,6 +196,7 @@ Widgets are **Renderable** (insert real nodes via `sym_insert` / returning nodes
 
 > Why: Editor widgets carry mount/open/conversion machinery that is not “just visuals.” Public surface = shell + schema (+ optional custom Widget classes), not a grab-bag of cell components.
 > Thoughts: If a rare app needs an isolated cell later, that can be a documented escape hatch — not the default API.
+
 ### Who creates child observables
 
 **Parent composites** create derived observables for their cells/rows, using safe converters/transforms where projections need them (Set, Map, …). The shell holds the **root** and each **column**’s mounted `o_value`.
@@ -195,6 +204,7 @@ Widgets are **Renderable** (insert real nodes via `sym_insert` / returning nodes
 ### Asking to open (DOM)
 
 Event: `elt-object-editor-open`, detail `{ o_value, title: string }` (title = breadcrumb segment for this open). Placement via `currentTarget`. Hybrid: event → shell.`open`. Preview dispatches; in-place widgets do not. Later, detail may grow optional pane/tab options without changing mount identity.
+
 ### Marquee (later — not v1)
 
 **Dropped from v1.** Users focus widgets directly.
@@ -212,19 +222,19 @@ Composite body lists use **VirtualScroll** and `node_append`. Open events bubble
 
 ### Approaches (locked)
 
-| Topic          | Choice                                                          |
-| -------------- | --------------------------------------------------------------- |
-| Open           | **C — hybrid** (`elt-object-editor-open` + shell `open`, `$on`) |
-| Column mount   | **D — shell** mounts column/popup from `o_value`                |
-| Cell/row mount | **E — parent** composite creates children + converters          |
-| Mount identity | **Observable**, not path                                        |
-| Selection v1   | No marquee; per-widget focus only                               |
+| Topic          | Choice                                                                                       |
+| -------------- | -------------------------------------------------------------------------------------------- |
+| Open           | **C — hybrid** (`elt-object-editor-open` + shell `open`, `$on`)                              |
+| Column mount   | **D — shell** mounts column/popup from `o_value`                                             |
+| Cell/row mount | **E — parent** composite creates children + converters                                       |
+| Mount identity | **Observable**, not path                                                                     |
+| Selection v1   | No marquee; per-widget focus only                                                            |
 | Widget shape   | Internal Widget classes + `elt/ui` visuals; schema registers customs via `WidgetConfig.kind` |
-| Open detail    | `{ o_value, title }` — breadcrumbs from column titles           |
-| Schema widget  | `WidgetConfig` (`kind` + args), not bare string id              |
-| Column stack   | Shell-owned hosts; DOM only to locate source column             |
-| Widget ctor    | `new Widget(o_value, config?)`                                  |
-| Undo           | Root snapshot ring; shell toolbar; dead-column rules on write   |
+| Open detail    | `{ o_value, title }` — breadcrumbs from column titles                                        |
+| Schema widget  | `WidgetConfig` (`kind` + args), not bare string id                                           |
+| Column stack   | Shell-owned hosts; DOM only to locate source column                                          |
+| Widget ctor    | `new Widget(o_value, config?)`                                                               |
+| Undo           | Root snapshot ring; shell toolbar; dead-column rules on write                                |
 
 ---
 
@@ -380,50 +390,23 @@ The same widget code is used for a given kind of value whether it appears as an 
 
 ### Widget config (schema-facing)
 
-Schemas do **not** name widgets by bare string id alone. A **widget config** is a discriminated object: a **`kind`** (registry key) plus **kind-specific arguments**.
-
-```typescript
-/** Schema-facing widget choice — kind + args. Expand members as widgets are named. */
-type WidgetConfig =
-  | { kind: "null" }
-  | { kind: "undefined" }
-  | { kind: "textarea" }
-  | { kind: "text"; mask?: string }
-  | { kind: "number"; decimals?: boolean }
-  | { kind: "boolean" }
-  | { kind: "toggle" }
-  | { kind: "select"; options: ReadonlyArray<string | number | boolean>; allow_other?: boolean; from_column?: boolean }
-  | { kind: "date" } | { kind: "datetime" } | { kind: "time" }
-  | { kind: "color" }
-  | { kind: "preview" } // composite: short text; activates → elt-object-editor-open
-  | { kind: "object" } | { kind: "array" } | { kind: "set" } | { kind: "map" } | { kind: "table" }
-  | { kind: string; [arg: string]: unknown } // custom / registry extension
-```
+Schemas do **not** name widgets by bare string id alone. A **widget config** is a discriminated object: a **`kind`** (registry key) plus **kind-specific arguments**. The `WidgetConfig` union is maintained in `specs/object-editor-types.ts`.
 
 > Why: Arguments belong with the kind (select options, masks, …). A parallel `widget_options` bag next to a string id drifts out of sync.
-> Question: Final `kind` list and per-kind arg fields — keep expanding this union in the mock until it matches Layer 4 catalogs; drop the open `{ kind: string; … }` escape once customs have a fixed registration shape.
-> Question: `select` options typing — keep a homogeneous primitive union as above, or generic/`SchemaScalar` tied to the value type (closer to `elt/ui` Select)? Full “schema is a TS generic of the value tree” is not required for Gate 2.
+> Question: Final `kind` list and per-kind arg fields — keep expanding the union in `object-editor-types.ts` until it matches Layer 4 catalogs; drop the open `{ kind: string; … }` escape once customs have a fixed registration shape.
+> Question: `select` options typing — homogeneous primitive union as now, or generic/`SchemaScalar` tied to the value type (closer to `elt/ui` Select)? Full “schema is a TS generic of the value tree” is not required for Gate 2.
 
-The **runtime** Widget (DOM Appender) is separate from `WidgetConfig`. The registry maps `kind` → class/factory; construction is **`new Widget(o_value, config)`** (config may be omitted only for kinds with no args).
+The **runtime** Widget (DOM Appender) is separate from `WidgetConfig`. The registry maps `kind` → **factory** (`WidgetFactory` in the types file): `canHandle`, `defaultValue`, and `new (o_value, config)`. Construction is **`new Widget(o_value, config)`** (config may be omitted only for kinds with no args).
 
 ### Contract
 
-```typescript
-interface Widget {
-  // Bound observable + schema-facing config (kind-specific args).
-  constructor(o_value: o.Observable<unknown>, config?: WidgetConfig)
-  getErrorObservable(): o.ReadonlyObservable<string>
-  // Inserted by the parent (Renderable).
-  [sym_insert](parent: Node, ref_child?: Node): void
-  // Optional: strategy ids this kind accepts as conversion *target* — exact shape TBD.
-}
-```
+See `Widget` / `WidgetFactory` in `specs/object-editor-types.ts`. Factories expose **`canHandle(value)`** (suitability — unions and unknown-mode auto-pick) and **`defaultValue()`** (target default when converting / inserting). Instance methods: error observable and `sym_insert`.
 
 > Why: Constructor second argument keeps destroy-and-recreate simple (`new Widget(sameObs, newConfig)`), avoids half-initialized instances, and matches registry lookup. Changing only args implies recreate (acceptable in v1).
 
-**Conversion API (v1 direction):** prefer **named strategy functions / a converter registry** (Layer 1). Widget (or registry entry) lists accepted **strategy ids** for the type-change menu. Optional best-effort coerce on a scalar kind (attempt convert; on failure, after user confirm, use that kind’s default) is allowed as sugar — it does **not** replace named strategies for composites.
+**Conversion API (v1 direction):** prefer **named strategy functions / a converter registry** (Layer 1). Widget factory (or registry entry) lists accepted **strategy ids** for the type-change menu. **`defaultValue()`** (and optional best-effort coerce) cover the scalar “convert or default after confirm” path; they do **not** replace named strategies for composites.
 
-> Question: Exact method/registry names for “accepted strategy ids” and “run strategy” — free functions vs statics on the widget class.
+> Question: Exact method/registry names for “accepted strategy ids” and “run strategy” — free functions vs statics on the factory.
 > Thoughts: Destroy-and-recreate on type change is the v1 default. Marquee is out of v1.
 
 Widgets that allow type change show a `...` control on hover and/or focus (scalars). Composite widgets also change type from the toolbar `...`.
@@ -468,13 +451,24 @@ Default label is a **string** (enough for the button and `title` tooltip in v1):
 - **Map / Set:** same idea on the projected entries/values.
 - Optional escape hatch: if the value defines an object-editor **`[sym_preview]()`** (returns `string` or `Renderable`), use that instead. Symbol stays object-editor-local unless a second consumer needs it later.
 
+### Schema vs widget definition (overlap)
+
+`WidgetConfig.kind` already mirrors layout kinds (`object`, `array`, `table`, …). Schema nodes repeat that discriminator and then optionally set `widget?: WidgetConfig`. Unions need **`canHandle`** (who matches this value); type-change needs **`defaultValue`** / converters (who can become the target). Those sit naturally on the **factory**; nesting (`properties`, `items`, `one_of`) sits on the **node tree** — so the two vocabularies look redundant.
+
+**Direction:** treat the authoring tree as largely the **same** as widget configs: a node is `kind` + args, and composite kinds carry nested child nodes. The **registry** maps `kind` → `WidgetFactory` (`canHandle`, `defaultValue`, construct). Union resolution walks `one_of` and picks via `canHandle` (optional discriminant later). Type-change offers other branches’ kinds (schema mode) or registry kinds (unknown), then named strategies or `defaultValue()`. Factory = implementation + match/default; node tree = authoring shape. Do not keep a forever-parallel `SchemaArray` vs `{ kind: "array" }` without an explicit reason.
+
+> Question: Collapse `SchemaNode` and `WidgetConfig` into one node type in `object-editor-types.ts` (composite kinds hold nesting), or keep two types with a documented isomorphism for v1?
+> Thoughts: Prefer collapse for Gate 2 unless something forces a split (e.g. a structural node that must not imply a widget). `SchemaCommon` fields (`open_as`, `toolbar`, `conversions`, `heuristics`) become args shared by nodes, not a second object beside `widget`.
+
 ---
 
 ## Layer 5 — Schema
 
 A schema limits and adjusts behavior at a node: allowed types and widgets, key rules, column vs popup, import/export, toolbar opt-outs, conversion allow-list, date/color heuristic opt-out, defaults for new array/set items, and so on.
 
-**Default (unknown) schema** is always defined **in this spec as concrete data** (not only described in prose). Callers may:
+**Shapes:** `SchemaNode`, `SchemaUnion`, and related interfaces live in **`specs/object-editor-types.ts`** (including `kind: "union"` / `one_of`). Prose below is binding for behavior; amend the types file when the shape changes.
+
+**Default (unknown) schema** is always defined **as concrete data** (not only described in prose). Callers may:
 
 - **supplement** it (merge / extend — e.g. turn off color detection, add a constructor mapping), or
 - **replace** it with a fully defined schema
@@ -485,108 +479,36 @@ Schemas **deep-merge** when extending the default (or another base) so a few pro
 
 A schema may also be **registered for a constructor** on a **global** registry used in unknown mode (so common types get good widgets without a per-editor schema). Callers can still pass a fully defined schema into an editor instance to override.
 
-Widget **kinds** resolve through a **widget registry** (`kind` → factory). Constructor→schema registration stays global for unknown mode.
+Widget **kinds** resolve through a **widget registry** (`kind` → `WidgetFactory`). Constructor→schema registration stays global for unknown mode.
 
 **v1: native schema only** (no JSON Schema import). Optional JSON Schema subset → native importer is later if ever.
 
-Child / nested rules are a **tree of schema nodes** by value kind (not path strings).
+Child / nested rules are a **tree of schema nodes** by value kind (not path strings). A **union** node lists alternatives in `one_of`; the active branch is chosen from the runtime value (prefer each alternative’s widget factory **`canHandle`**, once resolution is specified).
 
-```typescript
-/** Discriminated UI schema — native to the object editor, not JSON Schema. */
-type SchemaNode =
-  | SchemaScalar
-  | SchemaObject
-  | SchemaArray
-  | SchemaSet
-  | SchemaMap
-
-interface SchemaCommon {
-  /** Force or restrict widget; default = resolve from value + unknown schema. */
-  widget?: WidgetConfig
-  /** Prefer popup instead of column when this node is opened. */
-  open_as?: "column" | "popup"
-  /** Opt out of toolbar pieces inherited from unknown defaults. */
-  toolbar?: { search?: boolean, menu?: boolean, /* … */ }
-  /** Which type-change / conversion strategy ids are allowed. */
-  conversions?: string[] | "none"
-  /** Heuristics (date/color string detection, etc.). */
-  heuristics?: { date?: boolean, color?: boolean }
-}
-
-interface SchemaScalar extends SchemaCommon {
-  kind: "scalar"
-  /** Allowed JS/runtime types for type change, if restricted. */
-  types?: Array<"null" | "undefined" | "string" | "number" | "boolean" | "date" | string>
-  allow_undefined?: boolean
-}
-
-interface SchemaObject extends SchemaCommon {
-  kind: "object"
-  properties?: Record<string, SchemaNode>
-  /** Schema for keys not listed in properties (unknown mode: free-form). */
-  additional_properties?: SchemaNode | false
-  key_editable?: boolean
-  key_addable?: boolean
-  key_removable?: boolean
-  /** Autocomplete known keys; free typing per flags above. */
-  known_keys?: string[]
-}
-
-interface SchemaArray extends SchemaCommon {
-  kind: "array"
-  items?: SchemaNode
-  /** Default for new elements, or factory. */
-  item_default?: unknown | (() => unknown)
-  /** Force table vs list when items are objects; default = auto-detect. */
-  presentation?: "list" | "table" | "auto"
-  /** Table columns when presentation is table (otherwise auto from first row). */
-  columns?: string[]
-}
-
-interface SchemaSet extends SchemaCommon {
-  kind: "set"
-  items?: SchemaNode
-  item_default?: unknown | (() => unknown)
-}
-
-interface SchemaMap extends SchemaCommon {
-  kind: "map"
-  keys?: SchemaNode
-  values?: SchemaNode
-  key_type_changeable?: boolean
-}
-
-/** Root schema passed to the shell, or merged onto the default unknown schema. */
-interface Schema extends SchemaCommon {
-  /** Root node; if omitted, kind is inferred from the root value. */
-  root?: SchemaNode
-}
-```
-
-> Why: Mirrors layouts we already named (object/array/set/map/scalar), encodes toolbar opt-out, open_as, conversions, item_default, table columns — without dragging JSON Schema validation semantics into the UI model. Widget choice is `WidgetConfig` (`kind` + args), not a bare string id.
+> Why: Mirrors layouts we already named (object/array/set/map/scalar/union), encodes toolbar opt-out, open_as, conversions, item_default, table columns — without dragging JSON Schema validation semantics into the UI model. Widget choice is `WidgetConfig` (`kind` + args), not a bare string id. See also Layer 4 — Schema vs widget definition.
 
 ### Default unknown schema (mock — required before coding)
 
-The spec must include the **full default `Schema` object** used when the caller passes nothing (heuristics, toolbar defaults, composite `widget` / `presentation`, scalar fallbacks). Until that literal exists here (or in `specs/object-schemas.md` linked from this section), Gate 2 is open.
+The spec must include the **full default `Schema` object** used when the caller passes nothing (heuristics, toolbar defaults, composite `widget` / `presentation`, scalar fallbacks). Until that literal exists in `specs/object-editor-types.ts` or `specs/object-schemas.md`, Gate 2 is open.
 
-> Question: Paste the default unknown `Schema` (+ any constructor registry entries for `Date`, etc.) as a code block in this section or in `specs/object-schemas.md`.
+> Question: Paste the default unknown schema (+ any constructor registry entries for `Date`, etc.) into `object-editor-types.ts` or `object-schemas.md`.
 
 ### Resolution
 
-Given: optional root/schema arg, constructor registry, runtime value (and parent `SchemaNode` when descending).
+Given: optional root/schema arg, constructor registry, runtime value (and parent schema node when descending).
 
-The editor resolves a **`SchemaNode` + `WidgetConfig`** for each mounted value. Array vs Table follows `presentation` / first-row auto-detect. Preview vs in-place follows the resolved widget `kind` (e.g. `Date` registered as date widget, not object drill-in).
+The editor resolves a **schema node + widget config** (or a single merged node type — see Layer 4 Question) for each mounted value. Array vs Table follows `presentation` / first-row auto-detect. Preview vs in-place follows the resolved widget `kind` (e.g. `Date` registered as date widget, not object drill-in). For **union**, pick an `one_of` branch via `canHandle` (and optional discriminant rules TBD).
 
-> Question: Write the resolution algorithm as numbered steps (merge vs replace at the root; when constructor registry applies; how `properties` / `items` / `additional_properties` pick the child node; what happens when `widget` is omitted).
+> Question: Write the resolution algorithm as numbered steps (merge vs replace at the root; when constructor registry applies; how `properties` / `items` / `additional_properties` / `one_of` pick the child node; what happens when `widget` is omitted).
 > Question: Widget registry scope — **global only**, or **global + per-shell override**? (Constructor→schema registration is already global for unknown mode.)
 
 ### Type-change targets (unknown mode)
 
-> Question: Binding list of type/layout targets offered in unknown mode (null, string, number, boolean, object, array, Map, Set, …) and which **named conversion strategies** appear for each composite→composite edge. Schema `conversions` filters this list.
+> Question: Binding list of type/layout targets offered in unknown mode (null, string, number, boolean, object, array, Map, Set, …) and which **named conversion strategies** appear for each composite→composite edge. Schema `conversions` filters this list. How this list relates to registry `canHandle` / `defaultValue` vs named strategies.
 
 ### Undo / redo (v1)
 
-Commit timing (Layer 1) defines *when* a new value is written. The shell keeps a history of **committed root snapshots** (immutable values already held by the root observable).
+Commit timing (Layer 1) defines _when_ a new value is written. The shell keeps a history of **committed root snapshots** (immutable values already held by the root observable).
 
 - **Depth** `n` is **configurable** (sensible default in the 30–50 range).
 - **Undo** moves back in the stack; **redo** moves forward.
