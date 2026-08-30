@@ -43,9 +43,11 @@ When no schema is given, the editor still uses a **default** set of rules: it ca
 
 ## Type definitions (source of truth)
 
-TypeScript mocks for widgets, factories, and schema nodes live in **`specs/object-editor-types.ts`**. The markdown spec states behavior; keep the shapes in that file and amend both when they diverge. Do not duplicate full `interface` / `type` blocks here.
+TypeScript mocks for widgets, factories, and schema nodes live in **`specs/object-editor-types.tsx`**. The markdown spec states behavior; keep the shapes in that file and amend both when they diverge. Do not duplicate full `interface` / `type` blocks here.
 
-> Thoughts: Precursor UI remains in `specs/object-editor.tsx` (not the type mock).
+A schema node **is** a widget config **is** the widget constructor: a `Factory<Options>` instance built through a combinator function (`object({...})`, `array({...})`, `either(...)`, `string()`, and so on — see `object-editor-types.tsx`). There is no separate discriminated-union data shape and no bare string `kind` used for dispatch; dispatch is by class/instance identity. `kind` is kept on each `Factory` only as a stable tag for introspection, custom-widget registration, and later JSON-Schema-subset import.
+
+> Thoughts: `specs/object-editor.tsx` and `specs/resizable.tsx` are earlier, unrelated proofs of concept — not part of this shape, not binding.
 
 ---
 
@@ -59,6 +61,7 @@ The caller always passes an observable. The editor does not wrap a plain value f
 
 - **Scalar widgets** do not write the observable on every keystroke. They **commit** when editing stops (blur, Enter, or an explicit confirm in that widget).
 - **Structural edits** on composites (add/remove key, reorder, type/layout change, import at this node, and so on) update the observable **immediately** when the action completes.
+- **New members are transient until valid.** Inserting a new Object key, Array element, or Set member does **not** write to the observable right away — it starts as a **transient row**, rendered with the same widget as a committed row, held outside the observable. It's written in as a normal structural edit (see above) the first time it holds a value that would be accepted if committed now: a non-colliding key (Object), any value (Array — nothing to reject), a non-duplicate value (Set). Abandoning a transient row (e.g. closing/blurring it without it ever becoming valid) discards it without ever touching the observable. This is what lets a Set's default-`null` insert (Layer 3 Set) not immediately collide with a second insert's default-`null`: neither is in the Set yet, so "duplicate" only applies once one of them actually commits.
 - Closing a popup or leaving a column does not add an extra confirm step; nested composite edits were already applied as above.
 
 > Why: Immutable observable values make undo/redo of committed states straightforward. Undo/redo is in the first version.
@@ -92,7 +95,7 @@ Unless the schema forbids it, the user may change the type of the current node (
 - `object_values` — object → array via `Object.values(obj)`
 - `string_indexes` — array → object with keys `"0"`, `"1"`, …
 - `empty` — empty target (empty array / object / Map / Set as appropriate)
-- further named strategies as needed (e.g. convert to Map)
+- further named strategies as needed (e.g. convert to Map) — the full v1 list, with strategy ids per edge, is written out in Layer 5 "Type-change targets (unknown mode)"
 
 **Composite → composite** does not always run one silent conversion. The UI asks what to do, offering the **named strategies** the target declares (plus schema limits), for example empty target, convert with values, convert to Map (not the default pick).
 
@@ -119,11 +122,11 @@ When the event originates inside a column that is not the rightmost, the shell *
 
 Default presentation: a **horizontally scrollable** column container. A shell option may prefer **popups** instead of columns.
 
-**Open request:** widgets **dispatch a DOM event** named `elt-object-editor-open` that bubbles. The event detail carries **`o_value`** (observable to open) and **`title`** (breadcrumb segment). **No separate anchor field** — popup placement uses the event’s **`currentTarget`**. The shell listens with **`$on`** on its root and calls its own `open(…)`. Widgets do not hold a shell reference.
+**Open request:** widgets **dispatch a DOM event** named `elt-object-editor-open` that bubbles. The event detail carries **`o_value`** (observable to open) and **`title`** (breadcrumb segment). **No separate anchor field** — popup placement uses the event's **`target`** (the element the preview control called `dispatchEvent` on — the element that opened the popup, not whatever ends up handling the event). The shell listens with **`$on`** on its root and calls its own `open(…)`. Widgets do not hold a shell reference.
 
 Column hosts are children of the **shell only** (not nested under another composite’s DOM as column parents).
 
-> Why: Real DOM + bubbling fits elt; `$on` stays idiomatic; `currentTarget` is enough to place a popup; the shell method stays the single place that mutates the column stack.
+> Why: Real DOM + bubbling fits elt; `$on` stays idiomatic; the shell method stays the single place that mutates the column stack. **`target`**, not `currentTarget`: the shell's `$on` listener sits on the shell root, so inside that listener `currentTarget` is always the shell root — useless as a popup anchor. `target` stays the dispatching element throughout the bubble regardless of where the listener is attached, which is exactly the preview control the popup should hang off of.
 
 ---
 
@@ -147,11 +150,17 @@ This section chooses how the shell and widgets sit on elt and the DOM. Until the
 - Opening a child uses the **row’s observable** from that projection, reused while the row key lives.
 - VirtualScroll/Repeat **key** rules align with that converter’s element identity (see **Row / element identity** below — not array index).
 
-**Row / element identity:** VirtualScroll / per-row observables need a **stable unique key** that survives reorder and immutable writes. **Array index is not sufficient** (drag-reorder moves the same element to a new index). Map keys can work when the key is the identity; Set-of-objects and array-of-objects need something else.
+**Row / element identity:** VirtualScroll / per-row observables need a **stable unique key** that survives reorder and immutable writes. **Array index alone is not sufficient** (drag-reorder moves the same element to a new index) — the rules below are the exceptions to that, and each is a deliberate, documented degradation, not a silent contradiction of it.
 
-> Question: How to mint and preserve that unique id — editor-local `WeakMap` + migrate on `o.clone` write-back; non-enumerable symbol on the value (lost today under `o.clone`/`Object.assign` unless clone is taught to copy a well-known `sym_unique`); enumerable symbol (survives clone, pollutes `getOwnPropertySymbols`); or another scheme? Same mechanism for Array rows and Set members, or different per composite?
-> A: There should be a key function given to array/sets schemas. When providing a keyless schema, they will take the index. In "JSON" mode, it will _mutably_ attribute the symbol in enumerable mode (actually just doing `obj[sym_whatever] = nettwindex++`), since serializing doesn't show it. This is something that could be documented.
-> Thoughts: Prefer not to block Gate 1 on picking the mechanism, but v1 lists/tables will need an answer before VirtualScroll key reuse is correct under reorder.
+**Three cases, in priority order:**
+
+1. **Explicit key function.** `ArrayOptions.key` (and the equivalent, once written, for Set/Map projections) is `(item, index) => PropertyKey`. When given, that's the row key: stable across reorder and immutable writes, VirtualScroll reuses the row's observable by it.
+2. **Schema-mode array/set with no key function ("keyless schema").** Falls back to **index/position** as the key. Accepted, degraded behavior: dragging a row to a new position does not migrate its observable — VirtualScroll treats the row now at that position as a new identity, and if a column is open on a row from that array, reordering the array **invalidates that column** the same way any other identity change does (`INVALID_MOUNT`, above) rather than following the element. This tradeoff is why case 2 is opt-out only, never the default (case 3 below).
+3. **Unknown mode ("JSON mode") — no schema at all.** The default/unknown-schema array (Layer 5, `anything`) does **not** use plain index. Instead it **mutably stamps** a well-known **enumerable** symbol property onto each object element the first time it's encountered (`obj[sym_row_id] ??= next_id++`), and uses that as the key. Enumerable (not hidden) because it must survive `o.clone`'s `Object.assign`-based copy for plain objects (verified: `Object.assign` copies enumerable own symbols) and array `slice()` (element references are shared, so the stamp travels with them); the tradeoff is that the symbol shows up in `Object.getOwnPropertySymbols`, though never in `JSON.stringify` or `Object.keys`/`for...in`. This mechanism only applies to **array/set elements that are objects** — primitive elements (strings, numbers, …) can't carry a symbol and fall back to case 2's index/position behavior with the same accepted degradation.
+
+**Array vs Set:** the mechanism is the same (key function → object-stamp → index/position, in that priority order) for both, with one difference — Set's index fallback (case 2) means **iteration-order position**, since Sets have no native index; a Set's own reorder-by-drag already goes through the shared safe-child helper the same way an array's does (see Invalid parent / external writes, above).
+
+> Why: "Array index is not sufficient" stays true as the *default* rule (case 3, which is what unknown mode actually uses); case 2 is a narrower, explicitly-accepted opt-out for schema authors who declined to provide a key function, not a general escape hatch.
 
 Widgets need **their value observable**. They do not need a root-relative path for mounting. A **display path / title** (breadcrumb in the column header) may be derived later for humans; it is not the mount key.
 
@@ -161,20 +170,30 @@ Widgets need **their value observable**. They do not need a root-relative path f
 
 Naïve `.p()` is unsafe when a parent value becomes non-composite (`undefined`, wrong type) after import, undo, or writes from outside the editor on the root observable.
 
+**The `INVALID_MOUNT` sentinel.** Every derived child observable the editor creates (a plain `.p(key)` wrapper, or a Set/Map projection row) is built through the shared **safe-child helper** below, and its `.get()` returns either the child's real value or the shared module-local sentinel `INVALID_MOUNT` (a `Symbol`, distinct from `o.NoValue` — that one means "no previous value" inside `$observe`, this one means "this slot does not currently exist on its parent"). It never throws.
+
+**Safe-child helper (shared).** One helper, used by every composite for every kind of child access, wraps a parent observable + a key/row-id into a derived observable:
+
+- **Object / plain `.p(key)`:** `INVALID_MOUNT` when `key` is no longer an own key of the parent value (deleted, or the parent itself stopped being a plain object).
+- **Array:** `INVALID_MOUNT` when the row's key (see Row / element identity, below) no longer resolves to an index in the current array, or the parent stopped being an array.
+- **Map / Set projections:** `INVALID_MOUNT` when the row's key no longer resolves to an entry/member, or the parent stopped being a `Map`/`Set`. This is the same helper the Set ↔ array and Map ↔ entries projections (above) sit on top of — there is one shared converter pattern, not one per composite.
+
+**A mount is valid** when both hold: (a) `o_value.get() !== INVALID_MOUNT`, and (b) the mounted widget's factory still `canHandle(o_value.get())` — the second clause is what "type replaced under it" means: the slot still exists, but no longer holds a value this widget can represent.
+
 **Rules:**
 
-- Derived child observables used by the editor must **not throw** into the UI when the parent slot disappears; they go to a defined empty/invalid state the shell can detect.
-- If a column’s `o_value` is **no longer a valid mount** for that column’s widget (parent lost, type replaced under it, projection row gone and not reusable), the shell **closes that column and every column to its right**.
-- If the **root** observable becomes `null` or `undefined` (or otherwise a single scalar), the shell keeps **one** root column showing the matching scalar widget and closes all deeper columns.
+- If a column’s `o_value` is **no longer a valid mount** for that column’s widget (either clause above fails), the shell **closes that column and every column to its right**.
+- If the **root** observable becomes `null` or `undefined` (or otherwise a single scalar), the shell keeps **one** root column showing the matching scalar widget and closes all deeper columns. (The root has no parent slot to go missing, so `INVALID_MOUNT` never applies to it — only clause (b), a resolved-kind change, can fire, and for the root that means re-resolving in place rather than closing.)
 
 > Why: Outside writers and import are first-class; the column stack must follow validity, not assume stable composites forever.
 
-**Dead-column detection (v1):** each **column** is watched with an observe tied to its mounted `o_value`. When that observable is no longer a valid mount for the column’s widget (parent lost, type replaced under it, projection row gone and not reusable), the shell **closes that column and every column to its right** (root scalar special case above). This is **stack hygiene**, not the same concern as projection converters.
+**Dead-column detection (v1):** each **column** is watched with an observe tied to its mounted `o_value`, checking the two-clause validity test above. On failure, the shell **closes that column and every column to its right** (root scalar special case above). This is **stack hygiene**, not the same concern as the projection converters, which only mint/read the safe-child observables — they do not themselves close columns.
 
-**Projection / safe child converters (separate):** parent composites use dedicated helpers for Set ↔ array, Map ↔ entries, and non-throwing child access when a parent slot disappears (derived observables go to a defined empty/invalid state). Those helpers feed VirtualScroll keys and write-back; they do not themselves close columns.
+**Inline mounts (not just columns).** The same clause (b) check applies to every mount, not only columns: an Object row, Array element, or Table cell watches its own child observable the same way a column does, and reacts to invalidity or a resolved-kind change by destroying its child widget and calling the newly-resolved factory's `render()` again for the same observable (the same pattern `EitherFactory` already uses internally, Layer 4). No separate mechanism from dead-column detection — every mount owner (shell for columns, composite for its own children) runs this check on its own children.
 
-> Question: Exact API shape of the projection / safe-child helpers — one shared converter pattern, or separate helpers per composite? Sketch here or in a types stub.
-> A: Probably a shared converter that will work for any value, remember what the last type was to remember how to update it ba
+This ordering is guaranteed, not incidental: `elt`'s observable queue schedules a value's own observers before its derived children's (`Observable.each_recursive` walks parent-first, appending each observable to the flush array before recursing into its children — `src/observable/observable.ts`), and `node_remove` synchronously calls `stopObserving()` → `removeObserver()` on every observer in the subtree it tears down, before returning. So when a composite's own observe (on its `o_value`) reacts to a child becoming invalid by calling `node_remove` on that child's mounted nodes, the child's own observer is removed from the still-pending flush **before** the queue would ever reach the child's turn in the same flush pass — the child widget never gets a chance to re-render on data its factory can no longer handle.
+
+> Why: This depends on elt's parent-before-child flush ordering and `node_remove`'s synchronous, immediate teardown (both verified in `src/observable/observable.ts` and `src/dom.ts`) — not on any object-editor-specific scheduling trick. Any composite that follows "observe your own `o_value`, mutate DOM synchronously in the observer" gets this ordering guarantee for free.
 
 ### Display path, breadcrumbs, multiple trees
 
@@ -203,7 +222,7 @@ Widgets are **Renderable** (insert real nodes via `sym_insert` / returning nodes
 
 ### Asking to open (DOM)
 
-Event: `elt-object-editor-open`, detail `{ o_value, title: string }` (title = breadcrumb segment for this open). Placement via `currentTarget`. Hybrid: event → shell.`open`. Preview dispatches; in-place widgets do not. Later, detail may grow optional pane/tab options without changing mount identity.
+Event: `elt-object-editor-open`, detail `{ o_value, title: string }` (title = breadcrumb segment for this open). Placement via `target` (see Layer 1 — Editor shell for why `target`, not `currentTarget`). Hybrid: event → shell.`open`. Preview dispatches; in-place widgets do not. Later, detail may grow optional pane/tab options without changing mount identity.
 
 ### Marquee (later — not v1)
 
@@ -229,11 +248,11 @@ Composite body lists use **VirtualScroll** and `node_append`. Open events bubble
 | Cell/row mount | **E — parent** composite creates children + converters                                       |
 | Mount identity | **Observable**, not path                                                                     |
 | Selection v1   | No marquee; per-widget focus only                                                            |
-| Widget shape   | Internal Widget classes + `elt/ui` visuals; schema registers customs via `WidgetConfig.kind` |
+| Widget shape   | Internal Widget classes + `elt/ui` visuals; schema registers customs as `Factory` subclasses |
 | Open detail    | `{ o_value, title }` — breadcrumbs from column titles                                        |
-| Schema widget  | `WidgetConfig` (`kind` + args), not bare string id                                           |
+| Schema widget  | `Factory<Options>` instance (combinator-built); `kind` is a tag, not the dispatch mechanism  |
 | Column stack   | Shell-owned hosts; DOM only to locate source column                                          |
-| Widget ctor    | `new Widget(o_value, config?)`                                                               |
+| Widget ctor    | `factory.render(o_value)` → `RenderableWidget`                                               |
 | Undo           | Root snapshot ring; shell toolbar; dead-column rules on write                                |
 
 ---
@@ -261,6 +280,8 @@ Nested opens are requested by widgets; the shell places them (see Layer 1 — Ed
 Maximum depth may be capped by a **parameter** on the editor (optional). Unlimited if unset.
 
 When the shell/schema uses a **popup** instead of a column: the user closes it with an **X** or by focus loss. Commit rules are the same as for columns (structural edits already applied; scalar widgets commit when their editing ends).
+
+**Popup stack semantics.** A popup is tracked in the shell's internal column-stack exactly like a column (Layer 1b): same `INVALID_MOUNT` / dead-mount watch, same closing behavior when its mount goes invalid. Opening from inside a popup can open another popup — `elt/ui`'s `popup()` (`ui/popup.tsx`) already anchors a nested popup under the nearest enclosing popup rather than a detached position: `find_parent_node` walks up from the anchor and "stops at a popup or a top layer element," so a popup opened from inside another popup is parented to it automatically. The shell's `open(...)` uses this as-is — no new originator-tracking needed in `elt/ui`, and no need to build one in the object editor either.
 
 ### Composite title and toolbar
 
@@ -294,6 +315,10 @@ No marquee. Pointer and keyboard go to real controls inside widgets. Opening a c
 
 > Thoughts: Excel-like marquee, multi-cell TSV, and optional overlay are **later** (design notes in Layer 1b).
 
+**Accessibility scope (v1):** full keyboard mapping (drag-reorder equivalents, ARIA roles for the column strip / breadcrumbs / sticky table header) is deferred to the same later phase as the marquee and global shortcut table (Scope — Later) — consistent with the marquee itself needing real keyboard navigation to be worth building. v1 relies on native focusable-control semantics only (tab order, native `input`/`button`/`select` roles); no object-editor-specific ARIA layer yet.
+
+> Question: Where does focus go when the column/popup holding it is truncated (drilled from a column to its left), closed by dead-mount detection (Layer 1b), or its widget is destroyed and recreated by a type change? Still open — falls to `<body>` by default without a rule.
+
 ---
 
 ## Layer 3 — Composite widgets (layouts)
@@ -320,13 +345,17 @@ A vertical list of key/value rows. Keys are editable strings when allowed. Value
 
 Giving a key the same name as an existing key is an error (no silent overwrite).
 
-Keys may be added or removed when unknown mode or the schema allows. If the schema lists known keys, changing a key may use a lookup list (autocomplete); the schema says whether the user may type new key names freely.
+Keys may be added or removed when unknown mode or the schema allows. If the schema lists known keys, changing a key may use a lookup list (autocomplete); the schema says whether the user may type new key names freely. A newly added key/value pair is **transient** until its key is non-colliding (Layer 1 "Commit timing") — typing a name that collides with an existing key does not error immediately, it just doesn't commit until changed.
+
+**Row order:** schema mode uses `ObjectOptions.properties` array order; unknown mode sorts keys with `String`'s default comparator. A newly added key is always appended at the bottom, regardless of sort order — reopening the node (fresh mount) re-sorts and the key settles into its sorted position at that point, not immediately on add.
 
 ### Map
 
 Like Object, except keys are also edited with widgets (and can change type via `...` when allowed). In unknown mode, map keys may become any type.
 
 Map entries can be **reordered** with drag and drop (Maps keep insertion order).
+
+**Duplicate keys:** same rule as Object — a key edit that collides with an existing entry (`map.has(new_key)`) is rejected, no silent overwrite. An open column on the entry being renamed survives the rename itself (a Map key edit is a delete-old + insert-new against the same underlying entry the column is bound to, not two independent structural edits) but is closed by the existing `INVALID_MOUNT` mechanism (Layer 1b) if the rename is instead rejected mid-edit and the row reverts — no new rule needed, the safe-child helper's Map clause already covers "row's key no longer resolves to an entry."
 
 ### Array
 
@@ -344,7 +373,7 @@ List presentation like Array:
 - **Reorder** with drag and drop (Sets keep insertion order)
 - Duplicate values are rejected
 
-After insert/append, the new entry is **`null`**, unless the schema provides a **default value** or a **callback** that returns the default for a new item (arrays use the same rule).
+After insert/append, the new entry is **`null`**, unless the schema provides a **default value** or a **callback** that returns the default for a new item (arrays use the same rule). New entries are **transient** until they'd be a valid commit (Layer 1 "Commit timing") — this is what keeps a second `+` click usable even while a first transient `null` row is still uncommitted: neither is in the Set yet, so they don't collide with each other, only (once one commits) with what's actually stored.
 
 ### Table
 
@@ -390,24 +419,35 @@ The same widget code is used for a given kind of value whether it appears as an 
 
 ### Widget config (schema-facing)
 
-Schemas do **not** name widgets by bare string id alone. A **widget config** is a discriminated object: a **`kind`** (registry key) plus **kind-specific arguments**. The `WidgetConfig` union is maintained in `specs/object-editor-types.ts`.
+Schemas do **not** name widgets by bare string id. A schema node is a **`Factory<Options>`** instance, built through a combinator function (`object({...})`, `array({...})`, `string()`, `either(...)`, …) rather than assembled as a discriminated data literal. `Options` is the kind-specific argument bag (select options, masks, …), carried on the instance as `.options`. The `Factory` classes and combinators are maintained in `specs/object-editor-types.tsx`.
 
-> Why: Arguments belong with the kind (select options, masks, …). A parallel `widget_options` bag next to a string id drifts out of sync.
-> Question: Final `kind` list and per-kind arg fields — keep expanding the union in `object-editor-types.ts` until it matches Layer 4 catalogs; drop the open `{ kind: string; … }` escape once customs have a fixed registration shape.
-> Question: `select` options typing — homogeneous primitive union as now, or generic/`SchemaScalar` tied to the value type (closer to `elt/ui` Select)? Full “schema is a TS generic of the value tree” is not required for Gate 2.
+> Why: A `Factory` instance already IS the node, the config, and (via `render`) the construction step — see “Schema vs widget definition” below for why this collapses what used to be two parallel vocabularies (`SchemaNode` vs `WidgetConfig`).
 
-The **runtime** Widget (DOM Appender) is separate from `WidgetConfig`. The registry maps `kind` → **factory** (`WidgetFactory` in the types file): `canHandle`, `defaultValue`, and `new (o_value, config)`. Construction is **`new Widget(o_value, config)`** (config may be omitted only for kinds with no args).
+Each `Factory` carries a **`kind`** string (e.g. `"object"`, `"array"`, `"string"`), but `kind` is a tag for introspection, custom-widget registration, and a later JSON-Schema-subset importer — **not** the dispatch mechanism. Dispatch is by the factory instance/class itself: `factory.render(o_value)` mounts it, `factory.canHandle(value)` / `factory.conversionsFrom(value)` drive matching and conversion (below).
+
+**`select` options typing:** mirrors `elt/ui`'s own `Select<T, T2 = T>` (`ui/select.tsx`) rather than a fixed primitive union — `SelectOptions<T, T2 = T>` carries `options: T2[]`, optional `convert_fn?: (opt: T2) => T` / `label_fn?: (opt: T2) => Renderable`, same shape `elt/ui`'s `Select` already takes. "Optional other" and "fill from table column values" (Layer 4 "Widgets for developers") are object-editor-level composition on top of that — not new `elt/ui` surface (see the `elt/ui` control inventory below).
 
 ### Contract
 
-See `Widget` / `WidgetFactory` in `specs/object-editor-types.ts`. Factories expose **`canHandle(value)`** (suitability — unions and unknown-mode auto-pick) and **`defaultValue()`** (target default when converting / inserting). Instance methods: error observable and `sym_insert`.
+See `Factory` / `RenderableWidget` in `specs/object-editor-types.tsx`. A `Factory<Options>` exposes:
 
-> Why: Constructor second argument keeps destroy-and-recreate simple (`new Widget(sameObs, newConfig)`), avoids half-initialized instances, and matches registry lookup. Changing only args implies recreate (acceptable in v1).
+- **`render(o_value)`** — mounts a `RenderableWidget` bound to that observable. This is the widget constructor step; there is no separate `new Widget(o_value, config)` — the factory instance already holds the config.
+- **`canHandle(value): boolean`** — **suitability**: can this factory represent `value` as-is? Drives union branch matching and unknown-mode auto-pick.
+- **`conversionsFrom(value): ConversionStrategies | null`** — **convertibility**: named strategies that turn some *other* value into this kind, for the type-change menu (Layer 1). Kept separate from `canHandle`: a value can be inconvertible-but-already-suitable, or convertible-but-not-suitable-as-is.
+- **`defaultValue()`** — target default when converting or inserting, used when no named strategy applies (and as the scalar “convert, else default after confirm” fallback — see Layer 1).
+- **`extend(partial)`** — type-safe partial override (see Layer 5 “deep-merge” replacement below).
 
-**Conversion API (v1 direction):** prefer **named strategy functions / a converter registry** (Layer 1). Widget factory (or registry entry) lists accepted **strategy ids** for the type-change menu. **`defaultValue()`** (and optional best-effort coerce) cover the scalar “convert or default after confirm” path; they do **not** replace named strategies for composites.
+`RenderableWidget` (what `render()` returns) carries the render output and an **`o_error`** observable — per-mount state, distinct from the factory. Composite widgets aggregate their children's `o_error` into a warning surfaced on their own toolbar (same pattern as Table's `o_has_extra_keys`, Layer 3).
 
-> Question: Exact method/registry names for “accepted strategy ids” and “run strategy” — free functions vs statics on the factory.
-> Thoughts: Destroy-and-recreate on type change is the v1 default. Marquee is out of v1.
+> Why: Per-mount state must live on the `RenderableWidget` (or the closure inside `render()`), never on the `Factory` instance — one factory (e.g. an array's `values` factory) is shared across every row/cell that uses it, so instance fields would leak state between them.
+
+**Error rendering is the calling composite's responsibility**, not a fixed spec rule — the composite mounting a child widget decides where that child's `o_error` shows (inline, icon + tooltip, aggregated into its own toolbar warning per the `o_has_extra_keys` precedent above), since it already owns the layout the child sits in. v1 doesn't enumerate every source that can set a widget's `o_error` beyond the two already named (Layer 3 Object duplicate key, Layer 1 failed best-effort coercion) — each composite/widget owns its own validation and may set it for whatever it checks.
+
+**Conversion API (v1 direction):** named strategy functions / a converter registry (Layer 1); `conversionsFrom` lists the strategy ids a factory accepts as a *target*. `defaultValue()` (and an optional best-effort coerce) cover the scalar “convert or default after confirm” path; they do **not** replace named strategies for composites.
+
+**Registry shape:** a single module-level `Map<string, (value: unknown) => unknown>` (strategy id → conversion function), populated via a `register_strategy(id, fn)` free function — not a class or a per-factory static table. Reasoning: strategies are cross-cutting (the same `object_values` id is offered by any composite factory whose `conversionsFrom` lists it, Layer 1), so they don't belong *on* a factory the way `canHandle`/`render` do; a flat registry keyed by id is also what the shared warning-string table (Layer 1) already assumes ("a shared string table keyed by strategy id"), so both tables share the same key space and are trivially kept in sync.
+
+> Thoughts: Destroy-and-recreate on type change is the v1 default (remove the old widget's nodes, call `new_factory.render(o_value)`). Marquee is out of v1.
 
 Widgets that allow type change show a `...` control on hover and/or focus (scalars). Composite widgets also change type from the toolbar `...`.
 
@@ -419,11 +459,36 @@ Chosen from the runtime value (and simple pattern checks where noted). Prefer ex
 
 > Why: Unknown mode must work with no schema; widgets may be thin wrappers around `elt/ui`.
 
+**`elt/ui` control inventory (checked against current source):**
+
+| Widget kind | `elt/ui` surface | Notes |
+| --- | --- | --- |
+| string (single-line) | plain `<input type="text">` | No dedicated component; none needed. |
+| string (multiline) | `ui/textarea.tsx` (`$auto_grow`) | Existing auto-resize helper — reuse directly. |
+| number | plain `<input type="number">` | No dedicated component; none needed. |
+| boolean / switch | `<input type="checkbox" e-variant="switch">` | Styling already in `ui/form.css.tsx`; no new component, just the attribute. |
+| date / datetime / time | `ui/date.tsx` (`DateTimePicker`) + `ui/timepicker.tsx` (`TimePickerPanel`, `ScrollColumn`) | Already full-featured (am/pm, seconds, step, week-start) — reuse directly. |
+| color | **new** — `elt/ui` color control needed | Native `<input type="color">` isn't stylable enough for a consistent cross-browser look. Scope, shape, and naming are being worked out separately in **`specs/ui-color-picker.md`** — this row will point at whatever component that spec settles on. |
+| select | `ui/select.tsx` (`Select<T, T2>`) | Existing, non-native, generic — reuse directly (see "select options typing," above). |
+| popup anchoring | `ui/popup.tsx` (`popup()`) | Already handles nested popups (see Layer 2 "Popup stack semantics"). |
+
+**One new `elt/ui` component is needed for v1's default widget catalog: a color control** (see table) — under active discussion, see `specs/ui-color-picker.md`. Everything else maps to an existing `elt/ui` piece or a plain native input, so this is the only new-library-surface item to flag per AGENTS.md.
+
 - `null` — `NULL` display (not edited as text; change type to replace)
+> Note: this does not need an elt/ui widget
 - string — textarea
+
+**Commit key for the string widget:** blur always commits (per Layer 1). Enter commits when `multiline` is off (plain `<input>`); when `multiline` is on (`<textarea>`), Enter inserts a newline as normal and **Ctrl+Enter** commits instead.
+
 - number — number input (decimals allowed by default)
+
+**`NaN` / `Infinity`:** excluded from the default (unknown-mode) number widget, consistent with Scope's "stays JSON-compatible" rule — the default `NumberFactory` treats them as out of range the same way it would any other invalid input (Layer 1 "scalar → scalar" fallback: use the default for the target type). A schema can opt back in by allowing them explicitly (a `NumberOptions` field, not yet named — add when the number widget is actually built).
+
 - boolean — switch
 - string or `Date` that looks like a date/time — date / datetime / time picker (on by default; easy opt-out via schema)
+
+**Date/time heuristic predicate:** `value instanceof Date`, or a string matching ISO 8601 date/date-time shapes only — `/^\d{4}-\d{2}-\d{2}([T ]\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:?\d{2})?)?$/` (date, or date+time with optional seconds/fraction/offset). Deliberately tighter than plain `Date.parse(...)` success (which also matches incidental strings like `"January"` or `"5"`) — this still covers `JSON.stringify(new Date())` round-trips, the case unknown mode actually needs to handle well. A schema can widen this per-node via `DatetimeOptions` if a looser heuristic is ever wanted.
+
 - string that looks like a color (`rgba?(…)`, `#` hex) — color widget (on by default; easy opt-out via schema)
 - composite (default) — **preview text** control; activating it dispatches `elt-object-editor-open` for that cell’s observable
 - schema may replace that with another widget that **edits in place** and never dispatches open (example: `Date` as a date control with its own small popup, not a drill-in to `Date`’s readonly fields)
@@ -435,7 +500,7 @@ Missing object/table fields use the **undefined** display widget where the schem
 
 ### Widgets for developers (not in the default unknown catalog)
 
-Available to register or assign through a schema (`WidgetConfig`):
+Available to register or assign through a schema (a `Factory` instance):
 
 - explicit `undefined` scalar (if the schema allows)
 - single-line text input (mask / one line)
@@ -451,14 +516,13 @@ Default label is a **string** (enough for the button and `title` tooltip in v1):
 - **Map / Set:** same idea on the projected entries/values.
 - Optional escape hatch: if the value defines an object-editor **`[sym_preview]()`** (returns `string` or `Renderable`), use that instead. Symbol stays object-editor-local unless a second consumer needs it later.
 
-### Schema vs widget definition (overlap)
+### Schema vs widget definition (overlap) — resolved
 
-`WidgetConfig.kind` already mirrors layout kinds (`object`, `array`, `table`, …). Schema nodes repeat that discriminator and then optionally set `widget?: WidgetConfig`. Unions need **`canHandle`** (who matches this value); type-change needs **`defaultValue`** / converters (who can become the target). Those sit naturally on the **factory**; nesting (`properties`, `items`, `one_of`) sits on the **node tree** — so the two vocabularies look redundant.
+`SchemaNode` and `WidgetConfig` are **one type**: the `Factory<Options>` instance (Layer 4 “Widget config”, above). There is no separate node tree that repeats a `kind` discriminator and then optionally points at a `widget?: WidgetConfig` — nesting (`properties` on `ObjectOptions`, `values` on `ArrayOptions`, `options` on `EitherOptions`) lives directly on each factory's `options`, and a composite factory's children are themselves `Factory` instances.
 
-**Direction:** treat the authoring tree as largely the **same** as widget configs: a node is `kind` + args, and composite kinds carry nested child nodes. The **registry** maps `kind` → `WidgetFactory` (`canHandle`, `defaultValue`, construct). Union resolution walks `one_of` and picks via `canHandle` (optional discriminant later). Type-change offers other branches’ kinds (schema mode) or registry kinds (unknown), then named strategies or `defaultValue()`. Factory = implementation + match/default; node tree = authoring shape. Do not keep a forever-parallel `SchemaArray` vs `{ kind: "array" }` without an explicit reason.
+Union resolution (`either(...)`) walks its branch factories in order and picks the first whose `canHandle(value)` is true — no discriminant field needed for v1; add one later only if `canHandle` order proves ambiguous in practice. Type-change offers other branches' factories (schema mode, `either`) or the full default-schema catalog (unknown mode), each annotated with what `conversionsFrom` returns for the current value, falling back to `defaultValue()` when no strategy applies. Self-referencing schemas (a node that contains itself, e.g. the default unknown schema) use `forward(() => node)`, a lazily-resolving `Factory` wrapper — see `object-editor-types.tsx`.
 
-> Question: Collapse `SchemaNode` and `WidgetConfig` into one node type in `object-editor-types.ts` (composite kinds hold nesting), or keep two types with a documented isomorphism for v1?
-> Thoughts: Prefer collapse for Gate 2 unless something forces a split (e.g. a structural node that must not imply a widget). `SchemaCommon` fields (`open_as`, `toolbar`, `conversions`, `heuristics`) become args shared by nodes, not a second object beside `widget`.
+There is deliberately no registry mapping a `kind` **string** to a factory implementation: instantiating a factory (`object({...})`) already gives you the implementation. A string-keyed registry would only matter for a hypothetical serialized-schema format (JSON Schema import, Layer 5), which is explicitly not v1.
 
 ---
 
@@ -466,45 +530,74 @@ Default label is a **string** (enough for the button and `title` tooltip in v1):
 
 A schema limits and adjusts behavior at a node: allowed types and widgets, key rules, column vs popup, import/export, toolbar opt-outs, conversion allow-list, date/color heuristic opt-out, defaults for new array/set items, and so on.
 
-**Shapes:** `SchemaNode`, `SchemaUnion`, and related interfaces live in **`specs/object-editor-types.ts`** (including `kind: "union"` / `one_of`). Prose below is binding for behavior; amend the types file when the shape changes.
+**Shapes:** `Factory` and its subclasses (`ObjectFactory`, `ArrayFactory`, `EitherFactory`, …) live in **`specs/object-editor-types.tsx`**, per Layer 4. A schema **is** a `Factory` instance — there is no separate `SchemaNode` / `SchemaUnion` type. Prose below is binding for behavior; amend the types file when the shape changes.
 
-**Default (unknown) schema** is always defined **as concrete data** (not only described in prose). Callers may:
+**Default (unknown) schema** is always defined **as concrete data** (a real `Factory` tree, not only described in prose) — see `anything` in `object-editor-types.tsx`. Callers may:
 
-- **supplement** it (merge / extend — e.g. turn off color detection, add a constructor mapping), or
-- **replace** it with a fully defined schema
+- **supplement** it (`anything.extend({...})` — e.g. turn off color detection by omitting `color()` from a rebuilt `either(...)`, or add a constructor mapping), or
+- **replace** it with a fully defined schema (a whole new `Factory` tree)
 
 so both “tweak unknown” and “hand a whole schema” work without two different mental models.
 
-Schemas **deep-merge** when extending the default (or another base) so a few properties can be overridden. Passing a **new schema object** built as a full definition **replaces** instead of merging.
+Schemas **extend** — via each `Factory`'s `.extend(partial)` method — when building on the default (or another base), so a few properties can be overridden. `Factory.extend` defaults to a shallow merge of `.options`; composite kinds override it to merge more precisely (`ObjectFactory.extend` merges `properties` **by name** rather than replacing the whole list — see `object-editor-types.tsx`). Passing a **new `Factory` tree** built from scratch **replaces** instead of extending.
 
-A schema may also be **registered for a constructor** on a **global** registry used in unknown mode (so common types get good widgets without a per-editor schema). Callers can still pass a fully defined schema into an editor instance to override.
+> Why: `.extend()` replaces “generic deep-merge” as the merge mechanism because factories are class instances (methods, closures), not plain data — a generic recursive merge can't touch encapsulated state. Type-safety and per-kind merge behavior (e.g. object property lists merging by key) both come for free once merge is a method on the kind, not a generic algorithm.
 
-Widget **kinds** resolve through a **widget registry** (`kind` → `WidgetFactory`). Constructor→schema registration stays global for unknown mode.
+A schema may also be **registered for a constructor** on a **global** registry used in unknown mode (so common types get good widgets without a per-editor schema) — e.g. mapping `Date` to `date({...})`. Callers can still pass a fully defined schema into an editor instance to override.
+
+There is no separate "widget registry" (`kind` → factory) beyond the constructor registry above: resolving a widget for a value under a schema node just means calling that node's own `canHandle` / `render`, or (unknown mode) walking the default schema's `either(...)` branches.
 
 **v1: native schema only** (no JSON Schema import). Optional JSON Schema subset → native importer is later if ever.
 
-Child / nested rules are a **tree of schema nodes** by value kind (not path strings). A **union** node lists alternatives in `one_of`; the active branch is chosen from the runtime value (prefer each alternative’s widget factory **`canHandle`**, once resolution is specified).
+Child / nested rules sit directly on each composite factory's `options` (`ObjectOptions.properties`, `ArrayOptions.values`, `EitherOptions.options` for a union's alternatives) — a **tree of `Factory` instances**, not path strings. An `either(...)` picks its active branch from the runtime value via each alternative's **`canHandle`**, in order (Layer 4).
 
-> Why: Mirrors layouts we already named (object/array/set/map/scalar/union), encodes toolbar opt-out, open_as, conversions, item_default, table columns — without dragging JSON Schema validation semantics into the UI model. Widget choice is `WidgetConfig` (`kind` + args), not a bare string id. See also Layer 4 — Schema vs widget definition.
+> Why: Mirrors layouts we already named (object/array/set/map/scalar/union), encodes toolbar opt-out, open_as, conversions, item_default, table columns — without dragging JSON Schema validation semantics into the UI model. Widget choice is the `Factory` instance itself, not a bare string id. See also Layer 4 — Schema vs widget definition.
 
 ### Default unknown schema (mock — required before coding)
 
-The spec must include the **full default `Schema` object** used when the caller passes nothing (heuristics, toolbar defaults, composite `widget` / `presentation`, scalar fallbacks). Until that literal exists in `specs/object-editor-types.ts` or `specs/object-schemas.md`, Gate 2 is open.
+The default schema is written as concrete data: `anything` in `specs/object-editor-types.tsx`, an `either(...)` of `object()`, `array()`, `map()`, `set()`, `color()`, `date()`, `boolean()`, `number()`, `string()`, and `null_factory`, in that order (heuristic kinds — color, date — listed before the plain scalars they'd otherwise be caught by, since `canHandle` picks the first match; composites before scalars; `map()`/`set()` only match an existing `Map`/`Set` value — see "map() / set() factories," below, for why they're not offered as unknown-mode type-change *targets* despite being recognized here).
 
-> Question: Paste the default unknown schema (+ any constructor registry entries for `Date`, etc.) into `object-editor-types.ts` or `object-schemas.md`.
+**`map()` / `set()` factories:** shaped like `ArrayFactory`, following Layer 3's Map/Set behavior:
+
+- `SetOptions`: `{ values: Factory<unknown>, key?: (item, index) => PropertyKey, allow_insert?, allow_delete?, allow_reorder? }` — same fields as `ArrayOptions` minus `mode` (Set has no Table presentation). Elements ARE the key for Set-membership purposes (`Set.has`, Layer 3), independent of the row-identity `key` function used for VirtualScroll (Layer 1b) — the two are unrelated: `key` picks a stable row id for the widget/observable, uniqueness is checked against actual value equality via `Set.has`.
+- `MapOptions`: `{ keys: Factory<unknown>, values: Factory<unknown>, allow_insert?, allow_delete?, allow_reorder? }` — `keys` is a separate factory from `values` (Layer 3 Map: "keys are also edited with widgets"), used to render/validate the key-side widget of each row. No `key` field: a Map entry's own key already is a stable row identity (Layer 1b "Row / element identity" already notes "Map keys can work when the key is the identity").
+
+Heuristic opt-out (disabling the date/color pattern checks per node) doesn't need a new `Options` field: since `either(...)` branches are just factories in an array, opting out is rebuilding the union without `color()`/`date()` in it (already how `.extend()`-based supplementing works, per "Default (unknown) schema," above) — no separate toggle needed.
 
 ### Resolution
 
-Given: optional root/schema arg, constructor registry, runtime value (and parent schema node when descending).
+Given: optional root/schema arg, constructor registry, runtime value (and parent factory when descending).
 
-The editor resolves a **schema node + widget config** (or a single merged node type — see Layer 4 Question) for each mounted value. Array vs Table follows `presentation` / first-row auto-detect. Preview vs in-place follows the resolved widget `kind` (e.g. `Date` registered as date widget, not object drill-in). For **union**, pick an `one_of` branch via `canHandle` (and optional discriminant rules TBD).
+1. If the caller passed a schema, use it (a `Factory` instance) for the root; otherwise start from `anything`.
+2. For the value at a node: if the current factory is an `either(...)`, pick the first branch whose `canHandle(value)` is true (first-match order; no discriminant field in v1).
+3. If no factory was passed for this value and it's not under `properties` / `values` of a parent (i.e. we're re-resolving from scratch, as unknown mode does at every level), consult the constructor registry for `value.constructor` before falling back to `anything`.
+4. Descending into a composite's children uses that composite's own nested factories (`ObjectOptions.properties[].type`, `ArrayOptions.values`) — never a fresh top-level resolution, so a schema passed at the root fully determines its descendants; only genuinely untyped/unconstrained spots (e.g. `array({ values: anything })`) re-enter unknown-mode resolution.
+5. Array vs Table: `ArrayOptions.mode` (`"auto"` runs the first-row heuristic, `"table"` / `"list"` force it) — see `ArrayFactory.render` / `eval_auto_table`.
+6. The resolved factory's `render(o_value)` mounts the widget; there is no separate "preview vs in-place" resolution step — that's just which `Factory` was picked (e.g. a `Date`-mapped `date()` factory renders in place, while `object()`'s default composite rendering is a preview + drill-in per Layer 4).
 
-> Question: Write the resolution algorithm as numbered steps (merge vs replace at the root; when constructor registry applies; how `properties` / `items` / `additional_properties` / `one_of` pick the child node; what happens when `widget` is omitted).
-> Question: Widget registry scope — **global only**, or **global + per-shell override**? (Constructor→schema registration is already global for unknown mode.)
+**Widget registry scope:** global + per-shell override. The constructor registry is global by default (mapping `Date` → `date({...})`, etc.); a shell instance may pass its own overrides that take precedence for that instance only, without needing a fully custom root schema — same precedent as instance-schema-overrides-global already established above.
 
 ### Type-change targets (unknown mode)
 
-> Question: Binding list of type/layout targets offered in unknown mode (null, string, number, boolean, object, array, Map, Set, …) and which **named conversion strategies** appear for each composite→composite edge. Schema `conversions` filters this list. How this list relates to registry `canHandle` / `defaultValue` vs named strategies.
+**Unknown-mode type-change targets:** `null`, `string`, `number`, `boolean`, `object`, `array` — the JSON-compatible subset (Scope). `Map`/`Set` are offered as targets only when the current node's schema explicitly allows them (Layer 1); they're never offered in pure unknown mode.
+
+**Named strategies per edge** (every composite→composite edge also always offers `empty` — a fresh empty target — in addition to whatever's listed below):
+
+| Source → target | Strategy id | What it does |
+| --- | --- | --- |
+| object → array | `object_values` | `Object.values(obj)` |
+| array → object | `string_indexes` | keys `"0"`, `"1"`, … |
+| object → Map (schema opt-in) | `to_map` | `new Map(Object.entries(obj))` |
+| array → Map (schema opt-in) | `to_map` | `new Map(arr.entries())` (index → value) |
+| Map → object | `from_map_object` | `Object.fromEntries(map.entries())` |
+| Map → array | `from_map_array` | `[...map.values()]` |
+| object / array → Set (schema opt-in) | `to_set` | `new Set(Object.values(obj))` / `new Set(arr)` — dedupes |
+| Set → array | `from_set` | `[...set]` |
+| Set → object | `string_indexes` | same strategy as array → object, applied to `[...set]` |
+| any composite → scalar | *(none)* | inherently lossy — target's `defaultValue()`, with the standard data-loss warning (Layer 1), no named strategy needed |
+| any scalar → composite | *(none, beyond `empty`)* | nothing to preserve |
+
+A schema's `conversions` (if it restricts them) filters this list per node; `defaultValue()` remains the fallback when no strategy applies (Layer 4 "Contract").
 
 ### Undo / redo (v1)
 
@@ -517,6 +610,8 @@ Commit timing (Layer 1) defines _when_ a new value is written. The shell keeps a
 - After undo/redo writes the root, **dead-column detection** (Layer 1b) closes columns that are no longer valid mounts — no separate undo rule.
 
 > Why: Observables already traffic in immutable values; snapshotting the root is the straightforward history model.
+
+**Import snapshots get a smaller cap.** A commit that replaces the whole root (an import, Layer 6) is tagged as such in the ring. A separate, smaller depth `import_undo_depth` (configurable, sensible default well under the regular `n` — e.g. 5) applies to these: once more than `import_undo_depth` import-tagged entries exist in the ring, the oldest ones are dropped (and everything strictly older than the dropped entry, since undo needs a contiguous history) even though the regular `n`-deep cap hasn't been reached. Ordinary (non-import) commits are unaffected and still count against `n` as before.
 
 ---
 
@@ -544,6 +639,8 @@ The add-on API must support **replace** and **merge** (and related variants), an
 
 > Thoughts: Sketch next: `id`, `label`, `canExport(node)`, `canImport(node)`, `export(node)`, `import(raw, ctx)` where `ctx` offers `replace(value)`, `merge(value)`, and navigation via shell `open` on an observable — not path strings.
 > Question: v1 floor for import/export — empty `...` slot only; JSON clipboard replace on the current node; or strike import/export from v1 Scope until the add-on interface is written?
+> Thoughts: Lean JSON clipboard replace on the current node, behind the `ctx.replace/merge` sketch above — exercises the add-on seam and the staleness question below with the cheapest possible format. "Empty slot only" tests nothing.
+> Question: Once an add-on's `import()` resolves asynchronously, its target node (the observable `ctx` was built for) may have been truncated, undone, or had its parent replaced in the meantime. Must `ctx.replace(value)` / `ctx.merge(value)` re-validate the target is still a valid mount (Layer 1b's `INVALID_MOUNT` check) before writing, and no-op otherwise?
 
 ### Table / spreadsheet import (not v1)
 
