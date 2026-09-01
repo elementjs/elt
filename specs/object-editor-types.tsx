@@ -13,39 +13,19 @@ Recursion goes through `forward()` (like `z.lazy`): `object-editor.tsx` and
 import { $observe, o, type Renderable } from "elt"
 import "elt/ui"
 
-// A conversion strategy id -> a short label for the type-change menu.
-// (Renderable instead of string once i18n needs it -- not yet.)
-export type ConversionStrategies = {
-  [id: string]: string
+// A value that isn't null, an array, or one of the composite built-ins --
+// the shape ArrayFactory/MapFactory/SetFactory convert FROM and ObjectFactory
+// converts TO by default (Layer 5 "Type-change targets").
+function is_plain_object(value: unknown): value is Record<string, unknown> {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    !Array.isArray(value) &&
+    !(value instanceof Map) &&
+    !(value instanceof Set) &&
+    !(value instanceof Date)
+  )
 }
-
-// Strategy id -> implementation. Flat and cross-cutting on purpose (Layer 1
-// "Type changes and conversion" / Layer 5 "Type-change targets"): the same
-// `object_values` id is offered by any composite factory whose
-// `conversionsFrom` lists it, so strategies don't live *on* a factory the way
-// `canHandle`/`render` do. Shares its key space with the warning-string table
-// (Layer 1) -- same ids, kept in sync by convention.
-const strategy_registry = new Map<string, (value: unknown) => unknown>()
-
-export function register_strategy(id: string, fn: (value: unknown) => unknown) {
-  strategy_registry.set(id, fn)
-}
-
-export function run_strategy(id: string, value: unknown): unknown {
-  const fn = strategy_registry.get(id)
-  if (!fn) throw new Error(`unknown conversion strategy: ${id}`)
-  return fn(value)
-}
-
-register_strategy("object_values", (value) => Object.values(value as object))
-register_strategy("string_indexes", (value) => Object.fromEntries((value as unknown[]).map((v, i) => [String(i), v])))
-register_strategy("to_map", (value) =>
-  Array.isArray(value) ? new Map(value.map((v, i) => [i, v])) : new Map(Object.entries(value as object)),
-)
-register_strategy("from_map_object", (value) => Object.fromEntries((value as Map<unknown, unknown>).entries()))
-register_strategy("from_map_array", (value) => [...(value as Map<unknown, unknown>).values()])
-register_strategy("to_set", (value) => new Set(Array.isArray(value) ? value : Object.values(value as object)))
-register_strategy("from_set", (value) => [...(value as Set<unknown>)])
 
 // Two values "are the same type" when a mounted widget for one would still be
 // a reasonable widget for the other -- used by EitherFactory to avoid
@@ -101,22 +81,35 @@ export abstract class Factory<Options> {
 
   // Suitability: can this factory's widget represent `value` as-is? Drives
   // union branch matching (EitherFactory) and unknown-mode auto-pick.
-  // Boolean only -- see `conversionsFrom` for "not suitable, but convertible".
+  // Boolean only -- see `canConvert` for "not suitable, but convertible".
   canHandle(_value: unknown): boolean {
     return false
   }
 
-  // Convertibility: named strategies that turn some OTHER value into this
-  // kind (Layer 1 "Type changes and conversion"). Returns null when nothing
-  // applies. Separate from `canHandle`: a value can be inconvertible-but-
-  // already-suitable (canHandle true, conversionsFrom irrelevant) or
-  // convertible-but-not-suitable-as-is (canHandle false, conversionsFrom set).
-  conversionsFrom(_value: unknown): ConversionStrategies | null {
-    return null
+  // Convertibility: could this factory represent `value` if the user
+  // explicitly asked to convert it here (Layer 1 "Type changes and
+  // conversion")? Only ever consulted from the user-initiated type-change
+  // menu -- NEVER during automatic Either resolution, which must not mutate
+  // data as a side effect of the value changing under it (see
+  // EitherFactory.resolve). Separate from `canHandle`: a value can be
+  // inconvertible-but-already-suitable (canHandle true, canConvert
+  // irrelevant) or convertible-but-not-suitable-as-is (canHandle false,
+  // canConvert true).
+  canConvert(_value: unknown): boolean {
+    return false
+  }
+
+  // Performs the conversion `canConvert` checked. Only ever called after a
+  // `canConvert` check returned true for the same value -- this base
+  // implementation throws so a caller that skips the check fails loudly
+  // instead of silently returning nonsense.
+  convert(value: unknown): unknown {
+    throw new Error(`${this.kind}: convert() called without a passing canConvert() check (got ${String(value)})`)
   }
 
   // Value to start from when this kind is force-picked (type change, new
-  // array/set item) and no named strategy applies, or after one is run.
+  // array/set item) and no conversion applies, or as the always-available
+  // "reset to default" choice in the type-change menu alongside "Convert".
   defaultValue(): unknown {
     return null
   }
@@ -131,6 +124,29 @@ export abstract class Factory<Options> {
     return new Ctor({ ...this.options, ...partial })
   }
 }
+
+// Either's honest "I don't know what this is" terminal state -- see
+// EitherFactory.resolve. A read-only placeholder: canHandle/canConvert are
+// always false, defaultValue() is null but is NEVER written automatically
+// (only the explicit type-change menu writes anything, and only after the
+// user picks a different, real kind). Not named "Unknown*" to avoid clashing
+// with this spec's separate "unknown mode" (no-schema) vocabulary.
+export class UnrepresentableFactory extends Factory<{}> {
+  readonly kind = "unrepresentable"
+
+  render(_o_value: o.Observable<unknown>): RenderableWidget {
+    return {
+      // TODO: an error/placeholder ("this value's type isn't supported
+      // here"), but keep the type-change control available so the user can
+      // still force a kind via canConvert/convert or defaultValue() --
+      // this widget itself must never write to o_value on its own.
+      render: () => <e-box class="oe-error">{/* "unsupported value" */}</e-box>,
+      o_error: no_error,
+    }
+  }
+}
+
+export const unrepresentable_factory = new UnrepresentableFactory({})
 
 export interface EitherOptions {
   options: Factory<unknown>[]
@@ -276,6 +292,14 @@ export class StringFactory extends Factory<StringOptions> {
     return typeof value === "string"
   }
 
+  canConvert(value: unknown): boolean {
+    return typeof value === "number" || typeof value === "boolean"
+  }
+
+  convert(value: unknown): unknown {
+    return String(value)
+  }
+
   defaultValue(): unknown {
     return ""
   }
@@ -302,6 +326,15 @@ export class NumberFactory extends Factory<NumberOptions> {
     return typeof value === "number"
   }
 
+  canConvert(value: unknown): boolean {
+    if (typeof value === "boolean") return true
+    return typeof value === "string" && value.trim() !== "" && !Number.isNaN(Number(value))
+  }
+
+  convert(value: unknown): unknown {
+    return Number(value)
+  }
+
   defaultValue(): unknown {
     return 0
   }
@@ -325,6 +358,15 @@ export class BooleanFactory extends Factory<BooleanOptions> {
 
   canHandle(value: unknown): boolean {
     return typeof value === "boolean"
+  }
+
+  canConvert(value: unknown): boolean {
+    return typeof value === "number" || value === "true" || value === "false"
+  }
+
+  convert(value: unknown): unknown {
+    if (typeof value === "number") return value !== 0
+    return value === "true"
   }
 
   defaultValue(): unknown {
@@ -413,6 +455,20 @@ export class DateFactory extends Factory<DatetimeOptions> {
     return value instanceof Date || (typeof value === "string" && ISO_8601.test(value))
   }
 
+  // Looser than canHandle on purpose: canHandle gates the unknown-mode
+  // heuristic (deliberately tight, Layer 4), canConvert gates the explicit
+  // type-change menu where the user already asked for a date and a wider net
+  // (any Date.parse()-able string, or a timestamp number) is the more useful
+  // default.
+  canConvert(value: unknown): boolean {
+    if (typeof value === "number") return true
+    return typeof value === "string" && !Number.isNaN(Date.parse(value))
+  }
+
+  convert(value: unknown): unknown {
+    return new Date(value as string | number)
+  }
+
   defaultValue(): unknown {
     return this.options.nullable ? null : new Date()
   }
@@ -437,6 +493,16 @@ export class ObjectFactory extends Factory<ObjectOptions> {
 
   canHandle(value: unknown): boolean {
     return typeof value === "object" && value !== null && !Array.isArray(value)
+  }
+
+  canConvert(value: unknown): boolean {
+    return Array.isArray(value) || value instanceof Map || value instanceof Set
+  }
+
+  convert(value: unknown): unknown {
+    if (value instanceof Map) return Object.fromEntries(value.entries())
+    const arr = Array.isArray(value) ? value : [...(value as Set<unknown>)]
+    return Object.fromEntries(arr.map((v, i) => [String(i), v]))
   }
 
   defaultValue(): unknown {
@@ -485,6 +551,16 @@ export class ArrayFactory extends Factory<ArrayOptions> {
     return Array.isArray(value)
   }
 
+  canConvert(value: unknown): boolean {
+    return is_plain_object(value) || value instanceof Map || value instanceof Set
+  }
+
+  convert(value: unknown): unknown {
+    if (value instanceof Map) return [...value.values()]
+    if (value instanceof Set) return [...value]
+    return Object.values(value as object)
+  }
+
   defaultValue(): unknown {
     return []
   }
@@ -527,6 +603,14 @@ export class SetFactory extends Factory<SetOptions> {
     return value instanceof Set
   }
 
+  canConvert(value: unknown): boolean {
+    return Array.isArray(value) || is_plain_object(value)
+  }
+
+  convert(value: unknown): unknown {
+    return new Set(Array.isArray(value) ? value : Object.values(value as object))
+  }
+
   defaultValue(): unknown {
     return new Set()
   }
@@ -551,6 +635,15 @@ export class MapFactory extends Factory<MapOptions> {
 
   canHandle(value: unknown): boolean {
     return value instanceof Map
+  }
+
+  canConvert(value: unknown): boolean {
+    return Array.isArray(value) || is_plain_object(value)
+  }
+
+  convert(value: unknown): unknown {
+    if (Array.isArray(value)) return new Map(value.map((v, i) => [i, v]))
+    return new Map(Object.entries(value as object))
   }
 
   defaultValue(): unknown {
@@ -579,17 +672,29 @@ export class EitherFactory extends Factory<EitherOptions> {
     return this.options.options.some((f) => f.canHandle(value))
   }
 
-  conversionsFrom(value: unknown): ConversionStrategies | null {
-    let result: ConversionStrategies | null = null
-    for (const f of this.options.options) {
-      const c = f.conversionsFrom(value)
-      if (c) result = { ...result, ...c }
-    }
-    return result
+  canConvert(value: unknown): boolean {
+    return this.options.options.some((f) => f.canConvert(value))
+  }
+
+  convert(value: unknown): unknown {
+    const branch = this.options.options.find((f) => f.canConvert(value))
+    if (!branch) return super.convert(value) // throws -- canConvert() should have been checked first
+    return branch.convert(value)
   }
 
   defaultValue(): unknown {
     return this.options.options[0]?.defaultValue() ?? null
+  }
+
+  // Automatic (reactive) resolution: which branch already fits the CURRENT
+  // value -- no conversion, no write. First canHandle match wins; nothing
+  // fits -> `unrepresentable_factory`, a read-only placeholder, never a
+  // silent defaultValue() write. canConvert/convert are ONLY ever run from
+  // the explicit, user-initiated type-change menu (elsewhere) -- never here,
+  // since this reacts to external writes too (undo, import, outside
+  // observers) and must not mutate data as a side effect of reacting.
+  resolve(value: unknown): Factory<unknown> {
+    return this.options.options.find((f) => f.canHandle(value)) ?? unrepresentable_factory
   }
 
   render(o_value: o.Observable<unknown>): RenderableWidget {
@@ -607,9 +712,9 @@ export class EitherFactory extends Factory<EitherOptions> {
           if (old !== o.NoValue && current_branch && is_same_type(val, old)) {
             return // same branch keeps handling the update, no recreate
           }
-          const branch = this.options.options.find((f) => f.canHandle(val)) ?? null
+          const branch = this.resolve(val)
           current_branch = branch
-          o_current_widget.set(branch?.render(o_value) ?? null_widget)
+          o_current_widget.set(branch.render(o_value))
         })}
         {o_current_widget.tf((w) => w.render())}
       </e-flex>
@@ -655,8 +760,12 @@ class ForwardFactory<O> extends Factory<O> {
     return this.resolve().canHandle(value)
   }
 
-  conversionsFrom(value: unknown): ConversionStrategies | null {
-    return this.resolve().conversionsFrom(value)
+  canConvert(value: unknown): boolean {
+    return this.resolve().canConvert(value)
+  }
+
+  convert(value: unknown): unknown {
+    return this.resolve().convert(value)
   }
 
   defaultValue(): unknown {

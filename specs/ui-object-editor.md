@@ -83,27 +83,19 @@ Class instances with no registered schema are edited like objects: **own propert
 
 ### Type changes and conversion
 
-Unless the schema forbids it, the user may change the type of the current node (scalar to scalar, scalar to composite, composite to composite, and so on). Changes that would destroy data show a warning first.
+Unless the schema forbids it, the user may change the type of the current node (scalar to scalar, scalar to composite, composite to composite, and so on) via the type-change menu (the `...` control, Layer 4). This is **always user-initiated** — never something the editor decides to do on its own reactively (see Layer 1b "Invalid parent / external writes" and Layer 4 "Contract" for why automatic resolution must not mutate data as a side effect).
 
-**Scalar → scalar (and similar automatic coercions)**
+**Two checks per candidate target kind, one mechanism for scalars and composites alike:**
 
-- Convert as best as possible.
-- If conversion is impossible, use a **default** for the target type (and surface an error on the widget when useful).
+- **`canHandle(value)`** — is the current value already this kind, as-is? If so this kind isn't offered as a *change* (there's nothing to do).
+- **`canConvert(value)`** — could this kind represent the value if the user asked to convert it here? When true, the menu offers **Convert** (runs `convert(value)`, writes the result).
+- **`defaultValue()`** — always offered as a second, independent choice per candidate kind ("Reset to default"), regardless of whether `canConvert` is true. When `canConvert` is false, it's the *only* choice for that kind.
 
-**Default composite conversions** (named strategies the UI can offer):
+So every candidate kind in the menu shows one or two options: Convert (if `canConvert`) and Reset to default (always) — never more than that, and never fewer than one.
 
-- `object_values` — object → array via `Object.values(obj)`
-- `string_indexes` — array → object with keys `"0"`, `"1"`, …
-- `empty` — empty target (empty array / object / Map / Set as appropriate)
-- further named strategies as needed (e.g. convert to Map) — the full v1 list, with strategy ids per edge, is written out in Layer 5 "Type-change targets (unknown mode)"
+**Warning before applying:** composite-involving changes (composite → composite, composite → scalar, scalar → composite) always confirm before writing, since crossing that boundary risks dropping structure the target can't represent. Scalar → scalar does not need a confirmation step — `canConvert`/`convert` already only succeeds when the source is representable in the target scalar kind (Layer 4 "Contract"), so there's nothing surprising to warn about; on the rare case a scalar-to-scalar edit still can't succeed, that's a `canConvert` failure, meaning only "Reset to default" is offered in the first place.
 
-**Composite → composite** does not always run one silent conversion. The UI asks what to do, offering the **named strategies** the target declares (plus schema limits), for example empty target, convert with values, convert to Map (not the default pick).
-
-**Conversion lives on values / named strategies**, not on the DOM widget as the primary API. Each target kind (or its registry entry) declares which **strategy ids** it accepts. The type-change UI is built from that list and the schema. Warning text when data is dropped is owned by the strategy (or a shared string table keyed by strategy id).
-
-Scalars may also expose a best-effort coerce (see Layer 4) used when no named strategy applies: attempt convert, on failure offer default after confirm.
-
-> Why: Named strategies keep menus predictable and easier to translate than a single free-form `from` on the widget class.
+> Why: Two small per-kind predicates (`canHandle`, `canConvert`) plus the ever-present `defaultValue()` cover every case the earlier named-strategy-registry design (`object_values`, `string_indexes`, …) was built for — see Layer 5 "Type-change targets" for the concrete table, where every edge only ever needed exactly one conversion path plus the default. A per-conversion "lossless" flag turned out not to be load-bearing either: the warn/no-warn decision above is a structural rule about which *kinds* are involved, not something computed per conversion.
 
 ### Widgets all the way down
 
@@ -423,7 +415,7 @@ Schemas do **not** name widgets by bare string id. A schema node is a **`Factory
 
 > Why: A `Factory` instance already IS the node, the config, and (via `render`) the construction step — see “Schema vs widget definition” below for why this collapses what used to be two parallel vocabularies (`SchemaNode` vs `WidgetConfig`).
 
-Each `Factory` carries a **`kind`** string (e.g. `"object"`, `"array"`, `"string"`), but `kind` is a tag for introspection, custom-widget registration, and a later JSON-Schema-subset importer — **not** the dispatch mechanism. Dispatch is by the factory instance/class itself: `factory.render(o_value)` mounts it, `factory.canHandle(value)` / `factory.conversionsFrom(value)` drive matching and conversion (below).
+Each `Factory` carries a **`kind`** string (e.g. `"object"`, `"array"`, `"string"`), but `kind` is a tag for introspection, custom-widget registration, and a later JSON-Schema-subset importer — **not** the dispatch mechanism. Dispatch is by the factory instance/class itself: `factory.render(o_value)` mounts it, `factory.canHandle(value)` / `factory.canConvert(value)` drive matching and conversion (below).
 
 **`select` options typing:** mirrors `elt/ui`'s own `Select<T, T2 = T>` (`ui/select.tsx`) rather than a fixed primitive union — `SelectOptions<T, T2 = T>` carries `options: T2[]`, optional `convert_fn?: (opt: T2) => T` / `label_fn?: (opt: T2) => Renderable`, same shape `elt/ui`'s `Select` already takes. "Optional other" and "fill from table column values" (Layer 4 "Widgets for developers") are object-editor-level composition on top of that — not new `elt/ui` surface (see the `elt/ui` control inventory below).
 
@@ -432,20 +424,21 @@ Each `Factory` carries a **`kind`** string (e.g. `"object"`, `"array"`, `"string
 See `Factory` / `RenderableWidget` in `specs/object-editor-types.tsx`. A `Factory<Options>` exposes:
 
 - **`render(o_value)`** — mounts a `RenderableWidget` bound to that observable. This is the widget constructor step; there is no separate `new Widget(o_value, config)` — the factory instance already holds the config.
-- **`canHandle(value): boolean`** — **suitability**: can this factory represent `value` as-is? Drives union branch matching and unknown-mode auto-pick.
-- **`conversionsFrom(value): ConversionStrategies | null`** — **convertibility**: named strategies that turn some *other* value into this kind, for the type-change menu (Layer 1). Kept separate from `canHandle`: a value can be inconvertible-but-already-suitable, or convertible-but-not-suitable-as-is.
-- **`defaultValue()`** — target default when converting or inserting, used when no named strategy applies (and as the scalar “convert, else default after confirm” fallback — see Layer 1).
+- **`canHandle(value): boolean`** — **suitability**: can this factory represent `value` as-is? Drives union branch matching and unknown-mode auto-pick. Read-only — never mutates.
+- **`canConvert(value): boolean`** — **convertibility**: could this factory represent `value` if the user explicitly asked to convert it here (Layer 1 "Type changes and conversion")? Kept separate from `canHandle`: a value can be inconvertible-but-already-suitable, or convertible-but-not-suitable-as-is. Only ever consulted from the user-initiated type-change menu, never from automatic union resolution (below).
+- **`convert(value): unknown`** — performs the conversion `canConvert` checked. Only ever called after a passing `canConvert` check for the same value; calling it otherwise is a caller bug (the base implementation throws rather than guessing).
+- **`defaultValue()`** — target default when converting or inserting; also the type-change menu's always-available "reset to default" choice, independent of whether `canConvert` succeeded.
 - **`extend(partial)`** — type-safe partial override (see Layer 5 “deep-merge” replacement below).
+
+**Union resolution never converts.** `EitherFactory` (the runtime behind `either(...)`) exposes a `resolve(value): Factory<unknown>` used for automatic, reactive re-rendering whenever the mounted value changes (including from undo, import, or an outside writer — Layer 1b): it picks the first branch whose `canHandle(value)` is true, and falls back to **`unrepresentable_factory`** — a read-only placeholder widget ("this value's type isn't supported here") — when nothing matches. `resolve` never calls `canConvert`/`convert` and never writes to the observable; automatic resolution answering "which widget can *already* show this" must not have side effects, the same principle `INVALID_MOUNT` (Layer 1b) already enforces for missing slots. `unrepresentable_factory` is not named `Unknown*` to avoid colliding with this spec's separate "unknown mode" (no-schema) vocabulary.
+
+Conversion only happens from the **explicit type-change menu**: for each candidate branch, offer "Convert" when `canConvert(current_value)` (runs `convert`, writes) and always also offer "Reset to default" (runs `defaultValue()`, writes) — see Layer 1 for the full menu-building rule and the warning-before-applying rule.
 
 `RenderableWidget` (what `render()` returns) carries the render output and an **`o_error`** observable — per-mount state, distinct from the factory. Composite widgets aggregate their children's `o_error` into a warning surfaced on their own toolbar (same pattern as Table's `o_has_extra_keys`, Layer 3).
 
 > Why: Per-mount state must live on the `RenderableWidget` (or the closure inside `render()`), never on the `Factory` instance — one factory (e.g. an array's `values` factory) is shared across every row/cell that uses it, so instance fields would leak state between them.
 
 **Error rendering is the calling composite's responsibility**, not a fixed spec rule — the composite mounting a child widget decides where that child's `o_error` shows (inline, icon + tooltip, aggregated into its own toolbar warning per the `o_has_extra_keys` precedent above), since it already owns the layout the child sits in. v1 doesn't enumerate every source that can set a widget's `o_error` beyond the two already named (Layer 3 Object duplicate key, Layer 1 failed best-effort coercion) — each composite/widget owns its own validation and may set it for whatever it checks.
-
-**Conversion API (v1 direction):** named strategy functions / a converter registry (Layer 1); `conversionsFrom` lists the strategy ids a factory accepts as a *target*. `defaultValue()` (and an optional best-effort coerce) cover the scalar “convert or default after confirm” path; they do **not** replace named strategies for composites.
-
-**Registry shape:** a single module-level `Map<string, (value: unknown) => unknown>` (strategy id → conversion function), populated via a `register_strategy(id, fn)` free function — not a class or a per-factory static table. Reasoning: strategies are cross-cutting (the same `object_values` id is offered by any composite factory whose `conversionsFrom` lists it, Layer 1), so they don't belong *on* a factory the way `canHandle`/`render` do; a flat registry keyed by id is also what the shared warning-string table (Layer 1) already assumes ("a shared string table keyed by strategy id"), so both tables share the same key space and are trivially kept in sync.
 
 > Thoughts: Destroy-and-recreate on type change is the v1 default (remove the old widget's nodes, call `new_factory.render(o_value)`). Marquee is out of v1.
 
@@ -520,7 +513,7 @@ Default label is a **string** (enough for the button and `title` tooltip in v1):
 
 `SchemaNode` and `WidgetConfig` are **one type**: the `Factory<Options>` instance (Layer 4 “Widget config”, above). There is no separate node tree that repeats a `kind` discriminator and then optionally points at a `widget?: WidgetConfig` — nesting (`properties` on `ObjectOptions`, `values` on `ArrayOptions`, `options` on `EitherOptions`) lives directly on each factory's `options`, and a composite factory's children are themselves `Factory` instances.
 
-Union resolution (`either(...)`) walks its branch factories in order and picks the first whose `canHandle(value)` is true — no discriminant field needed for v1; add one later only if `canHandle` order proves ambiguous in practice. Type-change offers other branches' factories (schema mode, `either`) or the full default-schema catalog (unknown mode), each annotated with what `conversionsFrom` returns for the current value, falling back to `defaultValue()` when no strategy applies. Self-referencing schemas (a node that contains itself, e.g. the default unknown schema) use `forward(() => node)`, a lazily-resolving `Factory` wrapper — see `object-editor-types.tsx`.
+Union resolution (`either(...)`) walks its branch factories in order and picks the first whose `canHandle(value)` is true (automatic resolution, Layer 4 "Contract") — no discriminant field needed for v1; add one later only if `canHandle` order proves ambiguous in practice. Type-change offers other branches' factories (schema mode, `either`) or the full default-schema catalog (unknown mode), each showing Convert when `canConvert` is true (plus the always-available Reset to default) — see Layer 4 "Contract" for the menu-building rule. Self-referencing schemas (a node that contains itself, e.g. the default unknown schema) use `forward(() => node)`, a lazily-resolving `Factory` wrapper — see `object-editor-types.tsx`.
 
 There is deliberately no registry mapping a `kind` **string** to a factory implementation: instantiating a factory (`object({...})`) already gives you the implementation. A string-keyed registry would only matter for a hypothetical serialized-schema format (JSON Schema import, Layer 5), which is explicitly not v1.
 
@@ -581,23 +574,21 @@ Given: optional root/schema arg, constructor registry, runtime value (and parent
 
 **Unknown-mode type-change targets:** `null`, `string`, `number`, `boolean`, `object`, `array` — the JSON-compatible subset (Scope). `Map`/`Set` are offered as targets only when the current node's schema explicitly allows them (Layer 1); they're never offered in pure unknown mode.
 
-**Named strategies per edge** (every composite→composite edge also always offers `empty` — a fresh empty target — in addition to whatever's listed below):
+**`canConvert`/`convert` per edge** (every edge also always offers "Reset to default" via `defaultValue()`, independent of whether `canConvert` succeeds — Layer 4 "Contract"):
 
-| Source → target | Strategy id | What it does |
-| --- | --- | --- |
-| object → array | `object_values` | `Object.values(obj)` |
-| array → object | `string_indexes` | keys `"0"`, `"1"`, … |
-| object → Map (schema opt-in) | `to_map` | `new Map(Object.entries(obj))` |
-| array → Map (schema opt-in) | `to_map` | `new Map(arr.entries())` (index → value) |
-| Map → object | `from_map_object` | `Object.fromEntries(map.entries())` |
-| Map → array | `from_map_array` | `[...map.values()]` |
-| object / array → Set (schema opt-in) | `to_set` | `new Set(Object.values(obj))` / `new Set(arr)` — dedupes |
-| Set → array | `from_set` | `[...set]` |
-| Set → object | `string_indexes` | same strategy as array → object, applied to `[...set]` |
-| any composite → scalar | *(none)* | inherently lossy — target's `defaultValue()`, with the standard data-loss warning (Layer 1), no named strategy needed |
-| any scalar → composite | *(none, beyond `empty`)* | nothing to preserve |
+| Source → target | `convert(value)` |
+| --- | --- |
+| object → array | `Object.values(obj)` |
+| array → object | keys `"0"`, `"1"`, … |
+| Map → object | `Object.fromEntries(map.entries())` |
+| Set → object | same as array → object, applied to `[...set]` |
+| array / Map / Set → array | `[...map.values()]` / `[...set]` (array is already `canHandle`, not offered as a target of itself) |
+| object / array / Map / Set → Map (schema opt-in) | `new Map(Object.entries(obj))` / `new Map(arr.entries())` |
+| array / object → Set (schema opt-in) | `new Set(arr)` / `new Set(Object.values(obj))` — dedupes |
+| any composite → scalar | *(`canConvert` false)* — inherently lossy, "Reset to default" only (Layer 1's warning-before-applying rule) |
+| any scalar → composite | *(`canConvert` false)* — nothing to preserve, "Reset to default" only |
 
-A schema's `conversions` (if it restricts them) filters this list per node; `defaultValue()` remains the fallback when no strategy applies (Layer 4 "Contract").
+A schema's `conversions` (if it restricts them) filters which of these `canConvert` checks are honored per node; `defaultValue()` remains the fallback (and, for composite → scalar / scalar → composite, the only option) regardless.
 
 ### Undo / redo (v1)
 
