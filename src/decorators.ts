@@ -22,38 +22,70 @@ import type {
 } from "./types"
 
 /**
- * Passed to a `$bind.*` variant backed by a real form control ({@link ValidatableElement})
- * to also wire the DOM Constraint Validation API into it. Both fields are independently
- * optional: pass only `extra_check` to set a custom validity message without reading
- * anything back (native `:invalid` styling, `reportValidity()`, etc. still apply on their
- * own); pass only `o_error` to just mirror the node's existing/native validity state.
+ * Passed to every `$bind.*` variant, including {@link $bind.contenteditable}, to rate-limit
+ * either direction of the binding.
  *
- * `contenteditable` elements have no `ValidityState` at all, so {@link $bind.contenteditable}
- * does not take this option.
+ * `debounce_event`/`throttle_event` rate-limit DOM → observable writes (the native event
+ * listener each `$bind.*` variant registers). `debounce_observable`/`throttle_observable`
+ * rate-limit observable → DOM writes (external changes, from undo, import, another writer,
+ * or anything else — this decorator doesn't need to know or care what produced them).
+ * Provide at most one of `debounce_event`/`throttle_event` (same for the `_observable` pair) —
+ * combining both for one direction is a caller error, not a supported combination.
+ *
+ * While a local edit hasn't flushed yet (`debounce_event`/`throttle_event` pending), an
+ * external observable write is suppressed rather than repainting the DOM mid-edit — unless
+ * `prioritize_observable` is set, in which case the external write always wins immediately
+ * and the in-progress local edit is discarded instead.
  *
  * @group Decorators
  */
-export interface BindValidityOptions<T, N> {
+export interface BindDebounceOptions {
+  debounce_event?: number
+  throttle_event?: number
+  debounce_observable?: number
+  throttle_observable?: number
+  /** External observable writes overwrite an in-progress local edit instead of being suppressed until it flushes. Default `false` (local edit wins). */
+  prioritize_observable?: boolean
+}
+
+/**
+ * Passed to a `$bind.*` variant backed by a real form control ({@link ValidatableElement})
+ * to also wire the DOM Constraint Validation API into it. `o_error` and `extra_check` are
+ * both independently optional: pass only `extra_check` to set a custom validity message
+ * without reading anything back (native `:invalid` styling, `reportValidity()`, etc. still
+ * apply on their own); pass only `o_error` to just mirror the node's existing/native
+ * validity state.
+ *
+ * `contenteditable` elements have no `ValidityState` at all, so {@link $bind.contenteditable}
+ * takes {@link BindDebounceOptions} instead of this wider type.
+ *
+ * @group Decorators
+ */
+export interface BindOptions<T, N> extends BindDebounceOptions {
   o_error?: o.Observable<string | null>
   /** Runs alongside native constraints (`required`, `pattern`, `min`/`max`, …); return a message to fail, `null` to pass. */
   extra_check?: (value: T, node: N) => string | null
 }
 
-// FIXME this lacks some debounce and throttle, or a way of achieving it.
 function setup_bind<T, N extends Element>(
   obs: o.IObservable<T | null | undefined, T>,
   node_get: (node: N) => T,
   node_set: (node: N, value: T | null | undefined) => void,
   event = "input" as KEvent,
-  validity?: BindValidityOptions<T, N>
+  opts?: BindOptions<T, N>
 ) {
   return function (node: N) {
     const lock = o.exclusive_lock()
+    // True from the first local event since the last flush, until that write
+    // actually lands in `obs` -- lets a pending debounced/throttled local
+    // edit take priority over an external observable write that arrives
+    // while it's in flight (unless `prioritize_observable` flips that).
+    let pending_local = false
+    const prioritize_local = !opts?.prioritize_observable
 
-    // Only ever called from variants backed by a real form control (never
-    // $bind.contenteditable, which doesn't accept `validity` in the first
-    // place) -- the cast is safe because `validity` is only ever passed by
-    // those callers.
+    // Only ever meaningful for variants backed by a real form control (never
+    // $bind.contenteditable, whose BindDebounceOptions has no validity
+    // fields to check here) -- the cast is safe for the same reason.
     //
     // node.validationMessage is already the browser's unified answer: the
     // custom message verbatim when set, else whichever native constraint
@@ -61,22 +93,29 @@ function setup_bind<T, N extends Element>(
     // independent of those native flags, so setCustomValidity can be called
     // unconditionally on every check without disturbing them.
     function recheck_validity() {
-      if (!validity) return
+      if (!opts?.o_error && !opts?.extra_check) return
       const value = node_get(node)
-      const message = validity.extra_check?.(value, node) ?? null
+      const message = opts.extra_check?.(value, node) ?? null
       const el = node as unknown as ValidatableElement
       el.setCustomValidity(message ?? "")
-      validity.o_error?.set(el.validationMessage || null)
+      opts.o_error?.set(el.validationMessage || null)
     }
 
     /// When the observable changes, update the node
-    node_observe(node, obs, (value) => {
+    let render = (value: T | null | undefined) => {
+      if (prioritize_local && pending_local) return // a local edit is in flight -- don't let this overwrite it
       lock(() => {
         node_set(node, value)
       })
       recheck_validity()
+    }
+    if (opts?.debounce_observable) render = o.debounce(render, opts.debounce_observable)
+    else if (opts?.throttle_observable) render = o.throttle(render, opts.throttle_observable)
+    node_observe(node, obs, (value) => {
+      render(value)
     })
-    node_add_event_listener(node, event, () => {
+
+    let flush = () => {
       lock(() => {
         const new_value = node_get(node)
         obs.set(new_value)
@@ -93,7 +132,15 @@ function setup_bind<T, N extends Element>(
           }
         }
       })
+      pending_local = false
       recheck_validity()
+    }
+    if (opts?.debounce_event) flush = o.debounce(flush, opts.debounce_event)
+    else if (opts?.throttle_event) flush = o.throttle(flush, opts.throttle_event)
+
+    node_add_event_listener(node, event, () => {
+      pending_local = true
+      flush()
     })
   }
 }
@@ -110,7 +157,7 @@ export namespace $bind {
    */
   export function string(
     obs: o.IObservable<string | null | undefined, string>,
-    validity?: BindValidityOptions<string, HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
+    opts?: BindOptions<string, HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
   ): (
     node: HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
   ) => void {
@@ -119,12 +166,15 @@ export namespace $bind {
       (node) => node.value,
       (node, value) => (node.value = value ?? ""),
       undefined,
-      validity
+      opts
     )
   }
 
   /**
    * Bind a string observable to an html element which is contenteditable.
+   *
+   * `contenteditable` elements have no `ValidityState`, so this takes the narrower
+   * {@link BindDebounceOptions} rather than the full {@link BindOptions}.
    *
    * ```tsx
    * <div contenteditable>{$bind.contenteditable(o_text)}</div>
@@ -134,13 +184,16 @@ export namespace $bind {
    */
   export function contenteditable(
     obs: o.IObservable<string | null | undefined, string>,
+    opts?: BindDebounceOptions
   ): (node: HTMLElement) => void {
     return setup_bind(
       obs,
       (node) => node.innerText,
       (node, value) => {
         node.innerText = value ?? ""
-      }
+      },
+      undefined,
+      opts
     )
   }
 
@@ -156,7 +209,7 @@ export namespace $bind {
    */
   export function number(
     obs: o.IObservable<number | null | undefined, number>,
-    validity?: BindValidityOptions<number, HTMLInputElement>
+    opts?: BindOptions<number, HTMLInputElement>
   ): (node: HTMLInputElement) => void {
     return setup_bind(
       obs,
@@ -165,7 +218,7 @@ export namespace $bind {
       },
       (node, value) => (node.value = "" + (value ?? "")),
       undefined,
-      validity
+      opts
     )
   }
 
@@ -181,14 +234,14 @@ export namespace $bind {
    */
   export function date(
     obs: o.Observable<Date | null>,
-    validity?: BindValidityOptions<Date | null, HTMLInputElement>
+    opts?: BindOptions<Date | null, HTMLInputElement>
   ): (node: HTMLInputElement) => void {
     return setup_bind(
       obs,
       (node) => node.valueAsDate,
       (node, value) => (node.valueAsDate = value ?? null),
       undefined,
-      validity
+      opts
     )
   }
 
@@ -204,14 +257,14 @@ export namespace $bind {
    */
   export function boolean(
     obs: o.IObservable<boolean | undefined | null, boolean>,
-    validity?: BindValidityOptions<boolean, HTMLInputElement>
+    opts?: BindOptions<boolean, HTMLInputElement>
   ): (node: HTMLInputElement) => void {
     return setup_bind(
       obs,
       (node) => node.checked,
       (node, value) => (node.checked = !!value),
       "change",
-      validity
+      opts
     )
   }
 
@@ -226,7 +279,7 @@ export namespace $bind {
    */
   export function selected_index(
     obs: o.Observable<number>,
-    validity?: BindValidityOptions<number, HTMLSelectElement>
+    opts?: BindOptions<number, HTMLSelectElement>
   ): (node: HTMLSelectElement) => void {
     return setup_bind(
       obs,
@@ -235,7 +288,7 @@ export namespace $bind {
         node.selectedIndex = value!
       },
       undefined,
-      validity
+      opts
     )
   }
 }
