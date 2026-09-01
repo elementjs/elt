@@ -10,6 +10,7 @@ import {
   type KEvent,
   type EventsForKeys,
   type $ShadowOptions,
+  type ValidatableElement,
   node_attach_shadow,
 } from "./dom"
 
@@ -20,20 +21,60 @@ import type {
   StyleDefinition,
 } from "./types"
 
+/**
+ * Passed to a `$bind.*` variant backed by a real form control ({@link ValidatableElement})
+ * to also wire the DOM Constraint Validation API into it. Both fields are independently
+ * optional: pass only `extra_check` to set a custom validity message without reading
+ * anything back (native `:invalid` styling, `reportValidity()`, etc. still apply on their
+ * own); pass only `o_error` to just mirror the node's existing/native validity state.
+ *
+ * `contenteditable` elements have no `ValidityState` at all, so {@link $bind.contenteditable}
+ * does not take this option.
+ *
+ * @group Decorators
+ */
+export interface BindValidityOptions<T, N> {
+  o_error?: o.Observable<string | null>
+  /** Runs alongside native constraints (`required`, `pattern`, `min`/`max`, …); return a message to fail, `null` to pass. */
+  extra_check?: (value: T, node: N) => string | null
+}
+
 // FIXME this lacks some debounce and throttle, or a way of achieving it.
 function setup_bind<T, N extends Element>(
   obs: o.IObservable<T | null | undefined, T>,
   node_get: (node: N) => T,
   node_set: (node: N, value: T | null | undefined) => void,
-  event = "input" as KEvent
+  event = "input" as KEvent,
+  validity?: BindValidityOptions<T, N>
 ) {
   return function (node: N) {
     const lock = o.exclusive_lock()
+
+    // Only ever called from variants backed by a real form control (never
+    // $bind.contenteditable, which doesn't accept `validity` in the first
+    // place) -- the cast is safe because `validity` is only ever passed by
+    // those callers.
+    //
+    // node.validationMessage is already the browser's unified answer: the
+    // custom message verbatim when set, else whichever native constraint
+    // (required/pattern/min/max/...) currently fails, else "". customError is
+    // independent of those native flags, so setCustomValidity can be called
+    // unconditionally on every check without disturbing them.
+    function recheck_validity() {
+      if (!validity) return
+      const value = node_get(node)
+      const message = validity.extra_check?.(value, node) ?? null
+      const el = node as unknown as ValidatableElement
+      el.setCustomValidity(message ?? "")
+      validity.o_error?.set(el.validationMessage || null)
+    }
+
     /// When the observable changes, update the node
     node_observe(node, obs, (value) => {
       lock(() => {
         node_set(node, value)
       })
+      recheck_validity()
     })
     node_add_event_listener(node, event, () => {
       lock(() => {
@@ -52,6 +93,7 @@ function setup_bind<T, N extends Element>(
           }
         }
       })
+      recheck_validity()
     })
   }
 }
@@ -67,14 +109,17 @@ export namespace $bind {
    * @group Decorators
    */
   export function string(
-    obs: o.IObservable<string | null | undefined, string>
+    obs: o.IObservable<string | null | undefined, string>,
+    validity?: BindValidityOptions<string, HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
   ): (
     node: HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
   ) => void {
     return setup_bind(
       obs,
       (node) => node.value,
-      (node, value) => (node.value = value ?? "")
+      (node, value) => (node.value = value ?? ""),
+      undefined,
+      validity
     )
   }
 
@@ -110,14 +155,17 @@ export namespace $bind {
    * @group Decorators
    */
   export function number(
-    obs: o.IObservable<number | null | undefined, number>
+    obs: o.IObservable<number | null | undefined, number>,
+    validity?: BindValidityOptions<number, HTMLInputElement>
   ): (node: HTMLInputElement) => void {
     return setup_bind(
       obs,
       (node) => {
         return Number(node.value)
       },
-      (node, value) => (node.value = "" + (value ?? ""))
+      (node, value) => (node.value = "" + (value ?? "")),
+      undefined,
+      validity
     )
   }
 
@@ -132,12 +180,15 @@ export namespace $bind {
    * @group Decorators
    */
   export function date(
-    obs: o.Observable<Date | null>
+    obs: o.Observable<Date | null>,
+    validity?: BindValidityOptions<Date | null, HTMLInputElement>
   ): (node: HTMLInputElement) => void {
     return setup_bind(
       obs,
       (node) => node.valueAsDate,
-      (node, value) => (node.valueAsDate = value ?? null)
+      (node, value) => (node.valueAsDate = value ?? null),
+      undefined,
+      validity
     )
   }
 
@@ -152,13 +203,15 @@ export namespace $bind {
    * @group Decorators
    */
   export function boolean(
-    obs: o.IObservable<boolean | undefined | null, boolean>
+    obs: o.IObservable<boolean | undefined | null, boolean>,
+    validity?: BindValidityOptions<boolean, HTMLInputElement>
   ): (node: HTMLInputElement) => void {
     return setup_bind(
       obs,
       (node) => node.checked,
       (node, value) => (node.checked = !!value),
-      "change"
+      "change",
+      validity
     )
   }
 
@@ -172,14 +225,17 @@ export namespace $bind {
    * @group Decorators
    */
   export function selected_index(
-    obs: o.Observable<number>
+    obs: o.Observable<number>,
+    validity?: BindValidityOptions<number, HTMLSelectElement>
   ): (node: HTMLSelectElement) => void {
     return setup_bind(
       obs,
       (node) => node.selectedIndex,
       (node, value) => {
         node.selectedIndex = value!
-      }
+      },
+      undefined,
+      validity
     )
   }
 }

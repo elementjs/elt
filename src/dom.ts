@@ -671,6 +671,13 @@ export function node_unobserve(
 }
 
 /**
+ * Form controls that expose the DOM Constraint Validation API (`ValidityState`,
+ * `setCustomValidity`). `contenteditable` elements and most other nodes do not.
+ * @group Dom
+ */
+export type ValidatableElement = HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
+
+/**
  * Set an attribute value on a node. If the provided `value` is an observable, the node will then observe it and change the attribute accordingly.
  *
  * If `value` is a string, the attribute is changed on the node and is observable on the dom. If it is `true`, the attribute is set with an empty string. If it is `false` or nullish, it is removed entirely.
