@@ -14,6 +14,7 @@ export const routes = app.setupRouter({
   date: ["/date", () => import("./date")],
   visual_test: ["/visual-test", () => import("./screen-visual-test")],
   layout: ["/layout", () => import("./screen-layout")],
+  object_editor: ["/object-editor", () => import("./screen-object-editor")],
   init: ["", () => import("./init")]
 })
 
@@ -61,6 +62,7 @@ export const widget_menu = () => <>
   <hr/>
   <h3>UI Recipes</h3>
   {R(routes.visual_test, P.MonitorPlay, "Visual Test")}
+  {R(routes.object_editor, P.TreeStructure, "Object Editor (draft)")}
 </>
 
 

@@ -19,7 +19,7 @@ import {
 } from "elt"
 import * as ph from "elt-phosphor"
 import { popup } from "elt/ui"
-import { theme } from "node_modules/elt/ui/theme"
+import { theme } from "elt/ui"
 import { data_loader_dialog } from "./data-loader"
 import { $resizable } from "./resizable"
 

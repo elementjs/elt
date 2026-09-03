@@ -10,6 +10,8 @@
     ".": "./src/index.ts",
     "./ui": "./ui/index.tsx",
     "./ui/*": "./ui/*.tsx",
+    "./editor": "./editor/index.tsx",
+    "./editor/*": "./editor/*.tsx",
     "./*": "./src/*.ts"
   },
   "scripts": {

@@ -1,6 +1,6 @@
 # Object Editor — spec TODO
 
-Config surface gaps found in `object-editor-types.tsx` against `ui-object-editor.md`. Not binding spec text — a checklist to work through. Check items off (or delete them) as they land in both files.
+Config surface gaps found in `schema.tsx` against `ui-object-editor.md`. Not binding spec text — a checklist to work through. Check items off (or delete them) as they land in both files.
 
 ## Named in prose, missing from code
 
@@ -37,4 +37,4 @@ These are the highest priority — the spec already promises the behavior, nothi
 
 ## Done
 
-- [x] **Conversion model simplification.** Replaced the strategy-id + global registry mechanism (`ConversionStrategies`, `strategy_registry`, `register_strategy`/`run_strategy`) with `canHandle` / `canConvert` / `convert` / `defaultValue` directly on each `Factory`, plus `UnrepresentableFactory` as `EitherFactory.resolve`'s honest "nothing fits" fallback (never a silent `defaultValue()` write). Automatic union resolution now only ever calls `canHandle`; `canConvert`/`convert` run exclusively from the user-initiated type-change menu. Landed in `object-editor-types.tsx` and `ui-object-editor.md` (Layer 1 "Type changes and conversion", Layer 4 "Contract", Layer 5 "Type-change targets").
+- [x] **Conversion model simplification.** Replaced the strategy-id + global registry mechanism (`ConversionStrategies`, `strategy_registry`, `register_strategy`/`run_strategy`) with `canHandle` / `canConvert` / `convert` / `defaultValue` directly on each `Factory`, plus `UnrepresentableFactory` as `EitherFactory.resolve`'s honest "nothing fits" fallback (never a silent `defaultValue()` write). Automatic union resolution now only ever calls `canHandle`; `canConvert`/`convert` run exclusively from the user-initiated type-change menu. Landed in `schema.tsx` and `ui-object-editor.md` (Layer 1 "Type changes and conversion", Layer 4 "Contract", Layer 5 "Type-change targets").

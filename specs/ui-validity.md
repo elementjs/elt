@@ -64,5 +64,5 @@ Pairs with `specs/TODO.md`'s "forward widget options from `elt/ui` almost as-is"
 1. Tests: `o_error` updates on a programmatic `o_model` change, not just user input; the custom-validity write doesn't disturb native constraint flags when clearing a custom message.
 2. Refactor `ui/date-input.ts`'s `#refresh_validity` to also write an `o_error` (adds support it currently lacks).
 3. Move `specs/resizable.tsx` to `ui/resizable.tsx`; drop its "reference sketch only" caveat in `ui-object-editor.md` Layer 3 Table.
-4. Wire the `validity` option into `object-editor-types.tsx`'s scalar factory `render()` methods, alongside option-forwarding once decided.
+4. Wire the `validity` option into `schema.tsx`'s scalar factory `render()` methods, alongside option-forwarding once decided.
 5. Promote from stub into `ui-object-editor.md` Layer 4 as binding prose once a real widget uses it.

@@ -26,10 +26,11 @@
     "types": []
   },
   "include": [
-    "./tests/*.ts"
+    "./tests/**/*.ts"
   ],
   "files": [
     "./src/index.ts",
     "./ui/index.tsx",
+    "./editor/index.tsx",
   ]
 }

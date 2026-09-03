@@ -43,9 +43,9 @@ When no schema is given, the editor still uses a **default** set of rules: it ca
 
 ## Type definitions (source of truth)
 
-TypeScript mocks for widgets, factories, and schema nodes live in **`specs/object-editor-types.tsx`**. The markdown spec states behavior; keep the shapes in that file and amend both when they diverge. Do not duplicate full `interface` / `type` blocks here.
+TypeScript mocks for widgets, factories, and schema nodes live in **`editor/schema.tsx`**. The markdown spec states behavior; keep the shapes in that file and amend both when they diverge. Do not duplicate full `interface` / `type` blocks here.
 
-A schema node **is** a widget config **is** the widget constructor: a `Factory<Options>` instance built through a combinator function (`object({...})`, `array({...})`, `either(...)`, `string()`, and so on — see `object-editor-types.tsx`). There is no separate discriminated-union data shape and no bare string `kind` used for dispatch; dispatch is by class/instance identity. `kind` is kept on each `Factory` only as a stable tag for introspection, custom-widget registration, and later JSON-Schema-subset import.
+A schema node **is** a widget config **is** the widget constructor: a `Factory<Options>` instance built through a combinator function (`object({...})`, `array({...})`, `either(...)`, `string()`, and so on — see `schema.tsx`). There is no separate discriminated-union data shape and no bare string `kind` used for dispatch; dispatch is by class/instance identity. `kind` is kept on each `Factory` only as a stable tag for introspection, custom-widget registration, and later JSON-Schema-subset import.
 
 > Thoughts: `specs/object-editor.tsx` and `specs/resizable.tsx` are earlier, unrelated proofs of concept — not part of this shape, not binding.
 
@@ -411,7 +411,7 @@ The same widget code is used for a given kind of value whether it appears as an 
 
 ### Widget config (schema-facing)
 
-Schemas do **not** name widgets by bare string id. A schema node is a **`Factory<Options>`** instance, built through a combinator function (`object({...})`, `array({...})`, `string()`, `either(...)`, …) rather than assembled as a discriminated data literal. `Options` is the kind-specific argument bag (select options, masks, …), carried on the instance as `.options`. The `Factory` classes and combinators are maintained in `specs/object-editor-types.tsx`.
+Schemas do **not** name widgets by bare string id. A schema node is a **`Factory<Options>`** instance, built through a combinator function (`object({...})`, `array({...})`, `string()`, `either(...)`, …) rather than assembled as a discriminated data literal. `Options` is the kind-specific argument bag (select options, masks, …), carried on the instance as `.options`. The `Factory` classes and combinators are maintained in `editor/schema.tsx`.
 
 > Why: A `Factory` instance already IS the node, the config, and (via `render`) the construction step — see “Schema vs widget definition” below for why this collapses what used to be two parallel vocabularies (`SchemaNode` vs `WidgetConfig`).
 
@@ -421,7 +421,7 @@ Each `Factory` carries a **`kind`** string (e.g. `"object"`, `"array"`, `"string
 
 ### Contract
 
-See `Factory` / `RenderableWidget` in `specs/object-editor-types.tsx`. A `Factory<Options>` exposes:
+See `Factory` / `RenderableWidget` in `editor/schema.tsx`. A `Factory<Options>` exposes:
 
 - **`render(o_value)`** — mounts a `RenderableWidget` bound to that observable. This is the widget constructor step; there is no separate `new Widget(o_value, config)` — the factory instance already holds the config.
 - **`canHandle(value): boolean`** — **suitability**: can this factory represent `value` as-is? Drives union branch matching and unknown-mode auto-pick. Read-only — never mutates.
@@ -513,7 +513,7 @@ Default label is a **string** (enough for the button and `title` tooltip in v1):
 
 `SchemaNode` and `WidgetConfig` are **one type**: the `Factory<Options>` instance (Layer 4 “Widget config”, above). There is no separate node tree that repeats a `kind` discriminator and then optionally points at a `widget?: WidgetConfig` — nesting (`properties` on `ObjectOptions`, `values` on `ArrayOptions`, `options` on `EitherOptions`) lives directly on each factory's `options`, and a composite factory's children are themselves `Factory` instances.
 
-Union resolution (`either(...)`) walks its branch factories in order and picks the first whose `canHandle(value)` is true (automatic resolution, Layer 4 "Contract") — no discriminant field needed for v1; add one later only if `canHandle` order proves ambiguous in practice. Type-change offers other branches' factories (schema mode, `either`) or the full default-schema catalog (unknown mode), each showing Convert when `canConvert` is true (plus the always-available Reset to default) — see Layer 4 "Contract" for the menu-building rule. Self-referencing schemas (a node that contains itself, e.g. the default unknown schema) use `forward(() => node)`, a lazily-resolving `Factory` wrapper — see `object-editor-types.tsx`.
+Union resolution (`either(...)`) walks its branch factories in order and picks the first whose `canHandle(value)` is true (automatic resolution, Layer 4 "Contract") — no discriminant field needed for v1; add one later only if `canHandle` order proves ambiguous in practice. Type-change offers other branches' factories (schema mode, `either`) or the full default-schema catalog (unknown mode), each showing Convert when `canConvert` is true (plus the always-available Reset to default) — see Layer 4 "Contract" for the menu-building rule. Self-referencing schemas (a node that contains itself, e.g. the default unknown schema) use `forward(() => node)`, a lazily-resolving `Factory` wrapper — see `schema.tsx`.
 
 There is deliberately no registry mapping a `kind` **string** to a factory implementation: instantiating a factory (`object({...})`) already gives you the implementation. A string-keyed registry would only matter for a hypothetical serialized-schema format (JSON Schema import, Layer 5), which is explicitly not v1.
 
@@ -523,16 +523,16 @@ There is deliberately no registry mapping a `kind` **string** to a factory imple
 
 A schema limits and adjusts behavior at a node: allowed types and widgets, key rules, column vs popup, import/export, toolbar opt-outs, conversion allow-list, date/color heuristic opt-out, defaults for new array/set items, and so on.
 
-**Shapes:** `Factory` and its subclasses (`ObjectFactory`, `ArrayFactory`, `EitherFactory`, …) live in **`specs/object-editor-types.tsx`**, per Layer 4. A schema **is** a `Factory` instance — there is no separate `SchemaNode` / `SchemaUnion` type. Prose below is binding for behavior; amend the types file when the shape changes.
+**Shapes:** `Factory` and its subclasses (`ObjectFactory`, `ArrayFactory`, `EitherFactory`, …) live in **`editor/schema.tsx`**, per Layer 4. A schema **is** a `Factory` instance — there is no separate `SchemaNode` / `SchemaUnion` type. Prose below is binding for behavior; amend the types file when the shape changes.
 
-**Default (unknown) schema** is always defined **as concrete data** (a real `Factory` tree, not only described in prose) — see `anything` in `object-editor-types.tsx`. Callers may:
+**Default (unknown) schema** is always defined **as concrete data** (a real `Factory` tree, not only described in prose) — see `anything` in `schema.tsx`. Callers may:
 
 - **supplement** it (`anything.extend({...})` — e.g. turn off color detection by omitting `color()` from a rebuilt `either(...)`, or add a constructor mapping), or
 - **replace** it with a fully defined schema (a whole new `Factory` tree)
 
 so both “tweak unknown” and “hand a whole schema” work without two different mental models.
 
-Schemas **extend** — via each `Factory`'s `.extend(partial)` method — when building on the default (or another base), so a few properties can be overridden. `Factory.extend` defaults to a shallow merge of `.options`; composite kinds override it to merge more precisely (`ObjectFactory.extend` merges `properties` **by name** rather than replacing the whole list — see `object-editor-types.tsx`). Passing a **new `Factory` tree** built from scratch **replaces** instead of extending.
+Schemas **extend** — via each `Factory`'s `.extend(partial)` method — when building on the default (or another base), so a few properties can be overridden. `Factory.extend` defaults to a shallow merge of `.options`; composite kinds override it to merge more precisely (`ObjectFactory.extend` merges `properties` **by name** rather than replacing the whole list — see `schema.tsx`). Passing a **new `Factory` tree** built from scratch **replaces** instead of extending.
 
 > Why: `.extend()` replaces “generic deep-merge” as the merge mechanism because factories are class instances (methods, closures), not plain data — a generic recursive merge can't touch encapsulated state. Type-safety and per-kind merge behavior (e.g. object property lists merging by key) both come for free once merge is a method on the kind, not a generic algorithm.
 
@@ -548,7 +548,7 @@ Child / nested rules sit directly on each composite factory's `options` (`Object
 
 ### Default unknown schema (mock — required before coding)
 
-The default schema is written as concrete data: `anything` in `specs/object-editor-types.tsx`, an `either(...)` of `object()`, `array()`, `map()`, `set()`, `color()`, `date()`, `boolean()`, `number()`, `string()`, and `null_factory`, in that order (heuristic kinds — color, date — listed before the plain scalars they'd otherwise be caught by, since `canHandle` picks the first match; composites before scalars; `map()`/`set()` only match an existing `Map`/`Set` value — see "map() / set() factories," below, for why they're not offered as unknown-mode type-change *targets* despite being recognized here).
+The default schema is written as concrete data: `anything` in `editor/schema.tsx`, an `either(...)` of `object()`, `array()`, `map()`, `set()`, `color()`, `date()`, `boolean()`, `number()`, `string()`, and `null_factory`, in that order (heuristic kinds — color, date — listed before the plain scalars they'd otherwise be caught by, since `canHandle` picks the first match; composites before scalars; `map()`/`set()` only match an existing `Map`/`Set` value — see "map() / set() factories," below, for why they're not offered as unknown-mode type-change *targets* despite being recognized here).
 
 **`map()` / `set()` factories:** shaped like `ArrayFactory`, following Layer 3's Map/Set behavior:
 

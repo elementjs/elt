@@ -10,8 +10,12 @@ Recursion goes through `forward()` (like `z.lazy`): `object-editor.tsx` and
 `resizable.tsx` are unrelated proofs of concept, not part of this shape.
 */
 
-import { $observe, o, type Renderable } from "elt"
-import "elt/ui"
+import { $bind, $observe, o, type Renderable } from "elt"
+// Subpath, not the "elt/ui" barrel: this only needs DateTimePicker itself,
+// not ui/index.tsx's side effects (theme init, reset/layout/form/typography
+// CSS) -- a real elt/ui app will load those anyway, but editor/schema.tsx
+// shouldn't force them as a side effect of importing one component.
+import { DateTimePicker } from "elt/ui/date"
 
 // A value that isn't null, an array, or one of the composite built-ins --
 // the shape ArrayFactory/MapFactory/SetFactory convert FROM and ObjectFactory
@@ -248,11 +252,11 @@ export type FactoryOptions<Fact> = Fact extends Factory<infer Opts> ? Opts : nev
 export class NullFactory extends Factory<{}> {
   readonly kind = "null"
 
-  canHandle(value: unknown): boolean {
+  override canHandle(value: unknown): boolean {
     return value === null
   }
 
-  defaultValue(): unknown {
+  override defaultValue(): unknown {
     return null
   }
 
@@ -269,11 +273,11 @@ export const null_factory = new NullFactory({})
 export class UndefinedFactory extends Factory<UndefinedOptions> {
   readonly kind = "undefined"
 
-  canHandle(value: unknown): boolean {
+  override canHandle(value: unknown): boolean {
     return value === undefined
   }
 
-  defaultValue(): unknown {
+  override defaultValue(): unknown {
     return undefined
   }
 
@@ -288,29 +292,33 @@ export class UndefinedFactory extends Factory<UndefinedOptions> {
 export class StringFactory extends Factory<StringOptions> {
   readonly kind = "string"
 
-  canHandle(value: unknown): boolean {
+  override canHandle(value: unknown): boolean {
     return typeof value === "string"
   }
 
-  canConvert(value: unknown): boolean {
+  override canConvert(value: unknown): boolean {
     return typeof value === "number" || typeof value === "boolean"
   }
 
-  convert(value: unknown): unknown {
+  override convert(value: unknown): unknown {
     return String(value)
   }
 
-  defaultValue(): unknown {
+  override defaultValue(): unknown {
     return ""
   }
 
-  render(_o_value: o.Observable<unknown>): RenderableWidget {
+  render(o_value: o.Observable<unknown>): RenderableWidget {
+    const o_str = o_value as o.Observable<string>
+    const o_error = o(null as string | null)
     return {
-      // TODO: $bind.string(o_value) into a <textarea> (multiline) or
-      // single-line <input>, commit on blur/Enter -- see Layer 1 commit
-      // timing and Layer 4's default string widget.
-      render: () => (this.options.multiline ? <textarea /> : <input type="text" />),
-      o_error: no_error,
+      render: () =>
+        this.options.multiline ? (
+          <textarea>{$bind.string(o_str, { o_error })}</textarea>
+        ) : (
+          <input type="text">{$bind.string(o_str, { o_error })}</input>
+        ),
+      o_error,
     }
   }
 }
@@ -322,29 +330,35 @@ export function string(opts: StringOptions = {}) {
 export class NumberFactory extends Factory<NumberOptions> {
   readonly kind = "number"
 
-  canHandle(value: unknown): boolean {
+  override canHandle(value: unknown): boolean {
     return typeof value === "number"
   }
 
-  canConvert(value: unknown): boolean {
+  override canConvert(value: unknown): boolean {
     if (typeof value === "boolean") return true
     return typeof value === "string" && value.trim() !== "" && !Number.isNaN(Number(value))
   }
 
-  convert(value: unknown): unknown {
+  override convert(value: unknown): unknown {
     return Number(value)
   }
 
-  defaultValue(): unknown {
+  override defaultValue(): unknown {
     return 0
   }
 
-  render(_o_value: o.Observable<unknown>): RenderableWidget {
+  render(o_value: o.Observable<unknown>): RenderableWidget {
+    const o_num = o_value as o.Observable<number>
+    const o_error = o(null as string | null)
     return {
-      // TODO: $bind.number(o_value), commit on blur/Enter, honor
-      // min/max/maximumFractionDigits -- see Layer 4 default number widget.
-      render: () => <input type="number" min={this.options.min} max={this.options.max} />,
-      o_error: no_error,
+      // maximumFractionDigits / NaN-Infinity opt-in are still open TODO.md
+      // gaps -- not honored here yet.
+      render: () => (
+        <input type="number" min={this.options.min} max={this.options.max}>
+          {$bind.number(o_num, { o_error })}
+        </input>
+      ),
+      o_error,
     }
   }
 }
@@ -356,28 +370,30 @@ export function number(opts: NumberOptions = {}) {
 export class BooleanFactory extends Factory<BooleanOptions> {
   readonly kind = "boolean"
 
-  canHandle(value: unknown): boolean {
+  override canHandle(value: unknown): boolean {
     return typeof value === "boolean"
   }
 
-  canConvert(value: unknown): boolean {
+  override canConvert(value: unknown): boolean {
     return typeof value === "number" || value === "true" || value === "false"
   }
 
-  convert(value: unknown): unknown {
+  override convert(value: unknown): unknown {
     if (typeof value === "number") return value !== 0
     return value === "true"
   }
 
-  defaultValue(): unknown {
+  override defaultValue(): unknown {
     return false
   }
 
-  render(_o_value: o.Observable<unknown>): RenderableWidget {
+  render(o_value: o.Observable<unknown>): RenderableWidget {
+    const o_bool = o_value as o.Observable<boolean>
     return {
-      // TODO: elt/ui switch bound to o_value, commits immediately (not
-      // staged like scalars with a text-entry commit step).
-      render: () => <input type="checkbox" />,
+      // No dedicated switch/toggle control in elt/ui yet (TODO.md) -- plain
+      // checkbox for now, commits immediately via the "change" event like
+      // every other $bind.boolean use.
+      render: () => <input type="checkbox">{$bind.boolean(o_bool)}</input>,
       o_error: no_error,
     }
   }
@@ -391,11 +407,11 @@ export class ColorFactory extends Factory<ColorOptions> {
   readonly kind = "color"
 
   // Layer 4 color heuristic: `rgba?(...)` or `#`-hex.
-  canHandle(value: unknown): boolean {
+  override canHandle(value: unknown): boolean {
     return typeof value === "string" && /^(#[0-9a-fA-F]{3,8}|rgba?\(.*\))$/.test(value)
   }
 
-  defaultValue(): unknown {
+  override defaultValue(): unknown {
     return "#000000"
   }
 
@@ -419,14 +435,15 @@ export function color(opts: ColorOptions = {}) {
 export class SelectFactory<T, T2 = T> extends Factory<SelectOptions<T, T2>> {
   readonly kind = "select"
 
-  canHandle(value: unknown): boolean {
+  override canHandle(value: unknown): boolean {
     const convert = this.options.convert_fn ?? ((opt: T2) => opt as unknown as T)
     return this.options.options.some((opt) => convert(opt) === value)
   }
 
-  defaultValue(): unknown {
+  override defaultValue(): unknown {
     const convert = this.options.convert_fn ?? ((opt: T2) => opt as unknown as T)
-    return this.options.options.length > 0 ? convert(this.options.options[0]) : null
+    const first = this.options.options[0]
+    return first !== undefined ? convert(first) : null
   }
 
   render(_o_value: o.Observable<unknown>): RenderableWidget {
@@ -451,7 +468,7 @@ export class DateFactory extends Factory<DatetimeOptions> {
   // Layer 4 date/time heuristic: a Date instance, or an ISO 8601 date/date-time
   // string -- deliberately tighter than plain Date.parse() success, which also
   // matches incidental strings like "January" or "5".
-  canHandle(value: unknown): boolean {
+  override canHandle(value: unknown): boolean {
     return value instanceof Date || (typeof value === "string" && ISO_8601.test(value))
   }
 
@@ -460,25 +477,40 @@ export class DateFactory extends Factory<DatetimeOptions> {
   // type-change menu where the user already asked for a date and a wider net
   // (any Date.parse()-able string, or a timestamp number) is the more useful
   // default.
-  canConvert(value: unknown): boolean {
+  override canConvert(value: unknown): boolean {
     if (typeof value === "number") return true
     return typeof value === "string" && !Number.isNaN(Date.parse(value))
   }
 
-  convert(value: unknown): unknown {
+  override convert(value: unknown): unknown {
     return new Date(value as string | number)
   }
 
-  defaultValue(): unknown {
+  override defaultValue(): unknown {
     return this.options.nullable ? null : new Date()
   }
 
-  render(_o_value: o.Observable<unknown>): RenderableWidget {
-    const input_type = this.options.date && this.options.time ? "datetime-local" : this.options.time ? "time" : "date"
+  render(o_value: o.Observable<unknown>): RenderableWidget {
+    // //> Question: canHandle also accepts an ISO string (unknown-mode
+    // heuristic, above) but DateTimePicker's `model` wants Date | null --
+    // this cast assumes the common schema-mode case where the stored value
+    // is already a Date. The string case isn't bridged yet.
+    const o_date = o_value as o.Observable<Date | null>
+    const nullable = !!this.options.nullable
+    const show_date = this.options.date ?? true
+    const show_time = this.options.time ?? false
     return {
-      // TODO: $bind between Date <-> input's string value, commit on change,
-      // honor `nullable` (clear button) -- see Layer 4 date/time widget.
-      render: () => <input type={input_type} />,
+      render: () =>
+        nullable ? (
+          <DateTimePicker model={o_date} clearable={true} show_date={show_date} show_time={show_time} />
+        ) : (
+          <DateTimePicker
+            model={o_date as o.IObservable<Date | null, Date>}
+            clearable={false}
+            show_date={show_date}
+            show_time={show_time}
+          />
+        ),
       o_error: no_error,
     }
   }
@@ -491,30 +523,46 @@ export function date(opts: DatetimeOptions = { date: true }) {
 export class ObjectFactory extends Factory<ObjectOptions> {
   readonly kind = "object"
 
-  canHandle(value: unknown): boolean {
+  override canHandle(value: unknown): boolean {
     return typeof value === "object" && value !== null && !Array.isArray(value)
   }
 
-  canConvert(value: unknown): boolean {
+  override canConvert(value: unknown): boolean {
     return Array.isArray(value) || value instanceof Map || value instanceof Set
   }
 
-  convert(value: unknown): unknown {
+  override convert(value: unknown): unknown {
     if (value instanceof Map) return Object.fromEntries(value.entries())
     const arr = Array.isArray(value) ? value : [...(value as Set<unknown>)]
     return Object.fromEntries(arr.map((v, i) => [String(i), v]))
   }
 
-  defaultValue(): unknown {
+  override defaultValue(): unknown {
     return {}
   }
 
-  render(_o_value: o.Observable<unknown>): RenderableWidget {
+  render(o_value: o.Observable<unknown>): RenderableWidget {
+    // Schema-mode only: one row per `this.options.properties`, in order.
+    // Unknown mode (per Object.keys) and RegExp/catch-all property names
+    // aren't handled yet -- see TODO.md "Object key rules" /
+    // "PropertyOption.name: RegExp". Row keys aren't editable, and there's
+    // no add/remove-key affordance yet either -- also TODO.md.
+    const rows = (this.options.properties ?? [])
+      .filter((prop): prop is PropertyOption & { name: string } => typeof prop.name === "string")
+      .map((prop) => {
+        const o_child = o_value.p(prop.name)
+        const widget = prop.type.render(o_child)
+        return (
+          <e-flex class="oe-object-row">
+            <span class="oe-object-key">{prop.name}</span>
+            <e-flex grow class="oe-object-value">
+              {widget.render()}
+            </e-flex>
+          </e-flex>
+        )
+      })
     return {
-      // TODO: one row per `this.options.properties` (schema mode) or per
-      // Object.keys (unknown mode), key editable per Layer 3 Object rules,
-      // aggregate children's o_error -- see Layer 3 -- Object.
-      render: () => <e-flex column>{/* rows go here */}</e-flex>,
+      render: () => <e-flex column>{rows}</e-flex>,
       o_error: no_error,
     }
   }
@@ -523,7 +571,7 @@ export class ObjectFactory extends Factory<ObjectOptions> {
   // catch-all entry has no merge key and is simply appended) instead of
   // replacing the whole list, so `.extend({ properties: [...] })` can add or
   // override individual fields.
-  extend(partial: Partial<ObjectOptions>): this {
+  override extend(partial: Partial<ObjectOptions>): this {
     if (!partial.properties) return super.extend(partial)
     const by_name = new Map<string, PropertyOption>()
     const unnamed: PropertyOption[] = []
@@ -547,21 +595,21 @@ export function object(opts: ObjectOptions = { properties: [] }) {
 export class ArrayFactory extends Factory<ArrayOptions> {
   readonly kind = "array"
 
-  canHandle(value: unknown): boolean {
+  override canHandle(value: unknown): boolean {
     return Array.isArray(value)
   }
 
-  canConvert(value: unknown): boolean {
+  override canConvert(value: unknown): boolean {
     return is_plain_object(value) || value instanceof Map || value instanceof Set
   }
 
-  convert(value: unknown): unknown {
+  override convert(value: unknown): unknown {
     if (value instanceof Map) return [...value.values()]
     if (value instanceof Set) return [...value]
     return Object.values(value as object)
   }
 
-  defaultValue(): unknown {
+  override defaultValue(): unknown {
     return []
   }
 
@@ -599,19 +647,19 @@ export function array(opts: ArrayOptions) {
 export class SetFactory extends Factory<SetOptions> {
   readonly kind = "set"
 
-  canHandle(value: unknown): boolean {
+  override canHandle(value: unknown): boolean {
     return value instanceof Set
   }
 
-  canConvert(value: unknown): boolean {
+  override canConvert(value: unknown): boolean {
     return Array.isArray(value) || is_plain_object(value)
   }
 
-  convert(value: unknown): unknown {
+  override convert(value: unknown): unknown {
     return new Set(Array.isArray(value) ? value : Object.values(value as object))
   }
 
-  defaultValue(): unknown {
+  override defaultValue(): unknown {
     return new Set()
   }
 
@@ -633,20 +681,20 @@ export function set(opts: SetOptions) {
 export class MapFactory extends Factory<MapOptions> {
   readonly kind = "map"
 
-  canHandle(value: unknown): boolean {
+  override canHandle(value: unknown): boolean {
     return value instanceof Map
   }
 
-  canConvert(value: unknown): boolean {
+  override canConvert(value: unknown): boolean {
     return Array.isArray(value) || is_plain_object(value)
   }
 
-  convert(value: unknown): unknown {
+  override convert(value: unknown): unknown {
     if (Array.isArray(value)) return new Map(value.map((v, i) => [i, v]))
     return new Map(Object.entries(value as object))
   }
 
-  defaultValue(): unknown {
+  override defaultValue(): unknown {
     return new Map()
   }
 
@@ -668,21 +716,21 @@ export function map(opts: MapOptions) {
 export class EitherFactory extends Factory<EitherOptions> {
   readonly kind = "either"
 
-  canHandle(value: unknown): boolean {
+  override canHandle(value: unknown): boolean {
     return this.options.options.some((f) => f.canHandle(value))
   }
 
-  canConvert(value: unknown): boolean {
+  override canConvert(value: unknown): boolean {
     return this.options.options.some((f) => f.canConvert(value))
   }
 
-  convert(value: unknown): unknown {
+  override convert(value: unknown): unknown {
     const branch = this.options.options.find((f) => f.canConvert(value))
     if (!branch) return super.convert(value) // throws -- canConvert() should have been checked first
     return branch.convert(value)
   }
 
-  defaultValue(): unknown {
+  override defaultValue(): unknown {
     return this.options.options[0]?.defaultValue() ?? null
   }
 
@@ -756,23 +804,23 @@ class ForwardFactory<O> extends Factory<O> {
     return this.resolve().render(o_value)
   }
 
-  canHandle(value: unknown): boolean {
+  override canHandle(value: unknown): boolean {
     return this.resolve().canHandle(value)
   }
 
-  canConvert(value: unknown): boolean {
+  override canConvert(value: unknown): boolean {
     return this.resolve().canConvert(value)
   }
 
-  convert(value: unknown): unknown {
+  override convert(value: unknown): unknown {
     return this.resolve().convert(value)
   }
 
-  defaultValue(): unknown {
+  override defaultValue(): unknown {
     return this.resolve().defaultValue()
   }
 
-  extend(partial: Partial<O>): this {
+  override extend(partial: Partial<O>): this {
     return this.resolve().extend(partial) as this
   }
 }
