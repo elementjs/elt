@@ -1,12 +1,4 @@
-import {
-  $connected,
-  $disconnected,
-  node_observe,
-  o,
-  type attrs_textarea,
-  type NRO,
-  type Renderable,
-} from "elt"
+import { $connected, $disconnected, node_observe, o, type attrs_textarea, type NRO, type Renderable } from "elt"
 
 declare module "elt" {
   interface attrs_textarea {
@@ -37,13 +29,9 @@ function box_vertical_extra(ta: HTMLTextAreaElement) {
 }
 
 /** Fit block size to content, clamped to [min_lines, max_lines]. */
-function resize_to_content(
-  ta: HTMLTextAreaElement,
-  min_lines: number,
-  max_lines: number
-) {
+function resize_to_content(ta: HTMLTextAreaElement, min_lines: number, max_lines: number) {
   const min_l = Math.max(1, min_lines)
-  let max_l = Number.isFinite(max_lines) ? max_lines : Number.MAX_SAFE_INTEGER
+  const max_l = Number.isFinite(max_lines) ? max_lines : Number.MAX_SAFE_INTEGER
 
   const lh = line_height_px(ta)
   const extra = box_vertical_extra(ta)
@@ -57,17 +45,13 @@ function resize_to_content(
 
   ta.style.height = `${height}px`
   // Only scroll internally once a max height is in effect and content exceeds it.
-  ta.style.overflowY =
-    Number.isFinite(max_lines) && needed > max_h + 0.5 ? "auto" : "hidden"
+  ta.style.overflowY = Number.isFinite(max_lines) && needed > max_h + 0.5 ? "auto" : "hidden"
 }
 
 /** Wire listeners; returns teardown. `resize` is invoked on every path that can change line count. */
 function setup_auto_grow(ta: HTMLTextAreaElement, resize: () => void) {
   // $bind and other code assign .value without firing "input".
-  const native_value = Object.getOwnPropertyDescriptor(
-    HTMLTextAreaElement.prototype,
-    "value"
-  )!
+  const native_value = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")!
   Object.defineProperty(ta, "value", {
     ...native_value,
     set(v: string) {
@@ -96,7 +80,7 @@ function setup_auto_grow(ta: HTMLTextAreaElement, resize: () => void) {
   }
 }
 
-export function $auto_grow(opts?: {max?: o.RO<number>, min?: o.RO<number>}): Renderable<HTMLTextAreaElement> {
+export function $auto_grow(opts?: { max?: o.RO<number>; min?: o.RO<number> }): Renderable<HTMLTextAreaElement> {
   return (ta: HTMLTextAreaElement) => {
     const oo_min_lines = o(opts?.min ?? 1)
     const oo_max_lines = o(opts?.max ?? Number.MAX_SAFE_INTEGER)
@@ -113,7 +97,7 @@ export function $auto_grow(opts?: {max?: o.RO<number>, min?: o.RO<number>}): Ren
     })
 
     return [
-      $connected(ta => {
+      $connected((ta) => {
         ta.style.overflowY = "hidden"
         ta.style.resize = "none"
         teardown = setup_auto_grow(ta, resize)

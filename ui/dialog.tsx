@@ -1,7 +1,7 @@
 import { css, node_append, type Renderable, $on } from "elt"
 import { theme } from "./theme"
-import { Future } from "./utils";
-import { animate, animate_hide, animate_show } from "./animation";
+import { Future } from "./utils"
+import { animate, animate_hide, animate_show } from "./animation"
 
 export interface DialogOptions {
   clickOutsideToClose?: boolean
@@ -28,43 +28,44 @@ export function show_dialog<T>(opts: DialogOptions | DialogCallback<T>, cbk?: Di
       animate(dialog, animate_hide, { duration: 100 }),
       animate(dialog, animate_hide, {
         duration: 100,
-        pseudoElement: "::backdrop"
+        pseudoElement: "::backdrop",
       }),
     ]).finally(() => {
       dialog.remove()
     })
   }
 
-  const dialog = E("dialog",
+  const dialog = E(
+    "dialog",
     cbk(future),
-    opts.clickOutsideToClose && $on("click", ev => {
-      const rect = dialog.getBoundingClientRect()
+    opts.clickOutsideToClose &&
+      $on("click", (ev) => {
+        const rect = dialog.getBoundingClientRect()
         const clickedBackdrop =
-          ev.clientX < rect.left  ||
-          ev.clientX > rect.right ||
-          ev.clientY < rect.top   ||
-          ev.clientY > rect.bottom
+          ev.clientX < rect.left || ev.clientX > rect.right || ev.clientY < rect.top || ev.clientY > rect.bottom
 
-      if (clickedBackdrop) {
-        future.reject(new Error("canceled by user"))
-      }
-    }),
-    $on("keydown", ev => {
+        if (clickedBackdrop) {
+          future.reject(new Error("canceled by user"))
+        }
+      }),
+    $on("keydown", (ev) => {
       if (ev.key === "Escape") {
         ev.preventDefault()
         future.reject(new Error("canceled by user"))
       }
-    })
+    }),
   )
   node_append(document.body, dialog)
   animate(dialog, animate_show)
   dialog.showModal()
 
-  return future.finally(() => {
-    close_dialog()
-  }).catch(e => {
-    // console.warn(e)
-  })
+  return future
+    .finally(() => {
+      close_dialog()
+    })
+    .catch((e) => {
+      // console.warn(e)
+    })
 }
 
 css`

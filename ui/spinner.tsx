@@ -3,9 +3,13 @@ import { theme } from "./theme"
 const colors = theme.colors
 
 export function Spinner(attrs: Attrs<SVGSVGElement>) {
-  return <svg viewBox="0 0 24 24" class={cls_spinner}>
-    <g ><circle cx="12" cy="12" r="9.5" fill="none" stroke-width="3"></circle></g>
-  </svg>
+  return (
+    <svg viewBox="0 0 24 24" class={cls_spinner}>
+      <g>
+        <circle cx="12" cy="12" r="9.5" fill="none" stroke-width="3"></circle>
+      </g>
+    </svg>
+  )
 }
 
 const cls_spinner = css`.spinner {

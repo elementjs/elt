@@ -2,13 +2,7 @@ import type { Renderable } from "./types"
 
 import { o } from "./observable"
 
-import {
-  node_add_event_listener,
-  node_append,
-  node_observe,
-  node_on_connected,
-  node_on_disconnected,
-} from "./dom"
+import { node_add_event_listener, node_append, node_observe, node_on_connected, node_on_disconnected } from "./dom"
 
 import { e } from "./elt"
 
@@ -21,8 +15,7 @@ const debug = {
   green: "color: #66f100; font-weight: bold;",
 }
 
-type RepeatItem<Obs extends Repeat.RepeatedObservable<any>> =
-  Repeat.RepeatItemElement<Obs>
+type RepeatItem<Obs extends Repeat.RepeatedObservable<any>> = Repeat.RepeatItemElement<Obs>
 
 type ItemBounds = { top: number; bottom: number; height: number }
 
@@ -58,26 +51,22 @@ type RowMeasure<O extends o.IReadonlyObservable<any[] | null | undefined>> = {
  * wrapping) — that is handled — as long as the change isn't *caused by* the
  * windowing itself.
  */
-export function VirtualScroll<
-  O extends o.IReadonlyObservable<any[] | null | undefined>
->(
+export function VirtualScroll<O extends o.IReadonlyObservable<any[] | null | undefined>>(
   obs: O,
   renderfn?: (
     ob: O extends o.IObservable<(infer T)[] | null | undefined, any[]>
       ? o.Observable<T>
       : O extends o.IReadonlyObservable<(infer T)[] | null | undefined>
-      ? o.ReadonlyObservable<T>
-      : never,
-    n: o.ReadonlyObservable<number>
-  ) => Renderable<HTMLElement>
+        ? o.ReadonlyObservable<T>
+        : never,
+    n: o.ReadonlyObservable<number>,
+  ) => Renderable<HTMLElement>,
 ) {
   return new VirtualScroller(obs as any, renderfn as any)
 }
 
 /** Virtual list window backed by {@link Repeat} view reconciliation. */
-export class VirtualScroller<
-  O extends o.IReadonlyObservable<any[] | null | undefined>
-> extends Repeat.Repeater<O> {
+export class VirtualScroller<O extends o.IReadonlyObservable<any[] | null | undefined>> extends Repeat.Repeater<O> {
   /** The number of pixels after which we try to create/remove elements */
   threshold = 500
 
@@ -93,10 +82,10 @@ export class VirtualScroller<
   o_padding_bottom = o(0)
 
   padder_top = e("div", {
-    style: { paddingTop: this.o_padding_top.tf(st => `${st ?? 0}px`), overflowAnchor: "none" },
+    style: { paddingTop: this.o_padding_top.tf((st) => `${st ?? 0}px`), overflowAnchor: "none" },
   })
   padder_bottom = e("div", {
-    style: { paddingBottom: this.o_padding_bottom.tf(st => `${st ?? 0}px`), overflowAnchor: "none" },
+    style: { paddingBottom: this.o_padding_bottom.tf((st) => `${st ?? 0}px`), overflowAnchor: "none" },
   })
 
   item_size = 64
@@ -139,10 +128,10 @@ export class VirtualScroller<
       ob: O extends o.IObservable<(infer T)[] | null | undefined, (infer T)[]>
         ? o.Observable<T>
         : O extends o.ReadonlyObservable<(infer T)[] | null | undefined>
-        ? o.ReadonlyObservable<T>
-        : never,
-      n: o.RO<number>
-    ) => Renderable<HTMLElement>
+          ? o.ReadonlyObservable<T>
+          : never,
+      n: o.RO<number>,
+    ) => Renderable<HTMLElement>,
   ) {
     super(obs, renderfn as unknown as Repeat.RenderItemFn<O>)
     this.ForView(this.o_pos_start, this.o_pos_end)
@@ -219,10 +208,7 @@ export class VirtualScroller<
     if (count === 0) {
       return 0
     }
-    return Math.max(
-      0,
-      Math.min(count - 1, Math.floor(scroll_top / this.item_size))
-    )
+    return Math.max(0, Math.min(count - 1, Math.floor(scroll_top / this.item_size)))
   }
 
   protected jump_threshold() {
@@ -233,27 +219,16 @@ export class VirtualScroller<
   protected viewportMismatch(
     region: DOMRect,
     bounds_first: { top: number; bottom: number },
-    bounds_last: { top: number; bottom: number }
+    bounds_last: { top: number; bottom: number },
   ) {
     if (!this.boundsValid(bounds_first) || !this.boundsValid(bounds_last)) {
       return false
     }
-    return (
-      bounds_last.bottom < region.top - this.threshold ||
-      bounds_first.top > region.bottom + this.threshold
-    )
+    return bounds_last.bottom < region.top - this.threshold || bounds_first.top > region.bottom + this.threshold
   }
 
-  protected boundsValid(bounds: {
-    top: number
-    bottom: number
-    height?: number
-  }) {
-    return (
-      bounds.top !== Infinity &&
-      bounds.bottom !== -Infinity &&
-      (bounds.height == null || bounds.height > 0)
-    )
+  protected boundsValid(bounds: { top: number; bottom: number; height?: number }) {
+    return bounds.top !== Infinity && bounds.bottom !== -Infinity && (bounds.height == null || bounds.height > 0)
   }
 
   /** Trailing rows fully below the scrollport (symmetric to {@link computeShelfTop}). */
@@ -279,9 +254,7 @@ export class VirtualScroller<
    * it never moves on-screen content, so it can be recomputed freely. */
   protected update_padding_bottom() {
     const count = o.get(this.obs)?.length ?? 0
-    this.o_padding_bottom.set(
-      Math.max(0, count - this.pos_end) * this.item_size
-    )
+    this.o_padding_bottom.set(Math.max(0, count - this.pos_end) * this.item_size)
   }
 
   /** Full (re)estimate of both spacers. Used only on a hard reposition
@@ -382,10 +355,7 @@ export class VirtualScroller<
    * mid-scroll fights the browser's own scrolling and is what made it flicker.
    * Because the spacer carries the measured shift (not `index * estimate`), the
    * rendered content stays put regardless of how wrong the size estimate is. */
-  protected preserveScrollAnchor(
-    anchor: RepeatItem<O>,
-    anchor_top_before: number
-  ) {
+  protected preserveScrollAnchor(anchor: RepeatItem<O>, anchor_top_before: number) {
     const new_top = this.getBounds(anchor).top
     // Guard against a transiently unmeasurable anchor (Infinity) poisoning the
     // spacer; a frame with no correction is harmless, a NaN spacer is not.
@@ -394,9 +364,7 @@ export class VirtualScroller<
     }
     const shift = new_top - anchor_top_before
     if (shift !== 0) {
-      this.o_padding_top.set(
-        Math.max(0, o.get(this.o_padding_top) - shift)
-      )
+      this.o_padding_top.set(Math.max(0, o.get(this.o_padding_top) - shift))
     }
   }
 
@@ -404,7 +372,7 @@ export class VirtualScroller<
     new_pos_start: number,
     new_pos_end: number,
     anchor: RepeatItem<O> | null,
-    anchor_top_before: number | null
+    anchor_top_before: number | null,
   ) {
     if (new_pos_start === this.pos_start && new_pos_end === this.pos_end) {
       return false
@@ -460,9 +428,7 @@ export class VirtualScroller<
     // Refine the average row-height estimate. Damped, and only committed past 1px
     // so sub-pixel measurement noise never re-jitters the padders / scrollbar.
     if (this.pos_end !== this.pos_start) {
-      const measured =
-        (bounds_last.bottom - bounds_first.top) /
-        (this.pos_end - this.pos_start)
+      const measured = (bounds_last.bottom - bounds_first.top) / (this.pos_end - this.pos_start)
       if (measured > 0 && Math.abs(measured - this.item_size) > 1) {
         this.item_size += (measured - this.item_size) / 4
       }
@@ -498,17 +464,13 @@ export class VirtualScroller<
 
       if (this.pos_end < list_count && bounds_last.bottom < region_bottom) {
         // Estimate how many rows cover the gap so the whole gap is filled at once.
-        const missing = Math.ceil(
-          (region_bottom - bounds_last.bottom) / this.item_size
-        )
+        const missing = Math.ceil((region_bottom - bounds_last.bottom) / this.item_size)
         new_end = this.pos_end + Math.max(1, missing)
       }
     } else {
       // Scrolling up: grow at the top, trim from the bottom.
       if (this.pos_start > 0 && bounds_first.top > region_top) {
-        const missing = Math.ceil(
-          (bounds_first.top - region_top) / this.item_size
-        )
+        const missing = Math.ceil((bounds_first.top - region_top) / this.item_size)
         new_start = this.pos_start - Math.max(1, missing)
       }
 
@@ -524,15 +486,10 @@ export class VirtualScroller<
     const anchor = top_anchor?.item ?? null
     const anchor_top = top_anchor?.bounds.top ?? null
 
-    if (
-      this.debug >= 3 &&
-      (new_start !== this.pos_start || new_end !== this.pos_end)
-    ) {
+    if (this.debug >= 3 && (new_start !== this.pos_start || new_end !== this.pos_end)) {
       console.log(
         `%cwindow [${this.pos_start},${this.pos_end}) -> [${new_start},${new_end})`,
-        new_start < this.pos_start || new_end > this.pos_end
-          ? debug.green
-          : debug.red
+        new_start < this.pos_start || new_end > this.pos_end ? debug.green : debug.red,
       )
     }
 
@@ -605,8 +562,7 @@ export class VirtualScroller<
     this.update_lock(() => {
       this._last_view_start = start
       this._last_view_end = end
-      const lst =
-        (o.get(this.obs) as unknown as NonNullable<o.ObservedType<O>>) ?? []
+      const lst = (o.get(this.obs) as unknown as NonNullable<o.ObservedType<O>>) ?? []
       this.updateChildren(lst, { start, end })
     })
     return this
@@ -616,24 +572,20 @@ export class VirtualScroller<
     // Only the bottom spacer here — the top spacer is owned by the anchor
     // correction in applyViewChange and must not be reset to an estimate.
     this.update_padding_bottom()
-    if (
-      this.pos_start === this._last_view_start &&
-      this.pos_end === this._last_view_end
-    ) {
+    if (this.pos_start === this._last_view_start && this.pos_end === this._last_view_end) {
       return
     }
     this.update_lock(() => {
       this._last_view_start = this.pos_start
       this._last_view_end = this.pos_end
-      const lst =
-        (o.get(this.obs) as unknown as NonNullable<o.ObservedType<O>>) ?? []
+      const lst = (o.get(this.obs) as unknown as NonNullable<o.ObservedType<O>>) ?? []
       this.updateChildren(lst)
     })
   }
 
   protected override updateChildrenPre(
     new_lst: NonNullable<o.ObservedType<O>>,
-    old_lst: NonNullable<o.ObservedType<O>> | o.NoValue
+    old_lst: NonNullable<o.ObservedType<O>> | o.NoValue,
   ) {
     // The list content changed: the windowing cache no longer reflects the DOM,
     // so force the next reconcile to run rather than dedup against a stale window.
@@ -687,22 +639,13 @@ export class VirtualScroller<
         ;(this.overflow_parent as HTMLElement).style.overflowAnchor = "none"
         node_append(this.overflow_parent, this.padder_top, this.prev_parent)
         const padder_bottom_ref =
-          this.prev_parent === this.__list
-            ? this.__list.end!.nextSibling
-            : this.prev_parent.nextSibling
-        node_append(
-          this.overflow_parent,
-          this.padder_bottom,
-          padder_bottom_ref
-        )
+          this.prev_parent === this.__list ? this.__list.end!.nextSibling : this.prev_parent.nextSibling
+        node_append(this.overflow_parent, this.padder_bottom, padder_bottom_ref)
         this._observer.observe(this.overflow_parent)
         // Also watch the element that actually holds the rows: when a row's
         // height changes after render (images, fonts, async content) the
         // container resizes, so we re-evaluate the window and refresh padding.
-        if (
-          this.prev_parent instanceof Element &&
-          this.prev_parent !== this.overflow_parent
-        ) {
+        if (this.prev_parent instanceof Element && this.prev_parent !== this.overflow_parent) {
           this._observer.observe(this.prev_parent)
         }
       }
@@ -713,34 +656,29 @@ export class VirtualScroller<
 
       this.setPosition(this.initial_position)
 
-      node_add_event_listener(
-        this.__list,
-        this.overflow_parent,
-        "scroll",
-        () => {
-          // We never write scrollTop anymore (anchoring is done via the top
-          // spacer), so every scroll event is a genuine user scroll.
-          const st = this.overflow_parent.scrollTop
-          const prev_top = this.scroll_last_top
+      node_add_event_listener(this.__list, this.overflow_parent, "scroll", () => {
+        // We never write scrollTop anymore (anchoring is done via the top
+        // spacer), so every scroll event is a genuine user scroll.
+        const st = this.overflow_parent.scrollTop
+        const prev_top = this.scroll_last_top
 
-          if (prev_top >= 0) {
-            const delta = st - prev_top
-            if (Math.abs(delta) > this.jump_threshold()) {
-              this.scroll_direction = delta
-              this.scroll_last_top = st
-              this.setPosition(this.estimateIndexFromScroll(st))
-              return
-            }
-          }
-
-          if (this.scroll_last_top !== st) {
-            this.scroll_direction = st - prev_top
+        if (prev_top >= 0) {
+          const delta = st - prev_top
+          if (Math.abs(delta) > this.jump_threshold()) {
+            this.scroll_direction = delta
             this.scroll_last_top = st
+            this.setPosition(this.estimateIndexFromScroll(st))
+            return
           }
-
-          this.eval()
         }
-      )
+
+        if (this.scroll_last_top !== st) {
+          this.scroll_direction = st - prev_top
+          this.scroll_last_top = st
+        }
+
+        this.eval()
+      })
     })
 
     node_append(parent, this.__list, refchild)
@@ -753,21 +691,17 @@ export class VirtualScroller<
         this.update_lock(() => {
           this.updateChildrenPre(
             (lst as unknown as NonNullable<o.ObservedType<O>>) ?? [],
-            (old_lst as unknown as NonNullable<o.ObservedType<O>>) ?? []
+            (old_lst as unknown as NonNullable<o.ObservedType<O>>) ?? [],
           )
         })
       },
-      { immediate: true }
+      { immediate: true },
     )
 
     if (this.o_view_start != null && this.o_view_end != null) {
-      this.view_observer = node_observe(
-        this.__list,
-        o.join(this.o_view_start, this.o_view_end),
-        () => {
-          this.reconcile_view()
-        }
-      )
+      this.view_observer = node_observe(this.__list, o.join(this.o_view_start, this.o_view_end), () => {
+        this.reconcile_view()
+      })
     }
   }
 }

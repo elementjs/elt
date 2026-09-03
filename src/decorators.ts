@@ -14,12 +14,7 @@ import {
   node_attach_shadow,
 } from "./dom"
 
-import type {
-  ClassDefinition,
-  Decorator,
-  Listener,
-  StyleDefinition,
-} from "./types"
+import type { ClassDefinition, Decorator, Listener, StyleDefinition } from "./types"
 
 /**
  * Passed to every `$bind.*` variant, including {@link $bind.contenteditable}, to rate-limit
@@ -72,9 +67,9 @@ function setup_bind<T, N extends Element>(
   node_get: (node: N) => T,
   node_set: (node: N, value: T | null | undefined) => void,
   event = "input" as KEvent,
-  opts?: BindOptions<T, N>
+  opts?: BindOptions<T, N>,
 ) {
-  return function (node: N) {
+  return (node: N) => {
     const lock = o.exclusive_lock()
     // True from the first local event since the last flush, until that write
     // actually lands in `obs` -- lets a pending debounced/throttled local
@@ -119,14 +114,13 @@ function setup_bind<T, N extends Element>(
       lock(() => {
         const new_value = node_get(node)
         obs.set(new_value)
-        const is_still_watched = (obs as unknown as o.ReadonlyObservable<any>)
-          .is_watched
+        const is_still_watched = (obs as unknown as o.ReadonlyObservable<any>).is_watched
 
         if (is_still_watched) {
           // since obs could be a transformed observable, using set() may end up setting it
           // to a *different* value. Here we make sure we keep the node *correctly* in sync
           // with its observable. We make absolutely sure however that it is still being watched because the .set might also have triggered the removal of the node watching the change, because the observable is dependant for instance of a Repeat node with elements having disappeared
-          let val = obs.get()
+          const val = obs.get()
           if (val !== new_value) {
             node_set(node, val)
           }
@@ -157,16 +151,14 @@ export namespace $bind {
    */
   export function string(
     obs: o.IObservable<string | null | undefined, string>,
-    opts?: BindOptions<string, HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
-  ): (
-    node: HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
-  ) => void {
+    opts?: BindOptions<string, HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>,
+  ): (node: HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement) => void {
     return setup_bind(
       obs,
       (node) => node.value,
       (node, value) => (node.value = value ?? ""),
       undefined,
-      opts
+      opts,
     )
   }
 
@@ -184,7 +176,7 @@ export namespace $bind {
    */
   export function contenteditable(
     obs: o.IObservable<string | null | undefined, string>,
-    opts?: BindDebounceOptions
+    opts?: BindDebounceOptions,
   ): (node: HTMLElement) => void {
     return setup_bind(
       obs,
@@ -193,7 +185,7 @@ export namespace $bind {
         node.innerText = value ?? ""
       },
       undefined,
-      opts
+      opts,
     )
   }
 
@@ -209,7 +201,7 @@ export namespace $bind {
    */
   export function number(
     obs: o.IObservable<number | null | undefined, number>,
-    opts?: BindOptions<number, HTMLInputElement>
+    opts?: BindOptions<number, HTMLInputElement>,
   ): (node: HTMLInputElement) => void {
     return setup_bind(
       obs,
@@ -218,7 +210,7 @@ export namespace $bind {
       },
       (node, value) => (node.value = "" + (value ?? "")),
       undefined,
-      opts
+      opts,
     )
   }
 
@@ -234,14 +226,14 @@ export namespace $bind {
    */
   export function date(
     obs: o.Observable<Date | null>,
-    opts?: BindOptions<Date | null, HTMLInputElement>
+    opts?: BindOptions<Date | null, HTMLInputElement>,
   ): (node: HTMLInputElement) => void {
     return setup_bind(
       obs,
       (node) => node.valueAsDate,
       (node, value) => (node.valueAsDate = value ?? null),
       undefined,
-      opts
+      opts,
     )
   }
 
@@ -257,14 +249,14 @@ export namespace $bind {
    */
   export function boolean(
     obs: o.IObservable<boolean | undefined | null, boolean>,
-    opts?: BindOptions<boolean, HTMLInputElement>
+    opts?: BindOptions<boolean, HTMLInputElement>,
   ): (node: HTMLInputElement) => void {
     return setup_bind(
       obs,
       (node) => node.checked,
       (node, value) => (node.checked = !!value),
       "change",
-      opts
+      opts,
     )
   }
 
@@ -279,7 +271,7 @@ export namespace $bind {
    */
   export function selected_index(
     obs: o.Observable<number>,
-    opts?: BindOptions<number, HTMLSelectElement>
+    opts?: BindOptions<number, HTMLSelectElement>,
   ): (node: HTMLSelectElement) => void {
     return setup_bind(
       obs,
@@ -288,7 +280,7 @@ export namespace $bind {
         node.selectedIndex = value!
       },
       undefined,
-      opts
+      opts,
     )
   }
 }
@@ -354,9 +346,7 @@ export function $title<N extends HTMLElement>(title: o.RO<string>) {
  * ```
  * @group Decorators
  */
-export function $style<N extends HTMLElement | SVGElement>(
-  ...styles: StyleDefinition[]
-) {
+export function $style<N extends HTMLElement | SVGElement>(...styles: StyleDefinition[]) {
   return (node: N) => {
     for (let i = 0, l = styles.length; i < l; i++) {
       node_observe_style(node, styles[i])
@@ -377,17 +367,17 @@ export function $style<N extends HTMLElement | SVGElement>(
 export function $observe<N extends Node, T>(
   a: o.RO<T>,
   cbk?: (newval: T, old_val: T | o.NoValue, node: N) => void,
-  options?: o.ObserveOptions<T> & { changes_only: true }
+  options?: o.ObserveOptions<T> & { changes_only: true },
 ): Decorator<N>
 export function $observe<N extends Node, T>(
   a: o.RO<T>,
   cbk?: (newval: T, old_val: T | o.NoValue, node: N) => void,
-  options?: o.ObserveOptions<T>
+  options?: o.ObserveOptions<T>,
 ): Decorator<N>
 export function $observe<N extends Node, T>(
   a: o.RO<T>,
   cbk?: (newval: T, old_val: T | o.NoValue, node: N) => void,
-  options?: o.ObserveOptions<T>
+  options?: o.ObserveOptions<T>,
 ) {
   cbk ??= () => {}
   return (node: N) => {
@@ -398,7 +388,7 @@ export function $observe<N extends Node, T>(
 export function $observe_changes<N extends Node, T>(
   a: o.RO<T>,
   cbk: (newval: T, old_val: T | o.NoValue, node: N) => void,
-  options?: o.ObserveOptions<T>
+  options?: o.ObserveOptions<T>,
 ): Decorator<N> {
   return $observe(a, cbk, { ...options, changes_only: true })
 }
@@ -420,7 +410,7 @@ export function $observe_changes<N extends Node, T>(
 export function $on<N extends Node, K extends KEvent | KEvent[]>(
   events: K,
   listener: Listener<EventsForKeys<K>, N>,
-  useCapture?: boolean | AddEventListenerOptions
+  useCapture?: boolean | AddEventListenerOptions,
 ): Decorator<N> {
   return function $on_apply(node) {
     node_add_event_listener(node, events, listener, useCapture)
@@ -434,7 +424,7 @@ export function $on<N extends Node, K extends KEvent | KEvent[]>(
 export function $once<N extends Node, K extends KEvent | KEvent[]>(
   events: K,
   listener: Listener<EventsForKeys<K>, N>,
-  useCapture?: boolean | AddEventListenerOptions
+  useCapture?: boolean | AddEventListenerOptions,
 ): Decorator<N> {
   return function $once_apply(node) {
     const opts: AddEventListenerOptions =
@@ -460,7 +450,7 @@ export function $once<N extends Node, K extends KEvent | KEvent[]>(
  */
 export function $click<N extends HTMLElement | SVGElement>(
   cbk: Listener<MouseEvent, N>,
-  capture?: boolean
+  capture?: boolean,
 ): (node: N) => void {
   return function $click(node) {
     node_add_event_listener(node, "click", cbk, capture)
@@ -520,12 +510,9 @@ export const $removed = $disconnected
  * @group Decorators
  */
 export function $shadow(child: Node): Decorator<HTMLElement>
-export function $shadow(
-  opts: $ShadowOptions,
-  child: Node
-): Decorator<HTMLElement>
+export function $shadow(opts: $ShadowOptions, child: Node): Decorator<HTMLElement>
 export function $shadow(opts?: Node | $ShadowOptions, child?: Node) {
-  return function (node: HTMLElement) {
+  return (node: HTMLElement) => {
     if (child != null) {
       node_attach_shadow(node, child as Node, opts as $ShadowOptions, true)
     } else {
@@ -548,8 +535,7 @@ export function $shadow(opts?: Node | $ShadowOptions, child?: Node) {
  */
 export function $scrollable(node: HTMLElement): void {
   const owner = node.ownerDocument
-  if (owner == null)
-    throw new Error("can only setup scroll on a Node in a document")
+  if (owner == null) throw new Error("can only setup scroll on a Node in a document")
   $scrollable.setUpNoscroll(owner)
 
   const style = node.style
@@ -565,10 +551,9 @@ export function $scrollable(node: HTMLElement): void {
     (ev) => {
       if (ev.currentTarget.scrollTop == 0) {
         node.scrollTop = 1
-      } else if (node.scrollTop + node.offsetHeight >= node.scrollHeight - 1)
-        node.scrollTop -= 1
+      } else if (node.scrollTop + node.offsetHeight >= node.scrollHeight - 1) node.scrollTop -= 1
     },
-    true
+    true,
   )
 
   node_add_event_listener(
@@ -578,7 +563,7 @@ export function $scrollable(node: HTMLElement): void {
       if (ev.currentTarget.offsetHeight < ev.currentTarget.scrollHeight)
         (ev as $scrollable.ScrollableEvent)[$scrollable.sym_letscroll] = true
     },
-    true
+    true,
   )
 }
 
@@ -606,7 +591,7 @@ export namespace $scrollable {
         // just stop the scroll.
         if (!(ev as ScrollableEvent)[sym_letscroll]) ev.preventDefault()
       },
-      false
+      false,
     )
   }
 }

@@ -7,7 +7,7 @@
  */
 
 let _id = 0
-const spaces: {[name: string]: boolean} = {
+const spaces: { [name: string]: boolean } = {
   " ": true,
   "\t": true,
   "\n": true,
@@ -16,7 +16,7 @@ const spaces: {[name: string]: boolean} = {
 
 function rewrite_css(
   arr: TemplateStringsArray | string,
-  ...args: (string | number | string[] | {toString(): string})[]
+  ...args: (string | number | string[] | { toString(): string })[]
 ) {
   const id = _id++
   let class_name: undefined | string
@@ -51,7 +51,7 @@ function rewrite_css(
   let end = start + 1
   if (css[start] === ".") {
     start++
-    loop: do {
+    do {
       const c = css[end]
       if (
         (c >= "a" && c <= "z") ||
@@ -63,7 +63,7 @@ function rewrite_css(
       ) {
         end++
       } else {
-        break loop
+        break
       }
     } while (true)
   }
@@ -82,7 +82,7 @@ export class CSSBuilder {
 
   css = (
     arr: TemplateStringsArray | string,
-    ...args: (string | number | string[] | {toString(): string})[]
+    ...args: (string | number | string[] | { toString(): string })[]
   ): string => {
     // wrapper to make sure the first call to a non-adopted css will adopt it globally
     // made that way to make css side-effect free
@@ -95,7 +95,7 @@ export class CSSBuilder {
 
     this.css = (
       arr: TemplateStringsArray | string,
-      ...args: (string | number | string[] | {toString(): string})[]
+      ...args: (string | number | string[] | { toString(): string })[]
     ): string => {
       const { css, class_name } = rewrite_css(arr, ...args)
       this.sheet.insertRule(css, this.last++)

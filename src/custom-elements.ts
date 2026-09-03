@@ -1,20 +1,11 @@
 import { o } from "./observable"
 
-import {
-  node_observe,
-  node_attach_shadow,
-  node_do_connected,
-  node_do_disconnect,
-  node_unobserve,
-} from "./dom"
+import { node_observe, node_attach_shadow, node_do_connected, node_do_disconnect, node_unobserve } from "./dom"
 
 import { sym_attrs, sym_elt_init } from "./symbols"
-import { type Attrs } from "./types"
+import type { Attrs } from "./types"
 
-export type CustomElementAttributes<
-  T extends Element,
-  keys extends keyof T
-> = Attrs<T> & {
+export type CustomElementAttributes<T extends Element, keys extends keyof T> = Attrs<T> & {
   [key in keys]?: o.RO<T[key]>
 }
 
@@ -33,9 +24,9 @@ export interface AttrOptions<T> {
 
 export interface InternalAttrOptions<T> extends AttrOptions<T> {
   prop: string
-  observable: Symbol
+  observable: symbol
   lock: (fn: () => void) => void
-  symbol: Symbol
+  symbol: symbol
 }
 
 /**
@@ -43,28 +34,12 @@ export interface InternalAttrOptions<T> extends AttrOptions<T> {
  * @param opts
  */
 export function attr<T>(
-  opts: Partial<AttrOptions<T>>
-): (
-  target: EltCustomElement,
-  key: string,
-  props?: TypedPropertyDescriptor<T>
-) => void
-export function attr<T>(
-  target: EltCustomElement,
-  key: string | symbol,
-  props?: TypedPropertyDescriptor<T>
-): void
-export function attr<T>(
-  opts: any,
-  key?: string | symbol,
-  props?: TypedPropertyDescriptor<T>
-): any {
-  function decorate(
-    target: EltCustomElement,
-    key: string,
-    desc?: TypedPropertyDescriptor<T>
-  ) {
-    let _opts: InternalAttrOptions<T> = {
+  opts: Partial<AttrOptions<T>>,
+): (target: EltCustomElement, key: string, props?: TypedPropertyDescriptor<T>) => void
+export function attr<T>(target: EltCustomElement, key: string | symbol, props?: TypedPropertyDescriptor<T>): void
+export function attr<T>(opts: any, key?: string | symbol, props?: TypedPropertyDescriptor<T>): any {
+  function decorate(target: EltCustomElement, key: string, desc?: TypedPropertyDescriptor<T>) {
+    const _opts: InternalAttrOptions<T> = {
       name: key,
       prop: key,
       ...opts,
@@ -82,7 +57,7 @@ export function attr<T>(
 
     const lock = (_opts.lock = o.exclusive_lock())
     const obs = (_opts.observable = Symbol())
-    let sym = (_opts.symbol = Symbol())
+    const sym = (_opts.symbol = Symbol())
 
     let setter = desc?.set
     let getter = desc?.get
@@ -92,20 +67,19 @@ export function attr<T>(
       return this[sym]
     }
     setter = function (this: any, v: any) {
-      const self = this
       lock(() => {
-        const old_value = self[sym]
+        const old_value = this[sym]
         if (old_value === v) {
           return
         }
-        old?.call(self, v)
-        self[sym] = v
-        self[obs].set(v)
+        old?.call(this, v)
+        this[sym] = v
+        this[obs].set(v)
 
         if (_opts.revert) {
-          let r = typeof _opts.revert === "function" ? _opts.revert(v) : v
+          const r = typeof _opts.revert === "function" ? _opts.revert(v) : v
           // console.log(attr.name, attr, r)
-          self._setAttributeOnNode(_opts.name, r as string)
+          this._setAttributeOnNode(_opts.name, r as string)
         }
       })
     }
@@ -126,7 +100,7 @@ export function attr<T>(
   if (typeof key !== "string") {
     return decorate
   } else {
-    let target = opts
+    const target = opts
     opts = {}
     decorate(target, key, props)
   }
@@ -224,9 +198,7 @@ export class EltCustomElement extends HTMLElement {
     this.__buildShadow()
     for (const at of this[sym_attrs]?.values() ?? []) {
       // initialize it to the correct value
-      const obs = ((this as any)[at.observable as any] = o(
-        (this as any)[at.prop]
-      ))
+      const obs = ((this as any)[at.observable as any] = o((this as any)[at.prop]))
       node_observe(this, obs, (value) => {
         at.lock(() => {
           ;(this as any)[at.prop] = value
@@ -238,35 +210,23 @@ export class EltCustomElement extends HTMLElement {
 
   /** */
   attrObservable<K extends keyof this>(key: K): o.Observable<this[K]> {
-    return (this as any)[
-      this[sym_attrs]?.get(key as string)?.observable! as any
-    ]
+    return (this as any)[this[sym_attrs]?.get(key as string)?.observable! as any]
   }
 
   shadow(): Node | null {
     return null
   }
 
-  observe<T>(
-    observable: o.RO<T>,
-    obsfn?: o.ObserverCallback<T>,
-    options?: o.ObserveOptions<T>
-  ) {
+  observe<T>(observable: o.RO<T>, obsfn?: o.ObserverCallback<T>, options?: o.ObserveOptions<T>) {
     obsfn ??= () => {}
     node_observe(this, observable, obsfn, options)
   }
 
-  observeChanges<T>(
-    observable: o.RO<T>,
-    obsfn: o.ObserverCallback<T>,
-    options?: o.ObserveOptions<T>
-  ) {
+  observeChanges<T>(observable: o.RO<T>, obsfn: o.ObserverCallback<T>, options?: o.ObserveOptions<T>) {
     node_observe(this, observable, obsfn, { ...options, changes_only: true })
   }
 
-  unobserve(
-    observable: o.Observable<any> | o.Observer<any> | o.ObserverCallback<any>
-  ) {
+  unobserve(observable: o.Observable<any> | o.Observer<any> | o.ObserverCallback<any>) {
     return node_unobserve(this, observable)
   }
 
@@ -281,7 +241,7 @@ export class EltCustomElement extends HTMLElement {
 
     const attrs = this[sym_attrs]?.values()
     if (attrs) {
-      for (let attr of attrs) {
+      for (const attr of attrs) {
         const actual = this.getAttribute(attr.name)
         if (actual == null) continue
         const current = (this as any)[attr.prop]

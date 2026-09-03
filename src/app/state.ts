@@ -1,5 +1,5 @@
 import { o } from "../observable"
-import { type ServiceParams } from "./params"
+import type { ServiceParams } from "./params"
 import {
   ServiceHelper,
   _get_builder,
@@ -7,13 +7,13 @@ import {
   type ServiceBuilder,
   type ServiceBuilderConcreteType,
 } from "./service"
-import { type App, type Views } from "./app"
+import type { App, Views } from "./app"
 
 /**
-  ** AppState : the current state of an application
-  **
-  **
-  **/
+ ** AppState : the current state of an application
+ **
+ **
+ **/
 export class State {
   constructor(public app: App) {
     this.previous_state = app.o_state.get()
@@ -28,8 +28,7 @@ export class State {
   async getService<S>(_builder: ServiceBuilder<S>) {
     const builder = await _get_builder(_builder)
 
-    let previous =
-      this.services.get(builder) ?? this.previous_state?.services.get(builder)
+    let previous = this.services.get(builder) ?? this.previous_state?.services.get(builder)
 
     if (previous?.areParamsInvalidating(this.params.get())) {
       // Do not keep the previous version if hard params disallow it
@@ -49,25 +48,22 @@ export class State {
     this.addServiceDep(srv)
 
     const builder_fn = _service_class_init(builder)
-      // typeof builder[sym_service_init] === "function"
-      //   ? builder[sym_service_init].bind(builder)
-      //   : builder
+    // typeof builder[sym_service_init] === "function"
+    //   ? builder[sym_service_init].bind(builder)
+    //   : builder
     srv.result_promise = builder_fn(srv)
     srv.result = await srv.result_promise
     srv.result_promise = null
     return srv
   }
 
-  async require<S>(
-    _builder: ServiceBuilder<S>,
-    by?: ServiceHelper
-  ): Promise<S> {
+  async require<S>(_builder: ServiceBuilder<S>, by?: ServiceHelper): Promise<S> {
     const srv = await this.getService(_builder)
 
     if (by) {
       by.requirements.add(srv)
       // A requirer that depends upon a service that has params dependencies becomes dependent as well
-      for (let [k, v] of srv.params_deps) {
+      for (const [k, v] of srv.params_deps) {
         by.params_deps.set(k, v)
       }
     }
@@ -78,7 +74,7 @@ export class State {
   private addServiceDep(srv: ServiceHelper) {
     if (!this.services.has(srv.builder)) {
       this.services.set(srv.builder, srv)
-      for (let req of srv.requirements) {
+      for (const req of srv.requirements) {
         this.addServiceDep(req)
       }
     }
@@ -92,12 +88,12 @@ export class State {
     seen.add(srv)
 
     // Start with the requirements' views
-    for (let req of srv.requirements) {
+    for (const req of srv.requirements) {
       this.collectViews(req, seen)
     }
 
     // And then add our own. Last one to speak wins.
-    for (let [name, view] of srv.views) {
+    for (const [name, view] of srv.views) {
       this.views.set(name, view)
     }
   }
@@ -105,8 +101,8 @@ export class State {
   /** For this state, the list of param keys that are being listened to by its services */
   paramKeys() {
     const res = new Set<string>()
-    for (let req of this.services.values()) {
-      for (let key of req.params_deps.keys()) {
+    for (const req of this.services.values()) {
+      for (const key of req.params_deps.keys()) {
         res.add(key)
       }
     }
@@ -125,10 +121,10 @@ export class State {
   /** Call deinits on the services that didn't make the cut. */
   deactivate(other_state: State) {
     const other_services = new Set([...other_state.services.values()])
-    for (let srv of this.services.values()) {
+    for (const srv of this.services.values()) {
       if (!other_services.has(srv)) {
         srv.stopObservers()
-        for (let de of srv._on_deinit) {
+        for (const de of srv._on_deinit) {
           de()
         }
       }
@@ -136,15 +132,12 @@ export class State {
   }
 
   /** Activate a service */
-  async activate(
-    builder: ServiceBuilder<any>,
-    params: ServiceParams = {}
-  ) {
+  async activate(builder: ServiceBuilder<any>, params: ServiceParams = {}) {
     this.params.set(params)
 
-    let persistents = new Set<ServiceHelper>()
+    const persistents = new Set<ServiceHelper>()
 
-    for (let srv of this.previous_state?.services.values() ?? []) {
+    for (const srv of this.previous_state?.services.values() ?? []) {
       if (srv.is_persistent && !srv.areParamsInvalidating(params ?? {})) {
         // keep a persistent service that is not invalidated
         persistents.add(srv)
@@ -153,7 +146,7 @@ export class State {
     }
 
     this.active = await this.getService(builder)
-    for (let s of persistents) {
+    for (const s of persistents) {
       this.collectViews(s)
     }
     this.collectViews(this.active)

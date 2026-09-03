@@ -1,11 +1,11 @@
-import { css, type Attrs, type NRO } from "elt";
-import { theme } from "./theme";
+import { css, type Attrs, type NRO } from "elt"
+import { theme } from "./theme"
 
 const colors = theme.colors
 
 /** Tight viewBox around the polyline so the mark scales up inside the box; stroke is mask alpha. */
 const CHECKBOX_CHECK_MASK = encodeURIComponent(
-  '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256"><polyline points="40 144 96 200 224 72" fill="none" stroke="white" stroke-linecap="round" stroke-linejoin="round" stroke-width="32"/></svg>'
+  '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256"><polyline points="40 144 96 200 224 72" fill="none" stroke="white" stroke-linecap="round" stroke-linejoin="round" stroke-width="32"/></svg>',
 )
 
 declare module "elt" {
@@ -16,7 +16,6 @@ declare module "elt" {
   interface attrs_input {
     "e-variant"?: NRO<"tint" | "switch" | "toggle">
   }
-
 }
 
 css`
@@ -416,7 +415,6 @@ declare module "elt" {
     "e-button-box": EButtonBoxAttrs
   }
 }
-
 
 export interface EButtonBoxAttrs extends Attrs {
   "e-variant"?: NRO<"vertical">

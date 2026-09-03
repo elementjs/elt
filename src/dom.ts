@@ -1,20 +1,6 @@
 import { o } from "./observable"
-import type {
-  ClassDefinition,
-  StyleDefinition,
-  Listener,
-  Appender,
-  Attrs,
-  Renderable,
-} from "./types"
-import {
-  sym_connected_status,
-  sym_observers,
-  sym_connected,
-  sym_disconnected,
-  sym_insert,
-  sym_attrs,
-} from "./symbols"
+import type { ClassDefinition, StyleDefinition, Listener, Appender, Attrs, Renderable } from "./types"
+import { sym_connected_status, sym_observers, sym_connected, sym_disconnected, sym_insert, sym_attrs } from "./symbols"
 
 const NODE_IS_CONNECTED = 0b001
 const NODE_IS_OBSERVING = 0b010
@@ -106,10 +92,7 @@ export class CommentHolder extends Comment {
   }
 }
 
-function _node_call_cbks(
-  node: Node,
-  sym: typeof sym_connected | typeof sym_disconnected
-) {
+function _node_call_cbks(node: Node, sym: typeof sym_connected | typeof sym_disconnected) {
   const cbks = node[sym]
   if (cbks) {
     for (let i = 0, l = cbks.length; i < l; i++) {
@@ -270,33 +253,19 @@ const _registered_documents = new WeakSet<Document>()
  * @group Dom
  */
 export function setup_mutation_observer(node: Node) {
-  if (
-    !node.isConnected &&
-    !!node.ownerDocument &&
-    !(node instanceof ShadowRoot)
-  )
-    throw new Error(
-      "cannot setup mutation observer on a Node that is not connected in a document"
-    )
+  if (!node.isConnected && node.ownerDocument && !(node instanceof ShadowRoot))
+    throw new Error("cannot setup mutation observer on a Node that is not connected in a document")
 
   const obs = new MutationObserver((records) => {
     for (let i = 0, l = records.length; i < l; i++) {
       const record = records[i]
-      for (
-        let removed = record.removedNodes, j = 0, lj = removed.length;
-        j < lj;
-        j++
-      ) {
+      for (let removed = record.removedNodes, j = 0, lj = removed.length; j < lj; j++) {
         const removed_node = removed[j]
         if (!removed_node.isConnected) {
           node_do_disconnect(removed_node)
         }
       }
-      for (
-        let added = record.addedNodes, j = 0, lj = added.length;
-        j < lj;
-        j++
-      ) {
+      for (let added = record.addedNodes, j = 0, lj = added.length; j < lj; j++) {
         const added_node = added[j]
         node_do_connected(added_node)
       }
@@ -325,29 +294,13 @@ export function setup_mutation_observer(node: Node) {
   return obs
 }
 
-const basic_attrs = new Set([
-  "id",
-  "slot",
-  "part",
-  "role",
-  "tabindex",
-  "lang",
-  "inert",
-  "title",
-  "autofocus",
-  "nonce",
-])
+const basic_attrs = new Set(["id", "slot", "part", "role", "tabindex", "lang", "inert", "title", "autofocus", "nonce"])
 
 function is_appender(ins: any): ins is Appender<Node> {
   return typeof ins?.[sym_insert] === "function"
 }
 
-function insert_before(
-  node: Node,
-  new_child: Node,
-  refchild: Node | null,
-  is_basic_node = false
-) {
+function insert_before(node: Node, new_child: Node, refchild: Node | null, is_basic_node = false) {
   if (is_basic_node === false && refchild != null) {
     ;(refchild as Comment).before(new_child)
   } else {
@@ -367,18 +320,13 @@ export function node_append<N extends Node>(
   node: N,
   renderable: Renderable<N> | Attrs<N>,
   refchild: Node | null = null,
-  is_basic_node = true
+  is_basic_node = true,
 ) {
   if (renderable == null || typeof renderable === "boolean") return
 
   if (typeof renderable === "string") {
     // A simple string
-    insert_before(
-      node,
-      document.createTextNode(renderable),
-      refchild,
-      is_basic_node
-    )
+    insert_before(node, document.createTextNode(renderable), refchild, is_basic_node)
   } else if (renderable instanceof Node) {
     // A node being added
     if (renderable.nodeType === Node.DOCUMENT_FRAGMENT_NODE) {
@@ -405,8 +353,7 @@ export function node_append<N extends Node>(
   } else if (renderable instanceof Function) {
     // A decorator
     const res = renderable(node)
-    if (res != null)
-      node_append(node, res, refchild, is_basic_node)
+    if (res != null) node_append(node, res, refchild, is_basic_node)
   } else if (is_appender(renderable)) {
     renderable[sym_insert](node, refchild)
   } else if (typeof (renderable as any)[Symbol.iterator] === "function") {
@@ -418,13 +365,11 @@ export function node_append<N extends Node>(
     // An attribute object. We assume this is an Element that is being handled
     const _node = node as unknown as HTMLElement
     const attrs = renderable as unknown as Attrs<HTMLElement>
-    for (let key in attrs) {
+    for (const key in attrs) {
       const value = attrs[key as keyof typeof attrs]
       if (key === "class") {
         if (value == null || value === false) continue
-        if (Array.isArray(value))
-          for (let j = 0, lj = value.length; j < lj; j++)
-            node_observe_class(_node, value[j])
+        if (Array.isArray(value)) for (let j = 0, lj = value.length; j < lj; j++) node_observe_class(_node, value[j])
         else node_observe_class(_node, value as ClassDefinition)
       } else if (key === "style") {
         if (value == null || value === false) continue
@@ -449,12 +394,7 @@ export function node_append<N extends Node>(
       })
   } else {
     // Otherwise, make it a string and append it.
-    insert_before(
-      node,
-      document.createTextNode(renderable.toString()),
-      refchild,
-      is_basic_node
-    )
+    insert_before(node, document.createTextNode(renderable.toString()), refchild, is_basic_node)
   }
 }
 
@@ -475,12 +415,7 @@ export interface $ShadowOptions extends Partial<ShadowRootInit> {
  * @param opts Options for the creation of the shadow root
  * @param add_callbacks Whether to add inserted/removed callbacks (when not using EltCustomElement for instance)
  */
-export function node_attach_shadow(
-  node: HTMLElement,
-  child: Node,
-  opts: $ShadowOptions,
-  add_callbacks: boolean
-) {
+export function node_attach_shadow(node: HTMLElement, child: Node, opts: $ShadowOptions, add_callbacks: boolean) {
   const shadow = node.attachShadow({
     mode: opts?.mode ?? "open",
     delegatesFocus: opts?.delegatesFocus ?? true,
@@ -492,11 +427,8 @@ export function node_attach_shadow(
     if (!Array.isArray(css)) {
       css = [css]
     }
-    const sheets = css.filter(
-      (c) => c instanceof CSSStyleSheet
-    ) as CSSStyleSheet[]
-    if (sheets.length)
-      shadow.adoptedStyleSheets = [...shadow.adoptedStyleSheets, ...sheets]
+    const sheets = css.filter((c) => c instanceof CSSStyleSheet) as CSSStyleSheet[]
+    if (sheets.length) shadow.adoptedStyleSheets = [...shadow.adoptedStyleSheets, ...sheets]
     const strings = css.filter((c) => typeof c === "string")
     if (strings.length) {
       const style = document.createElement("style")
@@ -531,7 +463,7 @@ export function node_observe<T>(
   node: Node,
   obs: o.RO<T>,
   obsfn: o.ObserverCallback<T>,
-  options?: o.ObserveOptions<T>
+  options?: o.ObserveOptions<T>,
 ): o.Observer<T> | null {
   if (node.nodeType === Node.DOCUMENT_FRAGMENT_NODE) {
     console.warn("observing on a fragment does nothing")
@@ -547,9 +479,7 @@ export function node_observe<T>(
     return null
   }
   // Create the observer and append it to the observer array of the node
-  const obser = options?.changes_only
-    ? new o.SilentObserver(obsfn, obs)
-    : new o.Observer(obsfn, obs)
+  const obser = options?.changes_only ? new o.SilentObserver(obsfn, obs) : new o.Observer(obsfn, obs)
   options?.observer_callback?.(obser)
   node_add_observer(node, obser)
   if (options?.immediate) obser.refresh()
@@ -580,43 +510,30 @@ declare global {
 
 export type KEvent = keyof GlobalEventHandlersEventMap
 
-export type EventForKey<K extends KEvent> =
-  K extends keyof GlobalEventHandlersEventMap
-    ? GlobalEventHandlersEventMap[K]
-    : Event
+export type EventForKey<K extends KEvent> = K extends keyof GlobalEventHandlersEventMap
+  ? GlobalEventHandlersEventMap[K]
+  : Event
 
 export type EventsForKeys<K extends KEvent | KEvent[]> = K extends any[]
   ? EventForKey<K[number]>
   : K extends KEvent
-  ? EventForKey<K>
-  : Event
+    ? EventForKey<K>
+    : Event
 
-export function node_add_event_listener<
-  N extends Node,
-  K extends KEvent | KEvent[]
->(
+export function node_add_event_listener<N extends Node, K extends KEvent | KEvent[]>(
   node: N,
   key: K,
   listener: Listener<EventsForKeys<K>, N>,
-  useCapture?: boolean | AddEventListenerOptions
+  useCapture?: boolean | AddEventListenerOptions,
 ): void
-export function node_add_event_listener<
-  N extends EventTarget,
-  K extends KEvent | KEvent[]
->(
+export function node_add_event_listener<N extends EventTarget, K extends KEvent | KEvent[]>(
   node: Node,
   target: N,
   key: K,
   listener: Listener<EventsForKeys<K>, N>,
-  useCapture?: boolean | AddEventListenerOptions
+  useCapture?: boolean | AddEventListenerOptions,
 ): void
-export function node_add_event_listener(
-  node: any,
-  target: any,
-  events: any,
-  listener?: any,
-  use_capture?: any
-): void {
+export function node_add_event_listener(node: any, target: any, events: any, listener?: any, use_capture?: any): void {
   if (typeof target === "string" || Array.isArray(target)) {
     // This is the short version, target is the events
     use_capture = listener
@@ -652,10 +569,7 @@ export function node_add_event_listener(
  * @returns The number of deactivated observers
  * @group Dom
  */
-export function node_unobserve(
-  node: Node,
-  obsfn: o.Observer<any> | o.ObserverCallback<any> | o.Observable<any>
-) {
+export function node_unobserve(node: Node, obsfn: o.Observer<any> | o.ObserverCallback<any> | o.Observable<any>) {
   const is_observing = node[sym_connected_status] & NODE_IS_OBSERVING
   const prev_len = node[sym_observers]?.length ?? 0
   node[sym_observers] = node[sym_observers]?.filter((ob) => {
@@ -693,7 +607,7 @@ export type ValidatableElement = HTMLInputElement | HTMLTextAreaElement | HTMLSe
 export function node_observe_attribute(
   node: Element,
   name: string,
-  value: o.RO<string | boolean | null | undefined | number>
+  value: o.RO<string | boolean | null | undefined | number>,
 ) {
   // Try to see if we're setting an attribute on an EltCustomElement. This will bypass the setAttribute logic to allow other values than string.
   const custom_attrs = node[sym_attrs]?.get(name)
@@ -705,7 +619,7 @@ export function node_observe_attribute(
       (val) => {
         node.setAttribute(name, value as any)
       },
-      { immediate: true }
+      { immediate: true },
     )
 
     return
@@ -723,11 +637,10 @@ export function node_observe_attribute(
       if (val === true) {
         if (node.getAttribute(name) !== "") node.setAttribute(name, "")
       } else {
-        if (val !== node.getAttribute(name))
-          node.setAttribute(name, val.toString())
+        if (val !== node.getAttribute(name)) node.setAttribute(name, val.toString())
       }
     },
-    { immediate: true }
+    { immediate: true },
   )
 }
 
@@ -735,10 +648,7 @@ export function node_observe_attribute(
  * Observe a style (as JS defines it) and update the node as needed.
  * @group Dom
  */
-export function node_observe_style(
-  node: HTMLElement | SVGElement,
-  style: StyleDefinition
-) {
+export function node_observe_style(node: HTMLElement | SVGElement, style: StyleDefinition) {
   if (o.is_observable(style)) {
     node_observe(
       node,
@@ -763,7 +673,7 @@ export function node_observe_style(
           }
         }
       },
-      { immediate: true }
+      { immediate: true },
     )
   } else if (typeof style === "string") {
     node.setAttribute("style", style)
@@ -784,7 +694,7 @@ export function node_observe_style(
             node.style.setProperty(css_name, value)
           }
         },
-        { immediate: true }
+        { immediate: true },
       )
     }
   }
@@ -800,20 +710,16 @@ function _is_plain_class_object(c: any): c is { [name: string]: o.RO<any> } {
  */
 export function node_observe_class(node: Element, c: ClassDefinition) {
   if (!c) return
-  if (
-    typeof c === "string" ||
-    typeof c === "boolean" ||
-    !_is_plain_class_object(c)
-  ) {
+  if (typeof c === "string" || typeof c === "boolean" || !_is_plain_class_object(c)) {
     // c is an Observable<string>
     node_observe(
       node,
       c,
       (str, chg) => {
-        if (chg !== o.NoValue && !!chg) node_remove_class(node, chg as string)
-        if (!!str) node_apply_class(node, str)
+        if (chg !== o.NoValue && chg) node_remove_class(node, chg as string)
+        if (str) node_apply_class(node, str)
       },
-      { immediate: true }
+      { immediate: true },
     )
   } else {
     const ob = c as { [name: string]: o.RO<any> }
@@ -828,23 +734,20 @@ export function node_observe_class(node: Element, c: ClassDefinition) {
           if (applied) node_apply_class(node, x)
           else if (chg !== o.NoValue) node_remove_class(node, x)
         },
-        { immediate: true }
+        { immediate: true },
       )
     }
   }
 }
 
-export function node_apply_class(
-  node: Element,
-  c: string | string[] | null | false
-) {
+export function node_apply_class(node: Element, c: string | string[] | null | false) {
   if (Array.isArray(c)) {
     for (let i = 0, l = c.length; i < l; i++) {
       node_apply_class(node, c[i])
     }
     return
   }
-  let cs = c?.toString()
+  const cs = c?.toString()
   if (!cs) return
   for (const _ of cs.split(/\s+/g)) {
     if (_) node.classList.add(_)
@@ -871,10 +774,7 @@ export function node_remove_class(node: Element, c: string | string[]) {
  * @param node
  * @param callback
  */
-export function node_on_connected<N extends Node>(
-  node: N,
-  callback: LifecycleCallback<N>
-) {
+export function node_on_connected<N extends Node>(node: N, callback: LifecycleCallback<N>) {
   node_on(node, sym_connected, callback)
 }
 
@@ -884,10 +784,7 @@ export function node_on_connected<N extends Node>(
  * @param node
  * @param callback
  */
-export function node_on_disconnected<N extends Node>(
-  node: N,
-  callback: LifecycleCallback<N>
-) {
+export function node_on_disconnected<N extends Node>(node: N, callback: LifecycleCallback<N>) {
   node_on(node, sym_disconnected, callback)
 }
 
@@ -897,10 +794,7 @@ export function node_on_disconnected<N extends Node>(
  * @param node
  * @param callback
  */
-export function node_off_connected<N extends Node>(
-  node: N,
-  callback: LifecycleCallback<N>
-) {
+export function node_off_connected<N extends Node>(node: N, callback: LifecycleCallback<N>) {
   node_off(node, sym_connected, callback)
 }
 
@@ -910,10 +804,7 @@ export function node_off_connected<N extends Node>(
  * @param node
  * @param callback
  */
-export function node_off_disconnected<N extends Node>(
-  node: N,
-  callback: LifecycleCallback<N>
-) {
+export function node_off_disconnected<N extends Node>(node: N, callback: LifecycleCallback<N>) {
   node_off(node, sym_disconnected, callback)
 }
 
@@ -921,7 +812,7 @@ export function node_off_disconnected<N extends Node>(
 function node_on<N extends Node>(
   node: N,
   sym: typeof sym_connected | typeof sym_disconnected,
-  callback: LifecycleCallback<N>
+  callback: LifecycleCallback<N>,
 ) {
   const cbks = (node[sym] ??= [])
   cbks.push(callback as LifecycleCallback)
@@ -934,7 +825,7 @@ function node_on<N extends Node>(
 function node_off<N extends Node>(
   node: N,
   sym: typeof sym_connected | typeof sym_disconnected,
-  callback: LifecycleCallback<N>
+  callback: LifecycleCallback<N>,
 ) {
   const cbks = node[sym]
   if (cbks == null) return
@@ -942,11 +833,7 @@ function node_off<N extends Node>(
   if (idx > -1) cbks.splice(idx, 1)
 }
 
-export function animate(
-  node: Element,
-  keyframes: Keyframe[],
-  options?: KeyframeAnimationOptions
-) {
+export function animate(node: Element, keyframes: Keyframe[], options?: KeyframeAnimationOptions) {
   const animation = node.animate(keyframes, options)
   return new Promise<void>((accept, reject) => {
     animation.onfinish = (ev) => accept()

@@ -1,7 +1,6 @@
 import { css, memoize } from "elt"
 
 export interface ThemeSettings {
-
   lineHeight: string
   paddingPanelVertical: string
   paddingPanelHorizontal: string
@@ -34,31 +33,37 @@ export type BaseColorScheme = {
   tint: string
 }
 
-
 class OkLch {
-  constructor(public l: number, public c: number, public h: number) {
-  }
+  constructor(
+    public l: number,
+    public c: number,
+    public h: number,
+  ) {}
 
   toString() {
     return `oklch(${this.l} ${this.c} ${this.h})`
   }
 }
 
-function getOkLch<T extends BaseColorScheme>(colors: T): {[key in keyof T]: OkLch} {
+function getOkLch<T extends BaseColorScheme>(colors: T): { [key in keyof T]: OkLch } {
   // Create a temporary element
-  const el = document.createElement('div')
+  const el = document.createElement("div")
   el.style.visibility = "hidden"
   document.body.appendChild(el)
 
-  let res = {} as {[key in keyof T]: OkLch}
+  const res = {} as { [key in keyof T]: OkLch }
   for (const [key, value] of Object.entries(colors)) {
     el.style.setProperty(`--color`, value)
     el.style.color = "oklch(from var(--color) l c h)"
     // The browser normalizes the color for us
     const cs = getComputedStyle(el).color
-    let match = cs.match(/oklch\((?<l>[^ ]+)\s+(?<c>[^ ]+)\s+(?<h>[^)]+)\)/)
+    const match = cs.match(/oklch\((?<l>[^ ]+)\s+(?<c>[^ ]+)\s+(?<h>[^)]+)\)/)
     if (match) {
-      res[key as keyof T] = new OkLch(parseFloat(match.groups?.l ?? "0"), parseFloat(match.groups?.c ?? "0"), parseFloat(match.groups?.h ?? "0"))
+      res[key as keyof T] = new OkLch(
+        parseFloat(match.groups?.l ?? "0"),
+        parseFloat(match.groups?.c ?? "0"),
+        parseFloat(match.groups?.h ?? "0"),
+      )
     }
   }
 
@@ -69,17 +74,15 @@ function getOkLch<T extends BaseColorScheme>(colors: T): {[key in keyof T]: OkLc
 const _re_setting = /[A-Z]/g
 
 export class Theme<ColorScheme extends BaseColorScheme> {
+  colors = {} as { [key in keyof ColorScheme]: Color<ColorScheme> }
 
-  colors = {} as {[key in keyof ColorScheme]: Color<ColorScheme>}
-
-  constructor(theme: { light: ColorScheme, dark?: Partial<ColorScheme>, settings?: Partial<ThemeSettings> }) {
-
+  constructor(theme: { light: ColorScheme; dark?: Partial<ColorScheme>; settings?: Partial<ThemeSettings> }) {
     if (!(theme.light["bg"] || theme.light["text"] || theme.light["tint"])) {
       throw new Error("Light theme must have a bg, text, and tint color")
     }
 
     const light = getOkLch(theme.light)
-    const dark = theme.dark ? getOkLch(theme.dark as ColorScheme) : {} as ReturnType<typeof getOkLch<ColorScheme>>
+    const dark = theme.dark ? getOkLch(theme.dark as ColorScheme) : ({} as ReturnType<typeof getOkLch<ColorScheme>>)
 
     // If nothing is given, seed the dark theme with the reverse of the light theme
     dark.bg ??= light.text
@@ -97,7 +100,12 @@ export class Theme<ColorScheme extends BaseColorScheme> {
         const new_l = delta_dark > delta ? light_value.l : dark_l + delta
         dark[name as keyof BaseColorScheme] = new OkLch(new_l, light_value.c, light_value.h)
       }
-      const color = new Color(this, name as Extract<keyof ColorScheme, string>, light[name as keyof BaseColorScheme].toString(), dark[name as keyof BaseColorScheme].toString())
+      const color = new Color(
+        this,
+        name as Extract<keyof ColorScheme, string>,
+        light[name as keyof BaseColorScheme].toString(),
+        dark[name as keyof BaseColorScheme].toString(),
+      )
       this.colors[name as keyof ColorScheme] = color
     }
 
@@ -140,23 +148,29 @@ export class Theme<ColorScheme extends BaseColorScheme> {
 
   @memoize
   protected get all_colors() {
-    return Object.entries(this.colors).map(([name, color]) => {
-      return `--e-light-color-${name}: ${color.light_value}; --e-dark-color-${name}: ${color.dark_value};`
-    }).join("")
+    return Object.entries(this.colors)
+      .map(([name, color]) => {
+        return `--e-light-color-${name}: ${color.light_value}; --e-dark-color-${name}: ${color.dark_value};`
+      })
+      .join("")
   }
 
   @memoize
   get css_dark_colors() {
-    return Object.keys(this.colors).map((name) => {
-      return `--e-color-${name}: var(--e-dark-color-${name});`
-    }).join("")
+    return Object.keys(this.colors)
+      .map((name) => {
+        return `--e-color-${name}: var(--e-dark-color-${name});`
+      })
+      .join("")
   }
 
   @memoize
   get css_light_colors() {
-    return Object.keys(this.colors).map((name) => {
-      return `--e-color-${name}: var(--e-light-color-${name});`
-    }).join("")
+    return Object.keys(this.colors)
+      .map((name) => {
+        return `--e-color-${name}: var(--e-light-color-${name});`
+      })
+      .join("")
   }
 
   @memoize
@@ -239,17 +253,12 @@ export class Theme<ColorScheme extends BaseColorScheme> {
  *
  */
 export class Color<Colors extends BaseColorScheme> {
-
   constructor(
     public theme: Theme<Colors>,
     public name: Extract<keyof Colors, string>,
     public light_value: string,
     public dark_value: string,
-  ) {
-
-  }
-
-
+  ) {}
 
   @memoize
   get css_as_tint() {
@@ -363,7 +372,6 @@ export class Color<Colors extends BaseColorScheme> {
   get very_strong() {
     return this.from_text(theme.settings.intensityVeryStrong)
   }
-
 }
 
 export const theme = new Theme({
@@ -388,5 +396,5 @@ export const theme = new Theme({
   dark: {
     text: "#ffffff",
     bg: "#1c1c1b",
-  }
+  },
 })

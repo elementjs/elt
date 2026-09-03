@@ -3,13 +3,7 @@
  */
 import { o } from "./observable"
 
-import {
-  CommentHolder,
-  node_append,
-  node_do_disconnect,
-  node_observe,
-  node_remove
-} from "./dom"
+import { CommentHolder, node_append, node_do_disconnect, node_observe, node_remove } from "./dom"
 
 import { sym_insert } from "./symbols"
 import type { Appender, Renderable } from "./types"
@@ -75,7 +69,7 @@ export type Truthy<T> = T extends false | 0 | "" | null | undefined ? never : T
 export function If<T extends o.RO<any>, N extends Node>(
   condition: T,
   display?: (arg: If.TruthyRO<T>) => Renderable<N>,
-  display_otherwise?: () => Renderable<N>
+  display_otherwise?: () => Renderable<N>,
 ) {
   return new If.IfDisplayer(condition, display, display_otherwise)
 }
@@ -85,11 +79,12 @@ export namespace If {
    * Get the type of a potentially `Observable` type where `null` and `undefined` are exluded, keeping
    * the `Readonly` status if the provided {@link o.Observable} type was `Readonly`.
    */
-  export type TruthyRO<T> = T extends o.Observable<infer U>
-    ? o.Observable<Truthy<U>>
-    : T extends o.ReadonlyObservable<infer U>
-    ? o.ReadonlyObservable<Truthy<U>>
-    : Truthy<T>
+  export type TruthyRO<T> =
+    T extends o.Observable<infer U>
+      ? o.Observable<Truthy<U>>
+      : T extends o.ReadonlyObservable<infer U>
+        ? o.ReadonlyObservable<Truthy<U>>
+        : Truthy<T>
 
   export class IfDisplayer<T, N extends Node> extends Verb<N> {
     last?: IfDisplayer<any, N>
@@ -97,13 +92,12 @@ export namespace If {
     constructor(
       public _if: o.RO<T>,
       public _then?: (arg: If.TruthyRO<T>) => Renderable<N>,
-      public _else?: () => Renderable<N>
+      public _else?: () => Renderable<N>,
     ) {
       super("e-if")
       this.setRenderable(
         o.tf<T, Renderable<N>>(_if, (cond, old, v) => {
-          if (old !== o.NoValue && !!cond === !!old && v !== o.NoValue)
-            return v as Renderable<N>
+          if (old !== o.NoValue && !!cond === !!old && v !== o.NoValue) return v as Renderable<N>
           if (cond && this._then) {
             return this._then(this._if as If.TruthyRO<T>)
           } else if (this._else) {
@@ -111,7 +105,7 @@ export namespace If {
           } else {
             return null
           }
-        })
+        }),
       )
     }
 
@@ -120,10 +114,7 @@ export namespace If {
       return this
     }
 
-    ElseIf<T2 extends o.RO<any>>(
-      condition: T2,
-      display?: (arg: If.TruthyRO<T2>) => Renderable<N>
-    ) {
+    ElseIf<T2 extends o.RO<any>>(condition: T2, display?: (arg: If.TruthyRO<T2>) => Renderable<N>) {
       const last = this.last ?? this
       const add = new IfDisplayer<T2, N>(condition, display)
       last._else = () => add
@@ -156,12 +147,8 @@ export namespace If {
  *
  * @group Verbs
  */
-export function Switch<T, N extends Node = HTMLElement>(
-  obs: o.Observable<T>
-): Switch.Switcher<T, N>
-export function Switch<T, N extends Node = HTMLElement>(
-  obs: o.ReadonlyObservable<T>
-): Switch.ReadonlySwitcher<T, N>
+export function Switch<T, N extends Node = HTMLElement>(obs: o.Observable<T>): Switch.Switcher<T, N>
+export function Switch<T, N extends Node = HTMLElement>(obs: o.ReadonlyObservable<T>): Switch.ReadonlySwitcher<T, N>
 export function Switch(obs: any): any {
   return new (Switch.Switcher as any)(obs)
 }
@@ -185,10 +172,7 @@ export namespace Switch {
         for (const c of cases) {
           const [cond, fn] = c
 
-          if (
-            (typeof cond === "function" && (cond as any)(value)) ||
-            cond === value
-          ) {
+          if ((typeof cond === "function" && (cond as any)(value)) || cond === value) {
             return fn
           }
         }
@@ -199,24 +183,15 @@ export namespace Switch {
       this.setRenderable(
         o.tf(current_displayfn, (fn) => {
           return fn?.(this.value)
-        })
+        }),
       )
     }
 
-    // @ts-ignore
-    Case<S extends T>(
-      value: (t: T) => t is S,
-      fn: (v: o.Observable<S>) => Renderable<N>
-    ): Switcher<Exclude<T, S>, N>
+    // @ts-expect-error
+    Case<S extends T>(value: (t: T) => t is S, fn: (v: o.Observable<S>) => Renderable<N>): Switcher<Exclude<T, S>, N>
     Case(value: T, fn: (v: o.Observable<T>) => Renderable<N>): this
-    Case(
-      predicate: (t: T) => any,
-      fn: (v: o.Observable<T>) => Renderable<N>
-    ): this
-    Case(
-      value: T | ((t: T) => any),
-      fn: (v: o.Observable<T>) => Renderable<N>
-    ): this {
+    Case(predicate: (t: T) => any, fn: (v: o.Observable<T>) => Renderable<N>): this
+    Case(value: T | ((t: T) => any), fn: (v: o.Observable<T>) => Renderable<N>): this {
       this.cases.push([value, fn])
       return this as any
     }
@@ -230,18 +205,14 @@ export namespace Switch {
   /**
    * @internal
    */
-  export interface ReadonlySwitcher<T, N extends Node>
-    extends o.ReadonlyObservable<Renderable<N>> {
+  export interface ReadonlySwitcher<T, N extends Node> extends o.ReadonlyObservable<Renderable<N>> {
     /** See {@link Switch.Switcher#Case} */
     Case<S extends T>(
       value: (t: T) => t is S,
-      fn: (v: o.ReadonlyObservable<S>) => Renderable<N>
+      fn: (v: o.ReadonlyObservable<S>) => Renderable<N>,
     ): ReadonlySwitcher<Exclude<T, S>, N>
     Case(value: T, fn: (v: o.ReadonlyObservable<T>) => Renderable<N>): this
-    Case(
-      predicate: (t: T) => any,
-      fn: (v: o.ReadonlyObservable<T>) => Renderable<N>
-    ): this
+    Case(predicate: (t: T) => any, fn: (v: o.ReadonlyObservable<T>) => Renderable<N>): this
     /** See {@link Switch.Switcher#Else} */
     Else(fn: (v: o.ReadonlyObservable<T>) => Renderable<N>): this
   }
@@ -265,7 +236,7 @@ export namespace Switch {
  */
 export function Repeat<Obs extends Repeat.RepeatedObservable<any>>(
   obs: Obs,
-  render?: Repeat.RenderItemFn<Obs>
+  render?: Repeat.RenderItemFn<Obs>,
 ): Repeat.Repeater<Obs> {
   return new Repeat.Repeater(obs, render)
 }
@@ -273,21 +244,16 @@ export function Repeat<Obs extends Repeat.RepeatedObservable<any>>(
 export namespace Repeat {
   export const sym_obs = Symbol("ritem-obs")
 
-  export type RepeatedObservable<T> = o.IReadonlyObservable<
-    T[] | null | undefined
-  >
+  export type RepeatedObservable<T> = o.IReadonlyObservable<T[] | null | undefined>
 
-  export class RepeatItemElement<Obs extends RepeatedObservable<any>>
-    extends CommentHolder {
+  export class RepeatItemElement<Obs extends RepeatedObservable<any>> extends CommentHolder {
     [sym_obs]!: RepeatObservable<Obs>
   }
 
   /** A special observable that is not a combined one to prevent unneeded updates when setting a property of the observed array.
    * Repeat and VirtualScroll are directly responsible for updating the sub-observables they create.
    */
-  export class RepeatObservable<
-    Obs extends RepeatedObservable<any>
-  > extends o.CombinedObservable<
+  export class RepeatObservable<Obs extends RepeatedObservable<any>> extends o.CombinedObservable<
     [NonNullable<o.ObservedType<Obs>>, number],
     ItemType<Obs>
   > {
@@ -295,7 +261,7 @@ export namespace Repeat {
       public override key: any,
       public repeat: Repeater<Obs>,
       public o_prop: o.Observable<number>,
-      public repeat_key?: any
+      public repeat_key?: any,
     ) {
       super([repeat.obs as o.RO<NonNullable<o.ObservedType<Obs>>>, o_prop])
     }
@@ -312,45 +278,31 @@ export namespace Repeat {
     override setter(
       value: ItemType<Obs>,
       oval: ItemType<Obs> | o.NoValue,
-      current: [NonNullable<o.ObservedType<Obs>>, number]
+      current: [NonNullable<o.ObservedType<Obs>>, number],
     ) {
       const newlst = o.clone(current[0])
       newlst[current[1]] = value
-      return [newlst, o.NoValue] as [
-        NonNullable<o.ObservedType<Obs>>,
-        number | o.NoValue
-      ]
+      return [newlst, o.NoValue] as [NonNullable<o.ObservedType<Obs>>, number | o.NoValue]
     }
   }
 
   export type RenderItemFn<Obs extends RepeatedObservable<any>> = (
-    arg: Obs extends o.Observable<any>
-      ? o.Observable<ItemType<Obs>>
-      : o.ReadonlyObservable<ItemType<Obs>>,
-    idx: o.IReadonlyObservable<number>
+    arg: Obs extends o.Observable<any> ? o.Observable<ItemType<Obs>> : o.ReadonlyObservable<ItemType<Obs>>,
+    idx: o.IReadonlyObservable<number>,
   ) => Renderable<Node>
 
-  export type ItemType<
-    Obs extends o.IReadonlyObservable<any[] | null | undefined>
-  > = Obs extends o.IReadonlyObservable<infer Array | null | undefined>
-    ? Array extends (infer T)[]
-      ? T
-      : never
-    : never
+  export type ItemType<Obs extends o.IReadonlyObservable<any[] | null | undefined>> =
+    Obs extends o.IReadonlyObservable<infer Array | null | undefined> ? (Array extends (infer T)[] ? T : never) : never
 
   /**
    * Repeats content.
    * @internal
    */
-  export class Repeater<
-    Obs extends o.IReadonlyObservable<any[] | null | undefined>
-  > {
+  export class Repeater<Obs extends o.IReadonlyObservable<any[] | null | undefined>> {
     protected on_empty: (() => Renderable<Node>) | null = null
     protected prefix: ((o_lst: Obs) => Renderable<Node>) | null = null
     protected suffix: ((o_lst: Obs) => Renderable<Node>) | null = null
-    protected separator:
-      | ((n: o.ReadonlyObservable<number>) => Renderable<HTMLElement>)
-      | null = null
+    protected separator: ((n: o.ReadonlyObservable<number>) => Renderable<HTMLElement>) | null = null
 
     protected __prefix = new CommentHolder("repeat-prefix")
     protected __empty = new CommentHolder("repeat-empty")
@@ -369,7 +321,7 @@ export namespace Repeat {
 
     constructor(
       public obs: Obs,
-      public renderfn?: RenderItemFn<Obs> // public options: Repeat.Options<T> = {}
+      public renderfn?: RenderItemFn<Obs>, // public options: Repeat.Options<T> = {}
     ) {}
 
     /**
@@ -398,21 +350,17 @@ export namespace Repeat {
           this.update_lock(() => {
             this.updateChildrenPre(
               (lst as unknown as NonNullable<o.ObservedType<Obs>>) ?? [],
-              (old_lst as unknown as NonNullable<o.ObservedType<Obs>>) ?? []
+              (old_lst as unknown as NonNullable<o.ObservedType<Obs>>) ?? [],
             )
           })
         },
-        { immediate: true }
+        { immediate: true },
       )
 
       if (this.o_view_start != null && this.o_view_end != null) {
-        this.view_observer = node_observe(
-          this.__list,
-          o.join(this.o_view_start, this.o_view_end),
-          () => {
-            this.reconcile_view()
-          }
-        )
+        this.view_observer = node_observe(this.__list, o.join(this.o_view_start, this.o_view_end), () => {
+          this.reconcile_view()
+        })
       }
     }
 
@@ -457,9 +405,7 @@ export namespace Repeat {
     /** Reconcile the current list against an explicit index window. */
     reconcileView(start: number, end: number) {
       this.update_lock(() => {
-        const lst =
-          (o.get(this.obs) as unknown as NonNullable<o.ObservedType<Obs>>) ??
-          []
+        const lst = (o.get(this.obs) as unknown as NonNullable<o.ObservedType<Obs>>) ?? []
         this.updateChildren(lst, { start, end })
       })
       return this
@@ -467,17 +413,12 @@ export namespace Repeat {
 
     protected reconcile_view() {
       this.update_lock(() => {
-        const lst =
-          (o.get(this.obs) as unknown as NonNullable<o.ObservedType<Obs>>) ??
-          []
+        const lst = (o.get(this.obs) as unknown as NonNullable<o.ObservedType<Obs>>) ?? []
         this.updateChildren(lst)
       })
     }
 
-    protected resolve_view(
-      length: number,
-      override?: { start: number; end: number }
-    ) {
+    protected resolve_view(length: number, override?: { start: number; end: number }) {
       if (override != null) {
         const start = Math.max(0, Math.min(length, Math.floor(override.start)))
         const end = Math.max(start, Math.min(length, Math.floor(override.end)))
@@ -486,14 +427,8 @@ export namespace Repeat {
       if (this.o_view_start == null || this.o_view_end == null) {
         return { start: 0, end: length }
       }
-      const start = Math.max(
-        0,
-        Math.min(length, Math.floor(o.get(this.o_view_start)))
-      )
-      const end = Math.max(
-        start,
-        Math.min(length, Math.floor(o.get(this.o_view_end)))
-      )
+      const start = Math.max(0, Math.min(length, Math.floor(o.get(this.o_view_start))))
+      const end = Math.max(start, Math.min(length, Math.floor(o.get(this.o_view_end))))
       return { start, end }
     }
 
@@ -501,8 +436,7 @@ export namespace Repeat {
     protected evict_outside_view(view_start: number, view_end: number) {
       let iter = this.__list.nextSibling as RepeatItemElement<Obs> | null
       while (iter != null && iter !== this.__list.end) {
-        const next = (iter.end?.nextSibling ??
-          iter.nextSibling) as RepeatItemElement<Obs> | null
+        const next = (iter.end?.nextSibling ?? iter.nextSibling) as RepeatItemElement<Obs> | null
         const obs = iter[sym_obs]
         if (obs != null) {
           const abs = obs.o_prop.get()
@@ -517,7 +451,10 @@ export namespace Repeat {
       }
     }
 
-    protected updateChildrenPre(new_lst: NonNullable<o.ObservedType<Obs>>, old_lst: NonNullable<o.ObservedType<Obs>> | o.NoValue) {
+    protected updateChildrenPre(
+      new_lst: NonNullable<o.ObservedType<Obs>>,
+      old_lst: NonNullable<o.ObservedType<Obs>> | o.NoValue,
+    ) {
       if (new_lst.length > 0 && (old_lst === o.NoValue || old_lst.length === 0)) {
         if (this.__empty.hasContent) {
           this.__empty.empty()
@@ -543,22 +480,18 @@ export namespace Repeat {
     /** Compute the range of children that need to be updated */
     protected updateChildren(
       new_lst: NonNullable<o.ObservedType<Obs>>,
-      view_override?: { start: number; end: number }
+      view_override?: { start: number; end: number },
     ) {
       const keyfn = this.keyfn
-      const { start: view_start, end: view_end } = this.resolve_view(
-        new_lst.length,
-        view_override
-      )
-      const view_active =
-        view_start !== 0 || view_end !== new_lst.length
+      const { start: view_start, end: view_end } = this.resolve_view(new_lst.length, view_override)
+      const view_active = view_start !== 0 || view_end !== new_lst.length
 
       if (view_active) {
         this.evict_outside_view(view_start, view_end)
       }
 
       const keys: any[] = new Array(new_lst.length)
-      let key_map = new Map<any, number>()
+      const key_map = new Map<any, number>()
       for (let i = view_start; i < view_end; i++) {
         const item = new_lst[i]
         const key = keyfn?.(item, i) ?? item ?? `--repeat-key-${i}`
@@ -574,10 +507,7 @@ export namespace Repeat {
       const parent = this.__list.parentNode!
       const list_insert_ref = (before: Node | null) => before ?? this.__list.end!
 
-      const place_item = (
-        node: RepeatItemElement<Obs>,
-        before: Node | null
-      ) => {
+      const place_item = (node: RepeatItemElement<Obs>, before: Node | null) => {
         node.moveTo(parent, list_insert_ref(before))
       }
 
@@ -600,7 +530,7 @@ export namespace Repeat {
       while (iter != null && iter !== end) {
         const obs = iter[sym_obs]
         if (obs != null) {
-          let new_idx = key_map.get(obs.key)
+          const new_idx = key_map.get(obs.key)
           if (new_idx != null && new_idx === idx) {
             idx++
           } else {
@@ -614,7 +544,7 @@ export namespace Repeat {
       while (end != null && end !== iter) {
         const obs = end[sym_obs]
         if (obs != null) {
-          let new_idx = key_map.get(obs.key)
+          const new_idx = key_map.get(obs.key)
           if (new_idx != null && new_idx === end_idx - 1) {
             obs.o_prop.set(end_idx - 1) // the list size may have changed, so we need to update the index
             end_idx--
@@ -634,19 +564,16 @@ export namespace Repeat {
 
       // After this, iter is on the first node that we don't know what to do with and end is where we will stop
 
-      let dead_nodes = new Map<RepeatItemElement<Obs>, DocumentFragment>()
-      let dead_nodes_iter = dead_nodes.entries()
+      const dead_nodes = new Map<RepeatItemElement<Obs>, DocumentFragment>()
+      const dead_nodes_iter = dead_nodes.entries()
       let created = 0
 
-      const reuse_dead_node = (
-        iter: Node | null,
-        idx: number
-      ) => {
-        let next = dead_nodes_iter.next()
+      const reuse_dead_node = (iter: Node | null, idx: number) => {
+        const next = dead_nodes_iter.next()
         if (next.done) {
           return false
         }
-        let [node, fragment] = next.value!
+        const [node, fragment] = next.value!
         dead_nodes.delete(node)
         const obs = node[sym_obs]
         const value = new_lst[idx]
@@ -683,9 +610,9 @@ export namespace Repeat {
         const new_idx = key_map.get(obs.key)
         if (new_idx == null) {
           // This node is dead, mark it as such
-          let to_remove = iter
+          const to_remove = iter
           iter = iter.end!.nextSibling as RepeatItemElement<Obs> | null
-          let fr = document.createDocumentFragment()
+          const fr = document.createDocumentFragment()
           to_remove.moveTo(fr)
           dead_nodes.set(to_remove, fr)
           this.node_map.delete(obs.key)
@@ -713,7 +640,6 @@ export namespace Repeat {
       } while (true)
 
       if (iter == null || iter === end) {
-
         while (idx < end_idx && dead_nodes.size > 0) {
           if (reuse_dead_node(iter, idx)) idx++
         }
@@ -732,7 +658,7 @@ export namespace Repeat {
         while (iter != null && iter !== end) {
           const obs = iter[sym_obs]
           if (obs != null) {
-            let nd = iter
+            const nd = iter
             const after = nd.end!.nextSibling as RepeatItemElement<Obs> | null
             const fragment = document.createDocumentFragment()
             nd.moveTo(fragment)
@@ -746,7 +672,7 @@ export namespace Repeat {
         }
       }
 
-      for (let dead of dead_nodes.values()) {
+      for (const dead of dead_nodes.values()) {
         node_do_disconnect(dead)
       }
     }
@@ -754,12 +680,7 @@ export namespace Repeat {
     /**
      * Generate the next element to append to the list.
      */
-    protected create(
-      lst: NonNullable<o.ObservedType<Obs>>,
-      key: any,
-      index: number,
-      view_start = 0
-    ) {
+    protected create(lst: NonNullable<o.ObservedType<Obs>>, key: any, index: number, view_start = 0) {
       // const item = lst[index]
       const o_prop_obs = o(index)
       const ob = new RepeatObservable(key, this, o_prop_obs)
@@ -792,38 +713,23 @@ export namespace Repeat {
 /**
  * Display UI elements according to the resolution status of the Promise living in `o_promise`.
  */
+export function DisplayPromise<T>(o_promise: o.IObservable<Promise<T>, Promise<T>>): DisplayPromise.PromiseDisplayer<T>
 export function DisplayPromise<T>(
-  o_promise: o.IObservable<Promise<T>, Promise<T>>
-): DisplayPromise.PromiseDisplayer<T>
-export function DisplayPromise<T>(
-  o_promise: o.IReadonlyObservable<Promise<T>>
+  o_promise: o.IReadonlyObservable<Promise<T>>,
 ): DisplayPromise.ReadonlyPromiseDisplayer<T>
-export function DisplayPromise<T>(
-  o_promise: o.IReadonlyObservable<Promise<T>>
-) {
-  return new DisplayPromise.PromiseDisplayer(
-    o_promise as o.Observable<Promise<T>>
-  )
+export function DisplayPromise<T>(o_promise: o.IReadonlyObservable<Promise<T>>) {
+  return new DisplayPromise.PromiseDisplayer(o_promise as o.Observable<Promise<T>>)
 }
 
 export namespace DisplayPromise {
-  export class PromiseDisplayer<T>
-    extends Verb<Node>
-    implements ReadonlyPromiseDisplayer<T>
-  {
+  export class PromiseDisplayer<T> extends Verb<Node> implements ReadonlyPromiseDisplayer<T> {
     _resolved:
       | null
-      | ((
-          o_result: o.Observable<T>,
-          oo_waiting: o.ReadonlyObservable<boolean>
-        ) => Renderable<HTMLElement>) = null
+      | ((o_result: o.Observable<T>, oo_waiting: o.ReadonlyObservable<boolean>) => Renderable<HTMLElement>) = null
 
     _rejected:
       | null
-      | ((
-          o_error: o.Observable<any>,
-          oo_waiting: o.ReadonlyObservable<boolean>
-        ) => Renderable<HTMLElement>) = null
+      | ((o_error: o.Observable<any>, oo_waiting: o.ReadonlyObservable<boolean>) => Renderable<HTMLElement>) = null
 
     _waiting: null | (() => Renderable<HTMLElement>) = null
 
@@ -861,20 +767,14 @@ export namespace DisplayPromise {
     }
 
     WhenResolved(
-      fn: (
-        o_result: o.Observable<T>,
-        oo_waiting: o.ReadonlyObservable<boolean>
-      ) => Renderable<HTMLElement>
+      fn: (o_result: o.Observable<T>, oo_waiting: o.ReadonlyObservable<boolean>) => Renderable<HTMLElement>,
     ) {
       this._resolved = fn
       return this
     }
 
     UponRejection(
-      fn: (
-        o_error: o.Observable<any>,
-        oo_waiting: o.ReadonlyObservable<boolean>
-      ) => Renderable<HTMLElement>
+      fn: (o_error: o.Observable<any>, oo_waiting: o.ReadonlyObservable<boolean>) => Renderable<HTMLElement>,
     ) {
       this._rejected = fn
       return this
@@ -884,16 +784,10 @@ export namespace DisplayPromise {
   export interface ReadonlyPromiseDisplayer<T> extends Appender<Node> {
     WhileWaiting(fn: () => Renderable<HTMLElement>): this
     WhenResolved(
-      fn: (
-        o_result: o.ReadonlyObservable<T>,
-        oo_waiting: o.ReadonlyObservable<boolean>
-      ) => Renderable<HTMLElement>
+      fn: (o_result: o.ReadonlyObservable<T>, oo_waiting: o.ReadonlyObservable<boolean>) => Renderable<HTMLElement>,
     ): this
     UponRejection(
-      fn: (
-        o_error: o.ReadonlyObservable<any>,
-        oo_waiting: o.ReadonlyObservable<boolean>
-      ) => Renderable<HTMLElement>
+      fn: (o_error: o.ReadonlyObservable<any>, oo_waiting: o.ReadonlyObservable<boolean>) => Renderable<HTMLElement>,
     ): this
   }
 }

@@ -30,7 +30,7 @@ function segment_arrow_step(kind: SegmentKind, ctx: DateInputControllerCtx): num
 function bump_segment(kind: SegmentKind, cur: number, delta: number, ctx: DateInputControllerCtx): number {
   const step = segment_arrow_step(kind, ctx) * delta
   if (kind === "minute" || kind === "second") {
-    return ((cur + step) % 60 + 60) % 60
+    return (((cur + step) % 60) + 60) % 60
   }
   return clamp_segment(kind, cur + step, { [kind]: cur + step })
 }
@@ -101,7 +101,7 @@ export class DateInputController {
     this.#skip_input = false
   }
 
-  #select_segment(seg: { start: number, end: number } | null) {
+  #select_segment(seg: { start: number; end: number } | null) {
     if (!seg) return
     this.input.setSelectionRange(seg.start, seg.end)
   }
@@ -118,7 +118,9 @@ export class DateInputController {
   }
 
   #attach_listeners() {
-    this.input.addEventListener("focus", () => { this.#editing = true })
+    this.input.addEventListener("focus", () => {
+      this.#editing = true
+    })
     this.input.addEventListener("blur", () => {
       this.#editing = false
       this.commit_to_model()
@@ -127,13 +129,11 @@ export class DateInputController {
     this.input.addEventListener("click", () => {
       const layout = this.ctx.get_layout()
       if (!layout) return
-      requestAnimationFrame(() =>
-        this.#select_segment(segment_at_caret(layout, this.input.selectionStart ?? 0))
-      )
+      requestAnimationFrame(() => this.#select_segment(segment_at_caret(layout, this.input.selectionStart ?? 0)))
     })
 
-    this.input.addEventListener("keydown", ev => this.#on_keydown(ev))
-    this.input.addEventListener("beforeinput", ev => this.#on_beforeinput(ev))
+    this.input.addEventListener("keydown", (ev) => this.#on_keydown(ev))
+    this.input.addEventListener("beforeinput", (ev) => this.#on_beforeinput(ev))
     this.input.addEventListener("input", () => this.#on_input())
   }
 
@@ -147,9 +147,10 @@ export class DateInputController {
       ev.preventDefault()
       const segs = layout.segments
       const idx = seg ? segs.indexOf(seg) : -1
-      const next = ev.key === "ArrowLeft"
-        ? segs[Math.max(0, idx - 1)] ?? segs[0]
-        : segs[Math.min(segs.length - 1, idx + 1)] ?? segs[segs.length - 1]
+      const next =
+        ev.key === "ArrowLeft"
+          ? (segs[Math.max(0, idx - 1)] ?? segs[0])
+          : (segs[Math.min(segs.length - 1, idx + 1)] ?? segs[segs.length - 1])
       if (next) this.#select_segment(next)
       return
     }
@@ -209,7 +210,7 @@ export class DateInputController {
       ev.preventDefault()
       return
     }
-    if (ie.inputType === "insertText" && ie.data && layout.literals.some(l => ie.data!.includes(l.char))) {
+    if (ie.inputType === "insertText" && ie.data && layout.literals.some((l) => ie.data!.includes(l.char))) {
       ev.preventDefault()
       const start = this.input.selectionStart ?? 0
       let next = start + ie.data!.length
@@ -220,7 +221,7 @@ export class DateInputController {
 
   #on_input() {
     if (this.#skip_input) return
-    let text = this.#clamp_text(this.input.value)
+    const text = this.#clamp_text(this.input.value)
     if (text !== this.input.value) this.#write_text(text)
     else this.#refresh_validity(text)
   }

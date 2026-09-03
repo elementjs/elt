@@ -26,11 +26,8 @@ function _is_promise_like(a: any): a is PromiseLike<any> {
 }
 
 /** Returns true if the type is a strict readonly observable, false otherwise. This is used in the o() function, and it works because for a union of types, if just one of the types is readonly, then it becomes a union of true with never, which evaluates to true below. */
-type HasStrictReadonly<T> = T extends o.IObservable<any, any>
-  ? never
-  : T extends o.IReadonlyObservable<any>
-  ? true
-  : never
+type HasStrictReadonly<T> =
+  T extends o.IObservable<any, any> ? never : T extends o.IReadonlyObservable<any> ? true : never
 
 /**
  * Make sure we have a usable observable.
@@ -39,10 +36,8 @@ type HasStrictReadonly<T> = T extends o.IObservable<any, any>
  * @group Observable
  */
 export function o<T>(
-  arg: T
-): true extends HasStrictReadonly<T>
-  ? o.ReadonlyObservable<o.ObservedType<T>>
-  : o.Observable<o.ObservedType<T>> {
+  arg: T,
+): true extends HasStrictReadonly<T> ? o.ReadonlyObservable<o.ObservedType<T>> : o.Observable<o.ObservedType<T>> {
   return o.is_observable(arg) ? (arg as any) : (new o.Observable(arg) as any)
 }
 
@@ -74,15 +69,11 @@ export namespace o {
    */
   export type O<A, A2 extends A = A> = IObservable<A2, A> | A
   export type RO<A> = IReadonlyObservable<A> | A
-  export type UnRO<A> = A extends IObservable<any, infer C>
-    ? C
-    : A extends IReadonlyObservable<infer B>
-    ? B
-    : A
+  export type UnRO<A> = A extends IObservable<any, infer C> ? C : A extends IReadonlyObservable<infer B> ? B : A
 
   export type UnROArray<A extends any[]> = { [K in keyof A]: UnRO<A[K]> }
 
-  export type ArrayElement<T> = T extends readonly (infer E)[] ? E : never;
+  export type ArrayElement<T> = T extends readonly (infer E)[] ? E : never
 
   export type ObservedArrayElement<T> = ArrayElement<ObservedType<T>>
 
@@ -100,11 +91,7 @@ export namespace o {
    * the **original** observable, `oval` is the old value of the **original** observable and `curval` is the current value of the
    * **transformed** observable that is about to be replaced.
    */
-  export type TransfomFn<A, B> = (
-    nval: A,
-    oval: A | NoValue,
-    curval: B | NoValue
-  ) => B
+  export type TransfomFn<A, B> = (nval: A, oval: A | NoValue, curval: B | NoValue) => B
 
   /**
    * Signature of the function that reverts a value from a transformed observable
@@ -114,11 +101,7 @@ export namespace o {
    * `oval` the previous value of the **transformed** observable and `curval` the current
    * value of the **original** observable that is about to be changed.
    */
-  export type RevertFn<A, B> = (
-    nval: B,
-    oval: B,
-    curval: A
-  ) => A | NoValue
+  export type RevertFn<A, B> = (nval: B, oval: B, curval: A) => A | NoValue
 
   /**
    * For use with {@link o.Observable.tf}. The `ReadonlyConverter` only provides a transformation
@@ -325,7 +308,7 @@ export namespace o {
    */
   export type ObserverCallback<T> = (
     newval: T,
-    old_value: T | NoValue
+    old_value: T | NoValue,
   ) => void | T | NoValue | Promise<T | NoValue | void>
 
   export const sym_display_node = Symbol("display-node")
@@ -341,17 +324,11 @@ export namespace o {
     [sym_display_node]?: string;
     [sym_display_attrs]?: { [name: string]: string | null | false | number };
 
-    [sym_insert](
-      this: ReadonlyObservable<Renderable<Node>>,
-      parent: Node,
-      refchild: Node | null
-    ) {
+    [sym_insert](this: ReadonlyObservable<Renderable<Node>>, parent: Node, refchild: Node | null) {
       const kind = this[sym_display_node] ?? "e-obs"
       const attrs = this[sym_display_attrs]
 
-      const cmi = new CommentHolder(
-        ` ${kind}${attrs ? " " + JSON.stringify(attrs) : ""} `
-      )
+      const cmi = new CommentHolder(` ${kind}${attrs ? " " + JSON.stringify(attrs) : ""} `)
       node_append(parent, cmi, refchild)
       node_observe(
         cmi,
@@ -359,7 +336,7 @@ export namespace o {
         (renderable) => {
           cmi.updateRenderable(renderable)
         },
-        { immediate: true }
+        { immediate: true },
       )
     }
 
@@ -466,18 +443,11 @@ export namespace o {
      * @internal
      */
     checkWatch() {
-      if (
-        this.is_watched &&
-        this._observers.real_size === 0 &&
-        this._children.real_size === 0
-      ) {
+      if (this.is_watched && this._observers.real_size === 0 && this._children.real_size === 0) {
         this.is_watched = false
         if (this.idx != null) queue.delete(this)
         this.unwatched()
-      } else if (
-        !this.is_watched &&
-        this._observers.real_size + this._children.real_size > 0
-      ) {
+      } else if (!this.is_watched && this._observers.real_size + this._children.real_size > 0) {
         this.is_watched = true
         this.watched()
       }
@@ -499,27 +469,17 @@ export namespace o {
     // eslint-disable-next-line @typescript-eslint/no-empty-function
     watched() {}
 
-    apply<
-      K extends keyof A,
-      Args extends A[K] extends (...args: infer A) => any ? A : never
-    >(
+    apply<K extends keyof A, Args extends A[K] extends (...args: infer A) => any ? A : never>(
       method: K,
-      args: { [K2 in keyof Args]: o.RO<Args[K2]> }
-    ): ReadonlyObservable<
-      A[K] extends (...args: any[]) => infer B ? B : never
-    > {
+      args: { [K2 in keyof Args]: o.RO<Args[K2]> },
+    ): ReadonlyObservable<A[K] extends (...args: any[]) => infer B ? B : never> {
       return o.apply(this, method, args as any) as any
     }
 
-    call<
-      K extends keyof A,
-      Args extends A[K] extends (...args: infer A) => any ? A : never
-    >(
+    call<K extends keyof A, Args extends A[K] extends (...args: infer A) => any ? A : never>(
       method: K,
       ...args: { [K2 in keyof Args]: o.RO<Args[K2]> }
-    ): ReadonlyObservable<
-      A[K] extends (...args: any[]) => infer B ? B : never
-    > {
+    ): ReadonlyObservable<A[K] extends (...args: any[]) => infer B ? B : never> {
       return o.apply(this, method, args as any) as any
     }
 
@@ -539,30 +499,19 @@ export namespace o {
      *
      */
     tf<B, A2 extends A = A>(transform: RO<Converter<A2, B>>): Observable<B>
+    tf<B, A2 extends A = A>(tf: o.RO<TransfomFn<A2, B>>, rev: o.RO<RevertFn<A2, B>>): Observable<B>
+    tf<B, A2 extends A = A>(transform: RO<TransfomFn<A2, B> | ReadonlyConverter<A2, B>>): ReadonlyObservable<B>
     tf<B, A2 extends A = A>(
-      tf: o.RO<TransfomFn<A2, B>>,
-      rev: o.RO<RevertFn<A2, B>>
-    ): Observable<B>
-    tf<B, A2 extends A = A>(
-      transform: RO<TransfomFn<A2, B> | ReadonlyConverter<A2, B>>
-    ): ReadonlyObservable<B>
-    tf<B, A2 extends A = A>(
-      transform:
-        | RO<Converter<A2, B>>
-        | RO<TransfomFn<A2, B> | ReadonlyConverter<A2, B>>,
-      rev?: RO<RevertFn<A2, B>>
+      transform: RO<Converter<A2, B>> | RO<TransfomFn<A2, B> | ReadonlyConverter<A2, B>>,
+      rev?: RO<RevertFn<A2, B>>,
     ): Observable<B> {
       let old: A2 | NoValue = NoValue
       let old_val: B | NoValue = NoValue
       return combine(
         [this as unknown as IReadonlyObservable<A2>, transform, rev] as const,
         ([v, fnget]) => {
-          const curval =
-            typeof fnget === "function"
-              ? fnget(v, old, old_val)
-              : fnget.transform(v, old, old_val)
-          const arg_nb =
-            typeof fnget === "function" ? fnget.length : fnget.transform.length
+          const curval = typeof fnget === "function" ? fnget(v, old, old_val) : fnget.transform(v, old, old_val)
+          const arg_nb = typeof fnget === "function" ? fnget.length : fnget.transform.length
           if (arg_nb > 1) {
             old = v
             if (arg_nb > 2) {
@@ -572,13 +521,11 @@ export namespace o {
           return curval
         },
         (newv, old, [curr, conv, rev]) => {
-          if (typeof rev === "function")
-            return [rev(newv, old as B, curr), NoValue, NoValue] as const
-          if (typeof conv === "function")
-            return [NoValue, NoValue, NoValue] as const // this means the set is being silently ignored. should it be an error ?
+          if (typeof rev === "function") return [rev(newv, old as B, curr), NoValue, NoValue] as const
+          if (typeof conv === "function") return [NoValue, NoValue, NoValue] as const // this means the set is being silently ignored. should it be an error ?
           const new_orig = (conv as Converter<A2, B>).revert(newv, old as B, curr)
           return [new_orig, NoValue, NoValue] as const
-        }
+        },
       )
     }
 
@@ -602,18 +549,9 @@ export namespace o {
     p<R>(this: Observable<A>, key: RO<(obj: A) => R>): Observable<R>
     p<R>(this: IReadonlyObservable<A>, key: RO<(obj: A) => R>): ReadonlyObservable<R>
     p<K extends keyof A>(this: Observable<A>, key: RO<K>): Observable<A[K]>
-    p<K extends keyof A>(
-      this: IReadonlyObservable<A>,
-      key: RO<K>
-    ): ReadonlyObservable<A[K]>
-    p(
-      this: Observable<A>,
-      key: RO<readonly PropertyKey[] | PropertyKey>
-    ): Observable<unknown>
-    p(
-      this: IReadonlyObservable<A>,
-      key: RO<readonly PropertyKey[] | PropertyKey>
-    ): ReadonlyObservable<unknown>
+    p<K extends keyof A>(this: IReadonlyObservable<A>, key: RO<K>): ReadonlyObservable<A[K]>
+    p(this: Observable<A>, key: RO<readonly PropertyKey[] | PropertyKey>): Observable<unknown>
+    p(this: IReadonlyObservable<A>, key: RO<readonly PropertyKey[] | PropertyKey>): ReadonlyObservable<unknown>
     p(key: any): any {
       return prop(this, key)
     }
@@ -625,22 +563,18 @@ export namespace o {
       this: IReadonlyObservable<Map<A, B>>,
       key: RO<A>,
       def?: undefined,
-      delete_on_undefined?: RO<boolean | undefined>
-    ): this extends Observable<Map<A, B>>
-      ? Observable<B | undefined>
-      : ReadonlyObservable<B | undefined>
+      delete_on_undefined?: RO<boolean | undefined>,
+    ): this extends Observable<Map<A, B>> ? Observable<B | undefined> : ReadonlyObservable<B | undefined>
     key<A, B>(
       this: IReadonlyObservable<Map<A, B>>,
       key: RO<A>,
-      def: RO<(key: A, map: Map<A, B>) => B>
-    ): this extends Observable<Map<A, B>>
-      ? Observable<B>
-      : ReadonlyObservable<B>
+      def: RO<(key: A, map: Map<A, B>) => B>,
+    ): this extends Observable<Map<A, B>> ? Observable<B> : ReadonlyObservable<B>
     key<A, B>(
       this: IReadonlyObservable<Map<A, B>>,
       key: RO<A>,
       def?: RO<(key: A, map: Map<A, B>) => B>,
-      delete_on_undefined = true as RO<boolean | undefined>
+      delete_on_undefined = true as RO<boolean | undefined>,
     ): ReadonlyObservable<B | undefined> {
       return combine(
         [this, key, def, delete_on_undefined] as const,
@@ -658,16 +592,13 @@ export namespace o {
           if (ret !== undefined || !delete_on_undefined) result.set(okey, ret!)
           else result.delete(okey)
           return [result, NoValue, NoValue, NoValue] as const
-        }
+        },
       )
     }
   }
 
   /** @internal */
-  export function each_recursive(
-    obs: ReadonlyObservable<any>,
-    fn: (v: ReadonlyObservable<any>) => void
-  ) {
+  export function each_recursive(obs: ReadonlyObservable<any>, fn: (v: ReadonlyObservable<any>) => void) {
     fn(obs)
     for (let i = 0, ch = obs._children.arr, l = ch.length; i < l; i++) {
       const child = ch[i]
@@ -766,16 +697,13 @@ export namespace o {
   }
 
   /** @internal */
-  export class ChildObservableLink<
-    A extends unknown[] = unknown[],
-    T = unknown,
-  > implements Indexable {
+  export class ChildObservableLink<A extends unknown[] = unknown[], T = unknown> implements Indexable {
     idx = null
 
     constructor(
       public parent: Observable<unknown>,
       public child: CombinedObservable<A, T>,
-      public child_idx: number
+      public child_idx: number,
     ) {}
 
     refresh() {
@@ -818,10 +746,7 @@ export namespace o {
      * Since Observables values are treated as immutable, assign
      *
      */
-    assign<U>(
-      this: Observable<U[]>,
-      partial: { [index: number]: assign.AssignPartial<U> }
-    ): void
+    assign<U>(this: Observable<U[]>, partial: { [index: number]: assign.AssignPartial<U> }): void
     assign(partial: assign.AssignPartial<A>): void
     assign(partial: any): void {
       this.set(o.assign(this.get(), partial))
@@ -835,12 +760,7 @@ export namespace o {
   // Mark all observables with a known symbol
   Observable.prototype[sym_is_observable] = true
 
-  export class ReadonlyCombinedObservable<
-    A extends any[],
-    T = A
-  > extends ReadonlyObservable<T> {
-
-  }
+  export class ReadonlyCombinedObservable<A extends any[], T = A> extends ReadonlyObservable<T> {}
 
   /**
    * An observable that does not its own value, but that depends
@@ -867,11 +787,7 @@ export namespace o {
       return values.slice() as any as T
     }
 
-    setter(
-      nval: T,
-      oval: T | NoValue,
-      last: A
-    ): { [K in keyof A]: A[K] | NoValue } {
+    setter(nval: T, oval: T | NoValue, last: A): { [K in keyof A]: A[K] | NoValue } {
       return nval as any as A // by default, just forward the type
     }
 
@@ -976,7 +892,7 @@ export namespace o {
       this._parents_values = [] as any
       this._links = []
 
-      for (let o of obs) {
+      for (const o of obs) {
         this.addDependency(o)
       }
 
@@ -995,10 +911,7 @@ export namespace o {
     return path
   }
 
-  function sameProxyPath(
-    a: ReadonlyObservable<unknown>[],
-    b: ReadonlyObservable<unknown>[]
-  ): boolean {
+  function sameProxyPath(a: ReadonlyObservable<unknown>[], b: ReadonlyObservable<unknown>[]): boolean {
     if (a.length !== b.length) return false
     for (let i = 0; i < a.length; i++) {
       if (a[i] !== b[i]) return false
@@ -1009,10 +922,7 @@ export namespace o {
   /** Non-empty dependency path for {@link ProxyObservable}. */
   type ProxyPath = [ReadonlyObservable<unknown>, ...ReadonlyObservable<unknown>[]]
 
-  type ProxySetterResult = [
-    NoValue | ReadonlyObservable<unknown>,
-    ...(NoValue | ReadonlyObservable<unknown>)[],
-  ]
+  type ProxySetterResult = [NoValue | ReadonlyObservable<unknown>, ...(NoValue | ReadonlyObservable<unknown>)[]]
 
   function asProxyPath(path: ReadonlyObservable<unknown>[]): ProxyPath {
     return path as unknown as ProxyPath
@@ -1064,11 +974,7 @@ export namespace o {
       return terminal.get() as T
     }
 
-    override setter(
-      nval: T,
-      _oval: T | NoValue,
-      _last: ProxyPath
-    ): ProxySetterResult {
+    override setter(nval: T, _oval: T | NoValue, _last: ProxyPath): ProxySetterResult {
       const noop = this._path.map(() => o.NoValue) as unknown as ProxySetterResult
       if ((nval as any) === o.NoValue) return noop
       const terminal = this._path[this._path.length - 1]
@@ -1087,13 +993,15 @@ export namespace o {
     changeTarget<U>(obs: ReadonlyObservable<U>): void
   }
 
-  export type ReadonlyProxyfinal<Obs> = Obs extends ReadonlyObservable<infer T> ? ReadonlyProxyfinal<T>
-    : ReadonlyObservable<Obs>
+  export type ReadonlyProxyfinal<Obs> =
+    Obs extends ReadonlyObservable<infer T> ? ReadonlyProxyfinal<T> : ReadonlyObservable<Obs>
 
   export type ProxyFinalObservable<Obs> =
-    Obs extends Observable<infer U> ? ProxyFinalObservable<U>
-    : Obs extends ReadonlyObservable<infer T> ? ReadonlyProxyfinal<T>
-    : Observable<Obs>
+    Obs extends Observable<infer U>
+      ? ProxyFinalObservable<U>
+      : Obs extends ReadonlyObservable<infer T>
+        ? ReadonlyProxyfinal<T>
+        : Observable<Obs>
 
   /**
    * Follow a chain of observables down to the innermost one and behave as that observable.
@@ -1141,37 +1049,29 @@ export namespace o {
    */
   export function combine<T extends any[], R>(
     deps: T,
-    get: (a: { [name in keyof T]: ObservedType<T[name]> }) => R
+    get: (a: { [name in keyof T]: ObservedType<T[name]> }) => R,
   ): ReadonlyObservable<R>
   export function combine<T extends any[], R>(
     deps: T,
-    get: (a: {
-      [name in keyof T]: ObservedType<
-        Extract<T[name], IReadonlyObservable<any>>
-      >
-    }) => R,
+    get: (
+      a: {
+        [name in keyof T]: ObservedType<Extract<T[name], IReadonlyObservable<any>>>
+      },
+    ) => R,
     set: (
       r: R,
       old: R | NoValue,
       last: {
-        [name in keyof T]: ObservedType<
-          Extract<T[name], IReadonlyObservable<any>>
-        >
-      }
+        [name in keyof T]: ObservedType<Extract<T[name], IReadonlyObservable<any>>>
+      },
     ) => {
-      [K in keyof T]:
-        | ObservedType<Extract<T[K], IReadonlyObservable<any>>>
-        | NoValue
-    }
+      [K in keyof T]: ObservedType<Extract<T[K], IReadonlyObservable<any>>> | NoValue
+    },
   ): Observable<R>
   export function combine<T extends any[], R>(
     deps: { [K in keyof T]: RO<T[K]> },
     get: (a: T) => R,
-    set?: (
-      r: R,
-      old: R | NoValue,
-      last: T
-    ) => { [K in keyof T]: T[K] | NoValue }
+    set?: (r: R, old: R | NoValue, last: T) => { [K in keyof T]: T[K] | NoValue },
   ): Observable<R> {
     const virt = new CombinedObservable<T, R>(deps)
     virt.getter = get
@@ -1201,15 +1101,21 @@ export namespace o {
    *
    * @group Observable
    */
-  export function merge<T>(obj: {
-    [K in keyof T]: Observable<T[K]>
-  }): Observable<T>
-  export function merge<T>(obj: {
-    [K in keyof T]: RO<T[K]>
-  }): ReadonlyObservable<T>
-  export function merge<T>(obj: {
-    [K in keyof T]: Observable<T[K]>
-  }): Observable<T> {
+  export function merge<T>(
+    obj: {
+      [K in keyof T]: Observable<T[K]>
+    },
+  ): Observable<T>
+  export function merge<T>(
+    obj: {
+      [K in keyof T]: RO<T[K]>
+    },
+  ): ReadonlyObservable<T>
+  export function merge<T>(
+    obj: {
+      [K in keyof T]: Observable<T[K]>
+    },
+  ): Observable<T> {
     const keys = Object.keys(obj) as (keyof T)[]
     const parents: IReadonlyObservable<T[keyof T]>[] = keys.map((k) => obj[k])
     return combine(
@@ -1221,7 +1127,7 @@ export namespace o {
         }
         return res
       },
-      (back) => keys.map((k) => (back as any)[k as any])
+      (back) => keys.map((k) => (back as any)[k as any]),
     )
   }
 
@@ -1230,35 +1136,23 @@ export namespace o {
    * of `def` if the value was `undefined`.
    * @group Observable
    */
-  export function prop<T, R>(
-    obj: O<T>,
-    prop: (obj: T) => R,
-    def?: RO<(obj: T) => R>
-  ): Observable<R>
-  export function prop<T, R>(
-    obj: RO<T>,
-    prop: (obj: T) => R,
-    def?: RO<(obj: T) => R>
-  ): ReadonlyObservable<R>
-  export function prop<T, K extends keyof T>(
-    obj: O<T>,
-    prop: RO<K>,
-    def?: RO<(obj: T) => T[K]>
-  ): Observable<T[K]>
+  export function prop<T, R>(obj: O<T>, prop: (obj: T) => R, def?: RO<(obj: T) => R>): Observable<R>
+  export function prop<T, R>(obj: RO<T>, prop: (obj: T) => R, def?: RO<(obj: T) => R>): ReadonlyObservable<R>
+  export function prop<T, K extends keyof T>(obj: O<T>, prop: RO<K>, def?: RO<(obj: T) => T[K]>): Observable<T[K]>
   export function prop<T, K extends keyof T>(
     obj: RO<T>,
     prop: RO<K>,
-    def?: RO<(obj: T) => T[K]>
+    def?: RO<(obj: T) => T[K]>,
   ): ReadonlyObservable<T[K]>
   export function prop<T>(
     obj: O<T>,
     prop: RO<readonly PropertyKey[] | PropertyKey>,
-    def?: RO<(obj: T) => unknown>
+    def?: RO<(obj: T) => unknown>,
   ): Observable<unknown>
   export function prop<T>(
     obj: RO<T>,
     prop: RO<readonly PropertyKey[] | PropertyKey>,
-    def?: RO<(obj: T) => unknown>
+    def?: RO<(obj: T) => unknown>,
   ): ReadonlyObservable<unknown>
   export function prop<T>(obj: any, prop: any, def?: any): any {
     // Assigner: lazily-built function that immutably writes a value at the nested path
@@ -1287,10 +1181,7 @@ export namespace o {
         }
 
         function is_index_key(key: string | number) {
-          return (
-            typeof key === "number" ||
-            (typeof key === "string" && /^\d+$/.test(key))
-          )
+          return typeof key === "number" || (typeof key === "string" && /^\d+$/.test(key))
         }
 
         // Intermediate nodes along the path; numeric keys prefer arrays.
@@ -1334,8 +1225,8 @@ export namespace o {
 
     function make_function_assigner() {
       const body = last_prop.toString() as string
-      const brk = /\??\.(?<name>[^.\[?]+)|\??\["(?<name>(\\"|[^"])+)\"|\??\['(?<name>(\\'|[^'])+)']\]/g
-      const path = [...body.matchAll(brk).map(match => match.groups!.name)]
+      const brk = /\??\.(?<name>[^.[?]+)|\??\["(?<name>(\\"|[^"])+)"|\??\['(?<name>(\\'|[^'])+)']\]/g
+      const path = [...body.matchAll(brk).map((match) => match.groups!.name)]
       return make_setter_from_path(path)
     }
 
@@ -1355,9 +1246,10 @@ export namespace o {
 
     if (!o.is_observable(prop)) {
       eval_prop(prop)
-      return combine([obj] as const,
+      return combine(
+        [obj] as const,
         ([obj]) => getter(obj),
-        (nval, _, [orig]) => [setter(orig, nval), NoValue, NoValue] as any
+        (nval, _, [orig]) => [setter(orig, nval), NoValue, NoValue] as any,
       )
     }
 
@@ -1374,28 +1266,23 @@ export namespace o {
       (nval, _, [orig]) => {
         const newo = setter(orig, nval)
         return [newo, NoValue, NoValue] as const
-      }
+      },
     )
   }
 
   export function then<T extends any[], U>(
     o_pro: o.RO<T>,
-    tffn: (item: { [K in keyof T]: Awaited<T[K]> }) => U
+    tffn: (item: { [K in keyof T]: Awaited<T[K]> }) => U,
   ): o.ReadonlyObservable<Promise<U>>
-  export function then<T, U>(
-    o_pro: o.RO<T>,
-    tffn: (item: Awaited<T>) => U
-  ): o.ReadonlyObservable<Promise<U>>
+  export function then<T, U>(o_pro: o.RO<T>, tffn: (item: Awaited<T>) => U): o.ReadonlyObservable<Promise<U>>
   export function then(o_pro: o.RO<any>, tffn: (item: any) => any) {
     let prevreject: undefined | ((err: any) => void)
     return o.tf(o_pro, (newpro) => {
       if (prevreject) prevreject(new Error("Promise changed, cancelling"))
       return new Promise((accept, reject) => {
         prevreject = reject
-        if (Array.isArray(newpro))
-          Promise.all(newpro).then((val) => accept(tffn(val)))
-        else if (newpro && typeof newpro["then"] === "function")
-          newpro.then((val: any) => accept(tffn(val)))
+        if (Array.isArray(newpro)) Promise.all(newpro).then((val) => accept(tffn(val)))
+        else if (newpro && typeof newpro["then"] === "function") newpro.then((val: any) => accept(tffn(val)))
         else setTimeout(() => accept(tffn(newpro)), 0)
       })
     })
@@ -1413,9 +1300,7 @@ export namespace o {
    * @group Observable
    */
   export function get<A>(arg: RO<A>): A {
-    return is_observable(arg)
-      ? (arg as ReadonlyObservable<A>).get()
-      : (arg as A)
+    return is_observable(arg) ? (arg as ReadonlyObservable<A>).get() : (arg as A)
   }
 
   /**
@@ -1425,10 +1310,7 @@ export namespace o {
    * Observable objects for values that were not.
    * @group Observable
    */
-  export function tf<A, B>(
-    arg: RO<A>,
-    fn: Converter<A, B> | TransfomFn<A, B>
-  ): RO<B> {
+  export function tf<A, B>(arg: RO<A>, fn: Converter<A, B> | TransfomFn<A, B>): RO<B> {
     if (o.is_observable(arg)) {
       if (typeof fn === "function") {
         return (arg as ReadonlyObservable<A>).tf(fn)
@@ -1526,11 +1408,7 @@ export namespace o {
     prev: T | NoValue,
   ) => T
 
-  export type FnExpressionRevert<T> = (
-    value: T,
-    set: <A>(obs: Observable<A>, val: A) => void,
-    prev: T,
-  ) => any
+  export type FnExpressionRevert<T> = (value: T, set: <A>(obs: Observable<A>, val: A) => void, prev: T) => any
 
   /**
    * Create a derived observable from a function that reads and subscribes to other observables dynamically via `get`. This function is useful to create observables that are the result of complex computations on other observables without having to manually subscribe to them with `join` or `merge`.
@@ -1571,13 +1449,8 @@ export namespace o {
    *
    * @group Observable
    */
-  export function expression<T>(
-    fn: FnExpressionTransform<T>,
-  ): o.ReadonlyObservable<T>
-  export function expression<T>(
-    fn: FnExpressionTransform<T>,
-    fn_revert: FnExpressionRevert<T>,
-  ): o.Observable<T>
+  export function expression<T>(fn: FnExpressionTransform<T>): o.ReadonlyObservable<T>
+  export function expression<T>(fn: FnExpressionTransform<T>, fn_revert: FnExpressionRevert<T>): o.Observable<T>
   export function expression<T>(
     fn: FnExpressionTransform<T>,
     fn_revert?: FnExpressionRevert<T>,
@@ -1631,8 +1504,7 @@ export namespace o {
     }
 
     cmb.getter = (() => {
-
-      let res = fn(_get, _old, _updated, prev) as T
+      const res = fn(_get, _old, _updated, prev) as T
 
       // The following two ifs are to avoid storing unnecessary references to the parent values and the previous value if the function does not need them, as this can hold a lot of memory for nothing if the values are big.
       if (fn.length > 1) {
@@ -1647,7 +1519,7 @@ export namespace o {
 
     if (fn_revert) {
       cmb.setter = ((nval: T, oval: T, values: any[]) => {
-        let res = new Array(cmb._links.length).fill(NoValue)
+        const res = new Array(cmb._links.length).fill(NoValue)
         function _set(m: o.Observable<any>, val: any) {
           const idx = mp.get(m)
           if (idx == null) {
@@ -1671,23 +1543,20 @@ export namespace o {
    * @param method The name of the method to be applied
    * @param args The arguments
    */
-  export function apply<
-    F extends (...args: any[]) => any,
-    Args extends Parameters<F>
-  >(
+  export function apply<F extends (...args: any[]) => any, Args extends Parameters<F>>(
     fn: RO<F>,
-    args: { [K in keyof Args]: RO<Args[K]> }
+    args: { [K in keyof Args]: RO<Args[K]> },
   ): o.ReadonlyObservable<ReturnType<F>>
 
   export function apply<
     T,
     K extends keyof T,
     F extends T[K] extends (...args: any[]) => any ? T[K] : never,
-    Args extends Parameters<F>
+    Args extends Parameters<F>,
   >(
     obs: o.ReadonlyObservable<T>,
     method: K,
-    args: { [K2 in keyof Args]: RO<Args[K2]> }
+    args: { [K2 in keyof Args]: RO<Args[K2]> },
   ): o.ReadonlyObservable<ReturnType<F>>
 
   export function apply(obs: any, method: any, args?: any) {
@@ -1717,17 +1586,10 @@ export namespace o {
    * @returns a new instance of the object if the mutator would change it
    * @group Observable
    */
-  export function assign<A>(
-    value: A[],
-    partial: { [index: number]: assign.AssignPartial<A> }
-  ): A[]
+  export function assign<A>(value: A[], partial: { [index: number]: assign.AssignPartial<A> }): A[]
   export function assign<A>(value: A, mutator: assign.AssignPartial<A>): A
   export function assign<A>(value: A, mutator: assign.AssignPartial<A>): A {
-    if (
-      mutator == null ||
-      typeof mutator !== "object" ||
-      Object.getPrototypeOf(mutator) !== Object.prototype
-    )
+    if (mutator == null || typeof mutator !== "object" || Object.getPrototypeOf(mutator) !== Object.prototype)
       return mutator as any
 
     if (typeof mutator === "object") {
@@ -1757,8 +1619,8 @@ export namespace o {
       [P in keyof T]?: T[P] extends (infer U)[]
         ? { [index: number]: U | AssignPartial<U> }
         : T[P] extends object
-        ? T[P] | AssignPartial<T[P]>
-        : T[P]
+          ? T[P] | AssignPartial<T[P]>
+          : T[P]
     }
   }
 
@@ -1779,15 +1641,8 @@ export namespace o {
    *
    * @group Observable
    */
-  export function debounce(
-    ms: number,
-    leading?: boolean
-  ): (target: any, key: string, desc: PropertyDescriptor) => void
-  export function debounce<F extends (...a: any[]) => any>(
-    fn: F,
-    ms: number,
-    leading?: boolean
-  ): F
+  export function debounce(ms: number, leading?: boolean): (target: any, key: string, desc: PropertyDescriptor) => void
+  export function debounce<F extends (...a: any[]) => any>(fn: F, ms: number, leading?: boolean): F
   export function debounce(fn: any, ms: any, leading: boolean = false): any {
     let timer: number
     let prev_res: any
@@ -1797,7 +1652,7 @@ export namespace o {
     if (arguments.length === 1) {
       leading = ms
       ms = fn
-      return function (target: any, key: string, desc: PropertyDescriptor) {
+      return (target: any, key: string, desc: PropertyDescriptor) => {
         const original = desc.value
         desc.value = debounce(original, ms)
       }
@@ -1844,23 +1699,15 @@ export namespace o {
    */
   export function throttle(
     ms: number,
-    leading?: boolean | number
+    leading?: boolean | number,
   ): (target: any, key: string, desc: PropertyDescriptor) => void
-  export function throttle<F extends (...a: any[]) => any>(
-    fn: F,
-    ms: number,
-    leading?: boolean | number
-  ): F
-  export function throttle(
-    fn: any,
-    ms: any,
-    leading: boolean | number = false
-  ): any {
+  export function throttle<F extends (...a: any[]) => any>(fn: F, ms: number, leading?: boolean | number): F
+  export function throttle(fn: any, ms: any, leading: boolean | number = false): any {
     // Called as a method decorator.
     if (typeof fn === "number") {
       leading = ms
       ms = fn
-      return function (target: any, key: string, desc: PropertyDescriptor) {
+      return (target: any, key: string, desc: PropertyDescriptor) => {
         const original = desc.value
         desc.value = throttle(original, ms, leading)
       }
@@ -1895,16 +1742,16 @@ export namespace o {
       _args = args
 
       if (!timer) {
-        timer = window.setTimeout(function () {
-          prev_res = fn.apply(self, _args)
-          last_call = Date.now()
-          _args = null
-          timer = null
-        }, (typeof leading === "number" &&
-        (last_call === 0 || last_call + ms <= now)
-          ? leading
-          : ms) -
-          (now - (last_call || now)))
+        timer = window.setTimeout(
+          () => {
+            prev_res = fn.apply(self, _args)
+            last_call = Date.now()
+            _args = null
+            timer = null
+          },
+          (typeof leading === "number" && (last_call === 0 || last_call + ms <= now) ? leading : ms) -
+            (now - (last_call || now)),
+        )
       }
 
       return prev_res
@@ -1968,14 +1815,14 @@ export namespace o {
         "" + obj.global
           ? "g"
           : "" + obj.multiline
-          ? "m"
-          : "" + obj.unicode
-          ? "u"
-          : "" + obj.ignoreCase
-          ? "i"
-          : "" + obj.sticky
-          ? "y"
-          : ""
+            ? "m"
+            : "" + obj.unicode
+              ? "u"
+              : "" + obj.ignoreCase
+                ? "i"
+                : "" + obj.sticky
+                  ? "y"
+                  : "",
       )
     }
 
@@ -2015,15 +1862,9 @@ export namespace o {
    *
    * @group Observable
    */
-  export function wrap_promise<T>(
-    obs: o.Observable<Promise<T>>
-  ): o.Observable<wrap_promise.Result<T>>
-  export function wrap_promise<T>(
-    obs: o.RO<Promise<T>>
-  ): o.ReadonlyObservable<wrap_promise.Result<T>>
-  export function wrap_promise<T>(
-    obs: o.RO<Promise<T>>
-  ): o.ReadonlyObservable<wrap_promise.Result<T>> {
+  export function wrap_promise<T>(obs: o.Observable<Promise<T>>): o.Observable<wrap_promise.Result<T>>
+  export function wrap_promise<T>(obs: o.RO<Promise<T>>): o.ReadonlyObservable<wrap_promise.Result<T>>
+  export function wrap_promise<T>(obs: o.RO<Promise<T>>): o.ReadonlyObservable<wrap_promise.Result<T>> {
     let last_promise: Promise<T>
     const o_result = o({ resolving: true } as wrap_promise.Result<T>)
 
@@ -2046,19 +1887,13 @@ export namespace o {
         return res
       },
       revert(nval, _, cur) {
-        if (
-          nval.resolved === "value" &&
-          (cur.res.resolved !== "value" || nval.value !== cur.res.value)
-        ) {
+        if (nval.resolved === "value" && (cur.res.resolved !== "value" || nval.value !== cur.res.value)) {
           last_promise = Promise.resolve(nval.value)
           return {
             pro: last_promise,
             res: { resolved: "value", value: nval.value, resolving: false },
           }
-        } else if (
-          nval.resolved === "error" &&
-          (cur.res.resolved !== "error" || nval.error !== cur.res.error)
-        ) {
+        } else if (nval.resolved === "error" && (cur.res.resolved !== "error" || nval.error !== cur.res.error)) {
           last_promise = Promise.reject(nval.error)
           last_promise.catch(() => {})
           return {
@@ -2171,11 +2006,7 @@ export namespace o {
     /**
      * Does pretty much what {@link $observe} does.
      */
-    observe<A>(
-      obs: RO<A>,
-      fn?: ObserverCallback<A>,
-      options?: ObserveOptions<A>
-    ): Observer<A> | null {
+    observe<A>(obs: RO<A>, fn?: ObserverCallback<A>, options?: ObserveOptions<A>): Observer<A> | null {
       fn ??= () => {}
       if (!o.is_observable(obs)) {
         if (this.is_observing) fn(obs as A, NoValue)
@@ -2183,19 +2014,13 @@ export namespace o {
         return null
       }
 
-      const observer = options?.changes_only
-        ? new SilentObserver(fn, o(obs))
-        : new Observer(fn, o(obs))
+      const observer = options?.changes_only ? new SilentObserver(fn, o(obs)) : new Observer(fn, o(obs))
       options?.observer_callback?.(observer)
       if (options?.immediate) observer.refresh()
       return this.addObserver(observer)
     }
 
-    observeChanges<A>(
-      obs: RO<A>,
-      fn: ObserverCallback<A>,
-      options?: ObserveOptions<A>
-    ): Observer<A> | null {
+    observeChanges<A>(obs: RO<A>, fn: ObserverCallback<A>, options?: ObserveOptions<A>): Observer<A> | null {
       return this.observe(obs, fn, { ...options, changes_only: true })
     }
 

@@ -1,4 +1,4 @@
-import { type Attrs, type NRO, css } from "elt";
+import { type Attrs, type NRO, css } from "elt"
 import { theme } from "./theme"
 
 declare module "elt" {
@@ -9,9 +9,33 @@ declare module "elt" {
   }
 }
 
-export type SpacingValues = "3x-small" | "2x-small" | "x-small" | "small" | "medium" | "large" | "x-large" | "2x-large" | "3x-large" | "4x-large"
+export type SpacingValues =
+  | "3x-small"
+  | "2x-small"
+  | "x-small"
+  | "small"
+  | "medium"
+  | "large"
+  | "x-large"
+  | "2x-large"
+  | "3x-large"
+  | "4x-large"
 
-export type AlignValues = "center" | "start" | "end" | "self-start" | "baseline" | "first baseline" | "last baseline" | "safe center" | "unsafe center" | "normal" | "stretch" | "space-evenly" | "space-around" | "space-between"
+export type AlignValues =
+  | "center"
+  | "start"
+  | "end"
+  | "self-start"
+  | "baseline"
+  | "first baseline"
+  | "last baseline"
+  | "safe center"
+  | "unsafe center"
+  | "normal"
+  | "stretch"
+  | "space-evenly"
+  | "space-around"
+  | "space-between"
 
 export interface CommonAttrs extends Attrs<HTMLElement> {
   inline?: NRO<boolean>
@@ -19,7 +43,7 @@ export interface CommonAttrs extends Attrs<HTMLElement> {
   grow?: NRO<boolean>
   gap?: NRO<boolean | SpacingValues>
   pad?: NRO<boolean | SpacingValues>
-  "hover"?: NRO<boolean>
+  hover?: NRO<boolean>
   "self-align"?: NRO<AlignValues>
   "self-justify"?: NRO<AlignValues>
   "max-width"?: NRO<boolean>
@@ -39,27 +63,57 @@ export interface EFlexAttrs extends CommonAttrs {
   wrap?: NRO<boolean>
   column?: NRO<boolean>
   reverse?: NRO<boolean>
-  "align"?: NRO<AlignValues>
-  "justify"?: NRO<AlignValues>
+  align?: NRO<AlignValues>
+  justify?: NRO<AlignValues>
 }
 
-let more: string[] = []
-let spaces = ["3x-small", "2x-small", "x-small", "small", "medium", "large", "x-large", "2x-large", "3x-large", "4x-large"]
-let align = ["center", "start", "end", "self-start", "baseline", "first baseline", "last baseline", "safe center", "unsafe center", "normal", "stretch", "space-evenly", "space-around", "space-between"]
+const more: string[] = []
+const spaces = [
+  "3x-small",
+  "2x-small",
+  "x-small",
+  "small",
+  "medium",
+  "large",
+  "x-large",
+  "2x-large",
+  "3x-large",
+  "4x-large",
+]
+const align = [
+  "center",
+  "start",
+  "end",
+  "self-start",
+  "baseline",
+  "first baseline",
+  "last baseline",
+  "safe center",
+  "unsafe center",
+  "normal",
+  "stretch",
+  "space-evenly",
+  "space-around",
+  "space-between",
+]
 
-for (let al of align) {
+for (const al of align) {
   more.push(`:is(e-flex,e-grid)[align="${al}"] { align-items: ${al}; }`)
   more.push(`:is(e-flex,e-grid)[justify="${al}"] { justify-content: ${al}; }`)
   more.push(`:is(e-flex,e-grid,e-box)[self-justify="${al}"] { justify-self: ${al}; }`)
   more.push(`:is(e-flex,e-grid,e-box)[self-align="${al}"] { align-self: ${al}; }`)
 }
 
-for (let att of ["gap", "pad"]) {
+for (const att of ["gap", "pad"]) {
   for (let i = 0, l = spaces.length; i < l; i++) {
     const sp = spaces[i]!
     const less = spaces[i - 1]! ?? spaces[i]!
-    more.push(`:is(e-flex,e-grid,e-box)[${att}="${sp}"] { --e-${att}-vertical: var(--e-spacing-${less}); --e-${att}-horizontal: var(--e-spacing-${sp}); }`)
-    more.push(`:is(e-flex,e-grid,e-box)[${att}="${sp}"] { --e-${att}-vertical: var(--e-spacing-${less}); --e-${att}-horizontal: var(--e-spacing-${sp}); }`)
+    more.push(
+      `:is(e-flex,e-grid,e-box)[${att}="${sp}"] { --e-${att}-vertical: var(--e-spacing-${less}); --e-${att}-horizontal: var(--e-spacing-${sp}); }`,
+    )
+    more.push(
+      `:is(e-flex,e-grid,e-box)[${att}="${sp}"] { --e-${att}-vertical: var(--e-spacing-${less}); --e-${att}-horizontal: var(--e-spacing-${sp}); }`,
+    )
   }
 }
 

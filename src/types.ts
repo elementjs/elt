@@ -6,7 +6,9 @@ export interface Appender<N extends Node> {
   [sym_insert](parent: N, refchild: Node | null): void
 }
 
-export type NRO<T> = o.RO<T | null | false | undefined | { valueOf: () => T } | (T extends string ? { toString(): string } : never)>
+export type NRO<T> = o.RO<
+  T | null | false | undefined | { valueOf: () => T } | (T extends string ? { toString(): string } : never)
+>
 
 /**
  * Renderables are the types understood by the `Display` verb and that can be rendered into
@@ -14,7 +16,17 @@ export type NRO<T> = o.RO<T | null | false | undefined | { valueOf: () => T } | 
  * to define what can go between `{ curly braces }` in JSX code.
  * @category dom, toc
  */
-export type Renderable<N extends Node = Element> = Appender<N> | string | number | Node | null | undefined | boolean | Decorator<N> | Renderable<N>[] | o.IReadonlyObservable<Renderable<N>>
+export type Renderable<N extends Node = Element> =
+  | Appender<N>
+  | string
+  | number
+  | Node
+  | null
+  | undefined
+  | boolean
+  | Decorator<N>
+  | Renderable<N>[]
+  | o.IReadonlyObservable<Renderable<N>>
 
 /**
  * Definition of the Decorator type, or functions that can be passed directly
@@ -33,25 +45,25 @@ export type Renderable<N extends Node = Element> = Appender<N> | string | number
 export type DecoratorResult<N extends Node> = void | Renderable<N>
 export type Decorator<N extends Node> = (node: N) => DecoratorResult<N>
 
-
 /**
  * CSS Style attribute definition for the style={} attribute
  */
 export type StyleDefinition =
-  o.RO<Partial<CSSStyleDeclaration & { [K: `--${string}`]: string }>>
+  | o.RO<Partial<CSSStyleDeclaration & { [K: `--${string}`]: string }>>
   | o.ROProps<Partial<CSSStyleDeclaration & { [K: `--${string}`]: string }>>
   | o.RO<string>
 
 /**
  * CSS classes for the class={} attribute
  */
-export type ClassDefinition = {[name: string]: o.RO<any>} | o.RO<string>
+export type ClassDefinition = { [name: string]: o.RO<any> } | o.RO<string>
 
 /**
  * Used with {@link $on} or {@link Mixin#on}
  */
-export type Listener<EventType extends Event, N extends EventTarget = EventTarget> = (ev: EventType & { currentTarget: N }) => any
-
+export type Listener<EventType extends Event, N extends EventTarget = EventTarget> = (
+  ev: EventType & { currentTarget: N },
+) => any
 
 /**
  * Attributes used on elements that are not actually HTML Elements
@@ -74,7 +86,6 @@ export interface EmptyAttributes<N extends Node> {
  * @category dom, toc
  */
 export type AttrsNodeType<At extends EmptyAttributes<any>> = At extends EmptyAttributes<infer N> ? N : never
-
 
 /**
  * Basic attributes used on all HTML nodes, which can be reused when making components
@@ -131,9 +142,7 @@ export interface Attrs<N extends Node = HTMLElement> extends EmptyAttributes<N> 
   popover?: NRO<"manual" | "auto">
   [K: `aria-${string}`]: NRO<string | number>
   [K: `data-${string}`]: NRO<string | number>
-
 }
-
 
 export interface SVGFilterPrimitive {
   x?: NRO<string | number>
@@ -148,7 +157,21 @@ export interface SVGLink {
   href?: NRO<string | number>
 }
 export interface SVGPresentation {
-  "alignment-baseline"?: NRO<"auto" | "baseline" | "before-edge" | "text-before-edge" | "middle" | "central" | "after-edge" | "text-after-edge" | "ideographic" | "alphabetic" | "hanging" | "mathematical" | "inherit">
+  "alignment-baseline"?: NRO<
+    | "auto"
+    | "baseline"
+    | "before-edge"
+    | "text-before-edge"
+    | "middle"
+    | "central"
+    | "after-edge"
+    | "text-after-edge"
+    | "ideographic"
+    | "alphabetic"
+    | "hanging"
+    | "mathematical"
+    | "inherit"
+  >
   "baseline-shift"?: NRO<"auto" | "baseline" | "super" | "sub" | "inherit" | string>
   clip?: NRO<"auto" | "inherit" | string>
   "clip-path"?: NRO<"none" | "inherit" | string>
@@ -162,7 +185,17 @@ export interface SVGPresentation {
   d?: NRO<string | number>
   direction?: NRO<"ltr" | "rtl" | "inherit">
   display?: NRO<"" | true>
-  "dominant-baseline"?: NRO<"auto" | "text-bottom" | "alphabetic" | "ideographic" | "middle" | "central" | "mathematical" | "hanging" | "text-top">
+  "dominant-baseline"?: NRO<
+    | "auto"
+    | "text-bottom"
+    | "alphabetic"
+    | "ideographic"
+    | "middle"
+    | "central"
+    | "mathematical"
+    | "hanging"
+    | "text-top"
+  >
   "enable-background"?: NRO<"accumulate" | "new" | "inherit">
   fill?: NRO<string | number>
   "fill-opacity"?: NRO<string | number>
@@ -176,7 +209,9 @@ export interface SVGPresentation {
   "font-stretch"?: NRO<string | number>
   "font-style"?: NRO<"normal" | "italic" | "oblique">
   "font-variant"?: NRO<string | number>
-  "font-weight"?: NRO<"normal" | "bold" | "lighter" | "bolder" | "100" | "200" | "300" | "400" | "500" | "600" | "700" | "800" | "900">
+  "font-weight"?: NRO<
+    "normal" | "bold" | "lighter" | "bolder" | "100" | "200" | "300" | "400" | "500" | "600" | "700" | "800" | "900"
+  >
   "glyph-orientation-horizontal"?: NRO<string | number>
   "glyph-orientation-vertical"?: NRO<string | number>
   "image-rendering"?: NRO<"auto" | "optimizeQuality" | "optimizeSpeed">
@@ -189,7 +224,18 @@ export interface SVGPresentation {
   mask?: NRO<string | number>
   opacity?: NRO<string | number>
   overflow?: NRO<"visible" | "hidden" | "scroll" | "auto" | "inherit">
-  "pointer-events"?: NRO<"bounding-box" | "visiblePainted" | "visibleFill" | "visibleStroke" | "visible" | "painted" | "fill" | "stroke" | "all" | "none">
+  "pointer-events"?: NRO<
+    | "bounding-box"
+    | "visiblePainted"
+    | "visibleFill"
+    | "visibleStroke"
+    | "visible"
+    | "painted"
+    | "fill"
+    | "stroke"
+    | "all"
+    | "none"
+  >
   "shape-rendering"?: NRO<string | number>
   "solid-color"?: NRO<string | number>
   "solid-opacity"?: NRO<string | number>
@@ -243,8 +289,31 @@ export interface Link {
   href?: NRO<string | number>
   hreflang?: NRO<string | number>
   ping?: NRO<string | number>
-  referrerpolicy?: NRO<"no-referrer" | "no-referrer-when-downgrade" | "origin" | "origin-when-cross-origin" | "same-origin" | "strict-origin" | "strict-origin-when-cross-origin" | "unsafe-url">
-  rel?: NRO<"alternate" | "author" | "bookmark" | "external" | "help" | "license" | "next" | "nofollow" | "noopener" | "noreferrer" | "prev" | "search" | "tag">
+  referrerpolicy?: NRO<
+    | "no-referrer"
+    | "no-referrer-when-downgrade"
+    | "origin"
+    | "origin-when-cross-origin"
+    | "same-origin"
+    | "strict-origin"
+    | "strict-origin-when-cross-origin"
+    | "unsafe-url"
+  >
+  rel?: NRO<
+    | "alternate"
+    | "author"
+    | "bookmark"
+    | "external"
+    | "help"
+    | "license"
+    | "next"
+    | "nofollow"
+    | "noopener"
+    | "noreferrer"
+    | "prev"
+    | "search"
+    | "tag"
+  >
   target?: NRO<"_blank" | "_self" | "_parent" | "_top">
   type?: NRO<string | number>
 }
@@ -353,7 +422,21 @@ export interface attrs_form extends Attrs<HTMLElementTagNameMap["form"]> {
   "accept-charset"?: NRO<string | number>
   autocomplete?: NRO<"on" | "off">
   name?: NRO<string | number>
-  rel?: NRO<"alternate" | "author" | "bookmark" | "external" | "help" | "license" | "next" | "nofollow" | "noopener" | "noreferrer" | "prev" | "search" | "tag">
+  rel?: NRO<
+    | "alternate"
+    | "author"
+    | "bookmark"
+    | "external"
+    | "help"
+    | "license"
+    | "next"
+    | "nofollow"
+    | "noopener"
+    | "noreferrer"
+    | "prev"
+    | "search"
+    | "tag"
+  >
   action?: NRO<string | number>
   enctype?: NRO<string | number>
   method?: NRO<string | number>
@@ -382,8 +465,32 @@ export interface attrs_iframe extends Attrs<HTMLElementTagNameMap["iframe"]> {
   height?: NRO<string | number>
   loading?: NRO<"eager" | "lazy">
   name?: NRO<string | number>
-  referrerpolicy?: NRO<"no-referrer" | "no-referrer-when-downgrade" | "origin" | "origin-when-cross-origin" | "same-origin" | "strict-origin" | "strict-origin-when-cross-origin" | "unsafe-url">
-  sandbox?: NRO<"allow-downloads-without-user-activation" | "allow-downloads" | "allow-forms" | "allow-modals" | "allow-orientation-lock" | "allow-pointer-lock" | "allow-popups" | "allow-popups-to-escape-sandbox" | "allow-presentation" | "allow-same-origin" | "allow-scripts" | "allow-storage-access-by-user-activation" | "allow-top-navigation" | "allow-top-navigation-by-user-activation">
+  referrerpolicy?: NRO<
+    | "no-referrer"
+    | "no-referrer-when-downgrade"
+    | "origin"
+    | "origin-when-cross-origin"
+    | "same-origin"
+    | "strict-origin"
+    | "strict-origin-when-cross-origin"
+    | "unsafe-url"
+  >
+  sandbox?: NRO<
+    | "allow-downloads-without-user-activation"
+    | "allow-downloads"
+    | "allow-forms"
+    | "allow-modals"
+    | "allow-orientation-lock"
+    | "allow-pointer-lock"
+    | "allow-popups"
+    | "allow-popups-to-escape-sandbox"
+    | "allow-presentation"
+    | "allow-same-origin"
+    | "allow-scripts"
+    | "allow-storage-access-by-user-activation"
+    | "allow-top-navigation"
+    | "allow-top-navigation-by-user-activation"
+  >
   src?: NRO<string | number>
   srcdoc?: NRO<string | number>
   width?: NRO<string | number>
@@ -397,7 +504,16 @@ export interface attrs_img extends Attrs<HTMLElementTagNameMap["img"]> {
   height?: NRO<string | number>
   ismap?: NRO<"" | true>
   loading?: NRO<"eager" | "lazy">
-  referrerpolicy?: NRO<"no-referrer" | "no-referrer-when-downgrade" | "origin" | "origin-when-cross-origin" | "same-origin" | "strict-origin" | "strict-origin-when-cross-origin" | "unsafe-url">
+  referrerpolicy?: NRO<
+    | "no-referrer"
+    | "no-referrer-when-downgrade"
+    | "origin"
+    | "origin-when-cross-origin"
+    | "same-origin"
+    | "strict-origin"
+    | "strict-origin-when-cross-origin"
+    | "unsafe-url"
+  >
   sizes?: NRO<string | number>
   src?: NRO<string | number>
   srcset?: NRO<string | number>
@@ -405,7 +521,30 @@ export interface attrs_img extends Attrs<HTMLElementTagNameMap["img"]> {
   usemap?: NRO<string | number>
 }
 export interface attrs_input extends Attrs<HTMLElementTagNameMap["input"]>, Form {
-  type?: NRO<"button" | "checkbox" | "color" | "date" | "datetime-local" | "email" | "file" | "hidden" | "image" | "month" | "number" | "password" | "radio" | "range" | "reset" | "search" | "submit" | "tel" | "text" | "time" | "url" | "week">
+  type?: NRO<
+    | "button"
+    | "checkbox"
+    | "color"
+    | "date"
+    | "datetime-local"
+    | "email"
+    | "file"
+    | "hidden"
+    | "image"
+    | "month"
+    | "number"
+    | "password"
+    | "radio"
+    | "range"
+    | "reset"
+    | "search"
+    | "submit"
+    | "tel"
+    | "text"
+    | "time"
+    | "url"
+    | "week"
+  >
   accept?: NRO<string | number>
   alt?: NRO<string | number>
   autocomplete?: NRO<string | number>
@@ -443,7 +582,20 @@ export interface attrs_li extends Attrs<HTMLElementTagNameMap["li"]> {
   value?: NRO<string | number>
 }
 export interface attrs_link extends Attrs<HTMLElementTagNameMap["link"]> {
-  as?: NRO<"audio" | "document" | "embed" | "fetch" | "font" | "image" | "object" | "script" | "style" | "track" | "video" | "worker">
+  as?: NRO<
+    | "audio"
+    | "document"
+    | "embed"
+    | "fetch"
+    | "font"
+    | "image"
+    | "object"
+    | "script"
+    | "style"
+    | "track"
+    | "video"
+    | "worker"
+  >
   disabled?: NRO<"" | true>
   crossorigin?: NRO<"anonymous" | "use-credentials">
   fetchpriority?: NRO<"high" | "low" | "auto">
@@ -454,7 +606,16 @@ export interface attrs_link extends Attrs<HTMLElementTagNameMap["link"]> {
   integrity?: NRO<string | number>
   media?: NRO<string | number>
   prefetch?: NRO<string | number>
-  referrerpolicy?: NRO<"no-referrer" | "no-referrer-when-downgrade" | "origin" | "origin-when-cross-origin" | "same-origin" | "strict-origin" | "strict-origin-when-cross-origin" | "unsafe-url">
+  referrerpolicy?: NRO<
+    | "no-referrer"
+    | "no-referrer-when-downgrade"
+    | "origin"
+    | "origin-when-cross-origin"
+    | "same-origin"
+    | "strict-origin"
+    | "strict-origin-when-cross-origin"
+    | "unsafe-url"
+  >
   rel?: NRO<string | number>
   sizes?: NRO<string | number>
   type?: NRO<string | number>
@@ -534,7 +695,16 @@ export interface attrs_script extends Attrs<HTMLElementTagNameMap["script"]> {
   integrity?: NRO<string | number>
   nomodule?: NRO<"" | true>
   nonce?: NRO<string | number>
-  referrerpolicy?: NRO<"no-referrer" | "no-referrer-when-downgrade" | "origin" | "origin-when-cross-origin" | "same-origin" | "strict-origin" | "strict-origin-when-cross-origin" | "unsafe-url">
+  referrerpolicy?: NRO<
+    | "no-referrer"
+    | "no-referrer-when-downgrade"
+    | "origin"
+    | "origin-when-cross-origin"
+    | "same-origin"
+    | "strict-origin"
+    | "strict-origin-when-cross-origin"
+    | "unsafe-url"
+  >
   src?: NRO<string | number>
   href?: NRO<string | number>
   type?: NRO<"" | true | "text/javascript" | "module" | "importmap">
@@ -635,9 +805,21 @@ export interface attrs_video extends Attrs<HTMLElementTagNameMap["video"]> {
   width?: NRO<string | number>
 }
 export interface attrs_wbr extends Attrs<HTMLElementTagNameMap["wbr"]> {}
-export interface attrs_svg_animate extends Attrs<SVGElementTagNameMap["animate"]>, SVGAnimationValue, SVGAnimationDuration, SVGAnimationOther {}
-export interface attrs_svg_animateMotion extends Attrs<SVGElementTagNameMap["animateMotion"]>, SVGAnimationValue, SVGAnimationDuration, SVGAnimationOther {}
-export interface attrs_svg_animateTransform extends Attrs<SVGElementTagNameMap["animateTransform"]>, SVGAnimationValue, SVGAnimationDuration, SVGAnimationOther {
+export interface attrs_svg_animate
+  extends Attrs<SVGElementTagNameMap["animate"]>,
+    SVGAnimationValue,
+    SVGAnimationDuration,
+    SVGAnimationOther {}
+export interface attrs_svg_animateMotion
+  extends Attrs<SVGElementTagNameMap["animateMotion"]>,
+    SVGAnimationValue,
+    SVGAnimationDuration,
+    SVGAnimationOther {}
+export interface attrs_svg_animateTransform
+  extends Attrs<SVGElementTagNameMap["animateTransform"]>,
+    SVGAnimationValue,
+    SVGAnimationDuration,
+    SVGAnimationOther {
   type?: NRO<"translate" | "scale" | "rotate" | "skewX" | "skewY">
 }
 export interface attrs_svg_circle extends Attrs<SVGElementTagNameMap["circle"]>, SVGPresentation {
@@ -659,29 +841,121 @@ export interface attrs_svg_ellipse extends Attrs<SVGElementTagNameMap["ellipse"]
   ry?: NRO<string | number>
 }
 export interface attrs_svg_feBlend extends Attrs<SVGElementTagNameMap["feBlend"]>, SVGPresentation, SVGFilterPrimitive {
-  in?: NRO<"SourceGraphic" | "SourceAlpha" | "BackgroundImage" | "BackgroundAlpha" | "FillPaint" | "StrokePaint" | string | number>
-  in2?: NRO<"SourceGraphic" | "SourceAlpha" | "BackgroundImage" | "BackgroundAlpha" | "FillPaint" | "StrokePaint" | string | number>
-  mode?: NRO<"normal" | "multiply" | "screen" | "overlay" | "darken" | "lighten" | "color-dodge" | "color-burn" | "hard-light" | "soft-light" | "difference" | "exclusion" | "hue" | "saturation" | "color" | "luminosity">
+  in?: NRO<
+    | "SourceGraphic"
+    | "SourceAlpha"
+    | "BackgroundImage"
+    | "BackgroundAlpha"
+    | "FillPaint"
+    | "StrokePaint"
+    | string
+    | number
+  >
+  in2?: NRO<
+    | "SourceGraphic"
+    | "SourceAlpha"
+    | "BackgroundImage"
+    | "BackgroundAlpha"
+    | "FillPaint"
+    | "StrokePaint"
+    | string
+    | number
+  >
+  mode?: NRO<
+    | "normal"
+    | "multiply"
+    | "screen"
+    | "overlay"
+    | "darken"
+    | "lighten"
+    | "color-dodge"
+    | "color-burn"
+    | "hard-light"
+    | "soft-light"
+    | "difference"
+    | "exclusion"
+    | "hue"
+    | "saturation"
+    | "color"
+    | "luminosity"
+  >
 }
-export interface attrs_svg_feColorMatrix extends Attrs<SVGElementTagNameMap["feColorMatrix"]>, SVGPresentation, SVGFilterPrimitive {
-  in?: NRO<"SourceGraphic" | "SourceAlpha" | "BackgroundImage" | "BackgroundAlpha" | "FillPaint" | "StrokePaint" | string | number>
+export interface attrs_svg_feColorMatrix
+  extends Attrs<SVGElementTagNameMap["feColorMatrix"]>,
+    SVGPresentation,
+    SVGFilterPrimitive {
+  in?: NRO<
+    | "SourceGraphic"
+    | "SourceAlpha"
+    | "BackgroundImage"
+    | "BackgroundAlpha"
+    | "FillPaint"
+    | "StrokePaint"
+    | string
+    | number
+  >
   type?: NRO<"matrix" | "saturate" | "hueRotate" | "luminanceToAlpha">
   values?: NRO<string | number>
 }
-export interface attrs_svg_feComponentTransfer extends Attrs<SVGElementTagNameMap["feComponentTransfer"]>, SVGPresentation, SVGFilterPrimitive {
-  in?: NRO<"SourceGraphic" | "SourceAlpha" | "BackgroundImage" | "BackgroundAlpha" | "FillPaint" | "StrokePaint" | string | number>
+export interface attrs_svg_feComponentTransfer
+  extends Attrs<SVGElementTagNameMap["feComponentTransfer"]>,
+    SVGPresentation,
+    SVGFilterPrimitive {
+  in?: NRO<
+    | "SourceGraphic"
+    | "SourceAlpha"
+    | "BackgroundImage"
+    | "BackgroundAlpha"
+    | "FillPaint"
+    | "StrokePaint"
+    | string
+    | number
+  >
 }
-export interface attrs_svg_feComposite extends Attrs<SVGElementTagNameMap["feComposite"]>, SVGPresentation, SVGFilterPrimitive {
-  in?: NRO<"SourceGraphic" | "SourceAlpha" | "BackgroundImage" | "BackgroundAlpha" | "FillPaint" | "StrokePaint" | string | number>
-  in2?: NRO<"SourceGraphic" | "SourceAlpha" | "BackgroundImage" | "BackgroundAlpha" | "FillPaint" | "StrokePaint" | string | number>
+export interface attrs_svg_feComposite
+  extends Attrs<SVGElementTagNameMap["feComposite"]>,
+    SVGPresentation,
+    SVGFilterPrimitive {
+  in?: NRO<
+    | "SourceGraphic"
+    | "SourceAlpha"
+    | "BackgroundImage"
+    | "BackgroundAlpha"
+    | "FillPaint"
+    | "StrokePaint"
+    | string
+    | number
+  >
+  in2?: NRO<
+    | "SourceGraphic"
+    | "SourceAlpha"
+    | "BackgroundImage"
+    | "BackgroundAlpha"
+    | "FillPaint"
+    | "StrokePaint"
+    | string
+    | number
+  >
   operator?: NRO<"over" | "in" | "out" | "atop" | "xor" | "lighter" | "arithmetic">
   k1?: NRO<string | number>
   k2?: NRO<string | number>
   k3?: NRO<string | number>
   k4?: NRO<string | number>
 }
-export interface attrs_svg_feConvolveMatrix extends Attrs<SVGElementTagNameMap["feConvolveMatrix"]>, SVGPresentation, SVGFilterPrimitive {
-  in?: NRO<"SourceGraphic" | "SourceAlpha" | "BackgroundImage" | "BackgroundAlpha" | "FillPaint" | "StrokePaint" | string | number>
+export interface attrs_svg_feConvolveMatrix
+  extends Attrs<SVGElementTagNameMap["feConvolveMatrix"]>,
+    SVGPresentation,
+    SVGFilterPrimitive {
+  in?: NRO<
+    | "SourceGraphic"
+    | "SourceAlpha"
+    | "BackgroundImage"
+    | "BackgroundAlpha"
+    | "FillPaint"
+    | "StrokePaint"
+    | string
+    | number
+  >
   order?: NRO<string | number>
   kernelMatrix?: NRO<string | number>
   divisor?: NRO<string | number>
@@ -691,29 +965,83 @@ export interface attrs_svg_feConvolveMatrix extends Attrs<SVGElementTagNameMap["
   edgeMode?: NRO<"duplicate" | "wrap" | "none">
   preserveAlpha?: NRO<"" | true | "true" | "false">
 }
-export interface attrs_svg_feDiffuseLighting extends Attrs<SVGElementTagNameMap["feDiffuseLighting"]>, SVGPresentation, SVGFilterPrimitive {}
-export interface attrs_svg_feDisplacementMap extends Attrs<SVGElementTagNameMap["feDisplacementMap"]>, SVGPresentation, SVGFilterPrimitive {
+export interface attrs_svg_feDiffuseLighting
+  extends Attrs<SVGElementTagNameMap["feDiffuseLighting"]>,
+    SVGPresentation,
+    SVGFilterPrimitive {}
+export interface attrs_svg_feDisplacementMap
+  extends Attrs<SVGElementTagNameMap["feDisplacementMap"]>,
+    SVGPresentation,
+    SVGFilterPrimitive {
   scale?: NRO<string | number>
   xChannelSelector?: NRO<"R" | "G" | "B" | "A">
   yChannelSelector?: NRO<"R" | "G" | "B" | "A">
 }
-export interface attrs_svg_feDistantLight extends Attrs<SVGElementTagNameMap["feDistantLight"]>, SVGPresentation, SVGFilterPrimitive {}
-export interface attrs_svg_feFlood extends Attrs<SVGElementTagNameMap["feFlood"]>, SVGPresentation, SVGFilterPrimitive {}
-export interface attrs_svg_feFuncA extends Attrs<SVGElementTagNameMap["feFuncA"]>, SVGPresentation, SVGFilterPrimitive {}
-export interface attrs_svg_feFuncB extends Attrs<SVGElementTagNameMap["feFuncB"]>, SVGPresentation, SVGFilterPrimitive {}
-export interface attrs_svg_feFuncG extends Attrs<SVGElementTagNameMap["feFuncG"]>, SVGPresentation, SVGFilterPrimitive {}
-export interface attrs_svg_feFuncR extends Attrs<SVGElementTagNameMap["feFuncR"]>, SVGPresentation, SVGFilterPrimitive {}
-export interface attrs_svg_feGaussianBlur extends Attrs<SVGElementTagNameMap["feGaussianBlur"]>, SVGPresentation, SVGFilterPrimitive {}
-export interface attrs_svg_feImage extends Attrs<SVGElementTagNameMap["feImage"]>, SVGPresentation, SVGFilterPrimitive {}
-export interface attrs_svg_feMerge extends Attrs<SVGElementTagNameMap["feMerge"]>, SVGPresentation, SVGFilterPrimitive {}
-export interface attrs_svg_feMergeNode extends Attrs<SVGElementTagNameMap["feMergeNode"]>, SVGPresentation, SVGFilterPrimitive {}
-export interface attrs_svg_feMorphology extends Attrs<SVGElementTagNameMap["feMorphology"]>, SVGPresentation, SVGFilterPrimitive {}
-export interface attrs_svg_feOffset extends Attrs<SVGElementTagNameMap["feOffset"]>, SVGPresentation, SVGFilterPrimitive {}
-export interface attrs_svg_fePointLight extends Attrs<SVGElementTagNameMap["fePointLight"]>, SVGPresentation, SVGFilterPrimitive {}
-export interface attrs_svg_feSpecularLighting extends Attrs<SVGElementTagNameMap["feSpecularLighting"]>, SVGPresentation, SVGFilterPrimitive {}
-export interface attrs_svg_feSpotLight extends Attrs<SVGElementTagNameMap["feSpotLight"]>, SVGPresentation, SVGFilterPrimitive {}
+export interface attrs_svg_feDistantLight
+  extends Attrs<SVGElementTagNameMap["feDistantLight"]>,
+    SVGPresentation,
+    SVGFilterPrimitive {}
+export interface attrs_svg_feFlood
+  extends Attrs<SVGElementTagNameMap["feFlood"]>,
+    SVGPresentation,
+    SVGFilterPrimitive {}
+export interface attrs_svg_feFuncA
+  extends Attrs<SVGElementTagNameMap["feFuncA"]>,
+    SVGPresentation,
+    SVGFilterPrimitive {}
+export interface attrs_svg_feFuncB
+  extends Attrs<SVGElementTagNameMap["feFuncB"]>,
+    SVGPresentation,
+    SVGFilterPrimitive {}
+export interface attrs_svg_feFuncG
+  extends Attrs<SVGElementTagNameMap["feFuncG"]>,
+    SVGPresentation,
+    SVGFilterPrimitive {}
+export interface attrs_svg_feFuncR
+  extends Attrs<SVGElementTagNameMap["feFuncR"]>,
+    SVGPresentation,
+    SVGFilterPrimitive {}
+export interface attrs_svg_feGaussianBlur
+  extends Attrs<SVGElementTagNameMap["feGaussianBlur"]>,
+    SVGPresentation,
+    SVGFilterPrimitive {}
+export interface attrs_svg_feImage
+  extends Attrs<SVGElementTagNameMap["feImage"]>,
+    SVGPresentation,
+    SVGFilterPrimitive {}
+export interface attrs_svg_feMerge
+  extends Attrs<SVGElementTagNameMap["feMerge"]>,
+    SVGPresentation,
+    SVGFilterPrimitive {}
+export interface attrs_svg_feMergeNode
+  extends Attrs<SVGElementTagNameMap["feMergeNode"]>,
+    SVGPresentation,
+    SVGFilterPrimitive {}
+export interface attrs_svg_feMorphology
+  extends Attrs<SVGElementTagNameMap["feMorphology"]>,
+    SVGPresentation,
+    SVGFilterPrimitive {}
+export interface attrs_svg_feOffset
+  extends Attrs<SVGElementTagNameMap["feOffset"]>,
+    SVGPresentation,
+    SVGFilterPrimitive {}
+export interface attrs_svg_fePointLight
+  extends Attrs<SVGElementTagNameMap["fePointLight"]>,
+    SVGPresentation,
+    SVGFilterPrimitive {}
+export interface attrs_svg_feSpecularLighting
+  extends Attrs<SVGElementTagNameMap["feSpecularLighting"]>,
+    SVGPresentation,
+    SVGFilterPrimitive {}
+export interface attrs_svg_feSpotLight
+  extends Attrs<SVGElementTagNameMap["feSpotLight"]>,
+    SVGPresentation,
+    SVGFilterPrimitive {}
 export interface attrs_svg_feTile extends Attrs<SVGElementTagNameMap["feTile"]>, SVGPresentation, SVGFilterPrimitive {}
-export interface attrs_svg_feTurbulence extends Attrs<SVGElementTagNameMap["feTurbulence"]>, SVGPresentation, SVGFilterPrimitive {
+export interface attrs_svg_feTurbulence
+  extends Attrs<SVGElementTagNameMap["feTurbulence"]>,
+    SVGPresentation,
+    SVGFilterPrimitive {
   numOctaves?: NRO<string | number>
   seed?: NRO<string | number>
   baseFrequency?: NRO<string | number>
@@ -809,7 +1137,6 @@ export interface attrs_svg_view extends Attrs<SVGElementTagNameMap["view"]> {
   viewBox?: NRO<string | number>
   preserveAspectRatio?: NRO<string | number>
 }
-
 
 export interface ElementMap {
   a: attrs_a

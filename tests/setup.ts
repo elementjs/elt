@@ -27,5 +27,4 @@ Object.assign(globalThis, {
 })
 
 // happy-dom querySelector uses window.SyntaxError for invalid selectors
-;(window as typeof window & { SyntaxError: typeof SyntaxError }).SyntaxError =
-  globalThis.SyntaxError
+;(window as typeof window & { SyntaxError: typeof SyntaxError }).SyntaxError = globalThis.SyntaxError

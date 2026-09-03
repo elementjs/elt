@@ -33,10 +33,7 @@ class Calls {
   calls = [] as any[]
 
   ntimes(times: number): this {
-    if (this.count !== times)
-      throw new Error(
-        `Expected to be called ${times} times but was called ${this.count} times`
-      )
+    if (this.count !== times) throw new Error(`Expected to be called ${times} times but was called ${this.count} times`)
     this.count = 0
     return this
   }
@@ -45,11 +42,7 @@ class Calls {
     for (var call of this.calls) {
       for (var i = 0; i < args.length; i++) {
         if (!cmp(args[i], call[i]))
-          throw new Error(
-            `At position ${i}, expected ${JSON.stringify(
-              args[i]
-            )} got ${JSON.stringify(call[i])}`
-          )
+          throw new Error(`At position ${i}, expected ${JSON.stringify(args[i])} got ${JSON.stringify(call[i])}`)
       }
     }
     this.calls = []
@@ -57,9 +50,8 @@ class Calls {
   }
 
   callback() {
-    let self = this
     return () => {
-      ;(this.call as any).apply(self, arguments)
+      ;(this.call as any).apply(this, arguments)
     }
   }
 
@@ -92,9 +84,9 @@ class Calls {
 ////////////////////////////////////////////////////////////////////
 
 function spyon<T>(obs: o.ReadonlyObservable<T>, immediate = false) {
-  let spy = new Calls()
+  const spy = new Calls()
 
-  obs.addObserver(function (value, changes) {
+  obs.addObserver((value, changes) => {
     if (changes !== o.NoValue || immediate) {
       spy.call(value) // , changes.new_value, changes.old_value)
     }
@@ -102,9 +94,9 @@ function spyon<T>(obs: o.ReadonlyObservable<T>, immediate = false) {
   return spy
 }
 
-describe("Observable", function () {
-  describe("basic operations", function () {
-    let obs = o(0)
+describe("Observable", () => {
+  describe("basic operations", () => {
+    const obs = o(0)
 
     let spytest = spyon(obs)
     let spytest2 = spyon(obs, true)
@@ -144,7 +136,7 @@ describe("Observable", function () {
     })
   })
 
-  describe("boolean operations", function () {
+  describe("boolean operations", () => {
     test("and/or work as expected", () => {
       expect(o.or(true, false).get()).toBe(true)
       expect(o.and(true, false).get()).toBe(false)
@@ -160,7 +152,7 @@ describe("Observable", function () {
     })
   })
 
-  describe("assign()", function () {
+  describe("assign()", () => {
     test("assign() recursively updates object properties", () => {
       const obs = o({ a: 1, b: { c: 2, d: 3 }, e: 4 })
       const spy = spyon(obs)
@@ -183,10 +175,10 @@ describe("Observable", function () {
     })
   })
 
-  describe("array methods", function () {})
+  describe("array methods", () => {})
 })
 
-describe("PropObservable", function () {
+describe("PropObservable", () => {
   describe("Basics", () => {
     const obs = o({ a: 1, b: 2, c: { d: 1 } })
     const testa = obs.p("a")
@@ -280,10 +272,10 @@ describe("PropObservable", function () {
   })
 })
 
-describe("TransformObservable", function () {
-  let tests = o(5)
-  let ttf = tests.tf((a) => a + 10)
-  let ttf2 = tests.tf({
+describe("TransformObservable", () => {
+  const tests = o(5)
+  const ttf = tests.tf((a) => a + 10)
+  const ttf2 = tests.tf({
     transform: (v) => v + 20,
     revert: (v) => v * 2,
   })
@@ -299,7 +291,7 @@ describe("TransformObservable", function () {
   })
 
   test("observers are fired", () => {
-    let tt = spyon(ttf2)
+    const tt = spyon(ttf2)
     tests.set(8)
     tt.was.called.once
   })
@@ -308,7 +300,7 @@ describe("TransformObservable", function () {
   // the original observable.
 })
 
-describe("CombinedObservable", function () {
+describe("CombinedObservable", () => {
   test("o.combine() creates readonly combined observable", () => {
     const a = o(5)
     const b = o(10)
@@ -335,7 +327,7 @@ describe("CombinedObservable", function () {
       },
       (sum, _, deps) => {
         return [o.NoValue, sum - deps[0]]
-      }
+      },
     )
 
     expect(combined.get()).toBe(15)
@@ -363,7 +355,7 @@ describe("CombinedObservable", function () {
   })
 })
 
-describe("o.merge() and o.join()", function () {
+describe("o.merge() and o.join()", () => {
   test("o.merge() combines multiple observables into object", () => {
     const a = o(5)
     const b = o("hello")
@@ -403,7 +395,7 @@ describe("o.merge() and o.join()", function () {
   })
 })
 
-describe("o.p(fn)", function () {
+describe("o.p(fn)", () => {
   test("o.p(function) works as getter with simple expression", () => {
     const obj = o({ a: 1, b: 2, c: { d: 3 } })
     const sub = obj.p((x) => x.a)
@@ -445,7 +437,7 @@ describe("o.p(fn)", function () {
   })
 
   test("o.p(function) works as setter with nested path and ?. chaining", () => {
-    const obj = o({ } as { a?: { b?: { c?: number } } })
+    const obj = o({} as { a?: { b?: { c?: number } } })
     const sub = obj.p((x) => x.a?.b?.c)
     sub.set(88)
     expect(obj.get()).toEqual({ a: { b: { c: 88 } } })
@@ -461,7 +453,7 @@ describe("o.p(fn)", function () {
   })
 })
 
-describe("o.p(dynamic key)", function () {
+describe("o.p(dynamic key)", () => {
   test("o.p(o(key)) follows observable key changes", () => {
     const obj = o({ a: 1, b: 2 })
     const o_key = o<"a" | "b">("a")
@@ -503,7 +495,7 @@ describe("o.p(dynamic key)", function () {
   })
 })
 
-describe("o.p(path[])", function () {
+describe("o.p(path[])", () => {
   test("o.p([...]) works as getter with nested path", () => {
     const obj = o({ a: { b: { c: 42 } } })
     const sub = obj.p(["a", "b", "c"])
@@ -573,9 +565,9 @@ describe("o.p(path[])", function () {
   })
 })
 
-describe("o.p path setter overwrite", function () {
+describe("o.p path setter overwrite", () => {
   test("o.p([...]) replaces a string intermediate with an object chain", () => {
-    type Tested = {a: string, b: number} | {a: { b: { c: number } }, b: number}
+    type Tested = { a: string; b: number } | { a: { b: { c: number } }; b: number }
     const obj = o({ a: "hello", b: 1 } as Tested)
     const sub = obj.p(["a", "b", "c"])
 
@@ -585,7 +577,7 @@ describe("o.p path setter overwrite", function () {
   })
 
   test("o.p(fn) replaces a string intermediate with an object chain", () => {
-    type Tested = {a: string, b: number} | {a: { b: { c: number } }, b: number}
+    type Tested = { a: string; b: number } | { a: { b: { c: number } }; b: number }
     const obj = o({ a: "hello", b: 1 } as Tested)
     const sub = obj.p((x) => (x.a as any)?.b?.c)
 
@@ -596,7 +588,7 @@ describe("o.p path setter overwrite", function () {
   })
 
   test("o.p([...]) replaces a number intermediate with an object chain", () => {
-    type Tested = {a: number, b: number} | {a: { b: { c: string } }, b: number}
+    type Tested = { a: number; b: number } | { a: { b: { c: string } }; b: number }
     const obj = o({ a: 0, b: 1 } as Tested)
     const sub = obj.p(["a", "b", "c"])
 
@@ -615,7 +607,7 @@ describe("o.p path setter overwrite", function () {
   })
 
   test("o.p([...]) replaces a primitive array element with a nested object", () => {
-    const obj = o(["hello", 2] as [string | {x: number}, number])
+    const obj = o(["hello", 2] as [string | { x: number }, number])
     const sub = obj.p([0, "x"])
 
     sub.set(1)
@@ -644,7 +636,7 @@ describe("o.p path setter overwrite", function () {
   })
 
   test("o.prop(obj, [...]) replaces a string intermediate with an object chain", () => {
-    const obj = o({ a: "hello" } as {a: string | {b: {c: number}}})
+    const obj = o({ a: "hello" } as { a: string | { b: { c: number } } })
     const sub = o.prop(obj, ["a", "b", "c"])
 
     sub.set(7)
@@ -653,7 +645,7 @@ describe("o.p path setter overwrite", function () {
   })
 })
 
-describe("o.expression()", function () {
+describe("o.expression()", () => {
   test("o.expression() creates combined observable with dynamic dependencies", () => {
     const a = o(5)
     const b = o(10)
@@ -673,7 +665,7 @@ describe("o.expression()", function () {
       (get) => get(a) + get(b),
       (sum, set, _) => {
         set(a, sum - o.get(b))
-      }
+      },
     )
 
     expr.set(20)
@@ -692,7 +684,7 @@ describe("o.expression()", function () {
   })
 })
 
-describe("Transactions", function () {
+describe("Transactions", () => {
   test("o.transaction() batches multiple updates", () => {
     const a = o(1)
     const b = o(2)
@@ -724,11 +716,11 @@ describe("Transactions", function () {
   })
 })
 
-describe("ProxyObservable", function () {
-/** Wrap an observable as a value inside another (o() would return the same ref). */
-function hold<T>(obs: o.Observable<T>): o.Observable<unknown> {
-  return new o.Observable(obs) as o.Observable<unknown>
-}
+describe("ProxyObservable", () => {
+  /** Wrap an observable as a value inside another (o() would return the same ref). */
+  function hold<T>(obs: o.Observable<T>): o.Observable<unknown> {
+    return new o.Observable(obs) as o.Observable<unknown>
+  }
 
   test("o.proxy() creates changeable proxy", () => {
     const a = o(5)
@@ -1088,7 +1080,7 @@ function hold<T>(obs: o.Observable<T>): o.Observable<unknown> {
   })
 })
 
-describe("Observer Lifecycle", function () {
+describe("Observer Lifecycle", () => {
   test("Observer can be stopped and started", () => {
     const obs = o(5)
     let callCount = 0
@@ -1186,7 +1178,7 @@ describe("Observer Lifecycle", function () {
       () => {
         callCount++
       },
-      { immediate: true }
+      { immediate: true },
     )
     holder.startObservers()
 
@@ -1206,7 +1198,7 @@ describe("Observer Lifecycle", function () {
   })
 })
 
-describe("Boolean Combinators", function () {
+describe("Boolean Combinators", () => {
   test("o.not() inverts boolean observable", () => {
     const obs = o(true)
     const inverted = o.not(obs)
@@ -1245,14 +1237,13 @@ describe("Boolean Combinators", function () {
   })
 })
 
-describe("Additional Methods", function () {
-
+describe("Additional Methods", () => {
   test(".key() accesses Map keys", () => {
     const map = o(
       new Map([
         ["key1", "value1"],
         ["key2", "value2"],
-      ])
+      ]),
     )
     const keyObs = map.key("key1")
 
@@ -1288,7 +1279,7 @@ describe("Additional Methods", function () {
   })
 })
 
-describe("Utility Functions", function () {
+describe("Utility Functions", () => {
   test("o.is_observable() checks if value is observable", () => {
     const obs = o(5)
     const plain = 5
@@ -1315,8 +1306,8 @@ describe("Utility Functions", function () {
   })
 })
 
-describe("Transformers", function () {
-  describe("tf_array_filter()", function () {
+describe("Transformers", () => {
+  describe("tf_array_filter()", () => {
     test("filters array by predicate", () => {
       const arr = o([1, 2, 3, 4, 5])
       const evens = arr.tf(tf_array_filter((n: number) => n % 2 === 0))
@@ -1330,27 +1321,23 @@ describe("Transformers", function () {
     })
   })
 
-  describe("tf_array_sort()", function () {
+  describe("tf_array_sort()", () => {
     test("sorts array", () => {
       const arr = o([3, 1, 4, 1, 5, 9, 2, 6])
-      const sorted = arr.tf(
-        tf_array_sort((a: number, b: number) => (a < b ? -1 : a > b ? 1 : 0))
-      )
+      const sorted = arr.tf(tf_array_sort((a: number, b: number) => (a < b ? -1 : a > b ? 1 : 0)))
 
       expect(sorted.get()).toEqual([1, 1, 2, 3, 4, 5, 6, 9])
     })
 
     test("sorts with custom comparator", () => {
       const arr = o([3, 1, 4, 1, 5])
-      const sorted = arr.tf(
-        tf_array_sort((a: number, b: number) => (a < b ? 1 : a > b ? -1 : 0))
-      )
+      const sorted = arr.tf(tf_array_sort((a: number, b: number) => (a < b ? 1 : a > b ? -1 : 0)))
 
       expect(sorted.get()).toEqual([5, 4, 3, 1, 1])
     })
   })
 
-  describe("tf_array_sort_by()", function () {
+  describe("tf_array_sort_by()", () => {
     test("sorts array by key function", () => {
       const arr = o([
         { name: "Charlie", age: 30 },
@@ -1366,7 +1353,7 @@ describe("Transformers", function () {
     })
   })
 
-  describe("tf_array_has()", function () {
+  describe("tf_array_has()", () => {
     test("checks if array contains value", () => {
       const arr = o([1, 2, 3, 4, 5])
       const hasThree = arr.tf(tf_array_has(3))
@@ -1378,7 +1365,7 @@ describe("Transformers", function () {
     })
   })
 
-  describe("tf_set_has()", function () {
+  describe("tf_set_has()", () => {
     test("checks if set contains value", () => {
       const set = o(new Set([1, 2, 3, 4, 5]))
       const hasThree = set.tf(tf_set_has(3))
@@ -1390,14 +1377,14 @@ describe("Transformers", function () {
     })
   })
 
-  describe("tf_map_has()", function () {
+  describe("tf_map_has()", () => {
     test("checks if map contains key-value pair", () => {
       const map = o(
         new Map([
           ["a", 1],
           ["b", 2],
           ["c", 3],
-        ])
+        ]),
       )
       const hasB2 = map.tf(tf_map_has(["b", 2]))
 
@@ -1410,7 +1397,7 @@ describe("Transformers", function () {
     })
   })
 
-  describe("tf_entries()", function () {
+  describe("tf_entries()", () => {
     test("converts object to entries array", () => {
       const obj = o({ a: 1, b: 2, c: 3 })
       const entries = obj.tf(tf_entries<o.ObservedType<typeof obj>>())
@@ -1424,7 +1411,7 @@ describe("Transformers", function () {
     })
   })
 
-  describe("tf_array_to_map()", function () {
+  describe("tf_array_to_map()", () => {
     test("converts array to map by key function", () => {
       const arr = o([
         { id: 1, name: "Alice" },
@@ -1439,7 +1426,7 @@ describe("Transformers", function () {
     })
   })
 
-  describe("tf_array_to_object()", function () {
+  describe("tf_array_to_object()", () => {
     test("converts array to object by key function", () => {
       const arr = o([
         { id: "a", value: 1 },

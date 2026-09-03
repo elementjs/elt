@@ -2,8 +2,8 @@
 This file tests some typing contracts. It should never have errors
 */
 
-import type { Renderable } from '../src';
-import { o } from '../src/observable'
+import type { Renderable } from "../src"
+import { o } from "../src/observable"
 
 var _: any
 
@@ -21,7 +21,9 @@ export var t4: o.ReadonlyObservable<number | undefined> = o(_ as o.ReadonlyObser
 export var t5: o.ReadonlyObservable<number | undefined> = o(_ as o.Observable<number> | undefined)
 
 // mixing anything with Observable makes it a ReadonlyObservable anyway.
-export var t6: o.ReadonlyObservable<number | string | undefined> = o(_ as o.Observable<number> | o.Observable<string> | undefined)
+export var t6: o.ReadonlyObservable<number | string | undefined> = o(
+  _ as o.Observable<number> | o.Observable<string> | undefined,
+)
 
 export var t7: o.Observable<number> = o(_ as o.Observable<number> | o.Observable<number>)
 

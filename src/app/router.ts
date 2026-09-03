@@ -1,12 +1,12 @@
 import { o } from "../observable"
 import { _decode, type ServiceParams } from "./params"
-import { type ServiceBuilder } from "./service"
+import type { ServiceBuilder } from "./service"
 import { Route } from "./route"
-import { type App, type RouteOptions } from "./app"
+import type { App, RouteOptions } from "./app"
 
 /**
-  ** App.Router : a binding between the hash fragment of an URL and an App and its services.
-  **/
+ ** App.Router : a binding between the hash fragment of an URL and an App and its services.
+ **/
 export class Router {
   constructor(public app: App) {}
 
@@ -20,11 +20,11 @@ export class Router {
   protected __routes = new Map<string, Route<any>>()
 
   /**
-    * @internal
-    * Parse the hash
-    * @param newhash the current hash
-    * @returns the path and the current variables
-    */
+   * @internal
+   * Parse the hash
+   * @param newhash the current hash
+   * @returns the path and the current variables
+   */
   protected __parseHash(newhash: string): {
     path: string
     vars: ServiceParams
@@ -35,7 +35,7 @@ export class Router {
       if (key || value) {
         const svalue = decodeURIComponent(value ?? "")
         const skey = decodeURIComponent(key)
-        let val: string | number | undefined | null | boolean = svalue
+        const val: string | number | undefined | null | boolean = svalue
         if (val[0] === "~") {
         }
         acc[skey] = _decode(val)
@@ -47,10 +47,10 @@ export class Router {
   }
 
   /**
-    * @internal
-    * activate a service from the hash portion of window.location
-    * @param force if true, the service will be activated even if the hash did not change (useful for login)
-    */
+   * @internal
+   * activate a service from the hash portion of window.location
+   * @param force if true, the service will be activated even if the hash did not change (useful for login)
+   */
   activateFromHash(force = false) {
     const newhash = window.location.hash.slice(1)
 
@@ -74,13 +74,13 @@ export class Router {
     let route = this.__routes.get(path)
 
     if (route == null) {
-      for (let rt of this.__routes.values()) {
+      for (const rt of this.__routes.values()) {
         if (rt.regexp == null) continue
-        let match = path.match(rt.regexp)
+        const match = path.match(rt.regexp)
         if (match) {
           route = rt
           const groups = match.groups
-          for (let name in groups) {
+          for (const name in groups) {
             const dec = decodeURIComponent(groups[name])
             route_vars[name] = _decode(dec)
           }
@@ -93,20 +93,15 @@ export class Router {
       return
     }
 
-    const vars_final = Object.assign(
-      {},
-      route_vars,
-      route.options.defaults,
-      vars
-    )
+    const vars_final = Object.assign({}, route_vars, route.options.defaults, vars)
 
     return route.activateWithParams(vars_final)
   }
 
   /**
-    * Setup listening to fragment changes
-    * @param defs The url definitions
-    */
+   * Setup listening to fragment changes
+   * @param defs The url definitions
+   */
   async setupRouter() {
     setTimeout(() => this.activateFromHash())
     window.addEventListener("hashchange", () => {
@@ -136,19 +131,12 @@ export class Router {
   _last_hash: string | null = null
   protected _last_srv: ServiceBuilder<any> | null = null
 
-  register(
-    name: string,
-    builder: () => ServiceBuilder<any>,
-    url: string | null,
-    options?: RouteOptions
-  ) {
+  register(name: string, builder: () => ServiceBuilder<any>, url: string | null, options?: RouteOptions) {
     const route = new Route(this, name, url, builder, options)
 
     if (route.path != null) {
       if (this.__routes.has(route.path))
-        throw new Error(
-          `route for '${route.path.toString() ?? ""}' is already defined`
-        )
+        throw new Error(`route for '${route.path.toString() ?? ""}' is already defined`)
       this.__routes.set(route.path, route)
     }
 

@@ -3,7 +3,7 @@ import "./setup.ts"
 
 import { test, expect, describe } from "bun:test"
 
-import { e, RefChild } from "../src/elt"
+import { e, type RefChild } from "../src/elt"
 import { node_append } from "../src/dom"
 import type { Attrs } from "../src/types"
 
@@ -12,17 +12,12 @@ function panel(attrs: { title: string } & Attrs<HTMLDivElement>, refchild: RefCh
     "div",
     { class: "panel" },
     e("h2", {}, attrs.title),
-    refchild.IfChildren(ref => e("div", { class: "panel-body" }, ref))
+    refchild.IfChildren((ref) => e("div", { class: "panel-body" }, ref)),
   )
 }
 
 function insert_after(_attrs: Attrs<HTMLDivElement>, ref: RefChild) {
-  return e(
-    "div",
-    { class: "host" },
-    e("span", { class: "marker" }, "insert here"),
-    ref
-  )
+  return e("div", { class: "host" }, e("span", { class: "marker" }, "insert here"), ref)
 }
 
 function box(attrs: Attrs<HTMLDivElement>) {
@@ -35,11 +30,7 @@ function wrap(_attrs: Attrs<HTMLDivElement>, _refchild: RefChild) {
 
 describe("RefChild", () => {
   test("ref in the tree marks where JSX children are inserted", () => {
-    const root = e(
-      insert_after,
-      {},
-      e("em", { class: "child" }, "y")
-    ) as HTMLDivElement
+    const root = e(insert_after, {}, e("em", { class: "child" }, "y")) as HTMLDivElement
 
     const marker = root.querySelector(".marker")!
     const child = root.querySelector(".child")!
@@ -51,22 +42,14 @@ describe("RefChild", () => {
 
   test("IfChildren creates the container only when children are provided", () => {
     const alone = e(panel, { title: "alone" }) as HTMLDivElement
-    const with_child = e(
-      panel,
-      { title: "x" },
-      e("span", {}, "c")
-    )
+    const with_child = e(panel, { title: "x" }, e("span", {}, "c"))
 
     expect(alone.querySelector(".panel-body")).toBeNull()
     expect(with_child.querySelector(".panel-body")).not.toBeNull()
   })
 
   test("IfChildren places component children in the marked container", () => {
-    const root = e(
-      panel,
-      { title: "T" },
-      e("span", { class: "panel-child" }, "hello")
-    ) as HTMLDivElement
+    const root = e(panel, { title: "T" }, e("span", { class: "panel-child" }, "hello")) as HTMLDivElement
 
     const body = root.querySelector(".panel-body") as HTMLDivElement
     const child = root.querySelector(".panel-child") as HTMLSpanElement
@@ -77,11 +60,7 @@ describe("RefChild", () => {
   })
 
   test("two-arg component without IfChildren still appends children to the root", () => {
-    const root = e(
-      wrap,
-      {},
-      e("em", { class: "wrap-child" }, "y")
-    ) as HTMLDivElement
+    const root = e(wrap, {}, e("em", { class: "wrap-child" }, "y")) as HTMLDivElement
 
     expect(root.className).toBe("wrap")
     expect(root.querySelector(".wrap-child")?.textContent).toBe("y")
@@ -96,12 +75,7 @@ describe("RefChild", () => {
   })
 
   test("IfChildren container receives several children in order", () => {
-    const root = e(
-      panel,
-      { title: "n" },
-      e("span", {}, "a"),
-      e("span", {}, "b")
-    ) as HTMLDivElement
+    const root = e(panel, { title: "n" }, e("span", {}, "a"), e("span", {}, "b")) as HTMLDivElement
 
     const spans = root.querySelector(".panel-body")!.querySelectorAll("span")
     expect(spans.length).toBe(2)
@@ -111,10 +85,7 @@ describe("RefChild", () => {
 
   test("works when mounted with node_append", () => {
     const host = document.createElement("section")
-    node_append(
-      host,
-      e(panel, { title: "live" }, e("i", {}, "ok"))
-    )
+    node_append(host, e(panel, { title: "live" }, e("i", {}, "ok")))
     expect(host.querySelector(".panel-body i")?.textContent).toBe("ok")
   })
 })

@@ -7,12 +7,11 @@ import { node_add_event_listener } from "elt"
 
 export type Shortcut = {
   // "ctrl+c", ["ctrl+k", "v"]
-  keys: string | string[],
+  keys: string | string[]
 
   /** the action to perform when the shortcut is triggered */
-  action: (ev: KeyboardEvent) => void | boolean,
-  capture?: boolean,
-
+  action: (ev: KeyboardEvent) => void | boolean
+  capture?: boolean
 }
 
 /**
@@ -20,7 +19,5 @@ export type Shortcut = {
  * @returns
  */
 export function $keymap(...shortcuts: Shortcut[]) {
-  return function $keymap_apply(node) {
-
-  }
+  return function $keymap_apply(node) {}
 }

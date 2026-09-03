@@ -139,7 +139,7 @@ describe("Observable extended", () => {
         (get) => get(o_a) + get(o_b),
         (value, set) => {
           set(o_a, value - o_b.get())
-        }
+        },
       )
 
       expect(sum.get()).toBe(11)
@@ -157,7 +157,7 @@ describe("Observable extended", () => {
         (value, set) => {
           set(o_x, Math.floor(value / 2))
           set(o_y, value - Math.floor(value / 2))
-        }
+        },
       )
 
       total.set(11)
@@ -202,7 +202,7 @@ describe("Observable extended", () => {
         new Map<string, number>([
           ["a", 1],
           ["b", 2],
-        ])
+        ]),
       )
       const o_key = o<"a" | "b">("a")
       const slot = map.key(o_key)
@@ -330,9 +330,7 @@ describe("Observable extended", () => {
 
     test("tf_array_transform() picks indices from a function", () => {
       const arr = o([10, 20, 30, 40])
-      const picked = arr.tf(
-        tf_array_transform((list) => list.map((_, i) => i).filter((i) => i % 2 === 0))
-      )
+      const picked = arr.tf(tf_array_transform((list) => list.map((_, i) => i).filter((i) => i % 2 === 0)))
       expect(picked.get()).toEqual([10, 30])
     })
 
@@ -353,7 +351,7 @@ describe("Observable extended", () => {
         new Map<string, number>([
           ["x", 1],
           ["y", 2],
-        ])
+        ]),
       )
       const entries = map.tf(tf_map_entries())
       expect(entries.get()).toEqual([
@@ -420,9 +418,13 @@ describe("Observable extended", () => {
 
     test("o.throttle() limits callback invocation rate", async () => {
       let count = 0
-      const fn = o.throttle(() => {
-        count++
-      }, 30, true)
+      const fn = o.throttle(
+        () => {
+          count++
+        },
+        30,
+        true,
+      )
 
       fn()
       fn()

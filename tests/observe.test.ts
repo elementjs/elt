@@ -5,12 +5,7 @@ import { test, expect, describe } from "bun:test"
 
 import { o } from "../src/observable"
 import { $observe, $observe_changes } from "../src/decorators"
-import {
-  node_append,
-  node_remove,
-  node_is_observing,
-  node_is_connected,
-} from "../src/dom"
+import { node_append, node_remove, node_is_observing, node_is_connected } from "../src/dom"
 
 describe("$observe", () => {
   test("starts observing when appended and stops after node_remove", () => {

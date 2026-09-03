@@ -22,51 +22,60 @@ export interface SelectAttributes<T, T2 = T> extends Attrs<HTMLButtonElement> {
  */
 export function Select<T, T2 = T>(at: SelectAttributes<T, T2>) {
   const convert_fn = at.convert_fn ?? ((opt: T2) => opt as unknown as T)
-  const oo_values_map = o.tf(at.options, opts => new Map([...opts].map(opt => [convert_fn(opt), opt])))
+  const oo_values_map = o.tf(at.options, (opts) => new Map([...opts].map((opt) => [convert_fn(opt), opt])))
   const o_open = o(false)
 
-  return <button class={cls_select_button} disabled={at.disabled}>
-    {"\u200c"}
+  return (
+    <button class={cls_select_button} disabled={at.disabled}>
+      {"\u200c"}
 
-    {/* Display the current value */}
-    {o.expression(get => {
-      const val = get(at.model)
-      const map_val = get(oo_values_map)
-      const opt = map_val.get(val!)
-      if (opt == null) {
-        return <span class={cls_placeholder}>{get(at.placeholder)}</span>
-      }
-      return at.label_fn ? at.label_fn(opt) : opt?.toString()
-    })}
+      {/* Display the current value */}
+      {o.expression((get) => {
+        const val = get(at.model)
+        const map_val = get(oo_values_map)
+        const opt = map_val.get(val!)
+        if (opt == null) {
+          return <span class={cls_placeholder}>{get(at.placeholder)}</span>
+        }
+        return at.label_fn ? at.label_fn(opt) : opt?.toString()
+      })}
 
-    {$click(async ev => {
-      o_open.set(true)
-      try {
-        await popup(ev.currentTarget, fut => <menu>
-          {$scrollable}
-          {VirtualScroll(o(at.options).tf(opts => [...opts]), o_option => {
-            const oo_option_value = o_option.tf(opt => convert_fn(opt))
-            const oo_is_selected = o.expression(get => get(at.model) === get(oo_option_value))
-            return <e-flex class={[cls_item, oo_is_selected.tf(selected => selected && "selected")]}>
-              {$click(ev => {
-                at.model?.set(o.get(oo_option_value))
-                fut.resolve(o.get(oo_option_value))
-              })}
-              <e-box class="selected-icon">{oo_is_selected.tf(selected => selected && Check())}</e-box>
-              {o_option.tf(opt => at.label_fn ? at.label_fn(opt) : opt?.toString())}
-            </e-flex>
-          })}
-        </menu>
-        , { arrow: true, placement: "right-start" })
-      } finally {
-        o_open.set(false)
-      }
-    })}
-    <e-box class={[cls_indicator, o_open.tf(open => open ? "open" : "")]}>
-      {CaretDown()}
-    </e-box>
-
-  </button> as HTMLButtonElement
+      {$click(async (ev) => {
+        o_open.set(true)
+        try {
+          await popup(
+            ev.currentTarget,
+            (fut) => (
+              <menu>
+                {$scrollable}
+                {VirtualScroll(
+                  o(at.options).tf((opts) => [...opts]),
+                  (o_option) => {
+                    const oo_option_value = o_option.tf((opt) => convert_fn(opt))
+                    const oo_is_selected = o.expression((get) => get(at.model) === get(oo_option_value))
+                    return (
+                      <e-flex class={[cls_item, oo_is_selected.tf((selected) => selected && "selected")]}>
+                        {$click((ev) => {
+                          at.model?.set(o.get(oo_option_value))
+                          fut.resolve(o.get(oo_option_value))
+                        })}
+                        <e-box class="selected-icon">{oo_is_selected.tf((selected) => selected && Check())}</e-box>
+                        {o_option.tf((opt) => (at.label_fn ? at.label_fn(opt) : opt?.toString()))}
+                      </e-flex>
+                    )
+                  },
+                )}
+              </menu>
+            ),
+            { arrow: true, placement: "right-start" },
+          )
+        } finally {
+          o_open.set(false)
+        }
+      })}
+      <e-box class={[cls_indicator, o_open.tf((open) => (open ? "open" : ""))]}>{CaretDown()}</e-box>
+    </button>
+  ) as HTMLButtonElement
 }
 
 const cls_placeholder = css`.placeholder {

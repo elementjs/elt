@@ -15,7 +15,7 @@ class observe_track {
 
   constructor(
     public node: HTMLElement,
-    obs: o.RO<unknown>
+    obs: o.RO<unknown>,
   ) {
     $observe(obs, () => {
       this.count++
@@ -35,10 +35,7 @@ type RepeatOptions = {
   empty?: boolean
 }
 
-function mount_repeat(
-  lst: o.Observable<string[]>,
-  options: RepeatOptions = {}
-) {
+function mount_repeat(lst: o.Observable<string[]>, options: RepeatOptions = {}) {
   const container = document.createElement("div")
   let repeater = Repeat(lst, (item, idx) => {
     const span = document.createElement("span")
@@ -47,7 +44,10 @@ function mount_repeat(
     if (options.separator) {
       const sep = document.createElement("span")
       sep.className = "repeat-sep"
-      node_append(sep, idx.tf(i => `#${i}`))
+      node_append(
+        sep,
+        idx.tf((i) => `#${i}`),
+      )
       return [sep, span] as unknown as HTMLSpanElement
     }
     return span
@@ -55,17 +55,23 @@ function mount_repeat(
 
   if (options.keyfn) repeater = repeater.withKeyFunction(options.keyfn)
   if (options.prefix)
-    repeater = repeater.PrefixBy(o_lst => {
+    repeater = repeater.PrefixBy((o_lst) => {
       const el = document.createElement("span")
       el.className = "repeat-prefix"
-      node_append(el, o_lst.tf(l => `(${l.length})`))
+      node_append(
+        el,
+        o_lst.tf((l) => `(${l.length})`),
+      )
       return el
     })
   if (options.suffix)
-    repeater = repeater.SuffixBy(o_lst => {
+    repeater = repeater.SuffixBy((o_lst) => {
       const el = document.createElement("span")
       el.className = "repeat-suffix"
-      node_append(el, o_lst.tf(l => `/${l.length}`))
+      node_append(
+        el,
+        o_lst.tf((l) => `/${l.length}`),
+      )
       return el
     })
   if (options.empty)
@@ -97,7 +103,7 @@ function elements_by_class(root: HTMLElement, class_name: string) {
 }
 
 function item_texts(container: HTMLElement) {
-  return elements_by_class(container, "repeat-item").map(s => s.textContent)
+  return elements_by_class(container, "repeat-item").map((s) => s.textContent)
 }
 
 function query_one(container: HTMLElement, class_name: string) {
@@ -114,7 +120,7 @@ function count_by_class(root: HTMLElement, class_name: string) {
 
 function mount_fragment_repeat(
   lst: o.Observable<Item[]>,
-  tracks_by_id: Map<string, { label: observe_track; badge: observe_track }>
+  tracks_by_id: Map<string, { label: observe_track; badge: observe_track }>,
 ) {
   const container = document.createElement("div")
   const repeater = Repeat(lst, (item, idx) => {
@@ -131,20 +137,32 @@ function mount_fragment_repeat(
 
     const id = item.get().id
     tracks_by_id.set(id, {
-      label: new observe_track(label, item.tf(x => x.label)),
+      label: new observe_track(
+        label,
+        item.tf((x) => x.label),
+      ),
       badge: new observe_track(badge, idx),
     })
 
-    node_append(label, item.tf(x => x.label))
-    node_append(badge, idx.tf(i => `n${i}`))
-    node_append(tail, item.tf(x => `tail-${x.id}`))
+    node_append(
+      label,
+      item.tf((x) => x.label),
+    )
+    node_append(
+      badge,
+      idx.tf((i) => `n${i}`),
+    )
+    node_append(
+      tail,
+      item.tf((x) => `tail-${x.id}`),
+    )
 
     node_append(wrap, label)
     node_append(wrap, badge)
     node_append(frag, wrap)
     node_append(frag, tail)
     return frag
-  }).withKeyFunction(item => item.id)
+  }).withKeyFunction((item) => item.id)
 
   node_append(container, repeater)
   node_append(document.body, container)
@@ -388,7 +406,7 @@ describe("Repeat", () => {
           span.className = "repeat-item"
           node_append(span, item)
           return span
-        })
+        }),
       )
       node_append(document.body, container)
 
@@ -403,7 +421,7 @@ describe("Repeat", () => {
     test("reuses nodes when keys match across updates", () => {
       const o_lst = o(["a", "b", "c"])
       const { container } = mount_repeat(o_lst, {
-        keyfn: item => item,
+        keyfn: (item) => item,
       })
 
       o_lst.set(["c", "a", "b"])
@@ -414,7 +432,7 @@ describe("Repeat", () => {
     test("shrinks keyed list to one element without stale nodes", () => {
       const o_lst = o(["a", "b", "c"])
       const { container } = mount_repeat(o_lst, {
-        keyfn: item => item,
+        keyfn: (item) => item,
       })
 
       o_lst.set(["b"])
@@ -472,18 +490,7 @@ describe("Repeat", () => {
       const o_lst = o(items.slice(0, 2))
       const { container } = mount_repeat(o_lst)
 
-      const sequences: string[][] = [
-        ["x"],
-        ["x"],
-        ["a", "b", "c"],
-        ["c"],
-        ["c"],
-        ["z"],
-        ["z"],
-        [],
-        ["only"],
-        ["only"],
-      ]
+      const sequences: string[][] = [["x"], ["x"], ["a", "b", "c"], ["c"], ["c"], ["z"], ["z"], [], ["only"], ["only"]]
 
       for (const seq of sequences) {
         o_lst.set([...seq])
@@ -504,18 +511,9 @@ describe("Repeat", () => {
 
       expect(count_by_class(container, "complex-item")).toBe(2)
       expect(count_by_class(container, "complex-tail")).toBe(2)
-      expect(elements_by_class(container, "complex-label").map(el => el.textContent)).toEqual([
-        "A",
-        "B",
-      ])
-      expect(elements_by_class(container, "complex-badge").map(el => el.textContent)).toEqual([
-        "n0",
-        "n1",
-      ])
-      expect(elements_by_class(container, "complex-tail").map(el => el.textContent)).toEqual([
-        "tail-a",
-        "tail-b",
-      ])
+      expect(elements_by_class(container, "complex-label").map((el) => el.textContent)).toEqual(["A", "B"])
+      expect(elements_by_class(container, "complex-badge").map((el) => el.textContent)).toEqual(["n0", "n1"])
+      expect(elements_by_class(container, "complex-tail").map((el) => el.textContent)).toEqual(["tail-a", "tail-b"])
 
       const a = tracks.get("a")!
       const b = tracks.get("b")!
@@ -612,10 +610,7 @@ describe("Repeat", () => {
 
       expect(tracks.get("a")!.label.node).toBe(a_label_node)
       expect(tracks.get("b")!.label.node).toBe(b_label_node)
-      expect(elements_by_class(container, "complex-label").map(el => el.textContent)).toEqual([
-        "B2",
-        "A2",
-      ])
+      expect(elements_by_class(container, "complex-label").map((el) => el.textContent)).toEqual(["B2", "A2"])
       expect(tracks.get("a")!.label.observing()).toBe(true)
       expect(tracks.get("b")!.label.observing()).toBe(true)
 
@@ -627,7 +622,7 @@ describe("Repeat", () => {
     function mount_view_repeat(
       lst: o.Observable<string[]>,
       o_start: o.Observable<number>,
-      o_end: o.Observable<number>
+      o_end: o.Observable<number>,
     ) {
       const container = document.createElement("div")
       const repeater = Repeat(lst, (item, idx) => {
@@ -637,7 +632,7 @@ describe("Repeat", () => {
         return span
       })
         .ForView(o_start, o_end)
-        .withKeyFunction(item => item)
+        .withKeyFunction((item) => item)
 
       node_append(container, repeater)
       node_append(document.body, container)
@@ -656,11 +651,7 @@ describe("Repeat", () => {
       const o_lst = o(["a", "b", "c", "d", "e"])
       const o_start = o(0)
       const o_end = o(2)
-      const { container, o_start: start, o_end: end } = mount_view_repeat(
-        o_lst,
-        o_start,
-        o_end
-      )
+      const { container, o_start: start, o_end: end } = mount_view_repeat(o_lst, o_start, o_end)
 
       expect(item_texts(container)).toEqual(["a", "b"])
 
@@ -675,21 +666,13 @@ describe("Repeat", () => {
       const o_lst = o(["a", "b", "c", "d", "e"])
       const o_start = o(0)
       const o_end = o(3)
-      const { container, o_start: start, o_end: end } = mount_view_repeat(
-        o_lst,
-        o_start,
-        o_end
-      )
+      const { container, o_start: start, o_end: end } = mount_view_repeat(o_lst, o_start, o_end)
 
-      const first_b = elements_by_class(container, "repeat-item").find(
-        el => el.textContent === "b"
-      )!
+      const first_b = elements_by_class(container, "repeat-item").find((el) => el.textContent === "b")!
 
       start.set(1)
       end.set(4)
-      const second_b = elements_by_class(container, "repeat-item").find(
-        el => el.textContent === "b"
-      )!
+      const second_b = elements_by_class(container, "repeat-item").find((el) => el.textContent === "b")!
 
       expect(second_b).toBe(first_b)
       expect(item_texts(container)).toEqual(["b", "c", "d"])

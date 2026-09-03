@@ -1,12 +1,4 @@
-import {
-  $click,
-  $connected,
-  $observe,
-  o,
-  Repeat,
-  type Attrs,
-  css,
-} from "elt"
+import { $click, $connected, $observe, o, Repeat, type Attrs, css } from "elt"
 import {
   apply_date_part,
   build_layout,
@@ -67,24 +59,24 @@ export type DatePickerAttrs = DatePickerNullable | DatePickerNotNullable
 
 function picker_options(at: DatePickerAttrs) {
   return {
-    show_date: o.tf(at.show_date, d => d ?? true),
-    show_time: o.tf(at.show_time, t => t ?? false),
-    am_pm: o.tf(at.am_pm, a => a ?? false),
-    seconds: o.tf(at.seconds, s => s ?? false),
-    minute_step: o.tf(at.minute_step, s => Math.max(1, Math.trunc(s ?? 1))),
-    second_step: o.tf(at.second_step, s => Math.max(1, Math.trunc(s ?? 1))),
+    show_date: o.tf(at.show_date, (d) => d ?? true),
+    show_time: o.tf(at.show_time, (t) => t ?? false),
+    am_pm: o.tf(at.am_pm, (a) => a ?? false),
+    seconds: o.tf(at.seconds, (s) => s ?? false),
+    minute_step: o.tf(at.minute_step, (s) => Math.max(1, Math.trunc(s ?? 1))),
+    second_step: o.tf(at.second_step, (s) => Math.max(1, Math.trunc(s ?? 1))),
   }
 }
 
 export function DateTimePicker(at: DatePickerAttrs) {
-  const clearable = o.tf(at.clearable, cl => cl === true)
+  const clearable = o.tf(at.clearable, (cl) => cl === true)
   const opts = picker_options(at)
   const o_locale = o("")
   let input_ctrl: DateInputController | null = null
 
-  const oo_variant = o.tf(at.variant, v => v ?? "tint")
+  const oo_variant = o.tf(at.variant, (v) => v ?? "tint")
 
-  const oo_layout = o.expression(get => {
+  const oo_layout = o.expression((get) => {
     const locale = get(o_locale)
     if (!locale) return null
     return build_layout(locale, {
@@ -123,14 +115,14 @@ export function DateTimePicker(at: DatePickerAttrs) {
     const o_view = o(get_model() ?? default_popup_date())
     const months = month_names(locale)
     const o_month = o.expression(
-      get => get(o_view).getMonth(),
-      m => {
+      (get) => get(o_view).getMonth(),
+      (m) => {
         const d = new Date(o_view.get())
         d.setMonth(m)
         o_view.set(d)
-      }
+      },
     )
-    const oo_cells = o.expression(get => calendar_month_cells(get(o_view), week_start))
+    const oo_cells = o.expression((get) => calendar_month_cells(get(o_view), week_start))
 
     const year_delta = (delta: number) => {
       const d = new Date(o_view.get())
@@ -138,112 +130,131 @@ export function DateTimePicker(at: DatePickerAttrs) {
       o_view.set(d)
     }
 
-    await popup(anchor, () => (
-      <e-box class={cls_calendar}>
-        <e-flex class={cls_toolbar} align="center" gap="small">
-          <button type="button" e-variant="text">
-            {$click(() => year_delta(-1))}
-            {CaretLeft()}
-          </button>
-          <span class={cls_year}>{o_view.tf(v => String(v.getFullYear()))}</span>
-          <button type="button" e-variant="text">
-            {$click(() => year_delta(1))}
-            {CaretRight()}
-          </button>
-          <Select
-            model={o_month}
-            options={[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]}
-            label_fn={i => months[i]}
-          />
-        </e-flex>
-        <e-grid class={cls_grid}>
-          {weekday_labels(locale, week_start).map(label => <span class={cls_dow}>{label}</span>)}
-          {Repeat(oo_cells, o_cell => {
-            const oo_in_month = o_cell.tf(c => c.in_month)
-            const oo_day_num = o_cell.tf(c => c.date.getDate())
-            const oo_selected_day = o.expression(get => {
-              const current = get(at.model)
-              const cell = get(o_cell)
-              return same_day(cell.date, current)
-            })
-            return <button
-              type="button"
-              e-variant="text"
-              class={[cls_day, oo_in_month.tf(v => !v && "outside"), oo_selected_day.tf(s => s && "selected")]}
-            >
-              {$click(() => {
-                const cell = o_cell.get().date
-                const base = get_model() ?? default_popup_date()
-                set_model(apply_date_part(
-                  base,
-                  cell.getFullYear(),
-                  cell.getMonth() + 1,
-                  cell.getDate()
-                ))
-              })}
-              {oo_day_num}
+    await popup(
+      anchor,
+      () => (
+        <e-box class={cls_calendar}>
+          <e-flex class={cls_toolbar} align="center" gap="small">
+            <button type="button" e-variant="text">
+              {$click(() => year_delta(-1))}
+              {CaretLeft()}
             </button>
-          })}
-        </e-grid>
-      </e-box>
-    ), { arrow: true })
+            <span class={cls_year}>{o_view.tf((v) => String(v.getFullYear()))}</span>
+            <button type="button" e-variant="text">
+              {$click(() => year_delta(1))}
+              {CaretRight()}
+            </button>
+            <Select model={o_month} options={[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]} label_fn={(i) => months[i]} />
+          </e-flex>
+          <e-grid class={cls_grid}>
+            {weekday_labels(locale, week_start).map((label) => (
+              <span class={cls_dow}>{label}</span>
+            ))}
+            {Repeat(oo_cells, (o_cell) => {
+              const oo_in_month = o_cell.tf((c) => c.in_month)
+              const oo_day_num = o_cell.tf((c) => c.date.getDate())
+              const oo_selected_day = o.expression((get) => {
+                const current = get(at.model)
+                const cell = get(o_cell)
+                return same_day(cell.date, current)
+              })
+              return (
+                <button
+                  type="button"
+                  e-variant="text"
+                  class={[cls_day, oo_in_month.tf((v) => !v && "outside"), oo_selected_day.tf((s) => s && "selected")]}
+                >
+                  {$click(() => {
+                    const cell = o_cell.get().date
+                    const base = get_model() ?? default_popup_date()
+                    set_model(apply_date_part(base, cell.getFullYear(), cell.getMonth() + 1, cell.getDate()))
+                  })}
+                  {oo_day_num}
+                </button>
+              )
+            })}
+          </e-grid>
+        </e-box>
+      ),
+      { arrow: true },
+    )
   }
 
-  return <e-button-box>
-    {$connected((box: HTMLElement) => {
-      o_locale.set(resolve_locale(box))
-    })}
-    <input type="text" autocomplete="off" spellcheck={false} class={cls_date_input}>
-      {(input: HTMLInputElement) => {
-        input_ctrl = setup_input_api(input, input_ctx())
-        lock(() => input_ctrl!.apply_model(at.model.get()))
-      }}
-      {$observe(at.model, val => {
-        lock(() => input_ctrl?.apply_model(val))
+  return (
+    <e-button-box>
+      {$connected((box: HTMLElement) => {
+        o_locale.set(resolve_locale(box))
       })}
-      {$observe(oo_layout, () => {
-        lock(() => input_ctrl?.apply_model(at.model.get()))
-      })}
-    </input>
-    {o.tf(at.clearable, c => c && <button type="button" e-variant={oo_variant} title="Clear">
-      {$click(() => set_model(null))}
-      <X/>
-    </button>)}
-    {o.tf(opts.show_time, v => v &&
-      <button type="button" e-variant={oo_variant} title="Time">
-        {$click(async ev => {
-          const locale = o_locale.get()
-          if (!locale) return
-          const o_cur = o(get_model() ?? default_popup_date())
-          await popup(ev.currentTarget, () => (
-            <TimePickerPanel
-              locale={locale}
-              o_date={o_cur}
-              am_pm={o.get(opts.am_pm)}
-              seconds={o.get(opts.seconds)}
-              minute_step={o.get(opts.minute_step)}
-              second_step={o.get(opts.second_step)}
-              on_change={d => set_model(d)}
-            />
-          ), { arrow: true })
+      <input type="text" autocomplete="off" spellcheck={false} class={cls_date_input}>
+        {(input: HTMLInputElement) => {
+          input_ctrl = setup_input_api(input, input_ctx())
+          lock(() => input_ctrl!.apply_model(at.model.get()))
+        }}
+        {$observe(at.model, (val) => {
+          lock(() => input_ctrl?.apply_model(val))
         })}
-        {Clock()}
-      </button>
-    )}
-    {o.tf(opts.show_date, v => v &&
-      <button type="button" e-variant={oo_variant} title="Date">
-        {$click(ev => { void open_calendar(ev.currentTarget) })}
-        {Calendar()}
-      </button>
-    )}
-  </e-button-box> as HTMLElement
+        {$observe(oo_layout, () => {
+          lock(() => input_ctrl?.apply_model(at.model.get()))
+        })}
+      </input>
+      {o.tf(
+        at.clearable,
+        (c) =>
+          c && (
+            <button type="button" e-variant={oo_variant} title="Clear">
+              {$click(() => set_model(null))}
+              <X />
+            </button>
+          ),
+      )}
+      {o.tf(
+        opts.show_time,
+        (v) =>
+          v && (
+            <button type="button" e-variant={oo_variant} title="Time">
+              {$click(async (ev) => {
+                const locale = o_locale.get()
+                if (!locale) return
+                const o_cur = o(get_model() ?? default_popup_date())
+                await popup(
+                  ev.currentTarget,
+                  () => (
+                    <TimePickerPanel
+                      locale={locale}
+                      o_date={o_cur}
+                      am_pm={o.get(opts.am_pm)}
+                      seconds={o.get(opts.seconds)}
+                      minute_step={o.get(opts.minute_step)}
+                      second_step={o.get(opts.second_step)}
+                      on_change={(d) => set_model(d)}
+                    />
+                  ),
+                  { arrow: true },
+                )
+              })}
+              {Clock()}
+            </button>
+          ),
+      )}
+      {o.tf(
+        opts.show_date,
+        (v) =>
+          v && (
+            <button type="button" e-variant={oo_variant} title="Date">
+              {$click((ev) => {
+                void open_calendar(ev.currentTarget)
+              })}
+              {Calendar()}
+            </button>
+          ),
+      )}
+    </e-button-box>
+  ) as HTMLElement
 }
 
 function same_day(a: Date, b: Date | null): boolean {
   if (b == null) return false
-  return a.getFullYear() === b.getFullYear()
-    && a.getMonth() === b.getMonth()
-    && a.getDate() === b.getDate()
+  return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate()
 }
 
 const cls_calendar = css`.date-calendar {

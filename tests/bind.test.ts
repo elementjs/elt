@@ -84,7 +84,7 @@ describe("$bind", () => {
         $bind.string(o_text, {
           o_error,
           extra_check: (value) => (value.length < 3 ? "too short" : null),
-        })
+        }),
       )
 
       input.value = "hi"
@@ -103,7 +103,7 @@ describe("$bind", () => {
         input,
         $bind.string(o_text, {
           extra_check: (value) => (value.length < 3 ? "too short" : null),
-        })
+        }),
       )
 
       input.value = "hi"
@@ -174,10 +174,7 @@ describe("$bind", () => {
     test("prioritize_observable lets an external write win immediately", async () => {
       const o_text = o("start")
       const input = mount(document.createElement("input"))
-      node_append(
-        input,
-        $bind.string(o_text, { debounce_event: 30, prioritize_observable: true })
-      )
+      node_append(input, $bind.string(o_text, { debounce_event: 30, prioritize_observable: true }))
 
       input.value = "typing"
       fire(input, "input")

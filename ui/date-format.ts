@@ -25,12 +25,11 @@ export interface DateFormatLayout {
   locale: string
   segments: DateFormatSegment[]
   /** Separator characters at fixed indices (/, space, :, etc.). */
-  literals: { index: number, char: string }[]
+  literals: { index: number; char: string }[]
   length: number
 }
 
-export type WeekdayName =
-  | "monday" | "tuesday" | "wednesday" | "thursday" | "friday" | "saturday" | "sunday"
+export type WeekdayName = "monday" | "tuesday" | "wednesday" | "thursday" | "friday" | "saturday" | "sunday"
 
 const WEEKDAY_TO_JS: Record<WeekdayName, number> = {
   sunday: 0,
@@ -66,7 +65,9 @@ export function week_start_js(week_starts_on: WeekdayName | undefined, locale: s
     const loc = new Intl.Locale(locale) as Intl.Locale & { weekInfo?: { firstDay: number } }
     const first = loc.weekInfo?.firstDay
     if (first != null) return first === 7 ? 0 : first
-  } catch { /* unsupported tag */ }
+  } catch {
+    /* unsupported tag */
+  }
   return 1
 }
 
@@ -124,9 +125,10 @@ function pad(n: number, digits: number): string {
 
 /** Localized AM/PM (or equivalent) trimmed to the segment width from the mask. */
 function day_period_text(locale: string, am: boolean, digits: number): string {
-  const sample = new Intl.DateTimeFormat(locale, { hour: "numeric", hour12: true })
-    .formatToParts(am ? new Date(2000, 0, 1, 9, 0) : new Date(2000, 0, 1, 21, 0))
-    .find(p => p.type === "dayPeriod")?.value ?? (am ? "AM" : "PM")
+  const sample =
+    new Intl.DateTimeFormat(locale, { hour: "numeric", hour12: true })
+      .formatToParts(am ? new Date(2000, 0, 1, 9, 0) : new Date(2000, 0, 1, 21, 0))
+      .find((p) => p.type === "dayPeriod")?.value ?? (am ? "AM" : "PM")
   return sample.slice(0, digits).padEnd(digits, " ")
 }
 
@@ -203,7 +205,12 @@ export function parse_segments(layout: DateFormatLayout, text: string): SegmentV
     const slice = text.slice(seg.start, seg.end)
     if (seg.kind === "dayPeriod") {
       const pm_sample = day_period_text(layout.locale, false, 2).trim().toLowerCase()
-      vals.dayPeriod = slice.trim().toLowerCase().startsWith(pm_sample[0] ?? "p") ? 1 : 0
+      vals.dayPeriod = slice
+        .trim()
+        .toLowerCase()
+        .startsWith(pm_sample[0] ?? "p")
+        ? 1
+        : 0
       continue
     }
     const digits = slice.replace(/[^0-9]/g, "")
@@ -237,9 +244,9 @@ export function segment_at_caret(layout: DateFormatLayout, index: number): DateF
   if (hit) return hit
 
   if (is_literal_index(layout, index)) {
-    const before = layout.segments.filter(s => s.end === index)
+    const before = layout.segments.filter((s) => s.end === index)
     if (before.length) return before[before.length - 1]!
-    const after = layout.segments.find(s => s.start === index)
+    const after = layout.segments.find((s) => s.start === index)
     if (after) return after
   }
 
@@ -261,7 +268,7 @@ export function segment_at_caret(layout: DateFormatLayout, index: number): DateF
 
 /** True if `index` is a locale separator — typing should jump over it. */
 export function is_literal_index(layout: DateFormatLayout, index: number): boolean {
-  return layout.literals.some(l => l.index === index)
+  return layout.literals.some((l) => l.index === index)
 }
 
 /** Every segment has a value — required before building a `Date` from the input. */
@@ -277,17 +284,27 @@ export function date_to_values(d: Date, layout: DateFormatLayout): SegmentValues
   const vals: SegmentValues = {}
   for (const seg of layout.segments) {
     switch (seg.kind) {
-      case "year": vals.year = d.getFullYear(); break
-      case "month": vals.month = d.getMonth() + 1; break
-      case "day": vals.day = d.getDate(); break
-      case "hour":
-        vals.hour = layout.segments.some(s => s.kind === "dayPeriod")
-          ? (d.getHours() % 12 || 12)
-          : d.getHours()
+      case "year":
+        vals.year = d.getFullYear()
         break
-      case "minute": vals.minute = d.getMinutes(); break
-      case "second": vals.second = d.getSeconds(); break
-      case "dayPeriod": vals.dayPeriod = d.getHours() >= 12 ? 1 : 0; break
+      case "month":
+        vals.month = d.getMonth() + 1
+        break
+      case "day":
+        vals.day = d.getDate()
+        break
+      case "hour":
+        vals.hour = layout.segments.some((s) => s.kind === "dayPeriod") ? d.getHours() % 12 || 12 : d.getHours()
+        break
+      case "minute":
+        vals.minute = d.getMinutes()
+        break
+      case "second":
+        vals.second = d.getSeconds()
+        break
+      case "dayPeriod":
+        vals.dayPeriod = d.getHours() >= 12 ? 1 : 0
+        break
     }
   }
   return vals
@@ -334,14 +351,14 @@ export function apply_time_part(base: Date, vals: SegmentValues): Date {
 }
 
 /** Six rows × seven columns for the month popup; includes leading/trailing outside days. */
-export function calendar_month_cells(view: Date, week_start: number): { date: Date, in_month: boolean }[] {
+export function calendar_month_cells(view: Date, week_start: number): { date: Date; in_month: boolean }[] {
   const y = view.getFullYear()
   const m = view.getMonth()
   const first = new Date(y, m, 1)
   let start = first.getDay() - week_start
   if (start < 0) start += 7
   const start_date = new Date(y, m, 1 - start)
-  const cells: { date: Date, in_month: boolean }[] = []
+  const cells: { date: Date; in_month: boolean }[] = []
   for (let i = 0; i < 42; i++) {
     const d = new Date(start_date.getFullYear(), start_date.getMonth(), start_date.getDate() + i)
     cells.push({ date: d, in_month: d.getMonth() === m })
@@ -352,7 +369,7 @@ export function calendar_month_cells(view: Date, week_start: number): { date: Da
 /** Month labels for the calendar toolbar select (index 0 = January). */
 export function month_names(locale: string): string[] {
   return Array.from({ length: 12 }, (_, i) =>
-    new Intl.DateTimeFormat(locale, { month: "long" }).format(new Date(2000, i, 1))
+    new Intl.DateTimeFormat(locale, { month: "long" }).format(new Date(2000, i, 1)),
   )
 }
 
@@ -360,7 +377,6 @@ export function month_names(locale: string): string[] {
 export function weekday_labels(locale: string, week_start: number): string[] {
   return Array.from({ length: 7 }, (_, i) => {
     const day = (week_start + i) % 7
-    return new Intl.DateTimeFormat(locale, { weekday: "narrow" })
-      .format(new Date(2024, 0, 7 + day))
+    return new Intl.DateTimeFormat(locale, { weekday: "narrow" }).format(new Date(2024, 0, 7 + day))
   })
 }

@@ -58,8 +58,8 @@ export class RefChild extends Comment {
 
 // Just to avoid Comment allocations
 let refchild_counter = 0
-let refchildren = new Array<RefChild>(
-  32
+const refchildren = new Array<RefChild>(
+  32,
 ) /** pre-allocate a size 32, but there is little chance that it will ever reach that size. */
 refchildren.length = 0
 
@@ -68,13 +68,11 @@ export type NodeTypeFromCreator<T extends string> =
   T extends keyof HTMLElementTagNameMap
     ? HTMLElementTagNameMap[T]
     : // If it is a string of known SVG element, return it
-    T extends keyof SVGElementTagNameMap
-    ? SVGElementTagNameMap[T]
-    : // Otherwise, it will be a plain HTMLElement
-      HTMLElement
-export type AttrsFor<T extends string> = T extends keyof ElementMap
-  ? ElementMap[T]
-  : Attrs<HTMLElement>
+      T extends keyof SVGElementTagNameMap
+      ? SVGElementTagNameMap[T]
+      : // Otherwise, it will be a plain HTMLElement
+        HTMLElement
+export type AttrsFor<T extends string> = T extends keyof ElementMap ? ElementMap[T] : Attrs<HTMLElement>
 
 /**
  * Create Nodes with a twist.
@@ -83,22 +81,18 @@ export type AttrsFor<T extends string> = T extends keyof ElementMap
  * Controllers, decorators, classes and style.
  * @category dom, toc
  */
-export function e<
-  T extends (a: any, refchild: RefChild) => Node,
->(elt: T, attrs: Parameters<T>[0], ...children: (Renderable<ReturnType<typeof elt>> | Attrs<HTMLElement>)[]): ReturnType<typeof elt>
-export function e<T extends Node>(
+export function e<T extends (a: any, refchild: RefChild) => Node>(
   elt: T,
-  ...children: (Attrs<T> | Renderable<T>)[]
-): T
+  attrs: Parameters<T>[0],
+  ...children: (Renderable<ReturnType<typeof elt>> | Attrs<HTMLElement>)[]
+): ReturnType<typeof elt>
+export function e<T extends Node>(elt: T, ...children: (Attrs<T> | Renderable<T>)[]): T
 export function e<T extends string>(
   elt: T,
   ...children: (Renderable<NodeTypeFromCreator<T>> | AttrsFor<T>)[]
 ): NodeTypeFromCreator<T>
 // eslint-disable-next-line @typescript-eslint/ban-types
-export function e<N extends Node>(
-  elt: string | Node | Function,
-  ...children: (Renderable<N> | Attrs<N> | any)[]
-): N {
+export function e<N extends Node>(elt: string | Node | Function, ...children: (Renderable<N> | Attrs<N> | any)[]): N {
   let node: N // just to prevent the warnings later
 
   let is_basic_node = true
@@ -160,10 +154,7 @@ export function e<N extends Node>(
       case "tspan":
       case "use":
       case "view":
-        node = document.createElementNS(
-          "http://www.w3.org/2000/svg",
-          elt
-        ) as unknown as N
+        node = document.createElementNS("http://www.w3.org/2000/svg", elt) as unknown as N
         break
       default:
         node = document.createElement(elt) as unknown as N
@@ -173,10 +164,7 @@ export function e<N extends Node>(
     // elt is just a creator function
     node =
       elt.length > 1
-        ? elt(
-            children[0] ?? {},
-            (refchild = refchildren[refchild_counter++] ??= new RefChild())
-          )
+        ? elt(children[0] ?? {}, (refchild = refchildren[refchild_counter++] ??= new RefChild()))
         : elt(children[0] ?? {})
 
     // if refchild was given but not inserted, set it back to null
@@ -241,9 +229,7 @@ export namespace e {
      * The signature function components should conform to.
      * @internal
      */
-    export interface ElementClassFn<N extends Node> {
-      (attrs: EmptyAttributes<N>, refchild: RefChild): N
-    }
+    export type ElementClassFn<N extends Node> = (attrs: EmptyAttributes<N>, refchild: RefChild) => N
 
     /** @internal */
     export type ElementClass = ElementClassFn<any>
@@ -261,12 +247,10 @@ export namespace e {
   export const createElement = e
 
   /** @internal */
-  export const Fragment: (
-    at: EmptyAttributes<DocumentFragment>
-  ) => DocumentFragment = $
+  export const Fragment: (at: EmptyAttributes<DocumentFragment>) => DocumentFragment = $
 
   export const component = <T extends object, N extends Node>(
-    fn: (attrs: T, ch: RefChild) => N
+    fn: (attrs: T, ch: RefChild) => N,
   ): ((a: Attrs<N> & T, ch: RefChild) => N) => fn
 }
 

@@ -11,11 +11,17 @@ import { theme } from "./theme"
 import { Future } from "./utils"
 const colors = theme.colors
 
-import { arrow, autoPlacement, autoUpdate, computePosition, type ComputePositionConfig, flip, hide } from "@floating-ui/dom"
+import {
+  arrow,
+  autoPlacement,
+  autoUpdate,
+  computePosition,
+  type ComputePositionConfig,
+  flip,
+  hide,
+} from "@floating-ui/dom"
 
-export type PopupResolution<T> =
-  | { resolution: "value", value: T }
-  | { resolution: "closed" }
+export type PopupResolution<T> = { resolution: "value"; value: T } | { resolution: "closed" }
 
 const popups = new Set<Element>()
 const popups_futures = new WeakMap<Element, Future<any | undefined>>()
@@ -35,11 +41,7 @@ function find_parent_node(el: Node) {
     }
 
     // Elements with the Popover API open are also in the top layer
-    if (
-      el instanceof HTMLElement &&
-      el.hasAttribute('popover') &&
-      el.matches(':popover-open')
-    ) {
+    if (el instanceof HTMLElement && el.hasAttribute("popover") && el.matches(":popover-open")) {
       return el
     }
 
@@ -47,7 +49,6 @@ function find_parent_node(el: Node) {
   }
 
   return document.body
-
 }
 
 async function _popup_resolve(p: Element) {
@@ -73,7 +74,7 @@ function _close_popups_keydown(ev: KeyboardEvent) {
 
 function _close_popups() {
   if (popups.size === 0) return
-  for (let p of popups) {
+  for (const p of popups) {
     _popup_resolve(p)
   }
   if (popups.size === 0) {
@@ -85,7 +86,7 @@ function _close_popups() {
 function _eval_popup_click(ev: MouseEvent) {
   if (popups.size === 0) return
   let found_contain = false
-  for (let p of popups) {
+  for (const p of popups) {
     if (p.contains(ev.target as Node)) {
       found_contain = true
       continue
@@ -94,7 +95,6 @@ function _eval_popup_click(ev: MouseEvent) {
     if (found_contain) {
       // Close popups that didn't contain the click
       _popup_resolve(p)
-      continue
     }
   }
   // If we get here, no popup contained the click, we close them all
@@ -125,8 +125,7 @@ function popup_placement_to_arrow_placement(placement: string): ArrowPlacement {
 }
 
 function popup_arrow(o_state: o.Observable<ArrowState>) {
-
-  const oo_outer_arrow_position = o.expression(get => {
+  const oo_outer_arrow_position = o.expression((get) => {
     const { side, ax, ay, visible } = get(o_state)
     const style: Partial<CSSStyleDeclaration> = {
       visibility: visible ? "visible" : "hidden",
@@ -148,13 +147,14 @@ function popup_arrow(o_state: o.Observable<ArrowState>) {
     return style
   })
 
-  return <e-box style={oo_outer_arrow_position} class={[cls_outer_arrow, o_state.p("side")]}>
-    <e-box class={cls_arrow_placer} data-placement={o_state.p("side")}>
-      <e-box class={cls_arrow_inner}/>
+  return (
+    <e-box style={oo_outer_arrow_position} class={[cls_outer_arrow, o_state.p("side")]}>
+      <e-box class={cls_arrow_placer} data-placement={o_state.p("side")}>
+        <e-box class={cls_arrow_inner} />
+      </e-box>
     </e-box>
-  </e-box> as HTMLElement
+  ) as HTMLElement
 }
-
 
 /** Transform origins for the animation of the appearing/disappearing of the popup relative to its resolved position by floating-ui */
 const popup_transform_origins = new Map<string, string>([
@@ -175,19 +175,20 @@ const popup_transform_origins = new Map<string, string>([
 export function popup<T>(
   anchor: Element,
   fn: (fut: Future<T | typeof sym_popup_closed>) => Node,
-  opts?: Partial<ComputePositionConfig> & { parent?: Element | null, arrow?: boolean }
+  opts?: Partial<ComputePositionConfig> & { parent?: Element | null; arrow?: boolean },
 ) {
-
   const doc = anchor.ownerDocument
   const fut = new Future<T | typeof sym_popup_closed>()
-  const popup = <e-box class={cls_popup} popover="manual">
-    <e-box class={cls_popup_content}>
-      {$scrollable}
-      {fn(fut)}
+  const popup = (
+    <e-box class={cls_popup} popover="manual">
+      <e-box class={cls_popup_content}>
+        {$scrollable}
+        {fn(fut)}
+      </e-box>
     </e-box>
-  </e-box> as HTMLElement
+  ) as HTMLElement
 
-  fut.then(val => {
+  fut.then((val) => {
     if (val !== sym_popup_closed) {
       _popup_resolve(popup)
     }
@@ -211,7 +212,6 @@ export function popup<T>(
     _close_popups()
   }
 
-
   setTimeout(async () => {
     // node_append(anchor.parentElement!, popup_root, anchor.nextSibling)
 
@@ -227,13 +227,20 @@ export function popup<T>(
     popup.showPopover()
     popup.classList.add("open")
 
-
     async function updatePosition() {
       let { x, y, middlewareData, placement } = await computePosition(anchor, popup, {
         ...opts,
         middleware: [
           autoPlacement({
-            allowedPlacements: [...(opts?.placement ? [opts.placement] : []), "top", "top-start", "top-end", "bottom", "bottom-start", "bottom-end",]
+            allowedPlacements: [
+              ...(opts?.placement ? [opts.placement] : []),
+              "top",
+              "top-start",
+              "top-end",
+              "bottom",
+              "bottom-start",
+              "bottom-end",
+            ],
           }),
           flip(),
           hide(),

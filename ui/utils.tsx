@@ -1,4 +1,4 @@
-import { $click, } from "elt"
+import { $click } from "elt"
 
 export class Future<T> implements Promise<T> {
   #promise!: Promise<T>
@@ -24,9 +24,9 @@ export class Future<T> implements Promise<T> {
     this.#resolve(value)
   }
 
-  $clickResolve<N extends HTMLElement | SVGElement>(fn: (ev: MouseEvent & {currentTarget: N}) => T): (e: N) => void {
+  $clickResolve<N extends HTMLElement | SVGElement>(fn: (ev: MouseEvent & { currentTarget: N }) => T): (e: N) => void {
     return (e: N) => {
-      $click<N>(ev => {
+      $click<N>((ev) => {
         const res = fn(ev)
         this.resolve(res)
       })(e)
@@ -37,11 +37,16 @@ export class Future<T> implements Promise<T> {
     return this.#promise[Symbol.toStringTag]
   }
 
-  then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | null | undefined, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | null | undefined): Promise<TResult1 | TResult2> {
+  then<TResult1 = T, TResult2 = never>(
+    onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | null | undefined,
+    onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | null | undefined,
+  ): Promise<TResult1 | TResult2> {
     return this.#promise.then(onfulfilled, onrejected)
   }
 
-  catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | null | undefined): Promise<T | TResult> {
+  catch<TResult = never>(
+    onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | null | undefined,
+  ): Promise<T | TResult> {
     return this.#promise.catch(onrejected)
   }
 

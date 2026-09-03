@@ -13,23 +13,14 @@ export class Deferred<T> implements Promise<T> {
   [Symbol.toStringTag] = "Deferred"
 
   then<TResult1 = T, TResult2 = never>(
-    onfulfilled?:
-      | ((value: T) => TResult1 | PromiseLike<TResult1>)
-      | null
-      | undefined,
-    onrejected?:
-      | ((reason: any) => TResult2 | PromiseLike<TResult2>)
-      | null
-      | undefined
+    onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | null | undefined,
+    onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | null | undefined,
   ): Promise<TResult1 | TResult2> {
     return this.promise.then(onfulfilled, onrejected)
   }
 
   catch<TResult = never>(
-    onrejected?:
-      | ((reason: any) => TResult | PromiseLike<TResult>)
-      | null
-      | undefined
+    onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | null | undefined,
   ): Promise<T | TResult> {
     return this.promise.catch(onrejected)
   }
@@ -43,12 +34,12 @@ export class Deferred<T> implements Promise<T> {
 export function memoize(target: any, key: string | symbol, descriptor: PropertyDescriptor): void
 export function memoize<This, Value>(
   getter: (this: This) => Value,
-  context: ClassGetterDecoratorContext<This, Value>
+  context: ClassGetterDecoratorContext<This, Value>,
 ): (this: This) => Value
 export function memoize<This, Value>(
   target: any,
   key: string | symbol | ClassGetterDecoratorContext<This, Value>,
-  descriptor?: PropertyDescriptor
+  descriptor?: PropertyDescriptor,
 ): any {
   if (typeof key === "symbol" || typeof key === "string") {
     if (descriptor == null) {
@@ -83,7 +74,7 @@ export function memoize<This, Value>(
       if (res == null) {
         return res
       }
-      (this as any)[sym] = res
+      ;(this as any)[sym] = res
       return res
     }
   }

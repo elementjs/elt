@@ -4,7 +4,7 @@ import "./setup.ts"
 import { test, expect, describe } from "bun:test"
 
 import { o } from "../src/observable"
-import { VirtualScroll, VirtualScroller } from "../src/virtual"
+import { VirtualScroll, type VirtualScroller } from "../src/virtual"
 import { node_append, node_remove } from "../src/dom"
 
 const ITEM_HEIGHT = 64
@@ -54,7 +54,7 @@ function elements_by_class(root: Node, class_name: string) {
 
 async function flush_frames(count = 8) {
   for (let i = 0; i < count; i++) {
-    await new Promise<void>(resolve => requestAnimationFrame(() => resolve()))
+    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()))
   }
 }
 
@@ -92,7 +92,7 @@ function mount_virtual_scroll(initial: string[]): MountResult {
     }
     node_append(row, item)
     return row
-  }).configure(v => {
+  }).configure((v) => {
     v.item_size = ITEM_HEIGHT
     v.threshold = 100
     v.overflow_parent = scroller
@@ -103,8 +103,7 @@ function mount_virtual_scroll(initial: string[]): MountResult {
   node_append(scroller, content)
   node_append(document.body, scroller)
 
-  const visible_labels = () =>
-    elements_by_class(content, "virtual-row").map(row => row.textContent ?? "")
+  const visible_labels = () => elements_by_class(content, "virtual-row").map((row) => row.textContent ?? "")
 
   const scroll_to = async (index: number) => {
     const target = Math.max(0, index) * ITEM_HEIGHT
@@ -168,7 +167,7 @@ function mount_virtual_scroll_display_contents(initial: string[]): MountResult {
     node_append(row, item)
     node_append(wrapper, row)
     return wrapper
-  }).configure(v => {
+  }).configure((v) => {
     v.item_size = ITEM_HEIGHT
     v.threshold = 100
     v.overflow_parent = scroller
@@ -179,8 +178,7 @@ function mount_virtual_scroll_display_contents(initial: string[]): MountResult {
   node_append(scroller, content)
   node_append(document.body, scroller)
 
-  const visible_labels = () =>
-    elements_by_class(content, "virtual-row").map(row => row.textContent ?? "")
+  const visible_labels = () => elements_by_class(content, "virtual-row").map((row) => row.textContent ?? "")
 
   const scroll_to = async (index: number) => {
     const target = Math.max(0, index) * ITEM_HEIGHT
@@ -466,7 +464,7 @@ describe("VirtualScroll", () => {
       mount.scroller.dispatchEvent(new Event("scroll"))
 
       // Advance exactly one frame; the convergence re-eval lands on later frames.
-      await new Promise<void>(resolve => requestAnimationFrame(() => resolve()))
+      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()))
 
       expect(calls).toBe(1)
 

@@ -12,43 +12,43 @@ export const cls_icon = css`.icon {
   }
 }`
 
-let c = "circle"
-let cc = "currentColor"
-let cx = "cx"
-let cy = "cy"
-let d = "d"
+const c = "circle"
+const cc = "currentColor"
+const cx = "cx"
+const cy = "cy"
+const d = "d"
 // let e = "ellipse"
-let f = "fill"
+const f = "fill"
 // let g = "g"
-let h = "height"
-let l = "line"
-let n = "none"
+const h = "height"
+const l = "line"
+const n = "none"
 // let o = "opacity"
-let p = "path"
-let ps = "points"
+const p = "path"
+const ps = "points"
 // let pl = "polygon"
-let py = "polyline"
-let r = "r"
-let rt = "rect"
-let ro = "round"
-let rx = "rx"
+const py = "polyline"
+const r = "r"
+const rt = "rect"
+const ro = "round"
+const rx = "rx"
 // let ry = "ry"
-let sc = "stroke-linecap"
-let sj = "stroke-linejoin"
+const sc = "stroke-linecap"
+const sj = "stroke-linejoin"
 // let sl = "stroke-miterlimit"
-let sw = "stroke-width"
-let st = "stroke"
-let v = "svg"
+const sw = "stroke-width"
+const st = "stroke"
+const v = "svg"
 // let t = "transform"
-let vb = "viewBox"
-let vd = "0 0 256 256"
-let w = "width"
-let x = "x"
-let x1 = "x1"
-let x2 = "x2"
-let y = "y"
-let y1 = "y1"
-let y2 = "y2"
+const vb = "viewBox"
+const vd = "0 0 256 256"
+const w = "width"
+const x = "x"
+const x1 = "x1"
+const x2 = "x2"
+const y = "y"
+const y1 = "y1"
+const y2 = "y2"
 
 // const _
 function _(...args: (string | Element)[]) {
@@ -73,18 +73,54 @@ function s(tag: string, ...args: (string | Element)[]) {
   return e
 }
 
-export const CaretDown = /** @__PURE__ */ () => _(vb,vd,s(rt,w,"256",h,"256",f,n),s(py,ps,"208 96 128 176 48 96",f,n,st,cc,sc,ro,sj,ro,sw,"16"))
+export const CaretDown = /** @__PURE__ */ () =>
+  _(vb, vd, s(rt, w, "256", h, "256", f, n), s(py, ps, "208 96 128 176 48 96", f, n, st, cc, sc, ro, sj, ro, sw, "16"))
 
-export const CaretLeft = /** @__PURE__ */ () => _(vb,vd,s(rt,w,"256",h,"256",f,n),s(py,ps,"160 208 96 128 160 48",f,n,st,cc,sc,ro,sj,ro,sw,"16"))
+export const CaretLeft = /** @__PURE__ */ () =>
+  _(vb, vd, s(rt, w, "256", h, "256", f, n), s(py, ps, "160 208 96 128 160 48", f, n, st, cc, sc, ro, sj, ro, sw, "16"))
 
-export const CaretRight = /** @__PURE__ */ () => _(vb,vd,s(rt,w,"256",h,"256",f,n),s(py,ps,"96 48 160 128 96 208",f,n,st,cc,sc,ro,sj,ro,sw,"16"))
+export const CaretRight = /** @__PURE__ */ () =>
+  _(vb, vd, s(rt, w, "256", h, "256", f, n), s(py, ps, "96 48 160 128 96 208", f, n, st, cc, sc, ro, sj, ro, sw, "16"))
 
-export const Calendar = /** @__PURE__ */ () => _(vb,vd,s(rt,w,"256",h,"256",f,n),s(rt,x,"40",y,"40",w,"176",h,"176",rx,"8",f,n,st,cc,sc,ro,sj,ro,sw,"16"),s(l,x1,"176",y1,"24",x2,"176",y2,"56",f,n,st,cc,sc,ro,sj,ro,sw,"16"),s(l,x1,"80",y1,"24",x2,"80",y2,"56",f,n,st,cc,sc,ro,sj,ro,sw,"16"),s(l,x1,"40",y1,"88",x2,"216",y2,"88",f,n,st,cc,sc,ro,sj,ro,sw,"16"),s(py,ps,"88 128 104 120 104 184",f,n,st,cc,sc,ro,sj,ro,sw,"16"),s(p,d,"M138.14,128a16,16,0,1,1,26.64,17.63L136,184h32",f,n,st,cc,sc,ro,sj,ro,sw,"16"))
+export const Calendar = /** @__PURE__ */ () =>
+  _(
+    vb,
+    vd,
+    s(rt, w, "256", h, "256", f, n),
+    s(rt, x, "40", y, "40", w, "176", h, "176", rx, "8", f, n, st, cc, sc, ro, sj, ro, sw, "16"),
+    s(l, x1, "176", y1, "24", x2, "176", y2, "56", f, n, st, cc, sc, ro, sj, ro, sw, "16"),
+    s(l, x1, "80", y1, "24", x2, "80", y2, "56", f, n, st, cc, sc, ro, sj, ro, sw, "16"),
+    s(l, x1, "40", y1, "88", x2, "216", y2, "88", f, n, st, cc, sc, ro, sj, ro, sw, "16"),
+    s(py, ps, "88 128 104 120 104 184", f, n, st, cc, sc, ro, sj, ro, sw, "16"),
+    s(p, d, "M138.14,128a16,16,0,1,1,26.64,17.63L136,184h32", f, n, st, cc, sc, ro, sj, ro, sw, "16"),
+  )
 
-export const Clock = /** @__PURE__ */ () => _(vb,vd,s(rt,w,"256",h,"256",f,n),s(c,cx,"128",cy,"128",r,"96",f,n,st,cc,sc,ro,sj,ro,sw,"16"),s(py,ps,"128 72 128 128 184 128",f,n,st,cc,sc,ro,sj,ro,sw,"16"))
+export const Clock = /** @__PURE__ */ () =>
+  _(
+    vb,
+    vd,
+    s(rt, w, "256", h, "256", f, n),
+    s(c, cx, "128", cy, "128", r, "96", f, n, st, cc, sc, ro, sj, ro, sw, "16"),
+    s(py, ps, "128 72 128 128 184 128", f, n, st, cc, sc, ro, sj, ro, sw, "16"),
+  )
 
-export const MagnifyingGlass = /** @__PURE__ */ () => _(vb,vd,s(rt,w,"256",h,"256",f,n),s(c,cx,"112",cy,"112",r,"80",f,n,st,cc,sc,ro,sj,ro,sw,"16"),s(l,x1,"168.57",y1,"168.57",x2,"224",y2,"224",f,n,st,cc,sc,ro,sj,ro,sw,"16"))
+export const MagnifyingGlass = /** @__PURE__ */ () =>
+  _(
+    vb,
+    vd,
+    s(rt, w, "256", h, "256", f, n),
+    s(c, cx, "112", cy, "112", r, "80", f, n, st, cc, sc, ro, sj, ro, sw, "16"),
+    s(l, x1, "168.57", y1, "168.57", x2, "224", y2, "224", f, n, st, cc, sc, ro, sj, ro, sw, "16"),
+  )
 
-export const X = /** @__PURE__ */ () => _(vb,vd,s(rt,w,"256",h,"256",f,n),s(l,x1,"200",y1,"56",x2,"56",y2,"200",st,cc,sc,ro,sj,ro,sw,"16"),s(l,x1,"200",y1,"200",x2,"56",y2,"56",st,cc,sc,ro,sj,ro,sw,"16"))
+export const X = /** @__PURE__ */ () =>
+  _(
+    vb,
+    vd,
+    s(rt, w, "256", h, "256", f, n),
+    s(l, x1, "200", y1, "56", x2, "56", y2, "200", st, cc, sc, ro, sj, ro, sw, "16"),
+    s(l, x1, "200", y1, "200", x2, "56", y2, "56", st, cc, sc, ro, sj, ro, sw, "16"),
+  )
 
-export const Check = /** @__PURE__ */ () => _(vb,vd,s(rt,w,"256",h,"256",f,n),s(py,ps,"40 144 96 200 224 72",f,n,st,cc,sc,ro,sj,ro,sw,"16"))
+export const Check = /** @__PURE__ */ () =>
+  _(vb, vd, s(rt, w, "256", h, "256", f, n), s(py, ps, "40 144 96 200 224 72", f, n, st, cc, sc, ro, sj, ro, sw, "16"))

@@ -2,7 +2,6 @@ export type ServiceParams = {
   [name: string]: string | number | boolean | null | undefined
 }
 
-
 /** @internal decode a param value */
 export function _decode(s: string): string | boolean | undefined | number | null {
   let val: string | boolean | undefined | number | null = s

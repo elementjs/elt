@@ -1,16 +1,11 @@
-import { type Renderable } from "../types"
+import type { Renderable } from "../types"
 import { o } from "../observable"
 import { Deferred } from "../utils"
 import { Route } from "./route"
 import { Router } from "./router"
 import { State } from "./state"
-import { type ServiceParams } from "./params"
-import {
-  _get_builder,
-  type ServiceBuilder,
-  type ServiceBuilderConcreteType,
-} from "./service"
-
+import type { ServiceParams } from "./params"
+import { _get_builder, type ServiceBuilder, type ServiceBuilderConcreteType } from "./service"
 
 export type Views = Map<string, () => Renderable>
 
@@ -21,36 +16,26 @@ export interface RouteOptions {
 
 export type RouteDef = {
   [name: string]:
-    | [
-        path: string | null,
-        srv: () => ServiceBuilder<any, any>,
-        options?: RouteOptions
-      ]
+    | [path: string | null, srv: () => ServiceBuilder<any, any>, options?: RouteOptions]
     | [path: string, rt: RouteDef]
 }
 
 export type RoutesRes<R extends RouteDef> = {
   [K in keyof R]: R[K] extends [string, infer U extends RouteDef]
     ? RoutesRes<U>
-    : R[K] extends [
-        string,
-        srv: () => ServiceBuilder<any, infer T>,
-        options?: RouteOptions
-      ]
-    ? Route<T>
-    : Route
+    : R[K] extends [string, srv: () => ServiceBuilder<any, infer T>, options?: RouteOptions]
+      ? Route<T>
+      : Route
 }
-
 
 export class Reactivation extends Deferred<ActivationResult> {
   constructor(
     public builder: ServiceBuilderConcreteType<any>,
-    public params: ServiceParams = {}
+    public params: ServiceParams = {},
   ) {
     super()
   }
 }
-
 
 export interface Activated {
   activated: true
@@ -65,7 +50,6 @@ export interface Reactivated {
 
 export type ActivationResult = Activated | Reactivated
 
-
 /**
  * An app is a collection of services and their associated view map.
  * This is all it does.
@@ -76,15 +60,10 @@ export class App {
       const routes = {} as any
       let error: Route<any> | null = null
 
-      for (let [name, def] of Object.entries(defs)) {
+      for (const [name, def] of Object.entries(defs)) {
         const [url, srv, params] = def
         if (typeof srv === "function") {
-          let route = this.router.register(
-            name,
-            srv,
-            url != null ? prefix + url : null,
-            params
-          )
+          const route = this.router.register(name, srv, url != null ? prefix + url : null, params)
           routes[name] = route
           if (name === "__error__") {
             error = route
@@ -95,7 +74,7 @@ export class App {
       }
 
       const seterror = (routes: any) => {
-        for (let route of Object.values(routes)) {
+        for (const route of Object.values(routes)) {
           if (route instanceof Route) {
             if (route.error == null) {
               route.error = error!
@@ -134,10 +113,7 @@ export class App {
   o_activating = o(false)
 
   __reactivate: Reactivation | null = null
-  async _activate<S>(
-    builder: ServiceBuilder<S, any>,
-    params?: ServiceParams
-  ): Promise<ActivationResult> {
+  async _activate<S>(builder: ServiceBuilder<S, any>, params?: ServiceParams): Promise<ActivationResult> {
     const _was_activating_when_called = this.o_activating.get()
     const full_params = Object.assign({}, params)
     const builder_fn = await _get_builder(builder)
@@ -164,10 +140,7 @@ export class App {
   /**
    * Does like require() but sets the resulting service as the active instance.
    */
-  async __activate<S>(
-    builder: ServiceBuilderConcreteType<S>,
-    params?: ServiceParams
-  ): Promise<ActivationResult> {
+  async __activate<S>(builder: ServiceBuilderConcreteType<S>, params?: ServiceParams): Promise<ActivationResult> {
     let current = this.o_state.get()
     this.o_activating.set(true)
     const staging = new State(this)
@@ -180,9 +153,7 @@ export class App {
         current?.deactivate(staging)
         current = null
         const keys = staging.paramKeys()
-        const params = Object.fromEntries(
-          Object.entries(staging.params.get()).filter(([key]) => keys.has(key))
-        )
+        const params = Object.fromEntries(Object.entries(staging.params.get()).filter(([key]) => keys.has(key)))
         this.router.__last_activated_route?.updateHash(keys, params)
 
         const _commit = () => {
@@ -234,13 +205,12 @@ export class App {
 
   /** Display a view, optionally wrapping it with another function */
   DisplayView(view_name: string, cbk?: (view: () => Renderable) => Renderable): o.ReadonlyObservable<Renderable> {
-    const res = this.o_views.key(view_name)
-      .tf((viewfn) => {
-        if (cbk != null && viewfn != null) {
-          return cbk(viewfn)
-        }
-        return viewfn?.()
-      })
+    const res = this.o_views.key(view_name).tf((viewfn) => {
+      if (cbk != null && viewfn != null) {
+        return cbk(viewfn)
+      }
+      return viewfn?.()
+    })
     res[o.sym_display_node] = "e-app-view"
     res[o.sym_display_attrs] = { view: view_name }
     return res
