@@ -163,6 +163,9 @@ css`
   e-flex[column][reverse] { flex-direction: column-reverse; }
   e-flex[wrap] { flex-wrap: wrap !important; }
 
+  e-grid { display: grid; }
+  e-grid[inline] { display: inline-grid; }
+
   :is(e-flex,e-grid,e-box) {
   --e-gap-vertical: var(--e-spacing-small);
   --e-gap-horizontal: var(--e-spacing-medium);

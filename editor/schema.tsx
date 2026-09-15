@@ -10,7 +10,7 @@ Recursion goes through `forward()` (like `z.lazy`): `object-editor.tsx` and
 `resizable.tsx` are unrelated proofs of concept, not part of this shape.
 */
 
-import { $bind, $observe, o, type Renderable } from "elt"
+import { $bind, $observe, $on, css, o, type Renderable } from "elt"
 // Subpath, not the "elt/ui" barrel: this only needs DateTimePicker itself,
 // not ui/index.tsx's side effects (theme init, reset/layout/form/typography
 // CSS) -- a real elt/ui app will load those anyway, but editor/schema.tsx
@@ -55,6 +55,63 @@ export interface RenderableWidget {
   // Layer 3's `o_has_extra_keys` for the precedent) -- not modeled here yet.
   o_error: o.ReadonlyObservable<string | null>
 }
+
+// Open contract (Layer 1b "Asking to open (DOM)" / "Editor shell"): widgets
+// dispatch this, the shell only listens -- so it belongs with the widgets
+// (here), not with the shell (editor/shell.tsx re-exports it for callers
+// that only imported the shell module).
+export interface ObjectEditorOpenDetail {
+  o_value: o.Observable<unknown>
+  title: string
+  // Optional: the exact factory to mount for this value, when the
+  // dispatching widget already knows it (e.g. ObjectFactory knows a
+  // property's own schema-declared type). The shell uses this instead of
+  // resolving from scratch when present, falling back to unknown mode
+  // (`anything`) otherwise -- Layer 5 "Resolution" step 3's constructor
+  // registry (schema-less resolution from a value's runtime type/constructor)
+  // remains a separate, not-yet-built gap this doesn't replace.
+  factory?: Factory<unknown>
+}
+
+declare global {
+  interface GlobalEventHandlersEventMap {
+    "elt-object-editor-open": CustomEvent<ObjectEditorOpenDetail>
+  }
+}
+
+/** Widgets call this to ask the shell to open `o_value` -- never hold a shell reference (Layer 1b). */
+export function dispatch_object_editor_open(target: EventTarget, detail: ObjectEditorOpenDetail) {
+  target.dispatchEvent(new CustomEvent("elt-object-editor-open", { detail, bubbles: true, composed: true }))
+}
+
+// Composite kinds render as a preview + drill-in button when nested inside
+// another composite (Layer 4: "object()'s default composite rendering is a
+// preview + drill-in") -- only the factory mounted directly in a column (the
+// root, or an opened child) renders its full editable content. `kind` is
+// used here as the tag it's meant to be (introspection), not for dispatch.
+const COMPOSITE_KINDS = new Set(["object", "array", "set", "map"])
+
+// Shared preview button for any composite property/element nested inside a
+// parent composite -- dispatches the real open event so the shell creates a
+// new column, rather than inlining the child's content in place.
+function render_composite_preview(o_value: o.Observable<unknown>, title: string, factory: Factory<unknown>): Renderable {
+  let btn!: HTMLButtonElement
+  btn = (
+    <button type="button" class={cls_preview}>
+      {$on("click", () => dispatch_object_editor_open(btn, { o_value, title, factory }))}
+      Open ›
+    </button>
+  ) as HTMLButtonElement
+  return btn
+}
+
+const cls_preview = css`.oe-preview {
+  border: 1px solid var(--e-color-text-light, #ccc);
+  background: none;
+  border-radius: 4px;
+  padding: 0.3em 0.6em;
+  cursor: pointer;
+}`
 
 // Shared, immutable sentinel -- widgets with nothing to report reuse this
 // instead of each allocating their own always-null observable.
@@ -547,22 +604,28 @@ export class ObjectFactory extends Factory<ObjectOptions> {
     // aren't handled yet -- see TODO.md "Object key rules" /
     // "PropertyOption.name: RegExp". Row keys aren't editable, and there's
     // no add/remove-key affordance yet either -- also TODO.md.
-    const rows = (this.options.properties ?? [])
+    //
+    // A single 2-column e-grid (not one e-flex per row) so every row's key
+    // and value line up in real grid columns instead of each row sizing
+    // its own label independently.
+    const cells = (this.options.properties ?? [])
       .filter((prop): prop is PropertyOption & { name: string } => typeof prop.name === "string")
-      .map((prop) => {
+      .flatMap((prop) => {
         const o_child = o_value.p(prop.name)
-        const widget = prop.type.render(o_child)
-        return (
-          <e-flex class="oe-object-row">
-            <span class="oe-object-key">{prop.name}</span>
-            <e-flex grow class="oe-object-value">
-              {widget.render()}
-            </e-flex>
-          </e-flex>
-        )
+        // Composite property: preview + drill-in (a new shell column), not
+        // inlined -- see COMPOSITE_KINDS above. Scalars render in place as
+        // before.
+        const value = COMPOSITE_KINDS.has(prop.type.kind)
+          ? render_composite_preview(o_child, prop.name, prop.type)
+          : prop.type.render(o_child).render()
+        return [<span class={cls_object_key}>{prop.name}</span>, <e-box class={cls_object_value}>{value}</e-box>]
       })
     return {
-      render: () => <e-flex column>{rows}</e-flex>,
+      render: () => (
+        <e-grid gap="small" style={{ gridTemplateColumns: "max-content 1fr", alignItems: "center" }}>
+          {cells}
+        </e-grid>
+      ),
       o_error: no_error,
     }
   }
@@ -587,6 +650,15 @@ export class ObjectFactory extends Factory<ObjectOptions> {
     return new Ctor({ ...this.options, ...partial, properties: [...by_name.values(), ...unnamed] })
   }
 }
+
+const cls_object_key = css`.oe-object-key {
+  color: var(--e-color-text-mid, #888);
+  white-space: nowrap;
+}`
+
+const cls_object_value = css`.oe-object-value {
+  min-width: 0;
+}`
 
 export function object(opts: ObjectOptions = { properties: [] }) {
   return new ObjectFactory(opts)

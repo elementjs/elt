@@ -16,6 +16,29 @@ This doc is for agents writing or changing application code that uses elt. Prefe
 6. **No React `children` prop.** JSX children of `<Comp>…</Comp>` go to the **RefChild** insertion point (two-arg component) or the **root node** (one-arg).
 7. **JSX is typed as `Element`.** Cast when you need a concrete type: `(<div/> as HTMLDivElement)`. `e` / `E` do not have that problem.
 8. **Import from `"elt"`.** TypeScript only; the package is meant to be bundled. Use `"elt/mutative"` when calling `obs.mutate()`. Use `"elt/ui"` only when the app uses that sub-library (see `ui/AGENTS.md` / `docs/using-elt-ui.md`).
+9. **Model dynamic structure as an Observable + a Verb, not a manually tracked array.** If code keeps a plain array/list as a field and pairs every mutation with matching `node_append`/`node_remove` calls, or calls `node_clear` + fully re-renders a container whenever some condition changes, that's the shape `Repeat` (lists), `If` (presence/one-of-two), or `Switch` (one-of-many) already implement — with a diff against the previous render, not a rebuild, and without a second bookkeeping structure that can drift from the DOM. Put the *data* driving the decision into an `o.Observable` and let a Verb consume it, instead of writing the update-detection and DOM-patching by hand. See Verbs section below and `src/verbs.ts`.
+
+   Don't:
+   ```ts
+   class Stack {
+     items: Item[] = []
+     open(x: Item) {
+       this.items.push(x)
+       node_append(this.host, render(x))
+     }
+     close() {
+       this.items.pop()
+       node_remove(this.lastNode)
+     }
+   }
+   ```
+   Do:
+   ```tsx
+   const o_items = o<Item[]>([])
+   <div>{Repeat(o_items, (o_item) => render(o_item))}</div>
+   // push: o_items.mutate(arr => arr.push(x))   (needs "elt/mutative")
+   // pop:  o_items.set(o_items.get().slice(0, -1))
+   ```
 
 ---
 
@@ -432,6 +455,7 @@ Active nav styling example: `o.expression(get => get(app.o_current_route) === ge
 ## Pitfalls
 
 - **Wrong mount API** → no observe/connect. Root: `node_append` / `node_remove`. Escape hatch for third-party insert: wrap in `<e-wrap>` or (heavier) `setup_mutation_observer`.
+- **Manual re-render-in-place** (`$observe(o_x, () => { node_clear(host); node_append(host, render_again()) })`) is the same anti-pattern as Hard rule 9, just spelled with `$observe` instead of a tracked array. If the observer's job is "swap what's shown when this value's kind/presence changes," that's `If`/`Switch`/`o.tf` — they already skip the swap when the new render would be identical (see `If`'s "same truthiness, keep old render" behavior in `src/verbs.ts`), which hand-written `node_clear`-then-rebuild does not.
 - **Fragment `<>…</>`** is not a real node: no connect/disconnect observance on the fragment itself. Decorators still **run at creation**, but `$observe` / connected lifecycle will not stay tied the way they do on a real parent. Prefer a real element as the observing root.
 - **Sync DOM + layout:** never interleave measure and mutate in one turn when a set drives layout. Read once → compute → one write batch → converge on later frames (`requestAnimationFrame`). See next section if you touch VirtualScroll.
 - **DOM updates are sync.** Schedule UI updates at opportune times (after data is coherent; use `o.transaction` for multi-set).

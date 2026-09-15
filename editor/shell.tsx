@@ -11,47 +11,54 @@ implementation slice. Implements:
   root, which re-resolves in place (Layer 1b "Invalid parent / external
   writes", "Dead-column detection (v1)")
 
+The column stack is real state (`o_columns: o.Observable<ColumnDescriptor[]>`)
+rendered by `Repeat`, not a manually tracked array paired with
+`node_append`/`node_remove` calls -- opening/closing just replaces the array
+(default reference-identity keying means untouched columns aren't
+re-rendered, only the tail actually added/removed changes). Each column's own
+content swap (dead-column recovery) is a `.tf()` off that column's own
+`o_factory`, not a manual `node_clear` + re-render -- see
+`docs/using-elt-agent.md` Hard rule 9.
+
 Deliberately NOT here yet (see specs/TODO.md and ui-object-editor.md Scope):
 - popups (`open_as` isn't modeled on `Options` yet -- everything opens as a
   column for now)
 - shell toolbar: undo/redo, import/export, host application slots
-- the constructor registry driving schema resolution for OPENED (non-root)
-  columns (Layer 5 "Resolution" step 3) -- nothing in this slice's
-  composites dispatches `elt-object-editor-open` yet (their `render()`
-  bodies are still TODO stubs in schema.tsx), so this is
-  unexercised; opened columns fall back to unknown mode (`anything`) until
-  a real registry exists. //> Question: build the registry now, or wait
-  until a composite actually needs to open a child?
+- the constructor registry driving schema resolution for opened columns
+  whose dispatcher didn't supply one (Layer 5 "Resolution" step 3, resolving
+  from a value's runtime type/constructor with no schema at all). A
+  dispatcher that already knows its child's factory (ObjectFactory's own
+  composite-property preview button, schema.tsx) passes it through
+  `ObjectEditorOpenDetail.factory` instead -- the shell prefers that when
+  present, and only falls back to unknown mode (`anything`) when it's
+  omitted. The registry is still needed for the omitted case (e.g. a future
+  Array/Set/Map's own preview buttons, or unknown-mode drilling).
 - INVALID_MOUNT: no composite in this slice mints child observables via the
   safe-child helper yet (Layer 1b), so dead-column detection's clause (a)
   is a no-op here -- only clause (b) (`canHandle`) can currently fire.
 */
 
-import { $observe, $on, css, node_append, node_clear, node_remove, o } from "elt"
-import { anything, type Factory } from "./schema"
+import { $observe, $on, css, o, Repeat, type Renderable } from "elt"
+import { anything, dispatch_object_editor_open, type Factory, type ObjectEditorOpenDetail } from "./schema"
 
-export interface ObjectEditorOpenDetail {
+export { dispatch_object_editor_open, type ObjectEditorOpenDetail }
+
+interface ColumnDescriptor {
   o_value: o.Observable<unknown>
-  title: string
-}
-
-declare global {
-  interface GlobalEventHandlersEventMap {
-    "elt-object-editor-open": CustomEvent<ObjectEditorOpenDetail>
-  }
-}
-
-/** Widgets call this to ask the shell to open `o_value` -- never hold a shell reference (Layer 1b). */
-export function dispatch_object_editor_open(target: EventTarget, detail: ObjectEditorOpenDetail) {
-  target.dispatchEvent(new CustomEvent("elt-object-editor-open", { detail, bubbles: true, composed: true }))
-}
-
-interface Column {
-  host: HTMLElement
-  body: HTMLElement
-  o_value: o.Observable<unknown>
-  factory: Factory<unknown>
-  title: string
+  // The resolved factory for this column, as an Observable: dead-column
+  // recovery (render_column, below) sets a new one and lets `.tf()`
+  // re-render reactively, instead of a manual node_clear + re-render.
+  o_factory: o.Observable<Factory<unknown>>
+  // Column header label -- optional (the root's own column has none by
+  // default: "root" isn't meaningful chrome). The header bar itself always
+  // renders regardless, for consistent height and as the future toolbar
+  // slot (Layer 2).
+  title: string | undefined
+  // Set once by render_column (a self-referencing closure, same trick as
+  // the close button below) -- used only by index_of_column_containing's
+  // DOM hit-testing. Rendering/mounting itself is Repeat's job, not this
+  // field's.
+  host?: HTMLElement
 }
 
 export interface ShellOptions {
@@ -61,15 +68,20 @@ export interface ShellOptions {
 
 export class ObjectEditorShell {
   readonly node: HTMLElement
-  private readonly strip: HTMLElement
-  private readonly columns: Column[] = []
-  readonly o_breadcrumb = o<string[]>([])
+  private readonly o_columns = o<ColumnDescriptor[]>([])
+  // Titles of every open column right of the root, in order -- derived, not
+  // separately maintained: reading `o_columns` is the single source of
+  // truth. The shell itself doesn't render a breadcrumb bar from this
+  // (redundant with each column's own header) -- it's here for a host app
+  // that wants to build its own breadcrumb UI, and for tests.
+  readonly o_breadcrumb: o.ReadonlyObservable<string[]>
 
   constructor(
     private readonly o_root: o.Observable<unknown>,
     private readonly options: ShellOptions = {},
   ) {
-    this.strip = (<e-flex class={cls_strip}></e-flex>) as HTMLElement
+    this.o_breadcrumb = this.o_columns.tf((cols) => cols.slice(1).map((c) => c.title ?? ""))
+
     this.node = (
       <e-flex column class={cls_shell}>
         {$on("elt-object-editor-open", (ev) => {
@@ -77,105 +89,96 @@ export class ObjectEditorShell {
           // nested inside another one (not a v1 concern, but cheap to get
           // right) doesn't also react.
           ev.stopPropagation()
-          this.open(ev.detail.o_value, ev.detail.title, ev.target as Node)
+          this.open(ev.detail.o_value, ev.detail.title, ev.target as Node, ev.detail.factory)
         })}
-        <e-flex class={cls_breadcrumb}>{this.o_breadcrumb.tf((titles) => ["root", ...titles].join(" › "))}</e-flex>
-        {this.strip}
+        <e-flex class={cls_strip}>{Repeat(this.o_columns, (o_col, o_idx) => this.render_column(o_col, o_idx))}</e-flex>
       </e-flex>
     ) as HTMLElement
 
-    this.mount_column(this.o_root, "root", this.options.schema ?? anything)
+    // No title for the root's own column -- see ColumnDescriptor.title.
+    this.o_columns.set([this.create_column(this.o_root, undefined, this.options.schema ?? anything)])
   }
 
-  /** Layer 1b "Column truncation": DOM only locates the source column; the stack is the source of truth. */
+  private create_column(o_value: o.Observable<unknown>, title: string | undefined, factory: Factory<unknown>): ColumnDescriptor {
+    return { o_value, title, o_factory: o(factory) }
+  }
+
+  /** Layer 1b "Column truncation": DOM only locates the source column; the array is the source of truth. */
   private index_of_column_containing(source: Node): number {
-    for (let i = this.columns.length - 1; i >= 0; i--) {
-      if (this.columns[i]?.host.contains(source)) return i
+    const cols = this.o_columns.get()
+    for (let i = cols.length - 1; i >= 0; i--) {
+      if (cols[i]?.host?.contains(source)) return i
     }
     return -1
   }
 
   /** Layer 1b "Editor shell": open from inside a non-rightmost column truncates right of it; from the rightmost, appends. */
-  open(o_value: o.Observable<unknown>, title: string, source: Node) {
+  open(o_value: o.Observable<unknown>, title: string, source: Node, factory?: Factory<unknown>) {
     const found = this.index_of_column_containing(source)
     // A source outside every column (e.g. a host-application control that
     // isn't itself part of a mounted widget) opens after the root, same as
     // opening from it -- root is never truncated by this path, only what's
     // deeper than it.
     const idx = found === -1 ? 0 : found
-    this.truncate_after(idx)
-    // //> Question: resolve via the (not-yet-built) constructor registry
-    // instead of always falling back to unknown mode -- see file header.
-    this.mount_column(o_value, title, anything)
+    const kept = this.o_columns.get().slice(0, idx + 1)
+    // The dispatching widget's own factory when it supplied one (e.g.
+    // ObjectFactory's preview button knows the property's declared schema),
+    // else unknown mode -- see ObjectEditorOpenDetail.factory (schema.tsx).
+    // The constructor-registry gap (Layer 5 "Resolution" step 3, resolving
+    // from a value's runtime type/constructor with no schema at all) is
+    // separate and still not built.
+    this.o_columns.set([...kept, this.create_column(o_value, title, factory ?? anything)])
   }
 
-  private truncate_after(idx: number) {
-    while (this.columns.length > idx + 1) {
-      const col = this.columns.pop()!
-      node_remove(col.host)
-    }
-    this.refresh_breadcrumb()
+  private close_after(idx: number) {
+    this.o_columns.set(this.o_columns.get().slice(0, idx + 1))
   }
 
-  private mount_column(o_value: o.Observable<unknown>, title: string, factory: Factory<unknown>) {
-    const body = (<e-flex column class={cls_column_body}></e-flex>) as HTMLElement
-    const is_root = this.columns.length === 0
+  private render_column(o_column: o.Observable<ColumnDescriptor>, o_idx: o.IReadonlyObservable<number>): Renderable<Node> {
+    // Read once: this column's index never changes for its own lifetime
+    // (columns only ever close as a contiguous suffix, from the right, so
+    // anything still mounted to the left of a closed range keeps its index)
+    // -- same for the descriptor itself, since `open`/`close_after` only
+    // ever append or truncate the array, never replace a retained entry.
+    const column = o_column.get()
+    const idx = o_idx.get()
+    const is_root = idx === 0
+
     const host = (
       <e-flex column class={cls_column}>
-        <e-flex class={cls_column_header}>
-          <span>{title}</span>
+        {$observe(column.o_value, (value, old) => {
+          if (old === o.NoValue) return // initial connect, not a change
+          if (column.o_factory.get().canHandle(value)) return
+          if (is_root) {
+            // Root special case (Layer 1b): no parent slot to go missing,
+            // so only a resolved-kind change can fire here -- re-resolve
+            // instead of closing. Re-resolving to the SAME fixed schema
+            // would be a no-op (it just failed canHandle on this very
+            // value), so fall back to unknown mode when the schema can't
+            // represent the new value -- Layer 1b: "the shell keeps one
+            // root column showing the matching scalar widget."
+            const schema = this.options.schema
+            column.o_factory.set(schema?.canHandle(value) ? schema : anything)
+          } else {
+            this.close_after(idx - 1)
+          }
+        })}
+        <e-flex full-width justify="space-between" align="center" pad="small" class={cls_column_header}>
+          {column.title != null && <span>{column.title}</span>}
           {!is_root && (
             <button type="button" class={cls_column_close}>
-              {$on("click", () => this.truncate_after(this.columns.indexOf(column) - 1))}×
+              {$on("click", () => this.close_after(idx - 1))}×
             </button>
           )}
         </e-flex>
-        {body}
+        <e-flex column gap="small" pad="small">
+          {column.o_factory.tf((factory) => factory.render(column.o_value).render())}
+        </e-flex>
       </e-flex>
     ) as HTMLElement
 
-    const column: Column = { host, body, o_value, factory, title }
-    this.render_into(column)
-    node_append(this.strip, host)
-
-    this.columns.push(column)
-    this.refresh_breadcrumb()
-  }
-
-  private render_into(column: Column) {
-    node_clear(column.body)
-    const widget = column.factory.render(column.o_value)
-    node_append(column.body, widget.render())
-    node_append(
-      column.body,
-      // Dead-column watch, tied to the column body's own lifecycle -- torn
-      // down automatically by node_remove when the column closes (no
-      // manual unsubscribe needed, same pattern EitherFactory.render uses).
-      $observe(column.o_value, (value, old) => {
-        if (old === o.NoValue) return // initial connect, not a change
-        if (column.factory.canHandle(value)) return
-        const idx = this.columns.indexOf(column)
-        if (idx === -1) return
-        if (idx === 0) {
-          // Root special case (Layer 1b): no parent slot to go missing, so
-          // only a resolved-kind change can fire here -- re-resolve in
-          // place instead of closing. Re-resolving to the SAME fixed schema
-          // would be a no-op (it just failed canHandle on this very value),
-          // so fall back to unknown mode when the schema can't represent
-          // the new value -- Layer 1b: "the shell keeps one root column
-          // showing the matching scalar widget."
-          const schema = this.options.schema
-          column.factory = schema?.canHandle(value) ? schema : anything
-          this.render_into(column)
-        } else {
-          this.truncate_after(idx - 1)
-        }
-      }),
-    )
-  }
-
-  private refresh_breadcrumb() {
-    this.o_breadcrumb.set(this.columns.slice(1).map((c) => c.title))
+    column.host = host
+    return host
   }
 }
 
@@ -186,13 +189,6 @@ const cls_shell = css`.oe-shell {
   border: 1px solid var(--e-color-text-light, #ccc);
   border-radius: 4px;
   overflow: hidden;
-}`
-
-const cls_breadcrumb = css`.oe-breadcrumb {
-  padding: 4px 8px;
-  font-size: 0.85em;
-  opacity: 0.7;
-  border-bottom: 1px solid var(--e-color-text-light, #ccc);
 }`
 
 const cls_strip = css`.oe-strip {
@@ -206,10 +202,11 @@ const cls_column = css`.oe-column {
   flex: none;
 }`
 
+// Fixed height regardless of content (a bare title vs. title + close
+// button) so every column's header bar lines up across the strip -- not
+// just left-aligned but bottom-edge-aligned too.
 const cls_column_header = css`.oe-column-header {
-  justify-content: space-between;
-  align-items: center;
-  padding: 4px 8px;
+  min-height: 1.8em;
   background: var(--e-color-tint, #eee);
   font-weight: bold;
 }`
@@ -219,8 +216,8 @@ const cls_column_close = css`.oe-column-close {
   background: none;
   cursor: pointer;
   font-size: 1rem;
-}`
-
-const cls_column_body = css`.oe-column-body {
-  padding: 8px;
+  line-height: 1;
+  padding: 0;
+  width: 1.4em;
+  height: 1.4em;
 }`
