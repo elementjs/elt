@@ -10,12 +10,39 @@ Recursion goes through `forward()` (like `z.lazy`): `object-editor.tsx` and
 `resizable.tsx` are unrelated proofs of concept, not part of this shape.
 */
 
-import { $bind, $observe, $on, css, o, type Renderable } from "elt"
+import { $bind, $observe, $on, $scrollable, css, o, Repeat, VirtualScroll, type attrs_input, type Renderable } from "elt"
+import { Select } from "elt/ui/select"
+import {
+  allows_delete,
+  allows_insert,
+  append_set_member,
+  insert_array_at,
+  insert_map_entry,
+  remove_array_at,
+  remove_map_entry,
+  remove_set_member,
+  resolve_item_default,
+  table_column_keys,
+  table_has_extra_keys,
+} from "./list-edit"
+import { INVALID_MOUNT, is_valid_mount, safe_array_index, safe_map_key, safe_map_value, safe_object_child, safe_set_member, safe_table_cell } from "./mount"
 // Subpath, not the "elt/ui" barrel: this only needs DateTimePicker itself,
 // not ui/index.tsx's side effects (theme init, reset/layout/form/typography
 // CSS) -- a real elt/ui app will load those anyway, but editor/schema.tsx
 // shouldn't force them as a side effect of importing one component.
-import { DateTimePicker } from "elt/ui/date"
+import { DateTimePicker, type DateTimePickerAttributesBAse } from "elt/ui/date"
+import type { SelectAttributes } from "elt/ui/select"
+import { $forward_attrs, skip_keys } from "./forward-attrs"
+import {
+  create_toolbar_state,
+  render_composite_toolbar,
+  render_type_change_menu_button,
+  row_matches_search,
+  value_preview_text,
+} from "./composite-toolbar"
+import { register_constructor } from "./registry"
+import { $resizable } from "./table-resize"
+import { register_unknown_type_change_catalog } from "./type-change"
 
 // A value that isn't null, an array, or one of the composite built-ins --
 // the shape ArrayFactory/MapFactory/SetFactory convert FROM and ObjectFactory
@@ -68,9 +95,10 @@ export interface ObjectEditorOpenDetail {
   // property's own schema-declared type). The shell uses this instead of
   // resolving from scratch when present, falling back to unknown mode
   // (`anything`) otherwise -- Layer 5 "Resolution" step 3's constructor
-  // registry (schema-less resolution from a value's runtime type/constructor)
-  // remains a separate, not-yet-built gap this doesn't replace.
+  // registry (schema.tsx) fills in when this is omitted.
   factory?: Factory<unknown>
+  /** Per-node column vs popup; wins over shell `prefer_popups` when set. */
+  open_as?: "column" | "popup"
 }
 
 declare global {
@@ -94,11 +122,23 @@ const COMPOSITE_KINDS = new Set(["object", "array", "set", "map"])
 // Shared preview button for any composite property/element nested inside a
 // parent composite -- dispatches the real open event so the shell creates a
 // new column, rather than inlining the child's content in place.
-function render_composite_preview(o_value: o.Observable<unknown>, title: string, factory: Factory<unknown>): Renderable {
+function render_composite_preview(
+  o_value: o.Observable<unknown>,
+  title: string,
+  resolve_factory: () => Factory<unknown>,
+): Renderable {
   let btn!: HTMLButtonElement
   btn = (
     <button type="button" class={cls_preview}>
-      {$on("click", () => dispatch_object_editor_open(btn, { o_value, title, factory }))}
+      {$on("click", () => {
+        const factory = resolve_factory()
+        dispatch_object_editor_open(btn, {
+          o_value,
+          title,
+          factory,
+          open_as: (factory.options as CommonNodeOptions | undefined)?.open_as,
+        })
+      })}
       Open ›
     </button>
   ) as HTMLButtonElement
@@ -112,6 +152,52 @@ const cls_preview = css`.oe-preview {
   padding: 0.3em 0.6em;
   cursor: pointer;
 }`
+
+const cls_unrepresentable = css`.oe-unrepresentable {
+  color: var(--e-color-text-mid, #888);
+  font-style: italic;
+  padding: 0.25em 0;
+}`
+
+/** Unknown-mode branch pick — assigned once `anything` is constructed below. */
+let resolve_unknown_value: (value: unknown) => Factory<unknown> = () => unrepresentable_factory
+
+/** Pick widget factory for one array/set element or object field value. */
+function resolve_element_factory(values_factory: Factory<unknown>, value: unknown): Factory<unknown> {
+  if (values_factory.canHandle(value)) return values_factory
+  if (values_factory.kind === "either") return (values_factory as EitherFactory).resolve(value)
+  return resolve_unknown_value(value)
+}
+
+function render_object_field(
+  key: string,
+  o_child: o.Observable<unknown>,
+  options: ObjectOptions,
+): Renderable {
+  return o_child.tf(() => {
+    const value = o_child.get()
+    if (!is_valid_mount(value)) return null
+    const factory = resolve_factory_for_key(key, value, options)
+    return COMPOSITE_KINDS.has(factory.kind)
+      ? render_composite_preview(o_child, key, () => resolve_factory_for_key(key, o_child.get(), options))
+      : factory.render(o_child).render()
+  })
+}
+
+function render_element_or_preview(
+  o_child: o.Observable<unknown>,
+  title: string,
+  values_factory: Factory<unknown>,
+): Renderable {
+  return o_child.tf(() => {
+    const value = o_child.get()
+    if (!is_valid_mount(value)) return null
+    const factory = resolve_element_factory(values_factory, value)
+    return COMPOSITE_KINDS.has(factory.kind)
+      ? render_composite_preview(o_child, title, () => resolve_element_factory(values_factory, o_child.get()))
+      : factory.render(o_child).render()
+  })
+}
 
 // Shared, immutable sentinel -- widgets with nothing to report reuse this
 // instead of each allocating their own always-null observable.
@@ -201,7 +287,11 @@ export class UnrepresentableFactory extends Factory<{}> {
       // here"), but keep the type-change control available so the user can
       // still force a kind via canConvert/convert or defaultValue() --
       // this widget itself must never write to o_value on its own.
-      render: () => <e-box class="oe-error">{/* "unsupported value" */}</e-box>,
+      render: () => (
+        <e-box class={cls_unrepresentable} title="Use the … menu on a parent composite to change type">
+          Unsupported value here
+        </e-box>
+      ),
       o_error: no_error,
     }
   }
@@ -215,23 +305,49 @@ export interface EitherOptions {
 
 export interface UndefinedOptions {}
 
+/** Per-composite toolbar pieces; set a flag to false to hide (schema opt-out). */
+export interface CompositeToolbarOptions {
+  search?: false
+  menu?: false
+  type_change?: false
+  import_export?: false
+}
+
+/** Node-level config shared by every composite factory (Layer 5). */
+export interface CommonNodeOptions {
+  /** Replace default constructor/cardinality title, or false to hide. */
+  chrome_label?: string | false
+  toolbar?: CompositeToolbarOptions
+  open_as?: "column" | "popup"
+  /** When set, only these factory `kind` values appear in the type-change menu. */
+  conversions?: readonly string[]
+}
+
 export interface PropertyOption {
   name?: string | RegExp
   type: Factory<unknown>
   required?: boolean // defaults to true
 }
 
-export interface ObjectOptions {
+export interface ObjectOptions extends CommonNodeOptions {
   properties?: PropertyOption[]
+  /** When false, only declared properties render; no add/remove. Default true. */
+  free_keys?: boolean
 }
 
-export interface ArrayOptions {
+export interface ArrayOptions extends CommonNodeOptions {
   mode?: "auto" | "table" | "list" // defaults to "auto"
   values: Factory<unknown>
 
   allow_insert?: boolean
   allow_delete?: boolean
   allow_reorder?: boolean
+
+  /** Default value or callback for a newly inserted item. Omitted means `null`. */
+  item_default?: unknown | (() => unknown)
+
+  /** Manual table columns instead of first-row auto-detect (Layer 3 Table). */
+  columns?: readonly string[]
 
   // Row identity for VirtualScroll key reuse under reorder (spec: Layer 1b
   // "Row / element identity"). Omitted ("keyless schema") falls back to
@@ -247,8 +363,9 @@ export interface ArrayOptions {
 // never shows up in JSON.stringify / Object.keys / for...in.
 export const sym_row_id = Symbol("object-editor:row-id")
 
-export interface SetOptions {
+export interface SetOptions extends CommonNodeOptions {
   values: Factory<unknown>
+  item_default?: unknown | (() => unknown)
   // Row identity for VirtualScroll (Layer 1b) -- unrelated to Set membership,
   // which is always checked by value equality via `Set.has`.
   key?: (item: unknown, index: number) => PropertyKey
@@ -258,7 +375,7 @@ export interface SetOptions {
   allow_reorder?: boolean
 }
 
-export interface MapOptions {
+export interface MapOptions extends CommonNodeOptions {
   // Separate from `values`: Map keys are edited with their own widget
   // (Layer 3 Map). A Map entry's own key is already a stable row identity
   // (Layer 1b), so there is no separate `key` field here.
@@ -268,35 +385,35 @@ export interface MapOptions {
   allow_insert?: boolean
   allow_delete?: boolean
   allow_reorder?: boolean
+  /** Default false in schema mode; unknown mode treats as true when omitted. */
+  allow_key_type_change?: boolean
 }
 
-export interface StringOptions {
+/** Factory-only: switches between `<input>` and `<textarea>`. */
+
+export interface StringOptions extends Omit<attrs_input, "type" | "value"> {
   multiline?: boolean
 }
 
-export interface NumberOptions {
-  maximumFractionDigits?: number
-  max?: number
-  min?: number
+export interface NumberOptions extends Omit<attrs_input, "type" | "value" | "checked"> {
+  allow_non_finite?: boolean
 }
 
-export interface BooleanOptions {}
+export interface BooleanOptions extends Omit<attrs_input, "type" | "value" | "checked"> {}
 
 export interface ColorOptions {}
 
-export interface DatetimeOptions {
-  time?: boolean
+export interface DatetimeOptions extends Omit<DateTimePickerAttributesBAse, "model" | "clearable"> {
   date?: boolean
-  nullable?: boolean // allows the control to clear the date, putting it to null
+  time?: boolean
+  nullable?: boolean
 }
 
-// Mirrors elt/ui's own Select<T, T2> (ui/select.tsx) rather than a fixed
-// primitive union -- see Layer 4 "select options typing".
-export interface SelectOptions<T, T2 = T> {
+export interface SelectOptions<T, T2 = T>
+  extends Omit<SelectAttributes<T, T2>, "model" | "options" | "convert_fn" | "label_fn"> {
   options: T2[]
   convert_fn?: (opt: T2) => T
   label_fn?: (opt: T2) => Renderable
-  // "developer" widgets (Layer 4): not in the default unknown catalog.
   allow_other?: boolean
   fill_from_table_column?: boolean
 }
@@ -346,6 +463,10 @@ export class UndefinedFactory extends Factory<UndefinedOptions> {
   }
 }
 
+export function undef(opts: UndefinedOptions = {}) {
+  return new UndefinedFactory(opts)
+}
+
 export class StringFactory extends Factory<StringOptions> {
   readonly kind = "string"
 
@@ -368,12 +489,20 @@ export class StringFactory extends Factory<StringOptions> {
   render(o_value: o.Observable<unknown>): RenderableWidget {
     const o_str = o_value as o.Observable<string>
     const o_error = o(null as string | null)
+    const skip = skip_keys("multiline")
+    const forwarded = $forward_attrs(this.options as Record<string, unknown>, skip)
     return {
       render: () =>
         this.options.multiline ? (
-          <textarea>{$bind.string(o_str, { o_error })}</textarea>
+          <textarea>
+            {forwarded}
+            {$bind.string(o_str, { o_error })}
+          </textarea>
         ) : (
-          <input type="text">{$bind.string(o_str, { o_error })}</input>
+          <input type="text">
+            {forwarded}
+            {$bind.string(o_str, { o_error })}
+          </input>
         ),
       o_error,
     }
@@ -407,12 +536,19 @@ export class NumberFactory extends Factory<NumberOptions> {
   render(o_value: o.Observable<unknown>): RenderableWidget {
     const o_num = o_value as o.Observable<number>
     const o_error = o(null as string | null)
+    const allow_non_finite = !!this.options.allow_non_finite
+    const skip = skip_keys("allow_non_finite")
+    const forwarded = $forward_attrs(this.options as Record<string, unknown>, skip)
     return {
-      // maximumFractionDigits / NaN-Infinity opt-in are still open TODO.md
-      // gaps -- not honored here yet.
       render: () => (
-        <input type="number" min={this.options.min} max={this.options.max}>
-          {$bind.number(o_num, { o_error })}
+        <input type="number">
+          {forwarded}
+          {$bind.number(o_num, {
+            o_error,
+            extra_check: allow_non_finite
+              ? undefined
+              : (value) => (Number.isFinite(value) ? null : "not_finite"),
+          })}
         </input>
       ),
       o_error,
@@ -446,11 +582,16 @@ export class BooleanFactory extends Factory<BooleanOptions> {
 
   render(o_value: o.Observable<unknown>): RenderableWidget {
     const o_bool = o_value as o.Observable<boolean>
+    const attrs: Record<string, unknown> = { ...this.options }
+    if (attrs["e-variant"] == null) attrs["e-variant"] = "switch"
+    const forwarded = $forward_attrs(attrs, skip_keys())
     return {
-      // No dedicated switch/toggle control in elt/ui yet (TODO.md) -- plain
-      // checkbox for now, commits immediately via the "change" event like
-      // every other $bind.boolean use.
-      render: () => <input type="checkbox">{$bind.boolean(o_bool)}</input>,
+      render: () => (
+        <input type="checkbox">
+          {forwarded}
+          {$bind.boolean(o_bool)}
+        </input>
+      ),
       o_error: no_error,
     }
   }
@@ -503,11 +644,22 @@ export class SelectFactory<T, T2 = T> extends Factory<SelectOptions<T, T2>> {
     return first !== undefined ? convert(first) : null
   }
 
-  render(_o_value: o.Observable<unknown>): RenderableWidget {
+  render(o_value: o.Observable<unknown>): RenderableWidget {
+    const opts = this.options
+    const convert_fn = opts.convert_fn ?? ((opt: T2) => opt as unknown as T)
+    const o_options = o(opts.options)
+    const { options: _opts, convert_fn: _cf, label_fn, allow_other: _ao, fill_from_table_column: _ft, ...rest } =
+      opts
+    const o_model = o_value as o.Observable<T>
     return {
-      // TODO: elt/ui's Select<T, T2> (ui/select.tsx), passed this.options
-      // directly -- it already has the matching shape (options/convert_fn/label_fn).
-      render: () => <button type="button" />,
+      render: () =>
+        Select({
+          ...rest,
+          model: o_model,
+          options: o_options,
+          convert_fn,
+          label_fn,
+        }),
       o_error: no_error,
     }
   }
@@ -548,26 +700,28 @@ export class DateFactory extends Factory<DatetimeOptions> {
   }
 
   render(o_value: o.Observable<unknown>): RenderableWidget {
-    // //> Question: canHandle also accepts an ISO string (unknown-mode
-    // heuristic, above) but DateTimePicker's `model` wants Date | null --
-    // this cast assumes the common schema-mode case where the stored value
-    // is already a Date. The string case isn't bridged yet.
-    const o_date = o_value as o.Observable<Date | null>
     const nullable = !!this.options.nullable
-    const show_date = this.options.date ?? true
-    const show_time = this.options.time ?? false
+    const show_date = this.options.show_date ?? this.options.date ?? true
+    const show_time = this.options.show_time ?? this.options.time ?? false
+    const { nullable: _n, date: _d, time: _t, ...picker_rest } = this.options
+    const o_date = o_value as o.Observable<Date | null>
     return {
       render: () =>
-        nullable ? (
-          <DateTimePicker model={o_date} clearable={true} show_date={show_date} show_time={show_time} />
-        ) : (
-          <DateTimePicker
-            model={o_date as o.IObservable<Date | null, Date>}
-            clearable={false}
-            show_date={show_date}
-            show_time={show_time}
-          />
-        ),
+        nullable
+          ? DateTimePicker({
+              ...picker_rest,
+              model: o_date,
+              clearable: true,
+              show_date,
+              show_time,
+            })
+          : DateTimePicker({
+              ...picker_rest,
+              model: o_date as o.IObservable<Date | null, Date>,
+              clearable: false,
+              show_date,
+              show_time,
+            }),
       o_error: no_error,
     }
   }
@@ -575,6 +729,66 @@ export class DateFactory extends Factory<DatetimeOptions> {
 
 export function date(opts: DatetimeOptions = { date: true }) {
   return new DateFactory(opts)
+}
+
+/** Resolve which factory edits `key` on `value` for this object schema. */
+function resolve_factory_for_key(key: string, value: unknown, options: ObjectOptions): Factory<unknown> {
+  for (const prop of options.properties ?? []) {
+    if (typeof prop.name === "string" && prop.name === key) return prop.type
+  }
+  for (const prop of options.properties ?? []) {
+    if (prop.name instanceof RegExp && prop.name.test(key)) return prop.type
+  }
+  if (options.free_keys === false) return unrepresentable_factory
+  return resolve_unknown_value(value)
+}
+
+function object_allows_free_keys(options: ObjectOptions): boolean {
+  return options.free_keys !== false
+}
+
+/** Row key order for the object grid (Layer 3 Object). */
+function object_row_keys(value: Record<string, unknown>, options: ObjectOptions): string[] {
+  const props = options.properties ?? []
+  const string_names = props.filter((p): p is PropertyOption & { name: string } => typeof p.name === "string")
+  const is_unknown_layout = props.length === 0
+
+  if (is_unknown_layout) {
+    return Object.keys(value).sort()
+  }
+
+  const keys: string[] = string_names.map((p) => p.name)
+  const claimed = new Set(keys)
+
+  if (object_allows_free_keys(options)) {
+    for (const k of Object.keys(value)) {
+      if (!claimed.has(k)) keys.push(k)
+    }
+  }
+  return keys
+}
+
+function commit_object_key(
+  o_obj: o.Observable<unknown>,
+  key: string,
+  child_value: unknown,
+  previous_key?: string,
+) {
+  const obj = o_obj.get()
+  if (typeof obj !== "object" || obj === null || Array.isArray(obj)) return
+  const next = { ...(obj as Record<string, unknown>) }
+  if (previous_key != null && previous_key !== key) delete next[previous_key]
+  if (Object.hasOwn(next, key) && previous_key == null) return // collision on add
+  next[key] = child_value
+  o_obj.set(next)
+}
+
+function remove_object_key(o_obj: o.Observable<unknown>, key: string) {
+  const obj = o_obj.get()
+  if (typeof obj !== "object" || obj === null || Array.isArray(obj)) return
+  const next = { ...(obj as Record<string, unknown>) }
+  delete next[key]
+  o_obj.set(next)
 }
 
 export class ObjectFactory extends Factory<ObjectOptions> {
@@ -599,32 +813,114 @@ export class ObjectFactory extends Factory<ObjectOptions> {
   }
 
   render(o_value: o.Observable<unknown>): RenderableWidget {
-    // Schema-mode only: one row per `this.options.properties`, in order.
-    // Unknown mode (per Object.keys) and RegExp/catch-all property names
-    // aren't handled yet -- see TODO.md "Object key rules" /
-    // "PropertyOption.name: RegExp". Row keys aren't editable, and there's
-    // no add/remove-key affordance yet either -- also TODO.md.
-    //
-    // A single 2-column e-grid (not one e-flex per row) so every row's key
-    // and value line up in real grid columns instead of each row sizing
-    // its own label independently.
-    const cells = (this.options.properties ?? [])
-      .filter((prop): prop is PropertyOption & { name: string } => typeof prop.name === "string")
-      .flatMap((prop) => {
-        const o_child = o_value.p(prop.name)
-        // Composite property: preview + drill-in (a new shell column), not
-        // inlined -- see COMPOSITE_KINDS above. Scalars render in place as
-        // before.
-        const value = COMPOSITE_KINDS.has(prop.type.kind)
-          ? render_composite_preview(o_child, prop.name, prop.type)
-          : prop.type.render(o_child).render()
-        return [<span class={cls_object_key}>{prop.name}</span>, <e-box class={cls_object_value}>{value}</e-box>]
-      })
+    const can_add = object_allows_free_keys(this.options)
+    const toolbar = create_toolbar_state()
+    const declared_keys = new Set(
+      (this.options.properties ?? [])
+        .filter((p): p is PropertyOption & { name: string } => typeof p.name === "string")
+        .map((p) => p.name),
+    )
+    const o_row_keys = o_value.tf((value) => {
+      if (typeof value !== "object" || value === null || Array.isArray(value)) return [] as string[]
+      return object_row_keys(value as Record<string, unknown>, this.options)
+    })
+    const o_visible_keys = o.expression((get) => {
+      const keys = get(o_row_keys)
+      const root = get(o_value)
+      const query = get(toolbar.o_query)
+      const case_sensitive = get(toolbar.o_case_sensitive)
+      if (typeof root !== "object" || root === null || Array.isArray(root)) return keys
+      const obj = root as Record<string, unknown>
+      return keys.filter((key) => row_matches_search(query, case_sensitive, [key, value_preview_text(obj[key])]))
+    })
+
+    // Transient rows live outside the observable until the key commits (Layer 1).
+    const transient_rows = new Map<string, { o_key: o.Observable<string>; o_value: o.Observable<unknown> }>()
+    const o_transient_ids = o<string[]>([])
+
+    const try_commit_transient = (id: string) => {
+      const row = transient_rows.get(id)
+      if (!row) return
+      const key = row.o_key.get().trim()
+      if (!key) return
+      const obj = o_value.get()
+      if (typeof obj !== "object" || obj === null || Array.isArray(obj)) return
+      if (Object.hasOwn(obj, key)) return
+      const catchalls = (this.options.properties ?? []).filter((p) => p.name instanceof RegExp)
+      if (
+        catchalls.length > 0 &&
+        !catchalls.some((p) => (p.name as RegExp).test(key)) &&
+        !(this.options.properties ?? []).some((p) => typeof p.name === "string" && p.name === key)
+      ) {
+        return
+      }
+      commit_object_key(o_value, key, row.o_value.get())
+      transient_rows.delete(id)
+      o_transient_ids.set(o_transient_ids.get().filter((x) => x !== id))
+    }
+
+    const render_value = (key: string, o_child: o.Observable<unknown>) =>
+      render_object_field(key, o_child, this.options)
+
     return {
       render: () => (
-        <e-grid gap="small" style={{ gridTemplateColumns: "max-content 1fr", alignItems: "center" }}>
-          {cells}
-        </e-grid>
+        <e-flex column gap="small">
+          {render_composite_toolbar({
+            factory: this as Factory<CommonNodeOptions>,
+            o_value,
+            toolbar,
+            kind: "object",
+          })}
+          <e-box class={cls_list_scroll}>
+            {$scrollable}
+            {VirtualScroll(o_visible_keys, (o_key) => (
+              <e-flex align="center" gap="small">
+                <span class={cls_object_key}>{o_key}</span>
+                <e-box class={cls_object_value} style={{ flex: "1" }}>
+                  {o_key.tf((key) => render_value(key, safe_object_child(o_value, key)))}
+                  {can_add &&
+                    o_key.tf((key) =>
+                      declared_keys.has(key) ? null : (
+                        <button type="button" class={cls_row_remove} title="Remove key">
+                          {$on("click", () => remove_object_key(o_value, key))}−
+                        </button>
+                      ),
+                    )}
+                </e-box>
+              </e-flex>
+            ))}
+            {VirtualScroll(o_transient_ids, (o_id) => {
+              const id = o_id.get()
+              let row = transient_rows.get(id)
+              if (!row) {
+                row = { o_key: o(""), o_value: o(null) }
+                transient_rows.set(id, row)
+              }
+              const { o_key, o_value: o_child } = row
+              return (
+                <e-flex align="center" gap="small">
+                  <input type="text" class={cls_object_key_input} placeholder="key">
+                    {$bind.string(o_key)}
+                    {$on("change", () => try_commit_transient(id))}
+                  </input>
+                  <e-box class={cls_object_value} style={{ flex: "1" }}>
+                    {render_value(o_key.get() || id, o_child)}
+                  </e-box>
+                </e-flex>
+              )
+            })}
+          </e-box>
+          {can_add && (
+            <button type="button" class={cls_add_key}>
+              {$on("click", () => {
+                const id = `__new_${Date.now()}`
+                transient_rows.set(id, { o_key: o(""), o_value: o(null) })
+                o_transient_ids.set([...o_transient_ids.get(), id])
+              })}
+              + Add key
+            </button>
+          )}
+        </e-flex>
       ),
       o_error: no_error,
     }
@@ -658,6 +954,73 @@ const cls_object_key = css`.oe-object-key {
 
 const cls_object_value = css`.oe-object-value {
   min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.25em;
+}`
+
+const cls_object_key_input = css`.oe-object-key-input {
+  font: inherit;
+  color: var(--e-color-text-mid, #888);
+  border: 1px solid var(--e-color-text-light, #ccc);
+  border-radius: 3px;
+  padding: 0.1em 0.3em;
+  min-width: 6em;
+}`
+
+const cls_row_remove = css`.oe-row-remove {
+  border: none;
+  background: none;
+  cursor: pointer;
+  color: var(--e-color-text-mid, #888);
+  padding: 0 0.2em;
+}`
+
+const cls_add_key = css`.oe-add-key {
+  border: 1px dashed var(--e-color-text-light, #ccc);
+  background: none;
+  border-radius: 4px;
+  padding: 0.3em 0.6em;
+  cursor: pointer;
+  justify-self: start;
+}`
+
+const cls_list_scroll = css`.oe-list-scroll {
+  max-height: 24em;
+  overflow: auto;
+}`
+
+const cls_table_scroll = css`.oe-table-scroll {
+  overflow: auto;
+  max-width: 100%;
+  max-height: 24em;
+}`
+
+const cls_table = css`.oe-table {
+  width: max-content;
+  border-collapse: collapse;
+  th, td {
+    border: 1px solid var(--e-color-text-light, #ccc);
+    padding: 0.25em 0.5em;
+    vertical-align: top;
+  }
+  thead th {
+    position: sticky;
+    top: 0;
+    background: var(--e-color-background, #fff);
+    z-index: 1;
+  }
+}`
+
+const cls_table_index = css`.oe-table-index {
+  color: var(--e-color-text-mid, #888);
+  text-align: right;
+  min-width: 2em;
+}`
+
+const cls_table_warn = css`.oe-table-warn {
+  color: var(--e-color-warning, #b8860b);
+  font-size: 0.9em;
 }`
 
 export function object(opts: ObjectOptions = { properties: [] }) {
@@ -686,17 +1049,191 @@ export class ArrayFactory extends Factory<ArrayOptions> {
   }
 
   render(o_value: o.Observable<unknown>): RenderableWidget {
-    const o_show_table =
-      this.options.mode === "table" ? o(true)
-      : this.options.mode === "list" ? o(false)
-      : o_value.tf((value) => this.eval_auto_table(value))
+    const toolbar = create_toolbar_state()
+    const values_factory = this.options.values
+    const mode = this.options.mode ?? "auto"
+    const arr = o_value.get()
+    const use_table = mode === "table" || (mode === "auto" && Array.isArray(arr) && this.eval_auto_table(arr))
+
+    if (use_table) {
+      return this.render_table(o_value, toolbar, values_factory)
+    }
+    return this.render_list(o_value, toolbar, values_factory)
+  }
+
+  private render_list(
+    o_value: o.Observable<unknown>,
+    toolbar: ReturnType<typeof create_toolbar_state>,
+    values_factory: Factory<unknown>,
+  ): RenderableWidget {
+    const o_indices = o_value.tf((value) => (Array.isArray(value) ? value.map((_, i) => i) : []))
+    const o_visible_indices = o.expression((get) => {
+      const indices = get(o_indices)
+      const arr = get(o_value)
+      const query = get(toolbar.o_query)
+      const case_sensitive = get(toolbar.o_case_sensitive)
+      if (!Array.isArray(arr)) return indices
+      return indices.filter((i) =>
+        row_matches_search(query, case_sensitive, [String(i), value_preview_text(arr[i])]),
+      )
+    })
+
+    const transient_rows = new Map<string, o.Observable<unknown>>()
+    const o_transient_ids = o<string[]>([])
+
+    const try_commit_transient = (id: string) => {
+      const row = transient_rows.get(id)
+      if (!row) return
+      const arr = o_value.get()
+      if (!Array.isArray(arr)) return
+      insert_array_at(o_value, arr.length, row.get())
+      transient_rows.delete(id)
+      o_transient_ids.set(o_transient_ids.get().filter((x) => x !== id))
+    }
 
     return {
-      // TODO: If(o_show_table, table_view, list_view), VirtualScroll rows,
-      // aggregate children's o_error -- see Layer 3 Array/Table.
-      render: () => <e-flex>{o_show_table.tf(() => null) /* table_view() / list_view() */}</e-flex>,
+      render: () => (
+        <e-flex column gap="small">
+          {render_composite_toolbar({
+            factory: this as Factory<CommonNodeOptions>,
+            o_value,
+            toolbar,
+            kind: "array",
+            type_change_extra: [
+              set({ values: values_factory }),
+              map({ keys: string(), values: values_factory }),
+            ],
+          })}
+          <e-box class={cls_list_scroll}>
+            {$scrollable}
+            {VirtualScroll(o_visible_indices, (o_i) => (
+              <e-flex align="center" gap="small">
+                <span class={cls_object_key}>{o_i.tf((i) => String(i))}</span>
+                <e-box class={cls_object_value} style={{ flex: "1" }}>
+                  {o_i.tf((i) => render_element_or_preview(safe_array_index(o_value, i), String(i), values_factory))}
+                </e-box>
+                {allows_delete(this.options) &&
+                  o_i.tf((i) => (
+                    <button type="button" class={cls_row_remove} title="Remove row">
+                      {$on("click", () => remove_array_at(o_value, i))}−
+                    </button>
+                  ))}
+              </e-flex>
+            ))}
+            {VirtualScroll(o_transient_ids, (o_id) => {
+              const id = o_id.get()
+              const row = transient_rows.get(id)
+              if (!row) return null
+              return (
+                <e-flex align="center" gap="small">
+                  <span class={cls_object_key}>+</span>
+                  <e-box class={cls_object_value} style={{ flex: "1" }}>
+                    {render_element_or_preview(row, "new", values_factory)}
+                  </e-box>
+                  <button type="button" class={cls_row_remove} title="Discard row">
+                    {$on("click", () => {
+                      transient_rows.delete(id)
+                      o_transient_ids.set(o_transient_ids.get().filter((x) => x !== id))
+                    })}
+                    −
+                  </button>
+                </e-flex>
+              )
+            })}
+          </e-box>
+          {allows_insert(this.options) && (
+            <button type="button" class={cls_add_key}>
+              {$on("click", () => {
+                const id = `t-${Date.now()}-${Math.random()}`
+                const row = o(resolve_item_default(this.options.item_default))
+                transient_rows.set(id, row)
+                row.addObserver((val, old) => {
+                  if (old === o.NoValue) return
+                  try_commit_transient(id)
+                })
+                o_transient_ids.set([...o_transient_ids.get(), id])
+              })}
+              + Add item
+            </button>
+          )}
+        </e-flex>
+      ),
       o_error: no_error,
     }
+  }
+
+  private render_table(
+    o_value: o.Observable<unknown>,
+    toolbar: ReturnType<typeof create_toolbar_state>,
+    values_factory: Factory<unknown>,
+  ): RenderableWidget {
+    const o_columns = o_value.tf((value) => (Array.isArray(value) ? table_column_keys(value, this.options.columns) : []))
+    const o_has_extra = o_value.tf((value) =>
+      Array.isArray(value) ? table_has_extra_keys(value, table_column_keys(value, this.options.columns)) : false,
+    )
+    const o_indices = o_value.tf((value) => (Array.isArray(value) ? value.map((_, i) => i) : []))
+
+    return {
+      render: () => (
+        <e-flex column gap="small">
+          {render_composite_toolbar({
+            factory: this as Factory<CommonNodeOptions>,
+            o_value,
+            toolbar,
+            kind: "array",
+            type_change_extra: [
+              set({ values: values_factory }),
+              map({ keys: string(), values: values_factory }),
+            ],
+          })}
+          {o_has_extra.tf((has) =>
+            has ? <span class={cls_table_warn} title="Some rows have keys not shown as columns">⚠ extra keys</span> : null,
+          )}
+          <e-box class={cls_table_scroll}>
+            {$scrollable}
+            <table class={cls_table}>
+              <thead>
+                <tr>
+                  <th class={cls_table_index}>#</th>
+                  {Repeat(o_columns, (o_col) => (
+                    <th>
+                      {$resizable}
+                      {o_col}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {VirtualScroll(o_indices, (o_i) => (
+                  <tr>
+                    <td class={cls_table_index}>{o_i.tf((i) => String(i))}</td>
+                    {Repeat(o_columns, (o_col) => (
+                      <td>
+                        {o_i.tf((i) =>
+                          o_col.tf((col) =>
+                            render_element_or_preview(
+                              safe_table_cell(o_value, i, col),
+                              `${i}:${col}`,
+                              values_factory,
+                            ),
+                          ),
+                        )}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </e-box>
+        </e-flex>
+      ),
+      o_error: no_error,
+    }
+  }
+
+  // Layer 3 Table auto-detect — used when `mode: "auto"` table branch is wired.
+  eval_auto_table_for_table_mode(value: unknown): boolean {
+    return this.eval_auto_table(value)
   }
 
   // Layer 3 Table auto-detect, "first-row" rule: non-empty, first element a
@@ -735,12 +1272,98 @@ export class SetFactory extends Factory<SetOptions> {
     return new Set()
   }
 
-  render(_o_value: o.Observable<unknown>): RenderableWidget {
+  render(o_value: o.Observable<unknown>): RenderableWidget {
+    const toolbar = create_toolbar_state()
+    const values_factory = this.options.values
+    const o_members = o_value.tf((v) => (v instanceof Set ? [...v] : []))
+    const o_visible_members = o.expression((get) => {
+      const members = get(o_members)
+      const query = get(toolbar.o_query)
+      const case_sensitive = get(toolbar.o_case_sensitive)
+      return members.filter((m) => row_matches_search(query, case_sensitive, [value_preview_text(m)]))
+    })
+
+    const transient_rows = new Map<string, o.Observable<unknown>>()
+    const o_transient_ids = o<string[]>([])
+
+    const try_commit_transient = (id: string) => {
+      const row = transient_rows.get(id)
+      if (!row) return
+      const val = row.get()
+      const s = o_value.get()
+      if (!(s instanceof Set) || s.has(val)) return
+      append_set_member(o_value, val)
+      transient_rows.delete(id)
+      o_transient_ids.set(o_transient_ids.get().filter((x) => x !== id))
+    }
+
     return {
-      // TODO: list presentation like Array (Layer 3 Set), through the Set <->
-      // array projection (Layer 1b "Set (and similar projections)") -- VirtualScroll
-      // over projected rows, insert/reorder/dedupe write back into the Set.
-      render: () => <e-flex>{/* rows go here */}</e-flex>,
+      render: () => (
+        <e-flex column gap="small">
+          {render_composite_toolbar({
+            factory: this as Factory<CommonNodeOptions>,
+            o_value,
+            toolbar,
+            kind: "set",
+            type_change_extra: [
+              array({ values: values_factory }),
+              map({ keys: string(), values: values_factory }),
+            ],
+          })}
+          <e-box class={cls_list_scroll}>
+            {$scrollable}
+            {VirtualScroll(o_visible_members, (o_member) => (
+              <e-flex align="center" gap="small">
+                <e-box class={cls_object_value} style={{ flex: "1" }}>
+                  {o_member.tf((member) =>
+                    render_element_or_preview(safe_set_member(o_value, member), value_preview_text(member), values_factory),
+                  )}
+                </e-box>
+                {allows_delete(this.options) &&
+                  o_member.tf((member) => (
+                    <button type="button" class={cls_row_remove} title="Remove member">
+                      {$on("click", () => remove_set_member(o_value, member))}−
+                    </button>
+                  ))}
+              </e-flex>
+            ))}
+            {VirtualScroll(o_transient_ids, (o_id) => {
+              const id = o_id.get()
+              const row = transient_rows.get(id)
+              if (!row) return null
+              return (
+                <e-flex align="center" gap="small">
+                  <e-box class={cls_object_value} style={{ flex: "1" }}>
+                    {render_element_or_preview(row, "new", values_factory)}
+                  </e-box>
+                  <button type="button" class={cls_row_remove} title="Discard row">
+                    {$on("click", () => {
+                      transient_rows.delete(id)
+                      o_transient_ids.set(o_transient_ids.get().filter((x) => x !== id))
+                    })}
+                    −
+                  </button>
+                </e-flex>
+              )
+            })}
+          </e-box>
+          {allows_insert(this.options) && (
+            <button type="button" class={cls_add_key}>
+              {$on("click", () => {
+                const id = `t-${Date.now()}-${Math.random()}`
+                const row = o(resolve_item_default(this.options.item_default))
+                transient_rows.set(id, row)
+                row.addObserver((val, old) => {
+                  if (old === o.NoValue) return
+                  try_commit_transient(id)
+                })
+                o_transient_ids.set([...o_transient_ids.get(), id])
+              })}
+              + Add member
+            </button>
+          )}
+        </e-flex>
+      ),
       o_error: no_error,
     }
   }
@@ -770,12 +1393,109 @@ export class MapFactory extends Factory<MapOptions> {
     return new Map()
   }
 
-  render(_o_value: o.Observable<unknown>): RenderableWidget {
+  render(o_value: o.Observable<unknown>): RenderableWidget {
+    const toolbar = create_toolbar_state()
+    const keys_factory = this.options.keys
+    const values_factory = this.options.values
+    const o_entry_keys = o_value.tf((v) => (v instanceof Map ? [...v.keys()] : []))
+    const o_visible_keys = o.expression((get) => {
+      const keys = get(o_entry_keys)
+      const m = get(o_value)
+      const query = get(toolbar.o_query)
+      const case_sensitive = get(toolbar.o_case_sensitive)
+      if (!(m instanceof Map)) return keys
+      return keys.filter((k) =>
+        row_matches_search(query, case_sensitive, [value_preview_text(k), value_preview_text(m.get(k))]),
+      )
+    })
+
+    const transient_rows = new Map<string, { o_key: o.Observable<unknown>; o_val: o.Observable<unknown> }>()
+    const o_transient_ids = o<string[]>([])
+
+    const try_commit_transient = (id: string) => {
+      const row = transient_rows.get(id)
+      if (!row) return
+      const key = row.o_key.get()
+      if (key === INVALID_MOUNT) return
+      if (!insert_map_entry(o_value, key, row.o_val.get())) return
+      transient_rows.delete(id)
+      o_transient_ids.set(o_transient_ids.get().filter((x) => x !== id))
+    }
+
     return {
-      // TODO: like Object, but keys are also widgets (Layer 3 Map), through
-      // the Map <-> entries projection (Layer 1b). Duplicate-key rejection
-      // via `map.has(new_key)` on key-widget commit.
-      render: () => <e-flex column>{/* rows go here */}</e-flex>,
+      render: () => (
+        <e-flex column gap="small">
+          {render_composite_toolbar({
+            factory: this as Factory<CommonNodeOptions>,
+            o_value,
+            toolbar,
+            kind: "map",
+            type_change_extra: [
+              array({ values: values_factory }),
+              set({ values: values_factory }),
+            ],
+          })}
+          <e-box class={cls_list_scroll}>
+            {$scrollable}
+            {VirtualScroll(o_visible_keys, (o_key) => (
+              <e-flex align="center" gap="small">
+                <e-box class={cls_object_value}>
+                  {o_key.tf((key) => {
+                    const o_k = safe_map_key(o_value, key)
+                    return (
+                      <e-flex align="center" gap="small">
+                        <e-box style={{ flex: "1" }}>{keys_factory.render(o_k).render()}</e-box>
+                        {this.options.allow_key_type_change !== false &&
+                          render_type_change_menu_button(o_k, this as Factory<CommonNodeOptions>)}
+                      </e-flex>
+                    )
+                  })}
+                </e-box>
+                <e-box class={cls_object_value} style={{ flex: "1" }}>
+                  {o_key.tf((key) =>
+                    render_element_or_preview(safe_map_value(o_value, key), value_preview_text(key), values_factory),
+                  )}
+                </e-box>
+                {allows_delete(this.options) &&
+                  o_key.tf((key) => (
+                    <button type="button" class={cls_row_remove} title="Remove entry">
+                      {$on("click", () => remove_map_entry(o_value, key))}−
+                    </button>
+                  ))}
+              </e-flex>
+            ))}
+            {VirtualScroll(o_transient_ids, (o_id) => {
+              const id = o_id.get()
+              const row = transient_rows.get(id)
+              if (!row) return null
+              return (
+                <e-flex align="center" gap="small">
+                  <e-box class={cls_object_value}>{keys_factory.render(row.o_key).render()}</e-box>
+                  <e-box class={cls_object_value} style={{ flex: "1" }}>
+                    {render_element_or_preview(row.o_val, "new", values_factory)}
+                  </e-box>
+                </e-flex>
+              )
+            })}
+          </e-box>
+          {allows_insert(this.options) && (
+            <button type="button" class={cls_add_key}>
+              {$on("click", () => {
+                const id = `t-${Date.now()}-${Math.random()}`
+                const row = {
+                  o_key: o(keys_factory.defaultValue()),
+                  o_val: o(values_factory.defaultValue()),
+                }
+                transient_rows.set(id, row)
+                row.o_key.addObserver(() => try_commit_transient(id))
+                row.o_val.addObserver(() => try_commit_transient(id))
+                o_transient_ids.set([...o_transient_ids.get(), id])
+              })}
+              + Add entry
+            </button>
+          )}
+        </e-flex>
+      ),
       o_error: no_error,
     }
   }
@@ -923,3 +1643,20 @@ export const anything: Factory<unknown> = either(
   string(),
   null_factory,
 )
+
+register_unknown_type_change_catalog(() => [
+  null_factory,
+  string(),
+  number(),
+  boolean(),
+  object({ properties: [] }),
+  array({ values: anything }),
+])
+
+resolve_unknown_value = (value) => (anything as EitherFactory).resolve(value)
+
+register_constructor(Object, object({ properties: [] }))
+register_constructor(Array, array({ values: any_rec }))
+register_constructor(Map, map({ keys: any_rec, values: any_rec }))
+register_constructor(Set, set({ values: any_rec }))
+register_constructor(Date, date({ date: true, time: true, nullable: true }))

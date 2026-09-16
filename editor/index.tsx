@@ -1,2 +1,6 @@
 export * from "./schema"
 export * from "./shell"
+export { INVALID_MOUNT, is_valid_mount } from "./mount"
+export { register_constructor, resolve_factory_from_value } from "./registry"
+export { RootUndoRing } from "./undo"
+export { $resizable } from "./table-resize"

@@ -6,104 +6,133 @@ implementation slice. Implements:
   `currentTarget` -- Layer 1b "Asking to open (DOM)" / "Editor shell")
 - the column stack: ordered hosts, truncate-from-source-column-on-open,
   breadcrumb from column titles (Layer 1b "Display path, breadcrumbs")
-- dead-column detection: each column watches its own `o_value`, closes
-  itself + everything right of it on a `canHandle` failure, except the
-  root, which re-resolves in place (Layer 1b "Invalid parent / external
+- popup opens via `open_as` / `prefer_popups` (Layer 1b / Layer 2)
+- dead-column detection: each column watches its own `o_value`; on a
+  resolved-kind change it re-resolves the column factory in place (same
+  pattern as inline mounts, Layer 1b / Layer 4). Columns close only when
+  nothing can represent the value; the root also falls back to unknown
+  mode when its schema no longer fits (Layer 1b "Invalid parent / external
   writes", "Dead-column detection (v1)")
-
-The column stack is real state (`o_columns: o.Observable<ColumnDescriptor[]>`)
-rendered by `Repeat`, not a manually tracked array paired with
-`node_append`/`node_remove` calls -- opening/closing just replaces the array
-(default reference-identity keying means untouched columns aren't
-re-rendered, only the tail actually added/removed changes). Each column's own
-content swap (dead-column recovery) is a `.tf()` off that column's own
-`o_factory`, not a manual `node_clear` + re-render -- see
-`docs/using-elt-agent.md` Hard rule 9.
-
-Deliberately NOT here yet (see specs/TODO.md and ui-object-editor.md Scope):
-- popups (`open_as` isn't modeled on `Options` yet -- everything opens as a
-  column for now)
-- shell toolbar: undo/redo, import/export, host application slots
-- the constructor registry driving schema resolution for opened columns
-  whose dispatcher didn't supply one (Layer 5 "Resolution" step 3, resolving
-  from a value's runtime type/constructor with no schema at all). A
-  dispatcher that already knows its child's factory (ObjectFactory's own
-  composite-property preview button, schema.tsx) passes it through
-  `ObjectEditorOpenDetail.factory` instead -- the shell prefers that when
-  present, and only falls back to unknown mode (`anything`) when it's
-  omitted. The registry is still needed for the omitted case (e.g. a future
-  Array/Set/Map's own preview buttons, or unknown-mode drilling).
-- INVALID_MOUNT: no composite in this slice mints child observables via the
-  safe-child helper yet (Layer 1b), so dead-column detection's clause (a)
-  is a no-op here -- only clause (b) (`canHandle`) can currently fire.
+- shell toolbar undo/redo (Layer 5)
+- constructor registry fallback when drill-in omits `factory` (Layer 5)
 */
 
-import { $observe, $on, css, o, Repeat, type Renderable } from "elt"
-import { anything, dispatch_object_editor_open, type Factory, type ObjectEditorOpenDetail } from "./schema"
+import { $connected, $observe, $on, css, o, Repeat, type Renderable } from "elt"
+import { popup, sym_popup_closed } from "elt/ui/popup"
+import { is_valid_mount } from "./mount"
+import { resolve_factory_from_value } from "./registry"
+import {
+  anything,
+  dispatch_object_editor_open,
+  EitherFactory,
+  type CommonNodeOptions,
+  type Factory,
+  type ObjectEditorOpenDetail,
+} from "./schema"
+import { RootUndoRing } from "./undo"
 
 export { dispatch_object_editor_open, type ObjectEditorOpenDetail }
 
 interface ColumnDescriptor {
   o_value: o.Observable<unknown>
-  // The resolved factory for this column, as an Observable: dead-column
-  // recovery (render_column, below) sets a new one and lets `.tf()`
-  // re-render reactively, instead of a manual node_clear + re-render.
   o_factory: o.Observable<Factory<unknown>>
-  // Column header label -- optional (the root's own column has none by
-  // default: "root" isn't meaningful chrome). The header bar itself always
-  // renders regardless, for consistent height and as the future toolbar
-  // slot (Layer 2).
   title: string | undefined
-  // Set once by render_column (a self-referencing closure, same trick as
-  // the close button below) -- used only by index_of_column_containing's
-  // DOM hit-testing. Rendering/mounting itself is Repeat's job, not this
-  // field's.
+  presentation: "column" | "popup"
   host?: HTMLElement
+  /** Close a popup presentation for this stack entry, if open. */
+  dismiss_popup?: () => void
+  /** Remove the dead-column observer when dismissing. */
+  unwatch?: () => void
 }
 
 export interface ShellOptions {
-  // Root schema; defaults to unknown mode (Layer 5 `anything`).
   schema?: Factory<unknown>
+  prefer_popups?: boolean
+  undo?: { depth?: number; import_undo_depth?: number }
+}
+
+function root_is_scalar(value: unknown): boolean {
+  if (value === null || value === undefined) return true
+  if (typeof value !== "object") return true
+  if (value instanceof Date) return true
+  return false
 }
 
 export class ObjectEditorShell {
   readonly node: HTMLElement
   private readonly o_columns = o<ColumnDescriptor[]>([])
-  // Titles of every open column right of the root, in order -- derived, not
-  // separately maintained: reading `o_columns` is the single source of
-  // truth. The shell itself doesn't render a breadcrumb bar from this
-  // (redundant with each column's own header) -- it's here for a host app
-  // that wants to build its own breadcrumb UI, and for tests.
   readonly o_breadcrumb: o.ReadonlyObservable<string[]>
+  private readonly undo: RootUndoRing
 
   constructor(
     private readonly o_root: o.Observable<unknown>,
     private readonly options: ShellOptions = {},
   ) {
     this.o_breadcrumb = this.o_columns.tf((cols) => cols.slice(1).map((c) => c.title ?? ""))
+    this.undo = new RootUndoRing(this.o_root, this.options.undo ?? {})
 
     this.node = (
       <e-flex column class={cls_shell}>
+        <e-flex align="center" gap="small" pad="small" class={cls_shell_toolbar}>
+          <button type="button" disabled={this.undo.o_can_undo.tf((v) => !v)}>
+            {$on("click", () => this.undo.undo())}
+            Undo
+          </button>
+          <button type="button" disabled={this.undo.o_can_redo.tf((v) => !v)}>
+            {$on("click", () => this.undo.redo())}
+            Redo
+          </button>
+        </e-flex>
         {$on("elt-object-editor-open", (ev) => {
-          // Real DOM + bubbling (Layer 1b "Why"): stop it here so a shell
-          // nested inside another one (not a v1 concern, but cheap to get
-          // right) doesn't also react.
           ev.stopPropagation()
-          this.open(ev.detail.o_value, ev.detail.title, ev.target as Node, ev.detail.factory)
+          this.open(
+            ev.detail.o_value,
+            ev.detail.title,
+            ev.target as Node,
+            ev.detail.factory,
+            ev.detail.open_as,
+          )
         })}
-        <e-flex class={cls_strip}>{Repeat(this.o_columns, (o_col, o_idx) => this.render_column(o_col, o_idx))}</e-flex>
+        <e-flex class={cls_strip}>
+          {Repeat(this.o_columns, (o_col, o_idx) => {
+            if (o_col.get().presentation === "popup") {
+              return document.createComment("oe-popup") as unknown as Renderable<Node>
+            }
+            return this.render_column(o_col, o_idx)
+          })}
+        </e-flex>
       </e-flex>
     ) as HTMLElement
 
-    // No title for the root's own column -- see ColumnDescriptor.title.
-    this.o_columns.set([this.create_column(this.o_root, undefined, this.options.schema ?? anything)])
+    this.o_columns.set([
+      this.create_column(this.o_root, undefined, this.options.schema ?? anything, "column"),
+    ])
+    this.undo.attach()
   }
 
-  private create_column(o_value: o.Observable<unknown>, title: string | undefined, factory: Factory<unknown>): ColumnDescriptor {
-    return { o_value, title, o_factory: o(factory) }
+  private create_column(
+    o_value: o.Observable<unknown>,
+    title: string | undefined,
+    factory: Factory<unknown>,
+    presentation: "column" | "popup",
+  ): ColumnDescriptor {
+    return { o_value, title, o_factory: o(factory), presentation }
   }
 
-  /** Layer 1b "Column truncation": DOM only locates the source column; the array is the source of truth. */
+  private resolve_open_factory(factory: Factory<unknown> | undefined, o_value: o.Observable<unknown>) {
+    return factory ?? resolve_factory_from_value(o_value.get(), anything)
+  }
+
+  private resolve_presentation(
+    factory: Factory<unknown>,
+    detail_open_as: "column" | "popup" | undefined,
+  ): "column" | "popup" {
+    const node_open = detail_open_as ?? (factory.options as CommonNodeOptions | undefined)?.open_as
+    if (node_open === "popup") return "popup"
+    if (node_open === "column") return "column"
+    return this.options.prefer_popups ? "popup" : "column"
+  }
+
   private index_of_column_containing(source: Node): number {
     const cols = this.o_columns.get()
     for (let i = cols.length - 1; i >= 0; i--) {
@@ -112,83 +141,151 @@ export class ObjectEditorShell {
     return -1
   }
 
-  /** Layer 1b "Editor shell": open from inside a non-rightmost column truncates right of it; from the rightmost, appends. */
-  open(o_value: o.Observable<unknown>, title: string, source: Node, factory?: Factory<unknown>) {
+  private dismiss_from(idx: number) {
+    const cols = this.o_columns.get()
+    for (let i = idx + 1; i < cols.length; i++) {
+      cols[i]?.dismiss_popup?.()
+      cols[i]?.unwatch?.()
+    }
+  }
+
+  open(
+    o_value: o.Observable<unknown>,
+    title: string,
+    source: Node,
+    factory?: Factory<unknown>,
+    open_as?: "column" | "popup",
+  ) {
+    const resolved = this.resolve_open_factory(factory, o_value)
+    const presentation = this.resolve_presentation(resolved, open_as)
     const found = this.index_of_column_containing(source)
-    // A source outside every column (e.g. a host-application control that
-    // isn't itself part of a mounted widget) opens after the root, same as
-    // opening from it -- root is never truncated by this path, only what's
-    // deeper than it.
     const idx = found === -1 ? 0 : found
+    this.dismiss_from(idx)
     const kept = this.o_columns.get().slice(0, idx + 1)
-    // The dispatching widget's own factory when it supplied one (e.g.
-    // ObjectFactory's preview button knows the property's declared schema),
-    // else unknown mode -- see ObjectEditorOpenDetail.factory (schema.tsx).
-    // The constructor-registry gap (Layer 5 "Resolution" step 3, resolving
-    // from a value's runtime type/constructor with no schema at all) is
-    // separate and still not built.
-    this.o_columns.set([...kept, this.create_column(o_value, title, factory ?? anything)])
+    const column = this.create_column(o_value, title, resolved, presentation)
+
+    if (presentation === "popup" && source instanceof Element) {
+      this.o_columns.set([...kept, column])
+      this.mount_popup(column, kept.length, source)
+      return
+    }
+
+    this.o_columns.set([...kept, column])
   }
 
   private close_after(idx: number) {
+    this.dismiss_from(idx)
     this.o_columns.set(this.o_columns.get().slice(0, idx + 1))
   }
 
-  private render_column(o_column: o.Observable<ColumnDescriptor>, o_idx: o.IReadonlyObservable<number>): Renderable<Node> {
-    // Read once: this column's index never changes for its own lifetime
-    // (columns only ever close as a contiguous suffix, from the right, so
-    // anything still mounted to the left of a closed range keeps its index)
-    // -- same for the descriptor itself, since `open`/`close_after` only
-    // ever append or truncate the array, never replace a retained entry.
-    const column = o_column.get()
-    const idx = o_idx.get()
-    const is_root = idx === 0
+  private watch_column(column: ColumnDescriptor, idx: number, is_root: boolean) {
+    const observer = column.o_value.addObserver((value, old) => {
+      if (old === o.NoValue) return
 
+      if (is_root && root_is_scalar(value) && this.o_columns.get().length > 1) {
+        this.close_after(0)
+      }
+
+      if (!is_valid_mount(value)) {
+        if (!is_root) this.close_after(idx - 1)
+        return
+      }
+
+      if (column.o_factory.get().canHandle(value)) return
+
+      const resolved = (anything as EitherFactory).resolve(value)
+      if (resolved.canHandle(value)) {
+        column.o_factory.set(resolved)
+        return
+      }
+
+      if (is_root) {
+        const schema = this.options.schema
+        column.o_factory.set(schema?.canHandle(value) ? schema : anything)
+        return
+      }
+
+      this.close_after(idx - 1)
+    })
+
+    column.unwatch = () => column.o_value.removeObserver(observer)
+  }
+
+  private mount_popup(column: ColumnDescriptor, idx: number, anchor: Element) {
+    const shell = this
+    this.watch_column(column, idx, false)
+
+    const fut = popup(anchor, (fut) => {
+      column.dismiss_popup = () => fut.resolve(sym_popup_closed)
+
+      const panel = (
+        <e-flex column class={cls_popup_panel}>
+          {$connected((el: HTMLElement) => {
+            column.host = (el.closest("[popover]") as HTMLElement | null) ?? el
+          })}
+          <e-flex full-width justify="space-between" align="center" pad="small" class={cls_column_header}>
+            {column.title != null && <span>{column.title}</span>}
+            <button type="button" class={cls_column_close}>
+              {$on("click", () => fut.resolve(undefined))}×
+            </button>
+          </e-flex>
+          <e-flex column gap="small" pad="small" class={cls_popup_body}>
+            {column.o_factory.tf((factory) => factory.render(column.o_value).render())}
+          </e-flex>
+        </e-flex>
+      ) as HTMLElement
+
+      return panel
+    })
+
+    fut.then((result) => {
+      column.unwatch?.()
+      if (result === sym_popup_closed) return
+      const cols = shell.o_columns.get()
+      if (cols[idx] === column) shell.close_after(idx - 1)
+    })
+  }
+
+  private render_column(o_column: o.Observable<ColumnDescriptor>, o_idx: o.IReadonlyObservable<number>): Renderable<Node> {
     const host = (
       <e-flex column class={cls_column}>
-        {$observe(column.o_value, (value, old) => {
-          if (old === o.NoValue) return // initial connect, not a change
-          if (column.o_factory.get().canHandle(value)) return
-          if (is_root) {
-            // Root special case (Layer 1b): no parent slot to go missing,
-            // so only a resolved-kind change can fire here -- re-resolve
-            // instead of closing. Re-resolving to the SAME fixed schema
-            // would be a no-op (it just failed canHandle on this very
-            // value), so fall back to unknown mode when the schema can't
-            // represent the new value -- Layer 1b: "the shell keeps one
-            // root column showing the matching scalar widget."
-            const schema = this.options.schema
-            column.o_factory.set(schema?.canHandle(value) ? schema : anything)
-          } else {
-            this.close_after(idx - 1)
-          }
+        {o_column.tf((column) => {
+          const idx = o_idx.get()
+          const is_root = idx === 0
+          column.host = host
+          if (!column.unwatch) this.watch_column(column, idx, is_root)
+          return (
+            <e-flex column class={cls_column_body}>
+              <e-flex full-width justify="space-between" align="center" pad="small" class={cls_column_header}>
+                {column.title != null && <span>{column.title}</span>}
+                {!is_root && (
+                  <button type="button" class={cls_column_close}>
+                    {$on("click", () => this.close_after(o_idx.get() - 1))}×
+                  </button>
+                )}
+              </e-flex>
+              <e-flex column gap="small" pad="small">
+                {column.o_factory.tf((factory) => factory.render(column.o_value).render())}
+              </e-flex>
+            </e-flex>
+          )
         })}
-        <e-flex full-width justify="space-between" align="center" pad="small" class={cls_column_header}>
-          {column.title != null && <span>{column.title}</span>}
-          {!is_root && (
-            <button type="button" class={cls_column_close}>
-              {$on("click", () => this.close_after(idx - 1))}×
-            </button>
-          )}
-        </e-flex>
-        <e-flex column gap="small" pad="small">
-          {column.o_factory.tf((factory) => factory.render(column.o_value).render())}
-        </e-flex>
       </e-flex>
     ) as HTMLElement
 
-    column.host = host
     return host
   }
 }
 
-// `css` inserts one rule per call (rewriting the leading class to a unique
-// generated name) -- one call per class, kept js-side via these consts
-// rather than hardcoded class strings in the JSX above.
 const cls_shell = css`.oe-shell {
   border: 1px solid var(--e-color-text-light, #ccc);
   border-radius: 4px;
   overflow: hidden;
+}`
+
+const cls_shell_toolbar = css`.oe-shell-toolbar {
+  border-bottom: 1px solid var(--e-color-text-light, #ccc);
+  background: var(--e-color-tint, #eee);
 }`
 
 const cls_strip = css`.oe-strip {
@@ -202,9 +299,11 @@ const cls_column = css`.oe-column {
   flex: none;
 }`
 
-// Fixed height regardless of content (a bare title vs. title + close
-// button) so every column's header bar lines up across the strip -- not
-// just left-aligned but bottom-edge-aligned too.
+const cls_column_body = css`.oe-column-body {
+  flex: 1;
+  min-height: 0;
+}`
+
 const cls_column_header = css`.oe-column-header {
   min-height: 1.8em;
   background: var(--e-color-tint, #eee);
@@ -220,4 +319,15 @@ const cls_column_close = css`.oe-column-close {
   padding: 0;
   width: 1.4em;
   height: 1.4em;
+}`
+
+const cls_popup_panel = css`.oe-popup-panel {
+  min-width: 260px;
+  max-width: min(90vw, 480px);
+  max-height: 70vh;
+}`
+
+const cls_popup_body = css`.oe-popup-body {
+  overflow: auto;
+  min-height: 0;
 }`

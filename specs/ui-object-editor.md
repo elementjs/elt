@@ -382,7 +382,7 @@ For arrays of objects that look tabular: each row is one element, each data colu
 **Layout (v1):**
 
 - A leading **`#` index column** always shows the row index (same role as the index in Array mode). It is not a data key and is not resizable as a field column unless the implementation needs a fixed narrow width.
-- Data column headers are **resizable** (drag handle on the header cell). `specs/resizable.tsx` is a reference sketch only — not a binding implementation.
+- Data column headers are **resizable** (drag handle on the header cell). Implemented in `editor/table-resize.ts` (`$resizable` on data `<th>`); `specs/resizable.tsx` remains a reference sketch.
 - The table uses **`width: max-content`**. Its host is a **horizontally scrollable** container when the table is wider than the column body.
 - The **header row is sticky** (`thead` stays visible while the body scrolls vertically). Vertical body scroll uses VirtualScroll like other composites.
 

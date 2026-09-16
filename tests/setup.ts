@@ -17,6 +17,7 @@ Object.assign(globalThis, {
   HTMLElement: window.HTMLElement,
   HTMLInputElement: window.HTMLInputElement,
   HTMLButtonElement: window.HTMLButtonElement,
+  HTMLDialogElement: window.HTMLDialogElement,
   CSSStyleSheet: window.CSSStyleSheet,
   customElements: window.customElements,
   CustomEvent: window.CustomEvent,
@@ -59,3 +60,32 @@ function patched_getComputedStyle(el: unknown) {
   return cs
 }
 Object.assign(globalThis, { getComputedStyle: patched_getComputedStyle })
+
+// ui/popup.tsx uses Popover API + Element.animate(); happy-dom lacks both.
+if (typeof window.HTMLElement.prototype.showPopover !== "function") {
+  window.HTMLElement.prototype.showPopover = function (this: HTMLElement) {
+    this.toggleAttribute("data-popover-open", true)
+  }
+  window.HTMLElement.prototype.hidePopover = function (this: HTMLElement) {
+    this.toggleAttribute("data-popover-open", false)
+  }
+}
+if (typeof window.Element.prototype.animate !== "function") {
+  window.Element.prototype.animate = function (this: Element) {
+    void this
+    const anim = {
+      finished: Promise.resolve(),
+      cancel() {},
+      addEventListener(_type: string, fn: EventListener) {
+        queueMicrotask(() => fn(new Event(_type)))
+      },
+    }
+    return anim as Animation
+  }
+}
+if (typeof window.Element.prototype.getAnimations !== "function") {
+  window.Element.prototype.getAnimations = function (this: Element) {
+    void this
+    return []
+  }
+}

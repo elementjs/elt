@@ -1,5 +1,7 @@
 # Object editor — default schema & widget configs
 
-Placeholder for the **default unknown schema** and constructor-registry entries once drafted.
+The **default unknown schema** is `anything` in `editor/schema.tsx` — an `either(...)` tree documented in `ui-object-editor.md` Layer 5 ("Default unknown schema").
 
-Type shapes: `editor/schema.tsx`. Behavior: `ui-object-editor.md` Layer 5 (Gate 2). Until a concrete default schema object lives here or in the types file, the schema/widget mock is incomplete.
+Constructor-registry entries and schema behavior: same Layer 5 section. Type shapes: `editor/schema.tsx` (source of truth for interfaces; do not duplicate full type blocks here).
+
+This file is a pointer only; amend `schema.tsx` and `ui-object-editor.md` when the default schema changes.
