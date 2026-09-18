@@ -27,7 +27,7 @@ export interface ThemeSettings {
   intensityVeryStrong: string
 }
 
-export type BaseColorScheme = {
+export type ColorScheme = {
   bg: string
   text: string
   tint: string
@@ -45,7 +45,7 @@ class OkLch {
   }
 }
 
-function getOkLch<T extends BaseColorScheme>(colors: T): { [key in keyof T]: OkLch } {
+function getOkLch<T extends ColorScheme>(colors: T): { [key in keyof T]: OkLch } {
   // Create a temporary element
   const el = document.createElement("div")
   el.style.visibility = "hidden"
@@ -73,16 +73,16 @@ function getOkLch<T extends BaseColorScheme>(colors: T): { [key in keyof T]: OkL
 
 const _re_setting = /[A-Z]/g
 
-export class Theme<ColorScheme extends BaseColorScheme> {
-  colors = {} as { [key in keyof ColorScheme]: Color<ColorScheme> }
+export class Theme<AllColors extends ColorScheme> {
+  colors = {} as { [key in keyof AllColors]: Color<AllColors> }
 
-  constructor(theme: { light: ColorScheme; dark?: Partial<ColorScheme>; settings?: Partial<ThemeSettings> }) {
+  constructor(theme: { light: AllColors; dark?: Partial<AllColors>; settings?: Partial<ThemeSettings> }) {
     if (!(theme.light["bg"] || theme.light["text"] || theme.light["tint"])) {
       throw new Error("Light theme must have a bg, text, and tint color")
     }
 
     const light = getOkLch(theme.light)
-    const dark = theme.dark ? getOkLch(theme.dark as ColorScheme) : ({} as ReturnType<typeof getOkLch<ColorScheme>>)
+    const dark = theme.dark ? getOkLch(theme.dark as AllColors) : ({} as ReturnType<typeof getOkLch<AllColors>>)
 
     // If nothing is given, seed the dark theme with the reverse of the light theme
     dark.bg ??= light.text
@@ -98,15 +98,15 @@ export class Theme<ColorScheme extends BaseColorScheme> {
         const delta_dark = light_value.l - dark_l
         // Keep the most luminous color
         const new_l = delta_dark > delta ? light_value.l : dark_l + delta
-        dark[name as keyof BaseColorScheme] = new OkLch(new_l, light_value.c, light_value.h)
+        dark[name as keyof ColorScheme] = new OkLch(new_l, light_value.c, light_value.h)
       }
       const color = new Color(
         this,
-        name as Extract<keyof ColorScheme, string>,
-        light[name as keyof BaseColorScheme].toString(),
-        dark[name as keyof BaseColorScheme].toString(),
+        name as Extract<keyof AllColors, string>,
+        light[name as keyof ColorScheme].toString(),
+        dark[name as keyof ColorScheme].toString(),
       )
-      this.colors[name as keyof ColorScheme] = color
+      this.colors[name as keyof AllColors] = color
     }
 
     // Now set the theme settings
@@ -252,7 +252,7 @@ export class Theme<ColorScheme extends BaseColorScheme> {
  *   - Disabled
  *
  */
-export class Color<Colors extends BaseColorScheme> {
+export class Color<Colors extends ColorScheme> {
   constructor(
     public theme: Theme<Colors>,
     public name: Extract<keyof Colors, string>,
@@ -279,7 +279,7 @@ export class Color<Colors extends BaseColorScheme> {
    *
    */
   @memoize
-  get css_as_background() {
+  get css_as_inverted() {
     return `
     --e-color-bg: var(--e-light-color-${this.name});
     --e-color-text: var(--e-light-color-bg);
@@ -295,9 +295,9 @@ export class Color<Colors extends BaseColorScheme> {
    * Set background to be this color, with the light background becoming the text color _and_ tint.
    */
   @memoize
-  get as_background() {
-    const cls = css`.e-color-${this.name}-background {
-      ${this.css_as_background}
+  get as_inverted() {
+    const cls = css`.e-color-${this.name}-inverted {
+      ${this.css_as_inverted}
     }`
 
     return cls

@@ -1,6 +1,89 @@
 # Using elt/ui
 
+Human-oriented overview of the UI sub-library. Agents should use [`using-elt-ui-agent.md`](./using-elt-ui-agent.md) instead — it is structured for progressive disclosure (hard rules, section index, task tables).
+
+---
+
+## What it is
+
+`elt/ui` is a separate sub-library imported as `"elt/ui"`. It provides:
+
+- A **theme engine** (OKLCH-based colors, light/dark, spacing, radii, typography settings)
+- **Layout elements** (`<e-flex>`, `<e-box>`, `<e-grid>`) with typed spacing/alignment attrs
+- **Global styling** for native HTML forms and prose (`typographic` mode)
+- A **small widget set** (`Select`, date/time pickers, popup, dialog, …)
+
+It deliberately does not try to be a large component library. The goal is a consistent visual language you extend in application code.
+
+Side-effect import at app entry loads all CSS layers:
+
+```tsx
+import "elt/ui"
+```
+
+See `demo/src/app.tsx`.
+
+---
+
+## Quick start
+
+```tsx
+import "elt/ui"
+import { theme } from "elt/ui"
+import { node_append } from "elt"
+
+const ui = (
+  <div class={theme.toString()}>
+    <e-box typographic pad>
+      <h1>Title</h1>
+      <p>Body copy.</p>
+      <e-flex gap="small">
+        <button e-variant="full">Save</button>
+        <button e-variant="text">Cancel</button>
+      </e-flex>
+    </e-box>
+  </div>
+)
+
+node_append(document.body, ui)
+```
+
+---
+
+## Design principles (short)
+
+- Use **theme tokens** for color, spacing, and radii — not one-off pixel values.
+- Prefer **layout elements + `gap`/`pad`** over margins between siblings.
+- Put long copy in **`<e-box typographic>`** so headings, lists, and links stay consistent.
+- Style **native HTML** controls before inventing new components.
+- **Two font weights** for UI chrome; prose hierarchy comes from typography mode.
+
+Expanded rules, recipes, and widget inventory: [`using-elt-ui-agent.md`](./using-elt-ui-agent.md).
+
+Demo walkthrough: `demo/src/screen-ui-usage.tsx`, `demo/src/screen-layout.tsx`, `demo/src/screen-typography.tsx`.
+
+---
+
 ## Migrating from elt-shoelace or elt-ui
 
-- Most of the widgets kept their names or have an equivalent of same name
-- elt-ui and elt-shoelace have material color semantics : 600 is the full color, 0/50 is very muted, 900 is close to the text color. elt/ui is more about a percentage from background or to another color (generally text), where tint is 600 and expresses most colors as a percentage from background, and is explicit otherwise.
+- Most widgets kept their names or have a same-named equivalent.
+- **Color semantics changed.** elt-ui / elt-shoelace used Material-style steps (50 muted → 600 full → 900 near text). elt/ui expresses most colors as **mix percentages from background or text** in OKLCH:
+  - `theme.colors.tint` ≈ the old “600” accent
+  - `.ultra_light` / `.light` ≈ very muted fills (old 50–100)
+  - `.faded` / `.mid` ≈ borders and muted chrome
+  - `.strong` / `.very_strong` ≈ text-near emphasis
+- Replace fixed palette steps with `Color.from_bg(...)`, `.light`, `.faded`, etc. (`ui/theme.tsx`).
+
+Agent checklist for migration: [`using-elt-ui-agent.md` § Colors & theme](./using-elt-ui-agent.md#colors--theme).
+
+---
+
+## Where to go next
+
+| Want | Look at |
+| ---- | ------- |
+| Agent task guide | [`using-elt-ui-agent.md`](./using-elt-ui-agent.md) |
+| Core elt (not UI-specific) | [`using-elt.md`](./using-elt.md), [`using-elt-agent.md`](./using-elt-agent.md) |
+| Runnable examples | `demo/` |
+| Library maintainer rules | [`ui/AGENTS.md`](../ui/AGENTS.md) |
+| Doc index | [`README.md`](./README.md) |

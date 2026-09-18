@@ -1,6 +1,18 @@
 # Elt - Agent Context
 
-Docs are in `./docs`. Use of this library is in `docks/using-elt-agent.md`.
+## Docs (progressive disclosure)
+
+Do not read all of `./docs` up front. Pick by branch:
+
+| Branch | Read |
+| ------ | ---- |
+| Choosing which doc to open | [`docs/README.md`](./docs/README.md) |
+| App code using **core elt** | [`docs/using-elt-agent.md`](./docs/using-elt-agent.md) |
+| **UI** (layout, theme, widgets, `"elt/ui"`) | [`ui/AGENTS.md`](./ui/AGENTS.md) → [`docs/using-elt-ui-agent.md`](./docs/using-elt-ui-agent.md) |
+| Feature specs | [`specs/`](./specs/) |
+| Architecture decisions | [`docs/adr/`](./docs/adr/) |
+
+Inside a guide: read **Hard rules**, then only the section that matches the task.
 
 # Instructions
 
