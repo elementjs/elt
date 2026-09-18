@@ -111,7 +111,7 @@ export default class ScreenObjectEditor extends Service({
           <code>make_big_table_seed</code>). Only rows near the viewport are mounted — scroll the table body and use
           toolbar search to filter. Regenerate with a different row count (1–50&nbsp;000).
         </p>
-        <e-flex align="center" gap="small" class={cls_big_table_controls}>
+        <e-flex align="center" gap="widget" class={cls_big_table_controls}>
           <label>
             Rows{" "}
             <input type="number" min="1" max="50000" step="100">

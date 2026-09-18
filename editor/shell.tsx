@@ -73,7 +73,7 @@ export class ObjectEditorShell {
 
     this.node = (
       <e-flex column class={cls_shell}>
-        <e-flex align="center" gap="small" pad="small" class={cls_shell_toolbar}>
+        <e-flex align="center" gap="widget" pad="widget" class={cls_shell_toolbar}>
           <button type="button" disabled={this.undo.o_can_undo.tf((v) => !v)}>
             {$on("click", () => this.undo.undo())}
             Undo
@@ -223,13 +223,13 @@ export class ObjectEditorShell {
           {$connected((el: HTMLElement) => {
             column.host = (el.closest("[popover]") as HTMLElement | null) ?? el
           })}
-          <e-flex full-width justify="space-between" align="center" pad="small" class={cls_column_header}>
+          <e-flex full-width justify="space-between" align="center" pad="widget" class={cls_column_header}>
             {column.title != null && <span>{column.title}</span>}
             <button type="button" class={cls_column_close}>
               {$on("click", () => fut.resolve(undefined))}×
             </button>
           </e-flex>
-          <e-flex column gap="small" pad="small" class={cls_popup_body}>
+          <e-flex column gap="widget" pad="widget" class={cls_popup_body}>
             {column.o_factory.tf((factory) => factory.render(column.o_value).render())}
           </e-flex>
         </e-flex>
@@ -256,7 +256,7 @@ export class ObjectEditorShell {
           if (!column.unwatch) this.watch_column(column, idx, is_root)
           return (
             <e-flex column class={cls_column_body}>
-              <e-flex full-width justify="space-between" align="center" pad="small" class={cls_column_header}>
+              <e-flex full-width justify="space-between" align="center" pad="widget" class={cls_column_header}>
                 {column.title != null && <span>{column.title}</span>}
                 {!is_root && (
                   <button type="button" class={cls_column_close}>
@@ -264,7 +264,7 @@ export class ObjectEditorShell {
                   </button>
                 )}
               </e-flex>
-              <e-flex column gap="small" pad="small">
+              <e-flex column gap="widget" pad="widget">
                 {column.o_factory.tf((factory) => factory.render(column.o_value).render())}
               </e-flex>
             </e-flex>

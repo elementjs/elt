@@ -325,7 +325,7 @@ export class Color<Colors extends ColorScheme> {
     if (alpha < 1) {
       res = `oklch(from ${res} l c h / ${alpha.toFixed(2)})`
     }
-    return res
+    return new Mix(res)
   }
 
   from_bg(intensity: string, alpha: number = 1) {
@@ -374,6 +374,48 @@ export class Color<Colors extends ColorScheme> {
   }
 }
 
+/**
+ * A computed color mix, returned by `Color.from`/`from_bg`/`from_text` (and thus by `.ultra_light`, `.light`,
+ * `.mid`, `.faded`, `.slightly_faded`, `.strong`, `.very_strong`). Usable directly in CSS through `toString()`,
+ * and can itself be inverted, unlike a plain string.
+ */
+export class Mix {
+  constructor(public expr: string) {}
+
+  valueOf() {
+    return this.toString()
+  }
+
+  /** The mix expression, to be used inside CSS rules. */
+  toString() {
+    return this.expr
+  }
+
+  /**
+   * Same shape as `Color.css_as_inverted`, but built from this mix's own expression instead of a named
+   * palette entry — it already reads the live `--e-color-bg`/`--e-color-text` variables, so it adapts to
+   * light/dark mode on its own, unlike a named color's inversion (which freezes to the light theme's `bg`).
+   */
+  get css_as_inverted() {
+    return `
+    --e-color-bg: ${this.expr};
+    --e-color-text: var(--e-light-color-bg);
+    --e-color-tint: var(--e-light-color-bg);
+    background-color: var(--e-color-bg);
+    color: var(--e-color-text);
+    border-color: var(--e-color-bg);
+    `
+  }
+
+  /** This is a class name. */
+  @memoize
+  get as_inverted() {
+    return css`.e-mix-inverted {
+      ${this.css_as_inverted}
+    }`
+  }
+}
+
 export const theme = new Theme({
   light: {
     text: "#1c1c1b",
@@ -391,7 +433,6 @@ export const theme = new Theme({
     blue_purple: "#4A2ECF",
     purple: "#7A1FA2",
     magenta: "#C2188F",
-    grey: "oklch(0.7 0 0)",
   },
   dark: {
     text: "#ffffff",

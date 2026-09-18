@@ -134,7 +134,7 @@ export function DateTimePicker(at: DatePickerAttrs) {
       anchor,
       () => (
         <e-box class={cls_calendar}>
-          <e-flex class={cls_toolbar} align="center" gap="small">
+          <e-flex class={cls_toolbar} align="center" gap="widget">
             <button type="button" e-variant="text">
               {$click(() => year_delta(-1))}
               {CaretLeft()}

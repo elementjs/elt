@@ -864,7 +864,7 @@ export class ObjectFactory extends Factory<ObjectOptions> {
 
     return {
       render: () => (
-        <e-flex column gap="small">
+        <e-flex column gap="widget">
           {render_composite_toolbar({
             factory: this as Factory<CommonNodeOptions>,
             o_value,
@@ -874,7 +874,7 @@ export class ObjectFactory extends Factory<ObjectOptions> {
           <e-box class={cls_list_scroll}>
             {$scrollable}
             {VirtualScroll(o_visible_keys, (o_key) => (
-              <e-flex align="center" gap="small">
+              <e-flex align="center" gap="widget">
                 <span class={cls_object_key}>{o_key}</span>
                 <e-box class={cls_object_value} style={{ flex: "1" }}>
                   {o_key.tf((key) => render_value(key, safe_object_child(o_value, key)))}
@@ -898,7 +898,7 @@ export class ObjectFactory extends Factory<ObjectOptions> {
               }
               const { o_key, o_value: o_child } = row
               return (
-                <e-flex align="center" gap="small">
+                <e-flex align="center" gap="widget">
                   <input type="text" class={cls_object_key_input} placeholder="key">
                     {$bind.string(o_key)}
                     {$on("change", () => try_commit_transient(id))}
@@ -1093,7 +1093,7 @@ export class ArrayFactory extends Factory<ArrayOptions> {
 
     return {
       render: () => (
-        <e-flex column gap="small">
+        <e-flex column gap="widget">
           {render_composite_toolbar({
             factory: this as Factory<CommonNodeOptions>,
             o_value,
@@ -1107,7 +1107,7 @@ export class ArrayFactory extends Factory<ArrayOptions> {
           <e-box class={cls_list_scroll}>
             {$scrollable}
             {VirtualScroll(o_visible_indices, (o_i) => (
-              <e-flex align="center" gap="small">
+              <e-flex align="center" gap="widget">
                 <span class={cls_object_key}>{o_i.tf((i) => String(i))}</span>
                 <e-box class={cls_object_value} style={{ flex: "1" }}>
                   {o_i.tf((i) => render_element_or_preview(safe_array_index(o_value, i), String(i), values_factory))}
@@ -1125,7 +1125,7 @@ export class ArrayFactory extends Factory<ArrayOptions> {
               const row = transient_rows.get(id)
               if (!row) return null
               return (
-                <e-flex align="center" gap="small">
+                <e-flex align="center" gap="widget">
                   <span class={cls_object_key}>+</span>
                   <e-box class={cls_object_value} style={{ flex: "1" }}>
                     {render_element_or_preview(row, "new", values_factory)}
@@ -1175,7 +1175,7 @@ export class ArrayFactory extends Factory<ArrayOptions> {
 
     return {
       render: () => (
-        <e-flex column gap="small">
+        <e-flex column gap="widget">
           {render_composite_toolbar({
             factory: this as Factory<CommonNodeOptions>,
             o_value,
@@ -1299,7 +1299,7 @@ export class SetFactory extends Factory<SetOptions> {
 
     return {
       render: () => (
-        <e-flex column gap="small">
+        <e-flex column gap="widget">
           {render_composite_toolbar({
             factory: this as Factory<CommonNodeOptions>,
             o_value,
@@ -1313,7 +1313,7 @@ export class SetFactory extends Factory<SetOptions> {
           <e-box class={cls_list_scroll}>
             {$scrollable}
             {VirtualScroll(o_visible_members, (o_member) => (
-              <e-flex align="center" gap="small">
+              <e-flex align="center" gap="widget">
                 <e-box class={cls_object_value} style={{ flex: "1" }}>
                   {o_member.tf((member) =>
                     render_element_or_preview(safe_set_member(o_value, member), value_preview_text(member), values_factory),
@@ -1332,7 +1332,7 @@ export class SetFactory extends Factory<SetOptions> {
               const row = transient_rows.get(id)
               if (!row) return null
               return (
-                <e-flex align="center" gap="small">
+                <e-flex align="center" gap="widget">
                   <e-box class={cls_object_value} style={{ flex: "1" }}>
                     {render_element_or_preview(row, "new", values_factory)}
                   </e-box>
@@ -1424,7 +1424,7 @@ export class MapFactory extends Factory<MapOptions> {
 
     return {
       render: () => (
-        <e-flex column gap="small">
+        <e-flex column gap="widget">
           {render_composite_toolbar({
             factory: this as Factory<CommonNodeOptions>,
             o_value,
@@ -1438,12 +1438,12 @@ export class MapFactory extends Factory<MapOptions> {
           <e-box class={cls_list_scroll}>
             {$scrollable}
             {VirtualScroll(o_visible_keys, (o_key) => (
-              <e-flex align="center" gap="small">
+              <e-flex align="center" gap="widget">
                 <e-box class={cls_object_value}>
                   {o_key.tf((key) => {
                     const o_k = safe_map_key(o_value, key)
                     return (
-                      <e-flex align="center" gap="small">
+                      <e-flex align="center" gap="widget">
                         <e-box style={{ flex: "1" }}>{keys_factory.render(o_k).render()}</e-box>
                         {this.options.allow_key_type_change !== false &&
                           render_type_change_menu_button(o_k, this as Factory<CommonNodeOptions>)}
@@ -1469,7 +1469,7 @@ export class MapFactory extends Factory<MapOptions> {
               const row = transient_rows.get(id)
               if (!row) return null
               return (
-                <e-flex align="center" gap="small">
+                <e-flex align="center" gap="widget">
                   <e-box class={cls_object_value}>{keys_factory.render(row.o_key).render()}</e-box>
                   <e-box class={cls_object_value} style={{ flex: "1" }}>
                     {render_element_or_preview(row.o_val, "new", values_factory)}

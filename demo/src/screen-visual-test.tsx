@@ -50,7 +50,7 @@ export default class ScreenVisualTest extends Service({
         </e-button-box>
         <button e-variant="text">text <P.Heart/></button>
         <button e-variant="tint">tint <P.Heart/></button>
-        <button e-variant="full">full <P.Heart/></button>
+        <button e-variant="inverted">full <P.Heart/></button>
       </e-flex>
 
       <p>
@@ -62,7 +62,7 @@ export default class ScreenVisualTest extends Service({
               <button>Button</button>
               <button e-variant="text">text</button>
               <button e-variant="tint">tint</button>
-              <button e-variant="full">full</button>
+              <button e-variant="inverted">full</button>
             </e-flex>
           </fieldset>
         }}
@@ -169,7 +169,7 @@ export default class ScreenVisualTest extends Service({
           {$click(() => fut.reject(null))}
           No
         </button>
-        <button e-variant="full">OK</button>
+        <button e-variant="inverted">OK</button>
       </footer>
     </>).finally(() => { return null })
   }

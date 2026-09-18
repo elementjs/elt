@@ -10,7 +10,7 @@ const CHECKBOX_CHECK_MASK = encodeURIComponent(
 
 declare module "elt" {
   interface attrs_button {
-    "e-variant"?: NRO<"text" | "tint" | "full">
+    "e-variant"?: NRO<"text" | "tint" | "inverted">
   }
 
   interface attrs_input {
@@ -288,7 +288,7 @@ button[e-variant="tint"] {
   color: ${colors.tint};
 }
 
-button[e-variant="full"], label:has(> input[type="checkbox"][e-variant="toggle"]:checked) {
+button[e-variant="inverted"], label:has(> input[type="checkbox"][e-variant="toggle"]:checked) {
   --e-color-bg: var(--e-light-color-tint);
   --e-color-text: var(--e-light-color-bg);
   --e-color-tint: var(--e-light-color-bg);
@@ -299,7 +299,7 @@ button[e-variant="full"], label:has(> input[type="checkbox"][e-variant="toggle"]
   background-color: var(--e-color-bg);
 }
 
-button[e-variant="full"] {
+button[e-variant="inverted"] {
   border-top-color: var(--e-color-shadow-raise);
   border-left-color: var(--e-color-shadow-raise);
   border-right-color: var(--e-color-shadow-drop);
@@ -356,7 +356,7 @@ e-button-box {
     }
 
     & > :is(button[e-variant="on"],
-    & > (button[e-variant="full"]), label):not(:first-child),
+    & > (button[e-variant="inverted"]), label):not(:first-child),
     {
       border-top-color: ${colors.tint.light};
     }
@@ -380,7 +380,7 @@ e-button-box {
     }
 
     & > :is(button[e-variant="on"],
-    & > (button[e-variant="full"]), label):not(:first-child) {
+    & > (button[e-variant="inverted"]), label):not(:first-child) {
       border-left-color: ${colors.tint.ultra_light};
     }
   }

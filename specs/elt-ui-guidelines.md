@@ -22,48 +22,41 @@ Settled so far:
 
 - **Hover is level *n+1*; border/divider is level *n+2*.** Splitting them resolves the earlier collision concern (a hover fill and its own divider no longer compute to the same color). A panel/card's own background fill level is unconfirmed against this split (open question, below).
 
-- **Exception**: a focusable widget (button, input) gets a defined border from the text/border scale instead of *n+2* — about the control's own identity, not its position in a surface stack.
->> It gets text level intensity : .text or .tint depending on whether we're looking at the tint variant.
-
+- **Exception**: a focusable widget (button, input) gets a defined border from its own emphasis variant's color, at full text-level intensity — `.text` for the `text`/`default` variants, `.tint` for the `tint` variant — not from the surface-level stack. Its border is about the control's own identity, not its position in a surface stack.
 - **`elt/ui` does not define panels or cards.** Any layout container becomes one via `border`/`border-radius`/`surface` attributes (now in `ui/layout.css.tsx`, unfinished).
-- **Inversion is tunable by which color goes in.** `tint` inverted = maximum attention. A softer color inverted = lower attention, for structural chrome (table headers, status bars, navs) — but see the Warning below, this has no working implementation yet.
+- **Inversion is tunable by which color goes in.** `tint` inverted = maximum attention. A softer color inverted = lower attention, for structural chrome (table headers, status bars, navs). The mechanism now works in code (`Mix.as_inverted`, `ui/theme.tsx`).
+- **Status/severity hues are not `elt/ui`'s call, as a hard rule** — the app picks which hue means what. As a convention (not a spec requirement), red/yellow/green for error/warning/success follows general consensus, worth stating as guidance an app can deviate from with reason, not enforcing it.
 
-- **Status/severity hues are not `elt/ui`'s call.** The palette exists; which hue means "error" vs. "success" is the app's decision.
->> Guidelines should be given to "respect the general consensus" - red meaning error, yellow warning and green success, but this is convention rather that specification
+- The bg/text/tint mixing axis is a single continuous range, not two separate 0–100% scales: 0% = `bg`, 100% = `tint`, 200% = `text`. `.intense` (150%) sits halfway between `tint` and `text` on this axis. This clarifies the math; whether `.intense` is worth keeping still depends on finding a real use case for it (open, below).
 
 - The bg/text/tint combination currently in effect is named **ColorScheme** (matches the renamed type in `ui/theme.tsx`).
 - The WCAG floor: every tint needs contrast ≥ 3 against both `bg` and `text`, ideally ≥ 4.5.
 
-Real problems found by comparing this document against the actual code (`ui/theme.tsx`, `ui/layout.css.tsx`), not yet fixed in either:
+Bugs found by comparing this document against the actual code, and their status after this pass:
 
-- **The soft-inversion mechanism doesn't work as specified.** Mix helpers (`.mid`, `.faded`, …) return plain CSS strings, not chainable `Color`s — `text.mid.inverted`/`text.faded.inverted` calls a property on a string. `css_as_inverted` also only resolves a *named* palette color, not an arbitrary mix. This needs an API change, not just a rename.
->> These calls should probably return a Color themselves, since they define .valueOf() and thus can be used directly in css code. This is indeed a change that should be done.
-
-- `ui/layout.css.tsx` calls `.css_inverted`, which doesn't exist under that name in `ui/theme.tsx` (`css_as_inverted` does) — the `header`/`footer` rules that use it are broken as written.
-- The spec says soft inversion uses `text.faded`; the `footer` code rule uses `text.mid` instead. One of these is stale, and neither currently works (see above).
->> This will need fixing
-
-- `--e-surface-step`, read by the `[surface]` rule, is never defined — the surface background currently resolves to nothing.
-- The spacing scale's smallest three `:root` custom properties were renamed to `--e-spacing-1`/`-2`/`-4`, but the type/lookup array driving attribute values still says `3x-small`/`2x-small`/`x-small` — `gap="x-small"` resolves to nothing.
->> The :root properties are the better idea. Naming is not final ; I would need advising, and ideas for the large ones. Besides the fact that these are the ones that should stay, these values should go to the Theme
-
-- The boolean-only `[gap]`/`[pad]` default rule writes a single-dash `-e-…` property (invalid custom-property syntax) instead of `--e-…` — silently dropped.
->> This should be fixed for the default case I tried to define
-
-- `ThemeSettings` still carries the parallel sizing system (`paddingPanel*`, `paddingCell*`, `formFontSize`) that Axis 3 says shouldn't exist, and `header`/`footer` use it directly instead of the spacing scale.
->> This needs to be updated to match the spec
+- **Fixed.** Mix helpers (`.mid`, `.faded`, …) now return a `Mix` instance (`ui/theme.tsx`), not a plain string — `text.faded.as_inverted` works. `Mix.css_as_inverted` uses the mix's own live expression as the new `bg`, so (unlike a named color's inversion) it stays correct across light/dark mode automatically.
+- **Fixed.** `ui/layout.css.tsx`'s `header`/`footer` rules now call `.css_as_inverted` (matching the name actually defined in `ui/theme.tsx`), not `.css_inverted`.
+- **Fixed, as a judgment call — flagging it rather than treating it as obviously settled.** `footer` now uses `text.faded` for its soft inversion, not `text.mid`. Reasoning: the working model above states `.mid` signals disabled, which doesn't fit a footer's normal (non-disabled) chrome; `.faded` ("alternative to the full color... stays legible") fits the "soft, still-legible inversion" intent this document already describes. Revert if this reasoning is wrong.
+- **Fixed.** `--e-surface-step` is now defined (`10%` in `:root`, `ui/layout.css.tsx`) — a first-guess placeholder, not a tuned value; the surface stack now produces visible backgrounds instead of nothing.
+- **Fixed.** The single-dash `-e-${att}-vertical`/`-horizontal` in the boolean `[gap]`/`[pad]` default rule is now `--e-${att}-…` — a bare `gap`/`pad` attribute sets spacing again.
+- **Fixed, narrower than the smallest-three rename this Warning originally described.** `SpacingValues` and the `spaces` array now say `"1"`/`"2"`/`"4"`, matching the `:root` custom properties (`--e-spacing-1`/`-2`/`-4`) that were already renamed — `gap="1"`/`gap="2"`/`gap="4"` work again (old `gap="x-small"` etc. do not; every call site using the old words needed updating too — none were found in the codebase for these three, only for `small`/`medium`/`large`, which were already fixed separately, below).
+- **Not done — moving spacing values into `Theme`/`ThemeSettings` turned out not to be unambiguous.** Tried following the existing `_set()` pattern (used for `borderRadius`, the intensity settings, etc.), which auto-generates each CSS custom property name from the field name by inserting a dash before every uppercase letter. That works for `spacingWidget` → `--e-spacing-widget`, but breaks for the still-unnamed large end: a field like `spacing2XLarge` would generate `--e-spacing2-x-large`, not `--e-spacing-2x-large` — there is no uppercase letter marking the boundary the existing convention needs. Left as a `:root` block in `ui/layout.css.tsx`, unchanged from before this pass, pending either a large-end naming that doesn't have this problem or a change to `_set()` itself.
+- **Not done — wider than "clear and unambiguous."** `ThemeSettings`'s `paddingPanel*`/`paddingCell*`/`formFontSize` are used across `ui/dialog.tsx`, `ui/date.tsx`, `ui/form.css.tsx`, `ui/select.tsx`, `ui/nav.tsx`, `ui/timepicker.tsx`, `ui/typography.css.tsx`, and `specs/object-editor.tsx` — not just `header`/`footer` as this Warning first suggested. Migrating all of that to the spacing scale is the sizing-system unification Axis 3 already calls for, but it is a real cross-cutting change, not a bug fix; left as a Todo rather than attempted here.
+- **Also fixed while in the area, not previously flagged**: `<e-row>`/`<e-column>` were already styled in CSS but not declared in `declare module "elt"`'s `ElementMap` — using them in JSX would have been a type error. Added.
+- **Also fixed**: `e-variant="full"` → `e-variant="inverted"` (the button-variant rename this document already decided) executed across `ui/form.css.tsx` and every call site (`demo/src/screen-visual-test.tsx`); `grey` removed from the default palette (`ui/theme.tsx`) — both were previously just Todos, not bugs, but were unambiguous and small enough to close alongside everything else.
+- **Also fixed**: every `gap="small"`/`pad="small"` call site (`ui/timepicker.tsx`, `ui/date.tsx`, `demo/src/screen-object-editor.tsx`, `editor/composite-toolbar.tsx`, `editor/shell.tsx`, `editor/schema.tsx`) updated to `gap="widget"`/`pad="widget"`, matching the spacing rename already committed in `ui/layout.css.tsx`. These had gone silently broken (the old words no longer generate any CSS rule) the moment the rename landed — not previously flagged, found while checking the blast radius of the spacing rename.
 
 Still open (real decisions, not implementation bugs):
 
 - Where `.selected` lands now that hover is pinned to *n+1*.
 - Focus and active/pressed states have no rule at all yet.
-- `.mid`'s meaning is overloaded — "signals disabled" per the working model, but already used in `ui/form.css.tsx` for borders and the focus ring, neither of which is a disabled state.
+- `.mid`'s meaning is overloaded — "signals disabled" per the working model, but already used in `ui/form.css.tsx` for borders and the focus ring, neither of which is a disabled state. (The footer fix above sidesteps this by not using `.mid` for inversion, but doesn't resolve the underlying overload.)
 - The text/border scale (`text`, `tint`, `muted`, `disabled`, `selected_text`) is still just named, never derived.
 - Border radius: two settings (`borderRadius`, `frameBorderRadius`), no rule for which applies where.
 - Overlay lift (popup/dialog vs. the page behind it): shadow, surface level, or both — no rule yet.
-- Naming for the `x-large`-and-above spacing step (`page` rejected, no replacement chosen).
-- `.intense`'s exact math and use case.
->> >100% is going towards text, so 50% tint 50% text. Unsure where this should be used ! Is there a use case for colors between tint and text, I'm unsure
+- Naming for the `x-large`-and-above spacing step (`page` rejected, no replacement chosen) — now also blocking the spacing-into-`Theme` migration, per the bug above.
+- `.intense`: the math is now clear (0–200% axis, `bg`→`tint`→`text`, `.intense` at 150%), but a real use case still isn't identified.
+- Moving `paddingPanel*`/`paddingCell*`/`formFontSize` onto the spacing scale (see above) — real, cross-cutting, not attempted this pass.
 
 
 ### Emphasis and promotion
@@ -77,7 +70,7 @@ Every interactive control has one of four emphasis variants.
 | `tint` | Accented secondary. Bordered, tint-colored, not filled. |
 | `inverted` | Filled with tint as background - no borders |
 
-> 🔨 **Todo**: Rename the `full` variant to `inverted` in `ui/form.css.tsx` (`e-variant` type and CSS rules), and update every call site that uses `e-variant="full"` (demo, specs, docs). The `Color` side of this rename is already partly done in `ui/theme.tsx` — `as_background`/`css_as_background` are now `as_inverted`/`css_as_inverted` (kept the `as_` prefix, unlike this document's earlier `.inverted`/`css_inverted` Todo). Match this document to the code's naming, not the other way around, and finish the call sites that still say `.css_inverted` (see the Warning under Inversion, below) — they don't match either name consistently right now.
+> Done: `full` → `inverted` renamed in `ui/form.css.tsx` (`e-variant` type and CSS rules) and every call site (`demo/src/screen-visual-test.tsx`). The `Color` side keeps the `as_` prefix — `as_inverted`/`css_as_inverted`, not `.inverted`/`css_inverted` as first proposed here — matching the code's own naming.
 
 A container can be **inverted**. An inverted container fills its background with tint and flips its foreground color to read against that fill.
 
@@ -135,8 +128,9 @@ Named steps never grow to cover a one-off need: anything outside the named steps
 
 > 💡 **Idea**: `.intense` (150% toward text) plays the role `.very_strong` used to play, and `.strong` was already flagged as the one nobody reached for. Drop `.strong`, keep `.intense` as the one strong-emphasis step — one name instead of two for the same job.
 
-> ❓ **Question**: What does `.intense` apply to, concretely? A 150%-toward-text mix goes past `text` itself (150% is outside the 0–100% range the other helpers use) — worth double-checking that's the intended math, and naming one or two real use cases (a strongly emphasized inline error word? an active tab label?) before this is locked in.
->> Yes : 0% would be bg, 200% text, tint as the middle.
+The mixing axis is a single continuous range, not two separate 0–100% scales: 0% = `bg`, 100% = `tint`, 200% = `text`. `.intense` (150%) sits halfway between `tint` and `text` on this axis — that resolves the math question this Idea originally raised.
+
+> ❓ **Question**: A real use case for `.intense` (a color strictly between `tint` and `text`) still isn't identified — worth naming one before it's locked in, otherwise it's an unused step per the color axis's own "don't name one-offs" rule.
 
 In the living code, the surface stack (level *n+1*/*n+2*) replaces `.ultra_light` and `.light`.
 
@@ -146,7 +140,7 @@ A surface has a **level**, starting at 0, which is the background color. Each su
 
 Implemented in `ui/layout.css.tsx` as the `[surface]` attribute: it reads the ambient `--e-surface-level` custom property, increments it, sets its own background from `tint.from_bg(level × step)`, and passes the new level down to its children — so a border, divider, or hover fill can read "one level up from here" without knowing its own ancestor chain. This resolves the level-tracking Todo from the previous pass.
 
-> 🚧 **Warning**: `--e-surface-step`, read by the `[surface]` rule above, is never defined anywhere (checked `ui/layout.css.tsx` and `ui/theme.tsx`) — the surface background currently resolves to nothing. Needs a `:root` value before this mechanism works.
+> Done: `--e-surface-step` is now defined (`10%`, `:root` in `ui/layout.css.tsx`) — a first-guess placeholder value, not tuned.
 
 Hover uses level *n+1*; a border or divider drawn on a surface at level *n* uses level *n+2*, relative to its own container — never a fixed named step. Splitting hover (*n+1*) from border/divider (*n+2*) is what makes them distinguishable when both appear on the same row at once — a hover fill and its own bottom divider no longer compute to the same color, which a flat "both are one step up" rule (the previous pass's assumption) would have collapsed together.
 
@@ -180,14 +174,12 @@ The *n+2* rule is for visual separation only (a container's own edge, a divider 
 
 Inversion is one mechanism, not several named variants: given a color, it produces a new bg/text/tint triad — new `bg` = that color, new `text` = old `bg`, new `tint` = old `bg`. `Color.inverted` is the primitive; how attention-grabbing the result looks depends entirely on which color goes in, not on a separate mode.
 
-> 🚧 **Warning**: `ui/theme.tsx` renamed the getter to `css_as_inverted` (not `css_inverted`), but `ui/layout.css.tsx` calls `.css_inverted` on both `theme.colors.tint` and `theme.colors.text.mid` — that property does not exist under either name consistently, and the `header`/`footer` rules that call it are broken as written. Separately: `.mid` (like every mix helper — `.faded`, `.strong`, etc.) returns a plain CSS string from `from_bg()`/`from_text()`, not a chainable `Color`. `text.mid.css_inverted` (and the spec's own `text.faded.inverted`, below) call a property on a string, which is `undefined` — **the soft-inversion mechanism this axis describes has no working implementation path with the current `Color` API.** `css_as_inverted` also hardcodes `var(--e-light-color-${this.name})`, which only resolves for a *named palette color* (`tint`, `red`, …), not an arbitrary mix expression. This needs an API change (mix helpers returning something invertible, or `inverted()` taking a raw color value) before "invert a soft color" can be built at all, not just renamed.
+> Done: mix helpers (`.mid`, `.faded`, `.strong`, …) now return a `Mix` instance (`ui/theme.tsx`) instead of a plain string. `Mix` has its own `css_as_inverted`/`as_inverted`, built from the mix's own live expression rather than a named-palette lookup — `text.faded.as_inverted` now works. `ui/layout.css.tsx`'s `header`/`footer` rules call `.css_as_inverted` (matching the name `ui/theme.tsx` actually defines).
 
 - Inverting `tint` or a color from the theme gives the maximum-attention result — toolbars, heavy actions. This is what the `inverted` button variant and inverted containers use (Axis 1, Emphasis and promotion).
-- Inverting a softer, less saturated color gives a lower-attention result for structural-but-secondary framing elements (toolbars, headers, and similar chrome, not the content they frame) — table headers, status bars, navs.
+- Inverting a softer, less saturated color gives a lower-attention result for structural-but-secondary framing elements (toolbars, headers, and similar chrome, not the content they frame) — table headers, status bars, navs. `footer` now uses `text.faded` for this (was `text.mid`) — a judgment call made because `.mid` is stated elsewhere in this document to signal disabled, which doesn't fit ordinary footer chrome; flag if that reasoning is wrong.
 
-> ❓ **Question**: This document says the soft-inversion color is `text.faded`; `ui/theme.tsx`'s `footer` rule uses `text.mid` instead (`header` uses full `tint`). Which is right — and given the Warning above that neither currently works, which was the intended target once the API is fixed?
-
-> 🔨 **Todo**: Remove `grey` from the default theme's palette in `ui/theme.tsx`. It was the one named hue without a real hue (achromatic), which made it an outlier among `tint`/`red`/`orange`/etc.; a soft-inverted `text`-derived color covers the neutral-inversion need instead, staying inside the percent-mix system rather than adding a fixed color.
+> Done: `grey` removed from the default theme's palette in `ui/theme.tsx`.
 
 > 🔎 **Assumption**: Inversion sets the new `text`/`tint` to the *light* theme's `bg` specifically (`--e-light-color-bg`), not "whichever theme is currently active." In dark mode this means an inverted band's foreground is always the light-mode background color, not the dark one — likely intentional (an inverted band should look the same regardless of light/dark mode), but currently implicit in the code rather than stated as a rule. Worth one sentence confirming this is deliberate.
 
@@ -247,7 +239,7 @@ The `1ch`-and-below split from the px-doubling scale is deliberate: at that leve
 
 > ❓ **Question**: `page` was rejected for the `x-large`-and-above step, no replacement given yet. Alternatives: `layout` (matches Axis 4's name for the containment axis, may be confusing for that reason), `canvas`, `macro`. Any of these, or something else?
 
-> 🚧 **Warning**: `ui/layout.css.tsx` already renamed the `:root` custom properties for the smallest three steps to `--e-spacing-1`/`--e-spacing-2`/`--e-spacing-4` (raw pixel values), but the `SpacingValues` type and the `spaces` array driving the CSS generation still use the old words `3x-small`/`2x-small`/`x-small` — the generated rule looks up `--e-spacing-x-small`, which no longer exists. `gap="x-small"`/`pad="x-small"` currently resolve to nothing.
+> Done: `SpacingValues` and the `spaces` array now use `"1"`/`"2"`/`"4"`, matching the `:root` custom properties. `gap="1"`/`gap="2"`/`gap="4"` work again. No call sites used the old `3x-small`/`2x-small`/`x-small` words, so nothing else needed updating for this particular rename.
 
 **Original scale**
 
@@ -262,7 +254,7 @@ The `1ch`-and-below split from the px-doubling scale is deliberate: at that leve
 
 Each step has a horizontal and a vertical value that may differ. `elt/ui`'s default steps have a squashed look: for a given step, the horizontal value equals the vertical value of the next larger step. This applies everywhere, controls included: text lines are already dense vertically, and do not need as much horizontal room to stay legible.
 
-> 🔨 **Todo**: Once every rename in this document is settled (spacing step names above; `full`→`inverted`, `as_background`→`.inverted`, and the color role names still pending in Axis 1), produce a single old-name → new-name equivalence table so an agent can mechanically convert existing code.
+> 🔨 **Todo**: Once every rename in this document is settled (spacing step names above; the color role names still pending in Axis 1 — `full`→`inverted` and `as_background`→`as_inverted` are already done), produce a single old-name → new-name equivalence table so an agent can mechanically convert existing code.
 
 ### Responsibility
 
@@ -275,9 +267,9 @@ A purely structural wrapper, with no visual boundary of its own, still sets `gap
 
 Controls use this same scale for their own internal padding (typically `x-small`/`small`), scaled by density like any other spacing value. There is no separate control-sizing system to keep in sync by hand.
 
-> 🚧 **Warning**: `ThemeSettings` still carries `paddingPanelVertical`/`paddingPanelHorizontal`/`paddingCellVertical`/`paddingCellHorizontal`/`formFontSize` — exactly the separate sizing system this rule says shouldn't exist — and `ui/layout.css.tsx`'s `header`/`footer` rules use them directly instead of the spacing scale. Migrate `header`/`footer` to `spacing`/`gap`/`pad` and retire these settings, or explain why panel/cell padding is a deliberate exception to "controls use this same scale."
+> 🚧 **Warning, confirmed wider than one component**: `ThemeSettings` still carries `paddingPanelVertical`/`paddingPanelHorizontal`/`paddingCellVertical`/`paddingCellHorizontal`/`formFontSize` — exactly the separate sizing system this rule says shouldn't exist. Not just `header`/`footer`: `ui/dialog.tsx`, `ui/date.tsx`, `ui/form.css.tsx`, `ui/select.tsx`, `ui/nav.tsx`, `ui/timepicker.tsx`, `ui/typography.css.tsx`, and `specs/object-editor.tsx` all use these settings directly. Migrating all of it to the spacing scale is a real, cross-cutting change — left as a Todo, not attempted as a "fix the bug" edit.
 
-> 🚧 **Warning**: The boolean-only default rule in `ui/layout.css.tsx` (`[gap]`/`[pad]` with no value, meant to fall back to `component`) writes `-e-${att}-vertical` — a single leading dash, not a valid custom property name (`--`). The declaration is silently dropped; a bare `gap`/`pad` attribute currently sets nothing.
+> Done: the boolean-only default rule in `ui/layout.css.tsx` (`[gap]`/`[pad]` with no value, falling back to `component`) now writes `--e-${att}-vertical`/`-horizontal` (was a single leading dash, an invalid custom-property name that got silently dropped). A bare `gap`/`pad` attribute sets spacing again.
 
 ### Density
 

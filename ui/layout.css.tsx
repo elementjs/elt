@@ -6,13 +6,15 @@ declare module "elt" {
     "e-grid": EFlexAttrs
     "e-flex": EFlexAttrs
     "e-box": EBoxAttrs
+    "e-row": EFlexAttrs
+    "e-column": EFlexAttrs
   }
 }
 
 export type SpacingValues =
-  | "3x-small"
-  | "2x-small"
-  | "x-small"
+  | "1"
+  | "2"
+  | "4"
   | "widget"
   | "component"
   | "section"
@@ -88,9 +90,9 @@ export interface EFlexAttrs extends CommonAttrs {
 
 const more: string[] = []
 const spaces: SpacingValues[] = [
-  "3x-small",
-  "2x-small",
-  "x-small",
+  "1",
+  "2",
+  "4",
   "widget",
   "component",
   "section",
@@ -145,7 +147,7 @@ for (const al of align) {
 
 for (const att of ["gap", "pad"]) {
   // default is component
-  _`${_all}[${att}] { -e-${att}-vertical: var(--e-spacing-widget); -e-${att}-horizontal: var(--e-spacing-component) }`
+  _`${_all}[${att}] { --e-${att}-vertical: var(--e-spacing-widget); --e-${att}-horizontal: var(--e-spacing-component) }`
   for (let i = 0, l = spaces.length; i < l; i++) {
     const sp = spaces[i]
     const less = spaces[i - 1] ?? spaces[i]
@@ -175,11 +177,12 @@ css`
     --e-pad-horizontal: var(--e-spacing-component);
 
     --e-surface-level: 0;
+    --e-surface-step: 10%;
   }
 
   header, footer {
     ${theme.css_light_colors};
-    ${theme.colors.tint.css_inverted};
+    ${theme.colors.tint.css_as_inverted};
 
     padding: ${theme.settings.paddingPanelVertical} ${theme.settings.paddingPanelHorizontal};
     gap: ${theme.settings.paddingCellVertical} ${theme.settings.paddingCellHorizontal};
@@ -198,7 +201,7 @@ css`
     }
   }
   footer {
-    ${theme.colors.text.mid.css_inverted}
+    ${theme.colors.text.faded.css_as_inverted}
   }
 
   e-box { display: block; }
