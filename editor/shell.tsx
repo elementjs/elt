@@ -17,7 +17,7 @@ implementation slice. Implements:
 - constructor registry fallback when drill-in omits `factory` (Layer 5)
 */
 
-import { $connected, $observe, $on, css, o, Repeat, type Renderable } from "elt"
+import { $connected, $on, css, o, Repeat, type Renderable } from "elt"
 import { popup, sym_popup_closed } from "elt/ui/popup"
 import { theme } from "elt/ui"
 import { is_valid_mount } from "./mount"
@@ -209,19 +209,24 @@ export class ObjectEditorShell {
     const fut = popup(anchor, (fut) => {
       column.dismiss_popup = () => fut.resolve(sym_popup_closed)
 
+      const o_widget = column.o_factory.tf((factory) => factory.render(column.o_value))
+
       const panel = (
         <e-flex column class={cls_popup_panel}>
           {$connected((el: HTMLElement) => {
             column.host = (el.closest("[popover]") as HTMLElement | null) ?? el
           })}
-          <e-flex full-width justify="space-between" align="center" pad="widget" class={cls_column_header}>
-            {column.title != null && <span>{column.title}</span>}
-            <button type="button" class={cls_column_close}>
-              {$on("click", () => fut.resolve(undefined))}×
-            </button>
+          <e-flex column gap="widget" pad="widget" class={cls_column_header}>
+            <e-flex full-width justify="space-between" align="center">
+              {column.title != null && <span>{column.title}</span>}
+              <button type="button" class={cls_column_close}>
+                {$on("click", () => fut.resolve(undefined))}×
+              </button>
+            </e-flex>
+            {o_widget.tf((widget) => widget.header ?? null)}
           </e-flex>
           <e-flex column gap="widget" pad="widget" class={cls_popup_body}>
-            {column.o_factory.tf((factory) => factory.render(column.o_value).render())}
+            {o_widget.tf((widget) => widget.render())}
           </e-flex>
         </e-flex>
       ) as HTMLElement
@@ -245,29 +250,33 @@ export class ObjectEditorShell {
           const is_root = idx === 0
           column.host = host
           if (!column.unwatch) this.watch_column(column, idx, is_root)
+          const o_widget = column.o_factory.tf((factory) => factory.render(column.o_value))
           return (
             <e-flex column class={cls_column_body}>
-              <e-flex full-width justify="space-between" align="center" pad="widget" class={cls_column_header}>
-                {column.title != null && <span>{column.title}</span>}
-                {is_root ? (
-                  <e-row gap="widget">
-                    <button type="button" disabled={this.undo.o_can_undo.tf((v) => !v)}>
-                      {$on("click", () => this.undo.undo())}
-                      Undo
+              <e-flex column gap="widget" pad="widget" class={cls_column_header}>
+                <e-flex full-width justify="space-between" align="center">
+                  {column.title != null && <span>{column.title}</span>}
+                  {is_root ? (
+                    <e-row gap="widget">
+                      <button type="button" e-variant="text" disabled={this.undo.o_can_undo.tf((v) => !v)}>
+                        {$on("click", () => this.undo.undo())}
+                        Undo
+                      </button>
+                      <button type="button" e-variant="text" disabled={this.undo.o_can_redo.tf((v) => !v)}>
+                        {$on("click", () => this.undo.redo())}
+                        Redo
+                      </button>
+                    </e-row>
+                  ) : (
+                    <button type="button" class={cls_column_close}>
+                      {$on("click", () => this.close_after(o_idx.get() - 1))}×
                     </button>
-                    <button type="button" disabled={this.undo.o_can_redo.tf((v) => !v)}>
-                      {$on("click", () => this.undo.redo())}
-                      Redo
-                    </button>
-                  </e-row>
-                ) : (
-                  <button type="button" class={cls_column_close}>
-                    {$on("click", () => this.close_after(o_idx.get() - 1))}×
-                  </button>
-                )}
+                  )}
+                </e-flex>
+                {o_widget.tf((widget) => widget.header ?? null)}
               </e-flex>
               <e-flex column gap="widget" pad="widget">
-                {column.o_factory.tf((factory) => factory.render(column.o_value).render())}
+                {o_widget.tf((widget) => widget.render())}
               </e-flex>
             </e-flex>
           )

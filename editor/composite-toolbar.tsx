@@ -94,13 +94,11 @@ export interface CompositeToolbarProps {
   type_change_extra?: Factory<unknown>[]
   /** Import/export add-ons registered for this editor instance (v1: usually empty). */
   import_export_addons?: { id: string; label: string }[]
-  /** Rendered inside a table's own sticky <thead>, which already provides sticky/background/border — skip those here. */
-  embedded?: boolean
 }
 
-/** Sticky composite title + toolbar; returns null when everything is opted out and title hidden. */
+/** Composite title + toolbar; hoisted into the column header by the shell (`RenderableWidget.header`). */
 export function render_composite_toolbar(props: CompositeToolbarProps): Renderable {
-  const { factory, o_value, toolbar, kind, type_change_extra = [], import_export_addons = [], embedded = false } = props
+  const { factory, o_value, toolbar, kind, type_change_extra = [], import_export_addons = [] } = props
   const flags = toolbar_flags(factory.options.toolbar)
   const oo_title = o_value.tf((value) => {
     const label = factory.options.chrome_label
@@ -117,7 +115,7 @@ export function render_composite_toolbar(props: CompositeToolbarProps): Renderab
       (flags.show_import_export && import_export_addons.length > 0))
 
   return (
-    <e-flex column class={embedded ? cls_toolbar_embedded : cls_toolbar_wrap} gap="widget">
+    <e-flex column class={cls_toolbar_wrap} gap="widget">
       {oo_title.tf((title) => (title != null ? <span class={cls_title}>{title}</span> : null))}
       {(flags.show_search || has_menu_content) && (
         <e-flex align="center" gap="widget" class={cls_toolbar_row}>
@@ -204,22 +202,11 @@ export function render_type_change_menu_button(
 }
 
 const cls_toolbar_wrap = css`.oe-composite-toolbar {
-  position: sticky;
-  top: 0;
-  z-index: 1;
-  background: ${theme.colors.bg};
-  padding-bottom: ${theme.settings.spacing4};
-  border-bottom: 1px solid ${theme.colors.text.light};
-  margin-bottom: ${theme.settings.spacing4};
-}`
-
-/* Embedded in a table's <thead>, which already provides sticky/background/border. */
-const cls_toolbar_embedded = css`.oe-composite-toolbar-embedded {
+  flex: 1;
 }`
 
 const cls_title = css`.oe-composite-title {
   font-weight: bold;
-  color: ${theme.colors.text.mid};
 }`
 
 const cls_toolbar_row = css`.oe-composite-toolbar-row {

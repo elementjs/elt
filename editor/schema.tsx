@@ -82,6 +82,12 @@ export interface RenderableWidget {
   // children's errors into a warning surfaced on their own toolbar (see
   // Layer 3's `o_has_extra_keys` for the precedent) -- not modeled here yet.
   o_error: o.ReadonlyObservable<string | null>
+
+  // Composite widgets' title + search/type-change toolbar (render_composite_toolbar),
+  // hoisted out of the body so the shell can place it in the column's own header --
+  // the filter belongs to "editing this value", not to whichever kind happens to
+  // render it as a table. Absent for scalar/leaf widgets.
+  header?: Renderable
 }
 
 // Open contract (Layer 1b "Asking to open (DOM)" / "Editor shell"): widgets
@@ -864,14 +870,14 @@ export class ObjectFactory extends Factory<ObjectOptions> {
       render_object_field(key, o_child, this.options)
 
     return {
+      header: render_composite_toolbar({
+        factory: this as Factory<CommonNodeOptions>,
+        o_value,
+        toolbar,
+        kind: "object",
+      }),
       render: () => (
         <e-flex column gap="widget">
-          {render_composite_toolbar({
-            factory: this as Factory<CommonNodeOptions>,
-            o_value,
-            toolbar,
-            kind: "object",
-          })}
           <e-block class={cls_list_scroll}>
             {$scrollable}
             {VirtualScroll(o_visible_keys, (o_key) => (
@@ -1005,24 +1011,13 @@ const cls_table = css`.oe-table {
     padding: ${theme.settings.spacingWidget};
     vertical-align: top;
   }
-  /* One sticky block for both header rows (toolbar + columns) — a fixed
-     per-row top offset would need the toolbar row's height, which varies
-     with its content (search + menu can wrap). */
-  thead {
+  thead th {
     position: sticky;
     top: 0;
     z-index: 1;
-    background: ${theme.colors.bg};
-  }
-  thead th {
     background: ${theme.colors.text.ultra_light};
     font-weight: bolder;
   }
-}`
-
-const cls_table_toolbar_cell = css`.oe-table-toolbar-cell {
-  font-weight: normal;
-  text-align: start;
 }`
 
 const cls_table_index = css`.oe-table-index {
@@ -1105,18 +1100,18 @@ export class ArrayFactory extends Factory<ArrayOptions> {
     }
 
     return {
+      header: render_composite_toolbar({
+        factory: this as Factory<CommonNodeOptions>,
+        o_value,
+        toolbar,
+        kind: "array",
+        type_change_extra: [
+          set({ values: values_factory }),
+          map({ keys: string(), values: values_factory }),
+        ],
+      }),
       render: () => (
         <e-flex column gap="widget">
-          {render_composite_toolbar({
-            factory: this as Factory<CommonNodeOptions>,
-            o_value,
-            toolbar,
-            kind: "array",
-            type_change_extra: [
-              set({ values: values_factory }),
-              map({ keys: string(), values: values_factory }),
-            ],
-          })}
           <e-block class={cls_list_scroll}>
             {$scrollable}
             {VirtualScroll(o_visible_indices, (o_i) => (
@@ -1187,30 +1182,25 @@ export class ArrayFactory extends Factory<ArrayOptions> {
     const o_indices = o_value.tf((value) => (Array.isArray(value) ? value.map((_, i) => i) : []))
 
     return {
+      header: render_composite_toolbar({
+        factory: this as Factory<CommonNodeOptions>,
+        o_value,
+        toolbar,
+        kind: "array",
+        type_change_extra: [
+          set({ values: values_factory }),
+          map({ keys: string(), values: values_factory }),
+        ],
+      }),
       render: () => (
         <e-flex column gap="widget">
+          {o_has_extra.tf((has) =>
+            has ? <span class={cls_table_warn} title="Some rows have keys not shown as columns">⚠ extra keys</span> : null,
+          )}
           <e-block class={cls_table_scroll}>
             {$scrollable}
             <table class={cls_table}>
               <thead>
-                <tr>
-                  <th colspan={o_columns.tf((cols) => cols.length + 1)} class={cls_table_toolbar_cell}>
-                    {render_composite_toolbar({
-                      factory: this as Factory<CommonNodeOptions>,
-                      o_value,
-                      toolbar,
-                      kind: "array",
-                      type_change_extra: [
-                        set({ values: values_factory }),
-                        map({ keys: string(), values: values_factory }),
-                      ],
-                      embedded: true,
-                    })}
-                    {o_has_extra.tf((has) =>
-                      has ? <span class={cls_table_warn} title="Some rows have keys not shown as columns">⚠ extra keys</span> : null,
-                    )}
-                  </th>
-                </tr>
                 <tr>
                   <th class={cls_table_index}>#</th>
                   {Repeat(o_columns, (o_col) => (
@@ -1316,18 +1306,18 @@ export class SetFactory extends Factory<SetOptions> {
     }
 
     return {
+      header: render_composite_toolbar({
+        factory: this as Factory<CommonNodeOptions>,
+        o_value,
+        toolbar,
+        kind: "set",
+        type_change_extra: [
+          array({ values: values_factory }),
+          map({ keys: string(), values: values_factory }),
+        ],
+      }),
       render: () => (
         <e-flex column gap="widget">
-          {render_composite_toolbar({
-            factory: this as Factory<CommonNodeOptions>,
-            o_value,
-            toolbar,
-            kind: "set",
-            type_change_extra: [
-              array({ values: values_factory }),
-              map({ keys: string(), values: values_factory }),
-            ],
-          })}
           <e-block class={cls_list_scroll}>
             {$scrollable}
             {VirtualScroll(o_visible_members, (o_member) => (
@@ -1441,18 +1431,18 @@ export class MapFactory extends Factory<MapOptions> {
     }
 
     return {
+      header: render_composite_toolbar({
+        factory: this as Factory<CommonNodeOptions>,
+        o_value,
+        toolbar,
+        kind: "map",
+        type_change_extra: [
+          array({ values: values_factory }),
+          set({ values: values_factory }),
+        ],
+      }),
       render: () => (
         <e-flex column gap="widget">
-          {render_composite_toolbar({
-            factory: this as Factory<CommonNodeOptions>,
-            o_value,
-            toolbar,
-            kind: "map",
-            type_change_extra: [
-              array({ values: values_factory }),
-              set({ values: values_factory }),
-            ],
-          })}
           <e-block class={cls_list_scroll}>
             {$scrollable}
             {VirtualScroll(o_visible_keys, (o_key) => (
