@@ -56,8 +56,8 @@ export interface CommonAttrs extends Attrs<HTMLElement> {
   grow?: NRO<boolean>
   
   spacing?: NRO<SpacingValues>
-  gap?: NRO<boolean | SpacingValues | "none">
-  pad?: NRO<boolean | SpacingValues | "none">
+  gap?: NRO<true | SpacingValues | "none">
+  pad?: NRO<true | SpacingValues | "none">
   surface?: NRO<boolean | SurfaceValues>
   hover?: NRO<boolean>
   /** Draw a border around the widget */

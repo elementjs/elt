@@ -151,9 +151,7 @@ Unless the need explicitely calls for it, **never** set a margin. Spacing betwee
 
 Pick a step by the semantic distance between what it separates, not by eye. Step names are semantic, not size words: `<e-row spacing="component">` — `spacing` alone applies both `gap` (between children) and `padding` (own boundary) at that step. `spacing` has no purpose otherwise, so it implies both rather than needing `gap`/`pad` written alongside it.
 
-`gap`/`pad` still exist as their own attributes for the one-sided cases: a bare `gap`/`pad` (no value) falls back to `component` on its own, and either can be given an explicit step (`pad="widget"`) to override `spacing` for that one side while leaving the other at `spacing`'s value. `gap="none"`/`pad="none"` turn one side off entirely — the case `spacing` alone can't express (it always implies both).
-
-> 🔎 **Assumption**: `gap={false}` (as opposed to `gap="none"`) can't do this — `false` on any `NRO` attribute removes the attribute from the DOM entirely (`src/dom.ts`), making it indistinguishable in CSS from never having set `gap` at all. With `spacing` present, an absent `gap` still matches `spacing`'s combined selector and gets a gap. `"none"` is a real, selectable value; `false` is not. `boolean` stays in the attribute's type for the ordinary case (no `spacing` in play, where omitting `gap` and setting it `false` already behave the same), but it does not give you an override.
+`gap`/`pad` still exist as their own attributes for the one-sided cases: a bare `gap`/`pad` (no value — `true` in the type, `false` isn't accepted, since it renders as an absent attribute indistinguishable from never having set it) falls back to `component` on its own, and either can be given an explicit step (`pad="widget"`) to override `spacing` for that one side while leaving the other at `spacing`'s value. `gap="none"`/`pad="none"` turn one side off entirely — the only way to do that, since `spacing` always implies both and an absent attribute can't override it.
 
 | Step | Use for |
 | --- | --- |
