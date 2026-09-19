@@ -27,21 +27,21 @@ export default class ScreenLayout extends Service({
       </p>
 
       <e-row gap="section" wrap>
-        <e-block surface pad spacing="component" border-radius>
+        <e-block surface spacing="component" border-radius>
           Level 1 surface. Has its own background and padding — per the padding/boundary rules, a container that
-          pads itself must also set <code>gap</code> for its children.
+          pads itself must also set <code>gap</code> for its children. (<code>spacing</code> alone implies both.)
           <e-column gap="widget">
-            <e-block surface pad spacing="widget" border-radius>
+            <e-block surface spacing="widget" border-radius>
               Level 2 surface, nested. One step further off its own (already-raised) parent — not two steps off the
               page.
             </e-block>
-            <e-block surface pad spacing="widget" border-radius>
+            <e-block surface spacing="widget" border-radius>
               A sibling level-2 surface, for comparison.
             </e-block>
           </e-column>
         </e-block>
 
-        <e-block border="widget" pad spacing="component" border-radius>
+        <e-block border="widget" spacing="component" border-radius>
           No <code>surface</code> here — just a border. Radius is derived from this box's own vertical padding step
           (<code>component</code>), not a separately chosen value.
         </e-block>

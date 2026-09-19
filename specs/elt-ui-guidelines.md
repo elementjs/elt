@@ -149,9 +149,9 @@ Unless the need explicitely calls for it, **never** set a margin. Spacing betwee
 
 ### Spacing scale
 
-Pick a step by the semantic distance between what it separates, not by eye. Step names are semantic, not size words: `<e-flex spacing="component" gap pad>` — `gap` and `pad` are plain booleans (do I space between children? do I pad my own boundary?), and `spacing` carries the one named step shared by both.
+Pick a step by the semantic distance between what it separates, not by eye. Step names are semantic, not size words: `<e-row spacing="component">` — `spacing` alone applies both `gap` (between children) and `padding` (own boundary) at that step. `spacing` has no purpose otherwise, so it implies both rather than needing `gap`/`pad` written alongside it.
 
-`gap`/`pad` without a value take the container's `spacing`. Either can still be given an explicit step directly (`pad="widget"`) to override `spacing` for that one side.
+`gap`/`pad` still exist as their own attributes for the one-sided cases: a bare `gap`/`pad` (no value) falls back to `component` on its own, and either can be given an explicit step (`pad="widget"`) to override `spacing` for that one side while leaving the other at `spacing`'s value.
 
 | Step | Use for |
 | --- | --- |

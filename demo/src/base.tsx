@@ -59,7 +59,7 @@ export default class Base extends Service({}) {
         }
         popup(ev.currentTarget, fut =>
           <e-row>
-            <e-column spacing="component" gap="component" pad="component">
+            <e-column spacing="component">
               <h5><P.WindowsLogo /> Windows</h5>
               {btn("segoe_ui")}
               <hr />
@@ -71,7 +71,7 @@ export default class Base extends Service({}) {
               {btn("open_sans")}
               {btn("noto_sans")}
               {btn("roboto")}
-            </e-column><e-column>
+            </e-column><e-column spacing="component">
               <h5><P.LinuxLogo /> Linux</h5>
               {btn("inter")}
               {btn("cantarell")}

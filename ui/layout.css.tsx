@@ -152,14 +152,32 @@ for (const al of align) {
 // Every other step carries its own independent --e-spacing-<step>-vertical/-horizontal (ui/theme.tsx),
 // not derived from a neighbor at generation time.
 const _nudges = new Set(["1", "2", "4"])
+
+// Priority, lowest to highest (CSS cascade with equal specificity — later wins):
+// 1. bare [gap]/[pad] (no value) fall back to `component`.
+// 2. `spacing="X"` sets both gap and pad together — it has no purpose otherwise, a bare `pad`/`gap`
+//    alongside it should inherit X, not the component default from (1).
+// 3. `gap="X"`/`pad="X"` (an explicit step) override either side on its own, spacing or not.
+
+// (1)
 for (const att of ["gap", "pad"]) {
-  // default is component
   _`${_all}[${att}] { --e-${att}-vertical: var(--e-spacing-component-vertical); --e-${att}-horizontal: var(--e-spacing-component-horizontal) }`
+}
+
+// (2)
+for (let i = 0, l = spaces.length; i < l; i++) {
+  const sp = spaces[i]
+  const v = _nudges.has(sp) ? `var(--e-spacing-${sp})` : `var(--e-spacing-${sp}-vertical)`
+  const h = _nudges.has(sp) ? `var(--e-spacing-${sp})` : `var(--e-spacing-${sp}-horizontal)`
+  _`${_all}[spacing="${sp}"] { --e-gap-vertical: ${v}; --e-gap-horizontal: ${h}; --e-pad-vertical: ${v}; --e-pad-horizontal: ${h}; }`
+}
+
+// (3)
+for (const att of ["gap", "pad"]) {
   for (let i = 0, l = spaces.length; i < l; i++) {
     const sp = spaces[i]
     const v = _nudges.has(sp) ? `var(--e-spacing-${sp})` : `var(--e-spacing-${sp}-vertical)`
     const h = _nudges.has(sp) ? `var(--e-spacing-${sp})` : `var(--e-spacing-${sp}-horizontal)`
-    _`${_all}[spacing="${sp}"][${att}] { --e-${att}-vertical: ${v}; --e-${att}-horizontal: ${h}; }`
     _`${_all}[${att}="${sp}"] { --e-${att}-vertical: ${v}; --e-${att}-horizontal: ${h}; }`
   }
 }
@@ -229,12 +247,16 @@ css`
     flex-basis: 0;
   }
 
-  ${_all}[pad] {
-    padding: var(--e-pad-vertical) var(--e-pad-horizontal);
+  ${_all} {
+    &[pad], &[spacing] {
+      padding: var(--e-pad-vertical) var(--e-pad-horizontal);
+    }
   }
 
-  :is(e-flex,e-grid,e-row,e-column)[gap] {
-    gap: var(--e-gap-vertical) var(--e-gap-horizontal);
+  :is(e-flex,e-grid,e-row,e-column) {
+    &[gap], &[spacing] {
+      gap: var(--e-gap-vertical) var(--e-gap-horizontal);
+    }
   }
 
   ${more.join("\n")}
