@@ -16,7 +16,7 @@ function mount<E extends HTMLElement>(el: E): E {
 
 afterEach(() => {
   for (const el of mounted) node_remove(el)
-  for (const popup of document.querySelectorAll("e-box[popover]")) node_remove(popup)
+  for (const popup of document.querySelectorAll("e-block[popover]")) node_remove(popup)
   mounted = []
 })
 
@@ -77,7 +77,7 @@ describe("ObjectFactory keys", () => {
     const o_root = o({ b: "two", a: "one" })
     const widget = object({ properties: [] }).render(o_root as o.Observable<unknown>)
     const root = mount(widget.render() as HTMLElement)
-    const list = root.querySelector("e-box")!
+    const list = root.querySelector("e-block")!
     const keys = [...list.querySelectorAll("e-flex > span")]
       .map((el) => el.textContent?.trim())
       .filter((t): t is string => !!t && t !== "+")

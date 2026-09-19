@@ -148,11 +148,11 @@ function popup_arrow(o_state: o.Observable<ArrowState>) {
   })
 
   return (
-    <e-box style={oo_outer_arrow_position} class={[cls_outer_arrow, o_state.p("side")]}>
-      <e-box class={cls_arrow_placer} data-placement={o_state.p("side")}>
-        <e-box class={cls_arrow_inner} />
-      </e-box>
-    </e-box>
+    <e-block style={oo_outer_arrow_position} class={[cls_outer_arrow, o_state.p("side")]}>
+      <e-block class={cls_arrow_placer} data-placement={o_state.p("side")}>
+        <e-block class={cls_arrow_inner} />
+      </e-block>
+    </e-block>
   ) as HTMLElement
 }
 
@@ -180,12 +180,12 @@ export function popup<T>(
   const doc = anchor.ownerDocument
   const fut = new Future<T | typeof sym_popup_closed>()
   const popup = (
-    <e-box class={cls_popup} popover="manual">
-      <e-box class={cls_popup_content}>
+    <e-block class={cls_popup} popover="manual">
+      <e-block class={cls_popup_content}>
         {$scrollable}
         {fn(fut)}
-      </e-box>
-    </e-box>
+      </e-block>
+    </e-block>
   ) as HTMLElement
 
   fut.then((val) => {

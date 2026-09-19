@@ -1,6 +1,6 @@
 /**
  * @module typography
- * default typography rules, only applied on e-box with e-typographic attribute.
+ * default typography rules, only applied on e-block with e-typographic attribute.
  */
 
 import { css } from "elt"
@@ -24,7 +24,7 @@ css`@layer typography {
   }
 
 
-  e-box[typographic] {
+  e-block[typographic] {
     /* ── Base rhythm ───────────────────────────────────────── */
     display: block;
     font-size: 1rem;
@@ -182,7 +182,7 @@ css`@layer typography {
   }
 
   /* ── Table ─────────────────────────────────────────────── */
-  :is(e-box[table-container], e-box[typographic]) table {
+  :is(e-block[table-container], e-block[typographic]) table {
     width: fit-content;
     border-collapse: separate;
     border: none;
@@ -214,7 +214,7 @@ css`@layer typography {
     :is(th, td) {
       border-left: 1px solid ${theme.colors.text.light};
       border-bottom: 1px solid ${theme.colors.text.light};
-      padding: var(--e-spacing-widget) var(--e-spacing-component);
+      padding: ${theme.settings.spacingWidget};
       text-align: start;
     }
 
@@ -224,7 +224,7 @@ css`@layer typography {
     }
   }
 
-  e-box[table-container] {
+  e-block[table-container] {
     border-radius: ${theme.settings.borderRadius};
     max-width: 100%;
     width: fit-content;

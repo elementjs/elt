@@ -1,10 +1,11 @@
 import { css } from "elt"
+import { theme } from "./theme"
 
 css`nav {
 
   display: flex;
   align-items: baseline;
-  padding: var(--e-spacing-widget) var(--e-spacing-component);
+  padding: ${theme.settings.spacingComponent};
   gap: 8px;
 
   & button {
@@ -12,7 +13,7 @@ css`nav {
     border: none;
 
     &:first-child {
-      margin-left: calc(-1 * var(--e-spacing-component));
+      margin-left: calc(-1 * ${theme.settings.spacingComponentHorizontal});
     }
   }
 }`

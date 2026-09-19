@@ -6,7 +6,7 @@ export default class ScreenUIUsage extends Service({
 
   @view
   Content() {
-    return <e-box typographic pad>
+    return <e-block typographic pad>
       {this.base.DisplayTitle()}
 
       <p>To use the UI part of elt, you may simply import the <code>elt/ui</code> package, which will automatically apply the necessary styles to the page.</p>
@@ -17,7 +17,7 @@ export default class ScreenUIUsage extends Service({
 
       <ul>
         <li>The theme engine provides colors, spacing and border radius values. Avoid using other values.</li>
-        <li>In general, <strong>avoid using margins</strong>; leave spacing to e-flex with its gap, or e-box in typographic mode. If using margins, no two elements should follow one another with a margin on - only the greater of the two must appear.</li>
+        <li>In general, <strong>avoid using margins</strong>; leave spacing to e-flex with its gap, or e-block in typographic mode. If using margins, no two elements should follow one another with a margin on - only the greater of the two must appear.</li>
         <li>Only use two font weights: regular and bold (exact values depend on the font.)</li>
         <li>For regular text, try to use only two or three font sizes.</li>
       </ul>
@@ -31,7 +31,7 @@ export default class ScreenUIUsage extends Service({
         <li>Standalone interactables have a border with a border radius. Their font size is slightly lower than readable text.</li>
         <li>Spacings should be kept consistent throughout the application.</li>
       </ul>
-    </e-box>
+    </e-block>
   }
 
 }

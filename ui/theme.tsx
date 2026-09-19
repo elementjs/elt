@@ -21,6 +21,35 @@ export interface ThemeSettings {
 
   intensityStrong: string
   intensityVeryStrong: string
+
+  spacing1: string
+  spacing2: string
+  spacing4: string
+
+  /** Each step's own vertical value — the previous step's value, per the horizontal/vertical asymmetry rule. */
+  spacingWidgetVertical: string
+  spacingWidgetHorizontal: string
+  spacingComponentVertical: string
+  spacingComponentHorizontal: string
+  spacingSectionVertical: string
+  spacingSectionHorizontal: string
+  spacingStage1Vertical: string
+  spacingStage1Horizontal: string
+  spacingStage2Vertical: string
+  spacingStage2Horizontal: string
+  spacingStage3Vertical: string
+  spacingStage3Horizontal: string
+  spacingStage4Vertical: string
+  spacingStage4Horizontal: string
+
+  /** Shorthand: "<vertical> <horizontal>", ready to use directly as a padding/gap value. */
+  spacingWidget: string
+  spacingComponent: string
+  spacingSection: string
+  spacingStage1: string
+  spacingStage2: string
+  spacingStage3: string
+  spacingStage4: string
 }
 
 export type ColorScheme = {
@@ -67,7 +96,7 @@ function getOkLch<T extends ColorScheme>(colors: T): { [key in keyof T]: OkLch }
   return res
 }
 
-const _re_setting = /[A-Z]/g
+const _re_setting = /[A-Z]|[0-9]+/g
 
 export class Theme<AllColors extends ColorScheme> {
   colors = {} as { [key in keyof AllColors]: Color<AllColors> }
@@ -106,8 +135,10 @@ export class Theme<AllColors extends ColorScheme> {
     }
 
     // Now set the theme settings
-    this._set(theme.settings ?? {}, "borderRadius", "6px")
-    this._set(theme.settings ?? {}, "frameBorderRadius", "12px")
+    // Derived: aligned to the vertical padding step controls/frames use (widget/component), not
+    // independently chosen — see "Border radius is derived" in specs/elt-ui-guidelines.md.
+    this._set(theme.settings ?? {}, "borderRadius", "8px")
+    this._set(theme.settings ?? {}, "frameBorderRadius", "16px")
     this._set(theme.settings ?? {}, "intensityVeryLight", "10%")
     this._set(theme.settings ?? {}, "intensityLight", "20%")
     this._set(theme.settings ?? {}, "intensityMid", "50%")
@@ -123,6 +154,36 @@ export class Theme<AllColors extends ColorScheme> {
     this._set(theme.settings ?? {}, "formFontSize", "14px")
 
     this._set(theme.settings ?? {}, "focusRingSize", "2px")
+
+    this._set(theme.settings ?? {}, "spacing1", "1px")
+    this._set(theme.settings ?? {}, "spacing2", "2px")
+    this._set(theme.settings ?? {}, "spacing4", "4px")
+
+    // Each step's vertical/horizontal are independent settings, not derived from a neighbor lookup —
+    // defaults below preserve today's look (vertical = the step below, horizontal = the step's own
+    // value), but either can be overridden on its own without unwinding that formula.
+    this._set(theme.settings ?? {}, "spacingWidgetVertical", "4px")
+    this._set(theme.settings ?? {}, "spacingWidgetHorizontal", "8px")
+    this._set(theme.settings ?? {}, "spacingComponentVertical", "8px")
+    this._set(theme.settings ?? {}, "spacingComponentHorizontal", "16px")
+    this._set(theme.settings ?? {}, "spacingSectionVertical", "16px")
+    this._set(theme.settings ?? {}, "spacingSectionHorizontal", "32px")
+    this._set(theme.settings ?? {}, "spacingStage1Vertical", "32px")
+    this._set(theme.settings ?? {}, "spacingStage1Horizontal", "64px")
+    this._set(theme.settings ?? {}, "spacingStage2Vertical", "64px")
+    this._set(theme.settings ?? {}, "spacingStage2Horizontal", "128px")
+    this._set(theme.settings ?? {}, "spacingStage3Vertical", "128px")
+    this._set(theme.settings ?? {}, "spacingStage3Horizontal", "256px")
+    this._set(theme.settings ?? {}, "spacingStage4Vertical", "256px")
+    this._set(theme.settings ?? {}, "spacingStage4Horizontal", "512px")
+
+    this.settings.spacingWidget = `${this.settings.spacingWidgetVertical} ${this.settings.spacingWidgetHorizontal}`
+    this.settings.spacingComponent = `${this.settings.spacingComponentVertical} ${this.settings.spacingComponentHorizontal}`
+    this.settings.spacingSection = `${this.settings.spacingSectionVertical} ${this.settings.spacingSectionHorizontal}`
+    this.settings.spacingStage1 = `${this.settings.spacingStage1Vertical} ${this.settings.spacingStage1Horizontal}`
+    this.settings.spacingStage2 = `${this.settings.spacingStage2Vertical} ${this.settings.spacingStage2Horizontal}`
+    this.settings.spacingStage3 = `${this.settings.spacingStage3Vertical} ${this.settings.spacingStage3Horizontal}`
+    this.settings.spacingStage4 = `${this.settings.spacingStage4Vertical} ${this.settings.spacingStage4Horizontal}`
   }
 
   settings: ThemeSettings = {} as ThemeSettings

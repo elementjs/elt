@@ -5,7 +5,7 @@ declare module "elt" {
   interface ElementMap {
     "e-grid": EFlexAttrs
     "e-flex": EFlexAttrs
-    "e-box": EBoxAttrs
+    "e-block": EBlockAttrs
     "e-row": EFlexAttrs
     "e-column": EFlexAttrs
   }
@@ -18,10 +18,10 @@ export type SpacingValues =
   | "widget"
   | "component"
   | "section"
-  | "stage1"
-  | "stage2"
-  | "stage3"
-  | "stage4"
+  | "stage-1"
+  | "stage-2"
+  | "stage-3"
+  | "stage-4"
 
 export type AlignValues =
   | "center"
@@ -74,7 +74,7 @@ export interface CommonAttrs extends Attrs<HTMLElement> {
   "full-height"?: NRO<boolean>
 }
 
-export interface EBoxAttrs extends CommonAttrs {
+export interface EBlockAttrs extends CommonAttrs {
   variant?: NRO<"vertical">
   typographic?: NRO<boolean>
   "table-container"?: NRO<boolean>
@@ -96,10 +96,10 @@ const spaces: SpacingValues[] = [
   "widget",
   "component",
   "section",
-  "stage1",
-  "stage2",
-  "stage3",
-  "stage4",
+  "stage-1",
+  "stage-2",
+  "stage-3",
+  "stage-4",
 ]
 const align: AlignValues[] = [
   "center",
@@ -118,7 +118,7 @@ const align: AlignValues[] = [
   "space-between",
 ]
 
-const _all = `:is(e-flex,e-grid,e-box,e-column,e-row)`
+const _all = `:is(e-flex,e-grid,e-block,e-column,e-row)`
 const _flex = `:is(e-flex,e-column,e-row)`
 const _layouters = `:is(e-flex,e-grid,e-column,e-row)`
 
@@ -138,6 +138,9 @@ _`${_all}[surface]{
   & > * { --e-surface-level: var(--e-surface-level-swap); }
 }`
 
+// derived: radius follows this element's own vertical padding step, not a separately chosen value
+_`${_all}[border-radius]:not([border-radius="none"]) { border-radius: var(--e-pad-vertical, var(--e-spacing-widget-horizontal)); }`
+
 for (const al of align) {
   _`${_layouters}[align="${al}"] { align-items: ${al}; }`
   _`${_layouters}[justify="${al}"] { justify-content: ${al}; }`
@@ -145,36 +148,32 @@ for (const al of align) {
   _`${_all}[self-align="${al}"] { align-self: ${al}; }`
 }
 
+// The three raw px nudges (1/2/4) have no separate vertical/horizontal pair — they're symmetric.
+// Every other step carries its own independent --e-spacing-<step>-vertical/-horizontal (ui/theme.tsx),
+// not derived from a neighbor at generation time.
+const _nudges = new Set(["1", "2", "4"])
 for (const att of ["gap", "pad"]) {
   // default is component
-  _`${_all}[${att}] { --e-${att}-vertical: var(--e-spacing-widget); --e-${att}-horizontal: var(--e-spacing-component) }`
+  _`${_all}[${att}] { --e-${att}-vertical: var(--e-spacing-component-vertical); --e-${att}-horizontal: var(--e-spacing-component-horizontal) }`
   for (let i = 0, l = spaces.length; i < l; i++) {
     const sp = spaces[i]
-    const less = spaces[i - 1] ?? spaces[i]
-    _`${_all}[spacing="${sp}"][${att}] { --e-${att}-vertical: var(--e-spacing-${less}); --e-${att}-horizontal: var(--e-spacing-${sp});  }`
-    _`${_all}[${att}="${sp}"] { --e-${att}-vertical: var(--e-spacing-${less}); --e-${att}-horizontal: var(--e-spacing-${sp}); }`
+    const v = _nudges.has(sp) ? `var(--e-spacing-${sp})` : `var(--e-spacing-${sp}-vertical)`
+    const h = _nudges.has(sp) ? `var(--e-spacing-${sp})` : `var(--e-spacing-${sp}-horizontal)`
+    _`${_all}[spacing="${sp}"][${att}] { --e-${att}-vertical: ${v}; --e-${att}-horizontal: ${h}; }`
+    _`${_all}[${att}="${sp}"] { --e-${att}-vertical: ${v}; --e-${att}-horizontal: ${h}; }`
   }
 }
 
-//>> These root values should really be part of the theme, except for the --e-surface-level which is a purely functional variable
+// Spacing scale values now live in Theme (ui/theme.tsx, spacing1/2/4/Widget/Component/Section/Stage1-4)
+// and are emitted through the theme class, not a literal :root — everything below only needs
+// the purely functional variables that aren't theme settings.
 css`
 @layer components {
   :root {
-    --e-spacing-1: 1px;
-    --e-spacing-2: 2px;
-    --e-spacing-4: 4px;
-    --e-spacing-widget: 8px;
-    --e-spacing-component: 16px;
-    --e-spacing-section: 32px;
-    --e-spacing-stage1: 64px;
-    --e-spacing-stage2: 128px;
-    --e-spacing-stage3: 256px;
-    --e-spacing-stage4: 512px;
-
-    --e-gap-vertical: var(--e-spacing-widget);
-    --e-gap-horizontal: var(--e-spacing-component);
-    --e-pad-vertical: var(--e-spacing-widget);
-    --e-pad-horizontal: var(--e-spacing-component);
+    --e-gap-vertical: var(--e-spacing-component-vertical);
+    --e-gap-horizontal: var(--e-spacing-component-horizontal);
+    --e-pad-vertical: var(--e-spacing-component-vertical);
+    --e-pad-horizontal: var(--e-spacing-component-horizontal);
 
     --e-surface-level: 0;
     --e-surface-step: 10%;
@@ -184,8 +183,8 @@ css`
     ${theme.css_light_colors};
     ${theme.colors.tint.css_as_inverted};
 
-    padding: var(--e-spacing-widget) var(--e-spacing-component);
-    gap: var(--e-spacing-widget) var(--e-spacing-component);
+    padding: ${theme.settings.spacingComponent};
+    gap: ${theme.settings.spacingComponent};
     width: 100%;
     display: flex;
     flex-direction: row;
@@ -194,22 +193,18 @@ css`
     & button {
       font-size: 1rem;
       border-color: transparent;
-
-      &:first-child {
-        margin-left: calc(-1 * var(--e-spacing-component));
-      }
     }
   }
   footer {
     ${theme.colors.text.faded.css_as_inverted}
   }
 
-  e-box { display: block; }
-  e-box[inline] { display: inline-block; }
+  e-block { display: block; }
+  e-block[inline] { display: inline-block; }
 
   e-flex,e-row,e-column { display: flex; flex-direction: row; flex-wrap: nowrap; align-items: baseline; }
   e-flex[column],e-column { flex-direction: column; }
-  e-flex[inline] { display: inline-flex; }
+  ${_flex}[inline] { display: inline-flex; }
   :is(e-flex,e-row)[reverse] { flex-direction: row-reverse; }
   :is(e-flex[column],e-column)[reverse] { flex-direction: column-reverse; }
   :is(e-flex,e-row,e-column)[wrap] { flex-wrap: wrap; }
@@ -217,7 +212,7 @@ css`
   e-grid { display: grid; }
   e-grid[inline] { display: inline-grid; }
 
-  :is(e-flex,e-grid,e-box) {
+  ${_all} {
     &[max-width] { max-width: 100%; }
     &[max-height] { max-height: 100%; }
     &[full-screen] { width: 100%; height: 100%; }
@@ -225,20 +220,20 @@ css`
     &[full-height] { height: 100%; }
   }
 
-  :is(e-flex,e-grid,e-box)[relative] {
+  ${_all}[relative] {
     position: relative;
   }
 
-  :is(e-flex,e-grid,e-box)[grow] {
+  ${_all}[grow] {
     flex-grow: 1;
     flex-basis: 0;
   }
 
-  :is(e-flex,e-grid,e-box)[pad] {
+  ${_all}[pad] {
     padding: var(--e-pad-vertical) var(--e-pad-horizontal);
   }
 
-  :is(e-flex,e-grid)[gap] {
+  :is(e-flex,e-grid,e-row,e-column)[gap] {
     gap: var(--e-gap-vertical) var(--e-gap-horizontal);
   }
 

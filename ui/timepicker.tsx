@@ -1,4 +1,5 @@
 import { $click, $connected, css, o, type Renderable } from "elt"
+import { theme } from "./theme"
 
 /** Pixels of vertical drag per one step (up/down). */
 const DRAG_PX_PER_STEP = 22
@@ -42,7 +43,7 @@ export function ScrollColumn(opts: ScrollColumnOpts) {
   }
 
   return (
-    <e-box class={cls_column}>
+    <e-block class={cls_column}>
       {$connected((node: HTMLElement) => {
         let touch_id: number | null = null
         let touch_y = 0
@@ -110,7 +111,7 @@ export function ScrollColumn(opts: ScrollColumnOpts) {
       <button type="button" e-variant="text" class={cls_step}>
         {$click(() => step(1))}▼
       </button>
-    </e-box>
+    </e-block>
   ) as HTMLElement
 }
 
@@ -233,7 +234,7 @@ function day_period_text(locale: string, am: boolean): string {
 
 const cls_panel = css`.time-panel {
   display: flex;
-  padding: var(--e-spacing-widget) var(--e-spacing-component);
+  padding: ${theme.settings.spacingWidget};
   max-height: 220px;
   overflow: hidden;
 }`

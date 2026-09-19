@@ -7,7 +7,7 @@ export default class TypographyScreen extends Service({
 
   @view
   Content() {
-    return <e-box typographic pad>
+    return <e-block typographic pad>
       {this.base.DisplayTitle()}
 
       <h3>Font</h3>
@@ -23,6 +23,6 @@ export default class TypographyScreen extends Service({
 
       <this.base.FontChooser/>
 
-    </e-box>
+    </e-block>
   }
 }

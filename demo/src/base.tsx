@@ -55,11 +55,11 @@ export default class Base extends Service({}) {
       {$click(ev => {
         const btn = (font: keyof typeof this.fonts) => {
           const tfed = this.o_font_style.tf(tf_equals(this.fonts[font]))
-          return <label style={font}><input type="checkbox" e-variant="toggle">{$bind.boolean(tfed)}</input> {this.fonts[font].fontFamily}</label>
+          return <label style={font}><input type="checkbox">{$bind.boolean(tfed)}</input> {this.fonts[font].fontFamily}</label>
         }
         popup(ev.currentTarget, fut =>
-          <e-flex gap>
-            <menu>
+          <e-row>
+            <e-column spacing="component" gap="component" pad="component">
               <h5><P.WindowsLogo /> Windows</h5>
               {btn("segoe_ui")}
               <hr />
@@ -71,7 +71,7 @@ export default class Base extends Service({}) {
               {btn("open_sans")}
               {btn("noto_sans")}
               {btn("roboto")}
-            </menu><menu>
+            </e-column><e-column>
               <h5><P.LinuxLogo /> Linux</h5>
               {btn("inter")}
               {btn("cantarell")}
@@ -80,10 +80,10 @@ export default class Base extends Service({}) {
               <h5>Other</h5>
               {btn("ibm_plex_sans")}
               {btn("public_sans")}
-            </menu>
+            </e-column>
 
 
-          </e-flex>
+          </e-row>
           , { arrow: true })
       })}
     </button>
@@ -91,7 +91,7 @@ export default class Base extends Service({}) {
 
   @view
   Main() {
-    return <e-flex column class={[cls_fullscreen]} style={this.oo_style}>
+    return <e-column class={[cls_fullscreen]} style={this.oo_style}>
       {/* <header class={[cls_header, theme.class_light, theme.colors.blue.as_background]}>
         <nav>
           <EltLogo/>
@@ -102,17 +102,17 @@ export default class Base extends Service({}) {
         </nav>
       </header> */}
 
-      <e-flex grow class={cls_main} align="stretch">
+      <e-row grow class={cls_main} align="stretch">
         <menu class={cls_aside_nav}>
           {$scrollable}
           {widget_menu()}
         </menu>
-        <e-flex column grow>
+        <e-column grow>
           {$scrollable}
           {this.srv.DisplayView("Content")}
-        </e-flex>
-      </e-flex>
-    </e-flex>
+        </e-column>
+      </e-row>
+    </e-column>
   }
 
 }

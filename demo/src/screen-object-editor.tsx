@@ -59,7 +59,7 @@ export default class ScreenObjectEditor extends Service({
   @view
   Content() {
     return (
-      <e-box typographic pad>
+      <e-block typographic pad>
         {this.base.DisplayTitle()}
 
         <p>
@@ -111,7 +111,7 @@ export default class ScreenObjectEditor extends Service({
           <code>make_big_table_seed</code>). Only rows near the viewport are mounted — scroll the table body and use
           toolbar search to filter. Regenerate with a different row count (1–50&nbsp;000).
         </p>
-        <e-flex align="center" gap="widget" class={cls_big_table_controls}>
+        <e-row align="center" gap="widget" class={cls_big_table_controls}>
           <label>
             Rows{" "}
             <input type="number" min="1" max="50000" step="100">
@@ -126,7 +126,7 @@ export default class ScreenObjectEditor extends Service({
             Showing{" "}
             {this.o_big_table.tf((rows) => (Array.isArray(rows) ? rows.length : 0).toLocaleString())} rows
           </span>
-        </e-flex>
+        </e-row>
         {this.shell_big_table.node}
         <details>
           <summary>Live JSON (first 3 rows)</summary>
@@ -185,7 +185,7 @@ export default class ScreenObjectEditor extends Service({
           <summary>Live JSON</summary>
           <pre>{this.o_config.tf((v) => JSON.stringify(v, null, 2))}</pre>
         </details>
-      </e-box>
+      </e-block>
     )
   }
 }

@@ -80,17 +80,17 @@ Border and divider stay two different concepts even though they may resolve to t
 
 The *n+2* rule is for visual separation only (a container's own edge, a divider between elements). A focusable widget (button, input, and similar interactable controls) instead gets a defined border from its own emphasis variant's color, at full text-level intensity — `.text` for the `default` variant, `.tint` for the `tint` variant — not from the surface-level stack. Its border is about the control's own identity, not its position in a surface stack. `link` and `text` have no border at all.
 
-`elt/ui` does not define a panel or a card as such. Any layout container (`e-flex`, `e-grid`, `e-box`) becomes a panel-like surface simply by carrying a border, a radius, and/or a background — whether a panel or card has its own background at all, or only a border, is an app decision, not something `elt/ui` mandates. When a background is used, it's just `surface` — the same primitive as everything else, which makes a panel's own fill *n+1* relative to its own parent, the same level hover uses (not a collision: a permanent fill and a hover state aren't simultaneously visible on the same box).
+`elt/ui` does not define a panel or a card as such. Any layout container (`e-flex`, `e-grid`, `e-block`) becomes a panel-like surface simply by carrying a border, a radius, and/or a background — whether a panel or card has its own background at all, or only a border, is an app decision, not something `elt/ui` mandates. When a background is used, it's just `surface` — the same primitive as everything else, which makes a panel's own fill *n+1* relative to its own parent, the same level hover uses (not a collision: a permanent fill and a hover state aren't simultaneously visible on the same box).
 
-`e-flex`/`e-grid`/`e-box` have attribute-level `border`, `border-radius`, and `surface` attrs in `ui/layout.css.tsx` (unfinished — `border` currently only accepts `"widget"`).
+`e-flex`/`e-grid`/`e-block` have attribute-level `border`, `border-radius`, and `surface` attrs in `ui/layout.css.tsx` (unfinished — `border` currently only accepts `"widget"`).
 
 **Border radius is derived, not a separately maintained scale.** An element's `border-radius` equals its own *vertical* padding step (the tighter of the horizontal/vertical pair — spacing is deliberately asymmetric, and a radius bigger than the tighter dimension would visibly cut into the content box). A rounded corner is a quarter-circle whose arc is centered at (R, R) from the true corner; when padding P equals R, the content box's own corner sits exactly at that arc's center, equidistant from the curve in every direction — a visibly "nested" look, not a coincidence of matching numbers. A bigger visual radius is an emergent consequence of choosing a bigger padding step (`component`, `section`, …) for that surface, not a second thing to track.
 
-> 🔨 **Todo**: Implement the derived border-radius rule above. Not yet done — `borderRadius`/`frameBorderRadius` still exist as two independently maintained values in `ui/theme.tsx`.
->> This should be changed
+Implemented: `[border-radius]` (`ui/layout.css.tsx`) reads `var(--e-pad-vertical, var(--e-spacing-widget-horizontal))` on the same element, rather than a separately chosen value. `borderRadius`/`frameBorderRadius` (`ui/theme.tsx`) still exist for controls/dialogs that don't go through the attribute system, aligned to `8px`/`16px` (`widget`/`component`) instead of their old `6px`/`12px`.
 
-> 🔨 **Demo Todo**: add a layout section to the demo with a few worked examples using `surface`.
->> Do that
+> ❓ **Open**: the dialog panel itself is the one clear case this doesn't cover — it's a boundary (border + cast shadow) but, per the padding/boundary rules, does *not* pad itself (its header/content/footer do). "Radius = own vertical padding step" has nothing to read from on the panel. It currently keeps `frameBorderRadius` as a fixed fallback; is that the right call, or should an un-padded boundary derive its radius from its *children*'s padding instead?
+
+The demo (`demo/src/screen-layout.tsx`, "Surfaces" section) now has worked examples of `surface`, nested surface levels, and derived `border-radius`.
 
 ### State
 
@@ -156,25 +156,30 @@ Pick a step by the semantic distance between what it separates, not by eye. Step
 | Step | Use for |
 | --- | --- |
 | `1` / `2` / `4` (px) | Pixel-level nudges only. Never a default choice. |
-| `inline` (`1ch`) | Reads as a text space — a row that should visually separate the way a space character would. Font-relative, not on the px-doubling scale. Finer values (`0.75ch`, `0.5ch`, `0.25ch`) exist for visual alignment only, used directly via `.from_bg()`/`.from_text()`-style raw values, not named. |
-| `widget` | Inside one atomic cluster: an icon and its label in a button, a control and its inline suffix. Also the default control padding. |
-| `component` | Between distinct but related groups: one form group to the next, panel content to its border. The default — most used. |
-| `section` | Between major sections of one view or panel. |
-| `stage1`–`stage4` | Between independent regions of a page. Numbered rather than individually named — fine distinctions between "very large" steps don't carry much individual meaning past a certain point. |
+| `widget` (8px) | Inside one atomic cluster: an icon and its label in a button, a control and its inline suffix. Also the default control padding. |
+| `component` (16px) | Between distinct but related groups: one form group to the next, panel content to its border. The default — most used. |
+| `section` (32px) | Between major sections of one view or panel. |
+| `stage-1`–`stage-4` (64–512px) | Between independent regions of a page. Numbered rather than individually named — fine distinctions between "very large" steps don't carry much individual meaning past a certain point. |
+
+The `1ch`, font-relative `inline` step this axis considered is dropped — the small end stays entirely on the plain px-doubling scale (`1`, `2`, `4`, `widget`).
 
 At a given step, horizontal spacing is one step larger than vertical spacing (a deliberate squashed look — text lines are already dense vertically).
 
 `e-row`/`e-column` are semantic aliases over `e-flex` (already its two directions); `e-flex` stays available underneath for the grid-adjacent or direction-agnostic cases or when row/columns need to change dynamically.
 
-> 🚧 **Warning**: the small end of this scale has two definitions that may conflict. `ui/layout.css.tsx`'s `:root` renames the old `3x-small`/`2x-small`/`x-small` px steps to literal `--e-spacing-1`/`-2`/`-4`, keeping them on the px-doubling scale. Separately, this document defines `inline` as `1ch` — explicitly *not* on that px-doubling scale, font-relative instead. Is `inline` a fourth, separate step below `widget` (as stated above), or was it meant to replace one of `1`/`2`/`4`? These were resolved in different passes and haven't been checked against each other.
->> Forget the 1ch, we'll go with 8px (widget) 4px 2px 1px
-
-> 🔨 **Todo**: moving the spacing scale's values from a static `:root` block into `Theme`/`ThemeSettings` (matching how every other setting works) hit a real blocker: the existing `_set()` helper auto-generates each CSS custom property name from the field name by inserting a dash before every uppercase letter, which works for `spacingWidget` → `--e-spacing-widget` but can't produce `--e-spacing-2x-large` from any field name (no uppercase letter marks that boundary). Needs either a naming scheme without this problem or a change to `_set()` itself.
->> Not possible to simply add a rule to leave numbers alone ?
+The spacing scale now lives in `Theme`/`ThemeSettings` (`ui/theme.tsx`: `spacing1`/`spacing2`/`spacing4`/`spacingWidget`/`spacingComponent`/`spacingSection`/`spacingStage1`–`spacingStage4`), emitted through the theme class like every other setting, not a static `:root` block. `_set()`'s naming helper now inserts a dash before digit runs as well as uppercase letters, so `spacing1` → `--e-spacing-1` correctly — the tradeoff is that `spacingStage1` → `--e-spacing-stage-1` (a dash before the digit there too), so the step names themselves are `stage-1`–`stage-4`, not `stage1`–`stage4`. Adopted as the standard rather than special-cased, since nothing depended on the no-dash form yet.
 
 > 🔨 **Todo**: Once every rename in this document is settled, produce a single old-name → new-name equivalence table so an agent can mechanically convert existing code.
 
-Controls use this same scale for their own internal padding (typically `widget`), scaled by density like any other spacing value. There is no separate control-sizing system to keep in sync by hand — `paddingPanel*`/`paddingCell*` are gone from `ThemeSettings`; every call site (`ui/dialog.tsx`, `ui/date.tsx`, `ui/form.css.tsx`, `ui/select.tsx`, `ui/nav.tsx`, `ui/timepicker.tsx`, `ui/typography.css.tsx`, `specs/object-editor.tsx`) now uses `var(--e-spacing-widget)`/`var(--e-spacing-component)` directly. "Cell" padding wasn't kept as a separate, smaller concept — it collapsed into the same values as "panel" padding.
+Controls use this same scale for their own internal padding (typically `widget`), scaled by density like any other spacing value. There is no separate control-sizing system to keep in sync by hand — `paddingPanel*`/`paddingCell*` are gone from `ThemeSettings`. "Cell" padding wasn't kept as a separate, smaller concept — it collapsed into `widget`-level padding; "panel" padding collapsed into `component`-level.
+
+**Each step's vertical and horizontal value is its own independent setting, not derived from a neighboring step at generation time.** `ui/theme.tsx` defines `spacingWidgetVertical`/`spacingWidgetHorizontal`, `spacingComponentVertical`/`spacingComponentHorizontal`, and so on for every step above the raw px nudges — defaults preserve the asymmetry rule (a step's vertical = the step below it, horizontal = its own value), but either can now be overridden on its own. `theme.settings.spacingWidget` (etc.) is a shorthand combining both, ready to use directly as a `padding`/`gap` value.
+
+This replaces reading two named steps' *bare* values by hand as a pair (e.g. `var(--e-spacing-widget) var(--e-spacing-component)`) — that pattern silently assumes the reader re-derives which two steps pair together, and is exactly how a real bug got introduced: cell-level call sites (`ui/date.tsx`, `ui/select.tsx`, `ui/timepicker.tsx`) briefly ended up with the *component*-level pair (`8px 16px`) instead of the *widget*-level one (`4px 8px`) they actually needed, because the pairing was reconstructed by hand instead of read from a single named value.
+
+Every `padding`/`gap` declaration in `ui/` now reads the settings shorthand directly (`${theme.settings.spacingWidget}`, `${theme.settings.spacingComponent}`) instead of a hand-written `var(--e-spacing-...)` pair — `ui/date.tsx`, `ui/select.tsx`, `ui/timepicker.tsx`, `ui/typography.css.tsx`, `ui/form.css.tsx` at `widget`; `ui/dialog.tsx`, `ui/nav.tsx`, the `header`/`footer` rule in `ui/layout.css.tsx` at `component`; `specs/object-editor.tsx`'s single-axis case at `spacingWidgetHorizontal`. Two of these (`padding: var(--e-spacing-4) var(--e-spacing-widget)` in `ui/form.css.tsx`/`ui/typography.css.tsx`) were referencing a bare `--e-spacing-widget` custom property that no longer exists at all since the vertical/horizontal split landed — a real dangling reference, not just a style preference, caught by this same pass.
+
+> 🔨 **Todo**: `ui/form.css.tsx` still has two hardcoded, scale-independent paddings (`fieldset > legend`: `0 6px`; `fieldset`: `8px 16px`) that predate the `paddingCell*`/`paddingPanel*` migration and were out of scope for it — not touched, flagged here so they're not lost.
 
 ### Padding and boundaries
 
@@ -186,11 +191,9 @@ Three rules:
 
 Tested against every case this document has walked through — a plain gapped row of already-bordered buttons, an inverted top-of-screen toolbar, a cobbled-together button group (no pad, no gap, adjacent full borders collapsed into shared lines rather than doubling), the dialog's header/content/footer (the panel itself is the un-padded, gap-less container; each row independently earns its own boundary and padding) — three rules cover all of it without a special case for any one of them.
 
-> 🔨 **Todo**: `ui/dialog.tsx`'s header/content/footer and any button-group CSS (`<e-button-box>`, `ui/form.css.tsx`) should be checked against these three rules directly — not verified line-by-line against the actual code yet, only against the *reasoning* that produced them.
->> Fix it
+Checked against `ui/dialog.tsx` and `ui/form.css.tsx`'s `<e-button-box>`, both compliant: the dialog panel is the un-padded, gap-less boundary; its header/footer each pad and gap themselves (footer already had `gap: 1rem`; header's only real-world usage is a single text child, so the lone-child exemption applies and it needs no `gap`). `<e-button-box>` sets `gap: 0` and no padding on itself, with each button individually bordered — exactly the gap-less, self-bordering case rule 3 describes.
 
-> 🔨 **Todo**: `ui/date.tsx`'s `cls_dow` (the weekday header labels, plain `<span>`) has its own `padding: 2px 0` with no border or background — the same violation the `text` button variant was fixed for. Found but not fixed, since it's a label, not a variant.
->> Fix it too
+`ui/date.tsx`'s `cls_dow` padding-with-no-boundary violation is fixed (`line-height` instead of `padding`).
 
 ### Density
 
@@ -198,14 +201,15 @@ Tested against every case this document has walked through — a plain gapped ro
 
 ## Axis 4: Layout
 
-`e-flex` and its siblings `e-column` and `e-row` cover flexbox row/column layouts. `e-grid` covers CSS grid layouts, with a `css` rule for the grid template when attributes are not enough. `e-box` covers block containers, including typographic mode.
+`e-flex` and its siblings `e-column` and `e-row` cover flexbox row/column layouts. `e-grid` covers CSS grid layouts, with a `css` rule for the grid template when attributes are not enough. `e-block` (renamed from `e-box`, for naming consistency — all three name their CSS `display` value) covers block containers, including typographic mode.
 
-> 🔨 **Todo (big)**: rename `e-box` to `e-block`, for naming consistency with `e-flex`/`e-grid` (all three would name their CSS `display` value). Wide blast radius, not attempted here.
->> Do it
+> 🔨 **Todo**: the rename landed across every `.tsx`/`.ts` file (21 files, plus the two DOM-querying test files), but not the prose docs that still say `e-box` (`docs/using-elt-ui.md`, `docs/using-elt-ui-agent.md`, `specs/ui-color-picker.md`) — not touched this pass.
+
+`ui/layout.css.tsx`'s selectors were missing `e-row`/`e-column` in several places — `[inline]`, `[max-width]`/`[max-height]`/`[full-screen]`/`[full-width]`/`[full-height]`, `[relative]`, `[grow]`, `[pad]`, and `[gap]` — some checked against `:is(e-flex,e-grid,e-block)` only, others against bare `e-flex`. Fixed, using the already-declared `_all`/`_flex` selector groups (`_flex` had been defined but never actually used anywhere). Every plain `<e-flex>` in the demo (no dynamic direction) is now `<e-row>` or `<e-column>` as appropriate; `e-flex` itself is reserved for the grid-adjacent or genuinely direction-agnostic cases, none of which showed up in the demo.
 
 CSS never collapses margins on a flex or grid item, whether the container is `display: flex`/`grid` or `display: inline-flex`/`inline-grid` — the `inline-` prefix only changes how the container itself sits in its parent's layout, not whether its own children's margins collapse. Margin collapsing is exclusively a block-formatting-context behavior between block-level boxes.
 
-This matters directly for `typographic` mode: `<e-box typographic>` gives its direct children `margin-block: 1em` (with adjacent margins collapsing down to 1em between two block-level children, per normal CSS flow). An `e-flex`/`e-grid` container placed as one of those children does not collapse its own margin against a neighboring paragraph's margin — the two add up instead (1em + 1em = 2em), breaking the zone's vertical rhythm at that boundary.
+This matters directly for `typographic` mode: `<e-block typographic>` gives its direct children `margin-block: 1em` (with adjacent margins collapsing down to 1em between two block-level children, per normal CSS flow). An `e-flex`/`e-grid` container placed as one of those children does not collapse its own margin against a neighboring paragraph's margin — the two add up instead (1em + 1em = 2em), breaking the zone's vertical rhythm at that boundary.
 
 An `e-flex`/`e-grid` container does not sit as a direct, top-level child of a typographic zone. It sits inside an ordinary block element (a `p`, a `div`, or similar) instead, the way the zone already treats any unrecognized child as paragraph-like (`margin-block: 1em`, per `typography.css.tsx`). The wrapping block element is what participates in the zone's margin collapsing; the `e-flex`/`e-grid` content inside it needs no margin of its own.
 
@@ -217,16 +221,16 @@ Typographic mode varies spacing by sibling type on its own (a heading before a p
 
 ## Axis 5: Typography
 
-Typographic mode is the source of correct typography in `elt/ui`; content inside `<e-box typographic>` should read well by default, following established typesetting conventions rather than app-specific hand-styling.
+Typographic mode is the source of correct typography in `elt/ui`; content inside `<e-block typographic>` should read well by default, following established typesetting conventions rather than app-specific hand-styling.
 
-`typography.css.tsx` already fixes, inside `<e-box typographic>`:
+`typography.css.tsx` already fixes, inside `<e-block typographic>`:
 
 - Body line-height 1.7; heading line-height 1.2.
 - Heading scale: h1 2rem, h2 1.5rem, h3 1.25rem, h4 1.1rem, h5 1rem (italic), h6 0.9rem (italic, faded color).
 - Vertical rhythm: 1em margin between block siblings by default; headings get 1.5em above, 0.4em below.
 - `text-wrap: balance` on headings, `text-wrap: pretty` on paragraphs.
 
-No measure (line-length limit) is set on `<e-box typographic>` by design — constraining width is an application choice, not `elt/ui`'s. `elt/ui` governs visual flow (rhythm, hierarchy); visual identity choices like a line-length limit are left to the app's own layout.
+No measure (line-length limit) is set on `<e-block typographic>` by design — constraining width is an application choice, not `elt/ui`'s. `elt/ui` governs visual flow (rhythm, hierarchy); visual identity choices like a line-length limit are left to the app's own layout.
 
 ## Axis 6: Motion
 
@@ -248,4 +252,4 @@ Building the transition wrapper is the app's job, not `elt/ui`'s: the app wraps 
 
 `elt/ui`'s native-first rule and promotion threshold (native HTML first; promote an app pattern to a dedicated `ui/` widget only once a second app needs it, per `using-elt-ui-agent.md`) is the generic rule for building any new component, including complex ones. Complex widgets such as the date/time picker and the object editor must follow it the same as any other widget.
 
-Overall app layout (page shell, navigation placement, and so on) is out of scope for this document. It is left to `e-flex`/`e-grid`/`e-box` and app-level judgment. The demo contains reference patterns for this, but none of them are binding.
+Overall app layout (page shell, navigation placement, and so on) is out of scope for this document. It is left to `e-flex`/`e-grid`/`e-block` and app-level judgment. The demo contains reference patterns for this, but none of them are binding.

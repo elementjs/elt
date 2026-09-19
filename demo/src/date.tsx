@@ -10,16 +10,16 @@ export default class DateScreen extends Service({
 
   @view
   Content() {
-    return <e-box typographic pad>
+    return <e-block typographic pad>
       {this.base.DisplayTitle()}
 
       <p>
-        <e-flex gap wrap>
+        <e-row gap wrap>
           <DateTimePicker clearable variant="full" model={this.o_date} show_time minute_step={5}/>
           <DateTimePicker lang="fr" model={this.o_date} am_pm show_time seconds/>
-        </e-flex>
+        </e-row>
       </p>
 
-    </e-box>
+    </e-block>
   }
 }

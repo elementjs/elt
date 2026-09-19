@@ -8,7 +8,7 @@ export default class ScreenSelect extends Service({
 
   @view
   Content() {
-    return <e-box typographic pad>
+    return <e-block typographic pad>
       {this.base.DisplayTitle()}
 
       <p>
@@ -18,6 +18,6 @@ export default class ScreenSelect extends Service({
         />
       </p>
 
-    </e-box>
+    </e-block>
   }
 }

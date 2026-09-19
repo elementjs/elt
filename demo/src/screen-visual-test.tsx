@@ -11,7 +11,7 @@ export default class ScreenVisualTest extends Service({
 
   @view
   Content() {
-    return <e-box typographic pad class={this.o_color.tf(col => theme.colors[col].as_tint)}>
+    return <e-block typographic pad class={this.o_color.tf(col => theme.colors[col].as_tint)}>
       {this.base.DisplayTitle()}
       <p>This screen is used to test the visual appearance of the components. The source code for this screen in <code>demo/src/screen-visual-test.tsx</code> is also an excellent example of how to them and basic elt facilities.</p>
 
@@ -26,7 +26,7 @@ export default class ScreenVisualTest extends Service({
 
       <h3>Form</h3>
 
-      <e-flex gap>
+      <e-row gap>
 
         <e-button-box>
           {(Object.keys(theme.colors).filter(color => !["bg", "text", "tint"].includes(color)) as (keyof typeof theme.colors)[]).map(color => {
@@ -41,9 +41,9 @@ export default class ScreenVisualTest extends Service({
 
         <this.base.FontChooser/>
 
-      </e-flex>
+      </e-row>
 
-      <e-flex gap>
+      <e-row gap>
         <e-button-box>
           <button>Button</button>
           <button e-variant="tint"><P.CaretDown/></button>
@@ -52,47 +52,47 @@ export default class ScreenVisualTest extends Service({
         <button e-variant="text">text <P.Heart/></button>
         <button e-variant="tint">tint <P.Heart/></button>
         <button e-variant="inverted">full <P.Heart/></button>
-      </e-flex>
+      </e-row>
 
       <p>
         {() => {
           const o_disabled = o(true)
           return <fieldset disabled={o_disabled}>
             <legend><label><input type="checkbox">{$bind.boolean(o_disabled)}</input> Disabled</label></legend>
-            <e-flex gap>
+            <e-row gap>
               <button>Button</button>
               <button e-variant="link">link</button>
               <button e-variant="text">text</button>
               <button e-variant="tint">tint</button>
               <button e-variant="inverted">full</button>
-            </e-flex>
+            </e-row>
           </fieldset>
         }}
 
       </p>
-      <e-flex gap>
+      <e-row gap>
         <e-button-box>
           <input type="text" placeholder="Enter your text" />
           <button><P.MagnifyingGlass/></button>
         </e-button-box>
 
         <input type="number" placeholder="number"/>
-      </e-flex>
-      <e-flex gap>
+      </e-row>
+      <e-row gap>
         <label><input type="checkbox" e-variant="switch"/> Switch</label>
         <label><input type="checkbox" e-variant="switch" checked/> Switch checked</label>
         <label><input type="checkbox" e-variant="switch" disabled/> Switch disabled</label>
-      </e-flex>
-      <e-flex gap>
+      </e-row>
+      <e-row gap>
         <label><input type="checkbox" name="checkbox"/> Checkbox</label>
         <label><input type="checkbox" name="checkbox" checked/>Checked</label>
         <label><input disabled type="checkbox" name="checkbox" value="3"/> Disabled</label>
-      </e-flex>
-      <e-flex gap>
+      </e-row>
+      <e-row gap>
         <label><input type="checkbox" e-variant="toggle"/> Toggle</label>
         <label><input type="checkbox" e-variant="toggle" checked/> Toggle checked</label>
         <label><input type="checkbox" e-variant="toggle" disabled/> Toggle disabled</label>
-      </e-flex>
+      </e-row>
 
       <h3>Selects</h3>
       <p>
@@ -110,7 +110,7 @@ export default class ScreenVisualTest extends Service({
         const o_clearable = o(false)
         const o_seconds = o(false)
         const o_am_pm = o(false)
-        return <e-flex gap>
+        return <e-row gap>
           <DateTimePicker
             model={o(new Date())}
             show_date={o_show_date}
@@ -124,7 +124,7 @@ export default class ScreenVisualTest extends Service({
           <label><input type="checkbox">{$bind.boolean(o_show_date)}</input> Show date</label>
           <label><input type="checkbox">{$bind.boolean(o_seconds)}</input> Show seconds</label>
           <label><input type="checkbox">{$bind.boolean(o_am_pm)}</input> AM/PM</label>
-        </e-flex>
+        </e-row>
       }}
 
       <h3>Tables</h3>
@@ -153,19 +153,19 @@ export default class ScreenVisualTest extends Service({
         </tfoot>
       </table>
 
-    </e-box>
+    </e-block>
   }
 
   showDialog() {
     show_dialog({ clickOutsideToClose: true }, fut => <>
       <header>Title here</header>
-      <e-box typographic pad>
+      <e-block typographic pad>
         <h3>
           Testing a little
         </h3>
         <p>Let's see what dialogs have in store !</p>
 
-      </e-box>
+      </e-block>
       <footer>
         <button>
           {$click(() => fut.reject(null))}

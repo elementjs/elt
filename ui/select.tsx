@@ -59,7 +59,7 @@ export function Select<T, T2 = T>(at: SelectAttributes<T, T2>) {
                           at.model?.set(o.get(oo_option_value))
                           fut.resolve(o.get(oo_option_value))
                         })}
-                        <e-box class="selected-icon">{oo_is_selected.tf((selected) => selected && Check())}</e-box>
+                        <e-block class="selected-icon">{oo_is_selected.tf((selected) => selected && Check())}</e-block>
                         {o_option.tf((opt) => (at.label_fn ? at.label_fn(opt) : opt?.toString()))}
                       </e-flex>
                     )
@@ -73,7 +73,7 @@ export function Select<T, T2 = T>(at: SelectAttributes<T, T2>) {
           o_open.set(false)
         }
       })}
-      <e-box class={[cls_indicator, o_open.tf((open) => (open ? "open" : ""))]}>{CaretDown()}</e-box>
+      <e-block class={[cls_indicator, o_open.tf((open) => (open ? "open" : ""))]}>{CaretDown()}</e-block>
     </button>
   ) as HTMLButtonElement
 }
@@ -100,7 +100,7 @@ const cls_indicator = css`.indicator {
 }`
 
 const cls_item = css`.item {
-  padding: var(--e-spacing-widget) var(--e-spacing-component);
+  padding: ${theme.settings.spacingWidget};
   cursor: pointer;
   user-select: none;
   font-size: ${theme.settings.formFontSize};

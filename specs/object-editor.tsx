@@ -214,9 +214,9 @@ export function JsonVisualizerColumn({
                 {import_btn}
                 {copy}
               </e-flex>
-              <e-box pad>
+              <e-block pad>
                 <Property data={data} />
-              </e-box>
+              </e-block>
             </>
           )
         }
@@ -291,8 +291,8 @@ function Property({
   const solo = !name
   return (
     <div align-items="center">
-      {name && <e-box class={cls_key_name}>{name}</e-box>}
-      <e-box class={[cls_property_value, solo && cls_property_value_solo]}>{inline_display(data)}</e-box>
+      {name && <e-block class={cls_key_name}>{name}</e-block>}
+      <e-block class={[cls_property_value, solo && cls_property_value_solo]}>{inline_display(data)}</e-block>
       {!solo && nav_indicator(data)}
     </div>
   ) as HTMLElement
@@ -302,9 +302,9 @@ function nav_indicator(data: o.ReadonlyObservable<unknown>): Renderable {
   return data.tf((value) => {
     if (value == null || typeof value !== "object") return null
     return (
-      <e-box class={cls_nav}>
+      <e-block class={cls_nav}>
         <ph.CaretRight />
-      </e-box>
+      </e-block>
     )
   })
 }
@@ -350,7 +350,7 @@ function ObjectTable({
     return Object.keys(dt[0])
   })
   return (
-    <e-box table-container style={{ height: "100%" }}>
+    <e-block table-container style={{ height: "100%" }}>
       {$scrollable}
       <table style={{ width: "max-content" }}>
         <thead>
@@ -399,7 +399,7 @@ function ObjectTable({
           })}
         </tbody>
       </table>
-    </e-box>
+    </e-block>
   ) as Element
 }
 
@@ -495,7 +495,7 @@ const cls_header = css`.header {
 
   & > h3 {
     flex-grow: 1;
-    padding: 0 var(--e-spacing-component);
+    padding: 0 ${theme.settings.spacingWidgetHorizontal};
   }
 
   & > button {

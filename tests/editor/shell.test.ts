@@ -18,7 +18,7 @@ function mount<E extends HTMLElement>(el: E): E {
 
 afterEach(() => {
   for (const el of mounted) node_remove(el)
-  for (const popup of document.querySelectorAll("e-box[popover]")) node_remove(popup)
+  for (const popup of document.querySelectorAll("e-block[popover]")) node_remove(popup)
   mounted = []
 })
 

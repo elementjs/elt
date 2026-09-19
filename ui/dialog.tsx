@@ -98,18 +98,18 @@ dialog {
 
   transition: opacity 0.25s ease, transform 0.25s ease;
 
-  &:has(> header) > e-box {
+  &:has(> header) > e-block {
     border-top: 1px solid ${theme.colors.text.light};
   }
 
   & > header {
     ${theme.colors.tint.css_as_inverted}
-    padding: var(--e-spacing-widget) var(--e-spacing-component);
+    padding: ${theme.settings.spacingComponent};
   }
 
   & > footer {
     border-top: 1px solid ${theme.colors.text.light};
-    padding: var(--e-spacing-widget) var(--e-spacing-component);
+    padding: ${theme.settings.spacingComponent};
     background-color: ${theme.colors.text.ultra_light};
 
   }

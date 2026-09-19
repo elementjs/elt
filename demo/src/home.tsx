@@ -8,12 +8,12 @@ export default class HomeScreen extends Service({
 
   @view
   Content() {
-    return <e-box typographic pad>
+    return <e-block typographic pad>
       <h1>Home <EltLogo full/></h1>
 
       <p>
         Press <kbd>/</kbd> on your keyboard to bring up the search menu.
       </p>
-    </e-box>
+    </e-block>
   }
 }

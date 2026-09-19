@@ -6,9 +6,9 @@ export default class ButtonsScreen extends Service({
 
   @view
   Content() {
-    return <e-box typographic pad>
+    return <e-block typographic pad>
       {this.base.DisplayTitle()}
-    </e-box>
+    </e-block>
   }
 
 }
