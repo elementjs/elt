@@ -19,6 +19,7 @@ implementation slice. Implements:
 
 import { $connected, $observe, $on, css, o, Repeat, type Renderable } from "elt"
 import { popup, sym_popup_closed } from "elt/ui/popup"
+import { theme } from "elt/ui"
 import { is_valid_mount } from "./mount"
 import { resolve_factory_from_value } from "./registry"
 import {
@@ -73,16 +74,6 @@ export class ObjectEditorShell {
 
     this.node = (
       <e-flex column class={cls_shell}>
-        <e-flex align="center" gap="widget" pad="widget" class={cls_shell_toolbar}>
-          <button type="button" disabled={this.undo.o_can_undo.tf((v) => !v)}>
-            {$on("click", () => this.undo.undo())}
-            Undo
-          </button>
-          <button type="button" disabled={this.undo.o_can_redo.tf((v) => !v)}>
-            {$on("click", () => this.undo.redo())}
-            Redo
-          </button>
-        </e-flex>
         {$on("elt-object-editor-open", (ev) => {
           ev.stopPropagation()
           this.open(
@@ -258,7 +249,18 @@ export class ObjectEditorShell {
             <e-flex column class={cls_column_body}>
               <e-flex full-width justify="space-between" align="center" pad="widget" class={cls_column_header}>
                 {column.title != null && <span>{column.title}</span>}
-                {!is_root && (
+                {is_root ? (
+                  <e-row gap="widget">
+                    <button type="button" disabled={this.undo.o_can_undo.tf((v) => !v)}>
+                      {$on("click", () => this.undo.undo())}
+                      Undo
+                    </button>
+                    <button type="button" disabled={this.undo.o_can_redo.tf((v) => !v)}>
+                      {$on("click", () => this.undo.redo())}
+                      Redo
+                    </button>
+                  </e-row>
+                ) : (
                   <button type="button" class={cls_column_close}>
                     {$on("click", () => this.close_after(o_idx.get() - 1))}×
                   </button>
@@ -278,14 +280,9 @@ export class ObjectEditorShell {
 }
 
 const cls_shell = css`.oe-shell {
-  border: 1px solid var(--e-color-text-light, #ccc);
-  border-radius: 4px;
+  border: 1px solid ${theme.colors.text.light};
+  border-radius: ${theme.settings.frameBorderRadius};
   overflow: hidden;
-}`
-
-const cls_shell_toolbar = css`.oe-shell-toolbar {
-  border-bottom: 1px solid var(--e-color-text-light, #ccc);
-  background: var(--e-color-tint, #eee);
 }`
 
 const cls_strip = css`.oe-strip {
@@ -295,7 +292,7 @@ const cls_strip = css`.oe-strip {
 
 const cls_column = css`.oe-column {
   min-width: 260px;
-  border-right: 1px solid var(--e-color-text-light, #ccc);
+  border-right: 1px solid ${theme.colors.text.light};
   flex: none;
 }`
 
@@ -306,8 +303,8 @@ const cls_column_body = css`.oe-column-body {
 
 const cls_column_header = css`.oe-column-header {
   min-height: 1.8em;
-  background: var(--e-color-tint, #eee);
   font-weight: bold;
+  ${theme.colors.tint.css_as_inverted}
 }`
 
 const cls_column_close = css`.oe-column-close {

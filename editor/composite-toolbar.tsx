@@ -5,6 +5,7 @@ Search filters rows; the … menu hosts type-change actions and import/export ad
 
 import { $bind, $click, css, o, type Renderable } from "elt"
 import { popup } from "elt/ui/popup"
+import { theme } from "elt/ui"
 import type { CommonNodeOptions, CompositeToolbarOptions, Factory } from "./schema"
 import { apply_type_change, type_change_actions } from "./type-change"
 
@@ -93,11 +94,13 @@ export interface CompositeToolbarProps {
   type_change_extra?: Factory<unknown>[]
   /** Import/export add-ons registered for this editor instance (v1: usually empty). */
   import_export_addons?: { id: string; label: string }[]
+  /** Rendered inside a table's own sticky <thead>, which already provides sticky/background/border — skip those here. */
+  embedded?: boolean
 }
 
 /** Sticky composite title + toolbar; returns null when everything is opted out and title hidden. */
 export function render_composite_toolbar(props: CompositeToolbarProps): Renderable {
-  const { factory, o_value, toolbar, kind, type_change_extra = [], import_export_addons = [] } = props
+  const { factory, o_value, toolbar, kind, type_change_extra = [], import_export_addons = [], embedded = false } = props
   const flags = toolbar_flags(factory.options.toolbar)
   const oo_title = o_value.tf((value) => {
     const label = factory.options.chrome_label
@@ -114,7 +117,7 @@ export function render_composite_toolbar(props: CompositeToolbarProps): Renderab
       (flags.show_import_export && import_export_addons.length > 0))
 
   return (
-    <e-flex column class={cls_toolbar_wrap} gap="widget">
+    <e-flex column class={embedded ? cls_toolbar_embedded : cls_toolbar_wrap} gap="widget">
       {oo_title.tf((title) => (title != null ? <span class={cls_title}>{title}</span> : null))}
       {(flags.show_search || has_menu_content) && (
         <e-flex align="center" gap="widget" class={cls_toolbar_row}>
@@ -204,15 +207,19 @@ const cls_toolbar_wrap = css`.oe-composite-toolbar {
   position: sticky;
   top: 0;
   z-index: 1;
-  background: var(--e-color-background, #fff);
-  padding-bottom: 0.25em;
-  border-bottom: 1px solid var(--e-color-text-light, #ddd);
-  margin-bottom: 0.25em;
+  background: ${theme.colors.bg};
+  padding-bottom: ${theme.settings.spacing4};
+  border-bottom: 1px solid ${theme.colors.text.light};
+  margin-bottom: ${theme.settings.spacing4};
+}`
+
+/* Embedded in a table's <thead>, which already provides sticky/background/border. */
+const cls_toolbar_embedded = css`.oe-composite-toolbar-embedded {
 }`
 
 const cls_title = css`.oe-composite-title {
   font-weight: bold;
-  color: var(--e-color-text-mid, #666);
+  color: ${theme.colors.text.mid};
 }`
 
 const cls_toolbar_row = css`.oe-composite-toolbar-row {
@@ -229,14 +236,14 @@ const cls_case_toggle = css`.oe-composite-case {
   align-items: center;
   gap: 0.25em;
   font-size: 0.85em;
-  color: var(--e-color-text-mid, #888);
+  color: ${theme.colors.text.mid};
   user-select: none;
 }`
 
 const cls_menu_btn = css`.oe-composite-menu {
-  border: 1px solid var(--e-color-text-light, #ccc);
+  border: 1px solid ${theme.colors.text.light};
   background: none;
-  border-radius: 4px;
+  border-radius: ${theme.settings.borderRadius};
   padding: 0.2em 0.55em;
   cursor: pointer;
   line-height: 1.2;

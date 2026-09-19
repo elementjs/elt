@@ -12,6 +12,7 @@ Recursion goes through `forward()` (like `z.lazy`): `object-editor.tsx` and
 
 import { $bind, $observe, $on, $scrollable, css, o, Repeat, VirtualScroll, type attrs_input, type Renderable } from "elt"
 import { Select } from "elt/ui/select"
+import { theme } from "elt/ui"
 import {
   allows_delete,
   allows_insert,
@@ -146,15 +147,15 @@ function render_composite_preview(
 }
 
 const cls_preview = css`.oe-preview {
-  border: 1px solid var(--e-color-text-light, #ccc);
+  border: 1px solid ${theme.colors.text.light};
   background: none;
-  border-radius: 4px;
+  border-radius: ${theme.settings.borderRadius};
   padding: 0.3em 0.6em;
   cursor: pointer;
 }`
 
 const cls_unrepresentable = css`.oe-unrepresentable {
-  color: var(--e-color-text-mid, #888);
+  color: ${theme.colors.text.mid};
   font-style: italic;
   padding: 0.25em 0;
 }`
@@ -948,7 +949,7 @@ export class ObjectFactory extends Factory<ObjectOptions> {
 }
 
 const cls_object_key = css`.oe-object-key {
-  color: var(--e-color-text-mid, #888);
+  color: ${theme.colors.text.mid};
   white-space: nowrap;
 }`
 
@@ -961,9 +962,9 @@ const cls_object_value = css`.oe-object-value {
 
 const cls_object_key_input = css`.oe-object-key-input {
   font: inherit;
-  color: var(--e-color-text-mid, #888);
-  border: 1px solid var(--e-color-text-light, #ccc);
-  border-radius: 3px;
+  color: ${theme.colors.text.mid};
+  border: 1px solid ${theme.colors.text.light};
+  border-radius: ${theme.settings.borderRadius};
   padding: 0.1em 0.3em;
   min-width: 6em;
 }`
@@ -972,14 +973,14 @@ const cls_row_remove = css`.oe-row-remove {
   border: none;
   background: none;
   cursor: pointer;
-  color: var(--e-color-text-mid, #888);
+  color: ${theme.colors.text.mid};
   padding: 0 0.2em;
 }`
 
 const cls_add_key = css`.oe-add-key {
-  border: 1px dashed var(--e-color-text-light, #ccc);
+  border: 1px dashed ${theme.colors.text.light};
   background: none;
-  border-radius: 4px;
+  border-radius: ${theme.settings.borderRadius};
   padding: 0.3em 0.6em;
   cursor: pointer;
   justify-self: start;
@@ -1000,26 +1001,38 @@ const cls_table = css`.oe-table {
   width: max-content;
   border-collapse: collapse;
   th, td {
-    border: 1px solid var(--e-color-text-light, #ccc);
-    padding: 0.25em 0.5em;
+    border: 1px solid ${theme.colors.text.light};
+    padding: ${theme.settings.spacingWidget};
     vertical-align: top;
   }
-  thead th {
+  /* One sticky block for both header rows (toolbar + columns) — a fixed
+     per-row top offset would need the toolbar row's height, which varies
+     with its content (search + menu can wrap). */
+  thead {
     position: sticky;
     top: 0;
-    background: var(--e-color-background, #fff);
     z-index: 1;
+    background: ${theme.colors.bg};
+  }
+  thead th {
+    background: ${theme.colors.text.ultra_light};
+    font-weight: bolder;
   }
 }`
 
+const cls_table_toolbar_cell = css`.oe-table-toolbar-cell {
+  font-weight: normal;
+  text-align: start;
+}`
+
 const cls_table_index = css`.oe-table-index {
-  color: var(--e-color-text-mid, #888);
+  color: ${theme.colors.text.mid};
   text-align: right;
   min-width: 2em;
 }`
 
 const cls_table_warn = css`.oe-table-warn {
-  color: var(--e-color-warning, #b8860b);
+  color: ${theme.colors.yellow.strong};
   font-size: 0.9em;
 }`
 
@@ -1176,23 +1189,28 @@ export class ArrayFactory extends Factory<ArrayOptions> {
     return {
       render: () => (
         <e-flex column gap="widget">
-          {render_composite_toolbar({
-            factory: this as Factory<CommonNodeOptions>,
-            o_value,
-            toolbar,
-            kind: "array",
-            type_change_extra: [
-              set({ values: values_factory }),
-              map({ keys: string(), values: values_factory }),
-            ],
-          })}
-          {o_has_extra.tf((has) =>
-            has ? <span class={cls_table_warn} title="Some rows have keys not shown as columns">⚠ extra keys</span> : null,
-          )}
           <e-block class={cls_table_scroll}>
             {$scrollable}
             <table class={cls_table}>
               <thead>
+                <tr>
+                  <th colspan={o_columns.tf((cols) => cols.length + 1)} class={cls_table_toolbar_cell}>
+                    {render_composite_toolbar({
+                      factory: this as Factory<CommonNodeOptions>,
+                      o_value,
+                      toolbar,
+                      kind: "array",
+                      type_change_extra: [
+                        set({ values: values_factory }),
+                        map({ keys: string(), values: values_factory }),
+                      ],
+                      embedded: true,
+                    })}
+                    {o_has_extra.tf((has) =>
+                      has ? <span class={cls_table_warn} title="Some rows have keys not shown as columns">⚠ extra keys</span> : null,
+                    )}
+                  </th>
+                </tr>
                 <tr>
                   <th class={cls_table_index}>#</th>
                   {Repeat(o_columns, (o_col) => (
