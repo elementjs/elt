@@ -251,8 +251,9 @@ const cls_column = css`.scroll-column {
 
 const cls_step = css`.scroll-step {
   font-size: 0.65em;
-  line-height: 1;
-  padding: 2px 6px;
+  line-height: 2;
+  min-width: 24px;
+  text-align: center;
 }`
 
 const cls_adj = css`.scroll-adj {

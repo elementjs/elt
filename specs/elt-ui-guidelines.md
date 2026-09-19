@@ -14,23 +14,20 @@ This document is the single source for rules and decisions (the "why", as axes).
 
 Settled so far:
 
-- **Four emphasis variants**, shared by buttons and containers: `text` (no border) → `default` (bordered, neutral) → `tint` (bordered, tint-colored) → `inverted` (filled, tint as background). One word for both the button variant and the underlying `Color` mechanism — one rung, reserved for the single action or region that should visually dominate.
-
-- `Color.as_inverted` is the general primitive (code already renamed from `as_background`, keeping the `as_` prefix): given any color, it produces a new bg/text/tint combination — new `bg` = that color, new `text`/`tint` = old `bg`. The `inverted` variant is specifically `tint.as_inverted`, the loudest case, not a separate mechanism.
-
-- **Surfaces have a level**, starting at `bg` (0), each level mixing more tint into `bg`. Implemented as the `[surface]` attribute in `ui/layout.css.tsx`, tracked via a `--e-surface-level` custom property that increments and cascades to children — the level-tracking mechanism the previous pass asked for.
-
-- **Hover is level *n+1*; border/divider is level *n+2*.** Splitting them resolves the earlier collision concern (a hover fill and its own divider no longer compute to the same color). A panel/card's own background fill level is unconfirmed against this split (open question, below).
-
-- **Exception**: a focusable widget (button, input) gets a defined border from its own emphasis variant's color, at full text-level intensity — `.text` for the `text`/`default` variants, `.tint` for the `tint` variant — not from the surface-level stack. Its border is about the control's own identity, not its position in a surface stack.
-- **`elt/ui` does not define panels or cards.** Any layout container becomes one via `border`/`border-radius`/`surface` attributes (now in `ui/layout.css.tsx`, unfinished).
-- **Inversion is tunable by which color goes in.** `tint` inverted = maximum attention. A softer color inverted = lower attention, for structural chrome (table headers, status bars, navs). The mechanism now works in code (`Mix.as_inverted`, `ui/theme.tsx`).
+- **Five emphasis variants**, shared by buttons and containers: `link` (no border, no background — reads as a hyperlink) and `text` (no border, no background, tinted, no underline — a bare utility for icon-only/custom controls, not link semantics) sit at the bottom, both boundary-less; then `default` (bordered, neutral) → `tint` (bordered, tint-colored) → `inverted` (filled, tint as background). One word for both the button variant and the underlying `Color` mechanism where they overlap — one rung (`inverted`), reserved for the single action or region that should visually dominate.
+- `Color.as_inverted` is the general primitive: given any color, it produces a new bg/text/tint combination — new `bg` = that color, new `text`/`tint` = old `bg`. The `inverted` variant is specifically `tint.as_inverted`, the loudest case; `.selected` uses `tint.faded.as_inverted`, one notch quieter; a soft structural inversion (table headers, status bars) uses `text.faded.as_inverted`, quieter still. One mechanism, three examples of "which color you invert" so far.
+- **Surfaces have a level**, starting at `bg` (0), each level mixing more tint into `bg`, cascading from whichever level is ambient at that point (not from an absolute page-root count) — a panel that raises a new surface is level *n+1* relative to *its own* parent, not relative to the page. Implemented as the `[surface]` attribute in `ui/layout.css.tsx`.
+- **Hover is level *n+1*; border/divider is level *n+2*, relative to the surface they sit on.** A panel/card that wants a background just uses `surface` — the same primitive, not a separate rule — which inherently makes it *n+1* relative to its own parent, matching hover's level (this is fine: a background fill isn't simultaneously visible with a hover state on the same box the way a divider and a hover fill can be).
+- **Active/pressed** reuses the same absolute level stack, one step past hover (so at the same computed color a border/divider there would use). No requirement to stay visually distinct from a border at that level — press is a rapid, transient state, not a persistent one, so momentary overlap isn't a real collision.
+- **Focus stays outside the level stack entirely** — a ring/outline drawn around an element, not a fill or a border replacing the element's own, so it isn't competing for a "level" the way backgrounds and borders do. Formalizes what's already in code (`tint.mid` + `focusRingSize`) as the actual rule, not an ad hoc choice.
+- **`.mid` is a fixed 50%-bg/50%-tint mix, nothing more** — not a rung in the surface-level stack, not exclusively "the disabled color." It's a general-purpose moderate-intensity value, reached for wherever a border, a focus ring, or a disabled indicator needs *some* legible-but-quiet color — the earlier "overloaded meaning" concern dissolves once it's understood as a plain constant rather than a structural step that needs one canonical job.
+- **Exception**: a focusable widget (button, input) gets a defined border from its own emphasis variant's color, at full text-level intensity — `.text` for the `default` variant, `.tint` for the `tint` variant — not from the surface-level stack. Its border is about the control's own identity, not its position in a surface stack. `link` and `text` have no border at all — nothing to define here for either.
+- **`elt/ui` does not define panels or cards.** Any layout container becomes one via `border`/`border-radius`/`surface` attributes (now in `ui/layout.css.tsx`, unfinished). Border radius is derived, not separately maintained: an element's `border-radius` equals its own *vertical* padding step (the tighter of the horizontal/vertical pair) — see Surfaces and borders, below. This drops the earlier `borderRadius`/`frameBorderRadius` two-value system entirely.
 - **Status/severity hues are not `elt/ui`'s call, as a hard rule** — the app picks which hue means what. As a convention (not a spec requirement), red/yellow/green for error/warning/success follows general consensus, worth stating as guidance an app can deviate from with reason, not enforcing it.
-
-- The bg/text/tint mixing axis is a single continuous range, not two separate 0–100% scales: 0% = `bg`, 100% = `tint`, 200% = `text`. `.intense` (150%) sits halfway between `tint` and `text` on this axis. This clarifies the math; whether `.intense` is worth keeping still depends on finding a real use case for it (open, below).
-
+- `.intense` is dropped — no use case surfaced for a color strictly between `tint` and `text`, and the axis's own "don't name one-offs" rule says that's reason enough not to keep it.
 - The bg/text/tint combination currently in effect is named **ColorScheme** (matches the renamed type in `ui/theme.tsx`).
 - The WCAG floor: every tint needs contrast ≥ 3 against both `bg` and `text`, ideally ≥ 4.5.
+- Overlay lift (Axis 2) is now codified: dialog gets a cast shadow *and* a dimmed/blurred backdrop; popup gets a cast shadow only, no backdrop — matching the "full vs. light interruption" split Axis 2 already draws. This needs its own shadow tokens (`shadow-cast`, name TBD-but-favored), distinct from the existing `--e-color-shadow-raise`/`-drop` pair, which is a *different* system (inset bevel shading for tactile controls like buttons/toggles, already in active use in `ui/form.css.tsx`) — not overlay elevation, and not being generalized into a rule; it stays scoped per-widget.
 
 Bugs found by comparing this document against the actual code, and their status after this pass:
 
@@ -48,15 +45,15 @@ Bugs found by comparing this document against the actual code, and their status 
 
 Still open (real decisions, not implementation bugs):
 
-- Where `.selected` lands now that hover is pinned to *n+1*.
-- Focus and active/pressed states have no rule at all yet.
-- `.mid`'s meaning is overloaded — "signals disabled" per the working model, but already used in `ui/form.css.tsx` for borders and the focus ring, neither of which is a disabled state. (The footer fix above sidesteps this by not using `.mid` for inversion, but doesn't resolve the underlying overload.)
-- The text/border scale (`text`, `tint`, `muted`, `disabled`, `selected_text`) is still just named, never derived.
-- Border radius: two settings (`borderRadius`, `frameBorderRadius`), no rule for which applies where.
-- Overlay lift (popup/dialog vs. the page behind it): shadow, surface level, or both — no rule yet.
-- Naming for the `x-large`-and-above spacing step (`page` rejected, no replacement chosen) — now also blocking the spacing-into-`Theme` migration, per the bug above.
-- `.intense`: the math is now clear (0–200% axis, `bg`→`tint`→`text`, `.intense` at 150%), but a real use case still isn't identified.
-- Moving `paddingPanel*`/`paddingCell*`/`formFontSize` onto the spacing scale (see above) — real, cross-cutting, not attempted this pass.
+- **The padding/boundary/gap rule** is now settled (Axis 3, Spacing → Padding and boundaries): padding requires a boundary; a padded container must set `gap`; an un-padded container with more than one child neither pads nor gaps itself, and every child earns its own boundary instead.
+- **A new `link` button variant** sits alongside `text`, not replacing it: `color: tint`, underlined, no padding, no border, no background. This falls directly out of the padding rule above — a boundary-less button can't have padding either, so it needs *some* other way to read as clickable, which can only be the label itself (color + underline), the same way a hyperlink does. `text` stays as the plainer variant it already was (`color: tint`, no border, no background, no underline) — but it now has **no padding either, no exception**. Anything that was relying on `text` having padding was a layout that wasn't respecting the rule, not a reason to carve one out. Fixed at the call sites that assumed otherwise: `ui/timepicker.tsx`'s step buttons now size themselves with `min-width`/`line-height` instead of padding; `ui/date.tsx`'s calendar day cells now use a fixed `height`/`line-height` instead of padding.
+- The text/border scale: `muted` = `.faded`, `text`/`tint` = the raw values, `disabled` reuses `.mid`. `selected_text` is dropped from this scale — `::selection` stays its own manual CSS rule (already in `ui/theme.tsx`), unrelated to the general `Color`/`Mix` system.
+- **Code Todo**: implement the derived border-radius rule (`border-radius` = own vertical padding step) — not yet done; `borderRadius`/`frameBorderRadius` still exist as-is in `ui/theme.tsx`.
+- **Code Todo**: name and add the `shadow-cast` tokens (see Axis 2), and apply them to `ui/dialog.tsx`/`ui/popup.tsx`, replacing their current hardcoded `rgba(...)` shadow/backdrop values.
+- **Code Todo**: migrate `ui/dialog.tsx`'s internal header to `tint.as_inverted` (currently `background: tint; color: bg` set manually — same visual result, one code path instead of two). Its footer stays a plain fill, not inverted — that was a deliberate choice, not an inconsistency.
+- **Demo Todo**: add a layout section to the demo with a few worked examples using `surface`.
+- Naming for the `x-large`-and-above spacing step: resolved as `stage1`–`stage4` (see Axis 3) — numbered, not individually named, since fine distinctions between "very large" steps don't carry much individual meaning.
+- Moving `paddingPanel*`/`paddingCell*`/`formFontSize` onto the spacing scale (Axis 3) — real, cross-cutting, committed to as a separate follow-up pass, not attempted this pass.
 
 
 ### Emphasis and promotion
@@ -65,10 +62,13 @@ Every interactive control has one of four emphasis variants.
 
 | Variant | Meaning |
 | --- | --- |
-| `text` | De-emphasized. No border. |
+| `link` | De-emphasized, no border or background — reads as a hyperlink: `color: tint`, underlined, no padding. |
+| `text` | Bare: no border, no background, `color: tint`, no underline, no padding — same padding/boundary rule as everything else, no exception. |
 | `default` | Base. Bordered, neutral color. |
 | `tint` | Accented secondary. Bordered, tint-colored, not filled. |
 | `inverted` | Filled with tint as background - no borders |
+
+> Done: `e-variant="link"` added (`ui/form.css.tsx`, `color: tint` + underline + `padding: 0`). `e-variant="text"` kept as the bare/no-underline variant (also `ui/form.css.tsx`), now also `padding: 0` — no exception. `ui/date.tsx`'s day-cell buttons and `ui/timepicker.tsx`'s two step buttons stayed `text` (never link-like) but had their own padding removed and replaced with explicit sizing (`height`/`line-height`, `min-width`) instead, since they still need a consistent size without relying on padding they're no longer allowed to have. Demo (`demo/src/screen-visual-test.tsx`) shows both variants.
 
 > Done: `full` → `inverted` renamed in `ui/form.css.tsx` (`e-variant` type and CSS rules) and every call site (`demo/src/screen-visual-test.tsx`). The `Color` side keeps the `as_` prefix — `as_inverted`/`css_as_inverted`, not `.inverted`/`css_inverted` as first proposed here — matching the code's own naming.
 
@@ -122,15 +122,10 @@ Named steps never grow to cover a one-off need: anything outside the named steps
 - `.surface_current` — the level currently active.
 - `.hover` — surface level *n+1*.
 - `.separator` — surface level *n+2* (borders, dividers).
-- `.mid` — midpoint between hue and `bg`. Used with `.text` to signal disabled.
+- `.mid` — a fixed 50% `bg`/`tint` mix. Not part of the level stack; a general-purpose value reached for wherever something moderate-but-legible is needed (a border, a focus ring, a disabled indicator).
 - `.faded` — 80% hue.
-- `.intense` — 150% hue, toward `text`. Used in text for accenting.
 
-> 💡 **Idea**: `.intense` (150% toward text) plays the role `.very_strong` used to play, and `.strong` was already flagged as the one nobody reached for. Drop `.strong`, keep `.intense` as the one strong-emphasis step — one name instead of two for the same job.
-
-The mixing axis is a single continuous range, not two separate 0–100% scales: 0% = `bg`, 100% = `tint`, 200% = `text`. `.intense` (150%) sits halfway between `tint` and `text` on this axis — that resolves the math question this Idea originally raised.
-
-> ❓ **Question**: A real use case for `.intense` (a color strictly between `tint` and `text`) still isn't identified — worth naming one before it's locked in, otherwise it's an unused step per the color axis's own "don't name one-offs" rule.
+The mixing axis is a single continuous range, not two separate 0–100% scales: 0% = `bg`, 100% = `tint`, 200% = `text`. `.strong`/`.very_strong` and the dropped `.intense` all sit somewhere on this same range, toward `text`.
 
 In the living code, the surface stack (level *n+1*/*n+2*) replaces `.ultra_light` and `.light`.
 
@@ -144,31 +139,31 @@ Implemented in `ui/layout.css.tsx` as the `[surface]` attribute: it reads the am
 
 Hover uses level *n+1*; a border or divider drawn on a surface at level *n* uses level *n+2*, relative to its own container — never a fixed named step. Splitting hover (*n+1*) from border/divider (*n+2*) is what makes them distinguishable when both appear on the same row at once — a hover fill and its own bottom divider no longer compute to the same color, which a flat "both are one step up" rule (the previous pass's assumption) would have collapsed together.
 
-Two ways of setting a surface: the `theme.classes.surface_background` and `theme.classes.surface_increment` class properties.
+The `[surface]` attribute (`ui/layout.css.tsx`) is the one mechanism for raising a surface — layout elements only, no separate class-based API for arbitrary HTML. Every real case so far (panels, table headers, toolbars) is a layout element or can trivially become one; a second parallel API isn't worth the maintenance cost for a case that hasn't shown up.
 
-> ❓ **Question**: The code currently implements surface-level stacking as a `[surface]` HTML attribute on layout elements (`ui/layout.css.tsx`), not as `theme.classes.surface_background`/`surface_increment` class properties as described here. Is the attribute the actual mechanism and this prose stale, or is the plan to expose both — the attribute for `e-flex`/`e-grid`/`e-box`, the classes for arbitrary elements that aren't layout elements?
-
-> 🔨 **Todo**: `Theme` currently exposes color classes (`class_light`, `class_dark`, `class_dynamic`) as top-level properties. Move them under a `classes` namespace (`theme.classes.light_scheme`, `.dark_scheme`, `.dynamic_scheme`) for organization.
+> 🔨 **Todo**: `Theme` currently exposes color classes (`class_light`, `class_dark`, `class_dynamic`) as top-level properties. Move them under a `classes` namespace (`theme.classes.light_scheme`, `.dark_scheme`, `.dynamic_scheme`) for organization. Small and mechanical, but worth doing — every surface/inversion primitive added this session makes `Theme`'s top level more crowded.
 
 Border and divider stay two different concepts even though they may resolve to the same computed value: a **border** is the contour of one element (its own shape); a **divider** marks a boundary between elements (`<hr>`, a row separator).
 
 The *n+2* rule is for visual separation only (a container's own edge, a divider between elements). A focusable widget (button, input, and similar interactable controls) instead gets a defined border from the text/border scale (strong, matching text color) — its border marks the control's own shape and identity, not its position in a surface stack, so it does not follow *n+2*.
 
-`elt/ui` does not define a panel or a card as such. Any layout container (`e-flex`, `e-grid`, `e-box`) becomes a panel-like surface simply by carrying a border, a radius, and/or a background — whether a panel or card has its own background at all, or only a border, is an app decision, not something `elt/ui` mandates.
-
-> ❓ **Question**: A panel/card background was previously stated to follow level *n+1* relative to its container, but the general rule above (just confirmed) puts border/divider at *n+2* and hover at *n+1*. Is a panel's own background fill also *n+1* — i.e., the same level as hover would use, just applied as a permanent fill instead of a state — or does *n+1*-for-background predate the *n+2* split and need to move to match it?
+`elt/ui` does not define a panel or a card as such. Any layout container (`e-flex`, `e-grid`, `e-box`) becomes a panel-like surface simply by carrying a border, a radius, and/or a background — whether a panel or card has its own background at all, or only a border, is an app decision, not something `elt/ui` mandates. When a background is used, it's just `surface` — the same primitive as everything else, which makes a panel's own fill *n+1* relative to its own parent, the same level hover uses (not a special case: a permanent fill and a hover state aren't simultaneously visible on the same box, so sharing a level isn't a collision the way hover/divider was).
 
 `e-flex`/`e-grid`/`e-box` now have attribute-level `border`, `border-radius`, and `surface` attrs in `ui/layout.css.tsx` (unfinished — `border` currently only accepts `"widget"`), covering the previous Todo asking for exactly this.
 
-> 🔨 **Todo**: `ThemeSettings` has two radius values, `borderRadius` (6px) and `frameBorderRadius` (12px), with no stated rule for which applies where. The new `border-radius` attr needs to pick one of them (or both, as named values) before it is usable.
+**Border radius is derived, not a separately maintained scale.** An element's `border-radius` equals its own *vertical* padding step (the tighter of the horizontal/vertical pair — spacing is deliberately asymmetric, and a radius bigger than the tighter dimension would visibly cut into the content box). This is a real design choice, not just a convenience: a rounded corner is a quarter-circle whose arc is centered at (R, R) from the true corner; when padding P equals R, the content box's own corner sits exactly at that arc's center, equidistant from the curve in every direction — a visibly "nested" look, not a coincidence of matching numbers. It replaces `borderRadius`/`frameBorderRadius` as two independently maintained values — a bigger visual radius is now an emergent consequence of choosing a bigger padding step (`component`, `section`, …) for that surface, not a second thing to track. Not yet implemented in code.
 
 ### State
 
-`.hover` and `.selected` are a further mix layered on top of whichever surface level is currently active. Hover is level *n+1* (see Surfaces and borders, above).
+`.hover` is a further mix layered on top of whichever surface level is currently active — level *n+1* (see Surfaces and borders, above).
 
-> ❓ **Question**: Where does `.selected` land now that hover is pinned to *n+1*? Same level as hover (the two states would need to be mutually exclusive on any one element to stay distinguishable), or its own level/mix?
+`.selected` is not a level-stack step at all — it applies inversion, using `tint.faded` rather than full `tint`: one notch quieter than the `inverted` variant's maximum-attention case, reusing the same mechanism (Inversion, below) rather than a separate value. A multi-select list showing several inverted rows at once is fine — selection is a different kind of emphasis than "the one dominant action" the `inverted` restraint rule (Emphasis and promotion) is about, since selected rows aren't competing with each other for the user's next action. Worth a second look once a real multi-select widget exists to eyeball, since "reads fine in principle" isn't guaranteed to survive five selected rows on screen.
 
-> 🔨 **Todo (interaction states)**: Beyond hover/selected, this axis has no rule yet for: **focus** (currently `tint.mid` + `focusRingSize` in `ui/form.css.tsx`, unconnected to the level stack), **active/pressed** (no rule at all), and **disabled** (only `text.mid`/`tint.mid` used ad hoc for text/fills — no bg/border rule). `.mid` is described above as the disabled signal, but `ui/form.css.tsx` already uses `text.mid`/`tint.mid` for borders and the focus ring too — those are not disabled states, so `.mid`'s meaning is currently overloaded across at least three different purposes. Settle what `.mid` actually means before more code depends on it.
+`.active`/pressed reuses the level stack, one step past hover (the same computed color a border/divider there would use). No requirement to stay distinguishable from a border at that level — press is rapid and transient, not persistent, so momentary overlap isn't a real collision the way hover/divider's was.
+
+Focus stays outside the level stack entirely: a ring/outline drawn around an element (`tint.mid` + `focusRingSize`, already in `ui/form.css.tsx`), not a fill or a border replacing the element's own. It doesn't compete for a "level" the way a background or a divider does, so it doesn't need one.
+
+Disabled reuses `.mid` for text/fills where needed, as today — `.mid` is a general-purpose value (see Working model, above), not a structural step, so this isn't a conflict with its other uses (borders, focus ring).
 
 ### Inversion
 
@@ -176,8 +171,9 @@ Inversion is one mechanism, not several named variants: given a color, it produc
 
 > Done: mix helpers (`.mid`, `.faded`, `.strong`, …) now return a `Mix` instance (`ui/theme.tsx`) instead of a plain string. `Mix` has its own `css_as_inverted`/`as_inverted`, built from the mix's own live expression rather than a named-palette lookup — `text.faded.as_inverted` now works. `ui/layout.css.tsx`'s `header`/`footer` rules call `.css_as_inverted` (matching the name `ui/theme.tsx` actually defines).
 
-- Inverting `tint` or a color from the theme gives the maximum-attention result — toolbars, heavy actions. This is what the `inverted` button variant and inverted containers use (Axis 1, Emphasis and promotion).
-- Inverting a softer, less saturated color gives a lower-attention result for structural-but-secondary framing elements (toolbars, headers, and similar chrome, not the content they frame) — table headers, status bars, navs. `footer` now uses `text.faded` for this (was `text.mid`) — a judgment call made because `.mid` is stated elsewhere in this document to signal disabled, which doesn't fit ordinary footer chrome; flag if that reasoning is wrong.
+- Inverting `tint` gives the maximum-attention result — toolbars, heavy actions. This is what the `inverted` button variant and inverted containers use (Axis 1, Emphasis and promotion).
+- Inverting `tint.faded` gives one notch less: this is what `.selected` uses (Axis 1, State) — loud enough to read as selected, quiet enough not to compete with a genuinely dominant `inverted` action elsewhere on the same screen.
+- Inverting a softer, less saturated color gives a lower-attention result for structural-but-secondary framing elements (toolbars, headers, and similar chrome, not the content they frame) — table headers, status bars, navs. `footer` now uses `text.faded` for this (was `text.mid`) — a judgment call made because `.mid` is a general-purpose value (Axis 1, Working model), not specifically a soft-inversion color; `.faded` ("alternative to the full color... stays legible") fits the intent better.
 
 > Done: `grey` removed from the default theme's palette in `ui/theme.tsx`.
 
@@ -187,11 +183,11 @@ The bg/text/tint combination currently in effect (which changes under inversion)
 
 Spelling out the soft-inverted form at each call site (table header, status bar, nav) is acceptable once it exists (see the API Warning above) — a named shortcut may be added later if it turns out to be repeated often enough to be worth it, but that is not blocking.
 
-Status/severity hues stay outside `elt/ui`'s remit: the palette exists (`red`, `orange`, `green`, …), but which hue means "error" vs. "success" is an app decision, not something this document prescribes.
+Status/severity hues stay outside `elt/ui`'s remit as a hard rule: the palette exists (`red`, `orange`, `green`, …), but which hue means "error" vs. "success" is an app decision, not something this document prescribes. As a convention, not a requirement: red/error, yellow/warning, green/success follows general consensus and is worth stating as a default an app can deviate from with reason — an agent building a form with no other signal will reach for *some* mapping, and writing down the expected default prevents every app guessing a different one.
 
 > 📜 **ADR**: Every color in `ui/theme.tsx`'s default palette (`tint`, `red`, `orange`, `yellow`, `green`, `cyan`, `blue`, `purple`, `magenta`, …) is a `Color` instance with the same methods. The rules above are written generically ("a color," not "tint") because the mechanism already works that way in code — this is a documentation gap, not a new capability to build.
 
-> 🔨 **Todo**: The text/border scale (`text`, `tint`, `muted`, `disabled`, `selected_text`) from the raw inventory still needs the same settling pass the surface/inversion model above just got — current status: named, not yet derived or precisely defined.
+The text/border scale, settled: `text`/`tint` are the raw values; `muted` = `.faded`; `disabled` reuses `.mid`. `selected_text` is dropped from this scale — text selection stays its own manual `::selection` CSS rule (`ui/theme.tsx`), not part of the general `Color`/`Mix` system.
 
 
 ## Axis 2: Overlay and interruption
@@ -207,7 +203,11 @@ Pick the lowest level on this axis that still gives the action enough room and k
 
 > 📜 **ADR**: A generic inline expansion mechanism (accordion-style disclosure) was considered and dropped. Every candidate use case collapses into an existing pattern: long reference content is better served by a table of contents than a collapsed section; optional settings are better as a separate screen than hidden by default; a table row needing more detail is master-detail or a dialog; a field that only applies sometimes is conditional rendering (`If`/`Switch` in core elt), not a layout concern at all. `elt/ui` does not offer an accordion widget.
 
-> 🔨 **Todo (overlay lift)**: No rule yet says how a popup or dialog visually separates from the page behind it — shadow (`--e-color-shadow-raise`/`-drop`, already defined in `ui/theme.tsx`), the surface-level stack (Axis 1), or both together. Settle this once the surface-level mechanism (Axis 1, Surfaces and borders) is working.
+**Overlay lift**: a dialog separates from the page behind it with a cast shadow *and* a dimmed/blurred backdrop; a popup gets a cast shadow only, no backdrop. This matches the interruption split above — full interruption (dialog) gets more visual weight than light interruption (popup), and this is just that same split applied to lift, not a new decision.
+
+This needs its own shadow tokens, distinct from `--e-color-shadow-raise`/`-drop` (`ui/theme.tsx`) — those are a different system entirely: an inset bevel used to give buttons/toggles a tactile raised/pressed look (already in active use in `ui/form.css.tsx`), not overlay elevation. Reusing that pair for cast shadows would be a real naming collision, not just an unfortunate echo.
+
+> 🔨 **Todo**: Add `shadow-cast` tokens (name favored, not fully locked) for overlay lift, and migrate `ui/dialog.tsx`/`ui/popup.tsx` off their current hardcoded `rgba(...)` shadow/backdrop values onto them — both currently ignore the theme entirely for this, so a dark theme gets the same fixed-black shadow a light theme does. The existing bevel system (`shadow-raise`/`-drop`) stays scoped to individual widgets, not generalized into a rule — it solves a different, per-widget problem.
 
 ## Axis 3: Spacing and density
 
@@ -229,7 +229,12 @@ Names, `spacing="…"`:
 | `small` | `widget` |
 | `medium` | `component` (the default — most used) |
 | `large` | `section` |
-| `x-large` and above | not yet named — "page" fits the existing description ("between independent regions of a page") but is not confirmed |
+| `x-large` | `stage1` |
+| `2x-large` | `stage2` |
+| `3x-large` | `stage3` |
+| `4x-large` | `stage4` |
+
+Numbered rather than individually named, since fine distinctions between "very large" steps don't carry much individual meaning past a certain point — the small end got its own words (`widget`, `component`, `section`) because those distinctions matter for grouping; the large end doesn't need the same treatment.
 
 `e-row`/`e-column` become semantic aliases over `e-flex` (already its two directions); `e-flex` stays available underneath for the grid-adjacent or direction-agnostic cases.
 
@@ -237,9 +242,9 @@ Below `inline`: `inline` itself is redefined as `1ch` — sized to read as a tex
 
 The `1ch`-and-below split from the px-doubling scale is deliberate: at that level of nit-picking, the scale is relative to whatever it is being compared to (the font), not an absolute step.
 
-> ❓ **Question**: `page` was rejected for the `x-large`-and-above step, no replacement given yet. Alternatives: `layout` (matches Axis 4's name for the containment axis, may be confusing for that reason), `canvas`, `macro`. Any of these, or something else?
-
 > Done: `SpacingValues` and the `spaces` array now use `"1"`/`"2"`/`"4"`, matching the `:root` custom properties. `gap="1"`/`gap="2"`/`gap="4"` work again. No call sites used the old `3x-small`/`2x-small`/`x-small` words, so nothing else needed updating for this particular rename.
+
+> 🔨 **Todo**: `stage1`–`stage4` (above) is a spec-level rename not yet applied to `ui/layout.css.tsx` — the `:root` custom properties and `SpacingValues`/`spaces` are still `x-large`/`2x-large`/`3x-large`/`4x-large`.
 
 **Original scale**
 
@@ -270,6 +275,20 @@ Controls use this same scale for their own internal padding (typically `x-small`
 > 🚧 **Warning, confirmed wider than one component**: `ThemeSettings` still carries `paddingPanelVertical`/`paddingPanelHorizontal`/`paddingCellVertical`/`paddingCellHorizontal`/`formFontSize` — exactly the separate sizing system this rule says shouldn't exist. Not just `header`/`footer`: `ui/dialog.tsx`, `ui/date.tsx`, `ui/form.css.tsx`, `ui/select.tsx`, `ui/nav.tsx`, `ui/timepicker.tsx`, `ui/typography.css.tsx`, and `specs/object-editor.tsx` all use these settings directly. Migrating all of it to the spacing scale is a real, cross-cutting change — left as a Todo, not attempted as a "fix the bug" edit.
 
 > Done: the boolean-only default rule in `ui/layout.css.tsx` (`[gap]`/`[pad]` with no value, falling back to `component`) now writes `--e-${att}-vertical`/`-horizontal` (was a single leading dash, an invalid custom-property name that got silently dropped). A bare `gap`/`pad` attribute sets spacing again.
+
+### Padding and boundaries
+
+Three rules, replacing the two bullets above wherever they conflict:
+
+1. **Padding requires a boundary** (a border or a background). Padding is only ever visible in the presence of one — with neither, it has nothing to show itself against and does nothing perceptible. Padding with no boundary is therefore not a style choice, it's a contradiction: forbidden, not merely discouraged.
+2. **A container that pads itself must also set `gap`.** Padding on a container means that container is a boundary-holder; once it is, `gap` — not the children's own padding — is what keeps its children apart from each other. This is what rules out double-padding: a container can't be a boundary and also leave separation to its children.
+3. **A container that doesn't pad itself doesn't set `gap` either.** When it has more than one child, nothing then separates them but themselves — each must establish its own boundary and pad. A border marks the seam between adjacent children, skipped only where a background difference between them already makes it obvious. (A lone child never triggers this: with nothing to touch, there's nothing to separate — it just inherits whatever boundary already exists further up the chain, or none.)
+
+Tested against every case this document has walked through — a plain gapped row of already-bordered buttons, an inverted top-of-screen toolbar, a cobbled-together button group (no pad, no gap, adjacent full borders collapsed into shared lines rather than doubling), the dialog's header/content/footer (the panel itself is the un-padded, gap-less container; each row independently earns its own boundary and padding) — three rules cover all of it without a special case for any one of them.
+
+> 🔨 **Todo**: `ui/dialog.tsx`'s header/content/footer and any button-group CSS (`<e-button-box>`, `ui/form.css.tsx`) should be checked against these three rules directly — not verified line-by-line against the actual code yet, only against the *reasoning* that produced them.
+
+> 🔨 **Todo**: `ui/date.tsx`'s `cls_dow` (the weekday header labels, plain `<span>`) has its own `padding: 2px 0` with no border or background — the same violation the `text` button variant just got fixed for, found while in the file but not fixed, since it's a label, not a variant, and wasn't part of what was asked.
 
 ### Density
 

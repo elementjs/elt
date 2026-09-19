@@ -48,6 +48,7 @@ export default class ScreenVisualTest extends Service({
           <button>Button</button>
           <button e-variant="tint"><P.CaretDown/></button>
         </e-button-box>
+        <button e-variant="link">link <P.Heart/></button>
         <button e-variant="text">text <P.Heart/></button>
         <button e-variant="tint">tint <P.Heart/></button>
         <button e-variant="inverted">full <P.Heart/></button>
@@ -60,6 +61,7 @@ export default class ScreenVisualTest extends Service({
             <legend><label><input type="checkbox">{$bind.boolean(o_disabled)}</input> Disabled</label></legend>
             <e-flex gap>
               <button>Button</button>
+              <button e-variant="link">link</button>
               <button e-variant="text">text</button>
               <button e-variant="tint">tint</button>
               <button e-variant="inverted">full</button>

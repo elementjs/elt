@@ -10,7 +10,7 @@ const CHECKBOX_CHECK_MASK = encodeURIComponent(
 
 declare module "elt" {
   interface attrs_button {
-    "e-variant"?: NRO<"text" | "tint" | "inverted">
+    "e-variant"?: NRO<"link" | "text" | "tint" | "inverted">
   }
 
   interface attrs_input {
@@ -271,8 +271,24 @@ button, label:has(> input[type="checkbox"][e-variant="toggle"]) {
   }
 }
 
+button[e-variant="link"] {
+  border: 0;
+  padding: 0;
+  color: ${colors.tint};
+  background: transparent;
+  text-decoration: underline;
+
+  @media (hover: hover) and (pointer: fine) {
+    &:hover {
+      background: transparent;
+    }
+  }
+}
+
+/* Bare: no border, no background, tinted, no underline — same padding rule as everything else: none, since it has no boundary. */
 button[e-variant="text"] {
   border: 0;
+  padding: 0;
   color: ${colors.tint};
   background: transparent;
 }

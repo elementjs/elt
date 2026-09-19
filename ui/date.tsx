@@ -288,7 +288,8 @@ const cls_dow = css`.date-dow {
 
 const cls_day = css`.date-day {
   border: none;
-  padding: 4px 0;
+  height: 28px;
+  line-height: 28px;
   border-radius: 4px;
   &.outside {
     opacity: 0.35;
