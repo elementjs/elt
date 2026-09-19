@@ -100,7 +100,7 @@ const cls_indicator = css`.indicator {
 }`
 
 const cls_item = css`.item {
-  padding: ${theme.settings.paddingCellVertical} ${theme.settings.paddingCellHorizontal};
+  padding: var(--e-spacing-widget) var(--e-spacing-component);
   cursor: pointer;
   user-select: none;
   font-size: ${theme.settings.formFontSize};

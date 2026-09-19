@@ -1,5 +1,4 @@
 import { $click, $connected, css, o, type Renderable } from "elt"
-import { theme } from "./theme"
 
 /** Pixels of vertical drag per one step (up/down). */
 const DRAG_PX_PER_STEP = 22
@@ -234,7 +233,7 @@ function day_period_text(locale: string, am: boolean): string {
 
 const cls_panel = css`.time-panel {
   display: flex;
-  padding: ${theme.settings.paddingCellVertical} ${theme.settings.paddingCellHorizontal};
+  padding: var(--e-spacing-widget) var(--e-spacing-component);
   max-height: 220px;
   overflow: hidden;
 }`

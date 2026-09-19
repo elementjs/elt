@@ -81,7 +81,7 @@ fieldset {
   background-color: transparent;
   color: ${colors.text};
   border: 1px solid ${colors.text.mid};
-  padding: ${theme.settings.paddingCellVertical} ${theme.settings.paddingCellHorizontal};
+  padding: var(--e-spacing-widget) var(--e-spacing-component);
   border-radius: ${theme.settings.borderRadius};
   font-size: ${theme.settings.formFontSize};
 

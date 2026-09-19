@@ -214,7 +214,7 @@ css`@layer typography {
     :is(th, td) {
       border-left: 1px solid ${theme.colors.text.light};
       border-bottom: 1px solid ${theme.colors.text.light};
-      padding: ${theme.settings.paddingCellVertical} ${theme.settings.paddingCellHorizontal};
+      padding: var(--e-spacing-widget) var(--e-spacing-component);
       text-align: start;
     }
 

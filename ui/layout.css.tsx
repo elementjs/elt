@@ -18,10 +18,10 @@ export type SpacingValues =
   | "widget"
   | "component"
   | "section"
-  | "x-large"
-  | "2x-large"
-  | "3x-large"
-  | "4x-large"
+  | "stage1"
+  | "stage2"
+  | "stage3"
+  | "stage4"
 
 export type AlignValues =
   | "center"
@@ -96,10 +96,10 @@ const spaces: SpacingValues[] = [
   "widget",
   "component",
   "section",
-  "x-large",
-  "2x-large",
-  "3x-large",
-  "4x-large",
+  "stage1",
+  "stage2",
+  "stage3",
+  "stage4",
 ]
 const align: AlignValues[] = [
   "center",
@@ -166,10 +166,10 @@ css`
     --e-spacing-widget: 8px;
     --e-spacing-component: 16px;
     --e-spacing-section: 32px;
-    --e-spacing-x-large: 64px;
-    --e-spacing-2x-large: 128px;
-    --e-spacing-3x-large: 256px;
-    --e-spacing-4x-large: 512px;
+    --e-spacing-stage1: 64px;
+    --e-spacing-stage2: 128px;
+    --e-spacing-stage3: 256px;
+    --e-spacing-stage4: 512px;
 
     --e-gap-vertical: var(--e-spacing-widget);
     --e-gap-horizontal: var(--e-spacing-component);
@@ -184,8 +184,8 @@ css`
     ${theme.css_light_colors};
     ${theme.colors.tint.css_as_inverted};
 
-    padding: ${theme.settings.paddingPanelVertical} ${theme.settings.paddingPanelHorizontal};
-    gap: ${theme.settings.paddingCellVertical} ${theme.settings.paddingCellHorizontal};
+    padding: var(--e-spacing-widget) var(--e-spacing-component);
+    gap: var(--e-spacing-widget) var(--e-spacing-component);
     width: 100%;
     display: flex;
     flex-direction: row;
@@ -196,7 +196,7 @@ css`
       border-color: transparent;
 
       &:first-child {
-        margin-left: calc(-1 * ${theme.settings.paddingCellHorizontal});
+        margin-left: calc(-1 * var(--e-spacing-component));
       }
     }
   }

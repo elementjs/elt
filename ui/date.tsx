@@ -258,7 +258,7 @@ function same_day(a: Date, b: Date | null): boolean {
 }
 
 const cls_calendar = css`.date-calendar {
-  padding: ${theme.settings.paddingCellVertical} ${theme.settings.paddingCellHorizontal};
+  padding: var(--e-spacing-widget) var(--e-spacing-component);
   min-width: 260px;
 }`
 
@@ -283,7 +283,7 @@ const cls_grid = css`.date-grid {
 const cls_dow = css`.date-dow {
   font-size: 0.85em;
   color: ${colors.text.faded};
-  padding: 2px 0;
+  line-height: 1.6em;
 }`
 
 const cls_day = css`.date-day {

@@ -103,15 +103,13 @@ dialog {
   }
 
   & > header {
-    ${theme.css_light_colors}
-    padding: ${theme.settings.paddingPanelVertical} ${theme.settings.paddingPanelHorizontal};
-    background-color: ${theme.colors.tint};
-    color: ${theme.colors.bg};
+    ${theme.colors.tint.css_as_inverted}
+    padding: var(--e-spacing-widget) var(--e-spacing-component);
   }
 
   & > footer {
     border-top: 1px solid ${theme.colors.text.light};
-    padding: var(--e-padding-panel, 10px 16px);
+    padding: var(--e-spacing-widget) var(--e-spacing-component);
     background-color: ${theme.colors.text.ultra_light};
 
   }

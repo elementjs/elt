@@ -495,7 +495,7 @@ const cls_header = css`.header {
 
   & > h3 {
     flex-grow: 1;
-    padding: 0 ${theme.settings.paddingCellHorizontal};
+    padding: 0 var(--e-spacing-component);
   }
 
   & > button {
