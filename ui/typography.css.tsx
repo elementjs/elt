@@ -145,8 +145,8 @@ css`@layer typography {
     /* ── Details / summary ─────────────────────────────────── */
     & details {
       border: 1px solid ${theme.colors.text.mid};
-      border-radius: 0.375em;
-      padding: 0.5em 1em;
+      border-radius: ${theme.settings.borderRadius};
+      padding: ${theme.settings.spacingWidget};
 
       & summary {
         cursor: pointer;
