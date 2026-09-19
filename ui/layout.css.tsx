@@ -56,8 +56,8 @@ export interface CommonAttrs extends Attrs<HTMLElement> {
   grow?: NRO<boolean>
   
   spacing?: NRO<SpacingValues>
-  gap?: NRO<boolean | SpacingValues>
-  pad?: NRO<boolean | SpacingValues>
+  gap?: NRO<boolean | SpacingValues | "none">
+  pad?: NRO<boolean | SpacingValues | "none">
   surface?: NRO<boolean | SurfaceValues>
   hover?: NRO<boolean>
   /** Draw a border around the widget */
@@ -257,6 +257,16 @@ css`
     &[gap], &[spacing] {
       gap: var(--e-gap-vertical) var(--e-gap-horizontal);
     }
+  }
+
+  /* [pad="none"]/[gap="none"] turn one side off on its own, most useful alongside spacing
+     (which otherwise implies both) — generated last so they win the cascade. */
+  ${_all}[pad="none"] {
+    padding: 0;
+  }
+
+  :is(e-flex,e-grid,e-row,e-column)[gap="none"] {
+    gap: 0;
   }
 
   ${more.join("\n")}
