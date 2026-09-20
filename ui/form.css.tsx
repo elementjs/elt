@@ -75,6 +75,7 @@ textarea,
 select,
 label:has(> input[type="checkbox"][e-variant="toggle"]),
 fieldset {
+  line-height: 1;
   appearance: none;
   -webkit-appearance: none;
   background-color: transparent;

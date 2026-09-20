@@ -478,6 +478,7 @@ export class Mix {
 
     const new_level = level === "increment" ? "calc(1 + var(--e-surface-level, 0))" : `${level === "background" ? 0 : level}`
     return `
+    color: var(--e-color-text);
     --e-current-surface-level: ${new_level};
     --e-surface-level-swap: var(--e-current-surface-level);
     background-color: ${this.from_bg("calc(var(--e-current-surface-level) * var(--e-surface-step, 10%))")};

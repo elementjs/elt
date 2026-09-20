@@ -15,10 +15,14 @@ css`@layer reset {
     text-box-edge: cap alphabetic;
   }
 
-  :where(button, input, select, label) {
+  :where(button, input, select, label, e-block, e-row, e-column, e-flex, e-grid) {
     text-box-edge: cap alphabetic;
     text-box-trim: trim-both;
     line-height: 1;
+  }
+
+  [popover] {
+    border: 1px solid ${theme.colors.text.mid};
   }
 
   /* 1. Use a more-intuitive box-sizing model */

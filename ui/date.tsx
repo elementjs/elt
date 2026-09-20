@@ -133,7 +133,7 @@ export function DateTimePicker(at: DatePickerAttrs) {
     await popup(
       anchor,
       () => (
-        <e-block class={cls_calendar}>
+        <e-column class={cls_calendar}>
           <e-flex class={cls_toolbar} align="center" gap="widget">
             <button type="button" e-variant="text">
               {$click(() => year_delta(-1))}
@@ -174,7 +174,7 @@ export function DateTimePicker(at: DatePickerAttrs) {
               )
             })}
           </e-grid>
-        </e-block>
+        </e-column>
       ),
       { arrow: true },
     )
@@ -258,7 +258,6 @@ function same_day(a: Date, b: Date | null): boolean {
 }
 
 const cls_calendar = css`.date-calendar {
-  padding: ${theme.settings.spacingWidget};
   min-width: 260px;
 }`
 
@@ -291,6 +290,7 @@ const cls_day = css`.date-day {
   height: 28px;
   line-height: 28px;
   border-radius: 4px;
+  width: 32px;
   &.outside {
     opacity: 0.35;
   }

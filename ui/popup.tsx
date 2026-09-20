@@ -148,11 +148,11 @@ function popup_arrow(o_state: o.Observable<ArrowState>) {
   })
 
   return (
-    <e-block style={oo_outer_arrow_position} class={[cls_outer_arrow, o_state.p("side")]}>
-      <e-block class={cls_arrow_placer} data-placement={o_state.p("side")}>
-        <e-block class={cls_arrow_inner} />
-      </e-block>
-    </e-block>
+    <div style={oo_outer_arrow_position} class={[cls_outer_arrow, o_state.p("side")]}>
+      <div class={cls_arrow_placer} data-placement={o_state.p("side")}>
+        <div class={cls_arrow_inner} />
+      </div>
+    </div>
   ) as HTMLElement
 }
 
@@ -180,12 +180,12 @@ export function popup<T>(
   const doc = anchor.ownerDocument
   const fut = new Future<T | typeof sym_popup_closed>()
   const popup = (
-    <e-block class={cls_popup} popover="manual">
+    <e-column surface="background" border-radius popover="manual" class={cls_popup} border>
       <e-block class={cls_popup_content}>
         {$scrollable}
         {fn(fut)}
       </e-block>
-    </e-block>
+    </e-column>
   ) as HTMLElement
 
   fut.then((val) => {
@@ -309,10 +309,6 @@ popup.closed = sym_popup_closed
 const cls_popup = css`.popup {
   position: absolute;
   overflow: visible;
-  border-radius: var(--e-border-radius);
-  background-color: ${colors.bg};
-  color: ${colors.text};
-  border: 1px solid ${colors.text.mid};
   filter: drop-shadow(
     0px 0px 4px ${colors.text.from_bg("20%")});
 }`

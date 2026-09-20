@@ -24,8 +24,8 @@ css`@layer typography {
     color: ${theme.colors.text.faded};
   }
 
-
   e-block[typographic] {
+  
     /* ── Base rhythm ───────────────────────────────────────── */
     display: block;
     font-size: 1rem;
@@ -238,5 +238,18 @@ css`@layer typography {
       top: 0;
     }
   }
+
+  e-block {
+    & > :first-child {
+      margin-top: 0;
+      margin-block-start: 0 !important;
+    }
+
+    & > :last-child {
+      margin-bottom: 0;
+      margin-block-end: 0 !important;
+    }
+  }
+
 
 }`

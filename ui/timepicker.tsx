@@ -43,7 +43,7 @@ export function ScrollColumn(opts: ScrollColumnOpts) {
   }
 
   return (
-    <e-block class={cls_column}>
+    <e-column>
       {$connected((node: HTMLElement) => {
         let touch_id: number | null = null
         let touch_y = 0
@@ -111,7 +111,7 @@ export function ScrollColumn(opts: ScrollColumnOpts) {
       <button type="button" e-variant="text" class={cls_step}>
         {$click(() => step(1))}▼
       </button>
-    </e-block>
+    </e-column>
   ) as HTMLElement
 }
 

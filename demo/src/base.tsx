@@ -60,24 +60,24 @@ export default class Base extends Service({}) {
         popup(ev.currentTarget, fut =>
           <e-row>
             <e-column spacing="component">
-              <h5><P.WindowsLogo /> Windows</h5>
+              <label><P.WindowsLogo /> Windows</label>
               {btn("segoe_ui")}
               <hr />
-              <h5><P.AppleLogo /> MacOS</h5>
+              <label><P.AppleLogo /> MacOS</label>
               {btn("sf_pro")}
               <hr />
-              <h5><P.GoogleLogo /> Google</h5>
+              <label><P.GoogleLogo /> Google</label>
               {btn("google_sans")}
               {btn("open_sans")}
               {btn("noto_sans")}
               {btn("roboto")}
             </e-column><e-column spacing="component">
-              <h5><P.LinuxLogo /> Linux</h5>
+              <label><P.LinuxLogo /> Linux</label>
               {btn("inter")}
               {btn("cantarell")}
               {btn("ubuntu")}
               {btn("deja_vu_sans")}
-              <h5>Other</h5>
+              <label>Other</label>
               {btn("ibm_plex_sans")}
               {btn("public_sans")}
             </e-column>

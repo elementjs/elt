@@ -8,9 +8,6 @@ import routes from "./routes"
 // (padding requires one even when idle, not just on :hover) — the hover fill is on top of that,
 // not a substitute for it.
 const cls_hover_row = css`.hover-row {
-  padding: ${theme.settings.spacingWidget};
-  border-radius: ${theme.settings.borderRadius};
-  border-bottom: 1px solid ${theme.colors.tint.separator};
   cursor: pointer;
   &:hover {
     background-color: ${theme.colors.tint.hover};
@@ -63,7 +60,7 @@ export default class ScreenLayout extends Service({
         background is just a <code>surface</code>; it needs no separate "panel" or "card" concept.
       </p>
 
-      <e-block surface spacing="component" border-radius>
+      <e-block surface spacing="component" border-radius typographic>
         <p>
           Level 1 surface. Has its own background and padding — per the padding/boundary rules, a container that
           pads itself must also set <code>gap</code> for its children. (<code>spacing</code> alone implies both —
@@ -72,7 +69,7 @@ export default class ScreenLayout extends Service({
           pads itself needs either exactly one child or a flex/grid child doing its own gapping, never several
           loose children relying on the block's own <code>gap</code>.)
         </p>
-        <e-column gap="widget">
+        <e-block gap="widget">
           <e-block surface spacing="widget" border-radius>
             Level 2 surface, nested. One step further off its own (already-raised) parent — not two steps off the
             page.
@@ -80,10 +77,10 @@ export default class ScreenLayout extends Service({
           <e-block surface spacing="widget" border-radius>
             A sibling level-2 surface, for comparison.
           </e-block>
-        </e-column>
+        </e-block>
       </e-block>
 
-      <e-block border="widget" spacing="component" border-radius>
+      <e-block border="widget" spacing="component" border-radius typographic>
         No <code>surface</code> here — just a border. Radius is derived from this box's own vertical padding step
         (<code>component</code>), not a separately chosen value.
       </e-block>
@@ -106,7 +103,7 @@ export default class ScreenLayout extends Service({
         <e-block surface="3" spacing="widget" border-radius>surface="3"</e-block>
         <e-block surface="4" spacing="widget" border-radius>surface="4"</e-block>
       </e-row>
-      <e-column surface="3" spacing="component" border-radius>
+      <e-block surface="3" spacing="component" border-radius>
         <p>Ambient level 3.</p>
         <e-row gap="widget" wrap>
           <e-block surface="background" spacing="widget" border-radius>
@@ -124,7 +121,7 @@ export default class ScreenLayout extends Service({
           A plain <code>&lt;div&gt;</code>, not an <code>e-block</code> — styled with <code>theme.colors.tint.surface(2)</code>'s
           underlying CSS directly, since <code>[surface]</code> itself wouldn't match it.
         </div>
-      </e-column>
+      </e-block>
 
       <h3>Hover and separator</h3>
       <p>
@@ -134,7 +131,7 @@ export default class ScreenLayout extends Service({
         distinct from the hover fill even though both are "more tint mixed into the background."
       </p>
       <e-column surface spacing="component" border-radius>
-        <div class={cls_hover_row}>Hover me — background is <code>tint.hover</code> (level n+1)</div>
+        <e-block class={cls_hover_row}>Hover me — background is <code>tint.hover</code> (level n+1)</e-block>
         <div class={cls_separator_row}>Divider above this row is <code>tint.separator</code> (level n+2)</div>
       </e-column>
 
@@ -158,6 +155,9 @@ export default class ScreenLayout extends Service({
           <strong>tint, inverted</strong>
           <e-block class={cls_inverted_different} spacing="widget" border-radius>
             A <em>different</em> color (red) nested inside — reads clearly against its parent.
+          </e-block>
+          <e-block surface spacing="widget" border-radius>
+            Or simply setting surface
           </e-block>
         </e-column>
       </e-row>
