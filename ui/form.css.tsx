@@ -84,6 +84,7 @@ fieldset {
   padding: ${theme.settings.spacingWidget};
   border-radius: ${theme.settings.borderRadius};
   font-size: ${theme.settings.formFontSize};
+  line-height: 1em;
 
   transition:
     outline 0.1s ease,

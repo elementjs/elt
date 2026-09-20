@@ -146,12 +146,12 @@ css`@layer typography {
     & details {
       border: 1px solid ${theme.colors.text.mid};
       border-radius: ${theme.settings.borderRadius};
-      padding: ${theme.settings.spacingWidget};
+      padding: ${theme.settings.spacingComponent};
 
       & summary {
         cursor: pointer;
+        line-height: 1em;
         font-weight: 600;
-        padding-block: 0.25em;
         user-select: none;
       }
       &[open] summary { margin-block-end: 0.5em; }
