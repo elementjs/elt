@@ -1,5 +1,5 @@
 import { type Attrs, type NRO, css } from "elt"
-import { theme } from "./theme"
+import { type SpacingStep, spacing_steps, theme } from "./theme"
 
 declare module "elt" {
   interface ElementMap {
@@ -11,17 +11,7 @@ declare module "elt" {
   }
 }
 
-export type SpacingValues =
-  | "1"
-  | "2"
-  | "4"
-  | "widget"
-  | "component"
-  | "section"
-  | "stage-1"
-  | "stage-2"
-  | "stage-3"
-  | "stage-4"
+export type SpacingValues = SpacingStep
 
 export type AlignValues =
   | "center"
@@ -89,18 +79,7 @@ export interface EFlexAttrs extends CommonAttrs {
 }
 
 const more: string[] = []
-const spaces: SpacingValues[] = [
-  "1",
-  "2",
-  "4",
-  "widget",
-  "component",
-  "section",
-  "stage-1",
-  "stage-2",
-  "stage-3",
-  "stage-4",
-]
+const spaces = spacing_steps
 const align: AlignValues[] = [
   "center",
   "start",
@@ -154,8 +133,8 @@ for (const lvl of _surface_levels) {
   }`
 }
 
-// derived: radius follows this element's own vertical padding step, not a separately chosen value
-_`${_all}[border-radius]:not([border-radius="none"]) { border-radius: var(--e-pad-vertical, var(--e-spacing-widget-horizontal)); }`
+// derived: radius follows this element's own padding step, not a separately chosen value
+_`${_all}[border-radius]:not([border-radius="none"]) { border-radius: var(--e-pad, var(--e-spacing-widget)); }`
 
 for (const al of align) {
   _`${_layouters}[align="${al}"] { align-items: ${al}; }`
@@ -164,38 +143,29 @@ for (const al of align) {
   _`${_all}[self-align="${al}"] { align-self: ${al}; }`
 }
 
-// The three raw px nudges (1/2/4) have no separate vertical/horizontal pair — they're symmetric.
-// Every other step carries its own independent --e-spacing-<step>-vertical/-horizontal (ui/theme.tsx),
-// not derived from a neighbor at generation time.
-const _nudges = new Set(["1", "2", "4"])
-
 // Priority, lowest to highest (CSS cascade with equal specificity — later wins):
 // 1. bare [gap]/[pad] (no value) fall back to `component`.
 // 2. `spacing="X"` sets both gap and pad together — it has no purpose otherwise, a bare `pad`/`gap`
 //    alongside it should inherit X, not the component default from (1).
 // 3. `gap="X"`/`pad="X"` (an explicit step) override either side on its own, spacing or not.
+//
+// Every step → custom-property mapping below reads from `theme.css.pad`/`theme.css.gap`
+// (ui/theme.tsx) — the single source of truth `theme.classes.pad`/`.gap` also consume for
+// standalone elements, so the two can't drift apart.
 
 // (1)
-for (const att of ["gap", "pad"]) {
-  _`${_all}[${att}] { --e-${att}-vertical: var(--e-spacing-component-vertical); --e-${att}-horizontal: var(--e-spacing-component-horizontal) }`
-}
+_`${_all}[gap] { ${theme.css.gap("component")} }`
+_`${_all}[pad] { ${theme.css.pad("component")} }`
 
 // (2)
-for (let i = 0, l = spaces.length; i < l; i++) {
-  const sp = spaces[i]
-  const v = _nudges.has(sp) ? `var(--e-spacing-${sp})` : `var(--e-spacing-${sp}-vertical)`
-  const h = _nudges.has(sp) ? `var(--e-spacing-${sp})` : `var(--e-spacing-${sp}-horizontal)`
-  _`${_all}[spacing="${sp}"] { --e-gap-vertical: ${v}; --e-gap-horizontal: ${h}; --e-pad-vertical: ${v}; --e-pad-horizontal: ${h}; }`
+for (const sp of spaces) {
+  _`${_all}[spacing="${sp}"] { ${theme.css.gap(sp)} ${theme.css.pad(sp)} }`
 }
 
 // (3)
-for (const att of ["gap", "pad"]) {
-  for (let i = 0, l = spaces.length; i < l; i++) {
-    const sp = spaces[i]
-    const v = _nudges.has(sp) ? `var(--e-spacing-${sp})` : `var(--e-spacing-${sp}-vertical)`
-    const h = _nudges.has(sp) ? `var(--e-spacing-${sp})` : `var(--e-spacing-${sp}-horizontal)`
-    _`${_all}[${att}="${sp}"] { --e-${att}-vertical: ${v}; --e-${att}-horizontal: ${h}; }`
-  }
+for (const sp of spaces) {
+  _`${_all}[gap="${sp}"] { ${theme.css.gap(sp)} }`
+  _`${_all}[pad="${sp}"] { ${theme.css.pad(sp)} }`
 }
 
 // Spacing scale values now live in Theme (ui/theme.tsx, spacing1/2/4/Widget/Component/Section/Stage1-4)
@@ -204,10 +174,8 @@ for (const att of ["gap", "pad"]) {
 css`
 @layer components {
   :root {
-    --e-gap-vertical: var(--e-spacing-component-vertical);
-    --e-gap-horizontal: var(--e-spacing-component-horizontal);
-    --e-pad-vertical: var(--e-spacing-component-vertical);
-    --e-pad-horizontal: var(--e-spacing-component-horizontal);
+    ${theme.css.gap("component")}
+    ${theme.css.pad("component")}
 
     --e-surface-level: 0;
     --e-surface-step: 10%;
@@ -265,13 +233,13 @@ css`
 
   ${_all} {
     &[pad], &[spacing] {
-      padding: var(--e-pad-vertical) var(--e-pad-horizontal);
+      padding: var(--e-pad);
     }
   }
 
   :is(e-flex,e-grid,e-row,e-column) {
     &[gap], &[spacing] {
-      gap: var(--e-gap-vertical) var(--e-gap-horizontal);
+      gap: var(--e-gap);
     }
   }
 

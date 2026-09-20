@@ -23,23 +23,6 @@ export interface ThemeSettings {
   spacing2: string
   spacing4: string
 
-  /** Each step's own vertical value — the previous step's value, per the horizontal/vertical asymmetry rule. */
-  spacingWidgetVertical: string
-  spacingWidgetHorizontal: string
-  spacingComponentVertical: string
-  spacingComponentHorizontal: string
-  spacingSectionVertical: string
-  spacingSectionHorizontal: string
-  spacingStage1Vertical: string
-  spacingStage1Horizontal: string
-  spacingStage2Vertical: string
-  spacingStage2Horizontal: string
-  spacingStage3Vertical: string
-  spacingStage3Horizontal: string
-  spacingStage4Vertical: string
-  spacingStage4Horizontal: string
-
-  /** Shorthand: "<vertical> <horizontal>", ready to use directly as a padding/gap value. */
   spacingWidget: string
   spacingComponent: string
   spacingSection: string
@@ -48,6 +31,35 @@ export interface ThemeSettings {
   spacingStage3: string
   spacingStage4: string
 }
+
+/**
+ * The named spacing steps above the raw px nudges — the closed set `theme.css.pad`/`.gap` and
+ * `theme.classes.pad`/`.gap` (below) are precomputed against. Order matches the scale, smallest first.
+ */
+export type SpacingStep =
+  | "1"
+  | "2"
+  | "4"
+  | "widget"
+  | "component"
+  | "section"
+  | "stage-1"
+  | "stage-2"
+  | "stage-3"
+  | "stage-4"
+
+export const spacing_steps: SpacingStep[] = [
+  "1",
+  "2",
+  "4",
+  "widget",
+  "component",
+  "section",
+  "stage-1",
+  "stage-2",
+  "stage-3",
+  "stage-4",
+]
 
 export type ColorScheme = {
   bg: string
@@ -158,31 +170,15 @@ export class Theme<AllColors extends ColorScheme> {
     this._set(theme.settings ?? {}, "spacing2", "2px")
     this._set(theme.settings ?? {}, "spacing4", "4px")
 
-    // Each step's vertical/horizontal are independent settings, not derived from a neighbor lookup —
-    // defaults below preserve today's look (vertical = the step below, horizontal = the step's own
-    // value), but either can be overridden on its own without unwinding that formula.
-    this._set(theme.settings ?? {}, "spacingWidgetVertical", "8px")
-    this._set(theme.settings ?? {}, "spacingWidgetHorizontal", "8px")
-    this._set(theme.settings ?? {}, "spacingComponentVertical", "16px")
-    this._set(theme.settings ?? {}, "spacingComponentHorizontal", "16px")
-    this._set(theme.settings ?? {}, "spacingSectionVertical", "32px")
-    this._set(theme.settings ?? {}, "spacingSectionHorizontal", "32px")
-    this._set(theme.settings ?? {}, "spacingStage1Vertical", "64px")
-    this._set(theme.settings ?? {}, "spacingStage1Horizontal", "64px")
-    this._set(theme.settings ?? {}, "spacingStage2Vertical", "128px")
-    this._set(theme.settings ?? {}, "spacingStage2Horizontal", "128px")
-    this._set(theme.settings ?? {}, "spacingStage3Vertical", "256px")
-    this._set(theme.settings ?? {}, "spacingStage3Horizontal", "256px")
-    this._set(theme.settings ?? {}, "spacingStage4Vertical", "512px")
-    this._set(theme.settings ?? {}, "spacingStage4Horizontal", "512px")
-
-    this.settings.spacingWidget = `${this.settings.spacingWidgetVertical} ${this.settings.spacingWidgetHorizontal}`
-    this.settings.spacingComponent = `${this.settings.spacingComponentVertical} ${this.settings.spacingComponentHorizontal}`
-    this.settings.spacingSection = `${this.settings.spacingSectionVertical} ${this.settings.spacingSectionHorizontal}`
-    this.settings.spacingStage1 = `${this.settings.spacingStage1Vertical} ${this.settings.spacingStage1Horizontal}`
-    this.settings.spacingStage2 = `${this.settings.spacingStage2Vertical} ${this.settings.spacingStage2Horizontal}`
-    this.settings.spacingStage3 = `${this.settings.spacingStage3Vertical} ${this.settings.spacingStage3Horizontal}`
-    this.settings.spacingStage4 = `${this.settings.spacingStage4Vertical} ${this.settings.spacingStage4Horizontal}`
+    // One value per step, used identically for vertical and horizontal spacing — see
+    // "Spacing scale" in specs/elt-ui-guidelines.md for why there's no vertical/horizontal split.
+    this._set(theme.settings ?? {}, "spacingWidget", "8px")
+    this._set(theme.settings ?? {}, "spacingComponent", "16px")
+    this._set(theme.settings ?? {}, "spacingSection", "32px")
+    this._set(theme.settings ?? {}, "spacingStage1", "64px")
+    this._set(theme.settings ?? {}, "spacingStage2", "128px")
+    this._set(theme.settings ?? {}, "spacingStage3", "256px")
+    this._set(theme.settings ?? {}, "spacingStage4", "512px")
   }
 
   settings: ThemeSettings = {} as ThemeSettings
@@ -198,7 +194,7 @@ export class Theme<AllColors extends ColorScheme> {
   }
 
   @memoize
-  protected get all_colors() {
+  get all_colors() {
     return Object.keys(this.colors)
       .map((name) => {
         return `--e-light-color-${name}: ${this._light_values[name]}; --e-dark-color-${name}: ${this._dark_values[name]};`
@@ -243,43 +239,81 @@ export class Theme<AllColors extends ColorScheme> {
     ].join("")
   }
 
+  /**
+   * Raw-CSS-declaration helpers, keyed by concern — the low-level counterpart to `classes` below.
+   * `layout.css.tsx`'s `[pad]`/`[gap]`/`[spacing]` attribute rules consume these directly instead of
+   * re-deriving the step → custom-property mapping themselves; `classes.pad`/`.gap` wrap them into
+   * standalone classes for elements outside the `e-*` set. See "Spacing scale" in
+   * specs/elt-ui-guidelines.md.
+   */
+  readonly css = {
+    pad: (step: SpacingStep) => `--e-pad: var(--e-spacing-${step});`,
+    gap: (step: SpacingStep) => `--e-gap: var(--e-spacing-${step});`,
+  }
+
   @memoize
-  get class_light() {
+  get classes() {
+    return new ThemeClasses(this)
+  }
+
+  /** To string triggers the creation of the theme's CSS as a dynamic theme responding to @media (prefers-color-scheme: dark) rules. */
+  toString() {
+    return this.classes.dynamic_scheme.toString()
+  }
+}
+
+/**
+ * Class-name-producing helpers, grouped under `theme.classes` (specs/elt-ui-guidelines.md, Surfaces
+ * and borders) rather than as top-level `Theme` properties. Kept as a separate instance (not just
+ * methods on `Theme`) so the per-step spacing classes can memoize their own small cache without
+ * cluttering `Theme` itself.
+ */
+class ThemeClasses<AllColors extends ColorScheme> {
+  #pad_classes = new Map<SpacingStep, string>()
+  #gap_classes = new Map<SpacingStep, string>()
+
+  constructor(private theme: Theme<AllColors>) {}
+
+  @memoize
+  get light_scheme() {
+    const theme = this.theme
     return css`.e-light-theme {
       --e-color-shadow-raise: rgba(255, 255, 255, 0.2);
       --e-color-shadow-drop: rgba(0, 0, 0, 0.2);
-      ${this.all_colors}
-      ${this.css_settings}
-      ${this.css_light_colors}
-      ${this.init}
+      ${theme.all_colors}
+      ${theme.css_settings}
+      ${theme.css_light_colors}
+      ${theme.init}
     }`
   }
 
   @memoize
-  get class_dark() {
+  get dark_scheme() {
+    const theme = this.theme
     return css`.e-dark-theme {
-      ${this.all_colors}
-      ${this.css_settings}
-      ${this.css_dark_colors}
-      ${this.init}
+      ${theme.all_colors}
+      ${theme.css_settings}
+      ${theme.css_dark_colors}
+      ${theme.init}
       --e-color-shadow-raise: rgba(0, 0, 0, 0.2);
       --e-color-shadow-drop: rgba(255, 255, 255, 0.2);
     }`
   }
 
   @memoize
-  get class_dynamic() {
+  get dynamic_scheme() {
+    const theme = this.theme
     return css`.e-dynamic-theme {
-      ${this.all_colors}
-      ${this.css_settings}
-      ${this.css_light_colors}
-      ${this.init}
+      ${theme.all_colors}
+      ${theme.css_settings}
+      ${theme.css_light_colors}
+      ${theme.init}
       --e-color-shadow-raise: rgba(255, 255, 255, 0.2);
       --e-color-shadow-drop: rgba(0, 0, 0, 0.2);
 
       @media (prefers-color-scheme: dark) {
         & {
-          ${this.css_dark_colors}
+          ${theme.css_dark_colors}
           --e-color-shadow-raise: rgba(0, 0, 0, 0.2);
           --e-color-shadow-drop: rgba(255, 255, 255, 0.2);
         }
@@ -288,9 +322,24 @@ export class Theme<AllColors extends ColorScheme> {
     }`
   }
 
-  /** To string triggers the creation of the theme's CSS as a dynamic theme responding to @media (prefers-color-scheme: dark) rules. */
-  toString() {
-    return this.class_dynamic.toString()
+  /** Standalone padding class for elements outside the `e-*` set — see `Theme.css.pad`. */
+  pad(step: SpacingStep): string {
+    let cls = this.#pad_classes.get(step)
+    if (cls == null) {
+      cls = css`.e-pad-${step} { ${this.theme.css.pad(step)} padding: var(--e-pad); }`
+      this.#pad_classes.set(step, cls)
+    }
+    return cls
+  }
+
+  /** Standalone gap class for elements outside the `e-*` set — see `Theme.css.gap`. */
+  gap(step: SpacingStep): string {
+    let cls = this.#gap_classes.get(step)
+    if (cls == null) {
+      cls = css`.e-gap-${step} { ${this.theme.css.gap(step)} gap: var(--e-gap); }`
+      this.#gap_classes.set(step, cls)
+    }
+    return cls
   }
 }
 

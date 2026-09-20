@@ -131,3 +131,56 @@ describe("Mix.surface / [surface] parity", () => {
     expect(c).toContain("e-color-tint-surface-3")
   })
 })
+
+describe("Spacing scale (regression: no vertical/horizontal split)", () => {
+  test("a named step is a single value, not a 'vertical horizontal' pair", () => {
+    // Half-leading used to be uncompensated, so a smaller vertical value looked balanced —
+    // text-box-trim (ui/reset.css.tsx) removes that, and the scale collapsed to one value per step.
+    expect(theme.css_settings).toContain("--e-spacing-widget: 8px;")
+    expect(theme.css_settings).toContain("--e-spacing-component: 16px;")
+    expect(theme.css_settings).not.toContain("--e-spacing-widget-vertical")
+    expect(theme.css_settings).not.toContain("--e-spacing-widget-horizontal")
+  })
+})
+
+describe("Theme.css.pad / Theme.css.gap", () => {
+  test("pad(step) sets --e-pad from the named step's spacing variable", () => {
+    expect(theme.css.pad("widget")).toBe("--e-pad: var(--e-spacing-widget);")
+  })
+
+  test("gap(step) sets --e-gap from the named step's spacing variable", () => {
+    expect(theme.css.gap("section")).toBe("--e-gap: var(--e-spacing-section);")
+  })
+})
+
+describe("Theme.classes (regression: moved off Theme's top-level class_light/class_dark/class_dynamic)", () => {
+  test("light_scheme/dark_scheme/dynamic_scheme are memoized and produce the expected class names", () => {
+    expect(theme.classes.light_scheme).toBe(theme.classes.light_scheme)
+    expect(theme.classes.light_scheme.toString()).toContain("e-light-theme")
+    expect(theme.classes.dark_scheme.toString()).toContain("e-dark-theme")
+    expect(theme.classes.dynamic_scheme.toString()).toContain("e-dynamic-theme")
+  })
+
+  test("toString() still drives the dynamic scheme", () => {
+    expect(theme.toString()).toBe(theme.classes.dynamic_scheme.toString())
+  })
+
+  test("pad(step)/gap(step) return a stable, cached class name per step, mirroring theme.css.pad/gap", () => {
+    const a = theme.classes.pad("component")
+    const b = theme.classes.pad("component")
+    const c = theme.classes.pad("section")
+    expect(a).toBe(b)
+    expect(a).not.toBe(c)
+
+    const rule = find_rule_text(a)
+    expect(rule).toContain(theme.css.pad("component"))
+    expect(rule).toContain("padding: var(--e-pad)")
+  })
+
+  test("gap(step) applies the gap property from the same --e-gap custom property [pad]/[gap] attribute rules use", () => {
+    const cls = theme.classes.gap("widget")
+    const rule = find_rule_text(cls)
+    expect(rule).toContain(theme.css.gap("widget"))
+    expect(rule).toContain("gap: var(--e-gap)")
+  })
+})

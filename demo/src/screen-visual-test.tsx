@@ -102,6 +102,11 @@ export default class ScreenVisualTest extends Service({
         />
       </p>
 
+        <Select
+          options={["Option 1", "Option 2", "Option 3"]}
+          model={o("Option 1")}
+        />
+        <label><input type="checkbox" e-variant="toggle" disabled/> Toggle disabled</label>
       <h3>Pickers</h3>
 
       {() => {
