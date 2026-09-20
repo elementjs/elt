@@ -99,6 +99,8 @@ describe("ObjectFactory keys", () => {
   test("object widget includes composite toolbar search", () => {
     const o_root = o({ alpha: "one", beta: "two" })
     const widget = object({ properties: [] }).render(o_root as o.Observable<unknown>)
+    node_append(document.body, widget.header)
+    mounted.push(document.body.lastElementChild as HTMLElement)
     mount(widget.render() as HTMLElement)
     expect(document.querySelector('input[type="search"]')).not.toBeNull()
     expect(document.querySelector('button[aria-label="More actions"]')).not.toBeNull()
@@ -109,6 +111,8 @@ describe("ObjectFactory keys", () => {
     const widget = object({ properties: [{ name: "only", type: string() }], toolbar: { search: false } }).render(
       o_root as o.Observable<unknown>,
     )
+    node_append(document.body, widget.header)
+    mounted.push(document.body.lastElementChild as HTMLElement)
     mount(widget.render() as HTMLElement)
     expect(document.querySelector('input[type="search"]')).toBeNull()
   })

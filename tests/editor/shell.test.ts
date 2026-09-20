@@ -319,5 +319,16 @@ describe("ObjectEditorShell", () => {
 
     await new Promise((r) => setTimeout(r, 0))
     await new Promise((r) => setTimeout(r, 0))
+
+    // ui/popup.tsx tracks open popups in module-level state (a `popups` Set
+    // plus a document click/keydown listener) that isn't scoped to this
+    // test's DOM subtree, so leaving the popup open here leaks a stale
+    // element and a live listener into every test file that runs after this
+    // one -- an unrelated click anywhere then makes popup.tsx try to animate
+    // that stale, already-detached element closed, throwing an unhandled
+    // AbortError. Close it the same way a real click-outside would.
+    fire(document.body, "click")
+    await new Promise((r) => setTimeout(r, 0))
+    await new Promise((r) => setTimeout(r, 0))
   })
 })

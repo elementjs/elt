@@ -89,3 +89,33 @@ if (typeof window.Element.prototype.getAnimations !== "function") {
     return []
   }
 }
+
+// happy-dom's CSSParser doesn't implement CSS cascade layers at all:
+// - a bare layer-order statement like `@layer reset, base, theme;` has no
+//   `{ }` block, so the parser (which only finds rules by scanning for
+//   `{`/`}`) sees zero rules and CSSStyleSheet.insertRule throws.
+// - `@layer name { ... }` blocks fall through the parser's at-rule switch
+//   to its "unknown rule" default, which never adds the rule to the
+//   returned list, so insertRule throws there too.
+// Layer membership is never asserted on in tests, so: replace bare
+// layer-order statements with an equally-inert empty rule (CSSBuilder tracks
+// its next insertion index by counting one call = one rule, so silently
+// inserting nothing here would desync it from real cssRules.length on the
+// next insertRule call), and rewrite layer blocks to `@media all { ... }`
+// (a form the parser does support) to keep their nested rules testable.
+const LAYER_STATEMENT = /^@layer\s+[^{}]+;$/
+const LAYER_BLOCK = /^@layer\s+[\w-]+\s*\{/
+const real_insertRule = window.CSSStyleSheet.prototype.insertRule
+window.CSSStyleSheet.prototype.insertRule = function (
+  this: CSSStyleSheet,
+  rule: string,
+  index?: number,
+) {
+  const trimmed = rule.trim()
+  if (LAYER_STATEMENT.test(trimmed)) return real_insertRule.call(this, "@media all {}", index)
+  if (LAYER_BLOCK.test(trimmed)) {
+    const rewritten = trimmed.replace(LAYER_BLOCK, "@media all {")
+    return real_insertRule.call(this, rewritten, index)
+  }
+  return real_insertRule.call(this, rule, index)
+}

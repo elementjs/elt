@@ -1,6 +1,14 @@
 export function stop_animations(node: Element) {
   return Promise.all(
     node.getAnimations().map((animation) => {
+      // `animation.finished` is created eagerly by the Web Animations spec
+      // regardless of whether anyone reads it, and `.cancel()` below rejects
+      // it with AbortError. We track completion via events instead, so
+      // nothing else observes this promise -- left alone, that's an
+      // unhandled rejection every time an animation gets interrupted (e.g.
+      // closing a popup mid-animation).
+      animation.finished.catch(() => {})
+
       return new Promise((resolve) => {
         const handleAnimationEvent = requestAnimationFrame(resolve)
 
