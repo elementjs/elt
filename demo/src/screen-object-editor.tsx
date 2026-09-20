@@ -1,5 +1,6 @@
 import { $bind, $click, css, Service, o, view } from "elt"
 import { ObjectEditorShell } from "elt/editor"
+import { theme } from "elt/ui"
 
 import {
   BIG_TABLE_DEFAULT_ROWS,
@@ -191,7 +192,7 @@ export default class ScreenObjectEditor extends Service({
 }
 
 const cls_hint = css`.oe-demo-hint {
-  color: var(--e-color-text-mid, #666);
+  color: ${theme.colors.text.faded};
   font-size: 0.92em;
 }`
 

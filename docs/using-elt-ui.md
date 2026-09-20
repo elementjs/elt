@@ -69,12 +69,12 @@ Demo walkthrough: `demo/src/screen-ui-usage.tsx`, `demo/src/screen-layout.tsx`, 
 - Most widgets kept their names or have a same-named equivalent.
 - **Color semantics changed.** elt-ui / elt-shoelace used Material-style steps (50 muted → 600 full → 900 near text). elt/ui expresses most colors as **mix percentages from background or text** in OKLCH:
   - `theme.colors.tint` ≈ the old “600” accent
-  - `.ultra_light` / `.light` ≈ very muted fills (old 50–100)
+  - `.hover` / `.separator` ≈ very muted fills and dividers, relative to the ambient surface level (old 50–100)
   - `.faded` / `.mid` ≈ borders and muted chrome
   - `.strong` / `.very_strong` ≈ text-near emphasis
-- Replace fixed palette steps with `Color.from_bg(...)`, `.light`, `.faded`, etc. (`ui/theme.tsx`).
+- Replace fixed palette steps with `Mix.from_bg(...)`, `.hover`, `.faded`, etc. (`ui/theme.tsx`).
 
-Agent checklist for migration: [`using-elt-ui-agent.md` § Colors & theme](./using-elt-ui-agent.md#colors--theme).
+Agent checklist for migration: [`using-elt-ui-agent.md` § Colors & theme](./using-elt-ui-agent.md#colors--theme). Converting code written against this project's own earlier `.light`/`.ultra_light` steps: [`../specs/ui-migration.md`](../specs/ui-migration.md).
 
 ---
 

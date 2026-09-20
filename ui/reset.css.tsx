@@ -8,7 +8,17 @@ css`@layer reset {
   * {
     -webkit-tap-highlight-color: transparent;
     scrollbar-width: thin;
-    scrollbar-color: ${theme.colors.tint.mid} ${theme.colors.tint.ultra_light};
+    scrollbar-color: ${theme.colors.tint.mid} ${theme.colors.tint.from_bg("10%")};
+  }
+
+  :root {
+    text-box-edge: cap alphabetic;
+  }
+
+  :where(button, input, select, label) {
+    text-box-edge: cap alphabetic;
+    text-box-trim: trim-both;
+    line-height: 1;
   }
 
   /* 1. Use a more-intuitive box-sizing model */

@@ -228,7 +228,7 @@ const cls_case_toggle = css`.oe-composite-case {
 }`
 
 const cls_menu_btn = css`.oe-composite-menu {
-  border: 1px solid ${theme.colors.text.light};
+  border: 1px solid ${theme.colors.text.mid};
   background: none;
   border-radius: ${theme.settings.borderRadius};
   padding: 0.2em 0.55em;

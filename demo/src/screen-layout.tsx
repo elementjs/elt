@@ -63,32 +63,30 @@ export default class ScreenLayout extends Service({
         background is just a <code>surface</code>; it needs no separate "panel" or "card" concept.
       </p>
 
-      <e-row gap="section" wrap>
-        <e-column surface spacing="component" border-radius>
-          <p>
-            Level 1 surface. Has its own background and padding — per the padding/boundary rules, a container that
-            pads itself must also set <code>gap</code> for its children. (<code>spacing</code> alone implies both —
-            and only takes effect here because this wrapper is an <code>e-column</code>, not an <code>e-block</code>:
-            <code>gap</code> is a flex/grid property, a no-op on plain block layout, so an <code>e-block</code> that
-            pads itself needs either exactly one child or a flex/grid child doing its own gapping, never several
-            loose children relying on the block's own <code>gap</code>.)
-          </p>
-          <e-column gap="widget">
-            <e-block surface spacing="widget" border-radius>
-              Level 2 surface, nested. One step further off its own (already-raised) parent — not two steps off the
-              page.
-            </e-block>
-            <e-block surface spacing="widget" border-radius>
-              A sibling level-2 surface, for comparison.
-            </e-block>
-          </e-column>
+      <e-block surface spacing="component" border-radius>
+        <p>
+          Level 1 surface. Has its own background and padding — per the padding/boundary rules, a container that
+          pads itself must also set <code>gap</code> for its children. (<code>spacing</code> alone implies both —
+          and only takes effect here because this wrapper is an <code>e-column</code>, not an <code>e-block</code>:
+          <code>gap</code> is a flex/grid property, a no-op on plain block layout, so an <code>e-block</code> that
+          pads itself needs either exactly one child or a flex/grid child doing its own gapping, never several
+          loose children relying on the block's own <code>gap</code>.)
+        </p>
+        <e-column gap="widget">
+          <e-block surface spacing="widget" border-radius>
+            Level 2 surface, nested. One step further off its own (already-raised) parent — not two steps off the
+            page.
+          </e-block>
+          <e-block surface spacing="widget" border-radius>
+            A sibling level-2 surface, for comparison.
+          </e-block>
         </e-column>
+      </e-block>
 
-        <e-block border="widget" spacing="component" border-radius>
-          No <code>surface</code> here — just a border. Radius is derived from this box's own vertical padding step
-          (<code>component</code>), not a separately chosen value.
-        </e-block>
-      </e-row>
+      <e-block border="widget" spacing="component" border-radius>
+        No <code>surface</code> here — just a border. Radius is derived from this box's own vertical padding step
+        (<code>component</code>), not a separately chosen value.
+      </e-block>
 
       <h3>Absolute levels, and non-standard elements</h3>
       <p>

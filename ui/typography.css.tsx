@@ -19,7 +19,8 @@ css`@layer typography {
     display: inline-block;
     text-align: center;
     border-radius: ${theme.settings.borderRadius};
-    background: ${theme.colors.text.ultra_light};
+    //> Question: kbd fill — surface band or flat tint? Kept old look via explicit from_bg for now.
+    background: ${theme.colors.text.from_bg("10%")};
     color: ${theme.colors.text.faded};
   }
 
@@ -28,7 +29,7 @@ css`@layer typography {
     /* ── Base rhythm ───────────────────────────────────────── */
     display: block;
     font-size: 1rem;
-    line-height: 1.7;
+    line-height: 1.5;
     color: inherit;
 
     /* ── Unknown children → paragraph-like ────────────────── */
@@ -81,7 +82,7 @@ css`@layer typography {
     /* ── Lists ─────────────────────────────────────────────── */
     & ul, & ol {
       padding-inline-start: 1.75em;
-      & > li + li { margin-block-start: 0.35em; }
+      & > li + li { margin-block-start: 0.75em; }
     }
     & ul { list-style-type: disc; }
     & ul ul { list-style-type: circle; }
@@ -204,22 +205,22 @@ css`@layer typography {
     }
 
     & > :is(thead, tr:first-child) :is(th, td) {
-      border-top: 1px solid ${theme.colors.text.light};
+      border-top: 1px solid ${theme.colors.text.separator};
     }
 
     & :is(th, td):last-child {
-      border-right: 1px solid ${theme.colors.text.light};
+      border-right: 1px solid ${theme.colors.text.separator};
     }
 
     :is(th, td) {
-      border-left: 1px solid ${theme.colors.text.light};
-      border-bottom: 1px solid ${theme.colors.text.light};
+      border-left: 1px solid ${theme.colors.text.separator};
+      border-bottom: 1px solid ${theme.colors.text.separator};
       padding: ${theme.settings.spacingWidget};
       text-align: start;
     }
 
     & th {
-      background: ${theme.colors.text.ultra_light};
+      ${theme.colors.text.faded.css_as_inverted}
       font-weight: bolder;
     }
   }

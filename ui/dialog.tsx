@@ -84,7 +84,7 @@ dialog {
 
   border: none;
   border-radius: var(--e-frame-border-radius);
-  border: 1px solid ${theme.colors.text.light};
+  border: 1px solid ${theme.colors.text.separator};
 
   background: var(--e-color-bg);
   box-shadow: 0 10px 40px rgba(0,0,0,0.3);
@@ -99,7 +99,7 @@ dialog {
   transition: opacity 0.25s ease, transform 0.25s ease;
 
   &:has(> header) > e-block {
-    border-top: 1px solid ${theme.colors.text.light};
+    border-top: 1px solid ${theme.colors.text.separator};
   }
 
   & > header {
@@ -108,9 +108,10 @@ dialog {
   }
 
   & > footer {
-    border-top: 1px solid ${theme.colors.text.light};
+    border-top: 1px solid ${theme.colors.text.separator};
     padding: ${theme.settings.spacingComponent};
-    background-color: ${theme.colors.text.ultra_light};
+    //> Question: footer fill — surface band or flat tint? Kept old look via explicit from_bg for now.
+    background-color: ${theme.colors.text.from_bg("10%")};
 
   }
 

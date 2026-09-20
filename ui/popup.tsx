@@ -314,7 +314,7 @@ const cls_popup = css`.popup {
   color: ${colors.text};
   border: 1px solid ${colors.text.mid};
   filter: drop-shadow(
-    0px 0px 4px ${colors.text.light});
+    0px 0px 4px ${colors.text.from_bg("20%")});
 }`
 const cls_popup_content = css`.popup-content {
   overflow: hidden;

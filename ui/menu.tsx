@@ -52,10 +52,6 @@ css`menu {
     margin-bottom: 4px;
   }
 
-  & > :is(h1, h2, h3, h4, h5, h6, a, button, label, e-block, e-flex, e-button-box) {
-    padding: 4px 8px 4px 8px;
-  }
-
   & > li > :is(button, a, label), & > :is(button, a, label) {
     border: none;
     text-align: start;

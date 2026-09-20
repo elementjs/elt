@@ -114,12 +114,12 @@ const cls_item = css`.item {
   }
 
   &.selected {
-    background-color: ${colors.tint.ultra_light};
+    ${colors.tint.faded.css_as_inverted}
   }
 
   @media (hover: hover) and (pointer: fine) {
     &:hover, &:hover .selected-icon {
-      background-color: ${colors.tint.light};
+      background-color: ${colors.tint.hover};
     }
   }
 

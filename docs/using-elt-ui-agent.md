@@ -145,7 +145,7 @@ import { theme } from "elt/ui"
 const colors = theme.colors
 
 const cls_banner = css`.banner {
-  background: ${colors.tint.light};
+  background: ${colors.tint.hover};
   color: ${colors.text};
   border-radius: ${theme.settings.borderRadius};
 }`
@@ -153,22 +153,21 @@ const cls_banner = css`.banner {
 
 ### Color API (prefer over raw color-mix)
 
-Each `theme.colors.*` is a `Color` helper:
+Each `theme.colors.*` is a `Mix` helper:
 
 | Need | Use |
 | ---- | --- |
 | CSS color value | `theme.colors.tint` → `var(--e-color-tint)` |
-| Hover / subtle fill | `.light`, `.ultra_light` (mix toward bg) |
-| Dividers / borders | `.mid` |
-| Muted text | `.faded`, `.slightly_faded` |
+| `:hover` state fill | `.hover` (surface level *n+1*) |
+| Container edge / divider | `.separator` (surface level *n+2*) |
+| Focusable control's own border | `.mid` |
+| Muted text | `.faded` |
 | Strong emphasis | `.strong`, `.very_strong` (mix toward text) |
-| Custom mix | `.from("bg", "20%")`, `.from_text(...)`, `.from_bg(...)` |
+| Custom mix (no other role fits) | `.from("bg", "20%")`, `.from_text(...)`, `.from_bg(...)` |
 | Recolor subtree accent | `theme.colors.orange.as_tint` (class) |
-| Inverted band | `theme.colors.tint.as_background` (class) |
+| Inverted band (toolbar, dialog header, table `<th>`) | `theme.colors.tint.as_inverted` (class) or `.css_as_inverted` (spread inline) |
 
-Intensities (`intensityLight`, …) live on `theme.settings` and keep light/dark mixes consistent.
-
-**Migration from Material-style palettes:** old 50–900 steps map to **percent mixes from bg/text**, not fixed shades. `tint` ≈ old 600; `.light` / `.ultra_light` ≈ 50–100; `.faded` ≈ mid-muted fills. Details: [`using-elt-ui.md`](./using-elt-ui.md).
+Full rules and rationale: [`../specs/elt-ui-guidelines.md`](../specs/elt-ui-guidelines.md) (Axis 1: Color). Converting code written against the older `.light`/`.ultra_light` steps: [`../specs/ui-migration.md`](../specs/ui-migration.md).
 
 ---
 
@@ -288,9 +287,9 @@ const cls_toolbar = css`.toolbar {
   display: grid;
   grid-template-columns: 1fr auto;
   gap: var(--e-spacing-small);
-  padding: ${theme.settings.paddingPanelVertical} ${theme.settings.paddingPanelHorizontal};
+  padding: ${theme.settings.spacingComponent};
   background: ${theme.colors.bg};
-  border-bottom: 1px solid ${theme.colors.text.light};
+  border-bottom: 1px solid ${theme.colors.text.separator};
 }`
 ```
 
@@ -321,7 +320,7 @@ Rules:
 
 ## Migrating from elt-shoelace / legacy elt-ui
 
-See [`using-elt-ui.md`](./using-elt-ui.md). Widget names mostly carry over; **color semantics do not** — rebuild fills/borders with `Color.from_bg` / `.light` / `.faded`, not 100–900 steps.
+See [`using-elt-ui.md`](./using-elt-ui.md). Widget names mostly carry over; **color semantics do not** — rebuild fills/borders with `Mix.from_bg` / `.hover` / `.separator` / `.faded`, not 100–900 steps. See [`../specs/ui-migration.md`](../specs/ui-migration.md) for converting code written against this project's own earlier `.light`/`.ultra_light` steps.
 
 ---
 

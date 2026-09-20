@@ -13,11 +13,8 @@ export interface ThemeSettings {
   monospaceFontFamily: string
   fontFamily: string
 
-  intensityVeryLight: string
-  intensityLight: string
   intensityMid: string
   intensityFaded: string
-  intensitySlightlyFaded: string
 
   intensityStrong: string
   intensityVeryStrong: string
@@ -144,11 +141,8 @@ export class Theme<AllColors extends ColorScheme> {
     // independently chosen — see "Border radius is derived" in specs/elt-ui-guidelines.md.
     this._set(theme.settings ?? {}, "borderRadius", "8px")
     this._set(theme.settings ?? {}, "frameBorderRadius", "16px")
-    this._set(theme.settings ?? {}, "intensityVeryLight", "10%")
-    this._set(theme.settings ?? {}, "intensityLight", "20%")
     this._set(theme.settings ?? {}, "intensityMid", "50%")
     this._set(theme.settings ?? {}, "intensityFaded", "80%")
-    this._set(theme.settings ?? {}, "intensitySlightlyFaded", "90%")
     this._set(theme.settings ?? {}, "intensityStrong", "10%")
     this._set(theme.settings ?? {}, "intensityVeryStrong", "50%")
     this._set(theme.settings ?? {}, "monospaceFontFamily", "'IBM Plex Mono', 'Cascadia Code', 'Fira Code', monospace")
@@ -167,19 +161,19 @@ export class Theme<AllColors extends ColorScheme> {
     // Each step's vertical/horizontal are independent settings, not derived from a neighbor lookup —
     // defaults below preserve today's look (vertical = the step below, horizontal = the step's own
     // value), but either can be overridden on its own without unwinding that formula.
-    this._set(theme.settings ?? {}, "spacingWidgetVertical", "4px")
+    this._set(theme.settings ?? {}, "spacingWidgetVertical", "8px")
     this._set(theme.settings ?? {}, "spacingWidgetHorizontal", "8px")
-    this._set(theme.settings ?? {}, "spacingComponentVertical", "8px")
+    this._set(theme.settings ?? {}, "spacingComponentVertical", "16px")
     this._set(theme.settings ?? {}, "spacingComponentHorizontal", "16px")
-    this._set(theme.settings ?? {}, "spacingSectionVertical", "16px")
+    this._set(theme.settings ?? {}, "spacingSectionVertical", "32px")
     this._set(theme.settings ?? {}, "spacingSectionHorizontal", "32px")
-    this._set(theme.settings ?? {}, "spacingStage1Vertical", "32px")
+    this._set(theme.settings ?? {}, "spacingStage1Vertical", "64px")
     this._set(theme.settings ?? {}, "spacingStage1Horizontal", "64px")
-    this._set(theme.settings ?? {}, "spacingStage2Vertical", "64px")
+    this._set(theme.settings ?? {}, "spacingStage2Vertical", "128px")
     this._set(theme.settings ?? {}, "spacingStage2Horizontal", "128px")
-    this._set(theme.settings ?? {}, "spacingStage3Vertical", "128px")
+    this._set(theme.settings ?? {}, "spacingStage3Vertical", "256px")
     this._set(theme.settings ?? {}, "spacingStage3Horizontal", "256px")
-    this._set(theme.settings ?? {}, "spacingStage4Vertical", "256px")
+    this._set(theme.settings ?? {}, "spacingStage4Vertical", "512px")
     this._set(theme.settings ?? {}, "spacingStage4Horizontal", "512px")
 
     this.settings.spacingWidget = `${this.settings.spacingWidgetVertical} ${this.settings.spacingWidgetHorizontal}`
@@ -419,20 +413,6 @@ export class Mix {
     return this.from("text", intensity, alpha)
   }
 
-  /**
-   * Very faint background for contrasts, or visual dividers
-   */
-  get ultra_light() {
-    return this.from_bg(theme.settings.intensityVeryLight)
-  }
-
-  /**
-   * Hover background
-   */
-  get light() {
-    return this.from_bg(theme.settings.intensityLight)
-  }
-
   get mid() {
     return this.from_bg(theme.settings.intensityMid)
   }
@@ -442,10 +422,6 @@ export class Mix {
    */
   get faded() {
     return this.from_bg(theme.settings.intensityFaded)
-  }
-
-  get slightly_faded() {
-    return this.from_bg(theme.settings.intensitySlightlyFaded)
   }
 
   get strong() {

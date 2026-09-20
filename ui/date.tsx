@@ -295,12 +295,11 @@ const cls_day = css`.date-day {
     opacity: 0.35;
   }
   &.selected {
-    background: ${colors.tint.light};
-    color: ${colors.tint};
+    ${colors.tint.faded.css_as_inverted}
   }
   @media (hover: hover) and (pointer: fine) {
     &:hover {
-      background: ${colors.tint.ultra_light};
+      background: ${colors.tint.hover};
     }
   }
 }`

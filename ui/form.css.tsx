@@ -26,7 +26,7 @@ a {
   color: ${colors.tint};
   &:hover {
     text-decoration: underline;
-    background-color: ${colors.tint.light};
+    background-color: ${colors.tint.hover};
   }
 }
 
@@ -43,12 +43,7 @@ label {
 
   @media (hover: hover) and (pointer: fine) {
     &:hover:not(:has(:disabled)) {
-      background-color: ${colors.tint.light};
-      /*box-shadow:
-        6px 3px 0 ${colors.tint.light},
-        6px -3px 0 ${colors.tint.light},
-        -6px 3px 0 ${colors.tint.light},
-        -6px -3px 0 ${colors.tint.light};*/
+      background-color: ${colors.tint.hover};
     }
   }
 }
@@ -59,6 +54,10 @@ input[type="checkbox"][e-variant="toggle"] {
 
 button, input[type="checkbox"], input[type="radio"] {
   cursor: pointer;
+}
+
+input, button, select {
+  line-height: 1;
 }
 
 button,
@@ -84,7 +83,6 @@ fieldset {
   padding: ${theme.settings.spacingWidget};
   border-radius: ${theme.settings.borderRadius};
   font-size: ${theme.settings.formFontSize};
-  line-height: 1em;
 
   transition:
     outline 0.1s ease,
@@ -93,7 +91,8 @@ fieldset {
 
   @media (hover: hover) and (pointer: fine) {
     &:hover {
-      background: ${colors.bg.ultra_light};
+      //> Question: was colors.bg.ultra_light, a bg-mixed-with-bg no-op (visually inert even before this migration). Left as-is (colors.bg) rather than silently picking a new hover fill.
+      background: ${colors.bg};
     }
   }
 
@@ -188,8 +187,8 @@ input[type="checkbox"][e-variant="switch"] {
   width: var(--e-switch-width);
   height: calc(var(--e-switch-height) + 2px);
   border-radius: 9999px;
-  border: 1px solid ${colors.text.light};
-  background-color: ${colors.text.light};
+  border: 1px solid ${colors.text.mid};
+  background-color: ${colors.text.mid};
   transition:
     background-color 0.1s ease-out,
     border-color 0.1s ease-out,
@@ -244,10 +243,10 @@ hr {
   border: none;
   height: 1px;
   width: 100%;
-  background-color: ${colors.text.light};
+  background-color: ${colors.text.separator};
 
   &[e-variant="tint"] {
-    border-color: ${colors.tint.light};
+    border-color: ${colors.tint.separator};
   }
 }
 
@@ -257,12 +256,12 @@ button, label:has(> input[type="checkbox"][e-variant="toggle"]) {
 
   @media (hover: hover) and (pointer: fine) {
     &:hover:not(:disabled) {
-      background: ${colors.tint.light};
+      background: ${colors.tint.hover};
     }
   }
 
   &:active:not(:disabled) {
-    background: ${colors.tint.ultra_light};
+    background: ${colors.tint.separator};
     transform: translateY(0.5px);
   }
 
@@ -375,7 +374,7 @@ e-button-box {
     & > :is(button[e-variant="on"],
     & > (button[e-variant="inverted"]), label):not(:first-child),
     {
-      border-top-color: ${colors.tint.light};
+      border-top-color: ${colors.tint.separator};
     }
   }
 
@@ -398,7 +397,7 @@ e-button-box {
 
     & > :is(button[e-variant="on"],
     & > (button[e-variant="inverted"]), label):not(:first-child) {
-      border-left-color: ${colors.tint.ultra_light};
+      border-left-color: ${colors.tint.separator};
     }
   }
 }

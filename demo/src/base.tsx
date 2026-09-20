@@ -92,16 +92,6 @@ export default class Base extends Service({}) {
   @view
   Main() {
     return <e-column class={[cls_fullscreen]} style={this.oo_style}>
-      {/* <header class={[cls_header, theme.class_light, theme.colors.blue.as_background]}>
-        <nav>
-          <EltLogo/>
-          <button>{$click(() => routes.home.activate())} Home</button>
-          <button>{$click(() => routes.buttons.activate())} Buttons</button>
-          <button>Widgets <P.Table/></button>
-          <button>Help <P.Question/></button>
-        </nav>
-      </header> */}
-
       <e-row grow class={cls_main} align="stretch">
         <menu class={cls_aside_nav}>
           {$scrollable}

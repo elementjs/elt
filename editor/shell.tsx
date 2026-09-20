@@ -289,7 +289,7 @@ export class ObjectEditorShell {
 }
 
 const cls_shell = css`.oe-shell {
-  border: 1px solid ${theme.colors.text.light};
+  border: 1px solid ${theme.colors.text.separator};
   border-radius: ${theme.settings.frameBorderRadius};
   overflow: hidden;
 }`
@@ -301,7 +301,7 @@ const cls_strip = css`.oe-strip {
 
 const cls_column = css`.oe-column {
   min-width: 260px;
-  border-right: 1px solid ${theme.colors.text.light};
+  border-right: 1px solid ${theme.colors.text.separator};
   flex: none;
 }`
 

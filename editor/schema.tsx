@@ -153,7 +153,7 @@ function render_composite_preview(
 }
 
 const cls_preview = css`.oe-preview {
-  border: 1px solid ${theme.colors.text.light};
+  border: 1px solid ${theme.colors.text.mid};
   background: none;
   border-radius: ${theme.settings.borderRadius};
   padding: 0.3em 0.6em;
@@ -969,7 +969,7 @@ const cls_object_value = css`.oe-object-value {
 const cls_object_key_input = css`.oe-object-key-input {
   font: inherit;
   color: ${theme.colors.text.mid};
-  border: 1px solid ${theme.colors.text.light};
+  border: 1px solid ${theme.colors.text.mid};
   border-radius: ${theme.settings.borderRadius};
   padding: 0.1em 0.3em;
   min-width: 6em;
@@ -984,7 +984,7 @@ const cls_row_remove = css`.oe-row-remove {
 }`
 
 const cls_add_key = css`.oe-add-key {
-  border: 1px dashed ${theme.colors.text.light};
+  border: 1px dashed ${theme.colors.text.mid};
   background: none;
   border-radius: ${theme.settings.borderRadius};
   padding: 0.3em 0.6em;
@@ -1007,7 +1007,7 @@ const cls_table = css`.oe-table {
   width: max-content;
   border-collapse: collapse;
   th, td {
-    border: 1px solid ${theme.colors.text.light};
+    border: 1px solid ${theme.colors.text.separator};
     padding: ${theme.settings.spacingWidget};
     vertical-align: top;
   }
@@ -1015,7 +1015,7 @@ const cls_table = css`.oe-table {
     position: sticky;
     top: 0;
     z-index: 1;
-    background: ${theme.colors.text.ultra_light};
+    ${theme.colors.text.faded.css_as_inverted}
     font-weight: bolder;
   }
 }`

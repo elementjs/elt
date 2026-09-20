@@ -405,7 +405,7 @@ function ObjectTable({
 
 const cls_clickable = css`.clickable {
   &:hover {
-    background-color: ${theme.colors.text.ultra_light};
+    background-color: ${theme.colors.text.hover};
   }
   cursor: pointer;
 }`
@@ -488,8 +488,7 @@ const cls_nav = css`.nav {
 }`
 
 const cls_header = css`.header {
-  border-bottom: 1px solid ${theme.colors.text.mid};
-  background-color: ${theme.colors.text.ultra_light};
+  ${theme.colors.text.faded.css_as_inverted}
   width: 100%;
   font-size: ${theme.settings.formFontSize};
 
