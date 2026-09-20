@@ -99,7 +99,16 @@ function getOkLch<T extends ColorScheme>(colors: T): { [key in keyof T]: OkLch }
 const _re_setting = /[A-Z]|[0-9]+/g
 
 export class Theme<AllColors extends ColorScheme> {
-  colors = {} as { [key in keyof AllColors]: Color<AllColors> }
+  colors = {} as { [key in keyof AllColors]: Mix }
+
+  /**
+   * Raw light/dark values per named color, keyed by name — used only to emit the
+   * `--e-light-color-*`/`--e-dark-color-*` custom properties (see `all_colors`). Kept off `Mix`
+   * itself: once a color is mixed/inverted, there is no separate "light value" for the result,
+   * only the live expression — so this bookkeeping belongs to `Theme`, not to every `Mix`.
+   */
+  private _light_values: Record<string, string> = {}
+  private _dark_values: Record<string, string> = {}
 
   constructor(theme: { light: AllColors; dark?: Partial<AllColors>; settings?: Partial<ThemeSettings> }) {
     if (!(theme.light["bg"] || theme.light["text"] || theme.light["tint"])) {
@@ -125,13 +134,9 @@ export class Theme<AllColors extends ColorScheme> {
         const new_l = delta_dark > delta ? light_value.l : dark_l + delta
         dark[name as keyof ColorScheme] = new OkLch(new_l, light_value.c, light_value.h)
       }
-      const color = new Color(
-        this,
-        name as Extract<keyof AllColors, string>,
-        light[name as keyof ColorScheme].toString(),
-        dark[name as keyof ColorScheme].toString(),
-      )
-      this.colors[name as keyof AllColors] = color
+      this._light_values[name] = light[name as keyof ColorScheme].toString()
+      this._dark_values[name] = dark[name as keyof ColorScheme].toString()
+      this.colors[name as keyof AllColors] = new Mix(`var(--e-color-${name})`, name)
     }
 
     // Now set the theme settings
@@ -200,9 +205,9 @@ export class Theme<AllColors extends ColorScheme> {
 
   @memoize
   protected get all_colors() {
-    return Object.entries(this.colors)
-      .map(([name, color]) => {
-        return `--e-light-color-${name}: ${color.light_value}; --e-dark-color-${name}: ${color.dark_value};`
+    return Object.keys(this.colors)
+      .map((name) => {
+        return `--e-light-color-${name}: ${this._light_values[name]}; --e-dark-color-${name}: ${this._dark_values[name]};`
       })
       .join("")
   }
@@ -295,45 +300,81 @@ export class Theme<AllColors extends ColorScheme> {
   }
 }
 
+let _mix_id = 0
+
 /**
- * Represents a color in the theme, with helpers
+ * Represents a color-like CSS expression in the theme: either a named palette entry
+ * (`var(--e-color-tint)`) or the result of mixing/inverting one (`color-mix(...)`). One class
+ * covers both — a palette entry is just a `Mix` whose expression happens to be a plain variable
+ * reference, with a stable `label` (its name) for readable generated class names. A computed mix
+ * has no such stable identity, so its class names fall back to a per-instance counter.
  *
  * Things to consider :
  *   - Active / Focus / Selected
  *   - Hover
  *   - Disabled
- *
  */
-export class Color<Colors extends ColorScheme> {
+export class Mix {
+  #id = _mix_id++
+
   constructor(
-    public theme: Theme<Colors>,
-    public name: Extract<keyof Colors, string>,
-    public light_value: string,
-    public dark_value: string,
+    public expr: string,
+    /** Stable name for readable generated class names (e.g. "tint"). Omitted for computed mixes. */
+    public label?: string,
   ) {}
 
+  valueOf() {
+    return this.toString()
+  }
+
+  /** The expression, to be used inside CSS rules. */
+  toString() {
+    return this.expr
+  }
+
+  private get class_label() {
+    return this.label ?? `anon-${this.#id}`
+  }
+
+  /**
+   * This same expression with every live `--e-color-*` reference pinned to its light-theme value —
+   * the basis of inversion's "looks the same regardless of light/dark mode" rule (Axis 1,
+   * Inversion, specs/elt-ui-guidelines.md line 115). For a named color this reduces to
+   * `var(--e-light-color-<name>)`, matching the pre-merge `Color`-specific behavior exactly.
+   */
+  get light_frozen_expr(): string {
+    return this.expr.replaceAll("--e-color-", "--e-light-color-")
+  }
+
+  private get dark_frozen_expr(): string {
+    return this.expr.replaceAll("--e-color-", "--e-dark-color-")
+  }
+
   @memoize
-  get css_as_tint() {
-    return `--e-color-tint: var(--e-color-${this.name});
-    --e-light-color-tint: var(--e-light-color-${this.name});
-    --e-dark-color-tint: var(--e-dark-color-${this.name});`
+  private get css_as_tint() {
+    return `--e-color-tint: ${this.expr};
+    --e-light-color-tint: ${this.light_frozen_expr};
+    --e-dark-color-tint: ${this.dark_frozen_expr};`
   }
 
   /** Change the tint to be this color instead. This is a class name. */
   @memoize
   get as_tint() {
-    return css`.e-color-${this.name}-tint {
+    return css`.e-color-${this.class_label}-tint {
       ${this.css_as_tint}
     }`
   }
 
   /**
-   *
+   * Inversion always freezes to the *light* theme's `bg` (Axis 1, Inversion) — this is what makes
+   * an inverted band look the same in light and dark mode. A second inversion of the exact same
+   * color nested inside this one is NOT expected to "see" this swap (that would require a live,
+   * theme-dependent bg, which is exactly what this rule forbids) — nest a *different* color, or
+   * use `as_tint`, instead of re-inverting the same one.
    */
-  @memoize
   get css_as_inverted() {
     return `
-    --e-color-bg: var(--e-light-color-${this.name});
+    --e-color-bg: ${this.light_frozen_expr};
     --e-color-text: var(--e-light-color-bg);
     --e-color-tint: var(--e-light-color-bg);
     background-color: var(--e-color-bg);
@@ -348,31 +389,21 @@ export class Color<Colors extends ColorScheme> {
    */
   @memoize
   get as_inverted() {
-    const cls = css`.e-color-${this.name}-inverted {
+    return css`.e-color-${this.class_label}-inverted {
       ${this.css_as_inverted}
     }`
-
-    return cls
-  }
-
-  valueOf() {
-    return this.toString()
-  }
-
-  /** The variable name, to be used inside CSS rules. */
-  toString() {
-    return `var(--e-color-${this.name})`
   }
 
   /**
-   * Mix this color with another color
-   * @param other_color - The other color to mix with
+   * Mix this color with another color or expression.
+   * @param other - Another `Mix`, or the name of a palette entry (e.g. "bg")
    * @param intensity - The intensity of the mix
    * @param alpha - The alpha of the mix
    * @returns The mixed color
    */
-  from(other_color: Extract<keyof Colors, string>, intensity: string, alpha: number = 1) {
-    let res = `color-mix(in oklab, var(--e-color-${other_color}) calc(100% - ${intensity}), var(--e-color-${this.name}) ${intensity})`
+  from(other: Mix | string, intensity: string, alpha: number = 1) {
+    const other_expr = other instanceof Mix ? other.toString() : `var(--e-color-${other})`
+    let res = `color-mix(in oklab, ${other_expr} calc(100% - ${intensity}), ${this.toString()} ${intensity})`
 
     if (alpha < 1) {
       res = `oklch(from ${res} l c h / ${alpha.toFixed(2)})`
@@ -381,11 +412,11 @@ export class Color<Colors extends ColorScheme> {
   }
 
   from_bg(intensity: string, alpha: number = 1) {
-    return this.from("bg" as Extract<keyof Colors, string>, intensity, alpha)
+    return this.from("bg", intensity, alpha)
   }
 
   from_text(intensity: string, alpha: number = 1) {
-    return this.from("text" as Extract<keyof Colors, string>, intensity, alpha)
+    return this.from("text", intensity, alpha)
   }
 
   /**
@@ -424,47 +455,77 @@ export class Color<Colors extends ColorScheme> {
   get very_strong() {
     return this.from_text(theme.settings.intensityVeryStrong)
   }
-}
 
-/**
- * A computed color mix, returned by `Color.from`/`from_bg`/`from_text` (and thus by `.ultra_light`, `.light`,
- * `.mid`, `.faded`, `.slightly_faded`, `.strong`, `.very_strong`). Usable directly in CSS through `toString()`,
- * and can itself be inverted, unlike a plain string.
- */
-export class Mix {
-  constructor(public expr: string) {}
-
-  valueOf() {
-    return this.toString()
-  }
-
-  /** The mix expression, to be used inside CSS rules. */
-  toString() {
-    return this.expr
+  /**
+   * Surface-level stack: hover is always one level up (n+1) from whichever surface is ambient at
+   * this point in the DOM. Reads `--e-surface-level`/`--e-surface-step`, the same custom
+   * properties `[surface]` (ui/layout.css.tsx) increments and exposes to its children, so this
+   * stays correct at any nesting depth without knowing its own ancestor chain (see "Surfaces and
+   * borders" in specs/elt-ui-guidelines.md).
+   */
+  get hover() {
+    return this.from_bg("calc((var(--e-surface-level, 0) + 1) * var(--e-surface-step, 10%))")
   }
 
   /**
-   * Same shape as `Color.css_as_inverted`, but built from this mix's own expression instead of a named
-   * palette entry — it already reads the live `--e-color-bg`/`--e-color-text` variables, so it adapts to
-   * light/dark mode on its own, unlike a named color's inversion (which freezes to the light theme's `bg`).
+   * Surface-level stack: a border or divider drawn on a surface at level n uses level n+2 — one
+   * step past hover — so the two stay visually distinguishable when both appear on the same row
+   * at once (see "Surfaces and borders" in specs/elt-ui-guidelines.md).
    */
-  get css_as_inverted() {
+  get separator() {
+    return this.from_bg("calc((var(--e-surface-level, 0) + 2) * var(--e-surface-step, 10%))")
+  }
+
+  /**
+   * Raw CSS text for raising/painting a surface level — the single source of truth shared by the
+   * `[surface]` attribute (`ui/layout.css.tsx`, `e-flex`/`e-grid`/`e-block` only) and `.surface()`
+   * below (any element). See "Surfaces and borders" in specs/elt-ui-guidelines.md.
+   *
+   * - A number sets an *absolute* level, ignoring whatever's already ambient — for content whose
+   *   DOM position doesn't reflect its visual nesting (a dialog/popup portaled to `document.body`
+   *   that still needs to render "as if" at a specific level).
+   * - `"increment"` raises one level *relative* to whatever's ambient — what a bare `[surface]`
+   *   does today; nest it again to go one deeper.
+   * - `"background"` is absolute level 0 — "the background color" is level 0's own definition (Axis
+   *   1, Surfaces and borders) — with the level reset propagated to children too. Always a real,
+   *   visible boundary against any nonzero ambient level, unlike reusing whatever's already ambient
+   *   (which would paint the exact same color as the parent that set it — no boundary at all).
+   * - `"none"` is a true no-op: no paint, no level change, same as if `[surface]` were absent
+   *   entirely — the escape hatch to cancel a default `surface` a wrapping component might apply,
+   *   mirroring `gap="none"`/`pad="none"` (Axis 3, Spacing scale) rather than inventing a new
+   *   "reset but don't repaint" behavior nothing else in this system has.
+   */
+  css_as_surface(level: number | "increment" | "background" | "none"): string {
+    if (level === "none") {
+      return ""
+    }
+
+    const new_level = level === "increment" ? "calc(1 + var(--e-surface-level, 0))" : `${level === "background" ? 0 : level}`
     return `
-    --e-color-bg: ${this.expr};
-    --e-color-text: var(--e-light-color-bg);
-    --e-color-tint: var(--e-light-color-bg);
-    background-color: var(--e-color-bg);
-    color: var(--e-color-text);
-    border-color: var(--e-color-bg);
+    --e-current-surface-level: ${new_level};
+    --e-surface-level-swap: var(--e-current-surface-level);
+    background-color: ${this.from_bg("calc(var(--e-current-surface-level) * var(--e-surface-step, 10%))")};
+    & > * { --e-surface-level: var(--e-surface-level-swap); }
     `
   }
 
-  /** This is a class name. */
-  @memoize
-  get as_inverted() {
-    return css`.e-mix-inverted {
-      ${this.css_as_inverted}
-    }`
+  #surface_classes = new Map<string, string>()
+
+  /**
+   * Same as the `[surface]` attribute (`ui/layout.css.tsx`), but usable on any element — a class,
+   * not an attribute scoped to `e-flex`/`e-grid`/`e-block`. See `css_as_surface` for what each
+   * value means. This is a class name.
+   */
+  surface(level: number | "increment" | "background" | "none"): string {
+    const key = String(level)
+    let cls = this.#surface_classes.get(key)
+    if (cls == null) {
+      cls = css`.e-color-${this.class_label}-surface-${key} {
+        ${this.css_as_surface(level)}
+      }`
+      this.#surface_classes.set(key, cls)
+    }
+    return cls
   }
 }
 

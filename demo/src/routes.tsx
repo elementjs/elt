@@ -15,7 +15,7 @@ export const routes = app.setupRouter({
   visual_test: ["/visual-test", () => import("./screen-visual-test")],
   layout: ["/layout", () => import("./screen-layout")],
   object_editor: ["/object-editor", () => import("./screen-object-editor")],
-  init: ["", () => import("./init")]
+  init: ["", () => import("./home")]
 })
 
 const R = (route: App.Route | null, icon: (at: Attrs<Element>) => Element, label: Renderable) => {

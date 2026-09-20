@@ -130,13 +130,29 @@ function _(strings: TemplateStringsArray, ...values: unknown[]): void {
   more.push(result);
 }
 
-// increment surface level, display background
-_`${_all}[surface]{
-  --e-current-surface-level: calc(1 + var(--e-surface-level));
-  --e-surface-level-swap: var(--e-current-surface-level);
-  background-color: ${theme.colors.tint.from_bg("calc(var(--e-current-surface-level)*var(--e-surface-step))")};
-  & > * { --e-surface-level: var(--e-surface-level-swap); }
+// Surface levels: bare [surface] (boolean true) and [surface="increment"] both raise one level
+// relative to whatever's ambient — the :not() list excludes the other, explicit-value cases so
+// this stays the fallback for the common case, same pattern [border-radius] already uses below.
+const _surface_levels = ["1", "2", "3", "4", "5", "6"] as const
+const _surface_not_increment = [...["background", "none"], ..._surface_levels].map((v) => `:not([surface="${v}"])`).join("")
+
+_`${_all}[surface]${_surface_not_increment} {
+  ${theme.colors.tint.css_as_surface("increment")}
 }`
+
+_`${_all}[surface="background"] {
+  ${theme.colors.tint.css_as_surface("background")}
+}`
+
+_`${_all}[surface="none"] {
+  ${theme.colors.tint.css_as_surface("none")}
+}`
+
+for (const lvl of _surface_levels) {
+  _`${_all}[surface="${lvl}"] {
+    ${theme.colors.tint.css_as_surface(Number(lvl))}
+  }`
+}
 
 // derived: radius follows this element's own vertical padding step, not a separately chosen value
 _`${_all}[border-radius]:not([border-radius="none"]) { border-radius: var(--e-pad-vertical, var(--e-spacing-widget-horizontal)); }`

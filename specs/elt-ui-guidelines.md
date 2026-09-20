@@ -28,11 +28,9 @@ Use an inverted container for toolbars and title rows (dialog headers, table hea
 
 Use the `inverted` button variant for the one action on a screen that needs outsized attention, in particular a heavy action that is hard to reverse. It draws the user's eye; do not use it for more than one action at a time in the same area.
 
-Build an inverted container with `theme.colors.tint.as_inverted` (`ui/theme.tsx`). This already handles nesting: inside an inverted container, the inversion redefines `--e-color-tint` to the theme's plain background color for its own subtree. A nested inverted element therefore renders with that background color instead of tint-on-tint, with no separate rule to apply — it falls out of the normal CSS variable cascade.
+Build an inverted container with `theme.colors.tint.as_inverted` (`ui/theme.tsx`). Inversion always freezes its new `text`/`tint` to the *light* theme's `bg` (see Color theory, below) so an inverted band looks the same regardless of light/dark mode — deliberately not a live, cascade-following value. This means nesting the *same* color's `as_inverted` inside itself does not "un-invert" back to a plain background — it inverts the same color again. To nest visibly inside an inverted container, invert a *different* color, or use `as_tint` to change what "tint" means for the subtree first.
 
-> 📜 **ADR**: "Inverted" was chosen over a Material-style "elevation" name. Elevation implies z-depth and shadow, which this rule does not have. "Inverted" names only the background-fill mechanic — the same word for the button variant and the `Color` primitive it is built from, since they are the same mechanism, not two things to keep in sync.
-
-Pick the emphasis variant relative to the surface a control sits on, not in isolation. On an inverted surface, an `inverted` button competes with the surface itself; use `tint` or `default` for other actions on that surface.
+> 📜 **ADR**: "Inverted" was chosen over a Material-style "elevation" name. Elevation implies z-depth and shadow, which this rule does not have. "Inverted" names only the background-fill mechanic — the same word for the button variant and the `Mix` primitive it is built from, since they are the same mechanism, not two things to keep in sync.
 
 ### Color theory
 
@@ -50,29 +48,41 @@ Anything between background and tint is mainly used to separate visual space ; b
 
 Elt/ui also offers to derive a dark theme from a given theme, recalculating colors according to flipping text and bg, trying to keep light levels consistent. This is opt-in ; the app may give its own theme.
 
-Every named color (`tint`, `text`, `red`, …) mixes directly with `bg` and with `text` on its own — `Color.from_bg(intensity)` and `Color.from_text(intensity)` are independent methods, not two halves of one shared axis centered on `tint`. `text.mid`, for instance, is `text.from_bg(50%)` — a direct `bg`/`text` mix that never involves `tint` at all, already used throughout `ui/form.css.tsx` for borders. A "0% = `bg`, 100% = `tint`, 200% = `text`" single continuum only describes `tint`'s *own* range (`tint.from_bg(0..100%)` then `tint.from_text(0..100%)`, strung together) — it does not generalize to every color routing through `tint`.
+Every named color (`tint`, `text`, `red`, …) mixes directly with `bg` and with `text` on its own — `Mix.from_bg(intensity)` and `Mix.from_text(intensity)` are independent methods, not two halves of one shared axis centered on `tint`. `text.mid`, for instance, is `text.from_bg(50%)` — a direct `bg`/`text` mix that never involves `tint` at all, already used throughout `ui/form.css.tsx` for borders. A "0% = `bg`, 100% = `tint`, 200% = `text`" single continuum only describes `tint`'s *own* range (`tint.from_bg(0..100%)` then `tint.from_text(0..100%)`, strung together) — it does not generalize to every color routing through `tint`.
 
 The canonical helper set:
 
-- `.surface1`, `.surface2`, … — the level stack (see Surfaces and borders, below).
-- `.surface_current` — the level currently active.
-- `.hover` — surface level *n+1*.
-- `.separator` — surface level *n+2* (borders, dividers).
+- The level stack (see Surfaces and borders, below) is normally *relative*, not a fixed set of named steps — raised by nesting the `[surface]` attribute (`ui/layout.css.tsx`), which reads/increments an ambient CSS custom property. `[surface="1"]`…`[surface="6"]` are the escape hatch: a bounded set of *absolute* levels for content whose DOM position doesn't reflect its visual nesting (see Surfaces and borders, below).
+- `.hover` — surface level *n+1*, relative to whatever level is ambient at the call site.
+- `.separator` — surface level *n+2* (borders, dividers), relative to the same ambient level.
 - `.mid` — a fixed 50% `bg`/`tint` mix. Not part of the level stack; a general-purpose value reached for wherever something moderate-but-legible is needed (a border, a focus ring, a disabled indicator).
 - `.faded` — 80% hue.
 - `.strong` / `.very_strong` — `from_text()` at increasing intensity, toward `text`.
 
 Named steps never grow to cover a one-off need: anything outside the named steps goes through `.from_bg()`/`.from_text()` with an explicit percentage instead of adding a new name.
 
-The text/border scale: `text`/`tint` are the raw values; `muted` = `.faded`; `disabled` reuses `.mid`. `selected_text` is not part of this scale — text selection stays its own manual `::selection` CSS rule (`ui/theme.tsx`), not part of the general `Color`/`Mix` system.
+The text/border scale: `text`/`tint` are the raw values; `muted` = `.faded`; `disabled` reuses `.mid`. `selected_text` is not part of this scale — text selection stays its own manual `::selection` CSS rule (`ui/theme.tsx`), not part of the general `Mix` system.
 
 ### Surfaces and borders
 
 A surface has a **level**, starting at 0, which is the background color. Each subsequent level mixes more tint into the background, proportionally to the level number (level *n* ≈ *n* × one step of tint-into-`bg`), cascading from whichever level is ambient at that point — a panel that raises a new surface is level *n+1* relative to *its own* parent, not relative to the page.
 
-Implemented in `ui/layout.css.tsx` as the `[surface]` attribute: it reads the ambient `--e-surface-level` custom property, increments it, sets its own background from `tint.from_bg(level × step)`, and passes the new level down to its children — so a border, divider, or hover fill can read "one level up from here" without knowing its own ancestor chain. The `[surface]` attribute is the one mechanism for raising a surface — layout elements only, no separate class-based API for arbitrary HTML.
+Implemented in `ui/layout.css.tsx` as the `[surface]` attribute: it reads the ambient `--e-surface-level` custom property, increments it, sets its own background from `tint.from_bg(level × step)`, and passes the new level down to its children — so a border, divider, or hover fill can read "one level up from here" without knowing its own ancestor chain.
+
+`[surface]` accepts more than the bare relative case:
+
+| Value | Meaning |
+| --- | --- |
+| *(bare)* / `"increment"` | Raise one level relative to whatever's ambient — the default case, above. |
+| `"1"`…`"6"` | Set an *absolute* level, ignoring whatever's ambient. For content whose DOM position doesn't reflect its visual nesting — a dialog or popup portaled to `document.body` still needs to render "as if" at a specific level, since the CSS custom property cascade doesn't reach it there through the DOM it was triggered from. |
+| `"background"` | Absolute level 0 — "the background color" is level 0's own definition (above) — with the reset propagated to children too. Always a real, visible boundary against any nonzero ambient level; it must not simply repaint whatever's already ambient, since that would produce the exact same color as the parent that set it — no boundary at all, and padding with no boundary is forbidden (Padding and boundaries, Axis 3). |
+| `"none"` | A true no-op: no paint, no level change — the same as `[surface]` being absent entirely. The escape hatch to cancel a default `surface` a wrapping component might apply, mirroring `gap="none"`/`pad="none"` (Axis 3) rather than inventing a distinct "reset but don't repaint" behavior. Because it paints nothing, an element using `surface="none"` needs its own `border` (or some other boundary) if it also pads itself — `surface="none"` alone does not satisfy the padding/boundary rule. |
+
+`[surface]` is layout elements only (`e-flex`/`e-grid`/`e-block`/`e-row`/`e-column`) — CSS attribute selectors can't be scoped to arbitrary HTML. The same values are available as a class for any other element: `theme.colors.tint.surface(2)` (`ui/theme.tsx`) returns a class name built from the exact same formula (`css_as_surface`, shared by both so they can't drift apart), for a plain `<div>`, an SVG element, or anything else outside the blessed `e-*` set.
 
 Hover uses level *n+1*; a border or divider drawn on a surface at level *n* uses level *n+2*, relative to its own container — never a fixed named step. Splitting hover (*n+1*) from border/divider (*n+2*) is what makes them distinguishable when both appear on the same row at once.
+
+Implemented as `.hover`/`.separator` on `Mix` (`ui/theme.tsx`): both read the same `--e-surface-level`/`--e-surface-step` custom properties `[surface]` sets, at `+1`/`+2` respectively, so a call site never needs to know its own ambient level — only that `theme.colors.tint.hover`/`.separator` mean "one/two levels up from wherever this rule ends up applying."
 
 > 🔨 **Todo**: `Theme` currently exposes color classes (`class_light`, `class_dark`, `class_dynamic`) as top-level properties. Move them under a `classes` namespace (`theme.classes.light_scheme`, `.dark_scheme`, `.dynamic_scheme`) for organization.
 
@@ -90,7 +100,7 @@ Implemented: `[border-radius]` (`ui/layout.css.tsx`) reads `var(--e-pad-vertical
 
 > ❓ **Open**: the dialog panel itself is the one clear case this doesn't cover — it's a boundary (border + cast shadow) but, per the padding/boundary rules, does *not* pad itself (its header/content/footer do). "Radius = own vertical padding step" has nothing to read from on the panel. It currently keeps `frameBorderRadius` as a fixed fallback; is that the right call, or should an un-padded boundary derive its radius from its *children*'s padding instead?
 
-The demo (`demo/src/screen-layout.tsx`, "Surfaces" section) now has worked examples of `surface`, nested surface levels, and derived `border-radius`.
+The demo (`demo/src/screen-layout.tsx`, "Surfaces" section) has worked examples of `surface`, nested surface levels, and derived `border-radius`; its "Absolute levels, and non-standard elements" subsection shows `surface="1"`…`"6"`, `"background"`, `"none"`, and `theme.colors.tint.surface(2)` applied to a plain `<div>`; its "Hover and separator" subsection shows `.hover`/`.separator` on a real hoverable row inside a level-1 surface.
 
 ### State
 
@@ -108,7 +118,7 @@ Disabled reuses `.mid` for text/fills where needed.
 
 ### Inversion
 
-Inversion is one mechanism, not several named variants: given a color, it produces a new bg/text/tint triad — new `bg` = that color, new `text` = old `bg`, new `tint` = old `bg`. `Color.as_inverted` is the primitive; how attention-grabbing the result looks depends entirely on which color goes in, not on a separate mode.
+Inversion is one mechanism, not several named variants: given a color, it produces a new bg/text/tint triad — new `bg` = that color, new `text` = old `bg`, new `tint` = old `bg`. `Mix.as_inverted` is the primitive; how attention-grabbing the result looks depends entirely on which color goes in, not on a separate mode. `elt/ui` has one class (`Mix`, `ui/theme.tsx`) for both a named palette entry and any color computed from one — a named color is just a `Mix` whose expression is a palette variable reference, with a stable label for its generated class names; there is no separate `Color` class to keep in sync.
 
 - Inverting `tint` gives the maximum-attention result — toolbars, heavy actions. This is what the `inverted` button variant and inverted containers use (Axis 1, Emphasis and promotion).
 - Inverting `tint.faded` gives one notch less: this is what `.selected` uses (Axis 1, State) — loud enough to read as selected, quiet enough not to compete with a genuinely dominant `inverted` action elsewhere on the same screen.
@@ -120,9 +130,11 @@ The bg/text/tint combination currently in effect (which changes under inversion)
 
 Spelling out the soft-inverted form (`text.faded.as_inverted`) at each call site (table header, status bar, nav) is acceptable — a named shortcut may be added later if it turns out to be repeated often enough to be worth it, but that is not blocking.
 
+The demo (`demo/src/screen-layout.tsx`, "Inversion" section) has a worked example of the same-color-nested-inside-itself case above, next to a different-color-nested case for comparison.
+
 Status/severity hues stay outside `elt/ui`'s remit as a hard rule: the palette exists (`red`, `orange`, `green`, …), but which hue means "error" vs. "success" is an app decision, not something this document prescribes. As a convention, not a requirement: red/error, yellow/warning, green/success follows general consensus and is worth stating as a default an app can deviate from with reason.
 
-> 📜 **ADR**: Every color in `ui/theme.tsx`'s default palette (`tint`, `red`, `orange`, `yellow`, `green`, `cyan`, `blue`, `purple`, `magenta`, …) is a `Color` instance with the same methods. The rules above are written generically ("a color," not "tint") because the mechanism already works that way in code.
+> 📜 **ADR**: Every color in `ui/theme.tsx`'s default palette (`tint`, `red`, `orange`, `yellow`, `green`, `cyan`, `blue`, `purple`, `magenta`, …) is a `Mix` instance with the same methods. The rules above are written generically ("a color," not "tint") because the mechanism already works that way in code.
 
 ## Axis 2: Overlay and interruption
 
@@ -194,6 +206,10 @@ Tested against every case this document has walked through — a plain gapped ro
 Checked against `ui/dialog.tsx` and `ui/form.css.tsx`'s `<e-button-box>`, both compliant: the dialog panel is the un-padded, gap-less boundary; its header/footer each pad and gap themselves (footer already had `gap: 1rem`; header's only real-world usage is a single text child, so the lone-child exemption applies and it needs no `gap`). `<e-button-box>` sets `gap: 0` and no padding on itself, with each button individually bordered — exactly the gap-less, self-bordering case rule 3 describes.
 
 `ui/date.tsx`'s `cls_dow` padding-with-no-boundary violation is fixed (`line-height` instead of `padding`).
+
+Rule 2 depends on `gap` actually doing something: `gap` is a flex/grid property and is a no-op on `e-block` (`display: block`, per `ui/layout.css.tsx`) — setting `spacing`/`gap` on an `e-block` sets the custom property but nothing ever reads it into an actual `gap` CSS declaration for a plain block container. An `e-block` that pads itself therefore only stays rule-2-compliant with exactly one child (the lone-child exemption) or with a single flex/grid child that does its own gapping internally — never with several loose children counting on the `e-block`'s own `gap` to separate them, since that gap doesn't exist. Reach for `e-column`/`e-row`/`e-flex` instead of `e-block` wherever a padded container has more than one child that needs real separation.
+
+`demo/src/screen-layout.tsx`'s "Surfaces" and "Hover and separator" sections were caught doing exactly this (an `e-block` padding itself around several loose children, relying on inert `gap`) and around `surface="background"`/`surface="none"` painting no perceptible boundary of their own — both fixed: the padded multi-child wrappers are now `e-column`, and `surface="background"`/`"none"` were corrected to the definitions above (which resolved the boundary issue as a side effect).
 
 ### Density
 

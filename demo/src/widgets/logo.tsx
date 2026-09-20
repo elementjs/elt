@@ -28,7 +28,7 @@ const cls_full = css`.full {
   }
   & svg circle {
     stroke: ${theme.colors.text};
-    fill: ${theme.colors.tint.light_value};
+    fill: ${theme.colors.tint.light_frozen_expr};
   }
 }`
 
