@@ -94,31 +94,33 @@ function TableCopyButtonPopup({ data }: { data: o.ReadonlyObservable<object[]> }
               })
             }
             return (
-              <menu>
-                <button type="button">
-                  <ph.BracketsCurly />
-                  {$choose(() => navigator.clipboard.writeText(JSON.stringify(rows, null, 2)))}
-                  Copy JSON
-                </button>
-                <button type="button">
-                  <ph.Table />
-                  {$choose(() => void copyObjectTableToClipboard(rows, columns, false))}
-                  Copy table
-                </button>
-                <button type="button">
-                  <ph.Table />
-                  {$choose(() => void copyObjectTableToClipboard(rows, columns, true))}
-                  Copy table with headers
-                </button>
-                <hr />
-                <button type="button">
-                  <ph.FileCsv />
-                  {$choose(() => {
-                    /* implement me */
-                  })}
-                  Download CSV
-                </button>
-              </menu>
+              <e-column pad="component">
+                <e-column touching pad="widget" role="menu" aria-label="Copy options">
+                  <button type="button" role="menuitem">
+                    <ph.BracketsCurly />
+                    {$choose(() => navigator.clipboard.writeText(JSON.stringify(rows, null, 2)))}
+                    Copy JSON
+                  </button>
+                  <button type="button" role="menuitem">
+                    <ph.Table />
+                    {$choose(() => void copyObjectTableToClipboard(rows, columns, false))}
+                    Copy table
+                  </button>
+                  <button type="button" role="menuitem">
+                    <ph.Table />
+                    {$choose(() => void copyObjectTableToClipboard(rows, columns, true))}
+                    Copy table with headers
+                  </button>
+                  <hr />
+                  <button type="button" role="menuitem">
+                    <ph.FileCsv />
+                    {$choose(() => {
+                      /* implement me */
+                    })}
+                    Download CSV
+                  </button>
+                </e-column>
+              </e-column>
             )
           },
           {},
@@ -262,7 +264,7 @@ export function JsonVisualizerColumn({
               {import_btn}
               {copy}
             </e-flex>
-            <menu class={cls_properties_menu}>
+            <e-column touching pad="widget" role="list" class={cls_properties_menu}>
               {$scrollable}
               {VirtualScroll(o(keys), (o_key) => (
                 <Property name={o_key} data={data.p(o_key)}>
@@ -276,7 +278,7 @@ export function JsonVisualizerColumn({
                   })}
                 </Property>
               ))}
-            </menu>
+            </e-column>
           </>
         )
       })}
@@ -510,5 +512,4 @@ const cls_header = css`.header {
 
 const cls_properties_menu = css`.properties-menu {
   flex: 1;
-  grid-template-columns: [content] minmax(0, 1fr) [right] minmax(0, 1fr) [nav] 1.25em;
 }`

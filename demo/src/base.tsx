@@ -93,10 +93,12 @@ export default class Base extends Service({}) {
   Main() {
     return <e-column class={[cls_fullscreen]} style={this.oo_style}>
       <e-row grow class={cls_main} align="stretch">
-        <menu class={cls_aside_nav}>
+        <nav class={cls_aside_nav} aria-label="Main navigation">
           {$scrollable}
-          {widget_menu()}
-        </menu>
+          <e-column touching pad="component" align="stretch">
+            {widget_menu()}
+          </e-column>
+        </nav>
         <e-column grow>
           {$scrollable}
           {this.srv.DisplayView("Content")}
@@ -110,6 +112,22 @@ export default class Base extends Service({}) {
 const cls_aside_nav = css`.aside_nav {
   width: 240px;
   border-right: 1px solid ${theme.colors.text.mid};
+
+  & button {
+    border: none;
+    text-align: start;
+  }
+
+  & h3 {
+    margin: 0;
+    font-size: 0.875em;
+    font-weight: bold;
+    color: ${theme.colors.text.faded};
+  }
+
+  & hr {
+    margin: 0;
+  }
 }`
 
 const cls_main = css`.main {

@@ -42,7 +42,7 @@ export default class ScreenUIUsage extends Service({
 
         <li><b>A container with more than one child must set spacing between them,</b> unless its children are meant to touch directly (rule 6).</li>
 
-        <li><b>A container may set a boundary without padding itself, provided it sets no spacing and all its children carry the same padding.</b> Visual uniformity is paramount ; a container relying on this rule must not let its children choose their own padding.</li>
+        <li><b>A container may set a boundary without padding itself, provided it sets no spacing and all its children carry the same padding.</b> Visual uniformity is paramount ; a container relying on this rule must not let its children choose their own padding. The <code>touching</code> attribute on <code>e-flex</code>/<code>e-row</code>/<code>e-column</code> implements this rule directly : it redirects <code>pad</code> to every child instead of the container itself, and <code>touching="border"</code> additionally draws a real divider on the touching seam, replacing — not doubling — a child's own border there.</li>
         
       </ol>
 

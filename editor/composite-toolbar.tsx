@@ -135,32 +135,34 @@ export function render_composite_toolbar(props: CompositeToolbarProps): Renderab
               {$click(async (ev) => {
                 const value = o_value.get()
                 await popup(ev.currentTarget, (fut) => (
-                  <menu>
-                    {flags.show_type_change && (
-                      <>
-                        <h3>Type</h3>
-                        {type_change_actions(factory, value, factory.options, type_change_extra).map((action) => (
-                          <button type="button">
-                            {$click(() => {
-                              if (apply_type_change(o_value, factory, action)) fut.resolve(undefined)
-                            })}
-                            {action.label}
-                          </button>
-                        ))}
-                      </>
-                    )}
-                    {flags.show_import_export && import_export_addons.length > 0 && (
-                      <>
-                        <hr />
-                        <h3>Import / export</h3>
-                        {import_export_addons.map((addon) => (
-                          <button type="button" disabled title="Add-on slot — not wired in this demo">
-                            {addon.label}
-                          </button>
-                        ))}
-                      </>
-                    )}
-                  </menu>
+                  <e-column pad="component">
+                    <e-column touching pad="widget" role="menu" aria-label="More actions">
+                      {flags.show_type_change && (
+                        <>
+                          <h3>Type</h3>
+                          {type_change_actions(factory, value, factory.options, type_change_extra).map((action) => (
+                            <button type="button" role="menuitem">
+                              {$click(() => {
+                                if (apply_type_change(o_value, factory, action)) fut.resolve(undefined)
+                              })}
+                              {action.label}
+                            </button>
+                          ))}
+                        </>
+                      )}
+                      {flags.show_import_export && import_export_addons.length > 0 && (
+                        <>
+                          <hr />
+                          <h3>Import / export</h3>
+                          {import_export_addons.map((addon) => (
+                            <button type="button" role="menuitem" disabled title="Add-on slot — not wired in this demo">
+                              {addon.label}
+                            </button>
+                          ))}
+                        </>
+                      )}
+                    </e-column>
+                  </e-column>
                 ))
               })}
               …
@@ -183,17 +185,19 @@ export function render_type_change_menu_button(
       {$click(async (ev) => {
         const value = o_value.get()
         await popup(ev.currentTarget, (fut) => (
-          <menu>
-            <h3>Type</h3>
-            {type_change_actions(factory, value, factory.options, type_change_extra).map((action) => (
-              <button type="button">
-                {$click(() => {
-                  if (apply_type_change(o_value, factory, action)) fut.resolve(undefined)
-                })}
-                {action.label}
-              </button>
-            ))}
-          </menu>
+          <e-column pad="component">
+            <e-column touching pad="widget" role="menu" aria-label="Change type">
+              <h3>Type</h3>
+              {type_change_actions(factory, value, factory.options, type_change_extra).map((action) => (
+                <button type="button" role="menuitem">
+                  {$click(() => {
+                    if (apply_type_change(o_value, factory, action)) fut.resolve(undefined)
+                  })}
+                  {action.label}
+                </button>
+              ))}
+            </e-column>
+          </e-column>
         ))
       })}
       …

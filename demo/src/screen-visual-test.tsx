@@ -28,7 +28,7 @@ export default class ScreenVisualTest extends Service({
 
       <e-row spacing>
 
-        <e-button-box>
+        <e-row touching="border">
           {(Object.keys(theme.colors).filter(color => !["bg", "text", "tint"].includes(color)) as (keyof typeof theme.colors)[]).map(color => {
             return <label
               class={theme.colors[color].as_tint}
@@ -37,17 +37,17 @@ export default class ScreenVisualTest extends Service({
               <P.PaintRoller/>
             </label>
           })}
-        </e-button-box>
+        </e-row>
 
         <this.base.FontChooser/>
 
       </e-row>
 
       <e-row spacing>
-        <e-button-box>
+        <e-row touching="border">
           <button>Button</button>
           <button e-variant="tint"><P.CaretDown/></button>
-        </e-button-box>
+        </e-row>
         <button e-variant="link">link <P.Heart/></button>
         <button e-variant="text">text <P.Heart/></button>
         <button e-variant="tint">tint <P.Heart/></button>
@@ -71,10 +71,10 @@ export default class ScreenVisualTest extends Service({
 
       </p>
       <e-row spacing>
-        <e-button-box>
+        <e-row touching="border">
           <input type="text" placeholder="Enter your text" />
           <button><P.MagnifyingGlass/></button>
-        </e-button-box>
+        </e-row>
 
         <input type="number" placeholder="number"/>
       </e-row>

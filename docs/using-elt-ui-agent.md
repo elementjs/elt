@@ -13,7 +13,7 @@ Core elt rules (mount, observables, verbs) live in [`using-elt-agent.md`](./usin
 3. **Layout with layout elements.** Prefer `<e-flex>`, `<e-block>`, `<e-grid>` and their attributes over custom flex/grid CSS. Reach for plain CSS only when flex/grid attrs are not enough (complex grid templates, absolute positioning tricks, etc.).
 4. **Typography mode for prose.** Any region meant to read like documentation, help text, or long copy goes in `<e-block typographic>`. Do not hand-style headings, lists, or link colors inside prose blocks.
 5. **Spacing via spacing/pad, not margin stacks.** Avoid margins between siblings; use `spacing` on `<e-flex>` / `<e-grid>` or `pad` on containers — `pad` implies a matching `spacing` automatically, so writing `pad` alone is usually enough. If you must margin, never stack adjacent margins — only the larger should win.
-6. **Native controls first.** Buttons, inputs, labels, checkboxes, `<menu>`, `<dialog>` are styled globally. Prefer them + typed attributes (`e-variant`, etc.) over new widget chrome unless native limits block you (see widget inventory).
+6. **Native controls first.** Buttons, inputs, labels, checkboxes, `<dialog>` are styled globally. Prefer them + typed attributes (`e-variant`, etc.) over new widget chrome unless native limits block you (see widget inventory).
 7. **Two font weights in UI chrome.** Regular and bold for controls and chrome; typography mode handles prose hierarchy.
 8. **Form control size.** Interactables use `theme.settings.formFontSize` (slightly smaller than body text). Do not bump control font sizes to match headings.
 9. **Do not add dependencies** to `ui/` (exception already in tree: `@floating-ui/dom` for popups). Apps may use their own deps; the sub-library may not grow new ones.
@@ -202,9 +202,9 @@ Radio: styled native `input[type=radio]`.
 
 `<label>` is clickable row chrome (hover tint). `<fieldset>` / `<legend>` for grouped fields.
 
-### Button groups
+### Button groups, menus, and other touching rows
 
-`<e-button-box>` merges adjacent buttons (horizontal default, `e-variant="vertical"` for column). See `ui/form.css.tsx`.
+`touching="border"` on `<e-row>`/`<e-column>` merges adjacent children into one bordered group — replaces the old `<e-button-box>` and `<menu>` elements, which are gone. `touching` (bare, or `"bare"`) is the padding-only variant: no divider, children separated only by background — the pattern behind menus, dropdowns, and lists (see `ui/select.tsx`, `demo/src/base.tsx`). Either way, `pad="X"` on the touching container pads every child uniformly instead of the container itself — see `specs/elt-ui-guidelines.md`, Padding and boundaries, rule 3.
 
 ### HR
 
@@ -228,7 +228,6 @@ Import from `"elt/ui"` (barrel) or subpaths when tree-shaking matters (see `edit
 | `Spinner` | `elt/ui/spinner` | Loading indicator |
 | `popup` | `elt/ui/popup` | Anchored overlay; returns `Future`; nests under parent popup |
 | `show_dialog` | `elt/ui/dialog` | Modal `<dialog>` with animation |
-| `Nav` / menu helpers | `elt/ui/nav`, `elt/ui/menu` | Navigation/menu patterns |
 | Icons | `elt/ui/icons` | Small SVG icons (CaretDown, Check, …) |
 | `$keymap` | `elt/ui/keymap` | Keyboard shortcuts |
 | Color picker | *pending* | See `specs/ui-color-picker.md` |
@@ -250,7 +249,9 @@ import { popup } from "elt/ui"
 
 $click(async (ev) => {
   const result = await popup(ev.currentTarget, (fut) => (
-    <menu>...</menu>
+    <e-column pad="component">
+      <e-column touching pad="widget" role="menu">...</e-column>
+    </e-column>
   ), { arrow: true, placement: "right-start" })
 })
 ```

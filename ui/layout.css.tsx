@@ -75,6 +75,13 @@ export interface EFlexAttrs extends CommonAttrs {
   reverse?: NRO<boolean>
   align?: NRO<AlignValues>
   justify?: NRO<AlignValues>
+  /**
+   * Rule 6 (specs/elt-ui-guidelines.md, Padding and boundaries): a boundary with no spacing whose
+   * children touch directly. `pad` is redirected — it pads every direct child uniformly instead of
+   * the container itself (which must stay unpadded). `"border"` additionally draws a real divider
+   * on the touching seam, replacing each child's own border there rather than doubling it.
+   */
+  touching?: NRO<boolean | "bare" | "border">
 }
 
 const more: string[] = []
@@ -207,6 +214,9 @@ css`
   e-flex,e-row,e-column { display: flex; flex-direction: row; flex-wrap: nowrap; align-items: baseline; }
   e-flex[column],e-column { flex-direction: column; }
   ${_flex}[inline] { display: inline-flex; }
+  /* A block-level flex container isn't valid content directly inside a <p> — auto-switch to
+     inline-flex there rather than requiring every call site to remember [inline] itself. */
+  p > ${_flex} { display: inline-flex; }
   :is(e-flex,e-row)[reverse] { flex-direction: row-reverse; }
   :is(e-flex[column],e-column)[reverse] { flex-direction: column-reverse; }
   :is(e-flex,e-row,e-column)[wrap] { flex-wrap: wrap; }
@@ -232,7 +242,9 @@ css`
   }
 
   ${_all} {
-    &[pad] {
+    /* [touching] redirects [pad] to the children instead (below) — a touching container must
+       stay unpadded itself, it's a boundary its children delegate to (rule 6). */
+    &[pad]:not([touching]) {
       padding: var(--e-pad-vertical) var(--e-pad-horizontal);
     }
   }
@@ -241,9 +253,48 @@ css`
     /* [pad]'s implied spacing and an explicit [spacing] both land in --e-spacing-* above —
        either attribute's presence is enough to read it back out as a real gap. [pad="none"] is
        excluded : it never wrote to --e-spacing-* above, so it must not read a stale/inherited
-       value back out either. */
-    &[pad]:not([pad="none"]), &[spacing] {
+       value back out either. [touching] is also excluded : it always means no spacing at all,
+       regardless of what [pad] would otherwise imply. */
+    &[pad]:not([pad="none"]):not([touching]), &[spacing]:not([touching]) {
       gap: var(--e-spacing-vertical) var(--e-spacing-horizontal);
+    }
+  }
+
+  ${_flex}[touching][pad]:not([pad="none"]) > * {
+    padding: var(--e-pad-vertical) var(--e-pad-horizontal);
+  }
+
+  :is(e-row,e-column,e-flex)[touching="border"] > * {
+    position: relative;
+    z-index: 0;
+  }
+  :is(e-row,e-column,e-flex)[touching="border"] > :focus-visible {
+    z-index: 1;
+  }
+
+  :is(e-row, e-flex:not([column]))[touching="border"] {
+    & > *:not(:last-child) {
+      border-right: none;
+      border-top-right-radius: 0;
+      border-bottom-right-radius: 0;
+    }
+    & > *:not(:first-child) {
+      border-left: 1px solid ${theme.colors.tint.separator};
+      border-top-left-radius: 0;
+      border-bottom-left-radius: 0;
+    }
+  }
+
+  :is(e-column, e-flex[column])[touching="border"] {
+    & > *:not(:last-child) {
+      border-bottom: none;
+      border-bottom-left-radius: 0;
+      border-bottom-right-radius: 0;
+    }
+    & > *:not(:first-child) {
+      border-top: 1px solid ${theme.colors.tint.separator};
+      border-top-left-radius: 0;
+      border-top-right-radius: 0;
     }
   }
 

@@ -1,4 +1,4 @@
-import { css, type Attrs, type NRO } from "elt"
+import { css, type NRO } from "elt"
 import { theme } from "./theme"
 
 const colors = theme.colors
@@ -347,67 +347,6 @@ label:has(> input[type="checkbox"][e-variant="toggle"]:checked) {
     inset 0px 1px 0 var(--e-color-shadow-drop);
 }
 
-e-button-box {
-  position: relative;
-  z-index: 0;
-  display: flex;
-  align-items: stretch;
-
-  p > & {
-    display: inline-flex;
-  }
-
-  & :is(button, input, label, textarea) {
-    position: relative;
-    z-index: 0;
-  }
-
-  &[e-variant="vertical"] {
-    display: flex;
-    flex-direction: column;
-    gap: 0;
-
-    & > :is(button, input, label, textarea):not(:last-child) {
-      border-bottom: none;
-      border-bottom-right-radius: 0;
-      border-bottom-left-radius: 0;
-    }
-    & > :is(button, input, label):not(:first-child) {
-      border-top-right-radius: 0;
-      border-top-left-radius: 0;
-    }
-
-    & > :is(button[e-variant="on"],
-    & > (button[e-variant="inverted"]), label):not(:first-child),
-    {
-      border-top-color: ${colors.tint.separator};
-    }
-  }
-
-  & :focus-visible {
-    z-index: 1;
-  }
-
-  &:not([e-variant="vertical"]) {
-    & > :is(button, input, label, textarea):not(:last-child)
-    {
-      border-right: none;
-      border-bottom-right-radius: 0;
-      border-top-right-radius: 0;
-    }
-
-    & > :is(button, input, label):not(:first-child) {
-      border-bottom-left-radius: 0;
-      border-top-left-radius: 0;
-    }
-
-    & > :is(button[e-variant="on"],
-    & > (button[e-variant="inverted"]), label):not(:first-child) {
-      border-left-color: ${colors.tint.separator};
-    }
-  }
-}
-
 input[type="color"] {
   /* Size */
   width: 1em;
@@ -431,13 +370,3 @@ input[type="color"]::-webkit-color-swatch {
 }
 
 }`
-
-declare module "elt" {
-  interface ElementMap {
-    "e-button-box": EButtonBoxAttrs
-  }
-}
-
-export interface EButtonBoxAttrs extends Attrs {
-  "e-variant"?: NRO<"vertical">
-}

@@ -2,9 +2,9 @@ import { MagnifyingGlass } from "./icons"
 
 export function Search() {
   return (
-    <e-button-box>
+    <e-row touching="border">
       <input type="text" />
       <button>{MagnifyingGlass()}</button>
-    </e-button-box>
+    </e-row>
   )
 }
