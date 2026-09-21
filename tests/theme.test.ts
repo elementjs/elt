@@ -131,24 +131,24 @@ describe("Mix.surface / [surface] parity", () => {
     expect(c).toContain("e-color-tint-surface-3")
   })
 
-  test("as_surface() returns a bare color value, not a class or a ruleset", () => {
-    const value = theme.colors.tint.as_surface(2)
+  test("surface() returns a bare color value, not a class or a ruleset", () => {
+    const value = theme.colors.tint.surface(2)
     // a color-mix()/oklch expression, usable directly in a declaration like `border-top: 1px solid ${...}`
     expect(value).not.toContain("{")
     expect(value).not.toContain("e-color-tint-surface")
     expect(value).toContain("color-mix")
   })
 
-  test("as_surface(N) computes N * the surface step, same formula .css.as_surface uses via its custom-property indirection", () => {
-    expect(theme.colors.tint.as_surface(2)).toContain("calc(2 * var(--e-surface-step, 10%))")
+  test("surface(N) computes N * the surface step, same formula .css.as_surface uses via its custom-property indirection", () => {
+    expect(theme.colors.tint.surface(2)).toContain("calc(2 * var(--e-surface-step, 10%))")
   })
 
-  test("as_surface('background') is absolute level 0", () => {
-    expect(theme.colors.tint.as_surface("background")).toContain("calc(0 * var(--e-surface-step, 10%))")
+  test("surface('background') is absolute level 0", () => {
+    expect(theme.colors.tint.surface("background")).toContain("calc(0 * var(--e-surface-step, 10%))")
   })
 
-  test("as_surface('increment') reads the ambient level, same as .css.as_surface('increment')", () => {
-    const value = theme.colors.tint.as_surface("increment")
+  test("surface('increment') reads the ambient level, same as .css.as_surface('increment')", () => {
+    const value = theme.colors.tint.surface("increment")
     expect(value).toContain("calc((1 + var(--e-surface-level, 0)) * var(--e-surface-step, 10%))")
   })
 })

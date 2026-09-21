@@ -549,11 +549,13 @@ export class Mix {
   }
 
   /**
-   * The color a surface at this level paints itself — an actual CSS color value, usable anywhere
-   * one is expected (a border, a text color, a one-off background-color), not just as the surface's
-   * own fill. Absolute levels and `"increment"` both have a well-defined color ; `"none"` does not
-   * — "unpainted" isn't a color (see `.classes.as_surface` for the class form, which does support
-   * `"none"` as a real no-op class). See "Surfaces and borders" in specs/elt-ui-guidelines.md.
+   * The color of a surface at this level — just the color, not the "become a surface" ruleset
+   * `.css.as_surface`/`.classes.as_surface` below apply (background fill, level propagated to
+   * children, …). Usable anywhere a color is expected (a border, a text color, a one-off
+   * background-color) without any of those side effects. Absolute levels and `"increment"` both
+   * have a well-defined color ; `"none"` does not — "unpainted" isn't a color (see
+   * `.classes.as_surface` for the class form, which does support `"none"` as a real no-op class).
+   * See "Surfaces and borders" in specs/elt-ui-guidelines.md.
    *
    * - A number is an *absolute* level, ignoring whatever's already ambient — for content whose DOM
    *   position doesn't reflect its visual nesting (a dialog/popup portaled to `document.body` that
@@ -563,7 +565,7 @@ export class Mix {
    *   already do at their own fixed +1/+2 offsets ; this is the general, any-offset version.
    * - `"background"` is absolute level 0 — "the background color" is level 0's own definition.
    */
-  as_surface(level: number | "increment" | "background"): string {
+  surface(level: number | "increment" | "background"): string {
     const new_level = level === "increment" ? "(1 + var(--e-surface-level, 0))" : `${level === "background" ? 0 : level}`
     return this.from_bg(`calc(${new_level} * var(--e-surface-step, 10%))`).toString()
   }
