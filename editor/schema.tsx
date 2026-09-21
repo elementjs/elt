@@ -1015,7 +1015,7 @@ const cls_table = css`.oe-table {
     position: sticky;
     top: 0;
     z-index: 1;
-    ${theme.colors.text.faded.css_as_inverted}
+    ${theme.colors.text.faded.css.as_inverted}
     font-weight: bolder;
   }
 }`

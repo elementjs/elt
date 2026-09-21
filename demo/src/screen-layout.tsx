@@ -22,14 +22,14 @@ const cls_separator_row = css`.separator-row {
 
 // `as_inverted` always freezes to the *light* theme's colors (Axis 1, Inversion) so an inverted
 // band looks identical in light/dark mode — this is a stable, memoized class, not built per-render.
-const cls_inverted = theme.colors.tint.as_inverted
-const cls_inverted_different = theme.colors.red.as_inverted
+const cls_inverted = theme.colors.tint.classes.as_inverted
+const cls_inverted_different = theme.colors.red.classes.as_inverted
 
-// `theme.colors.tint.surface(N)` is the class-name equivalent of `surface="N"` — same
-// `css_as_surface` formula, but usable on any element, not just e-flex/e-grid/e-block (whose
+// `theme.colors.tint.classes.as_surface(N)` is the class-name equivalent of `surface="N"` — same
+// `.css.as_surface` formula, but usable on any element, not just e-flex/e-grid/e-block (whose
 // padding/border-radius attributes this plain <div> also doesn't get, hence the manual CSS here).
 const cls_plain_surface = css`.plain-surface {
-  ${theme.colors.tint.css_as_surface(2)}
+  ${theme.colors.tint.css.as_surface(2)}
   padding: ${theme.settings.spacingWidget};
   border-radius: ${theme.settings.borderRadius};
 }`
@@ -105,10 +105,10 @@ export default class ScreenLayout extends Service({
         </e-row>
         <p>
           <code>[surface]</code> only targets <code>e-flex</code>/<code>e-grid</code>/<code>e-block</code> — the same
-          levels are available as a class, <code>theme.colors.tint.surface(2)</code>, for elements outside that set:
+          levels are available as a class, <code>theme.colors.tint.classes.as_surface(2)</code>, for elements outside that set:
         </p>
         <div class={cls_plain_surface}>
-          A plain <code>&lt;div&gt;</code>, not an <code>e-block</code> — styled with <code>theme.colors.tint.surface(2)</code>'s
+          A plain <code>&lt;div&gt;</code>, not an <code>e-block</code> — styled with <code>theme.colors.tint.classes.as_surface(2)</code>'s
           underlying CSS directly, since <code>[surface]</code> itself wouldn't match it.
         </div>
       </e-block>

@@ -11,7 +11,7 @@ export default class ScreenVisualTest extends Service({
 
   @view
   Content() {
-    return <e-block typographic pad class={this.o_color.tf(col => theme.colors[col].as_tint)}>
+    return <e-block typographic pad class={this.o_color.tf(col => theme.colors[col].classes.as_tint)}>
       {this.base.DisplayTitle()}
       <p>This screen is used to test the visual appearance of the components. The source code for this screen in <code>demo/src/screen-visual-test.tsx</code> is also an excellent example of how to them and basic elt facilities.</p>
 
@@ -31,7 +31,7 @@ export default class ScreenVisualTest extends Service({
         <e-row touching="border">
           {(Object.keys(theme.colors).filter(color => !["bg", "text", "tint"].includes(color)) as (keyof typeof theme.colors)[]).map(color => {
             return <label
-              class={theme.colors[color].as_tint}
+              class={theme.colors[color].classes.as_tint}
             >
               <input type="checkbox" e-variant="toggle">{$bind.boolean(this.o_color.tf(tf_equals(color)))}</input>
               <P.PaintRoller/>

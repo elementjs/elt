@@ -440,29 +440,32 @@ export class Mix {
     return this.expr.replaceAll("--e-color-", "--e-dark-color-")
   }
 
+  /** Internal — not part of the public contract. Read via `.css.as_tint`. */
   @memoize
-  private get css_as_tint() {
+  get _css_as_tint() {
     return `--e-color-tint: ${this.expr};
     --e-light-color-tint: ${this.light_frozen_expr};
     --e-dark-color-tint: ${this.dark_frozen_expr};`
   }
 
-  /** Change the tint to be this color instead. This is a class name. */
+  /** Internal — not part of the public contract. Read via `.classes.as_tint`. */
   @memoize
-  get as_tint() {
+  get _classes_as_tint() {
     return css`.e-color-${this.class_label}-tint {
-      ${this.css_as_tint}
+      ${this._css_as_tint}
     }`
   }
 
   /**
+   * Internal — not part of the public contract. Read via `.css.as_inverted`.
+   *
    * Inversion always freezes to the *light* theme's `bg` (Axis 1, Inversion) — this is what makes
    * an inverted band look the same in light and dark mode. A second inversion of the exact same
    * color nested inside this one is NOT expected to "see" this swap (that would require a live,
    * theme-dependent bg, which is exactly what this rule forbids) — nest a *different* color, or
    * use `as_tint`, instead of re-inverting the same one.
    */
-  get css_as_inverted() {
+  get _css_as_inverted() {
     return `
     --e-color-bg: ${this.light_frozen_expr};
     --e-color-text: var(--e-light-color-bg);
@@ -473,14 +476,11 @@ export class Mix {
     `
   }
 
-  /**
-   * This is a class name.
-   * Set background to be this color, with the light background becoming the text color _and_ tint.
-   */
+  /** Internal — not part of the public contract. Read via `.classes.as_inverted`. */
   @memoize
-  get as_inverted() {
+  get _classes_as_inverted() {
     return css`.e-color-${this.class_label}-inverted {
-      ${this.css_as_inverted}
+      ${this._css_as_inverted}
     }`
   }
 
@@ -549,25 +549,35 @@ export class Mix {
   }
 
   /**
-   * Raw CSS text for raising/painting a surface level — the single source of truth shared by the
-   * `[surface]` attribute (`ui/layout.css.tsx`, `e-flex`/`e-grid`/`e-block` only) and `.surface()`
-   * below (any element). See "Surfaces and borders" in specs/elt-ui-guidelines.md.
+   * The color a surface at this level paints itself — an actual CSS color value, usable anywhere
+   * one is expected (a border, a text color, a one-off background-color), not just as the surface's
+   * own fill. Absolute levels and `"increment"` both have a well-defined color ; `"none"` does not
+   * — "unpainted" isn't a color (see `.classes.as_surface` for the class form, which does support
+   * `"none"` as a real no-op class). See "Surfaces and borders" in specs/elt-ui-guidelines.md.
    *
-   * - A number sets an *absolute* level, ignoring whatever's already ambient — for content whose
-   *   DOM position doesn't reflect its visual nesting (a dialog/popup portaled to `document.body`
-   *   that still needs to render "as if" at a specific level).
-   * - `"increment"` raises one level *relative* to whatever's ambient — what a bare `[surface]`
-   *   does today; nest it again to go one deeper.
-   * - `"background"` is absolute level 0 — "the background color" is level 0's own definition (Axis
-   *   1, Surfaces and borders) — with the level reset propagated to children too. Always a real,
-   *   visible boundary against any nonzero ambient level, unlike reusing whatever's already ambient
-   *   (which would paint the exact same color as the parent that set it — no boundary at all).
-   * - `"none"` is a true no-op: no paint, no level change, same as if `[surface]` were absent
-   *   entirely — the escape hatch to cancel a default `surface` a wrapping component might apply,
-   *   mirroring `spacing="none"`/`pad="none"` (Axis 3, Spacing scale) rather than inventing a new
-   *   "reset but don't repaint" behavior nothing else in this system has.
+   * - A number is an *absolute* level, ignoring whatever's already ambient — for content whose DOM
+   *   position doesn't reflect its visual nesting (a dialog/popup portaled to `document.body` that
+   *   still needs to render "as if" at a specific level).
+   * - `"increment"` is one level up *relative* to whatever's ambient (reads `--e-surface-level`,
+   *   the same custom property `[surface]` itself increments) — what `hover`/`separator` above
+   *   already do at their own fixed +1/+2 offsets ; this is the general, any-offset version.
+   * - `"background"` is absolute level 0 — "the background color" is level 0's own definition.
    */
-  css_as_surface(level: number | "increment" | "background" | "none"): string {
+  as_surface(level: number | "increment" | "background"): string {
+    const new_level = level === "increment" ? "(1 + var(--e-surface-level, 0))" : `${level === "background" ? 0 : level}`
+    return this.from_bg(`calc(${new_level} * var(--e-surface-step, 10%))`).toString()
+  }
+
+  /**
+   * Internal — not part of the public contract. Read via `.css.as_surface`.
+   *
+   * Raw CSS text for raising/painting a surface level — the single source of truth shared by the
+   * `[surface]` attribute (`ui/layout.css.tsx`, `e-flex`/`e-grid`/`e-block` only) and
+   * `.classes.as_surface` (any element). Unlike `as_surface` above, this also propagates the level
+   * to children and supports `"none"` — a true no-op, no paint, no level change, same as if
+   * `[surface]` were absent entirely (mirroring `spacing="none"`/`pad="none"`, Axis 3).
+   */
+  _css_as_surface(level: number | "increment" | "background" | "none"): string {
     if (level === "none") {
       return ""
     }
@@ -584,22 +594,48 @@ export class Mix {
 
   #surface_classes = new Map<string, string>()
 
-  /**
-   * Same as the `[surface]` attribute (`ui/layout.css.tsx`), but usable on any element — a class,
-   * not an attribute scoped to `e-flex`/`e-grid`/`e-block`. See `css_as_surface` for what each
-   * value means. This is a class name.
-   */
-  surface(level: number | "increment" | "background" | "none"): string {
+  /** Internal — not part of the public contract. Read via `.classes.as_surface`. */
+  _classes_as_surface(level: number | "increment" | "background" | "none"): string {
     const key = String(level)
     let cls = this.#surface_classes.get(key)
     if (cls == null) {
       cls = css`.e-color-${this.class_label}-surface-${key} {
-        ${this.css_as_surface(level)}
+        ${this._css_as_surface(level)}
       }`
       this.#surface_classes.set(key, cls)
     }
     return cls
   }
+
+  /**
+   * Raw CSS declaration strings — the low-level counterpart to `.classes` below. Mirrors
+   * `Theme.css`/`Theme.classes` (`ui/theme.tsx`), scoped to this one color instead of the theme's
+   * spacing scale.
+   */
+  @memoize
+  get css() {
+    return new MixCss(this)
+  }
+
+  /** Class-name-producing members of this color — see `MixClasses` below. */
+  @memoize
+  get classes() {
+    return new MixClasses(this)
+  }
+}
+
+class MixCss {
+  constructor(private mix: Mix) {}
+  get as_tint() { return this.mix._css_as_tint }
+  get as_inverted() { return this.mix._css_as_inverted }
+  as_surface(level: number | "increment" | "background" | "none") { return this.mix._css_as_surface(level) }
+}
+
+class MixClasses {
+  constructor(private mix: Mix) {}
+  get as_tint() { return this.mix._classes_as_tint }
+  get as_inverted() { return this.mix._classes_as_inverted }
+  as_surface(level: number | "increment" | "background" | "none") { return this.mix._classes_as_surface(level) }
 }
 
 export const theme = new Theme({

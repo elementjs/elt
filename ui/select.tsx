@@ -117,7 +117,7 @@ const cls_item = css`.item {
   }
 
   &.selected {
-    ${colors.tint.faded.css_as_inverted}
+    ${colors.tint.faded.css.as_inverted}
   }
 
   @media (hover: hover) and (pointer: fine) {

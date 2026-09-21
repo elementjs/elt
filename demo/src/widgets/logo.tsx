@@ -3,9 +3,9 @@ import { theme } from "elt/ui/theme"
 
 export function EltLogo2() {
   return <span class={[cls_logo]}>
-    <span class={[cls_letter, theme.colors.blue.as_tint]}>e</span>
-    <span class={[cls_letter, theme.colors.purple.as_tint]}>l</span>
-    <span class={[cls_letter, theme.colors.magenta.as_tint]}>t</span>
+    <span class={[cls_letter, theme.colors.blue.classes.as_tint]}>e</span>
+    <span class={[cls_letter, theme.colors.purple.classes.as_tint]}>l</span>
+    <span class={[cls_letter, theme.colors.magenta.classes.as_tint]}>t</span>
   </span>
 }
 

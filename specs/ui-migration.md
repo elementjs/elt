@@ -16,7 +16,12 @@ This is a living document. Each section covers one axis of `specs/elt-ui-guideli
 | `.ultra_light` | see "Choosing a replacement" below | `from_bg(10%)` — same formula, but the *role* it was standing in for determines the new expression. There is no direct one-to-one rename. |
 | `.light` | see "Choosing a replacement" below | `from_bg(20%)` — same caveat as `.ultra_light`. |
 | `.dark` / `.ultra_dark` | — | Never existed as `Mix` members. No call sites, nothing to migrate. |
-| `.mid`, `.faded`, `.strong`, `.very_strong`, `.hover`, `.separator`, `.from_bg`, `.from_text`, `.as_inverted`, `.as_tint`, `.surface(n)` | unchanged | Already the current, spec-compliant names — do not touch call sites using these. |
+| `.mid`, `.faded`, `.strong`, `.very_strong`, `.hover`, `.separator`, `.from_bg`, `.from_text` | unchanged | Already the current, spec-compliant names — do not touch call sites using these. |
+| `.as_inverted`, `.as_tint` (class) | `.classes.as_inverted`, `.classes.as_tint` | Moved under `Mix`'s own `.classes` namespace — see "Surfaces and borders" in `specs/elt-ui-guidelines.md`. |
+| `.css_as_inverted`, `.css_as_tint` | `.css.as_inverted`, `.css.as_tint` | Same move, `.css` namespace. |
+| `.surface(n)` (class) | `.classes.as_surface(n)` | Same move ; `.surface(n)` itself now means something different (see next row). |
+| `css_as_surface(n)` | `.css.as_surface(n)` | Same move. |
+| *(did not exist)* | `.as_surface(n)` | New : a bare CSS color value for absolute surface level `n` (no `.css`/`.classes`), for a one-off declaration like `border-top: 1px solid ${theme.colors.tint.as_surface(1)}`. Accepts `number \| "increment" \| "background"` — `"none"` stays exclusive to `.classes.as_surface`/`.css.as_surface`, since "unpainted" isn't a color a bare value can express. |
 
 `.ultra_light` and `.light` were removed outright rather than renamed, because they named a *lightness step* (a position on the bg→tint axis), not a *role*. The new API names roles (`.hover`, `.separator`, `.mid`, `.faded`) — a call site using the old getters has to be re-examined for what it was actually trying to express, not pattern-substituted.
 

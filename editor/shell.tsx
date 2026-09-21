@@ -313,7 +313,7 @@ const cls_column_body = css`.oe-column-body {
 const cls_column_header = css`.oe-column-header {
   min-height: 1.8em;
   font-weight: bold;
-  ${theme.colors.tint.css_as_inverted}
+  ${theme.colors.tint.css.as_inverted}
 }`
 
 const cls_column_close = css`.oe-column-close {

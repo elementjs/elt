@@ -453,7 +453,7 @@ const cls_string = css`.string {
 }`
 
 const cls_number = css`.number {
-  ${theme.colors.magenta.css_as_tint};
+  ${theme.colors.magenta.css.as_tint};
   color: ${theme.colors.tint};
 }`
 
@@ -488,7 +488,7 @@ const cls_nav = css`.nav {
 }`
 
 const cls_header = css`.header {
-  ${theme.colors.text.faded.css_as_inverted}
+  ${theme.colors.text.faded.css.as_inverted}
   width: 100%;
   font-size: ${theme.settings.formFontSize};
 

@@ -165,7 +165,7 @@ Each `theme.colors.*` is a `Mix` helper:
 | Strong emphasis | `.strong`, `.very_strong` (mix toward text) |
 | Custom mix (no other role fits) | `.from("bg", "20%")`, `.from_text(...)`, `.from_bg(...)` |
 | Recolor subtree accent | `theme.colors.orange.as_tint` (class) |
-| Inverted band (toolbar, dialog header, table `<th>`) | `theme.colors.tint.as_inverted` (class) or `.css_as_inverted` (spread inline) |
+| Inverted band (toolbar, dialog header, table `<th>`) | `theme.colors.tint.classes.as_inverted` (class) or `.css.as_inverted` (spread inline) |
 
 Full rules and rationale: [`../specs/elt-ui-guidelines.md`](../specs/elt-ui-guidelines.md) (Axis 1: Color). Converting code written against the older `.light`/`.ultra_light` steps: [`../specs/ui-migration.md`](../specs/ui-migration.md).
 

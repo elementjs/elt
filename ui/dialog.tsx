@@ -117,7 +117,7 @@ dialog {
   }
 
   & > header {
-    ${theme.colors.tint.css_as_inverted}
+    ${theme.colors.tint.css.as_inverted}
     padding: ${theme.settings.spacingComponent};
   }
 

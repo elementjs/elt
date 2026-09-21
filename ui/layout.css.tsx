@@ -127,20 +127,20 @@ const _surface_levels = ["1", "2", "3", "4", "5", "6"] as const
 const _surface_not_increment = [...["background", "none"], ..._surface_levels].map((v) => `:not([surface="${v}"])`).join("")
 
 _`${_all}[surface]${_surface_not_increment} {
-  ${theme.colors.tint.css_as_surface("increment")}
+  ${theme.colors.tint.css.as_surface("increment")}
 }`
 
 _`${_all}[surface="background"] {
-  ${theme.colors.tint.css_as_surface("background")}
+  ${theme.colors.tint.css.as_surface("background")}
 }`
 
 _`${_all}[surface="none"] {
-  ${theme.colors.tint.css_as_surface("none")}
+  ${theme.colors.tint.css.as_surface("none")}
 }`
 
 for (const lvl of _surface_levels) {
   _`${_all}[surface="${lvl}"] {
-    ${theme.colors.tint.css_as_surface(Number(lvl))}
+    ${theme.colors.tint.css.as_surface(Number(lvl))}
   }`
 }
 
@@ -200,7 +200,7 @@ css`
 
   header, footer {
     ${theme.css_light_colors};
-    ${theme.colors.tint.css_as_inverted};
+    ${theme.colors.tint.css.as_inverted};
 
     padding: ${theme.settings.spacingComponent};
     gap: ${theme.settings.spacingComponent};
@@ -210,7 +210,7 @@ css`
     align-items: baseline;
   }
   footer {
-    ${theme.colors.text.faded.css_as_inverted}
+    ${theme.colors.text.faded.css.as_inverted}
   }
 
   e-block { display: block; }
