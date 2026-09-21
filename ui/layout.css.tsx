@@ -192,11 +192,6 @@ css`
     display: flex;
     flex-direction: row;
     align-items: baseline;
-
-    & button {
-      font-size: 1rem;
-      border-color: transparent;
-    }
   }
   footer {
     ${theme.colors.text.faded.css_as_inverted}

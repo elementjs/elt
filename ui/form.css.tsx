@@ -73,33 +73,38 @@ input[type="time"],
 input[type="datetime-local"],
 textarea,
 select,
-label:has(> input[type="checkbox"][e-variant="toggle"]),
-fieldset {
-  line-height: 1;
-  appearance: none;
-  -webkit-appearance: none;
-  background-color: transparent;
-  color: ${colors.text};
-  border: 1px solid ${colors.text.mid};
-  padding: ${theme.settings.spacingWidget};
-  border-radius: ${theme.settings.borderRadius};
-  font-size: ${theme.settings.formFontSize};
+label:has(> input[type="checkbox"][e-variant="toggle"]) {
 
-  transition:
-    outline 0.1s ease,
-    background 0.1s ease,
-    box-shadow 0.1s ease;
+  line-height: 1.2;
+  display: inline-block;
+  
+  :where(&, fieldset) {
+    
+    appearance: none;
+    -webkit-appearance: none;
+    background-color: transparent;
+    color: ${colors.text};
+    border: 1px solid ${colors.text.mid};
+    padding: ${theme.settings.spacingWidget};
+    border-radius: ${theme.settings.borderRadius};
+    font-size: ${theme.settings.formFontSize};
 
-  @media (hover: hover) and (pointer: fine) {
-    &:hover {
-      //> Question: was colors.bg.ultra_light, a bg-mixed-with-bg no-op (visually inert even before this migration). Left as-is (colors.bg) rather than silently picking a new hover fill.
-      background: ${colors.bg};
+    transition:
+      outline 0.1s ease,
+      background 0.1s ease,
+      box-shadow 0.1s ease;
+
+    @media (hover: hover) and (pointer: fine) {
+      &:hover {
+        background: ${colors.bg};
+      }
+    }
+
+    &:focus-visible {
+      box-shadow: 0 0 0 ${theme.settings.focusRingSize} ${colors.tint.mid};
     }
   }
 
-  &:focus-visible {
-    box-shadow: 0 0 0 ${theme.settings.focusRingSize} ${colors.tint.mid};
-  }
 }
 
 fieldset > legend {

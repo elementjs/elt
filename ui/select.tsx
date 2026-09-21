@@ -84,7 +84,7 @@ const cls_placeholder = css`.placeholder {
 
 const cls_select_button = css`.select-button {
   display: inline-flex;
-  align-items: center;
+  align-items: baseline;
 }`
 
 const cls_indicator = css`.indicator {

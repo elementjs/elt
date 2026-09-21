@@ -174,7 +174,7 @@ export default class ScreenVisualTest extends Service({
       <footer>
         <button>
           {$click(() => fut.reject(null))}
-          No
+          Cancel
         </button>
         <button e-variant="inverted">OK</button>
       </footer>

@@ -32,35 +32,27 @@ css`@layer typography {
     line-height: 1.5;
     color: inherit;
 
-    /* ── Unknown children → paragraph-like ────────────────── */
-    & > :not(
-      p, h1, h2, h3, h4, h5, h6,
-      ul, ol, li, blockquote, pre, code,
-      hr, figure, figcaption, table,
-      dl, dt, dd, details, summary,
-      strong, em, a, abbr, mark, s
-    ) {
-      margin-block: 1em;
-    }
-
-    /* ── Vertical rhythm: all block children ──────────────── */
-    & > * + * {
-      margin-block-start: 1em;
+    & > * {
+      line-height: 1.5;
+      margin-block: 1lh;
     }
 
     /* ── Headings ──────────────────────────────────────────── */
     & h1, & h2, & h3, & h4, & h5, & h6 {
       line-height: 1.2;
-      font-weight: 600;
-      margin-block: 1.5em 0.4em;
+      font-weight: bolder;
+      margin-block: 3lh 1lh;
       text-wrap: balance;
+    }
+    & :is(h1, h2, h3, h4, h5, h6) + :is(h1, h2, h3, h4, h5, h6) {
+      margin-block-start: 0 !important;
     }
     & h1 { font-size: 2rem; }
     & h2 { font-size: 1.5rem; }
     & h3 { font-size: 1.25rem; }
     & h4 { font-size: 1.1rem; }
-    & h5 { font-size: 1rem;   font-style: italic; }
-    & h6 { font-size: 0.9rem; font-style: italic; color: color-mix(in oklab, currentColor 70%, transparent); }
+    & h5 { font-size: 1rem; font-style: italic; }
+    & h6 { font-size: 1rem; font-style: italic; color: color-mix(in oklab, currentColor 70%, transparent); }
 
     /* ── Paragraphs ────────────────────────────────────────── */
     & p {
@@ -81,8 +73,10 @@ css`@layer typography {
 
     /* ── Lists ─────────────────────────────────────────────── */
     & ul, & ol {
-      padding-inline-start: 1.75em;
-      & > li + li { margin-block-start: 0.75em; }
+      padding-inline-start: 3ch;
+    }
+    & li {
+      margin-block: 0.5em;
     }
     & ul { list-style-type: disc; }
     & ul ul { list-style-type: circle; }

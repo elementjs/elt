@@ -108,7 +108,6 @@ dialog {
   }
 
   & > footer {
-    border-top: 1px solid ${theme.colors.text.separator};
     padding: ${theme.settings.spacingComponent};
     //> Question: footer fill — surface band or flat tint? Kept old look via explicit from_bg for now.
     background-color: ${theme.colors.text.from_bg("10%")};
