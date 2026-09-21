@@ -218,7 +218,7 @@ export function TimePickerPanel(opts: TimePickerPanelOpts) {
   }
 
   return (
-    <e-flex class={cls_panel} gap="widget">
+    <e-flex class={cls_panel} spacing="widget">
       {cols}
     </e-flex>
   ) as HTMLElement

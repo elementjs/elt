@@ -45,8 +45,7 @@ export interface CommonAttrs extends Attrs<HTMLElement> {
   relative?: NRO<boolean>
   grow?: NRO<boolean>
   
-  spacing?: NRO<SpacingValues>
-  gap?: NRO<true | SpacingValues | "none">
+  spacing?: NRO<true | SpacingValues | "none">
   pad?: NRO<true | SpacingValues | "none">
   surface?: NRO<boolean | SurfaceValues>
   hover?: NRO<boolean>
@@ -144,29 +143,34 @@ for (const al of align) {
   _`${_all}[self-align="${al}"] { align-self: ${al}; }`
 }
 
-// Priority, lowest to highest (CSS cascade with equal specificity — later wins):
-// 1. bare [gap]/[pad] (no value) fall back to `component`.
-// 2. `spacing="X"` sets both gap and pad together — it has no purpose otherwise, a bare `pad`/`gap`
-//    alongside it should inherit X, not the component default from (1).
-// 3. `gap="X"`/`pad="X"` (an explicit step) override either side on its own, spacing or not.
+// `pad` implies `spacing` (spec: "a container with more than one child must set spacing between
+// them" — a padded container is exactly such a container). `spacing` never implies `pad` — the two
+// are one-directional, matching a boundary-less container that still needs to space un-merged
+// children (specs/elt-ui-guidelines.md, Padding and boundaries).
 //
-// Every step → custom-property mapping below reads from `theme.css.pad`/`theme.css.gap`
-// (ui/theme.tsx) — the single source of truth `theme.classes.pad`/`.gap` also consume for
+// Priority, lowest to highest (CSS cascade with equal specificity — later wins):
+// 1. bare [pad] (no value) implies `component` spacing, same as bare [spacing] falling back to it.
+// 2. [pad="X"] implies spacing at the same step X.
+// 3. [spacing]/[spacing="X"] sets the ambient spacing directly — an explicit spacing value always
+//    wins over whatever [pad] implied, since these rules are emitted last.
+//
+// Every step → custom-property mapping below reads from `theme.css.pad`/`theme.css.spacing`
+// (ui/theme.tsx) — the single source of truth `theme.classes.pad`/`.spacing` also consume for
 // standalone elements, so the two can't drift apart.
 
-// (1)
-_`${_all}[gap] { ${theme.css.gap("component")} }`
-_`${_all}[pad] { ${theme.css.pad("component")} }`
+// (1) — [pad="none"] is excluded here : it implies no spacing at all, since there's no padding
+// for rule 5 to apply to (its own zero-override further below handles it).
+_`${_all}[pad]:not([pad="none"]) { ${theme.css.pad("component")} ${theme.css.spacing("component")} }`
+_`${_all}[spacing] { ${theme.css.spacing("component")} }`
 
 // (2)
 for (const sp of spaces) {
-  _`${_all}[spacing="${sp}"] { ${theme.css.gap(sp)} ${theme.css.pad(sp)} }`
+  _`${_all}[pad="${sp}"] { ${theme.css.pad(sp)} ${theme.css.spacing(sp)} }`
 }
 
 // (3)
 for (const sp of spaces) {
-  _`${_all}[gap="${sp}"] { ${theme.css.gap(sp)} }`
-  _`${_all}[pad="${sp}"] { ${theme.css.pad(sp)} }`
+  _`${_all}[spacing="${sp}"] { ${theme.css.spacing(sp)} }`
 }
 
 // Spacing scale values now live in Theme (ui/theme.tsx, spacing1/2/4/Widget/Component/Section/Stage1-4)
@@ -175,7 +179,7 @@ for (const sp of spaces) {
 css`
 @layer components {
   :root {
-    ${theme.css.gap("component")}
+    ${theme.css.spacing("component")}
     ${theme.css.pad("component")}
 
     --e-surface-level: 0;
@@ -228,24 +232,29 @@ css`
   }
 
   ${_all} {
-    &[pad], &[spacing] {
+    &[pad] {
       padding: var(--e-pad-vertical) var(--e-pad-horizontal);
     }
   }
 
   :is(e-flex,e-grid,e-row,e-column) {
-    &[gap], &[spacing] {
-      gap: var(--e-gap-vertical) var(--e-gap-horizontal);
+    /* [pad]'s implied spacing and an explicit [spacing] both land in --e-spacing-* above —
+       either attribute's presence is enough to read it back out as a real gap. [pad="none"] is
+       excluded : it never wrote to --e-spacing-* above, so it must not read a stale/inherited
+       value back out either. */
+    &[pad]:not([pad="none"]), &[spacing] {
+      gap: var(--e-spacing-vertical) var(--e-spacing-horizontal);
     }
   }
 
-  /* [pad="none"]/[gap="none"] turn one side off on its own, most useful alongside spacing
-     (which otherwise implies both) — generated last so they win the cascade. */
+  /* [pad="none"]/[spacing="none"] turn one side off on its own — [pad="none"] implies no spacing
+     at all (there's no padding for rule 5 to apply to), and [spacing="none"] overrides whatever
+     [pad] implied. Generated last so they win the cascade. */
   ${_all}[pad="none"] {
     padding: 0;
   }
 
-  :is(e-flex,e-grid,e-row,e-column)[gap="none"] {
+  :is(e-flex,e-grid,e-row,e-column)[spacing="none"] {
     gap: 0;
   }
 

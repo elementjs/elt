@@ -51,8 +51,8 @@ export interface ThemeSettings {
 }
 
 /**
- * The named spacing steps above the raw px nudges — the closed set `theme.css.pad`/`.gap` and
- * `theme.classes.pad`/`.gap` (below) are precomputed against. Order matches the scale, smallest first.
+ * The named spacing steps above the raw px nudges — the closed set `theme.css.pad`/`.spacing` and
+ * `theme.classes.pad`/`.spacing` (below) are precomputed against. Order matches the scale, smallest first.
  */
 export type SpacingStep =
   | "1"
@@ -82,8 +82,8 @@ export const spacing_steps: SpacingStep[] = [
 /** The three raw px nudges have no vertical/horizontal pair — they're symmetric. */
 const _spacing_nudges = new Set<SpacingStep>(["1", "2", "4"])
 
-/** Shared by `Theme.css.pad`/`.gap` — the one place that knows how a step maps to its custom property(ies). */
-function spacing_pair_css(prop: "pad" | "gap", step: SpacingStep): string {
+/** Shared by `Theme.css.pad`/`.spacing` — the one place that knows how a step maps to its custom property(ies). */
+function spacing_pair_css(prop: "pad" | "spacing", step: SpacingStep): string {
   if (_spacing_nudges.has(step)) {
     return `--e-${prop}-vertical: var(--e-spacing-${step}); --e-${prop}-horizontal: var(--e-spacing-${step});`
   }
@@ -287,15 +287,15 @@ export class Theme<AllColors extends ColorScheme> {
 
   /**
    * Raw-CSS-declaration helpers, keyed by concern — the low-level counterpart to `classes` below.
-   * `layout.css.tsx`'s `[pad]`/`[gap]`/`[spacing]` attribute rules consume these directly instead of
-   * re-deriving the step → custom-property mapping themselves; `classes.pad`/`.gap` wrap them into
+   * `layout.css.tsx`'s `[pad]`/`[spacing]` attribute rules consume these directly instead of
+   * re-deriving the step → custom-property mapping themselves; `classes.pad`/`.spacing` wrap them into
    * standalone classes for elements outside the `e-*` set. The three raw px nudges ("1"/"2"/"4")
    * have no vertical/horizontal pair — they're symmetric; every other step does. See "Spacing scale"
    * in specs/elt-ui-guidelines.md.
    */
   readonly css = {
     pad: (step: SpacingStep) => spacing_pair_css("pad", step),
-    gap: (step: SpacingStep) => spacing_pair_css("gap", step),
+    spacing: (step: SpacingStep) => spacing_pair_css("spacing", step),
   }
 
   @memoize
@@ -317,7 +317,7 @@ export class Theme<AllColors extends ColorScheme> {
  */
 class ThemeClasses<AllColors extends ColorScheme> {
   #pad_classes = new Map<SpacingStep, string>()
-  #gap_classes = new Map<SpacingStep, string>()
+  #spacing_classes = new Map<SpacingStep, string>()
 
   constructor(private theme: Theme<AllColors>) {}
 
@@ -379,12 +379,12 @@ class ThemeClasses<AllColors extends ColorScheme> {
     return cls
   }
 
-  /** Standalone gap class for elements outside the `e-*` set — see `Theme.css.gap`. */
-  gap(step: SpacingStep): string {
-    let cls = this.#gap_classes.get(step)
+  /** Standalone spacing class for elements outside the `e-*` set — see `Theme.css.spacing`. */
+  spacing(step: SpacingStep): string {
+    let cls = this.#spacing_classes.get(step)
     if (cls == null) {
-      cls = css`.e-gap-${step} { ${this.theme.css.gap(step)} gap: var(--e-gap-vertical) var(--e-gap-horizontal); }`
-      this.#gap_classes.set(step, cls)
+      cls = css`.e-spacing-${step} { ${this.theme.css.spacing(step)} gap: var(--e-spacing-vertical) var(--e-spacing-horizontal); }`
+      this.#spacing_classes.set(step, cls)
     }
     return cls
   }
@@ -564,7 +564,7 @@ export class Mix {
    *   (which would paint the exact same color as the parent that set it — no boundary at all).
    * - `"none"` is a true no-op: no paint, no level change, same as if `[surface]` were absent
    *   entirely — the escape hatch to cancel a default `surface` a wrapping component might apply,
-   *   mirroring `gap="none"`/`pad="none"` (Axis 3, Spacing scale) rather than inventing a new
+   *   mirroring `spacing="none"`/`pad="none"` (Axis 3, Spacing scale) rather than inventing a new
    *   "reset but don't repaint" behavior nothing else in this system has.
    */
   css_as_surface(level: number | "increment" | "background" | "none"): string {

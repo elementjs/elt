@@ -14,7 +14,7 @@ export default class DateScreen extends Service({
       {this.base.DisplayTitle()}
 
       <p>
-        <e-row gap wrap>
+        <e-row spacing wrap>
           <DateTimePicker clearable variant="full" model={this.o_date} show_time minute_step={5}/>
           <DateTimePicker lang="fr" model={this.o_date} am_pm show_time seconds/>
         </e-row>

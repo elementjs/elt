@@ -216,7 +216,7 @@ export class ObjectEditorShell {
           {$connected((el: HTMLElement) => {
             column.host = (el.closest("[popover]") as HTMLElement | null) ?? el
           })}
-          <e-flex column gap="widget" pad="widget" class={cls_column_header}>
+          <e-flex column pad="widget" class={cls_column_header}>
             <e-flex full-width justify="space-between" align="center">
               {column.title != null && <span>{column.title}</span>}
               <button type="button" class={cls_column_close}>
@@ -225,7 +225,7 @@ export class ObjectEditorShell {
             </e-flex>
             {o_widget.tf((widget) => widget.header ?? null)}
           </e-flex>
-          <e-flex column gap="widget" pad="widget" class={cls_popup_body}>
+          <e-flex column pad="widget" class={cls_popup_body}>
             {o_widget.tf((widget) => widget.render())}
           </e-flex>
         </e-flex>
@@ -253,11 +253,11 @@ export class ObjectEditorShell {
           const o_widget = column.o_factory.tf((factory) => factory.render(column.o_value))
           return (
             <e-flex column class={cls_column_body}>
-              <e-flex column gap="widget" pad="widget" class={cls_column_header}>
+              <e-flex column pad="widget" class={cls_column_header}>
                 <e-flex full-width justify="space-between" align="center">
                   {column.title != null && <span>{column.title}</span>}
                   {is_root ? (
-                    <e-row gap="widget">
+                    <e-row spacing="widget">
                       <button type="button" e-variant="text" disabled={this.undo.o_can_undo.tf((v) => !v)}>
                         {$on("click", () => this.undo.undo())}
                         Undo
@@ -275,7 +275,7 @@ export class ObjectEditorShell {
                 </e-flex>
                 {o_widget.tf((widget) => widget.header ?? null)}
               </e-flex>
-              <e-flex column gap="widget" pad="widget">
+              <e-flex column pad="widget">
                 {o_widget.tf((widget) => widget.render())}
               </e-flex>
             </e-flex>

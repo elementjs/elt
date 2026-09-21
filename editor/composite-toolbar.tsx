@@ -115,10 +115,10 @@ export function render_composite_toolbar(props: CompositeToolbarProps): Renderab
       (flags.show_import_export && import_export_addons.length > 0))
 
   return (
-    <e-flex column class={cls_toolbar_wrap} gap="widget">
+    <e-flex column class={cls_toolbar_wrap} spacing="widget">
       {oo_title.tf((title) => (title != null ? <span class={cls_title}>{title}</span> : null))}
       {(flags.show_search || has_menu_content) && (
-        <e-flex align="center" gap="widget" class={cls_toolbar_row}>
+        <e-flex align="center" spacing="widget" class={cls_toolbar_row}>
           {flags.show_search && (
             <>
               <input type="search" class={cls_search} placeholder="Filter rows…">

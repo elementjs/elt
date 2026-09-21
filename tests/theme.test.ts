@@ -145,16 +145,16 @@ describe("Spacing scale (regression: vertical is half of horizontal, no text-box
   })
 })
 
-describe("Theme.css.pad / Theme.css.gap", () => {
+describe("Theme.css.pad / Theme.css.spacing", () => {
   test("pad(step) sets --e-pad-vertical/-horizontal from the named step's paired spacing variables", () => {
     expect(theme.css.pad("widget")).toBe(
       "--e-pad-vertical: var(--e-spacing-widget-vertical); --e-pad-horizontal: var(--e-spacing-widget-horizontal);",
     )
   })
 
-  test("gap(step) sets --e-gap-vertical/-horizontal from the named step's paired spacing variables", () => {
-    expect(theme.css.gap("section")).toBe(
-      "--e-gap-vertical: var(--e-spacing-section-vertical); --e-gap-horizontal: var(--e-spacing-section-horizontal);",
+  test("spacing(step) sets --e-spacing-vertical/-horizontal from the named step's paired spacing variables", () => {
+    expect(theme.css.spacing("section")).toBe(
+      "--e-spacing-vertical: var(--e-spacing-section-vertical); --e-spacing-horizontal: var(--e-spacing-section-horizontal);",
     )
   })
 
@@ -175,7 +175,7 @@ describe("Theme.classes (regression: moved off Theme's top-level class_light/cla
     expect(theme.toString()).toBe(theme.classes.dynamic_scheme.toString())
   })
 
-  test("pad(step)/gap(step) return a stable, cached class name per step, mirroring theme.css.pad/gap", () => {
+  test("pad(step)/spacing(step) return a stable, cached class name per step, mirroring theme.css.pad/spacing", () => {
     const a = theme.classes.pad("component")
     const b = theme.classes.pad("component")
     const c = theme.classes.pad("section")
@@ -187,10 +187,10 @@ describe("Theme.classes (regression: moved off Theme's top-level class_light/cla
     expect(rule).toContain("padding: var(--e-pad-vertical) var(--e-pad-horizontal)")
   })
 
-  test("gap(step) applies the gap property from the same --e-gap-vertical/-horizontal custom properties [pad]/[gap] attribute rules use", () => {
-    const cls = theme.classes.gap("widget")
+  test("spacing(step) applies the gap property from the same --e-spacing-vertical/-horizontal custom properties [pad]/[spacing] attribute rules use", () => {
+    const cls = theme.classes.spacing("widget")
     const rule = find_rule_text(cls)
-    expect(rule).toContain(theme.css.gap("widget"))
-    expect(rule).toContain("gap: var(--e-gap-vertical) var(--e-gap-horizontal)")
+    expect(rule).toContain(theme.css.spacing("widget"))
+    expect(rule).toContain("gap: var(--e-spacing-vertical) var(--e-spacing-horizontal)")
   })
 })

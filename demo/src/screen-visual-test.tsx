@@ -26,7 +26,7 @@ export default class ScreenVisualTest extends Service({
 
       <h3>Form</h3>
 
-      <e-row gap>
+      <e-row spacing>
 
         <e-button-box>
           {(Object.keys(theme.colors).filter(color => !["bg", "text", "tint"].includes(color)) as (keyof typeof theme.colors)[]).map(color => {
@@ -43,7 +43,7 @@ export default class ScreenVisualTest extends Service({
 
       </e-row>
 
-      <e-row gap>
+      <e-row spacing>
         <e-button-box>
           <button>Button</button>
           <button e-variant="tint"><P.CaretDown/></button>
@@ -59,7 +59,7 @@ export default class ScreenVisualTest extends Service({
           const o_disabled = o(true)
           return <fieldset disabled={o_disabled}>
             <legend><label><input type="checkbox">{$bind.boolean(o_disabled)}</input> Disabled</label></legend>
-            <e-row gap>
+            <e-row spacing>
               <button>Button</button>
               <button e-variant="link">link</button>
               <button e-variant="text">text</button>
@@ -70,7 +70,7 @@ export default class ScreenVisualTest extends Service({
         }}
 
       </p>
-      <e-row gap>
+      <e-row spacing>
         <e-button-box>
           <input type="text" placeholder="Enter your text" />
           <button><P.MagnifyingGlass/></button>
@@ -78,17 +78,17 @@ export default class ScreenVisualTest extends Service({
 
         <input type="number" placeholder="number"/>
       </e-row>
-      <e-row gap>
+      <e-row spacing>
         <label><input type="checkbox" e-variant="switch"/> Switch</label>
         <label><input type="checkbox" e-variant="switch" checked/> Switch checked</label>
         <label><input type="checkbox" e-variant="switch" disabled/> Switch disabled</label>
       </e-row>
-      <e-row gap>
+      <e-row spacing>
         <label><input type="checkbox" name="checkbox"/> Checkbox</label>
         <label><input type="checkbox" name="checkbox" checked/> Checked</label>
         <label><input disabled type="checkbox" name="checkbox" value="3"/> Disabled</label>
       </e-row>
-      <e-row gap>
+      <e-row spacing>
         <label><input type="checkbox" e-variant="toggle"/> Toggle</label>
         <label><input type="checkbox" e-variant="toggle" checked/> Toggle checked</label>
         <label><input type="checkbox" e-variant="toggle" disabled/> Toggle disabled</label>
@@ -115,7 +115,7 @@ export default class ScreenVisualTest extends Service({
         const o_clearable = o(false)
         const o_seconds = o(false)
         const o_am_pm = o(false)
-        return <e-row gap>
+        return <e-row spacing>
           <DateTimePicker
             model={o(new Date())}
             show_date={o_show_date}

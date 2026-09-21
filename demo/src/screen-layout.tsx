@@ -51,27 +51,26 @@ export default class ScreenLayout extends Service({
         background is just a <code>surface</code>; it needs no separate "panel" or "card" concept.
       </p>
 
-      <e-block surface spacing="component" border-radius typographic>
+      <e-block surface pad="component" border-radius typographic>
         <p>
           Level 1 surface. Has its own background and padding — per the padding/boundary rules, a container that
-          pads itself must also set <code>gap</code> for its children. (<code>spacing</code> alone implies both —
-          and only takes effect here because this wrapper is an <code>e-column</code>, not an <code>e-block</code>:
-          <code>gap</code> is a flex/grid property, a no-op on plain block layout, so an <code>e-block</code> that
-          pads itself needs either exactly one child or a flex/grid child doing its own gapping, never several
-          loose children relying on the block's own <code>gap</code>.)
+          pads itself must also set <code>spacing</code> for its children. (<code>pad</code> alone implies it —
+          but <code>spacing</code> is a flex/grid property, a no-op on plain block layout, so an <code>e-block</code>
+          that pads itself needs either exactly one child or a flex/grid child doing its own spacing, never several
+          loose children relying on the block's own (inert) implied <code>spacing</code>.)
         </p>
-        <e-block gap="widget">
-          <e-block surface spacing="widget" border-radius>
+        <e-block spacing="widget">
+          <e-block surface pad="widget" border-radius>
             Level 2 surface, nested. One step further off its own (already-raised) parent — not two steps off the
             page.
           </e-block>
-          <e-block surface spacing="widget" border-radius>
+          <e-block surface pad="widget" border-radius>
             A sibling level-2 surface, for comparison.
           </e-block>
         </e-block>
       </e-block>
 
-      <e-block border="widget" spacing="component" border-radius typographic>
+      <e-block border="widget" pad="component" border-radius typographic>
         No <code>surface</code> here — just a border. Radius is derived from this box's own vertical padding step
         (<code>component</code>), not a separately chosen value.
       </e-block>
@@ -84,23 +83,23 @@ export default class ScreenLayout extends Service({
         <code>surface="background"</code> is absolute level 0 — "the background color" is level 0's own definition —
         so it's always a real, visible boundary against whatever's ambient, never a same-color repaint of it.
         <code>surface="none"</code> is a true no-op: no fill, no level change, as if <code>surface</code> weren't
-        there at all (the same escape-hatch shape as <code>gap="none"</code>/<code>pad="none"</code>) — which is why
+        there at all (the same escape-hatch shape as <code>spacing="none"</code>/<code>pad="none"</code>) — which is why
         it needs its own <code>border</code> below to stay padding-compliant: it deliberately has no background
         boundary of its own.
       </p>
-      <e-row gap="widget" wrap>
-        <e-block surface="1" spacing="widget" border-radius>surface="1"</e-block>
-        <e-block surface="2" spacing="widget" border-radius>surface="2"</e-block>
-        <e-block surface="3" spacing="widget" border-radius>surface="3"</e-block>
-        <e-block surface="4" spacing="widget" border-radius>surface="4"</e-block>
+      <e-row spacing="widget" wrap>
+        <e-block surface="1" pad="widget" border-radius>surface="1"</e-block>
+        <e-block surface="2" pad="widget" border-radius>surface="2"</e-block>
+        <e-block surface="3" pad="widget" border-radius>surface="3"</e-block>
+        <e-block surface="4" pad="widget" border-radius>surface="4"</e-block>
       </e-row>
-      <e-block surface="3" spacing="component" border-radius>
+      <e-block surface="3" pad="component" border-radius>
         <p>Ambient level 3.</p>
-        <e-row gap="widget" wrap>
-          <e-block surface="background" spacing="widget" border-radius>
+        <e-row spacing="widget" wrap>
+          <e-block surface="background" pad="widget" border-radius>
             surface="background" — level 0's own fill, clearly distinct from the level-3 ambient around it.
           </e-block>
-          <e-block surface="none" border="widget" spacing="widget" border-radius>
+          <e-block surface="none" border="widget" pad="widget" border-radius>
             surface="none" — no fill of its own, so its boundary here is an explicit <code>border</code> instead.
           </e-block>
         </e-row>
@@ -121,7 +120,7 @@ export default class ScreenLayout extends Service({
         its own nesting depth. Hover this level-1 surface's row, and note the divider below it stays visually
         distinct from the hover fill even though both are "more tint mixed into the background."
       </p>
-      <e-column surface spacing="component" border-radius>
+      <e-column surface pad="component" border-radius>
         <e-block class={cls_hover_row}>Hover me — background is <code>tint.hover</code> (level n+1)</e-block>
         <div class={cls_separator_row}>Divider above this row is <code>tint.separator</code> (level n+2)</div>
       </e-column>
@@ -134,20 +133,20 @@ export default class ScreenLayout extends Service({
         back to a plain background — it inverts the same color again, since there is no live value here to read. To
         get a visibly distinct nested band, invert a <em>different</em> color instead.
       </p>
-      <e-row gap="section" wrap>
-        <e-column class={cls_inverted} spacing="component" gap="widget" border-radius>
+      <e-row spacing="section" wrap>
+        <e-column class={cls_inverted} pad="component" spacing="widget" border-radius>
           <strong>tint, inverted</strong>
-          <e-block class={cls_inverted} spacing="widget" border-radius>
+          <e-block class={cls_inverted} pad="widget" border-radius>
             Same color (tint) nested inside itself — renders identically to its parent, not as a plain background.
           </e-block>
         </e-column>
 
-        <e-column class={cls_inverted} spacing="component" gap="widget" border-radius>
+        <e-column class={cls_inverted} pad="component" spacing="widget" border-radius>
           <strong>tint, inverted</strong>
-          <e-block class={cls_inverted_different} spacing="widget" border-radius>
+          <e-block class={cls_inverted_different} pad="widget" border-radius>
             A <em>different</em> color (red) nested inside — reads clearly against its parent.
           </e-block>
-          <e-block surface spacing="widget" border-radius>
+          <e-block surface pad="widget" border-radius>
             Or simply setting surface
           </e-block>
         </e-column>

@@ -133,8 +133,8 @@ export function DateTimePicker(at: DatePickerAttrs) {
     await popup(
       anchor,
       () => (
-        <e-column spacing="component" class={cls_calendar}>
-          <e-flex spacing="widget" align="center" gap>
+        <e-column pad="component" class={cls_calendar}>
+          <e-flex spacing="widget" align="center">
             <button type="button" e-variant="text">
               {$click(() => year_delta(-1))}
               {CaretLeft()}
