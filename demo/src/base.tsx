@@ -160,6 +160,9 @@ const cls_nav_drawer = css`.nav-drawer {
   max-height: 100%;
   border: none;
   border-right: 1px solid ${theme.colors.text.mid};
+  /* Overrides ui/dialog.tsx's global dialog { border-radius: ... } — a panel flush against the
+     top/left/bottom edges of the viewport shouldn't round any of the corners actually touching it. */
+  border-radius: 0;
   background: var(--e-color-bg);
   padding: 0;
 
