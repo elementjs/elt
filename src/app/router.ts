@@ -66,9 +66,6 @@ export class Router {
     this._last_hash = newhash
 
     const { path, vars } = this.__parseHash(newhash)
-    if (!path) {
-      return
-    }
     const route_vars: ServiceParams = {}
 
     let route = this.__routes.get(path)
@@ -90,6 +87,7 @@ export class Router {
     }
 
     if (route == null) {
+      console.warn(`route not found ${newhash}`)
       return
     }
 
