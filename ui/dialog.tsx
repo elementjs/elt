@@ -7,7 +7,13 @@ export interface DialogOptions {
   clickOutsideToClose?: boolean
 }
 
-export type DialogCallback<T> = (fut: Future<T>) => Renderable
+export interface DialogContent {
+  header?: Renderable
+  body: Renderable
+  footer?: Renderable
+}
+
+export type DialogCallback<T> = (fut: Future<T>) => DialogContent
 
 export function show_dialog<T>(cbk: DialogCallback<T>): Promise<Future<T>>
 export function show_dialog<T>(opts: DialogOptions, cbk: DialogCallback<T>): Promise<Future<T>>
@@ -35,9 +41,13 @@ export function show_dialog<T>(opts: DialogOptions | DialogCallback<T>, cbk?: Di
     })
   }
 
+  const content = cbk(future)
+
   const dialog = E(
     "dialog",
-    cbk(future),
+    content.header != null && <header>{content.header}</header>,
+    <e-block typographic pad="component" class="e-dialog-body">{content.body}</e-block>,
+    content.footer != null && <footer>{content.footer}</footer>,
     opts.clickOutsideToClose &&
       $on("click", (ev) => {
         const rect = dialog.getBoundingClientRect()
@@ -74,11 +84,12 @@ dialog {
   position: fixed;
   overflow: hidden;
 
+  display: flex;
+  flex-direction: column;
+
   /* modern centering */
   inset: 0;
   margin: auto;
-
-  gap: 1rem;
 
   color: ${theme.colors.text};
 
@@ -98,7 +109,13 @@ dialog {
 
   transition: opacity 0.25s ease, transform 0.25s ease;
 
-  &:has(> header) > e-block {
+  & > e-block.e-dialog-body {
+    flex: 1 1 auto;
+    overflow-y: auto;
+    min-height: 0;
+  }
+
+  &:has(> header) > e-block.e-dialog-body {
     border-top: 1px solid ${theme.colors.text.separator};
   }
 

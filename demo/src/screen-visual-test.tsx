@@ -162,23 +162,22 @@ export default class ScreenVisualTest extends Service({
   }
 
   showDialog() {
-    show_dialog({ clickOutsideToClose: true }, fut => <>
-      <header>Title here</header>
-      <e-block typographic pad>
+    show_dialog({ clickOutsideToClose: true }, fut => ({
+      header: "Title here",
+      body: <>
         <h3>
           Testing a little
         </h3>
         <p>Let's see what dialogs have in store !</p>
-
-      </e-block>
-      <footer>
+      </>,
+      footer: <>
         <button>
           {$click(() => fut.reject(null))}
           Cancel
         </button>
         <button e-variant="inverted">OK</button>
-      </footer>
-    </>).finally(() => { return null })
+      </>,
+    })).finally(() => { return null })
   }
 
 }
