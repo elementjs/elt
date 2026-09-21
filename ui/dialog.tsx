@@ -84,9 +84,6 @@ dialog {
   position: fixed;
   overflow: hidden;
 
-  display: flex;
-  flex-direction: column;
-
   /* modern centering */
   inset: 0;
   margin: auto;
@@ -131,7 +128,14 @@ dialog {
 
   }
 
+  /* Scoped to [open] : show_dialog() only ever creates a <dialog> right before showModal() and
+     removes it on close, so an unconditional display:flex was previously harmless — but any
+     <dialog> that persists in the DOM in its closed state (e.g. a toggled drawer) would otherwise
+     stay laid out and pointer-event-capturing across the whole fixed-position box, overriding the
+     UA default dialog:not([open]) { display: none }. */
   &[open] {
+    display: flex;
+    flex-direction: column;
     opacity: 1;
     transform: scale(1);
   }
