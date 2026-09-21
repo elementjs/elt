@@ -76,12 +76,17 @@ export interface EFlexAttrs extends CommonAttrs {
   align?: NRO<AlignValues>
   justify?: NRO<AlignValues>
   /**
-   * Rule 6 (specs/elt-ui-guidelines.md, Padding and boundaries): a boundary with no spacing whose
-   * children touch directly. `pad` is redirected — it pads every direct child uniformly instead of
-   * the container itself (which must stay unpadded). `"border"` additionally draws a real divider
-   * on the touching seam, replacing each child's own border there rather than doubling it.
+   * Rule 3 (specs/elt-ui-guidelines.md, Padding and boundaries): a boundary with no spacing whose
+   * children touch directly, uniformly padded. `pad` always pads the container itself, same as
+   * everywhere else — it never applies to children here. To also pad every child uniformly: bare
+   * `touching`/`"bare"`/`"border"` reuse whatever `pad` resolves to (so `pad="X" touching` pads both
+   * the container and its children at X) ; an explicit step (`touching="Y"`, or `touching="border-Y"`
+   * for the bordered variant) pads children at Y regardless of `pad`, letting the two differ (e.g. a
+   * popup's own edge inset vs. its rows' tighter click-target padding). `"border"`/`"border-Y"`
+   * additionally draw a real divider on the touching seam, replacing each child's own border there
+   * rather than doubling it.
    */
-  touching?: NRO<boolean | "bare" | "border">
+  touching?: NRO<boolean | "bare" | "border" | SpacingValues | `border-${SpacingValues}`>
 }
 
 const more: string[] = []
@@ -242,9 +247,9 @@ css`
   }
 
   ${_all} {
-    /* [touching] redirects [pad] to the children instead (below) — a touching container must
-       stay unpadded itself, it's a boundary its children delegate to (rule 6). */
-    &[pad]:not([touching]) {
+    /* [pad] always pads the element itself, [touching] or not — see the [touching] rules below
+       for how a touching container's children get padded too. */
+    &[pad] {
       padding: var(--e-pad-vertical) var(--e-pad-horizontal);
     }
   }
@@ -260,19 +265,36 @@ css`
     }
   }
 
-  ${_flex}[touching][pad]:not([pad="none"]) > * {
+  /* Touching children padding, lowest to highest priority (later wins on equal specificity):
+     1. bare/"bare"/"border" (no step of their own) inherit whatever --e-pad-* [pad] resolved to
+        on the touching container — custom properties inherit, so this needs no extra rule beyond
+        just reading them back out on the child. Only fires when [pad] is actually set (not
+        "none") ; otherwise children keep their own native padding untouched.
+     2. touching="STEP"/"border-STEP" set the step directly on each child, overriding whatever (1)
+        would have inherited — letting the container's own pad and its children's pad differ (a
+        popup's own edge inset vs. its rows' tighter click-target padding, for instance). */
+  /* :where() zeroes the gating condition's specificity, so the explicit per-step rules below
+     (real attribute-value selectors) reliably outrank this fallback regardless of source order —
+     without it, [touching][pad]:not(...) would out-specify a plain [touching="X"] and always win. */
+  ${_flex}:where([touching][pad]:not([pad="none"])) > * {
     padding: var(--e-pad-vertical) var(--e-pad-horizontal);
   }
 
-  :is(e-row,e-column,e-flex)[touching="border"] > * {
+  ${spaces.map(sp => `
+  ${_flex}[touching="${sp}"] > *, ${_flex}[touching="border-${sp}"] > * {
+    ${theme.css.pad(sp)}
+    padding: var(--e-pad-vertical) var(--e-pad-horizontal);
+  }`).join("\n")}
+
+  :is(e-row,e-column,e-flex)[touching^="border"] > * {
     position: relative;
     z-index: 0;
   }
-  :is(e-row,e-column,e-flex)[touching="border"] > :focus-visible {
+  :is(e-row,e-column,e-flex)[touching^="border"] > :focus-visible {
     z-index: 1;
   }
 
-  :is(e-row, e-flex:not([column]))[touching="border"] {
+  :is(e-row, e-flex:not([column]))[touching^="border"] {
     & > *:not(:last-child) {
       border-right: none;
       border-top-right-radius: 0;
@@ -285,7 +307,7 @@ css`
     }
   }
 
-  :is(e-column, e-flex[column])[touching="border"] {
+  :is(e-column, e-flex[column])[touching^="border"] {
     & > *:not(:last-child) {
       border-bottom: none;
       border-bottom-left-radius: 0;

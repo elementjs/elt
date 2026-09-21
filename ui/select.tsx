@@ -46,31 +46,29 @@ export function Select<T, T2 = T>(at: SelectAttributes<T, T2>) {
           await popup(
             ev.currentTarget,
             (fut) => (
-              <e-column pad="component">
+              <e-column pad="component" touching="widget" role="listbox">
                 {$scrollable}
-                <e-column touching pad="widget" role="listbox">
-                  {VirtualScroll(
-                    o(at.options).tf((opts) => [...opts]),
-                    (o_option) => {
-                      const oo_option_value = o_option.tf((opt) => convert_fn(opt))
-                      const oo_is_selected = o.expression((get) => get(at.model) === get(oo_option_value))
-                      return (
-                        <e-flex
-                          class={[cls_item, oo_is_selected.tf((selected) => selected && "selected")]}
-                          role="option"
-                          aria-selected={oo_is_selected.tf((selected) => String(selected))}
-                        >
-                          {$click((ev) => {
-                            at.model?.set(o.get(oo_option_value))
-                            fut.resolve(o.get(oo_option_value))
-                          })}
-                          <e-block class="selected-icon">{oo_is_selected.tf((selected) => selected && Check())}</e-block>
-                          {o_option.tf((opt) => (at.label_fn ? at.label_fn(opt) : opt?.toString()))}
-                        </e-flex>
-                      )
-                    },
-                  )}
-                </e-column>
+                {VirtualScroll(
+                  o(at.options).tf((opts) => [...opts]),
+                  (o_option) => {
+                    const oo_option_value = o_option.tf((opt) => convert_fn(opt))
+                    const oo_is_selected = o.expression((get) => get(at.model) === get(oo_option_value))
+                    return (
+                      <e-flex
+                        class={[cls_item, oo_is_selected.tf((selected) => selected && "selected")]}
+                        role="option"
+                        aria-selected={oo_is_selected.tf((selected) => String(selected))}
+                      >
+                        {$click((ev) => {
+                          at.model?.set(o.get(oo_option_value))
+                          fut.resolve(o.get(oo_option_value))
+                        })}
+                        <e-block class="selected-icon">{oo_is_selected.tf((selected) => selected && Check())}</e-block>
+                        {o_option.tf((opt) => (at.label_fn ? at.label_fn(opt) : opt?.toString()))}
+                      </e-flex>
+                    )
+                  },
+                )}
               </e-column>
             ),
             { arrow: true, placement: "right-start" },

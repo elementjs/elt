@@ -204,7 +204,7 @@ Radio: styled native `input[type=radio]`.
 
 ### Button groups, menus, and other touching rows
 
-`touching="border"` on `<e-row>`/`<e-column>` merges adjacent children into one bordered group — replaces the old `<e-button-box>` and `<menu>` elements, which are gone. `touching` (bare, or `"bare"`) is the padding-only variant: no divider, children separated only by background — the pattern behind menus, dropdowns, and lists (see `ui/select.tsx`, `demo/src/base.tsx`). Either way, `pad="X"` on the touching container pads every child uniformly instead of the container itself — see `specs/elt-ui-guidelines.md`, Padding and boundaries, rule 3.
+`touching="border"` on `<e-row>`/`<e-column>` merges adjacent children into one bordered group — replaces the old `<e-button-box>` and `<menu>` elements, which are gone. `touching` (bare, or `"bare"`) is the divider-less variant: children separated only by background — the pattern behind menus, dropdowns, and lists (see `ui/select.tsx`, `demo/src/base.tsx`). `pad="X"` still just pads the container itself, as always; to *also* pad every child uniformly, either let bare `touching`/`"border"` reuse `pad`'s value (`pad="widget" touching`), or give `touching` its own explicit step (`touching="widget"`, or `touching="border-widget"`) when the container's own padding and its children's need to differ — see `specs/elt-ui-guidelines.md`, Padding and boundaries, rule 3.
 
 ### HR
 
@@ -249,9 +249,7 @@ import { popup } from "elt/ui"
 
 $click(async (ev) => {
   const result = await popup(ev.currentTarget, (fut) => (
-    <e-column pad="component">
-      <e-column touching pad="widget" role="menu">...</e-column>
-    </e-column>
+    <e-column pad="component" touching="widget" role="menu">...</e-column>
   ), { arrow: true, placement: "right-start" })
 })
 ```

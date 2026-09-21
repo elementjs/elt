@@ -94,32 +94,30 @@ function TableCopyButtonPopup({ data }: { data: o.ReadonlyObservable<object[]> }
               })
             }
             return (
-              <e-column pad="component">
-                <e-column touching pad="widget" role="menu" aria-label="Copy options">
-                  <button type="button" role="menuitem">
-                    <ph.BracketsCurly />
-                    {$choose(() => navigator.clipboard.writeText(JSON.stringify(rows, null, 2)))}
-                    Copy JSON
-                  </button>
-                  <button type="button" role="menuitem">
-                    <ph.Table />
-                    {$choose(() => void copyObjectTableToClipboard(rows, columns, false))}
-                    Copy table
-                  </button>
-                  <button type="button" role="menuitem">
-                    <ph.Table />
-                    {$choose(() => void copyObjectTableToClipboard(rows, columns, true))}
-                    Copy table with headers
-                  </button>
-                  <hr />
-                  <button type="button" role="menuitem">
-                    <ph.FileCsv />
-                    {$choose(() => {
-                      /* implement me */
-                    })}
-                    Download CSV
-                  </button>
-                </e-column>
+              <e-column pad="component" touching="widget" role="menu" aria-label="Copy options">
+                <button type="button" role="menuitem">
+                  <ph.BracketsCurly />
+                  {$choose(() => navigator.clipboard.writeText(JSON.stringify(rows, null, 2)))}
+                  Copy JSON
+                </button>
+                <button type="button" role="menuitem">
+                  <ph.Table />
+                  {$choose(() => void copyObjectTableToClipboard(rows, columns, false))}
+                  Copy table
+                </button>
+                <button type="button" role="menuitem">
+                  <ph.Table />
+                  {$choose(() => void copyObjectTableToClipboard(rows, columns, true))}
+                  Copy table with headers
+                </button>
+                <hr />
+                <button type="button" role="menuitem">
+                  <ph.FileCsv />
+                  {$choose(() => {
+                    /* implement me */
+                  })}
+                  Download CSV
+                </button>
               </e-column>
             )
           },
@@ -264,7 +262,7 @@ export function JsonVisualizerColumn({
               {import_btn}
               {copy}
             </e-flex>
-            <e-column touching pad="widget" role="list" class={cls_properties_menu}>
+            <e-column touching="widget" role="list" class={cls_properties_menu}>
               {$scrollable}
               {VirtualScroll(o(keys), (o_key) => (
                 <Property name={o_key} data={data.p(o_key)}>

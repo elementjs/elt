@@ -95,7 +95,7 @@ export default class Base extends Service({}) {
       <e-row grow class={cls_main} align="stretch">
         <nav class={cls_aside_nav} aria-label="Main navigation">
           {$scrollable}
-          <e-column touching pad="component" align="stretch">
+          <e-column touching="component" align="stretch">
             {widget_menu()}
           </e-column>
         </nav>
