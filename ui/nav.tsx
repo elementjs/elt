@@ -13,7 +13,7 @@ css`nav {
     border: none;
 
     &:first-child {
-      margin-left: calc(-1 * ${theme.settings.spacingComponent});
+      margin-left: calc(-1 * ${theme.settings.spacingComponentHorizontal});
     }
   }
 }`

@@ -85,7 +85,7 @@ export default class ScreenVisualTest extends Service({
       </e-row>
       <e-row gap>
         <label><input type="checkbox" name="checkbox"/> Checkbox</label>
-        <label><input type="checkbox" name="checkbox" checked/>Checked</label>
+        <label><input type="checkbox" name="checkbox" checked/> Checked</label>
         <label><input disabled type="checkbox" name="checkbox" value="3"/> Disabled</label>
       </e-row>
       <e-row gap>

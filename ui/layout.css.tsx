@@ -133,8 +133,9 @@ for (const lvl of _surface_levels) {
   }`
 }
 
-// derived: radius follows this element's own padding step, not a separately chosen value
-_`${_all}[border-radius]:not([border-radius="none"]) { border-radius: var(--e-pad, var(--e-spacing-widget)); }`
+// derived: radius follows this element's own vertical padding step (the tighter of the pair), not
+// a separately chosen value
+_`${_all}[border-radius]:not([border-radius="none"]) { border-radius: var(--e-pad-vertical, var(--e-spacing-widget-horizontal)); }`
 
 for (const al of align) {
   _`${_layouters}[align="${al}"] { align-items: ${al}; }`
@@ -233,13 +234,13 @@ css`
 
   ${_all} {
     &[pad], &[spacing] {
-      padding: var(--e-pad);
+      padding: var(--e-pad-vertical) var(--e-pad-horizontal);
     }
   }
 
   :is(e-flex,e-grid,e-row,e-column) {
     &[gap], &[spacing] {
-      gap: var(--e-gap);
+      gap: var(--e-gap-vertical) var(--e-gap-horizontal);
     }
   }
 

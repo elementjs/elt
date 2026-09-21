@@ -132,24 +132,34 @@ describe("Mix.surface / [surface] parity", () => {
   })
 })
 
-describe("Spacing scale (regression: no vertical/horizontal split)", () => {
-  test("a named step is a single value, not a 'vertical horizontal' pair", () => {
-    // Half-leading used to be uncompensated, so a smaller vertical value looked balanced —
-    // text-box-trim (ui/reset.css.tsx) removes that, and the scale collapsed to one value per step.
-    expect(theme.css_settings).toContain("--e-spacing-widget: 8px;")
-    expect(theme.css_settings).toContain("--e-spacing-component: 16px;")
-    expect(theme.css_settings).not.toContain("--e-spacing-widget-vertical")
-    expect(theme.css_settings).not.toContain("--e-spacing-widget-horizontal")
+describe("Spacing scale (regression: vertical is half of horizontal, no text-box-trim dependency)", () => {
+  test("a named step has independent vertical/horizontal values, vertical = half horizontal", () => {
+    // Tuned optical compensation for uncompensated line-height half-leading — works uniformly across
+    // block, flex, grid and table-cell layout. text-box-trim was tried and dropped: it's a silent
+    // no-op on flex/grid containers, so it can't be the sole mechanism (specs/elt-ui-guidelines.md).
+    expect(theme.css_settings).toContain("--e-spacing-widget-vertical: 4px;")
+    expect(theme.css_settings).toContain("--e-spacing-widget-horizontal: 8px;")
+    expect(theme.css_settings).toContain("--e-spacing-component-vertical: 8px;")
+    expect(theme.css_settings).toContain("--e-spacing-component-horizontal: 16px;")
+    expect(theme.settings.spacingWidget).toBe("var(--e-spacing-widget-vertical, 4px) var(--e-spacing-widget-horizontal, 8px)")
   })
 })
 
 describe("Theme.css.pad / Theme.css.gap", () => {
-  test("pad(step) sets --e-pad from the named step's spacing variable", () => {
-    expect(theme.css.pad("widget")).toBe("--e-pad: var(--e-spacing-widget);")
+  test("pad(step) sets --e-pad-vertical/-horizontal from the named step's paired spacing variables", () => {
+    expect(theme.css.pad("widget")).toBe(
+      "--e-pad-vertical: var(--e-spacing-widget-vertical); --e-pad-horizontal: var(--e-spacing-widget-horizontal);",
+    )
   })
 
-  test("gap(step) sets --e-gap from the named step's spacing variable", () => {
-    expect(theme.css.gap("section")).toBe("--e-gap: var(--e-spacing-section);")
+  test("gap(step) sets --e-gap-vertical/-horizontal from the named step's paired spacing variables", () => {
+    expect(theme.css.gap("section")).toBe(
+      "--e-gap-vertical: var(--e-spacing-section-vertical); --e-gap-horizontal: var(--e-spacing-section-horizontal);",
+    )
+  })
+
+  test("the three raw px nudges have no pair — both axes read the same symmetric variable", () => {
+    expect(theme.css.pad("4")).toBe("--e-pad-vertical: var(--e-spacing-4); --e-pad-horizontal: var(--e-spacing-4);")
   })
 })
 
@@ -174,13 +184,13 @@ describe("Theme.classes (regression: moved off Theme's top-level class_light/cla
 
     const rule = find_rule_text(a)
     expect(rule).toContain(theme.css.pad("component"))
-    expect(rule).toContain("padding: var(--e-pad)")
+    expect(rule).toContain("padding: var(--e-pad-vertical) var(--e-pad-horizontal)")
   })
 
-  test("gap(step) applies the gap property from the same --e-gap custom property [pad]/[gap] attribute rules use", () => {
+  test("gap(step) applies the gap property from the same --e-gap-vertical/-horizontal custom properties [pad]/[gap] attribute rules use", () => {
     const cls = theme.classes.gap("widget")
     const rule = find_rule_text(cls)
     expect(rule).toContain(theme.css.gap("widget"))
-    expect(rule).toContain("gap: var(--e-gap)")
+    expect(rule).toContain("gap: var(--e-gap-vertical) var(--e-gap-horizontal)")
   })
 })

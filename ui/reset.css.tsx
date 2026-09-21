@@ -11,13 +11,7 @@ css`@layer reset {
     scrollbar-color: ${theme.colors.tint.mid} ${theme.colors.tint.from_bg("10%")};
   }
 
-  :root {
-    text-box-edge: cap alphabetic;
-  }
-
   :where(button, input, select, label, e-block, e-row, e-column, e-flex, e-grid) {
-    text-box-edge: cap alphabetic;
-    text-box-trim: trim-both;
     line-height: 1;
   }
 

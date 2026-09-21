@@ -23,6 +23,24 @@ export interface ThemeSettings {
   spacing2: string
   spacing4: string
 
+  /** Each step's own vertical value — half its horizontal value, tuned to look balanced against
+   * uncompensated line-height half-leading (see "Spacing scale" in specs/elt-ui-guidelines.md). */
+  spacingWidgetVertical: string
+  spacingWidgetHorizontal: string
+  spacingComponentVertical: string
+  spacingComponentHorizontal: string
+  spacingSectionVertical: string
+  spacingSectionHorizontal: string
+  spacingStage1Vertical: string
+  spacingStage1Horizontal: string
+  spacingStage2Vertical: string
+  spacingStage2Horizontal: string
+  spacingStage3Vertical: string
+  spacingStage3Horizontal: string
+  spacingStage4Vertical: string
+  spacingStage4Horizontal: string
+
+  /** Shorthand: "<vertical> <horizontal>", ready to use directly as a padding/gap value. */
   spacingWidget: string
   spacingComponent: string
   spacingSection: string
@@ -60,6 +78,17 @@ export const spacing_steps: SpacingStep[] = [
   "stage-3",
   "stage-4",
 ]
+
+/** The three raw px nudges have no vertical/horizontal pair — they're symmetric. */
+const _spacing_nudges = new Set<SpacingStep>(["1", "2", "4"])
+
+/** Shared by `Theme.css.pad`/`.gap` — the one place that knows how a step maps to its custom property(ies). */
+function spacing_pair_css(prop: "pad" | "gap", step: SpacingStep): string {
+  if (_spacing_nudges.has(step)) {
+    return `--e-${prop}-vertical: var(--e-spacing-${step}); --e-${prop}-horizontal: var(--e-spacing-${step});`
+  }
+  return `--e-${prop}-vertical: var(--e-spacing-${step}-vertical); --e-${prop}-horizontal: var(--e-spacing-${step}-horizontal);`
+}
 
 export type ColorScheme = {
   bg: string
@@ -170,15 +199,32 @@ export class Theme<AllColors extends ColorScheme> {
     this._set(theme.settings ?? {}, "spacing2", "2px")
     this._set(theme.settings ?? {}, "spacing4", "4px")
 
-    // One value per step, used identically for vertical and horizontal spacing — see
-    // "Spacing scale" in specs/elt-ui-guidelines.md for why there's no vertical/horizontal split.
-    this._set(theme.settings ?? {}, "spacingWidget", "8px")
-    this._set(theme.settings ?? {}, "spacingComponent", "16px")
-    this._set(theme.settings ?? {}, "spacingSection", "32px")
-    this._set(theme.settings ?? {}, "spacingStage1", "64px")
-    this._set(theme.settings ?? {}, "spacingStage2", "128px")
-    this._set(theme.settings ?? {}, "spacingStage3", "256px")
-    this._set(theme.settings ?? {}, "spacingStage4", "512px")
+    // Each step's vertical value is half its horizontal value — a tuned optical compensation for
+    // uncompensated line-height half-leading, not derived from font metrics. Works uniformly across
+    // block, flex, grid and table-cell layout, unlike `text-box-trim` (tried and dropped: it's a
+    // silent no-op on flex/grid containers — see "Spacing scale" in specs/elt-ui-guidelines.md).
+    this._set(theme.settings ?? {}, "spacingWidgetVertical", "4px")
+    this._set(theme.settings ?? {}, "spacingWidgetHorizontal", "8px")
+    this._set(theme.settings ?? {}, "spacingComponentVertical", "8px")
+    this._set(theme.settings ?? {}, "spacingComponentHorizontal", "16px")
+    this._set(theme.settings ?? {}, "spacingSectionVertical", "16px")
+    this._set(theme.settings ?? {}, "spacingSectionHorizontal", "32px")
+    this._set(theme.settings ?? {}, "spacingStage1Vertical", "32px")
+    this._set(theme.settings ?? {}, "spacingStage1Horizontal", "64px")
+    this._set(theme.settings ?? {}, "spacingStage2Vertical", "64px")
+    this._set(theme.settings ?? {}, "spacingStage2Horizontal", "128px")
+    this._set(theme.settings ?? {}, "spacingStage3Vertical", "128px")
+    this._set(theme.settings ?? {}, "spacingStage3Horizontal", "256px")
+    this._set(theme.settings ?? {}, "spacingStage4Vertical", "256px")
+    this._set(theme.settings ?? {}, "spacingStage4Horizontal", "512px")
+
+    this.settings.spacingWidget = `${this.settings.spacingWidgetVertical} ${this.settings.spacingWidgetHorizontal}`
+    this.settings.spacingComponent = `${this.settings.spacingComponentVertical} ${this.settings.spacingComponentHorizontal}`
+    this.settings.spacingSection = `${this.settings.spacingSectionVertical} ${this.settings.spacingSectionHorizontal}`
+    this.settings.spacingStage1 = `${this.settings.spacingStage1Vertical} ${this.settings.spacingStage1Horizontal}`
+    this.settings.spacingStage2 = `${this.settings.spacingStage2Vertical} ${this.settings.spacingStage2Horizontal}`
+    this.settings.spacingStage3 = `${this.settings.spacingStage3Vertical} ${this.settings.spacingStage3Horizontal}`
+    this.settings.spacingStage4 = `${this.settings.spacingStage4Vertical} ${this.settings.spacingStage4Horizontal}`
   }
 
   settings: ThemeSettings = {} as ThemeSettings
@@ -243,12 +289,13 @@ export class Theme<AllColors extends ColorScheme> {
    * Raw-CSS-declaration helpers, keyed by concern — the low-level counterpart to `classes` below.
    * `layout.css.tsx`'s `[pad]`/`[gap]`/`[spacing]` attribute rules consume these directly instead of
    * re-deriving the step → custom-property mapping themselves; `classes.pad`/`.gap` wrap them into
-   * standalone classes for elements outside the `e-*` set. See "Spacing scale" in
-   * specs/elt-ui-guidelines.md.
+   * standalone classes for elements outside the `e-*` set. The three raw px nudges ("1"/"2"/"4")
+   * have no vertical/horizontal pair — they're symmetric; every other step does. See "Spacing scale"
+   * in specs/elt-ui-guidelines.md.
    */
   readonly css = {
-    pad: (step: SpacingStep) => `--e-pad: var(--e-spacing-${step});`,
-    gap: (step: SpacingStep) => `--e-gap: var(--e-spacing-${step});`,
+    pad: (step: SpacingStep) => spacing_pair_css("pad", step),
+    gap: (step: SpacingStep) => spacing_pair_css("gap", step),
   }
 
   @memoize
@@ -326,7 +373,7 @@ class ThemeClasses<AllColors extends ColorScheme> {
   pad(step: SpacingStep): string {
     let cls = this.#pad_classes.get(step)
     if (cls == null) {
-      cls = css`.e-pad-${step} { ${this.theme.css.pad(step)} padding: var(--e-pad); }`
+      cls = css`.e-pad-${step} { ${this.theme.css.pad(step)} padding: var(--e-pad-vertical) var(--e-pad-horizontal); }`
       this.#pad_classes.set(step, cls)
     }
     return cls
@@ -336,7 +383,7 @@ class ThemeClasses<AllColors extends ColorScheme> {
   gap(step: SpacingStep): string {
     let cls = this.#gap_classes.get(step)
     if (cls == null) {
-      cls = css`.e-gap-${step} { ${this.theme.css.gap(step)} gap: var(--e-gap); }`
+      cls = css`.e-gap-${step} { ${this.theme.css.gap(step)} gap: var(--e-gap-vertical) var(--e-gap-horizontal); }`
       this.#gap_classes.set(step, cls)
     }
     return cls
