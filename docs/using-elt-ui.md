@@ -37,7 +37,7 @@ const ui = (
     <e-box typographic pad>
       <h1>Title</h1>
       <p>Body copy.</p>
-      <e-flex gap="small">
+      <e-flex spacing="widget">
         <button e-variant="full">Save</button>
         <button e-variant="text">Cancel</button>
       </e-flex>
@@ -53,7 +53,7 @@ node_append(document.body, ui)
 ## Design principles (short)
 
 - Use **theme tokens** for color, spacing, and radii — not one-off pixel values.
-- Prefer **layout elements + `gap`/`pad`** over margins between siblings.
+- Prefer **layout elements + `spacing`/`pad`** over margins between siblings (`pad` implies matching `spacing` automatically).
 - Put long copy in **`<e-box typographic>`** so headings, lists, and links stay consistent.
 - Style **native HTML** controls before inventing new components.
 - **Two font weights** for UI chrome; prose hierarchy comes from typography mode.

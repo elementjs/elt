@@ -12,7 +12,7 @@ Core elt rules (mount, observables, verbs) live in [`using-elt-agent.md`](./usin
 2. **Theme tokens, not ad hoc values.** Use `theme` colors, spacing attributes on layout elements, and `theme.settings` for radii/padding/font sizes. Avoid raw hex, arbitrary `px` gaps, and one-off margins.
 3. **Layout with layout elements.** Prefer `<e-flex>`, `<e-box>`, `<e-grid>` and their attributes over custom flex/grid CSS. Reach for plain CSS only when flex/grid attrs are not enough (complex grid templates, absolute positioning tricks, etc.).
 4. **Typography mode for prose.** Any region meant to read like documentation, help text, or long copy goes in `<e-box typographic>`. Do not hand-style headings, lists, or link colors inside prose blocks.
-5. **Spacing via gap/pad, not margin stacks.** Avoid margins between siblings; use `gap` on `<e-flex>` / `<e-grid>` or `pad` on containers. If you must margin, never stack adjacent margins — only the larger should win.
+5. **Spacing via spacing/pad, not margin stacks.** Avoid margins between siblings; use `spacing` on `<e-flex>` / `<e-grid>` or `pad` on containers — `pad` implies a matching `spacing` automatically, so writing `pad` alone is usually enough. If you must margin, never stack adjacent margins — only the larger should win.
 6. **Native controls first.** Buttons, inputs, labels, checkboxes, `<menu>`, `<dialog>` are styled globally. Prefer them + typed attributes (`e-variant`, etc.) over new widget chrome unless native limits block you (see widget inventory).
 7. **Two font weights in UI chrome.** Regular and bold for controls and chrome; typography mode handles prose hierarchy.
 8. **Form control size.** Interactables use `theme.settings.formFontSize` (slightly smaller than body text). Do not bump control font sizes to match headings.
@@ -50,7 +50,7 @@ elt/ui is intentionally small: a **visual language** plus a few high-value widge
 | Principle | Practice |
 | --------- | -------- |
 | HTML reused | Style native elements; add custom elements only when attrs on HTML are awkward |
-| Attributes, not classes | Layout and variants use typed element attrs (`column`, `gap="small"`, `e-variant="tint"`) declared in `declare module "elt"` |
+| Attributes, not classes | Layout and variants use typed element attrs (`column`, `spacing="widget"`, `e-variant="tint"`) declared in `declare module "elt"` |
 | Bordered interactables | Buttons, inputs, and similar controls have a border and `theme.settings.borderRadius` as defined in theme |
 | Consistent rhythm | Spacing comes from the shared scale (see § Layout) |
 | Tint semantics | `theme.colors.tint` is the primary accent; semantic hues (`red`, `green`, …) exist for status, not decoration spam |
@@ -61,7 +61,7 @@ Runnable philosophy notes: `demo/src/screen-ui-usage.tsx`.
 
 ## Layout
 
-Three layout elements cover most UI. They share attrs (`gap`, `pad`, `grow`, `full-width`, `align`, …) — see `ui/layout.css.tsx` types.
+Three layout elements cover most UI. They share attrs (`spacing`, `pad`, `grow`, `full-width`, `align`, …) — see `ui/layout.css.tsx` types.
 
 | Element | Role |
 | ------- | ---- |
@@ -72,7 +72,7 @@ Three layout elements cover most UI. They share attrs (`gap`, `pad`, `grow`, `fu
 Common attrs:
 
 ```tsx
-<e-flex column gap="medium" pad="small" align="center" full-width>
+<e-flex column pad="component" align="center" full-width>
   <e-box grow>...</e-box>
 </e-flex>
 
@@ -81,7 +81,7 @@ Common attrs:
 </e-box>
 ```
 
-Spacing scale (`gap="small"`, `pad="medium"`, …): `3x-small` … `4x-large` mapping to `--e-spacing-*` in `ui/layout.css.tsx`. Default gap/pad apply when the boolean attr is present (`gap` / `pad` without a value).
+Spacing scale (`pad="component"`, `spacing="widget"`, …): `1`/`2`/`4` (px, pixel-level nudges only) → `widget` → `component` (the default, most used) → `section` → `stage-1`…`stage-4`, mapping to `--e-spacing-*` in `ui/theme.tsx`. `pad="X"` implies `spacing="X"` at the same step automatically — write `pad` alone unless padding and inter-child spacing genuinely need to differ, in which case add an explicit `spacing="Y"` to override just that side. Default `pad`/`spacing` (boolean attr, no value) fall back to `component`. `pad="none"`/`spacing="none"` turn one side off explicitly.
 
 **Grid:** no Bootstrap-style helpers. For non-trivial grids, use `<e-grid>` for display + a small `css` block for `grid-template-*`, still using theme spacing/colors inside rules.
 
@@ -286,7 +286,7 @@ Do not reimplement focus trapping or stacking for simple menus — extend these 
 const cls_toolbar = css`.toolbar {
   display: grid;
   grid-template-columns: 1fr auto;
-  gap: var(--e-spacing-small);
+  gap: var(--e-spacing-component);
   padding: ${theme.settings.spacingComponent};
   background: ${theme.colors.bg};
   border-bottom: 1px solid ${theme.colors.text.separator};
