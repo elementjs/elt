@@ -10,14 +10,14 @@ Core elt rules (mount, observables, verbs) live in [`using-elt-agent.md`](./usin
 
 1. **Side-effect import.** `import "elt/ui"` once at app entry (see `demo/src/app.tsx`). That loads theme CSS, reset, layout, form, and typography layers onto the page.
 2. **Theme tokens, not ad hoc values.** Use `theme` colors, spacing attributes on layout elements, and `theme.settings` for radii/padding/font sizes. Avoid raw hex, arbitrary `px` gaps, and one-off margins.
-3. **Layout with layout elements.** Prefer `<e-flex>`, `<e-box>`, `<e-grid>` and their attributes over custom flex/grid CSS. Reach for plain CSS only when flex/grid attrs are not enough (complex grid templates, absolute positioning tricks, etc.).
-4. **Typography mode for prose.** Any region meant to read like documentation, help text, or long copy goes in `<e-box typographic>`. Do not hand-style headings, lists, or link colors inside prose blocks.
+3. **Layout with layout elements.** Prefer `<e-flex>`, `<e-block>`, `<e-grid>` and their attributes over custom flex/grid CSS. Reach for plain CSS only when flex/grid attrs are not enough (complex grid templates, absolute positioning tricks, etc.).
+4. **Typography mode for prose.** Any region meant to read like documentation, help text, or long copy goes in `<e-block typographic>`. Do not hand-style headings, lists, or link colors inside prose blocks.
 5. **Spacing via spacing/pad, not margin stacks.** Avoid margins between siblings; use `spacing` on `<e-flex>` / `<e-grid>` or `pad` on containers — `pad` implies a matching `spacing` automatically, so writing `pad` alone is usually enough. If you must margin, never stack adjacent margins — only the larger should win.
 6. **Native controls first.** Buttons, inputs, labels, checkboxes, `<menu>`, `<dialog>` are styled globally. Prefer them + typed attributes (`e-variant`, etc.) over new widget chrome unless native limits block you (see widget inventory).
 7. **Two font weights in UI chrome.** Regular and bold for controls and chrome; typography mode handles prose hierarchy.
 8. **Form control size.** Interactables use `theme.settings.formFontSize` (slightly smaller than body text). Do not bump control font sizes to match headings.
 9. **Do not add dependencies** to `ui/` (exception already in tree: `@floating-ui/dom` for popups). Apps may use their own deps; the sub-library may not grow new ones.
-10. **Custom CSS is the exception.** Before writing a `css` block, try `e-flex` / `e-box` attrs and theme color helpers. If you still need CSS, keep it local, use theme variables, and comment why layout elements were insufficient.
+10. **Custom CSS is the exception.** Before writing a `css` block, try `e-flex` / `e-block` attrs and theme color helpers. If you still need CSS, keep it local, use theme variables, and comment why layout elements were insufficient.
 
 ---
 
@@ -31,7 +31,7 @@ import { node_append } from "elt"
 node_append(document.body, app.DisplayView("Main"))
 ```
 
-Optional forced light/dark (default follows `prefers-color-scheme` via `theme.class_dynamic`):
+Optional forced light/dark (default follows `prefers-color-scheme` via `theme.classes.dynamic_scheme`):
 
 ```tsx
 import { o_force_theme } from "elt/ui"
@@ -66,19 +66,19 @@ Three layout elements cover most UI. They share attrs (`spacing`, `pad`, `grow`,
 | Element | Role |
 | ------- | ---- |
 | `<e-flex>` | Row/column flex; default row, baseline-aligned |
-| `<e-box>` | Block container; use `typographic` for prose |
+| `<e-block>` | Block container; use `typographic` for prose |
 | `<e-grid>` | CSS grid when you need columns/areas — no grid “system”, write grid template in CSS if attrs are not enough |
 
 Common attrs:
 
 ```tsx
 <e-flex column pad="component" align="center" full-width>
-  <e-box grow>...</e-box>
+  <e-block grow>...</e-block>
 </e-flex>
 
-<e-box typographic pad table-container>
+<e-block typographic pad table-container>
   <table>...</table>
-</e-box>
+</e-block>
 ```
 
 Spacing scale (`pad="component"`, `spacing="widget"`, …): `1`/`2`/`4` (px, pixel-level nudges only) → `widget` → `component` (the default, most used) → `section` → `stage-1`…`stage-4`, mapping to `--e-spacing-*` in `ui/theme.tsx`. `pad="X"` implies `spacing="X"` at the same step automatically — write `pad` alone unless padding and inter-child spacing genuinely need to differ, in which case add an explicit `spacing="Y"` to override just that side. Default `pad`/`spacing` (boolean attr, no value) fall back to `component`. `pad="none"`/`spacing="none"` turn one side off explicitly.
@@ -96,10 +96,10 @@ Demo: `demo/src/screen-layout.tsx` (stub — prefer this doc + `layout.css.tsx`)
 Wrap readable copy:
 
 ```tsx
-<e-box typographic pad>
+<e-block typographic pad>
   <h2>Section</h2>
   <p>Body text with <a href="...">links</a>, lists, code, tables, …</p>
-</e-box>
+</e-block>
 ```
 
 `typographic` applies vertical rhythm, heading sizes, list styles, blockquote, `pre`/`code`, and link colors tied to `theme.colors.tint`. Tables inside typographic or `table-container` boxes pick up bordered cell styling.
@@ -107,9 +107,9 @@ Wrap readable copy:
 For data tables with sticky headers, use `table-container`:
 
 ```tsx
-<e-box table-container typographic pad>
+<e-block table-container typographic pad>
   <table>...</table>
-</e-box>
+</e-block>
 ```
 
 Font family defaults to IBM Plex Sans with `system-ui` fallback (`theme.settings.fontFamily`). Demo font switching: `demo/src/base.tsx`, `demo/src/screen-typography.tsx`.
@@ -124,7 +124,7 @@ Import `theme` from `"elt/ui"`.
 
 Every theme needs `bg`, `text`, and `tint`. Default palette adds semantic hues (`red`, `orange`, `green`, …) on the exported `theme` singleton (`ui/theme.tsx`).
 
-Dark mode: pass `dark:` partial to `new Theme({ light, dark })`, or rely on auto derivation / `class_dynamic`.
+Dark mode: pass `dark:` partial to `new Theme({ light, dark })`, or rely on auto derivation / `theme.classes.dynamic_scheme`.
 
 Apply theme class on a root (app shell):
 
@@ -132,8 +132,8 @@ Apply theme class on a root (app shell):
 import { theme } from "elt/ui"
 
 <div class={theme.toString()}>   {/* e-dynamic-theme — prefers-color-scheme */}
-<div class={theme.class_light}>
-<div class={theme.class_dark}>
+<div class={theme.classes.light_scheme}>
+<div class={theme.classes.dark_scheme}>
 ```
 
 Inside CSS modules:
@@ -181,7 +181,7 @@ Global form styling is in `ui/form.css.tsx`. Use native elements; variants are a
 <button>Default</button>
 <button e-variant="text">Text</button>
 <button e-variant="tint">Tint outline</button>
-<button e-variant="full">Filled accent</button>
+<button e-variant="inverted">Filled accent</button>
 ```
 
 ### Inputs

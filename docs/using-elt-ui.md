@@ -9,7 +9,7 @@ Human-oriented overview of the UI sub-library. Agents should use [`using-elt-ui-
 `elt/ui` is a separate sub-library imported as `"elt/ui"`. It provides:
 
 - A **theme engine** (OKLCH-based colors, light/dark, spacing, radii, typography settings)
-- **Layout elements** (`<e-flex>`, `<e-box>`, `<e-grid>`) with typed spacing/alignment attrs
+- **Layout elements** (`<e-flex>`, `<e-block>`, `<e-grid>`) with typed spacing/alignment attrs
 - **Global styling** for native HTML forms and prose (`typographic` mode)
 - A **small widget set** (`Select`, date/time pickers, popup, dialog, …)
 
@@ -34,14 +34,14 @@ import { node_append } from "elt"
 
 const ui = (
   <div class={theme.toString()}>
-    <e-box typographic pad>
+    <e-block typographic pad>
       <h1>Title</h1>
       <p>Body copy.</p>
       <e-flex spacing="widget">
-        <button e-variant="full">Save</button>
+        <button e-variant="inverted">Save</button>
         <button e-variant="text">Cancel</button>
       </e-flex>
-    </e-box>
+    </e-block>
   </div>
 )
 
@@ -54,7 +54,7 @@ node_append(document.body, ui)
 
 - Use **theme tokens** for color, spacing, and radii — not one-off pixel values.
 - Prefer **layout elements + `spacing`/`pad`** over margins between siblings (`pad` implies matching `spacing` automatically).
-- Put long copy in **`<e-box typographic>`** so headings, lists, and links stay consistent.
+- Put long copy in **`<e-block typographic>`** so headings, lists, and links stay consistent.
 - Style **native HTML** controls before inventing new components.
 - **Two font weights** for UI chrome; prose hierarchy comes from typography mode.
 
