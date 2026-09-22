@@ -30,28 +30,24 @@ const R = (route: App.Route | null, icon: (at: Attrs<Element>) => Element, label
 
 const cls_building = [css`.building {
   color: ${theme.colors.tint.faded};
-}`, theme.colors.orange.as_tint]
+}`, theme.colors.orange.classes.as_tint]
 
 export const route_names = new Map<App.Route, Renderable>()
 
 export const widget_menu = () => <>
   {R(routes.home, EltLogo, "Home")}
-  <hr/>
   <h3>Elt</h3>
   {R(null, P.Eye, "Observables")}
   {R(null, P.CurrencyDollar, "Decorators")}
   {R(null, P.SneakerMove, "Verbs")}
   {R(null, P.AppWindow, "App")}
-  <hr/>
   <h3>UI Theming</h3>
   {R(routes.ui_usage, P.Play, "Usage")}
   {R(null, P.PaintBrushBroad, "Colors")}
   {R(routes.layout, P.Layout, "Layout")}
   {R(routes.typography, P.TextT, "Typography")}
-  <hr/>
   <h3>UI Helpers</h3>
   {R(null, P.Keyboard, "Keymap")}
-  <hr/>
   <h3>UI Widgets</h3>
   {R(routes.buttons, P.RadioButton, "Form Elements")}
   {R(routes.date, P.Calendar, "Time / Datepicker")}
@@ -59,7 +55,6 @@ export const widget_menu = () => <>
   {R(null, P.Browser, "Dialog")}
   {R(null, P.Calendar, "Popup / Tooltips")}
   {R(null, P.List, "Menu")}
-  <hr/>
   <h3>UI Recipes</h3>
   {R(routes.visual_test, P.MonitorPlay, "Visual Test")}
   {R(routes.object_editor, P.TreeStructure, "Object Editor (draft)")}

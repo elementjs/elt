@@ -16,7 +16,7 @@ css`@layer reset {
   }
 
   [popover] {
-    border: 1px solid ${theme.colors.text.mid};
+    border: none;
   }
 
   /* 1. Use a more-intuitive box-sizing model */

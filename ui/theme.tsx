@@ -559,7 +559,7 @@ export class Mix {
    * specs/elt-ui-guidelines.md).
    */
   get hover() {
-    return this.from_bg(`calc(${surface_level_expr("n+1")} * var(--e-surface-step, 10%))`)
+    return this.surface("n+1")
   }
 
   /**
@@ -568,7 +568,7 @@ export class Mix {
    * at once (see "Surfaces and borders" in specs/elt-ui-guidelines.md).
    */
   get separator() {
-    return this.from_bg(`calc(${surface_level_expr("n+2")} * var(--e-surface-step, 10%))`)
+    return this.surface("n+2")
   }
 
   /**

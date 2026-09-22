@@ -53,7 +53,7 @@ export default class Base extends Service({}) {
 
   FontChooser = () => {
     return <button>
-      <P.TextAa /> {this.o_font_style.tf(ft => ft.fontFamily)}
+      <P.TextAa /> {this.o_font_style.tf(ft => ft.fontFamily)} <P.CaretDown/>
       {$click(ev => {
         const btn = (font: keyof typeof this.fonts) => {
           const tfed = this.o_font_style.tf(tf_equals(this.fonts[font]))
@@ -188,7 +188,7 @@ const cls_menu_items = css`.menu-items {
 
   & h3 {
     margin: 0;
-    font-size: 0.875em;
+    font-size: 0.6em;
     font-weight: bold;
     color: ${theme.colors.text.faded};
   }

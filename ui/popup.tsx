@@ -180,12 +180,12 @@ export function popup<T>(
   const doc = anchor.ownerDocument
   const fut = new Future<T | typeof sym_popup_closed>()
   const popup = (
-    <e-column surface="background" border-radius popover="manual" class={cls_popup} border>
-      <e-block class={cls_popup_content}>
+    <div popover="manual" class={cls_popup}>
+      <e-column surface="background" border-radius border="widget" class={cls_popup_content}>
         {$scrollable}
         {fn(fut)}
-      </e-block>
-    </e-column>
+      </e-column>
+    </div>
   ) as HTMLElement
 
   fut.then((val) => {
@@ -219,7 +219,7 @@ export function popup<T>(
     const arro = opts?.arrow !== false ? popup_arrow(o_arrow_state) : null
     if (arro) {
       // Sibling after scrollable content; z-index keeps it above the panel fill.
-      node_append(popup, arro, popup.firstChild)
+      node_append(popup, arro)
     }
 
     node_append(opts?.parent ?? find_parent_node(anchor), popup)
@@ -309,6 +309,7 @@ popup.closed = sym_popup_closed
 const cls_popup = css`.popup {
   position: absolute;
   overflow: visible;
+  background: transparent;
   filter: drop-shadow(
     0px 0px 4px ${colors.text.from_bg("20%")});
 }`

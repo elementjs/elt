@@ -24,8 +24,8 @@ css`@layer typography {
     color: ${theme.colors.text.faded};
   }
 
-  e-block[typographic] {
-  
+  e-block {
+
     /* ── Base rhythm ───────────────────────────────────────── */
     display: block;
     font-size: 1rem;
@@ -33,19 +33,21 @@ css`@layer typography {
     color: inherit;
 
     & > * {
-      line-height: 1.5;
-      margin-block: 1lh;
+      margin-block: 1em;
     }
 
     /* ── Headings ──────────────────────────────────────────── */
     & h1, & h2, & h3, & h4, & h5, & h6 {
       line-height: 1.2;
       font-weight: bolder;
-      margin-block: 3lh 1lh;
+      margin-block: 2lh 1rem;
       text-wrap: balance;
     }
     & :is(h1, h2, h3, h4, h5, h6) + :is(h1, h2, h3, h4, h5, h6) {
-      margin-block-start: 0 !important;
+      margin-block-start: 0.5lh !important;
+    }
+    & :is(h1, h2, h3, h4, h5, h6):has(+ :is(h1, h2, h3, h4, h5, h6)) {
+      margin-block-end: 0 !important;
     }
     & h1 { font-size: 2rem; }
     & h2 { font-size: 1.5rem; }
@@ -56,6 +58,7 @@ css`@layer typography {
 
     /* ── Paragraphs ────────────────────────────────────────── */
     & p {
+      line-height: 1.5;
       margin-block: 1em;
       text-wrap: pretty; /* avoids orphan last words */
     }
@@ -214,7 +217,7 @@ css`@layer typography {
     }
 
     & th {
-      ${theme.colors.text.faded.css_as_inverted}
+      ${theme.colors.text.faded.css.as_inverted}
       font-weight: bolder;
     }
   }

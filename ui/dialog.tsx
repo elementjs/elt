@@ -92,7 +92,7 @@ dialog {
 
   border: none;
   border-radius: var(--e-frame-border-radius);
-  border: 1px solid ${theme.colors.text.separator};
+  border: 1px solid ${theme.colors.text.mid};
 
   background: var(--e-color-bg);
   box-shadow: 0 10px 40px rgba(0,0,0,0.3);
@@ -116,23 +116,6 @@ dialog {
     border-top: 1px solid ${theme.colors.text.separator};
   }
 
-  & > header {
-    ${theme.colors.tint.css.as_inverted}
-    padding: ${theme.settings.spacingComponent};
-  }
-
-  & > footer {
-    padding: ${theme.settings.spacingComponent};
-    //> Question: footer fill — surface band or flat tint? Kept old look via explicit from_bg for now.
-    background-color: ${theme.colors.text.from_bg("10%")};
-
-  }
-
-  /* Scoped to [open] : show_dialog() only ever creates a <dialog> right before showModal() and
-     removes it on close, so an unconditional display:flex was previously harmless — but any
-     <dialog> that persists in the DOM in its closed state (e.g. a toggled drawer) would otherwise
-     stay laid out and pointer-event-capturing across the whole fixed-position box, overriding the
-     UA default dialog:not([open]) { display: none }. */
   &[open] {
     display: flex;
     flex-direction: column;

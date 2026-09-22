@@ -130,23 +130,15 @@ function _(strings: TemplateStringsArray, ...values: unknown[]): void {
 const _surface_levels = ["1", "2", "3", "4", "5", "6"] as const
 const _surface_not_default = [...["background", "n+2"], ..._surface_levels].map((v) => `:not([surface="${v}"])`).join("")
 
-_`${_all}[border] {
-  border: 1px solid ${theme.colors.text.surface("n+2")};
-}`
-
-_`${_all}[hover] { background-color: ${theme.colors.tint.surface("n+1")} }`
-
-_`${_all}[surface]${_surface_not_default} {
-  ${theme.colors.tint.css.as_surface("n+1")}
-}`
-
-_`${_all}[surface="n+2"] {
-  ${theme.colors.tint.css.as_surface("n+2")}
-}`
-
-_`${_all}[surface="background"] {
-  ${theme.colors.tint.css.as_surface("background")}
-}`
+_`
+  ${_all}[surface] { overflow: hidden; }
+  ${_all}[border] { border: 1px solid ${theme.colors.tint.surface("n+2")}; }
+  ${_all}[border="widget"] { border: 1px solid ${theme.colors.tint.mid}; }
+  ${_all}[hover]:hover { background-color: ${theme.colors.tint.surface("n+1")} }
+  ${_all}[surface]${_surface_not_default} { ${theme.colors.tint.css.as_surface("n+1")} }
+  ${_all}[surface="n+2"] { ${theme.colors.tint.css.as_surface("n+2")} }
+  ${_all}[surface="background"] { ${theme.colors.tint.css.as_surface("background")} }
+`
 
 for (const lvl of _surface_levels) {
   _`${_all}[surface="${lvl}"] {
@@ -209,9 +201,6 @@ css`
   }
 
   header, footer {
-    ${theme.css_light_colors};
-    ${theme.colors.tint.css.as_inverted};
-
     padding: ${theme.settings.spacingComponent};
     gap: ${theme.settings.spacingComponent};
     width: 100%;
@@ -219,9 +208,8 @@ css`
     flex-direction: row;
     align-items: baseline;
   }
-  footer {
-    ${theme.colors.text.faded.css.as_inverted}
-  }
+  header { ${theme.colors.tint.css.as_inverted}; }
+  footer { ${theme.colors.text.css.as_surface(0.5)} }
 
   e-block { display: block; }
   e-block[inline] { display: inline-block; }
@@ -265,28 +253,12 @@ css`
   }
 
   :is(e-flex,e-grid,e-row,e-column) {
-    /* [pad]'s implied spacing and an explicit [spacing] both land in --e-spacing-* above —
-       either attribute's presence is enough to read it back out as a real gap. [pad="none"] is
-       excluded : it never wrote to --e-spacing-* above, so it must not read a stale/inherited
-       value back out either. [touching] is also excluded : it always means no spacing at all,
-       regardless of what [pad] would otherwise imply. */
-    &[pad]:not([pad="none"]):not([touching]), &[spacing]:not([touching]) {
+    &:not([pad="none"]):not([touching]), &[spacing]:not([touching]) {
       gap: var(--e-spacing-vertical) var(--e-spacing-horizontal);
     }
   }
 
-  /* Touching children padding, lowest to highest priority (later wins on equal specificity):
-     1. bare/"bare"/"border" (no step of their own) inherit whatever --e-pad-* [pad] resolved to
-        on the touching container — custom properties inherit, so this needs no extra rule beyond
-        just reading them back out on the child. Only fires when [pad] is actually set (not
-        "none") ; otherwise children keep their own native padding untouched.
-     2. touching="STEP"/"border-STEP" set the step directly on each child, overriding whatever (1)
-        would have inherited — letting the container's own pad and its children's pad differ (a
-        popup's own edge inset vs. its rows' tighter click-target padding, for instance). */
-  /* :where() zeroes the gating condition's specificity, so the explicit per-step rules below
-     (real attribute-value selectors) reliably outrank this fallback regardless of source order —
-     without it, [touching][pad]:not(...) would out-specify a plain [touching="X"] and always win. */
-  ${_flex}:where([touching][pad]:not([pad="none"])) > * {
+  ${_flex}:where([touching]:not([pad="none"])) > * {
     padding: var(--e-pad-vertical) var(--e-pad-horizontal);
   }
 

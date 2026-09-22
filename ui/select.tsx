@@ -46,7 +46,7 @@ export function Select<T, T2 = T>(at: SelectAttributes<T, T2>) {
           await popup(
             ev.currentTarget,
             (fut) => (
-              <e-column pad="component" touching="widget" role="listbox">
+              <e-column touching="widget" role="listbox" border>
                 {$scrollable}
                 {VirtualScroll(
                   o(at.options).tf((opts) => [...opts]),
@@ -63,7 +63,7 @@ export function Select<T, T2 = T>(at: SelectAttributes<T, T2>) {
                           at.model?.set(o.get(oo_option_value))
                           fut.resolve(o.get(oo_option_value))
                         })}
-                        <e-block class="selected-icon">{oo_is_selected.tf((selected) => selected && Check())}</e-block>
+                        <div class="selected-icon">{oo_is_selected.tf((selected) => selected && Check())}</div>
                         {o_option.tf((opt) => (at.label_fn ? at.label_fn(opt) : opt?.toString()))}
                       </e-flex>
                     )
@@ -77,7 +77,7 @@ export function Select<T, T2 = T>(at: SelectAttributes<T, T2>) {
           o_open.set(false)
         }
       })}
-      <e-block class={[cls_indicator, o_open.tf((open) => (open ? "open" : ""))]}>{CaretDown()}</e-block>
+      <div class={[cls_indicator, o_open.tf((open) => (open ? "open" : ""))]}>{CaretDown()}</div>
     </button>
   ) as HTMLButtonElement
 }

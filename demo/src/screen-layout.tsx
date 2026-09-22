@@ -1,25 +1,6 @@
 import { css, Service, view } from "elt"
 import { theme } from "elt/ui"
 
-// A row inside a surface that reacts to hover using `.hover` (level n+1) — the same
-// `--e-surface-level`/`--e-surface-step` custom properties `[surface]` itself reads, so this stays
-// correct no matter how deeply the row ends up nested. `border-bottom` is its boundary at rest
-// (padding requires one even when idle, not just on :hover) — the hover fill is on top of that,
-// not a substitute for it.
-const cls_hover_row = css`.hover-row {
-  cursor: pointer;
-  &:hover {
-    background-color: ${theme.colors.tint.hover};
-  }
-}`
-
-// A divider between rows using `.separator` (level n+2) — one step past hover, so the two never
-// collide visually if a divider sits right below a hovered row.
-const cls_separator_row = css`.separator-row {
-  padding: ${theme.settings.spacingWidget} 0;
-  border-top: 1px solid ${theme.colors.tint.separator};
-}`
-
 // `as_inverted` always freezes to the *light* theme's colors (Axis 1, Inversion) so an inverted
 // band looks identical in light/dark mode — this is a stable, memoized class, not built per-render.
 const cls_inverted = theme.colors.tint.classes.as_inverted
@@ -111,9 +92,9 @@ export default class ScreenLayout extends Service({
         its own nesting depth. Hover this level-1 surface's row, and note the divider below it stays visually
         distinct from the hover fill even though both are "more tint mixed into the background."
       </p>
-      <e-column surface pad="component" border-radius>
-        <e-block class={cls_hover_row}>Hover me — background is <code>tint.hover</code> (level n+1)</e-block>
-        <div class={cls_separator_row}>Divider above this row is <code>tint.separator</code> (level n+2)</div>
+      <e-column touching="border" surface border-radius border align="stretch">
+        <e-block hover>Hover me — background is <code>tint.hover</code> (level n+1)</e-block>
+        <e-block hover>Divider above this row is <code>tint.separator</code> (level n+2)</e-block>
       </e-column>
 
       <h2>Inversion</h2>
