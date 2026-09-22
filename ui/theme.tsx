@@ -390,6 +390,28 @@ class ThemeClasses<AllColors extends ColorScheme> {
   }
 }
 
+const _re_relative_surface_level = /^n\+(\d+)$/
+
+/**
+ * Shared by `Mix.surface`/`._css_as_surface` — the one place that knows how a surface level
+ * (absolute number, `"background"`, or a relative `n+${number}` offset from whatever's ambient)
+ * turns into the arithmetic expression multiplied by `--e-surface-step` (see "Surfaces and
+ * borders" in specs/elt-ui-guidelines.md).
+ */
+function surface_level_expr(level: number | `n+${number}` | "background"): string {
+  if (level === "background") {
+    return "0"
+  }
+  if (typeof level === "number") {
+    return `${level}`
+  }
+  const match = _re_relative_surface_level.exec(level)
+  if (!match) {
+    throw new Error(`Invalid relative surface level "${level}" — expected "n+<non-negative integer>"`)
+  }
+  return `(${match[1]} + var(--e-surface-level, 0))`
+}
+
 let _mix_id = 0
 
 /**
@@ -530,13 +552,14 @@ export class Mix {
 
   /**
    * Surface-level stack: hover is always one level up (n+1) from whichever surface is ambient at
-   * this point in the DOM. Reads `--e-surface-level`/`--e-surface-step`, the same custom
-   * properties `[surface]` (ui/layout.css.tsx) increments and exposes to its children, so this
-   * stays correct at any nesting depth without knowing its own ancestor chain (see "Surfaces and
-   * borders" in specs/elt-ui-guidelines.md).
+   * this point in the DOM. Delegates to the same `n+${number}` logic `surface()` uses, reading
+   * `--e-surface-level`/`--e-surface-step`, the same custom properties `[surface]`
+   * (ui/layout.css.tsx) increments and exposes to its children, so this stays correct at any
+   * nesting depth without knowing its own ancestor chain (see "Surfaces and borders" in
+   * specs/elt-ui-guidelines.md).
    */
   get hover() {
-    return this.from_bg("calc((var(--e-surface-level, 0) + 1) * var(--e-surface-step, 10%))")
+    return this.from_bg(`calc(${surface_level_expr("n+1")} * var(--e-surface-step, 10%))`)
   }
 
   /**
@@ -545,29 +568,28 @@ export class Mix {
    * at once (see "Surfaces and borders" in specs/elt-ui-guidelines.md).
    */
   get separator() {
-    return this.from_bg("calc((var(--e-surface-level, 0) + 2) * var(--e-surface-step, 10%))")
+    return this.from_bg(`calc(${surface_level_expr("n+2")} * var(--e-surface-step, 10%))`)
   }
 
   /**
    * The color of a surface at this level — just the color, not the "become a surface" ruleset
    * `.css.as_surface`/`.classes.as_surface` below apply (background fill, level propagated to
    * children, …). Usable anywhere a color is expected (a border, a text color, a one-off
-   * background-color) without any of those side effects. Absolute levels and `"increment"` both
-   * have a well-defined color ; `"none"` does not — "unpainted" isn't a color (see
+   * background-color) without any of those side effects. Absolute levels and relative `n+${number}`
+   * offsets both have a well-defined color ; `"none"` does not — "unpainted" isn't a color (see
    * `.classes.as_surface` for the class form, which does support `"none"` as a real no-op class).
    * See "Surfaces and borders" in specs/elt-ui-guidelines.md.
    *
    * - A number is an *absolute* level, ignoring whatever's already ambient — for content whose DOM
    *   position doesn't reflect its visual nesting (a dialog/popup portaled to `document.body` that
    *   still needs to render "as if" at a specific level).
-   * - `"increment"` is one level up *relative* to whatever's ambient (reads `--e-surface-level`,
-   *   the same custom property `[surface]` itself increments) — what `hover`/`separator` above
-   *   already do at their own fixed +1/+2 offsets ; this is the general, any-offset version.
+   * - `` `n+${number}` `` (e.g. `"n+1"`, `"n+2"`) is that many levels up *relative* to whatever's
+   *   ambient (reads `--e-surface-level`, the same custom property `[surface]` itself increments)
+   *   — `hover`/`separator` above are just this at fixed `"n+1"`/`"n+2"` offsets.
    * - `"background"` is absolute level 0 — "the background color" is level 0's own definition.
    */
-  surface(level: number | "increment" | "background"): string {
-    const new_level = level === "increment" ? "(1 + var(--e-surface-level, 0))" : `${level === "background" ? 0 : level}`
-    return this.from_bg(`calc(${new_level} * var(--e-surface-step, 10%))`).toString()
+  surface(level: number | `n+${number}` | "background"): string {
+    return this.from_bg(`calc(${surface_level_expr(level)} * var(--e-surface-step, 10%))`).toString()
   }
 
   /**
@@ -579,12 +601,12 @@ export class Mix {
    * to children and supports `"none"` — a true no-op, no paint, no level change, same as if
    * `[surface]` were absent entirely (mirroring `spacing="none"`/`pad="none"`, Axis 3).
    */
-  _css_as_surface(level: number | "increment" | "background" | "none"): string {
+  _css_as_surface(level: number | `n+${number}` | "background" | "none"): string {
     if (level === "none") {
       return ""
     }
 
-    const new_level = level === "increment" ? "calc(1 + var(--e-surface-level, 0))" : `${level === "background" ? 0 : level}`
+    const new_level = surface_level_expr(level)
     return `
     color: var(--e-color-text);
     --e-current-surface-level: ${new_level};
@@ -597,7 +619,7 @@ export class Mix {
   #surface_classes = new Map<string, string>()
 
   /** Internal — not part of the public contract. Read via `.classes.as_surface`. */
-  _classes_as_surface(level: number | "increment" | "background" | "none"): string {
+  _classes_as_surface(level: number | `n+${number}` | "background" | "none"): string {
     const key = String(level)
     let cls = this.#surface_classes.get(key)
     if (cls == null) {
@@ -630,14 +652,14 @@ class MixCss {
   constructor(private mix: Mix) {}
   get as_tint() { return this.mix._css_as_tint }
   get as_inverted() { return this.mix._css_as_inverted }
-  as_surface(level: number | "increment" | "background" | "none") { return this.mix._css_as_surface(level) }
+  as_surface(level: number | `n+${number}` | "background" | "none") { return this.mix._css_as_surface(level) }
 }
 
 class MixClasses {
   constructor(private mix: Mix) {}
   get as_tint() { return this.mix._classes_as_tint }
   get as_inverted() { return this.mix._classes_as_inverted }
-  as_surface(level: number | "increment" | "background" | "none") { return this.mix._classes_as_surface(level) }
+  as_surface(level: number | `n+${number}` | "background" | "none") { return this.mix._classes_as_surface(level) }
 }
 
 export const theme = new Theme({

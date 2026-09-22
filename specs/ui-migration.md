@@ -21,7 +21,7 @@ This is a living document. Each section covers one axis of `specs/elt-ui-guideli
 | `.css_as_inverted`, `.css_as_tint` | `.css.as_inverted`, `.css.as_tint` | Same move, `.css` namespace. |
 | `.surface(n)` (class) | `.classes.as_surface(n)` | Same move ; `.surface(n)` itself now means something different (see next row). |
 | `css_as_surface(n)` | `.css.as_surface(n)` | Same move. |
-| *(did not exist)* | `.surface(n)` | New : a bare CSS color value for absolute surface level `n` (no `.css`/`.classes`, no `as_` prefix — it names the color, it doesn't apply a ruleset), for a one-off declaration like `border-top: 1px solid ${theme.colors.tint.surface(1)}`. Accepts `number \| "increment" \| "background"` — `"none"` stays exclusive to `.classes.as_surface`/`.css.as_surface`, since "unpainted" isn't a color a bare value can express. |
+| *(did not exist)* | `.surface(n)` | New : a bare CSS color value for absolute surface level `n` (no `.css`/`.classes`, no `as_` prefix — it names the color, it doesn't apply a ruleset), for a one-off declaration like `border-top: 1px solid ${theme.colors.tint.surface(1)}`. Accepts `number \| \`n+${number}\` \| "background"` (e.g. `"n+1"`, `"n+2"`) — `"none"` stays exclusive to `.classes.as_surface`/`.css.as_surface`, since "unpainted" isn't a color a bare value can express. |
 
 `.ultra_light` and `.light` were removed outright rather than renamed, because they named a *lightness step* (a position on the bg→tint axis), not a *role*. The new API names roles (`.hover`, `.separator`, `.mid`, `.faded`) — a call site using the old getters has to be re-examined for what it was actually trying to express, not pattern-substituted.
 

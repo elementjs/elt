@@ -36,8 +36,8 @@ export type BorderValues =
 export type SurfaceValues =
   | boolean // true value
   | "background"
-  | "increment"
-  | "1" | "2" | "3" | "4" | "5" | "6" // helpers
+  | "n+1" | "n+2" // relative helpers — the only offsets [surface] precompiles; see ui/theme.tsx for arbitrary n+K
+  | "1" | "2" | "3" | "4" | "5" | "6" // absolute helpers
   | "none"
 
 export interface CommonAttrs extends Attrs<HTMLElement> {
@@ -108,9 +108,9 @@ const align: AlignValues[] = [
   "space-between",
 ]
 
-const _all = `:is(e-flex,e-grid,e-block,e-column,e-row)`
-const _flex = `:is(e-flex,e-column,e-row)`
-const _layouters = `:is(e-flex,e-grid,e-column,e-row)`
+const _all = `:where(e-flex,e-grid,e-block,e-column,e-row)`
+const _flex = `:where(e-flex,e-column,e-row)`
+const _layouters = `:where(e-flex,e-grid,e-column,e-row)`
 
 function _(strings: TemplateStringsArray, ...values: unknown[]): void {
   let result = strings[0];
@@ -120,14 +120,27 @@ function _(strings: TemplateStringsArray, ...values: unknown[]): void {
   more.push(result);
 }
 
-// Surface levels: bare [surface] (boolean true) and [surface="increment"] both raise one level
-// relative to whatever's ambient — the :not() list excludes the other, explicit-value cases so
-// this stays the fallback for the common case, same pattern [border-radius] already uses below.
+// Surface levels: bare [surface] (boolean true) and [surface="n+1"] both raise one level relative
+// to whatever's ambient — the default case. [surface="n+2"] is the other named relative offset
+// (border/divider level) ; CSS attribute selectors can only match exact strings, not a pattern, so
+// only these two relative offsets are precompiled here — any other n+K goes through
+// theme.colors.<color>.classes.as_surface(n)/.css.as_surface(n) (ui/theme.tsx) instead, which
+// synthesize their CSS per call and so accept an arbitrary offset. The :not() list excludes every
+// other explicit-value case so bare/[surface] stays the fallback, same pattern [border-radius]
+// already uses below.
 const _surface_levels = ["1", "2", "3", "4", "5", "6"] as const
-const _surface_not_increment = [...["background", "none"], ..._surface_levels].map((v) => `:not([surface="${v}"])`).join("")
+const _surface_not_default = [...["background", "none", "n+2"], ..._surface_levels].map((v) => `:not([surface="${v}"])`).join("")
 
-_`${_all}[surface]${_surface_not_increment} {
-  ${theme.colors.tint.css.as_surface("increment")}
+_`${_all}[border] {
+  border: 1px solid ${theme.colors.text.surface("n+1")};
+}`
+
+_`${_all}[surface]${_surface_not_default} {
+  ${theme.colors.tint.css.as_surface("n+1")}
+}`
+
+_`${_all}[surface="n+2"] {
+  ${theme.colors.tint.css.as_surface("n+2")}
 }`
 
 _`${_all}[surface="background"] {

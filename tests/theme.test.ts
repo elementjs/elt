@@ -20,13 +20,13 @@ function find_rule_text(class_name: string): string {
 describe("Color.hover / Color.separator", () => {
   test("hover mixes at level n+1", () => {
     const expr = theme.colors.tint.hover.toString()
-    expect(expr).toContain("var(--e-surface-level, 0) + 1")
+    expect(expr).toContain("1 + var(--e-surface-level, 0)")
     expect(expr).toContain("var(--e-surface-step, 10%)")
   })
 
   test("separator mixes at level n+2, one step past hover", () => {
     const expr = theme.colors.tint.separator.toString()
-    expect(expr).toContain("var(--e-surface-level, 0) + 2")
+    expect(expr).toContain("2 + var(--e-surface-level, 0)")
     expect(expr).toContain("var(--e-surface-step, 10%)")
   })
 
@@ -87,13 +87,29 @@ describe("Mix.surface / [surface] parity", () => {
   test("an absolute level ignores ambient nesting", () => {
     const css = theme.colors.tint.css.as_surface(2)
     expect(css).toContain("--e-current-surface-level: 2;")
-    // never reads the ambient level (with its ", 0" fallback) to compute its own — only "increment" does
+    // never reads the ambient level (with its ", 0" fallback) to compute its own — only a relative n+K offset does
     expect(css).not.toContain("var(--e-surface-level,")
   })
 
-  test("increment raises one level relative to whatever's ambient", () => {
-    const css = theme.colors.tint.css.as_surface("increment")
-    expect(css).toContain("calc(1 + var(--e-surface-level, 0))")
+  test("n+1 raises one level relative to whatever's ambient", () => {
+    const css = theme.colors.tint.css.as_surface("n+1")
+    expect(css).toContain("--e-current-surface-level: (1 + var(--e-surface-level, 0));")
+  })
+
+  test("n+2 raises two levels relative to whatever's ambient — the same offset [surface=\"n+2\"]/.separator use", () => {
+    const css = theme.colors.tint.css.as_surface("n+2")
+    expect(css).toContain("--e-current-surface-level: (2 + var(--e-surface-level, 0));")
+  })
+
+  test("n+0 is a valid, well-defined relative offset (identity — same level as ambient)", () => {
+    const css = theme.colors.tint.css.as_surface("n+0")
+    expect(css).toContain("--e-current-surface-level: (0 + var(--e-surface-level, 0));")
+  })
+
+  test("a malformed relative offset throws instead of silently producing broken CSS", () => {
+    expect(() => theme.colors.tint.css.as_surface("n+1.5" as never)).toThrow()
+    expect(() => theme.colors.tint.css.as_surface("n+-1" as never)).toThrow()
+    expect(() => theme.colors.tint.surface("n+" as never)).toThrow()
   })
 
   test("background is absolute level 0 — a real, visible boundary against any nonzero ambient level, not a repaint of whatever's already ambient", () => {
@@ -147,9 +163,19 @@ describe("Mix.surface / [surface] parity", () => {
     expect(theme.colors.tint.surface("background")).toContain("calc(0 * var(--e-surface-step, 10%))")
   })
 
-  test("surface('increment') reads the ambient level, same as .css.as_surface('increment')", () => {
-    const value = theme.colors.tint.surface("increment")
+  test("surface('n+1') reads the ambient level, same offset as .css.as_surface('n+1')", () => {
+    const value = theme.colors.tint.surface("n+1")
     expect(value).toContain("calc((1 + var(--e-surface-level, 0)) * var(--e-surface-step, 10%))")
+  })
+
+  test("surface('n+2') is available for arbitrary offsets, unlike the [surface] attribute which only precompiles n+1/n+2", () => {
+    const value = theme.colors.tint.surface("n+2")
+    expect(value).toContain("calc((2 + var(--e-surface-level, 0)) * var(--e-surface-step, 10%))")
+  })
+
+  test(".hover/.separator delegate to the same relative-offset expression as surface('n+1')/surface('n+2')", () => {
+    expect(theme.colors.tint.hover.toString()).toContain("(1 + var(--e-surface-level, 0)) * var(--e-surface-step, 10%)")
+    expect(theme.colors.tint.separator.toString()).toContain("(2 + var(--e-surface-level, 0)) * var(--e-surface-step, 10%)")
   })
 })
 
