@@ -92,7 +92,7 @@ export default class ScreenLayout extends Service({
         its own nesting depth. Hover this level-1 surface's row, and note the divider below it stays visually
         distinct from the hover fill even though both are "more tint mixed into the background."
       </p>
-      <e-column touching surface align="stretch">
+      <e-column touching surface align="stretch" border-radius>
         <e-block hover border border-radius>Hover me — background is <code>tint.hover</code> (level n+1)</e-block>
         <e-block hover border border-radius>Divider above this row is <code>tint.separator</code> (level n+2)</e-block>
       </e-column>

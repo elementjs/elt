@@ -188,6 +188,7 @@ css`@layer typography {
 
     tbody, thead, th, td, tr {
       border: none;
+      vertical-align: baseline;
     }
 
     font-size: 0.8em;
