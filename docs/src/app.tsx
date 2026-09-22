@@ -6,8 +6,7 @@ import { e2Root } from "./e2.tsx"
 // dependency (so editing it hot-reloads); the macro can't receive that import's value directly
 // (Bun macro arguments must be statically known), so it re-reads the same file itself by literal
 // path. Both must name the same file. See specs/markdown-docs.md, "File registration".
-import _watch_readme from "./README.md" with { type: "text" }
-void _watch_readme
+import "./README.md" with { type: "text" }
 import { elt_md } from "./macro.ts" with { type: "macro" }
 
 const readme = await elt_md("./README.md")

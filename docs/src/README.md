@@ -51,10 +51,10 @@ When a doc and the code disagree, **code + tests win**; treat the doc as possibl
 | Path | Role |
 | ---- | ---- |
 | `AGENTS.md` | Always-loaded rules + pointers into this index |
-| `docs/using-elt-agent.md` | Core elt usage for agents |
-| `docs/using-elt-ui-agent.md` | elt/ui + visual language for agents |
-| `docs/using-elt.md` | Human-oriented core overview |
-| `docs/using-elt-ui.md` | Human-oriented UI overview + migration |
+| `docs/src/using-elt-agent.md` | Core elt usage for agents |
+| `docs/src/using-elt-ui-agent.md` | elt/ui + visual language for agents |
+| `docs/src/using-elt.md` | Human-oriented core overview |
+| `docs/src/using-elt-ui.md` | Human-oriented UI overview + migration |
 | `ui/AGENTS.md` | UI branch entry (modify-library rules + section index) |
 | `specs/` | Feature specifications |
-| `docs/adr/` | Architecture decision records |
+| `docs/src/adr/` | Architecture decision records |

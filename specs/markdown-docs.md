@@ -32,15 +32,16 @@ Bun macro arguments must be statically known at bundle time (literals/constants)
 
 That path is resolved against `import.meta.dir` **inside `elt_md` itself** (i.e. `docs/src/`, since that's where `macro.ts` lives), not against `process.cwd()`. A macro always runs at bundle time regardless of what invoked the bundler, and `import.meta.dir` there is fixed to the macro file's own location on disk — so this is what makes `elt_md` work the same way whether `bun` was launched as `bun docs/index.html` from the repo root or as `bun index.html` from inside `docs/`. Resolving the path against `process.cwd()` instead (the first implementation of this spec did) fails with `ENOENT` under one of those two invocations, confirmed by testing.
 
-But a macro reading a file directly through `Bun.file()`/`fs` does not register that file as a bundler dependency — confirmed by testing: editing a `.md` file that only a macro's internal `Bun.file()` call reads produces no rebundle and no hot-reload; the dev server's watch graph never sees the read. A plain, unused `with { type: "text" }` import of the same file, sitting alongside the macro call, does register the dependency and does trigger a rebundle+reload on edit.
+But a macro reading a file directly through `Bun.file()`/`fs` does not register that file as a bundler dependency — confirmed by testing: editing a `.md` file that only a macro's internal `Bun.file()` call reads produces no rebundle and no hot-reload; the dev server's watch graph never sees the read. A `with { type: "text" }` import of the same file, sitting alongside the macro call, does register the dependency and does trigger a rebundle+reload on edit.
 
-So `docs/src/app.tsx` carries **both**, per page, by hand:
+That import is written **bare — unbound to any name** (`import "./README.md" with { type: "text" }`, not `import readme from ...`). A named binding, even one immediately discarded (`void readme`), still gets its file content inlined as a live value in the module graph, and — confirmed by testing — that content survives into the **production** `bun build` output as genuine duplication (the same text appearing twice: once raw/unprocessed from the import, once processed from the macro's output). A bare, nameless import has no value for the bundler to keep, so a production build tree-shakes it to nothing (confirmed by testing: zero occurrences of the raw content in a `bun build` output) while a *named-but-discarded* one does not — dead-code elimination can prove a nameless import has no possible use, but proving a discarded-but-named binding is truly unreferenced is a different, apparently unperformed analysis. The bare form still registers the watch dependency identically (confirmed by testing: editing the file still triggers `Reloaded in ...: src/app.tsx + 1 more`). Only the dev server's own (unshipped) bundle keeps the redundant copy, which doesn't matter — dev builds don't optimize for size.
+
+So `docs/src/app.tsx` carries **both** a bare text import and the macro call, per page, by hand:
 
 ```tsx
-import _watch_readme from "./README.md" with { type: "text" }
-void _watch_readme // referenced only so bundlers/linters don't flag it as unused; its value is never read
+import "./README.md" with { type: "text" }
 import { elt_md } from "./macro.ts" with { type: "macro" }
-const readme = await elt_md("./src/README.md")
+const readme = await elt_md("./README.md")
 // one pair of lines per page, added by hand as pages are authored
 ```
 
