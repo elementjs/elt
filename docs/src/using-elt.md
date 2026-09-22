@@ -178,6 +178,6 @@ Shared state usually lives on a store service; other services declare it in `Ser
 | ---- | ------- |
 | End-to-end UI | `demo/` |
 | Observable / Repeat / App behavior | `tests/` |
-| Widgets and theme | `elt/ui` — [`ui/AGENTS.md`](../ui/AGENTS.md), [`docs/using-elt-ui-agent.md`](./using-elt-ui-agent.md), [`docs/using-elt-ui.md`](./using-elt-ui.md) |
+| Widgets and theme | `elt/ui` — [`ui/AGENTS.md`](../../ui/AGENTS.md), [`docs/using-elt-ui-agent.md`](./using-elt-ui-agent.md), [`docs/using-elt-ui.md`](./using-elt-ui.md) |
 | Exact APIs | JSDoc in `src/` (`observable.ts`, `verbs.ts`, `decorators.ts`, `app/`) |
 | Checklist-style reference | [`docs/using-elt-agent.md`](./using-elt-agent.md) |

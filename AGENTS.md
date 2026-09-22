@@ -6,11 +6,11 @@ Do not read all of `./docs` up front. Pick by branch:
 
 | Branch | Read |
 | ------ | ---- |
-| Choosing which doc to open | [`docs/README.md`](./docs/README.md) |
-| App code using **core elt** | [`docs/using-elt-agent.md`](./docs/using-elt-agent.md) |
-| **UI** (layout, theme, widgets, `"elt/ui"`) | [`ui/AGENTS.md`](./ui/AGENTS.md) → [`docs/using-elt-ui-agent.md`](./docs/using-elt-ui-agent.md) |
+| Choosing which doc to open | [`docs/src/README.md`](./docs/src/README.md) |
+| App code using **core elt** | [`docs/src/using-elt-agent.md`](./docs/src/using-elt-agent.md) |
+| **UI** (layout, theme, widgets, `"elt/ui"`) | [`ui/AGENTS.md`](./ui/AGENTS.md) → [`docs/src/using-elt-ui-agent.md`](./docs/src/using-elt-ui-agent.md) |
 | Feature specs | [`specs/`](./specs/) |
-| Architecture decisions | [`docs/adr/`](./docs/adr/) |
+| Architecture decisions | [`docs/src/adr/`](./docs/src/adr/) |
 
 Inside a guide: read **Hard rules**, then only the section that matches the task.
 

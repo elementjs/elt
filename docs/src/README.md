@@ -11,8 +11,8 @@ Use this file to pick **one** downstream doc. Do not read every file in `./docs`
 | You are… | Read |
 | -------- | ---- |
 | Writing or changing **application code** that uses core elt (observables, verbs, routes, services, mount lifecycle) | [`using-elt-agent.md`](./using-elt-agent.md) |
-| Building or changing **UI** (layout, theme, colors, forms, widgets, anything importing `"elt/ui"`) | [`../ui/AGENTS.md`](../ui/AGENTS.md) → [`using-elt-ui-agent.md`](./using-elt-ui-agent.md) |
-| Implementing a **named feature** from a spec | The matching file under [`../specs/`](../specs/) |
+| Building or changing **UI** (layout, theme, colors, forms, widgets, anything importing `"elt/ui"`) | [`../../ui/AGENTS.md`](../../ui/AGENTS.md) → [`using-elt-ui-agent.md`](./using-elt-ui-agent.md) |
+| Implementing a **named feature** from a spec | The matching file under [`../../specs/`](../../specs/) |
 | Explaining **why** the codebase chose something | Matching file under [`adr/`](./adr/) |
 | Orienting a **human** developer (less checklist, more narrative) | [`using-elt.md`](./using-elt.md), [`using-elt-ui.md`](./using-elt-ui.md) |
 

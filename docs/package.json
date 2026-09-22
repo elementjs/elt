@@ -1,0 +1,14 @@
+{
+  "name": "elt-docs",
+  "private": true,
+  "scripts": {
+    "dev": "bun index.html"
+  },
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "dependencies": {
+    "elt": "../",
+    "shiki": "^3.0.0"
+  }
+}

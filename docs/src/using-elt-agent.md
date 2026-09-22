@@ -15,7 +15,7 @@ This doc is for agents writing or changing application code that uses elt. Prefe
 5. **`set` is `===`-gated.** Same reference → no-op. Mutate in place then `set` the same object → nothing notifies. Replace wholes (or use `assign` / `mutate`).
 6. **No React `children` prop.** JSX children of `<Comp>…</Comp>` go to the **RefChild** insertion point (two-arg component) or the **root node** (one-arg).
 7. **JSX is typed as `Element`.** Cast when you need a concrete type: `(<div/> as HTMLDivElement)`. `e` / `E` do not have that problem.
-8. **Import from `"elt"`.** TypeScript only; the package is meant to be bundled. Use `"elt/mutative"` when calling `obs.mutate()`. Use `"elt/ui"` only when the app uses that sub-library (see [`ui/AGENTS.md`](../ui/AGENTS.md) → [`docs/using-elt-ui-agent.md`](./using-elt-ui-agent.md)).
+8. **Import from `"elt"`.** TypeScript only; the package is meant to be bundled. Use `"elt/mutative"` when calling `obs.mutate()`. Use `"elt/ui"` only when the app uses that sub-library (see [`ui/AGENTS.md`](../../ui/AGENTS.md) → [`docs/using-elt-ui-agent.md`](./using-elt-ui-agent.md)).
 9. **Model dynamic structure as an Observable + a Verb, not a manually tracked array.** If code keeps a plain array/list as a field and pairs every mutation with matching `node_append`/`node_remove` calls, or calls `node_clear` + fully re-renders a container whenever some condition changes, that's the shape `Repeat` (lists), `If` (presence/one-of-two), or `Switch` (one-of-many) already implement — with a diff against the previous render, not a rebuild, and without a second bookkeeping structure that can drift from the DOM. Put the *data* driving the decision into an `o.Observable` and let a Verb consume it, instead of writing the update-detection and DOM-patching by hand. See Verbs section below and `src/verbs.ts`.
 
    Don't:
@@ -486,7 +486,7 @@ Details: `src/virtual.ts`, `tests/virtual.test.ts`.
 | App / router / services                      | `tests/app.test.ts`, `demo/src/routes.tsx`, `src/app/app.ts`    |
 | Decorators / `$bind`                         | `src/decorators.ts` (+ JSDoc examples)                          |
 | Public exports                               | `src/index.ts`                                                  |
-| Widgets / theme                              | [`ui/AGENTS.md`](../ui/AGENTS.md), [`docs/using-elt-ui-agent.md`](./using-elt-ui-agent.md), `demo/src/screen-*.tsx` |
+| Widgets / theme                              | [`ui/AGENTS.md`](../../ui/AGENTS.md), [`docs/using-elt-ui-agent.md`](./using-elt-ui-agent.md), `demo/src/screen-*.tsx` |
 
 ---
 
@@ -504,7 +504,7 @@ Details: `src/virtual.ts`, `tests/virtual.test.ts`.
 | `src/observable/`   | Core observables + transformers               |
 | `src/mutative.ts`   | `obs.mutate` helper (`import "elt/mutative"`) |
 | `src/types.ts`      | JSX / `Renderable` / `Attrs`                  |
-| `ui/`               | Theming + widgets — [`ui/AGENTS.md`](../ui/AGENTS.md), [`docs/using-elt-ui-agent.md`](./using-elt-ui-agent.md) |
+| `ui/`               | Theming + widgets — [`ui/AGENTS.md`](../../ui/AGENTS.md), [`docs/using-elt-ui-agent.md`](./using-elt-ui-agent.md) |
 
 `Renderable` ≈ Appender | string | number | Node | null | undefined | boolean | Decorator | arrays | readonly Observable of the same (`src/types.ts`).
 
@@ -524,4 +524,4 @@ Details: `src/virtual.ts`, `tests/virtual.test.ts`.
 
 - osun → `css`; class vars → `cls_*`; delete unused classes; drop needless `-webkit` prefixes
 - Prefer `o.expression` over most `.join()` / `.merge()` (keep merge/join when the object/tuple scope is the point)
-- elt-shoelace / legacy elt-ui → [`ui/AGENTS.md`](../ui/AGENTS.md), [`docs/using-elt-ui-agent.md`](./using-elt-ui-agent.md), [`docs/using-elt-ui.md`](./using-elt-ui.md)
+- elt-shoelace / legacy elt-ui → [`ui/AGENTS.md`](../../ui/AGENTS.md), [`docs/using-elt-ui-agent.md`](./using-elt-ui-agent.md), [`docs/using-elt-ui.md`](./using-elt-ui.md)
