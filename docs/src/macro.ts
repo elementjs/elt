@@ -6,13 +6,16 @@
 // Tiny inline replacements for node:path's resolve/basename, to avoid a @types/node dependency
 // (docs/tsconfig.json only declares @types/bun) for two one-line operations.
 const path = {
-  /** Assumes the first part is already absolute (every call site here passes `import.meta.dir`). */
+  /** Like node:path's resolve: a later absolute segment resets everything before it. */
   resolve: (...parts: string[]) => {
-    const out: string[] = []
-    for (const part of parts.join("/").split("/")) {
-      if (part === "" || part === ".") continue
-      if (part === "..") out.pop()
-      else out.push(part)
+    let out: string[] = []
+    for (const part of parts) {
+      if (part.startsWith("/")) out = []
+      for (const seg of part.split("/")) {
+        if (seg === "" || seg === ".") continue
+        if (seg === "..") out.pop()
+        else out.push(seg)
+      }
     }
     return `/${out.join("/")}`
   },
@@ -228,8 +231,17 @@ async function processCodeNodes(codeNodes: MdNode[]): Promise<void> {
   }
 }
 
-export async function elt_md(path: string): Promise<ParsedDoc> {
-  const raw = await Bun.file(path).text()
+/**
+ * `relPath` is resolved against this macro FILE's own directory (`docs/src/`, via `import.meta.dir`
+ * — Bun's equivalent of `__dirname`) rather than `process.cwd()`. A macro always runs at bundle
+ * time regardless of what invoked the bundler, and `import.meta.dir` here is fixed to where this
+ * file lives on disk, so this makes `elt_md` work the same way no matter which directory `bun` was
+ * launched from — confirmed by testing that a plain relative path failed with ENOENT specifically
+ * because it was resolved against the launching process's cwd instead.
+ */
+export async function elt_md(relPath: string): Promise<ParsedDoc> {
+  const filePath = path.resolve(import.meta.dir, relPath)
+  const raw = await Bun.file(filePath).text()
   const { frontmatter, body } = splitFrontmatter(raw)
 
   const callbacks: Record<string, (...args: any[]) => string> = {}
@@ -248,7 +260,7 @@ export async function elt_md(path: string): Promise<ParsedDoc> {
   // can't be JSON.parse'd directly. Scan it the same way a parent node scans its children.
   const root: MdNode = ["root", {}, splitNodes(out)]
 
-  const fromPath = path.replace(/^.*\/src\//, "")
+  const fromPath = relPath.replace(/^\.\//, "")
   rewriteLinks(root, fromPath)
 
   const codeNodes: MdNode[] = []

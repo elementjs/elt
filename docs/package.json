@@ -8,7 +8,7 @@
     "@types/bun": "latest"
   },
   "dependencies": {
-    "elt": "../",
+    "elt": "workspace:*",
     "shiki": "^3.0.0"
   }
 }

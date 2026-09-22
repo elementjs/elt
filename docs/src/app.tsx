@@ -10,7 +10,7 @@ import _watch_readme from "./README.md" with { type: "text" }
 void _watch_readme
 import { elt_md } from "./macro.ts" with { type: "macro" }
 
-const readme = await elt_md("./src/README.md")
+const readme = await elt_md("./README.md")
 
 export const app = new App()
 

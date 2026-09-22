@@ -16,8 +16,9 @@
   },
   "scripts": {
     "check-types": "tsgo --noEmit | wtsc",
-    "test": "playwright test",
-    "demo": "bun demo/index.html"
+    "test-playwright": "playwright test",
+    "demo": "bun demo/index.html",
+    "docs": "bun docs/index.html"
   },
   "type": "module",
   "devDependencies": {
