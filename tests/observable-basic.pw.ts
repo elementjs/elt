@@ -1,7 +1,6 @@
-///<reference types="bun">
-import { test, expect, describe } from "bun:test"
+import { expect, test } from "@playwright/test"
 
-describe("Basic Observable Test", () => {
+test.describe("Basic Observable Test", () => {
   test("addition works", () => {
     expect(1 + 1).toBe(2)
   })

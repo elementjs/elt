@@ -7,3 +7,7 @@ lib
 .vscode
 *.lock
 .aider*
+test-results
+playwright-report
+blob-report
+playwright/.cache

@@ -14,7 +14,11 @@ declare module "elt" {
   }
 
   interface attrs_input {
-    "e-variant"?: NRO<"tint" | "switch" | "toggle">
+    "e-variant"?: NRO<"tint" | "switch">
+  }
+
+  interface attrs_label {
+    "e-variant"?: NRO<"toggle">
   }
 }
 
@@ -48,7 +52,7 @@ label {
   }
 }
 
-input[type="checkbox"][e-variant="toggle"] {
+label[e-variant="toggle"] > input[type="checkbox"] {
   display: none;
 }
 
@@ -73,7 +77,7 @@ input[type="time"],
 input[type="datetime-local"],
 textarea,
 select,
-label:has(> input[type="checkbox"][e-variant="toggle"]) {
+label[e-variant="toggle"] {
 
   line-height: 1.2;
   display: inline-block;
@@ -256,7 +260,7 @@ hr {
   }
 }
 
-button, label:has(> input[type="checkbox"][e-variant="toggle"]) {
+button, label[e-variant="toggle"] {
   transition: transform 5ms ease, background 0.1s ease, box-shadow 0.1s ease;
   transform-origin: bottom;
 
@@ -310,7 +314,7 @@ button[e-variant="tint"] {
   color: ${colors.tint};
 }
 
-button[e-variant="inverted"], label:has(> input[type="checkbox"][e-variant="toggle"]:checked) {
+button[e-variant="inverted"], label[e-variant="toggle"]:has(> input:checked) {
   --e-color-bg: var(--e-light-color-tint);
   --e-color-text: var(--e-light-color-bg);
   --e-color-tint: var(--e-light-color-bg);
@@ -328,7 +332,7 @@ button[e-variant="inverted"] {
   border-bottom-color: var(--e-color-shadow-drop);
 }
 
-label:has(> input[type="checkbox"][e-variant="toggle"]:not(:checked)) {
+label[e-variant="toggle"]:has(> input:not(:checked)) {
   border: 1px solid ${colors.tint.mid};
   background-color: ${colors.bg};
   color: ${colors.tint.mid};
@@ -340,7 +344,7 @@ label:has(> input[type="checkbox"][e-variant="toggle"]:not(:checked)) {
     inset 0px -1px 0 var(--e-color-shadow-raise);
 }
 
-label:has(> input[type="checkbox"][e-variant="toggle"]:checked) {
+label[e-variant="toggle"]:has(> input:checked) {
 
   box-shadow:
     inset 0px -1px 0 var(--e-color-shadow-raise),

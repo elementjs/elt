@@ -23,7 +23,8 @@
     "noUnusedParameters": false,
     "noPropertyAccessFromIndexSignature": false,
     "lib": ["ESNext", "dom"],
-    "types": []
+    "types": [],
+    "skipLibCheck": true
   },
   "include": [
     "./tests/**/*.ts"

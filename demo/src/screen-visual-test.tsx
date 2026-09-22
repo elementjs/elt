@@ -28,12 +28,13 @@ export default class ScreenVisualTest extends Service({
 
       <e-row spacing>
 
-        <e-row touching="border">
+        <e-row touching>
           {(Object.keys(theme.colors).filter(color => !["bg", "text", "tint"].includes(color)) as (keyof typeof theme.colors)[]).map(color => {
             return <label
+              e-variant="toggle"
               class={theme.colors[color].classes.as_tint}
             >
-              <input type="checkbox" e-variant="toggle">{$bind.boolean(this.o_color.tf(tf_equals(color)))}</input>
+              <input type="checkbox">{$bind.boolean(this.o_color.tf(tf_equals(color)))}</input>
               <P.PaintRoller/>
             </label>
           })}
@@ -44,7 +45,7 @@ export default class ScreenVisualTest extends Service({
       </e-row>
 
       <e-row spacing>
-        <e-row touching="border">
+        <e-row touching>
           <button>Button</button>
           <button e-variant="tint"><P.CaretDown/></button>
         </e-row>
@@ -71,7 +72,7 @@ export default class ScreenVisualTest extends Service({
 
       </p>
       <e-row spacing>
-        <e-row touching="border">
+        <e-row touching>
           <input type="text" placeholder="Enter your text" />
           <button><P.MagnifyingGlass/></button>
         </e-row>
@@ -89,9 +90,9 @@ export default class ScreenVisualTest extends Service({
         <label><input disabled type="checkbox" name="checkbox" value="3"/> Disabled</label>
       </e-row>
       <e-row spacing>
-        <label><input type="checkbox" e-variant="toggle"/> Toggle</label>
-        <label><input type="checkbox" e-variant="toggle" checked/> Toggle checked</label>
-        <label><input type="checkbox" e-variant="toggle" disabled/> Toggle disabled</label>
+        <label e-variant="toggle"><input type="checkbox"/> Toggle</label>
+        <label e-variant="toggle"><input type="checkbox" checked/> Toggle checked</label>
+        <label e-variant="toggle"><input type="checkbox" disabled/> Toggle disabled</label>
       </e-row>
 
       <h3>Selects</h3>
@@ -106,7 +107,7 @@ export default class ScreenVisualTest extends Service({
           options={["Option 1", "Option 2", "Option 3"]}
           model={o("Option 1")}
         />
-        <label><input type="checkbox" e-variant="toggle" disabled/> Toggle disabled</label>
+        <label e-variant="toggle"><input type="checkbox" disabled/> Toggle disabled</label>
       <h3>Pickers</h3>
 
       {() => {
