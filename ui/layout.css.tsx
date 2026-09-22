@@ -38,7 +38,6 @@ export type SurfaceValues =
   | "background"
   | "n+1" | "n+2" // relative helpers — the only offsets [surface] precompiles; see ui/theme.tsx for arbitrary n+K
   | "1" | "2" | "3" | "4" | "5" | "6" // absolute helpers
-  | "none"
 
 export interface CommonAttrs extends Attrs<HTMLElement> {
   inline?: NRO<boolean>
@@ -129,11 +128,13 @@ function _(strings: TemplateStringsArray, ...values: unknown[]): void {
 // other explicit-value case so bare/[surface] stays the fallback, same pattern [border-radius]
 // already uses below.
 const _surface_levels = ["1", "2", "3", "4", "5", "6"] as const
-const _surface_not_default = [...["background", "none", "n+2"], ..._surface_levels].map((v) => `:not([surface="${v}"])`).join("")
+const _surface_not_default = [...["background", "n+2"], ..._surface_levels].map((v) => `:not([surface="${v}"])`).join("")
 
 _`${_all}[border] {
-  border: 1px solid ${theme.colors.text.surface("n+1")};
+  border: 1px solid ${theme.colors.text.surface("n+2")};
 }`
+
+_`${_all}[hover] { background-color: ${theme.colors.tint.surface("n+1")} }`
 
 _`${_all}[surface]${_surface_not_default} {
   ${theme.colors.tint.css.as_surface("n+1")}
@@ -145,10 +146,6 @@ _`${_all}[surface="n+2"] {
 
 _`${_all}[surface="background"] {
   ${theme.colors.tint.css.as_surface("background")}
-}`
-
-_`${_all}[surface="none"] {
-  ${theme.colors.tint.css.as_surface("none")}
 }`
 
 for (const lvl of _surface_levels) {

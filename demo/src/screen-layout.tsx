@@ -82,10 +82,6 @@ export default class ScreenLayout extends Service({
         <code>document.body</code>, for instance, still needs to render "as if" at a specific level).
         <code>surface="background"</code> is absolute level 0 — "the background color" is level 0's own definition —
         so it's always a real, visible boundary against whatever's ambient, never a same-color repaint of it.
-        <code>surface="none"</code> is a true no-op: no fill, no level change, as if <code>surface</code> weren't
-        there at all (the same escape-hatch shape as <code>spacing="none"</code>/<code>pad="none"</code>) — which is why
-        it needs its own <code>border</code> below to stay padding-compliant: it deliberately has no background
-        boundary of its own.
       </p>
       <e-row spacing="widget" wrap>
         <e-block surface="1" pad="widget" border-radius>surface="1"</e-block>
@@ -95,14 +91,9 @@ export default class ScreenLayout extends Service({
       </e-row>
       <e-block surface="3" pad="component" border-radius>
         <p>Ambient level 3.</p>
-        <e-row spacing="widget" wrap>
-          <e-block surface="background" pad="widget" border-radius>
-            surface="background" — level 0's own fill, clearly distinct from the level-3 ambient around it.
-          </e-block>
-          <e-block surface="none" border="widget" pad="widget" border-radius>
-            surface="none" — no fill of its own, so its boundary here is an explicit <code>border</code> instead.
-          </e-block>
-        </e-row>
+        <e-block surface="background" pad="widget" border-radius>
+          surface="background" — level 0's own fill, clearly distinct from the level-3 ambient around it.
+        </e-block>
         <p>
           <code>[surface]</code> only targets <code>e-flex</code>/<code>e-grid</code>/<code>e-block</code> — the same
           levels are available as a class, <code>theme.colors.tint.classes.as_surface(2)</code>, for elements outside that set:

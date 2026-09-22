@@ -122,10 +122,6 @@ describe("Mix.surface / [surface] parity", () => {
     expect(css).toContain("& > * { --e-surface-level: var(--e-surface-level-swap); }")
   })
 
-  test("none is a true no-op — no paint, no level change, same as [surface] being absent", () => {
-    expect(theme.colors.tint.css.as_surface("none")).toBe("")
-  })
-
   test("children are handed the new level via the same swap variable used to paint it", () => {
     const css = theme.colors.tint.css.as_surface(3)
     expect(css).toContain("--e-surface-level-swap: var(--e-current-surface-level);")

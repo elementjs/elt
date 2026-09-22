@@ -575,9 +575,7 @@ export class Mix {
    * The color of a surface at this level — just the color, not the "become a surface" ruleset
    * `.css.as_surface`/`.classes.as_surface` below apply (background fill, level propagated to
    * children, …). Usable anywhere a color is expected (a border, a text color, a one-off
-   * background-color) without any of those side effects. Absolute levels and relative `n+${number}`
-   * offsets both have a well-defined color ; `"none"` does not — "unpainted" isn't a color (see
-   * `.classes.as_surface` for the class form, which does support `"none"` as a real no-op class).
+   * background-color) without any of those side effects.
    * See "Surfaces and borders" in specs/elt-ui-guidelines.md.
    *
    * - A number is an *absolute* level, ignoring whatever's already ambient — for content whose DOM
@@ -598,14 +596,9 @@ export class Mix {
    * Raw CSS text for raising/painting a surface level — the single source of truth shared by the
    * `[surface]` attribute (`ui/layout.css.tsx`, `e-flex`/`e-grid`/`e-block` only) and
    * `.classes.as_surface` (any element). Unlike `as_surface` above, this also propagates the level
-   * to children and supports `"none"` — a true no-op, no paint, no level change, same as if
-   * `[surface]` were absent entirely (mirroring `spacing="none"`/`pad="none"`, Axis 3).
+   * to children.
    */
-  _css_as_surface(level: number | `n+${number}` | "background" | "none"): string {
-    if (level === "none") {
-      return ""
-    }
-
+  _css_as_surface(level: number | `n+${number}` | "background"): string {
     const new_level = surface_level_expr(level)
     return `
     color: var(--e-color-text);
@@ -619,7 +612,7 @@ export class Mix {
   #surface_classes = new Map<string, string>()
 
   /** Internal — not part of the public contract. Read via `.classes.as_surface`. */
-  _classes_as_surface(level: number | `n+${number}` | "background" | "none"): string {
+  _classes_as_surface(level: number | `n+${number}` | "background"): string {
     const key = String(level)
     let cls = this.#surface_classes.get(key)
     if (cls == null) {
@@ -652,14 +645,14 @@ class MixCss {
   constructor(private mix: Mix) {}
   get as_tint() { return this.mix._css_as_tint }
   get as_inverted() { return this.mix._css_as_inverted }
-  as_surface(level: number | `n+${number}` | "background" | "none") { return this.mix._css_as_surface(level) }
+  as_surface(level: number | `n+${number}` | "background") { return this.mix._css_as_surface(level) }
 }
 
 class MixClasses {
   constructor(private mix: Mix) {}
   get as_tint() { return this.mix._classes_as_tint }
   get as_inverted() { return this.mix._classes_as_inverted }
-  as_surface(level: number | `n+${number}` | "background" | "none") { return this.mix._classes_as_surface(level) }
+  as_surface(level: number | `n+${number}` | "background") { return this.mix._classes_as_surface(level) }
 }
 
 export const theme = new Theme({
