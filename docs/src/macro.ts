@@ -251,8 +251,22 @@ async function typeCheckSnippets(snippets: string[]): Promise<string[][]> {
 }
 
 async function processCodeNodes(codeNodes: MdNode[]): Promise<void> {
+  if (codeNodes.length === 0) return
+
+  // Every code node gets highlighted — including ts/tsx, whose "Typescript" tab (the raw source,
+  // as opposed to the "Result" tab) still needs to actually be readable code, not plain text. This
+  // was missed initially: only non-ts/tsx nodes got Shiki, confirmed by testing (the Typescript tab
+  // rendered as unstyled text) until this covered every node regardless of language.
+  const { codeToHtml } = await import("shiki")
+  for (const n of codeNodes) {
+    const lang = n[1]?.language
+    const code = textOf(n)
+    n[1] = { ...n[1], highlightedHtml: await codeToHtml(code, { lang: lang || "text", theme: "github-dark" }) }
+    n[2] = code
+  }
+
   const tsNodes = codeNodes.filter(n => n[1]?.language === "ts" || n[1]?.language === "tsx")
-  const tsTexts = tsNodes.map(textOf)
+  const tsTexts = tsNodes.map(n => n[2] as string)
   const typeErrorsByNode = await typeCheckSnippets(tsTexts)
 
   for (let i = 0; i < tsNodes.length; i++) {
@@ -264,18 +278,6 @@ async function processCodeNodes(codeNodes: MdNode[]): Promise<void> {
       ...n[1],
       typeErrors: typeErrorsByNode[i] ?? [],
       compiledFnSource,
-    }
-    n[2] = code
-  }
-
-  const otherNodes = codeNodes.filter(n => n[1]?.language !== "ts" && n[1]?.language !== "tsx")
-  if (otherNodes.length > 0) {
-    const { codeToHtml } = await import("shiki")
-    for (const n of otherNodes) {
-      const lang = n[1]?.language
-      const code = textOf(n)
-      n[1] = { ...n[1], highlightedHtml: await codeToHtml(code, { lang: lang || "text", theme: "github-dark" }) }
-      n[2] = code
     }
   }
 }

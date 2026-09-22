@@ -182,7 +182,7 @@ At render time, `docs/src/app.tsx` (or `e2`, for the `code` case) passes this bl
 - Catches any runtime error thrown during execution and renders it inline in the result pane, in place of the execution's output.
 - If `typeErrors` is non-empty, renders those inline as well (e.g. above or alongside the result), rather than only logging to the browser devtools console.
 
-A `code` node whose `meta.language` is anything else (`bash`, `json`, `ts`/`tsx` excluded) is rendered as a plain highlighted block: `docs/package.json` gets a new dependency, **Shiki** (scoped to `docs/` only — not the root or `demo/` package), run in the same async post-pass to produce statically-highlighted HTML per block, so there is no client-side highlighting cost. Non-TS/TSX blocks get no run/result toggle.
+Every `code` node — `ts`/`tsx` included — gets highlighted via **Shiki** (`docs/package.json` dependency, scoped to `docs/` only — not the root or `demo/` package), run in the same async post-pass to produce statically-highlighted HTML per block, so there is no client-side highlighting cost. This was missed initially (only non-ts/tsx blocks were highlighted, confirmed by testing — the "Typescript" tab of a runnable example rendered as unstyled plain text) before being corrected to cover every block unconditionally. A `code` node whose `meta.language` is anything other than `ts`/`tsx` only gets this highlighted rendering — no run/result toggle, no `tsgo`/`Bun.Transpiler` step.
 
 ## Code-example widget
 

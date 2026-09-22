@@ -8,7 +8,7 @@ export type CodeExampleProps = {
   typeErrors?: string[]
   /** Set for `ts`/`tsx` blocks — import-stripped, transpiled function body, run via `new Function` below. */
   compiledFnSource?: string
-  /** Set for non-ts/tsx blocks — pre-highlighted HTML produced by Shiki at build time. */
+  /** Pre-highlighted HTML produced by Shiki at build time — set for every block, regardless of language. */
   highlightedHtml?: string
   /**
    * Module namespace objects available to `compiledFnSource`'s stripped-out imports, keyed by module
@@ -24,15 +24,23 @@ export type CodeExampleProps = {
  * (`compiledFnSource` set) execute in the main page context via `new Function` — no sandbox, since
  * docs content is first-party and trusted (see specs/markdown-docs.md, "TypeScript code blocks").
  */
+function renderCode(code: string, highlightedHtml: string | undefined) {
+  if (highlightedHtml != null) {
+    const d = document.createElement("div")
+    d.className = cls_code
+    d.innerHTML = highlightedHtml
+    return d
+  }
+  return <pre class={cls_code}><code>{code}</code></pre>
+}
+
 export function CodeExample(props: CodeExampleProps) {
   const o_showing_code = o(false)
   const is_runnable = props.compiledFnSource != null
 
   const result_view = () => {
     if (!is_runnable) {
-      return props.highlightedHtml != null
-        ? (() => { const d = document.createElement("div"); d.innerHTML = props.highlightedHtml!; return d })()
-        : <pre><code>{props.code}</code></pre>
+      return renderCode(props.code, props.highlightedHtml)
     }
 
     const o_error = o(null as string | null)
@@ -65,7 +73,7 @@ export function CodeExample(props: CodeExampleProps) {
       </button>
     </e-row>
     {If(o_showing_code,
-      () => <pre class={cls_code}><code>{props.code}</code></pre>,
+      () => renderCode(props.code, props.highlightedHtml),
       result_view,
     )}
   </e-column>
