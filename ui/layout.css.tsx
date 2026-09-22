@@ -187,6 +187,18 @@ for (const sp of spaces) {
   _`${_all}[spacing="${sp}"] { ${theme.css.spacing(sp)} }`
 }
 
+// --e-current-surface-level holds a [surface] element's own (just-raised) level — registered
+// non-inherited so a descendant that isn't itself a [surface] never reads a stale ancestor value
+// off it; `Mix.surface()` (ui/theme.tsx) falls back to the ambient --e-surface-level in that case.
+// No `initial-value` (allowed only with the universal `"*"` syntax) — that's what makes this
+// property genuinely absent (not merely 0) on non-[surface] elements, so `var(--e-current-surface-level, fallback)` reaches its fallback there.
+css`
+@property --e-current-surface-level {
+  syntax: "*";
+  inherits: false;
+}
+`
+
 // Spacing scale values now live in Theme (ui/theme.tsx, spacing1/2/4/Widget/Component/Section/Stage1-4)
 // and are emitted through the theme class, not a literal :root — everything below only needs
 // the purely functional variables that aren't theme settings.

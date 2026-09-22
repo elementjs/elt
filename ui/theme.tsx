@@ -398,7 +398,7 @@ const _re_relative_surface_level = /^n\+(\d+)$/
  * turns into the arithmetic expression multiplied by `--e-surface-step` (see "Surfaces and
  * borders" in specs/elt-ui-guidelines.md).
  */
-function surface_level_expr(level: number | `n+${number}` | "background"): string {
+function surface_level_expr(level: number | `n+${number}` | "background", base = "var(--e-surface-level, 0)"): string {
   if (level === "background") {
     return "0"
   }
@@ -409,7 +409,7 @@ function surface_level_expr(level: number | `n+${number}` | "background"): strin
   if (!match) {
     throw new Error(`Invalid relative surface level "${level}" — expected "n+<non-negative integer>"`)
   }
-  return `(${match[1]} + var(--e-surface-level, 0))`
+  return `(${match[1]} + ${base})`
 }
 
 let _mix_id = 0
@@ -585,9 +585,17 @@ export class Mix {
    *   ambient (reads `--e-surface-level`, the same custom property `[surface]` itself increments)
    *   — `hover`/`separator` above are just this at fixed `"n+1"`/`"n+2"` offsets.
    * - `"background"` is absolute level 0 — "the background color" is level 0's own definition.
+   *
+   * Reads `--e-current-surface-level` (this element's own level, if it is itself a `[surface]`)
+   * ahead of the ambient `--e-surface-level` — so a border/hover/separator drawn on the same
+   * element that also raises a surface is offset from that surface's own new level, not the level
+   * it was nested in before raising it. `--e-current-surface-level` is registered `inherits: false`
+   * (see the `@property` rule in ui/layout.css.tsx), so this fallback only engages on the actual
+   * `[surface]` element itself, never leaks into its descendants.
    */
   surface(level: number | `n+${number}` | "background"): string {
-    return this.from_bg(`calc(${surface_level_expr(level)} * var(--e-surface-step, 10%))`).toString()
+    const base = "var(--e-current-surface-level, var(--e-surface-level, 0))"
+    return this.from_bg(`calc(${surface_level_expr(level, base)} * var(--e-surface-step, 10%))`).toString()
   }
 
   /**
@@ -599,13 +607,20 @@ export class Mix {
    * to children.
    */
   _css_as_surface(level: number | `n+${number}` | "background"): string {
+    // Own new level, always computed off the ambient `--e-surface-level` — never off
+    // `--e-current-surface-level` itself, which would be a same-property self-reference (a cycle,
+    // invalid at computed-value time) rather than a read of the level we're nested in.
     const new_level = surface_level_expr(level)
     return `
     color: var(--e-color-text);
     --e-current-surface-level: ${new_level};
-    --e-surface-level-swap: var(--e-current-surface-level);
+    /* --e-current-surface-level is non-inherited (see ui/layout.css.tsx), so it can't be read
+       directly from the "& > *" rule below (that targets a different element). This relay variable
+       is an ordinary inheriting property whose only job is to carry this element's own just-computed
+       level past that non-inheritance boundary, down into the children's ambient --e-surface-level. */
+    --e-surface-level-relay: var(--e-current-surface-level);
     background-color: ${this.from_bg("calc(var(--e-current-surface-level) * var(--e-surface-step, 10%))")};
-    & > * { --e-surface-level: var(--e-surface-level-swap); }
+    & > * { --e-surface-level: var(--e-surface-level-relay); }
     `
   }
 
