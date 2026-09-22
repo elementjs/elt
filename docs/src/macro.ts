@@ -135,6 +135,17 @@ function collectCodeNodes(n: MdNode, out: MdNode[]): void {
   }
 }
 
+function findFirstHeading(n: MdNode): MdNode | null {
+  if (n[0] === "heading") return n
+  if (Array.isArray(n[2])) {
+    for (const child of n[2]) {
+      const found = findFirstHeading(child)
+      if (found) return found
+    }
+  }
+  return null
+}
+
 function textOf(n: MdNode): string {
   if (n[0] === "text") return typeof n[2] === "string" ? n[2] : ""
   if (Array.isArray(n[2])) return n[2].map(textOf).join("")
@@ -167,6 +178,26 @@ const transpiler = new Bun.Transpiler({
   },
 })
 
+/**
+ * Snippets are authored to end with a top-level `return <jsx/>` (see the TypeScript code blocks
+ * section of the spec — a plain function body has no implicit "last expression" completion value
+ * the way an arrow function's concise body does, so this is what makes the result actually render).
+ * That's valid once the snippet is wrapped in `new Function(...)` at runtime, but tsgo type-checks
+ * each temp file as a standalone script/module, where a top-level `return` is a real syntax error
+ * (`TS1108`) — confirmed by testing. So for type-checking only (not for the transpiled/run version),
+ * wrap the non-import lines in a function; `import` lines stay outside it, since imports aren't
+ * legal inside a function body. Line numbers in reported diagnostics are corrected back to match
+ * the original snippet (only the body shifts, by the one inserted wrapper line — import lines,
+ * assumed to precede all body lines as authored, keep their original line numbers unchanged).
+ */
+function wrapForTypeCheck(code: string): { wrapped: string; importLineCount: number } {
+  const lines = code.split("\n")
+  const importLines = lines.filter(l => /^import\s.*from\s*["'][^"']+["'];?\s*$/.test(l))
+  const bodyLines = lines.filter(l => !importLines.includes(l))
+  const wrapped = [...importLines, "async function __snippet() {", ...bodyLines, "}"].join("\n")
+  return { wrapped, importLineCount: importLines.length }
+}
+
 /** Type-checks every ts/tsx snippet on a page in one `tsgo` invocation (not one per snippet). */
 async function typeCheckSnippets(snippets: string[]): Promise<string[][]> {
   if (snippets.length === 0) return []
@@ -175,14 +206,27 @@ async function typeCheckSnippets(snippets: string[]): Promise<string[][]> {
   const tmpDir = path.resolve(import.meta.dir, "..", ".tmp-snippets")
   await Bun.$`mkdir -p ${tmpDir}`.quiet()
   const paths = snippets.map((_, i) => `${tmpDir}/snippet-${i}.tsx`)
-  await Promise.all(snippets.map((code, i) => Bun.write(paths[i]!, code)))
+  const wraps = snippets.map(wrapForTypeCheck)
+  await Promise.all(wraps.map((w, i) => Bun.write(paths[i]!, w.wrapped)))
 
-  // --ignoreConfig: tsgo refuses to run at all (error TS5112) when files are passed on the command
-  // line from inside a directory that has a tsconfig.json (docs/tsconfig.json does) — confirmed by
-  // testing, where this silently produced zero diagnostics for every snippet until this flag was added.
+  // A dedicated tsconfig.json placed inside .tmp-snippets/ itself, rather than `--ignoreConfig` +
+  // explicit file args: tsgo refuses to run at all (error TS5112) when files are passed on the
+  // command line from a directory that also has a tsconfig.json (confirmed by testing), and
+  // `--ignoreConfig` avoided that but also threw away docs/tsconfig.json's `paths` mapping for
+  // "elt"/"elt/ui" — which snippets need too, since they author `import ... from "elt"` the same
+  // way app code does (confirmed by testing: removing docs/node_modules/elt broke snippet
+  // type-checking specifically, once "elt" was resolved only via that mapping and no longer via
+  // node_modules at all). `-p` with no explicit files instead relies on tsgo's default "include
+  // everything under this tsconfig's own directory" behavior, which is exactly the temp batch.
+  await Bun.write(`${tmpDir}/tsconfig.json`, JSON.stringify({
+    compilerOptions: {
+      jsx: "react", jsxFactory: "E", jsxFragmentFactory: "E.Fragment",
+      moduleResolution: "bundler", noEmit: true, skipLibCheck: true,
+      paths: { elt: ["../../src/index.ts"], "elt/ui": ["../../ui/index.tsx"], "*": ["../../*"] },
+    },
+  }))
   const tsgoBin = path.resolve(import.meta.dir, "..", "..", "node_modules", ".bin", "tsgo")
-  const proc = Bun.spawnSync([tsgoBin, "--noEmit", "--ignoreConfig",
-    "--jsx", "react", "--jsxFactory", "E", "--jsxFragmentFactory", "E.Fragment", ...paths])
+  const proc = Bun.spawnSync([tsgoBin, "--noEmit", "-p", `${tmpDir}/tsconfig.json`])
   const output = proc.stdout.toString() + proc.stderr.toString()
 
   // tsgo always emits diagnostic paths relative to its own cwd, regardless of the (absolute) path
@@ -190,11 +234,16 @@ async function typeCheckSnippets(snippets: string[]): Promise<string[][]> {
   // even when given an absolute path). Match by basename instead of exact path string.
   const errorsByFile = new Map<string, string[]>()
   for (const line of output.split("\n")) {
-    const m = line.match(/^(?:.*[\\/])?(snippet-\d+\.tsx)\(\d+,\d+\): error/)
+    const m = line.match(/^(?:.*[\\/])?(snippet-(\d+)\.tsx)\((\d+),(\d+)\): error(.*)/)
     if (m?.[1]) {
-      const arr = errorsByFile.get(m[1]) ?? []
-      arr.push(line)
-      errorsByFile.set(m[1], arr)
+      const [, file, indexStr, lineStr, col, rest] = m
+      const importLineCount = wraps[Number(indexStr)]!.importLineCount
+      const reportedLine = Number(lineStr)
+      // Only body lines (past the imports) shifted — by exactly the one inserted wrapper line.
+      const originalLine = reportedLine > importLineCount + 1 ? reportedLine - 1 : reportedLine
+      const arr = errorsByFile.get(file!) ?? []
+      arr.push(`${file}(${originalLine},${col}): error${rest}`)
+      errorsByFile.set(file!, arr)
     }
   }
 
@@ -266,6 +315,11 @@ export async function elt_md(relPath: string): Promise<ParsedDoc> {
   const codeNodes: MdNode[] = []
   collectCodeNodes(root, codeNodes)
   await processCodeNodes(codeNodes)
+
+  if (frontmatter.title == null) {
+    const heading = findFirstHeading(root)
+    if (heading) frontmatter.title = textOf(heading)
+  }
 
   return { frontmatter, root }
 }

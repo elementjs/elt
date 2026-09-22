@@ -1,10 +1,11 @@
 import { e, type Renderable } from "elt"
 import * as EltNS from "elt"
 import * as EltUiNS from "elt/ui"
+import * as EltPhosphorNS from "elt-phosphor"
 import type { MdNode } from "./macro.ts"
 import { CodeExample } from "elt/ui"
 
-const snippet_imports = { elt: EltNS, "elt/ui": EltUiNS }
+const snippet_imports = { elt: EltNS, "elt/ui": EltUiNS, "elt-phosphor": EltPhosphorNS }
 
 /** Turns raw HTML text into an actual DOM node — trusted content only (see specs/markdown-docs.md). */
 function rawHtml(html: string): Node {

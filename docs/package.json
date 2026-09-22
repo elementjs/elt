@@ -8,7 +8,7 @@
     "@types/bun": "latest"
   },
   "dependencies": {
-    "elt": "workspace:*",
+    "elt-phosphor": "^2.1.2",
     "shiki": "^3.0.0"
   }
 }

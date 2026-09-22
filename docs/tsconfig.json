@@ -32,6 +32,8 @@
     "noUnusedParameters": false,
     "noPropertyAccessFromIndexSignature": false,
     "paths": {
+      "elt": ["../src/index.ts"],
+      "elt/ui": ["../ui/index.tsx"],
       "*": ["./*"],
     },
     "types": ["bun-types"]
