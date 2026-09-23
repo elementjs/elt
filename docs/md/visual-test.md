@@ -11,6 +11,7 @@ This page exercises the visual appearance of elt/ui's components — every examp
 ## Dialog
 
 ```tsx
+//@inline-example
 import { $click } from "elt"
 import { show_dialog } from "elt/ui"
 
@@ -40,6 +41,7 @@ return <button>
 ## Form
 
 ```tsx
+//@inline-example
 import { $bind, o, tf_equals } from "elt"
 import * as P from "elt-phosphor"
 import { theme } from "elt/ui"
@@ -111,6 +113,7 @@ return <e-column spacing class={o_color.tf(col => theme.colors[col].classes.as_t
 ## Selects
 
 ```tsx
+//@inline-example
 import { o } from "elt"
 import { Select } from "elt/ui"
 
@@ -123,6 +126,7 @@ return <Select
 ## Pickers
 
 ```tsx
+//@inline-example
 import { $bind, o } from "elt"
 import { DateTimePicker } from "elt/ui"
 
@@ -152,6 +156,7 @@ return <e-row spacing>
 ## Tables
 
 ```tsx
+//@inline-example
 return <table>
   <thead>
     <tr>

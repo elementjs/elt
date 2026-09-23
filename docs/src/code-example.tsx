@@ -4,26 +4,19 @@ import { theme } from "elt/ui"
 export type CodeExampleProps = {
   code: string
   language?: string
-  /** Set for `ts`/`tsx` blocks — build-time type diagnostics from `tsgo` (see specs/markdown-docs.md). */
-  typeErrors?: string[]
-  /** Set for `ts`/`tsx` blocks — import-stripped, transpiled function body, run via `new Function` below. */
-  compiledFnSource?: string
   /** Pre-highlighted HTML produced by Shiki at build time — set for every block, regardless of language. */
   highlightedHtml?: string
-  /**
-   * Module namespace objects available to `compiledFnSource`'s stripped-out imports, keyed by module
-   * specifier (e.g. `{ "elt": <namespace>, "elt/ui": <namespace> }`). Supplied by the caller rather
-   * than hardcoded here, since this widget lives inside `elt/ui` itself and can't import its own
-   * package by name without a circular self-import.
-   */
-  imports?: Record<string, unknown>
+  /** `@inline-example` only — the block's own rendered output, already executed at page-module-load
+   * time (see genPageSource in macro.ts) rather than by this component. */
+  renderResult?: Node
+  /** `@inline-example` only — set instead of `renderResult` when execution threw. */
+  renderError?: string
+  /** `@full-example` only — same-origin hash route this block runs at, embedded in an isolated iframe. */
+  fullExampleUrl?: string
 }
 
-/**
- * A code sample with a Typescript/Result toggle (defaults to Result). Runnable snippets
- * (`compiledFnSource` set) execute in the main page context via `new Function` — no sandbox, since
- * docs content is first-party and trusted (see specs/markdown-docs.md, "TypeScript code blocks").
- */
+/** A code sample with a Typescript/Result toggle (defaults to Result) for runnable blocks
+ * (`renderResult`/`renderError`/`fullExampleUrl` set); a plain highlighted block otherwise. */
 function renderCode(code: string, highlightedHtml: string | undefined) {
   if (highlightedHtml != null) {
     const d = document.createElement("div")
@@ -37,46 +30,31 @@ function renderCode(code: string, highlightedHtml: string | undefined) {
 }
 
 export function CodeExample(props: CodeExampleProps) {
+  const is_runnable = props.renderResult != null || props.renderError != null || props.fullExampleUrl != null
+
+  if (!is_runnable) {
+    return renderCode(props.code, props.highlightedHtml)
+  }
+
   const o_showing_code = o(false)
-  const is_runnable = props.compiledFnSource != null
 
   const result_view = () => {
-    if (!is_runnable) {
-      // Not every ts/tsx block is meant to run standalone (see specs/markdown-docs.md) — a block
-      // that failed to parse or type-check still shows its diagnostics here, just without a result.
-      return <e-column>
-        {props.typeErrors && props.typeErrors.length > 0
-          ? <e-block class={cls_error}><pre>{props.typeErrors.join("\n")}</pre></e-block>
-          : null}
-        {renderCode(props.code, props.highlightedHtml)}
-      </e-column>
+    if (props.fullExampleUrl != null) {
+      return <iframe class={cls_iframe} src={props.fullExampleUrl}></iframe>
     }
-
-    const o_error = o(null as string | null)
-    let output: unknown
-    try {
-      const fn = new Function("__imports", props.compiledFnSource!)
-      output = fn(props.imports ?? {})
-    } catch (e: any) {
-      o_error.set(String(e?.stack ?? e))
+    if (props.renderError != null) {
+      return <e-block class={cls_error}><pre>{props.renderError}</pre></e-block>
     }
-
-    return <e-column>
-      {props.typeErrors && props.typeErrors.length > 0
-        ? <e-block class={cls_error}><pre>{props.typeErrors.join("\n")}</pre></e-block>
-        : null}
-      {If(o_error, err => <e-block class={cls_error}><pre>{err}</pre></e-block>)}
-      {output instanceof Node ? output : null}
-    </e-column>
+    return props.renderResult ?? null
   }
 
   return <e-column touching>
     <e-row touching>
-      <button class={o_showing_code.tf(v => !v ? cls_active : null)}>
+      <button class={o_showing_code.tf((v) => (!v ? cls_active : null))}>
         {$click(() => o_showing_code.set(false))}
         Result
       </button>
-      <button class={o_showing_code.tf(v => v ? cls_active : null)}>
+      <button class={o_showing_code.tf((v) => (v ? cls_active : null))}>
         {$click(() => o_showing_code.set(true))}
         Typescript
       </button>
@@ -107,4 +85,10 @@ const cls_error = css`.error {
   padding: ${theme.settings.spacingWidget};
 
   & pre { margin: 0; white-space: pre-wrap; }
+}`
+
+const cls_iframe = css`.iframe {
+  width: 100%;
+  min-height: 12rem;
+  border: none;
 }`

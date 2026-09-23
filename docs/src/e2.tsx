@@ -1,13 +1,8 @@
 import { e, type Renderable } from "elt"
-import * as EltNS from "elt"
-import * as EltUiNS from "elt/ui"
-import * as EltPhosphorNS from "elt-phosphor"
 import type { MdNode } from "./macro.ts"
 import { CodeExample } from "./code-example.tsx"
 
-const snippet_imports = { elt: EltNS, "elt/ui": EltUiNS, "elt-phosphor": EltPhosphorNS }
-
-/** Turns raw HTML text into an actual DOM node — trusted content only (see specs/markdown-docs.md). */
+/** Turns raw HTML text into an actual DOM node — trusted content only (see specs/markdown-docs-reloaded.md). */
 function rawHtml(html: string): Node {
   const div = document.createElement("div")
   div.innerHTML = html
@@ -20,13 +15,18 @@ function children(n: MdNode): Renderable[] {
   return c.map(e2)
 }
 
+function childrenAsText(n: MdNode): string {
+  if (!Array.isArray(n[2])) return ""
+  return n[2].map((c) => (typeof c[2] === "string" ? c[2] : childrenAsText(c))).join("")
+}
+
 export function e2(n: MdNode): Renderable {
   const [type, meta] = n
 
   switch (type) {
     // The macro's root node is a synthetic wrapper (Bun.markdown.render has no top-level
-    // "document" node of its own — see macro.ts, elt_md) — render its children as a flat list,
-    // not inside any extra wrapping element.
+    // "document" node of its own — see macro.ts) — render its children as a flat list, not
+    // inside any extra wrapping element.
     case "root": return children(n)
     case "heading": return e(`h${meta.level}`, meta.id ? { id: meta.id } : null, ...children(n))
     case "paragraph": return e("p", null, ...children(n))
@@ -48,23 +48,34 @@ export function e2(n: MdNode): Renderable {
     case "image": return e("img", { src: meta.src, alt: meta.alt })
     case "html": return rawHtml(typeof n[2] === "string" ? n[2] : childrenAsText(n))
     case "text": return typeof n[2] === "string" ? n[2] : ""
-    case "code": return CodeExample({
-      code: typeof n[2] === "string" ? n[2] : "",
-      language: meta.language,
-      typeErrors: meta.typeErrors,
-      compiledFnSource: meta.compiledFnSource,
-      highlightedHtml: meta.highlightedHtml,
-      imports: snippet_imports,
-    })
+    case "code": {
+      const code = typeof n[2] === "string" ? n[2] : ""
+      if (meta.fullExampleUrl != null) {
+        return CodeExample({
+          code, language: meta.language, highlightedHtml: meta.highlightedHtml,
+          fullExampleUrl: meta.fullExampleUrl,
+        })
+      }
+      // Set at page-module-load time by the generated page (see genPageSource in macro.ts) —
+      // either the real rendered Node from an `@inline-example` block, or a caught error.
+      const rr = meta.renderResult
+      if (rr != null && typeof rr === "object" && "__renderError" in rr) {
+        return CodeExample({ code, language: meta.language, highlightedHtml: meta.highlightedHtml, renderError: rr.__renderError })
+      }
+      if (rr instanceof Node) {
+        return CodeExample({ code, language: meta.language, highlightedHtml: meta.highlightedHtml, renderResult: rr })
+      }
+      return CodeExample({ code, language: meta.language, highlightedHtml: meta.highlightedHtml })
+    }
     default: return ""
   }
 }
 
-function childrenAsText(n: MdNode): string {
-  if (!Array.isArray(n[2])) return ""
-  return n[2].map(c => typeof c[2] === "string" ? c[2] : childrenAsText(c)).join("")
+export function e2Root(root: MdNode): Renderable {
+  return e2(root)
 }
 
-export function e2Root(doc: { root: MdNode }): Renderable {
-  return e2(doc.root)
+/** Shared wrapper for every generated markdown page's Content() view (see genPageSource in macro.ts). */
+export function renderMdPage(root: MdNode): Renderable {
+  return <e-block typographic pad>{e2Root(root)}</e-block>
 }

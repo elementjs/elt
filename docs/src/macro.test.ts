@@ -1,5 +1,9 @@
-import { describe, expect, test } from "bun:test"
-import { elt_md, node, resolveMdLink, splitFrontmatter, splitNodes, stripImports } from "./macro.ts"
+import { afterEach, beforeEach, describe, expect, test } from "bun:test"
+import { mkdtemp, rm } from "node:fs/promises"
+import { tmpdir } from "node:os"
+import {
+  elt_md, node, resolveMdLink, splitFrontmatter, splitNodes, urlFor,
+} from "./macro.ts"
 
 describe("splitNodes", () => {
   test("recovers every top-level sibling from a real Bun.markdown.render pass (no wrapping document node)", () => {
@@ -50,21 +54,43 @@ describe("splitNodes", () => {
   })
 })
 
+describe("urlFor", () => {
+  test("root index.md maps to /", () => {
+    expect(urlFor("index.md")).toBe("/")
+  })
+
+  test("other root-level files map to /<file>", () => {
+    expect(urlFor("using-elt.md")).toBe("/using-elt")
+  })
+
+  test("files under a subdirectory map to /<dir>/<file>", () => {
+    expect(urlFor("guide/intro.md")).toBe("/guide/intro")
+  })
+
+  test("nests for deeper subdirectories", () => {
+    expect(urlFor("guide/advanced/intro.md")).toBe("/guide/advanced/intro")
+  })
+
+  test("a nested index.md is not special-cased (only the root one is)", () => {
+    expect(urlFor("guide/index.md")).toBe("/guide/index")
+  })
+})
+
 describe("resolveMdLink", () => {
-  test("rewrites a same-directory relative .md link to the /docs/:name hash route", () => {
-    expect(resolveMdLink("./using-elt-ui.md", "index.md")).toBe("#/docs/using-elt-ui")
+  test("rewrites a same-directory relative .md link to its new path-based route", () => {
+    expect(resolveMdLink("./using-elt-ui.md", "index.md")).toBe("#/using-elt-ui")
   })
 
-  test("rewrites a parent-relative .md link, resolving .. segments and joining dirs with __", () => {
-    expect(resolveMdLink("../guide/intro.md", "adr/0001-x.md")).toBe("#/docs/guide__intro")
+  test("rewrites a parent-relative .md link, resolving .. segments", () => {
+    expect(resolveMdLink("../guide/intro.md", "adr/0001-x.md")).toBe("#/guide/intro")
   })
 
-  test("joins a nested link's own dir segments with __, with no index.md special-casing", () => {
-    expect(resolveMdLink("./guide/index.md", "index.md")).toBe("#/docs/guide__index")
+  test("resolves a nested link relative to the current file's own directory", () => {
+    expect(resolveMdLink("./guide/index.md", "index.md")).toBe("#/guide/index")
   })
 
   test("preserves a hash fragment on the link", () => {
-    expect(resolveMdLink("./using-elt.md#section", "index.md")).toBe("#/docs/using-elt#section")
+    expect(resolveMdLink("./using-elt.md#section", "index.md")).toBe("#/using-elt#section")
   })
 
   test("leaves external links untouched", () => {
@@ -96,64 +122,194 @@ describe("splitFrontmatter", () => {
   })
 })
 
-describe("stripImports", () => {
-  test("rewrites named, namespace, and default imports to __imports destructures", () => {
-    const src = [
-      "import { o, If } from \"elt\"",
-      "import * as ui from \"elt/ui\"",
-      "import Default from \"elt/thing\"",
-      "const x = o(1)",
-    ].join("\n")
+// Every real call site invokes elt_md() with no arguments, scanning docs/md next to macro.ts (see
+// specs/markdown-docs-reloaded.md, "Macro"). These tests instead point it at a temporary docs/md
+// tree via the `roots` test-only seam, so they don't touch the real docs/md or docs/src/md.
+async function withTempDocsTree(files: Record<string, string>) {
+  const root = await mkdtemp(`${tmpdir()}/elt-md-test-`)
+  const mdDir = `${root}/md`
+  const srcDir = `${root}/src`
+  await Bun.write(`${mdDir}/.keep`, "")
+  for (const [rel, content] of Object.entries(files)) {
+    await Bun.write(`${mdDir}/${rel}`, content)
+  }
+  return {
+    root, mdDir, srcDir,
+    elt_md: () => elt_md({ mdDir, srcDir }),
+  }
+}
 
-    const { stripped } = { stripped: stripImports(src) }
-    expect(stripped).toContain("const { o, If } = __imports[\"elt\"];")
-    expect(stripped).toContain("const ui = __imports[\"elt/ui\"];")
-    expect(stripped).toContain("const Default = __imports[\"elt/thing\"].default;")
-    expect(stripped).toContain("const x = o(1)")
-    expect(stripped).not.toContain("import ")
-  })
-
-  test("handles an aliased named import", () => {
-    const stripped = stripImports("import { a as b } from \"elt\"")
-    expect(stripped).toBe("const { a: b } = __imports[\"elt\"];")
-  })
-})
-
-// elt_md() takes no arguments by design (see specs/markdown-docs.md, "File registration") — it
-// always scans the real docs/md next to this macro, so these tests exercise it against that real
-// tree rather than an injectable fixture directory.
 describe("elt_md (integration)", () => {
-  test("recursively parses every docs/md file: name, frontmatter, tree, link rewriting", async () => {
-    const docs = await elt_md()
-    expect(docs.length).toBeGreaterThan(0)
+  let tmp: { root: string } | null = null
 
-    const names = docs.map((d) => d.name)
-    expect(names).toContain("index")
-    expect(names).toContain("using-elt")
-
-    for (const doc of docs) {
-      expect(doc.root[0]).toBe("root")
-      expect(typeof doc.frontmatter.title).toBe("string")
-    }
+  afterEach(async () => {
+    if (tmp) await rm(tmp.root, { recursive: true, force: true })
+    tmp = null
   })
 
-  test("does not rewrite deps.ts when its content already matches the current scan", async () => {
-    await elt_md() // ensure deps.ts exists and is up to date before measuring
-    const depsPath = `${import.meta.dir}/deps.ts`
-    const before = Bun.file(depsPath).lastModified
+  test("recursively parses every docs/md file, computing routes/menu and generating per-page files", async () => {
+    const t = await withTempDocsTree({
+      "index.md": "---\ntitle: Index\n---\n# Index\n",
+      "using-elt.md": "---\ntitle: Using elt\n---\n# Using elt\n",
+      "guide/intro.md": "---\ntitle: Intro\nsection: Guides\norder: 1\n---\n# Intro\n",
+    })
+    tmp = t
 
-    await elt_md()
-    const after = Bun.file(depsPath).lastModified
-    expect(after).toBe(before)
+    const { pages, menu } = await t.elt_md()
+    const names = pages.map((p) => p.name).sort()
+    expect(names).toEqual(["guide/intro", "index", "using-elt"])
+
+    const byName = new Map(pages.map((p) => [p.name, p]))
+    expect(byName.get("index")!.url).toBe("/")
+    expect(byName.get("using-elt")!.url).toBe("/using-elt")
+    expect(byName.get("guide/intro")!.url).toBe("/guide/intro")
+
+    expect(await Bun.file(`${t.srcDir}/md/index.tsx`).exists()).toBe(true)
+    expect(await Bun.file(`${t.srcDir}/md/guide/intro.tsx`).exists()).toBe(true)
+
+    // menu: ungrouped ("Index", "Using elt") first, then the "Guides" section.
+    expect(menu[0]!.section).toBeNull()
+    expect(menu[0]!.items.map((i) => i.title).sort()).toEqual(["Index", "Using elt"])
+    expect(menu[1]).toEqual({ section: "Guides", items: [{ name: "guide/intro", title: "Intro", url: "/guide/intro", order: 1 }] })
   })
 
-  test("(re)writes deps.ts to match the current file set when it's missing or stale", async () => {
-    const depsPath = `${import.meta.dir}/deps.ts`
+  test("only regenerates a page's .ts file when its .md source is missing, or newer than, the target", async () => {
+    const t = await withTempDocsTree({ "index.md": "---\ntitle: Index\n---\n# Index\n" })
+    tmp = t
+
+    await t.elt_md()
+    const targetPath = `${t.srcDir}/md/index.tsx`
+    const firstWrite = Bun.file(targetPath).lastModified
+
+    await t.elt_md()
+    expect(Bun.file(targetPath).lastModified).toBe(firstWrite)
+
+    await new Promise((r) => setTimeout(r, 10))
+    await Bun.write(`${t.mdDir}/index.md`, "---\ntitle: Index\n---\n# Index changed\n")
+    await t.elt_md()
+    expect(Bun.file(targetPath).lastModified).toBeGreaterThan(firstWrite)
+  })
+
+  test("menu/routes reflect a frontmatter-only change immediately, without touching the file list", async () => {
+    const t = await withTempDocsTree({ "index.md": "---\ntitle: Original\n---\n# Index\n" })
+    tmp = t
+
+    const first = await t.elt_md()
+    expect(first.menu[0]!.items[0]!.title).toBe("Original")
+
+    await Bun.write(`${t.mdDir}/index.md`, "---\ntitle: Renamed\n---\n# Index\n")
+    const second = await t.elt_md()
+    expect(second.menu[0]!.items[0]!.title).toBe("Renamed")
+  })
+
+  test("(re)writes md-deps.ts to match the current file set when it's missing or stale", async () => {
+    const t = await withTempDocsTree({ "index.md": "# Index\n", "using-elt.md": "# Using elt\n" })
+    tmp = t
+    const depsPath = `${t.srcDir}/md-deps.ts`
     await Bun.write(depsPath, "// stale\n")
 
-    await elt_md()
+    await t.elt_md()
     const content = await Bun.file(depsPath).text()
     expect(content).toContain('import "../md/index.md" with { type: "text" }')
+    expect(content).toContain('import "../md/using-elt.md" with { type: "text" }')
     expect(content).not.toContain("// stale")
+  })
+
+  test("plain ts/tsx fences generate no renderResult (highlight-only, no execution)", async () => {
+    const t = await withTempDocsTree({
+      "index.md": ["# Index", "", "```ts", "const x: number = 1", "```", ""].join("\n"),
+    })
+    tmp = t
+    await t.elt_md()
+    const content = await Bun.file(`${t.srcDir}/md/index.tsx`).text()
+    expect(content).not.toContain("renderResult")
+    expect(content).toContain("const x: number = 1")
+  })
+
+  test("other-language fences are highlighted, never treated as examples", async () => {
+    const t = await withTempDocsTree({
+      "index.md": ["# Index", "", "```bash", "echo hi", "```", ""].join("\n"),
+    })
+    tmp = t
+    await t.elt_md()
+    const content = await Bun.file(`${t.srcDir}/md/index.tsx`).text()
+    expect(content).not.toContain("renderResult")
+    expect(content).toContain("echo hi")
+  })
+
+  test("@inline-example blocks splice their body as a live renderResult, with imports merged to the top", async () => {
+    const t = await withTempDocsTree({
+      "index.md": [
+        "# Index", "",
+        "```tsx", "//@inline-example", "import { o } from \"elt\"", "const c = o(1)", "return <div>{c}</div>", "```", "",
+      ].join("\n"),
+    })
+    tmp = t
+    await t.elt_md()
+    const content = await Bun.file(`${t.srcDir}/md/index.tsx`).text()
+    expect(content).toContain("renderResult:")
+    expect(content).toContain('import { o } from "elt"')
+    expect(content).not.toContain("//@inline-example") // marker stripped before display/codegen
+  })
+
+  test("@full-example blocks generate their own standalone routed file, not spliced into the page", async () => {
+    const t = await withTempDocsTree({
+      "index.md": [
+        "# Index", "",
+        "```tsx", "//@full-example", "import { o } from \"elt\"", "const c = o(1)", "return <div>{c}</div>", "```", "",
+      ].join("\n"),
+    })
+    tmp = t
+    const { pages } = await t.elt_md()
+    expect(pages[0]!.fullExampleLines).toEqual([3])
+
+    const pageContent = await Bun.file(`${t.srcDir}/md/index.tsx`).text()
+    expect(pageContent).not.toContain("renderResult")
+    expect(pageContent).toContain("fullExampleUrl")
+    expect(pageContent).toContain("#/full-example/index/0")
+
+    const exampleContent = await Bun.file(`${t.srcDir}/md/index.full-0.tsx`).text()
+    expect(exampleContent).toContain('import { o } from "elt"')
+    expect(exampleContent).toContain("return <div>{c}</div>")
+  })
+
+  test("every generated page file cites its markdown source path", async () => {
+    const t = await withTempDocsTree({ "guide/intro.md": "# Intro\n" })
+    tmp = t
+    await t.elt_md()
+    const content = await Bun.file(`${t.srcDir}/md/guide/intro.tsx`).text()
+    expect(content).toContain("// Source: docs/md/guide/intro.md")
+  })
+
+  test("routes.generated.ts uses a static import() literal per page and cites its source, since a computed template-literal import() does not code-split at runtime", async () => {
+    const t = await withTempDocsTree({
+      "index.md": "# Index\n",
+      "guide/intro.md": [
+        "# Intro", "",
+        "```tsx", "//@full-example", "return <div/>", "```", "",
+      ].join("\n"),
+    })
+    tmp = t
+    await t.elt_md()
+    const content = await Bun.file(`${t.srcDir}/routes.generated.ts`).text()
+
+    expect(content).toContain('import("./md/index.tsx")')
+    expect(content).toContain("// docs/md/index.md:1")
+    expect(content).toContain('import("./md/guide/intro.tsx")')
+    expect(content).toContain('import("./md/guide/intro.full-0.tsx")')
+    expect(content).toContain("// docs/md/guide/intro.md:3")
+    expect(content).toContain('"/full-example/guide/intro/0"')
+  })
+
+  test("routes.generated.ts content is stable across repeated calls with no underlying change", async () => {
+    const t = await withTempDocsTree({ "index.md": "# Index\n" })
+    tmp = t
+    await t.elt_md()
+    const routesPath = `${t.srcDir}/routes.generated.ts`
+    const before = await Bun.file(routesPath).text()
+
+    await t.elt_md()
+    const after = await Bun.file(routesPath).text()
+    expect(after).toBe(before) // stable content is what makes the write-skip (see elt_md) a no-op
   })
 })

@@ -6,6 +6,14 @@ export PATH := "./node_modules/.bin:" + env("PATH")
 watch:
     tsgo -w --noEmit | wtsc
 
+# run the docs dev server, type-checking docs/ on every (re)build. The macro that generates docs
+# pages does no type-checking of its own (see specs/markdown-docs-reloaded.md, "Type-checking") —
+# `bun index.html` only strips types, it never checks them — so this pipes its output through awk,
+# printing it unchanged, and on every "Bundled page in ..."/"Reloaded in ..." line (a rebuild just
+# happened) shells out to a real `tsgo --noEmit` pass over the whole docs/ project.
+watch-docs:
+    cd docs && bun index.html 2>&1 | awk '{ print; fflush(); if ($0 ~ /^(Bundled page in|(\[x[0-9]+\] )?Reloaded in)/) system("tsgo --noEmit -p tsconfig.json | wtsc") }'
+
 check-compile:
     tsgo --noEmit | wtsc
 
