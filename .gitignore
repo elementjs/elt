@@ -2,6 +2,7 @@ src/*.d.ts
 dist
 node_modules
 .tmp-snippets
+docs/src/deps.ts
 module
 testsjs
 lib

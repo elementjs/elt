@@ -3,7 +3,7 @@ import * as EltNS from "elt"
 import * as EltUiNS from "elt/ui"
 import * as EltPhosphorNS from "elt-phosphor"
 import type { MdNode } from "./macro.ts"
-import { CodeExample } from "elt/ui"
+import { CodeExample } from "./code-example.tsx"
 
 const snippet_imports = { elt: EltNS, "elt/ui": EltUiNS, "elt-phosphor": EltPhosphorNS }
 

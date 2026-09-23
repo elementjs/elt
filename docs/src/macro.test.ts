@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { elt_md, node, resolveMdLink, splitFrontmatter, splitNodes, stripImports, type MdNode } from "./macro.ts"
+import { elt_md, node, resolveMdLink, splitFrontmatter, splitNodes, stripImports } from "./macro.ts"
 
 describe("splitNodes", () => {
   test("recovers every top-level sibling from a real Bun.markdown.render pass (no wrapping document node)", () => {
@@ -51,32 +51,32 @@ describe("splitNodes", () => {
 })
 
 describe("resolveMdLink", () => {
-  test("rewrites a same-directory relative .md link to a hash route", () => {
-    expect(resolveMdLink("./using-elt-ui.md", "README.md")).toBe("#/using-elt-ui")
+  test("rewrites a same-directory relative .md link to the /docs/:name hash route", () => {
+    expect(resolveMdLink("./using-elt-ui.md", "index.md")).toBe("#/docs/using-elt-ui")
   })
 
-  test("rewrites a parent-relative .md link, resolving .. segments", () => {
-    expect(resolveMdLink("../guide/intro.md", "adr/0001-x.md")).toBe("#/guide/intro")
+  test("rewrites a parent-relative .md link, resolving .. segments and joining dirs with __", () => {
+    expect(resolveMdLink("../guide/intro.md", "adr/0001-x.md")).toBe("#/docs/guide__intro")
   })
 
-  test("maps an index.md link to its directory's own route", () => {
-    expect(resolveMdLink("./guide/index.md", "README.md")).toBe("#/guide")
+  test("joins a nested link's own dir segments with __, with no index.md special-casing", () => {
+    expect(resolveMdLink("./guide/index.md", "index.md")).toBe("#/docs/guide__index")
   })
 
   test("preserves a hash fragment on the link", () => {
-    expect(resolveMdLink("./using-elt.md#section", "README.md")).toBe("#/using-elt#section")
+    expect(resolveMdLink("./using-elt.md#section", "index.md")).toBe("#/docs/using-elt#section")
   })
 
   test("leaves external links untouched", () => {
-    expect(resolveMdLink("https://example.com/x.md", "README.md")).toBeNull()
+    expect(resolveMdLink("https://example.com/x.md", "index.md")).toBeNull()
   })
 
   test("leaves non-.md relative links untouched", () => {
-    expect(resolveMdLink("./image.png", "README.md")).toBeNull()
+    expect(resolveMdLink("./image.png", "index.md")).toBeNull()
   })
 
   test("leaves in-page anchors untouched", () => {
-    expect(resolveMdLink("#section", "README.md")).toBeNull()
+    expect(resolveMdLink("#section", "index.md")).toBeNull()
   })
 })
 
@@ -119,25 +119,41 @@ describe("stripImports", () => {
   })
 })
 
+// elt_md() takes no arguments by design (see specs/markdown-docs.md, "File registration") — it
+// always scans the real docs/md next to this macro, so these tests exercise it against that real
+// tree rather than an injectable fixture directory.
 describe("elt_md (integration)", () => {
-  test("parses a real file end to end: frontmatter, tree, link rewriting", async () => {
-    const fixture = `${import.meta.dir}/__fixtures__/sample.md`
-    await Bun.write(fixture, [
-      "---",
-      "title: Sample",
-      "order: 1",
-      "---",
-      "# Sample",
-      "",
-      "See [the other page](./other.md) for more.",
-    ].join("\n"))
+  test("recursively parses every docs/md file: name, frontmatter, tree, link rewriting", async () => {
+    const docs = await elt_md()
+    expect(docs.length).toBeGreaterThan(0)
 
-    const { frontmatter, root } = await elt_md(fixture)
-    expect(frontmatter).toEqual({ title: "Sample", order: 1 })
-    expect(root[0]).toBe("root")
-    const topLevel = root[2] as MdNode[]
-    expect(topLevel[0]?.[0]).toBe("heading")
+    const names = docs.map((d) => d.name)
+    expect(names).toContain("index")
+    expect(names).toContain("using-elt")
 
-    await Bun.$`rm -rf ${import.meta.dir}/__fixtures__`.quiet()
+    for (const doc of docs) {
+      expect(doc.root[0]).toBe("root")
+      expect(typeof doc.frontmatter.title).toBe("string")
+    }
+  })
+
+  test("does not rewrite deps.ts when its content already matches the current scan", async () => {
+    await elt_md() // ensure deps.ts exists and is up to date before measuring
+    const depsPath = `${import.meta.dir}/deps.ts`
+    const before = Bun.file(depsPath).lastModified
+
+    await elt_md()
+    const after = Bun.file(depsPath).lastModified
+    expect(after).toBe(before)
+  })
+
+  test("(re)writes deps.ts to match the current file set when it's missing or stale", async () => {
+    const depsPath = `${import.meta.dir}/deps.ts`
+    await Bun.write(depsPath, "// stale\n")
+
+    await elt_md()
+    const content = await Bun.file(depsPath).text()
+    expect(content).toContain('import "../md/index.md" with { type: "text" }')
+    expect(content).not.toContain("// stale")
   })
 })

@@ -1,7 +1,8 @@
 // Build-time markdown → JSON tree macro. See specs/markdown-docs.md for the design rationale
 // (why Bun.markdown.render's string-composition model needs the bracket-scan trick below, why
-// file registration is split between a `with { type: "text" }` import and this macro's own
-// `Bun.file()` read, and why TS type-checking/transpilation happens here rather than at runtime).
+// elt_md() takes no arguments and instead recursively scans docs/md and (idempotently) writes
+// docs/src/deps.ts as a side effect, and why TS type-checking/transpilation happens here rather
+// than at runtime).
 
 // Tiny inline replacements for node:path's resolve/basename, to avoid a @types/node dependency
 // (docs/tsconfig.json only declares @types/bun) for two one-line operations.
@@ -32,6 +33,8 @@ export type Frontmatter = {
 }
 
 export type ParsedDoc = {
+  /** Route param value (see Routing in the spec): filename without ".md", dir segments joined by "__". */
+  name: string
   frontmatter: Frontmatter
   root: MdNode
 }
@@ -95,11 +98,15 @@ export function splitFrontmatter(raw: string): { frontmatter: Frontmatter; body:
   return { frontmatter, body: body ?? "" }
 }
 
+/** Filename (no ".md") with dir segments joined by "__" — see Routing in the spec. */
+function nameFor(relPath: string): string {
+  return relPath.replace(/\.md$/, "").split("/").join("__")
+}
+
 /**
- * Relative `.md` links (`./x.md`, `../dir/x.md`) become internal hash-routes. `fromPath` is this
- * document's own path relative to `docs/src/`, used to resolve the link's relative path the same
- * way the Routing section of the spec derives routes from file paths (including the `index.md` →
- * directory-route convention).
+ * Relative `.md` links (`./x.md`, `../dir/x.md`) become internal hash-routes against the single
+ * `/docs/:name` route (see Routing in the spec). `fromPath` is this document's own path relative
+ * to `docs/md/`, used to resolve the link's relative path into that same `name` scheme.
  */
 export function resolveMdLink(href: string, fromPath: string): string | null {
   if (!/^\.\.?\//.test(href)) return null
@@ -113,9 +120,7 @@ export function resolveMdLink(href: string, fromPath: string): string | null {
     if (part === "..") resolved.pop()
     else resolved.push(part)
   }
-  let route = resolved.join("/").replace(/\.md$/, "")
-  if (route.endsWith("/index")) route = route.slice(0, -"/index".length)
-  return `#/${route}${hash ?? ""}`
+  return `#/docs/${nameFor(resolved.join("/"))}${hash ?? ""}`
 }
 
 function rewriteLinks(n: MdNode, fromPath: string): void {
@@ -204,6 +209,12 @@ async function typeCheckSnippets(snippets: string[]): Promise<string[][]> {
   // Resolved (no literal ".."), since tsgo echoes back the exact path string it was given in its
   // diagnostics, and that output is matched against this same `paths` array below by string equality.
   const tmpDir = path.resolve(import.meta.dir, "..", ".tmp-snippets")
+  // Cleared, not just created: `tsgo -p` (below) has no explicit file list, so it type-checks every
+  // "*.tsx" file actually present in tmpDir. Across multiple pages sharing this one directory, a page
+  // with fewer snippets than a previous one would otherwise leave that previous page's extra
+  // snippet-N.tsx files behind — stale files tsgo would still pick up and report diagnostics for,
+  // at indices this page's own `wraps` array (below) doesn't have entries for.
+  await Bun.$`rm -rf ${tmpDir}`.quiet()
   await Bun.$`mkdir -p ${tmpDir}`.quiet()
   const paths = snippets.map((_, i) => `${tmpDir}/snippet-${i}.tsx`)
   const wraps = snippets.map(wrapForTypeCheck)
@@ -272,27 +283,33 @@ async function processCodeNodes(codeNodes: MdNode[]): Promise<void> {
   for (let i = 0; i < tsNodes.length; i++) {
     const n = tsNodes[i]!
     const code = tsTexts[i]!
-    const compiled = transpiler.transformSync(code)
-    const compiledFnSource = stripImports(compiled)
-    n[1] = {
-      ...n[1],
-      typeErrors: typeErrorsByNode[i] ?? [],
-      compiledFnSource,
+    const typeErrors = typeErrorsByNode[i] ?? []
+    try {
+      const compiled = transpiler.transformSync(code)
+      const compiledFnSource = stripImports(compiled)
+      n[1] = { ...n[1], typeErrors, compiledFnSource }
+    } catch (e: any) {
+      // A snippet can be syntactically invalid pseudocode (an illustrative "Do/Don't" fragment, not
+      // meant to run standalone) rather than a real bug in this pipeline — degrade to a highlighted,
+      // non-runnable block with the parse error surfaced (see CodeExample), instead of letting
+      // Bun.Transpiler's throw crash the whole elt_md() scan.
+      n[1] = { ...n[1], typeErrors: [...typeErrors, `Parse error: ${e?.message ?? e}`] }
     }
   }
 }
 
-/**
- * `relPath` is resolved against this macro FILE's own directory (`docs/src/`, via `import.meta.dir`
- * — Bun's equivalent of `__dirname`) rather than `process.cwd()`. A macro always runs at bundle
- * time regardless of what invoked the bundler, and `import.meta.dir` here is fixed to where this
- * file lives on disk, so this makes `elt_md` work the same way no matter which directory `bun` was
- * launched from — confirmed by testing that a plain relative path failed with ENOENT specifically
- * because it was resolved against the launching process's cwd instead.
- */
-export async function elt_md(relPath: string): Promise<ParsedDoc> {
-  const filePath = path.resolve(import.meta.dir, relPath)
-  const raw = await Bun.file(filePath).text()
+const mdGlob = new Bun.Glob("**/*.md")
+
+/** Recursively lists every "*.md" under `mdDir`, relative to it, in a deterministic (sorted) order. */
+async function scanMdFiles(mdDir: string): Promise<string[]> {
+  const out: string[] = []
+  for await (const relPath of mdGlob.scan(mdDir)) out.push(relPath)
+  return out.sort() // deterministic order: deps.ts content must be stable across runs with the
+  // same file set, or the idempotency check below (File registration in the spec) never converges.
+}
+
+async function parseOne(mdDir: string, relPath: string): Promise<ParsedDoc> {
+  const raw = await Bun.file(path.resolve(mdDir, relPath)).text()
   const { frontmatter, body } = splitFrontmatter(raw)
 
   const callbacks: Record<string, (...args: any[]) => string> = {}
@@ -311,8 +328,7 @@ export async function elt_md(relPath: string): Promise<ParsedDoc> {
   // can't be JSON.parse'd directly. Scan it the same way a parent node scans its children.
   const root: MdNode = ["root", {}, splitNodes(out)]
 
-  const fromPath = relPath.replace(/^\.\//, "")
-  rewriteLinks(root, fromPath)
+  rewriteLinks(root, relPath)
 
   const codeNodes: MdNode[] = []
   collectCodeNodes(root, codeNodes)
@@ -323,5 +339,36 @@ export async function elt_md(relPath: string): Promise<ParsedDoc> {
     if (heading) frontmatter.title = textOf(heading)
   }
 
-  return { frontmatter, root }
+  return { name: nameFor(relPath), frontmatter, root }
+}
+
+/**
+ * Scans `docs/md/**\/*.md` (resolved against this macro FILE's own directory via `import.meta.dir`
+ * — Bun's equivalent of `__dirname` — rather than `process.cwd()`, for the same reason a single
+ * file's path used to be resolved that way: a macro always runs at bundle time regardless of what
+ * invoked the bundler, so this makes `elt_md` work the same way no matter which directory `bun` was
+ * launched from), parses every file it finds, and returns one `ParsedDoc` per file.
+ *
+ * As a side effect, (over)writes `docs/src/deps.ts` with one bare `with { type: "text" }` import per
+ * discovered file — the only way to register each of them as a bundler-watched dependency, since a
+ * macro's own `Bun.file()` reads do not (see File registration in the spec). The write is skipped
+ * when the generated content already matches what's on disk, which is what stops that write from
+ * re-triggering itself (editing `deps.ts` is itself a watched change that would otherwise call
+ * `elt_md()` again).
+ */
+export async function elt_md(): Promise<ParsedDoc[]> {
+  const mdDir = path.resolve(import.meta.dir, "..", "md")
+  const files = await scanMdFiles(mdDir)
+
+  const depsContent = files.map((f) => `import "../md/${f}" with { type: "text" }\n`).join("")
+  const depsPath = path.resolve(import.meta.dir, "deps.ts")
+  const existing = (await Bun.file(depsPath).exists()) ? await Bun.file(depsPath).text() : null
+  if (existing !== depsContent) await Bun.write(depsPath, depsContent)
+
+  // Sequential, not Promise.all: each page's TS/TSX snippets are batched through the shared
+  // `.tmp-snippets/snippet-N.tsx` directory (see typeCheckSnippets) — running pages concurrently
+  // would let two pages' snippets collide on the same temp filenames.
+  const out: ParsedDoc[] = []
+  for (const relPath of files) out.push(await parseOne(mdDir, relPath))
+  return out
 }

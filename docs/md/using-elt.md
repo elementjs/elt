@@ -1,3 +1,7 @@
+---
+title: Using elt
+---
+
 # Using elt
 
 Opinionated TypeScript library for building UIs. JSX returns **real DOM nodes**. There is no virtual DOM and this is not React. UI updates come from **observables** and a few **verbs** (`If`, `Repeat`, …). Observing is tied to nodes being in the document: connect starts it, disconnect stops it — so you do not leak observers if you mount and unmount the elt way.
@@ -6,7 +10,7 @@ Import from `"elt"`. TypeScript only; the package is meant to be bundled.
 
 tsconfig: `strict`, `jsx: "react"`, `jsxFactory: "E"`, `jsxFragmentFactory: "E.Fragment"`.
 
-Runnable examples live in `demo/`. Signatures and edge cases live in JSDoc under `src/`. Agent-oriented companion: [`docs/using-elt-agent.md`](./using-elt-agent.md). Doc index: [`docs/README.md`](./README.md).
+Runnable examples live in `demo/`. Signatures and edge cases live in JSDoc under `src/`. Agent-oriented companion: [`docs/md/using-elt-agent.md`](./using-elt-agent.md). Doc index: [`docs/md/index.md`](./index.md).
 
 ---
 
@@ -178,6 +182,6 @@ Shared state usually lives on a store service; other services declare it in `Ser
 | ---- | ------- |
 | End-to-end UI | `demo/` |
 | Observable / Repeat / App behavior | `tests/` |
-| Widgets and theme | `elt/ui` — [`ui/AGENTS.md`](../../ui/AGENTS.md), [`docs/using-elt-ui-agent.md`](./using-elt-ui-agent.md), [`docs/using-elt-ui.md`](./using-elt-ui.md) |
+| Widgets and theme | `elt/ui` — [`ui/AGENTS.md`](../../ui/AGENTS.md), [`docs/md/using-elt-ui-agent.md`](./using-elt-ui-agent.md), [`docs/md/using-elt-ui.md`](./using-elt-ui.md) |
 | Exact APIs | JSDoc in `src/` (`observable.ts`, `verbs.ts`, `decorators.ts`, `app/`) |
-| Checklist-style reference | [`docs/using-elt-agent.md`](./using-elt-agent.md) |
+| Checklist-style reference | [`docs/md/using-elt-agent.md`](./using-elt-agent.md) |

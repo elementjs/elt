@@ -1,3 +1,7 @@
+---
+title: elt/ui usage (agent-oriented)
+---
+
 # elt/ui usage (agent-oriented)
 
 For agents building or changing UI that imports `"elt/ui"`. Read **Hard rules**, then jump to the section that matches the task. Human-oriented overview: [`using-elt-ui.md`](./using-elt-ui.md).

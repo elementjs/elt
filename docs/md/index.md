@@ -1,3 +1,7 @@
+---
+title: Agent docs index
+---
+
 # Agent docs index
 
 Use this file to pick **one** downstream doc. Do not read every file in `./docs` up front.
@@ -51,10 +55,10 @@ When a doc and the code disagree, **code + tests win**; treat the doc as possibl
 | Path | Role |
 | ---- | ---- |
 | `AGENTS.md` | Always-loaded rules + pointers into this index |
-| `docs/src/using-elt-agent.md` | Core elt usage for agents |
-| `docs/src/using-elt-ui-agent.md` | elt/ui + visual language for agents |
-| `docs/src/using-elt.md` | Human-oriented core overview |
-| `docs/src/using-elt-ui.md` | Human-oriented UI overview + migration |
+| `docs/md/using-elt-agent.md` | Core elt usage for agents |
+| `docs/md/using-elt-ui-agent.md` | elt/ui + visual language for agents |
+| `docs/md/using-elt.md` | Human-oriented core overview |
+| `docs/md/using-elt-ui.md` | Human-oriented UI overview + migration |
 | `ui/AGENTS.md` | UI branch entry (modify-library rules + section index) |
 | `specs/` | Feature specifications |
 | `docs/src/adr/` | Architecture decision records |

@@ -1,3 +1,7 @@
+---
+title: Using elt/ui
+---
+
 # Using elt/ui
 
 Human-oriented overview of the UI sub-library. Agents should use [`using-elt-ui-agent.md`](./using-elt-ui-agent.md) instead — it is structured for progressive disclosure (hard rules, section index, task tables).
@@ -85,5 +89,5 @@ Agent checklist for migration: [`using-elt-ui-agent.md` § Colors & theme](./usi
 | Agent task guide | [`using-elt-ui-agent.md`](./using-elt-ui-agent.md) |
 | Core elt (not UI-specific) | [`using-elt.md`](./using-elt.md), [`using-elt-agent.md`](./using-elt-agent.md) |
 | Runnable examples | `demo/` |
-| Library maintainer rules | [`ui/AGENTS.md`](../ui/AGENTS.md) |
-| Doc index | [`README.md`](./README.md) |
+| Library maintainer rules | [`ui/AGENTS.md`](../../ui/AGENTS.md) |
+| Doc index | [`docs/md/index.md`](./index.md) |

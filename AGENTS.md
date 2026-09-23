@@ -6,9 +6,9 @@ Do not read all of `./docs` up front. Pick by branch:
 
 | Branch | Read |
 | ------ | ---- |
-| Choosing which doc to open | [`docs/src/README.md`](./docs/src/README.md) |
-| App code using **core elt** | [`docs/src/using-elt-agent.md`](./docs/src/using-elt-agent.md) |
-| **UI** (layout, theme, widgets, `"elt/ui"`) | [`ui/AGENTS.md`](./ui/AGENTS.md) → [`docs/src/using-elt-ui-agent.md`](./docs/src/using-elt-ui-agent.md) |
+| Choosing which doc to open | [`docs/md/index.md`](./docs/md/index.md) |
+| App code using **core elt** | [`docs/md/using-elt-agent.md`](./docs/md/using-elt-agent.md) |
+| **UI** (layout, theme, widgets, `"elt/ui"`) | [`ui/AGENTS.md`](./ui/AGENTS.md) → [`docs/md/using-elt-ui-agent.md`](./docs/md/using-elt-ui-agent.md) |
 | Feature specs | [`specs/`](./specs/) |
 | Architecture decisions | [`docs/src/adr/`](./docs/src/adr/) |
 
@@ -17,6 +17,7 @@ Inside a guide: read **Hard rules**, then only the section that matches the task
 # Instructions
 
 - Write so most developers get it without knowing scoped community slang; define our terms; never reuse a common word in a special sense when “toolbar”, “header”, or “frame around the content” would do unless the term is universally understood, like "packaging" or "drill-down".
+- Fix root causes instead of patching around structural problems, ask the user if the fix is structurally important
 - Do NOT add dependencies by yourself
 - ALWAYS Create regression and integration tests when working on new features or when features did not already have them.
 - Test your claims/assertions instead of only recalling when your confidence level is not impeccable

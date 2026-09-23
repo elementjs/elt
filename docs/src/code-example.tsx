@@ -1,5 +1,5 @@
 import { css, o, If, $click } from "elt"
-import { theme } from "./theme"
+import { theme } from "elt/ui"
 
 export type CodeExampleProps = {
   code: string
@@ -31,7 +31,9 @@ function renderCode(code: string, highlightedHtml: string | undefined) {
     d.innerHTML = highlightedHtml
     return d
   }
-  return <pre class={cls_code}><code>{code}</code></pre>
+  return <e-block border>
+    <pre class={cls_code}><code>{code}</code></pre>
+  </e-block>
 }
 
 export function CodeExample(props: CodeExampleProps) {
@@ -40,7 +42,14 @@ export function CodeExample(props: CodeExampleProps) {
 
   const result_view = () => {
     if (!is_runnable) {
-      return renderCode(props.code, props.highlightedHtml)
+      // Not every ts/tsx block is meant to run standalone (see specs/markdown-docs.md) — a block
+      // that failed to parse or type-check still shows its diagnostics here, just without a result.
+      return <e-column>
+        {props.typeErrors && props.typeErrors.length > 0
+          ? <e-block class={cls_error}><pre>{props.typeErrors.join("\n")}</pre></e-block>
+          : null}
+        {renderCode(props.code, props.highlightedHtml)}
+      </e-column>
     }
 
     const o_error = o(null as string | null)
@@ -61,8 +70,8 @@ export function CodeExample(props: CodeExampleProps) {
     </e-column>
   }
 
-  return <e-column class={cls_example}>
-    <e-row touching class={cls_tabs}>
+  return <e-column touching>
+    <e-row touching>
       <button class={o_showing_code.tf(v => !v ? cls_active : null)}>
         {$click(() => o_showing_code.set(false))}
         Result
@@ -78,11 +87,6 @@ export function CodeExample(props: CodeExampleProps) {
     )}
   </e-column>
 }
-
-const cls_example = css`.code-example {
-  border: 1px solid ${theme.colors.text.mid};
-  border-radius: ${theme.settings.borderRadius};
-}`
 
 const cls_tabs = css`.tabs {
   & button { border: none; border-radius: 0; }
