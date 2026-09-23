@@ -4,6 +4,7 @@
   "repository": "https://github.com/elementjs/elt",
   "description": "",
   "license": "MIT",
+  "workspaces": ["demo", "docs"],
   "main": "./src/index.ts",
   "sideEffects": ["./src/css.ts", "./src/mutative.ts"],
   "exports": {
