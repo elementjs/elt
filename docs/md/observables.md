@@ -12,8 +12,8 @@ and the DOM updates itself whenever the observable's value changes — no re-ren
 diffing, just the specific node that depends on that value getting patched in place.
 
 This page covers the `o()` data type itself. Rendering *dynamic structure* (lists, conditional
-blocks) from an observable is the job of Verbs (`If`, `Repeat`, `Switch`) — that's its own page,
-coming soon. Everything below reads as complete documentation on its own; the "Try it" panels
+blocks) from an observable is the job of Verbs (`If`, `Repeat`, `Switch`) — see the
+[Verbs](./verbs.md) page. Everything below reads as complete documentation on its own; the "Try it" panels
 that follow some examples run the code for real, in this page, but they're a bonus on top of the
 prose and code, not a replacement for it.
 
@@ -284,7 +284,7 @@ a raw `addObserver` call has to be torn down by hand or it leaks.
 
 **For dynamic DOM structure driven by an observable array or condition, prefer a Verb** (`Repeat`,
 `If`, `Switch`) over manually tracking state and calling `node_append`/`node_remove` yourself — see
-the Verbs page (coming soon).
+the [Verbs](./verbs.md) page.
 
 ## A gotcha: `disconnect()`'s console warning
 

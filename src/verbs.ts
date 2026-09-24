@@ -97,6 +97,9 @@ export namespace If {
       super("e-if")
       this.setRenderable(
         o.tf<T, Renderable<N>>(_if, (cond, old, v) => {
+          // Same truthiness as before (both truthy, or both falsy) and a render already exists:
+          // reuse it instead of tearing it down and re-invoking _then/_else. Only a truthy<->falsy
+          // flip re-renders — e.g. a truthy value changing to a different truthy value does not.
           if (old !== o.NoValue && !!cond === !!old && v !== o.NoValue) return v as Renderable<N>
           if (cond && this._then) {
             return this._then(this._if as If.TruthyRO<T>)
@@ -143,7 +146,7 @@ export namespace If {
  *
  * `Switch()` can work with typeguards to narrow a type in the observable passed to the then callback,
  * but only with defined functions. It is however not as powerful as typescript's type guards in ifs
- * and will not recognize `typeof` or `instanceof` calls. See `demo/` for richer usage.
+ * and will not recognize `typeof` or `instanceof` calls.
  *
  * @group Verbs
  */

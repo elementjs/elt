@@ -226,43 +226,17 @@ everything else (API shapes, `o.expression`'s callback signature, converters, `.
 
 ## Verbs (dynamic DOM)
 
-Verbs are UpperCased functions. They are Appenders; they imply dynamicity driven by Observables.
+Full picture, with runnable examples: [`docs/md/verbs.md`](./verbs.md). Authoritative source:
+`src/verbs.ts`.
 
-```tsx
-{
-  If(o_user, (u) => <span>{u.tf((x) => x.name)}</span>).Else(() => <span>guest</span>);
-}
-
-{
-  Switch(o_mode)
-    .Case("edit", () => <input />)
-    .Case("view", () => <span>read only</span>)
-    .Case(
-      (m) => m === "x",
-      () => <span>?</span>,
-    );
-}
-
-{
-  Repeat(o_items, (item, idx) => (
-    <li>
-      {item.tf((i) => i.label)} #{idx}
-    </li>
-  ));
-}
-
-{
-  DisplayPromise(o_promise)
-    .WhileWaiting(() => <span>loading…</span>)
-    .WhenResolved((o_value) => <span>{o_value}</span>)
-    .UponRejection((o_err) => <span>{o_err.tf(String)}</span>);
-}
-```
-
+- Verbs are UpperCased functions (`If`, `Switch`, `Repeat`, `DisplayPromise`) — Appenders that imply
+  dynamicity driven by Observables, patching only what changed instead of a full rebuild.
 - Bare `o(Promise)` in JSX can show resolved content via `node_append`, but **pending/error UI needs `DisplayPromise`**.
+- `If` does not re-invoke its render callbacks on every update — only when `condition`'s truthiness
+  flips. See the Verbs page for what this means for closures.
 - SVG is native: `<svg>…</svg>` works like HTML.
 
-See `src/verbs.ts`, `tests/repeat.test.ts`. VirtualScroll: `src/virtual.ts`, `tests/virtual.test.ts`.
+See `src/verbs.ts`, `tests/repeat.pw.ts`. VirtualScroll: `src/virtual.ts`, `tests/virtual.pw.ts`.
 
 ---
 
@@ -386,7 +360,7 @@ Do **not** apply these rules to ordinary `Repeat` UIs.
 - Top spacer = measurement-driven (real heights of shelved/prepended rows), not `index * estimate`. Snap spacer to `0` at index `0`. Bottom spacer may stay estimate-only.
 - Set `overflow-anchor: none` on the scrollport so native anchoring does not fight the spacer.
 
-Details: `src/virtual.ts`, `tests/virtual.test.ts`.
+Details: `src/virtual.ts`, `tests/virtual.pw.ts`.
 
 ---
 
@@ -397,8 +371,8 @@ Details: `src/virtual.ts`, `tests/virtual.test.ts`.
 | Observable basics / expression / transaction | `tests/observable*.test.ts`, `src/observable/observable.ts`     |
 | RefChild / IfChildren                        | `tests/refchild.test.ts`, `src/elt.ts`                          |
 | Observe connect/disconnect                   | `tests/observe.test.ts`, `src/dom.ts`                           |
-| Repeat                                       | `tests/repeat.test.ts`, `src/verbs.ts`                          |
-| VirtualScroll                                | `tests/virtual.test.ts`, `src/virtual.ts`                       |
+| Repeat                                       | `tests/repeat.pw.ts`, `src/verbs.ts`                          |
+| VirtualScroll                                | `tests/virtual.pw.ts`, `src/virtual.ts`                       |
 | App / router / services                      | `tests/app.test.ts`, `demo/src/routes.tsx`, `src/app/app.ts`    |
 | Decorators / `$bind`                         | `src/decorators.ts` (+ JSDoc examples)                          |
 | Public exports                               | `src/index.ts`                                                  |
