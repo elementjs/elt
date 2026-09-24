@@ -54,7 +54,7 @@ export function CodeExample(props: CodeExampleProps) {
   }
 
   return <e-column touching>
-    <e-row touching>
+    <e-row touching class={cls_tabs}>
       <button class={o_showing_code.tf((v) => (!v ? cls_active : null))}>
         {$click(() => o_showing_code.set(false))}
         Result

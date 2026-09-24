@@ -37,7 +37,6 @@ describe("splitNodes", () => {
   })
 
   test("splits concatenated sibling JSON with no separator", () => {
-    const a = node("text", {}, "")
     // simulate two already-encoded siblings with a raw literal line-break between them, as Bun inserts for hardSoftBreaks
     const raw = `${JSON.stringify(["text", {}, "a"])}\n${JSON.stringify(["strong", {}, [["text", {}, "b"]]])}`
     const children = splitNodes(raw)
