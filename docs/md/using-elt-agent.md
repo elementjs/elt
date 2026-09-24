@@ -210,10 +210,7 @@ Common: `$observe`, `$click`, `$on`, `$bind.*`, `$connected` / `$disconnected`, 
 
 ## Observables
 
-Full picture, with runnable examples: [`docs/md/observables.md`](./observables.md). Authoritative
-source: `src/observable/observable.ts` + JSDoc. The directives below are the load-bearing ones --
-everything else (API shapes, `o.expression`'s callback signature, converters, `.merge`/`.join`,
-`transaction`, `exclusive_lock`) is on that page.
+Full picture, with runnable examples: [`docs/md/observables.md`](./observables.md). Authoritative source: `src/observable/observable.ts` + JSDoc. The directives below are the load-bearing ones -- everything else (API shapes, `o.expression`'s callback signature, converters, `.merge`/`.join`, `transaction`, `exclusive_lock`) is on that page.
 
 - Naming: `o_*` = writable observable; `oo_*` = read-only derived; convention only, not enforced.
 - `.set()` is `===`-gated -- mutating in place then `.set()`-ing the same reference is a no-op.
@@ -226,8 +223,7 @@ everything else (API shapes, `o.expression`'s callback signature, converters, `.
 
 ## Verbs (dynamic DOM)
 
-Full picture, with runnable examples: [`docs/md/verbs.md`](./verbs.md). Authoritative source:
-`src/verbs.ts`.
+Full picture, with runnable examples: [`docs/md/verbs.md`](./verbs.md). Authoritative source: `src/verbs.ts`.
 
 - Verbs are UpperCased functions (`If`, `Switch`, `Repeat`, `DisplayPromise`) — Appenders that imply
   dynamicity driven by Observables, patching only what changed instead of a full rebuild.

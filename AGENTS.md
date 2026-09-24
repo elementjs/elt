@@ -16,6 +16,7 @@ Inside a guide: read **Hard rules**, then only the section that matches the task
 
 # Instructions
 
+- Do **NOT** wrap lines in markdown
 - Write so most developers get it without knowing scoped community slang; define our terms; never reuse a common word in a special sense when “toolbar”, “header”, or “frame around the content” would do unless the term is universally understood, like "packaging" or "drill-down".
 - Fix root causes instead of patching around structural problems, ask the user if the fix is structurally important
 - Do NOT add dependencies by yourself
