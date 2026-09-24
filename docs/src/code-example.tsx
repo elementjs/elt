@@ -1,31 +1,36 @@
-import { css, o, If, $click } from "elt"
+import { css, o, If, $click, type Renderable } from "elt"
 import { theme } from "elt/ui"
 
 export type CodeExampleProps = {
-  code: string
-  language?: string
-  /** Pre-highlighted HTML produced by Shiki at build time — set for every block, regardless of language. */
-  highlightedHtml?: string
-  /** `@inline-example` only — the block's own rendered output, already executed at page-module-load
-   * time (see genPageSource in macro.ts) rather than by this component. */
+  /** Per-line, per-token colored spans, compiled to literal JSX by the macro at build time (see
+   * tokensToJsx in macro.ts) — never an HTML string, so no `.innerHTML` is used to render it. */
+  highlighted: Renderable
+  /** `@inline-example` only — set via `{...runExample(...)}` by the generated page. */
   renderResult?: Node
-  /** `@inline-example` only — set instead of `renderResult` when execution threw. */
+  /** `@inline-example` only — set via `{...runExample(...)}` when execution threw. */
   renderError?: string
   /** `@full-example` only — same-origin hash route this block runs at, embedded in an isolated iframe. */
   fullExampleUrl?: string
 }
 
+/** Runs an `@inline-example` block's body, called directly from the generated page's JSX
+ * (`{...runExample(() => {...})}`, spread onto `<CodeExample>`'s props) — replaces the old
+ * JSON-tree `renderResult`/`__renderError` dance now that pages are real compiled JSX, not data
+ * interpreted by a runtime tree-walker. Isolates one bad example from the rest of the page: a throw
+ * here becomes `renderError`, not a crash of the whole page's `Content()`. */
+export function runExample(fn: () => Node): { renderResult?: Node; renderError?: string } {
+  try {
+    return { renderResult: fn() }
+  } catch (e: any) {
+    return { renderError: String(e?.stack ?? e) }
+  }
+}
+
 /** A code sample with a Typescript/Result toggle (defaults to Result) for runnable blocks
  * (`renderResult`/`renderError`/`fullExampleUrl` set); a plain highlighted block otherwise. */
-function renderCode(code: string, highlightedHtml: string | undefined) {
-  if (highlightedHtml != null) {
-    const d = document.createElement("div")
-    d.className = cls_code
-    d.innerHTML = highlightedHtml
-    return d
-  }
+function renderCode(highlighted: Renderable) {
   return <e-block border>
-    <pre class={cls_code}><code>{code}</code></pre>
+    <pre class={cls_code}><code>{highlighted}</code></pre>
   </e-block>
 }
 
@@ -33,7 +38,7 @@ export function CodeExample(props: CodeExampleProps) {
   const is_runnable = props.renderResult != null || props.renderError != null || props.fullExampleUrl != null
 
   if (!is_runnable) {
-    return renderCode(props.code, props.highlightedHtml)
+    return renderCode(props.highlighted)
   }
 
   const o_showing_code = o(false)
@@ -60,7 +65,7 @@ export function CodeExample(props: CodeExampleProps) {
       </button>
     </e-row>
     {If(o_showing_code,
-      () => renderCode(props.code, props.highlightedHtml),
+      () => renderCode(props.highlighted),
       result_view,
     )}
   </e-column>

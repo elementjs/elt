@@ -36,6 +36,6 @@
       "elt/ui": ["../ui/index.tsx"],
       "*": ["./*"],
     },
-    "types": ["bun-types"]
+    "types": ["bun"]
   }
 }

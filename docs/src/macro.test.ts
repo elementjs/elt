@@ -1,8 +1,9 @@
-import { afterEach, beforeEach, describe, expect, test } from "bun:test"
+import { afterEach, describe, expect, test } from "bun:test"
 import { mkdtemp, rm } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import {
-  elt_md, node, resolveMdLink, splitFrontmatter, splitNodes, urlFor,
+  buildMenu, elt_md, ImportParseError, mergeImports, node, parseImportLine,
+  resolveMdLink, splitFrontmatter, splitNodes, urlFor,
 } from "./macro.ts"
 
 describe("splitNodes", () => {
@@ -122,6 +123,123 @@ describe("splitFrontmatter", () => {
   })
 })
 
+describe("buildMenu", () => {
+  test("groups ungrouped pages first, then sections alphabetically", () => {
+    const menu = buildMenu([
+      { name: "b", url: "/b", frontmatter: { title: "B", section: "Zeta" } },
+      { name: "a", url: "/a", frontmatter: { title: "A" } },
+      { name: "c", url: "/c", frontmatter: { title: "C", section: "Alpha" } },
+    ])
+    expect(menu.map(g => g.section)).toEqual([null, "Alpha", "Zeta"])
+    expect(menu[0]!.items.map(i => i.title)).toEqual(["A"])
+  })
+
+  test("sorts within a group by order, then title; missing order sorts last", () => {
+    const menu = buildMenu([
+      { name: "z", url: "/z", frontmatter: { title: "Zebra" } },
+      { name: "a", url: "/a", frontmatter: { title: "Alpha", order: 2 } },
+      { name: "b", url: "/b", frontmatter: { title: "Bravo", order: 1 } },
+    ])
+    expect(menu[0]!.items.map(i => i.title)).toEqual(["Bravo", "Alpha", "Zebra"])
+  })
+
+  test("falls back to the route name when no title is given", () => {
+    const menu = buildMenu([{ name: "no-title", url: "/no-title", frontmatter: {} }])
+    expect(menu[0]!.items[0]!.title).toBe("no-title")
+  })
+})
+
+describe("parseImportLine", () => {
+  test("parses a side-effect-only import", () => {
+    expect(parseImportLine('import "elt"', "loc")).toEqual({ kind: "side-effect", module: "elt" })
+  })
+
+  test("parses a default import", () => {
+    expect(parseImportLine('import Foo from "mod"', "loc")).toEqual({ kind: "default", local: "Foo", module: "mod" })
+  })
+
+  test("parses a namespace import", () => {
+    expect(parseImportLine('import * as P from "elt-phosphor"', "loc"))
+      .toEqual({ kind: "namespace", local: "P", module: "elt-phosphor" })
+  })
+
+  test("parses a named import with an alias", () => {
+    expect(parseImportLine('import { a, b as c } from "mod"', "loc")).toEqual({
+      kind: "named", module: "mod",
+      names: [{ imported: "a", local: "a" }, { imported: "b", local: "c" }],
+    })
+  })
+
+  test("parses a default+named import", () => {
+    expect(parseImportLine('import Foo, { a, b as c } from "mod"', "loc")).toEqual({
+      kind: "default+named", local: "Foo", module: "mod",
+      names: [{ imported: "a", local: "a" }, { imported: "b", local: "c" }],
+    })
+  })
+
+  test("throws on a multi-line-only shape (not actually testable as one line, so: unsupported form) like 'import type'", () => {
+    expect(() => parseImportLine('import type { X } from "mod"', "docs/md/x.md:3"))
+      .toThrow(ImportParseError)
+  })
+
+  test("throws on dynamic import()", () => {
+    expect(() => parseImportLine('const x = import("mod")', "docs/md/x.md:3")).toThrow(ImportParseError)
+  })
+
+  test("thrown error cites the file:line location", () => {
+    expect(() => parseImportLine("garbage", "docs/md/x.md:5")).toThrow(/docs\/md\/x\.md:5/)
+  })
+})
+
+describe("mergeImports", () => {
+  test("merges the same named symbol imported by two blocks into one line, not two", () => {
+    const out = mergeImports([
+      { importLines: ['import { o, $bind } from "elt"'], loc: "docs/md/x.md:3" },
+      { importLines: ['import { o, node_append } from "elt"'], loc: "docs/md/x.md:10" },
+    ])
+    expect(out).toEqual(['import { o, $bind, node_append } from "elt"'])
+  })
+
+  test("throws when the same local name is bound to two different things", () => {
+    expect(() => mergeImports([
+      { importLines: ['import { a as x } from "foo"'], loc: "docs/md/x.md:3" },
+      { importLines: ['import { b as x } from "bar"'], loc: "docs/md/x.md:10" },
+    ])).toThrow(/docs\/md\/x\.md:3.*docs\/md\/x\.md:10|docs\/md\/x\.md:10.*docs\/md\/x\.md:3/s)
+  })
+
+  test("two different default-local-names for the same module become two separate default-import lines", () => {
+    const out = mergeImports([
+      { importLines: ['import Foo from "mod"'], loc: "docs/md/x.md:3" },
+      { importLines: ['import Bar from "mod"'], loc: "docs/md/x.md:10" },
+    ])
+    expect(out.sort()).toEqual(['import Bar from "mod"', 'import Foo from "mod"'])
+  })
+
+  test("a side-effect-only import merges to a single bare import when nothing else references the module", () => {
+    const out = mergeImports([
+      { importLines: ['import "mod"'], loc: "docs/md/x.md:3" },
+      { importLines: ['import "mod"'], loc: "docs/md/x.md:10" },
+    ])
+    expect(out).toEqual(['import "mod"'])
+  })
+
+  test("a namespace import merges independently of named/default imports from other modules", () => {
+    const out = mergeImports([
+      { importLines: ['import * as P from "elt-phosphor"'], loc: "docs/md/x.md:3" },
+      { importLines: ['import { o } from "elt"'], loc: "docs/md/x.md:10" },
+    ])
+    expect(out.sort()).toEqual(['import * as P from "elt-phosphor"', 'import { o } from "elt"'])
+  })
+
+  test("identical namespace imports across two blocks dedupe to one line", () => {
+    const out = mergeImports([
+      { importLines: ['import * as P from "elt-phosphor"'], loc: "docs/md/x.md:3" },
+      { importLines: ['import * as P from "elt-phosphor"'], loc: "docs/md/x.md:10" },
+    ])
+    expect(out).toEqual(['import * as P from "elt-phosphor"'])
+  })
+})
+
 // Every real call site invokes elt_md() with no arguments, scanning docs/md next to macro.ts (see
 // specs/markdown-docs-reloaded.md, "Macro"). These tests instead point it at a temporary docs/md
 // tree via the `roots` test-only seam, so they don't touch the real docs/md or docs/src/md.
@@ -139,6 +257,17 @@ async function withTempDocsTree(files: Record<string, string>) {
   }
 }
 
+/** Confirms generated JSX source is at least syntactically valid TSX (catches escaping bugs that
+ * would otherwise only surface as a build failure inside the real docs app) without needing a full
+ * elt/browser runtime — Bun.Transpiler only parses/transforms, it never executes anything. */
+function assertValidTsx(source: string) {
+  const transpiler = new Bun.Transpiler({
+    loader: "tsx",
+    tsconfig: { compilerOptions: { jsx: "react", jsxFactory: "E", jsxFragmentFactory: "E.Fragment" } },
+  })
+  expect(() => transpiler.transformSync(source)).not.toThrow()
+}
+
 describe("elt_md (integration)", () => {
   let tmp: { root: string } | null = null
 
@@ -147,7 +276,7 @@ describe("elt_md (integration)", () => {
     tmp = null
   })
 
-  test("recursively parses every docs/md file, computing routes/menu and generating per-page files", async () => {
+  test("recursively parses every docs/md file, computing routes and generating per-page files", async () => {
     const t = await withTempDocsTree({
       "index.md": "---\ntitle: Index\n---\n# Index\n",
       "using-elt.md": "---\ntitle: Using elt\n---\n# Using elt\n",
@@ -155,7 +284,7 @@ describe("elt_md (integration)", () => {
     })
     tmp = t
 
-    const { pages, menu } = await t.elt_md()
+    const { pages } = await t.elt_md()
     const names = pages.map((p) => p.name).sort()
     expect(names).toEqual(["guide/intro", "index", "using-elt"])
 
@@ -163,17 +292,13 @@ describe("elt_md (integration)", () => {
     expect(byName.get("index")!.url).toBe("/")
     expect(byName.get("using-elt")!.url).toBe("/using-elt")
     expect(byName.get("guide/intro")!.url).toBe("/guide/intro")
+    expect(byName.get("guide/intro")!.moduleAlias).toBe("md_guide_intro")
 
     expect(await Bun.file(`${t.srcDir}/md/index.tsx`).exists()).toBe(true)
     expect(await Bun.file(`${t.srcDir}/md/guide/intro.tsx`).exists()).toBe(true)
-
-    // menu: ungrouped ("Index", "Using elt") first, then the "Guides" section.
-    expect(menu[0]!.section).toBeNull()
-    expect(menu[0]!.items.map((i) => i.title).sort()).toEqual(["Index", "Using elt"])
-    expect(menu[1]).toEqual({ section: "Guides", items: [{ name: "guide/intro", title: "Intro", url: "/guide/intro", order: 1 }] })
   })
 
-  test("only regenerates a page's .ts file when its .md source is missing, or newer than, the target", async () => {
+  test("only regenerates a page's .tsx file when its .md source is missing, or newer than, the target", async () => {
     const t = await withTempDocsTree({ "index.md": "---\ntitle: Index\n---\n# Index\n" })
     tmp = t
 
@@ -190,16 +315,19 @@ describe("elt_md (integration)", () => {
     expect(Bun.file(targetPath).lastModified).toBeGreaterThan(firstWrite)
   })
 
-  test("menu/routes reflect a frontmatter-only change immediately, without touching the file list", async () => {
+  test("a frontmatter-only change is reflected the moment the page's own .tsx file regenerates", async () => {
     const t = await withTempDocsTree({ "index.md": "---\ntitle: Original\n---\n# Index\n" })
     tmp = t
 
-    const first = await t.elt_md()
-    expect(first.menu[0]!.items[0]!.title).toBe("Original")
+    await t.elt_md()
+    let content = await Bun.file(`${t.srcDir}/md/index.tsx`).text()
+    expect(content).toContain('"title":"Original"')
 
+    await new Promise((r) => setTimeout(r, 10))
     await Bun.write(`${t.mdDir}/index.md`, "---\ntitle: Renamed\n---\n# Index\n")
-    const second = await t.elt_md()
-    expect(second.menu[0]!.items[0]!.title).toBe("Renamed")
+    await t.elt_md()
+    content = await Bun.file(`${t.srcDir}/md/index.tsx`).text()
+    expect(content).toContain('"title":"Renamed"')
   })
 
   test("(re)writes md-deps.ts to match the current file set when it's missing or stale", async () => {
@@ -215,15 +343,94 @@ describe("elt_md (integration)", () => {
     expect(content).not.toContain("// stale")
   })
 
-  test("plain ts/tsx fences generate no renderResult (highlight-only, no execution)", async () => {
+  test("generated page exports a named PageService class, not a default export", async () => {
+    const t = await withTempDocsTree({ "index.md": "# Index\n" })
+    tmp = t
+    await t.elt_md()
+    const content = await Bun.file(`${t.srcDir}/md/index.tsx`).text()
+    expect(content).toContain("export class PageService extends Service({}, {})")
+    expect(content).not.toContain("export default")
+    assertValidTsx(content)
+  })
+
+  test("headings/paragraphs/lists compile to literal JSX, not a serialized MdNode tree", async () => {
+    const t = await withTempDocsTree({
+      "index.md": ["# Title", "", "A paragraph with **bold** text.", "", "- one", "- two"].join("\n"),
+    })
+    tmp = t
+    await t.elt_md()
+    const content = await Bun.file(`${t.srcDir}/md/index.tsx`).text()
+    expect(content).toContain("<h1 ")
+    expect(content).toContain("<p>")
+    expect(content).toContain("<strong>")
+    expect(content).toContain("<ul>")
+    expect(content).toContain("<li>")
+    expect(content).not.toContain('["heading"') // no more JSON tuple serialization
+    assertValidTsx(content)
+  })
+
+  test("prose containing JSX-special characters is safely escaped, not spliced as bare JSX text", async () => {
+    const t = await withTempDocsTree({
+      "index.md": ["# Title", "", 'Text with { braces }, <angle> brackets, a backslash \\ and a "quote".'].join("\n"),
+    })
+    tmp = t
+    await t.elt_md()
+    const content = await Bun.file(`${t.srcDir}/md/index.tsx`).text()
+    assertValidTsx(content) // would throw if the raw characters broke out of JSX/JS syntax
+  })
+
+  test("raw HTML in markdown source is spliced verbatim as literal JSX", async () => {
+    const t = await withTempDocsTree({
+      // A trailing blank line is needed for Bun.markdown.render to close the raw-HTML block.
+      "index.md": ["# Title", "", '<div class="note">a note</div>', "", "more text"].join("\n"),
+    })
+    tmp = t
+    await t.elt_md()
+    const content = await Bun.file(`${t.srcDir}/md/index.tsx`).text()
+    expect(content).toContain('<div class="note">a note</div>')
+    assertValidTsx(content)
+  })
+
+  test("invalid-as-JSX raw HTML in markdown source fails to compile, by design", async () => {
+    const t = await withTempDocsTree({
+      // A bare, non-self-closing <br> is valid loose HTML but not valid JSX.
+      "index.md": ["# Title", "", "<br>", "", "more"].join("\n"),
+    })
+    tmp = t
+    await t.elt_md()
+    const content = await Bun.file(`${t.srcDir}/md/index.tsx`).text()
+    expect(content).toContain("<br>")
+    expect(() => new Bun.Transpiler({
+      loader: "tsx",
+      tsconfig: { compilerOptions: { jsx: "react", jsxFactory: "E", jsxFragmentFactory: "E.Fragment" } },
+    }).transformSync(content)).toThrow()
+  })
+
+  test("plain ts/tsx fences compile to a highlighted CodeExample with no run props", async () => {
     const t = await withTempDocsTree({
       "index.md": ["# Index", "", "```ts", "const x: number = 1", "```", ""].join("\n"),
     })
     tmp = t
     await t.elt_md()
     const content = await Bun.file(`${t.srcDir}/md/index.tsx`).text()
+    expect(content).toContain("<CodeExample")
+    expect(content).not.toContain("runExample(() =>")
     expect(content).not.toContain("renderResult")
-    expect(content).toContain("const x: number = 1")
+    expect(content).toContain('"const"')
+    expect(content).toContain('"number"')
+    assertValidTsx(content)
+  })
+
+  test("token-based highlighting produces literal colored spans, never .innerHTML or an HTML string", async () => {
+    const t = await withTempDocsTree({
+      "index.md": ["# Index", "", "```ts", "const x = 1", "```", ""].join("\n"),
+    })
+    tmp = t
+    await t.elt_md()
+    const content = await Bun.file(`${t.srcDir}/md/index.tsx`).text()
+    expect(content).toMatch(/<span style=\{"color:#/)
+    expect(content).not.toContain(".innerHTML")
+    expect(content).not.toContain("highlightedHtml")
   })
 
   test("other-language fences are highlighted, never treated as examples", async () => {
@@ -233,11 +440,12 @@ describe("elt_md (integration)", () => {
     tmp = t
     await t.elt_md()
     const content = await Bun.file(`${t.srcDir}/md/index.tsx`).text()
-    expect(content).not.toContain("renderResult")
-    expect(content).toContain("echo hi")
+    expect(content).not.toContain("runExample(() =>")
+    expect(content).toContain('"echo"')
+    expect(content).toContain('"hi"')
   })
 
-  test("@inline-example blocks splice their body as a live renderResult, with imports merged to the top", async () => {
+  test("@inline-example blocks run via runExample(), with imports merged to the top", async () => {
     const t = await withTempDocsTree({
       "index.md": [
         "# Index", "",
@@ -247,9 +455,10 @@ describe("elt_md (integration)", () => {
     tmp = t
     await t.elt_md()
     const content = await Bun.file(`${t.srcDir}/md/index.tsx`).text()
-    expect(content).toContain("renderResult:")
+    expect(content).toContain("runExample(() =>")
     expect(content).toContain('import { o } from "elt"')
     expect(content).not.toContain("//@inline-example") // marker stripped before display/codegen
+    assertValidTsx(content)
   })
 
   test("@full-example blocks generate their own standalone routed file, not spliced into the page", async () => {
@@ -264,13 +473,14 @@ describe("elt_md (integration)", () => {
     expect(pages[0]!.fullExampleLines).toEqual([3])
 
     const pageContent = await Bun.file(`${t.srcDir}/md/index.tsx`).text()
-    expect(pageContent).not.toContain("renderResult")
+    expect(pageContent).not.toContain("runExample(() =>")
     expect(pageContent).toContain("fullExampleUrl")
     expect(pageContent).toContain("#/full-example/index/0")
 
     const exampleContent = await Bun.file(`${t.srcDir}/md/index.full-0.tsx`).text()
     expect(exampleContent).toContain('import { o } from "elt"')
     expect(exampleContent).toContain("return <div>{c}</div>")
+    expect(exampleContent).toContain("export default class")
   })
 
   test("every generated page file cites its markdown source path", async () => {
@@ -281,9 +491,9 @@ describe("elt_md (integration)", () => {
     expect(content).toContain("// Source: docs/md/guide/intro.md")
   })
 
-  test("routes.generated.ts uses a static import() literal per page and cites its source, since a computed template-literal import() does not code-split at runtime", async () => {
+  test("routes.generated.ts statically imports every page and reads its .frontmatter/.PageService live", async () => {
     const t = await withTempDocsTree({
-      "index.md": "# Index\n",
+      "index.md": "---\ntitle: Index\n---\n# Index\n",
       "guide/intro.md": [
         "# Intro", "",
         "```tsx", "//@full-example", "return <div/>", "```", "",
@@ -293,12 +503,19 @@ describe("elt_md (integration)", () => {
     await t.elt_md()
     const content = await Bun.file(`${t.srcDir}/routes.generated.ts`).text()
 
-    expect(content).toContain('import("./md/index.tsx")')
-    expect(content).toContain("// docs/md/index.md:1")
-    expect(content).toContain('import("./md/guide/intro.tsx")')
+    expect(content).toContain('import * as md_index from "./md/index.tsx"')
+    expect(content).toContain('import * as md_guide_intro from "./md/guide/intro.tsx"')
+    expect(content).toContain("() => md_index.PageService")
+    expect(content).toContain("frontmatter: md_index.frontmatter")
+    expect(content).not.toContain('import("./md/index.tsx")') // no lazy import for a regular page
+
+    // @full-example routes stay lazily dynamic-imported.
     expect(content).toContain('import("./md/guide/intro.full-0.tsx")')
-    expect(content).toContain("// docs/md/guide/intro.md:3")
     expect(content).toContain('"/full-example/guide/intro/0"')
+    expect(content).toContain("// docs/md/guide/intro.md:3")
+
+    expect(content).toContain("buildMenu(")
+    expect(content).toContain('import { buildMenu } from "./menu.ts"')
   })
 
   test("routes.generated.ts content is stable across repeated calls with no underlying change", async () => {
@@ -311,5 +528,16 @@ describe("elt_md (integration)", () => {
     await t.elt_md()
     const after = await Bun.file(routesPath).text()
     expect(after).toBe(before) // stable content is what makes the write-skip (see elt_md) a no-op
+  })
+
+  test("two pages whose names sanitize to the same module alias get distinct aliases", async () => {
+    const t = await withTempDocsTree({
+      "guide-intro.md": "# A\n",
+      "guide/intro.md": "# B\n",
+    })
+    tmp = t
+    const { pages } = await t.elt_md()
+    const aliases = pages.map((p) => p.moduleAlias)
+    expect(new Set(aliases).size).toBe(aliases.length) // no collision
   })
 })

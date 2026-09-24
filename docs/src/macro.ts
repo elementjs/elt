@@ -1,7 +1,7 @@
-// Build-time markdown -> generated-TypeScript macro. See specs/markdown-docs-reloaded.md for the
-// design rationale (why elt_md() is a macro returning only JSON-serializable data, why per-page
-// output is a real generated .ts file instead of an in-memory tree, and why routing/menu data is
-// recomputed on every call rather than cached on disk the way the per-page files are).
+// Build-time markdown -> generated-JSX macro. See specs/markdown-docs-reloaded.md for the design
+// rationale (why elt_md() is a macro returning only JSON-serializable data, why per-page output is
+// literal generated JSX source rather than a JSON tree interpreted at runtime, and why every page is
+// statically imported by the generated router rather than lazily loaded).
 
 // Tiny inline replacement for node:path's resolve, to avoid a @types/node dependency (docs/tsconfig.json
 // only declares @types/bun) for a single one-line operation.
@@ -21,26 +21,28 @@ const path = {
   },
 }
 
+const { codeToTokens } = await import("shiki")
+
 export type MdNode = [type: string, meta: Record<string, any>, children: MdNode[] | string]
 
-export type Frontmatter = {
-  title?: string
-  order?: number
-  section?: string
-  draft?: boolean
-}
+// Frontmatter/MenuEntry/MenuGroup/buildMenu live in ./menu.ts, not here: routes.generated.ts needs
+// buildMenu as a real (non-macro) runtime import, and macro.ts has top-level Bun-only code
+// (`new Bun.Glob(...)`, below) that a plain `import ... from "./macro.ts"` would otherwise drag into
+// the client bundle — confirmed by testing (a live page load threw "Bun is not defined" before this
+// split). Re-exported here so macro.ts's own call sites don't need two import lines.
+export { buildMenu, type Frontmatter, type MenuEntry, type MenuGroup } from "./menu.ts"
+import type { Frontmatter } from "./menu.ts"
 
-/** One entry of the generated menu, grouped by section (see buildMenu). */
-export type MenuEntry = { name: string; title: string; url: string; order: number }
-export type MenuGroup = { section: string | null; items: MenuEntry[] }
-
-/** One discovered page, as returned by the macro (JSON-serializable only — see elt_md). */
+/** One discovered page, as returned by the macro (JSON-serializable only — see elt_md). Frontmatter
+ * is deliberately NOT included: the menu reads it live off each page's own statically-imported
+ * module (see "Menu" in the spec), so the macro no longer needs to gather or cache it separately. */
 export type PageEntry = {
-  /** Route key / generated-file path (no ".ts"), e.g. "using-elt" or "guide/intro". */
+  /** Route key / generated-file path (no ".tsx"), e.g. "using-elt" or "guide/intro". */
   name: string
   /** URL path this page is served at, e.g. "/" or "/using-elt" or "/guide/intro". */
   url: string
-  frontmatter: Frontmatter
+  /** Valid-JS-identifier alias for this page's static import in routes.generated.ts. */
+  moduleAlias: string
   /** Source line of each `@full-example` block's opening fence, in document order — see Routing. */
   fullExampleLines: number[]
 }
@@ -115,6 +117,17 @@ export function urlFor(relPath: string): string {
   return name === "index" ? "/" : `/${name}`
 }
 
+/** Valid-JS-identifier module alias for a route name's static import, e.g. "guide/intro" ->
+ * "md_guide_intro". Collisions (two names sanitizing to the same alias) get a numeric suffix. */
+function moduleAliasFor(name: string, taken: Set<string>): string {
+  const base = `md_${name.replace(/[^A-Za-z0-9_$]/g, "_")}`
+  let alias = base
+  let n = 2
+  while (taken.has(alias)) alias = `${base}_${n++}`
+  taken.add(alias)
+  return alias
+}
+
 /**
  * Relative `.md` links (`./x.md`, `../dir/x.md`) become internal hash-routes matching the new
  * per-file route scheme (see Routing in the spec). `fromPath` is this document's own path relative
@@ -183,21 +196,228 @@ function annotationOf(code: string): { annotation: Annotation; body: string } {
 /** Splits a snippet into its top-level `import ...` lines (verbatim) and the remaining body. */
 function extractImports(code: string): { importLines: string[]; body: string } {
   const lines = code.split("\n")
-  const importLines = lines.filter((l) => /^import\s+.*\bfrom\s*["'][^"']+["'];?\s*$/.test(l.trim()))
+  const importLines = lines.filter((l) => /^import\s+.*\bfrom\s*["'][^"']+["'];?\s*$/.test(l.trim()) || /^import\s*["'][^"']+["'];?\s*$/.test(l.trim()))
   const body = lines.filter((l) => !importLines.includes(l)).join("\n")
   return { importLines, body }
 }
 
-const { codeToHtml } = await import("shiki")
+// ---------------------------------------------------------------------------
+// Import-clause parsing & merging (see "Import merging" in the spec).
+//
+// Only these five single-line forms are recognized. Anything else — multi-line statements,
+// `import type`, `import Foo, * as ns from "mod"`, dynamic `import(...)` — throws a build-time
+// error citing the offending docs/md/<file>:<line>, rather than being silently mishandled.
+// ---------------------------------------------------------------------------
+
+type ImportBinding = { imported: string; local: string }
+type ParsedImportLine =
+  | { kind: "side-effect"; module: string }
+  | { kind: "default"; module: string; local: string }
+  | { kind: "namespace"; module: string; local: string }
+  | { kind: "named"; module: string; names: ImportBinding[] }
+  | { kind: "default+named"; module: string; local: string; names: ImportBinding[] }
+
+const RE_SIDE_EFFECT = /^import\s*["']([^"']+)["'];?$/
+const RE_NAMESPACE = /^import\s*\*\s*as\s+([A-Za-z_$][\w$]*)\s+from\s*["']([^"']+)["'];?$/
+const RE_DEFAULT_NAMED = /^import\s+([A-Za-z_$][\w$]*)\s*,\s*\{([^}]*)\}\s*from\s*["']([^"']+)["'];?$/
+const RE_NAMED = /^import\s*\{([^}]*)\}\s*from\s*["']([^"']+)["'];?$/
+const RE_DEFAULT = /^import\s+([A-Za-z_$][\w$]*)\s+from\s*["']([^"']+)["'];?$/
+
+function parseNamedList(raw: string): ImportBinding[] {
+  return raw.split(",").map((s) => s.trim()).filter(Boolean).map((s) => {
+    const m = s.match(/^([A-Za-z_$][\w$]*)\s+as\s+([A-Za-z_$][\w$]*)$/)
+    if (m) return { imported: m[1]!, local: m[2]! }
+    return { imported: s, local: s }
+  })
+}
+
+export class ImportParseError extends Error {}
+
+/** Parses one `@inline-example` import line into a structured form, or throws `ImportParseError`
+ * citing `loc` (a "docs/md/<file>:<line>" string) when the line isn't one of the five recognized
+ * forms — see the spec's "Import merging" for exactly which forms are supported and why. */
+export function parseImportLine(line: string, loc: string): ParsedImportLine {
+  const trimmed = line.trim()
+  let m = trimmed.match(RE_DEFAULT_NAMED)
+  if (m) return { kind: "default+named", local: m[1]!, names: parseNamedList(m[2]!), module: m[3]! }
+  m = trimmed.match(RE_NAMESPACE)
+  if (m) return { kind: "namespace", local: m[1]!, module: m[2]! }
+  m = trimmed.match(RE_NAMED)
+  if (m) return { kind: "named", names: parseNamedList(m[1]!), module: m[2]! }
+  m = trimmed.match(RE_DEFAULT)
+  if (m) return { kind: "default", local: m[1]!, module: m[2]! }
+  m = trimmed.match(RE_SIDE_EFFECT)
+  if (m) return { kind: "side-effect", module: m[1]! }
+  throw new ImportParseError(
+    `Unsupported import form at ${loc}: "${trimmed}". @inline-example imports must be a single-line `
+    + `import "mod" / import Foo from "mod" / import * as ns from "mod" / import { a, b as c } from "mod" `
+    + `/ import Foo, { a, b as c } from "mod" — no multi-line statements, "import type", or dynamic import().`,
+  )
+}
+
+type ModuleBucket = {
+  sideEffectOnly: boolean
+  defaults: Map<string, string> // local name -> loc it was first seen at
+  namespaces: Map<string, string>
+  named: Map<string, { imported: string; loc: string }> // local name -> binding
+}
+
+type BindingRecord = { module: string; kind: "default" | "namespace" | "named"; imported?: string; loc: string }
+
+/** Merges `@inline-example` import lines from every block on a page into the minimal correct set of
+ * import statements: named imports from the same module merge into one `{ a, b, c }` clause by
+ * `(imported, local)` pair (see the spec) instead of two statements that would both declare the same
+ * local binding; a genuine local-name conflict (the same local name bound to something different
+ * across two examples) throws `ImportParseError` citing both locations. */
+export function mergeImports(groups: { importLines: string[]; loc: string }[]): string[] {
+  const registry = new Map<string, BindingRecord>()
+  const modules = new Map<string, ModuleBucket>()
+
+  const bucketFor = (mod: string): ModuleBucket => {
+    let b = modules.get(mod)
+    if (!b) { b = { sideEffectOnly: false, defaults: new Map(), namespaces: new Map(), named: new Map() }; modules.set(mod, b) }
+    return b
+  }
+
+  const claim = (local: string, rec: BindingRecord) => {
+    const existing = registry.get(local)
+    if (existing) {
+      const same = existing.module === rec.module && existing.kind === rec.kind && existing.imported === rec.imported
+      if (!same) {
+        throw new ImportParseError(
+          `Import conflict: local name "${local}" is bound differently at ${existing.loc} and ${rec.loc} `
+          + `— use distinct aliases for these two examples on this page.`,
+        )
+      }
+      return
+    }
+    registry.set(local, rec)
+  }
+
+  for (const group of groups) {
+    for (const rawLine of group.importLines) {
+      const parsed = parseImportLine(rawLine, group.loc)
+      const bucket = bucketFor(parsed.module)
+      if (parsed.kind === "side-effect") { bucket.sideEffectOnly = true; continue }
+      if (parsed.kind === "namespace") {
+        claim(parsed.local, { module: parsed.module, kind: "namespace", loc: group.loc })
+        bucket.namespaces.set(parsed.local, group.loc)
+        continue
+      }
+      if (parsed.kind === "default" || parsed.kind === "default+named") {
+        claim(parsed.local, { module: parsed.module, kind: "default", loc: group.loc })
+        bucket.defaults.set(parsed.local, group.loc)
+      }
+      const names = parsed.kind === "named" || parsed.kind === "default+named" ? parsed.names : []
+      for (const { imported, local } of names) {
+        claim(local, { module: parsed.module, kind: "named", imported, loc: group.loc })
+        bucket.named.set(local, { imported, loc: group.loc })
+      }
+    }
+  }
+
+  const out: string[] = []
+  for (const [mod, bucket] of modules) {
+    const q = JSON.stringify(mod)
+    if (bucket.sideEffectOnly && bucket.defaults.size === 0 && bucket.namespaces.size === 0 && bucket.named.size === 0) {
+      out.push(`import ${q}`)
+    }
+    for (const local of bucket.namespaces.keys()) out.push(`import * as ${local} from ${q}`)
+    const namedClause = [...bucket.named].map(([local, { imported }]) => (imported === local ? local : `${imported} as ${local}`))
+    const defaultLocals = [...bucket.defaults.keys()]
+    if (defaultLocals.length === 0) {
+      if (namedClause.length > 0) out.push(`import { ${namedClause.join(", ")} } from ${q}`)
+    } else {
+      out.push(`import ${defaultLocals[0]}${namedClause.length > 0 ? `, { ${namedClause.join(", ")} }` : ""} from ${q}`)
+      for (const extra of defaultLocals.slice(1)) out.push(`import ${extra} from ${q}`)
+    }
+  }
+  return out
+}
+
+// ---------------------------------------------------------------------------
+// Markdown -> literal JSX source compilation (see "Generated pages" in the spec — no e2.tsx runtime
+// interpreter, no MdNode-as-JSON-in-the-output; every construct becomes real JSX text at build time).
+// ---------------------------------------------------------------------------
+
+/** A JSON.stringify'd string is always a valid, safely-escaped JS string literal — used for every
+ * piece of markdown prose text spliced into generated JSX, so stray `{`, `}`, `<`, `>`, backslashes
+ * or quotes in an author's prose can never be misparsed as JSX/JS syntax (see the spec). */
+function jsxText(s: string): string {
+  return `{${JSON.stringify(s)}}`
+}
+
+function jsxAttr(name: string, value: unknown): string {
+  if (value == null) return ""
+  return ` ${name}={${JSON.stringify(value)}}`
+}
+
+const TAG_MAP: Record<string, string> = {
+  blockquote: "blockquote", table: "table", thead: "thead", tbody: "tbody",
+  tr: "tr", th: "th", td: "td", strong: "strong", emphasis: "em",
+  strikethrough: "s", codespan: "code",
+}
+
+function childrenJsx(n: MdNode, relPath: string): string {
+  const c = n[2]
+  if (!Array.isArray(c)) return ""
+  return c.map((child) => nodeToJsx(child, relPath)).join("")
+}
+
+/** Compiles one MdNode into literal JSX source text, recursively — the sole replacement for
+ * e2.tsx's runtime tree-walker. `"html"` nodes (literal HTML in the markdown source) are spliced
+ * verbatim as real JSX: if that HTML isn't valid JSX, the generated file fails to build — see the
+ * spec's "Why" on raw HTML, this is deliberate, not a bug. `relPath` is only actually used by
+ * `"code"` nodes (provenance comments — see `codeNodeToJsx`), threaded through everywhere else
+ * purely to keep this one recursive walker instead of a second copy of it. */
+function nodeToJsx(n: MdNode, relPath: string): string {
+  const [type, meta] = n
+  switch (type) {
+    case "root": return childrenJsx(n, relPath)
+    case "heading": return `<h${meta.level}${jsxAttr("id", meta.id)}>${childrenJsx(n, relPath)}</h${meta.level}>`
+    case "paragraph": return `<p>${childrenJsx(n, relPath)}</p>`
+    case "list": return `<${meta.ordered ? "ol" : "ul"}>${childrenJsx(n, relPath)}</${meta.ordered ? "ol" : "ul"}>`
+    case "listItem": return `<li>${childrenJsx(n, relPath)}</li>`
+    case "hr": return "<hr/>"
+    case "link": return `<a${jsxAttr("href", meta.href)}${jsxAttr("title", meta.title)}>${childrenJsx(n, relPath)}</a>`
+    case "image": return `<img${jsxAttr("src", meta.src)}${jsxAttr("alt", meta.alt)}/>`
+    // node() always wraps children as an array (only "text" callbacks get a raw string — see
+    // splitNodes/node above), so an "html" node's own n[2] is never a string in practice; textOf
+    // recovers the literal raw HTML text from its "text" descendants, spliced verbatim (unescaped —
+    // see the spec's "Why" on raw HTML: this is deliberate, not a bug).
+    case "html": return textOf(n)
+    case "text": return jsxText(typeof n[2] === "string" ? n[2] : "")
+    case "code": return codeNodeToJsx(n, relPath)
+    default: {
+      const tag = TAG_MAP[type]
+      if (tag) return `<${tag}>${childrenJsx(n, relPath)}</${tag}>`
+      return ""
+    }
+  }
+}
+
+type ShikiToken = { content: string; color?: string }
+
+/** Compiles Shiki's structured token output (not its HTML-string output — see the spec's "Why" on
+ * avoiding `.innerHTML`) into a literal JSX array-of-lines: each line a `<>`-fragment of colored
+ * `<span>`s (or plain text for uncolored runs), lines separated by literal `"\n"` text children so
+ * they render as separate lines inside a `<pre>`. */
+function tokensToJsx(lines: ShikiToken[][]): string {
+  const lineFrags = lines.map((line) => {
+    const spans = line.map((t) => (t.color ? `<span style={${JSON.stringify(`color:${t.color}`)}}>${jsxText(t.content)}</span>` : jsxText(t.content))).join("")
+    return `<>${spans}</>`
+  })
+  return `[${lineFrags.join(',"\\n",')}]`
+}
 
 type InlineExample = { node: MdNode; body: string; importLines: string[]; sourceLine: number }
 type FullExample = { node: MdNode; index: number; importLines: string[]; body: string; sourceLine: number }
 
 /**
- * Highlights every code node (all languages) and classifies ts/tsx ones per the spec's three
- * fence kinds. Plain ts/tsx and non-ts/tsx fences are left as highlight-only display data. Mutates
- * `codeNodes` in place and returns the inline/full examples collected for codegen. `fenceLines[i]`
- * is the source line of `codeNodes[i]`'s opening fence (see computeFenceLines).
+ * Highlights every code node (all languages, via Shiki's token API) and classifies ts/tsx ones per
+ * the spec's three fence kinds. Mutates `codeNodes` in place (stores `tokens` on each node's meta,
+ * consumed later by `codeNodeToJsx`) and returns the inline/full examples collected for codegen.
+ * `fenceLines[i]` is the source line of `codeNodes[i]`'s opening fence (see computeFenceLines).
  */
 async function processCodeNodes(codeNodes: MdNode[], fenceLines: number[]): Promise<{ inline: InlineExample[]; full: FullExample[] }> {
   const inline: InlineExample[] = []
@@ -213,8 +433,8 @@ async function processCodeNodes(codeNodes: MdNode[], fenceLines: number[]): Prom
     const { annotation, body: withoutMarker } = isTs ? annotationOf(raw) : { annotation: null as Annotation, body: raw }
 
     const displayText = annotation ? withoutMarker.replace(/^\n/, "") : raw
-    const highlightedHtml = await codeToHtml(displayText, { lang: lang || "text", theme: "github-dark" })
-    n[1] = { ...n[1], highlightedHtml }
+    const { tokens } = await codeToTokens(displayText, { lang: lang || "text", theme: "github-dark" })
+    n[1] = { ...n[1], tokens }
     n[2] = displayText
 
     if (annotation === "inline-example") {
@@ -231,17 +451,8 @@ async function processCodeNodes(codeNodes: MdNode[], fenceLines: number[]): Prom
   return { inline, full }
 }
 
-/** Cheap, parse-free first-heading text (e.g. "# Title" -> "Title") — the same fallback
- * parseAndGenerate computes via a full parse, recomputed here without one for the menu (see the
- * `stale` branch above: elt_md must give the same title every call, not just on a page's first
- * [re]build, or the menu would silently revert to the bare filename on every later, non-stale run). */
-function firstHeadingText(body: string): string | null {
-  const m = body.match(/^#{1,6}\s+(.+?)\s*$/m)
-  return m?.[1]?.replace(/[*_`]/g, "") ?? null
-}
-
 /** Cheap, parse-free line numbers of every `@full-example` fence's opening ` ``` ` — used to size
- * and comment the routes generated on every macro call, even for pages whose generated .ts file is
+ * and comment the routes generated on every macro call, even for pages whose generated .tsx file is
  * up to date and not being re-parsed (see computeFenceLines for why a full parse isn't needed). */
 function findFullExampleLines(raw: string): number[] {
   const lines = raw.split("\n")
@@ -252,58 +463,42 @@ function findFullExampleLines(raw: string): number[] {
   return out
 }
 
-/** Dedupe by exact line text — multiple identical `import` lines across merged snippets collapse
- * to one; different clauses from the same specifier are kept as separate lines (valid ESM). */
-function mergeImportLines(groups: string[][]): string[] {
-  const seen = new Set<string>()
-  const out: string[] = []
-  for (const lines of groups) {
-    for (const line of lines) {
-      if (seen.has(line)) continue
-      seen.add(line)
-      out.push(line)
-    }
-  }
-  return out
-}
-
-/** Serializes an MdNode tree as executable TS source (not JSON): inline-example nodes splice in a
- * live IIFE literal so their JSX executes as real module code when the generated page loads.
- * `relPath` is cited in a provenance comment on each spliced block (see genPageSource). */
-function serializeTree(n: MdNode, relPath: string): string {
-  const [type, meta, children] = n
-  const childrenSrc = typeof children === "string"
-    ? JSON.stringify(children)
-    : `[${(children as MdNode[]).map((c) => serializeTree(c, relPath)).join(",")}]`
-  return `[${JSON.stringify(type)},${serializeMeta(meta, relPath)},${childrenSrc}]`
-}
-
-function serializeMeta(meta: Record<string, any>, relPath: string): string {
-  const { __inlineBody, __sourceLine, ...rest } = meta
-  const parts = Object.entries(rest).map(([k, v]) => `${JSON.stringify(k)}:${JSON.stringify(v)}`)
-  if (__inlineBody != null) {
-    // Wrapped in try/catch so one bad example doesn't take the whole page's module evaluation down
-    // with it (see CodeExample's `renderResult`/`renderError` handling in the spec).
-    parts.push(
-      `renderResult:/* docs/md/${relPath}:${__sourceLine} */(function(){try{\n${__inlineBody}\n}catch(e){return {__renderError:String(e&&e.stack||e)}}})()`,
-    )
-  }
-  return `{${parts.join(",")}}`
-}
-
-/** "../".repeat(n) up to `docs/src/` from a generated file at `docs/src/md/<segments...>.ts`. */
+/** "../".repeat(n) up to `docs/src/` from a generated file at `docs/src/md/<segments...>.tsx`. */
 function upsFromMdDir(relPath: string): string {
   return "../".repeat(relPath.replace(/\.md$/, "").split("/").length)
 }
 
+/** Compiles a `"code"` MdNode into a literal `<CodeExample .../>` call at its exact position in the
+ * generated JSX (see "Code fences" in the spec). `@inline-example` bodies run inside
+ * `runExample(() => {...})`, spread onto the props — this replaces the old JSON-tree
+ * `renderResult`/`__renderError` dance, and re-runs the example on every `Content()` call rather
+ * than once at module-load time, which is the correct/expected behavior for a rendered component. */
+function codeNodeToJsx(n: MdNode, relPath: string): string {
+  const meta = n[1]
+  const highlighted = tokensToJsx(meta.tokens ?? [])
+  const props: string[] = [` highlighted={${highlighted}}`]
+  if (meta.fullExampleUrl != null) {
+    props.push(jsxAttr("fullExampleUrl", meta.fullExampleUrl))
+    return `<CodeExample${props.join("")} />`
+  }
+  if (meta.__inlineBody != null) {
+    return `<CodeExample${props.join("")} {...runExample(() => {\n/* docs/md/${relPath}:${meta.__sourceLine} */\n${meta.__inlineBody}\n})} />`
+  }
+  return `<CodeExample${props.join("")} />`
+}
+
 function genPageSource(relPath: string, frontmatter: Frontmatter, root: MdNode, inline: InlineExample[]): string {
   const ups = upsFromMdDir(relPath)
-  const mergedImports = mergeImportLines(inline.map((e) => e.importLines))
+  const mergedImports = mergeImports(inline.map((e) => ({ importLines: e.importLines, loc: `docs/md/${relPath}:${e.sourceLine}` })))
 
   for (const e of inline) {
     ;(e.node[1] as any).__inlineBody = e.body
     ;(e.node[1] as any).__sourceLine = e.sourceLine
   }
+
+  // Compile the whole tree to JSX now (mutations above — __inlineBody/__sourceLine — must land first,
+  // since codeNodeToJsx, reached via nodeToJsx's "code" case, reads them).
+  const bodyJsx = nodeToJsx(root, relPath)
 
   const importsComment = inline.length > 0
     ? [`// Imports merged from @inline-example blocks at ${inline.map((e) => `docs/md/${relPath}:${e.sourceLine}`).join(", ")}`]
@@ -315,21 +510,17 @@ function genPageSource(relPath: string, frontmatter: Frontmatter, root: MdNode, 
     `// Source: docs/md/${relPath}`,
     'import "elt"',
     `import { Service, view } from "elt"`,
-    `import { renderMdPage } from "${ups}e2.tsx"`,
-    `import type { MdNode } from "${ups}macro.ts"`,
+    `import { CodeExample, runExample } from "${ups}code-example.tsx"`,
     ...importsComment,
     ...mergedImports,
     "",
     `// docs/md/${relPath}:1 (frontmatter)`,
     `export const frontmatter = ${JSON.stringify(frontmatter)} as const`,
     "",
-    `// docs/md/${relPath} (full document tree)`,
-    `const __root: MdNode = ${serializeTree(root, relPath)}`,
-    "",
-    "export default class extends Service({}, {}) {",
+    "export class PageService extends Service({}, {}) {",
     "  @view",
     "  Content() {",
-    "    return renderMdPage(__root)",
+    `    return <e-block typographic pad>${bodyJsx}</e-block>`,
     "  }",
     "}",
     "",
@@ -338,9 +529,9 @@ function genPageSource(relPath: string, frontmatter: Frontmatter, root: MdNode, 
 
 /**
  * A `@full-example` block's own generated module — a complete, standalone route target (its
- * default export is a real `Service` subclass, exactly like a page's, so it can be used directly
- * as a route's `srv` factory via `() => import(...)`; no shared wrapper Service is needed). Its
- * imports are never merged with the page's or with any other example's (see the spec).
+ * default export is a real `Service` subclass; unlike a page, it's still lazily dynamic-imported —
+ * see "Routing"/"@full-example fences" in the spec — so a default export, not a named one, is fine
+ * here). Its imports are never merged with the page's or with any other example's.
  */
 function genFullExampleSource(relPath: string, ex: FullExample): string {
   return [
@@ -367,8 +558,8 @@ const mdGlob = new Bun.Glob("**/*.md")
 async function scanMdFiles(mdDir: string): Promise<string[]> {
   const out: string[] = []
   for await (const relPath of mdGlob.scan(mdDir)) out.push(relPath)
-  return out.sort() // deterministic order: md-deps.ts content must be stable across runs with the
-  // same file set, or the idempotency check below (File registration in the spec) never converges.
+  return out.sort() // deterministic order: md-deps.ts / routes.generated.ts content must be stable
+  // across runs with the same file set, or the idempotency write-skip (see elt_md) never converges.
 }
 
 /** 1-based line number, in `raw` (the *whole* source file, frontmatter included), of every opening
@@ -430,46 +621,24 @@ async function parseAndGenerate(srcDir: string, relPath: string, raw: string, fr
   }
 }
 
-/** section=null (ungrouped) first, then sections alphabetically; each group sorted by order, then title. */
-function buildMenu(pages: PageEntry[]): MenuGroup[] {
-  const groups = new Map<string | null, MenuEntry[]>()
-  for (const p of pages) {
-    const section = p.frontmatter.section ?? null
-    const entry: MenuEntry = {
-      name: p.name,
-      title: p.frontmatter.title ?? p.name,
-      url: p.url,
-      order: p.frontmatter.order ?? Number.MAX_SAFE_INTEGER,
-    }
-    const arr = groups.get(section) ?? []
-    arr.push(entry)
-    groups.set(section, arr)
-  }
-  for (const items of groups.values()) {
-    items.sort((a, b) => a.order - b.order || a.title.localeCompare(b.title))
-  }
-  const sections = [...groups.keys()].filter((s): s is string => s != null).sort()
-  const out: MenuGroup[] = []
-  if (groups.has(null)) out.push({ section: null, items: groups.get(null)! })
-  for (const s of sections) out.push({ section: s, items: groups.get(s)! })
-  return out
-}
-
 /**
- * The route table itself, as generated TEXT (not runtime-built data): Bun's client-side bundler
- * only code-splits a dynamic `import()` when its argument is a static string literal — a loop
- * building `() => import(`./md/${name}.ts`)` from a computed `name` does not resolve at runtime
- * (confirmed by testing: the browser fetches a URL Bun never registered as a chunk, and gets the
- * SPA's HTML fallback back with a "MIME type" error instead of the module). So every page's route
- * gets its own literal `import("./md/<name>.ts")` call, written out by the macro — which is also
- * exactly where a "docs/md/<file>:<line>" provenance comment per block belongs (see the spec,
- * "Generated file provenance").
+ * The route table and menu, as generated TEXT: every page is a literal, static
+ * `import * as <alias> from "./md/<name>.tsx"` (see "Routing" in the spec — Bun's client-side
+ * bundler only code-splits a *dynamic* `import()` with a static string literal argument, but a
+ * static top-level `import` isn't trying to code-split at all; it's simply eager, which is the
+ * accepted trade-off here). `@full-example` routes are the one case that keeps a lazy, dynamic
+ * `() => import("./md/<name>.full-<n>.tsx")`, since nothing needs them until visited.
  */
-function genRoutesSource(pages: PageEntry[], menu: MenuGroup[]): string {
+function genRoutesSource(pages: PageEntry[]): string {
+  const importLines: string[] = []
   const routeLines: string[] = []
+  const menuEntryLines: string[] = []
+
   for (const p of pages) {
+    importLines.push(`import * as ${p.moduleAlias} from "./md/${p.name}.tsx"`)
     routeLines.push(`  // docs/md/${p.name}.md:1`)
-    routeLines.push(`  ${JSON.stringify(p.name)}: ["${p.url}", () => import("./md/${p.name}.tsx")],`)
+    routeLines.push(`  ${JSON.stringify(p.name)}: ["${p.url}", () => ${p.moduleAlias}.PageService],`)
+    menuEntryLines.push(`  { name: ${JSON.stringify(p.name)}, url: ${JSON.stringify(p.url)}, frontmatter: ${p.moduleAlias}.frontmatter },`)
     for (let n = 0; n < p.fullExampleLines.length; n++) {
       routeLines.push(`  // docs/md/${p.name}.md:${p.fullExampleLines[n]}`)
       routeLines.push(
@@ -482,13 +651,16 @@ function genRoutesSource(pages: PageEntry[], menu: MenuGroup[]): string {
     "// GENERATED by docs/src/macro.ts — do not edit by hand (gitignored). See",
     "// specs/markdown-docs-reloaded.md.",
     'import type { RouteDef } from "elt"',
-    'import type { MenuGroup } from "./macro.ts"',
+    'import { buildMenu } from "./menu.ts"',
+    ...importLines,
     "",
     "export const routes: RouteDef = {",
     ...routeLines,
     "}",
     "",
-    `export const menu: MenuGroup[] = ${JSON.stringify(menu, null, 2)}`,
+    "export const menu = buildMenu([",
+    ...menuEntryLines,
+    "])",
     "",
   ].join("\n")
 }
@@ -499,12 +671,15 @@ function genRoutesSource(pages: PageEntry[], menu: MenuGroup[]): string {
  * bundle time regardless of what invoked the bundler, so this works the same way no matter which
  * directory `bun` was launched from).
  *
- * For each file, regenerates the corresponding `docs/src/md/<path>.ts` (and any `.full-N.ts` files
+ * For each file, regenerates the corresponding `docs/src/md/<path>.tsx` (and any `.full-N.tsx` files
  * for its `@full-example` blocks) only if that target is missing or older than the source — the
- * expensive parse/highlight/codegen step. Routes and the menu, by contrast, are cheap (frontmatter
- * + fence line-scanning, not a full parse) and are recomputed — and `docs/src/routes.generated.ts`
- * rewritten — from scratch on every call, so they are never stale even when the underlying page
- * file itself was skipped this run.
+ * expensive parse/highlight/codegen step. `docs/src/routes.generated.ts`, by contrast, is cheap
+ * (no full parse — just names and a line-numbered scan for `@full-example` fences) and is
+ * recomputed — and rewritten — from scratch on every call. It no longer needs to track frontmatter
+ * at all: since every page is now a static import, the menu just reads `<alias>.frontmatter` live
+ * off each already-imported module at that generated file's own module-eval time, so a
+ * frontmatter-only edit is picked up automatically the moment the page's own `.tsx` file is
+ * regenerated — no separate "does the router need to change" staleness tracking is needed for it.
  *
  * As a side effect, (over)writes `docs/src/md-deps.ts` with one bare `with { type: "text" }` import
  * per discovered file — the only way to register each of them as a bundler-watched dependency,
@@ -513,15 +688,15 @@ function genRoutesSource(pages: PageEntry[], menu: MenuGroup[]): string {
  * what's on disk, which is what stops them from re-triggering themselves (editing either is itself
  * a watched change that would otherwise call `elt_md()` again).
  *
- * Returns the same data it just wrote to `routes.generated.ts`, mainly so tests can assert on it
- * directly — a Bun macro's return value is inlined as a literal at its call site, so in the real
- * (non-test) call from `docs/src/routes.ts` this return value is JSON-serializable data, discarded
- * in favor of the fresh `routes.generated.ts` file being imported separately right after.
+ * Returns the same page list it just wrote into `routes.generated.ts`, mainly so tests can assert
+ * on it directly — a Bun macro's return value is inlined as a literal at its call site, so in the
+ * real (non-test) call from `docs/src/routes.ts` this return value is JSON-serializable data,
+ * discarded in favor of the fresh `routes.generated.ts` file being imported separately right after.
  *
  * `roots` is a test-only seam (see macro.test.ts): every real call site invokes `elt_md()` with no
  * arguments, scanning the real `docs/md` next to this file.
  */
-export async function elt_md(roots?: { mdDir: string; srcDir: string }): Promise<{ pages: PageEntry[]; menu: MenuGroup[] }> {
+export async function elt_md(roots?: { mdDir: string; srcDir: string }): Promise<{ pages: PageEntry[] }> {
   const mdDir = roots?.mdDir ?? path.resolve(import.meta.dir, "..", "md")
   const srcDir = roots?.srcDir ?? path.resolve(import.meta.dir)
   const files = await scanMdFiles(mdDir)
@@ -532,6 +707,7 @@ export async function elt_md(roots?: { mdDir: string; srcDir: string }): Promise
   if (existingDeps !== depsContent) await Bun.write(depsPath, depsContent)
 
   const pages: PageEntry[] = []
+  const takenAliases = new Set<string>()
   // Sequential, not Promise.all: full-example index assignment and target-file writes for a given
   // page must not interleave with another page's.
   for (const relPath of files) {
@@ -547,21 +723,16 @@ export async function elt_md(roots?: { mdDir: string; srcDir: string }): Promise
       await parseAndGenerate(srcDir, relPath, raw, frontmatter, body)
     }
 
-    // Cheap fallback for the menu, matching parseAndGenerate's own heading fallback closely enough
-    // for a plain-text heading — a full markdown parse isn't run here for a page that isn't being
-    // rebuilt this call, so this can't reuse parseAndGenerate's real (inline-formatting-aware) title.
-    const menuFrontmatter = frontmatter.title != null
-      ? frontmatter
-      : { ...frontmatter, title: firstHeadingText(body) ?? name }
-
-    pages.push({ name, url: urlFor(relPath), frontmatter: menuFrontmatter, fullExampleLines: findFullExampleLines(raw) })
+    pages.push({
+      name, url: urlFor(relPath), moduleAlias: moduleAliasFor(name, takenAliases),
+      fullExampleLines: findFullExampleLines(raw),
+    })
   }
 
-  const menu = buildMenu(pages)
-  const routesContent = genRoutesSource(pages, menu)
+  const routesContent = genRoutesSource(pages)
   const routesPath = path.resolve(srcDir, "routes.generated.ts")
   const existingRoutes = (await Bun.file(routesPath).exists()) ? await Bun.file(routesPath).text() : null
   if (existingRoutes !== routesContent) await Bun.write(routesPath, routesContent)
 
-  return { pages, menu }
+  return { pages }
 }
