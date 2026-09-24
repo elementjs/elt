@@ -3,7 +3,8 @@ import { mkdtemp, rm } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import {
   buildMenu, elt_md, ImportParseError, mergeImports, node, parseImportLine,
-  resolveMdLink, splitFrontmatter, splitNodes, urlFor,
+  resolveMdLink, ROUTES_GENERATED_BEGIN_MARKER, ROUTES_GENERATED_END_MARKER, splitFrontmatter,
+  splitNodes, urlFor,
 } from "./macro.ts"
 
 describe("splitNodes", () => {
@@ -250,6 +251,15 @@ async function withTempDocsTree(files: Record<string, string>) {
   for (const [rel, content] of Object.entries(files)) {
     await Bun.write(`${mdDir}/${rel}`, content)
   }
+  // Fixture routes.ts: elt_md() splices its generated import block between these markers, exactly
+  // like the real (hand-written, tracked) docs/src/routes.ts — see spliceGeneratedBlock in macro.ts.
+  await Bun.write(`${srcDir}/routes.ts`, [
+    "// fixture: hand-written part",
+    ROUTES_GENERATED_BEGIN_MARKER,
+    ROUTES_GENERATED_END_MARKER,
+    "// fixture: hand-written part continues",
+    "",
+  ].join("\n"))
   return {
     root, mdDir, srcDir,
     elt_md: () => elt_md({ mdDir, srcDir }),
@@ -329,17 +339,56 @@ describe("elt_md (integration)", () => {
     expect(content).toContain('"title":"Renamed"')
   })
 
-  test("(re)writes md-deps.ts to match the current file set when it's missing or stale", async () => {
+  test("splices a named, referenced text-import block into routes.ts's GENERATED markers", async () => {
     const t = await withTempDocsTree({ "index.md": "# Index\n", "using-elt.md": "# Using elt\n" })
     tmp = t
-    const depsPath = `${t.srcDir}/md-deps.ts`
-    await Bun.write(depsPath, "// stale\n")
+    const routesPath = `${t.srcDir}/routes.ts`
 
     await t.elt_md()
-    const content = await Bun.file(depsPath).text()
-    expect(content).toContain('import "../md/index.md" with { type: "text" }')
-    expect(content).toContain('import "../md/using-elt.md" with { type: "text" }')
-    expect(content).not.toContain("// stale")
+    const content = await Bun.file(routesPath).text()
+    expect(content).toContain('import md_index_text from "../md/index.md" with { type: "text" }')
+    expect(content).toContain('import md_using_elt_text from "../md/using-elt.md" with { type: "text" }')
+    // named + referenced, not side-effect-only — see spec "Macro" on why this is required.
+    expect(content).toContain("void [md_index_text, md_using_elt_text]")
+    expect(content).toContain("// fixture: hand-written part\n") // hand-written parts untouched
+    expect(content).toContain("// fixture: hand-written part continues")
+  })
+
+  test("routes.ts generated block is stable across repeated calls with no underlying change", async () => {
+    const t = await withTempDocsTree({ "index.md": "# Index\n" })
+    tmp = t
+    const routesPath = `${t.srcDir}/routes.ts`
+
+    await t.elt_md()
+    const before = await Bun.file(routesPath).text()
+    const firstWrite = Bun.file(routesPath).lastModified
+
+    await new Promise((r) => setTimeout(r, 10))
+    await t.elt_md()
+    const after = await Bun.file(routesPath).text()
+    expect(after).toBe(before)
+    expect(Bun.file(routesPath).lastModified).toBe(firstWrite) // no rewrite when content is unchanged
+  })
+
+  test("routes.ts generated block updates when the file set changes, leaving hand-written parts intact", async () => {
+    const t = await withTempDocsTree({ "index.md": "# Index\n" })
+    tmp = t
+    const routesPath = `${t.srcDir}/routes.ts`
+    await t.elt_md()
+
+    await Bun.write(`${t.mdDir}/using-elt.md`, "# Using elt\n")
+    await t.elt_md()
+    const content = await Bun.file(routesPath).text()
+    expect(content).toContain('import md_using_elt_text from "../md/using-elt.md" with { type: "text" }')
+    expect(content).toContain("// fixture: hand-written part\n")
+    expect(content).toContain("// fixture: hand-written part continues")
+  })
+
+  test("throws a clear error when routes.ts is missing the GENERATED markers", async () => {
+    const t = await withTempDocsTree({ "index.md": "# Index\n" })
+    tmp = t
+    await Bun.write(`${t.srcDir}/routes.ts`, "// no markers here\n")
+    expect(t.elt_md()).rejects.toThrow(/GENERATED-BEGIN\/GENERATED-END markers/)
   })
 
   test("generated page exports a named PageService class, not a default export", async () => {

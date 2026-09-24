@@ -2,7 +2,6 @@ src/*.d.ts
 dist
 node_modules
 docs/src/md
-docs/src/md-deps.ts
 docs/src/routes.generated.ts
 module
 testsjs

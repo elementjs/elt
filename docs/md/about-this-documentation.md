@@ -22,7 +22,7 @@ A fenced code block (` ```tsx ... ``` `) can behave in one of three ways, depend
 
 Any other language (bash, json, css, …) is always just displayed — there's no live/example mode for non-TypeScript blocks.
 
-## Raw HTML/TSX in a markdown file !!
+## Raw HTML/TSX in a markdown file
 
 If you write literal HTML directly in a `.md` file (e.g. `<div class="note">...</div>`), it directly becomes typescript tsx code when the page is built — it is **not** run through a forgiving HTML parser. Write it the way you'd write JSX: close every tag, including "void" ones like `<br/>` or `<img src="..."/>` (with the trailing slash). Malformed HTML here will fail the whole page's build, not just quietly render wrong — treat it the same care you'd give to any other code you write.
 

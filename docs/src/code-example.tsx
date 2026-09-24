@@ -2,9 +2,13 @@ import { css, o, If, $click, type Renderable } from "elt"
 import { theme } from "elt/ui"
 
 export type CodeExampleProps = {
-  /** Per-line, per-token colored spans, compiled to literal JSX by the macro at build time (see
-   * tokensToJsx in macro.ts) — never an HTML string, so no `.innerHTML` is used to render it. */
-  highlighted: Renderable
+  /** Builds the per-line, per-token colored spans, compiled to a literal JSX-producing closure by
+   * the macro at build time (see tokensToJsx in macro.ts) — never an HTML string, so no
+   * `.innerHTML` is used to render it. A callback rather than a plain `Renderable`: the compiled
+   * JSX wraps each line in a `<>` fragment, and appending a fragment's children to the DOM empties
+   * it irrecoverably, so a single materialized node tree can only ever be inserted once. Calling
+   * this fresh each time the "Typescript" tab (re)activates rebuilds that tree from scratch. */
+  highlighted: () => Renderable
   /** `@inline-example` only — set via `{...runExample(...)}` by the generated page. */
   renderResult?: Node
   /** `@inline-example` only — set via `{...runExample(...)}` when execution threw. */
@@ -28,9 +32,9 @@ export function runExample(fn: () => Node): { renderResult?: Node; renderError?:
 
 /** A code sample with a Typescript/Result toggle (defaults to Result) for runnable blocks
  * (`renderResult`/`renderError`/`fullExampleUrl` set); a plain highlighted block otherwise. */
-function renderCode(highlighted: Renderable) {
+function renderCode(highlighted: () => Renderable) {
   return <e-block border>
-    <pre class={cls_code}><code>{highlighted}</code></pre>
+    <pre class={cls_code}><code>{highlighted()}</code></pre>
   </e-block>
 }
 

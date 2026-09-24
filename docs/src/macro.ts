@@ -128,6 +128,17 @@ function moduleAliasFor(name: string, taken: Set<string>): string {
   return alias
 }
 
+/** Same shape as moduleAliasFor, `_text` suffixed and tracked in its own taken-set — used for the
+ * named `with { type: "text" }` imports spliced into docs/src/routes.ts (see genRoutesTextImportsBlock). */
+function textImportAliasFor(name: string, taken: Set<string>): string {
+  const base = `md_${name.replace(/[^A-Za-z0-9_$]/g, "_")}_text`
+  let alias = base
+  let n = 2
+  while (taken.has(alias)) alias = `${base}_${n++}`
+  taken.add(alias)
+  return alias
+}
+
 /**
  * Relative `.md` links (`./x.md`, `../dir/x.md`) become internal hash-routes matching the new
  * per-file route scheme (see Routing in the spec). `fromPath` is this document's own path relative
@@ -476,7 +487,7 @@ function upsFromMdDir(relPath: string): string {
 function codeNodeToJsx(n: MdNode, relPath: string): string {
   const meta = n[1]
   const highlighted = tokensToJsx(meta.tokens ?? [])
-  const props: string[] = [` highlighted={${highlighted}}`]
+  const props: string[] = [` highlighted={() => (${highlighted})}`]
   if (meta.fullExampleUrl != null) {
     props.push(jsxAttr("fullExampleUrl", meta.fullExampleUrl))
     return `<CodeExample${props.join("")} />`
@@ -559,14 +570,62 @@ function genFullExampleSource(relPath: string, ex: FullExample): string {
   ].join("\n")
 }
 
+// ---------------------------------------------------------------------------
+// docs/src/routes.ts's generated import block (see "Macro" in the spec — why this must be a NAMED,
+// referenced import living directly in routes.ts, not a bare side-effect import one file removed).
+// ---------------------------------------------------------------------------
+
+export const ROUTES_GENERATED_BEGIN_MARKER =
+  '// GENERATED-BEGIN (docs/src/macro.ts) — do not hand-edit until GENERATED-END; see specs/markdown-docs-reloaded.md "Macro".'
+export const ROUTES_GENERATED_END_MARKER = "// GENERATED-END"
+
+/** One named, referenced `with { type: "text" }` import per discovered `.md` file, between the
+ * markers above. Named + referenced (the trailing `void [...]`) is required, not cosmetic: it's
+ * what makes Bun invalidate the `{ type: "macro" }` call's cached result when a `.md` file's
+ * content changes (see the spec) — dead-code-eliminated entirely from a real production build. */
+function genRoutesTextImportsBlock(files: string[]): string {
+  const taken = new Set<string>()
+  const importLines: string[] = []
+  const aliases: string[] = []
+  for (const f of files) {
+    const alias = textImportAliasFor(nameFor(f), taken)
+    aliases.push(alias)
+    importLines.push(`import ${alias} from "../md/${f}" with { type: "text" }`)
+  }
+  return [
+    ROUTES_GENERATED_BEGIN_MARKER,
+    ...importLines,
+    `void [${aliases.join(", ")}]`,
+    ROUTES_GENERATED_END_MARKER,
+  ].join("\n")
+}
+
+/** Splices a freshly generated import block into `routesSource`'s existing GENERATED-BEGIN/END
+ * region, leaving everything else in the (hand-written, tracked) file untouched. Throws if the
+ * markers are missing — `docs/src/routes.ts` must always carry them (see the spec). */
+function spliceGeneratedBlock(routesSource: string, block: string): string {
+  const beginIdx = routesSource.indexOf(ROUTES_GENERATED_BEGIN_MARKER)
+  const endIdx = routesSource.indexOf(ROUTES_GENERATED_END_MARKER)
+  if (beginIdx === -1 || endIdx === -1 || endIdx < beginIdx) {
+    throw new Error(
+      "docs/src/routes.ts is missing the GENERATED-BEGIN/GENERATED-END markers required by elt_md() "
+      + "— see specs/markdown-docs-reloaded.md, \"Macro\".",
+    )
+  }
+  const afterEndLineStart = routesSource.indexOf("\n", endIdx)
+  const after = afterEndLineStart === -1 ? "" : routesSource.slice(afterEndLineStart + 1)
+  return routesSource.slice(0, beginIdx) + block + "\n" + after
+}
+
 const mdGlob = new Bun.Glob("**/*.md")
 
 /** Recursively lists every "*.md" under `mdDir`, relative to it, in a deterministic (sorted) order. */
 async function scanMdFiles(mdDir: string): Promise<string[]> {
   const out: string[] = []
   for await (const relPath of mdGlob.scan(mdDir)) out.push(relPath)
-  return out.sort() // deterministic order: md-deps.ts / routes.generated.ts content must be stable
-  // across runs with the same file set, or the idempotency write-skip (see elt_md) never converges.
+  return out.sort() // deterministic order: routes.ts's generated block / routes.generated.ts content
+  // must be stable across runs with the same file set, or the idempotency write-skip (see elt_md)
+  // never converges.
 }
 
 /** 1-based line number, in `raw` (the *whole* source file, frontmatter included), of every opening
@@ -688,10 +747,13 @@ function genRoutesSource(pages: PageEntry[]): string {
  * frontmatter-only edit is picked up automatically the moment the page's own `.tsx` file is
  * regenerated — no separate "does the router need to change" staleness tracking is needed for it.
  *
- * As a side effect, (over)writes `docs/src/md-deps.ts` with one bare `with { type: "text" }` import
- * per discovered file — the only way to register each of them as a bundler-watched dependency,
- * since a macro's own `Bun.file()` reads do not (see File registration in the spec). That write, and
- * the `routes.generated.ts` write, are both skipped when the generated content already matches
+ * As a side effect, (over)writes the GENERATED-BEGIN/END block inside `docs/src/routes.ts` itself
+ * — the file that calls this macro — with one named, referenced `with { type: "text" }` import per
+ * discovered file (see genRoutesTextImportsBlock). This is the only way that's been empirically
+ * confirmed to make Bun re-run this `{ type: "macro" }` call when only a `.md` file's *content*
+ * changes: a bare side-effect-only import one file removed does not invalidate the macro's cached
+ * result, even though it does still trigger a reload (see "Macro" in the spec). That write, and the
+ * `routes.generated.ts` write below, are both skipped when the generated content already matches
  * what's on disk, which is what stops them from re-triggering themselves (editing either is itself
  * a watched change that would otherwise call `elt_md()` again).
  *
@@ -708,10 +770,10 @@ export async function elt_md(roots?: { mdDir: string; srcDir: string }): Promise
   const srcDir = roots?.srcDir ?? path.resolve(import.meta.dir)
   const files = await scanMdFiles(mdDir)
 
-  const depsContent = files.map((f) => `import "../md/${f}" with { type: "text" }\n`).join("")
-  const depsPath = path.resolve(srcDir, "md-deps.ts")
-  const existingDeps = (await Bun.file(depsPath).exists()) ? await Bun.file(depsPath).text() : null
-  if (existingDeps !== depsContent) await Bun.write(depsPath, depsContent)
+  const routesTsPath = path.resolve(srcDir, "routes.ts")
+  const existingRoutesTs = await Bun.file(routesTsPath).text()
+  const newRoutesTs = spliceGeneratedBlock(existingRoutesTs, genRoutesTextImportsBlock(files))
+  if (newRoutesTs !== existingRoutesTs) await Bun.write(routesTsPath, newRoutesTs)
 
   const pages: PageEntry[] = []
   const takenAliases = new Set<string>()
