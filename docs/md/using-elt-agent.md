@@ -210,105 +210,17 @@ Common: `$observe`, `$click`, `$on`, `$bind.*`, `$connected` / `$disconnected`, 
 
 ## Observables
 
-Authoritative: `src/observable/observable.ts` + JSDoc.
+Full picture, with runnable examples: [`docs/md/observables.md`](./observables.md). Authoritative
+source: `src/observable/observable.ts` + JSDoc. The directives below are the load-bearing ones --
+everything else (API shapes, `o.expression`'s callback signature, converters, `.merge`/`.join`,
+`transaction`, `exclusive_lock`) is on that page.
 
-### Create and update
-
-```ts
-const o_user = o({ name: "a", age: 1 });
-o_user.get();
-o_user.set({ name: "b", age: 1 }); // replace whole
-o_user.assign({ age: 2 }); // recursive merge
-// complex in-place + writable-expression reverts:
-import "elt/mutative";
-o_user.mutate((draft) => {
-  draft.age++;
-});
-```
-
-**Do:** `assign` / `mutate` / one `.p('key').set(v)` for a single UI field.  
-**Don’t:** chain `.p().p().set()` for deep app writes — each `.p()` builds a combined observable; fine for one path binding, not for ad-hoc deep patches.
-
-- **`.p(...).set(v)`** overwrites that path. **`assign(partial)`** merges. Do not confuse them.
-- **`o.RO<T>`** = `Observable<T> | T`. Use **`o.get(x)`** for a one-shot read of an `RO` outside observation.
-- **JSX children:** only `o.RO<Renderable>` (or plain renderables). Other values → `.tf(...)` (or an expression) first.
-- Outside JSX, unless the expression is tiny (`.p()` / `.key()` / thin `.tf`), bind `o_*` / `oo_*` to named variables for readability.
-
-### Default derived state: `o.expression`
-
-```ts
-const oo_selected = o.expression(
-  (get) => get(store.oo_visible_items)[get(store.o_selected_idx)] ?? get(store.o_default_item),
-);
-```
-
-Callback: `(get, old, updated, prev) => T`
-
-| Helper         | Role                                                    |
-| -------------- | ------------------------------------------------------- |
-| `get(obs)`     | Subscribe and read                                      |
-| `old(obs)`     | Previous value this run (`o.NoValue` first time)        |
-| `updated(obs)` | Value only if that dep changed; else `o.NoValue`        |
-| `prev`         | Last result of this expression (`o.NoValue` first time) |
-
-Skip heavy work: if unrelated deps did not change, return `prev`.
-
-Optional **2nd argument** → **writable** expression (writes revert into sources). Name that `o_*`, not `oo_*`.
-
-Use `o.combine` only when expression is awkward. Prefer expression over most `join` / `merge` usages.
-
-### `.tf` / path / map key
-
-- Read-only: `obs.tf(x => …)`, `o.tf(maybe_ro, fn)`
-- Bidirectional: `.tf({ transform, revert })` or a `Converter` from `src/observable/transformers.ts`
-- Common converters: `tf_array_to_map`, `tf_set_has`, `tf_map_has`
-- **`.p('key')` / `.p(0)`** — one path; UI + tests OK; do not stack for deep patches
-- **`.key(id)`** on `Map` observables: `o_items_by_id.key(o_selected_id)`
-
-Writable revert also happens with **writable `o.expression`**, **`o.merge({…}).set({…})`**, and **bidirectional `.tf`**. Plain read-only derived observables do not push writes back.
-
-### `o.merge` / `o.join` (scoped bundles)
-
-- `o.merge({ a: obs1, b: obs2 })` — one object observable; good form/API scope; partial `.set` can revert into members
-- `o.join(a, b, c).tf(([a,b,c]) => …)` — tuple pipeline; also `$observe(o.join(…), cb)` for multi-source side effects
-
-### Batching
-
-```ts
-o.transaction(() => {
-  this.o_users.set(users);
-  this.o_targets.set(new Map(/* … */));
-  this.o_refreshing.set(false);
-});
-```
-
-Same idea: `o.merge({ … }).set({ … })`. Avoids mid-batch derived churn.
-
-### Side effects vs display
-
-| Intent                      | Pattern                                                                                  |
-| --------------------------- | ---------------------------------------------------------------------------------------- |
-| Display                     | Put `oo_*` / `o.expression` / `.tf` → `Renderable` in JSX                                |
-| Side effect (DOM, map, log) | `$observe(o.expression(…), cb)` or `$observe(o.join(…), cb)` while the node is connected |
-| Rate-limit callbacks        | `o.debounce` / `o.throttle`                                                              |
-
-### MVVM lock
-
-`o.exclusive_lock()` helps break DOM→model→DOM loops. **Non-reentrant:** calling the lock while held **skips** the inner function (`undefined`, body never runs). Do not rely on nested entry to do work.
-
-### Quick map
-
-| Need                       | Use                                         |
-| -------------------------- | ------------------------------------------- |
-| Derived from several deps  | `o.expression(get => …)`                    |
-| Skip work if dep unchanged | `old` / `updated` / `prev`                  |
-| List in template           | `Repeat(obs, fn)` (+ `.p` / `.tf` on items) |
-| Patch nested object        | `assign` or `mutate`                        |
-| Bind one field in UI       | `.p('key')`, `$bind.*`                      |
-| Map lookup by key          | `o_map.key(key_obs)`                        |
-| class/style toggle         | `class={{[cls]: obs}}` or expression `.tf`  |
-| Async UI block             | `DisplayPromise`                            |
-| Heavy filter/list          | expression + `old`/`prev` cache             |
+- Naming: `o_*` = writable observable; `oo_*` = read-only derived; convention only, not enforced.
+- `.set()` is `===`-gated -- mutating in place then `.set()`-ing the same reference is a no-op.
+- Prefer `o.expression` over `o.combine`/`o.merge`/`o.join` for new derived-value code.
+- Prefer `.assign()`/`.mutate()` (`import "elt/mutative"`) over chaining `.p()` for deep/ad-hoc writes.
+- Prefer `$observe`/`node_observe`/`Service.observe(...)` over a raw `addObserver` call -- see Hard rule 3.
+- JSX children: only `o.RO<Renderable>` (or plain renderables) -- other values need `.tf(...)` first.
 
 ---
 
