@@ -1,5 +1,6 @@
 import { css, type NRO } from "elt"
 import { theme } from "./theme"
+import { FORM_CONTROL_SELECTOR } from "./selectors"
 
 const colors = theme.colors
 
@@ -40,7 +41,10 @@ label {
     cursor: not-allowed;
   }
 
-  border-radius: ${theme.settings.borderRadius};
+  /* label wraps a widget-scale control (checkbox/toggle) but doesn't pad itself, so its radius
+     can't derive from its own padding — "widget" is a deliberate override matching its sibling
+     controls below (see "Border radius is derived" in specs/elt-ui-guidelines.md). */
+  ${theme.css.border_radius("widget")}
   gap: 4px;
   cursor: pointer;
   font-size: ${theme.settings.formFontSize};
@@ -64,20 +68,7 @@ input, button, select {
   line-height: 1;
 }
 
-button,
-input:not([type]),
-input[type="text"],
-input[type="number"],
-input[type="password"],
-input[type="button"],
-input[type="submit"],
-input[type="reset"],
-input[type="date"],
-input[type="time"],
-input[type="datetime-local"],
-textarea,
-select,
-label[e-variant="toggle"] {
+${FORM_CONTROL_SELECTOR} {
 
   line-height: 1.2;
   display: inline-block;
@@ -90,7 +81,7 @@ label[e-variant="toggle"] {
     color: ${colors.text};
     border: 1px solid ${colors.text.mid};
     padding: ${theme.settings.spacingWidget};
-    border-radius: ${theme.settings.borderRadius};
+    ${theme.css.border_radius("widget")}
     font-size: ${theme.settings.formFontSize};
 
     transition:
@@ -147,8 +138,8 @@ input[type="checkbox"] {
   appearance: none;
   width: 1em;
   height: 1em;
-  border: 1px solid ${colors.text.faded};
-  border-radius: 4px;
+  border: 1px solid ${colors.text.mid};
+  ${theme.css.border_radius("nudge-4")}
   cursor: pointer;
   position: relative;
   transition: box-shadow 0.1s ease;

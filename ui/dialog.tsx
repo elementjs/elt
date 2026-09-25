@@ -91,7 +91,11 @@ dialog {
   color: ${theme.colors.text};
 
   border: none;
-  border-radius: var(--e-frame-border-radius);
+  /* The dialog panel doesn't pad itself (its header/body/footer do), so its radius can't derive
+     from its own padding like [border-radius] normally does — "component" is a deliberate, named
+     override matching the step its children pad at (see "Border radius is derived" in
+     specs/elt-ui-guidelines.md). */
+  ${theme.css.border_radius("component")}
   border: 1px solid ${theme.colors.text.mid};
 
   background: var(--e-color-bg);

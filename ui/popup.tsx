@@ -181,7 +181,7 @@ export function popup<T>(
   const fut = new Future<T | typeof sym_popup_closed>()
   const popup = (
     <div popover="manual" class={cls_popup}>
-      <e-column surface="background" border-radius border="widget" class={cls_popup_content}>
+      <e-column surface="background" border class={cls_popup_content}>
         {$scrollable}
         {fn(fut)}
       </e-column>
@@ -340,7 +340,7 @@ const cls_arrow_inner = css`.arrow-inner {
   width: calc(round(var(--arrow-size, 12px) / 1.4142, 1px));
   height: calc(round(var(--arrow-size, 12px) / 1.4142, 1px));
   background-color: ${colors.bg};
-  border-radius: 2px;
+  ${theme.css.border_radius("nudge-2")}
 }`
 
 const cls_arrow_placer = css`.arrow-placer {

@@ -1,5 +1,7 @@
 # Elt/ui migration: old forms → new forms
 
+> **Obsolete.** This document is wildly out of date (e.g. it still documents `border="widget"`, predating the `border`/`border-radius` rework). Do not treat its content as current — it's pending a rewrite. Left in place rather than deleted since it will be needed again soon.
+
 This document is the single old-name → new-name equivalence table promised by `specs/elt-ui-guidelines.md` (Axis 3, Spacing scale Todo). It exists so an agent can mechanically convert code written against an earlier form of `elt/ui` without re-deriving intent from `specs/elt-ui-guidelines.md` each time.
 
 This is a living document. Each section covers one axis of `specs/elt-ui-guidelines.md`. Only the Color axis is filled in as of this pass — later passes add rows for Spacing/Layout/Typography renames as they're identified.

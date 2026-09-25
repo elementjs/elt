@@ -46,7 +46,7 @@ export function Select<T, T2 = T>(at: SelectAttributes<T, T2>) {
           await popup(
             ev.currentTarget,
             (fut) => (
-              <e-column touching="widget" role="listbox" border>
+              <e-column touching="widget" role="listbox" border="n+2">
                 {$scrollable}
                 {VirtualScroll(
                   o(at.options).tf((opts) => [...opts]),
@@ -107,7 +107,7 @@ const cls_item = css`.item {
   cursor: pointer;
   user-select: none;
   font-size: ${theme.settings.formFontSize};
-  border-radius: 2px;
+  ${theme.css.border_radius("nudge-2")}
 
   & .selected-icon {
     color: ${colors.tint};

@@ -31,7 +31,8 @@ export type AlignValues =
   | "space-between"
 
 export type BorderValues =
-  | "widget"
+  | "tint"
+  | "n+1" | "n+2" | "n+3" | "n+4" | "n+5" | "n+6" // relative surface-level separators; see _border_relative_levels below
 
 
 export type SurfaceValues =
@@ -49,10 +50,18 @@ export interface CommonAttrs extends Attrs<HTMLElement> {
   pad?: NRO<true | SpacingValues | "none">
   surface?: NRO<boolean | SurfaceValues>
   hover?: NRO<boolean>
-  /** Draw a border around the widget */
+  /**
+   * Draw a border around the element. Bare `border` is a clear boundary at `text.mid`; `"tint"`
+   * uses `tint.mid` instead; `"n+K"` is a divider/separator at that surface level relative to
+   * whatever's ambient. Implies `border-radius` (see below) unless `border-radius="none"`.
+   */
   border?: NRO<boolean | BorderValues>
-  /** Mostly used with "none" as border will apply border radius */
-  "border-radius"?: NRO<boolean | "none">
+  /**
+   * Radius follows this element's own vertical padding step by default (including when implied by
+   * `border`); pass a named spacing step to override that (for an element that doesn't pad itself),
+   * or `"none"` to opt out even when a border is present.
+   */
+  "border-radius"?: NRO<boolean | "none" | SpacingValues>
   
   "self-align"?: NRO<AlignValues>
   "self-justify"?: NRO<AlignValues>
@@ -136,8 +145,8 @@ const _surface_not_default = [...["background", "n+2"], ..._surface_levels].map(
 
 _`
   ${_all}[surface] { overflow: hidden; }
-  ${_all}[border] { border: 1px solid ${theme.colors.tint.surface("n+2")}; }
-  ${_all}[border="widget"] { border: 1px solid ${theme.colors.tint.mid}; }
+  ${_all}[border] { border: 1px solid ${theme.colors.text.mid}; overflow: hidden; }
+  ${_all}[border="tint"] { border: 1px solid ${theme.colors.tint.mid}; }
   ${_all}[hover]:hover { background-color: ${theme.colors.tint.surface("n+1")} }
   ${_all}[surface]${_surface_not_default} { ${theme.colors.tint.css.as_surface("n+1")} }
   ${_all}[surface="n+2"] { ${theme.colors.tint.css.as_surface("n+2")} }
@@ -150,9 +159,28 @@ for (const lvl of _surface_levels) {
   }`
 }
 
-// derived: radius follows this element's own vertical padding step (the tighter of the pair), not
-// a separately chosen value
-_`${_all}[border-radius]:not([border-radius="none"]) { border-radius: var(--e-pad-vertical, var(--e-spacing-widget-horizontal)); }`
+// [border="n+K"] — a divider/separator at that surface level relative to whatever's ambient,
+// matching [surface]'s own relative-offset mechanism (Mix.surface, ui/theme.tsx).
+const _border_relative_levels = ["1", "2", "3", "4", "5", "6"] as const
+for (const lvl of _border_relative_levels) {
+  _`${_all}[border="n+${lvl}"] { border: 1px solid ${theme.colors.tint.surface(`n+${lvl}`)}; }`
+}
+
+// `border` implies `border-radius` (any value, including a divider's), unless explicitly opted
+// out with border-radius="none". Default (no named step): derives from this element's own vertical
+// padding step. A named step below overrides that — for an element that doesn't pad itself.
+//
+// `:where(:not(...))` rather than a bare `:not(...)`: `:not([x="none"])` on its own carries the
+// specificity of [x="none"] (an attribute selector), which would outrank the plain-attribute
+// [border-radius="${sp}"] step selectors below despite coming first in source order — silently
+// preventing every named-step override from ever applying. :where() always contributes zero
+// specificity, so these two rules and the per-step loop stay equal-specificity and cascade
+// purely by source order, as intended.
+_`${_all}[border]:where(:not([border-radius="none"])) { ${theme.css.border_radius()} }`
+_`${_all}[border-radius]:where(:not([border-radius="none"])) { ${theme.css.border_radius()} }`
+for (const sp of spaces) {
+  _`${_all}[border-radius="${sp}"] { ${theme.css.border_radius(sp)} }`
+}
 
 for (const al of align) {
   _`${_layouters}[align="${al}"] { align-items: ${al}; }`

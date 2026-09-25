@@ -3,8 +3,10 @@ import { css, memoize } from "elt"
 export interface ThemeSettings {
   lineHeight: string
 
+  /** Fixed fallback for controls/frames that can't derive their radius from their own padding
+   * step — kept deliberately rare; prefer `theme.css.border_radius`/`[border-radius]` wherever an
+   * element pads itself (see "Border radius is derived" in specs/elt-ui-guidelines.md). */
   borderRadius: string
-  frameBorderRadius: string
 
   fontSize: string
   formFontSize: string
@@ -19,9 +21,9 @@ export interface ThemeSettings {
   intensityStrong: string
   intensityVeryStrong: string
 
-  spacing1: string
-  spacing2: string
-  spacing4: string
+  spacingNudge1: string
+  spacingNudge2: string
+  spacingNudge4: string
 
   /** Each step's own vertical value — half its horizontal value, tuned to look balanced against
    * uncompensated line-height half-leading (see "Spacing scale" in specs/elt-ui-guidelines.md). */
@@ -55,9 +57,9 @@ export interface ThemeSettings {
  * `theme.classes.pad`/`.spacing` (below) are precomputed against. Order matches the scale, smallest first.
  */
 export type SpacingStep =
-  | "1"
-  | "2"
-  | "4"
+  | "nudge-1"
+  | "nudge-2"
+  | "nudge-4"
   | "widget"
   | "component"
   | "section"
@@ -67,9 +69,9 @@ export type SpacingStep =
   | "stage-4"
 
 export const spacing_steps: SpacingStep[] = [
-  "1",
-  "2",
-  "4",
+  "nudge-1",
+  "nudge-2",
+  "nudge-4",
   "widget",
   "component",
   "section",
@@ -80,7 +82,7 @@ export const spacing_steps: SpacingStep[] = [
 ]
 
 /** The three raw px nudges have no vertical/horizontal pair — they're symmetric. */
-const _spacing_nudges = new Set<SpacingStep>(["1", "2", "4"])
+const _spacing_nudges = new Set<SpacingStep>(["nudge-1", "nudge-2", "nudge-4"])
 
 /** Shared by `Theme.css.pad`/`.spacing` — the one place that knows how a step maps to its custom property(ies). */
 function spacing_pair_css(prop: "pad" | "spacing", step: SpacingStep): string {
@@ -88,6 +90,23 @@ function spacing_pair_css(prop: "pad" | "spacing", step: SpacingStep): string {
     return `--e-${prop}-vertical: var(--e-spacing-${step}); --e-${prop}-horizontal: var(--e-spacing-${step});`
   }
   return `--e-${prop}-vertical: var(--e-spacing-${step}-vertical); --e-${prop}-horizontal: var(--e-spacing-${step}-horizontal);`
+}
+
+/**
+ * Shared by `Theme.css.border_radius` — the one place that knows how a `border-radius` value maps
+ * to a custom property. No step (the `[border]`/`[border-radius]` default) derives from the
+ * element's own vertical padding step, the tighter of its horizontal/vertical pair; a named step
+ * overrides that with a fixed value instead, for elements that don't pad themselves (e.g. the
+ * dialog panel — see "Border radius is derived" in specs/elt-ui-guidelines.md).
+ */
+function border_radius_css(step?: SpacingStep): string {
+  if (step == null) {
+    return `border-radius: var(--e-pad-vertical, var(--e-spacing-widget-horizontal));`
+  }
+  if (_spacing_nudges.has(step)) {
+    return `border-radius: var(--e-spacing-${step});`
+  }
+  return `border-radius: var(--e-spacing-${step}-vertical);`
 }
 
 export type ColorScheme = {
@@ -181,7 +200,6 @@ export class Theme<AllColors extends ColorScheme> {
     // Derived: aligned to the vertical padding step controls/frames use (widget/component), not
     // independently chosen — see "Border radius is derived" in specs/elt-ui-guidelines.md.
     this._set(theme.settings ?? {}, "borderRadius", "8px")
-    this._set(theme.settings ?? {}, "frameBorderRadius", "16px")
     this._set(theme.settings ?? {}, "intensityMid", "50%")
     this._set(theme.settings ?? {}, "intensityFaded", "80%")
     this._set(theme.settings ?? {}, "intensityStrong", "10%")
@@ -195,9 +213,9 @@ export class Theme<AllColors extends ColorScheme> {
 
     this._set(theme.settings ?? {}, "focusRingSize", "2px")
 
-    this._set(theme.settings ?? {}, "spacing1", "1px")
-    this._set(theme.settings ?? {}, "spacing2", "2px")
-    this._set(theme.settings ?? {}, "spacing4", "4px")
+    this._set(theme.settings ?? {}, "spacingNudge1", "1px")
+    this._set(theme.settings ?? {}, "spacingNudge2", "2px")
+    this._set(theme.settings ?? {}, "spacingNudge4", "4px")
 
     // Each step's vertical value is half its horizontal value — a tuned optical compensation for
     // uncompensated line-height half-leading, not derived from font metrics. Works uniformly across
@@ -287,15 +305,18 @@ export class Theme<AllColors extends ColorScheme> {
 
   /**
    * Raw-CSS-declaration helpers, keyed by concern — the low-level counterpart to `classes` below.
-   * `layout.css.tsx`'s `[pad]`/`[spacing]` attribute rules consume these directly instead of
-   * re-deriving the step → custom-property mapping themselves; `classes.pad`/`.spacing` wrap them into
-   * standalone classes for elements outside the `e-*` set. The three raw px nudges ("1"/"2"/"4")
-   * have no vertical/horizontal pair — they're symmetric; every other step does. See "Spacing scale"
-   * in specs/elt-ui-guidelines.md.
+   * `layout.css.tsx`'s `[pad]`/`[spacing]`/`[border]`/`[border-radius]` attribute rules consume
+   * these directly instead of re-deriving the step → custom-property mapping themselves;
+   * `classes.pad`/`.spacing` wrap them into standalone classes for elements outside the `e-*` set.
+   * The three raw px nudges ("nudge-1"/"nudge-2"/"nudge-4") have no vertical/horizontal pair —
+   * they're symmetric; every other step does. See "Spacing scale" in specs/elt-ui-guidelines.md.
    */
   readonly css = {
     pad: (step: SpacingStep) => spacing_pair_css("pad", step),
     spacing: (step: SpacingStep) => spacing_pair_css("spacing", step),
+    /** Called with no step: derives from the element's own vertical padding — `[border]`'s implied
+     * default. Called with a named step: a fixed override for elements that don't pad themselves. */
+    border_radius: (step?: SpacingStep) => border_radius_css(step),
   }
 
   @memoize

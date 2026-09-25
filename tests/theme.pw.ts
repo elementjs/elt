@@ -348,9 +348,9 @@ test.describe("Theme.css.pad / Theme.css.spacing", () => {
   test("the three raw px nudges have no pair — both axes read the same symmetric variable", async ({ page }) => {
     const result = await page.evaluate(() => {
       const { theme } = window.__ELT__.UI
-      return theme.css.pad("4")
+      return theme.css.pad("nudge-4")
     })
-    expect(result).toBe("--e-pad-vertical: var(--e-spacing-4); --e-pad-horizontal: var(--e-spacing-4);")
+    expect(result).toBe("--e-pad-vertical: var(--e-spacing-nudge-4); --e-pad-horizontal: var(--e-spacing-nudge-4);")
   })
 })
 

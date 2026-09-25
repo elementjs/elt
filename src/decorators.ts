@@ -385,14 +385,6 @@ export function $observe<N extends Node, T>(
   }
 }
 
-export function $observe_changes<N extends Node, T>(
-  a: o.RO<T>,
-  cbk: (newval: T, old_val: T | o.NoValue, node: N) => void,
-  options?: o.ObserveOptions<T>,
-): Decorator<N> {
-  return $observe(a, cbk, { ...options, changes_only: true })
-}
-
 /**
  * Use to bind to an event directly in the jsx phase.
  *
@@ -490,11 +482,6 @@ export function $disconnected<N extends Node>(fn: (node: N) => void) {
     node_on_disconnected(node, fn)
   }
 }
-/**
- * Alias for {@link $disconnected}
- * @deprecated
- */
-export const $removed = $disconnected
 
 /**
  * Attach a shadow root to a node and setup an internal mutation observer

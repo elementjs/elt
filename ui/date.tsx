@@ -289,7 +289,7 @@ const cls_day = css`.date-day {
   border: none;
   height: 28px;
   line-height: 28px;
-  border-radius: 4px;
+  ${theme.css.border_radius("nudge-4")}
   width: 32px;
   &.outside {
     opacity: 0.35;

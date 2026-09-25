@@ -290,7 +290,10 @@ export class ObjectEditorShell {
 
 const cls_shell = css`.oe-shell {
   border: 1px solid ${theme.colors.text.separator};
-  border-radius: ${theme.settings.frameBorderRadius};
+  /* Doesn't pad itself, so radius can't derive from its own padding — "section" is a deliberate
+     override matching the frame's old fixed 16px radius (see "Border radius is derived" in
+     specs/elt-ui-guidelines.md). */
+  ${theme.css.border_radius("section")}
   overflow: hidden;
 }`
 

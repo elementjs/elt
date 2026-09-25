@@ -111,7 +111,6 @@ css`@layer typography {
       overflow-x: auto;
       padding: 1em 1.25em;
       background: color-mix(in oklab, currentColor 6%, transparent);
-      border-radius: 0.375em;
       line-height: 1.5;
 
       & code {
@@ -143,7 +142,7 @@ css`@layer typography {
     /* ── Details / summary ─────────────────────────────────── */
     & details {
       border: 1px solid ${theme.colors.text.mid};
-      border-radius: ${theme.settings.borderRadius};
+      ${theme.css.border_radius("component")}
       padding: ${theme.settings.spacingComponent};
 
       & summary {
@@ -218,7 +217,7 @@ css`@layer typography {
     }
 
     & th {
-      ${theme.colors.text.faded.css.as_inverted}
+      ${theme.colors.text.faded.css.as_surface(1)}
       font-weight: bolder;
     }
   }

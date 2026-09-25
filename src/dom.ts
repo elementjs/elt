@@ -374,7 +374,7 @@ export function node_append<N extends Node>(
       } else if (key === "style") {
         if (value == null || value === false) continue
         node_observe_style(_node, value as StyleDefinition)
-      } else if (is_basic_node || basic_attrs.has(key)) {
+      } else if (is_basic_node || basic_attrs.has(key) || key.startsWith("data-") || key.startsWith("aria-")) {
         node_observe_attribute(_node, key, (attrs as any)[key])
       }
     }

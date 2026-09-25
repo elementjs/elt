@@ -33,7 +33,7 @@ export function runExample(fn: () => Node): { renderResult?: Node; renderError?:
 /** A code sample with a Typescript/Result toggle (defaults to Result) for runnable blocks
  * (`renderResult`/`renderError`/`fullExampleUrl` set); a plain highlighted block otherwise. */
 function renderCode(highlighted: () => Renderable) {
-  return <e-block border>
+  return <e-block border pad="none">
     <pre class={cls_code}><code>{highlighted()}</code></pre>
   </e-block>
 }
@@ -57,8 +57,8 @@ export function CodeExample(props: CodeExampleProps) {
     return props.renderResult ?? null
   }
 
-  return <e-column touching>
-    <e-row touching class={cls_tabs}>
+  return <e-column touching align="stretch">
+    <e-row touching border>
       <button class={o_showing_code.tf((v) => (!v ? cls_active : null))}>
         {$click(() => o_showing_code.set(false))}
         Result
@@ -70,14 +70,10 @@ export function CodeExample(props: CodeExampleProps) {
     </e-row>
     {If(o_showing_code,
       () => renderCode(props.highlighted),
-      result_view,
+      () => <e-block border>{result_view()}</e-block>,
     )}
   </e-column>
 }
-
-const cls_tabs = css`.tabs {
-  & button { border: none; border-radius: 0; }
-}`
 
 const cls_active = css`.active {
   ${theme.colors.tint.css.as_surface(1)}
