@@ -1,3 +1,4 @@
+// Schema/seed fixtures shared by the @inline-example blocks in ../md/object-editor.md.
 import { anything, array, boolean, date, map, number, object, set, string } from "elt/editor"
 
 const address_schema = object({
@@ -23,6 +24,16 @@ export const profile_schema = object({
     { name: "address", type: address_schema },
   ],
 })
+
+export const profile_seed = {
+  name: "Ada Lovelace",
+  bio: "Wrote the first published algorithm meant to be run on a machine.",
+  age: 36,
+  active: true,
+  birthday: new Date(1815, 11, 10) as Date | null,
+  tags: ["analytical-engine", "algorithm", "notes"],
+  address: { street: "12 Analytical Engine Ave", city: "London", country: "UK" },
+}
 
 /** Uniform object rows — table auto-detect (`mode: "auto"`). */
 export const roster_schema = array({
@@ -52,31 +63,6 @@ export const ledger_seed = [
   { sku: "BOOK-002", qty: 3, unit: "ea" },
   { sku: "PART-9", qty: 140, unit: "mm" },
 ]
-
-/** Large table for VirtualScroll — rows built programmatically, not hand-authored. */
-export const big_table_schema = array({
-  chrome_label: "Large dataset",
-  mode: "table",
-  columns: ["id", "name", "department", "score", "active"],
-  values: anything,
-  item_default: () => ({ id: 0, name: "", department: "", score: 0, active: true }),
-})
-
-const BIG_TABLE_DEPARTMENTS = ["Engineering", "Research", "Operations", "Design", "Support"] as const
-
-/** Build `count` uniform object rows for table VirtualScroll demos. */
-export function make_big_table_seed(count: number) {
-  return Array.from({ length: count }, (_, i) => ({
-    id: i + 1,
-    name: `Employee ${String(i + 1).padStart(5, "0")}`,
-    department: BIG_TABLE_DEPARTMENTS[i % BIG_TABLE_DEPARTMENTS.length],
-    score: (i * 17 + 23) % 100,
-    active: i % 4 !== 0,
-  }))
-}
-
-/** Default row count for the big-table demo section. */
-export const BIG_TABLE_DEFAULT_ROWS = 2_000
 
 /** Set list — duplicate values rejected on commit. */
 export const tags_set_schema = set({

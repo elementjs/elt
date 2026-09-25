@@ -15,6 +15,7 @@ Use this file to pick **one** downstream doc. Do not read every file in `./docs`
 | You are… | Read |
 | -------- | ---- |
 | Writing or changing **application code** that uses core elt (observables, verbs, routes, services, mount lifecycle) | [`using-elt-agent.md`](./using-elt-agent.md) |
+| Writing or changing **components** (function-as-JSX-tag, `RefChild`, global attrs) | [`components.md`](./components.md) |
 | Building or changing **UI** (layout, theme, colors, forms, widgets, anything importing `"elt/ui"`) | [`../../ui/AGENTS.md`](../../ui/AGENTS.md) → [`using-elt-ui-agent.md`](./using-elt-ui-agent.md) |
 | Implementing a **named feature** from a spec | The matching file under [`../../specs/`](../../specs/) |
 | Explaining **why** the codebase chose something | Matching file under [`adr/`](./adr/) |
@@ -31,7 +32,7 @@ Each agent guide is sectioned so you can stop after the part you need:
 1. **Hard rules** — always read for that branch.
 2. **Recipes** — copy-paste shapes for the task at hand.
 3. **Reference tables** — consult when a rule or recipe points you here.
-4. **Source map** — when behavior is unclear, verify in code/tests/demo.
+4. **Source map** — when behavior is unclear, verify in code/tests/docs' own live pages.
 
 Do not load an entire guide when the task name maps to one section (e.g. color work → UI guide § Colors & theme only).
 
@@ -41,7 +42,7 @@ Do not load an entire guide when the task name maps to one section (e.g. color w
 
 | Kind | Location |
 | ---- | -------- |
-| Runnable apps | `demo/` |
+| Runnable pages | `docs/` — every doc page's code examples execute live in the page |
 | Behavior tests | `tests/` |
 | Public API surface | `src/index.ts`, `ui/index.tsx` |
 | Inline examples | JSDoc under `src/`, `ui/` |
@@ -56,6 +57,7 @@ When a doc and the code disagree, **code + tests win**; treat the doc as possibl
 | ---- | ---- |
 | `AGENTS.md` | Always-loaded rules + pointers into this index |
 | `docs/md/using-elt-agent.md` | Core elt usage for agents |
+| `docs/md/components.md` | Component internals for agents (`RefChild`, global attrs) |
 | `docs/md/using-elt-ui-agent.md` | elt/ui + visual language for agents |
 | `docs/md/using-elt.md` | Human-oriented core overview |
 | `docs/md/using-elt-ui.md` | Human-oriented UI overview + migration |

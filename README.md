@@ -15,6 +15,8 @@ It is built with three objectives in mind :
 
 Join the [discord](https://discord.gg/A8tKA7q) for questions or use the tags `#typescript` and `#elt` on stack overflow, go to the [repository](https://github.com/elementjs/elt) to file issues.
 
+Agents should read [the agent elt primer](./docs/md/using-elt-agent) [and its /ui companion](./docs/md/using-elt-ui-agent)
+
 ## Why use it
 
   * **You use typescript** and don't want a javascript library that use patterns that the typing system doesn't always gracefully support. Everything is Element was built with *type inference* in mind. The [`Observable`](#o.Observable) ecosystem tries hard to keep that valuable typing information without getting in your way and have you type everything by hand.
@@ -50,11 +52,11 @@ ELT offers the following concepts to get this done :
 
 ## About this documentation
 
-All the examples should be runnable, testable and modifiable. In this repository, **`tests/`** and **`demo/`** are the canonical references.
+All the examples should be runnable, testable and modifiable. In this repository, **`tests/`** and this documentation site's own live pages (**`docs/`**) are the canonical references.
 
 The documentation is set up to use the `E()` version of `e()`. They're the same, but ELT infects the global namespace and adds `E()` on `window` to make it more convenient (only if `E` did not exist before, of course). This saves `import` statements and hopefully makes for a less cluttered documentation.
 
-Runnable apps live in **`demo/`**; mount the root with **`node_append`** (see Getting started below).
+Runnable examples live in **`docs/md/`** (every code example on those pages runs live); mount the root with **`node_append`** (see Getting started below).
 
 
 ## Installation
@@ -79,7 +81,7 @@ In your `tsconfig.json`, you will need to add the following :
 
 > **Note**: You can also use `"jsxFactory": "E"` instead of `jsxNamespace`, but to use fragments, you have to `import { Fragment } from 'elt'` and then use the `<Fragment></Fragment>` construct instead of `<></>`. You may of course rename it to something terser, such as `import { Fragment as $ }` and `<$></$>`. The plus side of this approach is that typescript will only generate `E()` calls instead of `E.createElement()`, resulting in smaller, easier to read compiled code.
 
-At last, mount elt UI with [`node_append`](#node_append) on the root view (see `demo/src/app.tsx`) so connected/disconnected hooks run. Only set up [`setup_mutation_observer`](#setup_mutation_observer) when a **third-party** library inserts nodes with raw `appendChild` / `removeChild`.
+At last, mount elt UI with [`node_append`](#node_append) on the root view (see `docs/src/app.tsx`) so connected/disconnected hooks run. Only set up [`setup_mutation_observer`](#setup_mutation_observer) when a **third-party** library inserts nodes with raw `appendChild` / `removeChild`.
 
 ```tsx
 import { o, $bind, node_append } from 'elt'

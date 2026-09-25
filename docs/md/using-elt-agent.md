@@ -4,7 +4,7 @@ title: Elt usage (agent-oriented draft)
 
 # Elt usage (agent-oriented draft)
 
-This doc is for agents writing or changing application code that uses elt. Prefer recipes and hard rules over essays. Behavior is verified in `tests/` and `demo/`; JSDoc in `src/` has short inline examples.
+This doc is for agents writing or changing application code that uses elt. Prefer recipes and hard rules over essays. Behavior is verified in `tests/` and in this documentation site's own live pages (`docs/`); JSDoc in `src/` has short inline examples.
 
 > Why: Composer-class agents do better with “do X / don’t Y” and copy-paste shapes than with a sparse index of concepts.
 
@@ -59,7 +59,7 @@ tsconfig:
 
 ## Minimal app
 
-Canonical live shape: `demo/src/routes.tsx`, `demo/src/base.tsx`, `demo/src/home.tsx`, `demo/src/app.tsx`.
+Canonical live shape: `docs/src/app.tsx`, `docs/src/routes.ts`.
 
 ```ts
 // routes.tsx
@@ -127,6 +127,8 @@ Convention only; the library does not enforce it.
 ---
 
 ## Components and children
+
+Full picture, with more examples and gotchas (`fn.length` arg-count detection, fragment lifecycle, global-attr list): [`docs/md/components.md`](./components.md). Authoritative source: `src/elt.ts`, `src/dom.ts`.
 
 ### One-arg — children land on the root
 
@@ -268,7 +270,7 @@ div class={cls_row}  // or class={[cls_row, { active: o_on }]}
 
 ## App, routes, services
 
-Canonical: `demo/src/routes.tsx`, `demo/src/base.tsx`. Behavior: `src/app/app.ts`, `tests/app.test.ts`.
+Canonical: `docs/src/app.tsx`, `docs/src/routes.ts`. Behavior: `src/app/app.ts`, `tests/app.test.ts`.
 
 ### Route definitions (`App.RouteDef`)
 
@@ -369,10 +371,10 @@ Details: `src/virtual.ts`, `tests/virtual.pw.ts`.
 | Observe connect/disconnect                   | `tests/observe.test.ts`, `src/dom.ts`                           |
 | Repeat                                       | `tests/repeat.pw.ts`, `src/verbs.ts`                          |
 | VirtualScroll                                | `tests/virtual.pw.ts`, `src/virtual.ts`                       |
-| App / router / services                      | `tests/app.test.ts`, `demo/src/routes.tsx`, `src/app/app.ts`    |
+| App / router / services                      | `tests/app.test.ts`, `docs/src/routes.ts`, `src/app/app.ts`    |
 | Decorators / `$bind`                         | `src/decorators.ts` (+ JSDoc examples)                          |
 | Public exports                               | `src/index.ts`                                                  |
-| Widgets / theme                              | [`ui/AGENTS.md`](../../ui/AGENTS.md), [`docs/md/using-elt-ui-agent.md`](./using-elt-ui-agent.md), `demo/src/screen-*.tsx` |
+| Widgets / theme                              | [`ui/AGENTS.md`](../../ui/AGENTS.md), [`docs/md/using-elt-ui-agent.md`](./using-elt-ui-agent.md), [`visual-test.md`](./visual-test.md) |
 
 ---
 

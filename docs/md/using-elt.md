@@ -10,7 +10,7 @@ Import from `"elt"`. TypeScript only; the package is meant to be bundled.
 
 tsconfig: `strict`, `jsx: "react"`, `jsxFactory: "E"`, `jsxFragmentFactory: "E.Fragment"`.
 
-Runnable examples live in `demo/`. Signatures and edge cases live in JSDoc under `src/`. Agent-oriented companion: [`docs/md/using-elt-agent.md`](./using-elt-agent.md). Doc index: [`docs/md/index.md`](./index.md).
+This documentation's own pages are runnable examples — see [`visual-test.md`](./visual-test.md), [`object-editor.md`](./object-editor.md). Signatures and edge cases live in JSDoc under `src/`. Agent-oriented companion: [`docs/md/using-elt-agent.md`](./using-elt-agent.md). Doc index: [`docs/md/index.md`](./index.md).
 
 ---
 
@@ -149,7 +149,7 @@ const cls_row = css`.row {
 
 ## App (multi-screen)
 
-For a small widget you only need `node_append` and the pieces above. For a full app, elt ships a thin **App / Service / hash router** layer. Live shape: `demo/src/routes.tsx`, `demo/src/base.tsx`, `demo/src/home.tsx`.
+For a small widget you only need `node_append` and the pieces above. For a full app, elt ships a thin **App / Service / hash router** layer. Live shape: `docs/src/app.tsx`, `docs/src/routes.ts` (this documentation site is itself one such app).
 
 Sketch:
 
@@ -180,7 +180,7 @@ Shared state usually lives on a store service; other services declare it in `Ser
 
 | Want | Look at |
 | ---- | ------- |
-| End-to-end UI | `demo/` |
+| End-to-end UI | `docs/src/app.tsx` |
 | Observable / Repeat / App behavior | `tests/` |
 | Widgets and theme | `elt/ui` — [`ui/AGENTS.md`](../../ui/AGENTS.md), [`docs/md/using-elt-ui-agent.md`](./using-elt-ui-agent.md), [`docs/md/using-elt-ui.md`](./using-elt-ui.md) |
 | Exact APIs | JSDoc in `src/` (`observable.ts`, `verbs.ts`, `decorators.ts`, `app/`) |

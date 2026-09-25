@@ -4,7 +4,7 @@
   "repository": "https://github.com/elementjs/elt",
   "description": "",
   "license": "MIT",
-  "workspaces": ["demo", "docs"],
+  "workspaces": ["docs"],
   "main": "./src/index.ts",
   "sideEffects": ["./src/css.ts", "./src/mutative.ts"],
   "exports": {
@@ -18,7 +18,6 @@
   "scripts": {
     "check-types": "tsgo --noEmit | wtsc",
     "test-playwright": "playwright test",
-    "demo": "bun demo/index.html",
     "docs": "bun docs/index.html"
   },
   "type": "module",

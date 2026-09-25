@@ -25,7 +25,7 @@ Side-effect import at app entry loads all CSS layers:
 import "elt/ui"
 ```
 
-See `demo/src/app.tsx`.
+See `docs/src/app.tsx`.
 
 ---
 
@@ -64,7 +64,7 @@ node_append(document.body, ui)
 
 Expanded rules, recipes, and widget inventory: [`using-elt-ui-agent.md`](./using-elt-ui-agent.md).
 
-Demo walkthrough: `demo/src/screen-ui-usage.tsx`, `demo/src/screen-layout.tsx`, `demo/src/screen-typography.tsx`.
+Runnable walkthrough: [`visual-test.md`](./visual-test.md), [`object-editor.md`](./object-editor.md).
 
 ---
 
@@ -88,6 +88,6 @@ Agent checklist for migration: [`using-elt-ui-agent.md` § Colors & theme](./usi
 | ---- | ------- |
 | Agent task guide | [`using-elt-ui-agent.md`](./using-elt-ui-agent.md) |
 | Core elt (not UI-specific) | [`using-elt.md`](./using-elt.md), [`using-elt-agent.md`](./using-elt-agent.md) |
-| Runnable examples | `demo/` |
+| Runnable examples | [`visual-test.md`](./visual-test.md), [`object-editor.md`](./object-editor.md) — every example on those pages runs live |
 | Library maintainer rules | [`ui/AGENTS.md`](../../ui/AGENTS.md) |
 | Doc index | [`docs/md/index.md`](./index.md) |

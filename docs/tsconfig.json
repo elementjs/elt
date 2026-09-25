@@ -33,6 +33,7 @@
     "paths": {
       "elt": ["../src/index.ts"],
       "elt/ui": ["../ui/index.tsx"],
+      "elt/editor": ["../editor/index.tsx"],
       "*": ["./*"],
     },
     "types": ["bun"]

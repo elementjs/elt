@@ -28,10 +28,10 @@ Reach here when the task is **UI**: layout, theme, colors, forms, widgets, overl
 These apply on top of the guide when editing files under `ui/`:
 
 - **Do not add dependencies** (Floating UI is already present for popups).
-- **Icons:** take SVG paths from **elt-phosphor** — not as a dependency; copy from elt-demo's `node_modules` when available, otherwise ask the human.
+- **Icons:** take SVG paths from **elt-phosphor** — not as a dependency; copy from the package's own `node_modules` (e.g. `docs/node_modules/elt-phosphor`) when available, otherwise ask the human.
 - **Prefer native HTML** styled with CSS; add components only when native limits block consistent UX.
 - **New public widgets:** match form sizing, border radius, focus ring, and color helpers from existing controls; add specs under `specs/ui-*.md` when behavior is non-trivial; add tests under `tests/`.
-- **Keep docs aligned:** update [`docs/src/using-elt-ui-agent.md`](../docs/src/using-elt-ui-agent.md) widget inventory and [`using-elt-ui.md`](../docs/src/using-elt-ui.md) when surface or semantics change.
+- **Keep docs aligned:** update [`docs/md/using-elt-ui-agent.md`](../docs/md/using-elt-ui-agent.md) widget inventory and [`using-elt-ui.md`](../docs/md/using-elt-ui.md) when surface or semantics change.
 
 ---
 

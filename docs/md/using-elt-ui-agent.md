@@ -12,7 +12,7 @@ Core elt rules (mount, observables, verbs) live in [`using-elt-agent.md`](./usin
 
 ## Hard rules
 
-1. **Side-effect import.** `import "elt/ui"` once at app entry (see `demo/src/app.tsx`). That loads theme CSS, reset, layout, form, and typography layers onto the page.
+1. **Side-effect import.** `import "elt/ui"` once at app entry (see `docs/src/app.tsx`). That loads theme CSS, reset, layout, form, and typography layers onto the page.
 2. **Theme tokens, not ad hoc values.** Use `theme` colors, spacing attributes on layout elements, and `theme.settings` for radii/padding/font sizes. Avoid raw hex, arbitrary `px` gaps, and one-off margins.
 3. **Layout with layout elements.** Prefer `<e-flex>`, `<e-block>`, `<e-grid>` and their attributes over custom flex/grid CSS. Reach for plain CSS only when flex/grid attrs are not enough (complex grid templates, absolute positioning tricks, etc.).
 4. **`<e-block>` for prose.** Any region meant to read like documentation, help text, or long copy goes in `<e-block>` — it always spaces its content according to typographic rules. Do not hand-style headings, lists, or link colors inside prose blocks. If you need a plain block container that should *not* be spaced typographically, use a `div`, not `<e-block>`.
@@ -55,11 +55,11 @@ elt/ui is intentionally small: a **visual language** plus a few high-value widge
 | --------- | -------- |
 | HTML reused | Style native elements; add custom elements only when attrs on HTML are awkward |
 | Attributes, not classes | Layout and variants use typed element attrs (`column`, `spacing="widget"`, `e-variant="tint"`) declared in `declare module "elt"` |
-| Bordered interactables | Buttons, inputs, and similar controls have a border and `theme.settings.borderRadius` as defined in theme |
+| Bordered interactables | Buttons, inputs, and similar controls have a border and a radius derived from their own padding step (`theme.css.border_radius`), as defined in theme |
 | Consistent rhythm | Spacing comes from the shared scale (see § Layout) |
 | Tint semantics | `theme.colors.tint` is the primary accent; semantic hues (`red`, `green`, …) exist for status, not decoration spam |
 
-Runnable philosophy notes: `demo/src/screen-ui-usage.tsx`.
+Full rules and rationale: [`../../specs/elt-ui-guidelines.md`](../../specs/elt-ui-guidelines.md).
 
 ---
 
@@ -85,13 +85,15 @@ Common attrs:
 </e-block>
 ```
 
-Spacing scale (`pad="component"`, `spacing="widget"`, …): `1`/`2`/`4` (px, pixel-level nudges only) → `widget` → `component` (the default, most used) → `section` → `stage-1`…`stage-4`, mapping to `--e-spacing-*` in `ui/theme.tsx`. `pad="X"` implies `spacing="X"` at the same step automatically — write `pad` alone unless padding and inter-child spacing genuinely need to differ, in which case add an explicit `spacing="Y"` to override just that side. Default `pad`/`spacing` (boolean attr, no value) fall back to `component`. `pad="none"`/`spacing="none"` turn one side off explicitly.
+Spacing scale (`pad="component"`, `spacing="widget"`, …): `nudge-1`/`nudge-2`/`nudge-4` (px, pixel-level nudges only) → `widget` → `component` (the default, most used) → `section` → `stage-1`…`stage-4`, mapping to `--e-spacing-*` in `ui/theme.tsx`. `pad="X"` implies `spacing="X"` at the same step automatically — write `pad` alone unless padding and inter-child spacing genuinely need to differ, in which case add an explicit `spacing="Y"` to override just that side. Default `pad`/`spacing` (boolean attr, no value) fall back to `component`. `pad="none"`/`spacing="none"` turn one side off explicitly.
+
+**Border:** `border` (bare) is a clear boundary at `text.mid`; `border="tint"` uses `tint.mid`; `border="n+1"`…`"n+6"` is a divider/separator at that surface level relative to whatever's ambient. `border` implies `border-radius` (derived from the element's own padding step, or an explicit named step like `border-radius="component"` for an element that doesn't pad itself) unless `border-radius="none"`.
 
 **Grid:** no Bootstrap-style helpers. For non-trivial grids, use `<e-grid>` for display + a small `css` block for `grid-template-*`, still using theme spacing/colors inside rules.
 
 **`<header>`:** styled globally (tint background bar). Demo nav uses it via the base shell.
 
-Demo: `demo/src/screen-layout.tsx` (stub — prefer this doc + `layout.css.tsx`).
+Worked examples: [`visual-test.md`](./visual-test.md) § Surfaces, § Hover and separator, § Inversion; attribute reference: `layout.css.tsx`.
 
 ---
 
@@ -116,7 +118,7 @@ For data tables with sticky headers, use `table-container`:
 </e-block>
 ```
 
-Font family defaults to IBM Plex Sans with `system-ui` fallback (`theme.settings.fontFamily`). Demo font switching: `demo/src/base.tsx`, `demo/src/screen-typography.tsx`.
+Font family defaults to IBM Plex Sans with `system-ui` fallback (`theme.settings.fontFamily`).
 
 ---
 
@@ -151,7 +153,7 @@ const colors = theme.colors
 const cls_banner = css`.banner {
   background: ${colors.tint.hover};
   color: ${colors.text};
-  border-radius: ${theme.settings.borderRadius};
+  ${theme.css.border_radius("component")}
 }`
 ```
 
@@ -208,13 +210,13 @@ Radio: styled native `input[type=radio]`.
 
 ### Button groups, menus, and other touching rows
 
-`touching` on `<e-row>`/`<e-column>` merges adjacent children into one visually uniform group — replaces the old `<e-button-box>` and `<menu>` elements, which are gone. It never draws a border itself: border rendering is entirely each child's own concern (native controls like `<button>`/`<input>` already have one; `[border]` gives one to anything else). When two touching children both carry a border on the shared seam, the later one (in DOM order) wins, so the seam collapses into a single line instead of doubling — see `ui/select.tsx`, `demo/src/base.tsx` for the divider-less case (children separated only by background). `pad="X"` still just pads the container itself, as always; to *also* pad every child uniformly, either let bare `touching` reuse `pad`'s value (`pad="widget" touching`), or give `touching` its own explicit step (`touching="widget"`) when the container's own padding and its children's need to differ — see `specs/elt-ui-guidelines.md`, Padding and boundaries, rule 3.
+`touching` on `<e-row>`/`<e-column>` merges adjacent children into one visually uniform group — replaces the old `<e-button-box>` and `<menu>` elements, which are gone. It never draws a border itself: border rendering is entirely each child's own concern (native controls like `<button>`/`<input>` already have one; `[border]` gives one to anything else). When two touching children both carry a border on the shared seam, the later one (in DOM order) wins, so the seam collapses into a single line instead of doubling — see `ui/select.tsx` for the divider-less case (children separated only by background). `pad="X"` still just pads the container itself, as always; to *also* pad every child uniformly, either let bare `touching` reuse `pad`'s value (`pad="widget" touching`), or give `touching` its own explicit step (`touching="widget"`) when the container's own padding and its children's need to differ — see `specs/elt-ui-guidelines.md`, Padding and boundaries, rule 3.
 
 ### HR
 
 `<hr>` divider; `e-variant="tint"` for accent divider.
 
-Demo buttons screen: `demo/src/buttons.tsx` (if present) and form rules in `ui/form.css.tsx`.
+Form rules: `ui/form.css.tsx`.
 
 ---
 
@@ -278,7 +280,7 @@ Do not reimplement focus trapping or stacking for simple menus — extend these 
 2. If styling repeats, add a function component in **app code** first; promote to `ui/` only when a second app needs it (and spec if non-trivial).
 3. Match control sizing (`formFontSize`, cell padding from `theme.settings`).
 4. Observable props: take `o.RO<T>` / `o.Observable<T>` like existing widgets; use `$bind` inside for native fields.
-5. Icons in `ui/`: copy paths from **elt-phosphor** in demo's `node_modules` — do not add phosphor as a dependency of `ui/`.
+5. Icons in `ui/`: copy paths from the **elt-phosphor** package (e.g. via `docs`' `node_modules`) — do not add phosphor as a dependency of `ui/`.
 6. New `ui/` widgets need tests in `tests/` when behavior is non-visual.
 
 ---
@@ -315,9 +317,9 @@ Rules:
 | Form control variants | `ui/form.css.tsx` |
 | Prose & tables | `ui/typography.css.tsx` |
 | Select / popup patterns | `ui/select.tsx`, `ui/popup.tsx` |
-| End-to-end styled app | `demo/src/app.tsx`, `demo/src/base.tsx`, `demo/src/routes.tsx` |
-| Visual tuning playground | `demo/src/screen-visual-test.tsx` |
-| Object editor widget mapping | `specs/ui-object-editor.md` (Layer 4 inventory) |
+| End-to-end styled app | `docs/src/app.tsx`, `docs/src/routes.ts` |
+| Visual tuning playground | [`visual-test.md`](./visual-test.md) |
+| Object editor usage | [`object-editor.md`](./object-editor.md), `specs/ui-object-editor.md` (Layer 4 inventory) |
 
 ---
 
