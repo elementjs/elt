@@ -60,7 +60,7 @@ export default class ScreenObjectEditor extends Service({
   @view
   Content() {
     return (
-      <e-block typographic pad>
+      <e-block pad>
         {this.base.DisplayTitle()}
 
         <p>

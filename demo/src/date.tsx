@@ -10,7 +10,7 @@ export default class DateScreen extends Service({
 
   @view
   Content() {
-    return <e-block typographic pad>
+    return <e-block pad>
       {this.base.DisplayTitle()}
 
       <p>

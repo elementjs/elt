@@ -65,7 +65,6 @@ export interface CommonAttrs extends Attrs<HTMLElement> {
 
 export interface EBlockAttrs extends CommonAttrs {
   variant?: NRO<"vertical">
-  typographic?: NRO<boolean>
   "table-container"?: NRO<boolean>
 }
 

@@ -21,7 +21,7 @@ export default class ScreenLayout extends Service({
 
   @view
   Content() {
-    return <e-block typographic pad>
+    return <e-block pad>
       {this.base.DisplayTitle()}
 
 
@@ -32,7 +32,7 @@ export default class ScreenLayout extends Service({
         background is just a <code>surface</code>; it needs no separate "panel" or "card" concept.
       </p>
 
-      <e-block surface pad="component" border-radius typographic>
+      <e-block surface pad="component" border-radius>
         <p>
           Level 1 surface. Has its own background and padding — per the padding/boundary rules, a container that
           pads itself must also set <code>spacing</code> for its children. (<code>pad</code> alone implies it —
@@ -51,7 +51,7 @@ export default class ScreenLayout extends Service({
         </e-block>
       </e-block>
 
-      <e-block border="widget" pad="component" border-radius typographic>
+      <e-block border="widget" pad="component" border-radius>
         No <code>surface</code> here — just a border. Radius is derived from this box's own vertical padding step
         (<code>component</code>), not a separately chosen value.
       </e-block>

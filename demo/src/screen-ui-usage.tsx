@@ -7,7 +7,7 @@ export default class ScreenUIUsage extends Service({
 
   @view
   Content() {
-    return <e-block typographic pad>
+    return <e-block pad>
 
       {this.base.DisplayTitle()}
 
@@ -21,7 +21,7 @@ export default class ScreenUIUsage extends Service({
         <dt>Boundary</dt>
         <dd>A visual delimitation around or between elements. A border, a visual background change, the edge of the screen or of a dialog are boundaries.</dd>
         <dt>Spacing</dt>
-        <dd>The practice of creating distance between elements, always decided and enforced by their common parent, never by an element on itself. Depending on the parent's layout context, this is implemented as <em>gap</em> (flex/grid), or as <em>margins</em> the parent's own rules impose on its children (block contexts, e.g. typographic mode.)</dd>
+        <dd>The practice of creating distance between elements, always decided and enforced by their common parent, never by an element on itself. Depending on the parent's layout context, this is implemented as <em>gap</em> (flex/grid), or as <em>margins</em> the parent's own rules impose on its children (block contexts, e.g. <code>e-block</code>.)</dd>
       </dl>
 
       <h2>The golden rules</h2>
@@ -36,7 +36,7 @@ export default class ScreenUIUsage extends Service({
         
         <li><b>Whitespace amount creates associations.</b> Changes in distance between elements create visual groupings. Siblings of a same level should be spaced <b>similarily</b>. Children of an element should be spaced more tightly than their parents.</li>
         
-        <li><b>Never set your own margin.</b> Spacing between visual components is always the parent's responsibility — expressed as gap/padding in flex and grid layouts, or as margins the parent's own rules impose on its children in block layouts such as typographic mode. An element never chooses its own margin to create space.</li>
+        <li><b>Never set your own margin.</b> Spacing between visual components is always the parent's responsibility — expressed as gap/padding in flex and grid layouts, or as margins the parent's own rules impose on its children in block layouts such as <code>e-block</code>. An element never chooses its own margin to create space.</li>
         
         <li><b>A boundary requires that content never touch it unpadded.</b> Changing background or adding a border creates a boundary. Content can never touch a boundary directly: either the boundary-holding element pads itself, or — if it doesn't — every child that would otherwise reach its edge establishes its own boundary and padding instead (rule 6).</li>
 

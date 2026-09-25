@@ -8,7 +8,7 @@ export default class HomeScreen extends Service({
 
   @view
   Content() {
-    return <e-block typographic pad>
+    return <e-block pad>
       <h1>Home <EltLogo full/></h1>
 
       <p>

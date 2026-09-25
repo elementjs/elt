@@ -7,6 +7,7 @@ import { elt_md } from "./macro.ts" with { type: "macro" }
 
 // GENERATED-BEGIN (docs/src/macro.ts) — do not hand-edit until GENERATED-END; see specs/markdown-docs-reloaded.md "Macro".
 import md_about_this_documentation_text from "../md/about-this-documentation.md" with { type: "text" }
+import md_cheatsheet_text from "../md/cheatsheet.md" with { type: "text" }
 import md_index_text from "../md/index.md" with { type: "text" }
 import md_observables_text from "../md/observables.md" with { type: "text" }
 import md_using_elt_agent_text from "../md/using-elt-agent.md" with { type: "text" }
@@ -15,7 +16,7 @@ import md_using_elt_ui_text from "../md/using-elt-ui.md" with { type: "text" }
 import md_using_elt_text from "../md/using-elt.md" with { type: "text" }
 import md_verbs_text from "../md/verbs.md" with { type: "text" }
 import md_visual_test_text from "../md/visual-test.md" with { type: "text" }
-void [md_about_this_documentation_text, md_index_text, md_observables_text, md_using_elt_agent_text, md_using_elt_ui_agent_text, md_using_elt_ui_text, md_using_elt_text, md_verbs_text, md_visual_test_text]
+void [md_about_this_documentation_text, md_cheatsheet_text, md_index_text, md_observables_text, md_using_elt_agent_text, md_using_elt_ui_agent_text, md_using_elt_ui_text, md_using_elt_text, md_verbs_text, md_visual_test_text]
 // GENERATED-END
 
 await elt_md()

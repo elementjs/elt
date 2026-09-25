@@ -11,7 +11,7 @@ export default class ScreenVisualTest extends Service({
 
   @view
   Content() {
-    return <e-block typographic pad class={this.o_color.tf(col => theme.colors[col].classes.as_tint)}>
+    return <e-block pad class={this.o_color.tf(col => theme.colors[col].classes.as_tint)}>
       {this.base.DisplayTitle()}
       <p>This screen is used to test the visual appearance of the components. The source code for this screen in <code>demo/src/screen-visual-test.tsx</code> is also an excellent example of how to them and basic elt facilities.</p>
 

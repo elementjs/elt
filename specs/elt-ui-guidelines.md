@@ -229,7 +229,7 @@ Rule 2 depends on `spacing` actually doing something: `gap` (the CSS property `s
 
 ## Axis 4: Layout
 
-`e-flex` and its siblings `e-column` and `e-row` cover flexbox row/column layouts. `e-grid` covers CSS grid layouts, with a `css` rule for the grid template when attributes are not enough. `e-block` (renamed from `e-box`, for naming consistency — all three name their CSS `display` value) covers block containers, including typographic mode.
+`e-flex` and its siblings `e-column` and `e-row` cover flexbox row/column layouts. `e-grid` covers CSS grid layouts, with a `css` rule for the grid template when attributes are not enough. `e-block` (renamed from `e-box`, for naming consistency — all three name their CSS `display` value) covers block containers. `e-block` is always typographic: it always spaces its content per Axis 5 (Typography) below, unconditionally, with no attribute to opt in or out. A block container that must not be spaced this way is a plain `div`, not `e-block`.
 
 > 🔨 **Todo**: the rename landed across every `.tsx`/`.ts` file (21 files, plus the two DOM-querying test files), but not the prose docs that still say `e-box` (`docs/using-elt-ui.md`, `docs/using-elt-ui-agent.md`, `specs/ui-color-picker.md`) — not touched this pass.
 
@@ -237,28 +237,28 @@ Rule 2 depends on `spacing` actually doing something: `gap` (the CSS property `s
 
 CSS never collapses margins on a flex or grid item, whether the container is `display: flex`/`grid` or `display: inline-flex`/`inline-grid` — the `inline-` prefix only changes how the container itself sits in its parent's layout, not whether its own children's margins collapse. Margin collapsing is exclusively a block-formatting-context behavior between block-level boxes.
 
-This matters directly for `typographic` mode: `<e-block typographic>` gives its direct children `margin-block: 1em` (with adjacent margins collapsing down to 1em between two block-level children, per normal CSS flow). An `e-flex`/`e-grid` container placed as one of those children does not collapse its own margin against a neighboring paragraph's margin — the two add up instead (1em + 1em = 2em), breaking the zone's vertical rhythm at that boundary.
+This matters directly for `e-block`'s typographic rules: `<e-block>` gives its direct children `margin-block: 1em` (with adjacent margins collapsing down to 1em between two block-level children, per normal CSS flow). An `e-flex`/`e-grid` container placed as one of those children does not collapse its own margin against a neighboring paragraph's margin — the two add up instead (1em + 1em = 2em), breaking the zone's vertical rhythm at that boundary.
 
-An `e-flex`/`e-grid` container does not sit as a direct, top-level child of a typographic zone. It sits inside an ordinary block element (a `p`, a `div`, or similar) instead, the way the zone already treats any unrecognized child as paragraph-like (`margin-block: 1em`, per `typography.css.tsx`). The wrapping block element is what participates in the zone's margin collapsing; the `e-flex`/`e-grid` content inside it needs no margin of its own.
+An `e-flex`/`e-grid` container does not sit as a direct, top-level child of an `e-block`. It sits inside an ordinary block element (a `p`, a `div`, or similar) instead, the way `e-block` already treats any unrecognized child as paragraph-like (`margin-block: 1em`, per `typography.css.tsx`). The wrapping block element is what participates in the zone's margin collapsing; the `e-flex`/`e-grid` content inside it needs no margin of its own.
 
 ### Adjacency-aware spacing
 
-Typographic mode varies spacing by sibling type on its own (a heading before a paragraph gets different spacing than paragraph-before-paragraph) — that stays specific to `typographic` content.
+`e-block` varies spacing by sibling type on its own (a heading before a paragraph gets different spacing than paragraph-before-paragraph) — that stays specific to `e-block` content.
 
-Outside typographic content, siblings at the same level are spaced uniformly, by a single `spacing` step — adjacency-aware spacing does not generalize beyond typographic mode. A header/content/footer split, and similar cases, are already fully explained by Padding and boundaries (above), with no per-sibling `spacing` variation involved.
+Outside `e-block` content, siblings at the same level are spaced uniformly, by a single `spacing` step — adjacency-aware spacing does not generalize beyond `e-block`. A header/content/footer split, and similar cases, are already fully explained by Padding and boundaries (above), with no per-sibling `spacing` variation involved.
 
 ## Axis 5: Typography
 
-Typographic mode is the source of correct typography in `elt/ui`; content inside `<e-block typographic>` should read well by default, following established typesetting conventions rather than app-specific hand-styling.
+`e-block` is the source of correct typography in `elt/ui`; content inside `<e-block>` should read well by default, following established typesetting conventions rather than app-specific hand-styling.
 
-`typography.css.tsx` already fixes, inside `<e-block typographic>`:
+`typography.css.tsx` already fixes, inside `<e-block>`:
 
 - Body line-height 1.7; heading line-height 1.2.
 - Heading scale: h1 2rem, h2 1.5rem, h3 1.25rem, h4 1.1rem, h5 1rem (italic), h6 0.9rem (italic, faded color).
 - Vertical rhythm: 1em margin between block siblings by default; headings get 1.5em above, 0.4em below.
 - `text-wrap: balance` on headings, `text-wrap: pretty` on paragraphs.
 
-No measure (line-length limit) is set on `<e-block typographic>` by design — constraining width is an application choice, not `elt/ui`'s. `elt/ui` governs visual flow (rhythm, hierarchy); visual identity choices like a line-length limit are left to the app's own layout.
+No measure (line-length limit) is set on `<e-block>` by design — constraining width is an application choice, not `elt/ui`'s. `elt/ui` governs visual flow (rhythm, hierarchy); visual identity choices like a line-length limit are left to the app's own layout.
 
 ## Axis 6: Motion
 

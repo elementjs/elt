@@ -1,6 +1,6 @@
 /**
  * @module typography
- * default typography rules, only applied on e-block with e-typographic attribute.
+ * default typography rules, applied to every e-block.
  */
 
 import { css } from "elt"
@@ -180,7 +180,7 @@ css`@layer typography {
   }
 
   /* ── Table ─────────────────────────────────────────────── */
-  :is(e-block[table-container], e-block[typographic]) table {
+  e-block table {
     width: fit-content;
     border-collapse: separate;
     border: none;

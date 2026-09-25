@@ -7,7 +7,7 @@ export default class TypographyScreen extends Service({
 
   @view
   Content() {
-    return <e-block typographic pad>
+    return <e-block pad>
       {this.base.DisplayTitle()}
 
       <h3>Font</h3>
