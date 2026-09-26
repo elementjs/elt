@@ -77,7 +77,7 @@ export function Select<T, T2 = T>(at: SelectAttributes<T, T2>) {
           o_open.set(false)
         }
       })}
-      <div class={[cls_indicator, o_open.tf((open) => (open ? "open" : ""))]}>{CaretDown()}</div>
+      <span class={[cls_indicator, o_open.tf((open) => (open ? "open" : ""))]}>{CaretDown()}</span>
     </button>
   ) as HTMLButtonElement
 }
@@ -87,11 +87,11 @@ const cls_placeholder = css`.placeholder {
 }`
 
 const cls_select_button = css`.select-button {
-  display: inline-flex;
   align-items: baseline;
 }`
 
 const cls_indicator = css`.indicator {
+  display: inline-block;
   width: 16px;
   font-weight: bold;
   margin-left: 4px;

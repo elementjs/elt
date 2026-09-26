@@ -88,12 +88,12 @@ function spacing_css(prop: "pad" | "spacing", step: SpacingStep): string {
  */
 function border_radius_css(step?: SpacingStep): string {
   if (step == null) {
-    return `border-radius: calc(var(--e-pad, var(--e-spacing-widget)) / 2);`
+    return `border-radius: calc(var(--e-pad, var(--e-spacing-widget)));`
   }
   if (_spacing_nudges.has(step)) {
     return `border-radius: var(--e-spacing-${step});`
   }
-  return `border-radius: calc(var(--e-spacing-${step}) / 2);`
+  return `border-radius: calc(var(--e-spacing-${step}));`
 }
 
 export type ColorScheme = {
@@ -206,13 +206,13 @@ export class Theme<AllColors extends ColorScheme> {
 
     // Each step doubles the previous one, applied uniformly to both axes — no separate
     // vertical/horizontal values (see "Spacing scale" in specs/elt-ui-guidelines.md).
-    this._set(theme.settings ?? {}, "spacingWidget", "8px")
-    this._set(theme.settings ?? {}, "spacingComponent", "16px")
-    this._set(theme.settings ?? {}, "spacingSection", "32px")
-    this._set(theme.settings ?? {}, "spacingStage1", "64px")
-    this._set(theme.settings ?? {}, "spacingStage2", "128px")
-    this._set(theme.settings ?? {}, "spacingStage3", "256px")
-    this._set(theme.settings ?? {}, "spacingStage4", "512px")
+    this._set(theme.settings ?? {}, "spacingWidget", "6px")
+    this._set(theme.settings ?? {}, "spacingComponent", "12px")
+    this._set(theme.settings ?? {}, "spacingSection", "24px")
+    this._set(theme.settings ?? {}, "spacingStage1", "48px")
+    this._set(theme.settings ?? {}, "spacingStage2", "96px")
+    this._set(theme.settings ?? {}, "spacingStage3", "128px")
+    this._set(theme.settings ?? {}, "spacingStage4", "256px")
   }
 
   settings: ThemeSettings = {} as ThemeSettings

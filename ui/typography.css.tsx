@@ -24,6 +24,10 @@ css`@layer typography {
     color: ${theme.colors.text.faded};
   }
 
+  :where(p, h1, h2, h3, h4, h5, h6, pre) {
+    text-box: trim-both cap alphabetic;
+  }
+
   e-block {
 
     /* ── Base rhythm ───────────────────────────────────────── */
@@ -37,10 +41,10 @@ css`@layer typography {
     }
 
     /* ── Headings ──────────────────────────────────────────── */
-    & h1, & h2, & h3, & h4, & h5, & h6 {
+    & :where(h1, h2, h3, h4, h5, h6) {
       line-height: 1.2;
       font-weight: bolder;
-      margin-block: 2lh 1rem;
+      margin-block: 2lh 1lh;
       text-wrap: balance;
     }
     & :is(h1, h2, h3, h4, h5, h6) + :is(h1, h2, h3, h4, h5, h6) {

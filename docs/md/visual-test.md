@@ -4,7 +4,9 @@ order: 100
 section: UI Recipes
 ---
 
-Leaving it here to not forget : border as .mid is when interaction takes place within it. Otherwise, it should be n+2
+Leaving it here to not forget
+- border as .mid is when interaction takes place within it. Otherwise, it should be n+2.
+- Rule : inside an e-block, text MUST be put in a typographic container such as h*, p, pre, ul/li
 
 # Visual Test
 
@@ -44,9 +46,72 @@ return <button>
 
 ```tsx
 //@inline-example
-import { $bind, o, tf_equals } from "elt"
+import { $bind, $click, o, tf_equals } from "elt"
 import * as P from "elt-phosphor"
-import { theme } from "elt/ui"
+import { popup, theme } from "elt/ui"
+
+type FontStyle = { fontFamily: string, fontWeight?: string }
+
+const fonts = {
+  cantarell: { fontFamily: "Cantarell", fontWeight: "400" },
+  inter: { fontFamily: "Inter", fontWeight: "400" },
+  google_sans: { fontFamily: "Google Sans", fontWeight: "400" },
+  open_sans: { fontFamily: "Open Sans", fontWeight: "400" },
+  noto_sans: { fontFamily: "Noto Sans", fontWeight: "400" },
+  roboto: { fontFamily: "Roboto", fontWeight: "400" },
+  public_sans: { fontFamily: "Public Sans", fontWeight: "400" },
+  ubuntu: { fontFamily: "Ubuntu", fontWeight: "400" },
+  deja_vu_sans: { fontFamily: "DejaVu Sans", fontWeight: "400" },
+  ibm_plex_sans: { fontFamily: "IBM Plex Sans", fontWeight: "400" },
+  segoe_ui: { fontFamily: "Segoe UI", fontWeight: "400" },
+  sf_pro: { fontFamily: "SF Pro", fontWeight: "400" },
+} satisfies Record<string, FontStyle>
+
+const o_font_style = o(fonts.public_sans as FontStyle)
+
+const oo_style = o.expression(get => {
+  const ft = get(o_font_style)
+  return { ...ft, fontFamily: `"${ft.fontFamily}", system-ui` }
+})
+
+function FontChooser() {
+  return <button>
+    <P.TextAa/> {o_font_style.tf(ft => ft.fontFamily)} <P.CaretDown/>
+    {$click(ev => {
+      const btn = (font: keyof typeof fonts) => {
+        const tfed = o_font_style.tf(tf_equals(fonts[font]))
+        return <label><input type="checkbox">{$bind.boolean(tfed)}</input> {fonts[font].fontFamily}</label>
+      }
+      popup(ev.currentTarget, () =>
+        <e-row>
+          <e-column pad="component">
+            <label><P.WindowsLogo/> Windows</label>
+            {btn("segoe_ui")}
+            <hr/>
+            <label><P.AppleLogo/> MacOS</label>
+            {btn("sf_pro")}
+            <hr/>
+            <label><P.GoogleLogo/> Google</label>
+            {btn("google_sans")}
+            {btn("open_sans")}
+            {btn("noto_sans")}
+            {btn("roboto")}
+          </e-column>
+          <e-column pad="component">
+            <label><P.LinuxLogo/> Linux</label>
+            {btn("inter")}
+            {btn("cantarell")}
+            {btn("ubuntu")}
+            {btn("deja_vu_sans")}
+            <label>Other</label>
+            {btn("ibm_plex_sans")}
+            {btn("public_sans")}
+          </e-column>
+        </e-row>
+      , { arrow: true })
+    })}
+  </button>
+}
 
 const o_color = o<keyof typeof theme.colors>("blue")
 const o_disabled = o(true)
@@ -54,12 +119,16 @@ const o_disabled = o(true)
 const tint_colors = (Object.keys(theme.colors) as (keyof typeof theme.colors)[])
   .filter(color => !["bg", "text", "tint"].includes(color))
 
-return <e-column spacing class={o_color.tf(col => theme.colors[col].classes.as_tint)}>
-  <e-row touching>
-    {tint_colors.map(color => <label e-variant="toggle" class={theme.colors[color].classes.as_tint}>
-      <input type="checkbox">{$bind.boolean(o_color.tf(tf_equals(color)))}</input>
-      <P.PaintRoller/>
-    </label>)}
+return <e-column spacing style={oo_style} class={o_color.tf(col => theme.colors[col].classes.as_tint)}>
+  <e-row spacing>
+    <e-row touching>
+      {tint_colors.map(color => <label e-variant="toggle" class={theme.colors[color].classes.as_tint}>
+        <input type="checkbox">{$bind.boolean(o_color.tf(tf_equals(color)))}</input>
+        <P.PaintRoller/>
+      </label>)}
+    </e-row>
+
+    <FontChooser/>
   </e-row>
 
   <e-row spacing>
@@ -84,12 +153,17 @@ return <e-column spacing class={o_color.tf(col => theme.colors[col].classes.as_t
     </e-row>
   </fieldset>
 
-  <e-row spacing>
-    <e-row touching>
+  <e-row spacing align="stretch">
+    <e-row touching align="stretch">
       <input type="text" placeholder="Enter your text" />
       <button><P.MagnifyingGlass/></button>
     </e-row>
-    <input type="number" placeholder="number"/>
+    <e-row touching align="stretch">
+      <input type="number" placeholder="number"/>
+    </e-row>
+    <button e-variant="inverted">
+      Not the same height !
+    </button>
   </e-row>
 
   <e-row spacing>
@@ -174,7 +248,7 @@ const cls_plain_surface = css`.plain-surface {
 
 return <e-column spacing="section">
   <e-block surface pad="component" border-radius>
-    Level 1 surface. Has its own background and padding.
+    <p>Level 1 surface. Has its own background and padding.</p>
     <e-block spacing="widget">
       <e-block surface pad="widget" border-radius>
         Level 2 surface, nested — one step further off its own (already-raised) parent, not two

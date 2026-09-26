@@ -45,7 +45,7 @@ export function show_dialog<T>(opts: DialogOptions | DialogCallback<T>, cbk?: Di
 
   const dialog = E(
     "dialog",
-    content.header != null && <header>{content.header}</header>,
+    content.header != null && <header><h1>{content.header}</h1></header>,
     <e-block pad="component" class="e-dialog-body">{content.body}</e-block>,
     content.footer != null && <footer>{content.footer}</footer>,
     opts.clickOutsideToClose &&
