@@ -25,24 +25,8 @@ export interface ThemeSettings {
   spacingNudge2: string
   spacingNudge4: string
 
-  /** Each step's own vertical value — half its horizontal value, tuned to look balanced against
-   * uncompensated line-height half-leading (see "Spacing scale" in specs/elt-ui-guidelines.md). */
-  spacingWidgetVertical: string
-  spacingWidgetHorizontal: string
-  spacingComponentVertical: string
-  spacingComponentHorizontal: string
-  spacingSectionVertical: string
-  spacingSectionHorizontal: string
-  spacingStage1Vertical: string
-  spacingStage1Horizontal: string
-  spacingStage2Vertical: string
-  spacingStage2Horizontal: string
-  spacingStage3Vertical: string
-  spacingStage3Horizontal: string
-  spacingStage4Vertical: string
-  spacingStage4Horizontal: string
-
-  /** Shorthand: "<vertical> <horizontal>", ready to use directly as a padding/gap value. */
+  /** One value per step — applies uniformly to both axes; no vertical/horizontal pair (see
+   * "Spacing scale" in specs/elt-ui-guidelines.md). */
   spacingWidget: string
   spacingComponent: string
   spacingSection: string
@@ -81,32 +65,35 @@ export const spacing_steps: SpacingStep[] = [
   "stage-4",
 ]
 
-/** The three raw px nudges have no vertical/horizontal pair — they're symmetric. */
+/** The three raw px nudges are never halved for `border_radius_css` below — every step now maps
+ * to a single custom property, but nudges alone skip the halving since they never had a
+ * vertical/horizontal pair to begin with. */
 const _spacing_nudges = new Set<SpacingStep>(["nudge-1", "nudge-2", "nudge-4"])
 
-/** Shared by `Theme.css.pad`/`.spacing` — the one place that knows how a step maps to its custom property(ies). */
-function spacing_pair_css(prop: "pad" | "spacing", step: SpacingStep): string {
-  if (_spacing_nudges.has(step)) {
-    return `--e-${prop}-vertical: var(--e-spacing-${step}); --e-${prop}-horizontal: var(--e-spacing-${step});`
-  }
-  return `--e-${prop}-vertical: var(--e-spacing-${step}-vertical); --e-${prop}-horizontal: var(--e-spacing-${step}-horizontal);`
+/** Shared by `Theme.css.pad`/`.spacing` — the one place that knows how a step maps to its custom
+ * property. Every step (nudges included) now resolves to the same single `--e-spacing-<step>`
+ * value, applied uniformly to both axes. */
+function spacing_css(prop: "pad" | "spacing", step: SpacingStep): string {
+  return `--e-${prop}: var(--e-spacing-${step});`
 }
 
 /**
  * Shared by `Theme.css.border_radius` — the one place that knows how a `border-radius` value maps
  * to a custom property. No step (the `[border]`/`[border-radius]` default) derives from the
- * element's own vertical padding step, the tighter of its horizontal/vertical pair; a named step
- * overrides that with a fixed value instead, for elements that don't pad themselves (e.g. the
- * dialog panel — see "Border radius is derived" in specs/elt-ui-guidelines.md).
+ * element's own padding, halved so a radius never cuts into the content box; a named step
+ * overrides that with that step's own halved value instead, for elements that don't pad
+ * themselves (e.g. the dialog panel — see "Border radius is derived" in
+ * specs/elt-ui-guidelines.md). The raw px nudges are the one exception: they're never halved,
+ * since they were never part of the padding scale's radius derivation to begin with.
  */
 function border_radius_css(step?: SpacingStep): string {
   if (step == null) {
-    return `border-radius: var(--e-pad-vertical, var(--e-spacing-widget-horizontal));`
+    return `border-radius: calc(var(--e-pad, var(--e-spacing-widget)) / 2);`
   }
   if (_spacing_nudges.has(step)) {
     return `border-radius: var(--e-spacing-${step});`
   }
-  return `border-radius: var(--e-spacing-${step}-vertical);`
+  return `border-radius: calc(var(--e-spacing-${step}) / 2);`
 }
 
 export type ColorScheme = {
@@ -217,32 +204,15 @@ export class Theme<AllColors extends ColorScheme> {
     this._set(theme.settings ?? {}, "spacingNudge2", "2px")
     this._set(theme.settings ?? {}, "spacingNudge4", "4px")
 
-    // Each step's vertical value is half its horizontal value — a tuned optical compensation for
-    // uncompensated line-height half-leading, not derived from font metrics. Works uniformly across
-    // block, flex, grid and table-cell layout, unlike `text-box-trim` (tried and dropped: it's a
-    // silent no-op on flex/grid containers — see "Spacing scale" in specs/elt-ui-guidelines.md).
-    this._set(theme.settings ?? {}, "spacingWidgetVertical", "4px")
-    this._set(theme.settings ?? {}, "spacingWidgetHorizontal", "8px")
-    this._set(theme.settings ?? {}, "spacingComponentVertical", "8px")
-    this._set(theme.settings ?? {}, "spacingComponentHorizontal", "16px")
-    this._set(theme.settings ?? {}, "spacingSectionVertical", "16px")
-    this._set(theme.settings ?? {}, "spacingSectionHorizontal", "32px")
-    this._set(theme.settings ?? {}, "spacingStage1Vertical", "32px")
-    this._set(theme.settings ?? {}, "spacingStage1Horizontal", "64px")
-    this._set(theme.settings ?? {}, "spacingStage2Vertical", "64px")
-    this._set(theme.settings ?? {}, "spacingStage2Horizontal", "128px")
-    this._set(theme.settings ?? {}, "spacingStage3Vertical", "128px")
-    this._set(theme.settings ?? {}, "spacingStage3Horizontal", "256px")
-    this._set(theme.settings ?? {}, "spacingStage4Vertical", "256px")
-    this._set(theme.settings ?? {}, "spacingStage4Horizontal", "512px")
-
-    this.settings.spacingWidget = `${this.settings.spacingWidgetVertical} ${this.settings.spacingWidgetHorizontal}`
-    this.settings.spacingComponent = `${this.settings.spacingComponentVertical} ${this.settings.spacingComponentHorizontal}`
-    this.settings.spacingSection = `${this.settings.spacingSectionVertical} ${this.settings.spacingSectionHorizontal}`
-    this.settings.spacingStage1 = `${this.settings.spacingStage1Vertical} ${this.settings.spacingStage1Horizontal}`
-    this.settings.spacingStage2 = `${this.settings.spacingStage2Vertical} ${this.settings.spacingStage2Horizontal}`
-    this.settings.spacingStage3 = `${this.settings.spacingStage3Vertical} ${this.settings.spacingStage3Horizontal}`
-    this.settings.spacingStage4 = `${this.settings.spacingStage4Vertical} ${this.settings.spacingStage4Horizontal}`
+    // Each step doubles the previous one, applied uniformly to both axes — no separate
+    // vertical/horizontal values (see "Spacing scale" in specs/elt-ui-guidelines.md).
+    this._set(theme.settings ?? {}, "spacingWidget", "8px")
+    this._set(theme.settings ?? {}, "spacingComponent", "16px")
+    this._set(theme.settings ?? {}, "spacingSection", "32px")
+    this._set(theme.settings ?? {}, "spacingStage1", "64px")
+    this._set(theme.settings ?? {}, "spacingStage2", "128px")
+    this._set(theme.settings ?? {}, "spacingStage3", "256px")
+    this._set(theme.settings ?? {}, "spacingStage4", "512px")
   }
 
   settings: ThemeSettings = {} as ThemeSettings
@@ -308,13 +278,13 @@ export class Theme<AllColors extends ColorScheme> {
    * `layout.css.tsx`'s `[pad]`/`[spacing]`/`[border]`/`[border-radius]` attribute rules consume
    * these directly instead of re-deriving the step → custom-property mapping themselves;
    * `classes.pad`/`.spacing` wrap them into standalone classes for elements outside the `e-*` set.
-   * The three raw px nudges ("nudge-1"/"nudge-2"/"nudge-4") have no vertical/horizontal pair —
-   * they're symmetric; every other step does. See "Spacing scale" in specs/elt-ui-guidelines.md.
+   * Every step maps to a single value, applied uniformly to both axes — no vertical/horizontal
+   * pair. See "Spacing scale" in specs/elt-ui-guidelines.md.
    */
   readonly css = {
-    pad: (step: SpacingStep) => spacing_pair_css("pad", step),
-    spacing: (step: SpacingStep) => spacing_pair_css("spacing", step),
-    /** Called with no step: derives from the element's own vertical padding — `[border]`'s implied
+    pad: (step: SpacingStep) => spacing_css("pad", step),
+    spacing: (step: SpacingStep) => spacing_css("spacing", step),
+    /** Called with no step: derives from the element's own padding, halved — `[border]`'s implied
      * default. Called with a named step: a fixed override for elements that don't pad themselves. */
     border_radius: (step?: SpacingStep) => border_radius_css(step),
   }
@@ -394,7 +364,7 @@ class ThemeClasses<AllColors extends ColorScheme> {
   pad(step: SpacingStep): string {
     let cls = this.#pad_classes.get(step)
     if (cls == null) {
-      cls = css`.e-pad-${step} { ${this.theme.css.pad(step)} padding: var(--e-pad-vertical) var(--e-pad-horizontal); }`
+      cls = css`.e-pad-${step} { ${this.theme.css.pad(step)} padding: var(--e-pad); }`
       this.#pad_classes.set(step, cls)
     }
     return cls
@@ -404,7 +374,7 @@ class ThemeClasses<AllColors extends ColorScheme> {
   spacing(step: SpacingStep): string {
     let cls = this.#spacing_classes.get(step)
     if (cls == null) {
-      cls = css`.e-spacing-${step} { ${this.theme.css.spacing(step)} gap: var(--e-spacing-vertical) var(--e-spacing-horizontal); }`
+      cls = css`.e-spacing-${step} { ${this.theme.css.spacing(step)} gap: var(--e-spacing); }`
       this.#spacing_classes.set(step, cls)
     }
     return cls

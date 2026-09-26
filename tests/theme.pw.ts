@@ -306,11 +306,8 @@ test.describe("Mix.surface / [surface] parity", () => {
   })
 })
 
-test.describe("Spacing scale (regression: vertical is half of horizontal, no text-box-trim dependency)", () => {
-  test("a named step has independent vertical/horizontal values, vertical = half horizontal", async ({ page }) => {
-    // Tuned optical compensation for uncompensated line-height half-leading — works uniformly across
-    // block, flex, grid and table-cell layout. text-box-trim was tried and dropped: it's a silent
-    // no-op on flex/grid containers, so it can't be the sole mechanism (specs/elt-ui-guidelines.md).
+test.describe("Spacing scale (regression: no separate vertical/horizontal values — one value per step, both axes)", () => {
+  test("a named step has a single value, doubling from the previous step", async ({ page }) => {
     const result = await page.evaluate(() => {
       const { theme } = window.__ELT__.UI
       return {
@@ -318,39 +315,37 @@ test.describe("Spacing scale (regression: vertical is half of horizontal, no tex
         spacing_widget: theme.settings.spacingWidget,
       }
     })
-    expect(result.css_settings).toContain("--e-spacing-widget-vertical: 4px;")
-    expect(result.css_settings).toContain("--e-spacing-widget-horizontal: 8px;")
-    expect(result.css_settings).toContain("--e-spacing-component-vertical: 8px;")
-    expect(result.css_settings).toContain("--e-spacing-component-horizontal: 16px;")
-    expect(result.spacing_widget).toBe("var(--e-spacing-widget-vertical, 4px) var(--e-spacing-widget-horizontal, 8px)")
+    expect(result.css_settings).toContain("--e-spacing-widget: 8px;")
+    expect(result.css_settings).toContain("--e-spacing-component: 16px;")
+    expect(result.css_settings).not.toContain("--e-spacing-widget-vertical")
+    expect(result.css_settings).not.toContain("--e-spacing-widget-horizontal")
+    expect(result.spacing_widget).toBe("var(--e-spacing-widget, 8px)")
   })
 })
 
 test.describe("Theme.css.pad / Theme.css.spacing", () => {
-  test("pad(step) sets --e-pad-vertical/-horizontal from the named step's paired spacing variables", async ({ page }) => {
+  test("pad(step) sets --e-pad from the named step's single spacing variable", async ({ page }) => {
     const result = await page.evaluate(() => {
       const { theme } = window.__ELT__.UI
       return theme.css.pad("widget")
     })
-    expect(result).toBe("--e-pad-vertical: var(--e-spacing-widget-vertical); --e-pad-horizontal: var(--e-spacing-widget-horizontal);")
+    expect(result).toBe("--e-pad: var(--e-spacing-widget);")
   })
 
-  test("spacing(step) sets --e-spacing-vertical/-horizontal from the named step's paired spacing variables", async ({ page }) => {
+  test("spacing(step) sets --e-spacing from the named step's single spacing variable", async ({ page }) => {
     const result = await page.evaluate(() => {
       const { theme } = window.__ELT__.UI
       return theme.css.spacing("section")
     })
-    expect(result).toBe(
-      "--e-spacing-vertical: var(--e-spacing-section-vertical); --e-spacing-horizontal: var(--e-spacing-section-horizontal);",
-    )
+    expect(result).toBe("--e-spacing: var(--e-spacing-section);")
   })
 
-  test("the three raw px nudges have no pair — both axes read the same symmetric variable", async ({ page }) => {
+  test("the three raw px nudges use the same single-variable mechanism as every other step", async ({ page }) => {
     const result = await page.evaluate(() => {
       const { theme } = window.__ELT__.UI
       return theme.css.pad("nudge-4")
     })
-    expect(result).toBe("--e-pad-vertical: var(--e-spacing-nudge-4); --e-pad-horizontal: var(--e-spacing-nudge-4);")
+    expect(result).toBe("--e-pad: var(--e-spacing-nudge-4);")
   })
 })
 
@@ -406,10 +401,10 @@ test.describe("Theme.classes (regression: moved off Theme's top-level class_ligh
     expect(result.a).toBe(result.b)
     expect(result.a).not.toBe(result.c)
     expect(result.rule).toContain(result.pad_component)
-    expect(result.rule).toContain("padding: var(--e-pad-vertical) var(--e-pad-horizontal)")
+    expect(result.rule).toContain("padding: var(--e-pad)")
   })
 
-  test("spacing(step) applies the gap property from the same --e-spacing-vertical/-horizontal custom properties [pad]/[spacing] attribute rules use", async ({
+  test("spacing(step) applies the gap property from the same --e-spacing custom property [pad]/[spacing] attribute rules use", async ({
     page,
   }) => {
     const result = await page.evaluate(() => {
@@ -429,6 +424,6 @@ test.describe("Theme.classes (regression: moved off Theme's top-level class_ligh
       return { rule, spacing_widget: theme.css.spacing("widget") }
     })
     expect(result.rule).toContain(result.spacing_widget)
-    expect(result.rule).toContain("gap: var(--e-spacing-vertical) var(--e-spacing-horizontal)")
+    expect(result.rule).toContain("gap: var(--e-spacing)")
   })
 })

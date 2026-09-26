@@ -51,8 +51,28 @@ Pick by what the mixed color was doing at that call site, not by which of the tw
 | Old | New |
 | --- | --- |
 | `e-box` | `e-block` |
-| `theme.settings.paddingPanelVertical` / `paddingPanelHorizontal` | `theme.settings.spacingComponentVertical` / `spacingComponentHorizontal` (or the `spacingComponent` shorthand) |
+| `theme.settings.paddingPanelVertical` / `paddingPanelHorizontal` | `theme.settings.spacingComponent` (see Axis 3, below — the vertical/horizontal split itself was later removed) |
 | `theme.settings.paddingCell*` | `theme.settings.spacingWidget*` |
 | `theme.class_light` / `class_dark` / `class_dynamic` | Unchanged for now — `specs/elt-ui-guidelines.md` (line 87) has an open Todo to move these under `theme.classes.*`; do not rename ahead of that landing. |
 
 > Question: this pass only inventoried Color-axis call sites. Spacing/Layout renames above are the ones already flagged by `specs/elt-ui-guidelines.md`'s own Todos, not a fresh audit — a dedicated pass is still needed to confirm there are no other stale references.
+
+## Axis 3: Spacing
+
+### Vertical/horizontal padding split removed
+
+The padding scale's per-step vertical/horizontal pair is gone — every step now has a single value, applied uniformly to both axes. The surviving number at each step is the old *horizontal* value (the old vertical value, always half of it, no longer exists anywhere).
+
+| Old | New |
+| --- | --- |
+| `theme.settings.spacingWidgetVertical` / `spacingWidgetHorizontal` | `theme.settings.spacingWidget` |
+| `theme.settings.spacingComponentVertical` / `spacingComponentHorizontal` | `theme.settings.spacingComponent` |
+| `theme.settings.spacingSectionVertical` / `spacingSectionHorizontal` | `theme.settings.spacingSection` |
+| `theme.settings.spacingStage1Vertical`–`spacingStage4Vertical` / `spacingStage1Horizontal`–`spacingStage4Horizontal` | `theme.settings.spacingStage1`–`spacingStage4` |
+| `--e-pad-vertical` / `--e-pad-horizontal` | `--e-pad` |
+| `--e-spacing-vertical` / `--e-spacing-horizontal` | `--e-spacing` |
+| `--e-spacing-<step>-vertical` / `--e-spacing-<step>-horizontal` | `--e-spacing-<step>` |
+
+`theme.css.border_radius` changed its formula along with this: it used to read a step's *vertical* value directly (already the tighter of the pair); it now reads the step's single value and halves it with `calc(... / 2)`, landing on the same absolute radius as before. Nudge steps (`nudge-1`/`nudge-2`/`nudge-4`) are unaffected — they never had a vertical/horizontal pair and are still used as-is, unhalved.
+
+Hand-authored one-off CSS that happened to use two numbers but was never part of this scale (`fieldset > legend`, `fieldset`, blockquote/list/table typographic padding in `ui/typography.css.tsx`) is untouched by this change — it was never routed through `theme.settings.spacing*`/`theme.css.pad`/`.spacing` to begin with.

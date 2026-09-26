@@ -57,7 +57,7 @@ export interface CommonAttrs extends Attrs<HTMLElement> {
    */
   border?: NRO<boolean | BorderValues>
   /**
-   * Radius follows this element's own vertical padding step by default (including when implied by
+   * Radius follows this element's own padding step by default (including when implied by
    * `border`); pass a named spacing step to override that (for an element that doesn't pad itself),
    * or `"none"` to opt out even when a border is present.
    */
@@ -292,24 +292,24 @@ css`
     /* [pad] always pads the element itself, [touching] or not — see the [touching] rules below
        for how a touching container's children get padded too. */
     &[pad] {
-      padding: var(--e-pad-vertical) var(--e-pad-horizontal);
+      padding: var(--e-pad);
     }
   }
 
   :is(e-flex,e-grid,e-row,e-column) {
     &:not([pad="none"]):not([touching]), &[spacing]:not([touching]) {
-      gap: var(--e-spacing-vertical) var(--e-spacing-horizontal);
+      gap: var(--e-spacing);
     }
   }
 
   ${_flex}:where([touching]:not([pad="none"])) > * {
-    padding: var(--e-pad-vertical) var(--e-pad-horizontal);
+    padding: var(--e-pad);
   }
 
   ${spaces.map(sp => `
   ${_flex}[touching="${sp}"] > * {
     ${theme.css.pad(sp)}
-    padding: var(--e-pad-vertical) var(--e-pad-horizontal);
+    padding: var(--e-pad);
   }`).join("\n")}
 
   /* A focused child's ring must draw over its touching neighbor rather than being covered by it. */

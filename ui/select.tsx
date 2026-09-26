@@ -111,7 +111,7 @@ const cls_item = css`.item {
 
   & .selected-icon {
     color: ${colors.tint};
-    padding: 0 4px;
+    padding: 0 ${theme.settings.spacingNudge4};
     text-align: center;
     width: 16px;
   }
