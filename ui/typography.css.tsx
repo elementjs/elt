@@ -109,9 +109,8 @@ css`@layer typography {
     }
     & pre {
       overflow-x: auto;
-      padding: 1em 1.25em;
-      background: color-mix(in oklab, currentColor 6%, transparent);
-      line-height: 1.5;
+      padding: ${theme.settings.spacingComponent};
+      background: ${theme.colors.text.surface(0.5)};
 
       & code {
         background: none;

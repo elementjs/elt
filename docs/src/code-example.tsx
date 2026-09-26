@@ -34,7 +34,7 @@ export function runExample(fn: () => Node): { renderResult?: Node; renderError?:
  * (`renderResult`/`renderError`/`fullExampleUrl` set); a plain highlighted block otherwise. */
 function renderCode(highlighted: () => Renderable) {
   return <e-block border pad="none">
-    <pre class={cls_code}><code>{highlighted()}</code></pre>
+    <pre><code>{highlighted()}</code></pre>
   </e-block>
 }
 
@@ -58,14 +58,14 @@ export function CodeExample(props: CodeExampleProps) {
   }
 
   return <e-column touching align="stretch">
-    <e-row touching border>
+    <e-row touching border pad="none">
       <button class={o_showing_code.tf((v) => (!v ? cls_active : null))}>
         {$click(() => o_showing_code.set(false))}
-        Result
+        ⏵ Example
       </button>
       <button class={o_showing_code.tf((v) => (v ? cls_active : null))}>
         {$click(() => o_showing_code.set(true))}
-        Typescript
+        Code {"\ueac4"}
       </button>
     </e-row>
     {If(o_showing_code,
@@ -77,12 +77,6 @@ export function CodeExample(props: CodeExampleProps) {
 
 const cls_active = css`.active {
   ${theme.colors.tint.css.as_surface(1)}
-}`
-
-const cls_code = css`.code {
-  margin: 0;
-  padding: ${theme.settings.spacingWidget};
-  overflow-x: auto;
 }`
 
 const cls_error = css`.error {

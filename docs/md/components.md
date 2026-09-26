@@ -110,10 +110,11 @@ tied to it. Use a real element as the observing root when you need connect/disco
 - There's no built-in way for a caller to obtain a handle to a component's internal DOM node
   other than the value the function returns.
 - There are no `onClick`-style attrs. Event handling goes through decorators placed as JSX
-  children (`$click`, `$on`, ...) — see [`using-elt-agent.md`](./using-elt-agent.md).
+  children (`$click`, `$on`, ...) — see [`decorators.md`](./decorators.md).
 
 ## See also
 
+- [`decorators.md`](./decorators.md) — every `$…` decorator, with runnable examples.
 - [`using-elt-agent.md`](./using-elt-agent.md) — hard rules, routes/services, decorators.
 - [`cheatsheet.md`](./cheatsheet.md) — quick reference tables.
 - `src/elt.ts` (`e()`, `RefChild`), `src/dom.ts` (`node_append`, `basic_attrs`), `src/types.ts`

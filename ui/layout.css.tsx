@@ -84,7 +84,7 @@ export interface EFlexAttrs extends CommonAttrs {
   align?: NRO<AlignValues>
   justify?: NRO<AlignValues>
   /**
-   * Rule 3 (specs/elt-ui-guidelines.md, Padding and boundaries): a boundary with no spacing whose
+   * Rule 6 (specs/elt-ui-guidelines.md, Golden rules): a boundary with no spacing whose
    * children touch directly, uniformly padded. `pad` always pads the container itself, same as
    * everywhere else — it never applies to children here. To also pad every child uniformly: bare
    * `touching` reuses whatever `pad` resolves to (so `pad="X" touching` pads both the container and
@@ -192,7 +192,7 @@ for (const al of align) {
 // `pad` implies `spacing` (spec: "a container with more than one child must set spacing between
 // them" — a padded container is exactly such a container). `spacing` never implies `pad` — the two
 // are one-directional, matching a boundary-less container that still needs to space un-merged
-// children (specs/elt-ui-guidelines.md, Padding and boundaries).
+// children (specs/elt-ui-guidelines.md, Golden rules, rule 5).
 //
 // Priority, lowest to highest (CSS cascade with equal specificity — later wins):
 // 1. bare [pad] (no value) implies `component` spacing, same as bare [spacing] falling back to it.

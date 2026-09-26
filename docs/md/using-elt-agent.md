@@ -193,6 +193,8 @@ After the component returns, `node_append` applies **global** attrs to the **roo
 
 ## Decorators
 
+Full picture, with runnable examples: [`docs/md/decorators.md`](./decorators.md). Authoritative source: `src/decorators.ts`.
+
 Put `$…` decorators in **JSX children**, not as attributes (not React):
 
 ```tsx
@@ -270,7 +272,7 @@ div class={cls_row}  // or class={[cls_row, { active: o_on }]}
 
 ## App, routes, services
 
-Canonical: `docs/src/app.tsx`, `docs/src/routes.ts`. Behavior: `src/app/app.ts`, `tests/app.test.ts`.
+Full picture: [`docs/md/app.md`](./app.md). Canonical: `docs/src/app.tsx`, `docs/src/routes.ts`. Behavior: `src/app/app.ts`, `tests/app.test.ts`.
 
 ### Route definitions (`App.RouteDef`)
 
