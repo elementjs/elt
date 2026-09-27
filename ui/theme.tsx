@@ -65,9 +65,9 @@ export const spacing_steps: SpacingStep[] = [
   "stage-4",
 ]
 
-/** The three raw px nudges are never halved for `radius_css` below — every step now maps
- * to a single custom property, but nudges alone skip the halving since they never had a
- * vertical/horizontal pair to begin with. */
+/** The three raw px nudges are read as a bare variable in `radius_css` below, skipping the
+ * `calc()` wrapper every other step gets — a nudge step is already a single literal px value,
+ * with no expression to build. */
 const _spacing_nudges = new Set<SpacingStep>(["nudge-1", "nudge-2", "nudge-4"])
 
 /** Shared by `Theme.css.pad`/`.spacing` — the one place that knows how a step maps to its custom
@@ -80,11 +80,9 @@ function spacing_css(prop: "pad" | "spacing", step: SpacingStep): string {
 /**
  * Shared by `Theme.css.radius` — the one place that knows how a `radius` value maps
  * to a custom property. No step (the `[border]`/`[radius]` default) derives from the
- * element's own padding, halved so a radius never cuts into the content box; a named step
- * overrides that with that step's own halved value instead, for elements that don't pad
- * themselves (e.g. the dialog panel — see "Border radius is derived" in
- * specs/elt-ui-guidelines.md). The raw px nudges are the one exception: they're never halved,
- * since they were never part of the padding scale's radius derivation to begin with.
+ * element's own padding directly; a named step overrides that with that step's own value
+ * instead, for elements that don't pad themselves (e.g. the dialog panel — see "Border radius
+ * is derived" in specs/elt-ui-guidelines.md).
  */
 function radius_css(step?: SpacingStep): string {
   if (step == null) {
@@ -284,7 +282,7 @@ export class Theme<AllColors extends ColorScheme> {
   readonly css = {
     pad: (step: SpacingStep) => spacing_css("pad", step),
     spacing: (step: SpacingStep) => spacing_css("spacing", step),
-    /** Called with no step: derives from the element's own padding, halved — `[border]`'s implied
+    /** Called with no step: derives from the element's own padding — `[border]`'s implied
      * default. Called with a named step: a fixed override for elements that don't pad themselves. */
     radius: (step?: SpacingStep) => radius_css(step),
   }

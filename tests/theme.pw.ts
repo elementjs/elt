@@ -315,11 +315,11 @@ test.describe("Spacing scale (regression: no separate vertical/horizontal values
         spacing_widget: theme.settings.spacingWidget,
       }
     })
-    expect(result.css_settings).toContain("--e-spacing-widget: 8px;")
-    expect(result.css_settings).toContain("--e-spacing-component: 16px;")
+    expect(result.css_settings).toContain("--e-spacing-widget: 6px;")
+    expect(result.css_settings).toContain("--e-spacing-component: 12px;")
     expect(result.css_settings).not.toContain("--e-spacing-widget-vertical")
     expect(result.css_settings).not.toContain("--e-spacing-widget-horizontal")
-    expect(result.spacing_widget).toBe("var(--e-spacing-widget, 8px)")
+    expect(result.spacing_widget).toBe("var(--e-spacing-widget, 6px)")
   })
 })
 
