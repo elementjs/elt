@@ -4,7 +4,7 @@ export interface ThemeSettings {
   lineHeight: string
 
   /** Fixed fallback for controls/frames that can't derive their radius from their own padding
-   * step — kept deliberately rare; prefer `theme.css.border_radius`/`[border-radius]` wherever an
+   * step — kept deliberately rare; prefer `theme.css.radius`/`[radius]` wherever an
    * element pads itself (see "Border radius is derived" in specs/elt-ui-guidelines.md). */
   borderRadius: string
 
@@ -65,7 +65,7 @@ export const spacing_steps: SpacingStep[] = [
   "stage-4",
 ]
 
-/** The three raw px nudges are never halved for `border_radius_css` below — every step now maps
+/** The three raw px nudges are never halved for `radius_css` below — every step now maps
  * to a single custom property, but nudges alone skip the halving since they never had a
  * vertical/horizontal pair to begin with. */
 const _spacing_nudges = new Set<SpacingStep>(["nudge-1", "nudge-2", "nudge-4"])
@@ -78,15 +78,15 @@ function spacing_css(prop: "pad" | "spacing", step: SpacingStep): string {
 }
 
 /**
- * Shared by `Theme.css.border_radius` — the one place that knows how a `border-radius` value maps
- * to a custom property. No step (the `[border]`/`[border-radius]` default) derives from the
+ * Shared by `Theme.css.radius` — the one place that knows how a `radius` value maps
+ * to a custom property. No step (the `[border]`/`[radius]` default) derives from the
  * element's own padding, halved so a radius never cuts into the content box; a named step
  * overrides that with that step's own halved value instead, for elements that don't pad
  * themselves (e.g. the dialog panel — see "Border radius is derived" in
  * specs/elt-ui-guidelines.md). The raw px nudges are the one exception: they're never halved,
  * since they were never part of the padding scale's radius derivation to begin with.
  */
-function border_radius_css(step?: SpacingStep): string {
+function radius_css(step?: SpacingStep): string {
   if (step == null) {
     return `border-radius: calc(var(--e-pad, var(--e-spacing-widget)));`
   }
@@ -275,7 +275,7 @@ export class Theme<AllColors extends ColorScheme> {
 
   /**
    * Raw-CSS-declaration helpers, keyed by concern — the low-level counterpart to `classes` below.
-   * `layout.css.tsx`'s `[pad]`/`[spacing]`/`[border]`/`[border-radius]` attribute rules consume
+   * `layout.css.tsx`'s `[pad]`/`[spacing]`/`[border]`/`[radius]` attribute rules consume
    * these directly instead of re-deriving the step → custom-property mapping themselves;
    * `classes.pad`/`.spacing` wrap them into standalone classes for elements outside the `e-*` set.
    * Every step maps to a single value, applied uniformly to both axes — no vertical/horizontal
@@ -286,7 +286,7 @@ export class Theme<AllColors extends ColorScheme> {
     spacing: (step: SpacingStep) => spacing_css("spacing", step),
     /** Called with no step: derives from the element's own padding, halved — `[border]`'s implied
      * default. Called with a named step: a fixed override for elements that don't pad themselves. */
-    border_radius: (step?: SpacingStep) => border_radius_css(step),
+    radius: (step?: SpacingStep) => radius_css(step),
   }
 
   @memoize

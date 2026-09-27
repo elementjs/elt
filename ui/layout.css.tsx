@@ -53,7 +53,7 @@ export interface CommonAttrs extends Attrs<HTMLElement> {
   /**
    * Draw a border around the element. Bare `border` is a clear boundary at `text.mid`; `"tint"`
    * uses `tint.mid` instead; `"n+K"` is a divider/separator at that surface level relative to
-   * whatever's ambient. Implies `border-radius` (see below) unless `border-radius="none"`.
+   * whatever's ambient. Implies `radius` (see below) unless `radius="none"`.
    */
   border?: NRO<boolean | BorderValues>
   /**
@@ -61,7 +61,7 @@ export interface CommonAttrs extends Attrs<HTMLElement> {
    * `border`); pass a named spacing step to override that (for an element that doesn't pad itself),
    * or `"none"` to opt out even when a border is present.
    */
-  "border-radius"?: NRO<boolean | "none" | SpacingValues>
+  radius?: NRO<boolean | "none" | SpacingValues>
   
   "self-align"?: NRO<AlignValues>
   "self-justify"?: NRO<AlignValues>
@@ -138,7 +138,7 @@ function _(strings: TemplateStringsArray, ...values: unknown[]): void {
 // only these two relative offsets are precompiled here — any other n+K goes through
 // theme.colors.<color>.classes.as_surface(n)/.css.as_surface(n) (ui/theme.tsx) instead, which
 // synthesize their CSS per call and so accept an arbitrary offset. The :not() list excludes every
-// other explicit-value case so bare/[surface] stays the fallback, same pattern [border-radius]
+// other explicit-value case so bare/[surface] stays the fallback, same pattern [radius]
 // already uses below.
 const _surface_levels = ["1", "2", "3", "4", "5", "6"] as const
 const _surface_not_default = [...["background", "n+2"], ..._surface_levels].map((v) => `:not([surface="${v}"])`).join("")
@@ -166,20 +166,20 @@ for (const lvl of _border_relative_levels) {
   _`${_all}[border="n+${lvl}"] { border: 1px solid ${theme.colors.tint.surface(`n+${lvl}`)}; }`
 }
 
-// `border` implies `border-radius` (any value, including a divider's), unless explicitly opted
-// out with border-radius="none". Default (no named step): derives from this element's own vertical
+// `border` implies `radius` (any value, including a divider's), unless explicitly opted
+// out with radius="none". Default (no named step): derives from this element's own vertical
 // padding step. A named step below overrides that — for an element that doesn't pad itself.
 //
 // `:where(:not(...))` rather than a bare `:not(...)`: `:not([x="none"])` on its own carries the
 // specificity of [x="none"] (an attribute selector), which would outrank the plain-attribute
-// [border-radius="${sp}"] step selectors below despite coming first in source order — silently
+// [radius="${sp}"] step selectors below despite coming first in source order — silently
 // preventing every named-step override from ever applying. :where() always contributes zero
 // specificity, so these two rules and the per-step loop stay equal-specificity and cascade
 // purely by source order, as intended.
-_`${_all}[border]:where(:not([border-radius="none"])) { ${theme.css.border_radius()} }`
-_`${_all}[border-radius]:where(:not([border-radius="none"])) { ${theme.css.border_radius()} }`
+_`${_all}[border]:where(:not([radius="none"])) { ${theme.css.radius()} }`
+_`${_all}[radius]:where(:not([radius="none"])) { ${theme.css.radius()} }`
 for (const sp of spaces) {
-  _`${_all}[border-radius="${sp}"] { ${theme.css.border_radius(sp)} }`
+  _`${_all}[radius="${sp}"] { ${theme.css.radius(sp)} }`
 }
 
 for (const al of align) {

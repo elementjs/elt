@@ -145,7 +145,7 @@ css`@layer typography {
     /* ── Details / summary ─────────────────────────────────── */
     & details {
       border: 1px solid ${theme.colors.text.mid};
-      ${theme.css.border_radius("component")}
+      ${theme.css.radius("component")}
       padding: ${theme.settings.spacingComponent};
 
       & summary {

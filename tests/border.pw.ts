@@ -75,7 +75,7 @@ test.describe("[border] value resolution (specs/elt-ui-guidelines.md, Surfaces a
   })
 })
 
-test.describe("[border] implies [border-radius] (specs/elt-ui-guidelines.md, Border radius is derived)", () => {
+test.describe("[border] implies [radius] (specs/elt-ui-guidelines.md, Border radius is derived)", () => {
   test("a bordered element gets a nonzero radius by default, derived from its own padding step", async ({ page }) => {
     const result = await page.evaluate(() => {
       const el = document.createElement("e-block")
@@ -87,12 +87,12 @@ test.describe("[border] implies [border-radius] (specs/elt-ui-guidelines.md, Bor
     expect(result).not.toBe("0px")
   })
 
-  test('border-radius="none" opts out even though a border is present', async ({ page }) => {
+  test('radius="none" opts out even though a border is present', async ({ page }) => {
     const result = await page.evaluate(() => {
       const el = document.createElement("e-block")
       el.setAttribute("border", "")
       el.setAttribute("pad", "component")
-      el.setAttribute("border-radius", "none")
+      el.setAttribute("radius", "none")
       document.body.appendChild(el)
       return getComputedStyle(el).borderTopLeftRadius
     })
@@ -110,16 +110,16 @@ test.describe("[border] implies [border-radius] (specs/elt-ui-guidelines.md, Bor
     expect(result).not.toBe("0px")
   })
 
-  test('border-radius="section" is a fixed override, usable even without a border, for an element that does not pad itself', async ({ page }) => {
+  test('radius="section" is a fixed override, usable even without a border, for an element that does not pad itself', async ({ page }) => {
     // "section" (32px, halved to 16px) deliberately differs from the derived fallback an unpadded
     // element would otherwise get (--e-spacing-widget/2, 4px) — a step that happened to collide
     // with the fallback's value would pass even if the override selector never actually applied
-    // (regression: [border-radius="${sp}"] used to be silently outranked by the general
-    // :not([border-radius="none"]) rule's higher specificity — see ui/layout.css.tsx).
+    // (regression: [radius="${sp}"] used to be silently outranked by the general
+    // :not([radius="none"]) rule's higher specificity — see ui/layout.css.tsx).
     const result = await page.evaluate(() => {
       const { theme } = window.__ELT__.UI
       const el = document.createElement("e-block")
-      el.setAttribute("border-radius", "section")
+      el.setAttribute("radius", "section")
       document.body.appendChild(el)
       const ref = document.createElement("div")
       ref.style.borderRadius = `calc(${theme.settings.spacingSection} / 2)`
@@ -134,11 +134,11 @@ test.describe("[border] implies [border-radius] (specs/elt-ui-guidelines.md, Bor
   })
 })
 
-test.describe("Theme.css.border_radius (ui/theme.tsx)", () => {
-  test("no step: derives from the element's own padding, halved — the same expression [border]/[border-radius] fall back to", async ({ page }) => {
+test.describe("Theme.css.radius (ui/theme.tsx)", () => {
+  test("no step: derives from the element's own padding, halved — the same expression [border]/[radius] fall back to", async ({ page }) => {
     const result = await page.evaluate(() => {
       const { theme } = window.__ELT__.UI
-      return theme.css.border_radius()
+      return theme.css.radius()
     })
     expect(result).toBe("border-radius: calc(var(--e-pad, var(--e-spacing-widget)) / 2);")
   })
@@ -146,7 +146,7 @@ test.describe("Theme.css.border_radius (ui/theme.tsx)", () => {
   test("a named step overrides with that step's own value, halved", async ({ page }) => {
     const result = await page.evaluate(() => {
       const { theme } = window.__ELT__.UI
-      return theme.css.border_radius("component")
+      return theme.css.radius("component")
     })
     expect(result).toBe("border-radius: calc(var(--e-spacing-component) / 2);")
   })
@@ -154,7 +154,7 @@ test.describe("Theme.css.border_radius (ui/theme.tsx)", () => {
   test("a raw nudge step reads its symmetric variable, not a -vertical suffix", async ({ page }) => {
     const result = await page.evaluate(() => {
       const { theme } = window.__ELT__.UI
-      return theme.css.border_radius("nudge-4")
+      return theme.css.radius("nudge-4")
     })
     expect(result).toBe("border-radius: var(--e-spacing-nudge-4);")
   })

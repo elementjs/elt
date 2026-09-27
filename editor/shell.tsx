@@ -293,7 +293,7 @@ const cls_shell = css`.oe-shell {
   /* Doesn't pad itself, so radius can't derive from its own padding — "section" is a deliberate
      override matching the frame's old fixed 16px radius (see "Border radius is derived" in
      specs/elt-ui-guidelines.md). */
-  ${theme.css.border_radius("section")}
+  ${theme.css.radius("section")}
   overflow: hidden;
 }`
 

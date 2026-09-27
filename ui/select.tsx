@@ -107,7 +107,7 @@ const cls_item = css`.item {
   cursor: pointer;
   user-select: none;
   font-size: ${theme.settings.formFontSize};
-  ${theme.css.border_radius("nudge-2")}
+  ${theme.css.radius("nudge-2")}
 
   & .selected-icon {
     color: ${colors.tint};

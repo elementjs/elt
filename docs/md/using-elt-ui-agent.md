@@ -55,7 +55,7 @@ elt/ui is intentionally small: a **visual language** plus a few high-value widge
 | --------- | -------- |
 | HTML reused | Style native elements; add custom elements only when attrs on HTML are awkward |
 | Attributes, not classes | Layout and variants use typed element attrs (`column`, `spacing="widget"`, `e-variant="tint"`) declared in `declare module "elt"` |
-| Bordered interactables | Buttons, inputs, and similar controls have a border and a radius derived from their own padding step (`theme.css.border_radius`), as defined in theme |
+| Bordered interactables | Buttons, inputs, and similar controls have a border and a radius derived from their own padding step (`theme.css.radius`), as defined in theme |
 | Consistent rhythm | Spacing comes from the shared scale (see § Layout) |
 | Tint semantics | `theme.colors.tint` is the primary accent; semantic hues (`red`, `green`, …) exist for status, not decoration spam |
 
@@ -87,7 +87,7 @@ Common attrs:
 
 Spacing scale (`pad="component"`, `spacing="widget"`, …): `nudge-1`/`nudge-2`/`nudge-4` (px, pixel-level nudges only) → `widget` → `component` (the default, most used) → `section` → `stage-1`…`stage-4`, mapping to `--e-spacing-*` in `ui/theme.tsx`. `pad="X"` implies `spacing="X"` at the same step automatically — write `pad` alone unless padding and inter-child spacing genuinely need to differ, in which case add an explicit `spacing="Y"` to override just that side. Default `pad`/`spacing` (boolean attr, no value) fall back to `component`. `pad="none"`/`spacing="none"` turn one side off explicitly.
 
-**Border:** `border` (bare) is a clear boundary at `text.mid`; `border="tint"` uses `tint.mid`; `border="n+1"`…`"n+6"` is a divider/separator at that surface level relative to whatever's ambient. `border` implies `border-radius` (derived from the element's own padding step, or an explicit named step like `border-radius="component"` for an element that doesn't pad itself) unless `border-radius="none"`.
+**Border:** `border` (bare) is a clear boundary at `text.mid`; `border="tint"` uses `tint.mid`; `border="n+1"`…`"n+6"` is a divider/separator at that surface level relative to whatever's ambient. `border` implies `radius` (derived from the element's own padding step, or an explicit named step like `radius="component"` for an element that doesn't pad itself) unless `radius="none"`.
 
 **Grid:** no Bootstrap-style helpers. For non-trivial grids, use `<e-grid>` for display + a small `css` block for `grid-template-*`, still using theme spacing/colors inside rules.
 
@@ -153,7 +153,7 @@ const colors = theme.colors
 const cls_banner = css`.banner {
   background: ${colors.tint.hover};
   color: ${colors.text};
-  ${theme.css.border_radius("component")}
+  ${theme.css.radius("component")}
 }`
 ```
 

@@ -243,38 +243,38 @@ import { theme } from "elt/ui"
 const cls_plain_surface = css`.plain-surface {
   ${theme.colors.tint.css.as_surface(2)}
   padding: ${theme.settings.spacingWidget};
-  ${theme.css.border_radius("widget")}
+  ${theme.css.radius("widget")}
 }`
 
 return <e-column spacing="section">
-  <e-block surface pad="component" border-radius>
+  <e-block surface pad="component" radius>
     <p>Level 1 surface. Has its own background and padding.</p>
     <e-block spacing="widget">
-      <e-block surface pad="widget" border-radius>
+      <e-block surface pad="widget" radius>
         Level 2 surface, nested — one step further off its own (already-raised) parent, not two
         steps off the page.
       </e-block>
-      <e-block surface pad="widget" border-radius>
+      <e-block surface pad="widget" radius>
         A sibling level-2 surface, for comparison.
       </e-block>
     </e-block>
   </e-block>
 
   <e-block border pad="component">
-    No `surface` here — just a border. `border` implies `border-radius`, derived from this box's
+    No `surface` here — just a border. `border` implies `radius`, derived from this box's
     own vertical padding step.
   </e-block>
 
   <e-row spacing="widget" wrap>
-    <e-block surface="1" pad="widget" border-radius>surface="1"</e-block>
-    <e-block surface="2" pad="widget" border-radius>surface="2"</e-block>
-    <e-block surface="3" pad="widget" border-radius>surface="3"</e-block>
-    <e-block surface="4" pad="widget" border-radius>surface="4"</e-block>
+    <e-block surface="1" pad="widget" radius>surface="1"</e-block>
+    <e-block surface="2" pad="widget" radius>surface="2"</e-block>
+    <e-block surface="3" pad="widget" radius>surface="3"</e-block>
+    <e-block surface="4" pad="widget" radius>surface="4"</e-block>
   </e-row>
 
-  <e-block surface="3" pad="component" border-radius>
+  <e-block surface="3" pad="component" radius>
     <p>Ambient level 3.</p>
-    <e-block surface="background" pad="widget" border-radius>
+    <e-block surface="background" pad="widget" radius>
       surface="background" — level 0's own fill, clearly distinct from the level-3 ambient around
       it.
     </e-block>
@@ -317,19 +317,19 @@ const cls_inverted = theme.colors.tint.classes.as_inverted
 const cls_inverted_different = theme.colors.red.classes.as_inverted
 
 return <e-row spacing="section" wrap>
-  <e-column class={cls_inverted} pad="component" spacing="widget" border-radius>
+  <e-column class={cls_inverted} pad="component" spacing="widget" radius>
     <strong>tint, inverted</strong>
-    <e-block class={cls_inverted} pad="widget" border-radius>
+    <e-block class={cls_inverted} pad="widget" radius>
       Same color (tint) nested inside itself — renders identically to its parent.
     </e-block>
   </e-column>
 
-  <e-column class={cls_inverted} pad="component" spacing="widget" border-radius>
+  <e-column class={cls_inverted} pad="component" spacing="widget" radius>
     <strong>tint, inverted</strong>
-    <e-block class={cls_inverted_different} pad="widget" border-radius>
+    <e-block class={cls_inverted_different} pad="widget" radius>
       A different color (red) nested inside — reads clearly against its parent.
     </e-block>
-    <e-block surface pad="widget" border-radius>
+    <e-block surface pad="widget" radius>
       Or simply setting surface
     </e-block>
   </e-column>
