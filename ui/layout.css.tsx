@@ -87,18 +87,18 @@ export interface EFlexAttrs extends CommonAttrs {
    * Rule 6 (specs/elt-ui-guidelines.md, Golden rules): a boundary with no spacing whose
    * children touch directly, uniformly padded. `pad` always pads the container itself, same as
    * everywhere else — it never applies to children here. To also pad every child uniformly: bare
-   * `touching` reuses whatever `pad` resolves to (so `pad="X" touching` pads both the container and
-   * its children at X) ; an explicit step (`touching="Y"`) pads children at Y regardless of `pad`,
+   * `packed` reuses whatever `pad` resolves to (so `pad="X" packed` pads both the container and
+   * its children at X) ; an explicit step (`packed="Y"`) pads children at Y regardless of `pad`,
    * letting the two differ (e.g. a popup's own edge inset vs. its rows' tighter click-target
-   * padding). `touching` never draws a border itself — border rendering is entirely each child's
-   * own concern. When two touching children both carry their own border on the shared seam, the
+   * padding). `packed` never draws a border itself — border rendering is entirely each child's
+   * own concern. When two packed children both carry their own border on the shared seam, the
    * later one (in DOM order) wins: its leading edge stays, the earlier child's trailing edge there
    * is suppressed, collapsing the seam into a single line instead of doubling it. When only one of
    * the two carries a border there, it already shows through with no suppression needed. Interior
-   * touching seams always have their corner radii zeroed, regardless of whether either child has a
-   * border there, so a touching group of rounded children still reads as one shape.
+   * packed seams always have their corner radii zeroed, regardless of whether either child has a
+   * border there, so a packed group of rounded children still reads as one shape.
    */
-  touching?: NRO<boolean | SpacingValues>
+  packed?: NRO<boolean | SpacingValues>
 }
 
 const more: string[] = []
@@ -289,53 +289,53 @@ css`
   }
 
   ${_all} {
-    /* [pad] always pads the element itself, [touching] or not — see the [touching] rules below
-       for how a touching container's children get padded too. */
+    /* [pad] always pads the element itself, [packed] or not — see the [packed] rules below
+       for how a packed container's children get padded too. */
     &[pad] {
       padding: var(--e-pad);
     }
   }
 
   :is(e-flex,e-grid,e-row,e-column) {
-    &:not([pad="none"]):not([touching]), &[spacing]:not([touching]) {
+    &:not([pad="none"]):not([packed]), &[spacing]:not([packed]) {
       gap: var(--e-spacing);
     }
   }
 
-  ${_flex}:where([touching]:not([pad="none"])) > * {
+  ${_flex}:where([packed]:not([pad="none"])) > * {
     padding: var(--e-pad);
   }
 
   ${spaces.map(sp => `
-  ${_flex}[touching="${sp}"] > * {
+  ${_flex}[packed="${sp}"] > * {
     ${theme.css.pad(sp)}
     padding: var(--e-pad);
   }`).join("\n")}
 
-  /* A focused child's ring must draw over its touching neighbor rather than being covered by it. */
-  :is(e-row,e-column,e-flex)[touching] > * {
+  /* A focused child's ring must draw over its packed neighbor rather than being covered by it. */
+  :is(e-row,e-column,e-flex)[packed] > * {
     position: relative;
     z-index: 0;
   }
-  :is(e-row,e-column,e-flex)[touching] > :focus-visible {
+  :is(e-row,e-column,e-flex)[packed] > :focus-visible {
     z-index: 1;
   }
 
-  /* Interior touching seams always lose their corner radii, whether or not either side has a
-     border there, so a touching group of rounded children still reads as one shape. */
-  :is(e-row, e-flex:not([column]))[touching] > *:not(:last-child) {
+  /* Interior packed seams always lose their corner radii, whether or not either side has a
+     border there, so a packed group of rounded children still reads as one shape. */
+  :is(e-row, e-flex:not([column]))[packed] > *:not(:last-child) {
     border-top-right-radius: 0;
     border-bottom-right-radius: 0;
   }
-  :is(e-row, e-flex:not([column]))[touching] > *:not(:first-child) {
+  :is(e-row, e-flex:not([column]))[packed] > *:not(:first-child) {
     border-top-left-radius: 0;
     border-bottom-left-radius: 0;
   }
-  :is(e-column, e-flex[column])[touching] > *:not(:last-child) {
+  :is(e-column, e-flex[column])[packed] > *:not(:last-child) {
     border-bottom-left-radius: 0;
     border-bottom-right-radius: 0;
   }
-  :is(e-column, e-flex[column])[touching] > *:not(:first-child) {
+  :is(e-column, e-flex[column])[packed] > *:not(:first-child) {
     border-top-left-radius: 0;
     border-top-right-radius: 0;
   }
@@ -343,10 +343,10 @@ css`
   /* When both sides of a seam are bordered, the later child (in DOM order) wins: its leading edge
      stays, the earlier child's trailing edge there is suppressed. When only one side is bordered,
      it already shows through — no rule needed, it just falls out of the box model. */
-  :is(e-row, e-flex:not([column]))[touching] > ${BORDERED_SELECTOR}:has(+ ${BORDERED_SELECTOR}) {
+  :is(e-row, e-flex:not([column]))[packed] > ${BORDERED_SELECTOR}:has(+ ${BORDERED_SELECTOR}) {
     border-right: none;
   }
-  :is(e-column, e-flex[column])[touching] > ${BORDERED_SELECTOR}:has(+ ${BORDERED_SELECTOR}) {
+  :is(e-column, e-flex[column])[packed] > ${BORDERED_SELECTOR}:has(+ ${BORDERED_SELECTOR}) {
     border-bottom: none;
   }
 

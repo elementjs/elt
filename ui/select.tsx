@@ -46,7 +46,7 @@ export function Select<T, T2 = T>(at: SelectAttributes<T, T2>) {
           await popup(
             ev.currentTarget,
             (fut) => (
-              <e-column touching="widget" role="listbox" border="n+2">
+              <e-column packed="widget" role="listbox" border="n+2">
                 {$scrollable}
                 {VirtualScroll(
                   o(at.options).tf((opts) => [...opts]),

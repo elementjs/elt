@@ -94,7 +94,7 @@ function TableCopyButtonPopup({ data }: { data: o.ReadonlyObservable<object[]> }
               })
             }
             return (
-              <e-column pad="component" touching="widget" role="menu" aria-label="Copy options">
+              <e-column pad="component" packed="widget" role="menu" aria-label="Copy options">
                 <button type="button" role="menuitem">
                   <ph.BracketsCurly />
                   {$choose(() => navigator.clipboard.writeText(JSON.stringify(rows, null, 2)))}
@@ -262,7 +262,7 @@ export function JsonVisualizerColumn({
               {import_btn}
               {copy}
             </e-flex>
-            <e-column touching="widget" role="list" class={cls_properties_menu}>
+            <e-column packed="widget" role="list" class={cls_properties_menu}>
               {$scrollable}
               {VirtualScroll(o(keys), (o_key) => (
                 <Property name={o_key} data={data.p(o_key)}>

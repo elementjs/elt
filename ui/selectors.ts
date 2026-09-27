@@ -14,7 +14,7 @@ export const FORM_CONTROL_SELECTOR =
   'label[e-variant="toggle"]'
 
 // Elements that render a border by default — shared between ui/form.css.tsx (which imports
-// FORM_CONTROL_SELECTOR above to paint those borders) and ui/layout.css.tsx (whose `touching` seam
+// FORM_CONTROL_SELECTOR above to paint those borders) and ui/layout.css.tsx (whose `packed` seam
 // dedup needs to know what already has one, including layout's own [border] attribute). Unlike
 // FORM_CONTROL_SELECTOR, this one does exclude button[e-variant="link"]/["text"] — they get the
 // shared control-reset ruleset for other reasons (see above), but render no actual border (the

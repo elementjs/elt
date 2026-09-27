@@ -53,11 +53,11 @@ test.describe("BORDERED_SELECTOR (ui/selectors.ts)", () => {
   })
 })
 
-test.describe("touching seam dedup (specs/elt-ui-guidelines.md, Padding and boundaries, rule 3)", () => {
+test.describe("packed seam dedup (specs/elt-ui-guidelines.md, Padding and boundaries, rule 3)", () => {
   test("row: two bordered buttons — earlier one's trailing edge suppressed, later one's leading edge stays", async ({ page }) => {
     const [aRight, bLeft] = await page.evaluate(() => {
       const row = document.createElement("e-row")
-      row.setAttribute("touching", "")
+      row.setAttribute("packed", "")
       const a = document.createElement("button")
       a.textContent = "a"
       const b = document.createElement("button")
@@ -73,7 +73,7 @@ test.describe("touching seam dedup (specs/elt-ui-guidelines.md, Padding and boun
   test("column: two bordered buttons — earlier one's trailing edge suppressed, later one's leading edge stays", async ({ page }) => {
     const [aBottom, bTop] = await page.evaluate(() => {
       const col = document.createElement("e-column")
-      col.setAttribute("touching", "")
+      col.setAttribute("packed", "")
       const a = document.createElement("button")
       const b = document.createElement("button")
       col.append(a, b)
@@ -87,7 +87,7 @@ test.describe("touching seam dedup (specs/elt-ui-guidelines.md, Padding and boun
   test("only one side bordered: it already shows through, nothing is suppressed", async ({ page }) => {
     const aRight = await page.evaluate(() => {
       const row = document.createElement("e-row")
-      row.setAttribute("touching", "")
+      row.setAttribute("packed", "")
       const a = document.createElement("button")
       const plain = document.createElement("div")
       row.append(a, plain)
@@ -97,10 +97,10 @@ test.describe("touching seam dedup (specs/elt-ui-guidelines.md, Padding and boun
     expect(aRight).toBe("solid")
   })
 
-  test("two touching toggle-icon labels dedup correctly — e-variant lives on the label (plain attribute), not on the checkbox (which would need :has() to detect from outside, and :has() can't nest inside :has())", async ({ page }) => {
+  test("two packed toggle-icon labels dedup correctly — e-variant lives on the label (plain attribute), not on the checkbox (which would need :has() to detect from outside, and :has() can't nest inside :has())", async ({ page }) => {
     const [aRight, bLeft] = await page.evaluate(() => {
       const row = document.createElement("e-row")
-      row.setAttribute("touching", "")
+      row.setAttribute("packed", "")
       const a = document.createElement("label")
       a.setAttribute("e-variant", "toggle")
       a.innerHTML = '<input type="checkbox">'
@@ -118,7 +118,7 @@ test.describe("touching seam dedup (specs/elt-ui-guidelines.md, Padding and boun
   test("interior corner radii are zeroed regardless of border presence, outer corners untouched", async ({ page }) => {
     const result = await page.evaluate(() => {
       const row = document.createElement("e-row")
-      row.setAttribute("touching", "")
+      row.setAttribute("packed", "")
       const a = document.createElement("e-block")
       const b = document.createElement("e-block")
       a.setAttribute("border", "")

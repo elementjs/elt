@@ -208,9 +208,9 @@ Radio: styled native `input[type=radio]`.
 
 `<label>` is clickable row chrome (hover tint). `<fieldset>` / `<legend>` for grouped fields.
 
-### Button groups, menus, and other touching rows
+### Button groups, menus, and other packed rows
 
-`touching` on `<e-row>`/`<e-column>` merges adjacent children into one visually uniform group — replaces the old `<e-button-box>` and `<menu>` elements, which are gone. It never draws a border itself: border rendering is entirely each child's own concern (native controls like `<button>`/`<input>` already have one; `[border]` gives one to anything else). When two touching children both carry a border on the shared seam, the later one (in DOM order) wins, so the seam collapses into a single line instead of doubling — see `ui/select.tsx` for the divider-less case (children separated only by background). `pad="X"` still just pads the container itself, as always; to *also* pad every child uniformly, either let bare `touching` reuse `pad`'s value (`pad="widget" touching`), or give `touching` its own explicit step (`touching="widget"`) when the container's own padding and its children's need to differ — see `specs/elt-ui-guidelines.md`, Golden rules, rule 6.
+`packed` on `<e-row>`/`<e-column>` merges adjacent children into one visually uniform group — replaces the old `<e-button-box>` and `<menu>` elements, which are gone. It never draws a border itself: border rendering is entirely each child's own concern (native controls like `<button>`/`<input>` already have one; `[border]` gives one to anything else). When two packed children both carry a border on the shared seam, the later one (in DOM order) wins, so the seam collapses into a single line instead of doubling — see `ui/select.tsx` for the divider-less case (children separated only by background). `pad="X"` still just pads the container itself, as always; to *also* pad every child uniformly, either let bare `packed` reuse `pad`'s value (`pad="widget" packed`), or give `packed` its own explicit step (`packed="widget"`) when the container's own padding and its children's need to differ — see `specs/elt-ui-guidelines.md`, Golden rules, rule 6.
 
 ### HR
 
@@ -255,7 +255,7 @@ import { popup } from "elt/ui"
 
 $click(async (ev) => {
   const result = await popup(ev.currentTarget, (fut) => (
-    <e-column pad="component" touching="widget" role="menu">...</e-column>
+    <e-column pad="component" packed="widget" role="menu">...</e-column>
   ), { arrow: true, placement: "right-start" })
 })
 ```

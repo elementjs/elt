@@ -135,7 +135,7 @@ export function render_composite_toolbar(props: CompositeToolbarProps): Renderab
               {$click(async (ev) => {
                 const value = o_value.get()
                 await popup(ev.currentTarget, (fut) => (
-                  <e-column pad="component" touching="widget" role="menu" aria-label="More actions">
+                  <e-column pad="component" packed="widget" role="menu" aria-label="More actions">
                     {flags.show_type_change && (
                       <>
                         <h3>Type</h3>
@@ -183,7 +183,7 @@ export function render_type_change_menu_button(
       {$click(async (ev) => {
         const value = o_value.get()
         await popup(ev.currentTarget, (fut) => (
-          <e-column pad="component" touching="widget" role="menu" aria-label="Change type">
+          <e-column pad="component" packed="widget" role="menu" aria-label="Change type">
             <h3>Type</h3>
             {type_change_actions(factory, value, factory.options, type_change_extra).map((action) => (
               <button type="button" role="menuitem">

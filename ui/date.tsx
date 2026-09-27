@@ -181,7 +181,7 @@ export function DateTimePicker(at: DatePickerAttrs) {
   }
 
   return (
-    <e-row touching>
+    <e-row packed>
       {$connected((box: HTMLElement) => {
         o_locale.set(resolve_locale(box))
       })}

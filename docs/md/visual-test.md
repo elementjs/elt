@@ -121,7 +121,7 @@ const tint_colors = (Object.keys(theme.colors) as (keyof typeof theme.colors)[])
 
 return <e-column spacing style={oo_style} class={o_color.tf(col => theme.colors[col].classes.as_tint)}>
   <e-row spacing>
-    <e-row touching>
+    <e-row packed>
       {tint_colors.map(color => <label e-variant="toggle" class={theme.colors[color].classes.as_tint}>
         <input type="checkbox">{$bind.boolean(o_color.tf(tf_equals(color)))}</input>
         <P.PaintRoller/>
@@ -132,7 +132,7 @@ return <e-column spacing style={oo_style} class={o_color.tf(col => theme.colors[
   </e-row>
 
   <e-row spacing>
-    <e-row touching>
+    <e-row packed>
       <button>Button</button>
       <button e-variant="tint"><P.CaretDown/></button>
     </e-row>
@@ -154,11 +154,11 @@ return <e-column spacing style={oo_style} class={o_color.tf(col => theme.colors[
   </fieldset>
 
   <e-row spacing align="stretch">
-    <e-row touching align="stretch">
+    <e-row packed align="stretch">
       <input type="text" placeholder="Enter your text" />
       <button><P.MagnifyingGlass/></button>
     </e-row>
-    <e-row touching align="stretch">
+    <e-row packed align="stretch">
       <input type="number" placeholder="number"/>
     </e-row>
     <button e-variant="inverted">
@@ -295,7 +295,7 @@ nesting depth.
 
 ```tsx
 //@inline-example
-return <e-column touching surface align="stretch">
+return <e-column packed surface align="stretch">
   <e-block hover border="n+2">Hover me — background is tint.hover (level n+1)</e-block>
   <e-block hover border="n+2">Divider above this row is border="n+2", a separator at level n+2</e-block>
 </e-column>
