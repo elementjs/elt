@@ -64,7 +64,7 @@ function start_resize(th: HTMLTableCellElement, min_width: number) {
     body.style.userSelect = "none"
 
     function move(ev: MouseEvent) {
-      set_column_width(table, index, Math.max(min_width, start_width + ev.clientX - start_x))
+      set_column_width(table!, index, Math.max(min_width, start_width + ev.clientX - start_x))
     }
 
     function up() {

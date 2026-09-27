@@ -15,7 +15,7 @@ test.describe("mount safe-child", () => {
       const o_obj = o({ a: 1, b: 2 })
       const o_child = safe_object_child(o_obj, "a")
       const initialIsOne = o_child.get() === 1
-      o_obj.set({ b: 2 })
+      o_obj.set({ b: 2 } as any)
       const afterRemove = o_child.get()
       return [
         { name: "initial value is 1", actual: initialIsOne, expected: true },

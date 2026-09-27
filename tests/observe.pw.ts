@@ -40,17 +40,17 @@ test.describe("$observe", () => {
     for (const r of results) expect(r.actual, r.name).toBe(r.expected)
   })
 
-  test("$observe_changes skips the initial callback until the value changes", async ({ page }) => {
+  test("$observe with changes_only skips the initial callback until the value changes", async ({ page }) => {
     const results = await page.evaluate(() => {
-      const { o, $observe_changes, node_append, node_remove } = window.__ELT__
+      const { o, $observe, node_append, node_remove } = window.__ELT__
       const out: { name: string; actual: unknown; expected: unknown }[] = []
 
       const obs = o(1)
       let count = 0
       const el = document.createElement("div")
-      $observe_changes(obs, () => {
+      $observe(obs, () => {
         count++
-      })(el)
+      }, { changes_only: true })(el)
 
       node_append(document.body, el)
       out.push({ name: "count after append", actual: count, expected: 0 })

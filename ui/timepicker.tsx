@@ -239,16 +239,6 @@ const cls_panel = css`.time-panel {
   overflow: hidden;
 }`
 
-const cls_column = css`.scroll-column {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  min-width: 3.5em;
-  overflow: hidden;
-  touch-action: none;
-  user-select: none;
-}`
-
 const cls_step = css`.scroll-step {
   font-size: 0.65em;
   line-height: 2;

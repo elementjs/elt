@@ -41,7 +41,7 @@ test.describe("constructor registry", () => {
   test("register_constructor can override a builtin default", async ({ page }) => {
     const result = await page.evaluate(() => {
       const { anything, map, string, register_constructor, resolve_factory_from_value } = window.__ELT__.Editor
-      class TaggedMap extends Map {}
+      class TaggedMap extends Map<string, string> {}
       const custom = map({ keys: string(), values: string() })
       register_constructor(TaggedMap, custom)
       return resolve_factory_from_value(new TaggedMap([["k", "v"]]), anything) === custom

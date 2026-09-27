@@ -261,10 +261,6 @@ const cls_calendar = css`.date-calendar {
   min-width: 260px;
 }`
 
-const cls_toolbar = css`.date-toolbar {
-  margin-bottom: 8px;
-}`
-
 const cls_year = css`.date-year {
   min-width: 3.5em;
   text-align: center;
