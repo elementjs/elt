@@ -87,7 +87,7 @@ Common attrs:
 
 Spacing scale (`pad="component"`, `spacing="widget"`, …): `nudge-1`/`nudge-2`/`nudge-4` (px, pixel-level nudges only) → `widget` → `component` (the default, most used) → `section` → `stage-1`…`stage-4`, mapping to `--e-spacing-*` in `ui/theme.tsx`. `pad="X"` implies `spacing="X"` at the same step automatically — write `pad` alone unless padding and inter-child spacing genuinely need to differ, in which case add an explicit `spacing="Y"` to override just that side. Default `pad`/`spacing` (boolean attr, no value) fall back to `component`. `pad="none"`/`spacing="none"` turn one side off explicitly.
 
-**Border:** `border` (bare) is a clear boundary at `text.mid`; `border="tint"` uses `tint.mid`; `border="n+1"`…`"n+6"` is a divider/separator at that surface level relative to whatever's ambient. `border` implies `radius` (derived from the element's own padding step, or an explicit named step like `radius="component"` for an element that doesn't pad itself) unless `radius="none"`.
+**Border:** `border` (bare) is a flat, defined "widget" boundary — `neutral.faded` — independent of ambient surface nesting; `border="tint"` is the same idea in `tint.mid` instead. For a boundary that should track surface nesting (a divider between stacked surfaces), use `border="tint-surface"`/`"neutral-surface"` (one level up from ambient, same offset `.hover` uses) or `border="tint-separator"`/`"neutral-separator"` (two levels up, same offset `.separator` uses); `border="tint-N"`/`"neutral-N"` (`N` 1-6) sets an absolute level instead, ignoring ambient. `border` implies `radius` (derived from the element's own padding step, or an explicit named step like `radius="component"` for an element that doesn't pad itself) unless `radius="none"`. See `specs/borders.md`.
 
 **Grid:** no Bootstrap-style helpers. For non-trivial grids, use `<e-grid>` for display + a small `css` block for `grid-template-*`, still using theme spacing/colors inside rules.
 
@@ -166,7 +166,7 @@ Each `theme.colors.*` is a `Mix` helper:
 | Need | Use |
 | ---- | --- |
 | CSS color value | `theme.colors.tint` → `var(--e-color-tint)` |
-| `:hover` state fill | `.hover` (surface level *n+1*) |
+| `:hover` state fill | `.hover` (surface level *n+1*) — the `[hover]` attribute uses this against the *ambient* color family, not a fixed one |
 | Container edge / divider | `.separator` (surface level *n+2*) |
 | Focusable control's own border | `.mid` |
 | Muted text | `.faded` |
@@ -213,7 +213,12 @@ Radio: styled native `input[type=radio]`.
 
 ### Button groups, menus, and other packed rows
 
-`packed` on `<e-row>`/`<e-column>` merges adjacent children into one visually uniform group — replaces the old `<e-button-box>` and `<menu>` elements, which are gone. It never draws a border itself: border rendering is entirely each child's own concern (native controls like `<button>`/`<input>` already have one; `[border]` gives one to anything else). When two packed children both carry a border on the shared seam, the later one (in DOM order) wins, so the seam collapses into a single line instead of doubling — see `ui/select.tsx` for the divider-less case (children separated only by background). `pad="X"` still just pads the container itself, as always; to *also* pad every child uniformly, either let bare `packed` reuse `pad`'s value (`pad="widget" packed`), or give `packed` its own explicit step (`packed="widget"`) when the container's own padding and its children's need to differ — see `specs/elt-ui-guidelines.md`, Golden rules, rule 6.
+`packed` on `<e-row>`/`<e-column>` merges adjacent children into one visually uniform group — replaces the old `<e-button-box>` and `<menu>` elements, which are gone. Two modes, chosen by whether `packed` itself sets `border`:
+
+- **Without `border`:** each child owns its own border (native controls like `<button>`/`<input>` already have one; `[border]` gives one to anything else) and suppresses its own trailing-edge border unless it's the last child, so the seam collapses into a single line instead of doubling.
+- **With `border`:** `packed` draws the border itself instead — a `1px` seam between children, filled by the container's own background (the same color as its border). Every child gives up its own border and takes `background: var(--e-current-surface)` instead. See `ui/select.tsx`'s popup listbox (`packed="widget" border="tint-2"`) for a real example.
+
+`pad="X"` still just pads the container itself, as always; to *also* pad every child uniformly, either let bare `packed` reuse `pad`'s value (`pad="widget" packed`), or give `packed` its own explicit step (`packed="widget"`) when the container's own padding and its children's need to differ — see `specs/elt-ui-guidelines.md`, Golden rules, rule 6, and `specs/borders.md` for the full mechanism.
 
 ### HR
 
