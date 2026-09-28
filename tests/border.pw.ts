@@ -4,8 +4,8 @@ test.beforeEach(async ({ page }) => {
   await page.goto("/tests/browser/harness.html")
 })
 
-test.describe("[border] value resolution (specs/elt-ui-guidelines.md, Surfaces and borders)", () => {
-  test('bare [border] resolves to neutral.faded — a clear boundary, replacing the old border="widget"', async ({ page }) => {
+test.describe("[border]/[surface] color-step value type (specs/borders.md)", () => {
+  test('bare [border] resolves to the flat "widget" neutral color (neutral.faded), independent of ambient surface', async ({ page }) => {
     const result = await page.evaluate(() => {
       const { theme } = window.__ELT__.UI
       const el = document.createElement("e-block")
@@ -14,15 +14,12 @@ test.describe("[border] value resolution (specs/elt-ui-guidelines.md, Surfaces a
       const ref = document.createElement("div")
       ref.style.borderColor = theme.colors.neutral.faded.toString()
       document.body.appendChild(ref)
-      return {
-        border: getComputedStyle(el).borderColor,
-        ref: getComputedStyle(ref).borderColor,
-      }
+      return { border: getComputedStyle(el).borderColor, ref: getComputedStyle(ref).borderColor }
     })
     expect(result.border).toBe(result.ref)
   })
 
-  test('[border="tint"] resolves to tint.mid instead of neutral.faded', async ({ page }) => {
+  test('[border="tint"] resolves to the flat "widget" tint color (tint.mid)', async ({ page }) => {
     const result = await page.evaluate(() => {
       const { theme } = window.__ELT__.UI
       const el = document.createElement("e-block")
@@ -31,47 +28,142 @@ test.describe("[border] value resolution (specs/elt-ui-guidelines.md, Surfaces a
       const ref = document.createElement("div")
       ref.style.borderColor = theme.colors.tint.mid.toString()
       document.body.appendChild(ref)
-      return {
-        border: getComputedStyle(el).borderColor,
-        ref: getComputedStyle(ref).borderColor,
-        neutral_faded: getComputedStyle(el).borderColor === theme.colors.neutral.faded.toString(),
-      }
+      return { border: getComputedStyle(el).borderColor, ref: getComputedStyle(ref).borderColor }
     })
     expect(result.border).toBe(result.ref)
   })
 
-  test('[border="n+2"] resolves to the surface-relative separator color, the old bare-[border] default', async ({ page }) => {
+  test('[border="neutral"] resolves to the same flat neutral.faded as bare [border]', async ({ page }) => {
     const result = await page.evaluate(() => {
       const { theme } = window.__ELT__.UI
       const el = document.createElement("e-block")
-      el.setAttribute("border", "n+2")
+      el.setAttribute("border", "neutral")
       document.body.appendChild(el)
       const ref = document.createElement("div")
-      ref.style.borderColor = theme.colors.tint.surface("n+2")
+      ref.style.borderColor = theme.colors.neutral.faded.toString()
       document.body.appendChild(ref)
-      return {
-        border: getComputedStyle(el).borderColor,
-        ref: getComputedStyle(ref).borderColor,
-      }
+      return { border: getComputedStyle(el).borderColor, ref: getComputedStyle(ref).borderColor }
     })
     expect(result.border).toBe(result.ref)
   })
 
-  test('[border="n+K"] generalizes past n+2, matching [surface]\'s own relative-offset mechanism', async ({ page }) => {
+  test('[border="tint-surface"] resolves to the tint family, one level up from ambient — the level-stack offset, not the flat widget color', async ({ page }) => {
     const result = await page.evaluate(() => {
       const { theme } = window.__ELT__.UI
       const el = document.createElement("e-block")
-      el.setAttribute("border", "n+4")
+      el.setAttribute("border", "tint-surface")
       document.body.appendChild(el)
       const ref = document.createElement("div")
-      ref.style.borderColor = theme.colors.tint.surface("n+4")
+      ref.style.borderColor = theme.colors.tint.surface("n+1")
       document.body.appendChild(ref)
-      return {
-        border: getComputedStyle(el).borderColor,
-        ref: getComputedStyle(ref).borderColor,
-      }
+      return { border: getComputedStyle(el).borderColor, ref: getComputedStyle(ref).borderColor }
     })
     expect(result.border).toBe(result.ref)
+  })
+
+  test('[border="neutral-separator"] resolves to the neutral family, two levels up from ambient', async ({ page }) => {
+    const result = await page.evaluate(() => {
+      const { theme } = window.__ELT__.UI
+      const el = document.createElement("e-block")
+      el.setAttribute("border", "neutral-separator")
+      document.body.appendChild(el)
+      const ref = document.createElement("div")
+      ref.style.borderColor = theme.colors.neutral.surface("n+2")
+      document.body.appendChild(ref)
+      return { border: getComputedStyle(el).borderColor, ref: getComputedStyle(ref).borderColor }
+    })
+    expect(result.border).toBe(result.ref)
+  })
+
+  test('[border="tint-4"] resolves to the tint family at the absolute level 4', async ({ page }) => {
+    const result = await page.evaluate(() => {
+      const { theme } = window.__ELT__.UI
+      const el = document.createElement("e-block")
+      el.setAttribute("border", "tint-4")
+      document.body.appendChild(el)
+      const ref = document.createElement("div")
+      ref.style.borderColor = theme.colors.tint.surface(4)
+      document.body.appendChild(ref)
+      return { border: getComputedStyle(el).borderColor, ref: getComputedStyle(ref).borderColor }
+    })
+    expect(result.border).toBe(result.ref)
+  })
+
+  test('[surface="tint-3"] resolves to the tint family at the absolute level 3', async ({ page }) => {
+    const result = await page.evaluate(() => {
+      const { theme } = window.__ELT__.UI
+      const el = document.createElement("e-block")
+      el.setAttribute("surface", "tint-3")
+      document.body.appendChild(el)
+      const ref = document.createElement("div")
+      ref.style.backgroundColor = theme.colors.tint.surface(3)
+      document.body.appendChild(ref)
+      return { bg: getComputedStyle(el).backgroundColor, ref: getComputedStyle(ref).backgroundColor }
+    })
+    expect(result.bg).toBe(result.ref)
+  })
+
+  test('[surface="neutral-3"] resolves to the neutral family at the absolute level 3', async ({ page }) => {
+    const result = await page.evaluate(() => {
+      const { theme } = window.__ELT__.UI
+      const el = document.createElement("e-block")
+      el.setAttribute("surface", "neutral-3")
+      document.body.appendChild(el)
+      const ref = document.createElement("div")
+      ref.style.backgroundColor = theme.colors.neutral.surface(3)
+      document.body.appendChild(ref)
+      return { bg: getComputedStyle(el).backgroundColor, ref: getComputedStyle(ref).backgroundColor }
+    })
+    expect(result.bg).toBe(result.ref)
+  })
+
+  test('[surface="background"] is absolute level 0', async ({ page }) => {
+    const result = await page.evaluate(() => {
+      const { theme } = window.__ELT__.UI
+      const el = document.createElement("e-block")
+      el.setAttribute("surface", "background")
+      document.body.appendChild(el)
+      const ref = document.createElement("div")
+      ref.style.backgroundColor = theme.colors.neutral.surface("background")
+      document.body.appendChild(ref)
+      return { bg: getComputedStyle(el).backgroundColor, ref: getComputedStyle(ref).backgroundColor }
+    })
+    expect(result.bg).toBe(result.ref)
+  })
+})
+
+test.describe("[hover] follows the ambient surface family (specs/borders.md)", () => {
+  test("on a neutral-family surface, hover fill is neutral, not the old hardcoded tint", async ({ page }) => {
+    await page.evaluate(() => {
+      const outer = document.createElement("e-block")
+      outer.setAttribute("surface", "neutral-2")
+      outer.id = "hover-test-outer"
+      const inner = document.createElement("e-block")
+      inner.setAttribute("hover", "")
+      inner.id = "hover-test-inner"
+      inner.style.width = "40px"
+      inner.style.height = "40px"
+      outer.append(inner)
+      document.body.appendChild(outer)
+    })
+    await page.locator("#hover-test-inner").hover()
+    const result = await page.evaluate(() => {
+      const { theme } = window.__ELT__.UI
+      const inner = document.getElementById("hover-test-inner")!
+      const ref = document.createElement("div")
+      ref.style.backgroundColor = theme.colors.neutral.surface(3)
+      document.body.appendChild(ref)
+      const tintRef = document.createElement("div")
+      tintRef.style.backgroundColor = theme.colors.tint.surface(3)
+      document.body.appendChild(tintRef)
+      return {
+        hover: getComputedStyle(inner).backgroundColor,
+        neutralRef: getComputedStyle(ref).backgroundColor,
+        tintRef: getComputedStyle(tintRef).backgroundColor,
+      }
+    })
+    expect(result.hover).toBe(result.neutralRef)
+    expect(result.hover).not.toBe(result.tintRef)
   })
 })
 
@@ -99,10 +191,10 @@ test.describe("[border] implies [radius] (specs/elt-ui-guidelines.md, Border rad
     expect(result).toBe("0px")
   })
 
-  test("the implied radius applies uniformly across border values, including a divider's (n+2)", async ({ page }) => {
+  test("the implied radius applies uniformly across border values, including an absolute one (tint-2)", async ({ page }) => {
     const result = await page.evaluate(() => {
       const el = document.createElement("e-block")
-      el.setAttribute("border", "n+2")
+      el.setAttribute("border", "tint-2")
       el.setAttribute("pad", "component")
       document.body.appendChild(el)
       return getComputedStyle(el).borderTopLeftRadius
@@ -135,12 +227,12 @@ test.describe("[border] implies [radius] (specs/elt-ui-guidelines.md, Border rad
 })
 
 test.describe("Theme.css.radius (ui/theme.tsx)", () => {
-  test("no step: derives from the element's own padding — the same expression [border]/[radius] fall back to", async ({ page }) => {
+  test("no step: derives from the ambient --e-current-spacing, falling back to --e-spacing-widget", async ({ page }) => {
     const result = await page.evaluate(() => {
       const { theme } = window.__ELT__.UI
       return theme.css.radius()
     })
-    expect(result).toBe("border-radius: calc(var(--e-pad, var(--e-spacing-widget)));")
+    expect(result).toBe("border-radius: calc(var(--e-current-spacing, var(--e-spacing-widget)));")
   })
 
   test("a named step overrides with that step's own value", async ({ page }) => {
@@ -157,6 +249,37 @@ test.describe("Theme.css.radius (ui/theme.tsx)", () => {
       return theme.css.radius("nudge-4")
     })
     expect(result).toBe("border-radius: var(--e-spacing-nudge-4);")
+  })
+})
+
+test.describe("theme.classes.radius/current_surface (specs/borders.md)", () => {
+  test("theme.classes.radius() produces a class equivalent to theme.css.radius()'s declaration", async ({ page }) => {
+    const result = await page.evaluate(() => {
+      const { theme } = window.__ELT__.UI
+      const cls = theme.classes.radius("component")
+      const el = document.createElement("div")
+      el.className = cls
+      document.body.appendChild(el)
+      const ref = document.createElement("div")
+      ref.style.borderRadius = theme.settings.spacingComponent
+      document.body.appendChild(ref)
+      return { radius: getComputedStyle(el).borderTopLeftRadius, ref: getComputedStyle(ref).borderTopLeftRadius }
+    })
+    expect(result.radius).toBe(result.ref)
+  })
+
+  test("theme.classes.current_surface applies background: var(--e-current-surface)", async ({ page }) => {
+    const result = await page.evaluate(() => {
+      const { theme } = window.__ELT__.UI
+      const el = document.createElement("div")
+      el.className = theme.classes.current_surface
+      document.body.appendChild(el)
+      const ref = document.createElement("div")
+      ref.style.backgroundColor = theme.colors.bg.toString()
+      document.body.appendChild(ref)
+      return { bg: getComputedStyle(el).backgroundColor, ref: getComputedStyle(ref).backgroundColor }
+    })
+    expect(result.bg).toBe(result.ref)
   })
 })
 

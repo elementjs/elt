@@ -258,7 +258,8 @@ test.describe("Mix.surface / [surface] parity", () => {
     // must not read the ambient level to decide its own color — that would just repaint the
     // parent's own color and defeat rule 1 (padding requires a *visible* boundary)
     expect(css).not.toContain("var(--e-surface-level,")
-    expect(css).toContain("& > * { --e-surface-level: var(--e-surface-level-relay); }")
+    // --e-surface-mix (specs/borders.md) is relayed to children alongside --e-surface-level, same rule
+    expect(css).toContain("& > * { --e-surface-level: var(--e-surface-level-relay); --e-surface-mix: var(--e-surface-mix-relay); }")
   })
 
   test("children are handed the new level via the same relay variable used to paint it", async ({ page }) => {
@@ -267,7 +268,7 @@ test.describe("Mix.surface / [surface] parity", () => {
       return theme.colors.tint.css.as_surface(3)
     })
     expect(css).toContain("--e-surface-level-relay: var(--e-current-surface-level);")
-    expect(css).toContain("& > * { --e-surface-level: var(--e-surface-level-relay); }")
+    expect(css).toContain("& > * { --e-surface-level: var(--e-surface-level-relay); --e-surface-mix: var(--e-surface-mix-relay); }")
   })
 
   test(".classes.as_surface() returns a stable, cached class name per level — usable on any element, not just e-flex/e-grid/e-block", async ({
@@ -461,12 +462,12 @@ test.describe("Theme.css.pad / Theme.css.spacing", () => {
     expect(result).toBe("--e-pad: var(--e-spacing-widget);")
   })
 
-  test("spacing(step) sets --e-spacing from the named step's single spacing variable", async ({ page }) => {
+  test("spacing(step) sets --e-spacing and --e-current-spacing from the named step's single spacing variable (specs/borders.md)", async ({ page }) => {
     const result = await page.evaluate(() => {
       const { theme } = window.__ELT__.UI
       return theme.css.spacing("section")
     })
-    expect(result).toBe("--e-spacing: var(--e-spacing-section);")
+    expect(result).toBe("--e-spacing: var(--e-spacing-section); --e-current-spacing: var(--e-spacing-section);")
   })
 
   test("the three raw px nudges use the same single-variable mechanism as every other step", async ({ page }) => {

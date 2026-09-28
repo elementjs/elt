@@ -27,7 +27,7 @@ css`@layer typography {
     color: ${theme.colors.text.faded};
   }
 
-  :where(p, h1, h2, h3, h4, h5, h6, pre) {
+  :where(p, h1, h2, h3, h4, h5, h6, pre, td, th) {
     text-box: trim-both cap alphabetic;
   }
 
@@ -195,8 +195,6 @@ css`@layer typography {
       border: none;
       vertical-align: baseline;
     }
-
-    font-size: 0.8em;
 
     /* reset buttons and inputs to be the whole cell */
     & :is(th, td):has(> :is(button, label, input):first-child:last-child) {

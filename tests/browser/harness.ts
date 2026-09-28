@@ -14,14 +14,11 @@ import * as EditorCompositeToolbar from "../../editor/composite-toolbar"
 import * as EditorMount from "../../editor/mount"
 import * as EditorTypeChange from "../../editor/type-change"
 
-import { BORDERED_SELECTOR } from "../../ui/selectors"
-
 declare global {
   interface Window {
     __ELT__: typeof Elt & {
       UI: typeof UI
       Editor: typeof Editor & typeof EditorCompositeToolbar & typeof EditorMount & typeof EditorTypeChange
-      BORDERED_SELECTOR: string
     }
   }
 }
@@ -30,5 +27,4 @@ window.__ELT__ = {
   ...Elt,
   UI,
   Editor: { ...Editor, ...EditorCompositeToolbar, ...EditorMount, ...EditorTypeChange },
-  BORDERED_SELECTOR,
 }

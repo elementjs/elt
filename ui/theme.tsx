@@ -72,26 +72,71 @@ const _spacing_nudges = new Set<SpacingStep>(["nudge-1", "nudge-2", "nudge-4"])
 
 /** Shared by `Theme.css.pad`/`.spacing` — the one place that knows how a step maps to its custom
  * property. Every step (nudges included) now resolves to the same single `--e-spacing-<step>`
- * value, applied uniformly to both axes. */
+ * value, applied uniformly to both axes. `"spacing"` also sets `--e-current-spacing`, the same
+ * "outer level" value under the name `theme.css.radius()`'s default reads as its ambient
+ * fallback (see `radius_css` below) — kept alongside `--e-spacing` rather than replacing it, so
+ * `gap: var(--e-spacing)` call sites are untouched. */
 function spacing_css(prop: "pad" | "spacing", step: SpacingStep): string {
-  return `--e-${prop}: var(--e-spacing-${step});`
+  if (prop === "spacing") {
+    return `--e-spacing: var(--e-spacing-${step}); --e-current-spacing: var(--e-spacing-${step});`
+  }
+  return `--e-pad: var(--e-spacing-${step});`
 }
 
 /**
  * Shared by `Theme.css.radius` — the one place that knows how a `radius` value maps
- * to a custom property. No step (the `[border]`/`[radius]` default) derives from the
- * element's own padding directly; a named step overrides that with that step's own value
+ * to a custom property. No step (the `[border]`/`[radius]` default) derives from the ambient
+ * `--e-current-spacing` — `ui/layout.css.tsx` layers a second, more specific rule on top for
+ * elements that set their own `[pad]`, reading `--e-pad` instead, so an element's own padding
+ * wins over the ambient spacing level. A named step overrides both with that step's own value
  * instead, for elements that don't pad themselves (e.g. the dialog panel — see "Border radius
  * is derived" in specs/elt-ui-guidelines.md).
  */
 function radius_css(step?: SpacingStep): string {
   if (step == null) {
-    return `border-radius: calc(var(--e-pad, var(--e-spacing-widget)));`
+    return `border-radius: calc(var(--e-current-spacing, var(--e-spacing-widget)));`
   }
   if (_spacing_nudges.has(step)) {
     return `border-radius: var(--e-spacing-${step});`
   }
   return `border-radius: calc(var(--e-spacing-${step}));`
+}
+
+/** `theme.css.radius()`'s own-`[pad]` override (`ui/layout.css.tsx`) reads `--e-pad` directly —
+ * this element's own explicitly specified padding, when its own `[pad]` attribute is present. */
+function radius_own_pad_css(): string {
+  return `border-radius: calc(var(--e-pad));`
+}
+
+/**
+ * `surface`/`border` share this value type — see "Surfaces and borders" in
+ * specs/elt-ui-guidelines.md, and specs/borders.md for why `border`'s bare family name is a flat
+ * "widget" color, not a level-stack step, while `surface`'s stays level-relative:
+ * - A bare family name (`"tint"`/`"neutral"`): for `border`, the flat "widget" color (`.mid`
+ *   /`.faded`) — a clear, defined boundary, independent of ambient surface nesting. For
+ *   `surface`, one level up from whatever's ambient (unchanged from before this type existed).
+ * - `"tint-surface"`/`"neutral-surface"`: that family, one level up from whatever's ambient — the
+ *   same offset `.hover` uses.
+ * - `"tint-separator"`/`"neutral-separator"`: that family, two levels up from whatever's ambient —
+ *   the same offset `.separator` uses.
+ * - `"tint-N"`/`"neutral-N"` (`N` 1-6): that family, at an absolute level, ignoring what's ambient.
+ */
+export type ColorStep =
+  | "tint" | "neutral"
+  | "tint-surface" | "neutral-surface"
+  | "tint-separator" | "neutral-separator"
+  | `tint-${1 | 2 | 3 | 4 | 5 | 6}` | `neutral-${1 | 2 | 3 | 4 | 5 | 6}`
+
+const _re_color_step = /^(tint|neutral)(?:-(\d+|surface|separator))?$/
+
+function parse_color_step(value: string): { family: "tint" | "neutral", suffix?: number | "surface" | "separator" } {
+  const match = _re_color_step.exec(value)
+  if (!match) {
+    throw new Error(`Invalid color step "${value}" — expected "tint"/"neutral", "tint-N"/"neutral-N" (N 1-6), or "tint-surface"/"tint-separator" (and the "neutral" equivalents)`)
+  }
+  const raw = match[2]
+  const suffix = raw == null ? undefined : raw === "surface" || raw === "separator" ? raw : Number(raw)
+  return { family: match[1] as "tint" | "neutral", suffix }
 }
 
 export type ColorScheme = {
@@ -288,6 +333,12 @@ export class Theme<AllColors extends ColorScheme> {
       `color: var(--e-color-text);`,
       `background-color: var(--e-color-bg);`,
       `line-height: var(--e-line-height, ${this.settings.lineHeight});`,
+      // Defaults for --e-current-surface/--e-surface-mix belong here, not a plain :root rule
+      // (ui/layout.css.tsx) — var(--e-color-bg)/var(--e-color-neutral) are only valid once
+      // --e-color-* itself is defined, which happens on this same .e-*-theme class, not on the
+      // bare :root element. See specs/borders.md.
+      `--e-current-surface: var(--e-color-bg);`,
+      `--e-surface-mix: var(--e-color-neutral);`,
       `::selection {
         background-color: oklch(from var(--e-color-tint) l c h / 0.25);
         color: var(--e-color-text);
@@ -306,9 +357,67 @@ export class Theme<AllColors extends ColorScheme> {
   readonly css = {
     pad: (step: SpacingStep) => spacing_css("pad", step),
     spacing: (step: SpacingStep) => spacing_css("spacing", step),
-    /** Called with no step: derives from the element's own padding — `[border]`'s implied
-     * default. Called with a named step: a fixed override for elements that don't pad themselves. */
+    /** Called with no step: derives from the ambient ("component") ~or~ this element's own
+     * `[pad]` (see `radius_own_pad`, consumed by `ui/layout.css.tsx`). Called with a named
+     * step: a fixed override for elements that don't pad themselves. */
     radius: (step?: SpacingStep) => radius_css(step),
+    /** `ui/layout.css.tsx`'s own-`[pad]` override for the no-step `radius` case — see `radius`
+     * above and `radius_own_pad_css`. */
+    radius_own_pad: () => radius_own_pad_css(),
+    /** `background: var(--e-current-surface);` alone — the resolved color of whatever surface
+     * is ambient (or this element's own, if it is itself a `[surface]`); see `_css_as_surface`. */
+    current_surface: () => `background: var(--e-current-surface);`,
+    /** `[surface]`'s value type, as a raw declaration — see `ColorStep`. */
+    surface: (value: true | "background" | ColorStep) => this._surface_css(value),
+    /** `[border]`'s value type, as a raw declaration — see `ColorStep`. */
+    border: (value: true | ColorStep) => this._border_css(value),
+  }
+
+  /** Shared by `css.surface`/`classes.surface` — see `ColorStep`. Bare (`true`)/no value, and a
+   * bare family name (`"tint"`/`"neutral"`): one level up from ambient, `neutral` family for the
+   * former. `"background"`: absolute level 0 — any color family resolves to the same value there.
+   * `"tint-surface"`/`"neutral-surface"`: that family, one level up from ambient (same as the bare
+   * family name — an explicit synonym). `"tint-separator"`/`"neutral-separator"`: that family, two
+   * levels up from ambient. `"tint-N"`/`"neutral-N"`: that family, at the absolute level `N`. */
+  private _surface_css(value: true | "background" | ColorStep): string {
+    if (value === true) return this.colors.neutral.css.as_surface("n+1")
+    if (value === "background") return this.colors.neutral.css.as_surface("background")
+    const { family, suffix } = parse_color_step(value)
+    if (suffix === "separator") return this.colors[family].css.as_surface("n+2")
+    if (suffix == null || suffix === "surface") return this.colors[family].css.as_surface("n+1")
+    return this.colors[family].css.as_surface(suffix)
+  }
+
+  /** Shared by `css.border`/`classes.border` — see `ColorStep`. Bare (`true`)/no value, and a
+   * bare family name (`"tint"`/`"neutral"`): the flat "widget" color for that family (`.mid` for
+   * `tint`, `.faded` for `neutral`) — a clear, defined boundary, independent of ambient surface
+   * nesting (specs/borders.md — an earlier draft of this type made the bare family name
+   * level-relative like `surface`'s; that surprised real call sites expecting a plain visible
+   * border, so it moved to the explicit `-surface`/`-separator` suffixes below instead).
+   * `"tint-surface"`/`"neutral-surface"`: that family, one level up from whatever's ambient — the
+   * same offset `.hover` uses. `"tint-separator"`/`"neutral-separator"`: that family, two levels
+   * up from ambient — the same offset `.separator` uses. `"tint-N"`/`"neutral-N"`: that family, at
+   * the absolute level `N`, ignoring what's ambient. */
+  private _border_css(value: true | ColorStep): string {
+    let color: string
+    if (value === true) {
+      color = this.colors.neutral.faded.toString()
+    } else {
+      const { family, suffix } = parse_color_step(value)
+      if (suffix == null) {
+        color = (family === "tint" ? this.colors.tint.mid : this.colors.neutral.faded).toString()
+      } else if (suffix === "surface") {
+        color = this.colors[family].surface("n+1")
+      } else if (suffix === "separator") {
+        color = this.colors[family].surface("n+2")
+      } else {
+        color = this.colors[family].surface(suffix)
+      }
+    }
+    // --e-current-border-color: not part of the public contract — consumed only by
+    // `packed[border]` (ui/layout.css.tsx) to paint its own background the exact same color as
+    // its own border, without recomputing the color expression a second time.
+    return `border: 1px solid ${color}; --e-current-border-color: ${color};`
   }
 
   @memoize
@@ -331,6 +440,9 @@ export class Theme<AllColors extends ColorScheme> {
 class ThemeClasses<AllColors extends ColorScheme> {
   #pad_classes = new Map<SpacingStep, string>()
   #spacing_classes = new Map<SpacingStep, string>()
+  #radius_classes = new Map<string, string>()
+  #surface_classes = new Map<string, string>()
+  #border_classes = new Map<string, string>()
 
   constructor(private theme: Theme<AllColors>) {}
 
@@ -398,6 +510,45 @@ class ThemeClasses<AllColors extends ColorScheme> {
     if (cls == null) {
       cls = css`.e-spacing-${step} { ${this.theme.css.spacing(step)} gap: var(--e-spacing); }`
       this.#spacing_classes.set(step, cls)
+    }
+    return cls
+  }
+
+  /** Standalone radius class for elements outside the `e-*` set — see `Theme.css.radius`. */
+  radius(step?: SpacingStep): string {
+    const key = step ?? ""
+    let cls = this.#radius_classes.get(key)
+    if (cls == null) {
+      cls = css`.e-radius-${key || "default"} { ${this.theme.css.radius(step)} }`
+      this.#radius_classes.set(key, cls)
+    }
+    return cls
+  }
+
+  /** Standalone `background: var(--e-current-surface);` class — see `Theme.css.current_surface`. */
+  @memoize
+  get current_surface(): string {
+    return css`.e-current-surface { ${this.theme.css.current_surface()} }`
+  }
+
+  /** Standalone surface class for elements outside the `e-*` set — see `Theme.css.surface`. */
+  surface(value: true | "background" | ColorStep): string {
+    const key = String(value)
+    let cls = this.#surface_classes.get(key)
+    if (cls == null) {
+      cls = css`.e-surface-${key} { ${this.theme.css.surface(value)} }`
+      this.#surface_classes.set(key, cls)
+    }
+    return cls
+  }
+
+  /** Standalone border class for elements outside the `e-*` set — see `Theme.css.border`. */
+  border(value: true | ColorStep): string {
+    const key = String(value)
+    let cls = this.#border_classes.get(key)
+    if (cls == null) {
+      cls = css`.e-border-${key} { ${this.theme.css.border(value)} }`
+      this.#border_classes.set(key, cls)
     }
     return cls
   }
@@ -629,6 +780,7 @@ export class Mix {
     // `--e-current-surface-level` itself, which would be a same-property self-reference (a cycle,
     // invalid at computed-value time) rather than a read of the level we're nested in.
     const new_level = surface_level_expr(level)
+    const own_background = this.from_bg("calc(var(--e-current-surface-level) * var(--e-surface-step, 10%))")
     return `
     color: var(--e-color-text);
     --e-current-surface-level: ${new_level};
@@ -637,8 +789,20 @@ export class Mix {
        is an ordinary inheriting property whose only job is to carry this element's own just-computed
        level past that non-inheritance boundary, down into the children's ambient --e-surface-level. */
     --e-surface-level-relay: var(--e-current-surface-level);
-    background-color: ${this.from_bg("calc(var(--e-current-surface-level) * var(--e-surface-step, 10%))")};
-    & > * { --e-surface-level: var(--e-surface-level-relay); }
+    /* --e-current-surface-mix carries this surface's own color family (the identity color this
+       Mix wraps, e.g. var(--e-color-tint)) the same way --e-current-surface-level carries its
+       level — registered non-inherited (ui/layout.css.tsx), relayed past that boundary for
+       descendants' ambient --e-surface-mix, and read by [border]'s bare/family-name values
+       (specs/borders.md) ahead of --e-surface-mix so a bordered element that is also itself a
+       [surface] is offset from its own new family, not the one it was nested in. */
+    --e-current-surface-mix: ${this.expr};
+    --e-surface-mix-relay: var(--e-current-surface-mix);
+    background-color: ${own_background};
+    /* --e-current-surface is the resolved color itself (not the level/family that produced it),
+       an ordinary inheriting property so descendants — packed[border] children in particular —
+       can read it directly (see theme.css.current_surface) without re-deriving level*family. */
+    --e-current-surface: ${own_background};
+    & > * { --e-surface-level: var(--e-surface-level-relay); --e-surface-mix: var(--e-surface-mix-relay); }
     `
   }
 
@@ -687,6 +851,17 @@ class MixClasses {
   get as_inverted() { return this.mix._classes_as_inverted }
   as_surface(level: number | `n+${number}` | "background") { return this.mix._classes_as_surface(level) }
 }
+
+/** A `Mix` whose identity color is whichever family is ambient (this element's own `[surface]`,
+ * if it set one, else the nearest ancestor's) — used by `[hover]:hover` (`ui/layout.css.tsx`) so
+ * a hover fill matches whichever family the surface it's drawn on actually used, instead of
+ * hardcoding `tint` regardless (specs/borders.md — found once `surface`'s default family became
+ * `neutral`: a `tint`-colored hover on a `neutral` surface read as a mismatch). See
+ * `--e-current-surface-mix` in `Mix._css_as_surface`. */
+export const ambient_surface_mix = new Mix(
+  "var(--e-current-surface-mix, var(--e-surface-mix, var(--e-color-neutral)))",
+  "ambient",
+)
 
 export const theme = new Theme({
   light: {

@@ -1,6 +1,5 @@
 import { type Attrs, type NRO, css } from "elt"
-import { BORDERED_SELECTOR } from "./selectors"
-import { type SpacingStep, spacing_steps, theme } from "./theme"
+import { ambient_surface_mix, type ColorStep, type SpacingStep, spacing_steps, theme } from "./theme"
 
 declare module "elt" {
   interface ElementMap {
@@ -30,30 +29,38 @@ export type AlignValues =
   | "space-around"
   | "space-between"
 
-export type BorderValues =
-  | "tint"
-  | "n+1" | "n+2" | "n+3" | "n+4" | "n+5" | "n+6" // relative surface-level separators; see _border_relative_levels below
+/** See `ColorStep` (ui/theme.tsx) — shared by `surface` and `border`. */
+export type BorderValues = ColorStep
 
-
+/** See `ColorStep` (ui/theme.tsx) — shared by `surface` and `border`. */
 export type SurfaceValues =
-  | boolean // true value
+  | boolean // true value — one level up from ambient, `neutral` family
   | "background"
-  | "n+1" | "n+2" // relative helpers — the only offsets [surface] precompiles; see ui/theme.tsx for arbitrary n+K
-  | "1" | "2" | "3" | "4" | "5" | "6" // absolute helpers
+  | ColorStep
 
 export interface CommonAttrs extends Attrs<HTMLElement> {
   inline?: NRO<boolean>
   relative?: NRO<boolean>
   grow?: NRO<boolean>
-  
+
   spacing?: NRO<true | SpacingValues | "none">
   pad?: NRO<true | SpacingValues | "none">
+  /**
+   * Raise a new background level, one step off whatever level is already ambient. Bare `surface`
+   * (no value) uses the `neutral` family; `"tint"`/`"neutral"` forces that family, still one step
+   * up from ambient; `"tint-N"`/`"neutral-N"` (`N` 1-6) is that family at an absolute level,
+   * ignoring what's ambient; `"background"` is absolute level 0. See "Surfaces and borders" in
+   * specs/elt-ui-guidelines.md.
+   */
   surface?: NRO<boolean | SurfaceValues>
   hover?: NRO<boolean>
   /**
-   * Draw a border around the element. Bare `border` is a clear boundary at `text.mid`; `"tint"`
-   * uses `tint.mid` instead; `"n+K"` is a divider/separator at that surface level relative to
-   * whatever's ambient. Implies `radius` (see below) unless `radius="none"`.
+   * Draw a border around the element. Bare `border` (no value) is one level up (`+1`) from
+   * whatever `surface` resolved to on this same element (own `[surface]` if set, else ambient),
+   * keeping that surface's color family. `"tint"`/`"neutral"` forces that family, still `+1` from
+   * this element's own/ambient surface level. `"tint-N"`/`"neutral-N"` is that family at an
+   * absolute level, ignoring this element's `surface` value. Implies `radius` (see below) unless
+   * `radius="none"`.
    */
   border?: NRO<boolean | BorderValues>
   /**
@@ -90,13 +97,19 @@ export interface EFlexAttrs extends CommonAttrs {
    * `packed` reuses whatever `pad` resolves to (so `pad="X" packed` pads both the container and
    * its children at X) ; an explicit step (`packed="Y"`) pads children at Y regardless of `pad`,
    * letting the two differ (e.g. a popup's own edge inset vs. its rows' tighter click-target
-   * padding). `packed` never draws a border itself — border rendering is entirely each child's
-   * own concern. When two packed children both carry their own border on the shared seam, the
-   * later one (in DOM order) wins: its leading edge stays, the earlier child's trailing edge there
-   * is suppressed, collapsing the seam into a single line instead of doubling it. When only one of
-   * the two carries a border there, it already shows through with no suppression needed. Interior
-   * packed seams always have their corner radii zeroed, regardless of whether either child has a
-   * border there, so a packed group of rounded children still reads as one shape.
+   * padding).
+   *
+   * Without `border` on the `packed` element itself: every non-last child loses its own
+   * trailing-edge border (`border-right` in a row, `border-bottom` in a column), whether or not it
+   * actually has one — harmless on an unbordered child. Interior seams always lose their corner
+   * radii too, regardless of border presence, so a packed group of rounded children still reads as
+   * one shape; the outer corners of the first/last child are untouched.
+   *
+   * With `border` on the `packed` element itself: `packed` draws the border, not its children — a
+   * `1px` gap between children, filled by the container's own background (the same color as its
+   * border), becomes the visible seam. Every child gets `border: none` and
+   * `background: var(--e-current-surface)` (its own explicit background, if any, still wins).
+   * See specs/borders.md.
    */
   packed?: NRO<boolean | SpacingValues>
 }
@@ -132,52 +145,64 @@ function _(strings: TemplateStringsArray, ...values: unknown[]): void {
   more.push(result);
 }
 
-// Surface levels: bare [surface] (boolean true) and [surface="n+1"] both raise one level relative
-// to whatever's ambient — the default case. [surface="n+2"] is the other named relative offset
-// (border/divider level) ; CSS attribute selectors can only match exact strings, not a pattern, so
-// only these two relative offsets are precompiled here — any other n+K goes through
-// theme.colors.<color>.classes.as_surface(n)/.css.as_surface(n) (ui/theme.tsx) instead, which
-// synthesize their CSS per call and so accept an arbitrary offset. The :not() list excludes every
-// other explicit-value case so bare/[surface] stays the fallback, same pattern [radius]
-// already uses below.
-const _surface_levels = ["1", "2", "3", "4", "5", "6"] as const
-const _surface_not_default = [...["background", "n+2"], ..._surface_levels].map((v) => `:not([surface="${v}"])`).join("")
+// [surface]/[border] share one value type (ColorStep, ui/theme.tsx) — see specs/borders.md.
+// Every literal value below routes through theme.css.surface/border (mirroring [pad]/[spacing]/
+// [radius] reading theme.css.pad/spacing/radius) so the attribute rules and the helpers can't
+// drift apart. Explicit values are excluded from the bare/default rule via a :not() chain, rather
+// than relying on source order, so bare [surface]/[border] stays the fallback regardless of
+// emission order — same defensive pattern this file already used for surface before this type
+// existed.
+const _color_families = ["tint", "neutral"] as const
+const _color_levels = ["1", "2", "3", "4", "5", "6"] as const
+const _color_suffixes = [..._color_levels, "surface", "separator"] as const
+const _color_steps: ColorStep[] = _color_families.flatMap((f) => _color_suffixes.map((s) => `${f}-${s}` as ColorStep))
+// :where(...) around the whole :not() chain: bare :not([attr="value"]) carries the specificity
+// of its argument (an attribute selector) — chained across every explicit value, that would
+// easily outrank the plain [attr="value"] selectors this bare rule is meant to defer to.
+// :where() contributes zero specificity regardless of what's inside it, so this bare rule and the
+// per-value rules below stay equal-specificity and cascade purely by source order (same pattern
+// already used for [radius], see below).
+function _not_values(attr: string, values: readonly string[]): string {
+  return `:where(${values.map((v) => `:not([${attr}="${v}"])`).join("")})`
+}
+const _surface_explicit = ["background", ..._color_families, ..._color_steps]
+const _border_explicit = [..._color_families, ..._color_steps]
 
 _`
-  ${_all}[surface] { overflow: hidden; }
-  ${_all}[border] { border: 1px solid ${theme.colors.neutral.faded}; overflow: hidden; }
-  ${_all}[border="tint"] { border: 1px solid ${theme.colors.tint.mid}; }
-  ${_all}[hover]:hover { background-color: ${theme.colors.tint.surface("n+1")} }
-  ${_all}[surface]${_surface_not_default} { ${theme.colors.tint.css.as_surface("n+1")} }
-  ${_all}[surface="n+2"] { ${theme.colors.tint.css.as_surface("n+2")} }
-  ${_all}[surface="background"] { ${theme.colors.tint.css.as_surface("background")} }
+  ${_all}[surface] { overflow: clip; overflow-clip-margin: ${theme.settings.focusRingSize}; }
+  ${_all}[border] { overflow: clip; overflow-clip-margin: ${theme.settings.focusRingSize}; }
+  ${_all}[hover]:hover { background-color: ${ambient_surface_mix.surface("n+1")} }
+  ${_all}[surface]${_not_values("surface", _surface_explicit)} { ${theme.css.surface(true)} }
+  ${_all}[surface="background"] { ${theme.css.surface("background")} }
+  ${_all}[border]${_not_values("border", _border_explicit)} { ${theme.css.border(true)} }
 `
 
-for (const lvl of _surface_levels) {
-  _`${_all}[surface="${lvl}"] {
-    ${theme.colors.tint.css.as_surface(Number(lvl))}
-  }`
+for (const fam of _color_families) {
+  _`${_all}[surface="${fam}"] { ${theme.css.surface(fam)} }`
+  _`${_all}[border="${fam}"] { ${theme.css.border(fam)} }`
 }
 
-// [border="n+K"] — a divider/separator at that surface level relative to whatever's ambient,
-// matching [surface]'s own relative-offset mechanism (Mix.surface, ui/theme.tsx).
-const _border_relative_levels = ["1", "2", "3", "4", "5", "6"] as const
-for (const lvl of _border_relative_levels) {
-  _`${_all}[border="n+${lvl}"] { border: 1px solid ${theme.colors.tint.surface(`n+${lvl}`)}; }`
+for (const step of _color_steps) {
+  _`${_all}[surface="${step}"] { ${theme.css.surface(step)} }`
+  _`${_all}[border="${step}"] { ${theme.css.border(step)} }`
 }
 
-// `border` implies `radius` (any value, including a divider's), unless explicitly opted
-// out with radius="none". Default (no named step): derives from this element's own vertical
-// padding step. A named step below overrides that — for an element that doesn't pad itself.
+// `border` implies `radius` (any value), unless explicitly opted out with radius="none". Default
+// (no named step): derives from the ambient --e-current-spacing; an element with its own [pad]
+// overrides that with its own --e-pad instead — a second, later rule decides that priority by
+// cascade order, not a var() fallback chain, since --e-pad inherits and is always populated (a
+// var(--e-pad, fallback) chain would never reach its fallback — see specs/borders.md). A named
+// step below overrides both, for an element that doesn't pad itself.
 //
 // `:where(:not(...))` rather than a bare `:not(...)`: `:not([x="none"])` on its own carries the
 // specificity of [x="none"] (an attribute selector), which would outrank the plain-attribute
 // [radius="${sp}"] step selectors below despite coming first in source order — silently
 // preventing every named-step override from ever applying. :where() always contributes zero
-// specificity, so these two rules and the per-step loop stay equal-specificity and cascade
-// purely by source order, as intended.
+// specificity, so these rules and the per-step loop stay equal-specificity and cascade purely by
+// source order, as intended.
 _`${_all}[border]:where(:not([radius="none"])) { ${theme.css.radius()} }`
 _`${_all}[radius]:where(:not([radius="none"])) { ${theme.css.radius()} }`
+_`${_all}[pad]:where(:not([pad="none"])):is([border],[radius]):where(:not([radius="none"])) { ${theme.css.radius_own_pad()} }`
 for (const sp of spaces) {
   _`${_all}[radius="${sp}"] { ${theme.css.radius(sp)} }`
 }
@@ -205,8 +230,14 @@ for (const al of align) {
 // standalone elements, so the two can't drift apart.
 
 // (1) — [pad="none"] is excluded here : it implies no spacing at all, since there's no padding
-// for rule 5 to apply to (its own zero-override further below handles it).
-_`${_all}[pad]:not([pad="none"]) { ${theme.css.pad("component")} ${theme.css.spacing("component")} }`
+// for rule 5 to apply to (its own zero-override further below handles it). :where(...) around the
+// :not(): a bare :not([pad="none"]) carries the specificity of its argument (an attribute
+// selector), which would outrank the plain [pad="${sp}"] step selectors below despite coming
+// first in source order — silently preventing every named-step override from ever applying
+// (regression, found while implementing specs/borders.md: [pad="section"] and friends resolved to
+// the "component" default instead of their own step). :where() keeps this rule and (2) below
+// equal-specificity, cascading purely by source order, as intended.
+_`${_all}[pad]:where(:not([pad="none"])) { ${theme.css.pad("component")} ${theme.css.spacing("component")} }`
 _`${_all}[spacing] { ${theme.css.spacing("component")} }`
 
 // (2)
@@ -224,8 +255,17 @@ for (const sp of spaces) {
 // off it; `Mix.surface()` (ui/theme.tsx) falls back to the ambient --e-surface-level in that case.
 // No `initial-value` (allowed only with the universal `"*"` syntax) — that's what makes this
 // property genuinely absent (not merely 0) on non-[surface] elements, so `var(--e-current-surface-level, fallback)` reaches its fallback there.
+//
+// --e-current-surface-mix is the same pattern for the surface's color *family* — see
+// `--e-current-surface-mix` in `Mix._css_as_surface` (ui/theme.tsx) and specs/borders.md.
 css`
 @property --e-current-surface-level {
+  syntax: "*";
+  inherits: false;
+}
+`
+css`
+@property --e-current-surface-mix {
   syntax: "*";
   inherits: false;
 }
@@ -322,7 +362,8 @@ css`
   }
 
   /* Interior packed seams always lose their corner radii, whether or not either side has a
-     border there, so a packed group of rounded children still reads as one shape. */
+     border there, so a packed group of rounded children still reads as one shape. Outer corners
+     (the first child's leading edge, the last child's trailing edge) are untouched either way. */
   :is(e-row, e-flex:not([column]))[packed] > *:not(:last-child) {
     border-top-right-radius: 0;
     border-bottom-right-radius: 0;
@@ -340,14 +381,30 @@ css`
     border-top-right-radius: 0;
   }
 
-  /* When both sides of a seam are bordered, the later child (in DOM order) wins: its leading edge
-     stays, the earlier child's trailing edge there is suppressed. When only one side is bordered,
-     it already shows through — no rule needed, it just falls out of the box model. */
-  :is(e-row, e-flex:not([column]))[packed] > ${BORDERED_SELECTOR}:has(+ ${BORDERED_SELECTOR}) {
+  /* packed WITHOUT its own border: each child suppresses its own trailing-edge border, whether or
+     not it actually has one — a no-op on an unbordered child. No BORDERED_SELECTOR lookup, no
+     :has() lookahead at a sibling: each child only ever looks at its own position. See specs/borders.md. */
+  :is(e-row, e-flex:not([column]))[packed]:not([border]) > *:not(:last-child) {
     border-right: none;
   }
-  :is(e-column, e-flex[column])[packed] > ${BORDERED_SELECTOR}:has(+ ${BORDERED_SELECTOR}) {
+  :is(e-column, e-flex[column])[packed]:not([border]) > *:not(:last-child) {
     border-bottom: none;
+  }
+
+  /* packed WITH its own border: packed draws the border, not its children — a 1px gap, filled by
+     the container's own background (the same color as its border, via --e-current-border-color,
+     see theme.css.border/ui/theme.tsx), becomes the visible seam. Every child gives up its own
+     border and takes the current surface's background instead (its own explicit background, if
+     set, still wins — this rule carries no more specificity than any plain author style). */
+  /* overflow: clip / overflow-clip-margin for this case already come from the generic [border]
+     rule above (packed containers are matched by it too). */
+  ${_flex}[packed][border] {
+    background-color: var(--e-current-border-color);
+    gap: 1px;
+  }
+  ${_flex}[packed][border] > * {
+    border: none;
+    background-color: var(--e-current-surface);
   }
 
   /* [pad="none"]/[spacing="none"] turn one side off on its own — [pad="none"] implies no spacing

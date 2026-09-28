@@ -79,7 +79,7 @@ ${FORM_CONTROL_SELECTOR} {
     -webkit-appearance: none;
     background-color: transparent;
     color: ${colors.text};
-    border: 1px solid ${colors.neutral.faded};
+    border: 1px solid ${colors.neutral};
     padding: ${theme.settings.spacingWidget};
     ${theme.css.radius("widget")}
     font-size: ${theme.settings.formFontSize};
