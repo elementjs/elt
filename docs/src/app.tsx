@@ -15,7 +15,7 @@ function widget_nav() {
 }
 
 function content_column() {
-  return <e-column grow>
+  return <e-column grow align="stretch">
     {$scrollable}
     {app.DisplayView("Content")}
   </e-column>

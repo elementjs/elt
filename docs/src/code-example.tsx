@@ -57,7 +57,7 @@ export function CodeExample(props: CodeExampleProps) {
     return props.renderResult ?? null
   }
 
-  return <e-column packed align="stretch">
+  return <e-column packed>
     <e-row packed border pad="none">
       <button class={o_showing_code.tf((v) => (!v ? cls_active : null))}>
         {$click(() => o_showing_code.set(false))}
