@@ -34,7 +34,7 @@ Build an inverted container with `theme.colors.tint.as_inverted` (`ui/theme.tsx`
 
 ### Color theory
 
-There is no fixed palette ; the app may bring its own. At any given point in the UI, only three colors matter
+There is no fixed palette ; the app may bring its own. A palette supplies three colors:
 
 - bg : the surface we're drawing on
 - text : the color of regular text
@@ -42,13 +42,17 @@ There is no fixed palette ; the app may bring its own. At any given point in the
 
 The only requirement to have good results is that all the tints must have a WCAG contrast of at least 3, but ideally 4.5 with both text and background.
 
+A fourth color, `neutral`, is always derived automatically — a palette never needs to supply it (though it may: an explicit `neutral` in a palette silently wins over the derived one). `neutral` is a grey — `text`'s own chroma and hue, at `tint`'s luminance — computed once per `Theme` (`getOkLch`, `ui/theme.tsx`), independently for light and dark. Its purpose is structural neutrals: borders, dividers, muted fills, and disabled-looking chrome that should read as grey rather than tinted, without inheriting `text`'s own luminance, which is tuned for legibility and is usually far more extreme (near-black or near-white) than a neutral border or fill wants to be. `neutral` supports the same helper set as any other color (`.mid`, `.faded`, `.surface(n)`, `.from_bg()`, …) — nothing about it is special-cased.
+
+Because `neutral`'s own luminance sits at `tint`'s (typically much closer to `bg`'s luminance than `text`'s is), the same intensity that reads as a solid border on `text` reads much fainter on `neutral` — a straight method-for-method swap (`text.mid` → `neutral.mid`) under-shoots the original's visual weight. Reach for a stronger step on `neutral` than the `text` call it replaces (one `.mid` → `.faded`, one surface level up, or bare `neutral` in place of `.faded`) and check the result against the original, rather than assuming the same percentage carries over.
+
 All the different levels used to colorized aspects of the interface are derived by mixing them, considering an axis that goes from bg to text, with tint in between ; transparency is never used outside of shadows or voluntary transparency (the `::selection` highlight's 25% alpha in `ui/theme.tsx` is this rule's voluntary-transparency case, not an exception to it).
 
 Anything between background and tint is mainly used to separate visual space ; backgrounds to make element pop, borders, dividers, while going from tint to text is mostly to provide textual visual alternatives.
 
 Elt/ui also offers to derive a dark theme from a given theme, recalculating colors according to flipping text and bg, trying to keep light levels consistent. This is opt-in ; the app may give its own theme.
 
-Every named color (`tint`, `text`, `red`, …) mixes directly with `bg` and with `text` on its own — `Mix.from_bg(intensity)` and `Mix.from_text(intensity)` are independent methods, not two halves of one shared axis centered on `tint`. `text.mid`, for instance, is `text.from_bg(50%)` — a direct `bg`/`text` mix that never involves `tint` at all, already used throughout `ui/form.css.tsx` for borders. A "0% = `bg`, 100% = `tint`, 200% = `text`" single continuum only describes `tint`'s *own* range (`tint.from_bg(0..100%)` then `tint.from_text(0..100%)`, strung together) — it does not generalize to every color routing through `tint`.
+Every named color (`tint`, `text`, `neutral`, `red`, …) mixes directly with `bg` and with `text` on its own — `Mix.from_bg(intensity)` and `Mix.from_text(intensity)` are independent methods, not two halves of one shared axis centered on `tint`. `neutral.faded`, for instance, is `neutral.from_bg(80%)` — a direct `bg`/`neutral` mix that never involves `tint` at all, used throughout `ui/form.css.tsx` for borders. A "0% = `bg`, 100% = `tint`, 200% = `text`" single continuum only describes `tint`'s *own* range (`tint.from_bg(0..100%)` then `tint.from_text(0..100%)`, strung together) — it does not generalize to every color routing through `tint`.
 
 The canonical helper set:
 
@@ -61,7 +65,7 @@ The canonical helper set:
 
 Named steps never grow to cover a one-off need: anything outside the named steps goes through `.from_bg()`/`.from_text()` with an explicit percentage instead of adding a new name.
 
-The text/border scale: `text`/`tint` are the raw values; `muted` = `.faded`; `disabled` reuses `.mid`. `selected_text` is not part of this scale — text selection stays its own manual `::selection` CSS rule (`ui/theme.tsx`), not part of the general `Mix` system.
+The text/border scale: `text`/`tint` are the raw values; `muted` = `.faded`; `disabled`/neutral structural chrome (borders, dividers, muted fills) routes through `neutral` rather than `text` — see Color theory, above. `selected_text` is not part of this scale — text selection stays its own manual `::selection` CSS rule (`ui/theme.tsx`), not part of the general `Mix` system.
 
 ### Surfaces and borders
 
@@ -100,7 +104,7 @@ The *n+2* rule is for visual separation only (a container's own edge, a divider 
 
 | Value | Meaning |
 | --- | --- |
-| *(bare)* | A clear boundary at `text.mid` — the default. |
+| *(bare)* | A clear boundary at `neutral.faded` — the default. |
 | `"tint"` | Same, at `tint.mid` instead. |
 | `"n+1"`…`"n+6"` | A divider/separator at that surface level relative to whatever's ambient — the same relative-offset mechanism `[surface]` and `.separator` use (above). |
 

@@ -5,14 +5,14 @@ test.beforeEach(async ({ page }) => {
 })
 
 test.describe("[border] value resolution (specs/elt-ui-guidelines.md, Surfaces and borders)", () => {
-  test("bare [border] resolves to text.mid — a clear boundary, replacing the old border=\"widget\"", async ({ page }) => {
+  test('bare [border] resolves to neutral.faded — a clear boundary, replacing the old border="widget"', async ({ page }) => {
     const result = await page.evaluate(() => {
       const { theme } = window.__ELT__.UI
       const el = document.createElement("e-block")
       el.setAttribute("border", "")
       document.body.appendChild(el)
       const ref = document.createElement("div")
-      ref.style.borderColor = theme.colors.text.mid.toString()
+      ref.style.borderColor = theme.colors.neutral.faded.toString()
       document.body.appendChild(ref)
       return {
         border: getComputedStyle(el).borderColor,
@@ -22,7 +22,7 @@ test.describe("[border] value resolution (specs/elt-ui-guidelines.md, Surfaces a
     expect(result.border).toBe(result.ref)
   })
 
-  test('[border="tint"] resolves to tint.mid instead of text.mid', async ({ page }) => {
+  test('[border="tint"] resolves to tint.mid instead of neutral.faded', async ({ page }) => {
     const result = await page.evaluate(() => {
       const { theme } = window.__ELT__.UI
       const el = document.createElement("e-block")
@@ -34,7 +34,7 @@ test.describe("[border] value resolution (specs/elt-ui-guidelines.md, Surfaces a
       return {
         border: getComputedStyle(el).borderColor,
         ref: getComputedStyle(ref).borderColor,
-        text_mid: getComputedStyle(el).borderColor === theme.colors.text.mid.toString(),
+        neutral_faded: getComputedStyle(el).borderColor === theme.colors.neutral.faded.toString(),
       }
     })
     expect(result.border).toBe(result.ref)

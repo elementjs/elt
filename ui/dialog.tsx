@@ -96,7 +96,7 @@ dialog {
      override matching the step its children pad at (see "Border radius is derived" in
      specs/elt-ui-guidelines.md). */
   ${theme.css.radius("component")}
-  border: 1px solid ${theme.colors.text.mid};
+  border: 1px solid ${theme.colors.neutral.faded};
 
   background: var(--e-color-bg);
   box-shadow: 0 10px 40px rgba(0,0,0,0.3);
@@ -117,7 +117,7 @@ dialog {
   }
 
   &:has(> header) > e-block.e-dialog-body {
-    border-top: 1px solid ${theme.colors.text.separator};
+    border-top: 1px solid ${theme.colors.neutral.surface("n+3")};
   }
 
   &[open] {

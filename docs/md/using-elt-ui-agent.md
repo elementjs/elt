@@ -130,6 +130,8 @@ Import `theme` from `"elt/ui"`.
 
 Every theme needs `bg`, `text`, and `tint`. Default palette adds semantic hues (`red`, `orange`, `green`, …) on the exported `theme` singleton (`ui/theme.tsx`).
 
+`theme.colors.neutral` is always present too, even though no palette supplies it: a grey auto-derived at `Theme` construction from `text`'s chroma/hue at `tint`'s luminance, for structural borders/dividers/fills that should read as neutral grey rather than tinted or full-contrast `text`. A palette may define its own `neutral` explicitly, which wins over the derived one.
+
 Dark mode: pass `dark:` partial to `new Theme({ light, dark })`, or rely on auto derivation / `theme.classes.dynamic_scheme`.
 
 Apply theme class on a root (app shell):
@@ -168,6 +170,7 @@ Each `theme.colors.*` is a `Mix` helper:
 | Container edge / divider | `.separator` (surface level *n+2*) |
 | Focusable control's own border | `.mid` |
 | Muted text | `.faded` |
+| Neutral/disabled-looking border, divider, or fill (not text) | `theme.colors.neutral` (`.faded`, `.mid`, `.surface(...)`, …) instead of `text` — see Base scheme, above |
 | Strong emphasis | `.strong`, `.very_strong` (mix toward text) |
 | Custom mix (no other role fits) | `.from("bg", "20%")`, `.from_text(...)`, `.from_bg(...)` |
 | Recolor subtree accent | `theme.colors.orange.as_tint` (class) |

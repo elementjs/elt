@@ -13,14 +13,17 @@ css`@layer typography {
     font-size: 0.75em;
     padding: 0em 0.3em;
     font-weight: 500;
-    border: 1px solid ${theme.colors.text.faded};
+    /* neutral has no bg-mix strong enough to match text.faded's darkness (its lightness floor is
+       tint's own, well above text's) — bare neutral is the closest achievable border tone. */
+    border: 1px solid ${theme.colors.neutral};
     border-bottom-width: 2px;
     min-width: 3.25ch;
     display: inline-block;
     text-align: center;
     border-radius: ${theme.settings.borderRadius};
-    //> Question: kbd fill — surface band or flat tint? Kept old look via explicit from_bg for now.
-    background: ${theme.colors.text.from_bg("10%")};
+    /* neutral sits at a lighter luminance than text, so it takes a larger mix fraction to read at
+       the same visual weight — 20% neutral instead of 10% text. */
+    background: ${theme.colors.neutral.from_bg("20%")};
     color: ${theme.colors.text.faded};
   }
 
@@ -114,7 +117,7 @@ css`@layer typography {
     & pre {
       overflow-x: auto;
       padding: ${theme.settings.spacingComponent};
-      background: ${theme.colors.text.surface(0.5)};
+      background: ${theme.colors.neutral.surface(1)};
 
       & code {
         background: none;
@@ -126,7 +129,7 @@ css`@layer typography {
     /* ── Horizontal rule ───────────────────────────────────── */
     & hr {
       border: none;
-      border-block-start: 1px ${theme.colors.text.mid};
+      border-block-start: 1px ${theme.colors.neutral.faded};
       margin-block: 2em;
     }
 
@@ -144,7 +147,7 @@ css`@layer typography {
 
     /* ── Details / summary ─────────────────────────────────── */
     & details {
-      border: 1px solid ${theme.colors.text.mid};
+      border: 1px solid ${theme.colors.neutral.faded};
       ${theme.css.radius("component")}
       padding: ${theme.settings.spacingComponent};
 
@@ -204,23 +207,25 @@ css`@layer typography {
       }
     }
 
+    /* neutral.surface("n+3") stands in for the old text.separator (surface n+2) — one level up,
+       since neutral needs a larger mix fraction than text to read at the same visual weight. */
     & > :is(thead, tr:first-child) :is(th, td) {
-      border-top: 1px solid ${theme.colors.text.separator};
+      border-top: 1px solid ${theme.colors.neutral.surface("n+3")};
     }
 
     & :is(th, td):last-child {
-      border-right: 1px solid ${theme.colors.text.separator};
+      border-right: 1px solid ${theme.colors.neutral.surface("n+3")};
     }
 
     :is(th, td) {
-      border-left: 1px solid ${theme.colors.text.separator};
-      border-bottom: 1px solid ${theme.colors.text.separator};
+      border-left: 1px solid ${theme.colors.neutral.surface("n+3")};
+      border-bottom: 1px solid ${theme.colors.neutral.surface("n+3")};
       padding: ${theme.settings.spacingWidget};
       text-align: start;
     }
 
     & th {
-      ${theme.colors.text.faded.css.as_surface(1)}
+      ${theme.colors.neutral.css.as_surface(1)}
       font-weight: bolder;
     }
   }

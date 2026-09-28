@@ -141,7 +141,11 @@ function getOkLch<T extends ColorScheme>(colors: T): { [key in keyof T]: OkLch }
 const _re_setting = /[A-Z]|[0-9]+/g
 
 export class Theme<AllColors extends ColorScheme> {
-  colors = {} as { [key in keyof AllColors]: Mix }
+  /**
+   * Every named palette color, plus `neutral` — auto-derived (see below), always present
+   * regardless of whether the palette passed in defines it.
+   */
+  colors = {} as { [key in keyof AllColors]: Mix } & { neutral: Mix }
 
   /**
    * Raw light/dark values per named color, keyed by name — used only to emit the
@@ -178,7 +182,27 @@ export class Theme<AllColors extends ColorScheme> {
       }
       this._light_values[name] = light[name as keyof ColorScheme].toString()
       this._dark_values[name] = dark[name as keyof ColorScheme].toString()
-      this.colors[name as keyof AllColors] = new Mix(`var(--e-color-${name})`, name)
+      // Indexed via a plain Record alias — `keyof AllColors` can't prove "neutral" is one of its
+      // keys (it's derived, not part of the palette type), so both this assignment and the
+      // "neutral" one below go through the same untyped-key escape hatch rather than fighting the
+      // generic mapped type.
+      ;(this.colors as Record<string, Mix>)[name] = new Mix(`var(--e-color-${name})`, name)
+    }
+
+    // `neutral`: a grey sitting at `tint`'s luminance, with `text`'s chroma/hue — a "text-like"
+    // tone whose luminance actually matches `tint`, for surfaces/borders/fills that want to read
+    // as neutral rather than tinted, without `text`'s own (usually much more extreme) luminance.
+    // Computed independently per mode, from that mode's own already-resolved `tint`/`text` — not
+    // derived by flipping a single light-computed value the way missing dark colors above are.
+    // Skipped entirely if the palette already defines `neutral` itself (handled by the loop above
+    // like any other named color) — an explicit palette value always wins, silently.
+    const colors_by_name = this.colors as Record<string, Mix>
+    if (!("neutral" in colors_by_name)) {
+      const light_neutral = new OkLch(light.tint.l, light.text.c, light.text.h)
+      const dark_neutral = new OkLch(dark.tint.l, dark.text.c, dark.text.h)
+      this._light_values["neutral"] = light_neutral.toString()
+      this._dark_values["neutral"] = dark_neutral.toString()
+      colors_by_name.neutral = new Mix(`var(--e-color-neutral)`, "neutral")
     }
 
     // Now set the theme settings
@@ -569,7 +593,9 @@ export class Mix {
    *
    * - A number is an *absolute* level, ignoring whatever's already ambient — for content whose DOM
    *   position doesn't reflect its visual nesting (a dialog/popup portaled to `document.body` that
-   *   still needs to render "as if" at a specific level).
+   *   still needs to render "as if" at a specific level). Levels are meant to be whole steps — a
+   *   fractional level (e.g. `0.5`) is not an intended use; reach for `neutral`/`from_bg` directly
+   *   instead of a half-step mix.
    * - `` `n+${number}` `` (e.g. `"n+1"`, `"n+2"`) is that many levels up *relative* to whatever's
    *   ambient (reads `--e-surface-level`, the same custom property `[surface]` itself increments)
    *   — `hover`/`separator` above are just this at fixed `"n+1"`/`"n+2"` offsets.

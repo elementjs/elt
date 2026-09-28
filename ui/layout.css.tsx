@@ -145,7 +145,7 @@ const _surface_not_default = [...["background", "n+2"], ..._surface_levels].map(
 
 _`
   ${_all}[surface] { overflow: hidden; }
-  ${_all}[border] { border: 1px solid ${theme.colors.text.mid}; overflow: hidden; }
+  ${_all}[border] { border: 1px solid ${theme.colors.neutral.faded}; overflow: hidden; }
   ${_all}[border="tint"] { border: 1px solid ${theme.colors.tint.mid}; }
   ${_all}[hover]:hover { background-color: ${theme.colors.tint.surface("n+1")} }
   ${_all}[surface]${_surface_not_default} { ${theme.colors.tint.css.as_surface("n+1")} }
@@ -253,7 +253,7 @@ css`
     align-items: baseline;
   }
   header { ${theme.colors.tint.css.as_inverted}; }
-  footer { ${theme.colors.text.css.as_surface(0.5)} }
+  footer { ${theme.colors.neutral.css.as_surface(1)} }
 
   e-block { display: block; }
   e-block[inline] { display: inline-block; }

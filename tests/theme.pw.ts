@@ -306,6 +306,91 @@ test.describe("Mix.surface / [surface] parity", () => {
   })
 })
 
+test.describe("Theme.colors.neutral", () => {
+  // Parses the "--e-<mode>-color-<name>: oklch(l c h);" entries `Theme.all_colors` emits, so tests
+  // assert against whatever tint/text actually resolved to (including auto-derived dark values)
+  // instead of hardcoding expected numbers.
+  function parse_ok_lch(all_colors: string, mode: "light" | "dark", name: string) {
+    const re = new RegExp(`--e-${mode}-color-${name}: oklch\\(([^ ]+) ([^ ]+) ([^)]+)\\);`)
+    const m = re.exec(all_colors)
+    if (!m) throw new Error(`no ${mode} oklch entry for "${name}" in: ${all_colors}`)
+    return { l: parseFloat(m[1]), c: parseFloat(m[2]), h: parseFloat(m[3]) }
+  }
+
+  test("derives neutral's lightness from tint and chroma/hue from text, independently per mode", async ({ page }) => {
+    const all_colors = await page.evaluate(() => {
+      const { Theme } = window.__ELT__.UI
+      const t = new Theme({
+        light: { bg: "#ffffff", text: "#1c1c1b", tint: "#005FCC" },
+        // A dark-mode tint distinct from light's, so a neutral that merely flipped the light
+        // value (instead of recomputing per mode) would be caught matching the wrong tint.
+        dark: { bg: "#1c1c1b", text: "#ffffff", tint: "#33aa66" },
+      })
+      return t.all_colors
+    })
+
+    for (const mode of ["light", "dark"] as const) {
+      const tint = parse_ok_lch(all_colors, mode, "tint")
+      const text = parse_ok_lch(all_colors, mode, "text")
+      const neutral = parse_ok_lch(all_colors, mode, "neutral")
+      expect(neutral.l, `${mode} neutral.l vs tint.l`).toBeCloseTo(tint.l, 3)
+      expect(neutral.c, `${mode} neutral.c vs text.c`).toBeCloseTo(text.c, 3)
+      expect(neutral.h, `${mode} neutral.h vs text.h`).toBeCloseTo(text.h, 1)
+    }
+  })
+
+  test("an explicit neutral in the palette wins over the derived one, silently", async ({ page }) => {
+    const result = await page.evaluate(() => {
+      const { Theme, Mix } = window.__ELT__.UI
+      const t = new Theme({
+        light: { bg: "#ffffff", text: "#1c1c1b", tint: "#005FCC", neutral: "#ff00ff" },
+      })
+      return {
+        all_colors: t.all_colors,
+        is_mix: t.colors.neutral instanceof Mix,
+        expr: t.colors.neutral.toString(),
+      }
+    })
+    expect(result.is_mix).toBe(true)
+    expect(result.expr).toBe("var(--e-color-neutral)")
+    const neutral = parse_ok_lch(result.all_colors, "light", "neutral")
+    // The derived formula would give neutral ~text's near-zero chroma; a supplied magenta has real
+    // chroma, so a high chroma here proves the explicit value wasn't overwritten by derivation.
+    expect(neutral.c).toBeGreaterThan(0.1)
+  })
+
+  test("neutral supports the full Mix API, like any other named color", async ({ page }) => {
+    const result = await page.evaluate(() => {
+      const { theme } = window.__ELT__.UI
+      const n = theme.colors.neutral
+      return {
+        mid: n.mid.toString(),
+        faded: n.faded.toString(),
+        surface: n.surface(1),
+        hover: n.hover.toString(),
+        separator: n.separator.toString(),
+        from_bg: n.from_bg("20%").toString(),
+      }
+    })
+    for (const value of Object.values(result)) {
+      expect(value).toContain("--e-color-neutral")
+    }
+  })
+
+  test("the exported singleton theme has a derived neutral", async ({ page }) => {
+    const result = await page.evaluate(() => {
+      const { theme, Mix } = window.__ELT__.UI
+      return {
+        is_mix: theme.colors.neutral instanceof Mix,
+        all_colors: theme.all_colors,
+      }
+    })
+    expect(result.is_mix).toBe(true)
+    expect(result.all_colors).toContain("--e-light-color-neutral: oklch(")
+    expect(result.all_colors).toContain("--e-dark-color-neutral: oklch(")
+  })
+})
+
 test.describe("Spacing scale (regression: no separate vertical/horizontal values — one value per step, both axes)", () => {
   test("a named step has a single value, doubling from the previous step", async ({ page }) => {
     const result = await page.evaluate(() => {

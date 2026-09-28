@@ -72,14 +72,14 @@ ${FORM_CONTROL_SELECTOR} {
 
   line-height: 1.2;
   display: inline-block;
-  
+
   :where(&, fieldset) {
-    
+
     appearance: none;
     -webkit-appearance: none;
     background-color: transparent;
     color: ${colors.text};
-    border: 1px solid ${colors.text.mid};
+    border: 1px solid ${colors.neutral.faded};
     padding: ${theme.settings.spacingWidget};
     ${theme.css.radius("widget")}
     font-size: ${theme.settings.formFontSize};
@@ -138,7 +138,7 @@ input[type="checkbox"] {
   appearance: none;
   width: 1em;
   height: 1em;
-  border: 1px solid ${colors.text.mid};
+  border: 1px solid ${colors.neutral.faded};
   ${theme.css.radius("nudge-4")}
   cursor: pointer;
   position: relative;
@@ -188,8 +188,8 @@ input[type="checkbox"][e-variant="switch"] {
   width: var(--e-switch-width);
   height: calc(var(--e-switch-height) + 2px);
   border-radius: 9999px;
-  border: 1px solid ${colors.text.mid};
-  background-color: ${colors.text.mid};
+  border: 1px solid ${colors.neutral.faded};
+  background-color: ${colors.neutral.faded};
   transition:
     background-color 0.1s ease-out,
     border-color 0.1s ease-out,
@@ -219,7 +219,7 @@ input[type="checkbox"][e-variant="switch"]::after {
   transform-origin: center;
   transform: translateX(2px) translateY(1px);
   opacity: 1;
-  background-color: ${colors.text.mid};
+  background-color: ${colors.neutral.faded};
   transition:
     transform 0.1s cubic-bezier(0.2, 0.85, 0.25, 1),
     background-color 0.1s ease;
@@ -244,7 +244,7 @@ hr {
   border: none;
   height: 1px;
   width: 100%;
-  background-color: ${colors.text.separator};
+  background-color: ${colors.neutral.surface("n+3")};
 
   &[e-variant="tint"] {
     border-color: ${colors.tint.separator};
@@ -329,17 +329,6 @@ label[e-variant="toggle"]:has(> input:not(:checked)) {
   color: ${colors.tint.mid};
   --e-color-shadow-raise: rgba(255, 255, 255, 0.2);
   --e-color-shadow-drop: rgba(0, 0, 0, 0.2);
-
-  box-shadow:
-    inset 0px 1px 0 var(--e-color-shadow-drop),
-    inset 0px -1px 0 var(--e-color-shadow-raise);
-}
-
-label[e-variant="toggle"]:has(> input:checked) {
-
-  box-shadow:
-    inset 0px -1px 0 var(--e-color-shadow-raise),
-    inset 0px 1px 0 var(--e-color-shadow-drop);
 }
 
 input[type="color"] {
