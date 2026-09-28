@@ -532,14 +532,12 @@ class ThemeClasses<AllColors extends ColorScheme> {
   }
 
   /** Standalone surface class for elements outside the `e-*` set — see `Theme.css.surface`.
-   * Also pads itself at the `component` step, mirroring the `[surface]` attribute rule
-   * (`ui/layout.css.tsx`) — a standalone class has no `[pad]` attribute to opt out with, so unlike
-   * the attribute this is not conditional. */
+   * Fill-only, mirroring the `[surface]` attribute rule (`ui/layout.css.tsx`): does not pad itself. */
   surface(value: true | "background" | ColorStep): string {
     const key = String(value)
     let cls = this.#surface_classes.get(key)
     if (cls == null) {
-      cls = css`.e-surface-${key} { ${this.theme.css.surface(value)} ${this.theme.css.pad("component")} padding: var(--e-pad); }`
+      cls = css`.e-surface-${key} { ${this.theme.css.surface(value)} }`
       this.#surface_classes.set(key, cls)
     }
     return cls

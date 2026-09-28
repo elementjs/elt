@@ -180,13 +180,11 @@ _`
   ${_all}[border]${_not_values("border", _border_explicit)} { ${theme.css.border(true)} }
 `
 
-// `surface` implies `component`-step padding, same relationship `border` has with `radius` above —
-// a filled background with no padding of its own reads as a mistake, not a deliberate flush fill.
-// Keyed off the attribute being entirely absent (not merely "none"): an element that already has
-// its own `[pad]` (any step, `"none"` included) keeps exactly that, since it already made its own
-// padding decision — this rule never competes with it, so it needs no cascade-order defense.
-_`${_all}[surface]:not([pad]) { ${theme.css.pad("component")} padding: var(--e-pad); }`
-
+// `surface` is fill-only: it does NOT imply padding. A `surface` element that also needs padding
+// must say so explicitly via `pad`/`packed`, same as any other element. An earlier version of this
+// rule padded any `[surface]` without its own `[pad]` at the `component` step — removed: it made a
+// color value (which surface step/family) silently change layout, and made the absence of `[pad]`
+// mean different things depending on whether `surface` was present.
 for (const fam of _color_families) {
   _`${_all}[surface="${fam}"] { ${theme.css.surface(fam)} }`
   _`${_all}[border="${fam}"] { ${theme.css.border(fam)} }`
