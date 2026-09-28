@@ -407,6 +407,30 @@ css`
     background-color: var(--e-current-surface);
   }
 
+  /* The container's own radius (implied by its own [border], or explicit) is the group's true
+     outer shape — the first/last child's outer corners must inherit it exactly, not whatever
+     radius that child would otherwise resolve to on its own (a form control's fixed "widget"
+     radius, e.g. — form.css.tsx sets that unconditionally, unrelated to any ambient/container
+     radius). The inherit keyword on each longhand forces that one declaration to read the
+     parent's computed value, regardless of whether border-radius normally inherits (it doesn't).
+     See specs/borders.md. */
+  :is(e-row, e-flex:not([column]))[packed][border] > *:first-child {
+    border-top-left-radius: inherit;
+    border-bottom-left-radius: inherit;
+  }
+  :is(e-row, e-flex:not([column]))[packed][border] > *:last-child {
+    border-top-right-radius: inherit;
+    border-bottom-right-radius: inherit;
+  }
+  :is(e-column, e-flex[column])[packed][border] > *:first-child {
+    border-top-left-radius: inherit;
+    border-top-right-radius: inherit;
+  }
+  :is(e-column, e-flex[column])[packed][border] > *:last-child {
+    border-bottom-left-radius: inherit;
+    border-bottom-right-radius: inherit;
+  }
+
   /* [pad="none"]/[spacing="none"] turn one side off on its own — [pad="none"] implies no spacing
      at all (there's no padding for rule 5 to apply to), and [spacing="none"] overrides whatever
      [pad] implied. Generated last so they win the cascade. */

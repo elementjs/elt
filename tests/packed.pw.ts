@@ -236,6 +236,40 @@ test.describe("packed[border] (specs/borders.md)", () => {
     expect(result).toEqual(["none", "none", "none", "none"])
   })
 
+  test("packed[border]'s own radius is inherited by the first/last child's outer corners, not whatever radius they'd resolve to on their own", async ({ page }) => {
+    const result = await page.evaluate(() => {
+      const row = document.createElement("e-row")
+      row.setAttribute("packed", "")
+      row.setAttribute("border", "")
+      row.setAttribute("radius", "section")
+      row.setAttribute("pad", "none")
+      // buttons carry a fixed "widget"-step radius of their own (ui/form.css.tsx), unrelated to
+      // the container's radius — the exact mismatch this rule exists to correct.
+      const a = document.createElement("button")
+      const b = document.createElement("button")
+      const c = document.createElement("button")
+      row.append(a, b, c)
+      document.body.appendChild(row)
+      const rowRadius = getComputedStyle(row).borderTopLeftRadius
+      const sa = getComputedStyle(a)
+      const sc = getComputedStyle(c)
+      const sb = getComputedStyle(b)
+      return {
+        rowRadius,
+        aLeading: [sa.borderTopLeftRadius, sa.borderBottomLeftRadius],
+        aTrailing: sa.borderTopRightRadius,
+        cTrailing: [sc.borderTopRightRadius, sc.borderBottomRightRadius],
+        cLeading: sc.borderTopLeftRadius,
+        bAll: [sb.borderTopLeftRadius, sb.borderTopRightRadius, sb.borderBottomLeftRadius, sb.borderBottomRightRadius],
+      }
+    })
+    expect(result.aLeading).toEqual([result.rowRadius, result.rowRadius])
+    expect(result.aTrailing).toBe("0px")
+    expect(result.cTrailing).toEqual([result.rowRadius, result.rowRadius])
+    expect(result.cLeading).toBe("0px")
+    expect(result.bAll).toEqual(["0px", "0px", "0px", "0px"])
+  })
+
   test("packed[border] sets overflow: clip with overflow-clip-margin equal to focusRingSize", async ({ page }) => {
     const result = await page.evaluate(() => {
       const { theme } = window.__ELT__.UI
