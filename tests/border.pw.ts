@@ -373,4 +373,40 @@ test.describe("<pre> radius and overflow (specs/borders.md)", () => {
     })
     expect(overflowX).toBe("auto")
   })
+
+  test("<pre> scrolls itself instead of pushing an align=\"stretch\" flex ancestor past the page width", async ({ page }) => {
+    // A flex column's own cross-axis (width) sizing for a non-stretched item is unbounded by the
+    // container's width — it uses the item's own max-content, not fit-content capped at available
+    // space (unlike the container's main axis, which min-width: 0 alone fixes). "stretch" (either
+    // the container's align="stretch", used here, or self-align="stretch" on just the one child
+    // that needs it, as docs/src/code-example.tsx's CodeExample does — a plain align="stretch" on
+    // that column would also stretch its unrelated tab-button row) is what actually constrains a
+    // block child's width to the column's own width; without it, an unbreakable <pre> line still
+    // pushes the item past the column instead of scrolling internally at its own overflow-x: auto
+    // boundary. Not something layout.css.tsx can default for every child, since e-column's own
+    // default alignment (baseline) is deliberate for other, non-stretch-shaped content.
+    const result = await page.evaluate(() => {
+      const column = document.createElement("e-column")
+      column.setAttribute("align", "stretch")
+      column.style.width = "300px"
+      const wrapper = document.createElement("e-block")
+      wrapper.setAttribute("border", "")
+      wrapper.setAttribute("pad", "none")
+      const pre = document.createElement("pre")
+      const code = document.createElement("code")
+      code.textContent = "x".repeat(300)
+      pre.appendChild(code)
+      wrapper.appendChild(pre)
+      column.appendChild(wrapper)
+      document.body.appendChild(column)
+      return {
+        columnClientWidth: column.clientWidth,
+        columnScrollWidth: column.scrollWidth,
+        preScrollWidth: pre.scrollWidth,
+        preClientWidth: pre.clientWidth,
+      }
+    })
+    expect(result.columnScrollWidth).toBe(result.columnClientWidth)
+    expect(result.preScrollWidth).toBeGreaterThan(result.preClientWidth)
+  })
 })

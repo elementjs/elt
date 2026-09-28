@@ -33,10 +33,23 @@ export function runExample(fn: () => Node): { renderResult?: Node; renderError?:
 /** A code sample with a Typescript/Result toggle (defaults to Result) for runnable blocks
  * (`renderResult`/`renderError`/`fullExampleUrl` set); a plain highlighted block otherwise. */
 function renderCode(highlighted: () => Renderable) {
-  return <e-block border pad="none">
-    <pre><code>{highlighted()}</code></pre>
+  return <e-block border pad="none" self-align="stretch">
+    <div class={cls_pre_scroll}><pre><code>{highlighted()}</code></pre></div>
   </e-block>
 }
+
+/** The real vertical scroll boundary for a code block: capped at half the viewport height so one
+ * long example can't push the rest of the page out of reach, and scrollable past that cap. Kept on
+ * a wrapper around `<pre>` rather than on `<pre>` itself: `<pre>` already needs `overflow-x: auto`
+ * for its own horizontal scroll, and pairing that with a real `overflow-y: auto` on the same
+ * element reintroduces the phantom-scrollbar measurement quirk `overflow-y: clip` on `<pre>` exists
+ * to avoid (ui/typography.css.tsx) — confirmed empirically to be specific to `<pre>`'s own box, not
+ * a general side effect of scroll containers, so it does not reappear here on this plain wrapper. */
+const cls_pre_scroll = css`.pre-scroll {
+  max-height: 50vh;
+  overflow-y: auto;
+  border-radius: inherit;
+}`
 
 export function CodeExample(props: CodeExampleProps) {
   const is_runnable = props.renderResult != null || props.renderError != null || props.fullExampleUrl != null
@@ -70,7 +83,7 @@ export function CodeExample(props: CodeExampleProps) {
     </e-row>
     {If(o_showing_code,
       () => renderCode(props.highlighted),
-      () => <e-block border>{result_view()}</e-block>,
+      () => <e-block border self-align="stretch">{result_view()}</e-block>,
     )}
   </e-column>
 }

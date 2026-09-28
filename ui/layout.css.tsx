@@ -180,6 +180,13 @@ _`
   ${_all}[border]${_not_values("border", _border_explicit)} { ${theme.css.border(true)} }
 `
 
+// `surface` implies `component`-step padding, same relationship `border` has with `radius` above —
+// a filled background with no padding of its own reads as a mistake, not a deliberate flush fill.
+// Keyed off the attribute being entirely absent (not merely "none"): an element that already has
+// its own `[pad]` (any step, `"none"` included) keeps exactly that, since it already made its own
+// padding decision — this rule never competes with it, so it needs no cascade-order defense.
+_`${_all}[surface]:not([pad]) { ${theme.css.pad("component")} padding: var(--e-pad); }`
+
 for (const fam of _color_families) {
   _`${_all}[surface="${fam}"] { ${theme.css.surface(fam)} }`
   _`${_all}[border="${fam}"] { ${theme.css.border(fam)} }`
@@ -313,6 +320,21 @@ css`
 
   e-grid { display: grid; }
   e-grid[inline] { display: inline-grid; }
+
+  /* A flex item's automatic minimum size along the flex container's MAIN axis defaults to its
+     content's min-content size (not 0) unless overridden — a flex row/column otherwise refuses to
+     shrink a child below its own unbreakable content (a long word, a wide image) even when told to
+     (flex-shrink), pushing that content past the container instead of letting the child's own
+     overflow handle it. This resets that floor to 0 so a child can always shrink to the space it's
+     given; one that must never shrink below its own content keeps other ways to say so (an explicit
+     width, flex-shrink: 0). This does not, on its own, constrain the CROSS axis of a non-"stretch"
+     item (e-column/e-row/e-flex's own default is align-items: baseline) — that axis needs an
+     explicit align="stretch"/align-items: stretch on the container instead, or the item can still
+     grow past it via max-content sizing (see specs/borders.md, the <pre> width investigation). */
+  ${_layouters} > * {
+    min-width: 0;
+    min-height: 0;
+  }
 
   ${_all} {
     &[max-width] { max-width: 100%; }
