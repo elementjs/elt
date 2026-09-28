@@ -79,28 +79,29 @@ function rewrite_css(
 export class CSSBuilder {
   sheet: CSSStyleSheet = new CSSStyleSheet()
   last = 0
+  private adopted_into = new Set<Document | ShadowRoot>()
+
+  /** Adopts `this.sheet` into `by`, once — safe to call repeatedly (e.g. on every `css` call, or
+   * from a caller adopting into several shadow roots) since a target already in `adopted_into` is a
+   * no-op. Assignment form rather than `.push()`: `adoptedStyleSheets` is a spec ObservableArray,
+   * and some engines don't support mutating it in place. */
+  adopt(by: Document | ShadowRoot) {
+    if (this.adopted_into.has(by)) return
+    this.adopted_into.add(by)
+    by.adoptedStyleSheets = [...by.adoptedStyleSheets, this.sheet]
+  }
 
   css = (
     arr: TemplateStringsArray | string,
     ...args: (string | number | string[] | { toString(): string })[]
   ): string => {
-    // wrapper to make sure the first call to a non-adopted css will adopt it globally
-    // made that way to make css side-effect free
+    // Lazy rather than adopted at import time, since `document` may not exist yet when this module
+    // is evaluated (SSR/tests). adopt() is idempotent per target, so this costs one Set lookup on
+    // every call rather than only the first — negligible next to insertRule.
     this.adopt(document)
-    return this.css(arr, ...args)
-  }
-
-  adopt(by: Document | ShadowRoot) {
-    by.adoptedStyleSheets.push(this.sheet)
-
-    this.css = (
-      arr: TemplateStringsArray | string,
-      ...args: (string | number | string[] | { toString(): string })[]
-    ): string => {
-      const { css, class_name } = rewrite_css(arr, ...args)
-      this.sheet.insertRule(css, this.last++)
-      return class_name ?? ""
-    }
+    const { css, class_name } = rewrite_css(arr, ...args)
+    this.sheet.insertRule(css, this.last++)
+    return class_name ?? ""
   }
 }
 
