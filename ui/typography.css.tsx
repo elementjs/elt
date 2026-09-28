@@ -116,8 +116,22 @@ css`@layer typography {
     }
     & pre {
       overflow-x: auto;
+      /* CSS forces overflow-y to auto too when only overflow-x is set to something other than
+         visible (used values: "visible"/non-visible must match on both axes unless both are
+         explicitly non-visible). Left implicit, that surfaces a persistent ~6px phantom vertical
+         scrollbar even on content that fits — a browser measurement quirk with overflow-x:auto,
+         not real overflow (confirmed: scrollHeight exceeds clientHeight by the same amount
+         whether overflow-y is auto, hidden, or clip; overflow:visible on both axes has no gap at
+         all). Pinning overflow-y explicitly avoids the coercion — pre has no height constraint of
+         its own, so nothing here is ever actually clipped. */
+      overflow-y: clip;
       padding: ${theme.settings.spacingComponent};
       background: ${theme.colors.neutral.surface(1)};
+      /* Matches whatever radius the immediate wrapper has (e.g. docs/src/code-example.tsx's
+         <e-block border pad="none">), rather than pre's own (nonexistent) radius squaring off a
+         rounded wrapper's corners from the inside — see specs/borders.md. Resolves to 0, same as
+         today, when pre's direct parent has no radius of its own (plain prose). */
+      border-radius: inherit;
 
       & code {
         background: none;

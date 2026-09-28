@@ -270,21 +270,57 @@ test.describe("packed[border] (specs/borders.md)", () => {
     expect(result.bAll).toEqual(["0px", "0px", "0px", "0px"])
   })
 
-  test("packed[border] sets overflow: clip with overflow-clip-margin equal to focusRingSize", async ({ page }) => {
+  test("packed[radius] WITHOUT its own border also owns the first/last child's outer corners", async ({ page }) => {
     const result = await page.evaluate(() => {
-      const { theme } = window.__ELT__.UI
+      const row = document.createElement("e-row")
+      row.setAttribute("packed", "")
+      row.setAttribute("radius", "section")
+      const a = document.createElement("button")
+      const b = document.createElement("button")
+      row.append(a, b)
+      document.body.appendChild(row)
+      const rowRadius = getComputedStyle(row).borderTopLeftRadius
+      const sa = getComputedStyle(a)
+      const sb = getComputedStyle(b)
+      return {
+        rowRadius,
+        aLeading: [sa.borderTopLeftRadius, sa.borderBottomLeftRadius],
+        bTrailing: [sb.borderTopRightRadius, sb.borderBottomRightRadius],
+      }
+    })
+    expect(result.aLeading).toEqual([result.rowRadius, result.rowRadius])
+    expect(result.bTrailing).toEqual([result.rowRadius, result.rowRadius])
+  })
+
+  test("plain packed — no [border], no [radius] on the container — leaves each child's own radius untouched at the outer edges", async ({ page }) => {
+    const result = await page.evaluate(() => {
+      const row = document.createElement("e-row")
+      row.setAttribute("packed", "")
+      const a = document.createElement("e-block")
+      a.setAttribute("border", "")
+      a.setAttribute("radius", "")
+      const b = document.createElement("e-block")
+      b.setAttribute("border", "")
+      b.setAttribute("radius", "")
+      row.append(a, b)
+      document.body.appendChild(row)
+      const sa = getComputedStyle(a)
+      const sb = getComputedStyle(b)
+      return { aLeading: sa.borderTopLeftRadius, bTrailing: sb.borderTopRightRadius }
+    })
+    expect(result.aLeading).not.toBe("0px")
+    expect(result.bTrailing).not.toBe("0px")
+  })
+
+  test("packed[border] does not clip its own overflow — radius is matched correctly instead (specs/borders.md)", async ({ page }) => {
+    const result = await page.evaluate(() => {
       const row = document.createElement("e-row")
       row.setAttribute("packed", "")
       row.setAttribute("border", "")
       document.body.appendChild(row)
-      const ref = document.createElement("div")
-      ref.style.width = theme.settings.focusRingSize
-      document.body.appendChild(ref)
-      const s = getComputedStyle(row)
-      return { overflow: s.overflowX, margin: s.overflowClipMargin, expectedPx: getComputedStyle(ref).width }
+      return getComputedStyle(row).overflowX
     })
-    expect(result.overflow).toBe("clip")
-    expect(result.margin).toBe(result.expectedPx)
+    expect(result).toBe("visible")
   })
 
   test("a focus ring inside packed[border] is not clipped away — box-shadow is present on focus", async ({ page }) => {
@@ -429,15 +465,25 @@ test.describe("theme.css.radius own-pad vs ambient priority (specs/borders.md)",
   })
 })
 
-test.describe("[surface] overflow fix (specs/borders.md)", () => {
-  test("[surface] sets overflow: clip, replacing the old unconditional overflow: hidden", async ({ page }) => {
+test.describe("[surface]/[border] no longer clip their own overflow (specs/borders.md)", () => {
+  test("[surface] does not set overflow at all, replacing the old unconditional overflow: hidden", async ({ page }) => {
     const overflow = await page.evaluate(() => {
       const el = document.createElement("e-block")
       el.setAttribute("surface", "")
       document.body.appendChild(el)
       return getComputedStyle(el).overflowX
     })
-    expect(overflow).toBe("clip")
+    expect(overflow).toBe("visible")
+  })
+
+  test("[border] does not set overflow at all", async ({ page }) => {
+    const overflow = await page.evaluate(() => {
+      const el = document.createElement("e-block")
+      el.setAttribute("border", "")
+      document.body.appendChild(el)
+      return getComputedStyle(el).overflowX
+    })
+    expect(overflow).toBe("visible")
   })
 
   test("a focus ring inside [surface] is not clipped away", async ({ page }) => {

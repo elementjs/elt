@@ -307,3 +307,70 @@ test.describe("Spacing scale nudge rename (regression: '1'/'2'/'4' -> 'nudge-1'/
     expect(result).toContain("--e-spacing-nudge-4: 4px;")
   })
 })
+
+test.describe("<pre> radius and overflow (specs/borders.md)", () => {
+  test("<pre> inherits its immediate parent's border-radius, matching a rounded wrapper's corners", async ({ page }) => {
+    const result = await page.evaluate(() => {
+      const wrapper = document.createElement("e-block")
+      wrapper.setAttribute("border", "")
+      wrapper.setAttribute("pad", "none")
+      const pre = document.createElement("pre")
+      const code = document.createElement("code")
+      code.textContent = "const x = 1"
+      pre.appendChild(code)
+      wrapper.appendChild(pre)
+      document.body.appendChild(wrapper)
+      return {
+        wrapperRadius: getComputedStyle(wrapper).borderTopLeftRadius,
+        preRadius: getComputedStyle(pre).borderTopLeftRadius,
+      }
+    })
+    expect(result.preRadius).toBe(result.wrapperRadius)
+    expect(result.preRadius).not.toBe("0px")
+  })
+
+  test("<pre> with no rounded wrapper stays at 0 radius, unchanged from before", async ({ page }) => {
+    const result = await page.evaluate(() => {
+      const wrapper = document.createElement("e-block")
+      const pre = document.createElement("pre")
+      pre.textContent = "const x = 1"
+      wrapper.appendChild(pre)
+      document.body.appendChild(wrapper)
+      return getComputedStyle(pre).borderTopLeftRadius
+    })
+    expect(result).toBe("0px")
+  })
+
+  test("<pre> does not show a phantom vertical scrollbar on content that fits", async ({ page }) => {
+    // overflow-x: auto alone forces overflow-y's used value to auto too (CSS spec: computed
+    // "visible" on one axis becomes "auto" when the other axis isn't "visible"), which then
+    // reports a small phantom scrollHeight > clientHeight on <pre> even though the box renders at
+    // its full natural height either way (clientHeight matches an unconstrained overflow:visible
+    // baseline in both cases) — pinning overflow-y explicitly avoids the coercion so no scrollbar
+    // shows. This asserts the visible-scrollbar-relevant property (overflow-y itself), not
+    // scrollHeight, which can still legitimately differ as a harmless measurement artifact.
+    const result = await page.evaluate(() => {
+      const wrapper = document.createElement("e-block")
+      const pre = document.createElement("pre")
+      const code = document.createElement("code")
+      code.textContent = "const x = 1"
+      pre.appendChild(code)
+      wrapper.appendChild(pre)
+      document.body.appendChild(wrapper)
+      return { clientHeight: pre.clientHeight, overflowY: getComputedStyle(pre).overflowY }
+    })
+    expect(result.overflowY).not.toBe("auto")
+    expect(result.clientHeight).toBeGreaterThan(0)
+  })
+
+  test("<pre> still scrolls horizontally when a line is too wide", async ({ page }) => {
+    const overflowX = await page.evaluate(() => {
+      const wrapper = document.createElement("e-block")
+      const pre = document.createElement("pre")
+      wrapper.appendChild(pre)
+      document.body.appendChild(wrapper)
+      return getComputedStyle(pre).overflowX
+    })
+    expect(overflowX).toBe("auto")
+  })
+})

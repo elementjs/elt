@@ -101,9 +101,14 @@ export interface EFlexAttrs extends CommonAttrs {
    *
    * Without `border` on the `packed` element itself: every non-last child loses its own
    * trailing-edge border (`border-right` in a row, `border-bottom` in a column), whether or not it
-   * actually has one — harmless on an unbordered child. Interior seams always lose their corner
-   * radii too, regardless of border presence, so a packed group of rounded children still reads as
-   * one shape; the outer corners of the first/last child are untouched.
+   * actually has one — harmless on an unbordered child.
+   *
+   * Radius ownership: whenever `packed` itself has a radius in effect (its own `border`, which
+   * implies radius, or an explicit `radius`), that radius is the group's true outer shape — every
+   * interior seam loses its corner radii, and the first/last child's outer corners `inherit` the
+   * container's radius exactly, not whatever radius that child would otherwise resolve to on its
+   * own. When `packed` has neither `border` nor `radius`, none of this applies: each child keeps
+   * whatever radius it resolved on its own, at every corner.
    *
    * With `border` on the `packed` element itself: `packed` draws the border, not its children — a
    * `1px` gap between children, filled by the container's own background (the same color as its
@@ -169,8 +174,6 @@ const _surface_explicit = ["background", ..._color_families, ..._color_steps]
 const _border_explicit = [..._color_families, ..._color_steps]
 
 _`
-  ${_all}[surface] { overflow: clip; overflow-clip-margin: ${theme.settings.focusRingSize}; }
-  ${_all}[border] { overflow: clip; overflow-clip-margin: ${theme.settings.focusRingSize}; }
   ${_all}[hover]:hover { background-color: ${ambient_surface_mix.surface("n+1")} }
   ${_all}[surface]${_not_values("surface", _surface_explicit)} { ${theme.css.surface(true)} }
   ${_all}[surface="background"] { ${theme.css.surface("background")} }
@@ -396,8 +399,6 @@ css`
      see theme.css.border/ui/theme.tsx), becomes the visible seam. Every child gives up its own
      border and takes the current surface's background instead (its own explicit background, if
      set, still wins — this rule carries no more specificity than any plain author style). */
-  /* overflow: clip / overflow-clip-margin for this case already come from the generic [border]
-     rule above (packed containers are matched by it too). */
   ${_flex}[packed][border] {
     background-color: var(--e-current-border-color);
     gap: 1px;
@@ -407,26 +408,31 @@ css`
     background-color: var(--e-current-surface);
   }
 
-  /* The container's own radius (implied by its own [border], or explicit) is the group's true
-     outer shape — the first/last child's outer corners must inherit it exactly, not whatever
+  /* Whenever packed itself has a radius in effect — its own [border] (which implies radius) or an
+     explicit [radius], whether or not it also draws its own border — that radius is the group's
+     true outer shape: the first/last child's outer corners must inherit it exactly, not whatever
      radius that child would otherwise resolve to on its own (a form control's fixed "widget"
      radius, e.g. — form.css.tsx sets that unconditionally, unrelated to any ambient/container
-     radius). The inherit keyword on each longhand forces that one declaration to read the
-     parent's computed value, regardless of whether border-radius normally inherits (it doesn't).
-     See specs/borders.md. */
-  :is(e-row, e-flex:not([column]))[packed][border] > *:first-child {
+     radius; a plain child with none of its own defaults to 0). Not all children go through the
+     theme's radius system the same way, so packed — when it has asked for a radius at all — owns
+     it for the whole group, rather than relying on each child to coordinate its own. When packed
+     has neither [border] nor [radius], this does not apply: each child keeps whatever radius it
+     resolved on its own (matching [border] ownership itself in that case — see above). The
+     inherit keyword on each longhand forces that one declaration to read the parent's computed
+     value, regardless of whether border-radius normally inherits (it doesn't). See specs/borders.md. */
+  :is(e-row, e-flex:not([column]))[packed]:is([border],[radius]):where(:not([radius="none"])) > *:first-child {
     border-top-left-radius: inherit;
     border-bottom-left-radius: inherit;
   }
-  :is(e-row, e-flex:not([column]))[packed][border] > *:last-child {
+  :is(e-row, e-flex:not([column]))[packed]:is([border],[radius]):where(:not([radius="none"])) > *:last-child {
     border-top-right-radius: inherit;
     border-bottom-right-radius: inherit;
   }
-  :is(e-column, e-flex[column])[packed][border] > *:first-child {
+  :is(e-column, e-flex[column])[packed]:is([border],[radius]):where(:not([radius="none"])) > *:first-child {
     border-top-left-radius: inherit;
     border-top-right-radius: inherit;
   }
-  :is(e-column, e-flex[column])[packed][border] > *:last-child {
+  :is(e-column, e-flex[column])[packed]:is([border],[radius]):where(:not([radius="none"])) > *:last-child {
     border-bottom-left-radius: inherit;
     border-bottom-right-radius: inherit;
   }
