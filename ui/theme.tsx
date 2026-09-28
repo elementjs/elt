@@ -505,6 +505,9 @@ export class Mix {
     --e-color-bg: ${this.light_frozen_expr};
     --e-color-text: var(--e-light-color-bg);
     --e-color-tint: var(--e-light-color-bg);
+    /* neutral = text's chroma/hue at tint's luminance — since inversion sets text and tint to the
+       exact same value (old bg), neutral collapses to that same value too, no recombination needed. */
+    --e-color-neutral: var(--e-light-color-bg);
     background-color: var(--e-color-bg);
     color: var(--e-color-text);
     border-color: var(--e-color-bg);

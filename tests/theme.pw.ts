@@ -112,6 +112,50 @@ test.describe("Color/Mix merge", () => {
     expect(result.bg_line).not.toContain("--e-color-text)")
   })
 
+  test("as_inverted also collapses neutral to the same frozen value as text/tint (text and tint coincide under inversion, so neutral needs no separate recomputation)", async ({
+    page,
+  }) => {
+    const result = await page.evaluate(() => {
+      const { theme } = window.__ELT__.UI
+      const css = theme.colors.tint.css.as_inverted
+      const neutral_line = css.split("\n").find((l) => l.includes("--e-color-neutral:"))!
+      const text_line = css.split("\n").find((l) => l.includes("--e-color-text:"))!
+      const tint_line = css.split("\n").find((l) => l.includes("--e-color-tint:"))!
+      return { neutral_line, text_line, tint_line }
+    })
+    expect(result.neutral_line).toContain("var(--e-light-color-bg)")
+    // same right-hand-side as text/tint, not independently derived
+    expect(result.neutral_line.split(":")[1]).toBe(result.text_line.split(":")[1])
+    expect(result.neutral_line.split(":")[1]).toBe(result.tint_line.split(":")[1])
+  })
+
+  test("inside a real inverted element, neutral/text/tint resolve to the identical computed color", async ({ page }) => {
+    const result = await page.evaluate(() => {
+      const { theme } = window.__ELT__.UI
+      document.body.className = theme.classes.light_scheme
+      const el = document.createElement("div")
+      el.className = theme.colors.tint.classes.as_inverted
+      document.body.appendChild(el)
+      const probe = (expr: string) => {
+        const span = document.createElement("span")
+        span.style.color = expr
+        el.appendChild(span)
+        const value = getComputedStyle(span).color
+        span.remove()
+        return value
+      }
+      const out = {
+        neutral: probe(theme.colors.neutral.toString()),
+        text: probe(theme.colors.text.toString()),
+        tint: probe(theme.colors.tint.toString()),
+      }
+      el.remove()
+      return out
+    })
+    expect(result.neutral).toBe(result.text)
+    expect(result.neutral).toBe(result.tint)
+  })
+
   test("as_tint sets matching light/dark tokens via substitution, same as a hand-written named Color used to", async ({
     page,
   }) => {

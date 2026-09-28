@@ -142,6 +142,8 @@ Inversion is one mechanism, not several named variants: given a color, it produc
 
 Inversion sets the new `text`/`tint` to the *light* theme's `bg` specifically (`--e-light-color-bg`), not "whichever theme is currently active." This is deliberate: an inverted band looks the same regardless of light/dark mode.
 
+`neutral` (Color theory, above) is `text`'s chroma/hue at `tint`'s luminance — since inversion sets `text` and `tint` to the exact same value, `neutral` collapses to that same value too inside an inverted band, no recombination needed. This is specific to inversion, where `text` and `tint` happen to coincide; `as_tint` (which only reassigns `tint`, leaving `text` at whatever it already was) does not carry the same guarantee, and `neutral` is not currently re-derived inside an `as_tint` subtree.
+
 The bg/text/tint combination currently in effect (which changes under inversion) is called a **ColorScheme** — the name already used for this shape as a generic type parameter on `Theme` in `ui/theme.tsx`.
 
 Spelling out the soft-inverted form (`text.faded.as_inverted`) at each call site (table header, status bar, nav) is acceptable — a named shortcut may be added later if it turns out to be repeated often enough to be worth it, but that is not blocking.
