@@ -412,10 +412,12 @@ type ShikiToken = { content: string; color?: string }
 /** Compiles Shiki's structured token output (not its HTML-string output — see the spec's "Why" on
  * avoiding `.innerHTML`) into a literal JSX array-of-lines: each line a `<>`-fragment of colored
  * `<span>`s (or plain text for uncolored runs), lines separated by literal `"\n"` text children so
- * they render as separate lines inside a `<pre>`. */
+ * they render as separate lines inside a `<pre>`. Colors go through `tokenColorClass` (a shared,
+ * memoized CSS class per distinct color) rather than a per-span inline `style` — see its doc comment
+ * in code-example.tsx for why. */
 function tokensToJsx(lines: ShikiToken[][]): string {
   const lineFrags = lines.map((line) => {
-    const spans = line.map((t) => (t.color ? `<span style={${JSON.stringify(`color:${t.color}`)}}>${jsxText(t.content)}</span>` : jsxText(t.content))).join("")
+    const spans = line.map((t) => (t.color ? `<span class={tokenColorClass(${JSON.stringify(t.color)})}>${jsxText(t.content)}</span>` : jsxText(t.content))).join("")
     return `<>${spans}</>`
   })
   return `[${lineFrags.join(',"\\n",')}]`
@@ -515,11 +517,11 @@ function genPageSource(relPath: string, frontmatter: Frontmatter, root: MdNode, 
     ? [`// Imports merged from @inline-example blocks at ${inline.map((e) => `docs/md/${relPath}:${e.sourceLine}`).join(", ")}`]
     : []
 
-  // CodeExample/runExample are only imported when this page actually has a code fence / an
-  // @inline-example — an unconditional import left an unused binding on pages with neither
-  // (caught by noUnusedLocals, which docs/tsconfig.json now matches the root tsconfig on).
+  // CodeExample/runExample/tokenColorClass are only imported when this page actually has a code
+  // fence / an @inline-example — an unconditional import left an unused binding on pages with
+  // neither (caught by noUnusedLocals, which docs/tsconfig.json now matches the root tsconfig on).
   const codeExampleImport = hasCode
-    ? [`import { CodeExample${inline.length > 0 ? ", runExample" : ""} } from "${ups}code-example.tsx"`]
+    ? [`import { CodeExample, tokenColorClass${inline.length > 0 ? ", runExample" : ""} } from "${ups}code-example.tsx"`]
     : []
 
   return [

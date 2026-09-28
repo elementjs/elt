@@ -30,6 +30,20 @@ export function runExample(fn: () => Node): { renderResult?: Node; renderError?:
   }
 }
 
+/** Maps a Shiki token color to a shared CSS class instead of a per-span inline `style`, memoized so
+ * each distinct color only ever inserts one stylesheet rule (a theme has on the order of a few dozen
+ * distinct colors, however many thousands of tokens use them) — see macro.ts's tokensToJsx, which
+ * calls this once per token at render time. */
+const tokenColorClasses = new Map<string, string>()
+export function tokenColorClass(color: string): string {
+  let cls = tokenColorClasses.get(color)
+  if (cls == null) {
+    cls = css`.tok { color: ${color}; }`
+    tokenColorClasses.set(color, cls)
+  }
+  return cls
+}
+
 /** A code sample with a Typescript/Result toggle (defaults to Result) for runnable blocks
  * (`renderResult`/`renderError`/`fullExampleUrl` set); a plain highlighted block otherwise. */
 function renderCode(highlighted: () => Renderable) {

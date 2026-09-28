@@ -469,14 +469,16 @@ describe("elt_md (integration)", () => {
     assertValidTsx(content)
   })
 
-  test("token-based highlighting produces literal colored spans, never .innerHTML or an HTML string", async () => {
+  test("token-based highlighting produces literal colored spans via tokenColorClass, never .innerHTML, an HTML string, or a per-span inline style", async () => {
     const t = await withTempDocsTree({
       "index.md": ["# Index", "", "```ts", "const x = 1", "```", ""].join("\n"),
     })
     tmp = t
     await t.elt_md()
     const content = await Bun.file(`${t.srcDir}/md/index.tsx`).text()
-    expect(content).toMatch(/<span style=\{"color:#/)
+    expect(content).toMatch(/<span class=\{tokenColorClass\("#/)
+    expect(content).toContain("tokenColorClass")
+    expect(content).not.toMatch(/<span style=/)
     expect(content).not.toContain(".innerHTML")
     expect(content).not.toContain("highlightedHtml")
   })
