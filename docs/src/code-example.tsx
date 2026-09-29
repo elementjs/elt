@@ -47,9 +47,9 @@ export function tokenColorClass(color: string): string {
 /** A code sample with a Typescript/Result toggle (defaults to Result) for runnable blocks
  * (`renderResult`/`renderError`/`fullExampleUrl` set); a plain highlighted block otherwise. */
 function renderCode(highlighted: () => Renderable) {
-  return <e-block border pad="none" self-align="stretch">
+  return <e-prose border pad="none" self-align="stretch">
     <div class={cls_pre_scroll}><pre><code>{highlighted()}</code></pre></div>
-  </e-block>
+  </e-prose>
 }
 
 /** The real vertical scroll boundary for a code block: capped at half the viewport height so one
@@ -79,7 +79,7 @@ export function CodeExample(props: CodeExampleProps) {
       return <iframe class={cls_iframe} src={props.fullExampleUrl}></iframe>
     }
     if (props.renderError != null) {
-      return <e-block class={cls_error}><pre>{props.renderError}</pre></e-block>
+      return <e-prose class={cls_error}><pre>{props.renderError}</pre></e-prose>
     }
     return props.renderResult ?? null
   }
@@ -97,7 +97,7 @@ export function CodeExample(props: CodeExampleProps) {
     </e-row>
     {If(o_showing_code,
       () => renderCode(props.highlighted),
-      () => <e-block border self-align="stretch">{result_view()}</e-block>,
+      () => <e-prose border self-align="stretch">{result_view()}</e-prose>,
     )}
   </e-column>
 }

@@ -295,9 +295,9 @@ export class UnrepresentableFactory extends Factory<{}> {
       // still force a kind via canConvert/convert or defaultValue() --
       // this widget itself must never write to o_value on its own.
       render: () => (
-        <e-block class={cls_unrepresentable} title="Use the … menu on a parent composite to change type">
+        <e-prose class={cls_unrepresentable} title="Use the … menu on a parent composite to change type">
           Unsupported value here
-        </e-block>
+        </e-prose>
       ),
       o_error: no_error,
     }
@@ -625,7 +625,7 @@ export class ColorFactory extends Factory<ColorOptions> {
       // TODO: mount elt/ui's new color control once specs/ui-color-picker.md
       // settles (component shape/name still under discussion there) --
       // $bind.string(o_value) into it, commit on change.
-      render: () => <e-block>{/* elt/ui color control goes here */}</e-block>,
+      render: () => <e-prose>{/* elt/ui color control goes here */}</e-prose>,
       o_error: no_error,
     }
   }
@@ -878,12 +878,12 @@ export class ObjectFactory extends Factory<ObjectOptions> {
       }),
       render: () => (
         <e-flex column spacing="widget">
-          <e-block class={cls_list_scroll}>
+          <e-prose class={cls_list_scroll}>
             {$scrollable}
             {VirtualScroll(o_visible_keys, (o_key) => (
               <e-flex align="center" spacing="widget">
                 <span class={cls_object_key}>{o_key}</span>
-                <e-block class={cls_object_value} style={{ flex: "1" }}>
+                <e-prose class={cls_object_value} style={{ flex: "1" }}>
                   {o_key.tf((key) => render_value(key, safe_object_child(o_value, key)))}
                   {can_add &&
                     o_key.tf((key) =>
@@ -893,7 +893,7 @@ export class ObjectFactory extends Factory<ObjectOptions> {
                         </button>
                       ),
                     )}
-                </e-block>
+                </e-prose>
               </e-flex>
             ))}
             {VirtualScroll(o_transient_ids, (o_id) => {
@@ -910,13 +910,13 @@ export class ObjectFactory extends Factory<ObjectOptions> {
                     {$bind.string(o_key)}
                     {$on("change", () => try_commit_transient(id))}
                   </input>
-                  <e-block class={cls_object_value} style={{ flex: "1" }}>
+                  <e-prose class={cls_object_value} style={{ flex: "1" }}>
                     {render_value(o_key.get() || id, o_child)}
-                  </e-block>
+                  </e-prose>
                 </e-flex>
               )
             })}
-          </e-block>
+          </e-prose>
           {can_add && (
             <button type="button" class={cls_add_key}>
               {$on("click", () => {
@@ -1112,14 +1112,14 @@ export class ArrayFactory extends Factory<ArrayOptions> {
       }),
       render: () => (
         <e-flex column spacing="widget">
-          <e-block class={cls_list_scroll}>
+          <e-prose class={cls_list_scroll}>
             {$scrollable}
             {VirtualScroll(o_visible_indices, (o_i) => (
               <e-flex align="center" spacing="widget">
                 <span class={cls_object_key}>{o_i.tf((i) => String(i))}</span>
-                <e-block class={cls_object_value} style={{ flex: "1" }}>
+                <e-prose class={cls_object_value} style={{ flex: "1" }}>
                   {o_i.tf((i) => render_element_or_preview(safe_array_index(o_value, i), String(i), values_factory))}
-                </e-block>
+                </e-prose>
                 {allows_delete(this.options) &&
                   o_i.tf((i) => (
                     <button type="button" class={cls_row_remove} title="Remove row">
@@ -1135,9 +1135,9 @@ export class ArrayFactory extends Factory<ArrayOptions> {
               return (
                 <e-flex align="center" spacing="widget">
                   <span class={cls_object_key}>+</span>
-                  <e-block class={cls_object_value} style={{ flex: "1" }}>
+                  <e-prose class={cls_object_value} style={{ flex: "1" }}>
                     {render_element_or_preview(row, "new", values_factory)}
-                  </e-block>
+                  </e-prose>
                   <button type="button" class={cls_row_remove} title="Discard row">
                     {$on("click", () => {
                       transient_rows.delete(id)
@@ -1148,7 +1148,7 @@ export class ArrayFactory extends Factory<ArrayOptions> {
                 </e-flex>
               )
             })}
-          </e-block>
+          </e-prose>
           {allows_insert(this.options) && (
             <button type="button" class={cls_add_key}>
               {$on("click", () => {
@@ -1197,7 +1197,7 @@ export class ArrayFactory extends Factory<ArrayOptions> {
           {o_has_extra.tf((has) =>
             has ? <span class={cls_table_warn} title="Some rows have keys not shown as columns">⚠ extra keys</span> : null,
           )}
-          <e-block class={cls_table_scroll}>
+          <e-prose class={cls_table_scroll}>
             {$scrollable}
             <table class={cls_table}>
               <thead>
@@ -1232,7 +1232,7 @@ export class ArrayFactory extends Factory<ArrayOptions> {
                 ))}
               </tbody>
             </table>
-          </e-block>
+          </e-prose>
         </e-flex>
       ),
       o_error: no_error,
@@ -1318,15 +1318,15 @@ export class SetFactory extends Factory<SetOptions> {
       }),
       render: () => (
         <e-flex column spacing="widget">
-          <e-block class={cls_list_scroll}>
+          <e-prose class={cls_list_scroll}>
             {$scrollable}
             {VirtualScroll(o_visible_members, (o_member) => (
               <e-flex align="center" spacing="widget">
-                <e-block class={cls_object_value} style={{ flex: "1" }}>
+                <e-prose class={cls_object_value} style={{ flex: "1" }}>
                   {o_member.tf((member) =>
                     render_element_or_preview(safe_set_member(o_value, member), value_preview_text(member), values_factory),
                   )}
-                </e-block>
+                </e-prose>
                 {allows_delete(this.options) &&
                   o_member.tf((member) => (
                     <button type="button" class={cls_row_remove} title="Remove member">
@@ -1341,9 +1341,9 @@ export class SetFactory extends Factory<SetOptions> {
               if (!row) return null
               return (
                 <e-flex align="center" spacing="widget">
-                  <e-block class={cls_object_value} style={{ flex: "1" }}>
+                  <e-prose class={cls_object_value} style={{ flex: "1" }}>
                     {render_element_or_preview(row, "new", values_factory)}
-                  </e-block>
+                  </e-prose>
                   <button type="button" class={cls_row_remove} title="Discard row">
                     {$on("click", () => {
                       transient_rows.delete(id)
@@ -1354,7 +1354,7 @@ export class SetFactory extends Factory<SetOptions> {
                 </e-flex>
               )
             })}
-          </e-block>
+          </e-prose>
           {allows_insert(this.options) && (
             <button type="button" class={cls_add_key}>
               {$on("click", () => {
@@ -1443,27 +1443,27 @@ export class MapFactory extends Factory<MapOptions> {
       }),
       render: () => (
         <e-flex column spacing="widget">
-          <e-block class={cls_list_scroll}>
+          <e-prose class={cls_list_scroll}>
             {$scrollable}
             {VirtualScroll(o_visible_keys, (o_key) => (
               <e-flex align="center" spacing="widget">
-                <e-block class={cls_object_value}>
+                <e-prose class={cls_object_value}>
                   {o_key.tf((key) => {
                     const o_k = safe_map_key(o_value, key)
                     return (
                       <e-flex align="center" spacing="widget">
-                        <e-block style={{ flex: "1" }}>{keys_factory.render(o_k).render()}</e-block>
+                        <e-prose style={{ flex: "1" }}>{keys_factory.render(o_k).render()}</e-prose>
                         {this.options.allow_key_type_change !== false &&
                           render_type_change_menu_button(o_k, this as Factory<CommonNodeOptions>)}
                       </e-flex>
                     )
                   })}
-                </e-block>
-                <e-block class={cls_object_value} style={{ flex: "1" }}>
+                </e-prose>
+                <e-prose class={cls_object_value} style={{ flex: "1" }}>
                   {o_key.tf((key) =>
                     render_element_or_preview(safe_map_value(o_value, key), value_preview_text(key), values_factory),
                   )}
-                </e-block>
+                </e-prose>
                 {allows_delete(this.options) &&
                   o_key.tf((key) => (
                     <button type="button" class={cls_row_remove} title="Remove entry">
@@ -1478,14 +1478,14 @@ export class MapFactory extends Factory<MapOptions> {
               if (!row) return null
               return (
                 <e-flex align="center" spacing="widget">
-                  <e-block class={cls_object_value}>{keys_factory.render(row.o_key).render()}</e-block>
-                  <e-block class={cls_object_value} style={{ flex: "1" }}>
+                  <e-prose class={cls_object_value}>{keys_factory.render(row.o_key).render()}</e-prose>
+                  <e-prose class={cls_object_value} style={{ flex: "1" }}>
                     {render_element_or_preview(row.o_val, "new", values_factory)}
-                  </e-block>
+                  </e-prose>
                 </e-flex>
               )
             })}
-          </e-block>
+          </e-prose>
           {allows_insert(this.options) && (
             <button type="button" class={cls_add_key}>
               {$on("click", () => {

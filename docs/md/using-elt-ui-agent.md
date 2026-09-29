@@ -14,14 +14,14 @@ Core elt rules (mount, observables, verbs) live in [`using-elt-agent.md`](./usin
 
 1. **Side-effect import.** `import "elt/ui"` once at app entry (see `docs/src/app.tsx`). That loads theme CSS, reset, layout, form, and typography layers onto the page.
 2. **Theme tokens, not ad hoc values.** Use `theme` colors, spacing attributes on layout elements, and `theme.settings` for radii/padding/font sizes. Avoid raw hex, arbitrary `px` gaps, and one-off margins.
-3. **Layout with layout elements.** Prefer `<e-flex>`, `<e-block>`, `<e-grid>` and their attributes over custom flex/grid CSS. Reach for plain CSS only when flex/grid attrs are not enough (complex grid templates, absolute positioning tricks, etc.).
-4. **`<e-block>` for prose.** Any region meant to read like documentation, help text, or long copy goes in `<e-block>` — it always spaces its content according to typographic rules. Do not hand-style headings, lists, or link colors inside prose blocks. If you need a plain block container that should *not* be spaced typographically, use a `div`, not `<e-block>`.
+3. **Layout with layout elements.** Prefer `<e-flex>`, `<e-prose>`, `<e-grid>` and their attributes over custom flex/grid CSS. Reach for plain CSS only when flex/grid attrs are not enough (complex grid templates, absolute positioning tricks, etc.).
+4. **`<e-prose>` for prose.** Any region meant to read like documentation, help text, or long copy goes in `<e-prose>` — it always spaces its content according to typographic rules. Do not hand-style headings, lists, or link colors inside prose blocks. If you need a plain block container that should *not* be spaced typographically, use a `div`, not `<e-prose>`.
 5. **Spacing via spacing/pad, not margin stacks.** Avoid margins between siblings; use `spacing` on `<e-flex>` / `<e-grid>` or `pad` on containers — `pad` implies a matching `spacing` automatically, so writing `pad` alone is usually enough. If you must margin, never stack adjacent margins — only the larger should win.
 6. **Native controls first.** Buttons, inputs, labels, checkboxes, `<dialog>` are styled globally. Prefer them + typed attributes (`e-variant`, etc.) over new widget chrome unless native limits block you (see widget inventory).
-7. **Two font weights in UI chrome.** Regular and bold for controls and chrome; `<e-block>`'s typographic rules handle prose hierarchy.
+7. **Two font weights in UI chrome.** Regular and bold for controls and chrome; `<e-prose>`'s typographic rules handle prose hierarchy.
 8. **Form control size.** Interactables use `theme.settings.formFontSize` (slightly smaller than body text). Do not bump control font sizes to match headings.
 9. **Do not add dependencies** to `ui/` (exception already in tree: `@floating-ui/dom` for popups). Apps may use their own deps; the sub-library may not grow new ones.
-10. **Custom CSS is the exception.** Before writing a `css` block, try `e-flex` / `e-block` attrs and theme color helpers. If you still need CSS, keep it local, use theme variables, and comment why layout elements were insufficient.
+10. **Custom CSS is the exception.** Before writing a `css` block, try `e-flex` / `e-prose` attrs and theme color helpers. If you still need CSS, keep it local, use theme variables, and comment why layout elements were insufficient.
 
 ---
 
@@ -70,19 +70,19 @@ Three layout elements cover most UI. They share attrs (`spacing`, `pad`, `grow`,
 | Element | Role |
 | ------- | ---- |
 | `<e-flex>` | Row/column flex; default row, baseline-aligned |
-| `<e-block>` | Block container; always spaces its content according to typographic rules |
+| `<e-prose>` | Block container; always spaces its content according to typographic rules |
 | `<e-grid>` | CSS grid when you need columns/areas — no grid “system”, write grid template in CSS if attrs are not enough |
 
 Common attrs:
 
 ```tsx
 <e-flex column pad="component" align="center" full-width>
-  <e-block grow>...</e-block>
+  <e-prose grow>...</e-prose>
 </e-flex>
 
-<e-block pad table-container>
+<e-prose pad table-container>
   <table>...</table>
-</e-block>
+</e-prose>
 ```
 
 Spacing scale (`pad="component"`, `spacing="widget"`, …): `nudge-1`/`nudge-2`/`nudge-4` (px, pixel-level nudges only) → `widget` → `component` (the default, most used) → `section` → `stage-1`…`stage-4`, mapping to `--e-spacing-*` in `ui/theme.tsx`. `pad="X"` implies `spacing="X"` at the same step automatically — write `pad` alone unless padding and inter-child spacing genuinely need to differ, in which case add an explicit `spacing="Y"` to override just that side. Default `pad`/`spacing` (boolean attr, no value) fall back to `component`. `pad="none"`/`spacing="none"` turn one side off explicitly.
@@ -102,20 +102,20 @@ Worked examples: [`visual-test.md`](./visual-test.md) § Surfaces, § Hover and 
 Wrap readable copy:
 
 ```tsx
-<e-block pad>
+<e-prose pad>
   <h2>Section</h2>
   <p>Body text with <a href="...">links</a>, lists, code, tables, …</p>
-</e-block>
+</e-prose>
 ```
 
-`<e-block>` applies vertical rhythm, heading sizes, list styles, blockquote, `pre`/`code`, and link colors tied to `theme.colors.tint` to every child. Tables inside any `<e-block>` pick up bordered cell styling.
+`<e-prose>` applies vertical rhythm, heading sizes, list styles, blockquote, `pre`/`code`, and link colors tied to `theme.colors.tint` to every child. Tables inside any `<e-prose>` pick up bordered cell styling.
 
 For data tables with sticky headers, use `table-container`:
 
 ```tsx
-<e-block table-container pad>
+<e-prose table-container pad>
   <table>...</table>
-</e-block>
+</e-prose>
 ```
 
 Font family defaults to IBM Plex Sans with `system-ui` fallback (`theme.settings.fontFamily`).

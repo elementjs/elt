@@ -5,7 +5,7 @@ declare module "elt" {
   interface ElementMap {
     "e-grid": EFlexAttrs
     "e-flex": EFlexAttrs
-    "e-block": EBlockAttrs
+    "e-prose": EProseAttrs
     "e-row": EFlexAttrs
     "e-column": EFlexAttrs
   }
@@ -79,7 +79,7 @@ export interface CommonAttrs extends Attrs<HTMLElement> {
   "full-height"?: NRO<boolean>
 }
 
-export interface EBlockAttrs extends CommonAttrs {
+export interface EProseAttrs extends CommonAttrs {
   variant?: NRO<"vertical">
   "table-container"?: NRO<boolean>
 }
@@ -138,7 +138,7 @@ const align: AlignValues[] = [
   "space-between",
 ]
 
-const _all = `:where(e-flex,e-grid,e-block,e-column,e-row)`
+const _all = `:where(e-flex,e-grid,e-prose,e-column,e-row)`
 const _flex = `:where(e-flex,e-column,e-row)`
 const _layouters = `:where(e-flex,e-grid,e-column,e-row)`
 
@@ -303,8 +303,8 @@ css`
   header { ${theme.colors.tint.css.as_inverted}; }
   footer { ${theme.colors.neutral.css.as_surface(1)} }
 
-  e-block { display: block; }
-  e-block[inline] { display: inline-block; }
+  e-prose { display: block; }
+  e-prose[inline] { display: inline-block; }
 
   e-flex,e-row,e-column { display: flex; flex-direction: row; flex-wrap: nowrap; align-items: baseline; }
   e-flex[column],e-column { flex-direction: column; }

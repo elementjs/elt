@@ -50,7 +50,8 @@ Pick by what the mixed color was doing at that call site, not by which of the tw
 
 | Old | New |
 | --- | --- |
-| `e-box` | `e-block` |
+| `e-box` | `e-prose` (renamed twice: `e-box` → `e-block` → `e-prose`; either old form converts directly to `e-prose`) |
+| `e-block` | `e-prose` |
 | `theme.settings.paddingPanelVertical` / `paddingPanelHorizontal` | `theme.settings.spacingComponent` (see Axis 3, below — the vertical/horizontal split itself was later removed) |
 | `theme.settings.paddingCell*` | `theme.settings.spacingWidget*` |
 | `theme.class_light` / `class_dark` / `class_dynamic` | Unchanged for now — `specs/elt-ui-guidelines.md` (line 87) has an open Todo to move these under `theme.classes.*`; do not rename ahead of that landing. |

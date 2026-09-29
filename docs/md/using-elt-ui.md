@@ -13,8 +13,8 @@ Human-oriented overview of the UI sub-library. Agents should use [`using-elt-ui-
 `elt/ui` is a separate sub-library imported as `"elt/ui"`. It provides:
 
 - A **theme engine** (OKLCH-based colors, light/dark, spacing, radii, typography settings)
-- **Layout elements** (`<e-flex>`, `<e-block>`, `<e-grid>`) with typed spacing/alignment attrs
-- **Global styling** for native HTML forms and prose (every `<e-block>` spaces its content according to typographic rules)
+- **Layout elements** (`<e-flex>`, `<e-prose>`, `<e-grid>`) with typed spacing/alignment attrs
+- **Global styling** for native HTML forms and prose (every `<e-prose>` spaces its content according to typographic rules)
 - A **small widget set** (`Select`, date/time pickers, popup, dialog, …)
 
 It deliberately does not try to be a large component library. The goal is a consistent visual language you extend in application code.
@@ -38,14 +38,14 @@ import { node_append } from "elt"
 
 const ui = (
   <div class={theme.toString()}>
-    <e-block pad>
+    <e-prose pad>
       <h1>Title</h1>
       <p>Body copy.</p>
       <e-flex spacing="widget">
         <button e-variant="inverted">Save</button>
         <button e-variant="text">Cancel</button>
       </e-flex>
-    </e-block>
+    </e-prose>
   </div>
 )
 
@@ -58,9 +58,9 @@ node_append(document.body, ui)
 
 - Use **theme tokens** for color, spacing, and radii — not one-off pixel values.
 - Prefer **layout elements + `spacing`/`pad`** over margins between siblings (`pad` implies matching `spacing` automatically).
-- Put long copy in **`<e-block>`** so headings, lists, and links stay consistent. Reach for a plain `div` instead of `e-block` when you need a block container that should *not* be spaced typographically.
+- Put long copy in **`<e-prose>`** so headings, lists, and links stay consistent. Reach for a plain `div` instead of `e-prose` when you need a block container that should *not* be spaced typographically.
 - Style **native HTML** controls before inventing new components.
-- **Two font weights** for UI chrome; prose hierarchy comes from `<e-block>`'s typographic rules.
+- **Two font weights** for UI chrome; prose hierarchy comes from `<e-prose>`'s typographic rules.
 
 Expanded rules, recipes, and widget inventory: [`using-elt-ui-agent.md`](./using-elt-ui-agent.md).
 

@@ -32,7 +32,7 @@ Two very differently sized projects share this name:
 
 Enough to unblock the object editor's color widget without committing to any of the open questions above:
 
-- Component (name/module TBD — see below): an `e-box` showing the current color as its own background — a live preview, which is the one thing the native input can't give us — and acting as the click/keyboard trigger.
+- Component (name/module TBD — see below): an `e-prose` showing the current color as its own background — a live preview, which is the one thing the native input can't give us — and acting as the click/keyboard trigger.
 - Activating it (click, or Enter/Space when focused) opens the **native** color picker: `input.showPicker()` where supported, `.click()` as a fallback, on a `<input type="color">` kept in the DOM but visually hidden (not `display: none` — needs to stay focusable/clickable for the fallback path; visually hidden via the usual sr-only-style technique).
 - Bound to a plain `o.Observable<string>` in the native input's own format (`#rrggbb`, no alpha — inherited limitation of (1) until/unless (2) exists).
 - Commits on the native input's **`change`** event, not `input` — avoids writing on every drag step inside the OS-level picker, consistent with "structural/immediate" controls elsewhere (not a staged multi-keystroke edit like a text field).

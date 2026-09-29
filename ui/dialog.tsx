@@ -46,7 +46,7 @@ export function show_dialog<T>(opts: DialogOptions | DialogCallback<T>, cbk?: Di
   const dialog = E(
     "dialog",
     content.header != null && <header><h1>{content.header}</h1></header>,
-    <e-block pad="component" class="e-dialog-body">{content.body}</e-block>,
+    <e-prose pad="component" class="e-dialog-body">{content.body}</e-prose>,
     content.footer != null && <footer>{content.footer}</footer>,
     opts.clickOutsideToClose &&
       $on("click", (ev) => {
@@ -110,13 +110,13 @@ dialog {
 
   transition: opacity 0.25s ease, transform 0.25s ease;
 
-  & > e-block.e-dialog-body {
+  & > e-prose.e-dialog-body {
     flex: 1 1 auto;
     overflow-y: auto;
     min-height: 0;
   }
 
-  &:has(> header) > e-block.e-dialog-body {
+  &:has(> header) > e-prose.e-dialog-body {
     border-top: 1px solid ${theme.colors.neutral.surface("n+3")};
   }
 

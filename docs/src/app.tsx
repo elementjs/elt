@@ -8,7 +8,7 @@ export const routes = app.setupRouter(routeDefs)
 function widget_nav() {
   return <e-column packed align="stretch">
     {menu.map((group) => <e-column packed align="stretch">
-      {group.section != null ? <e-block class={cls_section}>{group.section}</e-block> : null}
+      {group.section != null ? <e-prose class={cls_section}>{group.section}</e-prose> : null}
       {group.items.map((item) => <a href={`#${item.url}`}>{item.title}</a>)}
     </e-column>)}
   </e-column>

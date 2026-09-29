@@ -772,7 +772,7 @@ export class Mix {
    * Internal — not part of the public contract. Read via `.css.as_surface`.
    *
    * Raw CSS text for raising/painting a surface level — the single source of truth shared by the
-   * `[surface]` attribute (`ui/layout.css.tsx`, `e-flex`/`e-grid`/`e-block` only) and
+   * `[surface]` attribute (`ui/layout.css.tsx`, `e-flex`/`e-grid`/`e-prose` only) and
    * `.classes.as_surface` (any element). Unlike `as_surface` above, this also propagates the level
    * to children.
    */

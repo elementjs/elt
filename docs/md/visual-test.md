@@ -6,7 +6,7 @@ section: UI Recipes
 
 Leaving it here to not forget
 - border as .mid is when interaction takes place within it. Otherwise, it should be n+2.
-- Rule : inside an e-block, text MUST be put in a typographic container such as h*, p, pre, ul/li
+- Rule : inside an e-prose, text MUST be put in a typographic container such as h*, p, pre, ul/li
 
 # Visual Test
 
@@ -247,44 +247,44 @@ const cls_plain_surface = css`.plain-surface {
 }`
 
 return <e-column spacing="section">
-  <e-block surface pad="component" radius>
+  <e-prose surface pad="component" radius>
     <p>Level 1 surface. Has its own background and padding.</p>
-    <e-block spacing="widget">
-      <e-block surface pad="widget" radius>
+    <e-prose spacing="widget">
+      <e-prose surface pad="widget" radius>
         <p>Level 2 surface, nested — one step further off its own (already-raised) parent, not two
         steps off the page.</p>
-      </e-block>
-      <e-block surface pad="widget" radius>
+      </e-prose>
+      <e-prose surface pad="widget" radius>
         <p>A sibling level-2 surface, for comparison.</p>
-      </e-block>
-    </e-block>
-  </e-block>
+      </e-prose>
+    </e-prose>
+  </e-prose>
 
-  <e-block border pad="component">
+  <e-prose border pad="component">
     <p>No `surface` here — just a border. `border` implies `radius`, derived from this box's
     own vertical padding step.</p>
-  </e-block>
+  </e-prose>
 
   <e-row spacing="widget" wrap>
-    <e-block surface="tint-1" pad="widget" radius><p>surface="tint-1"</p></e-block>
-    <e-block surface="tint-2" pad="widget" radius><p>surface="tint-2"</p></e-block>
-    <e-block surface="tint-3" pad="widget" radius><p>surface="tint-3"</p></e-block>
-    <e-block surface="tint-4" pad="widget" radius><p>surface="tint-4"</p></e-block>
-    <e-block surface="neutral-2" pad="widget" radius><p>surface="neutral-2"</p></e-block>
+    <e-prose surface="tint-1" pad="widget" radius><p>surface="tint-1"</p></e-prose>
+    <e-prose surface="tint-2" pad="widget" radius><p>surface="tint-2"</p></e-prose>
+    <e-prose surface="tint-3" pad="widget" radius><p>surface="tint-3"</p></e-prose>
+    <e-prose surface="tint-4" pad="widget" radius><p>surface="tint-4"</p></e-prose>
+    <e-prose surface="neutral-2" pad="widget" radius><p>surface="neutral-2"</p></e-prose>
   </e-row>
 
-  <e-block surface="tint-3" pad="component" radius>
+  <e-prose surface="tint-3" pad="component" radius>
     <p>Ambient level 3.</p>
-    <e-block surface="background" pad="widget" radius>
+    <e-prose surface="background" pad="widget" radius>
       <p>surface="background" — level 0's own fill, clearly distinct from the level-3 ambient around
       it.</p>
-    </e-block>
+    </e-prose>
     <div class={cls_plain_surface}>
-      A plain &lt;div&gt;, not an &lt;e-block&gt; — styled with
+      A plain &lt;div&gt;, not an &lt;e-prose&gt; — styled with
       theme.colors.tint.classes.as_surface(2)'s underlying CSS directly, since [surface] itself
-      only targets e-flex/e-grid/e-block.
+      only targets e-flex/e-grid/e-prose.
     </div>
-  </e-block>
+  </e-prose>
 </e-column>
 ```
 
@@ -305,8 +305,8 @@ border of its own, and the *container's* radius (not each row's) is what the who
 ```tsx
 //@inline-example
 return <e-column packed border radius align="stretch">
-  <e-block hover><p>Hover me — background is tint.hover (level n+1)</p></e-block>
-  <e-block hover><p>The 1px line above is packed[border]'s own border, not a per-row divider</p></e-block>
+  <e-prose hover><p>Hover me — background is tint.hover (level n+1)</p></e-prose>
+  <e-prose hover><p>The 1px line above is packed[border]'s own border, not a per-row divider</p></e-prose>
 </e-column>
 ```
 
@@ -328,19 +328,19 @@ const cls_inverted_different = theme.colors.red.classes.as_inverted
 return <e-row spacing="section" wrap>
   <e-column class={cls_inverted} pad="component" spacing="widget" radius>
     <strong>tint, inverted</strong>
-    <e-block class={cls_inverted} pad="widget" radius border>
+    <e-prose class={cls_inverted} pad="widget" radius border>
       <p>Same color (tint) nested inside itself — renders identically to its parent. For this example, we set a border ; otherwise this block whould have no boundary which is a violation of the spacing rules.</p>
-    </e-block>
+    </e-prose>
   </e-column>
 
   <e-column class={cls_inverted} pad="component" spacing="widget" radius>
     <strong>tint, inverted</strong>
-    <e-block class={cls_inverted_different} pad="widget" radius>
+    <e-prose class={cls_inverted_different} pad="widget" radius>
       <p>A different color (red) nested inside — reads clearly against its parent.</p>
-    </e-block>
-    <e-block surface pad="widget" radius>
+    </e-prose>
+    <e-prose surface pad="widget" radius>
       <p>Or simply setting surface</p>
-    </e-block>
+    </e-prose>
   </e-column>
 </e-row>
 ```

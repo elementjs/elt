@@ -271,7 +271,7 @@ test.describe("Mix.surface / [surface] parity", () => {
     expect(css).toContain("& > * { --e-surface-level: var(--e-surface-level-relay); --e-surface-mix: var(--e-surface-mix-relay); }")
   })
 
-  test(".classes.as_surface() returns a stable, cached class name per level — usable on any element, not just e-flex/e-grid/e-block", async ({
+  test(".classes.as_surface() returns a stable, cached class name per level — usable on any element, not just e-flex/e-grid/e-prose", async ({
     page,
   }) => {
     // Content correctness (the CSS text) is covered by the .css.as_surface tests above. Reading the

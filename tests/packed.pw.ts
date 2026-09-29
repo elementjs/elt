@@ -95,9 +95,9 @@ test.describe("packed seam suppression (specs/borders.md, per-element self-detec
     const aRight = await page.evaluate(() => {
       const row = document.createElement("e-row")
       row.setAttribute("packed", "")
-      const a = document.createElement("e-block")
+      const a = document.createElement("e-prose")
       a.setAttribute("border", "")
-      const b = document.createElement("e-block")
+      const b = document.createElement("e-prose")
       b.setAttribute("border", "")
       row.append(a, b)
       document.body.appendChild(row)
@@ -110,8 +110,8 @@ test.describe("packed seam suppression (specs/borders.md, per-element self-detec
     const result = await page.evaluate(() => {
       const row = document.createElement("e-row")
       row.setAttribute("packed", "")
-      const a = document.createElement("e-block")
-      const b = document.createElement("e-block")
+      const a = document.createElement("e-prose")
+      const b = document.createElement("e-prose")
       a.setAttribute("border", "")
       a.setAttribute("radius", "")
       b.setAttribute("border", "")
@@ -143,8 +143,8 @@ test.describe("packed seam suppression (specs/borders.md, per-element self-detec
       const row = document.createElement("e-row")
       row.setAttribute("packed", "")
       row.setAttribute("radius", "")
-      const a = document.createElement("e-block")
-      const b = document.createElement("e-block")
+      const a = document.createElement("e-prose")
+      const b = document.createElement("e-prose")
       a.setAttribute("border", "")
       a.setAttribute("radius", "")
       b.setAttribute("border", "")
@@ -226,7 +226,7 @@ test.describe("packed[border] (specs/borders.md)", () => {
       const row = document.createElement("e-row")
       row.setAttribute("packed", "")
       row.setAttribute("border", "")
-      const a = document.createElement("e-block")
+      const a = document.createElement("e-prose")
       a.setAttribute("border", "tint")
       row.append(a)
       document.body.appendChild(row)
@@ -296,10 +296,10 @@ test.describe("packed[border] (specs/borders.md)", () => {
     const result = await page.evaluate(() => {
       const row = document.createElement("e-row")
       row.setAttribute("packed", "")
-      const a = document.createElement("e-block")
+      const a = document.createElement("e-prose")
       a.setAttribute("border", "")
       a.setAttribute("radius", "")
-      const b = document.createElement("e-block")
+      const b = document.createElement("e-prose")
       b.setAttribute("border", "")
       b.setAttribute("radius", "")
       row.append(a, b)
@@ -342,7 +342,7 @@ test.describe("[surface]/[border] color-step value type (specs/borders.md)", () 
   test('border="neutral-surface" on an element with surface="neutral-2" resolves to neutral-3 — the level-stack offset', async ({ page }) => {
     const result = await page.evaluate(() => {
       const { theme } = window.__ELT__.UI
-      const el = document.createElement("e-block")
+      const el = document.createElement("e-prose")
       el.setAttribute("surface", "neutral-2")
       el.setAttribute("border", "neutral-surface")
       document.body.appendChild(el)
@@ -357,7 +357,7 @@ test.describe("[surface]/[border] color-step value type (specs/borders.md)", () 
   test('border="tint-surface" on an element with surface="neutral-2" resolves to tint at level 3 — the level tracks the element\'s own surface, the family is explicit', async ({ page }) => {
     const result = await page.evaluate(() => {
       const { theme } = window.__ELT__.UI
-      const el = document.createElement("e-block")
+      const el = document.createElement("e-prose")
       el.setAttribute("surface", "neutral-2")
       el.setAttribute("border", "tint-surface")
       document.body.appendChild(el)
@@ -372,7 +372,7 @@ test.describe("[surface]/[border] color-step value type (specs/borders.md)", () 
   test('bare border ignores the element\'s own surface entirely — the flat widget color, not level-relative', async ({ page }) => {
     const result = await page.evaluate(() => {
       const { theme } = window.__ELT__.UI
-      const el = document.createElement("e-block")
+      const el = document.createElement("e-prose")
       el.setAttribute("surface", "neutral-2")
       el.setAttribute("border", "")
       document.body.appendChild(el)
@@ -387,7 +387,7 @@ test.describe("[surface]/[border] color-step value type (specs/borders.md)", () 
   test('border="neutral-4" (absolute) ignores the element\'s own surface value', async ({ page }) => {
     const result = await page.evaluate(() => {
       const { theme } = window.__ELT__.UI
-      const el = document.createElement("e-block")
+      const el = document.createElement("e-prose")
       el.setAttribute("surface", "tint-1")
       el.setAttribute("border", "neutral-4")
       document.body.appendChild(el)
@@ -402,7 +402,7 @@ test.describe("[surface]/[border] color-step value type (specs/borders.md)", () 
   test("bare surface (no value) resolves to the neutral family, one level up from ambient", async ({ page }) => {
     const result = await page.evaluate(() => {
       const { theme } = window.__ELT__.UI
-      const el = document.createElement("e-block")
+      const el = document.createElement("e-prose")
       el.setAttribute("surface", "")
       document.body.appendChild(el)
       const ref = document.createElement("div")
@@ -416,9 +416,9 @@ test.describe("[surface]/[border] color-step value type (specs/borders.md)", () 
   test('border="tint-surface" with no surface on the same element resolves against the ambient surface', async ({ page }) => {
     const result = await page.evaluate(() => {
       const { theme } = window.__ELT__.UI
-      const outer = document.createElement("e-block")
+      const outer = document.createElement("e-prose")
       outer.setAttribute("surface", "tint-2")
-      const inner = document.createElement("e-block")
+      const inner = document.createElement("e-prose")
       inner.setAttribute("border", "tint-surface")
       outer.append(inner)
       document.body.appendChild(outer)
@@ -435,7 +435,7 @@ test.describe("theme.css.radius own-pad vs ambient priority (specs/borders.md)",
   test("reads this element's own --e-pad when [pad=\"X\"] is set on the same element", async ({ page }) => {
     const result = await page.evaluate(() => {
       const { theme } = window.__ELT__.UI
-      const el = document.createElement("e-block")
+      const el = document.createElement("e-prose")
       el.setAttribute("radius", "")
       el.setAttribute("pad", "section")
       document.body.appendChild(el)
@@ -452,7 +452,7 @@ test.describe("theme.css.radius own-pad vs ambient priority (specs/borders.md)",
       const { theme } = window.__ELT__.UI
       const outer = document.createElement("e-row")
       outer.setAttribute("spacing", "section")
-      const el = document.createElement("e-block")
+      const el = document.createElement("e-prose")
       el.setAttribute("radius", "")
       outer.append(el)
       document.body.appendChild(outer)
@@ -468,7 +468,7 @@ test.describe("theme.css.radius own-pad vs ambient priority (specs/borders.md)",
 test.describe("[surface]/[border] no longer clip their own overflow (specs/borders.md)", () => {
   test("[surface] does not set overflow at all, replacing the old unconditional overflow: hidden", async ({ page }) => {
     const overflow = await page.evaluate(() => {
-      const el = document.createElement("e-block")
+      const el = document.createElement("e-prose")
       el.setAttribute("surface", "")
       document.body.appendChild(el)
       return getComputedStyle(el).overflowX
@@ -478,7 +478,7 @@ test.describe("[surface]/[border] no longer clip their own overflow (specs/borde
 
   test("[border] does not set overflow at all", async ({ page }) => {
     const overflow = await page.evaluate(() => {
-      const el = document.createElement("e-block")
+      const el = document.createElement("e-prose")
       el.setAttribute("border", "")
       document.body.appendChild(el)
       return getComputedStyle(el).overflowX
@@ -488,7 +488,7 @@ test.describe("[surface]/[border] no longer clip their own overflow (specs/borde
 
   test("a focus ring inside [surface] is not clipped away", async ({ page }) => {
     const shadow = await page.evaluate(() => {
-      const el = document.createElement("e-block")
+      const el = document.createElement("e-prose")
       el.setAttribute("surface", "")
       const a = document.createElement("button")
       el.append(a)

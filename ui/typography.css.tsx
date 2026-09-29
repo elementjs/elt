@@ -1,6 +1,6 @@
 /**
  * @module typography
- * default typography rules, applied to every e-block.
+ * default typography rules, applied to every e-prose.
  */
 
 import { css } from "elt"
@@ -31,7 +31,7 @@ css`@layer typography {
     text-box: trim-both cap alphabetic;
   }
 
-  e-block {
+  e-prose {
 
     /* ── Base rhythm ───────────────────────────────────────── */
     display: block;
@@ -128,7 +128,7 @@ css`@layer typography {
       padding: ${theme.settings.spacingComponent};
       background: ${theme.colors.neutral.surface(1)};
       /* Matches whatever radius the immediate wrapper has (e.g. docs/src/code-example.tsx's
-         <e-block border pad="none">), rather than pre's own (nonexistent) radius squaring off a
+         <e-prose border pad="none">), rather than pre's own (nonexistent) radius squaring off a
          rounded wrapper's corners from the inside — see specs/borders.md. Resolves to 0, same as
          today, when pre's direct parent has no radius of its own (plain prose). */
       border-radius: inherit;
@@ -199,7 +199,7 @@ css`@layer typography {
   }
 
   /* ── Table ─────────────────────────────────────────────── */
-  e-block table {
+  e-prose table {
     width: fit-content;
     border-collapse: separate;
     border: none;
@@ -242,7 +242,7 @@ css`@layer typography {
     }
   }
 
-  e-block[table-container] {
+  e-prose[table-container] {
     border-radius: ${theme.settings.borderRadius};
     max-width: 100%;
     width: fit-content;
@@ -256,7 +256,7 @@ css`@layer typography {
     }
   }
 
-  e-block {
+  e-prose {
     & > :first-child {
       margin-top: 0;
       margin-block-start: 0 !important;

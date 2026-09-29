@@ -8,7 +8,7 @@ test.describe("[border]/[surface] color-step value type (specs/borders.md)", () 
   test('bare [border] resolves to the flat "widget" neutral color (neutral.faded), independent of ambient surface', async ({ page }) => {
     const result = await page.evaluate(() => {
       const { theme } = window.__ELT__.UI
-      const el = document.createElement("e-block")
+      const el = document.createElement("e-prose")
       el.setAttribute("border", "")
       document.body.appendChild(el)
       const ref = document.createElement("div")
@@ -22,7 +22,7 @@ test.describe("[border]/[surface] color-step value type (specs/borders.md)", () 
   test('[border="tint"] resolves to the flat "widget" tint color (tint.mid)', async ({ page }) => {
     const result = await page.evaluate(() => {
       const { theme } = window.__ELT__.UI
-      const el = document.createElement("e-block")
+      const el = document.createElement("e-prose")
       el.setAttribute("border", "tint")
       document.body.appendChild(el)
       const ref = document.createElement("div")
@@ -36,7 +36,7 @@ test.describe("[border]/[surface] color-step value type (specs/borders.md)", () 
   test('[border="neutral"] resolves to the same flat neutral.faded as bare [border]', async ({ page }) => {
     const result = await page.evaluate(() => {
       const { theme } = window.__ELT__.UI
-      const el = document.createElement("e-block")
+      const el = document.createElement("e-prose")
       el.setAttribute("border", "neutral")
       document.body.appendChild(el)
       const ref = document.createElement("div")
@@ -50,7 +50,7 @@ test.describe("[border]/[surface] color-step value type (specs/borders.md)", () 
   test('[border="tint-surface"] resolves to the tint family, one level up from ambient — the level-stack offset, not the flat widget color', async ({ page }) => {
     const result = await page.evaluate(() => {
       const { theme } = window.__ELT__.UI
-      const el = document.createElement("e-block")
+      const el = document.createElement("e-prose")
       el.setAttribute("border", "tint-surface")
       document.body.appendChild(el)
       const ref = document.createElement("div")
@@ -64,7 +64,7 @@ test.describe("[border]/[surface] color-step value type (specs/borders.md)", () 
   test('[border="neutral-separator"] resolves to the neutral family, two levels up from ambient', async ({ page }) => {
     const result = await page.evaluate(() => {
       const { theme } = window.__ELT__.UI
-      const el = document.createElement("e-block")
+      const el = document.createElement("e-prose")
       el.setAttribute("border", "neutral-separator")
       document.body.appendChild(el)
       const ref = document.createElement("div")
@@ -78,7 +78,7 @@ test.describe("[border]/[surface] color-step value type (specs/borders.md)", () 
   test('[border="tint-4"] resolves to the tint family at the absolute level 4', async ({ page }) => {
     const result = await page.evaluate(() => {
       const { theme } = window.__ELT__.UI
-      const el = document.createElement("e-block")
+      const el = document.createElement("e-prose")
       el.setAttribute("border", "tint-4")
       document.body.appendChild(el)
       const ref = document.createElement("div")
@@ -92,7 +92,7 @@ test.describe("[border]/[surface] color-step value type (specs/borders.md)", () 
   test('[surface="tint-3"] resolves to the tint family at the absolute level 3', async ({ page }) => {
     const result = await page.evaluate(() => {
       const { theme } = window.__ELT__.UI
-      const el = document.createElement("e-block")
+      const el = document.createElement("e-prose")
       el.setAttribute("surface", "tint-3")
       document.body.appendChild(el)
       const ref = document.createElement("div")
@@ -106,7 +106,7 @@ test.describe("[border]/[surface] color-step value type (specs/borders.md)", () 
   test('[surface="neutral-3"] resolves to the neutral family at the absolute level 3', async ({ page }) => {
     const result = await page.evaluate(() => {
       const { theme } = window.__ELT__.UI
-      const el = document.createElement("e-block")
+      const el = document.createElement("e-prose")
       el.setAttribute("surface", "neutral-3")
       document.body.appendChild(el)
       const ref = document.createElement("div")
@@ -120,7 +120,7 @@ test.describe("[border]/[surface] color-step value type (specs/borders.md)", () 
   test('[surface="background"] is absolute level 0', async ({ page }) => {
     const result = await page.evaluate(() => {
       const { theme } = window.__ELT__.UI
-      const el = document.createElement("e-block")
+      const el = document.createElement("e-prose")
       el.setAttribute("surface", "background")
       document.body.appendChild(el)
       const ref = document.createElement("div")
@@ -135,10 +135,10 @@ test.describe("[border]/[surface] color-step value type (specs/borders.md)", () 
 test.describe("[hover] follows the ambient surface family (specs/borders.md)", () => {
   test("on a neutral-family surface, hover fill is neutral, not the old hardcoded tint", async ({ page }) => {
     await page.evaluate(() => {
-      const outer = document.createElement("e-block")
+      const outer = document.createElement("e-prose")
       outer.setAttribute("surface", "neutral-2")
       outer.id = "hover-test-outer"
-      const inner = document.createElement("e-block")
+      const inner = document.createElement("e-prose")
       inner.setAttribute("hover", "")
       inner.id = "hover-test-inner"
       inner.style.width = "40px"
@@ -170,7 +170,7 @@ test.describe("[hover] follows the ambient surface family (specs/borders.md)", (
 test.describe("[border] implies [radius] (specs/elt-ui-guidelines.md, Border radius is derived)", () => {
   test("a bordered element gets a nonzero radius by default, derived from its own padding step", async ({ page }) => {
     const result = await page.evaluate(() => {
-      const el = document.createElement("e-block")
+      const el = document.createElement("e-prose")
       el.setAttribute("border", "")
       el.setAttribute("pad", "component")
       document.body.appendChild(el)
@@ -181,7 +181,7 @@ test.describe("[border] implies [radius] (specs/elt-ui-guidelines.md, Border rad
 
   test('radius="none" opts out even though a border is present', async ({ page }) => {
     const result = await page.evaluate(() => {
-      const el = document.createElement("e-block")
+      const el = document.createElement("e-prose")
       el.setAttribute("border", "")
       el.setAttribute("pad", "component")
       el.setAttribute("radius", "none")
@@ -193,7 +193,7 @@ test.describe("[border] implies [radius] (specs/elt-ui-guidelines.md, Border rad
 
   test("the implied radius applies uniformly across border values, including an absolute one (tint-2)", async ({ page }) => {
     const result = await page.evaluate(() => {
-      const el = document.createElement("e-block")
+      const el = document.createElement("e-prose")
       el.setAttribute("border", "tint-2")
       el.setAttribute("pad", "component")
       document.body.appendChild(el)
@@ -210,7 +210,7 @@ test.describe("[border] implies [radius] (specs/elt-ui-guidelines.md, Border rad
     // :not([radius="none"]) rule's higher specificity — see ui/layout.css.tsx).
     const result = await page.evaluate(() => {
       const { theme } = window.__ELT__.UI
-      const el = document.createElement("e-block")
+      const el = document.createElement("e-prose")
       el.setAttribute("radius", "section")
       document.body.appendChild(el)
       const ref = document.createElement("div")
@@ -311,7 +311,7 @@ test.describe("Spacing scale nudge rename (regression: '1'/'2'/'4' -> 'nudge-1'/
 test.describe("<pre> radius and overflow (specs/borders.md)", () => {
   test("<pre> inherits its immediate parent's border-radius, matching a rounded wrapper's corners", async ({ page }) => {
     const result = await page.evaluate(() => {
-      const wrapper = document.createElement("e-block")
+      const wrapper = document.createElement("e-prose")
       wrapper.setAttribute("border", "")
       wrapper.setAttribute("pad", "none")
       const pre = document.createElement("pre")
@@ -331,7 +331,7 @@ test.describe("<pre> radius and overflow (specs/borders.md)", () => {
 
   test("<pre> with no rounded wrapper stays at 0 radius, unchanged from before", async ({ page }) => {
     const result = await page.evaluate(() => {
-      const wrapper = document.createElement("e-block")
+      const wrapper = document.createElement("e-prose")
       const pre = document.createElement("pre")
       pre.textContent = "const x = 1"
       wrapper.appendChild(pre)
@@ -350,7 +350,7 @@ test.describe("<pre> radius and overflow (specs/borders.md)", () => {
     // shows. This asserts the visible-scrollbar-relevant property (overflow-y itself), not
     // scrollHeight, which can still legitimately differ as a harmless measurement artifact.
     const result = await page.evaluate(() => {
-      const wrapper = document.createElement("e-block")
+      const wrapper = document.createElement("e-prose")
       const pre = document.createElement("pre")
       const code = document.createElement("code")
       code.textContent = "const x = 1"
@@ -365,7 +365,7 @@ test.describe("<pre> radius and overflow (specs/borders.md)", () => {
 
   test("<pre> still scrolls horizontally when a line is too wide", async ({ page }) => {
     const overflowX = await page.evaluate(() => {
-      const wrapper = document.createElement("e-block")
+      const wrapper = document.createElement("e-prose")
       const pre = document.createElement("pre")
       wrapper.appendChild(pre)
       document.body.appendChild(wrapper)
@@ -389,7 +389,7 @@ test.describe("<pre> radius and overflow (specs/borders.md)", () => {
       const column = document.createElement("e-column")
       column.setAttribute("align", "stretch")
       column.style.width = "300px"
-      const wrapper = document.createElement("e-block")
+      const wrapper = document.createElement("e-prose")
       wrapper.setAttribute("border", "")
       wrapper.setAttribute("pad", "none")
       const pre = document.createElement("pre")

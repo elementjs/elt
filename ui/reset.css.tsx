@@ -11,7 +11,7 @@ css`@layer reset {
     scrollbar-color: ${theme.colors.tint.mid} ${theme.colors.tint.from_bg("10%")};
   }
 
-  :where(button, input, select, label, e-block, e-row, e-column, e-flex, e-grid) {
+  :where(button, input, select, label, e-prose, e-row, e-column, e-flex, e-grid) {
     line-height: 1;
   }
 

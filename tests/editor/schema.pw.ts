@@ -96,7 +96,7 @@ test.describe("ObjectFactory keys", () => {
       const widget = object({ properties: [] }).render(o_root as any)
       const root = widget.render() as HTMLElement
       node_append(document.body, root)
-      const list = root.querySelector("e-block")!
+      const list = root.querySelector("e-prose")!
       return [...list.querySelectorAll("e-flex > span")]
         .map((el) => el.textContent?.trim())
         .filter((t): t is string => !!t && t !== "+")
