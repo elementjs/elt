@@ -254,7 +254,7 @@ Import from `"elt/ui"` (barrel) or subpaths when tree-shaking matters (see `edit
 | `popup` | `elt/ui/popup` | Anchored overlay; returns `Future`; nests under parent popup |
 | `show_dialog` | `elt/ui/dialog` | Modal `<dialog>` with animation |
 | Icons | `elt/ui/icons` | Small SVG icons (CaretDown, Check, …) |
-| `$keymap` | `elt/ui/keymap` | Keyboard shortcuts |
+| `$keymap`, `keymap_used` | `elt/ui/keymap` | Keyboard shortcuts and key sequences (`Ctrl+k, s`) scoped to a node or to `document`; see `specs/keymap.md` |
 | Color picker | *pending* | See `specs/ui-color-picker.md` |
 
 **Select pattern:**
@@ -278,6 +278,23 @@ $click(async (ev) => {
   ), { arrow: true, placement: "right-start" })
 })
 ```
+
+**Keymap pattern:**
+
+```tsx
+import { $keymap } from "elt/ui/keymap"
+
+// Listens on the node: active while focus is inside it. `target: document` for app-wide shortcuts.
+<e-column>
+  {$keymap({
+    "Mod+s": () => save(),                // Mod = Cmd on macOS, Ctrl elsewhere
+    "Ctrl+k, s": () => open_settings(),   // sequence: combinations separated by ","
+    "j, k": { callback: leave_input, prevent_default: "last" }, // `j` still types into the input
+  })}
+</e-column>
+```
+
+Nested keymaps: the innermost keymap wins on a full match; a shared prefix does not block the outer keymap. `keymap_used(ev)` tells a plain `keydown` listener that a keymap already used the event. Rules: `specs/keymap.md`.
 
 Widget options on scalar fields should forward underlying component attrs (ADR 0001) — do not duplicate option types in app code.
 
