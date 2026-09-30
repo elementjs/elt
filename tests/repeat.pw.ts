@@ -782,6 +782,142 @@ test.describe("Repeat", () => {
     })
   })
 
+  test.describe("minimal DOM operations", () => {
+    // Mounts a keyed list of inputs, one per string, and records the child list mutations of the
+    // container during `o_lst.set(next)`.
+    const run_update = (page: import("@playwright/test").Page, initial: string[], next: string[], focus?: string) =>
+      page.evaluate(
+        ({ initial, next, focus }) => {
+          const { o, Repeat, node_append } = window.__ELT__
+          const o_lst = o(initial)
+          const container = document.createElement("div")
+          node_append(
+            container,
+            Repeat(o_lst, (item: any) => {
+              const input = document.createElement("input")
+              input.className = "repeat-input"
+              input.value = item.get()
+              return input
+            }).withKeyFunction((s: string) => s),
+          )
+          node_append(document.body, container)
+          const by_key = new Map<string, HTMLInputElement>()
+          for (const input of container.querySelectorAll("input")) by_key.set(input.value, input)
+          if (focus) by_key.get(focus)!.focus()
+
+          const mo = new MutationObserver(() => {})
+          mo.observe(container, { childList: true })
+          o_lst.set(next)
+          const records = mo.takeRecords()
+          mo.disconnect()
+
+          const inputs = [...container.querySelectorAll("input")]
+          const out = {
+            values: inputs.map((i) => i.value),
+            // Surviving keys must keep their input
+            kept: next.filter((k) => by_key.has(k)).every((k) => inputs[next.indexOf(k)] === by_key.get(k)),
+            focused: focus ? document.activeElement === by_key.get(focus) : true,
+            // Elements that were (re)inserted, by value
+            added: records.flatMap((r) => [...r.addedNodes].filter((n) => n instanceof HTMLInputElement).map((n) => (n as HTMLInputElement).value)),
+            insert_records: records.filter((r) => r.addedNodes.length > 0).length,
+            removed: records.flatMap((r) => [...r.removedNodes].filter((n) => n instanceof HTMLInputElement).map((n) => (n as HTMLInputElement).value)),
+          }
+          window.__ELT__.node_remove(container)
+          return out
+        },
+        { initial, next, focus },
+      )
+
+    test("rotating the head to the tail moves only that item", async ({ page }) => {
+      const r = await run_update(page, ["a", "b", "c", "d"], ["b", "c", "d", "a"], "b")
+      expect(r.values).toEqual(["b", "c", "d", "a"])
+      expect(r.kept).toBe(true)
+      expect(r.added).toEqual(["a"])
+      expect(r.focused).toBe(true)
+    })
+
+    test("a focused item that has to move keeps its focus", async ({ page }) => {
+      const r = await run_update(page, ["a", "b", "c"], ["b", "c", "a"], "a")
+      expect(r.values).toEqual(["b", "c", "a"])
+      expect(r.added).toEqual(["a"])
+      expect(r.focused).toBe(true)
+    })
+
+    test("a reversal moves all but one item", async ({ page }) => {
+      const r = await run_update(page, ["a", "b", "c", "d", "e"], ["e", "d", "c", "b", "a"])
+      expect(r.values).toEqual(["e", "d", "c", "b", "a"])
+      expect(r.kept).toBe(true)
+      expect(r.added.length).toBe(4)
+    })
+
+    test("consecutive new items are inserted with a single operation", async ({ page }) => {
+      const r = await run_update(page, ["a", "e"], ["a", "b", "c", "d", "e"])
+      expect(r.values).toEqual(["a", "b", "c", "d", "e"])
+      expect(r.kept).toBe(true)
+      expect(r.added).toEqual(["b", "c", "d"])
+      expect(r.insert_records).toBe(1)
+    })
+
+    // A Range removal still yields one mutation per node (DOM spec), so only check what was touched.
+    test("removing items touches only the removed nodes", async ({ page }) => {
+      const r = await run_update(page, ["a", "b", "c", "d", "e"], ["a", "e"])
+      expect(r.values).toEqual(["a", "e"])
+      expect(r.kept).toBe(true)
+      expect(r.added).toEqual([])
+      expect(r.removed).toEqual(["b", "c", "d"])
+    })
+
+    test("random keyed updates keep order, node identity and observers consistent", async ({ page }) => {
+      const result = await page.evaluate(() => {
+        const { o, Repeat, node_append, node_is_observing } = window.__ELT__
+        // Deterministic pseudo random generator, so a failure can be replayed
+        let seed = 42
+        const rand = (n: number) => {
+          seed = (seed * 1103515245 + 12345) & 0x7fffffff
+          return seed % n
+        }
+        const o_lst = o<string[]>([])
+        const container = document.createElement("div")
+        node_append(
+          container,
+          Repeat(o_lst, (item: any) => {
+            const span = document.createElement("span")
+            span.className = "repeat-item"
+            node_append(span, item)
+            return span
+          }).withKeyFunction((s: string) => s),
+        )
+        node_append(document.body, container)
+
+        const errors: string[] = []
+        let prev = new Map<string, Element>()
+        for (let step = 0; step < 300; step++) {
+          // Random subset of a 12 letter pool, shuffled
+          const pool = "abcdefghijkl".split("").filter(() => rand(3) > 0)
+          for (let i = pool.length - 1; i > 0; i--) {
+            const j = rand(i + 1)
+            ;[pool[i], pool[j]] = [pool[j], pool[i]]
+          }
+          o_lst.set(pool)
+
+          const spans = [...container.querySelectorAll(".repeat-item")]
+          const texts = spans.map((s) => s.textContent)
+          if (texts.join() !== pool.join()) errors.push(`step ${step}: ${texts.join()} != ${pool.join()}`)
+          for (const [k, el] of prev) {
+            const idx = pool.indexOf(k)
+            if (idx >= 0 && spans[idx] !== el) errors.push(`step ${step}: ${k} lost its node`)
+            // A removed key's node may have been re-keyed for a new key ; only detached nodes must stop.
+            if (!el.isConnected && node_is_observing(el as HTMLElement)) errors.push(`step ${step}: ${k} still observing`)
+          }
+          prev = new Map(pool.map((k, i) => [k, spans[i]]))
+        }
+        window.__ELT__.node_remove(container)
+        return errors.slice(0, 5)
+      })
+      expect(result).toEqual([])
+    })
+  })
+
   test.describe("complex fragment items and observer lifecycle", () => {
     test("renders fragment roots with multiple observed subtrees", async ({ page }) => {
       const result = await page.evaluate(() => {

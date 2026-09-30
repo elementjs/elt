@@ -17,6 +17,9 @@ declare global {
   }
 }
 
+/** Safari does not ship `moveBefore` yet ; there, moves fall back to remove + insert and lose focus. */
+const HAS_MOVE_BEFORE = typeof Element !== "undefined" && "moveBefore" in Element.prototype
+
 /**
  * The comment holder is a class meant to help verbs and observables maintain nodes between two comments.
  */
@@ -69,6 +72,20 @@ export class CommentHolder extends Comment {
 
   /** Move this node and its contents to a new destination */
   moveTo(parent: Node, refchild: Node | null = null) {
+    if (HAS_MOVE_BEFORE && this.isConnected && parent.isConnected) {
+      // Live to live: an atomic move keeps focus, selection, iframes and running animations. The
+      // nodes never leave the document, so no connected/disconnected callback has to run.
+      const last = this.end ?? this
+      let node: Node = this
+      while (true) {
+        const next = node.nextSibling
+        ;(parent as ParentNode).moveBefore(node, refchild)
+        if (node === last || next == null) break
+        node = next
+      }
+      return
+    }
+
     let iter = this as Node | null
     let next: Node | null = this.nextSibling as Node | null
 

@@ -3,10 +3,58 @@
  */
 import { o } from "./observable"
 
-import { CommentHolder, node_append, node_do_disconnect, node_observe, node_remove } from "./dom"
+import { CommentHolder, node_append, node_do_disconnect, node_observe } from "./dom"
 
 import { sym_insert } from "./symbols"
 import type { Appender, Renderable } from "./types"
+
+let _range: Range | null = null
+
+/**
+ * Take the siblings from `first` to `last` (inclusive) out of the document with a single Range call,
+ * after running their disconnected callbacks. With `keep`, they are moved to a fragment so they can
+ * be re-inserted later ; otherwise they are dropped.
+ */
+function detach_run(first: Node, last: Node, keep: boolean) {
+  for (let n: Node | null = first; n != null; n = n.nextSibling) {
+    node_do_disconnect(n)
+    if (n === last) break
+  }
+  _range ??= document.createRange()
+  _range.setStartBefore(first)
+  _range.setEndAfter(last)
+  if (keep) _range.extractContents()
+  else _range.deleteContents()
+}
+
+/**
+ * Flag the entries of `seq` forming a longest strictly increasing subsequence, ignoring negative
+ * entries. O(n log n) time, three typed arrays of length n.
+ */
+function lis_mask(seq: Int32Array): Uint8Array {
+  const n = seq.length
+  const mask = new Uint8Array(n)
+  const prev = new Int32Array(n)
+  // tails[l]: index in `seq` of the smallest value ending an increasing run of length l + 1
+  const tails = new Int32Array(n)
+  let len = 0
+  for (let i = 0; i < n; i++) {
+    const v = seq[i]
+    if (v < 0) continue
+    let lo = 0
+    let hi = len
+    while (lo < hi) {
+      const mid = (lo + hi) >> 1
+      if (seq[tails[mid]] < v) lo = mid + 1
+      else hi = mid
+    }
+    prev[i] = lo > 0 ? tails[lo - 1] : -1
+    tails[lo] = i
+    if (lo === len) len++
+  }
+  for (let i = len > 0 ? tails[len - 1] : -1; i >= 0; i = prev[i]) mask[i] = 1
+  return mask
+}
 
 export class Verb<N extends Node> implements Appender<N> {
   attrs?: { [name: string]: string | number | null | false }
@@ -235,6 +283,9 @@ export namespace Switch {
  * Repeat(o_items, o_item => <li>{o_item.p("field")}</li>)
  * ```
  *
+ * Items are identified by a key: the item itself by default, or the result of `withKeyFunction()`.
+ * Keys must be unique within the list ; use `withKeyFunction()` when items can be equal.
+ *
  * @group Verbs
  */
 export function Repeat<Obs extends Repeat.RepeatedObservable<any>>(
@@ -437,21 +488,34 @@ export namespace Repeat {
 
     /** Move in-view nodes that fell outside the window off-DOM but keep them keyed. */
     protected evict_outside_view(view_start: number, view_end: number) {
-      let iter = this.__list.nextSibling as RepeatItemElement<Obs> | null
-      while (iter != null && iter !== this.__list.end) {
-        const next = (iter.end?.nextSibling ?? iter.nextSibling) as RepeatItemElement<Obs> | null
-        const obs = iter[sym_obs]
-        if (obs != null) {
-          const abs = obs.o_prop.get()
-          if (abs < view_start || abs >= view_end) {
-            const fr = document.createDocumentFragment()
-            iter.moveTo(fr)
-            iter = next
-            continue
-          }
-        }
-        iter = next
+      // Consecutive evicted items are detached together, with one Range call per run.
+      let run_first: Node | null = null
+      let run_last: Node | null = null
+      const flush = () => {
+        if (run_first == null) return
+        detach_run(run_first, run_last!, true)
+        run_first = null
       }
+
+      let iter = this.__list.nextSibling
+      while (iter != null && iter !== this.__list.end) {
+        const obs = (iter as RepeatItemElement<Obs>)[sym_obs]
+        if (obs == null) {
+          flush()
+          iter = iter.nextSibling
+          continue
+        }
+        const item = iter as RepeatItemElement<Obs>
+        const abs = obs.o_prop.get()
+        if (abs < view_start || abs >= view_end) {
+          run_first ??= item
+          run_last = item.end ?? item
+        } else {
+          flush()
+        }
+        iter = (item.end ?? item).nextSibling
+      }
+      flush()
     }
 
     protected updateChildrenPre(
@@ -480,238 +544,189 @@ export namespace Repeat {
       }
     }
 
-    /** Compute the range of children that need to be updated */
+    /**
+     * Reconcile the items in the DOM with `new_lst`, restricted to the view window when one is set.
+     *
+     * Live DOM operations are kept to a minimum:
+     * - the common head and tail are left alone,
+     * - in the middle, items whose key vanished are re-keyed for the new keys, in order, so that an
+     *   edited item (whose key changed because it was cloned) keeps its nodes in place,
+     * - the items forming the longest increasing subsequence of old positions stay where they are,
+     *   only the others move, with `moveBefore` so they keep focus,
+     * - new items (and items pulled back from off-DOM) are grouped in one fragment per run of
+     *   consecutive slots and inserted in one go,
+     * - unused items are removed at the end, one Range call per run of consecutive items.
+     */
     protected updateChildren(
       new_lst: NonNullable<o.ObservedType<Obs>>,
       view_override?: { start: number; end: number },
     ) {
       const keyfn = this.keyfn
       const { start: view_start, end: view_end } = this.resolve_view(new_lst.length, view_override)
-      const view_active = view_start !== 0 || view_end !== new_lst.length
 
-      if (view_active) {
+      if (view_start !== 0 || view_end !== new_lst.length) {
         this.evict_outside_view(view_start, view_end)
       }
 
-      const keys: any[] = new Array(new_lst.length)
+      // Wanted keys, indexed relatively to view_start
+      const count = view_end - view_start
+      const keys: any[] = new Array(count)
       const key_map = new Map<any, number>()
-      for (let i = view_start; i < view_end; i++) {
+      for (let j = 0; j < count; j++) {
+        const i = view_start + j
         const item = new_lst[i]
         const key = keyfn?.(item, i) ?? item ?? `--repeat-key-${i}`
-        keys[i] = key
-        key_map.set(key, i)
+        keys[j] = key
+        key_map.set(key, j)
       }
 
-      let iter = this.__list.nextSibling as RepeatItemElement<Obs> | null
-      let end = this.__list.end!.previousSibling as RepeatItemElement<Obs> | null
+      // Items currently in the DOM, in order
+      const list_end = this.__list.end!
+      const old: RepeatItemElement<Obs>[] = []
+      for (let iter = this.__list.nextSibling; iter != null && iter !== list_end; ) {
+        const item = iter as RepeatItemElement<Obs>
+        if (item[sym_obs] != null) {
+          old.push(item)
+          iter = (item.end ?? item).nextSibling
+        } else {
+          iter = iter.nextSibling
+        }
+      }
 
-      let idx = view_start
+      // Common head and tail keep their nodes where they are ; only their index may have shifted.
+      const max_common = Math.min(old.length, count)
+      let head = 0
+      while (head < max_common && old[head][sym_obs].key === keys[head]) {
+        old[head][sym_obs].o_prop.set(view_start + head)
+        head++
+      }
+      let tail = 0
+      while (tail < max_common - head && old[old.length - 1 - tail][sym_obs].key === keys[count - 1 - tail]) {
+        old[old.length - 1 - tail][sym_obs].o_prop.set(view_start + count - 1 - tail)
+        tail++
+      }
 
+      const old_mid_end = old.length - tail
+      const mid_len = count - tail - head // number of wanted slots in the middle
+      if (head === old_mid_end && mid_len === 0) return
+
+      // For each middle slot: the node that will fill it, and its position in `old` (-1 when it is
+      // not in the DOM middle, meaning it is new or pulled back from off-DOM).
+      const nodes: (RepeatItemElement<Obs> | undefined)[] = new Array(mid_len)
+      const src = new Int32Array(mid_len).fill(-1)
+      const dead: number[] = [] // positions in `old` of items whose key is gone
+      for (let k = head; k < old_mid_end; k++) {
+        const j = key_map.get(old[k][sym_obs].key)
+        if (j == null) {
+          dead.push(k)
+        } else {
+          nodes[j - head] = old[k]
+          src[j - head] = k
+        }
+      }
+
+      // Fill the slots that have no node in the DOM middle.
+      let dead_used = 0
+      for (let s = 0; s < mid_len; s++) {
+        if (nodes[s] != null) continue
+        const key = keys[head + s]
+        const off_dom = this.node_map.get(key) // evicted earlier by the view window
+        if (off_dom != null) {
+          nodes[s] = off_dom
+        } else if (dead_used < dead.length) {
+          // Re-key a dead item for this new key, in order ; it keeps its place if the order allows.
+          const k = dead[dead_used++]
+          const node = old[k]
+          this.node_map.delete(node[sym_obs].key)
+          this.node_map.set(key, node)
+          nodes[s] = node
+          src[s] = k
+        }
+        // else: created during placement below
+      }
+
+      const stay = lis_mask(src)
       const parent = this.__list.parentNode!
-      const list_insert_ref = (before: Node | null) => before ?? this.__list.end!
 
-      const place_item = (node: RepeatItemElement<Obs>, before: Node | null) => {
-        node.moveTo(parent, list_insert_ref(before))
+      // Place slots from last to first, so that `ref` is always the node right after the slot.
+      let ref: Node = tail > 0 ? old[old_mid_end] : list_end
+      let pending: DocumentFragment | null = null // consecutive new / off-DOM items, inserted at once
+      const flush = () => {
+        if (pending == null) return
+        const first = pending.firstChild!
+        node_append(parent, pending, ref)
+        ref = first
+        pending = null
       }
 
-      const sync_item = (node: RepeatItemElement<Obs>, at: number) => {
+      for (let s = mid_len - 1; s >= 0; s--) {
+        const i = view_start + head + s
+        const node = nodes[s]
+
+        if (node == null) {
+          pending ??= document.createDocumentFragment()
+          this.create(new_lst, keys[head + s], i, view_start, pending, pending.firstChild)
+          continue
+        }
+
         const obs = node[sym_obs]
-        obs.o_prop.set(at)
-        obs.key = keys[at]
-        obs.repeatSet(new_lst[at])
-      }
+        obs.o_prop.set(i)
+        obs.key = keys[head + s]
+        obs.repeatSet(new_lst[i])
 
-      const pull_item = (key: any, at: number, before: Node | null) => {
-        const prev = this.node_map.get(key)
-        if (prev == null) return false
-        sync_item(prev, at)
-        place_item(prev, before)
-        return true
-      }
-
-      // Start by figuring out at the beginning and the end what will not have to be touched
-      while (iter != null && iter !== end) {
-        const obs = iter[sym_obs]
-        if (obs != null) {
-          const new_idx = key_map.get(obs.key)
-          if (new_idx != null && new_idx === idx) {
-            idx++
-          } else {
-            break
-          }
-        }
-        iter = iter.nextSibling as RepeatItemElement<Obs> | null
-      }
-
-      let end_idx = view_end
-      while (end != null && end !== iter) {
-        const obs = end[sym_obs]
-        if (obs != null) {
-          const new_idx = key_map.get(obs.key)
-          if (new_idx != null && new_idx === end_idx - 1) {
-            obs.o_prop.set(end_idx - 1) // the list size may have changed, so we need to update the index
-            end_idx--
-            continue
-          } else {
-            break
-          }
-        }
-        end = end.previousSibling as RepeatItemElement<Obs> | null
-      }
-      end = (end?.nextSibling ?? null) as RepeatItemElement<Obs> | null
-
-      if (idx > end_idx) {
-        // We're _done_
-        return
-      }
-
-      // After this, iter is on the first node that we don't know what to do with and end is where we will stop
-
-      const dead_nodes = new Map<RepeatItemElement<Obs>, DocumentFragment>()
-      const dead_nodes_iter = dead_nodes.entries()
-      let created = 0
-
-      const reuse_dead_node = (iter: Node | null, idx: number) => {
-        const next = dead_nodes_iter.next()
-        if (next.done) {
-          return false
-        }
-        const [node, fragment] = next.value!
-        dead_nodes.delete(node)
-        const obs = node[sym_obs]
-        const value = new_lst[idx]
-        obs.o_prop.set(idx)
-        obs.key = keys[idx]
-        this.node_map.set(obs.key, node)
-        node_append(parent, fragment, list_insert_ref(iter))
-        obs.repeatSet(value)
-        return true
-      }
-
-      do {
-        // position ourselves on the next iter
-        while (iter != null && iter !== end && iter[sym_obs] == null) {
-          iter = iter.nextSibling as RepeatItemElement<Obs> | null
-        }
-
-        if (iter == null || iter === end || idx >= view_end) {
-          break
-        }
-
-        const obs = iter[sym_obs]
-        const key = keys[idx] // The wanted key at this index
-
-        if (obs.key === key) {
-          // Well, now, this is fantastic, this is exactly what we wanted
-          obs.o_prop.set(idx)
-          obs.repeatSet(new_lst[idx])
-          idx++
-          iter = iter.end!.nextSibling as RepeatItemElement<Obs> | null
+        if (src[s] < 0) {
+          // Off-DOM: joins the pending fragment
+          pending ??= document.createDocumentFragment()
+          node.moveTo(pending, pending.firstChild)
           continue
         }
 
-        const new_idx = key_map.get(obs.key)
-        if (new_idx == null && !this.node_map.has(key)) {
-          // This node's key vanished and the wanted key is brand new: the slot merely changed
-          // identity (typically an item cloned by an edit through `o_item.p(...)`). Re-key the node
-          // where it stands rather than detaching it and re-inserting it, which would cost live DOM
-          // operations, restart every observer in the item and blur a focused input inside it.
-          this.node_map.delete(obs.key)
-          sync_item(iter, idx)
-          this.node_map.set(key, iter)
-          idx++
-          iter = iter.end!.nextSibling as RepeatItemElement<Obs> | null
-          continue
-        }
-
-        if (new_idx == null) {
-          // This node is dead, mark it as such
-          const to_remove = iter
-          iter = iter.end!.nextSibling as RepeatItemElement<Obs> | null
-          const fr = document.createDocumentFragment()
-          to_remove.moveTo(fr)
-          dead_nodes.set(to_remove, fr)
-          this.node_map.delete(obs.key)
-          continue
-        }
-
-        // At this position, we want `key`. So we try and pull it.
-        if (pull_item(key, idx, iter)) {
-          idx++
-          continue
-        }
-
-        // Well, seems like key is new, since we haven't found it
-
-        if (dead_nodes.size > 0) {
-          // Try to reuse a dead node
-          if (reuse_dead_node(iter, idx)) idx++
-          continue
-        }
-
-        created++
-        const nd = this.create(new_lst, key, idx, view_start)
-        idx++
-        place_item(nd, iter)
-      } while (true)
-
-      if (iter == null || iter === end) {
-        while (idx < end_idx && dead_nodes.size > 0) {
-          if (reuse_dead_node(iter, idx)) idx++
-        }
-
-        while (idx < end_idx) {
-          if (pull_item(keys[idx], idx, iter)) {
-            idx++
-            continue
-          }
-          const nd = this.create(new_lst, keys[idx], idx, view_start)
-          idx++
-          place_item(nd, iter)
-        }
-      } else if (idx >= end_idx) {
-        // All the nodes we meant to create/insert are already there, so until iter is on end, the rest is dead nodes
-        while (iter != null && iter !== end) {
-          const obs = iter[sym_obs]
-          if (obs != null) {
-            const nd = iter
-            const after = nd.end!.nextSibling as RepeatItemElement<Obs> | null
-            const fragment = document.createDocumentFragment()
-            nd.moveTo(fragment)
-            dead_nodes.set(nd, fragment)
-            this.node_map.delete(obs.key)
-            node_remove(nd)
-            iter = after
-          } else {
-            iter = iter.nextSibling as RepeatItemElement<Obs> | null
-          }
-        }
+        flush()
+        if (!stay[s]) node.moveTo(parent, ref)
+        ref = node
       }
+      flush()
 
-      for (const dead of dead_nodes.values()) {
-        node_do_disconnect(dead)
+      // Remove the dead items that were not re-keyed.
+      let run_first: RepeatItemElement<Obs> | null = null
+      let run_last: Node | null = null
+      for (let d = dead_used; d < dead.length; d++) {
+        const node = old[dead[d]]
+        this.node_map.delete(node[sym_obs].key)
+        if (run_first != null && run_last!.nextSibling !== node) {
+          detach_run(run_first, run_last!, false)
+          run_first = null
+        }
+        run_first ??= node
+        run_last = node.end ?? node
       }
+      if (run_first != null) detach_run(run_first, run_last!, false)
     }
 
     /**
-     * Generate the next element to append to the list.
+     * Generate an item and insert it in `into`, before `refchild`.
      */
-    protected create(lst: NonNullable<o.ObservedType<Obs>>, key: any, index: number, view_start = 0) {
-      // const item = lst[index]
+    protected create(
+      lst: NonNullable<o.ObservedType<Obs>>,
+      key: any,
+      index: number,
+      view_start = 0,
+      into: Node = document.createDocumentFragment(),
+      refchild: Node | null = null,
+    ) {
       const o_prop_obs = o(index)
       const ob = new RepeatObservable(key, this, o_prop_obs)
 
-      const fragment = document.createDocumentFragment()
       const node = new RepeatItemElement<Obs>("e-repeat-item")
       node[sym_obs] = ob
-      node_append(fragment, node)
+      node_append(into, node, refchild)
 
       const _sep = this.separator
       if (_sep && index > view_start) {
         const sep = document.createElement("e-repeat-separator")
         sep.setAttribute("index", index.toString())
         node_append(sep, _sep(o_prop_obs), node.firstChild)
-        node.appendChild(sep)
+        node.appendChild(sep) //> Question: `node` is a Comment ; appendChild on it throws, SeparateWith looks broken.
       }
 
       node.updateRenderable(this.renderfn?.(ob as any, o_prop_obs))
