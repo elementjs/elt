@@ -3,9 +3,12 @@ import { o } from "../observable"
 import { Deferred } from "../utils"
 import { Route } from "./route"
 import { Router } from "./router"
+import type { RouterOptions } from "./url-source"
 import { State } from "./state"
 import type { ServiceParams } from "./params"
 import { _get_builder, type ServiceBuilder, type ServiceBuilderConcreteType } from "./service"
+
+export type { RouterOptions } from "./url-source"
 
 export type Views = Map<string, () => Renderable>
 
@@ -55,7 +58,11 @@ export type ActivationResult = Activated | Reactivated
  * This is all it does.
  */
 export class App {
-  setupRouter<R extends RouteDef>(route_defs: R): RoutesRes<R> {
+  /**
+   * Register the routes and start the router. `options` choose between hash mode (default) and path mode,
+   * see specs/router-path-mode.md.
+   */
+  setupRouter<R extends RouteDef>(route_defs: R, options?: RouterOptions): RoutesRes<R> {
     const _register = <R2 extends RouteDef>(defs: R2, prefix = "") => {
       const routes = {} as any
       let error: Route<any> | null = null
@@ -69,7 +76,8 @@ export class App {
             error = route
           }
         } else {
-          routes[name] = _register(srv, url as string)
+          // nested groups accumulate the prefixes of all their parents
+          routes[name] = _register(srv, prefix + (url as string))
         }
       }
 
@@ -92,7 +100,7 @@ export class App {
       return routes
     }
     const routes = _register(route_defs)
-    this.router.setupRouter()
+    this.router.setupRouter(options)
     return routes
   }
 
@@ -103,7 +111,7 @@ export class App {
   /** An observable containing the currently active service */
   o_active_service = this.o_state.tf((st) => st?.active)
 
-  /** The current path mimicking the URL Hash fragment */
+  /** The currently active route */
   o_current_route = this.router.o_active_route
 
   o_params = o({} as ServiceParams)
@@ -156,7 +164,7 @@ export class App {
         current = null
         const keys = staging.paramKeys()
         const params = Object.fromEntries(Object.entries(staging.params.get()).filter(([key]) => keys.has(key)))
-        this.router.__last_activated_route?.updateHash(keys, params)
+        this.router.__last_activated_route?.updateUrl(keys, params)
 
         const _commit = () => {
           o.transaction(() => {

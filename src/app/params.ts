@@ -43,3 +43,37 @@ export function _encode(v: string | boolean | undefined | number | null): string
   }
   return v
 }
+
+/**
+ * @internal parse a route query (`a=1&b=~t`, without the leading `?`) into params.
+ * Items split at their first `=`, `+` is kept as-is. Throws URIError on malformed percent-encoding.
+ */
+export function _parseQuery(query: string): ServiceParams {
+  const res: ServiceParams = {}
+  if (!query) return res
+  for (const item of query.split("&")) {
+    if (!item) continue
+    const eq = item.indexOf("=")
+    const key = eq < 0 ? item : item.slice(0, eq)
+    const value = eq < 0 ? "" : item.slice(eq + 1)
+    res[decodeURIComponent(key)] = _decode(decodeURIComponent(value))
+  }
+  return res
+}
+
+/** @internal format params into a route query (without the leading `?`), skipping `undefined` values. */
+export function _formatQuery(params: ServiceParams): string {
+  const parts: string[] = []
+  for (const key in params) {
+    const v = params[key]
+    if (v === undefined) continue
+    const enc = _encode(v)
+    parts.push(enc ? `${encodeURIComponent(key)}=${encodeURIComponent(enc)}` : encodeURIComponent(key))
+  }
+  return parts.join("&")
+}
+
+/** @internal URL key : route path and route query, as used to detect that the URL did not change */
+export function _urlKey(path: string, query: string): string {
+  return query ? `${path}?${query}` : path
+}

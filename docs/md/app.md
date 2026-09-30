@@ -6,9 +6,9 @@ order: 10
 
 # App
 
-`App` is a single class that ties together a hash-based router, a tree of `Service` instances, and the observables that expose which one is currently active. An application creates exactly one `App` instance, registers routes on it, and mounts one of its views into the document.
+`App` is a single class that ties together a router (URL fragment by default, or URL path under a prefix), a tree of `Service` instances, and the observables that expose which one is currently active. An application creates exactly one `App` instance, registers routes on it, and mounts one of its views into the document.
 
-The examples on this page are plain code, not the "Try it" live panels used elsewhere in these docs — `App` wires directly into the real browser `location.hash` and `window` events, and running one inside this documentation page would fight with the router this very site already uses to navigate between pages. The canonical, actually-running shape lives in `docs/src/app.tsx` and `docs/src/routes.ts` — read those alongside this page.
+The examples on this page are plain code, not the "Try it" live panels used elsewhere in these docs — `App` wires directly into the real browser `location` / `history` and `window` events, and running one inside this documentation page would fight with the router this very site already uses to navigate between pages. The canonical, actually-running shape lives in `docs/src/app.tsx` and `docs/src/routes.ts` — read those alongside this page.
 
 ## Setting up routes
 
@@ -26,7 +26,7 @@ export const routes = app.setupRouter({
 node_append(document.body, app.DisplayView("Main"))
 ```
 
-`setupRouter` both registers the routes and starts the router: it schedules an initial `activateFromHash()` and starts listening for `hashchange`. It returns a typed object of `Route` instances shaped exactly like the definitions passed in — `routes.home`, `routes.user`, etc. — which is how code elsewhere activates a route directly (`await routes.home.activate()`) instead of only reacting to hash changes.
+`setupRouter` both registers the routes and starts the router: it schedules an initial `activateFromUrl()` and starts listening for URL changes (`hashchange` in hash mode, `popstate` in path mode). It returns a typed object of `Route` instances shaped exactly like the definitions passed in — `routes.home`, `routes.user`, etc. — which is how code elsewhere activates a route directly (`await routes.home.activate()`) instead of only reacting to URL changes.
 
 A route definition is one of:
 
@@ -36,11 +36,43 @@ A route definition is one of:
 | Nested | `[urlPrefix, { childName: […], … }]`             |
 | Error  | `__error__: [path, () => errorServiceBuilder]`   |
 
-- `path` is a hash path **without** the leading `#` (e.g. `"/users/:id"`, matched against `#/users/…`). `""` is the landing route — the one `activateFromHash` resolves for a bare, empty hash. `path: null` marks an **internal** route: it never matches a hash and can only be activated by calling `router.<name>.activate()` directly.
-- `:name` segments capture into that route's params.
+- `path` is a route path: **without** the leading `#` in hash mode (e.g. `"/users/:id"`, matched against `#/users/…`), **without** the base in path mode (matched against `/<base>/users/…`). `""` is the landing route — the one `activateFromUrl` resolves for a bare, empty hash (or for the base itself in path mode). `path: null` marks an **internal** route: it never matches a URL and can only be activated by calling `router.<name>.activate()` directly.
+- `:name` captures exactly one path segment into that route's params. `:name*` (last token only) captures the rest of the path, `/` included: `/files/:path*` matches `/files/a/b`, not `/files`.
+- Literal characters are matched literally (`.` is not a wildcard). A param-less route that equals the URL wins; otherwise routes with params are tried in registration order and the first match wins.
+- Param values are percent-encoded in URLs: `urlFor({ name: "a/b" })` on `/files/:name` gives `#/files/a%2Fb`.
 - The builder is a function that **returns** a `ServiceBuilder` — `() => import("./file")` (lazy, the common case), `() => MyServiceClass`, or an already-unpacked builder. It's the returned value that matters; the outer function itself is never treated as the builder.
-- `options.defaults` supplies param defaults; `options.silent` skips updating `location.hash` when this route activates.
-- Nesting groups routes under a shared URL prefix; the group's own `__error__` (if any) becomes the fallback `error` handler for every leaf inside it that doesn't declare a closer one of its own — closest `__error__` wins. A failed activation runs that handler with `{ __error__: <the caught error> }` as its params.
+- `options.defaults` supplies param defaults; `options.silent` skips updating the URL when this route activates.
+- Nesting groups routes under a shared URL prefix (prefixes of nested groups add up); the group's own `__error__` (if any) becomes the fallback `error` handler for every leaf inside it that doesn't declare a closer one of its own — closest `__error__` wins. A failed activation runs that handler with `{ __error__: <the caught error> }` as its params.
+
+## Hash mode and path mode
+
+By default routes live in the URL fragment (`https://host/page#/users/1?tab=2`). Path mode puts them in the URL path under a fixed prefix, the **base**, and leaves the fragment to the page (anchors, `#section` links):
+
+```ts
+export const routes = app.setupRouter(defs, { mode: "path", base: "/admin" })
+// https://host/admin/users/1?tab=2#section  → route "/users/:id", params { id: 1, tab: 2 }
+```
+
+| Option | Default | Meaning |
+| --- | --- | --- |
+| `mode` | `"hash"` | `"hash"` or `"path"` |
+| `base` | `"/"` | Path mode only. URL prefix of the app. `"/admin/"` and `"/admin"` are the same. |
+| `intercept_links` | `true` | Path mode only. Handle clicks on `<a href>` that match a route without reloading the page. |
+
+Passing `base` or `intercept_links` without `mode: "path"` throws. The options are read once.
+
+In path mode, with base `/admin`:
+
+- `/admin` is route path `""` (landing), `/admin/` is route path `"/"`, `/admin/users/1` is `"/users/1"`.
+- A URL outside the base (`/other`, `/administration`) activates nothing and logs a warning. With base `/`, the root URL `/` is route path `"/"`: register the root page as `"/"`, not `""`.
+- The query comes from `location.search`. The router never reads nor writes the fragment.
+- Link interception skips links with a modifier key or a non-left button, a `target` other than `_self`, a `download` attribute, another origin, a URL outside the base or matching no route, a fragment-only change, and clicks already cancelled by `preventDefault()`. Those are left to the browser.
+- The server must serve the app for every URL under the base, or deep links 404.
+- The router never scrolls; scrolling to the top or to a fragment after navigation is up to the app.
+
+In both modes, the router **adds a history entry** when the route path changes (`/users/1` → `/users/2`) and **replaces the current entry** when only the query changes, so a param-bound filter does not create one Back step per keystroke. Its first URL write after startup always replaces, so that Back leaves the app instead of landing on a non-canonical URL.
+
+Query values: split at the first `?` and each `key=value` at the first `=`; `+` is a literal `+`, not a space.
 
 ## Services
 
@@ -94,7 +126,7 @@ Two ways to read a param a service depends on, from inside that service:
 
 | API                                | Effect on the URL                                  | Effect on this service                          |
 | ----------------------------------- | ----------------------------------------------------- | -------------------------------------------------- |
-| `srv.param("key", default?)`       | Updates `location.hash` on activation (unless `silent`) | **Hard** dependency — a change re-activates (rebuilds) this service |
+| `srv.param("key", default?)`       | Updates the URL on activation (unless `silent`) | **Hard** dependency — a change re-activates (rebuilds) this service |
 | `srv.param_soft("key", default?)`  | Same                                                    | **Soft** dependency — returns a live observable; a change updates it in place, no re-activation |
 
 Both read from (and, if given a default and nothing's set yet, write into) `app.o_params`. Use `param` when a changed value genuinely means "this is now a different screen" (e.g. a `:id` segment); use `param_soft` when it's closer to a filter or view option that shouldn't tear down and rebuild the service just because it changed.
@@ -108,7 +140,7 @@ await routes.user.activate({ id: "42" })
 
 **Always `await` an activation.** `App` tracks whether one is already in flight (`o_activating`); an un-awaited `activate()` call that overlaps another is not queued or stacked — the app detects the race and throws (`"un-waited activate() call detected. They MUST be awaited."`). A second activation requested *while* one is genuinely still pending doesn't stack either: only the most recently requested one survives (as a pending "reactivation"), any activation that had been waiting behind it is rejected, and the survivor runs immediately once the current activation finishes. Awaiting every call is what keeps this invisible in normal use.
 
-Path `""` is the landing route, matched by a bare empty hash — `activateFromHash` resolves `""` specifically for that case. Path `"/"` is a different route, matched only by the literal hash `#/`.
+Path `""` is the landing route, matched by a bare empty hash — `activateFromUrl` resolves `""` specifically for that case. Path `"/"` is a different route, matched only by the literal hash `#/`. Calling `activateFromUrl()` again on an unchanged URL does nothing; pass `true` to force it.
 
 `App._activate` is an internal entry point, not public API — always go through `router.<name>.activate()` (or a nested route's, same method) instead.
 
@@ -128,5 +160,5 @@ A common derived value for active-nav styling: `o.expression((get) => get(app.o_
 
 - [`Observables`](./observables.md) — `o()`, `.tf()`, `o.expression`, all used throughout services and views.
 - [`Decorators`](./decorators.md) — `$click`, `$bind.*`, etc., used inside a service's `Content()`.
-- `src/app/app.ts`, `src/app/router.ts`, `src/app/route.ts`, `src/app/service.ts`, `src/app/state.ts` — source of truth.
+- `src/app/app.ts`, `src/app/router.ts`, `src/app/route.ts`, `src/app/url-source.ts`, `src/app/service.ts`, `src/app/state.ts` — source of truth. `specs/router-path-mode.md` — router spec.
 - `tests/app.test.ts` — verified activation/lifecycle behavior.

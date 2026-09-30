@@ -74,10 +74,10 @@ Use them extensively. Verbs follow writability of provided observables. `.withKe
 
 | Subject | Explanation |
 | --- | --- |
-| `new App()` + `app.setupRouter({ name: [path, () => import("./file")] })` | Declares routes; builder is lazy (`() => import(...)`), path is a hash path without `#`, `""` is the landing route. |
+| `new App()` + `app.setupRouter({ name: [path, () => import("./file")] })` | Declares routes; builder is lazy (`() => import(...)`), path is a hash path without `#`, `""` is the landing route. `setupRouter(defs, { mode: "path", base: "/prefix" })` reads routes from the URL path instead. |
 | `class MyScreen extends Service({ base: import("./base") })` + `@view` | Canonical screen shape. Deps go in `Service({...})`; register a named view (e.g. `Content`) with `@view` on a method. |
 | `app.DisplayView("Content")` / `srv.DisplayView("Content")` | Compose a named view into the tree. |
-| `srv.param("key", default?)` / `srv.param_soft("key", default?)` | Hash param binding; `param` re-activates the service on change, `param_soft` updates in place via an observable. |
+| `srv.param("key", default?)` / `srv.param_soft("key", default?)` | URL param binding; `param` re-activates the service on change, `param_soft` updates in place via an observable. |
 | `await router.someRoute.activate()` | Always `await` activation; can be interrupted (redirect) or throw if a concurrent un-awaited activation is in flight. |
 
 **Avoid the following**

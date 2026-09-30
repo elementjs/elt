@@ -14,7 +14,7 @@ export type CodeExampleProps = {
   renderResult?: Node
   /** `@inline-example` only — set via `{...runExample(...)}` when execution threw. */
   renderError?: string
-  /** `@full-example` only — same-origin hash route this block runs at, embedded in an isolated iframe. */
+  /** `@full-example` only — same-origin route URL this block runs at, embedded in an isolated iframe. */
   fullExampleUrl?: string
 }
 

@@ -140,7 +140,7 @@ function textImportAliasFor(name: string, taken: Set<string>): string {
 }
 
 /**
- * Relative `.md` links (`./x.md`, `../dir/x.md`) become internal hash-routes matching the new
+ * Relative `.md` links (`./x.md`, `../dir/x.md`) become internal routes (the docs router runs in path mode) matching the new
  * per-file route scheme (see Routing in the spec). `fromPath` is this document's own path relative
  * to `docs/md/`, used to resolve the link's relative path into that same scheme.
  */
@@ -156,7 +156,7 @@ export function resolveMdLink(href: string, fromPath: string): string | null {
     if (part === "..") resolved.pop()
     else resolved.push(part)
   }
-  return `#${urlFor(resolved.join("/"))}${hash ?? ""}`
+  return `${urlFor(resolved.join("/"))}${hash ?? ""}`
 }
 
 function rewriteLinks(n: MdNode, fromPath: string): void {
@@ -220,7 +220,8 @@ function extractImports(code: string): { importLines: string[]; body: string } {
 // error citing the offending docs/md/<file>:<line>, rather than being silently mishandled.
 // ---------------------------------------------------------------------------
 
-type ImportBinding = { imported: string; local: string }
+// `type_only`: written `{ type X }` — erased at compile time, so it must stay marked as such when merged.
+type ImportBinding = { imported: string; local: string; type_only: boolean }
 type ParsedImportLine =
   | { kind: "side-effect"; module: string }
   | { kind: "default"; module: string; local: string }
@@ -236,9 +237,12 @@ const RE_DEFAULT = /^import\s+([A-Za-z_$][\w$]*)\s+from\s*["']([^"']+)["'];?$/
 
 function parseNamedList(raw: string): ImportBinding[] {
   return raw.split(",").map((s) => s.trim()).filter(Boolean).map((s) => {
+    const t = s.match(/^type\s+(.*)$/)
+    const type_only = t != null
+    if (t) s = t[1]!
     const m = s.match(/^([A-Za-z_$][\w$]*)\s+as\s+([A-Za-z_$][\w$]*)$/)
-    if (m) return { imported: m[1]!, local: m[2]! }
-    return { imported: s, local: s }
+    if (m) return { imported: m[1]!, local: m[2]!, type_only }
+    return { imported: s, local: s, type_only }
   })
 }
 
@@ -270,7 +274,7 @@ type ModuleBucket = {
   sideEffectOnly: boolean
   defaults: Map<string, string> // local name -> loc it was first seen at
   namespaces: Map<string, string>
-  named: Map<string, { imported: string; loc: string }> // local name -> binding
+  named: Map<string, { imported: string; type_only: boolean; loc: string }> // local name -> binding
 }
 
 type BindingRecord = { module: string; kind: "default" | "namespace" | "named"; imported?: string; loc: string }
@@ -320,9 +324,11 @@ export function mergeImports(groups: { importLines: string[]; loc: string }[]): 
         bucket.defaults.set(parsed.local, group.loc)
       }
       const names = parsed.kind === "named" || parsed.kind === "default+named" ? parsed.names : []
-      for (const { imported, local } of names) {
+      for (const { imported, local, type_only } of names) {
         claim(local, { module: parsed.module, kind: "named", imported, loc: group.loc })
-        bucket.named.set(local, { imported, loc: group.loc })
+        // `{ type X }` and `{ X }` of the same binding merge into one : type-only only if every occurrence is
+        const prev = bucket.named.get(local)
+        bucket.named.set(local, { imported, type_only: type_only && (prev?.type_only ?? true), loc: prev?.loc ?? group.loc })
       }
     }
   }
@@ -334,7 +340,9 @@ export function mergeImports(groups: { importLines: string[]; loc: string }[]): 
       out.push(`import ${q}`)
     }
     for (const local of bucket.namespaces.keys()) out.push(`import * as ${local} from ${q}`)
-    const namedClause = [...bucket.named].map(([local, { imported }]) => (imported === local ? local : `${imported} as ${local}`))
+    const namedClause = [...bucket.named].map(
+      ([local, { imported, type_only }]) => `${type_only ? "type " : ""}${imported === local ? local : `${imported} as ${local}`}`,
+    )
     const defaultLocals = [...bucket.defaults.keys()]
     if (defaultLocals.length === 0) {
       if (namedClause.length > 0) out.push(`import { ${namedClause.join(", ")} } from ${q}`)
@@ -676,7 +684,7 @@ async function parseAndGenerate(srcDir: string, relPath: string, raw: string, fr
   const { inline, full } = await processCodeNodes(codeNodes, fenceLines)
   const name = nameFor(relPath)
   for (const ex of full) {
-    ex.node[1].fullExampleUrl = `#/full-example/${name}/${ex.index}`
+    ex.node[1].fullExampleUrl = `/full-example/${name}/${ex.index}`
     delete ex.node[1].fullExampleIndex
   }
 

@@ -79,19 +79,19 @@ describe("urlFor", () => {
 
 describe("resolveMdLink", () => {
   test("rewrites a same-directory relative .md link to its new path-based route", () => {
-    expect(resolveMdLink("./using-elt-ui.md", "index.md")).toBe("#/using-elt-ui")
+    expect(resolveMdLink("./using-elt-ui.md", "index.md")).toBe("/using-elt-ui")
   })
 
   test("rewrites a parent-relative .md link, resolving .. segments", () => {
-    expect(resolveMdLink("../guide/intro.md", "adr/0001-x.md")).toBe("#/guide/intro")
+    expect(resolveMdLink("../guide/intro.md", "adr/0001-x.md")).toBe("/guide/intro")
   })
 
   test("resolves a nested link relative to the current file's own directory", () => {
-    expect(resolveMdLink("./guide/index.md", "index.md")).toBe("#/guide/index")
+    expect(resolveMdLink("./guide/index.md", "index.md")).toBe("/guide/index")
   })
 
   test("preserves a hash fragment on the link", () => {
-    expect(resolveMdLink("./using-elt.md#section", "index.md")).toBe("#/using-elt#section")
+    expect(resolveMdLink("./using-elt.md#section", "index.md")).toBe("/using-elt#section")
   })
 
   test("leaves external links untouched", () => {
@@ -166,14 +166,14 @@ describe("parseImportLine", () => {
   test("parses a named import with an alias", () => {
     expect(parseImportLine('import { a, b as c } from "mod"', "loc")).toEqual({
       kind: "named", module: "mod",
-      names: [{ imported: "a", local: "a" }, { imported: "b", local: "c" }],
+      names: [{ imported: "a", local: "a", type_only: false }, { imported: "b", local: "c", type_only: false }],
     })
   })
 
   test("parses a default+named import", () => {
     expect(parseImportLine('import Foo, { a, b as c } from "mod"', "loc")).toEqual({
       kind: "default+named", local: "Foo", module: "mod",
-      names: [{ imported: "a", local: "a" }, { imported: "b", local: "c" }],
+      names: [{ imported: "a", local: "a", type_only: false }, { imported: "b", local: "c", type_only: false }],
     })
   })
 
@@ -198,6 +198,22 @@ describe("mergeImports", () => {
       { importLines: ['import { o, node_append } from "elt"'], loc: "docs/md/x.md:10" },
     ])
     expect(out).toEqual(['import { o, $bind, node_append } from "elt"'])
+  })
+
+  test("{ type X } and { X } of the same binding merge into one value import, type-only stays type-only", () => {
+    const out = mergeImports([
+      { importLines: ['import { type Attrs, type Renderable } from "elt"'], loc: "docs/md/x.md:3" },
+      { importLines: ['import { Attrs, RefChild } from "elt"'], loc: "docs/md/x.md:10" },
+      { importLines: ['import { type Renderable as R } from "elt"'], loc: "docs/md/x.md:20" },
+    ])
+    expect(out).toEqual(['import { Attrs, type Renderable, RefChild, type Renderable as R } from "elt"'])
+  })
+
+  test("parses the inline type modifier of a named binding", () => {
+    expect(parseImportLine('import { type a, type b as c } from "mod"', "loc")).toEqual({
+      kind: "named", module: "mod",
+      names: [{ imported: "a", local: "a", type_only: true }, { imported: "b", local: "c", type_only: true }],
+    })
   })
 
   test("throws when the same local name is bound to two different things", () => {
@@ -540,7 +556,7 @@ describe("elt_md (integration)", () => {
     const pageContent = await Bun.file(`${t.srcDir}/md/index.tsx`).text()
     expect(pageContent).not.toContain("runExample(() =>")
     expect(pageContent).toContain("fullExampleUrl")
-    expect(pageContent).toContain("#/full-example/index/0")
+    expect(pageContent).toContain("/full-example/index/0")
 
     const exampleContent = await Bun.file(`${t.srcDir}/md/index.full-0.tsx`).text()
     expect(exampleContent).toContain('import { o } from "elt"')

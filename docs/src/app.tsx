@@ -3,7 +3,7 @@ import { $observe, $on, $scrollable, App, If, node_append, css, o } from "elt"
 import { routes as routeDefs, menu } from "./routes.ts"
 
 export const app = new App()
-export const routes = app.setupRouter(routeDefs)
+export const routes = app.setupRouter(routeDefs, { mode: "path" })
 
 // Whether the sidebar is open. Only meaningful below `cls_nav`'s breakpoint, where the nav
 // becomes an off-canvas drawer instead of a permanent column.
@@ -27,7 +27,7 @@ function widget_nav() {
   return <e-column packed align="stretch" class={[cls_nav, { open: o_nav_open }]}>
     {menu.map((group) => <e-column packed align="stretch">
       {group.section != null ? <e-prose class={cls_section}>{group.section}</e-prose> : null}
-      {group.items.map((item) => <a href={`#${item.url}`}>
+      {group.items.map((item) => <a href={`${item.url}`}>
         {$on("click", () => o_nav_open.set(false))}
         {item.title}
       </a>)}

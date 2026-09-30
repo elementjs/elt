@@ -74,7 +74,8 @@ export const routes = app.setupRouter({
 
 // app entry
 node_append(document.body, app.DisplayView("Main"));
-// after mount (often rAF): app.router.activateFromHash()
+// after mount (often rAF): app.router.activateFromUrl()
+// path mode instead of #/…: app.setupRouter(defs, { mode: "path", base: "/prefix" })
 ```
 
 ```ts
@@ -110,7 +111,9 @@ export default class HomeScreen extends Service({
 
 **Always `await` activation** (`await routes.home.activate()`, etc.). An activation can be interrupted (redirect). Concurrent un-awaited `activate` calls throw. If you touch `App._activate` and get `activated: false` with a `reactivation` promise, await that too. Prefer the public `router.*.activate()` API.
 
-**Empty hash:** `activateFromHash` resolves path `""`. Register the landing route as `["", () => import("./init")]`. Path `"/"` matches `#/`, not a bare empty hash.
+**Empty hash:** `activateFromUrl` resolves path `""`. Register the landing route as `["", () => import("./init")]`. Path `"/"` matches `#/`, not a bare empty hash. In path mode `""` is the base itself (`/prefix`), `"/"` is `/prefix/`.
+
+**Route paths:** `:name` = one segment, `:name*` = rest of the path (last token only). Param-less exact match first, then registration order. Details: [`app.md`](./app.md), `specs/router-path-mode.md`.
 
 ---
 
@@ -282,9 +285,9 @@ Full picture: [`docs/md/app.md`](./app.md). Canonical: `docs/src/app.tsx`, `docs
 | Nested | `[urlPrefix, { childRoute: […], … }]`      |
 | Error  | `__error__: [path, () => errorService, …]` |
 
-- `path`: hash path **without** `#`. `""` = landing. `"users/:id"` → param captures. `path: null` → internal route (activate only via `router.name.activate()`, not from hash).
+- `path`: route path, **without** `#` (hash mode) or the base (path mode). `""` = landing. `"/users/:id"` → one-segment param, `"/files/:path*"` → rest of the path. `path: null` → internal route (activate only via `router.name.activate()`, not from the URL).
 - `serviceBuilder`: prefer `() => import("./file")` (lazy). Also `() => MyService` / unpacked builders via `App.unpack_builder`.
-- `options`: `{ defaults?, silent?: true }` — `silent` skips hash updates on activation.
+- `options`: `{ defaults?, silent?: true }` — `silent` skips URL updates on activation.
 - Nested `__error__`: each leaf gets `__error__` from its own group; parent fills only where no inner handler exists (closest wins). Failing activation runs that handler with `{ __error__: caught }` only.
 
 ### Services — prefer this shape (demo)
@@ -323,7 +326,7 @@ Also valid for tiny screens: `async (srv) => { srv.views.set("Content", () => �
 | `srv.param("key", default?)`      | Hard dep: change → **re-activation**                       |
 | `srv.param_soft("key", default?)` | Observable slice; URL can update **without** re-activation |
 
-Params live in `app.o_params`. Successful activation updates `location.hash` unless `silent`.
+Params live in `app.o_params`. Successful activation updates the URL unless `silent`: new history entry when the route path changes, replaced entry when only the query changes.
 
 ### Lifecycle
 

@@ -34,7 +34,7 @@ has `length === 0`: it silently becomes a one-arg component and `ref` is always 
 
 ```tsx
 //@inline-example
-import { Attrs, RefChild } from "elt"
+import { type Attrs, RefChild } from "elt"
 
 function Row(_attrs: Attrs<HTMLDivElement>, ref: RefChild) {
   return (
@@ -53,7 +53,7 @@ placeholder you must embed in the returned tree (not `ref` itself):
 
 ```tsx
 //@inline-example
-import { Attrs, RefChild } from "elt"
+import { type Attrs, RefChild } from "elt"
 
 function Panel(attrs: Attrs<HTMLDivElement> & { title: string }, ref: RefChild) {
   return (
@@ -89,7 +89,7 @@ it from `attrs` and apply it itself if it wants that behavior.
 
 ```tsx
 //@inline-example
-import { Attrs } from "elt"
+import { type Attrs } from "elt"
 
 function Chip(attrs: Attrs<HTMLSpanElement> & { label: string }) {
   // "aria-pressed" and "data-x" below reach the DOM automatically; "hidden" would not.

@@ -149,13 +149,13 @@ const cls_row = css`.row {
 
 ## App (multi-screen)
 
-For a small widget you only need `node_append` and the pieces above. For a full app, elt ships a thin **App / Service / hash router** layer. Live shape: `docs/src/app.tsx`, `docs/src/routes.ts` (this documentation site is itself one such app).
+For a small widget you only need `node_append` and the pieces above. For a full app, elt ships a thin **App / Service / router** layer (routes in the URL fragment by default, or in the URL path with `setupRouter(defs, { mode: "path", base: "/prefix" })`). Live shape: `docs/src/app.tsx`, `docs/src/routes.ts` (this documentation site is itself one such app).
 
 Sketch:
 
 1. `const app = new App()`
 2. `app.setupRouter({ home: ["/home", () => import("./home")], init: ["", () => import("./init")] })`
-3. `node_append(document.body, app.DisplayView("Main"))`, then `activateFromHash()` (often after mount)
+3. `node_append(document.body, app.DisplayView("Main"))`, then `app.router.activateFromUrl()` (often after mount)
 4. Screens are services — typically `class Home extends Service({ base: import("./base") })` with `@view` methods that register named views (`Main`, `Content`, …)
 5. Compose with `app.DisplayView("Content")` inside another view
 6. **Always `await`** `route.activate()` — activation can be interrupted (e.g. redirect to login)

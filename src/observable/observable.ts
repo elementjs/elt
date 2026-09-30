@@ -1933,7 +1933,14 @@ export namespace o {
       if (o_locked.get()) return
 
       o_locked.set(true)
-      const r: any = fn()
+      let r: any
+      try {
+        r = fn()
+      } catch (e) {
+        // a synchronous throw must not leave the lock held forever
+        unlock()
+        throw e
+      }
       if (typeof r?.then === "function") {
         r.then(unlock, unlock)
       } else {

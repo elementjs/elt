@@ -1,112 +1,145 @@
 import { o } from "../observable"
-import { _decode, type ServiceParams } from "./params"
-import type { ServiceBuilder } from "./service"
+import { _parseQuery, _urlKey, type ServiceParams } from "./params"
 import { Route } from "./route"
 import type { App, RouteOptions } from "./app"
+import type { ServiceBuilder } from "./service"
+import { _createUrlSource, HashUrlSource, type RouterOptions, type UrlSource } from "./url-source"
 
 /**
- ** App.Router : a binding between the hash fragment of an URL and an App and its services.
+ ** App.Router : a binding between the URL (its fragment, or its path under a base) and an App and its services.
+ ** See specs/router-path-mode.md.
  **/
 export class Router {
   constructor(public app: App) {}
 
   o_active_route = o(null as null | Route<any>)
 
+  /** Reads and writes the URL. Replaced by `setupRouter` according to its options. */
+  source: UrlSource = new HashUrlSource()
+
   // the last route to have called activate()
   __last_activated_route: Route<any> | null = null
-  __hash_lock = o.exclusive_lock()
-  __last_hash: string | null = null
+  /** Held while activating from the URL, so that the activation does not write the URL back */
+  __url_lock = o.exclusive_lock()
+  /** URL key of the last URL read or written */
+  _last_url: string | null = null
+  /** false until the router first writes the URL ; that first write replaces the history entry */
+  __wrote_url = false
 
+  /** routes with a route path, by route path */
   protected __routes = new Map<string, Route<any>>()
+  /** routes whose route path has params, in registration order */
+  protected __pattern_routes: Route<any>[] = []
 
   /**
-   * @internal
-   * Parse the hash
-   * @param newhash the current hash
-   * @returns the path and the current variables
+   * The route matching a route path, and the path params it captured.
+   * Exact param-less routes first, then pattern routes in registration order.
+   * Throws URIError on malformed percent-encoding.
    */
-  protected __parseHash(newhash: string): {
-    path: string
-    vars: ServiceParams
-  } {
-    const [path, vars_str] = newhash.split(/\?/) // separate at the first "?"
-    const vars = (vars_str ?? "").split(/&/g).reduce((acc, item) => {
-      const [key, value] = item.split(/=/)
-      if (key || value) {
-        const svalue = decodeURIComponent(value ?? "")
-        const skey = decodeURIComponent(key)
-        const val: string | number | undefined | null | boolean = svalue
-        if (val[0] === "~") {
-        }
-        acc[skey] = _decode(val)
-      }
-      return acc
-    }, {} as ServiceParams)
-
-    return { path, vars }
+  match(path: string): { route: Route<any>; params: ServiceParams } | null {
+    const exact = this.__routes.get(path)
+    if (exact != null && exact.regexp == null) return { route: exact, params: {} }
+    for (const route of this.__pattern_routes) {
+      const params = route._match(path)
+      if (params != null) return { route, params }
+    }
+    return null
   }
 
   /**
    * @internal
-   * activate a service from the hash portion of window.location
-   * @param force if true, the service will be activated even if the hash did not change (useful for login)
+   * activate a service from the current URL
+   * @param force if true, the service will be activated even if the URL did not change (useful for login)
    */
-  activateFromHash(force = false) {
-    const newhash = window.location.hash.slice(1)
-
-    // do not handle if the hash is the last one we handled
-    if (
-      newhash &&
-      newhash === this._last_hash &&
-      !force // &&
-      // this._last_srv === this.app.o_active_service.get()?.builder
-    ) {
-      return
-    }
-    this._last_hash = newhash
-
-    const { path, vars } = this.__parseHash(newhash)
-    const route_vars: ServiceParams = {}
-
-    let route = this.__routes.get(path)
-
-    if (route == null) {
-      for (const rt of this.__routes.values()) {
-        if (rt.regexp == null) continue
-        const match = path.match(rt.regexp)
-        if (match) {
-          route = rt
-          const groups = match.groups
-          for (const name in groups) {
-            const dec = decodeURIComponent(groups[name])
-            route_vars[name] = _decode(dec)
-          }
-          break
-        }
-      }
-    }
-
-    if (route == null) {
-      console.warn(`route not found ${newhash}`)
+  activateFromUrl(force = false) {
+    const cur = this.source.read()
+    if (cur == null) {
+      console.warn(`url is outside the router base ${location.pathname}`)
       return
     }
 
-    const vars_final = Object.assign({}, route_vars, route.options.defaults, vars)
+    // do not handle if the URL is the last one we handled
+    const key = _urlKey(cur.path, cur.query)
+    if (key === this._last_url && !force) return
+    this._last_url = key
 
-    return route.activateWithParams(vars_final)
+    let found: ReturnType<Router["match"]> = null
+    let query: ServiceParams = {}
+    try {
+      found = this.match(cur.path)
+      query = _parseQuery(cur.query)
+    } catch (e) {
+      // malformed percent-encoding in a user-typed URL : same as not found
+      if (!(e instanceof URIError)) throw e
+    }
+
+    if (found == null) {
+      console.warn(`route not found ${key}`)
+      return
+    }
+
+    // path params win over query params ; defaults are applied underneath by activateWithParams
+    return found.route.activateWithParams(Object.assign(query, found.params))
   }
 
   /**
-   * Setup listening to fragment changes
-   * @param defs The url definitions
+   * @internal
+   * Write the URL for a route path and route query, if it changed.
+   * Adds a history entry when the route path changes, except for the very first write ; replaces it otherwise.
    */
-  async setupRouter() {
-    setTimeout(() => this.activateFromHash())
-    window.addEventListener("hashchange", () => {
-      this.__hash_lock(() => {
-        return this.activateFromHash()
-      })
+  _writeUrl(path: string, query: string) {
+    const key = _urlKey(path, query)
+    const cur = this.source.read()
+    if (cur == null || _urlKey(cur.path, cur.query) !== key) {
+      const push = this.__wrote_url && cur?.path !== path
+      this.source.write(path, query, push)
+      this.__wrote_url = true
+    }
+    this._last_url = key
+  }
+
+  /**
+   * Path mode link interception : handle clicks on same-origin links that match a route without reloading.
+   * Bubble phase, so that app handlers calling preventDefault() win.
+   */
+  protected __onClick = (e: MouseEvent) => {
+    if (e.defaultPrevented || e.button !== 0 || e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) return
+
+    // composedPath() also finds links inside shadow roots
+    const a = e.composedPath().find((n) => n instanceof HTMLAnchorElement) as HTMLAnchorElement | undefined
+    if (a == null || !a.hasAttribute("href") || a.hasAttribute("download")) return
+    if (a.target !== "" && a.target !== "_self") return
+
+    const url = new URL(a.href)
+    if (url.origin !== location.origin) return
+    // fragment-only links are left to the browser (scroll to anchor)
+    if (url.pathname === location.pathname && url.search === location.search && url.hash !== "") return
+
+    const cur = this.source.read(url)
+    try {
+      if (cur == null || this.match(cur.path) == null) return
+    } catch {
+      return // malformed percent-encoding : let the browser deal with it
+    }
+
+    e.preventDefault()
+    if (url.href !== location.href) history.pushState(null, "", url.href)
+    this.__url_lock(() => this.activateFromUrl())
+  }
+
+  /**
+   * Start listening to URL changes, according to `options`.
+   */
+  setupRouter(options: RouterOptions = {}) {
+    this.source = _createUrlSource(options)
+
+    setTimeout(() => this.activateFromUrl())
+    this.source.listen(() => {
+      this.__url_lock(() => this.activateFromUrl())
     })
+    if (options.mode === "path" && options.intercept_links !== false) {
+      document.addEventListener("click", this.__onClick)
+    }
 
     this.app.o_params.addObserver((params) => {
       // If the new params invalidate a state
@@ -121,21 +154,18 @@ export class Router {
         rt?.activate(params)
       } else {
         const keys = srv?.state?.paramKeys() ?? new Set<string>()
-        rt?.updateHash(keys, params)
+        rt?.updateUrl(keys, params)
       }
     })
   }
-
-  _last_hash: string | null = null
-  protected _last_srv: ServiceBuilder<any> | null = null
 
   register(name: string, builder: () => ServiceBuilder<any>, url: string | null, options?: RouteOptions) {
     const route = new Route(this, name, url, builder, options)
 
     if (route.path != null) {
-      if (this.__routes.has(route.path))
-        throw new Error(`route for '${route.path.toString() ?? ""}' is already defined`)
+      if (this.__routes.has(route.path)) throw new Error(`route for '${route.path}' is already defined`)
       this.__routes.set(route.path, route)
+      if (route.regexp != null) this.__pattern_routes.push(route)
     }
 
     return route
