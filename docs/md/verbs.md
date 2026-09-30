@@ -87,8 +87,7 @@ return <e-column>
   <ul>
     {Repeat(o_items, (o_item, idx) => (
       <li>
-        <e-row packed>
-          <label>#{idx}</label>
+        <label>#{idx}</label> <e-row inline packed>
           <input>{$bind.string(o_item)}</input>
           <button>{$click(() => o_items.set(o_items.get().filter((_, i) => i !== idx.get())))}✕</button>
         </e-row>

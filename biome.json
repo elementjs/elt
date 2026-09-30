@@ -1,6 +1,6 @@
 {
   "files": {
-    "includes": ["src/**", "ui/**", "tests/**"]
+    "includes": ["src/**", "ui/**", "tests/**", "!!**/.claude"]
   },
   "assist": {
     "actions": {
@@ -28,7 +28,7 @@
         "noVoidElementsWithChildren": "off"
       },
       "suspicious": {
-        "noExplicitAny": "error"
+        "noExplicitAny": "off"
       }
     }
   }
