@@ -665,7 +665,7 @@ export namespace Repeat {
 
         if (node == null) {
           pending ??= document.createDocumentFragment()
-          this.create(new_lst, keys[head + s], i, view_start, pending, pending.firstChild)
+          this.create(keys[head + s], i, pending, pending.firstChild)
           continue
         }
 
@@ -706,14 +706,7 @@ export namespace Repeat {
     /**
      * Generate an item and insert it in `into`, before `refchild`.
      */
-    protected create(
-      lst: NonNullable<o.ObservedType<Obs>>,
-      key: any,
-      index: number,
-      view_start = 0,
-      into: Node = document.createDocumentFragment(),
-      refchild: Node | null = null,
-    ) {
+    protected create(key: any, index: number, into: Node, refchild: Node | null) {
       const o_prop_obs = o(index)
       const ob = new RepeatObservable(key, this, o_prop_obs)
 
@@ -721,15 +714,24 @@ export namespace Repeat {
       node[sym_obs] = ob
       node_append(into, node, refchild)
 
-      const _sep = this.separator
-      if (_sep && index > view_start) {
-        const sep = document.createElement("e-repeat-separator")
-        sep.setAttribute("index", index.toString())
-        node_append(sep, _sep(o_prop_obs), node.firstChild)
-        node.appendChild(sep) //> Question: `node` is a Comment ; appendChild on it throws, SeparateWith looks broken.
-      }
-
-      node.updateRenderable(this.renderfn?.(ob as any, o_prop_obs))
+      const rendered = this.renderfn?.(ob as any, o_prop_obs)
+      const sep_fn = this.separator
+      node.updateRenderable(
+        sep_fn == null
+          ? rendered
+          : [
+              // Items move, so whether one is first can change: the separator follows the index.
+              If(
+                o_prop_obs.tf((i) => i > 0),
+                () => {
+                  const sep = document.createElement("e-repeat-separator")
+                  node_append(sep, sep_fn(o_prop_obs))
+                  return sep
+                },
+              ),
+              rendered,
+            ],
+      )
       this.node_map.set(key, node)
       return node
     }

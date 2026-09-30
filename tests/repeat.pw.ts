@@ -782,6 +782,32 @@ test.describe("Repeat", () => {
     })
   })
 
+  test.describe("SeparateWith", () => {
+    test("separates items and follows reorders, insertions and removals", async ({ page }) => {
+      const result = await page.evaluate(() => {
+        const { o, Repeat, node_append, node_remove } = window.__ELT__
+        const o_lst = o(["a", "b", "c"])
+        const container = document.createElement("div")
+        node_append(
+          container,
+          Repeat(o_lst, (item: any) => item)
+            .SeparateWith((idx: any) => idx.tf((i: number) => `|${i}|`))
+            .withKeyFunction((s: string) => s),
+        )
+        node_append(document.body, container)
+
+        const out: string[] = [container.textContent!]
+        for (const next of [["c", "a", "b"], ["a", "b"], ["x", "a", "b"], ["b"], ["b", "a"]]) {
+          o_lst.set(next)
+          out.push(container.textContent!)
+        }
+        node_remove(container)
+        return out
+      })
+      expect(result).toEqual(["a|1|b|2|c", "c|1|a|2|b", "a|1|b", "x|1|a|2|b", "b", "b|1|a"])
+    })
+  })
+
   test.describe("minimal DOM operations", () => {
     // Mounts a keyed list of inputs, one per string, and records the child list mutations of the
     // container during `o_lst.set(next)`.
