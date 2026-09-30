@@ -4,7 +4,7 @@
 export PATH := "./node_modules/.bin:" + env("PATH")
 
 watch:
-    tsgo -w --noEmit | wtsc
+    tsc -w --noEmit | wtsc
 
 # run the docs dev server, type-checking docs/ on every (re)build. The macro that generates docs
 # pages does no type-checking of its own (see specs/markdown-docs-reloaded.md, "Type-checking") —
@@ -15,11 +15,14 @@ watch-docs:
     cd docs && bun index.html 2>&1 | awk '{ print; fflush(); if ($0 ~ /^(Bundled page in|(\[x[0-9]+\] )?Reloaded in)/) system("tsgo --noEmit -p tsconfig.json | wtsc") }'
 
 check-compile:
-    tsgo --noEmit | wtsc
+    tsc --noEmit | wtsc
+    rm -rf docs/src/md/*
+    bun build ./docs/index.html --outdir=/tmp
+    (cd docs && tsc --noEmit) | wtsc
 
 # check typings and coding style
 check:
-    biome check && (tsgo --noEmit | wtsc)
+    biome check && just check-compile
 
 # fix formatting across the whole project
 format:
