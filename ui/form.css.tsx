@@ -44,7 +44,7 @@ label {
   /* label wraps a widget-scale control (checkbox/toggle) but doesn't pad itself, so its radius
      can't derive from its own padding — "widget" is a deliberate override matching its sibling
      controls below (see "Border radius is derived" in specs/elt-ui-guidelines.md). */
-  ${theme.css.radius("widget")}
+  ${theme.css_radius("widget")}
   gap: 4px;
   cursor: pointer;
   font-size: ${theme.settings.formFontSize};
@@ -81,7 +81,7 @@ ${FORM_CONTROL_SELECTOR} {
     color: ${colors.text};
     border: 1px solid ${colors.neutral};
     padding: ${theme.settings.spacingWidget};
-    ${theme.css.radius("widget")}
+    ${theme.css_radius("widget")}
     font-size: ${theme.settings.formFontSize};
 
     transition:
@@ -139,7 +139,7 @@ input[type="checkbox"] {
   width: 1em;
   height: 1em;
   border: 1px solid ${colors.neutral.faded};
-  ${theme.css.radius("nudge-4")}
+  ${theme.css_radius("nudge-4")}
   cursor: pointer;
   position: relative;
   transition: box-shadow 0.1s ease;

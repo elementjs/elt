@@ -82,7 +82,7 @@ export function CodeExample(props: CodeExampleProps) {
   }
 
   return <e-column packed align="stretch">
-    <e-row packed="widget" border pad="none" align="stretch" surface="neutral-2" class={theme.colors.neutral.classes.as_tint}>
+    <e-row packed="widget" border pad="none" align="stretch" surface="neutral-2" class={theme.colors.neutral.class_as_tint}>
       <button e-variant={o_showing_code.tf(v => !v ? "inverted" : "")}>
         {$click(() => o_showing_code.set(false))}
         ⏵ Example
@@ -103,11 +103,11 @@ export function CodeExample(props: CodeExampleProps) {
 }
 
 const cls_active = css`.active {
-  ${theme.colors.tint.css.as_surface(1)}
+  ${theme.colors.tint.css_as_surface(1)}
 }`
 
 const cls_error = css`.error {
-  ${theme.colors.red.css.as_surface(1)}
+  ${theme.colors.red.css_as_surface(1)}
   padding: ${theme.settings.spacingWidget};
 
   & pre { margin: 0; white-space: pre-wrap; }

@@ -151,8 +151,8 @@ function _(strings: TemplateStringsArray, ...values: unknown[]): void {
 }
 
 // [surface]/[border] share one value type (ColorStep, ui/theme.tsx) — see specs/borders.md.
-// Every literal value below routes through theme.css.surface/border (mirroring [pad]/[spacing]/
-// [radius] reading theme.css.pad/spacing/radius) so the attribute rules and the helpers can't
+// Every literal value below routes through theme.css_surface/css_border (mirroring [pad]/[spacing]/
+// [radius] reading theme.css_pad/css_spacing/css_radius) so the attribute rules and the helpers can't
 // drift apart. Explicit values are excluded from the bare/default rule via a :not() chain, rather
 // than relying on source order, so bare [surface]/[border] stays the fallback regardless of
 // emission order — same defensive pattern this file already used for surface before this type
@@ -175,9 +175,9 @@ const _border_explicit = [..._color_families, ..._color_steps]
 
 _`
   ${_all}[hover]:hover { background-color: ${ambient_surface_mix.surface("n+1")} }
-  ${_all}[surface]${_not_values("surface", _surface_explicit)} { ${theme.css.surface(true)} }
-  ${_all}[surface="background"] { ${theme.css.surface("background")} }
-  ${_all}[border]${_not_values("border", _border_explicit)} { ${theme.css.border(true)} }
+  ${_all}[surface]${_not_values("surface", _surface_explicit)} { ${theme.css_surface(true)} }
+  ${_all}[surface="background"] { ${theme.css_surface("background")} }
+  ${_all}[border]${_not_values("border", _border_explicit)} { ${theme.css_border(true)} }
 `
 
 // `surface` is fill-only: it does NOT imply padding. A `surface` element that also needs padding
@@ -186,13 +186,13 @@ _`
 // color value (which surface step/family) silently change layout, and made the absence of `[pad]`
 // mean different things depending on whether `surface` was present.
 for (const fam of _color_families) {
-  _`${_all}[surface="${fam}"] { ${theme.css.surface(fam)} }`
-  _`${_all}[border="${fam}"] { ${theme.css.border(fam)} }`
+  _`${_all}[surface="${fam}"] { ${theme.css_surface(fam)} }`
+  _`${_all}[border="${fam}"] { ${theme.css_border(fam)} }`
 }
 
 for (const step of _color_steps) {
-  _`${_all}[surface="${step}"] { ${theme.css.surface(step)} }`
-  _`${_all}[border="${step}"] { ${theme.css.border(step)} }`
+  _`${_all}[surface="${step}"] { ${theme.css_surface(step)} }`
+  _`${_all}[border="${step}"] { ${theme.css_border(step)} }`
 }
 
 // `border` implies `radius` (any value), unless explicitly opted out with radius="none". Default
@@ -208,11 +208,11 @@ for (const step of _color_steps) {
 // preventing every named-step override from ever applying. :where() always contributes zero
 // specificity, so these rules and the per-step loop stay equal-specificity and cascade purely by
 // source order, as intended.
-_`${_all}[border]:where(:not([radius="none"])) { ${theme.css.radius()} }`
-_`${_all}[radius]:where(:not([radius="none"])) { ${theme.css.radius()} }`
-_`${_all}[pad]:where(:not([pad="none"])):is([border],[radius]):where(:not([radius="none"])) { ${theme.css.radius_own_pad()} }`
+_`${_all}[border]:where(:not([radius="none"])) { ${theme.css_radius()} }`
+_`${_all}[radius]:where(:not([radius="none"])) { ${theme.css_radius()} }`
+_`${_all}[pad]:where(:not([pad="none"])):is([border],[radius]):where(:not([radius="none"])) { ${theme.css_radius_own_pad()} }`
 for (const sp of spaces) {
-  _`${_all}[radius="${sp}"] { ${theme.css.radius(sp)} }`
+  _`${_all}[radius="${sp}"] { ${theme.css_radius(sp)} }`
 }
 
 for (const al of align) {
@@ -233,8 +233,8 @@ for (const al of align) {
 // 3. [spacing]/[spacing="X"] sets the ambient spacing directly — an explicit spacing value always
 //    wins over whatever [pad] implied, since these rules are emitted last.
 //
-// Every step → custom-property mapping below reads from `theme.css.pad`/`theme.css.spacing`
-// (ui/theme.tsx) — the single source of truth `theme.classes.pad`/`.spacing` also consume for
+// Every step → custom-property mapping below reads from `theme.css_pad`/`theme.css_spacing`
+// (ui/theme.tsx) — the single source of truth `theme.class_pad`/`class_spacing` also consume for
 // standalone elements, so the two can't drift apart.
 
 // (1) — [pad="none"] is excluded here : it implies no spacing at all, since there's no padding
@@ -245,17 +245,17 @@ for (const al of align) {
 // (regression, found while implementing specs/borders.md: [pad="section"] and friends resolved to
 // the "component" default instead of their own step). :where() keeps this rule and (2) below
 // equal-specificity, cascading purely by source order, as intended.
-_`${_all}[pad]:where(:not([pad="none"])) { ${theme.css.pad("component")} ${theme.css.spacing("component")} }`
-_`${_all}[spacing] { ${theme.css.spacing("component")} }`
+_`${_all}[pad]:where(:not([pad="none"])) { ${theme.css_pad("component")} ${theme.css_spacing("component")} }`
+_`${_all}[spacing] { ${theme.css_spacing("component")} }`
 
 // (2)
 for (const sp of spaces) {
-  _`${_all}[pad="${sp}"] { ${theme.css.pad(sp)} ${theme.css.spacing(sp)} }`
+  _`${_all}[pad="${sp}"] { ${theme.css_pad(sp)} ${theme.css_spacing(sp)} }`
 }
 
 // (3)
 for (const sp of spaces) {
-  _`${_all}[spacing="${sp}"] { ${theme.css.spacing(sp)} }`
+  _`${_all}[spacing="${sp}"] { ${theme.css_spacing(sp)} }`
 }
 
 // --e-current-surface-level holds a [surface] element's own (just-raised) level — registered
@@ -265,7 +265,7 @@ for (const sp of spaces) {
 // property genuinely absent (not merely 0) on non-[surface] elements, so `var(--e-current-surface-level, fallback)` reaches its fallback there.
 //
 // --e-current-surface-mix is the same pattern for the surface's color *family* — see
-// `--e-current-surface-mix` in `Mix._css_as_surface` (ui/theme.tsx) and specs/borders.md.
+// `--e-current-surface-mix` in `Mix.css_as_surface` (ui/theme.tsx) and specs/borders.md.
 css`
 @property --e-current-surface-level {
   syntax: "*";
@@ -285,8 +285,8 @@ css`
 css`
 @layer components {
   :root {
-    ${theme.css.spacing("component")}
-    ${theme.css.pad("component")}
+    ${theme.css_spacing("component")}
+    ${theme.css_pad("component")}
 
     --e-surface-level: 0;
     --e-surface-step: 10%;
@@ -300,8 +300,8 @@ css`
     flex-direction: row;
     align-items: baseline;
   }
-  header { ${theme.colors.tint.css.as_inverted}; }
-  footer { ${theme.colors.neutral.css.as_surface(1)} }
+  header { ${theme.colors.tint.css_as_inverted}; }
+  footer { ${theme.colors.neutral.css_as_surface(1)} }
 
   e-prose { display: block; }
   e-prose[inline] { display: inline-block; }
@@ -371,7 +371,7 @@ css`
 
   ${spaces.map(sp => `
   ${_flex}[packed="${sp}"] > * {
-    ${theme.css.pad(sp)}
+    ${theme.css_pad(sp)}
     padding: var(--e-pad);
   }`).join("\n")}
 
@@ -416,7 +416,7 @@ css`
 
   /* packed WITH its own border: packed draws the border, not its children — a 1px gap, filled by
      the container's own background (the same color as its border, via --e-current-border-color,
-     see theme.css.border/ui/theme.tsx), becomes the visible seam. Every child gives up its own
+     see theme.css_border in ui/theme.tsx), becomes the visible seam. Every child gives up its own
      border and takes the current surface's background instead (its own explicit background, if
      set, still wins — this rule carries no more specificity than any plain author style). */
   ${_flex}[packed][border] {

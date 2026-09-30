@@ -107,7 +107,7 @@ const cls_item = css`.item {
   cursor: pointer;
   user-select: none;
   font-size: ${theme.settings.formFontSize};
-  ${theme.css.radius("nudge-2")}
+  ${theme.css_radius("nudge-2")}
 
   & .selected-icon {
     color: ${colors.tint};
@@ -117,7 +117,7 @@ const cls_item = css`.item {
   }
 
   &.selected {
-    ${colors.tint.faded.css.as_inverted}
+    ${colors.tint.faded.css_as_inverted}
   }
 
   @media (hover: hover) and (pointer: fine) {

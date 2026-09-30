@@ -162,7 +162,7 @@ css`@layer typography {
     /* ── Details / summary ─────────────────────────────────── */
     & details {
       border: 1px solid ${theme.colors.neutral.faded};
-      ${theme.css.radius("component")}
+      ${theme.css_radius("component")}
       padding: ${theme.settings.spacingComponent};
 
       & summary {
@@ -237,7 +237,7 @@ css`@layer typography {
     }
 
     & th {
-      ${theme.colors.neutral.css.as_surface(1)}
+      ${theme.colors.neutral.css_as_surface(1)}
       font-weight: bolder;
     }
   }

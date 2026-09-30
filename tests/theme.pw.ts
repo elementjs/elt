@@ -75,32 +75,68 @@ test.describe("Color/Mix merge", () => {
   }) => {
     const result = await page.evaluate(() => {
       const { theme } = window.__ELT__.UI
-      const class_a = theme.colors.tint.faded.classes.as_inverted.toString()
-      const class_b = theme.colors.red.mid.classes.as_inverted.toString()
+      const class_a = theme.colors.tint.faded.class_as_inverted.toString()
+      const class_b = theme.colors.red.mid.class_as_inverted.toString()
       return { class_a, class_b }
     })
     expect(result.class_a).not.toBe("")
     expect(result.class_a).not.toBe(result.class_b)
   })
 
+  test("a computed mix read twice yields the same Mix and the same class names (regression: each read of .faded minted a new anon class — a new stylesheet rule — every time)", async ({
+    page,
+  }) => {
+    const result = await page.evaluate(() => {
+      const { theme } = window.__ELT__.UI
+      const tint = theme.colors.tint
+      return {
+        same_mix: tint.faded === tint.faded && tint.from_bg("37%") === tint.from_bg("37%"),
+        inverted: tint.faded.class_as_inverted === tint.faded.class_as_inverted,
+        tint: tint.strong.class_as_tint === tint.strong.class_as_tint,
+        surface: tint.mid.class_as_surface(2) === tint.mid.class_as_surface(2),
+        distinct: tint.faded !== tint.mid,
+      }
+    })
+    expect(result).toEqual({ same_mix: true, inverted: true, tint: true, surface: true, distinct: true })
+  })
+
+  test("Mix and Theme expose css_*/class_* members directly, with no css/classes sub-objects or _-prefixed forwarding helpers", async ({
+    page,
+  }) => {
+    const result = await page.evaluate(() => {
+      const { theme } = window.__ELT__.UI
+      const tint = theme.colors.tint as unknown as Record<string, unknown>
+      const th = theme as unknown as Record<string, unknown>
+      return {
+        mix_namespaces: ["css", "classes", "_css_as_tint", "_classes_as_tint", "_css_as_surface"].filter(
+          (k) => k in tint,
+        ),
+        theme_namespaces: ["css", "classes"].filter((k) => k in th),
+        mix_members: typeof tint.css_as_surface === "function" && typeof tint.class_as_inverted === "string",
+        theme_members: typeof th.css_pad === "function" && typeof th.class_dynamic_scheme === "string",
+      }
+    })
+    expect(result).toEqual({ mix_namespaces: [], theme_namespaces: [], mix_members: true, theme_members: true })
+  })
+
   test("named colors keep readable, stable as_inverted/as_tint class names", async ({ page }) => {
     const result = await page.evaluate(() => {
       const { theme } = window.__ELT__.UI
       return {
-        as_inverted: theme.colors.tint.classes.as_inverted.toString(),
-        as_tint: theme.colors.tint.classes.as_tint.toString(),
+        as_inverted: theme.colors.tint.class_as_inverted.toString(),
+        as_tint: theme.colors.tint.class_as_tint.toString(),
       }
     })
     expect(result.as_inverted).toContain("e-color-tint-inverted")
     expect(result.as_tint).toContain("e-color-tint-tint")
   })
 
-  test("as_inverted freezes bg to the light theme's colors, not the live (possibly dark) ones — fixes a dark-mode contrast bug in the soft-inverted chrome case (ui/layout.css.tsx text.faded.css.as_inverted)", async ({
+  test("as_inverted freezes bg to the light theme's colors, not the live (possibly dark) ones — fixes a dark-mode contrast bug in the soft-inverted chrome case (ui/layout.css.tsx text.faded.css_as_inverted)", async ({
     page,
   }) => {
     const result = await page.evaluate(() => {
       const { theme } = window.__ELT__.UI
-      const css = theme.colors.text.faded.css.as_inverted
+      const css = theme.colors.text.faded.css_as_inverted
       const bg_line = css.split("\n").find((l) => l.includes("--e-color-bg:"))!
       return { css, bg_line }
     })
@@ -117,7 +153,7 @@ test.describe("Color/Mix merge", () => {
   }) => {
     const result = await page.evaluate(() => {
       const { theme } = window.__ELT__.UI
-      const css = theme.colors.tint.css.as_inverted
+      const css = theme.colors.tint.css_as_inverted
       const neutral_line = css.split("\n").find((l) => l.includes("--e-color-neutral:"))!
       const text_line = css.split("\n").find((l) => l.includes("--e-color-text:"))!
       const tint_line = css.split("\n").find((l) => l.includes("--e-color-tint:"))!
@@ -132,9 +168,9 @@ test.describe("Color/Mix merge", () => {
   test("inside a real inverted element, neutral/text/tint resolve to the identical computed color", async ({ page }) => {
     const result = await page.evaluate(() => {
       const { theme } = window.__ELT__.UI
-      document.body.className = theme.classes.light_scheme
+      document.body.className = theme.class_light_scheme
       const el = document.createElement("div")
-      el.className = theme.colors.tint.classes.as_inverted
+      el.className = theme.colors.tint.class_as_inverted
       document.body.appendChild(el)
       const probe = (expr: string) => {
         const span = document.createElement("span")
@@ -171,7 +207,7 @@ test.describe("Color/Mix merge", () => {
         throw new Error(`No rule found for .${class_name}`)
       }
       const { theme } = window.__ELT__.UI
-      const cls = theme.colors.red.classes.as_tint.toString()
+      const cls = theme.colors.red.class_as_tint.toString()
       return find_rule_text(cls)
     })
     expect(rule).toContain("--e-color-tint: var(--e-color-red)")
@@ -192,7 +228,7 @@ test.describe("Mix.surface / [surface] parity", () => {
   test("an absolute level ignores ambient nesting", async ({ page }) => {
     const css = await page.evaluate(() => {
       const { theme } = window.__ELT__.UI
-      return theme.colors.tint.css.as_surface(2)
+      return theme.colors.tint.css_as_surface(2)
     })
     expect(css).toContain("--e-current-surface-level: 2;")
     // never reads the ambient level (with its ", 0" fallback) to compute its own — only a relative n+K offset does
@@ -202,7 +238,7 @@ test.describe("Mix.surface / [surface] parity", () => {
   test("n+1 raises one level relative to whatever's ambient", async ({ page }) => {
     const css = await page.evaluate(() => {
       const { theme } = window.__ELT__.UI
-      return theme.colors.tint.css.as_surface("n+1")
+      return theme.colors.tint.css_as_surface("n+1")
     })
     expect(css).toContain("--e-current-surface-level: (1 + var(--e-surface-level, 0));")
   })
@@ -212,7 +248,7 @@ test.describe("Mix.surface / [surface] parity", () => {
   }) => {
     const css = await page.evaluate(() => {
       const { theme } = window.__ELT__.UI
-      return theme.colors.tint.css.as_surface("n+2")
+      return theme.colors.tint.css_as_surface("n+2")
     })
     expect(css).toContain("--e-current-surface-level: (2 + var(--e-surface-level, 0));")
   })
@@ -220,7 +256,7 @@ test.describe("Mix.surface / [surface] parity", () => {
   test("n+0 is a valid, well-defined relative offset (identity — same level as ambient)", async ({ page }) => {
     const css = await page.evaluate(() => {
       const { theme } = window.__ELT__.UI
-      return theme.colors.tint.css.as_surface("n+0")
+      return theme.colors.tint.css_as_surface("n+0")
     })
     expect(css).toContain("--e-current-surface-level: (0 + var(--e-surface-level, 0));")
   })
@@ -230,8 +266,8 @@ test.describe("Mix.surface / [surface] parity", () => {
       const { theme } = window.__ELT__.UI
       const outcomes: boolean[] = []
       for (const fn of [
-        () => theme.colors.tint.css.as_surface("n+1.5" as never),
-        () => theme.colors.tint.css.as_surface("n+-1" as never),
+        () => theme.colors.tint.css_as_surface("n+1.5" as never),
+        () => theme.colors.tint.css_as_surface("n+-1" as never),
         () => theme.colors.tint.surface("n+" as never),
       ]) {
         try {
@@ -251,7 +287,7 @@ test.describe("Mix.surface / [surface] parity", () => {
   }) => {
     const css = await page.evaluate(() => {
       const { theme } = window.__ELT__.UI
-      return theme.colors.tint.css.as_surface("background")
+      return theme.colors.tint.css_as_surface("background")
     })
     expect(css).toContain("--e-current-surface-level: 0;")
     expect(css).toContain("background-color:")
@@ -265,24 +301,24 @@ test.describe("Mix.surface / [surface] parity", () => {
   test("children are handed the new level via the same relay variable used to paint it", async ({ page }) => {
     const css = await page.evaluate(() => {
       const { theme } = window.__ELT__.UI
-      return theme.colors.tint.css.as_surface(3)
+      return theme.colors.tint.css_as_surface(3)
     })
     expect(css).toContain("--e-surface-level-relay: var(--e-current-surface-level);")
     expect(css).toContain("& > * { --e-surface-level: var(--e-surface-level-relay); --e-surface-mix: var(--e-surface-mix-relay); }")
   })
 
-  test(".classes.as_surface() returns a stable, cached class name per level — usable on any element, not just e-flex/e-grid/e-prose", async ({
+  test(".class_as_surface() returns a stable, cached class name per level — usable on any element, not just e-flex/e-grid/e-prose", async ({
     page,
   }) => {
-    // Content correctness (the CSS text) is covered by the .css.as_surface tests above. Reading the
+    // Content correctness (the CSS text) is covered by the .css_as_surface tests above. Reading the
     // generated rule back via document.adoptedStyleSheets for a class containing nested `&` selectors
     // is skipped here too (only the class-name identity/caching behavior is asserted), consistent with
     // the original happy-dom-era test which found nested-`&` rules unreliable to read back.
     const result = await page.evaluate(() => {
       const { theme } = window.__ELT__.UI
-      const a = theme.colors.tint.classes.as_surface(2)
-      const b = theme.colors.tint.classes.as_surface(2)
-      const c = theme.colors.tint.classes.as_surface(3)
+      const a = theme.colors.tint.class_as_surface(2)
+      const b = theme.colors.tint.class_as_surface(2)
+      const c = theme.colors.tint.class_as_surface(3)
       return { a, b, c }
     })
     expect(result.a).toBe(result.b)
@@ -302,7 +338,7 @@ test.describe("Mix.surface / [surface] parity", () => {
     expect(value).toContain("color-mix")
   })
 
-  test("surface(N) computes N * the surface step, same formula .css.as_surface uses via its custom-property indirection", async ({
+  test("surface(N) computes N * the surface step, same formula .css_as_surface uses via its custom-property indirection", async ({
     page,
   }) => {
     const value = await page.evaluate(() => {
@@ -320,7 +356,7 @@ test.describe("Mix.surface / [surface] parity", () => {
     expect(value).toContain("calc(0 * var(--e-surface-step, 10%))")
   })
 
-  test("surface('n+1') reads the ambient level, same offset as .css.as_surface('n+1')", async ({ page }) => {
+  test("surface('n+1') reads the ambient level, same offset as .css_as_surface('n+1')", async ({ page }) => {
     const value = await page.evaluate(() => {
       const { theme } = window.__ELT__.UI
       return theme.colors.tint.surface("n+1")
@@ -453,11 +489,11 @@ test.describe("Spacing scale (regression: no separate vertical/horizontal values
   })
 })
 
-test.describe("Theme.css.pad / Theme.css.spacing", () => {
+test.describe("Theme.css_pad / Theme.css_spacing", () => {
   test("pad(step) sets --e-pad from the named step's single spacing variable", async ({ page }) => {
     const result = await page.evaluate(() => {
       const { theme } = window.__ELT__.UI
-      return theme.css.pad("widget")
+      return theme.css_pad("widget")
     })
     expect(result).toBe("--e-pad: var(--e-spacing-widget);")
   })
@@ -465,7 +501,7 @@ test.describe("Theme.css.pad / Theme.css.spacing", () => {
   test("spacing(step) sets --e-spacing and --e-current-spacing from the named step's single spacing variable (specs/borders.md)", async ({ page }) => {
     const result = await page.evaluate(() => {
       const { theme } = window.__ELT__.UI
-      return theme.css.spacing("section")
+      return theme.css_spacing("section")
     })
     expect(result).toBe("--e-spacing: var(--e-spacing-section); --e-current-spacing: var(--e-spacing-section);")
   })
@@ -473,21 +509,21 @@ test.describe("Theme.css.pad / Theme.css.spacing", () => {
   test("the three raw px nudges use the same single-variable mechanism as every other step", async ({ page }) => {
     const result = await page.evaluate(() => {
       const { theme } = window.__ELT__.UI
-      return theme.css.pad("nudge-4")
+      return theme.css_pad("nudge-4")
     })
     expect(result).toBe("--e-pad: var(--e-spacing-nudge-4);")
   })
 })
 
-test.describe("Theme.classes (regression: moved off Theme's top-level class_light/class_dark/class_dynamic)", () => {
+test.describe("Theme class_*_scheme (regression: renamed from class_light/class_dark/class_dynamic)", () => {
   test("light_scheme/dark_scheme/dynamic_scheme are memoized and produce the expected class names", async ({ page }) => {
     const result = await page.evaluate(() => {
       const { theme } = window.__ELT__.UI
       return {
-        memoized: theme.classes.light_scheme === theme.classes.light_scheme,
-        light: theme.classes.light_scheme.toString(),
-        dark: theme.classes.dark_scheme.toString(),
-        dynamic: theme.classes.dynamic_scheme.toString(),
+        memoized: theme.class_light_scheme === theme.class_light_scheme,
+        light: theme.class_light_scheme.toString(),
+        dark: theme.class_dark_scheme.toString(),
+        dynamic: theme.class_dynamic_scheme.toString(),
       }
     })
     expect(result.memoized).toBe(true)
@@ -501,13 +537,13 @@ test.describe("Theme.classes (regression: moved off Theme's top-level class_ligh
       const { theme } = window.__ELT__.UI
       return {
         theme_str: theme.toString(),
-        dynamic_str: theme.classes.dynamic_scheme.toString(),
+        dynamic_str: theme.class_dynamic_scheme.toString(),
       }
     })
     expect(result.theme_str).toBe(result.dynamic_str)
   })
 
-  test("pad(step)/spacing(step) return a stable, cached class name per step, mirroring theme.css.pad/spacing", async ({
+  test("pad(step)/spacing(step) return a stable, cached class name per step, mirroring theme.css_pad/css_spacing", async ({
     page,
   }) => {
     const result = await page.evaluate(() => {
@@ -522,11 +558,11 @@ test.describe("Theme.classes (regression: moved off Theme's top-level class_ligh
         throw new Error(`No rule found for .${class_name}`)
       }
       const { theme } = window.__ELT__.UI
-      const a = theme.classes.pad("component")
-      const b = theme.classes.pad("component")
-      const c = theme.classes.pad("section")
+      const a = theme.class_pad("component")
+      const b = theme.class_pad("component")
+      const c = theme.class_pad("section")
       const rule = find_rule_text(a)
-      return { a, b, c, rule, pad_component: theme.css.pad("component") }
+      return { a, b, c, rule, pad_component: theme.css_pad("component") }
     })
     expect(result.a).toBe(result.b)
     expect(result.a).not.toBe(result.c)
@@ -549,9 +585,9 @@ test.describe("Theme.classes (regression: moved off Theme's top-level class_ligh
         throw new Error(`No rule found for .${class_name}`)
       }
       const { theme } = window.__ELT__.UI
-      const cls = theme.classes.spacing("widget")
+      const cls = theme.class_spacing("widget")
       const rule = find_rule_text(cls)
-      return { rule, spacing_widget: theme.css.spacing("widget") }
+      return { rule, spacing_widget: theme.css_spacing("widget") }
     })
     expect(result.rule).toContain(result.spacing_widget)
     expect(result.rule).toContain("gap: var(--e-spacing)")

@@ -120,10 +120,10 @@ const o_disabled = o(true)
 const tint_colors = (Object.keys(theme.colors) as (keyof typeof theme.colors)[])
   .filter(color => !["bg", "text", "tint"].includes(color))
 
-return <e-column spacing style={oo_style} class={o_color.tf(col => theme.colors[col].classes.as_tint)}>
+return <e-column spacing style={oo_style} class={o_color.tf(col => theme.colors[col].class_as_tint)}>
   <e-row spacing>
     <e-row packed>
-      {tint_colors.map(color => <label e-variant="toggle" class={theme.colors[color].classes.as_tint}>
+      {tint_colors.map(color => <label e-variant="toggle" class={theme.colors[color].class_as_tint}>
         <input type="checkbox">{$bind.boolean(o_color.tf(tf_equals(color)))}</input>
         <P.PaintRoller/>
       </label>)}
@@ -244,9 +244,9 @@ import { css } from "elt"
 import { theme } from "elt/ui"
 
 const cls_plain_surface = css`.plain-surface {
-  ${theme.colors.tint.css.as_surface(2)}
+  ${theme.colors.tint.css_as_surface(2)}
   padding: ${theme.settings.spacingWidget};
-  ${theme.css.radius("widget")}
+  ${theme.css_radius("widget")}
 }`
 
 return <e-column spacing="section">
@@ -284,7 +284,7 @@ return <e-column spacing="section">
     </e-prose>
     <div class={cls_plain_surface}>
       A plain &lt;div&gt;, not an &lt;e-prose&gt; — styled with
-      theme.colors.tint.classes.as_surface(2)'s underlying CSS directly, since [surface] itself
+      theme.colors.tint.class_as_surface(2)'s underlying CSS directly, since [surface] itself
       only targets e-flex/e-grid/e-prose.
     </div>
   </e-prose>
@@ -325,8 +325,8 @@ instead.
 //@inline-example
 import { theme } from "elt/ui"
 
-const cls_inverted = theme.colors.tint.classes.as_inverted
-const cls_inverted_different = theme.colors.red.classes.as_inverted
+const cls_inverted = theme.colors.tint.class_as_inverted
+const cls_inverted_different = theme.colors.red.class_as_inverted
 
 return <e-row spacing="section" wrap>
   <e-column class={cls_inverted} pad="component" spacing="widget" radius>

@@ -95,7 +95,7 @@ dialog {
      from its own padding like [radius] normally does — "component" is a deliberate, named
      override matching the step its children pad at (see "Border radius is derived" in
      specs/elt-ui-guidelines.md). */
-  ${theme.css.radius("component")}
+  ${theme.css_radius("component")}
   border: 1px solid ${theme.colors.neutral.faded};
 
   background: var(--e-color-bg);

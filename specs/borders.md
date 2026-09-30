@@ -14,13 +14,13 @@ Today, `packed` finds bordered children through a fixed selector (`BORDERED_SELE
 
 Move border awareness from `packed` to each bordered element. A bordered element checks for a `packed` ancestor itself. `packed` no longer scans its children for borders.
 
-Each bordered element's own ruleset carries a plain CSS descendant selector, e.g. `:where([packed]) > &:not(:last-child) { border-inline-end: none }`, written once per bordered element type. `BORDERED_SELECTOR` disappears. This keeps the existing `.css.<name>` convention intact (a plain declaration string), and needs no new convention.
+Each bordered element's own ruleset carries a plain CSS descendant selector, e.g. `:where([packed]) > &:not(:last-child) { border-inline-end: none }`, written once per bordered element type. `BORDERED_SELECTOR` disappears. This keeps the existing `css_<name>` convention intact (a plain declaration string), and needs no new convention.
 
 > 📜 **ADR**: as implemented, this needs no per-element-type ruleset at all. `border-right: none`/`border-bottom: none` on the trailing edge of every non-last `packed` child (bordered or not) is a no-op on an unbordered child — CSS doesn't complain about resetting a property that was never set. One pair of rules (row/column), unconditional on element type, replaces `BORDERED_SELECTOR` entirely. See `ui/layout.css.tsx`.
 
 ## Theme helpers
 
-`surface` and `border` share one color-step value type: `"tint"`, `"neutral"`, `"tint-surface"`, `"neutral-surface"`, `"tint-separator"`, `"neutral-separator"`, `` `tint-${N}` ``, `` `neutral-${N}` ``, where `N` is a level number 1 through 6. `theme.css.border(value)` / `theme.classes.border(value)` and the matching `surface` helpers read this type.
+`surface` and `border` share one color-step value type: `"tint"`, `"neutral"`, `"tint-surface"`, `"neutral-surface"`, `"tint-separator"`, `"neutral-separator"`, `` `tint-${N}` ``, `` `neutral-${N}` ``, where `N` is a level number 1 through 6. `theme.css_border(value)` / `theme.class_border(value)` and the matching `surface` helpers read this type.
 
 - Bare `surface` (boolean `true`, no value): the `neutral` family, one level up from ambient (matching today's bare-`[surface]` relative-offset behavior, `ui/layout.css.tsx:135-141`).
 - `surface="tint"` / `surface="neutral"`: that family, one level up from ambient — same offset as bare, family forced.
@@ -38,28 +38,28 @@ Each bordered element's own ruleset carries a plain CSS descendant selector, e.g
 
 > 🔎 **Assumption**: the resolved family and level may be carried through CSS custom properties, matching the existing pattern (`--e-current-surface-level`, `--e-surface-level`). This is an implementation choice, not part of the public interface this document specifies.
 
-The `surface`/`border` attributes precompile `tint-N`/`neutral-N` for `N` 1 through 6 only, matching today's `[surface="1"]`-`[surface="6"]` and `[border="n+1"]`-`[border="n+6"]` ranges. The `theme.css.border(value)`/`theme.colors.<mix>.surface(level)` helpers accept any `N`, uncapped — matching how `Mix.surface()` already accepts an arbitrary `` `n+${number}` `` today (`ui/theme.tsx:614`) even though the `[surface]` attribute only precompiles a fixed set (`ui/layout.css.tsx:135-141`).
+The `surface`/`border` attributes precompile `tint-N`/`neutral-N` for `N` 1 through 6 only, matching today's `[surface="1"]`-`[surface="6"]` and `[border="n+1"]`-`[border="n+6"]` ranges. The `theme.css_border(value)`/`theme.colors.<mix>.surface(level)` helpers accept any `N`, uncapped — matching how `Mix.surface()` already accepts an arbitrary `` `n+${number}` `` today (`ui/theme.tsx:614`) even though the `[surface]` attribute only precompiles a fixed set (`ui/layout.css.tsx:135-141`).
 
 `border="tint-surface"`/`"neutral-surface"`/`"tint-separator"`/`"neutral-separator"`, with no `surface` value of its own on the same element, resolves the `+1`/`+2` against the ambient surface (nearest ancestor's surface level) — the same fallback `Mix.surface()` already uses (`ui/theme.tsx:614-616`).
 
 `[hover]:hover` (`ui/layout.css.tsx`) reads `ambient_surface_mix` (`ui/theme.tsx`) — the same ambient-family `Mix` `border`'s level-relative suffixes above use — instead of a hardcoded `theme.colors.tint`, so a hover fill matches whichever family the surface it sits on actually used.
 
-- `theme.css.radius()` / the `radius` attribute already exist (`ui/theme.tsx:87-94`, `ui/layout.css.tsx:64`, commit `ee6d2fe`). No change needed there.
-- Add `theme.classes.radius(step?)`, the class-name counterpart to `theme.css.radius()`. It does not exist yet (`ui/theme.tsx:311` has only `css.radius`).
+- `theme.css_radius()` / the `radius` attribute already exist (`ui/theme.tsx:87-94`, `ui/layout.css.tsx:64`, commit `ee6d2fe`). No change needed there.
+- Add `theme.class_radius(step?)`, the class-name counterpart to `theme.css_radius()`. It does not exist yet (`ui/theme.tsx:311` has only `css.radius`).
 
-> 📜 **ADR**: every `theme.css.<name>` helper needs a matching `theme.classes.<name>` helper, so library consumers who need a class name (not an inline declaration) are covered.
+> 📜 **ADR**: every `theme.css_<name>` helper needs a matching `theme.class_<name>` helper, so library consumers who need a class name (not an inline declaration) are covered.
 
 `--e-current-spacing` is not a rename of `--e-pad` — it is a separate, ambient (inheriting) custom property holding the "outer" spacing level currently in effect, the same level today's `--e-spacing` already carries (set by `[pad]`, `[spacing]`, `[packed]`, `ui/layout.css.tsx:209-220,305-313`). `--e-pad` stays exactly what it is today: an element's own explicitly specified padding value, set only when that element itself has `[pad]`/`[pad="X"]`.
 
-`theme.css.radius()`'s default (an unspecified radius step) reads `--e-pad` first — this element's own specified padding, when set — and falls back to `--e-current-spacing` — the ambient spacing level — when this element has no `[pad]` of its own. This replaces today's `var(--e-pad, var(--e-spacing-widget))` fallback chain (`ui/theme.tsx:89`).
+`theme.css_radius()`'s default (an unspecified radius step) reads `--e-pad` first — this element's own specified padding, when set — and falls back to `--e-current-spacing` — the ambient spacing level — when this element has no `[pad]` of its own. This replaces today's `var(--e-pad, var(--e-spacing-widget))` fallback chain (`ui/theme.tsx:89`).
 
 > 🔎 **Assumption**: `--e-current-spacing` may be implemented as a rename of `--e-spacing` itself, or as a separate property kept in sync with it — both give `radius` the same resolved value. This is an implementation choice, not part of the interface this document specifies.
 
-> 📜 **ADR**: the pad-first priority is not a change to `--e-current-spacing`'s own cascade — that property keeps following the existing rule where an explicit `[spacing]` wins over whatever `[pad]` implied (`ui/layout.css.tsx:200-201,218-220`, rule 3). The priority is specific to `theme.css.radius()`'s own two-step fallback: this element's own explicit padding, if any, before the ambient spacing level.
+> 📜 **ADR**: the pad-first priority is not a change to `--e-current-spacing`'s own cascade — that property keeps following the existing rule where an explicit `[spacing]` wins over whatever `[pad]` implied (`ui/layout.css.tsx:200-201,218-220`, rule 3). The priority is specific to `theme.css_radius()`'s own two-step fallback: this element's own explicit padding, if any, before the ambient spacing level.
 
-- Add `theme.css.current_surface`, `theme.classes.current_surface`, emitting `background: var(--e-current-surface);` alone. Backed by `var(--e-current-surface)`. Default at `:root` is the page background.
+- Add `theme.css_current_surface`, `theme.class_current_surface`, emitting `background: var(--e-current-surface);` alone. Backed by `var(--e-current-surface)`. Default at `:root` is the page background.
 
-> 🔎 **Assumption**: `--e-current-surface-level` already exists (`ui/layout.css.tsx:227-231`), holds a number, and is registered `inherits: false`. `--e-current-surface` must hold a resolved color — packed children read it as their own `background` — so it must inherit; it cannot be the same property as the level. `Mix.css.as_surface()` (`ui/theme.tsx:627-643`) writes it alongside the level, so the two never drift apart.
+> 🔎 **Assumption**: `--e-current-surface-level` already exists (`ui/layout.css.tsx:227-231`), holds a number, and is registered `inherits: false`. `--e-current-surface` must hold a resolved color — packed children read it as their own `background` — so it must inherit; it cannot be the same property as the level. `Mix.css_as_surface()` (`ui/theme.tsx:627-643`) writes it alongside the level, so the two never drift apart.
 
 ## Packed containers own their children's radius, whenever they themselves have one
 
@@ -70,7 +70,7 @@ Whenever a `packed` container has a radius in effect — its own `[border]` (whi
 
 When `packed` has *neither* `[border]` nor `[radius]` of its own, none of this applies: each child keeps whatever radius it resolved on its own, at every corner, interior seams included — this is the one case where `packed` stays out of the question entirely, matching today's tested behavior (`tests/packed.pw.ts:118-148`).
 
-> 📜 **ADR**: not all children go through the theme's radius system the same way — a form control's radius (`theme.css.radius("widget")`, `ui/form.css.tsx`) is a fixed named step, unrelated to any ambient or container radius; a plain child with none of its own defaults to `0`. Relying on each child to independently arrive at a radius that happens to match its siblings and the container is fragile. Once `packed` has asked for a radius at all, it owns the whole group's shape, the same way it owns the border and background in `packed[border]` mode. `inherit` on each corner longhand forces that one declaration to read the container's computed value, regardless of whether `border-radius` normally inherits (it doesn't).
+> 📜 **ADR**: not all children go through the theme's radius system the same way — a form control's radius (`theme.css_radius("widget")`, `ui/form.css.tsx`) is a fixed named step, unrelated to any ambient or container radius; a plain child with none of its own defaults to `0`. Relying on each child to independently arrive at a radius that happens to match its siblings and the container is fragile. Once `packed` has asked for a radius at all, it owns the whole group's shape, the same way it owns the border and background in `packed[border]` mode. `inherit` on each corner longhand forces that one declaration to read the container's computed value, regardless of whether `border-radius` normally inherits (it doesn't).
 
 ## Packed containers without their own border
 
@@ -107,7 +107,7 @@ Flex wrapping can put the first and last child of a `packed` row or column on di
 
 ## Tests
 
-> 📜 **ADR**: implemented — `tests/packed.pw.ts`, `tests/border.pw.ts`, `tests/theme.pw.ts`. Covers: per-element seam suppression (no `BORDERED_SELECTOR`); the `surface`/`border` value type including the flat-widget-vs-level-stack-suffix split; `theme.css.radius()`'s own-`[pad]`-vs-ambient-spacing priority; `theme.classes.radius`/`.current_surface`; every `packed[border]` behavior (own border/background, `1px` gap, child background/border reset, first/last child radius inheritance); `packed[radius]` without `border` owning radius the same way; plain `packed` (neither `border` nor `radius`) leaving children's radius untouched; `[surface]`/`[border]` no longer setting `overflow`; `<pre>`'s `border-radius: inherit` and `overflow-y: clip` fix. Also fixed a pre-existing, unrelated bug this work exposed: `[pad]:not([pad="none"])` outranked `[pad="X"]` by specificity, so any named `pad` step silently fell back to `component`'s value — fixed the same way `[radius]` already guards against this (`:where(:not(...))`).
+> 📜 **ADR**: implemented — `tests/packed.pw.ts`, `tests/border.pw.ts`, `tests/theme.pw.ts`. Covers: per-element seam suppression (no `BORDERED_SELECTOR`); the `surface`/`border` value type including the flat-widget-vs-level-stack-suffix split; `theme.css_radius()`'s own-`[pad]`-vs-ambient-spacing priority; `theme.class_radius`/`class_current_surface`; every `packed[border]` behavior (own border/background, `1px` gap, child background/border reset, first/last child radius inheritance); `packed[radius]` without `border` owning radius the same way; plain `packed` (neither `border` nor `radius`) leaving children's radius untouched; `[surface]`/`[border]` no longer setting `overflow`; `<pre>`'s `border-radius: inherit` and `overflow-y: clip` fix. Also fixed a pre-existing, unrelated bug this work exposed: `[pad]:not([pad="none"])` outranked `[pad="X"]` by specificity, so any named `pad` step silently fell back to `component`'s value — fixed the same way `[radius]` already guards against this (`:where(:not(...))`).
 
 ## Documents to update
 

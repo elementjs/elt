@@ -226,11 +226,11 @@ test.describe("[border] implies [radius] (specs/elt-ui-guidelines.md, Border rad
   })
 })
 
-test.describe("Theme.css.radius (ui/theme.tsx)", () => {
+test.describe("Theme.css_radius (ui/theme.tsx)", () => {
   test("no step: derives from the ambient --e-current-spacing, falling back to --e-spacing-widget", async ({ page }) => {
     const result = await page.evaluate(() => {
       const { theme } = window.__ELT__.UI
-      return theme.css.radius()
+      return theme.css_radius()
     })
     expect(result).toBe("border-radius: calc(var(--e-current-spacing, var(--e-spacing-widget)));")
   })
@@ -238,7 +238,7 @@ test.describe("Theme.css.radius (ui/theme.tsx)", () => {
   test("a named step overrides with that step's own value", async ({ page }) => {
     const result = await page.evaluate(() => {
       const { theme } = window.__ELT__.UI
-      return theme.css.radius("component")
+      return theme.css_radius("component")
     })
     expect(result).toBe("border-radius: calc(var(--e-spacing-component));")
   })
@@ -246,17 +246,17 @@ test.describe("Theme.css.radius (ui/theme.tsx)", () => {
   test("a raw nudge step reads its symmetric variable, not a -vertical suffix", async ({ page }) => {
     const result = await page.evaluate(() => {
       const { theme } = window.__ELT__.UI
-      return theme.css.radius("nudge-4")
+      return theme.css_radius("nudge-4")
     })
     expect(result).toBe("border-radius: var(--e-spacing-nudge-4);")
   })
 })
 
-test.describe("theme.classes.radius/current_surface (specs/borders.md)", () => {
-  test("theme.classes.radius() produces a class equivalent to theme.css.radius()'s declaration", async ({ page }) => {
+test.describe("theme.class_radius/current_surface (specs/borders.md)", () => {
+  test("theme.class_radius() produces a class equivalent to theme.css_radius()'s declaration", async ({ page }) => {
     const result = await page.evaluate(() => {
       const { theme } = window.__ELT__.UI
-      const cls = theme.classes.radius("component")
+      const cls = theme.class_radius("component")
       const el = document.createElement("div")
       el.className = cls
       document.body.appendChild(el)
@@ -268,11 +268,11 @@ test.describe("theme.classes.radius/current_surface (specs/borders.md)", () => {
     expect(result.radius).toBe(result.ref)
   })
 
-  test("theme.classes.current_surface applies background: var(--e-current-surface)", async ({ page }) => {
+  test("theme.class_current_surface applies background: var(--e-current-surface)", async ({ page }) => {
     const result = await page.evaluate(() => {
       const { theme } = window.__ELT__.UI
       const el = document.createElement("div")
-      el.className = theme.classes.current_surface
+      el.className = theme.class_current_surface
       document.body.appendChild(el)
       const ref = document.createElement("div")
       ref.style.backgroundColor = theme.colors.bg.toString()

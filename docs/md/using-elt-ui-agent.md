@@ -35,7 +35,7 @@ import { node_append } from "elt"
 node_append(document.body, app.DisplayView("Main"))
 ```
 
-Optional forced light/dark (default follows `prefers-color-scheme` via `theme.classes.dynamic_scheme`):
+Optional forced light/dark (default follows `prefers-color-scheme` via `theme.class_dynamic_scheme`):
 
 ```tsx
 import { o_force_theme } from "elt/ui"
@@ -55,7 +55,7 @@ elt/ui is intentionally small: a **visual language** plus a few high-value widge
 | --------- | -------- |
 | HTML reused | Style native elements; add custom elements only when attrs on HTML are awkward |
 | Attributes, not classes | Layout and variants use typed element attrs (`column`, `spacing="widget"`, `e-variant="tint"`) declared in `declare module "elt"` |
-| Bordered interactables | Buttons, inputs, and similar controls have a border and a radius derived from their own padding step (`theme.css.radius`), as defined in theme |
+| Bordered interactables | Buttons, inputs, and similar controls have a border and a radius derived from their own padding step (`theme.css_radius`), as defined in theme |
 | Consistent rhythm | Spacing comes from the shared scale (see § Layout) |
 | Tint semantics | `theme.colors.tint` is the primary accent; semantic hues (`red`, `green`, …) exist for status, not decoration spam |
 
@@ -143,7 +143,7 @@ Every theme needs `bg`, `text`, and `tint`. Default palette adds semantic hues (
 
 `theme.colors.neutral` is always present too, even though no palette supplies it: a grey auto-derived at `Theme` construction from `text`'s chroma/hue at `tint`'s luminance, for structural borders/dividers/fills that should read as neutral grey rather than tinted or full-contrast `text`. A palette may define its own `neutral` explicitly, which wins over the derived one.
 
-Dark mode: pass `dark:` partial to `new Theme({ light, dark })`, or rely on auto derivation / `theme.classes.dynamic_scheme`.
+Dark mode: pass `dark:` partial to `new Theme({ light, dark })`, or rely on auto derivation / `theme.class_dynamic_scheme`.
 
 Apply theme class on a root (app shell):
 
@@ -151,8 +151,8 @@ Apply theme class on a root (app shell):
 import { theme } from "elt/ui"
 
 <div class={theme.toString()}>   {/* e-dynamic-theme — prefers-color-scheme */}
-<div class={theme.classes.light_scheme}>
-<div class={theme.classes.dark_scheme}>
+<div class={theme.class_light_scheme}>
+<div class={theme.class_dark_scheme}>
 ```
 
 Inside CSS modules:
@@ -166,7 +166,7 @@ const colors = theme.colors
 const cls_banner = css`.banner {
   background: ${colors.tint.hover};
   color: ${colors.text};
-  ${theme.css.radius("component")}
+  ${theme.css_radius("component")}
 }`
 ```
 
@@ -185,7 +185,7 @@ Each `theme.colors.*` is a `Mix` helper:
 | Strong emphasis | `.strong`, `.very_strong` (mix toward text) |
 | Custom mix (no other role fits) | `.from("bg", "20%")`, `.from_text(...)`, `.from_bg(...)` |
 | Recolor subtree accent | `theme.colors.orange.as_tint` (class) |
-| Inverted band (toolbar, dialog header, table `<th>`) | `theme.colors.tint.classes.as_inverted` (class) or `.css.as_inverted` (spread inline) |
+| Inverted band (toolbar, dialog header, table `<th>`) | `theme.colors.tint.class_as_inverted` (class) or `.css_as_inverted` (spread inline) |
 
 Full rules and rationale: [`../../specs/elt-ui-guidelines.md`](../../specs/elt-ui-guidelines.md) (Axis 1: Color). Converting code written against the older `.light`/`.ultra_light` steps: [`../../specs/ui-migration.md`](../../specs/ui-migration.md).
 

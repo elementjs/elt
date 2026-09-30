@@ -293,7 +293,7 @@ const cls_shell = css`.oe-shell {
   /* Doesn't pad itself, so radius can't derive from its own padding — "section" is a deliberate
      override matching the frame's old fixed 16px radius (see "Border radius is derived" in
      specs/elt-ui-guidelines.md). */
-  ${theme.css.radius("section")}
+  ${theme.css_radius("section")}
   overflow: hidden;
 }`
 
@@ -316,7 +316,7 @@ const cls_column_body = css`.oe-column-body {
 const cls_column_header = css`.oe-column-header {
   min-height: 1.8em;
   font-weight: bold;
-  ${theme.colors.tint.css.as_inverted}
+  ${theme.colors.tint.css_as_inverted}
 }`
 
 const cls_column_close = css`.oe-column-close {

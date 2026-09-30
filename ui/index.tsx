@@ -26,7 +26,7 @@ import { theme } from "./theme"
  */
 export const o_force_theme = o("default" as "default" | "dark" | "light")
 const oo_correct_theme = o_force_theme.tf((th) => {
-  return th === "default" ? theme.toString() : th === "dark" ? theme.classes.dark_scheme : theme.classes.light_scheme
+  return th === "default" ? theme.toString() : th === "dark" ? theme.class_dark_scheme : theme.class_light_scheme
 })
 
 oo_correct_theme.addObserver((cls, old) => {

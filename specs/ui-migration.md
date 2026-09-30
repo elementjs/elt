@@ -19,11 +19,11 @@ This is a living document. Each section covers one axis of `specs/elt-ui-guideli
 | `.light` | see "Choosing a replacement" below | `from_bg(20%)` — same caveat as `.ultra_light`. |
 | `.dark` / `.ultra_dark` | — | Never existed as `Mix` members. No call sites, nothing to migrate. |
 | `.mid`, `.faded`, `.strong`, `.very_strong`, `.hover`, `.separator`, `.from_bg`, `.from_text` | unchanged | Already the current, spec-compliant names — do not touch call sites using these. |
-| `.as_inverted`, `.as_tint` (class) | `.classes.as_inverted`, `.classes.as_tint` | Moved under `Mix`'s own `.classes` namespace — see "Surfaces and borders" in `specs/elt-ui-guidelines.md`. |
-| `.css_as_inverted`, `.css_as_tint` | `.css.as_inverted`, `.css.as_tint` | Same move, `.css` namespace. |
-| `.surface(n)` (class) | `.classes.as_surface(n)` | Same move ; `.surface(n)` itself now means something different (see next row). |
-| `css_as_surface(n)` | `.css.as_surface(n)` | Same move. |
-| *(did not exist)* | `.surface(n)` | New : a bare CSS color value for absolute surface level `n` (no `.css`/`.classes`, no `as_` prefix — it names the color, it doesn't apply a ruleset), for a one-off declaration like `border-top: 1px solid ${theme.colors.tint.surface(1)}`. Accepts `number \| \`n+${number}\` \| "background"` (e.g. `"n+1"`, `"n+2"`). |
+| `.as_inverted`, `.as_tint` (class), and the intermediate `.classes.as_inverted`, `.classes.as_tint` | `.class_as_inverted`, `.class_as_tint` | Renamed to the `class_` prefix — see "Surfaces and borders" in `specs/elt-ui-guidelines.md`. |
+| `.css.as_inverted`, `.css.as_tint` (intermediate namespace form) | `.css_as_inverted`, `.css_as_tint` | Namespace flattened back to the `css_` prefix. |
+| `.surface(n)` (class), `.classes.as_surface(n)` | `.class_as_surface(n)` | Same rename ; `.surface(n)` itself now means something different (see next row). |
+| `.css.as_surface(n)` (intermediate namespace form) | `.css_as_surface(n)` | Namespace flattened back to the `css_` prefix. |
+| *(did not exist)* | `.surface(n)` | New : a bare CSS color value for absolute surface level `n` (no `css_`/`class_` prefix, no `as_` prefix — it names the color, it doesn't apply a ruleset), for a one-off declaration like `border-top: 1px solid ${theme.colors.tint.surface(1)}`. Accepts `number \| \`n+${number}\` \| "background"` (e.g. `"n+1"`, `"n+2"`). |
 
 `.ultra_light` and `.light` were removed outright rather than renamed, because they named a *lightness step* (a position on the bg→tint axis), not a *role*. The new API names roles (`.hover`, `.separator`, `.mid`, `.faded`) — a call site using the old getters has to be re-examined for what it was actually trying to express, not pattern-substituted.
 
@@ -54,7 +54,8 @@ Pick by what the mixed color was doing at that call site, not by which of the tw
 | `e-block` | `e-prose` |
 | `theme.settings.paddingPanelVertical` / `paddingPanelHorizontal` | `theme.settings.spacingComponent` (see Axis 3, below — the vertical/horizontal split itself was later removed) |
 | `theme.settings.paddingCell*` | `theme.settings.spacingWidget*` |
-| `theme.class_light` / `class_dark` / `class_dynamic` | Unchanged for now — `specs/elt-ui-guidelines.md` (line 87) has an open Todo to move these under `theme.classes.*`; do not rename ahead of that landing. |
+| `theme.class_light` / `class_dark` / `class_dynamic`, and the intermediate `theme.classes.light_scheme` / `.dark_scheme` / `.dynamic_scheme` | `theme.class_light_scheme` / `class_dark_scheme` / `class_dynamic_scheme` |
+| `theme.css.<name>(…)` / `theme.classes.<name>(…)` (intermediate namespace form: `pad`, `spacing`, `radius`, `radius_own_pad`, `current_surface`, `surface`, `border`) | `theme.css_<name>(…)` / `theme.class_<name>(…)` |
 
 > Question: this pass only inventoried Color-axis call sites. Spacing/Layout renames above are the ones already flagged by `specs/elt-ui-guidelines.md`'s own Todos, not a fresh audit — a dedicated pass is still needed to confirm there are no other stale references.
 
@@ -76,4 +77,4 @@ The padding scale's per-step vertical/horizontal pair is gone — every step now
 
 `theme.css.border_radius` changed its formula along with this: it used to read a step's *vertical* value directly (already the tighter of the pair); it now reads the step's single value and halves it with `calc(... / 2)`, landing on the same absolute radius as before. Nudge steps (`nudge-1`/`nudge-2`/`nudge-4`) are unaffected — they never had a vertical/horizontal pair and are still used as-is, unhalved.
 
-Hand-authored one-off CSS that happened to use two numbers but was never part of this scale (`fieldset > legend`, `fieldset`, blockquote/list/table typographic padding in `ui/typography.css.tsx`) is untouched by this change — it was never routed through `theme.settings.spacing*`/`theme.css.pad`/`.spacing` to begin with.
+Hand-authored one-off CSS that happened to use two numbers but was never part of this scale (`fieldset > legend`, `fieldset`, blockquote/list/table typographic padding in `ui/typography.css.tsx`) is untouched by this change — it was never routed through `theme.settings.spacing*`/`theme.css_pad`/`css_spacing` to begin with.

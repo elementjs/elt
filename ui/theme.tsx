@@ -4,7 +4,7 @@ export interface ThemeSettings {
   lineHeight: string
 
   /** Fixed fallback for controls/frames that can't derive their radius from their own padding
-   * step — kept deliberately rare; prefer `theme.css.radius`/`[radius]` wherever an
+   * step — kept deliberately rare; prefer `theme.css_radius`/`[radius]` wherever an
    * element pads itself (see "Border radius is derived" in specs/elt-ui-guidelines.md). */
   borderRadius: string
 
@@ -37,8 +37,8 @@ export interface ThemeSettings {
 }
 
 /**
- * The named spacing steps above the raw px nudges — the closed set `theme.css.pad`/`.spacing` and
- * `theme.classes.pad`/`.spacing` (below) are precomputed against. Order matches the scale, smallest first.
+ * The named spacing steps above the raw px nudges — the closed set `theme.css_pad`/`css_spacing` and
+ * `theme.class_pad`/`class_spacing` (below) are precomputed against. Order matches the scale, smallest first.
  */
 export type SpacingStep =
   | "nudge-1"
@@ -70,10 +70,10 @@ export const spacing_steps: SpacingStep[] = [
  * with no expression to build. */
 const _spacing_nudges = new Set<SpacingStep>(["nudge-1", "nudge-2", "nudge-4"])
 
-/** Shared by `Theme.css.pad`/`.spacing` — the one place that knows how a step maps to its custom
+/** Shared by `Theme.css_pad`/`css_spacing` — the one place that knows how a step maps to its custom
  * property. Every step (nudges included) now resolves to the same single `--e-spacing-<step>`
  * value, applied uniformly to both axes. `"spacing"` also sets `--e-current-spacing`, the same
- * "outer level" value under the name `theme.css.radius()`'s default reads as its ambient
+ * "outer level" value under the name `theme.css_radius()`'s default reads as its ambient
  * fallback (see `radius_css` below) — kept alongside `--e-spacing` rather than replacing it, so
  * `gap: var(--e-spacing)` call sites are untouched. */
 function spacing_css(prop: "pad" | "spacing", step: SpacingStep): string {
@@ -84,7 +84,7 @@ function spacing_css(prop: "pad" | "spacing", step: SpacingStep): string {
 }
 
 /**
- * Shared by `Theme.css.radius` — the one place that knows how a `radius` value maps
+ * Shared by `Theme.css_radius` — the one place that knows how a `radius` value maps
  * to a custom property. No step (the `[border]`/`[radius]` default) derives from the ambient
  * `--e-current-spacing` — `ui/layout.css.tsx` layers a second, more specific rule on top for
  * elements that set their own `[pad]`, reading `--e-pad` instead, so an element's own padding
@@ -102,7 +102,7 @@ function radius_css(step?: SpacingStep): string {
   return `border-radius: calc(var(--e-spacing-${step}));`
 }
 
-/** `theme.css.radius()`'s own-`[pad]` override (`ui/layout.css.tsx`) reads `--e-pad` directly —
+/** `theme.css_radius()`'s own-`[pad]` override (`ui/layout.css.tsx`) reads `--e-pad` directly —
  * this element's own explicitly specified padding, when its own `[pad]` attribute is present. */
 function radius_own_pad_css(): string {
   return `border-radius: calc(var(--e-pad));`
@@ -346,49 +346,58 @@ export class Theme<AllColors extends ColorScheme> {
     ].join("")
   }
 
-  /**
-   * Raw-CSS-declaration helpers, keyed by concern — the low-level counterpart to `classes` below.
-   * `layout.css.tsx`'s `[pad]`/`[spacing]`/`[border]`/`[radius]` attribute rules consume
-   * these directly instead of re-deriving the step → custom-property mapping themselves;
-   * `classes.pad`/`.spacing` wrap them into standalone classes for elements outside the `e-*` set.
-   * Every step maps to a single value, applied uniformly to both axes — no vertical/horizontal
-   * pair. See "Spacing scale" in specs/elt-ui-guidelines.md.
+  /*
+   * `css_*` members return raw CSS declaration strings; `class_*` members wrap the same text into a
+   * cached, stable class name for elements outside the `e-*` set. `layout.css.tsx`'s
+   * `[pad]`/`[spacing]`/`[border]`/`[radius]`/`[surface]` attribute rules consume the `css_*` form
+   * directly instead of re-deriving the step → custom-property mapping themselves. Every spacing
+   * step maps to a single value, applied uniformly to both axes — no vertical/horizontal pair. See
+   * "Spacing scale" in specs/elt-ui-guidelines.md.
    */
-  readonly css = {
-    pad: (step: SpacingStep) => spacing_css("pad", step),
-    spacing: (step: SpacingStep) => spacing_css("spacing", step),
-    /** Called with no step: derives from the ambient ("component") ~or~ this element's own
-     * `[pad]` (see `radius_own_pad`, consumed by `ui/layout.css.tsx`). Called with a named
-     * step: a fixed override for elements that don't pad themselves. */
-    radius: (step?: SpacingStep) => radius_css(step),
-    /** `ui/layout.css.tsx`'s own-`[pad]` override for the no-step `radius` case — see `radius`
-     * above and `radius_own_pad_css`. */
-    radius_own_pad: () => radius_own_pad_css(),
-    /** `background: var(--e-current-surface);` alone — the resolved color of whatever surface
-     * is ambient (or this element's own, if it is itself a `[surface]`); see `_css_as_surface`. */
-    current_surface: () => `background: var(--e-current-surface);`,
-    /** `[surface]`'s value type, as a raw declaration — see `ColorStep`. */
-    surface: (value: true | "background" | ColorStep) => this._surface_css(value),
-    /** `[border]`'s value type, as a raw declaration — see `ColorStep`. */
-    border: (value: true | ColorStep) => this._border_css(value),
+
+  css_pad(step: SpacingStep): string {
+    return spacing_css("pad", step)
   }
 
-  /** Shared by `css.surface`/`classes.surface` — see `ColorStep`. Bare (`true`)/no value, and a
-   * bare family name (`"tint"`/`"neutral"`): one level up from ambient, `neutral` family for the
+  css_spacing(step: SpacingStep): string {
+    return spacing_css("spacing", step)
+  }
+
+  /** Called with no step: derives from the ambient ("component") ~or~ this element's own
+   * `[pad]` (see `css_radius_own_pad`, consumed by `ui/layout.css.tsx`). Called with a named
+   * step: a fixed override for elements that don't pad themselves. */
+  css_radius(step?: SpacingStep): string {
+    return radius_css(step)
+  }
+
+  /** `ui/layout.css.tsx`'s own-`[pad]` override for the no-step `css_radius` case — see
+   * `radius_own_pad_css`. */
+  css_radius_own_pad(): string {
+    return radius_own_pad_css()
+  }
+
+  /** `background: var(--e-current-surface);` alone — the resolved color of whatever surface
+   * is ambient (or this element's own, if it is itself a `[surface]`); see `Mix.css_as_surface`. */
+  css_current_surface(): string {
+    return `background: var(--e-current-surface);`
+  }
+
+  /** `[surface]`'s value type, as a raw declaration — see `ColorStep`. Bare (`true`)/no value, and
+   * a bare family name (`"tint"`/`"neutral"`): one level up from ambient, `neutral` family for the
    * former. `"background"`: absolute level 0 — any color family resolves to the same value there.
    * `"tint-surface"`/`"neutral-surface"`: that family, one level up from ambient (same as the bare
    * family name — an explicit synonym). `"tint-separator"`/`"neutral-separator"`: that family, two
    * levels up from ambient. `"tint-N"`/`"neutral-N"`: that family, at the absolute level `N`. */
-  private _surface_css(value: true | "background" | ColorStep): string {
-    if (value === true) return this.colors.neutral.css.as_surface("n+1")
-    if (value === "background") return this.colors.neutral.css.as_surface("background")
+  css_surface(value: true | "background" | ColorStep): string {
+    if (value === true) return this.colors.neutral.css_as_surface("n+1")
+    if (value === "background") return this.colors.neutral.css_as_surface("background")
     const { family, suffix } = parse_color_step(value)
-    if (suffix === "separator") return this.colors[family].css.as_surface("n+2")
-    if (suffix == null || suffix === "surface") return this.colors[family].css.as_surface("n+1")
-    return this.colors[family].css.as_surface(suffix)
+    if (suffix === "separator") return this.colors[family].css_as_surface("n+2")
+    if (suffix == null || suffix === "surface") return this.colors[family].css_as_surface("n+1")
+    return this.colors[family].css_as_surface(suffix)
   }
 
-  /** Shared by `css.border`/`classes.border` — see `ColorStep`. Bare (`true`)/no value, and a
+  /** `[border]`'s value type, as a raw declaration — see `ColorStep`. Bare (`true`)/no value, and a
    * bare family name (`"tint"`/`"neutral"`): the flat "widget" color for that family (`.mid` for
    * `tint`, `.faded` for `neutral`) — a clear, defined boundary, independent of ambient surface
    * nesting (specs/borders.md — an earlier draft of this type made the bare family name
@@ -398,7 +407,7 @@ export class Theme<AllColors extends ColorScheme> {
    * same offset `.hover` uses. `"tint-separator"`/`"neutral-separator"`: that family, two levels
    * up from ambient — the same offset `.separator` uses. `"tint-N"`/`"neutral-N"`: that family, at
    * the absolute level `N`, ignoring what's ambient. */
-  private _border_css(value: true | ColorStep): string {
+  css_border(value: true | ColorStep): string {
     let color: string
     if (value === true) {
       color = this.colors.neutral.faded.toString()
@@ -420,72 +429,50 @@ export class Theme<AllColors extends ColorScheme> {
     return `border: 1px solid ${color}; --e-current-border-color: ${color};`
   }
 
-  @memoize
-  get classes() {
-    return new ThemeClasses(this)
-  }
-
-  /** To string triggers the creation of the theme's CSS as a dynamic theme responding to @media (prefers-color-scheme: dark) rules. */
-  toString() {
-    return this.classes.dynamic_scheme.toString()
-  }
-}
-
-/**
- * Class-name-producing helpers, grouped under `theme.classes` (specs/elt-ui-guidelines.md, Surfaces
- * and borders) rather than as top-level `Theme` properties. Kept as a separate instance (not just
- * methods on `Theme`) so the per-step spacing classes can memoize their own small cache without
- * cluttering `Theme` itself.
- */
-class ThemeClasses<AllColors extends ColorScheme> {
+  // Per-value caches for the parameterized `class_*` members below.
   #pad_classes = new Map<SpacingStep, string>()
   #spacing_classes = new Map<SpacingStep, string>()
   #radius_classes = new Map<string, string>()
   #surface_classes = new Map<string, string>()
   #border_classes = new Map<string, string>()
 
-  constructor(private theme: Theme<AllColors>) {}
-
   @memoize
-  get light_scheme() {
-    const theme = this.theme
+  get class_light_scheme() {
     return css`.e-light-theme {
       --e-color-shadow-raise: rgba(255, 255, 255, 0.2);
       --e-color-shadow-drop: rgba(0, 0, 0, 0.2);
-      ${theme.all_colors}
-      ${theme.css_settings}
-      ${theme.css_light_colors}
-      ${theme.init}
+      ${this.all_colors}
+      ${this.css_settings}
+      ${this.css_light_colors}
+      ${this.init}
     }`
   }
 
   @memoize
-  get dark_scheme() {
-    const theme = this.theme
+  get class_dark_scheme() {
     return css`.e-dark-theme {
-      ${theme.all_colors}
-      ${theme.css_settings}
-      ${theme.css_dark_colors}
-      ${theme.init}
+      ${this.all_colors}
+      ${this.css_settings}
+      ${this.css_dark_colors}
+      ${this.init}
       --e-color-shadow-raise: rgba(0, 0, 0, 0.2);
       --e-color-shadow-drop: rgba(255, 255, 255, 0.2);
     }`
   }
 
   @memoize
-  get dynamic_scheme() {
-    const theme = this.theme
+  get class_dynamic_scheme() {
     return css`.e-dynamic-theme {
-      ${theme.all_colors}
-      ${theme.css_settings}
-      ${theme.css_light_colors}
-      ${theme.init}
+      ${this.all_colors}
+      ${this.css_settings}
+      ${this.css_light_colors}
+      ${this.init}
       --e-color-shadow-raise: rgba(255, 255, 255, 0.2);
       --e-color-shadow-drop: rgba(0, 0, 0, 0.2);
 
       @media (prefers-color-scheme: dark) {
         & {
-          ${theme.css_dark_colors}
+          ${this.css_dark_colors}
           --e-color-shadow-raise: rgba(0, 0, 0, 0.2);
           --e-color-shadow-drop: rgba(255, 255, 255, 0.2);
         }
@@ -494,71 +481,78 @@ class ThemeClasses<AllColors extends ColorScheme> {
     }`
   }
 
-  /** Standalone padding class for elements outside the `e-*` set — see `Theme.css.pad`. */
-  pad(step: SpacingStep): string {
-    let cls = this.#pad_classes.get(step)
-    if (cls == null) {
-      cls = css`.e-pad-${step} { ${this.theme.css.pad(step)} padding: var(--e-pad); }`
-      this.#pad_classes.set(step, cls)
-    }
-    return cls
+  /** Standalone padding class — see `css_pad`. */
+  class_pad(step: SpacingStep): string {
+    return (
+      this.#pad_classes.get(step) ??
+      remember(this.#pad_classes, step, css`.e-pad-${step} { ${this.css_pad(step)} padding: var(--e-pad); }`)
+    )
   }
 
-  /** Standalone spacing class for elements outside the `e-*` set — see `Theme.css.spacing`. */
-  spacing(step: SpacingStep): string {
-    let cls = this.#spacing_classes.get(step)
-    if (cls == null) {
-      cls = css`.e-spacing-${step} { ${this.theme.css.spacing(step)} gap: var(--e-spacing); }`
-      this.#spacing_classes.set(step, cls)
-    }
-    return cls
+  /** Standalone spacing class — see `css_spacing`. */
+  class_spacing(step: SpacingStep): string {
+    return (
+      this.#spacing_classes.get(step) ??
+      remember(
+        this.#spacing_classes,
+        step,
+        css`.e-spacing-${step} { ${this.css_spacing(step)} gap: var(--e-spacing); }`,
+      )
+    )
   }
 
-  /** Standalone radius class for elements outside the `e-*` set — see `Theme.css.radius`. */
-  radius(step?: SpacingStep): string {
+  /** Standalone radius class — see `css_radius`. */
+  class_radius(step?: SpacingStep): string {
     const key = step ?? ""
-    let cls = this.#radius_classes.get(key)
-    if (cls == null) {
-      cls = css`.e-radius-${key || "default"} { ${this.theme.css.radius(step)} }`
-      this.#radius_classes.set(key, cls)
-    }
-    return cls
+    return (
+      this.#radius_classes.get(key) ??
+      remember(this.#radius_classes, key, css`.e-radius-${key || "default"} { ${this.css_radius(step)} }`)
+    )
   }
 
-  /** Standalone `background: var(--e-current-surface);` class — see `Theme.css.current_surface`. */
+  /** Standalone `background: var(--e-current-surface);` class — see `css_current_surface`. */
   @memoize
-  get current_surface(): string {
-    return css`.e-current-surface { ${this.theme.css.current_surface()} }`
+  get class_current_surface(): string {
+    return css`.e-current-surface { ${this.css_current_surface()} }`
   }
 
-  /** Standalone surface class for elements outside the `e-*` set — see `Theme.css.surface`.
-   * Fill-only, mirroring the `[surface]` attribute rule (`ui/layout.css.tsx`): does not pad itself. */
-  surface(value: true | "background" | ColorStep): string {
+  /** Standalone surface class — see `css_surface`. Fill-only, mirroring the `[surface]` attribute
+   * rule (`ui/layout.css.tsx`): does not pad itself. */
+  class_surface(value: true | "background" | ColorStep): string {
     const key = String(value)
-    let cls = this.#surface_classes.get(key)
-    if (cls == null) {
-      cls = css`.e-surface-${key} { ${this.theme.css.surface(value)} }`
-      this.#surface_classes.set(key, cls)
-    }
-    return cls
+    return (
+      this.#surface_classes.get(key) ??
+      remember(this.#surface_classes, key, css`.e-surface-${key} { ${this.css_surface(value)} }`)
+    )
   }
 
-  /** Standalone border class for elements outside the `e-*` set — see `Theme.css.border`. */
-  border(value: true | ColorStep): string {
+  /** Standalone border class — see `css_border`. */
+  class_border(value: true | ColorStep): string {
     const key = String(value)
-    let cls = this.#border_classes.get(key)
-    if (cls == null) {
-      cls = css`.e-border-${key} { ${this.theme.css.border(value)} }`
-      this.#border_classes.set(key, cls)
-    }
-    return cls
+    return (
+      this.#border_classes.get(key) ??
+      remember(this.#border_classes, key, css`.e-border-${key} { ${this.css_border(value)} }`)
+    )
   }
+
+  /** To string triggers the creation of the theme's CSS as a dynamic theme responding to @media (prefers-color-scheme: dark) rules. */
+  toString() {
+    return this.class_dynamic_scheme.toString()
+  }
+}
+
+/** Stores `cls` under `key` and returns it — the miss branch of every parameterized `class_*`
+ * member of `Theme` and `Mix` (`cache.get(key) ?? remember(cache, key, css`...`)`), so each distinct
+ * value emits its CSS rule exactly once, and a cache hit allocates nothing. */
+function remember<K>(cache: Map<K, string>, key: K, cls: string): string {
+  cache.set(key, cls)
+  return cls
 }
 
 const _re_relative_surface_level = /^n\+(\d+)$/
 
 /**
- * Shared by `Mix.surface`/`._css_as_surface` — the one place that knows how a surface level
+ * Shared by `Mix.surface`/`Mix.css_as_surface` — the one place that knows how a surface level
  * (absolute number, `"background"`, or a relative `n+${number}` offset from whatever's ambient)
  * turns into the arithmetic expression multiplied by `--e-surface-step` (see "Surfaces and
  * borders" in specs/elt-ui-guidelines.md).
@@ -578,6 +572,10 @@ function surface_level_expr(level: number | `n+${number}` | "background", base =
 }
 
 let _mix_id = 0
+
+/** Every `Mix` produced by `Mix.from`, keyed by its CSS expression — see there. Grows with the number
+ * of distinct mixes the app uses, which is bounded by its source code, not by how often they're read. */
+const _computed_mixes = new Map<string, Mix>()
 
 /**
  * Represents a color-like CSS expression in the theme: either a named palette entry
@@ -627,32 +625,33 @@ export class Mix {
     return this.expr.replaceAll("--e-color-", "--e-dark-color-")
   }
 
-  /** Internal — not part of the public contract. Read via `.css.as_tint`. */
+  /** Declarations that make this color the subtree's `tint` — see `class_as_tint`. */
   @memoize
-  get _css_as_tint() {
+  get css_as_tint() {
     return `--e-color-tint: ${this.expr};
     --e-light-color-tint: ${this.light_frozen_expr};
     --e-dark-color-tint: ${this.dark_frozen_expr};`
   }
 
-  /** Internal — not part of the public contract. Read via `.classes.as_tint`. */
+  /** Class-name form of `css_as_tint`. */
   @memoize
-  get _classes_as_tint() {
+  get class_as_tint() {
     return css`.e-color-${this.class_label}-tint {
-      ${this._css_as_tint}
+      ${this.css_as_tint}
     }`
   }
 
   /**
-   * Internal — not part of the public contract. Read via `.css.as_inverted`.
+   * Declarations that paint an inverted band of this color — see `class_as_inverted`.
    *
    * Inversion always freezes to the *light* theme's `bg` (Axis 1, Inversion) — this is what makes
    * an inverted band look the same in light and dark mode. A second inversion of the exact same
    * color nested inside this one is NOT expected to "see" this swap (that would require a live,
    * theme-dependent bg, which is exactly what this rule forbids) — nest a *different* color, or
-   * use `as_tint`, instead of re-inverting the same one.
+   * use `css_as_tint`, instead of re-inverting the same one.
    */
-  get _css_as_inverted() {
+  @memoize
+  get css_as_inverted() {
     return `
     --e-color-bg: ${this.light_frozen_expr};
     --e-current-surface: var(--e-color-bg);
@@ -668,11 +667,11 @@ export class Mix {
     `
   }
 
-  /** Internal — not part of the public contract. Read via `.classes.as_inverted`. */
+  /** Class-name form of `css_as_inverted`. */
   @memoize
-  protected get _classes_as_inverted() {
+  get class_as_inverted() {
     return css`.e-color-${this.class_label}-inverted {
-      ${this._css_as_inverted}
+      ${this.css_as_inverted}
     }`
   }
 
@@ -690,7 +689,15 @@ export class Mix {
     if (alpha < 1) {
       res = `oklch(from ${res} l c h / ${alpha.toFixed(2)})`
     }
-    return new Mix(res)
+    // One `Mix` per distinct expression: `tint.faded` (etc.) re-runs this on every access, and a
+    // fresh instance each time would mint a fresh `anon-N` class — a new stylesheet rule — on every
+    // read of `class_as_*`.
+    let mix = _computed_mixes.get(res)
+    if (mix == null) {
+      mix = new Mix(res)
+      _computed_mixes.set(res, mix)
+    }
+    return mix
   }
 
   from_bg(intensity: string, alpha: number = 1) {
@@ -743,7 +750,7 @@ export class Mix {
 
   /**
    * The color of a surface at this level — just the color, not the "become a surface" ruleset
-   * `.css.as_surface`/`.classes.as_surface` below apply (background fill, level propagated to
+   * `.css_as_surface`/`.class_as_surface` below apply (background fill, level propagated to
    * children, …). Usable anywhere a color is expected (a border, a text color, a one-off
    * background-color) without any of those side effects.
    * See "Surfaces and borders" in specs/elt-ui-guidelines.md.
@@ -771,14 +778,12 @@ export class Mix {
   }
 
   /**
-   * Internal — not part of the public contract. Read via `.css.as_surface`.
-   *
    * Raw CSS text for raising/painting a surface level — the single source of truth shared by the
    * `[surface]` attribute (`ui/layout.css.tsx`, `e-flex`/`e-grid`/`e-prose` only) and
-   * `.classes.as_surface` (any element). Unlike `as_surface` above, this also propagates the level
-   * to children.
+   * `class_as_surface` (any element). Unlike the bare `surface()` color above, this also
+   * propagates the level to children.
    */
-  _css_as_surface(level: number | `n+${number}` | "background"): string {
+  css_as_surface(level: number | `n+${number}` | "background"): string {
     // Own new level, always computed off the ambient `--e-surface-level` — never off
     // `--e-current-surface-level` itself, which would be a same-property self-reference (a cycle,
     // invalid at computed-value time) rather than a read of the level we're nested in.
@@ -803,56 +808,29 @@ export class Mix {
     background-color: ${own_background};
     /* --e-current-surface is the resolved color itself (not the level/family that produced it),
        an ordinary inheriting property so descendants — packed[border] children in particular —
-       can read it directly (see theme.css.current_surface) without re-deriving level*family. */
+       can read it directly (see theme.css_current_surface) without re-deriving level*family. */
     --e-current-surface: ${own_background};
     & > * { --e-surface-level: var(--e-surface-level-relay); --e-surface-mix: var(--e-surface-mix-relay); }
     `
   }
 
+  // Per-level cache for `class_as_surface`.
   #surface_classes = new Map<string, string>()
 
-  /** Internal — not part of the public contract. Read via `.classes.as_surface`. */
-  _classes_as_surface(level: number | `n+${number}` | "background"): string {
+  /** Class-name form of `css_as_surface` — one stable class per level. */
+  class_as_surface(level: number | `n+${number}` | "background"): string {
     const key = String(level)
-    let cls = this.#surface_classes.get(key)
-    if (cls == null) {
-      cls = css`.e-color-${this.class_label}-surface-${key} {
-        ${this._css_as_surface(level)}
-      }`
-      this.#surface_classes.set(key, cls)
-    }
-    return cls
+    return (
+      this.#surface_classes.get(key) ??
+      remember(
+        this.#surface_classes,
+        key,
+        css`.e-color-${this.class_label}-surface-${key} {
+        ${this.css_as_surface(level)}
+      }`,
+      )
+    )
   }
-
-  /**
-   * Raw CSS declaration strings — the low-level counterpart to `.classes` below. Mirrors
-   * `Theme.css`/`Theme.classes` (`ui/theme.tsx`), scoped to this one color instead of the theme's
-   * spacing scale.
-   */
-  @memoize
-  get css() {
-    return new MixCss(this)
-  }
-
-  /** Class-name-producing members of this color — see `MixClasses` below. */
-  @memoize
-  get classes() {
-    return new MixClasses(this)
-  }
-}
-
-class MixCss {
-  constructor(private mix: Mix) {}
-  get as_tint() { return this.mix._css_as_tint }
-  get as_inverted() { return this.mix._css_as_inverted }
-  as_surface(level: number | `n+${number}` | "background") { return this.mix._css_as_surface(level) }
-}
-
-class MixClasses {
-  constructor(private mix: Mix) {}
-  get as_tint() { return this.mix._classes_as_tint }
-  get as_inverted() { return this.mix._classes_as_inverted }
-  as_surface(level: number | `n+${number}` | "background") { return this.mix._classes_as_surface(level) }
 }
 
 /** A `Mix` whose identity color is whichever family is ambient (this element's own `[surface]`,
@@ -860,7 +838,7 @@ class MixClasses {
  * a hover fill matches whichever family the surface it's drawn on actually used, instead of
  * hardcoding `tint` regardless (specs/borders.md — found once `surface`'s default family became
  * `neutral`: a `tint`-colored hover on a `neutral` surface read as a mismatch). See
- * `--e-current-surface-mix` in `Mix._css_as_surface`. */
+ * `--e-current-surface-mix` in `Mix.css_as_surface`. */
 export const ambient_surface_mix = new Mix(
   "var(--e-current-surface-mix, var(--e-surface-mix, var(--e-color-neutral)))",
   "ambient",

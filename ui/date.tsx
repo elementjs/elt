@@ -285,13 +285,13 @@ const cls_day = css`.date-day {
   border: none;
   height: 28px;
   line-height: 28px;
-  ${theme.css.radius("nudge-4")}
+  ${theme.css_radius("nudge-4")}
   width: 32px;
   &.outside {
     opacity: 0.35;
   }
   &.selected {
-    ${colors.tint.faded.css.as_inverted}
+    ${colors.tint.faded.css_as_inverted}
   }
   @media (hover: hover) and (pointer: fine) {
     &:hover {

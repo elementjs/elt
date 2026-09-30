@@ -342,7 +342,7 @@ const cls_arrow_inner = css`.arrow-inner {
   width: calc(round(var(--arrow-size, 12px) / 1.4142, 1px));
   height: calc(round(var(--arrow-size, 12px) / 1.4142, 1px));
   background-color: ${colors.bg};
-  ${theme.css.radius("nudge-2")}
+  ${theme.css_radius("nudge-2")}
 }`
 
 const cls_arrow_placer = css`.arrow-placer {

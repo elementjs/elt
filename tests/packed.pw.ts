@@ -431,7 +431,7 @@ test.describe("[surface]/[border] color-step value type (specs/borders.md)", () 
   })
 })
 
-test.describe("theme.css.radius own-pad vs ambient priority (specs/borders.md)", () => {
+test.describe("theme.css_radius own-pad vs ambient priority (specs/borders.md)", () => {
   test("reads this element's own --e-pad when [pad=\"X\"] is set on the same element", async ({ page }) => {
     const result = await page.evaluate(() => {
       const { theme } = window.__ELT__.UI
