@@ -1,5 +1,6 @@
 import { css, o, If, $click, type Renderable } from "elt"
 import { theme } from "elt/ui"
+import * as ph from "elt-phosphor"
 
 export type CodeExampleProps = {
   /** Builds the per-line, per-token colored spans, compiled to a literal JSX-producing closure by
@@ -85,11 +86,11 @@ export function CodeExample(props: CodeExampleProps) {
     <e-row packed="widget" border pad="none" align="stretch" surface="neutral-2" class={theme.colors.neutral.class_as_tint}>
       <button e-variant={o_showing_code.tf(v => !v ? "inverted" : "")}>
         {$click(() => o_showing_code.set(false))}
-        ⏵ Example
+        <ph.TelevisionSimple/> Example
       </button>
       <button e-variant={o_showing_code.tf(v => v && "inverted")}>
         {$click(() => o_showing_code.set(true))}
-        Code {"\ueac4"}
+        Code <ph.Code/>
       </button>
       <e-row grow>&nbsp;</e-row>
     </e-row>
@@ -101,10 +102,6 @@ export function CodeExample(props: CodeExampleProps) {
     )}
   </e-column>
 }
-
-const cls_active = css`.active {
-  ${theme.colors.tint.css_as_surface(1)}
-}`
 
 const cls_error = css`.error {
   ${theme.colors.red.css_as_surface(1)}

@@ -11,7 +11,7 @@ function and uses whatever `Node` it returns.
 
 ```tsx
 //@inline-example
-import { Attrs } from "elt"
+import { type Attrs } from "elt"
 
 // One-arg: JSX children are appended to the returned root node.
 function Box(attrs: Attrs<HTMLDivElement> & { label: string }) {
