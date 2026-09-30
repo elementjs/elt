@@ -780,6 +780,55 @@ test.describe("Repeat", () => {
         expect(results.out[i]).toEqual(results.sequences[i])
       }
     })
+
+    // Regression: with one slot per key, an old duplicate whose key also matched the common head
+    // was neither placed nor removed, and stayed in the DOM showing list[its stale index].
+    test("removing one of several equal items leaves no stale node", async ({ page }) => {
+      const result = await page.evaluate(() => {
+        const { o } = window.__ELT__
+        const { mount_repeat, item_texts, elements_by_class, tear_down } = window.__repeat_helpers__
+        const o_lst = o(["b", "d", "d", "d", "e"])
+        const { container } = mount_repeat(o_lst, { separator: true })
+        o_lst.set(["b", "d", "d", "e"])
+        const out = { texts: item_texts(container), idx: elements_by_class(container, "repeat-sep").map((s) => s.textContent) }
+        tear_down(container)
+        return out
+      })
+      expect(result.texts).toEqual(["b", "d", "d", "e"])
+      expect(result.idx).toEqual(["#0", "#1", "#2", "#3"])
+    })
+
+    test("random adds and removals with equal items keep items and indices in sync", async ({ page }) => {
+      const mismatch = await page.evaluate(() => {
+        const { o } = window.__ELT__
+        const { mount_repeat, item_texts, elements_by_class, tear_down } = window.__repeat_helpers__
+        const o_lst = o<string[]>([])
+        const { container } = mount_repeat(o_lst, { separator: true })
+        let seed = 1
+        const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647
+        let found: unknown = null
+        for (let step = 0; step < 2000 && found == null; step++) {
+          const lst = o_lst.get()
+          if (lst.length > 0 && rnd() < 0.5) {
+            const d = Math.floor(rnd() * lst.length)
+            o_lst.set(lst.filter((_, i) => i !== d))
+          } else {
+            // Few distinct values, inserted anywhere, so that equal items are frequent
+            const at = Math.floor(rnd() * (lst.length + 1))
+            o_lst.set([...lst.slice(0, at), `v${Math.floor(rnd() * 4)}`, ...lst.slice(at)])
+          }
+          const texts = item_texts(container)
+          const idx = elements_by_class(container, "repeat-sep").map((s) => s.textContent)
+          const want = o_lst.get()
+          if (JSON.stringify(texts) !== JSON.stringify(want) || idx.some((t, i) => t !== `#${i}`)) {
+            found = { step, want, texts, idx }
+          }
+        }
+        tear_down(container)
+        return found
+      })
+      expect(mismatch).toBeNull()
+    })
   })
 
   test.describe("SeparateWith", () => {

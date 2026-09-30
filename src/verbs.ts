@@ -282,7 +282,8 @@ export namespace Switch {
  * ```
  *
  * Items are identified by a key: the item itself by default, or the result of `withKeyFunction()`.
- * Keys must be unique within the list ; use `withKeyFunction()` when items can be equal.
+ * Equal keys are allowed and take the existing nodes for that key in order ; use `withKeyFunction()`
+ * with a unique id when an item must keep its own nodes (focus, input state) among equal ones.
  *
  * @group Verbs
  */
@@ -570,13 +571,10 @@ export namespace Repeat {
       // Wanted keys, indexed relatively to view_start
       const count = view_end - view_start
       const keys: any[] = new Array(count)
-      const key_map = new Map<any, number>()
       for (let j = 0; j < count; j++) {
         const i = view_start + j
         const item = new_lst[i]
-        const key = keyfn?.(item, i) ?? item ?? `--repeat-key-${i}`
-        keys[j] = key
-        key_map.set(key, j)
+        keys[j] = keyfn?.(item, i) ?? item ?? `--repeat-key-${i}`
       }
 
       // Items currently in the DOM, in order
@@ -612,15 +610,31 @@ export namespace Repeat {
       // For each middle slot: the node that will fill it, and its position in `old` (-1: new item).
       const nodes: (RepeatItemElement<Obs> | undefined)[] = new Array(mid_len)
       const src = new Int32Array(mid_len).fill(-1)
+      // Middle slots by key: key_map gives the first unclaimed slot for a key, next_same the next
+      // slot with the same key. Equal keys thus pair with old items in order ; with a single slot
+      // per key, extra old items with that key would be neither placed nor removed.
+      const key_map = new Map<any, number>()
+      const next_same = new Int32Array(mid_len).fill(-1)
+      for (let s = mid_len - 1; s >= 0; s--) {
+        const key = keys[head + s]
+        const first = key_map.get(key)
+        if (first != null) next_same[s] = first
+        key_map.set(key, s)
+      }
+
       const dead: number[] = [] // positions in `old` of items whose key is gone
       for (let k = head; k < old_mid_end; k++) {
-        const j = key_map.get(old[k][sym_obs].key)
-        if (j == null) {
+        const key = old[k][sym_obs].key
+        const s = key_map.get(key)
+        if (s == null) {
           dead.push(k)
-        } else {
-          nodes[j - head] = old[k]
-          src[j - head] = k
+          continue
         }
+        nodes[s] = old[k]
+        src[s] = k
+        const next = next_same[s]
+        if (next < 0) key_map.delete(key)
+        else key_map.set(key, next)
       }
 
       // Re-key dead items for the new keys, in order ; they keep their place if the order allows.
