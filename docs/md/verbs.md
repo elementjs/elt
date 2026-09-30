@@ -110,7 +110,7 @@ return <e-column>
 
 **Keys.** Each item is identified by a key: the item itself (`===`) by default, or `fn(item)` with `.withKeyFunction(fn)`. An item whose key is still in the list keeps its nodes, wherever it moves. An item whose key disappears gives its nodes to the next new key, in place when the order allows it — so editing an item (which replaces it with a modified copy) updates its nodes where they are, and a focused input inside it keeps its focus.
 
-**Keys must be unique within the list.** Two equal keys, e.g. `["a", "a"]` without a key function, or two items with the same `id`, leave only one of the two items tracked, and later updates can leave stale or misplaced nodes. When items can be equal, use `.withKeyFunction()` with a unique id.
+**Keys must be unique within the list.** Two equal keys, e.g. `["a", "a"]` without a key function, or two items with the same `id`, confuse the reconciliation, and updates can leave stale or misplaced nodes. When items can be equal, use `.withKeyFunction()` with a unique id.
 
 ## `DisplayPromise` — a promise's lifecycle
 

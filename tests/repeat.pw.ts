@@ -1189,6 +1189,32 @@ test.describe("Repeat", () => {
       expect(result.texts).toEqual(["b", "c", "d"])
     })
 
+    test("items leaving the view are dropped, then rendered again when they come back", async ({ page }) => {
+      const result = await page.evaluate(() => {
+        const { o, node_is_observing } = window.__ELT__
+        const { mount_view_repeat, elements_by_class, item_texts, tear_down } = window.__repeat_helpers__
+        const o_lst = o(["a", "b", "c", "d", "e"])
+        const o_start = o(0)
+        const o_end = o(2)
+        const { container } = mount_view_repeat(o_lst, o_start, o_end)
+        const first_a = elements_by_class(container, "repeat-item")[0]
+
+        o_start.set(3)
+        o_end.set(5)
+        const evicted = { connected: first_a.isConnected, observing: node_is_observing(first_a), texts: item_texts(container) }
+
+        o_start.set(0)
+        o_end.set(2)
+        const back_a = elements_by_class(container, "repeat-item")[0]
+        const out = { evicted, texts: item_texts(container), new_node: back_a !== first_a }
+        tear_down(container)
+        return out
+      })
+      expect(result.evicted).toEqual({ connected: false, observing: false, texts: ["d", "e"] })
+      expect(result.texts).toEqual(["a", "b"])
+      expect(result.new_node).toBe(true)
+    })
+
     test("reconcileView updates an explicit window imperatively", async ({ page }) => {
       const results = await page.evaluate(() => {
         const { o } = window.__ELT__

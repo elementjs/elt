@@ -11,11 +11,10 @@ import type { Appender, Renderable } from "./types"
 let _range: Range | null = null
 
 /**
- * Take the siblings from `first` to `last` (inclusive) out of the document with a single Range call,
- * after running their disconnected callbacks. With `keep`, they are moved to a fragment so they can
- * be re-inserted later ; otherwise they are dropped.
+ * Remove the siblings from `first` to `last` (inclusive) with a single Range call, after running
+ * their disconnected callbacks.
  */
-function detach_run(first: Node, last: Node, keep: boolean) {
+function remove_run(first: Node, last: Node) {
   for (let n: Node | null = first; n != null; n = n.nextSibling) {
     node_do_disconnect(n)
     if (n === last) break
@@ -23,8 +22,7 @@ function detach_run(first: Node, last: Node, keep: boolean) {
   _range ??= document.createRange()
   _range.setStartBefore(first)
   _range.setEndAfter(last)
-  if (keep) _range.extractContents()
-  else _range.deleteContents()
+  _range.deleteContents()
 }
 
 /**
@@ -371,7 +369,6 @@ export namespace Repeat {
     protected o_view_end: o.Observable<number> | null = null
     protected keyfn: ((item: ItemType<Obs>, index: number) => any) | null = null
     update_lock = o.exclusive_lock()
-    protected node_map = new Map<any, RepeatItemElement<Obs>>()
 
     constructor(
       public obs: Obs,
@@ -486,14 +483,17 @@ export namespace Repeat {
       return { start, end }
     }
 
-    /** Move in-view nodes that fell outside the window off-DOM but keep them keyed. */
+    /**
+     * Drop the items that fell outside the window. They are not kept for scrolling back, so that
+     * memory stays proportional to the window ; they are rendered again if they come back into view.
+     */
     protected evict_outside_view(view_start: number, view_end: number) {
-      // Consecutive evicted items are detached together, with one Range call per run.
+      // Consecutive evicted items are removed together, with one Range call per run.
       let run_first: Node | null = null
       let run_last: Node | null = null
       const flush = () => {
         if (run_first == null) return
-        detach_run(run_first, run_last!, true)
+        remove_run(run_first, run_last!)
         run_first = null
       }
 
@@ -553,8 +553,7 @@ export namespace Repeat {
      *   edited item (whose key changed because it was cloned) keeps its nodes in place,
      * - the items forming the longest increasing subsequence of old positions stay where they are,
      *   only the others move, with `moveBefore` so they keep focus,
-     * - new items (and items pulled back from off-DOM) are grouped in one fragment per run of
-     *   consecutive slots and inserted in one go,
+     * - new items are grouped in one fragment per run of consecutive slots and inserted in one go,
      * - unused items are removed at the end, one Range call per run of consecutive items.
      */
     protected updateChildren(
@@ -610,8 +609,7 @@ export namespace Repeat {
       const mid_len = count - tail - head // number of wanted slots in the middle
       if (head === old_mid_end && mid_len === 0) return
 
-      // For each middle slot: the node that will fill it, and its position in `old` (-1 when it is
-      // not in the DOM middle, meaning it is new or pulled back from off-DOM).
+      // For each middle slot: the node that will fill it, and its position in `old` (-1: new item).
       const nodes: (RepeatItemElement<Obs> | undefined)[] = new Array(mid_len)
       const src = new Int32Array(mid_len).fill(-1)
       const dead: number[] = [] // positions in `old` of items whose key is gone
@@ -625,24 +623,14 @@ export namespace Repeat {
         }
       }
 
-      // Fill the slots that have no node in the DOM middle.
+      // Re-key dead items for the new keys, in order ; they keep their place if the order allows.
+      // Slots left without a node are created during placement below.
       let dead_used = 0
-      for (let s = 0; s < mid_len; s++) {
+      for (let s = 0; s < mid_len && dead_used < dead.length; s++) {
         if (nodes[s] != null) continue
-        const key = keys[head + s]
-        const off_dom = this.node_map.get(key) // evicted earlier by the view window
-        if (off_dom != null) {
-          nodes[s] = off_dom
-        } else if (dead_used < dead.length) {
-          // Re-key a dead item for this new key, in order ; it keeps its place if the order allows.
-          const k = dead[dead_used++]
-          const node = old[k]
-          this.node_map.delete(node[sym_obs].key)
-          this.node_map.set(key, node)
-          nodes[s] = node
-          src[s] = k
-        }
-        // else: created during placement below
+        const k = dead[dead_used++]
+        nodes[s] = old[k]
+        src[s] = k
       }
 
       const stay = lis_mask(src)
@@ -650,7 +638,7 @@ export namespace Repeat {
 
       // Place slots from last to first, so that `ref` is always the node right after the slot.
       let ref: Node = tail > 0 ? old[old_mid_end] : list_end
-      let pending: DocumentFragment | null = null // consecutive new / off-DOM items, inserted at once
+      let pending: DocumentFragment | null = null // consecutive new items, inserted at once
       const flush = () => {
         if (pending == null) return
         const first = pending.firstChild!
@@ -674,13 +662,6 @@ export namespace Repeat {
         obs.key = keys[head + s]
         obs.repeatSet(new_lst[i])
 
-        if (src[s] < 0) {
-          // Off-DOM: joins the pending fragment
-          pending ??= document.createDocumentFragment()
-          node.moveTo(pending, pending.firstChild)
-          continue
-        }
-
         flush()
         if (!stay[s]) node.moveTo(parent, ref)
         ref = node
@@ -692,15 +673,14 @@ export namespace Repeat {
       let run_last: Node | null = null
       for (let d = dead_used; d < dead.length; d++) {
         const node = old[dead[d]]
-        this.node_map.delete(node[sym_obs].key)
         if (run_first != null && run_last!.nextSibling !== node) {
-          detach_run(run_first, run_last!, false)
+          remove_run(run_first, run_last!)
           run_first = null
         }
         run_first ??= node
         run_last = node.end ?? node
       }
-      if (run_first != null) detach_run(run_first, run_last!, false)
+      if (run_first != null) remove_run(run_first, run_last!)
     }
 
     /**
@@ -732,7 +712,6 @@ export namespace Repeat {
               rendered,
             ],
       )
-      this.node_map.set(key, node)
       return node
     }
 
