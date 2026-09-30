@@ -5,7 +5,9 @@ test.beforeEach(async ({ page }) => {
 })
 
 test.describe("css() / CSSBuilder.adopt (regression: adoptedStyleSheets duplicate-push bug)", () => {
-  test("repeated css`` calls adopt the sheet into document exactly once, however many rules are inserted", async ({ page }) => {
+  test("repeated css`` calls adopt the sheet into document exactly once, however many rules are inserted", async ({
+    page,
+  }) => {
     const result = await page.evaluate(() => {
       const { CSSBuilder } = window.__ELT__
       const builder = new CSSBuilder()

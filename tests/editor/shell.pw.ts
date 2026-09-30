@@ -69,8 +69,7 @@ test.describe("ObjectEditorShell", () => {
   test("open() through the real event path appends a column and updates the breadcrumb", async ({ page }) => {
     const results = await page.evaluate(() => {
       const { o, node_append } = window.__ELT__
-      const { ObjectEditorShell, object, string, number, boolean, dispatch_object_editor_open } =
-        window.__ELT__.Editor
+      const { ObjectEditorShell, object, string, number, boolean, dispatch_object_editor_open } = window.__ELT__.Editor
 
       const profile_schema = object({
         properties: [
@@ -103,8 +102,7 @@ test.describe("ObjectEditorShell", () => {
     // opened from the root" instead.
     const results = await page.evaluate(() => {
       const { o, node_append } = window.__ELT__
-      const { ObjectEditorShell, object, string, number, boolean, dispatch_object_editor_open } =
-        window.__ELT__.Editor
+      const { ObjectEditorShell, object, string, number, boolean, dispatch_object_editor_open } = window.__ELT__.Editor
 
       const profile_schema = object({
         properties: [
@@ -133,8 +131,7 @@ test.describe("ObjectEditorShell", () => {
   test("closing the rightmost column truncates and updates the breadcrumb", async ({ page }) => {
     const results = await page.evaluate(() => {
       const { o, node_append } = window.__ELT__
-      const { ObjectEditorShell, object, string, number, boolean, dispatch_object_editor_open } =
-        window.__ELT__.Editor
+      const { ObjectEditorShell, object, string, number, boolean, dispatch_object_editor_open } = window.__ELT__.Editor
 
       const profile_schema = object({
         properties: [
@@ -152,9 +149,7 @@ test.describe("ObjectEditorShell", () => {
       dispatch_object_editor_open(shell.node, { o_value: o_other, title: "other" })
       const breadcrumb_after_open = shell.o_breadcrumb.get()
 
-      const close_buttons = [...shell.node.querySelectorAll("button")].filter(
-        (b) => b.textContent?.trim() === "×",
-      )
+      const close_buttons = [...shell.node.querySelectorAll("button")].filter((b) => b.textContent?.trim() === "×")
       const close_buttons_count = close_buttons.length // only the opened column gets a close button, not root
       close_buttons[0].dispatchEvent(new Event("click", { bubbles: true }))
 
@@ -270,8 +265,7 @@ test.describe("ObjectEditorShell", () => {
   test("dead-column detection: a non-root column closes itself and everything to its right", async ({ page }) => {
     const results = await page.evaluate(() => {
       const { o, node_append } = window.__ELT__
-      const { ObjectEditorShell, object, string, number, boolean, dispatch_object_editor_open } =
-        window.__ELT__.Editor
+      const { ObjectEditorShell, object, string, number, boolean, dispatch_object_editor_open } = window.__ELT__.Editor
 
       const profile_schema = object({
         properties: [
@@ -305,9 +299,7 @@ test.describe("ObjectEditorShell", () => {
     expect(results.name).toBe("Ada")
   })
 
-  test("a nested Object property renders as a preview button, not inline, and drills in on click", async ({
-    page,
-  }) => {
+  test("a nested Object property renders as a preview button, not inline, and drills in on click", async ({ page }) => {
     const results = await page.evaluate(() => {
       const { o, node_append } = window.__ELT__
       const { ObjectEditorShell, object, string } = window.__ELT__.Editor
@@ -330,17 +322,15 @@ test.describe("ObjectEditorShell", () => {
 
       // Only "name" renders inline — "address" is a preview button, not two more text fields.
       const inline_count_before = shell.node.querySelectorAll('input[type="text"]').length
-      const preview_button = [...shell.node.querySelectorAll("button")].find((b) =>
-        b.textContent?.includes("Open"),
-      ) as HTMLButtonElement | undefined
+      const preview_button = [...shell.node.querySelectorAll("button")].find((b) => b.textContent?.includes("Open")) as
+        | HTMLButtonElement
+        | undefined
       const breadcrumb_before = shell.o_breadcrumb.get()
 
       preview_button!.dispatchEvent(new Event("click", { bubbles: true }))
 
       const breadcrumb_after = shell.o_breadcrumb.get()
-      const values = [...shell.node.querySelectorAll('input[type="text"]')].map(
-        (el) => (el as HTMLInputElement).value,
-      )
+      const values = [...shell.node.querySelectorAll('input[type="text"]')].map((el) => (el as HTMLInputElement).value)
       return {
         inline_count_before,
         preview_button_found: preview_button !== undefined,
@@ -378,9 +368,7 @@ test.describe("ObjectEditorShell", () => {
       const shell = new ObjectEditorShell(o_root, { schema: with_address_schema })
       node_append(document.body, shell.node)
 
-      const has_open_before = [...shell.node.querySelectorAll("button")].some((b) =>
-        b.textContent?.includes("Open"),
-      )
+      const has_open_before = [...shell.node.querySelectorAll("button")].some((b) => b.textContent?.includes("Open"))
 
       const prev_confirm = globalThis.confirm
       globalThis.confirm = () => true

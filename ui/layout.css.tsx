@@ -143,11 +143,11 @@ const _flex = `:where(e-flex,e-column,e-row)`
 const _layouters = `:where(e-flex,e-grid,e-column,e-row)`
 
 function _(strings: TemplateStringsArray, ...values: unknown[]): void {
-  let result = strings[0];
+  let result = strings[0]
   for (let i = 0; i < values.length; i++) {
-    result += String(values[i]) + strings[i + 1];
+    result += String(values[i]) + strings[i + 1]
   }
-  more.push(result);
+  more.push(result)
 }
 
 // [surface]/[border] share one value type (ColorStep, ui/theme.tsx) — see specs/borders.md.
@@ -369,11 +369,15 @@ css`
     padding: var(--e-pad);
   }
 
-  ${spaces.map(sp => `
+  ${spaces
+    .map(
+      (sp) => `
   ${_flex}[packed="${sp}"] > * {
     ${theme.css_pad(sp)}
     padding: var(--e-pad);
-  }`).join("\n")}
+  }`,
+    )
+    .join("\n")}
 
   /* A focused child's ring must draw over its packed neighbor rather than being covered by it. */
   :is(e-row,e-column,e-flex)[packed] > * {

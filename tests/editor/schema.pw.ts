@@ -230,9 +230,8 @@ test.describe("ObjectFactory keys", () => {
       const o_flags = o(new Map([["enabled", true]]))
       const widget = map({ keys: string(), values: boolean() }).render(o_flags as any)
       node_append(document.body, widget.render() as HTMLElement)
-      return [...document.querySelectorAll("button")].filter(
-        (b) => b.getAttribute("aria-label") === "Change type",
-      ).length
+      return [...document.querySelectorAll("button")].filter((b) => b.getAttribute("aria-label") === "Change type")
+        .length
     })
     expect(result).toBeGreaterThan(0)
   })

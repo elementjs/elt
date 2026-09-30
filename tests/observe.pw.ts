@@ -48,9 +48,13 @@ test.describe("$observe", () => {
       const obs = o(1)
       let count = 0
       const el = document.createElement("div")
-      $observe(obs, () => {
-        count++
-      }, { changes_only: true })(el)
+      $observe(
+        obs,
+        () => {
+          count++
+        },
+        { changes_only: true },
+      )(el)
 
       node_append(document.body, el)
       out.push({ name: "count after append", actual: count, expected: 0 })

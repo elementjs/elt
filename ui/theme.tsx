@@ -122,17 +122,23 @@ function radius_own_pad_css(): string {
  * - `"tint-N"`/`"neutral-N"` (`N` 1-6): that family, at an absolute level, ignoring what's ambient.
  */
 export type ColorStep =
-  | "tint" | "neutral"
-  | "tint-surface" | "neutral-surface"
-  | "tint-separator" | "neutral-separator"
-  | `tint-${1 | 2 | 3 | 4 | 5 | 6}` | `neutral-${1 | 2 | 3 | 4 | 5 | 6}`
+  | "tint"
+  | "neutral"
+  | "tint-surface"
+  | "neutral-surface"
+  | "tint-separator"
+  | "neutral-separator"
+  | `tint-${1 | 2 | 3 | 4 | 5 | 6}`
+  | `neutral-${1 | 2 | 3 | 4 | 5 | 6}`
 
 const _re_color_step = /^(tint|neutral)(?:-(\d+|surface|separator))?$/
 
-function parse_color_step(value: string): { family: "tint" | "neutral", suffix?: number | "surface" | "separator" } {
+function parse_color_step(value: string): { family: "tint" | "neutral"; suffix?: number | "surface" | "separator" } {
   const match = _re_color_step.exec(value)
   if (!match) {
-    throw new Error(`Invalid color step "${value}" — expected "tint"/"neutral", "tint-N"/"neutral-N" (N 1-6), or "tint-surface"/"tint-separator" (and the "neutral" equivalents)`)
+    throw new Error(
+      `Invalid color step "${value}" — expected "tint"/"neutral", "tint-N"/"neutral-N" (N 1-6), or "tint-surface"/"tint-separator" (and the "neutral" equivalents)`,
+    )
   }
   const raw = match[2]
   const suffix = raw == null ? undefined : raw === "surface" || raw === "separator" ? raw : Number(raw)

@@ -12,13 +12,29 @@ declare global {
       query_one: (container: HTMLElement, class_name: string) => HTMLElement | null
       count_by_class: (root: HTMLElement, class_name: string) => number
       tear_down: (container: HTMLElement) => void
-      make_observe_track: (node: HTMLElement, obs: any) => { node: HTMLElement; readonly count: number; observing: () => boolean }
+      make_observe_track: (
+        node: HTMLElement,
+        obs: any,
+      ) => { node: HTMLElement; readonly count: number; observing: () => boolean }
       mount_repeat: (
         lst: any,
-        options?: { keyfn?: (item: string) => string; prefix?: boolean; suffix?: boolean; separator?: boolean; empty?: boolean },
+        options?: {
+          keyfn?: (item: string) => string
+          prefix?: boolean
+          suffix?: boolean
+          separator?: boolean
+          empty?: boolean
+        },
       ) => { container: HTMLElement; repeater: any }
-      mount_fragment_repeat: (lst: any, tracks_by_id: Map<string, { label: any; badge: any }>) => { container: HTMLElement; repeater: any }
-      mount_view_repeat: (lst: any, o_start: any, o_end: any) => { container: HTMLElement; repeater: any; o_start: any; o_end: any }
+      mount_fragment_repeat: (
+        lst: any,
+        tracks_by_id: Map<string, { label: any; badge: any }>,
+      ) => { container: HTMLElement; repeater: any }
+      mount_view_repeat: (
+        lst: any,
+        o_start: any,
+        o_end: any,
+      ) => { container: HTMLElement; repeater: any; o_start: any; o_end: any }
     }
   }
 }
@@ -74,7 +90,13 @@ test.beforeEach(async ({ page }) => {
 
     function mount_repeat(
       lst: any,
-      options: { keyfn?: (item: string) => string; prefix?: boolean; suffix?: boolean; separator?: boolean; empty?: boolean } = {},
+      options: {
+        keyfn?: (item: string) => string
+        prefix?: boolean
+        suffix?: boolean
+        separator?: boolean
+        empty?: boolean
+      } = {},
     ) {
       const { Repeat, node_append } = window.__ELT__
       const container = document.createElement("div")
@@ -767,7 +789,18 @@ test.describe("Repeat", () => {
         const o_lst = o(items.slice(0, 2))
         const { container } = mount_repeat(o_lst)
 
-        const sequences: string[][] = [["x"], ["x"], ["a", "b", "c"], ["c"], ["c"], ["z"], ["z"], [], ["only"], ["only"]]
+        const sequences: string[][] = [
+          ["x"],
+          ["x"],
+          ["a", "b", "c"],
+          ["c"],
+          ["c"],
+          ["z"],
+          ["z"],
+          [],
+          ["only"],
+          ["only"],
+        ]
         const out: unknown[][] = []
         for (const seq of sequences) {
           o_lst.set([...seq])
@@ -790,7 +823,10 @@ test.describe("Repeat", () => {
         const o_lst = o(["b", "d", "d", "d", "e"])
         const { container } = mount_repeat(o_lst, { separator: true })
         o_lst.set(["b", "d", "d", "e"])
-        const out = { texts: item_texts(container), idx: elements_by_class(container, "repeat-sep").map((s) => s.textContent) }
+        const out = {
+          texts: item_texts(container),
+          idx: elements_by_class(container, "repeat-sep").map((s) => s.textContent),
+        }
         tear_down(container)
         return out
       })
@@ -893,9 +929,15 @@ test.describe("Repeat", () => {
             kept: next.filter((k) => by_key.has(k)).every((k) => inputs[next.indexOf(k)] === by_key.get(k)),
             focused: focus ? document.activeElement === by_key.get(focus) : true,
             // Elements that were (re)inserted, by value
-            added: records.flatMap((r) => [...r.addedNodes].filter((n) => n instanceof HTMLInputElement).map((n) => (n as HTMLInputElement).value)),
+            added: records.flatMap((r) =>
+              [...r.addedNodes].filter((n) => n instanceof HTMLInputElement).map((n) => (n as HTMLInputElement).value),
+            ),
             insert_records: records.filter((r) => r.addedNodes.length > 0).length,
-            removed: records.flatMap((r) => [...r.removedNodes].filter((n) => n instanceof HTMLInputElement).map((n) => (n as HTMLInputElement).value)),
+            removed: records.flatMap((r) =>
+              [...r.removedNodes]
+                .filter((n) => n instanceof HTMLInputElement)
+                .map((n) => (n as HTMLInputElement).value),
+            ),
           }
           window.__ELT__.node_remove(container)
           return out
@@ -982,7 +1024,8 @@ test.describe("Repeat", () => {
             const idx = pool.indexOf(k)
             if (idx >= 0 && spans[idx] !== el) errors.push(`step ${step}: ${k} lost its node`)
             // A removed key's node may have been re-keyed for a new key ; only detached nodes must stop.
-            if (!el.isConnected && node_is_observing(el as HTMLElement)) errors.push(`step ${step}: ${k} still observing`)
+            if (!el.isConnected && node_is_observing(el as HTMLElement))
+              errors.push(`step ${step}: ${k} still observing`)
           }
           prev = new Map(pool.map((k, i) => [k, spans[i]]))
         }
@@ -1250,7 +1293,11 @@ test.describe("Repeat", () => {
 
         o_start.set(3)
         o_end.set(5)
-        const evicted = { connected: first_a.isConnected, observing: node_is_observing(first_a), texts: item_texts(container) }
+        const evicted = {
+          connected: first_a.isConnected,
+          observing: node_is_observing(first_a),
+          texts: item_texts(container),
+        }
 
         o_start.set(0)
         o_end.set(2)

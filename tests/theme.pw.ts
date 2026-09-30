@@ -165,7 +165,9 @@ test.describe("Color/Mix merge", () => {
     expect(result.neutral_line.split(":")[1]).toBe(result.tint_line.split(":")[1])
   })
 
-  test("inside a real inverted element, neutral/text/tint resolve to the identical computed color", async ({ page }) => {
+  test("inside a real inverted element, neutral/text/tint resolve to the identical computed color", async ({
+    page,
+  }) => {
     const result = await page.evaluate(() => {
       const { theme } = window.__ELT__.UI
       document.body.className = theme.class_light_scheme
@@ -295,7 +297,9 @@ test.describe("Mix.surface / [surface] parity", () => {
     // parent's own color and defeat rule 1 (padding requires a *visible* boundary)
     expect(css).not.toContain("var(--e-surface-level,")
     // --e-surface-mix (specs/borders.md) is relayed to children alongside --e-surface-level, same rule
-    expect(css).toContain("& > * { --e-surface-level: var(--e-surface-level-relay); --e-surface-mix: var(--e-surface-mix-relay); }")
+    expect(css).toContain(
+      "& > * { --e-surface-level: var(--e-surface-level-relay); --e-surface-mix: var(--e-surface-mix-relay); }",
+    )
   })
 
   test("children are handed the new level via the same relay variable used to paint it", async ({ page }) => {
@@ -304,7 +308,9 @@ test.describe("Mix.surface / [surface] parity", () => {
       return theme.colors.tint.css_as_surface(3)
     })
     expect(css).toContain("--e-surface-level-relay: var(--e-current-surface-level);")
-    expect(css).toContain("& > * { --e-surface-level: var(--e-surface-level-relay); --e-surface-mix: var(--e-surface-mix-relay); }")
+    expect(css).toContain(
+      "& > * { --e-surface-level: var(--e-surface-level-relay); --e-surface-mix: var(--e-surface-mix-relay); }",
+    )
   })
 
   test(".class_as_surface() returns a stable, cached class name per level — usable on any element, not just e-flex/e-grid/e-prose", async ({
@@ -361,7 +367,9 @@ test.describe("Mix.surface / [surface] parity", () => {
       const { theme } = window.__ELT__.UI
       return theme.colors.tint.surface("n+1")
     })
-    expect(value).toContain("calc((1 + var(--e-current-surface-level, var(--e-surface-level, 0))) * var(--e-surface-step, 10%))")
+    expect(value).toContain(
+      "calc((1 + var(--e-current-surface-level, var(--e-surface-level, 0))) * var(--e-surface-step, 10%))",
+    )
   })
 
   test("surface('n+2') is available for arbitrary offsets, unlike the [surface] attribute which only precompiles n+1/n+2", async ({
@@ -371,10 +379,14 @@ test.describe("Mix.surface / [surface] parity", () => {
       const { theme } = window.__ELT__.UI
       return theme.colors.tint.surface("n+2")
     })
-    expect(value).toContain("calc((2 + var(--e-current-surface-level, var(--e-surface-level, 0))) * var(--e-surface-step, 10%))")
+    expect(value).toContain(
+      "calc((2 + var(--e-current-surface-level, var(--e-surface-level, 0))) * var(--e-surface-step, 10%))",
+    )
   })
 
-  test(".hover/.separator delegate to the same relative-offset expression as surface('n+1')/surface('n+2')", async ({ page }) => {
+  test(".hover/.separator delegate to the same relative-offset expression as surface('n+1')/surface('n+2')", async ({
+    page,
+  }) => {
     const result = await page.evaluate(() => {
       const { theme } = window.__ELT__.UI
       return {
@@ -382,8 +394,12 @@ test.describe("Mix.surface / [surface] parity", () => {
         separator: theme.colors.tint.separator.toString(),
       }
     })
-    expect(result.hover).toContain("(1 + var(--e-current-surface-level, var(--e-surface-level, 0))) * var(--e-surface-step, 10%)")
-    expect(result.separator).toContain("(2 + var(--e-current-surface-level, var(--e-surface-level, 0))) * var(--e-surface-step, 10%)")
+    expect(result.hover).toContain(
+      "(1 + var(--e-current-surface-level, var(--e-surface-level, 0))) * var(--e-surface-step, 10%)",
+    )
+    expect(result.separator).toContain(
+      "(2 + var(--e-current-surface-level, var(--e-surface-level, 0))) * var(--e-surface-step, 10%)",
+    )
   })
 })
 
@@ -498,7 +514,9 @@ test.describe("Theme.css_pad / Theme.css_spacing", () => {
     expect(result).toBe("--e-pad: var(--e-spacing-widget);")
   })
 
-  test("spacing(step) sets --e-spacing and --e-current-spacing from the named step's single spacing variable (specs/borders.md)", async ({ page }) => {
+  test("spacing(step) sets --e-spacing and --e-current-spacing from the named step's single spacing variable (specs/borders.md)", async ({
+    page,
+  }) => {
     const result = await page.evaluate(() => {
       const { theme } = window.__ELT__.UI
       return theme.css_spacing("section")
@@ -516,7 +534,9 @@ test.describe("Theme.css_pad / Theme.css_spacing", () => {
 })
 
 test.describe("Theme class_*_scheme (regression: renamed from class_light/class_dark/class_dynamic)", () => {
-  test("light_scheme/dark_scheme/dynamic_scheme are memoized and produce the expected class names", async ({ page }) => {
+  test("light_scheme/dark_scheme/dynamic_scheme are memoized and produce the expected class names", async ({
+    page,
+  }) => {
     const result = await page.evaluate(() => {
       const { theme } = window.__ELT__.UI
       return {

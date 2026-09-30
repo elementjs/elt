@@ -5,7 +5,9 @@ test.beforeEach(async ({ page }) => {
 })
 
 test.describe("packed seam suppression (specs/borders.md, per-element self-detection)", () => {
-  test("row: bordered button followed by an unbordered sibling still suppresses its own trailing border", async ({ page }) => {
+  test("row: bordered button followed by an unbordered sibling still suppresses its own trailing border", async ({
+    page,
+  }) => {
     const aRight = await page.evaluate(() => {
       const row = document.createElement("e-row")
       row.setAttribute("packed", "")
@@ -18,7 +20,9 @@ test.describe("packed seam suppression (specs/borders.md, per-element self-detec
     expect(aRight).toBe("none")
   })
 
-  test("column: bordered button followed by an unbordered sibling still suppresses its own trailing border", async ({ page }) => {
+  test("column: bordered button followed by an unbordered sibling still suppresses its own trailing border", async ({
+    page,
+  }) => {
     const aBottom = await page.evaluate(() => {
       const col = document.createElement("e-column")
       col.setAttribute("packed", "")
@@ -31,7 +35,9 @@ test.describe("packed seam suppression (specs/borders.md, per-element self-detec
     expect(aBottom).toBe("none")
   })
 
-  test("row: two bordered buttons — earlier one's trailing edge suppressed, later one's leading edge stays", async ({ page }) => {
+  test("row: two bordered buttons — earlier one's trailing edge suppressed, later one's leading edge stays", async ({
+    page,
+  }) => {
     const [aRight, bLeft] = await page.evaluate(() => {
       const row = document.createElement("e-row")
       row.setAttribute("packed", "")
@@ -106,7 +112,9 @@ test.describe("packed seam suppression (specs/borders.md, per-element self-detec
     expect(aRight).toBe("none")
   })
 
-  test("interior corner radii are zeroed regardless of border presence, outer corners untouched — unchanged by the border-ownership rework", async ({ page }) => {
+  test("interior corner radii are zeroed regardless of border presence, outer corners untouched — unchanged by the border-ownership rework", async ({
+    page,
+  }) => {
     const result = await page.evaluate(() => {
       const row = document.createElement("e-row")
       row.setAttribute("packed", "")
@@ -138,7 +146,9 @@ test.describe("packed seam suppression (specs/borders.md, per-element self-detec
     expect(result.bBottomRight).not.toBe("0px")
   })
 
-  test("interior/outer radius handling is identical whether or not the packed container itself sets radius", async ({ page }) => {
+  test("interior/outer radius handling is identical whether or not the packed container itself sets radius", async ({
+    page,
+  }) => {
     const result = await page.evaluate(() => {
       const row = document.createElement("e-row")
       row.setAttribute("packed", "")
@@ -221,7 +231,9 @@ test.describe("packed[border] (specs/borders.md)", () => {
     expect(result).toBe("rgb(1, 2, 3)")
   })
 
-  test("packed[border] children have border: none on every side, even a child that itself carries [border]", async ({ page }) => {
+  test("packed[border] children have border: none on every side, even a child that itself carries [border]", async ({
+    page,
+  }) => {
     const result = await page.evaluate(() => {
       const row = document.createElement("e-row")
       row.setAttribute("packed", "")
@@ -236,7 +248,9 @@ test.describe("packed[border] (specs/borders.md)", () => {
     expect(result).toEqual(["none", "none", "none", "none"])
   })
 
-  test("packed[border]'s own radius is inherited by the first/last child's outer corners, not whatever radius they'd resolve to on their own", async ({ page }) => {
+  test("packed[border]'s own radius is inherited by the first/last child's outer corners, not whatever radius they'd resolve to on their own", async ({
+    page,
+  }) => {
     const result = await page.evaluate(() => {
       const row = document.createElement("e-row")
       row.setAttribute("packed", "")
@@ -292,7 +306,9 @@ test.describe("packed[border] (specs/borders.md)", () => {
     expect(result.bTrailing).toEqual([result.rowRadius, result.rowRadius])
   })
 
-  test("plain packed — no [border], no [radius] on the container — leaves each child's own radius untouched at the outer edges", async ({ page }) => {
+  test("plain packed — no [border], no [radius] on the container — leaves each child's own radius untouched at the outer edges", async ({
+    page,
+  }) => {
     const result = await page.evaluate(() => {
       const row = document.createElement("e-row")
       row.setAttribute("packed", "")
@@ -312,7 +328,9 @@ test.describe("packed[border] (specs/borders.md)", () => {
     expect(result.bTrailing).not.toBe("0px")
   })
 
-  test("packed[border] does not clip its own overflow — radius is matched correctly instead (specs/borders.md)", async ({ page }) => {
+  test("packed[border] does not clip its own overflow — radius is matched correctly instead (specs/borders.md)", async ({
+    page,
+  }) => {
     const result = await page.evaluate(() => {
       const row = document.createElement("e-row")
       row.setAttribute("packed", "")
@@ -339,7 +357,9 @@ test.describe("packed[border] (specs/borders.md)", () => {
 })
 
 test.describe("[surface]/[border] color-step value type (specs/borders.md)", () => {
-  test('border="neutral-surface" on an element with surface="neutral-2" resolves to neutral-3 — the level-stack offset', async ({ page }) => {
+  test('border="neutral-surface" on an element with surface="neutral-2" resolves to neutral-3 — the level-stack offset', async ({
+    page,
+  }) => {
     const result = await page.evaluate(() => {
       const { theme } = window.__ELT__.UI
       const el = document.createElement("e-prose")
@@ -354,7 +374,9 @@ test.describe("[surface]/[border] color-step value type (specs/borders.md)", () 
     expect(result.border).toBe(result.ref)
   })
 
-  test('border="tint-surface" on an element with surface="neutral-2" resolves to tint at level 3 — the level tracks the element\'s own surface, the family is explicit', async ({ page }) => {
+  test('border="tint-surface" on an element with surface="neutral-2" resolves to tint at level 3 — the level tracks the element\'s own surface, the family is explicit', async ({
+    page,
+  }) => {
     const result = await page.evaluate(() => {
       const { theme } = window.__ELT__.UI
       const el = document.createElement("e-prose")
@@ -369,7 +391,9 @@ test.describe("[surface]/[border] color-step value type (specs/borders.md)", () 
     expect(result.border).toBe(result.ref)
   })
 
-  test('bare border ignores the element\'s own surface entirely — the flat widget color, not level-relative', async ({ page }) => {
+  test("bare border ignores the element's own surface entirely — the flat widget color, not level-relative", async ({
+    page,
+  }) => {
     const result = await page.evaluate(() => {
       const { theme } = window.__ELT__.UI
       const el = document.createElement("e-prose")
@@ -413,7 +437,9 @@ test.describe("[surface]/[border] color-step value type (specs/borders.md)", () 
     expect(result.bg).toBe(result.ref)
   })
 
-  test('border="tint-surface" with no surface on the same element resolves against the ambient surface', async ({ page }) => {
+  test('border="tint-surface" with no surface on the same element resolves against the ambient surface', async ({
+    page,
+  }) => {
     const result = await page.evaluate(() => {
       const { theme } = window.__ELT__.UI
       const outer = document.createElement("e-prose")
@@ -432,7 +458,7 @@ test.describe("[surface]/[border] color-step value type (specs/borders.md)", () 
 })
 
 test.describe("theme.css_radius own-pad vs ambient priority (specs/borders.md)", () => {
-  test("reads this element's own --e-pad when [pad=\"X\"] is set on the same element", async ({ page }) => {
+  test('reads this element\'s own --e-pad when [pad="X"] is set on the same element', async ({ page }) => {
     const result = await page.evaluate(() => {
       const { theme } = window.__ELT__.UI
       const el = document.createElement("e-prose")
@@ -447,7 +473,9 @@ test.describe("theme.css_radius own-pad vs ambient priority (specs/borders.md)",
     expect(result.radius).toBe(result.ref)
   })
 
-  test("falls back to the ambient --e-current-spacing when the element has no [pad] of its own but sits inside [spacing]", async ({ page }) => {
+  test("falls back to the ambient --e-current-spacing when the element has no [pad] of its own but sits inside [spacing]", async ({
+    page,
+  }) => {
     const result = await page.evaluate(() => {
       const { theme } = window.__ELT__.UI
       const outer = document.createElement("e-row")

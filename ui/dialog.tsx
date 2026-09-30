@@ -45,8 +45,14 @@ export function show_dialog<T>(opts: DialogOptions | DialogCallback<T>, cbk?: Di
 
   const dialog = E(
     "dialog",
-    content.header != null && <header><h1>{content.header}</h1></header>,
-    <e-prose pad="component" class="e-dialog-body">{content.body}</e-prose>,
+    content.header != null && (
+      <header>
+        <h1>{content.header}</h1>
+      </header>
+    ),
+    <e-prose pad="component" class="e-dialog-body">
+      {content.body}
+    </e-prose>,
     content.footer != null && <footer>{content.footer}</footer>,
     opts.clickOutsideToClose &&
       $on("click", (ev) => {

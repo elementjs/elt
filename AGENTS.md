@@ -29,6 +29,7 @@ Inside a guide: read **Hard rules**, then only the section that matches the task
 - If there is a TODO.md file somewhere, keep it updated with what's been done
 - When alerting me on problems or inconsistencies, use examples if the explanation is complex
 - Maintain `./docs` <-> code relevance
+- Use `biome format --write` when done writing code
 
 # When writing specs or code
 

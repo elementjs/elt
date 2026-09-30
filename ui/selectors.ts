@@ -6,9 +6,9 @@
 // input[type="checkbox"] — it still renders a border, but gets its own custom appearance
 // (ui/form.css.tsx) instead of this shared treatment.
 export const FORM_CONTROL_SELECTOR =
-  'button, ' +
+  "button, " +
   'input:not([type]), input[type="text"], input[type="number"], input[type="password"], ' +
   'input[type="button"], input[type="submit"], input[type="reset"], ' +
   'input[type="date"], input[type="time"], input[type="datetime-local"], ' +
-  'textarea, select, ' +
+  "textarea, select, " +
   'label[e-variant="toggle"]'

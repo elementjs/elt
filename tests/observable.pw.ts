@@ -29,7 +29,8 @@ test.beforeEach(async ({ page }) => {
       calls = [] as any[]
 
       ntimes(times: number): this {
-        if (this.count !== times) throw new Error(`Expected to be called ${times} times but was called ${this.count} times`)
+        if (this.count !== times)
+          throw new Error(`Expected to be called ${times} times but was called ${this.count} times`)
         this.count = 0
         return this
       }
@@ -37,7 +38,8 @@ test.beforeEach(async ({ page }) => {
       with(...args: any[]) {
         for (const call of this.calls) {
           for (let i = 0; i < args.length; i++) {
-            if (!cmp(args[i], call[i])) throw new Error(`At position ${i}, expected ${JSON.stringify(args[i])} got ${JSON.stringify(call[i])}`)
+            if (!cmp(args[i], call[i]))
+              throw new Error(`At position ${i}, expected ${JSON.stringify(args[i])} got ${JSON.stringify(call[i])}`)
           }
         }
         this.calls = []

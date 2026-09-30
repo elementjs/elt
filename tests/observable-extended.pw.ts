@@ -95,7 +95,12 @@ test.describe("Observable extended", () => {
 
         const map = o.clone(new Map([["a", 1]]))
         out.push({ name: "map.get(a)", actual: map.get("a"), expected: 1, kind: "be" })
-        out.push({ name: "map not same ref", actual: map === (new Map([["a", 1]]) as any), expected: false, kind: "be" })
+        out.push({
+          name: "map not same ref",
+          actual: map === (new Map([["a", 1]]) as any),
+          expected: false,
+          kind: "be",
+        })
 
         const set = o.clone(new Set([1, 2]))
         out.push({ name: "set.has(2)", actual: set.has(2), expected: true, kind: "be" })

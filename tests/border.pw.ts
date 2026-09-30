@@ -5,7 +5,9 @@ test.beforeEach(async ({ page }) => {
 })
 
 test.describe("[border]/[surface] color-step value type (specs/borders.md)", () => {
-  test('bare [border] resolves to the flat "widget" neutral color (neutral.faded), independent of ambient surface', async ({ page }) => {
+  test('bare [border] resolves to the flat "widget" neutral color (neutral.faded), independent of ambient surface', async ({
+    page,
+  }) => {
     const result = await page.evaluate(() => {
       const { theme } = window.__ELT__.UI
       const el = document.createElement("e-prose")
@@ -47,7 +49,9 @@ test.describe("[border]/[surface] color-step value type (specs/borders.md)", () 
     expect(result.border).toBe(result.ref)
   })
 
-  test('[border="tint-surface"] resolves to the tint family, one level up from ambient — the level-stack offset, not the flat widget color', async ({ page }) => {
+  test('[border="tint-surface"] resolves to the tint family, one level up from ambient — the level-stack offset, not the flat widget color', async ({
+    page,
+  }) => {
     const result = await page.evaluate(() => {
       const { theme } = window.__ELT__.UI
       const el = document.createElement("e-prose")
@@ -191,7 +195,9 @@ test.describe("[border] implies [radius] (specs/elt-ui-guidelines.md, Border rad
     expect(result).toBe("0px")
   })
 
-  test("the implied radius applies uniformly across border values, including an absolute one (tint-2)", async ({ page }) => {
+  test("the implied radius applies uniformly across border values, including an absolute one (tint-2)", async ({
+    page,
+  }) => {
     const result = await page.evaluate(() => {
       const el = document.createElement("e-prose")
       el.setAttribute("border", "tint-2")
@@ -202,7 +208,9 @@ test.describe("[border] implies [radius] (specs/elt-ui-guidelines.md, Border rad
     expect(result).not.toBe("0px")
   })
 
-  test('radius="section" is a fixed override, usable even without a border, for an element that does not pad itself', async ({ page }) => {
+  test('radius="section" is a fixed override, usable even without a border, for an element that does not pad itself', async ({
+    page,
+  }) => {
     // "section" (32px) deliberately differs from the derived fallback an unpadded element would
     // otherwise get (--e-spacing-widget, 6px) — a step that happened to collide with the
     // fallback's value would pass even if the override selector never actually applied
@@ -227,7 +235,9 @@ test.describe("[border] implies [radius] (specs/elt-ui-guidelines.md, Border rad
 })
 
 test.describe("Theme.css_radius (ui/theme.tsx)", () => {
-  test("no step: derives from the ambient --e-current-spacing, falling back to --e-spacing-widget", async ({ page }) => {
+  test("no step: derives from the ambient --e-current-spacing, falling back to --e-spacing-widget", async ({
+    page,
+  }) => {
     const result = await page.evaluate(() => {
       const { theme } = window.__ELT__.UI
       return theme.css_radius()
@@ -309,7 +319,9 @@ test.describe("Spacing scale nudge rename (regression: '1'/'2'/'4' -> 'nudge-1'/
 })
 
 test.describe("<pre> radius and overflow (specs/borders.md)", () => {
-  test("<pre> inherits its immediate parent's border-radius, matching a rounded wrapper's corners", async ({ page }) => {
+  test("<pre> inherits its immediate parent's border-radius, matching a rounded wrapper's corners", async ({
+    page,
+  }) => {
     const result = await page.evaluate(() => {
       const wrapper = document.createElement("e-prose")
       wrapper.setAttribute("border", "")
@@ -374,7 +386,9 @@ test.describe("<pre> radius and overflow (specs/borders.md)", () => {
     expect(overflowX).toBe("auto")
   })
 
-  test("<pre> scrolls itself instead of pushing an align=\"stretch\" flex ancestor past the page width", async ({ page }) => {
+  test('<pre> scrolls itself instead of pushing an align="stretch" flex ancestor past the page width', async ({
+    page,
+  }) => {
     // A flex column's own cross-axis (width) sizing for a non-stretched item is unbounded by the
     // container's width — it uses the item's own max-content, not fit-content capped at available
     // space (unlike the container's main axis, which min-width: 0 alone fixes). "stretch" (either
