@@ -2,9 +2,11 @@
 
 Reach here when the task is **UI**: layout, theme, colors, forms, widgets, overlays, or any file importing `"elt/ui"`.
 
-**Guide:** [`docs/src/using-elt-ui-agent.md`](../docs/src/using-elt-ui-agent.md) — read **Hard rules**, then only the section for your task (progressive disclosure). Do not load the full guide for a single-widget tweak.
+**Guide:** [`docs/md/using-elt-ui-agent.md`](../docs/md/using-elt-ui-agent.md) — read **Hard rules**, then only the section for your task (progressive disclosure). Do not load the full guide for a single-widget tweak.
 
-**Doc index:** [`docs/src/README.md`](../docs/src/README.md)
+**Doc index:** [`docs/md/index.md`](../docs/md/index.md)
+
+**Rationale/ADRs behind the guide's rules:** [`specs/elt-ui-guidelines.md`](../specs/elt-ui-guidelines.md) — read when a rule's reasoning matters (a judgment call, an edge case not covered by the guide's tables).
 
 ---
 

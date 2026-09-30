@@ -47,10 +47,7 @@ export function tokenColorClass(color: string): string {
 /** A code sample with a Typescript/Result toggle (defaults to Result) for runnable blocks
  * (`renderResult`/`renderError`/`fullExampleUrl` set); a plain highlighted block otherwise. */
 function renderCode(highlighted: () => Renderable) {
-  return <e-prose border pad="none" self-align="stretch">
-    <div class={cls_pre_scroll}><pre><code>{highlighted()}</code></pre></div>
-  </e-prose>
-}
+  return <pre><code>{highlighted()}</code></pre>}
 
 /** The real vertical scroll boundary for a code block: capped at half the viewport height so one
  * long example can't push the rest of the page out of reach, and scrollable past that cap. Kept on
@@ -84,19 +81,22 @@ export function CodeExample(props: CodeExampleProps) {
     return props.renderResult ?? null
   }
 
-  return <e-column packed>
-    <e-row packed border pad="none">
-      <button class={o_showing_code.tf((v) => (!v ? cls_active : null))}>
+  return <e-column packed align="stretch">
+    <e-row packed="widget" border pad="none" align="stretch" surface="neutral-2" class={theme.colors.neutral.classes.as_tint}>
+      <button e-variant={o_showing_code.tf(v => !v ? "inverted" : "")}>
         {$click(() => o_showing_code.set(false))}
         ⏵ Example
       </button>
-      <button class={o_showing_code.tf((v) => (v ? cls_active : null))}>
+      <button e-variant={o_showing_code.tf(v => v && "inverted")}>
         {$click(() => o_showing_code.set(true))}
         Code {"\ueac4"}
       </button>
+      <e-row grow>&nbsp;</e-row>
     </e-row>
     {If(o_showing_code,
-      () => renderCode(props.highlighted),
+      () => <e-prose border="neutral" pad="none" self-align="stretch">
+        <div class={cls_pre_scroll}>{renderCode(props.highlighted)}</div>
+      </e-prose>,
       () => <e-prose border self-align="stretch">{result_view()}</e-prose>,
     )}
   </e-column>

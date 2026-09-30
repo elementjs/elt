@@ -78,7 +78,7 @@ Runnable walkthrough: [`visual-test.md`](./visual-test.md), [`object-editor.md`]
   - `.strong` / `.very_strong` ≈ text-near emphasis
 - Replace fixed palette steps with `Mix.from_bg(...)`, `.hover`, `.faded`, etc. (`ui/theme.tsx`).
 
-Agent checklist for migration: [`using-elt-ui-agent.md` § Colors & theme](./using-elt-ui-agent.md#colors--theme). Converting code written against this project's own earlier `.light`/`.ultra_light` steps: [`../specs/ui-migration.md`](../specs/ui-migration.md).
+Agent checklist for migration: [`using-elt-ui-agent.md` § Colors & theme](./using-elt-ui-agent.md#colors--theme). Converting code written against this project's own earlier `.light`/`.ultra_light` steps: [`../../specs/ui-migration.md`](../../specs/ui-migration.md).
 
 ---
 

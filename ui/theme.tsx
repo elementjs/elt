@@ -655,8 +655,10 @@ export class Mix {
   get _css_as_inverted() {
     return `
     --e-color-bg: ${this.light_frozen_expr};
+    --e-current-surface: var(--e-color-bg);
     --e-color-text: var(--e-light-color-bg);
     --e-color-tint: var(--e-light-color-bg);
+    ${this.label != null && this.label !== "tint" ? `--e-light-color-tint: var(--e-light-color-${this.label ?? "bg"});` : ""}
     /* neutral = text's chroma/hue at tint's luminance — since inversion sets text and tint to the
        exact same value (old bg), neutral collapses to that same value too, no recombination needed. */
     --e-color-neutral: var(--e-light-color-bg);
@@ -668,7 +670,7 @@ export class Mix {
 
   /** Internal — not part of the public contract. Read via `.classes.as_inverted`. */
   @memoize
-  get _classes_as_inverted() {
+  protected get _classes_as_inverted() {
     return css`.e-color-${this.class_label}-inverted {
       ${this._css_as_inverted}
     }`

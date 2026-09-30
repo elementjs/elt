@@ -74,7 +74,7 @@ A `Case`'s first argument can also be a typeguard function (`(t: T): t is S`), w
 
 ```tsx
 //@inline-example
-import { $click, o, Repeat } from "elt"
+import { $click, o, Repeat, $bind } from "elt"
 
 const o_items = o(["Buy milk", "Walk the dog"])
 
@@ -86,8 +86,11 @@ return <e-column>
   <ul>
     {Repeat(o_items, (o_item, idx) => (
       <li>
-        {o_item} #{idx}
-        <button>{$click(() => o_items.set(o_items.get().filter((_, i) => i !== idx.get())))}✕</button>
+        <e-row packed>
+          <label>#{idx}</label>
+          <input>{$bind.string(o_item)}</input>
+          <button>{$click(() => o_items.set(o_items.get().filter((_, i) => i !== idx.get())))}✕</button>
+        </e-row>
       </li>
     ))}
   </ul>

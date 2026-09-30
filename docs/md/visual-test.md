@@ -7,6 +7,7 @@ section: UI Recipes
 Leaving it here to not forget
 - border as .mid is when interaction takes place within it. Otherwise, it should be n+2.
 - Rule : inside an e-prose, text MUST be put in a typographic container such as h*, p, pre, ul/li
+- Rule : DO NOT mix typographic contents and controls (button/input/textarea...). Controls go into rows and columns. Controls can go into typographic content if they're in a container.
 
 # Visual Test
 
@@ -221,11 +222,13 @@ return <e-row spacing>
     seconds={o_seconds}
     am_pm={o_am_pm}
   />
-  <label><input type="checkbox">{$bind.boolean(o_clearable)}</input> Clearable</label>
-  <label><input type="checkbox">{$bind.boolean(o_show_time)}</input> Show time</label>
-  <label><input type="checkbox">{$bind.boolean(o_show_date)}</input> Show date</label>
-  <label><input type="checkbox">{$bind.boolean(o_seconds)}</input> Show seconds</label>
-  <label><input type="checkbox">{$bind.boolean(o_am_pm)}</input> AM/PM</label>
+  <e-row spacing wrap>
+    <label><input type="checkbox">{$bind.boolean(o_clearable)}</input> Clearable</label>
+    <label><input type="checkbox">{$bind.boolean(o_show_time)}</input> Show time</label>
+    <label><input type="checkbox">{$bind.boolean(o_show_date)}</input> Show date</label>
+    <label><input type="checkbox">{$bind.boolean(o_seconds)}</input> Show seconds</label>
+    <label><input type="checkbox">{$bind.boolean(o_am_pm)}</input> AM/PM</label>
+  </e-row>
 </e-row>
 ```
 

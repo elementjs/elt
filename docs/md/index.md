@@ -17,6 +17,7 @@ Use this file to pick **one** downstream doc. Do not read every file in `./docs`
 | Writing or changing **application code** that uses core elt (observables, verbs, routes, services, mount lifecycle) | [`using-elt-agent.md`](./using-elt-agent.md) |
 | Writing or changing **components** (function-as-JSX-tag, `RefChild`, global attrs) | [`components.md`](./components.md) |
 | Building or changing **UI** (layout, theme, colors, forms, widgets, anything importing `"elt/ui"`) | [`../../ui/AGENTS.md`](../../ui/AGENTS.md) → [`using-elt-ui-agent.md`](./using-elt-ui-agent.md) |
+| Needing the **why** behind a UI rule (color axis, spacing scale, overlay/motion rationale, ADRs) | [`../../specs/elt-ui-guidelines.md`](../../specs/elt-ui-guidelines.md) — `using-elt-ui-agent.md` links back here per section |
 | Implementing a **named feature** from a spec | The matching file under [`../../specs/`](../../specs/) |
 | Explaining **why** the codebase chose something | Matching file under [`adr/`](./adr/) |
 | Orienting a **human** developer (less checklist, more narrative) | [`using-elt.md`](./using-elt.md), [`using-elt-ui.md`](./using-elt-ui.md) |
@@ -63,4 +64,5 @@ When a doc and the code disagree, **code + tests win**; treat the doc as possibl
 | `docs/md/using-elt-ui.md` | Human-oriented UI overview + migration |
 | `ui/AGENTS.md` | UI branch entry (modify-library rules + section index) |
 | `specs/` | Feature specifications |
+| `specs/elt-ui-guidelines.md` | UI visual-language rules + rationale (the "why" behind `using-elt-ui-agent.md`) |
 | `docs/src/adr/` | Architecture decision records |

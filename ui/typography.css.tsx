@@ -40,7 +40,7 @@ css`@layer typography {
     color: inherit;
 
     & > * {
-      margin-block: 1em;
+      margin-block: 1.5em;
     }
 
     /* ── Headings ──────────────────────────────────────────── */

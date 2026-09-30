@@ -307,6 +307,7 @@ button[e-variant="tint"] {
 
 button[e-variant="inverted"], label[e-variant="toggle"]:has(> input:checked) {
   --e-color-bg: var(--e-light-color-tint);
+  --e-current-surface: var(--e-color-bg);
   --e-color-text: var(--e-light-color-bg);
   --e-color-tint: var(--e-light-color-bg);
   --e-color-shadow-raise: rgba(255, 255, 255, 0.2);

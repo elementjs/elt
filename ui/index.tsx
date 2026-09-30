@@ -2,8 +2,8 @@ import "./theme"
 
 import "./reset.css"
 import "./layout.css"
-import "./form.css"
 import "./typography.css"
+import "./form.css"
 
 export * from "./animation"
 export * from "./dialog"

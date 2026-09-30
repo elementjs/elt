@@ -69,7 +69,7 @@ export interface CommonAttrs extends Attrs<HTMLElement> {
    * or `"none"` to opt out even when a border is present.
    */
   radius?: NRO<boolean | "none" | SpacingValues>
-  
+
   "self-align"?: NRO<AlignValues>
   "self-justify"?: NRO<AlignValues>
   "max-width"?: NRO<boolean>

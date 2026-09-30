@@ -87,6 +87,17 @@ Common attrs:
 
 Spacing scale (`pad="component"`, `spacing="widget"`, …): `nudge-1`/`nudge-2`/`nudge-4` (px, pixel-level nudges only) → `widget` → `component` (the default, most used) → `section` → `stage-1`…`stage-4`, mapping to `--e-spacing-*` in `ui/theme.tsx`. `pad="X"` implies `spacing="X"` at the same step automatically — write `pad` alone unless padding and inter-child spacing genuinely need to differ, in which case add an explicit `spacing="Y"` to override just that side. Default `pad`/`spacing` (boolean attr, no value) fall back to `component`. `pad="none"`/`spacing="none"` turn one side off explicitly.
 
+**Golden rules (spacing & boundaries).** Every layout decision reduces to these six; `e-flex`/`e-row`/`e-column`/`e-grid`/`e-prose` and their attributes implement them, so follow them by default instead of reasoning from scratch:
+
+1. **Different elements' content must never touch.** A widget, paragraph, or list item's own content must never sit directly against another's. Boundaries may share a seam (rule 6) — this rule is about content, not boundaries.
+2. **Whitespace amount creates associations.** Siblings at the same level get similar spacing; children are spaced more tightly than their parent is from its own siblings.
+3. **Never set your own margin.** Spacing between components is the parent's job (`spacing`/`gap`, or `e-prose`'s own typographic margins for prose). An element never chooses its own margin.
+4. **Padding requires a boundary** (a border or a background). Padding with no boundary is forbidden, not just discouraged — it has nothing to show itself against. Two boundaries may still sit flush against each other and share a seam.
+5. **A container with more than one child must set `spacing` between them, unless the children are meant to touch (rule 6).** `pad` already implies `spacing`, so a padded container satisfies this for free.
+6. **Children may touch directly instead of being spaced, provided the container sets no spacing and every child carries the same padding** — separated only by their own backgrounds/borders. This is what `packed` implements (below): bare `packed` pads every child uniformly at whatever `pad` resolves to; `packed="<step>"` pads children at that step independently of the container's own `pad`.
+
+Full rationale, worked examples, and edge cases (the `e-prose`/`gap` no-op trap, `packed[border]`'s seam mechanics, …): [`../../specs/elt-ui-guidelines.md`](../../specs/elt-ui-guidelines.md#golden-rules).
+
 **Border:** `border` (bare) is a flat, defined "widget" boundary — `neutral.faded` — independent of ambient surface nesting; `border="tint"` is the same idea in `tint.mid` instead. For a boundary that should track surface nesting (a divider between stacked surfaces), use `border="tint-surface"`/`"neutral-surface"` (one level up from ambient, same offset `.hover` uses) or `border="tint-separator"`/`"neutral-separator"` (two levels up, same offset `.separator` uses); `border="tint-N"`/`"neutral-N"` (`N` 1-6) sets an absolute level instead, ignoring ambient. `border` implies `radius` (derived from the element's own padding step, or an explicit named step like `radius="component"` for an element that doesn't pad itself) unless `radius="none"`. See `specs/borders.md`.
 
 **Grid:** no Bootstrap-style helpers. For non-trivial grids, use `<e-grid>` for display + a small `css` block for `grid-template-*`, still using theme spacing/colors inside rules.
@@ -176,7 +187,7 @@ Each `theme.colors.*` is a `Mix` helper:
 | Recolor subtree accent | `theme.colors.orange.as_tint` (class) |
 | Inverted band (toolbar, dialog header, table `<th>`) | `theme.colors.tint.classes.as_inverted` (class) or `.css.as_inverted` (spread inline) |
 
-Full rules and rationale: [`../specs/elt-ui-guidelines.md`](../specs/elt-ui-guidelines.md) (Axis 1: Color). Converting code written against the older `.light`/`.ultra_light` steps: [`../specs/ui-migration.md`](../specs/ui-migration.md).
+Full rules and rationale: [`../../specs/elt-ui-guidelines.md`](../../specs/elt-ui-guidelines.md) (Axis 1: Color). Converting code written against the older `.light`/`.ultra_light` steps: [`../../specs/ui-migration.md`](../../specs/ui-migration.md).
 
 ---
 
@@ -333,7 +344,7 @@ Rules:
 
 ## Migrating from elt-shoelace / legacy elt-ui
 
-See [`using-elt-ui.md`](./using-elt-ui.md). Widget names mostly carry over; **color semantics do not** — rebuild fills/borders with `Mix.from_bg` / `.hover` / `.separator` / `.faded`, not 100–900 steps. See [`../specs/ui-migration.md`](../specs/ui-migration.md) for converting code written against this project's own earlier `.light`/`.ultra_light` steps.
+See [`using-elt-ui.md`](./using-elt-ui.md). Widget names mostly carry over; **color semantics do not** — rebuild fills/borders with `Mix.from_bg` / `.hover` / `.separator` / `.faded`, not 100–900 steps. See [`../../specs/ui-migration.md`](../../specs/ui-migration.md) for converting code written against this project's own earlier `.light`/`.ultra_light` steps.
 
 ---
 
