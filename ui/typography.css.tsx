@@ -47,7 +47,7 @@ css`@layer typography {
     & :where(h1, h2, h3, h4, h5, h6) {
       line-height: 1.2;
       font-weight: bolder;
-      margin-block: 2lh 1lh;
+      margin-block: 2lh 1.5lh;
       text-wrap: balance;
     }
     & :is(h1, h2, h3, h4, h5, h6) + :is(h1, h2, h3, h4, h5, h6) {
@@ -56,10 +56,10 @@ css`@layer typography {
     & :is(h1, h2, h3, h4, h5, h6):has(+ :is(h1, h2, h3, h4, h5, h6)) {
       margin-block-end: 0 !important;
     }
-    & h1 { font-size: 2rem; }
-    & h2 { font-size: 1.5rem; }
-    & h3 { font-size: 1.25rem; }
-    & h4 { font-size: 1.1rem; }
+    & h1 { font-size: 1.5rem; }
+    & h2 { font-size: 1.25rem; }
+    & h3 { font-size: 1.1rem; }
+    & h4 { font-size: 1rem; }
     & h5 { font-size: 1rem; font-style: italic; }
     & h6 { font-size: 1rem; font-style: italic; color: color-mix(in oklab, currentColor 70%, transparent); }
 
@@ -73,7 +73,8 @@ css`@layer typography {
     /* ── Blockquote ────────────────────────────────────────── */
     & blockquote {
       margin-inline: 0;
-      padding-inline-start: 1.1em;
+      background-color: ${theme.colors.neutral.surface(1)};
+      ${theme.css_pad("component")};
       border-inline-start: 3px solid color-mix(in oklab, currentColor 35%, transparent);
       color: color-mix(in oklab, currentColor 75%, transparent);
       font-style: italic;
@@ -126,12 +127,15 @@ css`@layer typography {
          its own, so nothing here is ever actually clipped. */
       overflow-y: clip;
       padding: ${theme.settings.spacingComponent};
-      background: ${theme.colors.neutral.surface(1)};
+      background: ${theme.colors.tint.surface(1)};
+      border: 1px solid ${theme.colors.tint.separator};
+      border-radius: inherit;
+      font-size: 0.75em;
+
       /* Matches whatever radius the immediate wrapper has (e.g. docs/src/code-example.tsx's
          <e-prose border pad="none">), rather than pre's own (nonexistent) radius squaring off a
          rounded wrapper's corners from the inside — see specs/borders.md. Resolves to 0, same as
          today, when pre's direct parent has no radius of its own (plain prose). */
-      border-radius: inherit;
 
       & code {
         background: none;

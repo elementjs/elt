@@ -1,5 +1,6 @@
 ---
 title: Using elt/ui
+section: Elt/UI
 ---
 
 # Using elt/ui

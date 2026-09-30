@@ -1,6 +1,6 @@
 ---
 title: App
-section: App & Routing
+section: Core Library
 order: 10
 ---
 
