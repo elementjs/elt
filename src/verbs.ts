@@ -611,6 +611,19 @@ export namespace Repeat {
         }
 
         const new_idx = key_map.get(obs.key)
+        if (new_idx == null && !this.node_map.has(key)) {
+          // This node's key vanished and the wanted key is brand new: the slot merely changed
+          // identity (typically an item cloned by an edit through `o_item.p(...)`). Re-key the node
+          // where it stands rather than detaching it and re-inserting it, which would cost live DOM
+          // operations, restart every observer in the item and blur a focused input inside it.
+          this.node_map.delete(obs.key)
+          sync_item(iter, idx)
+          this.node_map.set(key, iter)
+          idx++
+          iter = iter.end!.nextSibling as RepeatItemElement<Obs> | null
+          continue
+        }
+
         if (new_idx == null) {
           // This node is dead, mark it as such
           const to_remove = iter

@@ -587,6 +587,81 @@ test.describe("Repeat", () => {
       expect(result.defined).toBe(true)
       expect(result.texts).toEqual(["a", "B"])
     })
+
+    // Regression: without a key function the key is the item itself, so editing an item clones it
+    // and changes its key. The reconciler used to detach that item's nodes and re-insert them,
+    // which blurred the input after the first typed character.
+    for (const kind of ["objects", "strings"] as const) {
+      test(`typing into an input bound to an unkeyed item keeps focus (${kind})`, async ({ page }) => {
+        await page.evaluate((kind) => {
+          const { o, Repeat, node_append, $bind } = window.__ELT__
+          const o_lst: any = o(kind === "objects" ? [{ name: "a" }, { name: "b" }, { name: "c" }] : ["a", "b", "c"])
+          const container = document.createElement("div")
+          node_append(
+            container,
+            Repeat(o_lst, (item: any) => {
+              const input = document.createElement("input")
+              input.className = "repeat-input"
+              node_append(input, $bind.string(kind === "objects" ? item.p("name") : item))
+              return input
+            }),
+          )
+          node_append(document.body, container)
+          ;(window as any).__test__ = { o_lst, container, inputs: [...container.querySelectorAll("input")] }
+        }, kind)
+
+        await page.locator(".repeat-input").nth(1).click()
+        await page.keyboard.press("End")
+        await page.keyboard.type("xyz")
+
+        const result = await page.evaluate(() => {
+          const { o_lst, container, inputs } = (window as any).__test__
+          const now = [...container.querySelectorAll("input")]
+          return {
+            same_nodes: now.length === inputs.length && now.every((n: Element, i: number) => n === inputs[i]),
+            focused: document.activeElement === inputs[1],
+            value: inputs[1].value,
+            model: o_lst.get(),
+          }
+        })
+        expect(result.same_nodes).toBe(true)
+        expect(result.focused).toBe(true)
+        expect(result.value).toBe("bxyz")
+        expect(result.model).toEqual(
+          kind === "objects" ? [{ name: "a" }, { name: "bxyz" }, { name: "c" }] : ["a", "bxyz", "c"],
+        )
+      })
+    }
+
+    test("re-keying an unkeyed item in place performs no child list mutation", async ({ page }) => {
+      const result = await page.evaluate(() => {
+        const { o } = window.__ELT__
+        const { mount_repeat, item_texts, tear_down } = window.__repeat_helpers__
+        const o_lst = o(["a", "b", "c", "d"])
+        const { container } = mount_repeat(o_lst)
+        const before = [...container.querySelectorAll(".repeat-item")]
+
+        const mo = new MutationObserver(() => {})
+        mo.observe(container, { childList: true, subtree: true })
+        // Two slots change identity at once, both with brand new keys.
+        o_lst.set(["a", "x", "y", "d"])
+        const records = mo.takeRecords()
+        mo.disconnect()
+
+        const after = [...container.querySelectorAll(".repeat-item")]
+        const out = {
+          texts: item_texts(container),
+          same_nodes: after.every((n, i) => n === before[i]),
+          // Only the text nodes inside the re-keyed spans may change, never the item nodes themselves.
+          moved: records.filter((r) => r.target === container).length,
+        }
+        tear_down(container)
+        return out
+      })
+      expect(result.texts).toEqual(["a", "x", "y", "d"])
+      expect(result.same_nodes).toBe(true)
+      expect(result.moved).toBe(0)
+    })
   })
 
   test.describe("withKeyFunction", () => {
