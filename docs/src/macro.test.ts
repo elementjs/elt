@@ -483,6 +483,21 @@ describe("elt_md (integration)", () => {
     expect(content).not.toContain("highlightedHtml")
   })
 
+  test("tokenColorClass is only imported when some token is colored", async () => {
+    const t = await withTempDocsTree({
+      "index.md": ["# Index", "", "```text", "hello", "```", ""].join("\n"),
+      "colored.md": ["# Colored", "", "```ts", "const x = 1", "```", ""].join("\n"),
+    })
+    tmp = t
+    await t.elt_md()
+    const plain = await Bun.file(`${t.srcDir}/md/index.tsx`).text()
+    expect(plain).toContain("import { CodeExample } from")
+    expect(plain).not.toContain("tokenColorClass")
+    assertValidTsx(plain)
+    const colored = await Bun.file(`${t.srcDir}/md/colored.tsx`).text()
+    expect(colored).toContain("import { CodeExample, tokenColorClass } from")
+  })
+
   test("other-language fences are highlighted, never treated as examples", async () => {
     const t = await withTempDocsTree({
       "index.md": ["# Index", "", "```bash", "echo hi", "```", ""].join("\n"),
