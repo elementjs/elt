@@ -208,7 +208,7 @@ export namespace $bind {
       (node) => {
         return Number(node.value)
       },
-      (node, value) => (node.value = "" + (value ?? "")),
+      (node, value) => (node.value = `${value ?? ""}`),
       undefined,
       opts,
     )
@@ -277,7 +277,8 @@ export namespace $bind {
       obs,
       (node) => node.selectedIndex,
       (node, value) => {
-        node.selectedIndex = value!
+        // nullish means "no selection", like the other $bind variants map nullish to an empty value
+        node.selectedIndex = value ?? -1
       },
       undefined,
       opts,
@@ -536,7 +537,7 @@ export function $scrollable(node: HTMLElement): void {
     node,
     "touchstart",
     (ev) => {
-      if (ev.currentTarget.scrollTop == 0) {
+      if (ev.currentTarget.scrollTop === 0) {
         node.scrollTop = 1
       } else if (node.scrollTop + node.offsetHeight >= node.scrollHeight - 1) node.scrollTop -= 1
     },

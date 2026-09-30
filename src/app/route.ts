@@ -19,7 +19,7 @@ export class Route<T extends ServiceParams = {}> {
         this.route_params.add(param)
         return `(?<${param}>[^\b]+)`
       })
-      this.regexp = new RegExp("^" + def + "$")
+      this.regexp = new RegExp(`^${def}$`)
     }
   }
 
@@ -39,7 +39,7 @@ export class Route<T extends ServiceParams = {}> {
     const query_part = Object.entries(pr)
       .map(([key, value]) => `${key}=${_encode(value)}`)
       .join("&")
-    return `${window.location.origin}${window.location.pathname}#${replaced}${query_part.length > 0 ? "?" + query_part : ""}`
+    return `${window.location.origin}${window.location.pathname}#${replaced}${query_part.length > 0 ? `?${query_part}` : ""}`
   }
 
   regexp: RegExp | null = null
@@ -62,12 +62,12 @@ export class Route<T extends ServiceParams = {}> {
         }
         const value = _encode(params[key])
 
-        const re = new RegExp(":" + key + "\\b")
+        const re = new RegExp(`:${key}\\b`)
         if (re.test(hash)) {
           // replace the variable in the hash
           hash = hash.replace(re, value)
         } else {
-          entries.push(`${encodeURIComponent(key)}${!value ? "" : "=" + encodeURIComponent(value)}`)
+          entries.push(`${encodeURIComponent(key)}${!value ? "" : `=${encodeURIComponent(value)}`}`)
         }
       }
 
@@ -77,7 +77,7 @@ export class Route<T extends ServiceParams = {}> {
 
       // if there are variables, add them
       if (entries.length > 0) {
-        hash = hash + "?" + entries.join("&")
+        hash = `${hash}?${entries.join("&")}`
       }
 
       if (hash.trim() === document.location.hash.slice(1).trim()) {

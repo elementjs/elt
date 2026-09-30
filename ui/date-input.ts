@@ -163,7 +163,8 @@ export class DateInputController {
       const delta = ev.key === "ArrowUp" ? 1 : -1
       vals[seg.kind] = bump_segment(seg.kind, cur, delta, this.ctx)
       for (const s of layout.segments) {
-        if (vals[s.kind] != null) vals[s.kind] = clamp_segment(s.kind, vals[s.kind]!, vals)
+        const v = vals[s.kind]
+        if (v != null) vals[s.kind] = clamp_segment(s.kind, v, vals)
       }
       this.#write_text(rebuild_from_segments(layout, vals), [seg.start, seg.end])
       return
@@ -210,10 +211,11 @@ export class DateInputController {
       ev.preventDefault()
       return
     }
-    if (ie.inputType === "insertText" && ie.data && layout.literals.some((l) => ie.data!.includes(l.char))) {
+    const data = ie.data
+    if (ie.inputType === "insertText" && data && layout.literals.some((l) => data.includes(l.char))) {
       ev.preventDefault()
       const start = this.input.selectionStart ?? 0
-      let next = start + ie.data!.length
+      let next = start + data.length
       while (next < layout.length && is_literal_index(layout, next)) next++
       this.input.setSelectionRange(next, next)
     }

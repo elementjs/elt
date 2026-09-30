@@ -89,11 +89,16 @@ test.describe("Color/Mix merge", () => {
     const result = await page.evaluate(() => {
       const { theme } = window.__ELT__.UI
       const tint = theme.colors.tint
+      // evaluates `read` twice and checks both reads return the very same object (memoization)
+      const same = (read: () => unknown) => {
+        const first = read()
+        return first === read()
+      }
       return {
-        same_mix: tint.faded === tint.faded && tint.from_bg("37%") === tint.from_bg("37%"),
-        inverted: tint.faded.class_as_inverted === tint.faded.class_as_inverted,
-        tint: tint.strong.class_as_tint === tint.strong.class_as_tint,
-        surface: tint.mid.class_as_surface(2) === tint.mid.class_as_surface(2),
+        same_mix: same(() => tint.faded) && same(() => tint.from_bg("37%")),
+        inverted: same(() => tint.faded.class_as_inverted),
+        tint: same(() => tint.strong.class_as_tint),
+        surface: same(() => tint.mid.class_as_surface(2)),
         distinct: tint.faded !== tint.mid,
       }
     })
@@ -539,8 +544,13 @@ test.describe("Theme class_*_scheme (regression: renamed from class_light/class_
   }) => {
     const result = await page.evaluate(() => {
       const { theme } = window.__ELT__.UI
+      // evaluates `read` twice and checks both reads return the very same object (memoization)
+      const same = (read: () => unknown) => {
+        const first = read()
+        return first === read()
+      }
       return {
-        memoized: theme.class_light_scheme === theme.class_light_scheme,
+        memoized: same(() => theme.class_light_scheme),
         light: theme.class_light_scheme.toString(),
         dark: theme.class_dark_scheme.toString(),
         dynamic: theme.class_dynamic_scheme.toString(),

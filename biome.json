@@ -24,12 +24,38 @@
   },
   "linter": {
     "rules": {
+      "a11y": {
+        "useButtonType": "off"
+      },
       "correctness": {
         "noVoidElementsWithChildren": "off"
       },
       "suspicious": {
-        "noExplicitAny": "off"
+        "noExplicitAny": "off",
+        "noConfusingVoidType": "off"
       }
     }
-  }
+  },
+  "overrides": [
+    {
+      "includes": ["tests/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noNonNullAssertion": "off"
+          }
+        }
+      }
+    },
+    {
+      "includes": ["src/app/**"],
+      "linter": {
+        "rules": {
+          "complexity": {
+            "noBannedTypes": "off"
+          }
+        }
+      }
+    }
+  ]
 }

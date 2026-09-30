@@ -29,7 +29,7 @@ export function _encode(v: string | boolean | undefined | number | null): string
   if (typeof v === "string" && /[~.0-9-]/.test(v[0])) {
     // We only need to test for the ~ and numbers, since this is the only
     // way for a string to start with a forbidden character
-    v = "~" + v
+    v = `~${v}`
   } else if (typeof v === "number") {
     v = v.toString()
   } else if (v === true) {

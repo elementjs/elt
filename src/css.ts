@@ -36,7 +36,7 @@ function rewrite_css(
         continue
       }
       if (Array.isArray(name)) {
-        name = ":is(" + name.join(", ") + ")"
+        name = `:is(${name.join(", ")})`
       }
       _css.push(name.toString())
     }
@@ -51,7 +51,7 @@ function rewrite_css(
   let end = start + 1
   if (css[start] === ".") {
     start++
-    do {
+    while (true) {
       const c = css[end]
       if (
         (c >= "a" && c <= "z") ||
@@ -65,7 +65,7 @@ function rewrite_css(
       } else {
         break
       }
-    } while (true)
+    }
   }
 
   if (end > start + 1) {

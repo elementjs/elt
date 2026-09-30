@@ -47,17 +47,18 @@ export function attr<T>(opts: any, key?: string | symbol, props?: TypedPropertyD
 
     // If the parent class had attributes, keep them
     const maybe_parent_mp = target[sym_attrs]
-    const mp =
-      Object.hasOwn(target, sym_attrs) && maybe_parent_mp
-        ? maybe_parent_mp
-        : (target[sym_attrs] = new Map(maybe_parent_mp))
+    const mp = Object.hasOwn(target, sym_attrs) && maybe_parent_mp ? maybe_parent_mp : new Map(maybe_parent_mp)
+    if (mp !== maybe_parent_mp) target[sym_attrs] = mp
     if (!mp.has(_opts.name)) {
       mp.set(_opts.name, _opts)
     }
 
-    const lock = (_opts.lock = o.exclusive_lock())
-    const obs = (_opts.observable = Symbol())
-    const sym = (_opts.symbol = Symbol())
+    const lock = o.exclusive_lock()
+    const obs = Symbol()
+    const sym = Symbol()
+    _opts.lock = lock
+    _opts.observable = obs
+    _opts.symbol = sym
 
     let setter = desc?.set
     let getter = desc?.get
@@ -198,7 +199,8 @@ export class EltCustomElement extends HTMLElement {
     this.__buildShadow()
     for (const at of this[sym_attrs]?.values() ?? []) {
       // initialize it to the correct value
-      const obs = ((this as any)[at.observable as any] = o((this as any)[at.prop]))
+      const obs = o((this as any)[at.prop])
+      ;(this as any)[at.observable as any] = obs
       node_observe(this, obs, (value) => {
         at.lock(() => {
           ;(this as any)[at.prop] = value
@@ -210,7 +212,9 @@ export class EltCustomElement extends HTMLElement {
 
   /** */
   attrObservable<K extends keyof this>(key: K): o.Observable<this[K]> {
-    return (this as any)[this[sym_attrs]?.get(key as string)?.observable! as any]
+    const at = this[sym_attrs]?.get(key as string)
+    if (at == null) throw new Error(`attrObservable: "${String(key)}" is not a registered attribute`)
+    return (this as any)[at.observable]
   }
 
   shadow(): Node | null {

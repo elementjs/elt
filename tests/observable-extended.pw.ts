@@ -112,6 +112,78 @@ test.describe("Observable extended", () => {
       }
     })
 
+    test('o.clone() keeps every RegExp flag (regression: flags collapsed to a lone "g")', async ({ page }) => {
+      const result = await page.evaluate(() => {
+        const { o } = window.__ELT__
+        const src = /a.b/imsuy
+        const copy = o.clone(src)
+        return { same: copy === src, source: copy.source, flags: copy.flags }
+      })
+      expect(result).toEqual({ same: false, source: "a.b", flags: "imsuy" })
+    })
+
+    test("o.debounce(ms, leading) used as a decorator honors leading (regression: two-argument decorator form was treated as a plain call, and leading was dropped)", async ({
+      page,
+    }) => {
+      const result = await page.evaluate(async () => {
+        const { o } = window.__ELT__
+        let calls = 0
+        const desc: PropertyDescriptor = {
+          value: () => {
+            calls++
+          },
+        }
+        // decorator syntax can't be serialized into page.evaluate, so apply the decorator by hand
+        o.debounce(20, true)(null, "method", desc)
+        desc.value()
+        const after_first_call = calls
+        desc.value()
+        const after_second_call = calls
+        await new Promise((r) => setTimeout(r, 40))
+        return { after_first_call, after_second_call, after_wait: calls }
+      })
+      // leading: the first call runs immediately, the second is debounced into the trailing timer
+      expect(result).toEqual({ after_first_call: 1, after_second_call: 1, after_wait: 2 })
+    })
+
+    test("o.expression() reading old() of an observable before get() of another returns the right value (regression: old() registered a dependency without an index)", async ({
+      page,
+    }) => {
+      const result = await page.evaluate(() => {
+        const { o } = window.__ELT__
+        const o_a = o("A")
+        const o_b = o("B")
+        const ex = o.expression((get, old) => {
+          old(o_a)
+          return get(o_b)
+        })
+        const values: unknown[] = []
+        const obs = new o.Observer((v) => {
+          values.push(v)
+        }, ex)
+        obs.startObserving()
+        o_b.set("B2")
+        obs.stopObserving()
+        return values
+      })
+      expect(result).toEqual(["B", "B2"])
+    })
+
+    test("o.combine() without a setter throws an explicit error when written to", async ({ page }) => {
+      const message = await page.evaluate(() => {
+        const { o } = window.__ELT__
+        const combined = o.combine([o(1), o(2)] as const, ([a, b]) => a + b)
+        try {
+          // typed read-only, but the object is a CombinedObservable underneath: write through `any` on purpose
+          ;(combined as any).set(10)
+          return "no error"
+        } catch (e) {
+          return (e as Error).message
+        }
+      })
+      expect(message).toContain("read-only")
+    })
+
     test("o.assign() on plain objects merges recursively", async ({ page }) => {
       const results = await page.evaluate(() => {
         const { o } = window.__ELT__

@@ -51,11 +51,14 @@ function resize_to_content(ta: HTMLTextAreaElement, min_lines: number, max_lines
 /** Wire listeners; returns teardown. `resize` is invoked on every path that can change line count. */
 function setup_auto_grow(ta: HTMLTextAreaElement, resize: () => void) {
   // $bind and other code assign .value without firing "input".
-  const native_value = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")!
+  const native_value = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")
+  const native_set = native_value?.set
+  if (native_value == null || native_set == null)
+    throw new Error("HTMLTextAreaElement.prototype.value has no native setter")
   Object.defineProperty(ta, "value", {
     ...native_value,
     set(v: string) {
-      native_value.set!.call(this, v)
+      native_set.call(this, v)
       resize()
     },
   })

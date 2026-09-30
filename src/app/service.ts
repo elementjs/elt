@@ -93,7 +93,7 @@ export async function _get_builder<S, T extends ServiceParams = {}>(
 }
 
 function _is_service_class(kls: any): kls is typeof ServiceResult {
-  return typeof (kls as any)?.prototype?.[sym_service_preinit] == "function"
+  return typeof (kls as any)?.prototype?.[sym_service_preinit] === "function"
 }
 
 export function _service_class_init<T extends ServiceParams>(
@@ -120,7 +120,7 @@ export const sym_service_preinit = Symbol("service_preinit")
  * Base class for class-based services when not using any dependencies
  */
 export class ServiceResult<T extends ServiceParams = {}> {
-  [sym_service_preinit](srv: ServiceHelper<T>): Promise<any> {
+  [sym_service_preinit](_srv: ServiceHelper<T>): Promise<any> {
     return {} as any
   }
 

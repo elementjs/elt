@@ -22,7 +22,10 @@ export interface SelectAttributes<T, T2 = T> extends Attrs<HTMLButtonElement> {
  */
 export function Select<T, T2 = T>(at: SelectAttributes<T, T2>) {
   const convert_fn = at.convert_fn ?? ((opt: T2) => opt as unknown as T)
-  const oo_values_map = o.tf(at.options, (opts) => new Map([...opts].map((opt) => [convert_fn(opt), opt])))
+  const oo_values_map = o.tf(
+    at.options,
+    (opts) => new Map<T | undefined, T2>([...opts].map((opt) => [convert_fn(opt), opt])),
+  )
   const o_open = o(false)
 
   return (
@@ -33,7 +36,7 @@ export function Select<T, T2 = T>(at: SelectAttributes<T, T2>) {
       {o.expression((get) => {
         const val = get(at.model)
         const map_val = get(oo_values_map)
-        const opt = map_val.get(val!)
+        const opt = map_val.get(val)
         if (opt == null) {
           return <span class={cls_placeholder}>{get(at.placeholder)}</span>
         }
@@ -59,7 +62,7 @@ export function Select<T, T2 = T>(at: SelectAttributes<T, T2>) {
                         role="option"
                         aria-selected={oo_is_selected.tf((selected) => String(selected))}
                       >
-                        {$click((ev) => {
+                        {$click(() => {
                           at.model?.set(o.get(oo_option_value))
                           fut.resolve(o.get(oo_option_value))
                         })}

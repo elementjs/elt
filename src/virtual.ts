@@ -71,9 +71,9 @@ export class VirtualScroller<O extends o.IReadonlyObservable<any[] | null | unde
   threshold = 500
 
   /** The parent element that has overflow. Is usually automatically detected */
-  overflow_parent: HTMLElement = null!
+  overflow_parent: HTMLElement | null = null
   /** Direct child of the overflow parent that contains this scroller */
-  prev_parent: Node = null!
+  prev_parent: Node | null = null
 
   o_pos_start = o(0)
   o_pos_end = o(0)
@@ -137,33 +137,28 @@ export class VirtualScroller<O extends o.IReadonlyObservable<any[] | null | unde
     this.ForView(this.o_pos_start, this.o_pos_end)
   }
 
-  /** If parent is not provided, we look for it recursively */
-  findNearestParent() {
-    let prev_parent: Node | null = this.__list
+  /**
+   * If parent is not provided, we look for it recursively. Sets {@link overflow_parent} and
+   * {@link prev_parent}, and also returns them, or null when no ancestor scrolls.
+   */
+  findNearestParent(): { overflow_parent: HTMLElement; prev_parent: Node } | null {
+    const scrolls = (v: string) => v === "auto" || v === "scroll"
+    let prev_parent: Node = this.__list
     let iter: Node | null = this.__list
     while (iter && iter !== document.body) {
       if (iter instanceof HTMLElement) {
         const st = getComputedStyle(iter)
-
-        let v = st.getPropertyValue("overflow")
-
-        if (v === "auto" || v === "scroll") {
+        if (scrolls(st.getPropertyValue("overflow")) || scrolls(st.getPropertyValue("overflow-y"))) {
           this.overflow_parent = iter
-          this.prev_parent = prev_parent!
-          break
-        }
-
-        v = st.getPropertyValue("overflow-y")
-        if (v === "auto" || v === "scroll") {
-          this.overflow_parent = iter
-          this.prev_parent = prev_parent!
-          break
+          this.prev_parent = prev_parent
+          return { overflow_parent: iter, prev_parent }
         }
       }
 
       prev_parent = iter
       iter = iter.parentElement
     }
+    return null
   }
 
   protected first_item(): RepeatItem<O> | null {
@@ -212,7 +207,7 @@ export class VirtualScroller<O extends o.IReadonlyObservable<any[] | null | unde
   }
 
   protected jump_threshold() {
-    return Math.max(this.threshold, this.overflow_parent.clientHeight)
+    return Math.max(this.threshold, this.overflow_parent?.clientHeight ?? 0)
   }
 
   /** True when the rendered window no longer overlaps the viewport */
@@ -236,7 +231,7 @@ export class VirtualScroller<O extends o.IReadonlyObservable<any[] | null | unde
     let count = 0
 
     for (let i = rows.length - 1; i >= 0; i--) {
-      const row = rows[i]!
+      const row = rows[i]
       if (!this.boundsValid(row.bounds)) {
         break
       }
@@ -297,8 +292,10 @@ export class VirtualScroller<O extends o.IReadonlyObservable<any[] | null | unde
     region: DOMRect
     scroll_top: number
   } | null {
-    const region = this.overflow_parent.getBoundingClientRect()
-    const scroll_top = this.overflow_parent.scrollTop
+    const overflow_parent = this.overflow_parent
+    if (overflow_parent == null) return null
+    const region = overflow_parent.getBoundingClientRect()
+    const scroll_top = overflow_parent.scrollTop
     const rows: RowMeasure<O>[] = []
 
     let item: RepeatItem<O> | null = this.first_item()
@@ -406,8 +403,8 @@ export class VirtualScroller<O extends o.IReadonlyObservable<any[] | null | unde
     }
 
     const { rows, region, scroll_top } = snapshot
-    const bounds_first = rows[0]!.bounds
-    const bounds_last = rows[rows.length - 1]!.bounds
+    const bounds_first = rows[0].bounds
+    const bounds_last = rows[rows.length - 1].bounds
 
     // Rows are in the DOM but not laid out yet (0-height): retry next frame.
     if (!this.boundsValid(bounds_first) || !this.boundsValid(bounds_last)) {
@@ -631,35 +628,43 @@ export class VirtualScroller<O extends o.IReadonlyObservable<any[] | null | unde
     })
 
     node_on_connected(this.__list, () => {
-      if (this.overflow_parent == null) {
-        this.findNearestParent()
+      let overflow_parent = this.overflow_parent
+      if (overflow_parent == null) {
+        const found = this.findNearestParent()
+        if (found == null) {
+          throw new Error("virtual scroller needs to be in an overflow element")
+        }
+        overflow_parent = found.overflow_parent
+        const prev_parent = found.prev_parent
         // Disable the browser's own scroll anchoring on the whole scrollport:
         // we keep content stable manually via the top spacer, and native
         // anchoring would fight that by also nudging scrollTop.
-        ;(this.overflow_parent as HTMLElement).style.overflowAnchor = "none"
-        node_append(this.overflow_parent, this.padder_top, this.prev_parent)
-        const padder_bottom_ref =
-          this.prev_parent === this.__list ? this.__list.end!.nextSibling : this.prev_parent.nextSibling
-        node_append(this.overflow_parent, this.padder_bottom, padder_bottom_ref)
-        this._observer.observe(this.overflow_parent)
+        overflow_parent.style.overflowAnchor = "none"
+        node_append(overflow_parent, this.padder_top, prev_parent)
+        let padder_bottom_ref = prev_parent.nextSibling
+        if (prev_parent === this.__list) {
+          const list_end = this.__list.end
+          if (list_end == null) throw new Error("VirtualScroll: list end marker missing, the list was not rendered")
+          padder_bottom_ref = list_end.nextSibling
+        }
+        node_append(overflow_parent, this.padder_bottom, padder_bottom_ref)
+        this._observer.observe(overflow_parent)
         // Also watch the element that actually holds the rows: when a row's
         // height changes after render (images, fonts, async content) the
         // container resizes, so we re-evaluate the window and refresh padding.
-        if (this.prev_parent instanceof Element && this.prev_parent !== this.overflow_parent) {
-          this._observer.observe(this.prev_parent)
+        if (prev_parent instanceof Element && prev_parent !== overflow_parent) {
+          this._observer.observe(prev_parent)
         }
       }
-
-      if (this.overflow_parent == null) {
-        throw new Error("virtual scroller needs to be in an overflow element")
-      }
+      // a `const` copy, so that the closure below keeps the non-null type
+      const scroller = overflow_parent
 
       this.setPosition(this.initial_position)
 
-      node_add_event_listener(this.__list, this.overflow_parent, "scroll", () => {
+      node_add_event_listener(this.__list, scroller, "scroll", () => {
         // We never write scrollTop anymore (anchoring is done via the top
         // spacer), so every scroll event is a genuine user scroll.
-        const st = this.overflow_parent.scrollTop
+        const st = scroller.scrollTop
         const prev_top = this.scroll_last_top
 
         if (prev_top >= 0) {

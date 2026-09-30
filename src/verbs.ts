@@ -330,7 +330,7 @@ export namespace Repeat {
 
     override setter(
       value: ItemType<Obs>,
-      oval: ItemType<Obs> | o.NoValue,
+      _oval: ItemType<Obs> | o.NoValue,
       current: [NonNullable<o.ObservedType<Obs>>, number],
     ) {
       const newlst = o.clone(current[0])
@@ -493,8 +493,9 @@ export namespace Repeat {
       let run_first: Node | null = null
       let run_last: Node | null = null
       const flush = () => {
-        if (run_first == null) return
-        remove_run(run_first, run_last!)
+        // run_last is always set along with run_first ; checking both lets TS narrow them
+        if (run_first == null || run_last == null) return
+        remove_run(run_first, run_last)
         run_first = null
       }
 
@@ -578,7 +579,8 @@ export namespace Repeat {
       }
 
       // Items currently in the DOM, in order
-      const list_end = this.__list.end!
+      const list_end = this.__list.end
+      if (list_end == null) throw new Error("Repeat: list end marker missing, the list was not rendered")
       const old: RepeatItemElement<Obs>[] = []
       for (let iter = this.__list.nextSibling; iter != null && iter !== list_end; ) {
         const item = iter as RepeatItemElement<Obs>
@@ -648,16 +650,17 @@ export namespace Repeat {
       }
 
       const stay = lis_mask(src)
-      const parent = this.__list.parentNode!
+      const parent = this.__list.parentNode
+      if (parent == null) throw new Error("Repeat: list is not attached to a parent")
 
       // Place slots from last to first, so that `ref` is always the node right after the slot.
       let ref: Node = tail > 0 ? old[old_mid_end] : list_end
       let pending: DocumentFragment | null = null // consecutive new items, inserted at once
       const flush = () => {
         if (pending == null) return
-        const first = pending.firstChild!
+        const first = pending.firstChild // never null : `pending` only exists once something was put in it
         node_append(parent, pending, ref)
-        ref = first
+        if (first != null) ref = first
         pending = null
       }
 
@@ -687,14 +690,15 @@ export namespace Repeat {
       let run_last: Node | null = null
       for (let d = dead_used; d < dead.length; d++) {
         const node = old[dead[d]]
-        if (run_first != null && run_last!.nextSibling !== node) {
-          remove_run(run_first, run_last!)
+        // run_last is always set along with run_first ; checking both lets TS narrow them
+        if (run_first != null && run_last != null && run_last.nextSibling !== node) {
+          remove_run(run_first, run_last)
           run_first = null
         }
         run_first ??= node
         run_last = node.end ?? node
       }
-      if (run_first != null) remove_run(run_first, run_last!)
+      if (run_first != null && run_last != null) remove_run(run_first, run_last)
     }
 
     /**

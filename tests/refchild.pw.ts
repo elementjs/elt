@@ -5,6 +5,24 @@ test.beforeEach(async ({ page }) => {
 })
 
 test.describe("RefChild", () => {
+  test("sequential components reuse the pooled RefChild (regression: the constructor bumped the pool counter, so every call allocated a new one)", async ({
+    page,
+  }) => {
+    const same = await page.evaluate(() => {
+      const { e } = window.__ELT__
+      const refs: unknown[] = []
+      function comp(_attrs: import("elt").Attrs<HTMLDivElement>, ref: import("elt").RefChild) {
+        refs.push(ref)
+        return e("div", {}, ref)
+      }
+      e(comp, {})
+      e(comp, {})
+      e(comp, {})
+      return refs[0] === refs[1] && refs[1] === refs[2]
+    })
+    expect(same).toBe(true)
+  })
+
   test("ref in the tree marks where JSX children are inserted", async ({ page }) => {
     const result = await page.evaluate(() => {
       const { e } = window.__ELT__
@@ -110,7 +128,7 @@ test.describe("RefChild", () => {
     const result = await page.evaluate(() => {
       const { e } = window.__ELT__
 
-      function box(attrs: import("elt").Attrs<HTMLDivElement>) {
+      function box(_attrs: import("elt").Attrs<HTMLDivElement>) {
         return e("div", { class: "inner" }, "fixed") as HTMLDivElement
       }
 

@@ -545,7 +545,7 @@ test.describe("o.p(fn)", () => {
       const { o } = window.__ELT__
       const out: { name: string; actual: unknown; expected: unknown }[] = []
       const obj = o({ key: "value", other: 0 })
-      const sub = obj.p((x: any) => x["key"])
+      const sub = obj.p((x: any) => x.key)
       out.push({ name: "sub initial", actual: sub.get(), expected: "value" })
       obj.assign({ key: "updated" })
       out.push({ name: "sub after assign", actual: sub.get(), expected: "updated" })
@@ -609,7 +609,7 @@ test.describe("o.p(fn)", () => {
       const { o } = window.__ELT__
       const out: { name: string; actual: unknown; expected: unknown }[] = []
       const obj = o({ key: "old", other: 1 })
-      const sub = obj.p((x: any) => x["key"])
+      const sub = obj.p((x: any) => x.key)
       sub.set("new")
       out.push({ name: "obj after sub.set(new)", actual: obj.get(), expected: { key: "new", other: 1 } })
       out.push({ name: "sub.get()", actual: sub.get(), expected: "new" })

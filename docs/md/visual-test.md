@@ -215,7 +215,7 @@ const o_am_pm = o(false)
 
 return <e-row spacing>
   <DateTimePicker
-    model={o(new Date())}
+    model={o<Date | null>(new Date())}
     show_date={o_show_date}
     show_time={o_show_time}
     clearable={o_clearable}

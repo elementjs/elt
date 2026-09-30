@@ -841,7 +841,10 @@ test.describe("Repeat", () => {
         const o_lst = o<string[]>([])
         const { container } = mount_repeat(o_lst, { separator: true })
         let seed = 1
-        const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647
+        const rnd = () => {
+          seed = (seed * 16807) % 2147483647
+          return seed / 2147483647
+        }
         let found: unknown = null
         for (let step = 0; step < 2000 && found == null; step++) {
           const lst = o_lst.get()

@@ -12,6 +12,7 @@ export class Deferred<T> implements Promise<T> {
 
   [Symbol.toStringTag] = "Deferred"
 
+  // biome-ignore lint/suspicious/noThenProperty: intentionally thenable, so instances can be awaited like a Promise
   then<TResult1 = T, TResult2 = never>(
     onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | null | undefined,
     onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | null | undefined,

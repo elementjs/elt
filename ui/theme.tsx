@@ -208,7 +208,7 @@ export class Theme<AllColors extends ColorScheme> {
   private _dark_values: Record<string, string> = {}
 
   constructor(theme: { light: AllColors; dark?: Partial<AllColors>; settings?: Partial<ThemeSettings> }) {
-    if (!(theme.light["bg"] || theme.light["text"] || theme.light["tint"])) {
+    if (!(theme.light.bg || theme.light.text || theme.light.tint)) {
       throw new Error("Light theme must have a bg, text, and tint color")
     }
 
@@ -251,8 +251,8 @@ export class Theme<AllColors extends ColorScheme> {
     if (!("neutral" in colors_by_name)) {
       const light_neutral = new OkLch(light.tint.l, light.text.c, light.text.h)
       const dark_neutral = new OkLch(dark.tint.l, dark.text.c, dark.text.h)
-      this._light_values["neutral"] = light_neutral.toString()
-      this._dark_values["neutral"] = dark_neutral.toString()
+      this._light_values.neutral = light_neutral.toString()
+      this._dark_values.neutral = dark_neutral.toString()
       colors_by_name.neutral = new Mix(`var(--e-color-neutral)`, "neutral")
     }
 

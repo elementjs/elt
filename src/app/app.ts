@@ -73,20 +73,20 @@ export class App {
         }
       }
 
-      const seterror = (routes: any) => {
+      const seterror = (routes: any, error: Route<any>) => {
         for (const route of Object.values(routes)) {
           if (route instanceof Route) {
             if (route.error == null) {
-              route.error = error!
+              route.error = error
             }
           } else {
-            seterror(route)
+            seterror(route, error)
           }
         }
       }
 
       if (error) {
-        seterror(routes)
+        seterror(routes, error)
       }
 
       return routes
@@ -144,6 +144,8 @@ export class App {
     let current = this.o_state.get()
     this.o_activating.set(true)
     const staging = new State(this)
+    // set when the activation below throws, rethrown once the reactivation check is done
+    let failure: { error: unknown } | null = null
 
     try {
       await staging.activate(builder, params)
@@ -170,26 +172,27 @@ export class App {
         // whoever gets here is the route that "won" if we got here through a route
       }
     } catch (e) {
+      failure = { error: e }
       if (current) {
         staging?.deactivate(current)
       }
+    }
 
-      throw e
-    } finally {
-      staging.previous_state = null
-      const re = this.__reactivate
-      this.__reactivate = null
-      if (re) {
-        this.__activate(re.builder, re.params).then(re.resolve, re.reject)
-        return {
-          activated: false,
-          service: builder,
-          reactivation: re,
-        }
-      } else {
-        this.o_activating.set(false)
+    staging.previous_state = null
+    const re = this.__reactivate
+    this.__reactivate = null
+    if (re) {
+      // A newer activation was requested while this one ran : it supersedes this one,
+      // so this one's error, if any, is dropped on purpose.
+      this.__activate(re.builder, re.params).then(re.resolve, re.reject)
+      return {
+        activated: false,
+        service: builder,
+        reactivation: re,
       }
     }
+    this.o_activating.set(false)
+    if (failure) throw failure.error
 
     return {
       activated: true,

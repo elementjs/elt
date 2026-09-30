@@ -34,7 +34,7 @@ export type t9 = o.ReadonlyObservable<number> | undefined extends o.ReadonlyObse
 declare var __: any
 
 {
-  var rd: Renderable<HTMLDivElement> = __ as HTMLAnchorElement
+  const rd: Renderable<HTMLDivElement> = __ as HTMLAnchorElement
   void rd
 }
 
@@ -42,21 +42,21 @@ declare var __: any
 {
   const obj = o({ a: 1, b: { c: "x" } })
 
-  var tp1: o.Observable<number> = obj.p("a")
-  var tp2: o.Observable<string> = obj.p((x) => x.b.c)
-  var tp3: o.Observable<number | { c: string }> = obj.p(o<"a">("a"))
-  var tp4: o.Observable<number | { c: string }> = obj.p(o<"a" | "b">("a"))
+  const tp1: o.Observable<number> = obj.p("a")
+  const tp2: o.Observable<string> = obj.p((x) => x.b.c)
+  const tp3: o.Observable<number | { c: string }> = obj.p(o<"a">("a"))
+  const tp4: o.Observable<number | { c: string }> = obj.p(o<"a" | "b">("a"))
 
   // path arrays are runtime-only; type as unknown
-  var tp5: o.Observable<unknown> = obj.p(["b", "c"])
-  var tp6: o.Observable<unknown> = obj.p(["b", "c"] as const)
-  var tp7: o.Observable<unknown> = obj.p(o(["b", "c"]))
-  var tp8: o.Observable<unknown> = obj.p(o(["b", "c"] as const))
+  const tp5: o.Observable<unknown> = obj.p(["b", "c"])
+  const tp6: o.Observable<unknown> = obj.p(["b", "c"] as const)
+  const tp7: o.Observable<unknown> = obj.p(o(["b", "c"]))
+  const tp8: o.Observable<unknown> = obj.p(o(["b", "c"] as const))
 
-  var tprop1: o.Observable<number> = o.prop(obj, "a")
-  var tprop2: o.Observable<string> = o.prop(obj, (x) => x.b.c)
-  var tprop3: o.Observable<unknown> = o.prop(obj, ["b", "c"])
-  var tprop4: o.Observable<unknown> = o.prop(obj, o(["b", "c"]))
+  const tprop1: o.Observable<number> = o.prop(obj, "a")
+  const tprop2: o.Observable<string> = o.prop(obj, (x) => x.b.c)
+  const tprop3: o.Observable<unknown> = o.prop(obj, ["b", "c"])
+  const tprop4: o.Observable<unknown> = o.prop(obj, o(["b", "c"]))
 
-  void tp1, tp2, tp3, tp4, tp5, tp6, tp7, tp8, tprop1, tprop2, tprop3, tprop4
+  void [tp1, tp2, tp3, tp4, tp5, tp6, tp7, tp8, tprop1, tprop2, tprop3, tprop4]
 }

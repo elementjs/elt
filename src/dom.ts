@@ -28,7 +28,8 @@ export class CommentHolder extends Comment {
 
   /** Change and update this nodes' content. Will only work if the CommentHolder has a parent ; use a DocumentFragment when preparing the node. */
   updateRenderable(renderable: Renderable<Node>) {
-    const parent = this.parentNode!
+    const parent = this.parentNode
+    if (parent == null) throw new Error("CommentHolder.updateRenderable: not attached to a parent")
 
     if (this.end != null) {
       const end = this.end
@@ -36,7 +37,7 @@ export class CommentHolder extends Comment {
         node_remove(this.nextSibling)
       }
     } else {
-      this.end = document.createComment((this.textContent ?? "") + " end")
+      this.end = document.createComment(`${this.textContent ?? ""} end`)
       node_append(parent, this.end, this.nextSibling)
     }
 
@@ -95,7 +96,7 @@ export class CommentHolder extends Comment {
     if (end == null) {
       return
     }
-    do {
+    while (true) {
       iter = next
       if (iter == null) {
         break
@@ -105,7 +106,7 @@ export class CommentHolder extends Comment {
       if (iter === end) {
         break
       }
-    } while (true)
+    }
   }
 }
 
@@ -231,7 +232,7 @@ export function node_do_disconnect(node: Node) {
  */
 export function node_remove(node: Node): void {
   node_do_disconnect(node) // just stop observers otherwise...
-  const parent = node.parentNode!
+  const parent = node.parentNode
   if (parent) {
     parent.removeChild(node)
   }
@@ -295,7 +296,8 @@ export function setup_mutation_observer(node: Node) {
   if (!_registered_documents.has(target_document)) {
     target_document.defaultView?.addEventListener("unload", () => {
       // Calls a `removed` on all the nodes in the closing window.
-      node_do_disconnect(target_document.firstChild!)
+      const root = target_document.firstChild
+      if (root != null) node_do_disconnect(root)
       obs.disconnect()
     })
   }
@@ -354,10 +356,11 @@ export function node_append<N extends Node>(
       insert_before(node, renderable, refchild, is_basic_node)
 
       if (node.isConnected) {
-        do {
-          node_do_connected(start!)
-          start = start!.nextSibling
-        } while (start && start !== refchild)
+        // `start` was the fragment's first child, now moved into `node` : walk until the insertion point
+        while (start != null && start !== refchild) {
+          node_do_connected(start)
+          start = start.nextSibling
+        }
       }
     } else {
       insert_before(node, renderable, refchild, is_basic_node)
@@ -407,7 +410,7 @@ export function node_append<N extends Node>(
       })
       .catch((e) => {
         console.error(e)
-        cmt.textContent = "promise-error: " + e.toString()
+        cmt.textContent = `promise-error: ${e.toString()}`
       })
   } else {
     // Otherwise, make it a string and append it.
@@ -514,8 +517,12 @@ export function node_observe<T>(
  * @group Dom
  */
 export function node_add_observer<T>(node: Node, observer: o.Observer<T>) {
-  if (node[sym_observers] == undefined) node[sym_observers] = []
-  node[sym_observers]!.push(observer)
+  let observers = node[sym_observers]
+  if (observers == null) {
+    observers = []
+    node[sym_observers] = observers
+  }
+  observers.push(observer)
   if (node[sym_connected_status] & NODE_IS_OBSERVING) observer.startObserving()
 }
 
@@ -634,7 +641,7 @@ export function node_observe_attribute(
       node,
       value,
       (val) => {
-        node.setAttribute(name, value as any)
+        node.setAttribute(name, val as any)
       },
       { immediate: true },
     )
@@ -681,7 +688,7 @@ export function node_observe_style(node: HTMLElement | SVGElement, style: StyleD
         const props = Object.keys(st)
         for (let i = 0, l = props.length; i < l; i++) {
           const x = props[i]
-          const css_name = x.replace(/[A-Z]/g, (m) => "-" + m.toLowerCase())
+          const css_name = x.replace(/[A-Z]/g, (m) => `-${m.toLowerCase()}`)
           const value = st[x as any] as any
           if (value) {
             ns.setProperty(css_name, value)
@@ -700,7 +707,7 @@ export function node_observe_style(node: HTMLElement | SVGElement, style: StyleD
     const props = Object.keys(st)
     for (let i = 0, l = props.length; i < l; i++) {
       const x = props[i]
-      const css_name = x.replace(/[A-Z]/g, (m) => "-" + m.toLowerCase())
+      const css_name = x.replace(/[A-Z]/g, (m) => `-${m.toLowerCase()}`)
       node_observe(
         node,
         st[x],
@@ -831,7 +838,11 @@ function node_on<N extends Node>(
   sym: typeof sym_connected | typeof sym_disconnected,
   callback: LifecycleCallback<N>,
 ) {
-  const cbks = (node[sym] ??= [])
+  let cbks = node[sym]
+  if (cbks == null) {
+    cbks = []
+    node[sym] = cbks
+  }
   cbks.push(callback as LifecycleCallback)
 }
 
@@ -853,8 +864,8 @@ function node_off<N extends Node>(
 export function animate(node: Element, keyframes: Keyframe[], options?: KeyframeAnimationOptions) {
   const animation = node.animate(keyframes, options)
   return new Promise<void>((accept, reject) => {
-    animation.onfinish = (ev) => accept()
-    animation.oncancel = (ev) => accept()
+    animation.onfinish = () => accept()
+    animation.oncancel = () => accept()
     animation.onremove = (ev) => reject(ev)
   })
 }

@@ -21,13 +21,10 @@ export function show_dialog<T>(opts: DialogOptions, cbk: DialogCallback<T>): Pro
 export function show_dialog<T>(opts: DialogOptions | DialogCallback<T>, cbk?: DialogCallback<T>) {
   const future = new Future<T>()
 
-  if (arguments.length === 1) {
-    cbk = opts as DialogCallback<T>
-    opts = {}
-  } else {
-    cbk = cbk!
-    opts = opts as DialogOptions
-  }
+  // show_dialog(cbk) or show_dialog(opts, cbk)
+  const options: DialogOptions = typeof opts === "function" ? {} : opts
+  const callback = typeof opts === "function" ? opts : cbk
+  if (callback == null) throw new Error("show_dialog(opts, cbk): cbk is required")
 
   function close_dialog() {
     Promise.all([
@@ -41,7 +38,7 @@ export function show_dialog<T>(opts: DialogOptions | DialogCallback<T>, cbk?: Di
     })
   }
 
-  const content = cbk(future)
+  const content = callback(future)
 
   const dialog = E(
     "dialog",
@@ -54,7 +51,7 @@ export function show_dialog<T>(opts: DialogOptions | DialogCallback<T>, cbk?: Di
       {content.body}
     </e-prose>,
     content.footer != null && <footer>{content.footer}</footer>,
-    opts.clickOutsideToClose &&
+    options.clickOutsideToClose &&
       $on("click", (ev) => {
         const rect = dialog.getBoundingClientRect()
         const clickedBackdrop =
@@ -79,8 +76,8 @@ export function show_dialog<T>(opts: DialogOptions | DialogCallback<T>, cbk?: Di
     .finally(() => {
       close_dialog()
     })
-    .catch((e) => {
-      // console.warn(e)
+    .catch((_e) => {
+      // console.warn(_e)
     })
 }
 

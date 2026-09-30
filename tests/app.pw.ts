@@ -37,6 +37,59 @@ test.describe("App", () => {
     expect(result.current_route_name).toBe("home")
   })
 
+  test("a failing activation rejects and leaves the app no longer activating", async ({ page }) => {
+    const result = await page.evaluate(async () => {
+      const { App } = window.__ELT__
+
+      async function bad_srv(_srv: import("elt").ServiceHelper) {
+        throw new Error("boom")
+      }
+
+      const app = new App()
+      const router = app.setupRouter({ bad: ["/bad", () => bad_srv] })
+      let message = "no error"
+      try {
+        await router.bad.activate()
+      } catch (e) {
+        message = (e as Error).message
+      }
+      return { message, activating: app.o_activating.get() }
+    })
+    expect(result).toEqual({ message: "boom", activating: false })
+  })
+
+  test("a failing activation superseded by a newer one drops its error and the newer one wins", async ({ page }) => {
+    const result = await page.evaluate(async () => {
+      const { App } = window.__ELT__
+
+      let fail!: () => void
+      const bad_gate = new Promise<void>((_, reject) => {
+        fail = () => reject(new Error("boom"))
+      })
+      async function bad_srv(_srv: import("elt").ServiceHelper) {
+        await bad_gate
+      }
+      async function good_srv(srv: import("elt").ServiceHelper) {
+        srv.views.set("Main", () => "good")
+      }
+
+      const app = new App()
+      const router = app.setupRouter({ bad: ["/bad", () => bad_srv], good: ["/good", () => good_srv] })
+      const first = router.bad.activate()
+      // wait until the first activation is actually running before requesting the second one
+      while (!app.o_activating.get()) await new Promise((r) => setTimeout(r, 0))
+      const second = router.good.activate()
+      fail()
+      let first_outcome = "resolved"
+      await first.catch(() => (first_outcome = "rejected"))
+      await second
+      // the reactivation runs detached from `first`; wait for it to settle
+      while (app.o_activating.get()) await new Promise((r) => setTimeout(r, 0))
+      return { first_outcome, main_view: app.o_views.get().get("Main")?.() }
+    })
+    expect(result).toEqual({ first_outcome: "resolved", main_view: "good" })
+  })
+
   test("param() invalidates the service when a hard-bound param changes", async ({ page }) => {
     const result = await page.evaluate(async () => {
       const { App } = window.__ELT__

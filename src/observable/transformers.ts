@@ -14,7 +14,7 @@ export function tf_equals<T>(value: T): o.Converter<T, boolean> {
     transform(val: T) {
       return val === value
     },
-    revert(newv, _, val) {
+    revert(newv) {
       return newv ? value : o.NoValue
     },
   }
@@ -178,7 +178,11 @@ export function tf_array_group_by<T, R>(
         for (let i = 0, l = lst.length; i < l; i++) {
           const item = lst[i]
           const ex = extractor(item)
-          const ls = m.get(ex) ?? m.set(ex, []).get(ex)!
+          let ls = m.get(ex)
+          if (ls == null) {
+            ls = []
+            m.set(ex, ls)
+          }
           ls.push(i)
         }
 
@@ -395,7 +399,8 @@ export function tf_group_by_to_object<T>(
       indices: {} as { [name: string]: number[] },
       transform(orig) {
         const obj: { [username: string]: T[] } = {}
-        const indices = (this.indices = {} as { [name: string]: number[] })
+        const indices = {} as { [name: string]: number[] }
+        this.indices = indices
         for (let i = 0, l = orig.length; i < l; i++) {
           const val = orig[i]
           const ex = _extractor(val)
@@ -467,7 +472,8 @@ export function tf_group_by_to_map<T, V>(extractor: o.RO<(v: T) => V>): o.RO<o.C
       indices: {} as Map<V, number[]>,
       transform(orig) {
         const mp = new Map<V, T[]>()
-        const indices = (this.indices = new Map<V, number[]>())
+        const indices = new Map<V, number[]>()
+        this.indices = indices
         for (let i = 0, l = orig.length; i < l; i++) {
           const val = orig[i]
           const ex = extractor(val)

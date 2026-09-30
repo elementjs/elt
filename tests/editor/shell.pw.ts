@@ -414,7 +414,6 @@ test.describe("ObjectEditorShell", () => {
           if (span.textContent?.trim() !== key) continue
           const btn = span.nextElementSibling?.querySelector("button")
           if (btn?.textContent?.includes("Open")) return btn as HTMLButtonElement
-          continue
         }
         return null
       }

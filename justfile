@@ -10,9 +10,9 @@ watch:
 # pages does no type-checking of its own (see specs/markdown-docs-reloaded.md, "Type-checking") —
 # `bun index.html` only strips types, it never checks them — so this pipes its output through awk,
 # printing it unchanged, and on every "Bundled page in ..."/"Reloaded in ..." line (a rebuild just
-# happened) shells out to a real `tsgo --noEmit` pass over the whole docs/ project.
+# happened) shells out to a real `tsc --noEmit` pass over the whole docs/ project.
 watch-docs:
-    cd docs && bun index.html 2>&1 | awk '{ print; fflush(); if ($0 ~ /^(Bundled page in|(\[x[0-9]+\] )?Reloaded in)/) system("tsgo --noEmit -p tsconfig.json | wtsc") }'
+    cd docs && bun index.html 2>&1 | awk '{ print; fflush(); if ($0 ~ /^(Bundled page in|(\[x[0-9]+\] )?Reloaded in)/) system("tsc --noEmit -p tsconfig.json | wtsc") }'
 
 check-compile:
     tsc --noEmit | wtsc
@@ -35,12 +35,6 @@ format:
 lint-fix-safe:
     biome check --write
 
-# full strictness (incl. noExplicitAny) on files changed since the biome
-# transformation baseline (see specs/biome.md) -- the backlog in older files
-# doesn't block until it's deliberately paid down
-lint-changed:
-    biome check --changed --since=biome-baseline
-
-# per-rule violation counts, used to update the progress table in specs/biome.md
+# per-rule violation counts across the whole project
 lint-summary:
     biome check --reporter=summary --max-diagnostics=2000

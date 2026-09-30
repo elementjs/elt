@@ -19,14 +19,15 @@ import type { Attrs, ElementMap, EmptyAttributes, Renderable } from "./types"
  *
  * Do not combine bare `{ref}` and `IfChildren()` in the same component.
  *
- * @see tests/refchild.test.ts
+ * @see tests/refchild.pw.ts
  */
 export class RefChild extends Comment {
   private with_content: ((refchild: RefChild) => Renderable<Node>) | null = null
   private content_ref: Comment = document.createComment(`with-content`)
 
   constructor() {
-    super(`ref${refchild_counter++}`)
+    // labelled with its nesting depth ; must not touch the counter, which indexes the reuse pool below
+    super(`ref${refchild_counter}`)
   }
 
   get isUsed() {
@@ -91,8 +92,10 @@ export function e<T extends string>(
   elt: T,
   ...children: (Renderable<NodeTypeFromCreator<T>> | AttrsFor<T>)[]
 ): NodeTypeFromCreator<T>
-// eslint-disable-next-line @typescript-eslint/ban-types
-export function e<N extends Node>(elt: string | Node | Function, ...children: (Renderable<N> | Attrs<N> | any)[]): N {
+export function e<N extends Node>(
+  elt: string | Node | ((...args: any[]) => any),
+  ...children: (Renderable<N> | Attrs<N> | any)[]
+): N {
   let node: N // just to prevent the warnings later
 
   let is_basic_node = true
@@ -162,10 +165,18 @@ export function e<N extends Node>(elt: string | Node | Function, ...children: (R
     }
   } else if (typeof elt === "function") {
     // elt is just a creator function
-    node =
-      elt.length > 1
-        ? elt(children[0] ?? {}, (refchild = refchildren[refchild_counter++] ??= new RefChild()))
-        : elt(children[0] ?? {})
+    if (elt.length > 1) {
+      // the creator takes a RefChild : reuse the pooled one for this nesting depth, creating it on first use
+      refchild = refchildren[refchild_counter]
+      if (refchild == null) {
+        refchild = new RefChild()
+        refchildren[refchild_counter] = refchild
+      }
+      refchild_counter++
+      node = elt(children[0] ?? {}, refchild)
+    } else {
+      node = elt(children[0] ?? {})
+    }
 
     // if refchild was given but not inserted, set it back to null
     if (refchild != null) {

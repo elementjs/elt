@@ -220,12 +220,13 @@ export namespace o {
       // If the observer function returns a result, use it as the new value to avoid being re-triggered
       if (res !== undefined) {
         if (_is_promise_like(res)) {
-          const pro = (this._promise = Promise.resolve(res).then((res) => {
+          const pro = Promise.resolve(res).then((res) => {
             if (res === undefined || pro !== this._promise) {
               return
             }
             this.setObservableValue(res)
-          }))
+          })
+          this._promise = pro
         } else {
           this.setObservableValue(res)
         }
@@ -247,9 +248,9 @@ export namespace o {
     private setObservableValue(val: A | o.NoValue) {
       // synchronous sets win over promises
       this._promise = undefined
-      val = val === o.NoValue ? undefined! : val
-      this.old_value = val as A
-      this.observable.set(val as A)
+      const value = (val === o.NoValue ? undefined : val) as A
+      this.old_value = value
+      this.observable.set(value)
     }
 
     /**
@@ -328,7 +329,7 @@ export namespace o {
       const kind = this[sym_display_node] ?? "e-obs"
       const attrs = this[sym_display_attrs]
 
-      const cmi = new CommentHolder(` ${kind}${attrs ? " " + JSON.stringify(attrs) : ""} `)
+      const cmi = new CommentHolder(` ${kind}${attrs ? ` ${JSON.stringify(attrs)}` : ""} `)
       node_append(parent, cmi, refchild)
       node_observe(
         cmi,
@@ -589,6 +590,7 @@ export namespace o {
         (ret, _, [omap, okey, _2, delete_on_undefined]) => {
           const result = new Map(omap) //.set(okey, ret)
           // Is this correct ? should I **delete** when I encounter undefined ?
+          // biome-ignore lint/style/noNonNullAssertion: with delete_on_undefined off, storing `undefined` in the Map<A, B> is what the caller asked for
           if (ret !== undefined || !delete_on_undefined) result.set(okey, ret!)
           else result.delete(okey)
           return [result, NoValue, NoValue, NoValue] as const
@@ -720,6 +722,8 @@ export namespace o {
    */
   export class Observable<A> extends ReadonlyObservable<A> {
     declare _value: A
+    /** set to `true` on the prototype, see {@link o.is_observable} */
+    declare [sym_is_observable]?: boolean
 
     /**
      * Set the value of the observable and notify the observers listening
@@ -753,10 +757,6 @@ export namespace o {
     }
   }
 
-  export interface Observable<A> {
-    [sym_is_observable]?: boolean
-  }
-
   // Mark all observables with a known symbol
   Observable.prototype[sym_is_observable] = true
 
@@ -787,7 +787,7 @@ export namespace o {
       return values.slice() as any as T
     }
 
-    setter(nval: T, oval: T | NoValue, last: A): { [K in keyof A]: A[K] | NoValue } {
+    setter(nval: T, _oval: T | NoValue, _last: A): { [K in keyof A]: A[K] | NoValue } {
       return nval as any as A // by default, just forward the type
     }
 
@@ -863,7 +863,7 @@ export namespace o {
 
       const old_value = this._value
       const res = this.setter(value, old_value, this._parents_values)
-      if (res == undefined) return
+      if (res == null) return
       for (let i = 0, l = this._links, len = l.length; i < len; i++) {
         const link = l[i]
         const newval = res[link.child_idx]
@@ -1075,7 +1075,12 @@ export namespace o {
   ): Observable<R> {
     const virt = new CombinedObservable<T, R>(deps)
     virt.getter = get
-    virt.setter = set! // force undefined to trigger errors for readonly observables.
+    // without `set`, the combined observable is read-only : writing to it is an error
+    virt.setter =
+      set ??
+      (() => {
+        throw new Error("combine: this observable is read-only, no setter was given")
+      })
     return virt as any
   }
 
@@ -1158,7 +1163,7 @@ export namespace o {
     // Assigner: lazily-built function that immutably writes a value at the nested path
     // implied by the getter (e.g. obj => obj.foo.bar → path ['foo','bar']).
     // It tolerates ?. chaining, but will create simple objects for non-existent paths.
-    let setter: (obj: T, newv: any) => T = null!
+    let setter: (obj: T, newv: any) => T
     let getter: (obj: T) => any
     let last_prop: any = null
 
@@ -1226,6 +1231,7 @@ export namespace o {
     function make_function_assigner() {
       const body = last_prop.toString() as string
       const brk = /\??\.(?<name>[^.[?]+)|\??\["(?<name>(\\"|[^"])+)"|\??\['(?<name>(\\'|[^'])+)']\]/g
+      // biome-ignore lint/style/noNonNullAssertion: `brk` has named groups, so `groups` is always set
       const path = [...body.matchAll(brk).map((match) => match.groups!.name)]
       return make_setter_from_path(path)
     }
@@ -1282,7 +1288,7 @@ export namespace o {
       return new Promise((accept, reject) => {
         prevreject = reject
         if (Array.isArray(newpro)) Promise.all(newpro).then((val) => accept(tffn(val)))
-        else if (newpro && typeof newpro["then"] === "function") newpro.then((val: any) => accept(tffn(val)))
+        else if (newpro && typeof newpro.then === "function") newpro.then((val: any) => accept(tffn(val)))
         else setTimeout(() => accept(tffn(newpro)), 0)
       })
     })
@@ -1462,17 +1468,22 @@ export namespace o {
 
     let i = 0
 
+    /** Index of `m` in `cmb`'s dependencies, registering it on first sight so the index always matches its link. */
+    function _index(m: o.ReadonlyObservable<any>) {
+      let idx = mp.get(m)
+      if (idx == null) {
+        idx = i++
+        mp.set(m, idx)
+        cmb.addDependency(m, true)
+      }
+      return idx
+    }
+
     function _get(m: o.RO<any>) {
       if (!o.is_observable(m)) {
         return m
       }
-
-      if (!mp.has(m)) {
-        mp.set(m, i++)
-        cmb.addDependency(m, true)
-      }
-
-      return cmb._parents_values[mp.get(m)!]
+      return cmb._parents_values[_index(m)]
     }
 
     function _updated(m: o.RO<any>) {
@@ -1494,13 +1505,9 @@ export namespace o {
         return NoValue
       }
 
-      if (mp.has(m)) {
-        const prev = old[mp.get(m)!]
-        return prev === undefined ? NoValue : prev
-      } else {
-        cmb.addDependency(m, true)
-        return NoValue
-      }
+      // a first-seen `m` has no slot in the `old` snapshot yet, so this yields NoValue
+      const prev = old[_index(m)]
+      return prev === undefined ? NoValue : prev
     }
 
     cmb.getter = (() => {
@@ -1518,7 +1525,7 @@ export namespace o {
     }) as any
 
     if (fn_revert) {
-      cmb.setter = ((nval: T, oval: T, values: any[]) => {
+      cmb.setter = ((nval: T, oval: T, _values: any[]) => {
         const res = new Array(cmb._links.length).fill(NoValue)
         function _set(m: o.Observable<any>, val: any) {
           const idx = mp.get(m)
@@ -1598,7 +1605,7 @@ export namespace o {
 
       for (const name in mutator) {
         const old_value = clone[name]
-        const new_value = assign(clone[name], mutator[name]! as any)
+        const new_value = assign(clone[name], mutator[name] as any)
         changed = changed || old_value !== new_value
         clone[name] = new_value
       }
@@ -1649,12 +1656,12 @@ export namespace o {
     let lead = false
 
     // Called as a method decorator.
-    if (arguments.length === 1) {
+    if (typeof fn === "number") {
       leading = ms
       ms = fn
-      return (target: any, key: string, desc: PropertyDescriptor) => {
+      return (_target: any, _key: string, desc: PropertyDescriptor) => {
         const original = desc.value
-        desc.value = debounce(original, ms)
+        desc.value = debounce(original, ms, leading)
       }
     }
 
@@ -1707,7 +1714,7 @@ export namespace o {
     if (typeof fn === "number") {
       leading = ms
       ms = fn
-      return (target: any, key: string, desc: PropertyDescriptor) => {
+      return (_target: any, _key: string, desc: PropertyDescriptor) => {
         const original = desc.value
         desc.value = throttle(original, ms, leading)
       }
@@ -1810,20 +1817,8 @@ export namespace o {
     }
 
     if (obj instanceof RegExp) {
-      return new RegExp(
-        obj.source,
-        "" + obj.global
-          ? "g"
-          : "" + obj.multiline
-            ? "m"
-            : "" + obj.unicode
-              ? "u"
-              : "" + obj.ignoreCase
-                ? "i"
-                : "" + obj.sticky
-                  ? "y"
-                  : "",
-      )
+      // copies source and every flag (lastIndex is reset to 0)
+      return new RegExp(obj)
     }
 
     if (obj instanceof Map) {
@@ -1932,7 +1927,8 @@ export namespace o {
    * @group Observable
    */
   export function exclusive_lock() {
-    const o_locked = (exclusive_lock.o_locked = o(false))
+    const o_locked = o(false)
+    exclusive_lock.o_locked = o_locked
     function exclusive_lock(fn: () => any) {
       if (o_locked.get()) return
 
@@ -2010,7 +2006,10 @@ export namespace o {
       fn ??= () => {}
       if (!o.is_observable(obs)) {
         if (this.is_observing) fn(obs as A, NoValue)
-        else (this._callback_queue ??= []).push(() => fn(obs as A, NoValue))
+        else {
+          this._callback_queue ??= []
+          this._callback_queue.push(() => fn(obs as A, NoValue))
+        }
         return null
       }
 

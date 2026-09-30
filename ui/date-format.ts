@@ -155,7 +155,7 @@ export function rebuild_from_segments(layout: DateFormatLayout, vals: SegmentVal
       }
     } else if (v != null) {
       const text = pad(clamp_segment(seg.kind, v, vals), seg.digits)
-      for (let i = 0; i < seg.digits; i++) buf[seg.start + i] = text[i]!
+      for (let i = 0; i < seg.digits; i++) buf[seg.start + i] = text[i]
     } else {
       for (let i = 0; i < seg.digits; i++) buf[seg.start + i] = "-"
     }
@@ -244,8 +244,8 @@ export function segment_at_caret(layout: DateFormatLayout, index: number): DateF
   if (hit) return hit
 
   if (is_literal_index(layout, index)) {
-    const before = layout.segments.filter((s) => s.end === index)
-    if (before.length) return before[before.length - 1]!
+    const before = layout.segments.findLast((s) => s.end === index)
+    if (before) return before
     const after = layout.segments.find((s) => s.start === index)
     if (after) return after
   }
@@ -316,9 +316,10 @@ export function date_to_values(d: Date, layout: DateFormatLayout): SegmentValues
  */
 export function values_to_date(layout: DateFormatLayout, vals: SegmentValues): Date | null {
   if (!segments_complete(layout, vals)) return null
-  const y = vals.year!
-  const mo = vals.month! - 1
-  const da = vals.day!
+  // null on a time-only layout : no calendar date to build (new Date() would be Invalid Date anyway)
+  const { year: y, day: da } = vals
+  if (y == null || vals.month == null || da == null) return null
+  const mo = vals.month - 1
   let h = vals.hour ?? 0
   const min = vals.minute ?? 0
   const sec = vals.second ?? 0

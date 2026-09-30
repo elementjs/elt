@@ -29,8 +29,9 @@ const popups_futures = new WeakMap<Element, Future<any | undefined>>()
 /** Find a suitable parent for a popup ; stops at a popup or a top layer element, or document.body if no root is found.
  * This helps avoid closing popups when clicking on a child of a popup.
  */
-function find_parent_node(el: Node) {
-  while (el != null && el != document.body) {
+function find_parent_node(start: Node) {
+  let el: Node | null = start
+  while (el != null && el !== document.body) {
     // Open modal dialogs are promoted to the top layer
     if (el instanceof HTMLDialogElement && el.open) {
       return el
@@ -45,7 +46,7 @@ function find_parent_node(el: Node) {
       return el
     }
 
-    el = el.parentElement!
+    el = el.parentElement
   }
 
   return document.body

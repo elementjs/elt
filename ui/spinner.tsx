@@ -2,9 +2,10 @@ import { css, type Attrs } from "elt"
 import { theme } from "./theme"
 const colors = theme.colors
 
-export function Spinner(attrs: Attrs<SVGSVGElement>) {
+// e() applies class/style/role/aria-*/data-* from the attrs to the returned <svg> itself ; the parameter only types them
+export function Spinner(_attrs: Attrs<SVGSVGElement>) {
   return (
-    <svg viewBox="0 0 24 24" class={cls_spinner}>
+    <svg viewBox="0 0 24 24" class={cls_spinner} role="img" aria-label="Loading">
       <g>
         <circle cx="12" cy="12" r="9.5" fill="none" stroke-width="3"></circle>
       </g>

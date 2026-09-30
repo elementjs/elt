@@ -45,14 +45,16 @@ export interface DateTimePickerAttributesBAse extends Attrs<HTMLElement> {
   date_popup_default_date?: o.RO<Date>
 }
 
+/** The model accepts `null` : the picker may be cleared, always (`true`) or only while the observable is `true`. */
 export interface DatePickerNullable extends DateTimePickerAttributesBAse {
   model: o.Observable<Date | null>
-  clearable: true
+  clearable: true | o.IReadonlyObservable<boolean>
 }
 
+/** The model never receives `null` : the picker is never cleared. */
 export interface DatePickerNotNullable extends DateTimePickerAttributesBAse {
   model: o.IObservable<Date | null, Date>
-  clearable?: false | o.IReadonlyObservable<boolean>
+  clearable?: false
 }
 
 export type DatePickerAttrs = DatePickerNullable | DatePickerNotNullable
@@ -92,8 +94,9 @@ export function DateTimePicker(at: DatePickerAttrs) {
   const lock = o.exclusive_lock()
 
   const set_model = (d: Date | null) => {
-    if (d == null && o.get(clearable)) at.model.set(null!)
-    else if (d != null) at.model.set(d)
+    if (d != null) at.model.set(d)
+    // `at.clearable` is only truthy in DatePickerNullable, so `at` narrows to it and set(null) type-checks
+    else if (at.clearable && o.get(clearable)) at.model.set(null)
   }
 
   const get_model = () => at.model.get()
@@ -187,8 +190,9 @@ export function DateTimePicker(at: DatePickerAttrs) {
       })}
       <input type="text" autocomplete="off" spellcheck={false} class={cls_date_input}>
         {(input: HTMLInputElement) => {
-          input_ctrl = setup_input_api(input, input_ctx())
-          lock(() => input_ctrl!.apply_model(at.model.get()))
+          const ctrl = setup_input_api(input, input_ctx())
+          input_ctrl = ctrl
+          lock(() => ctrl.apply_model(at.model.get()))
         }}
         {$observe(at.model, (val) => {
           lock(() => input_ctrl?.apply_model(val))
