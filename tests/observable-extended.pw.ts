@@ -122,6 +122,34 @@ test.describe("Observable extended", () => {
       expect(result).toEqual({ same: false, source: "a.b", flags: "imsuy" })
     })
 
+    test("o.clone() keeps the prototype and enumerable symbol keys, shallowly", async ({ page }) => {
+      const result = await page.evaluate(() => {
+        const { o } = window.__ELT__
+        class Vec {
+          constructor(
+            public x: number,
+            public inner: { y: number },
+          ) {}
+          len() {
+            return this.x
+          }
+        }
+        // The object editor stamps row ids as enumerable symbol keys and relies on them surviving a clone
+        const sym = Symbol("row")
+        const src = new Vec(3, { y: 1 }) as Vec & { [sym]?: number }
+        src[sym] = 42
+        const copy = o.clone(src)
+        return {
+          same: copy === src,
+          is_vec: copy instanceof Vec,
+          len: copy.len(),
+          sym: copy[sym],
+          inner_shared: copy.inner === src.inner,
+        }
+      })
+      expect(result).toEqual({ same: false, is_vec: true, len: 3, sym: 42, inner_shared: true })
+    })
+
     test("o.debounce(ms, leading) used as a decorator honors leading (regression: two-argument decorator form was treated as a plain call, and leading was dropped)", async ({
       page,
     }) => {

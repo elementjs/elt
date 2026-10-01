@@ -1766,32 +1766,20 @@ export namespace o {
   }
 
   /**
-   * Setup a function that takes no argument and returns a new value
-   * when cloning should be performed differently than just using `Object.create` and
-   * copying properties.
-   *
-   * ```tsx
-   * class Vec { constructor(public x: number, public y: number) {} [o.sym_clone]() { return new Vec(this.x, this.y) } }
-   * ```
-   *
-   * @category observable
-   */
-  export const sym_clone = Symbol.for("--elt-o-clone_symbol--")
-
-  /**
    * Shallow clone an object. If you want to perform deep operations, use assign instead.
    * Not all types are safely cloned.
    *
    *  - Maps, Arrays and Sets are cloned, but any subclass information is lost, as you'll get
    *    a Map, Array or Set as a result.
-   *  - Custom objects are cloned and their constructors are respected.
+   *  - Custom objects keep their prototype; only their own enumerable properties
+   *    (symbol-keyed included) are copied, and the constructor is not called.
    *  - Promises are not supported.
    *  - Regexp and Dates are supported.
    *
    * @returns a new instance of the passed object.
    * @group Observable
    */
-  export function clone<T>(obj: T | { [o.sym_clone]: () => T }): T
+  export function clone<T>(obj: T): T
   export function clone(obj: any): any {
     if (obj == null) return obj
     switch (typeof obj) {
@@ -1802,10 +1790,6 @@ export namespace o {
       case "string":
       case "symbol":
         return obj
-    }
-
-    if (obj[sym_clone]) {
-      return obj[sym_clone]()
     }
 
     if (Array.isArray(obj)) {
