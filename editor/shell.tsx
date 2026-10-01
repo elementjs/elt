@@ -86,7 +86,7 @@ export class ObjectEditorShell {
           ev.stopPropagation()
           this.open(ev.detail.o_value, ev.detail.title, ev.target as Node, ev.detail.factory, ev.detail.open_as)
         })}
-        <e-row align="stretch">
+        <e-row align="start">
           {Repeat(this.o_columns, (o_col, o_idx) => {
             if (o_col.get().presentation === "popup") {
               return document.createComment("oe-popup") as unknown as Renderable<Node>
