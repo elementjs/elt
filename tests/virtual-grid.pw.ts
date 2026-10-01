@@ -64,6 +64,14 @@ test.beforeEach(async ({ page }) => {
 })
 
 test.describe("e-virtual-scroll", () => {
+  test("leaves overscroll-behavior at auto, so the page scrolls past its end", async ({ page }) => {
+    const res = await page.evaluate(() => {
+      const area = window.__area(() => {})
+      return getComputedStyle(area).overscrollBehaviorY
+    })
+    expect(res).toBe("auto")
+  })
+
   test("its padders live in its shadow root and stand for the rows that aren't rendered", async ({ page }) => {
     const res = await page.evaluate(async () => {
       const scroll = window.__scroll

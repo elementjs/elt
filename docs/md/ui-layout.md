@@ -193,7 +193,8 @@ More examples: [Forms § Button groups and menus](./ui-forms.md#button-groups-an
 
 `scroll` makes a layout element a scroll area: `overflow: auto` on both axes, or on one with `scroll="x"`/`scroll="y"` (the other axis is clipped). It needs a bounded size (a `height`, a `max-height`, or a parent that bounds it) to scroll at all.
 
-- A scroll that reaches the end stops there: it doesn't carry on to the page (`overscroll-behavior: contain`). The page itself doesn't bounce either: the `elt/ui` reset sets `overscroll-behavior: none` on `html` and `body`. On mobile this also turns off pull-to-refresh; a page that wants it back sets `html { overscroll-behavior: auto }`.
+- A scroll that reaches the end of a scroll area carries on to the enclosing scroll area or the page, as everywhere on the web; a scroll area that doesn't overflow lets the page scroll under the pointer. An area that must never move what's behind it (a modal's content over a scrolling page, a chat log) sets `overscroll-behavior: contain` itself — note that this also blocks the page while the area has nothing to scroll.
+- The page itself doesn't bounce: the `elt/ui` reset sets `overscroll-behavior: none` on `html` and `body`. On mobile this also turns off pull-to-refresh; a page that wants it back sets `html { overscroll-behavior: auto }`.
 - In a flex scroll area (`e-column scroll`, `e-row scroll="x"`, …), children keep their size along the scrolled axis instead of shrinking to fit — otherwise nothing would overflow, and nothing would scroll. A child that is itself a scroll area is the exception: it shrinks, and scrolls its own content.
 - The scroll area draws the frame: a `packed border` child loses its own outer border and radius, keeps its seams, and is clipped to the scroll area's rounded edge. Put `border` on the scroll area.
 

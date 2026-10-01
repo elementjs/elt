@@ -185,7 +185,7 @@ return <div>
 
 ## Touch scrolling: `$scrollable` (deprecated)
 
-**Deprecated.** Use the `scroll` attribute of the `elt/ui` layout elements instead (`<e-column scroll>`, see [Layout § Scroll areas and sticky elements](./ui-layout.md#scroll-areas-and-sticky-elements)), or, without `elt/ui`, `overflow: auto; overscroll-behavior: contain` on the scroll area and `overscroll-behavior: none` on `html, body`. The one thing CSS doesn't do that `$scrollable` did: block touch gestures (pinch-zoom, …) on everything that doesn't scroll.
+**Deprecated.** Use the `scroll` attribute of the `elt/ui` layout elements instead (`<e-column scroll>`, see [Layout § Scroll areas and sticky elements](./ui-layout.md#scroll-areas-and-sticky-elements)), or, without `elt/ui`, `overflow: auto` on the scroll area and `overscroll-behavior: none` on `html, body` (add `overscroll-behavior: contain` on an area whose scroll must never carry on to the page). The one thing CSS doesn't do that `$scrollable` did: block touch gestures (pinch-zoom, …) on everything that doesn't scroll.
 
 Sets up a scrollable container on mobile so `touchstart`/`touchmove` don't trigger the browser's overscroll/rubber-banding effect on ancestors that aren't meant to scroll. This one is a plain decorator function, not a factory — pass it directly, with no call:
 

@@ -67,7 +67,7 @@ export class EVirtualScroll extends HTMLElement {
     const shadow = this.attachShadow({ mode: "open" })
     const style = document.createElement("style")
     // :host rules lose to any rule of the page, so these are defaults.
-    style.textContent = `:host { display: block; overflow: auto; overflow-anchor: none; overscroll-behavior: contain; }`
+    style.textContent = `:host { display: block; overflow: auto; overflow-anchor: none; }`
     this.padder_top = document.createElement("div")
     this.padder_bottom = document.createElement("div")
     shadow.append(style, this.padder_top, document.createElement("slot"), this.padder_bottom)

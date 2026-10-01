@@ -19,9 +19,10 @@ css`@layer reset {
     border: none;
   }
 
-  /* Application-like scrolling: no bounce of the page itself, and a scroll that reaches the end of a
-     scroll area doesn't carry on to the page. On mobile this also turns off pull-to-refresh; a
-     document-like page restores both with html { overscroll-behavior: auto }. */
+  /* Application-like scrolling: no bounce of the page itself, and no browser gesture (pull-to-refresh,
+     swipe navigation) once a scroll reaches the end of the page. Scroll areas inside the page still
+     pass a scroll that reaches their end on to the page. A document-like page restores the browser
+     behavior with html { overscroll-behavior: auto }. */
   html, body {
     overscroll-behavior: none;
   }

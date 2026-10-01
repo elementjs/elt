@@ -288,30 +288,54 @@ test.describe("sticky", () => {
 })
 
 test.describe("scroll", () => {
-  test("scroll, scroll=x, scroll=y set overflow and overscroll-behavior, on e-prose too", async ({ page }) => {
+  test("scroll, scroll=x, scroll=y set overflow and leave overscroll-behavior at auto, on e-prose too", async ({
+    page,
+  }) => {
     await mount(
       page,
       `<e-column id="b" scroll></e-column><e-row id="x" scroll="x"></e-row><e-prose id="y" scroll="y"></e-prose>`,
     )
     const props = ["overflow-x", "overflow-y", "overscroll-behavior-x", "overscroll-behavior-y"]
-    expect(await styles(page, "#b", props)).toEqual({
-      "overflow-x": "auto",
-      "overflow-y": "auto",
-      "overscroll-behavior-x": "contain",
-      "overscroll-behavior-y": "contain",
+    const auto = { "overscroll-behavior-x": "auto", "overscroll-behavior-y": "auto" }
+    expect(await styles(page, "#b", props)).toEqual({ "overflow-x": "auto", "overflow-y": "auto", ...auto })
+    expect(await styles(page, "#x", props)).toEqual({ "overflow-x": "auto", "overflow-y": "hidden", ...auto })
+    expect(await styles(page, "#y", props)).toEqual({ "overflow-x": "hidden", "overflow-y": "auto", ...auto })
+  })
+
+  // Regression: overscroll-behavior: contain on every scroll area blocked wheel scrolling of what
+  // encloses it (the page, or an outer scroll area) over an area that had nothing to scroll, and past
+  // the end of one that had. The elt/ui reset keeps html and body from scrolling, so the enclosing
+  // scroller here is an outer scroll area.
+  test("the wheel scrolls the enclosing area over a scroll area that doesn't overflow, or has reached its end", async ({
+    page,
+  }) => {
+    const rows = Array.from({ length: 10 }, () => `<div style="height:30px"></div>`).join("")
+    await mount(
+      page,
+      `<e-column id="outer" scroll spacing="none" style="height:400px">
+         <e-column id="short" scroll style="height:100px; flex: none"><div>short</div></e-column>
+         <e-column id="long" scroll spacing="none" style="height:100px; flex: none">${rows}</e-column>
+         <div style="height:3000px"></div>
+       </e-column>`,
+    )
+    // flex: none: scroll areas inside a scroll column otherwise shrink to fit it (here, to nothing).
+    const outer_top = () => page.evaluate(() => document.getElementById("outer")!.scrollTop)
+    const wheel_over = async (sel: string) => {
+      const box = (await page.locator(sel).boundingBox())!
+      await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
+      await page.mouse.wheel(0, 50)
+    }
+
+    await wheel_over("#short")
+    await expect.poll(outer_top).toBe(50)
+
+    await page.evaluate(() => {
+      const long = document.getElementById("long")!
+      long.scrollTop = long.scrollHeight
+      document.getElementById("outer")!.scrollTop = 0
     })
-    expect(await styles(page, "#x", props)).toEqual({
-      "overflow-x": "auto",
-      "overflow-y": "hidden",
-      "overscroll-behavior-x": "contain",
-      "overscroll-behavior-y": "contain",
-    })
-    expect(await styles(page, "#y", props)).toEqual({
-      "overflow-x": "hidden",
-      "overflow-y": "auto",
-      "overscroll-behavior-x": "contain",
-      "overscroll-behavior-y": "contain",
-    })
+    await wheel_over("#long")
+    await expect.poll(outer_top).toBe(50)
   })
 
   test("a flex scroll area's children keep their size along the scrolled axis instead of shrinking", async ({

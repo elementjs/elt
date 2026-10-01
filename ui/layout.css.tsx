@@ -107,8 +107,8 @@ export interface CommonAttrs extends Attrs<HTMLElement> {
   sticky?: NRO<"top" | "bottom">
   /**
    * Make this element a scroll area: `overflow: auto` on both axes (bare `scroll`) or on one
-   * (`"x"`/`"y"`, the other axis clipped), plus `overscroll-behavior: contain` so a scroll that
-   * reaches the end doesn't carry on to the page. It needs a bounded size to scroll. A `packed
+   * (`"x"`/`"y"`, the other axis clipped). A scroll that reaches the end carries on to the
+   * enclosing scroll area or the page (the browser default). It needs a bounded size to scroll. A `packed
    * border` child of a scroll area drops its own outer border: the scroll area draws the frame.
    */
   scroll?: NRO<boolean | "x" | "y">
@@ -393,9 +393,11 @@ _`
 `
 
 // scroll: one-axis values clip the other axis explicitly (with one axis scrolling, a "visible"
-// other axis would compute to auto anyway).
+// other axis would compute to auto anyway). No overscroll-behavior: contain here — it would also
+// block the page when the area has nothing to scroll (an overflow: auto box is a scroll container
+// whether or not it overflows), so the browser's default scroll chaining applies.
 _`
-  ${_all}[scroll] { overflow: auto; overscroll-behavior: contain; }
+  ${_all}[scroll] { overflow: auto; }
   ${_all}[scroll="x"] { overflow-x: auto; overflow-y: hidden; }
   ${_all}[scroll="y"] { overflow-x: hidden; overflow-y: auto; }
 `
