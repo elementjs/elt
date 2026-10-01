@@ -37,13 +37,13 @@ a {
 
 label {
   &:has(:disabled) {
-    opacity: 0.5;
+    color: ${colors.text.mid};
     cursor: not-allowed;
   }
 
   /* label wraps a widget-scale control (checkbox/toggle) but doesn't pad itself, so its radius
      can't derive from its own padding — "widget" is a deliberate override matching its sibling
-     controls below (see "Borders and radius" in docs/md/elt-ui-reference.md). */
+     controls below (see "Borders and radius" in docs/md/ui-layout.md). */
   ${theme.css_radius("widget")}
   gap: 4px;
   cursor: pointer;
@@ -267,7 +267,6 @@ button, label[e-variant="toggle"] {
   }
 
   &:disabled {
-    opacity: 0.3;
     cursor: not-allowed;
   }
 }
@@ -352,6 +351,50 @@ input[type="color"]::-webkit-color-swatch-wrapper {
 input[type="color"]::-webkit-color-swatch {
   border: 1px solid ${theme.colors.text};
   border-radius: 50%; /* match parent shape */
+}
+
+/* ── Disabled ──────────────────────────────────────────────────────────────────────────────────
+   A disabled control moves each of its full-strength colors halfway toward the background (.mid)
+   instead of fading with opacity: a transparent control would let whatever is behind it show
+   through. Colors that are already faded stay as they are. Emitted last so these win over the
+   variant rules above at equal specificity. */
+:is(button, input, select, textarea):disabled {
+  color: ${colors.text.mid};
+  border-color: ${colors.neutral.mid};
+  cursor: not-allowed;
+}
+
+button:is([e-variant="tint"], [e-variant="text"], [e-variant="link"]):disabled,
+input[e-variant="tint"]:disabled {
+  color: ${colors.tint.mid};
+  border-color: ${colors.tint.mid};
+}
+
+/* Inverted controls redefine --e-color-bg/--e-color-text locally (the tint fill becomes their
+   background), so their fill is mixed from the light palette directly, like the variant itself. */
+button[e-variant="inverted"]:disabled,
+label[e-variant="toggle"]:has(> input:checked:disabled) {
+  --e-disabled-fill: color-mix(in oklab, var(--e-light-color-bg) calc(100% - ${theme.settings.intensityMid}), var(--e-light-color-tint) ${theme.settings.intensityMid});
+  background-color: var(--e-disabled-fill);
+  border-color: var(--e-disabled-fill);
+  /* The label keeps its full color: its own background is the fill, which already moved halfway, so
+     moving the label halfway too would make it the same color as the fill. */
+  color: var(--e-color-text);
+}
+
+input[type="checkbox"]:checked:disabled,
+input[type="checkbox"][e-variant="switch"]:checked:disabled {
+  border-color: ${colors.tint.mid};
+}
+input[type="checkbox"]:disabled::after,
+input[type="checkbox"][e-variant="switch"]:checked:disabled::after {
+  background-color: ${colors.tint.mid};
+}
+input[type="checkbox"][e-variant="switch"]:checked:disabled {
+  background-color: ${colors.tint.faded};
+}
+input[type="checkbox"][e-variant="switch"]:not(:checked):disabled::after {
+  background-color: ${colors.neutral.faded};
 }
 
 }`

@@ -292,7 +292,7 @@ const cls_shell = css`.oe-shell {
   border: 1px solid ${theme.colors.text.separator};
   /* Doesn't pad itself, so radius can't derive from its own padding — "section" is a deliberate
      override matching the frame's old fixed 16px radius (see "Borders and radius" in
-     docs/md/elt-ui-reference.md). */
+     docs/md/ui-layout.md). */
   ${theme.css_radius("section")}
   overflow: hidden;
 }`

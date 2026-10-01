@@ -30,6 +30,7 @@ css`@layer reset {
   /* 2. Remove default margin */
 * {
     margin: 0;
+    margin-block: 0;
     padding: 0;
   }
 

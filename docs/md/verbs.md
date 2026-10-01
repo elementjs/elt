@@ -1,12 +1,12 @@
 ---
 title: Verbs
-section: Core Library
-order: 20
+section: Core
+order: 30
 ---
 
 # Verbs
 
-Verbs are UpperCased functions that render *dynamic structure* — content that appears, disappears, switches, or repeats — driven by an observable. Where `.tf()` derives one value from another, a Verb derives DOM: `If`, `Switch`, and `Repeat` each patch only the part of the tree that actually needs to change, instead of tearing down and rebuilding a subtree by hand. `DisplayPromise` does the same for a `Promise`'s pending/resolved/rejected states.
+Verbs are UpperCased functions that render *dynamic structure* — content that appears, disappears, switches, or repeats — driven by an observable. A verb returns an **appender** (see [Renderable](./components.md#renderable)): an object that inserts its own nodes where it is placed among the JSX children and keeps them up to date, rather than a node. Where `.tf()` derives one value from another, a Verb derives DOM: `If`, `Switch`, and `Repeat` each patch only the part of the tree that actually needs to change, instead of tearing down and rebuilding a subtree by hand. `DisplayPromise` does the same for a `Promise`'s pending/resolved/rejected states.
 
 Everything below reads as complete documentation on its own; the "Try it" panels that follow some examples run the code for real, in this page, but they're a bonus on top of the prose and code, not a replacement for it.
 
@@ -97,7 +97,7 @@ return <e-column>
 </e-column>
 ```
 
-(A real app with a large or frequently-mutated list would more likely reach for `.mutate()` — see the [Observables](./observables.md) page — rather than rebuilding the whole array on every change as above; `.set()` with a fresh array keeps this example self-contained.)
+(A real app with a large or frequently-mutated list would more likely reach for `.mutate()` — see the [Observables](./observables.md#updating-assign-and-mutate) page — rather than rebuilding the whole array on every change as above; `.set()` with a fresh array keeps this example self-contained.)
 
 `Repeat` has a few more methods for less common cases — enough to know they exist, not exhaustively covered here (see the JSDoc in `src/verbs.ts` for exact behavior):
 
@@ -131,6 +131,25 @@ return <e-column>
     .UponRejection((o_err) => <p>❌ {o_err.tf(String)}</p>)}
 </e-column>
 ```
+
+## `VirtualScroll` — a long list
+
+`VirtualScroll(o_array, (o_item, o_index) => …)` takes the same arguments as `Repeat`, but only renders the rows near the visible part of its scrollable container. Rows above and below are replaced by two spacer elements sized from measured and estimated row heights. Use it for lists that can grow long (hundreds of rows or more); for short lists, `Repeat` is simpler.
+
+```tsx
+import { $scrollable, VirtualScroll } from "elt"
+
+<e-column class={cls_list}>
+  {$scrollable}
+  {VirtualScroll(o_rows, (o_row) => <e-row>{o_row.tf((r) => r.label)}</e-row>)
+    .withKeyFunction((row) => row.id)}
+</e-column>
+```
+
+- It must sit inside an element that scrolls (`overflow: auto` or `scroll`, with a bounded height); it finds the nearest scrolling ancestor itself.
+- It is a `Repeat` underneath, so `.withKeyFunction()` applies and matters even more: rows are created and dropped as the user scrolls.
+- **Each row's height must depend on its own content only**, not on which other rows are rendered at the same time; otherwise the view jumps as rows come and go. The classic case is rows of a shared `<table>` with `table-layout: auto`, where a wide cell re-flows the other rows: set `table-layout: fixed` (or give columns explicit widths). Rows may still change height on their own (an image loading, content wrapping to the container's width).
+- `.configure((scroller) => …)` adjusts it before it renders: `item_size` (the estimated row height in pixels, default 64), `nb_initial_items` (rows rendered before the first measurement, default 20), `initial_position` (index to start at), `threshold` (how many pixels beyond the visible area rows are created or dropped, default 500).
 
 ## Good patterns vs. patterns to avoid
 
@@ -166,3 +185,9 @@ const o_items = o<Item[]>([])
 `If` doesn't re-invoke `display`/`display_otherwise` on every update to `condition` — only when truthiness actually flips (falsy → truthy or truthy → falsy). If `condition` changes from one truthy value to a different truthy value, the previous render is kept as-is; `display` is not called again. See the comment in `src/verbs.ts`, directly above the guard clause in `IfDisplayer`'s constructor, for exactly where this happens.
 
 This matters if `display`'s closure depends on the *specific* truthy value rather than just its presence — e.g. `If(o_user, (u) => <span>{u.tf((x) => x.name)}</span>)` will keep showing the *first* user's name if `o_user` is later set to a different (still truthy) user object, because `If` never called `display` again — but the `<span>` it already rendered stays reactive, since `u.tf(...)` derives from the `u` observable it was given, not from a snapshot. If `display` instead captured a plain value out of the closure at render time, that captured value would go stale.
+
+## See also
+
+- [elt rules](./elt-rules.md#verbs) — the rules for verbs.
+- [Observables](./observables.md) — what verbs consume.
+- `src/verbs.ts` (`If`, `Switch`, `Repeat`, `DisplayPromise`) and `src/virtual.ts` (`VirtualScroll`) — source of truth, with JSDoc.

@@ -4,7 +4,7 @@ test.beforeEach(async ({ page }) => {
   await page.goto("/tests/browser/harness.html")
 })
 
-test.describe("packed seam suppression (docs/md/elt-ui-reference.md, per-element self-detection)", () => {
+test.describe("packed seam suppression (docs/md/ui-layout.md, per-element self-detection)", () => {
   test("row: bordered button followed by an unbordered sibling still suppresses its own trailing border", async ({
     page,
   }) => {
@@ -175,7 +175,7 @@ test.describe("packed seam suppression (docs/md/elt-ui-reference.md, per-element
   })
 })
 
-test.describe("packed[border] (docs/md/elt-ui-reference.md)", () => {
+test.describe("packed[border] (docs/md/ui-layout.md)", () => {
   test("packed[border] draws its own border and its own background matches that border's color", async ({ page }) => {
     const result = await page.evaluate(() => {
       const row = document.createElement("e-row")
@@ -328,7 +328,7 @@ test.describe("packed[border] (docs/md/elt-ui-reference.md)", () => {
     expect(result.bTrailing).not.toBe("0px")
   })
 
-  test("packed[border] does not clip its own overflow — radius is matched correctly instead (docs/md/elt-ui-reference.md)", async ({
+  test("packed[border] does not clip its own overflow — radius is matched correctly instead (docs/md/ui-layout.md)", async ({
     page,
   }) => {
     const result = await page.evaluate(() => {
@@ -356,7 +356,7 @@ test.describe("packed[border] (docs/md/elt-ui-reference.md)", () => {
   })
 })
 
-test.describe("[surface]/[border] color-step value type (docs/md/elt-ui-reference.md)", () => {
+test.describe("[surface]/[border] color-step value type (docs/md/ui-theme.md)", () => {
   test('border="neutral-surface" on an element with surface="neutral-2" resolves to neutral-3 — the level-stack offset', async ({
     page,
   }) => {
@@ -457,7 +457,7 @@ test.describe("[surface]/[border] color-step value type (docs/md/elt-ui-referenc
   })
 })
 
-test.describe("theme.css_radius own-pad vs ambient priority (docs/md/elt-ui-reference.md)", () => {
+test.describe("theme.css_radius own-pad vs ambient priority (docs/md/ui-layout.md)", () => {
   test('reads this element\'s own --e-pad when [pad="X"] is set on the same element', async ({ page }) => {
     const result = await page.evaluate(() => {
       const { theme } = window.__ELT__.UI
@@ -493,7 +493,7 @@ test.describe("theme.css_radius own-pad vs ambient priority (docs/md/elt-ui-refe
   })
 })
 
-test.describe("[surface]/[border] no longer clip their own overflow (docs/md/elt-ui-reference.md)", () => {
+test.describe("[surface]/[border] no longer clip their own overflow (docs/md/ui-theme.md)", () => {
   test("[surface] does not set overflow at all, replacing the old unconditional overflow: hidden", async ({ page }) => {
     const overflow = await page.evaluate(() => {
       const el = document.createElement("e-prose")
@@ -526,4 +526,39 @@ test.describe("[surface]/[border] no longer clip their own overflow (docs/md/elt
     })
     expect(shadow).not.toBe("none")
   })
+})
+
+// packed pads the children that don't set their own [pad]; a child's own [pad] always wins, whatever
+// the order of the rules in the stylesheet.
+test.describe("packed and a child's own pad", () => {
+  for (const packed of ["", "widget", "section"]) {
+    test(`packed="${packed}": a child with pad="component" keeps it, a child without pad gets packed's`, async ({
+      page,
+    }) => {
+      const r = await page.evaluate((packed) => {
+        const col = document.createElement("e-column")
+        col.setAttribute("packed", packed)
+        col.setAttribute("pad", "nudge-4")
+        const own = document.createElement("e-row")
+        own.setAttribute("pad", "component")
+        const plain = document.createElement("e-row")
+        col.append(own, plain)
+        document.body.appendChild(col)
+        const probe = (step: string) => {
+          const d = document.createElement("div")
+          d.style.width = `var(--e-spacing-${step})`
+          document.body.appendChild(d)
+          return `${d.getBoundingClientRect().width}px`
+        }
+        return {
+          own: getComputedStyle(own).paddingTop,
+          plain: getComputedStyle(plain).paddingTop,
+          component: probe("component"),
+          expected_plain: probe(packed === "" ? "nudge-4" : packed),
+        }
+      }, packed)
+      expect(r.own).toBe(r.component)
+      expect(r.plain).toBe(r.expected_plain)
+    })
+  }
 })

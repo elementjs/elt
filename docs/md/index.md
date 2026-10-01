@@ -1,35 +1,65 @@
 ---
 title: Start here
-order: -1
+section: Start
+order: 0
 ---
 
 # elt documentation
 
 elt is a TypeScript library for building web applications with real DOM nodes and observables — no virtual DOM. `elt/ui` is its optional sub-library for theme, layout and widgets.
 
-This page is the entry point for humans and coding agents alike. Pick the **one** page that matches your task below; don't read everything up front.
+This page is the entry point for humans and coding agents alike. Pick the page that matches your task; don't read everything up front.
 
 ## Where to go
 
+**Start**
+
 | You are… | Read |
 | -------- | ---- |
-| New to elt, wanting the ideas behind it | [Using elt](./using-elt.md), then [Using elt/ui](./using-elt-ui.md) if you use the UI sub-library |
-| Coming from React, wanting a one-page summary | [Cheatsheet](./cheatsheet.md) |
-| Writing or changing **application code** with core elt (observables, verbs, components, routes, services) | [elt guide](./elt-guide.md) |
-| Building or changing **UI** with `elt/ui` (layout, spacing, theme, colors, forms, widgets) | [elt/ui guide](./elt-ui-guide.md) — its Hard rules apply to all UI work |
-| Looking up an `elt/ui` attribute, theme helper, widget option or export | [elt/ui reference](./elt-ui-reference.md) |
-| Needing the **why** behind a UI rule, or judging a case the rules don't cover | [elt/ui guidelines](./ui-guidelines.md) |
-| Going deep on one core concept | [Observables](./observables.md), [Verbs](./verbs.md), [Decorators](./decorators.md), [Components](./components.md), [App](./app.md), [Custom elements](./custom-elements.md) |
-| Writing tests for elt or `elt/ui` code | [Testing](./testing.md) |
+| New to elt, wanting the ideas behind it and a first app | [Introduction](./introduction.md) |
+| Coming from React | [elt rules § Hard rules](./elt-rules.md#hard-rules): what is different, on one screen |
+| Writing or changing **application code** (observables, verbs, components, routes, services) | [elt rules](./elt-rules.md) — read it in full first, then the topic page below for your subject |
+| Writing or changing **UI** with `elt/ui` | [elt/ui rules](./elt-ui-rules.md) — read it in full first, then the UI page below for your subject |
+| Converting older elt, elt-shoelace or legacy elt-ui code | [Migrating](./migrating.md) |
+
+**Core**
+
+| Subject | Page |
+| ------- | ---- |
+| State, derived values, batching | [Observables](./observables.md) |
+| Lists, conditions, promises, long lists | [Verbs](./verbs.md) |
+| Events, bindings, lifecycle, shadow DOM | [Decorators](./decorators.md) |
+| Function components, children, `Renderable` | [Components](./components.md) |
+| Routes, services, views, params | [App](./app.md) |
+| Styles | [CSS](./css.md) |
+| `<e-wrap>`, `EltCustomElement`, `@register`, `@attr` | [Custom elements](./custom-elements.md) |
+| `Deferred`, `@memoize` | [Utilities](./utilities.md) |
+
+**UI**
+
+| Subject | Page |
+| ------- | ---- |
+| Layout elements, spacing, borders, `packed` | [Layout](./ui-layout.md) |
+| Prose, text blocks, headings, tables | [Typography](./ui-typography.md) |
+| Theme, dark mode, colors, surfaces, custom CSS | [Theme and colors](./ui-theme.md) |
+| Buttons, inputs, checkboxes, button groups | [Forms](./ui-forms.md) |
+| Select, date/time pickers, app-specific widgets | [Widgets](./ui-widgets.md) |
+| Popups, dialogs, animation | [Overlays](./ui-overlays.md) |
+| Keyboard shortcuts | [Keyboard shortcuts](./ui-keymap.md) |
+
+**More**
+
+| You are… | Read |
+| -------- | ---- |
 | Using the object editor (`elt/editor`) | [Object editor](./object-editor.md) — **unstable**: its API may still change |
+| Looking at every widget and surface on one page | [Visual test](./visual-test.md) |
+| Writing tests for elt or `elt/ui` code | [Testing](./testing.md) |
 | Writing pages of this documentation | [About this documentation](./about-this-documentation.md) |
 
-When a task spans several rows (a new screen with routing and themed controls, for instance), read the core guide first, then the UI guide for the UI-specific parts only.
+## Reading the docs
 
-## Reading a guide
-
-The two guides are sectioned so you can stop early: read **Hard rules** first (always), then only the section that matches the task — color work, for instance, only needs the UI guide's colors section. Reference pages are for lookup when a rule or a recipe sends you there.
+Read the rules page for the code you're writing (both for a screen with routing and themed controls: the elt rules first, then the elt/ui rules), then only the section of the one topic page your task needs. Topic pages hold the explanations, the lookup tables and the reasoning for their subject.
 
 ## When the docs and the code disagree
 
-The code and its JSDoc (`src/`, `ui/`, `editor/`) win. Treat the doc as not yet updated, and flag the mismatch.
+The code and its JSDoc (`src/`, `ui/`, `editor/`) win: JSDoc carries exact signatures, the pages carry the full picture with runnable examples. Treat the doc as not yet updated, and flag the mismatch. The list of public exports is `src/index.ts` (and `ui/index.tsx` for `elt/ui`).

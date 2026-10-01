@@ -1,7 +1,7 @@
 ---
 title: Custom elements
-section: Core Library
-order: 60
+section: Core
+order: 70
 ---
 
 # Custom elements

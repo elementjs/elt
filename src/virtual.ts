@@ -1,3 +1,18 @@
+/*
+ * Maintainer notes — rules for changing `VirtualScroll` or any measure-driven list. They do not
+ * apply to ordinary `Repeat` code.
+ *
+ * - Never interleave layout reads (`getBoundingClientRect`, `scrollTop`, …) with observable-driven
+ *   DOM writes in one loop: every read after a write forces a reflow, making the pass O(n) reflows.
+ *   Read once, compute, write in one batch, converge on later frames.
+ * - Keep the content stable through the **top spacer**, never by writing `scrollTop` while the user
+ *   scrolls.
+ * - The top spacer is measurement-driven (the real heights of the rows it replaces), not
+ *   `index * estimate`; snap it to `0` at index `0`. The bottom spacer may stay estimate-only.
+ * - Keep `overflow-anchor: none` on the spacers/scrollport so the browser's own scroll anchoring
+ *   doesn't fight the spacer.
+ */
+
 import type { Renderable } from "./types"
 
 import { o } from "./observable"

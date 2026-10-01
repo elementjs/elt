@@ -18,7 +18,7 @@ elt is a [TypeScript](https://typescriptlang.org) library for building web appli
 npm install elt
 ```
 
-The package ships TypeScript sources and is meant to be bundled. Setup (`tsconfig.json`) and a first example: [Using elt](./docs/md/using-elt.md).
+The package ships TypeScript sources and is meant to be bundled. Setup (`tsconfig.json`) and a first example: [Introduction](./docs/md/introduction.md#setup).
 
 ## Community
 

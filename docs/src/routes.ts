@@ -8,23 +8,29 @@ import { elt_md } from "./macro.ts" with { type: "macro" }
 // GENERATED-BEGIN (docs/src/macro.ts) — do not hand-edit until GENERATED-END.
 import md_about_this_documentation_text from "../md/about-this-documentation.md" with { type: "text" }
 import md_app_text from "../md/app.md" with { type: "text" }
-import md_cheatsheet_text from "../md/cheatsheet.md" with { type: "text" }
 import md_components_text from "../md/components.md" with { type: "text" }
+import md_css_text from "../md/css.md" with { type: "text" }
 import md_custom_elements_text from "../md/custom-elements.md" with { type: "text" }
 import md_decorators_text from "../md/decorators.md" with { type: "text" }
-import md_elt_guide_text from "../md/elt-guide.md" with { type: "text" }
-import md_elt_ui_guide_text from "../md/elt-ui-guide.md" with { type: "text" }
-import md_elt_ui_reference_text from "../md/elt-ui-reference.md" with { type: "text" }
+import md_elt_rules_text from "../md/elt-rules.md" with { type: "text" }
+import md_elt_ui_rules_text from "../md/elt-ui-rules.md" with { type: "text" }
 import md_index_text from "../md/index.md" with { type: "text" }
+import md_introduction_text from "../md/introduction.md" with { type: "text" }
+import md_migrating_text from "../md/migrating.md" with { type: "text" }
 import md_object_editor_text from "../md/object-editor.md" with { type: "text" }
 import md_observables_text from "../md/observables.md" with { type: "text" }
 import md_testing_text from "../md/testing.md" with { type: "text" }
-import md_ui_guidelines_text from "../md/ui-guidelines.md" with { type: "text" }
-import md_using_elt_ui_text from "../md/using-elt-ui.md" with { type: "text" }
-import md_using_elt_text from "../md/using-elt.md" with { type: "text" }
+import md_ui_forms_text from "../md/ui-forms.md" with { type: "text" }
+import md_ui_keymap_text from "../md/ui-keymap.md" with { type: "text" }
+import md_ui_layout_text from "../md/ui-layout.md" with { type: "text" }
+import md_ui_overlays_text from "../md/ui-overlays.md" with { type: "text" }
+import md_ui_theme_text from "../md/ui-theme.md" with { type: "text" }
+import md_ui_typography_text from "../md/ui-typography.md" with { type: "text" }
+import md_ui_widgets_text from "../md/ui-widgets.md" with { type: "text" }
+import md_utilities_text from "../md/utilities.md" with { type: "text" }
 import md_verbs_text from "../md/verbs.md" with { type: "text" }
 import md_visual_test_text from "../md/visual-test.md" with { type: "text" }
-void [md_about_this_documentation_text, md_app_text, md_cheatsheet_text, md_components_text, md_custom_elements_text, md_decorators_text, md_elt_guide_text, md_elt_ui_guide_text, md_elt_ui_reference_text, md_index_text, md_object_editor_text, md_observables_text, md_testing_text, md_ui_guidelines_text, md_using_elt_ui_text, md_using_elt_text, md_verbs_text, md_visual_test_text]
+void [md_about_this_documentation_text, md_app_text, md_components_text, md_css_text, md_custom_elements_text, md_decorators_text, md_elt_rules_text, md_elt_ui_rules_text, md_index_text, md_introduction_text, md_migrating_text, md_object_editor_text, md_observables_text, md_testing_text, md_ui_forms_text, md_ui_keymap_text, md_ui_layout_text, md_ui_overlays_text, md_ui_theme_text, md_ui_typography_text, md_ui_widgets_text, md_utilities_text, md_verbs_text, md_visual_test_text]
 // GENERATED-END
 
 await elt_md()

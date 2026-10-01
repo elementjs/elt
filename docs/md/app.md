@@ -1,7 +1,7 @@
 ---
 title: App
-section: Core Library
-order: 10
+section: Core
+order: 50
 ---
 
 # App
@@ -40,7 +40,7 @@ A route definition is one of:
 - `:name` captures exactly one path segment into that route's params. `:name*` (last token only) captures the rest of the path, `/` included: `/files/:path*` matches `/files/a/b`, not `/files`.
 - Literal characters are matched literally (`.` is not a wildcard). A param-less route that equals the URL wins; otherwise routes with params are tried in registration order and the first match wins.
 - Param values are percent-encoded in URLs: `urlFor({ name: "a/b" })` on `/files/:name` gives `#/files/a%2Fb`.
-- The builder is a function that **returns** a `ServiceBuilder` — `() => import("./file")` (lazy, the common case), `() => MyServiceClass`, or an already-unpacked builder. It's the returned value that matters; the outer function itself is never treated as the builder.
+- The builder is a function that **returns** a `ServiceBuilder` — `() => import("./file")` (lazy, the common case: a promise of a module whose default export is the service), `() => MyServiceClass`, or a module object (`{ default: MyServiceClass }`). It's the returned value that matters; the outer function itself is never treated as the builder.
 - `options.defaults` supplies param defaults; `options.silent` skips updating the URL when this route activates.
 - Nesting groups routes under a shared URL prefix (prefixes of nested groups add up); the group's own `__error__` (if any) becomes the fallback `error` handler for every leaf inside it that doesn't declare a closer one of its own — closest `__error__` wins. A failed activation runs that handler with `{ __error__: <the caught error> }` as its params.
 
@@ -126,7 +126,7 @@ The object passed to `Service({...})` declares dependencies by name; each one is
 
 ## Views
 
-A service exposes content through **named views** — a `Map<string, () => Renderable>`. `@view` on a method registers it under that method's own name; `srv.views.set(name, fn)` does the same thing manually, for the function-based service shape above.
+A service exposes content through **named views** — a `Map<string, () => Renderable>`. `@view` on a method registers it under that method's own name (it works with both legacy and standard decorators); `srv.views.set(name, fn)` does the same thing manually, for the function-based service shape above.
 
 On activation, the app walks views from every dependency **first**, then the activated service itself, all into one combined map — when two services register a view under the same name, the **activated service's own view wins** over whatever a dependency registered.
 
@@ -137,6 +137,7 @@ Useful observables exposed by `App`:
 | Observable            | Holds                                                  |
 | ---------------------- | ------------------------------------------------------- |
 | `app.o_state`          | The current `State` (internal bookkeeping), or `null`   |
+| `app.o_views`          | The combined map of named views of the active service and its dependencies |
 | `app.o_active_service` | The currently active service instance                   |
 | `app.o_current_route`  | The `Route` that led to the active service               |
 | `app.o_params`         | The active service's resolved params                    |
@@ -192,4 +193,5 @@ A common derived value for active-nav styling: `o.expression((get) => get(app.o_
 
 - [`Observables`](./observables.md) — `o()`, `.tf()`, `o.expression`, all used throughout services and views.
 - [`Decorators`](./decorators.md) — `$click`, `$bind.*`, etc., used inside a service's `Content()`.
+- [elt rules](./elt-rules.md#app) — the rules for routes, services and activation.
 - `src/app/app.ts`, `src/app/router.ts`, `src/app/route.ts`, `src/app/url-source.ts`, `src/app/service.ts`, `src/app/state.ts` — source of truth.

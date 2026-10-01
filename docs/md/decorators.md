@@ -1,7 +1,7 @@
 ---
 title: Decorators
-section: Core Library
-order: 30
+section: Core
+order: 40
 ---
 
 # Decorators
@@ -31,6 +31,8 @@ The type is `Decorator<N> = (node: N) => void | Renderable<N>`. What the functio
 - **Returns nothing** (`void`/`undefined`/`null`) — the common case. The decorator ran its side effect on `node` and that's it.
 - **Returns a `Renderable`** (a string, a `Node`, another observable, …) — it's appended to `node`, exactly like any other JSX child would be.
 - **Returns another decorator** — that decorator is immediately called on the same `node` too. This is how a decorator can compose another one internally without the caller needing to spread two children.
+
+Inside a decorator written inline, the node is fully typed: in `<button>{(btn) => { … }}</button>`, `btn` is an `HTMLButtonElement`, whereas the JSX expression itself is only typed `Element`.
 
 A decorator is applied at the exact position it was written in the child list — it always runs against the node it's a **direct child of**, never against a node further down the tree.
 
@@ -131,6 +133,8 @@ Every `$bind.*` variant also accepts `BindDebounceOptions`, independent of valid
 | `prioritize_observable` | `false` by default: an external write while a local edit hasn't flushed yet is held back instead of overwriting the in-progress edit; `true` flips that priority |
 
 Provide at most one of the two options in either pair — combining `debounce_event` and `throttle_event` for the same direction is a caller error, not a supported combination.
+
+To bind one field of an object observable, bind `o_user.p("name")` (see [Observables § `.p()`](./observables.md#p-and-key-binding-one-field)). When the stored type differs from the control's (a number stored as a string, a date as a timestamp), bind a two-way `.tf` with a converter (an object with `transform` and `revert`) instead of converting by hand in event handlers.
 
 ## Lifecycle: `$connected` / `$disconnected`
 

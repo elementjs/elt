@@ -1,18 +1,20 @@
 ---
 title: Observables
-section: Core Library
-order: 10
+section: Core
+order: 20
 ---
 
 # Observables
 
-An `Observable` is a wrapper around a value that notifies whoever's watching whenever that value changes. It's the core of elt's MVVM system: bind one to a DOM attribute or to a piece of text, and the DOM updates itself whenever the observable's value changes — no re-render, no virtual DOM diffing, just the specific node that depends on that value getting patched in place.
+An `Observable` is a wrapper around a value that notifies whoever's watching whenever that value changes (other libraries call this a *signal*). It's the core of elt's MVVM system: bind one to a DOM attribute or to a piece of text, and the DOM updates itself whenever the observable's value changes — no re-render, no virtual DOM diffing, just the specific node that depends on that value getting patched in place.
 
 This page covers the `o()` data type itself. Rendering *dynamic structure* (lists, conditional blocks) from an observable is the job of Verbs (`If`, `Repeat`, `Switch`) — see the [Verbs](./verbs.md) page. Everything below reads as complete documentation on its own; the "Try it" panels that follow some examples run the code for real, in this page, but they're a bonus on top of the prose and code, not a replacement for it.
 
 ## Creating and reading
 
-`o(value)` wraps any value in an `Observable`. `.get()` reads the current value; `.set(value)` replaces it and notifies every observer synchronously, before `.set()` returns.
+`o(value)` wraps any value in an `Observable`; given an observable, it returns that same observable. `.get()` reads the current value; `.set(value)` replaces it and notifies every observer synchronously, before `.set()` returns.
+
+`o.get(x)` reads the current value of something that may or may not be an observable (an `o.RO<T>`, typically a component attribute): it returns `x.get()` for an observable and `x` itself otherwise. Like `.get()`, it is a one-time read: it doesn't follow later changes. Outside observer logic, use it only when you really mean "the value at this precise moment" (in an event handler, for instance); to follow a value, derive from it or observe it.
 
 ```ts
 import { o } from "elt"
@@ -212,7 +214,7 @@ const oo_tuple = o.join(o_a, o_b, o_c).tf(([a, b, c]) => `${a}-${b}-${c}`)
 
 ## `o.transaction` — batching writes
 
-Setting several observables one after another notifies observers after *each* `.set()` call. If those observables feed the same downstream computation, that means redundant work. `o.transaction` defers every notification until the callback finishes, then flushes once:
+Setting several observables one after another notifies observers after *each* `.set()` call. If those observables feed the same downstream computation, that means redundant work. `o.transaction` defers every notification until the callback finishes, then flushes once, synchronously. There is no other batching: the observable layer never defers work to a microtask or an animation frame.
 
 ```ts
 o.transaction(() => {
@@ -237,14 +239,21 @@ $observe(o_b, (v) => lock(() => o_a.set(untransform(v))))
 
 A few rules of thumb, pulled from the library's own source comments, worth internalizing:
 
-**Prefer `o.expression` over `o.combine`/`o.merge`/`o.join` for new derived-value code.** All three of those are older, lower-level building blocks; `o.expression`'s `get`-based dependency tracking covers what they do more readably. Keep `merge`/`join` for the cases above, where an actual bundled object/tuple observable — not just a derived result — is the point.
+**Prefer `o.expression` over `o.combine`/`o.merge`/`o.join` for new derived-value code.** All three of those are older, lower-level building blocks — slightly faster, much more verbose; `o.expression`'s `get`-based dependency tracking covers what they do more readably. Keep `merge`/`join` for the cases above, where an actual bundled object/tuple observable — not just a derived result — is the point.
 
 **Prefer `.assign()`/`.mutate()` over chaining `.p()` for deep or ad-hoc writes** (see above) — `.p()` is for binding one path to one control, not for patching application state.
 
-**Observe through the DOM lifecycle, not with a raw `addObserver`.** Prefer `$observe(...)`, `node_observe(...)`, or a class's own `.observe(...)` (on `App.Service` or anything extending `ObserverHolder`). These unregister the observer automatically when the node/service goes away; a raw `addObserver` call has to be torn down by hand or it leaks.
+**Observe through the DOM lifecycle, not with a raw `addObserver`.** Prefer `$observe(...)`, `node_observe(...)`, or a class's own `.observe(...)` (on a service, an `EltCustomElement`, or anything else extending `o.ObserverHolder`). These unregister the observer automatically when the node/service goes away; a raw `addObserver` call has to be torn down by hand or it leaks.
 
 **For dynamic DOM structure driven by an observable array or condition, prefer a Verb** (`Repeat`, `If`, `Switch`) over manually tracking state and calling `node_append`/`node_remove` yourself — see the [Verbs](./verbs.md) page.
 
 ## A gotcha: `disconnect()`'s console warning
 
 `CombinedObservable#disconnect()` is mostly an internal mechanism — `Repeat` and `VirtualScroll` use it to cut a derived observable loose once its underlying list item is gone, so a stray observable watching an out-of-bounds index doesn't crash the program. Application code rarely calls it directly. If you ever see a console warning about an observable "still being watched" after a disconnect, it means something is still holding and observing a reference that was meant to be discarded — worth tracking down rather than ignoring, since it usually points at a stale subscription that outlived what it was watching.
+
+## See also
+
+- [Components § Renderable](./components.md#renderable) — which observables can be used directly as JSX children (other values need a `.tf(…)` first).
+- [Verbs](./verbs.md) — dynamic structure from observables.
+- [elt rules](./elt-rules.md#observables) — the rules for observables.
+- `src/observable/observable.ts`, `src/observable/transformers.ts` (`tf_*`), `src/mutative.ts` (`.mutate()`, `import "elt/mutative"`) — source of truth.

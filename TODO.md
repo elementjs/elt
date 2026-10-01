@@ -10,7 +10,7 @@ Open items carried over from specs that were folded into `docs/md/` and deleted.
 - [ ] **Property browser column alignment.** Migrating off `<menu>` lost the icon/column alignment that `menu.tsx`'s grid/subgrid gave the property browser (`specs/object-editor.tsx`). `packed` is a flex mechanism and doesn't replace CSS grid.
 - [ ] **ARIA composite widget keyboard model.** Popup rows carry `role="menu"`/`"menuitem"` or `role="listbox"`/`"option"` (`ui/select.tsx`), and the docs nav is a real `<nav aria-label="…">`. These roles formally require roving-tabindex arrow-key navigation and focus management, which isn't implemented.
 - [ ] **Appear/disappear motion rule.** Write the local rule: trigger conditions, duration/easing tokens, reduced-motion handling (partly covered by `prefers_reduced_motion()` in `ui/animation.tsx`).
-- [ ] **Stale-name audit.** The old-name → new-name migration (now in `docs/md/using-elt-ui.md`, "Migrating") only inventoried Color-axis call sites; a dedicated pass is still needed to confirm no other stale Spacing/Layout references remain.
+- [ ] **Stale-name audit.** The old-name → new-name migration (now in `docs/md/migrating.md`) only inventoried Color-axis call sites; a dedicated pass is still needed to confirm no other stale Spacing/Layout references remain.
 
 ## Found while rewriting the docs (not fixed)
 
