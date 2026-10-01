@@ -146,8 +146,9 @@ export interface EFlexAttrs extends CommonAttrs {
    * whatever radius it resolved on its own, at every corner.
    *
    * With `border` on the `packed` element itself: `packed` draws the border, not its children — a
-   * `1px` gap between children, filled by the container's own background (the same color as its
-   * border), becomes the visible seam. Every child gets `border: none` and
+   * `1px` gap between children becomes the visible seam: a 1px rule drawn in it where gap
+   * decorations are supported, else the container's own background (the same color as its border)
+   * showing through it. Every child gets `border: none` and
    * `background: var(--e-current-surface)` (its own explicit background, if any, still wins).
    * See docs/md/ui-layout.md.
    *
@@ -593,6 +594,24 @@ css`
      surface color, hiding the seams between its own children). */
   ${_packed}[packed][border] > ${_packed}[packed][border] {
     background-color: var(--e-current-border-color);
+  }
+
+  /* Where gap decorations are supported (Chromium; not yet Firefox or Safari), the seams are 1px
+     rules drawn in the 1px gaps instead of the seam-colored background showing through them. A gap
+     is never snapped to screen pixels, so at a fractional display scale (125%, 150%) the background
+     technique shows some seams 1 screen pixel wide and others 2; a rule's width is snapped like a
+     border's, so every seam is 1 screen pixel. The containers and rows that painted the seam color
+     above paint the surface instead: the part of a gap the rule leaves uncovered blends with the
+     cells. Rows draw their own column rules, since a row's background hides the grid's (rules are
+     painted under the grid's children). Same selectors as above, to out-rank each of them. */
+  @supports (row-rule: 1px solid) {
+    ${_packed}[packed][border],
+    e-grid[packed][border] > e-grid-row,
+    ${_packed}[packed][border] > ${_packed}[packed][border] {
+      background-color: var(--e-current-surface);
+      column-rule: 1px solid var(--e-current-border-color);
+      row-rule: 1px solid var(--e-current-border-color);
+    }
   }
   /* A packed bordered child of a scroll area drops its outer border and radius: the scroll area
      draws the frame (with its own [border]), and clips the content to its rounded edge. */

@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test"
+import { expect_seams } from "./seams"
 
 // e-grid (columns, packed), e-grid-row, frame ownership, sticky and scroll — ui/layout.css.tsx,
 // docs/md/ui-layout.md.
@@ -130,16 +131,15 @@ test.describe("packed e-grid", () => {
     expect((await styles(page, "#s1", ["padding-top"]))["padding-top"]).toBe(sect)
   })
 
-  test("with border: 1px seams in the border color, cells on the surface, rows painted with the seam color", async ({
+  test("with border: 1px seams in the border color, drawn by the grid and its rows, cells on the surface", async ({
     page,
   }) => {
     await mount(page, `<e-grid id="g" columns="3" packed border>${row3("r1")}${row3("r2")}</e-grid>`)
-    const g = await styles(page, "#g", ["row-gap", "column-gap", "background-color", "border-top-color"])
+    const g = await styles(page, "#g", ["row-gap", "column-gap", "border-top-color"])
     expect(g["row-gap"]).toBe("1px")
     expect(g["column-gap"]).toBe("1px")
-    expect(g["background-color"]).toBe(g["border-top-color"])
-    const r = await styles(page, "#r1", ["background-color"])
-    expect(r["background-color"]).toBe(g["border-top-color"])
+    await expect_seams(page, "#g")
+    await expect_seams(page, "#r1")
     const cell = await styles(page, "#r1 > span", ["background-color", "border-top-style"])
     expect(cell["border-top-style"]).toBe("none")
     expect(cell["background-color"]).toBe(await color(page, "var(--e-current-surface)", "#g"))
@@ -158,11 +158,9 @@ test.describe("packed e-grid", () => {
       page,
       `<e-grid id="g" columns="3" packed border>${row3("r1", 'surface="tint-3"')}${row3("r2")}</e-grid>`,
     )
-    const g = await styles(page, "#g", ["border-top-color"])
-    const r1 = await styles(page, "#r1", ["background-color"])
     const c1 = await styles(page, "#r1 > span", ["background-color"])
     const c2 = await styles(page, "#r2 > span", ["background-color"])
-    expect(r1["background-color"]).toBe(g["border-top-color"])
+    await expect_seams(page, "#r1")
     expect(c1["background-color"]).not.toBe(c2["background-color"])
     expect(c1["background-color"]).toBe(await color(page, "var(--e-current-surface)", "#r1"))
   })
@@ -202,12 +200,9 @@ test.describe("frame ownership", () => {
       page,
       `<e-column packed border><e-row id="inner" packed border><span>a</span><span>b</span></e-row><span>c</span></e-column>`,
     )
-    const inner = await styles(page, "#inner", ["background-color", "border-top-style"])
-    const inner_border = await page.evaluate(() =>
-      getComputedStyle(document.getElementById("inner")!).getPropertyValue("--e-current-border-color"),
-    )
+    const inner = await styles(page, "#inner", ["border-top-style"])
     expect(inner["border-top-style"]).toBe("none")
-    expect(inner["background-color"]).toBe(await color(page, inner_border))
+    await expect_seams(page, "#inner")
   })
 
   test("a packed bordered child of a [scroll] drops its outer border and radius, keeps its seams", async ({ page }) => {
@@ -258,16 +253,16 @@ test.describe("sticky", () => {
     expect(top["background-color"]).not.toBe("rgba(0, 0, 0, 0)")
   })
 
-  test("a sticky row of a packed bordered grid is opaque with the seam color, and stays sticky", async ({ page }) => {
+  test("a sticky row of a packed bordered grid is opaque, keeps its seams, and stays sticky", async ({ page }) => {
     const rows = Array.from({ length: 10 }, () => row3()).join("")
     await mount(
       page,
       scroll_area(`<e-grid id="g" columns="3" packed border>${row3("head", 'sticky="top"')}${rows}</e-grid>`),
     )
-    const g = await styles(page, "#g", ["background-color"])
     const head = await styles(page, "#head", ["position", "background-color"])
     expect(head.position).toBe("sticky")
-    expect(head["background-color"]).toBe(g["background-color"])
+    expect(head["background-color"]).not.toBe("rgba(0, 0, 0, 0)")
+    await expect_seams(page, "#head")
     const offset = await page.evaluate(() => {
       const sc = document.getElementById("sc")!
       sc.scrollTop = 120

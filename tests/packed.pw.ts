@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test"
+import { expect_seams } from "./seams"
 
 test.beforeEach(async ({ page }) => {
   await page.goto("/tests/browser/harness.html")
@@ -176,17 +177,17 @@ test.describe("packed seam suppression (docs/md/ui-layout.md, per-element self-d
 })
 
 test.describe("packed[border] (docs/md/ui-layout.md)", () => {
-  test("packed[border] draws its own border and its own background matches that border's color", async ({ page }) => {
+  test("packed[border] draws its own border and seams in that border's color", async ({ page }) => {
     const result = await page.evaluate(() => {
       const row = document.createElement("e-row")
+      row.id = "packed-border"
       row.setAttribute("packed", "")
       row.setAttribute("border", "")
       document.body.appendChild(row)
-      const s = getComputedStyle(row)
-      return { border: s.borderTopStyle, borderColor: s.borderTopColor, background: s.backgroundColor }
+      return getComputedStyle(row).borderTopStyle
     })
-    expect(result.border).toBe("solid")
-    expect(result.background).toBe(result.borderColor)
+    expect(result).toBe("solid")
+    await expect_seams(page, "#packed-border")
   })
 
   test("packed[border] gap between children is 1px", async ({ page }) => {
