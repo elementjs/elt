@@ -218,6 +218,40 @@ test.describe("packed[border] (docs/md/ui-layout.md)", () => {
     expect(result.a).toBe(result.ref)
   })
 
+  test("packed[border] packs toggles like any child (regression: :has() out-ranked packed and kept the unchecked toggle's border)", async ({
+    page,
+  }) => {
+    const result = await page.evaluate(() => {
+      const toggle = (checked: boolean) =>
+        `<label e-variant="toggle"><input type="checkbox"${checked ? " checked" : ""}>Aa</label>`
+      document.body.insertAdjacentHTML(
+        "beforeend",
+        `<e-row id="packed" surface="neutral-1" packed border><button>b</button>${toggle(false)}${toggle(true)}</e-row>
+         <e-row id="loose">${toggle(false)}${toggle(true)}</e-row>`,
+      )
+      const st = (sel: string) => {
+        const s = getComputedStyle(document.querySelector(sel)!)
+        return { border: s.borderTopStyle, bg: s.backgroundColor }
+      }
+      return {
+        button: st("#packed > button"),
+        off: st("#packed > label:nth-of-type(1)"),
+        on: st("#packed > label:nth-of-type(2)"),
+        loose_off: st("#loose > label:nth-of-type(1)"),
+        loose_on: st("#loose > label:nth-of-type(2)"),
+      }
+    })
+    // Packed: no border of their own; unchecked on the group's surface, like the button; checked
+    // keeps its fill.
+    expect(result.off.border).toBe("none")
+    expect(result.on.border).toBe("none")
+    expect(result.off.bg).toBe(result.button.bg)
+    expect(result.on.bg).not.toBe(result.button.bg)
+    expect(result.on.bg).toBe(result.loose_on.bg)
+    // Outside a packed group, the unchecked toggle keeps its own border.
+    expect(result.loose_off.border).toBe("solid")
+  })
+
   test("packed[border] children keep their own explicit background over the default", async ({ page }) => {
     const result = await page.evaluate(() => {
       const row = document.createElement("e-row")

@@ -304,7 +304,13 @@ button[e-variant="tint"] {
   color: ${colors.tint};
 }
 
-button[e-variant="inverted"], label[e-variant="toggle"]:has(> input:checked) {
+/* A toggle's state is read with :has() wrapped in :where(): :has() alone counts its argument's
+   specificity, which out-ranked the packed container rules (ui/layout.css.tsx) and kept the
+   toggle's own border and background inside a \`packed border\` group. Wrapped, each state rule
+   weighs the same as the other variant rules (\`button[e-variant="inverted"]\`). The checked fill
+   survives packing like the inverted button's: both set --e-current-surface, the color packed
+   paints its children with. */
+button[e-variant="inverted"], label[e-variant="toggle"]:where(:has(> input:checked)) {
   --e-color-bg: var(--e-light-color-tint);
   --e-current-surface: var(--e-color-bg);
   --e-color-text: var(--e-light-color-bg);
@@ -323,7 +329,7 @@ button[e-variant="inverted"] {
   border-bottom-color: var(--e-color-shadow-drop);
 }
 
-label[e-variant="toggle"]:has(> input:not(:checked)) {
+label[e-variant="toggle"]:where(:has(> input:not(:checked))) {
   border: 1px solid ${colors.tint.mid};
   background-color: ${colors.bg};
   color: ${colors.tint.mid};
