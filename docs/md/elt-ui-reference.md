@@ -6,7 +6,7 @@ order: 2
 
 # elt/ui reference
 
-Lookup tables for `elt/ui`. The rules for using all of this are in the [elt/ui guide](./elt-ui-guide.md) — read its Hard rules first. Terms used here (boundary, level, text run) are defined there.
+Lookup tables for `elt/ui`. The rules for using all of this are in the [elt/ui guide](./elt-ui-guide.md) — read its Hard rules first. Terms used here (boundary, text run) are defined there.
 
 ## Layout attributes
 

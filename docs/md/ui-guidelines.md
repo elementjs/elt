@@ -20,9 +20,9 @@ A text run counts as one entity because its internal rhythm is already correct: 
 
 ### Rule 2 — whitespace creates groups
 
-The distance between elements is what tells the reader which ones belong together. Siblings at the same level must therefore be spaced alike, and the inside of a boundary must be tighter than the space around it — otherwise a card's content would look as related to its neighbors as to itself.
+The distance between elements is what tells the reader which ones belong together. Things of the same kind must therefore be spaced alike, and the parts of one thing must sit closer together than the things themselves — otherwise a field's label would look as related to the next field as to its own input.
 
-Spacing only steps down when you cross a boundary, not at every nested layout element. A boundary-less row inside a column is just a way of arranging things; it is not a visual group of its own, so it keeps the column's spacing. This keeps the visual structure tied to what the reader sees (edges and fills) instead of to how the DOM happens to be nested. Stepping down is explicit (`pad="widget"`), which keeps it visible in the code.
+The step is chosen by what a container's children are (parts of a widget, widgets, components, page regions), not by nesting depth and not by boundaries. Nesting depth is an accident of how the DOM is built: a boundary-less row inside a column is just a way of arranging things, and keeps the column's spacing because its children are the same kind of thing. Boundaries are no better a signal: a toolbar is a boundary, yet its children are widgets like those around it, so it spaces them at `component` wherever it sits. Asking "what are these children?" gives the same answer on every screen, whoever builds it. The step is always written explicitly where the kind of children changes, which keeps it visible in the code.
 
 ### Rule 3 — never set your own margin
 

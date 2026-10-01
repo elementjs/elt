@@ -36,7 +36,6 @@ How to build UI with `elt/ui`: the rules every screen follows, then one section 
 
 - **Layout element**: one of `<e-row>`, `<e-column>`, `<e-flex>`, `<e-grid>`, `<e-prose>`. They take the layout attributes (`pad`, `spacing`, `border`, `surface`, …) listed in the [reference](./elt-ui-reference.md#layout-attributes).
 - **Boundary**: an element with a visible edge — a border, a background (including `surface` and inverted bands), or both. The edge of the window is also a boundary, so an element whose edge is the window's edge (the app's outermost container, a full-height content column) may pad itself on that side. Padding only makes sense on a boundary (golden rule 4).
-- **Level**: the region a boundary starts. Everything inside a boundary, down to the next boundary, is one level. A layout element *without* a boundary does not start a level: it is transparent, arranges its children, and inherits its parent's spacing.
 - **Text run**: consecutive typographic elements (headings, paragraphs, lists, `blockquote`, `pre`, `table`, `hr`, `figure`, `details`, `dl`) inside an `<e-prose>`. A text run is spaced by typography, not by `spacing`.
 - **Atomic visual entity**: a widget (a control, a bordered or filled block), or a text run as a whole.
 
@@ -47,27 +46,39 @@ How to build UI with `elt/ui`: the rules every screen follows, then one section 
 **The six golden rules.** Every layout decision reduces to these. The layout elements and their attributes implement them; follow them by default instead of reasoning from scratch.
 
 1. **Different atomic visual entities' content never touches.** The content of a widget or of a text run never sits directly against another's. Inside a text run, typography sets the rhythm. Boundaries may touch and share a seam (rule 6) — this rule is about content, not boundaries.
-2. **Whitespace amount creates associations.** Siblings at the same level get the same spacing. Children *across a boundary* are spaced more tightly than the boundary is from its own siblings. A boundary-less container may also step down explicitly to group its children by whitespace alone.
+2. **Whitespace amount creates associations.** Siblings of the same kind get the same spacing, and the parts of one thing are spaced more tightly than the things themselves. A container's step is chosen by **what its children are** (see [Choosing a step](#choosing-a-step)), never by how deeply it is nested or whether it is a boundary.
 3. **Never set your own margin.** Spacing between elements is always the parent's job (`spacing` on a layout element, or `<e-prose>`'s own typographic margins). An element never chooses its own margin. There is no exception.
 4. **Padding requires a boundary.** Padding with no border, no background and no window edge behind it is forbidden. Two boundaries may sit flush against each other and share a seam.
 5. **A container with more than one child spaces them**, unless they are meant to touch (rule 6). Layout elements already do: they space their children at the ambient step (`component` by default), and `pad="X"` sets that step to `X` for its own children.
 6. **Children may touch instead of being spaced** when the container sets no spacing and every child carries the same padding; they are then separated only by their own backgrounds or borders. This is what `packed` implements (see [Button groups, menus, and other packed rows](#button-groups-menus-and-other-packed-rows)).
 
-**Stepping down at a boundary.** Spacing is ambient: a layout element inherits its parent's step until something changes it. Crossing a boundary is where you step down, explicitly, by giving the boundary its own `pad`:
+**Choosing a step.** Look at the container's children, not at its position:
+
+| The children are… | Step | Examples |
+| ----------------- | ---- | -------- |
+| Parts of one widget | `widget` | An icon and its label, a field's label and its input |
+| Widgets | `component` | The buttons of a toolbar, the fields and buttons of a card |
+| Components, or groups of widgets | `section` | Cards in a list, the panels of a view |
+| Regions of a page | `stage-1` … `stage-4` | Rare |
+
+Spacing is inherited: a layout element without `pad`/`spacing` spaces its children at its parent's step. That is right when its children are the same kind of thing as its parent's (a boundary-less row of cards inside a column of cards). When they are a different kind, set the step on that element, whether or not it is a boundary:
 
 ```tsx
-<e-column spacing="component">          {/* level: component */}
-  <e-row>                               {/* no boundary → same level, its children are spaced at component */}
-    <e-column border pad="widget">      {/* boundary → new level: pads and spaces its children at widget */}
-      <label>Name</label>
-      <input/>
+<e-column spacing="section">              {/* children are cards → section */}
+  <e-row>                                 {/* still cards → inherits section */}
+    <e-column border pad="component">     {/* a card: its children are widgets → component */}
+      <e-column spacing="widget">         {/* one field: label and input are parts of one widget → widget */}
+        <label>Name</label>
+        <input/>
+      </e-column>
+      <button>Save</button>
     </e-column>
-    <e-column border pad="widget">…</e-column>
+    <e-column border pad="component">…</e-column>
   </e-row>
 </e-column>
 ```
 
-Bare `pad` (no value) always means `component`; it is never "one step below the parent". Write the step you want.
+A toolbar is a boundary that contains widgets, so it stays at `component` even deep inside a view. Bare `pad`/`spacing` (no value) always means `component`; neither is ever "one step below the parent". Write the step you want.
 
 ### B. Everything else
 
@@ -129,9 +140,9 @@ Common attributes (full list: [reference § Layout attributes](./elt-ui-referenc
 | Step | Default | Use for |
 | ---- | ------- | ------- |
 | `nudge-1` / `nudge-2` / `nudge-4` | 1 / 2 / 4px | Pixel-level nudges only. Never a default choice. |
-| `widget` | 6px | Inside one atomic cluster: an icon and its label, a control and its suffix. Default control padding. |
-| `component` | 12px | Between distinct but related groups; a panel's content to its edge. The default. |
-| `section` | 24px | Between major sections of one view or panel. |
+| `widget` | 6px | Between the parts of one widget: an icon and its label, a field's label and its input. Default control padding. |
+| `component` | 12px | Between widgets; the padding of a container of widgets (a toolbar, a card). The default. |
+| `section` | 24px | Between components or groups of widgets: cards, panels, the sections of a view. |
 | `stage-1` … `stage-4` | 48 / 96 / 128 / 256px | Between independent regions of a page. |
 
 - `pad="X"` pads the element and sets the step its children are spaced at. `spacing="Y"` sets only the children's spacing, and wins over the step `pad` implied.

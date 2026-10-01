@@ -16,7 +16,7 @@ The rules and how-to are in the [elt/ui guide](./elt-ui-guide.md); this page is 
 
 **Five layout elements do the layout.** `<e-row>`, `<e-column>`, `<e-grid>` arrange things; `<e-prose>` holds text you read. Their attributes (`pad`, `spacing`, `border`, `surface`, `packed`, …) replace most of the CSS you would otherwise write. Spacing is a parent's job: containers space their children, children never set margins.
 
-**Spacing and color are relative.** Spacing flows down from container to container and steps down when you enter a bordered or filled box. Background fills stack: a panel inside a panel is one level further from the page, and hover fills and dividers are computed relative to whatever surface they sit on. A component therefore looks right wherever you put it, without knowing its ancestors.
+**Spacing and color are relative.** Spacing flows down from container to container, and each container's step names what its children are: parts of a widget, widgets, or groups of widgets. Background fills stack: a panel inside a panel is one level further from the page, and hover fills and dividers are computed relative to whatever surface they sit on. A component therefore looks right wherever you put it, without knowing its ancestors.
 
 **Colors are mixes, not palettes.** A theme supplies a background, a text color and an accent ("tint"); every other color is a mix between them, computed in OKLCH. Dark mode is derived automatically unless you provide one.
 
