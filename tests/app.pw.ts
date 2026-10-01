@@ -174,7 +174,7 @@ test.describe("App", () => {
   })
 })
 
-// See specs/router-path-mode.md
+// See docs/md/app.md, "Hash mode and path mode"
 test.describe("Router", () => {
   test("rejects invalid options and route paths", async ({ page }) => {
     const result = await page.evaluate(() => {

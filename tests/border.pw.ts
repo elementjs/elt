@@ -4,7 +4,7 @@ test.beforeEach(async ({ page }) => {
   await page.goto("/tests/browser/harness.html")
 })
 
-test.describe("[border]/[surface] color-step value type (specs/borders.md)", () => {
+test.describe("[border]/[surface] color-step value type (docs/md/elt-ui-reference.md)", () => {
   test('bare [border] resolves to the flat "widget" neutral color (neutral.faded), independent of ambient surface', async ({
     page,
   }) => {
@@ -136,7 +136,7 @@ test.describe("[border]/[surface] color-step value type (specs/borders.md)", () 
   })
 })
 
-test.describe("[hover] follows the ambient surface family (specs/borders.md)", () => {
+test.describe("[hover] follows the ambient surface family (docs/md/elt-ui-reference.md)", () => {
   test("on a neutral-family surface, hover fill is neutral, not the old hardcoded tint", async ({ page }) => {
     await page.evaluate(() => {
       const outer = document.createElement("e-prose")
@@ -171,7 +171,7 @@ test.describe("[hover] follows the ambient surface family (specs/borders.md)", (
   })
 })
 
-test.describe("[border] implies [radius] (specs/elt-ui-guidelines.md, Border radius is derived)", () => {
+test.describe("[border] implies [radius] (docs/md/elt-ui-reference.md, Borders and radius)", () => {
   test("a bordered element gets a nonzero radius by default, derived from its own padding step", async ({ page }) => {
     const result = await page.evaluate(() => {
       const el = document.createElement("e-prose")
@@ -262,7 +262,7 @@ test.describe("Theme.css_radius (ui/theme.tsx)", () => {
   })
 })
 
-test.describe("theme.class_radius/current_surface (specs/borders.md)", () => {
+test.describe("theme.class_radius/current_surface (docs/md/elt-ui-reference.md)", () => {
   test("theme.class_radius() produces a class equivalent to theme.css_radius()'s declaration", async ({ page }) => {
     const result = await page.evaluate(() => {
       const { theme } = window.__ELT__.UI
@@ -318,7 +318,7 @@ test.describe("Spacing scale nudge rename (regression: '1'/'2'/'4' -> 'nudge-1'/
   })
 })
 
-test.describe("<pre> radius and overflow (specs/borders.md)", () => {
+test.describe("<pre> radius and overflow (docs/md/elt-ui-reference.md)", () => {
   test("<pre> inherits its immediate parent's border-radius, matching a rounded wrapper's corners", async ({
     page,
   }) => {

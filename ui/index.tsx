@@ -1,3 +1,4 @@
+// Documentation: docs/md/index.md (from the package root) — start there; elt/ui is covered by docs/md/elt-ui-guide.md.
 import "./theme"
 
 import "./reset.css"

@@ -5,7 +5,7 @@ export interface ThemeSettings {
 
   /** Fixed fallback for controls/frames that can't derive their radius from their own padding
    * step — kept deliberately rare; prefer `theme.css_radius`/`[radius]` wherever an
-   * element pads itself (see "Border radius is derived" in specs/elt-ui-guidelines.md). */
+   * element pads itself (see "Borders and radius" in docs/md/elt-ui-reference.md). */
   borderRadius: string
 
   fontSize: string
@@ -26,7 +26,7 @@ export interface ThemeSettings {
   spacingNudge4: string
 
   /** One value per step — applies uniformly to both axes; no vertical/horizontal pair (see
-   * "Spacing scale" in specs/elt-ui-guidelines.md). */
+   * "Spacing" in docs/md/ui-guidelines.md). */
   spacingWidget: string
   spacingComponent: string
   spacingSection: string
@@ -90,7 +90,7 @@ function spacing_css(prop: "pad" | "spacing", step: SpacingStep): string {
  * elements that set their own `[pad]`, reading `--e-pad` instead, so an element's own padding
  * wins over the ambient spacing level. A named step overrides both with that step's own value
  * instead, for elements that don't pad themselves (e.g. the dialog panel — see "Border radius
- * is derived" in specs/elt-ui-guidelines.md).
+ * is derived" in docs/md/ui-guidelines.md).
  */
 function radius_css(step?: SpacingStep): string {
   if (step == null) {
@@ -110,7 +110,7 @@ function radius_own_pad_css(): string {
 
 /**
  * `surface`/`border` share this value type — see "Surfaces and borders" in
- * specs/elt-ui-guidelines.md, and specs/borders.md for why `border`'s bare family name is a flat
+ * docs/md/ui-guidelines.md, and docs/md/elt-ui-reference.md for why `border`'s bare family name is a flat
  * "widget" color, not a level-stack step, while `surface`'s stays level-relative:
  * - A bare family name (`"tint"`/`"neutral"`): for `border`, the flat "widget" color (`.mid`
  *   /`.faded`) — a clear, defined boundary, independent of ambient surface nesting. For
@@ -258,7 +258,7 @@ export class Theme<AllColors extends ColorScheme> {
 
     // Now set the theme settings
     // Derived: aligned to the vertical padding step controls/frames use (widget/component), not
-    // independently chosen — see "Border radius is derived" in specs/elt-ui-guidelines.md.
+    // independently chosen — see "Borders and radius" in docs/md/elt-ui-reference.md.
     this._set(theme.settings ?? {}, "borderRadius", "8px")
     this._set(theme.settings ?? {}, "intensityMid", "50%")
     this._set(theme.settings ?? {}, "intensityFaded", "80%")
@@ -278,7 +278,7 @@ export class Theme<AllColors extends ColorScheme> {
     this._set(theme.settings ?? {}, "spacingNudge4", "4px")
 
     // Each step doubles the previous one, applied uniformly to both axes — no separate
-    // vertical/horizontal values (see "Spacing scale" in specs/elt-ui-guidelines.md).
+    // vertical/horizontal values (see "Spacing" in docs/md/ui-guidelines.md).
     this._set(theme.settings ?? {}, "spacingWidget", "6px")
     this._set(theme.settings ?? {}, "spacingComponent", "12px")
     this._set(theme.settings ?? {}, "spacingSection", "24px")
@@ -342,9 +342,13 @@ export class Theme<AllColors extends ColorScheme> {
       // Defaults for --e-current-surface/--e-surface-mix belong here, not a plain :root rule
       // (ui/layout.css.tsx) — var(--e-color-bg)/var(--e-color-neutral) are only valid once
       // --e-color-* itself is defined, which happens on this same .e-*-theme class, not on the
-      // bare :root element. See specs/borders.md.
+      // bare :root element. See docs/md/elt-ui-reference.md.
       `--e-current-surface: var(--e-color-bg);`,
       `--e-surface-mix: var(--e-color-neutral);`,
+      // Ambient spacing/pad default (component step) — same reason as above: --e-spacing-* is
+      // defined on this theme class, so a bare :root rule would resolve to an empty value.
+      this.css_spacing("component"),
+      this.css_pad("component"),
       `::selection {
         background-color: oklch(from var(--e-color-tint) l c h / 0.25);
         color: var(--e-color-text);
@@ -358,7 +362,7 @@ export class Theme<AllColors extends ColorScheme> {
    * `[pad]`/`[spacing]`/`[border]`/`[radius]`/`[surface]` attribute rules consume the `css_*` form
    * directly instead of re-deriving the step → custom-property mapping themselves. Every spacing
    * step maps to a single value, applied uniformly to both axes — no vertical/horizontal pair. See
-   * "Spacing scale" in specs/elt-ui-guidelines.md.
+   * "Spacing" in docs/md/ui-guidelines.md.
    */
 
   css_pad(step: SpacingStep): string {
@@ -406,7 +410,7 @@ export class Theme<AllColors extends ColorScheme> {
   /** `[border]`'s value type, as a raw declaration — see `ColorStep`. Bare (`true`)/no value, and a
    * bare family name (`"tint"`/`"neutral"`): the flat "widget" color for that family (`.mid` for
    * `tint`, `.faded` for `neutral`) — a clear, defined boundary, independent of ambient surface
-   * nesting (specs/borders.md — an earlier draft of this type made the bare family name
+   * nesting (docs/md/elt-ui-reference.md — an earlier draft of this type made the bare family name
    * level-relative like `surface`'s; that surprised real call sites expecting a plain visible
    * border, so it moved to the explicit `-surface`/`-separator` suffixes below instead).
    * `"tint-surface"`/`"neutral-surface"`: that family, one level up from whatever's ambient — the
@@ -561,7 +565,7 @@ const _re_relative_surface_level = /^n\+(\d+)$/
  * Shared by `Mix.surface`/`Mix.css_as_surface` — the one place that knows how a surface level
  * (absolute number, `"background"`, or a relative `n+${number}` offset from whatever's ambient)
  * turns into the arithmetic expression multiplied by `--e-surface-step` (see "Surfaces and
- * borders" in specs/elt-ui-guidelines.md).
+ * borders" in docs/md/ui-guidelines.md).
  */
 function surface_level_expr(level: number | `n+${number}` | "background", base = "var(--e-surface-level, 0)"): string {
   if (level === "background") {
@@ -620,7 +624,7 @@ export class Mix {
   /**
    * This same expression with every live `--e-color-*` reference pinned to its light-theme value —
    * the basis of inversion's "looks the same regardless of light/dark mode" rule (Axis 1,
-   * Inversion, specs/elt-ui-guidelines.md line 115). For a named color this reduces to
+   * "Inversion" in docs/md/ui-guidelines.md). For a named color this reduces to
    * `var(--e-light-color-<name>)`, matching the pre-merge `Color`-specific behavior exactly.
    */
   get light_frozen_expr(): string {
@@ -739,7 +743,7 @@ export class Mix {
    * `--e-surface-level`/`--e-surface-step`, the same custom properties `[surface]`
    * (ui/layout.css.tsx) increments and exposes to its children, so this stays correct at any
    * nesting depth without knowing its own ancestor chain (see "Surfaces and borders" in
-   * specs/elt-ui-guidelines.md).
+   * docs/md/ui-guidelines.md).
    */
   get hover() {
     return this.surface("n+1")
@@ -748,7 +752,7 @@ export class Mix {
   /**
    * Surface-level stack: a border or divider drawn on a surface at level n uses level n+2 — one
    * step past hover — so the two stay visually distinguishable when both appear on the same row
-   * at once (see "Surfaces and borders" in specs/elt-ui-guidelines.md).
+   * at once (see "Surfaces and borders" in docs/md/ui-guidelines.md).
    */
   get separator() {
     return this.surface("n+2")
@@ -759,7 +763,7 @@ export class Mix {
    * `.css_as_surface`/`.class_as_surface` below apply (background fill, level propagated to
    * children, …). Usable anywhere a color is expected (a border, a text color, a one-off
    * background-color) without any of those side effects.
-   * See "Surfaces and borders" in specs/elt-ui-guidelines.md.
+   * See "Surfaces and borders" in docs/md/ui-guidelines.md.
    *
    * - A number is an *absolute* level, ignoring whatever's already ambient — for content whose DOM
    *   position doesn't reflect its visual nesting (a dialog/popup portaled to `document.body` that
@@ -807,7 +811,7 @@ export class Mix {
        Mix wraps, e.g. var(--e-color-tint)) the same way --e-current-surface-level carries its
        level — registered non-inherited (ui/layout.css.tsx), relayed past that boundary for
        descendants' ambient --e-surface-mix, and read by [border]'s bare/family-name values
-       (specs/borders.md) ahead of --e-surface-mix so a bordered element that is also itself a
+       (docs/md/elt-ui-reference.md) ahead of --e-surface-mix so a bordered element that is also itself a
        [surface] is offset from its own new family, not the one it was nested in. */
     --e-current-surface-mix: ${this.expr};
     --e-surface-mix-relay: var(--e-current-surface-mix);
@@ -842,7 +846,7 @@ export class Mix {
 /** A `Mix` whose identity color is whichever family is ambient (this element's own `[surface]`,
  * if it set one, else the nearest ancestor's) — used by `[hover]:hover` (`ui/layout.css.tsx`) so
  * a hover fill matches whichever family the surface it's drawn on actually used, instead of
- * hardcoding `tint` regardless (specs/borders.md — found once `surface`'s default family became
+ * hardcoding `tint` regardless (docs/md/elt-ui-reference.md — found once `surface`'s default family became
  * `neutral`: a `tint`-colored hover on a `neutral` surface read as a mismatch). See
  * `--e-current-surface-mix` in `Mix.css_as_surface`. */
 export const ambient_surface_mix = new Mix(

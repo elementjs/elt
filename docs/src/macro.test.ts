@@ -257,7 +257,7 @@ describe("mergeImports", () => {
 })
 
 // Every real call site invokes elt_md() with no arguments, scanning docs/md next to macro.ts (see
-// specs/markdown-docs-reloaded.md, "Macro"). These tests instead point it at a temporary docs/md
+// docs/src/macro.ts). These tests instead point it at a temporary docs/md
 // tree via the `roots` test-only seam, so they don't touch the real docs/md or docs/src/md.
 async function withTempDocsTree(files: Record<string, string>) {
   const root = await mkdtemp(`${tmpdir()}/elt-md-test-`)

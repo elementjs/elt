@@ -84,8 +84,8 @@ function FontChooser() {
         return <label><input type="checkbox">{$bind.boolean(tfed)}</input> {fonts[font].fontFamily}</label>
       }
       popup(ev.currentTarget, () =>
-        <e-row>
-          <e-column pad="component">
+        <e-row pad="component">
+          <e-column>
             <label><P.WindowsLogo/> Windows</label>
             {btn("segoe_ui")}
             <hr/>
@@ -98,7 +98,7 @@ function FontChooser() {
             {btn("noto_sans")}
             {btn("roboto")}
           </e-column>
-          <e-column pad="component">
+          <e-column>
             <label><P.LinuxLogo/> Linux</label>
             {btn("inter")}
             {btn("cantarell")}
@@ -236,7 +236,7 @@ return <e-row spacing>
 
 `surface` raises a new background level relative to whatever level is already ambient — each
 nested `surface` pops one step further off its own parent, not off the page. A panel that wants a
-background is just a `surface`; it needs no separate "panel" or "card" concept. Rationale: [`specs/elt-ui-guidelines.md`](../../specs/elt-ui-guidelines.md), Axis 1, "Surfaces and borders".
+background is just a `surface`; it needs no separate "panel" or "card" concept. Rationale: [UI guidelines § Surfaces and borders](./ui-guidelines.md#surfaces-and-borders).
 
 ```tsx
 //@inline-example
@@ -297,7 +297,7 @@ return <e-column spacing="section">
 used and go one (hover) or two (separator) steps further — a call site never needs to know its own
 nesting depth.
 
-`packed[border]` (specs/borders.md) is the mechanism for a group of rows like this: `packed`
+`packed[border]` ([reference § packed](./elt-ui-reference.md#packed)) is the mechanism for a group of rows like this: `packed`
 draws the border itself as a `1px` seam between rows, instead of the previous approach of a plain
 `surface` container with `border="n+2"` on each row — that older shape painted a square-cornered
 `surface` background behind rows whose own `border`-implied radius carved rounded corners, so the

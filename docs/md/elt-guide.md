@@ -1,12 +1,11 @@
 ---
-title: Elt usage (agent-oriented draft)
+title: elt guide
+order: 1
 ---
 
-# Elt usage (agent-oriented draft)
+# elt guide
 
-This doc is for agents writing or changing application code that uses elt. Prefer recipes and hard rules over essays. Behavior is verified in `tests/` and in this documentation site's own live pages (`docs/`); JSDoc in `src/` has short inline examples.
-
-> Why: Composer-class agents do better with “do X / don’t Y” and copy-paste shapes than with a sparse index of concepts.
+For anyone — human or agent — writing or changing application code that uses elt. Read **Hard rules**, then only the section that matches the task. The topic pages ([Observables](./observables.md), [Verbs](./verbs.md), [Decorators](./decorators.md), [Components](./components.md), [App](./app.md), [Custom elements](./custom-elements.md)) carry the full picture with runnable examples; JSDoc in `src/` carries exact signatures. A narrative introduction is in [Using elt](./using-elt.md).
 
 ---
 
@@ -19,7 +18,7 @@ This doc is for agents writing or changing application code that uses elt. Prefe
 5. **`set` is `===`-gated.** Same reference → no-op. Mutate in place then `set` the same object → nothing notifies. Replace wholes (or use `assign` / `mutate`).
 6. **No React `children` prop.** JSX children of `<Comp>…</Comp>` go to the **RefChild** insertion point (two-arg component) or the **root node** (one-arg).
 7. **JSX is typed as `Element`.** Cast when you need a concrete type: `(<div/> as HTMLDivElement)`. `e` / `E` do not have that problem.
-8. **Import from `"elt"`.** TypeScript only; the package is meant to be bundled. Use `"elt/mutative"` when calling `obs.mutate()`. Use `"elt/ui"` only when the app uses that sub-library (see [`ui/AGENTS.md`](../../ui/AGENTS.md) → [`docs/md/using-elt-ui-agent.md`](./using-elt-ui-agent.md)).
+8. **Import from `"elt"`.** TypeScript only; the package is meant to be bundled. Use `"elt/mutative"` when calling `obs.mutate()`. Use `"elt/ui"` only when the app uses that sub-library (see the [elt/ui guide](./elt-ui-guide.md)).
 9. **Model dynamic structure as an Observable + a Verb, not a manually tracked array.** If code keeps a plain array/list as a field and pairs every mutation with matching `node_append`/`node_remove` calls, or calls `node_clear` + fully re-renders a container whenever some condition changes, that's the shape `Repeat` (lists), `If` (presence/one-of-two), or `Switch` (one-of-many) already implement — with a diff against the previous render, not a rebuild, and without a second bookkeeping structure that can drift from the DOM. Put the *data* driving the decision into an `o.Observable` and let a Verb consume it, instead of writing the update-detection and DOM-patching by hand. See Verbs section below and `src/verbs.ts`.
 
    Don't:
@@ -62,20 +61,22 @@ tsconfig:
 Canonical live shape: `docs/src/app.tsx`, `docs/src/routes.ts`.
 
 ```ts
-// routes.tsx
-import { App, node_append } from "elt";
+// routes.ts
+import { App, node_append } from "elt"
 
-export const app = new App();
+export const app = new App()
 
+// Path mode: routes live in the URL path (https://host/home). With the default base "/", the
+// root URL "/" is route path "/".
 export const routes = app.setupRouter({
-  init: ["", () => import("./init")],
+  root: ["/", () => import("./init")],
   home: ["/home", () => import("./home")],
-});
+}, { mode: "path" })
+// Under a prefix: { mode: "path", base: "/admin" } — then "/admin" is route path "" and "/admin/" is "/".
+// Hash mode (the default when no options are given): routes live in the fragment (https://host/#/home).
 
-// app entry
-node_append(document.body, app.DisplayView("Main"));
-// after mount (often rAF): app.router.activateFromUrl()
-// path mode instead of #/…: app.setupRouter(defs, { mode: "path", base: "/prefix" })
+// app entry — setupRouter already schedules the first activation from the current URL
+node_append(document.body, app.DisplayView("Main"))
 ```
 
 ```ts
@@ -111,9 +112,9 @@ export default class HomeScreen extends Service({
 
 **Always `await` activation** (`await routes.home.activate()`, etc.). An activation can be interrupted (redirect). Concurrent un-awaited `activate` calls throw. If you touch `App._activate` and get `activated: false` with a `reactivation` promise, await that too. Prefer the public `router.*.activate()` API.
 
-**Empty hash:** `activateFromUrl` resolves path `""`. Register the landing route as `["", () => import("./init")]`. Path `"/"` matches `#/`, not a bare empty hash. In path mode `""` is the base itself (`/prefix`), `"/"` is `/prefix/`.
+**Landing route:** path mode with base `"/"`: the root URL `/` is route path `"/"`. Path mode under a base `/prefix`: `/prefix` is route path `""` and `/prefix/` is `"/"`. Hash mode: a bare, empty fragment is route path `""`, and `#/` is `"/"`.
 
-**Route paths:** `:name` = one segment, `:name*` = rest of the path (last token only). Param-less exact match first, then registration order. Details: [`app.md`](./app.md), `specs/router-path-mode.md`.
+**Route paths:** `:name` = one segment, `:name*` = rest of the path (last token only). Param-less exact match first, then registration order. Details: [App](./app.md).
 
 ---
 
@@ -131,13 +132,13 @@ Convention only; the library does not enforce it.
 
 ## Components and children
 
-Full picture, with more examples and gotchas (`fn.length` arg-count detection, fragment lifecycle, global-attr list): [`docs/md/components.md`](./components.md). Authoritative source: `src/elt.ts`, `src/dom.ts`.
+Full picture, with more examples and gotchas (`fn.length` arg-count detection, fragment lifecycle, global-attr list): [Components](./components.md). Authoritative source: `src/elt.ts`, `src/dom.ts`.
 
 ### One-arg — children land on the root
 
 ```tsx
 function Box(attrs: Attrs<HTMLDivElement> & { label: string }) {
-  return (<div class="box">{attrs.label}</div>) as HTMLDivElement;
+  return (<div class="box">{attrs.label}</div>) as HTMLDivElement
 }
 // <Box label="x"><span>kid</span></Box> → kid appended on the div
 ```
@@ -153,7 +154,7 @@ function Row(_attrs: Attrs<HTMLDivElement>, ref: RefChild) {
       <span>label</span>
       {ref}
     </div>
-  ) as HTMLDivElement;
+  ) as HTMLDivElement
 }
 ```
 
@@ -168,7 +169,7 @@ function Panel(attrs: Attrs<HTMLDivElement> & { title: string }, ref: RefChild) 
         <div class="body">{r}</div>
       ))}
     </div>
-  ) as HTMLDivElement;
+  ) as HTMLDivElement
 }
 ```
 
@@ -196,7 +197,7 @@ After the component returns, `node_append` applies **global** attrs to the **roo
 
 ## Decorators
 
-Full picture, with runnable examples: [`docs/md/decorators.md`](./decorators.md). Authoritative source: `src/decorators.ts`.
+Full picture, with runnable examples: [Decorators](./decorators.md). Authoritative source: `src/decorators.ts`.
 
 Put `$…` decorators in **JSX children**, not as attributes (not React):
 
@@ -217,7 +218,7 @@ Common: `$observe`, `$click`, `$on`, `$bind.*`, `$connected` / `$disconnected`, 
 
 ## Observables
 
-Full picture, with runnable examples: [`docs/md/observables.md`](./observables.md). Authoritative source: `src/observable/observable.ts` + JSDoc. The directives below are the load-bearing ones -- everything else (API shapes, `o.expression`'s callback signature, converters, `.merge`/`.join`, `transaction`, `exclusive_lock`) is on that page.
+Full picture, with runnable examples: [Observables](./observables.md). Authoritative source: `src/observable/observable.ts` + JSDoc. The directives below are the load-bearing ones -- everything else (API shapes, `o.expression`'s callback signature, converters, `.merge`/`.join`, `transaction`, `exclusive_lock`) is on that page.
 
 - Naming: `o_*` = writable observable; `oo_*` = read-only derived; convention only, not enforced.
 - `.set()` is `===`-gated -- mutating in place then `.set()`-ing the same reference is a no-op.
@@ -230,7 +231,7 @@ Full picture, with runnable examples: [`docs/md/observables.md`](./observables.m
 
 ## Verbs (dynamic DOM)
 
-Full picture, with runnable examples: [`docs/md/verbs.md`](./verbs.md). Authoritative source: `src/verbs.ts`.
+Full picture, with runnable examples: [Verbs](./verbs.md). Authoritative source: `src/verbs.ts`.
 
 - Verbs are UpperCased functions (`If`, `Switch`, `Repeat`, `DisplayPromise`) — Appenders that imply
   dynamicity driven by Observables, patching only what changed instead of a full rebuild.
@@ -239,7 +240,7 @@ Full picture, with runnable examples: [`docs/md/verbs.md`](./verbs.md). Authorit
   flips. See the Verbs page for what this means for closures.
 - SVG is native: `<svg>…</svg>` works like HTML.
 
-See `src/verbs.ts`, `tests/repeat.pw.ts`. VirtualScroll: `src/virtual.ts`, `tests/virtual.pw.ts`.
+See `src/verbs.ts`. VirtualScroll: `src/virtual.ts`.
 
 ---
 
@@ -257,14 +258,16 @@ Bind a nested field with `.p('key')` or a bidirectional `.tf` / converter when t
 
 ## CSS
 
-```ts
+```tsx
 const cls_row = css`.row {
   display: flex;
   gap: 0.5rem;
 }`
 
-div class={cls_row}  // or class={[cls_row, { active: o_on }]}
+<div class={cls_row} />  // or class={[cls_row, { active: o_on }]}
 ```
+
+Apps that use `elt/ui` get layout from its layout elements and theme tokens instead of hand-written flex/gap rules — see the [elt/ui guide](./elt-ui-guide.md).
 
 - Only one rule per css`` call, or create a layer ; class names in `cls_` variables are derived from first `.class-name` encountered
 - Name variables `cls_*`. Keep styles top-level; export only if reused across modules. Delete unused classes.
@@ -275,7 +278,7 @@ div class={cls_row}  // or class={[cls_row, { active: o_on }]}
 
 ## App, routes, services
 
-Full picture: [`docs/md/app.md`](./app.md). Canonical: `docs/src/app.tsx`, `docs/src/routes.ts`. Behavior: `src/app/app.ts`, `tests/app.test.ts`.
+Full picture: [App](./app.md). Canonical: `docs/src/app.tsx` (this documentation site is itself an elt app). Source: `src/app/`.
 
 ### Route definitions (`App.RouteDef`)
 
@@ -346,9 +349,25 @@ Active nav styling example: `o.expression(get => get(app.o_current_route) === ge
 
 ---
 
+## Utilities
+
+- **`Deferred<T>`** — a promise you resolve or reject from outside: `const d = new Deferred<number>()`, then `d.resolve(1)` / `d.reject(err)` anywhere, and `await d` (it is thenable) or pass `d.promise` where a real `Promise` is required. Handy as the input of `DisplayPromise` when the result arrives through a callback.
+- **`@memoize`** — on a class getter, computes the value on first access and caches it per instance. A `null`/`undefined` result is not cached (the getter re-runs next time). Works with both legacy and standard decorators.
+
+```ts
+class Report {
+  @memoize
+  get totals() {
+    return compute_totals(this.rows)  // runs once per instance
+  }
+}
+```
+
+---
+
 ## Pitfalls
 
-- **Wrong mount API** → no observe/connect. Root: `node_append` / `node_remove`. Escape hatch for third-party insert: wrap in `<e-wrap>` or (heavier) `setup_mutation_observer`.
+- **Wrong mount API** → no observe/connect. Root: `node_append` / `node_remove`. Escape hatch for third-party insert: wrap in `<e-wrap>` (see [Custom elements](./custom-elements.md)) or (heavier) `setup_mutation_observer`.
 - **Manual re-render-in-place** (`$observe(o_x, () => { node_clear(host); node_append(host, render_again()) })`) is the same anti-pattern as Hard rule 9, just spelled with `$observe` instead of a tracked array. If the observer's job is "swap what's shown when this value's kind/presence changes," that's `If`/`Switch`/`o.tf` — they already skip the swap when the new render would be identical (see `If`'s "same truthiness, keep old render" behavior in `src/verbs.ts`), which hand-written `node_clear`-then-rebuild does not.
 - **Fragment `<>…</>`** is not a real node: no connect/disconnect observance on the fragment itself. Decorators still **run at creation**, but `$observe` / connected lifecycle will not stay tied the way they do on a real parent. Prefer a real element as the observing root.
 - **Sync DOM + layout:** never interleave measure and mutate in one turn when a set drives layout. Read once → compute → one write batch → converge on later frames (`requestAnimationFrame`). See next section if you touch VirtualScroll.
@@ -363,41 +382,45 @@ Do **not** apply these rules to ordinary `Repeat` UIs.
 - Top spacer = measurement-driven (real heights of shelved/prepended rows), not `index * estimate`. Snap spacer to `0` at index `0`. Bottom spacer may stay estimate-only.
 - Set `overflow-anchor: none` on the scrollport so native anchoring does not fight the spacer.
 
-Details: `src/virtual.ts`, `tests/virtual.pw.ts`.
+Details: `src/virtual.ts` (JSDoc).
 
 ---
 
 ## Where to look (by task)
 
-| Task                                         | Go here first                                                   |
-| -------------------------------------------- | --------------------------------------------------------------- |
-| Observable basics / expression / transaction | `tests/observable*.test.ts`, `src/observable/observable.ts`     |
-| RefChild / IfChildren                        | `tests/refchild.test.ts`, `src/elt.ts`                          |
-| Observe connect/disconnect                   | `tests/observe.test.ts`, `src/dom.ts`                           |
-| Repeat                                       | `tests/repeat.pw.ts`, `src/verbs.ts`                          |
-| VirtualScroll                                | `tests/virtual.pw.ts`, `src/virtual.ts`                       |
-| App / router / services                      | `tests/app.test.ts`, `docs/src/routes.ts`, `src/app/app.ts`    |
-| Decorators / `$bind`                         | `src/decorators.ts` (+ JSDoc examples)                          |
-| Public exports                               | `src/index.ts`                                                  |
-| Widgets / theme                              | [`ui/AGENTS.md`](../../ui/AGENTS.md), [`docs/md/using-elt-ui-agent.md`](./using-elt-ui-agent.md), [`visual-test.md`](./visual-test.md) |
+| Task | Go here first |
+| ---- | ------------- |
+| Observable basics / expression / transaction | [Observables](./observables.md), `src/observable/observable.ts` |
+| RefChild / IfChildren / global attrs | [Components](./components.md), `src/elt.ts` |
+| Observe connect/disconnect | [Decorators](./decorators.md), `src/dom.ts` |
+| If / Switch / Repeat / DisplayPromise | [Verbs](./verbs.md), `src/verbs.ts` |
+| VirtualScroll | `src/virtual.ts` (JSDoc) |
+| App / router / services | [App](./app.md), `docs/src/app.tsx`, `src/app/` |
+| Decorators / `$bind` | [Decorators](./decorators.md), `src/decorators.ts` |
+| Custom elements, `<e-wrap>` | [Custom elements](./custom-elements.md), `src/custom-elements.ts` |
+| Public exports | `src/index.ts` |
+| Widgets / theme / layout | [elt/ui guide](./elt-ui-guide.md), [elt/ui reference](./elt-ui-reference.md) |
+| Writing tests | [Testing](./testing.md) |
 
 ---
 
 ## Source map
 
-| Path                | Role                                          |
-| ------------------- | --------------------------------------------- |
-| `src/app/`          | App, services, router, routes, state, params  |
-| `src/css.ts`        | `css` tagged template, scoped class names     |
-| `src/decorators.ts` | `$bind`, `$observe`, …                        |
-| `src/dom.ts`        | `node_append` / lifecycle / observance        |
-| `src/elt.ts`        | `e` / `E` / `RefChild`                        |
-| `src/verbs.ts`      | `If`, `Repeat`, `Switch`, `DisplayPromise`    |
-| `src/virtual.ts`    | `VirtualScroll`                               |
-| `src/observable/`   | Core observables + transformers               |
-| `src/mutative.ts`   | `obs.mutate` helper (`import "elt/mutative"`) |
-| `src/types.ts`      | JSX / `Renderable` / `Attrs`                  |
-| `ui/`               | Theming + widgets — [`ui/AGENTS.md`](../../ui/AGENTS.md), [`docs/md/using-elt-ui-agent.md`](./using-elt-ui-agent.md) |
+| Path | Role |
+| ---- | ---- |
+| `src/app/` | App, services, router, routes, state, params |
+| `src/css.ts` | `css` tagged template, scoped class names |
+| `src/custom-elements.ts` | `EltCustomElement`, `@register`, `@attr`, `<e-wrap>` |
+| `src/decorators.ts` | `$bind`, `$observe`, … |
+| `src/dom.ts` | `node_append` / lifecycle / observance |
+| `src/elt.ts` | `e` / `E` / `RefChild` |
+| `src/verbs.ts` | `If`, `Repeat`, `Switch`, `DisplayPromise` |
+| `src/virtual.ts` | `VirtualScroll` |
+| `src/observable/` | Core observables + `tf_*` transformers |
+| `src/mutative.ts` | `obs.mutate` helper (`import "elt/mutative"`) |
+| `src/utils.ts` | `Deferred`, `memoize` |
+| `src/types.ts` | JSX / `Renderable` / `Attrs` |
+| `ui/` | Theming + widgets — [elt/ui guide](./elt-ui-guide.md) |
 
 `Renderable` ≈ Appender | string | number | Node | null | undefined | boolean | Decorator | arrays | readonly Observable of the same (`src/types.ts`).
 
@@ -409,7 +432,6 @@ Details: `src/virtual.ts`, `tests/virtual.pw.ts`.
 - `camelCase` methods, `MixedCase` classes, `snake_case` variables and functions
 - Prefer CPU/RAM-efficient algorithms; DRY; comment non-obvious patterns briefly
 - Prefer current web standards over prefixed CSS/JS
-- Do not add dependencies without asking the human
 
 ---
 
@@ -417,4 +439,4 @@ Details: `src/virtual.ts`, `tests/virtual.pw.ts`.
 
 - osun → `css`; class vars → `cls_*`; delete unused classes; drop needless `-webkit` prefixes
 - Prefer `o.expression` over most `.join()` / `.merge()` (keep merge/join when the object/tuple scope is the point)
-- elt-shoelace / legacy elt-ui → [`ui/AGENTS.md`](../../ui/AGENTS.md), [`docs/md/using-elt-ui-agent.md`](./using-elt-ui-agent.md), [`docs/md/using-elt-ui.md`](./using-elt-ui.md)
+- elt-shoelace / legacy elt-ui → [Using elt/ui](./using-elt-ui.md) (migration section), [elt/ui guide](./elt-ui-guide.md)

@@ -1,68 +1,35 @@
 ---
-title: Agent docs index
+title: Start here
+order: -1
 ---
 
-# Agent docs index
+# elt documentation
 
-Use this file to pick **one** downstream doc. Do not read every file in `./docs` up front.
+elt is a TypeScript library for building web applications with real DOM nodes and observables — no virtual DOM. `elt/ui` is its optional sub-library for theme, layout and widgets.
 
-> Why: Agents do better with branch-triggered disclosure than with a flat pile of reference.
+This page is the entry point for humans and coding agents alike. Pick the **one** page that matches your task below; don't read everything up front.
 
----
-
-## Branch map
+## Where to go
 
 | You are… | Read |
 | -------- | ---- |
-| Writing or changing **application code** that uses core elt (observables, verbs, routes, services, mount lifecycle) | [`using-elt-agent.md`](./using-elt-agent.md) |
-| Writing or changing **components** (function-as-JSX-tag, `RefChild`, global attrs) | [`components.md`](./components.md) |
-| Building or changing **UI** (layout, theme, colors, forms, widgets, anything importing `"elt/ui"`) | [`../../ui/AGENTS.md`](../../ui/AGENTS.md) → [`using-elt-ui-agent.md`](./using-elt-ui-agent.md) |
-| Needing the **why** behind a UI rule (color axis, spacing scale, overlay/motion rationale, ADRs) | [`../../specs/elt-ui-guidelines.md`](../../specs/elt-ui-guidelines.md) — `using-elt-ui-agent.md` links back here per section |
-| Implementing a **named feature** from a spec | The matching file under [`../../specs/`](../../specs/) |
-| Explaining **why** the codebase chose something | Matching file under [`adr/`](./adr/) |
-| Orienting a **human** developer (less checklist, more narrative) | [`using-elt.md`](./using-elt.md), [`using-elt-ui.md`](./using-elt-ui.md) |
+| New to elt, wanting the ideas behind it | [Using elt](./using-elt.md), then [Using elt/ui](./using-elt-ui.md) if you use the UI sub-library |
+| Coming from React, wanting a one-page summary | [Cheatsheet](./cheatsheet.md) |
+| Writing or changing **application code** with core elt (observables, verbs, components, routes, services) | [elt guide](./elt-guide.md) |
+| Building or changing **UI** with `elt/ui` (layout, spacing, theme, colors, forms, widgets) | [elt/ui guide](./elt-ui-guide.md) — its Hard rules apply to all UI work |
+| Looking up an `elt/ui` attribute, theme helper, widget option or export | [elt/ui reference](./elt-ui-reference.md) |
+| Needing the **why** behind a UI rule, or judging a case the rules don't cover | [elt/ui guidelines](./ui-guidelines.md) |
+| Going deep on one core concept | [Observables](./observables.md), [Verbs](./verbs.md), [Decorators](./decorators.md), [Components](./components.md), [App](./app.md), [Custom elements](./custom-elements.md) |
+| Writing tests for elt or `elt/ui` code | [Testing](./testing.md) |
+| Using the object editor (`elt/editor`) | [Object editor](./object-editor.md) — **unstable**: its API may still change |
+| Writing pages of this documentation | [About this documentation](./about-this-documentation.md) |
 
-When a task spans branches (e.g. a new screen with both routing and themed controls), read the **core** guide first, then the **UI** guide for the UI-specific parts only.
+When a task spans several rows (a new screen with routing and themed controls, for instance), read the core guide first, then the UI guide for the UI-specific parts only.
 
----
+## Reading a guide
 
-## Progressive disclosure inside a guide
+The two guides are sectioned so you can stop early: read **Hard rules** first (always), then only the section that matches the task — color work, for instance, only needs the UI guide's colors section. Reference pages are for lookup when a rule or a recipe sends you there.
 
-Each agent guide is sectioned so you can stop after the part you need:
+## When the docs and the code disagree
 
-1. **Hard rules** — always read for that branch.
-2. **Recipes** — copy-paste shapes for the task at hand.
-3. **Reference tables** — consult when a rule or recipe points you here.
-4. **Source map** — when behavior is unclear, verify in code/tests/docs' own live pages.
-
-Do not load an entire guide when the task name maps to one section (e.g. color work → UI guide § Colors & theme only).
-
----
-
-## Canonical runtime references
-
-| Kind | Location |
-| ---- | -------- |
-| Runnable pages | `docs/` — every doc page's code examples execute live in the page |
-| Behavior tests | `tests/` |
-| Public API surface | `src/index.ts`, `ui/index.tsx` |
-| Inline examples | JSDoc under `src/`, `ui/` |
-
-When a doc and the code disagree, **code + tests win**; treat the doc as possibly not-yet-propagated and flag the mismatch.
-
----
-
-## Repo map (one line each)
-
-| Path | Role |
-| ---- | ---- |
-| `AGENTS.md` | Always-loaded rules + pointers into this index |
-| `docs/md/using-elt-agent.md` | Core elt usage for agents |
-| `docs/md/components.md` | Component internals for agents (`RefChild`, global attrs) |
-| `docs/md/using-elt-ui-agent.md` | elt/ui + visual language for agents |
-| `docs/md/using-elt.md` | Human-oriented core overview |
-| `docs/md/using-elt-ui.md` | Human-oriented UI overview + migration |
-| `ui/AGENTS.md` | UI branch entry (modify-library rules + section index) |
-| `specs/` | Feature specifications |
-| `specs/elt-ui-guidelines.md` | UI visual-language rules + rationale (the "why" behind `using-elt-ui-agent.md`) |
-| `docs/src/adr/` | Architecture decision records |
+The code and its JSDoc (`src/`, `ui/`, `editor/`) win. Treat the doc as not yet updated, and flag the mismatch.

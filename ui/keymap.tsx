@@ -1,6 +1,6 @@
 /**
  * @module ui/keymap
- * Keyboard shortcuts and key sequences scoped to a node. See specs/keymap.md.
+ * Keyboard shortcuts and key sequences scoped to a node. See docs/md/elt-ui-reference.md, "Keymap".
  */
 
 import { type Decorator, node_add_event_listener, node_observe, node_on_disconnected, type o } from "elt"

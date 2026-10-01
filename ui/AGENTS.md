@@ -1,42 +1,17 @@
-# elt/ui — agent entry
+# elt/ui — maintainer notes
 
-Reach here when the task is **UI**: layout, theme, colors, forms, widgets, overlays, or any file importing `"elt/ui"`.
+This file is for changing the `ui/` library itself. To *use* `elt/ui`, start at [`docs/md/index.md`](../docs/md/index.md) → [`docs/md/elt-ui-guide.md`](../docs/md/elt-ui-guide.md); those rules apply to `ui/`'s own code too.
 
-**Guide:** [`docs/md/using-elt-ui-agent.md`](../docs/md/using-elt-ui-agent.md) — read **Hard rules**, then only the section for your task (progressive disclosure). Do not load the full guide for a single-widget tweak.
+## When modifying `ui/`
 
-**Doc index:** [`docs/md/index.md`](../docs/md/index.md)
+- **Do not add dependencies.** `@floating-ui/dom` (popups) is the only one, as a peer dependency.
+- **Icons:** copy SVG paths from the **elt-phosphor** package (e.g. from `docs/node_modules/elt-phosphor`) into `ui/icons.tsx`; never depend on it. If it isn't installed, ask the human.
+- **Native HTML first.** Style native elements with CSS; add a component only when native elements can't give a consistent result.
+- **Promotion threshold:** an app pattern becomes a `ui/` widget only once a second app needs it.
+- **New public widgets:** match form sizing (`formFontSize`, `widget`-step padding), radius (`theme.css_radius`), focus ring and color helpers of existing controls. Add Playwright tests under `tests/` for non-visual behavior.
+- **Theme values only:** every padding, gap and radius in `ui/` reads a named spacing step (`theme.settings.spacing*`, `theme.css_pad`/`css_spacing`/`css_radius`); every color goes through `theme.colors.*`.
+- **Keep docs aligned:** when the public surface or semantics change, update [`elt-ui-guide.md`](../docs/md/elt-ui-guide.md) (rules, how-to), [`elt-ui-reference.md`](../docs/md/elt-ui-reference.md) (tables) and, for a change in reasoning, [`ui-guidelines.md`](../docs/md/ui-guidelines.md). Code comments point to these docs, not to `specs/`.
 
-**Rationale/ADRs behind the guide's rules:** [`specs/elt-ui-guidelines.md`](../specs/elt-ui-guidelines.md) — read when a rule's reasoning matters (a judgment call, an edge case not covered by the guide's tables).
+## Entry points
 
----
-
-## Section index (guide)
-
-| Task | Guide section |
-| ---- | ------------- |
-| Import / theme class on root | Setup |
-| Spacing, flex, grid, containers | Layout |
-| Help text, docs, long copy | Typography |
-| Accents, semantic colors, dark mode | Colors & theme |
-| Buttons, inputs, checkboxes | Forms & native controls |
-| Select, date, popup, dialog, … | Widget inventory |
-| App-only component | Building app-specific widgets |
-| Unavoidable CSS | Custom CSS |
-
----
-
-## When modifying `ui/` itself
-
-These apply on top of the guide when editing files under `ui/`:
-
-- **Do not add dependencies** (Floating UI is already present for popups).
-- **Icons:** take SVG paths from **elt-phosphor** — not as a dependency; copy from the package's own `node_modules` (e.g. `docs/node_modules/elt-phosphor`) when available, otherwise ask the human.
-- **Prefer native HTML** styled with CSS; add components only when native limits block consistent UX.
-- **New public widgets:** match form sizing, border radius, focus ring, and color helpers from existing controls; add specs under `specs/ui-*.md` when behavior is non-trivial; add tests under `tests/`.
-- **Keep docs aligned:** update [`docs/md/using-elt-ui-agent.md`](../docs/md/using-elt-ui-agent.md) widget inventory and [`using-elt-ui.md`](../docs/md/using-elt-ui.md) when surface or semantics change.
-
----
-
-## What it does (one paragraph)
-
-Sub-library for themed widgets and UI facilities. Minimal catalog, strong visual language: OKLCH color mixing from bg/text, typed attrs on layout elements, global native control styling, small set of high-value widgets (`Select`, pickers, popup, dialog). See [`theme.tsx`](./theme.tsx), [`layout.css.tsx`](./layout.css.tsx), [`form.css.tsx`](./form.css.tsx).
+[`theme.tsx`](./theme.tsx) (`Theme`, `Mix`), [`layout.css.tsx`](./layout.css.tsx) (layout attributes), [`form.css.tsx`](./form.css.tsx) (native controls), [`typography.css.tsx`](./typography.css.tsx) (`e-prose`), [`selectors.ts`](./selectors.ts) (selector lists shared between those).

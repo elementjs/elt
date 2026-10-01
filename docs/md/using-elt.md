@@ -1,18 +1,11 @@
 ---
 title: Using elt
+order: 2
 ---
 
 # Using elt
 
-Opinionated TypeScript library for building UIs. JSX returns **real DOM nodes**. There is no virtual DOM and this is not React. UI updates come from **observables** and a few **verbs** (`If`, `Repeat`, …). Observing is tied to nodes being in the document: connect starts it, disconnect stops it — so you do not leak observers if you mount and unmount the elt way.
-
-Import from `"elt"`. TypeScript only; the package is meant to be bundled.
-
-tsconfig: `strict`, `jsx: "react"`, `jsxFactory: "E"`, `jsxFragmentFactory: "E.Fragment"`.
-
-This documentation's own pages are runnable examples — see [`visual-test.md`](./visual-test.md), [`object-editor.md`](./object-editor.md). Signatures and edge cases live in JSDoc under `src/`. Agent-oriented companion: [`docs/md/using-elt-agent.md`](./using-elt-agent.md). Doc index: [`docs/md/index.md`](./index.md).
-
----
+elt is a TypeScript library for building web **applications** (rather than content websites). JSX returns **real DOM nodes**: there is no virtual DOM, no re-rendering, and this is not React. This page explains the ideas behind it; the rules and recipes live in the [elt guide](./elt-guide.md), and each concept has its own page with runnable examples.
 
 ## Hello
 
@@ -30,158 +23,44 @@ const ui = <div>
 node_append(document.body, ui)
 ```
 
-`o_name` in JSX keeps the text in sync. `$bind.string` keeps the input in sync both ways. `$click` is a **decorator**: a function placed among the **children**, not as a React-style prop. It runs when the node is created.
+`ui` is an actual `HTMLDivElement`. Putting `o_name` in the JSX keeps that text in sync with it, `$bind.string` keeps the input in sync both ways, and `$click` is a **decorator**: a function placed among the children rather than a React-style `onClick` prop.
 
-Always mount elt trees with **`node_append`** (and remove with **`node_remove`**). Plain `appendChild` skips the connect/disconnect hooks that drive observance. Verbs and the App layer already use `node_append` internally; you mainly need it for the root of your app.
+## The ideas, in order
 
----
+- **Observables hold the state.** An [`Observable`](./observables.md) wraps a value and notifies whoever observes it when the value changes. Observables can be transformed (`.tf`) or combined (`o.expression`) into new observables that follow their sources. Updates are synchronous: when `set` returns, every derived value and every piece of DOM depending on it is already up to date.
 
-## Observables
+- **Observing is tied to the DOM.** An observer kept alive forever leaks memory. elt ties observing to nodes: an observer attached to a node runs only while that node is in the document, and stops on its own when the node leaves. This is why trees are mounted with `node_append` rather than `appendChild` — `node_append` is what runs the connect/disconnect step. See [`$observe`](./decorators.md), and [`$connected` / `$disconnected`](./decorators.md) to run code when a node enters or leaves the document.
 
-`o(value)` creates an observable (or returns the same one if you already passed an observable). Read with `.get()`, write with `.set()`.
+- **Verbs mark where the structure changes.** Instead of a component that decides what to render, elt uses **verbs**: functions whose name starts with an uppercase letter — [`If`, `Switch`, `Repeat`, `DisplayPromise`](./verbs.md), and `VirtualScroll` for long lists. Scanning the code for uppercase calls shows every place the DOM's shape can change, and each verb only patches what changed instead of rebuilding.
 
-Changes propagate **synchronously**: observers, derived observables, and DOM bindings all run before `set` returns. `o.transaction(() => { … })` batches several writes and flushes once at the end (still synchronously).
+- **Decorators replace props for behavior.** Functions starting with `$` and a lowercase letter (`$click`, `$bind`, `$observe`, `$class`, …) are [decorators](./decorators.md): they receive the node they're placed in and act on it. This avoids declaring a variable for every node you need to touch, and keeps "creates a node" (uppercase) visibly different from "modifies a node" (`$`).
 
-`set` only notifies when the new value is not `===` to the current one. Mutating an object in place and calling `set` with the same reference does nothing useful — replace the value, or use `.assign(partial)` / `.mutate(fn)` (after `import "elt/mutative"` for mutate).
+- **Components are just functions.** A [component](./components.md) is a function returning a node. JSX children go to that node, or to an explicit insertion point (`RefChild`) when the component takes a second argument.
 
-**Naming convention** (apps, not enforced by the library):
+- **An app layer is included.** For multi-screen applications, [`App`](./app.md) provides a router (URL path or URL fragment), services that resolve their dependencies and live as long as they're needed, and named views. It's small enough to ship in the core instead of as yet another package; it's optional for a single widget.
 
-- `o_*` — source state, or any writable observable
-- `oo_*` — readonly derived values
+- **Styling and widgets are a separate sub-library.** `css` (scoped class names) is in the core. Theming, layout elements and widgets are in `elt/ui` — see [Using elt/ui](./using-elt-ui.md).
 
-### Deriving values
+## Why use it
 
-Default tool: **`o.expression`**.
+- **You use TypeScript and care about types.** Everything is typed for inference; observables keep their types through transforms and combinations. Use `"strict": true`.
+- **You like the observer pattern but not its leaks.** Observing is tied to a node's presence in the document, so there's nothing to unregister by hand.
+- **You like manipulating the DOM directly.** Every JSX expression is a real element you can use with plain DOM APIs. The library sticks to web standards wherever it can.
+- **You like explicit code.** Observables and verbs show at a glance which parts of the app can change, and every symbol is reachable with "go to definition" — no HTML string templates.
+- **You don't want a dependency tree.** The core has no runtime dependencies. `elt/mutative` needs the `mutative` package for `.mutate()`, and `elt/ui`'s popups need `@floating-ui/dom`; both are optional peer dependencies.
 
-```ts
-const oo_label = o.expression(get =>
-  `${get(o_first)} ${get(o_last)}`
-)
-```
+## Setup
 
-Inside the callback, `get(obs)` both reads and subscribes. You also get `old`, `updated`, and `prev` if you want to skip heavy work when only some dependencies changed. Pass a second function to make the expression **writable** (writes can flow back into sources).
-
-Also common:
-
-- `.tf(fn)` — transform (read-only, or `{ transform, revert }` for two-way)
-- `.p("key")` / `.p(0)` — focus one field or index (fine for a form binding; prefer `assign` / `mutate` for deep edits in app code)
-- `.key(id)` — lookup on a `Map` observable
-
-`o.RO<T>` means “observable or plain `T`”. Use `o.get(x)` when you need the current value once, outside a reactive context.
-
-**In JSX children**, only put renderable things (nodes, strings, numbers, decorators, verbs, or observables of those). Anything else: `.tf(...)` first.
-
-For side effects while a node is on screen, use `$observe(obs, cb)` rather than raw `addObserver`.
-
----
-
-## Components and children
-
-A component is a function that returns a real node:
-
-```tsx
-function Box(attrs: Attrs<HTMLDivElement> & { title: string }) {
-  return <div class="box"><h3>{attrs.title}</h3></div> as HTMLDivElement
-}
-```
-
-TypeScript types JSX as `Element`; cast when you need a concrete type. `e()` / `E()` do not need that cast.
-
-There is **no** React-style `children` prop.
-
-- **One argument** — JSX children are appended on the **root** node the function returns.
-- **Two arguments** `(attrs, ref)` — children go to a **`RefChild`** marker you place in the tree:
-
-```tsx
-function Row(_attrs: Attrs<HTMLDivElement>, ref: RefChild) {
-  return <div><span>label</span>{ref}</div> as HTMLDivElement
-}
-```
-
-If the body should exist only when the caller passed children, use `ref.IfChildren(r => <div class="body">{r}</div>)`. Do not mix bare `{ref}` and `IfChildren` in the same component.
-
-Global attributes on the call site (`id`, `class`, `style`, `title`, …) are applied to the component **root** automatically. Your own props are whatever you read from `attrs`.
-
-`class` and `style` understand observables, e.g. `class={{ active: o_on }}`.
-
-SVG works like HTML: write normal `<svg>…</svg>`.
-
----
-
-## Verbs
-
-Uppercased helpers that insert **dynamic** regions. They are not normal elements; observables feed them.
-
-```tsx
-{If(o_user, u => <span>{u.tf(x => x.name)}</span>)
-  .Else(() => <span>guest</span>)}
-
-{Switch(o_tab)
-  .Case("a", () => <PanelA/>)
-  .Case("b", () => <PanelB/>)}
-
-{Repeat(o_items, (item, idx) =>
-  <li>{item.tf(i => i.label)}</li>
-)}
-
-{DisplayPromise(o_load)
-  .WhileWaiting(() => <span>loading…</span>)
-  .WhenResolved(o_data => <View data={o_data}/>)
-  .UponRejection(o_err => <span>failed</span>)}
-```
-
-Prefer `DisplayPromise` whenever you care about loading or error UI. A bare promise in JSX is a weak substitute.
-
----
-
-## CSS
-
-```ts
-const cls_row = css`.row {
-  display: flex;
-  gap: 0.5rem;
-}`
-```
-
-`css` returns a scoped class name. Convention: store it in `cls_*`. Keep styles at module top level unless they are shared.
-
----
-
-## App (multi-screen)
-
-For a small widget you only need `node_append` and the pieces above. For a full app, elt ships a thin **App / Service / router** layer (routes in the URL fragment by default, or in the URL path with `setupRouter(defs, { mode: "path", base: "/prefix" })`). Live shape: `docs/src/app.tsx`, `docs/src/routes.ts` (this documentation site is itself one such app).
-
-Sketch:
-
-1. `const app = new App()`
-2. `app.setupRouter({ home: ["/home", () => import("./home")], init: ["", () => import("./init")] })`
-3. `node_append(document.body, app.DisplayView("Main"))`, then `app.router.activateFromUrl()` (often after mount)
-4. Screens are services — typically `class Home extends Service({ base: import("./base") })` with `@view` methods that register named views (`Main`, `Content`, …)
-5. Compose with `app.DisplayView("Content")` inside another view
-6. **Always `await`** `route.activate()` — activation can be interrupted (e.g. redirect to login)
-
-**Params:** `srv.param("id")` ties the value to service lifetime (change → re-activation). `srv.param_soft("q")` is an observable slice of the URL that can update without rebuilding the service.
-
-Empty hash maps to path `""`. Register the landing route with that path. Path `"/"` is `#/`, not a bare empty hash.
-
-Shared state usually lives on a store service; other services declare it in `Service({ … })` or `require` it and derive `oo_*` locally.
-
----
-
-## Things that bite once
-
-- Mount with `node_append`, not `appendChild`, or observance never starts.
-- Fragments (`<>…</>`) are not real nodes: no connect/disconnect lifecycle on the fragment itself. Prefer a real element as the root of anything that observes.
-- Because updates are synchronous, schedule coherent UI updates (and use `o.transaction` when several sources change together). If you measure layout (`getBoundingClientRect`, `scrollTop`) while also writing DOM driven by observables, do not interleave measure and write in a tight loop — read, compute, write once, then continue on later frames. Long lists: see `VirtualScroll` in `src/virtual.ts` and its tests; ordinary `Repeat` does not need that machinery.
-
----
+`tsconfig.json`: `"strict": true`, `"jsx": "react"`, `"jsxFactory": "E"`, `"jsxFragmentFactory": "E.Fragment"`, plus `"experimentalDecorators": true` if you write custom elements with `@attr` (`@view` and `@memoize` work with either decorator style). The package ships TypeScript sources and is meant to be bundled. Import from `"elt"`.
 
 ## Where to go next
 
-| Want | Look at |
-| ---- | ------- |
-| End-to-end UI | `docs/src/app.tsx` |
-| Observable / Repeat / App behavior | `tests/` |
-| Widgets and theme | `elt/ui` — [`ui/AGENTS.md`](../../ui/AGENTS.md), [`docs/md/using-elt-ui-agent.md`](./using-elt-ui-agent.md), [`docs/md/using-elt-ui.md`](./using-elt-ui.md) |
-| Exact APIs | JSDoc in `src/` (`observable.ts`, `verbs.ts`, `decorators.ts`, `app/`) |
-| Checklist-style reference | [`docs/md/using-elt-agent.md`](./using-elt-agent.md) |
+| Want | Read |
+| ---- | ---- |
+| The rules and recipes | [elt guide](./elt-guide.md) |
+| A one-page summary | [Cheatsheet](./cheatsheet.md) |
+| Observables, verbs, decorators, components in depth | [Observables](./observables.md), [Verbs](./verbs.md), [Decorators](./decorators.md), [Components](./components.md) |
+| Routing and services | [App](./app.md) |
+| Theme, layout, widgets | [Using elt/ui](./using-elt-ui.md), then the [elt/ui guide](./elt-ui-guide.md) |
+| A complete running app | `docs/src/app.tsx` — this documentation site is itself an elt app |
+| Exact signatures | JSDoc in `src/` |

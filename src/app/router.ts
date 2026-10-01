@@ -7,7 +7,7 @@ import { _createUrlSource, HashUrlSource, type RouterOptions, type UrlSource } f
 
 /**
  ** App.Router : a binding between the URL (its fragment, or its path under a base) and an App and its services.
- ** See specs/router-path-mode.md.
+ ** See docs/md/app.md, "Hash mode and path mode".
  **/
 export class Router {
   constructor(public app: App) {}

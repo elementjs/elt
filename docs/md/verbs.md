@@ -99,7 +99,7 @@ return <e-column>
 
 (A real app with a large or frequently-mutated list would more likely reach for `.mutate()` — see the [Observables](./observables.md) page — rather than rebuilding the whole array on every change as above; `.set()` with a fresh array keeps this example self-contained.)
 
-`Repeat` has a few more methods for less common cases — enough to know they exist, not exhaustively covered here (see `tests/repeat.pw.ts` for verified behavior of all of these):
+`Repeat` has a few more methods for less common cases — enough to know they exist, not exhaustively covered here (see the JSDoc in `src/verbs.ts` for exact behavior):
 
 | Method                         | For                                                                    |
 | ------------------------------- | ----------------------------------------------------------------------- |

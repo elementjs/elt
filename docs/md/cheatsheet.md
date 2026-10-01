@@ -1,98 +1,97 @@
 ---
 title: Cheatsheet
+order: 3
 ---
 
-# Elt Cheatsheet
+# elt cheatsheet
 
-**This is NOT react**
+One page to skim when coming from React or another framework. Each row only summarizes; the linked page owns the rule and its details.
 
-- `<tsx>code</tsx>` returns plain `Node`s, there is no virtual-dom
-- 
+**This is NOT React.** JSX returns real DOM nodes; there is no virtual DOM. What changes on screen is driven by observables and verbs, not by re-rendering. See [elt guide › Hard rules](./elt-guide.md).
 
-**General**
+## General
 
-| Subject | Explanation |
-| --- | --- |
-| `o.Observable` | Most important class of `elt`; called Signal in other librairies, a synchronous value holder that can be combined to form more complex Observables and observed to drive dynamicity in the UI |
-| `$<name>()` | **decorators**, meant to be added as children of their target node that run as callbacks when appended to them |
-| `<div>JSX</div>` | TSX constructs that return `Element` because typescript does not let us type it further. Full type available in decorator. `<button>{btn => {  }}</button>` btn is `HTMLButtonElement` there. |
-| `e("button", { class: "cls" }, ...)` or `E` | Functions behind the TSX with correct return type. Not favored since code is more readable with TSX. |
-| `function Component(attrs: Attrs & { prop: Type }, children?: Renderable) { return <tsx_code/> }` | `Attrs` contains declaration of basic HTML attributes as understood by elt. children is optional and should only be specified when wanting to place the children somewhere in the result - otherwise they're added to the root node of the result. |
-| `<Component class={["cls", {cls_name: oo_boolean}]} style={{fontWeight: "bold"}} id="id"/>` | **Global attrs** (`id`, `class`, `style`, `slot`, `name`, `title`, `aria-*`, `data-*`) are forwarded to the component's root node after it returns, whether or not the component reads them. Any other prop is custom and only reaches the DOM if the component applies it itself. |
+| Subject | In short | Owner |
+| --- | --- | --- |
+| `o.Observable` | elt's central class: a synchronous value holder (called a signal elsewhere) that can be derived, combined, and observed to make the UI dynamic. | [Observables](./observables.md) |
+| `$<name>()` | **Decorators**: functions placed among a node's JSX children, called with that node. They replace React's `onClick={…}`-style props. | [Decorators](./decorators.md) |
+| `<div>…</div>` | Returns a real node, typed as `Element` (TypeScript can't type JSX more precisely). Cast when you need the concrete type: `<div/> as HTMLDivElement`. Inside a decorator the node is fully typed: `<button>{(btn) => { … }}</button>` gives an `HTMLButtonElement`. | [elt guide › Hard rules](./elt-guide.md) |
+| `e("button", { class: "cls" }, …)` / `E` | The functions behind JSX, with precise return types. Less readable than JSX, so not favored. | [Components](./components.md) |
+| `function Comp(attrs: Attrs<HTMLDivElement> & { prop: T }) { … }` | **One-argument component**: JSX children passed to `<Comp>…</Comp>` are appended to the root node it returns. There is no `children` prop. | [Components › One-arg vs two-arg](./components.md) |
+| `function Comp(attrs, ref: RefChild) { return <div>…{ref}…</div> }` | **Two-argument component**: children go where `{ref}` is placed, or use `ref.IfChildren((r) => …)` to render a wrapper only when children were passed. Never both in one component. | [Components › RefChild](./components.md) |
+| `<Comp id class style title … />` | **Global attributes** are applied to the component's root node after it returns, whether or not the component reads them: `id`, `class`, `style`, `slot`, `part`, `role`, `tabindex`, `lang`, `inert`, `title`, `autofocus`, `nonce`, and every `aria-*` / `data-*`. Any other prop only reaches the DOM if the component applies it. `class` and `style` accept observables and `{ name: o_bool }` maps. | [Components › Global attrs](./components.md) |
 
-**Code naming conventions**
+## Naming conventions
 
-| Pattern | For |
-| --- | --- |
-| `o_<name>` | A writable observable |
-| `oo_<name>` | A readonly observable, usually comes from `.tf` / `o.expression` with no write specified |
-| `cls_<name>` | A class coming from the `css` helper : `` const cls_bold = css`.bold { font-weight: bold }` `` |
-| `<Name>Service` | class that extends `Service`. Should be default export of its file. |
-| `<Name>Screen` | class that extends `Service` or Service function that uses `@view` or `srv.view` extensively, meant to be used as a route target. Should be default export of its file. |
+| Pattern | For | Owner |
+| --- | --- | --- |
+| `o_<name>` | A writable observable | [elt guide › Naming](./elt-guide.md) |
+| `oo_<name>` | A read-only observable, usually from `.tf` / `o.expression` with no write-back | [elt guide › Naming](./elt-guide.md) |
+| `cls_<name>` | A class name from the `css` helper: `` const cls_bold = css`.bold { font-weight: bold }` `` | [elt guide › CSS](./elt-guide.md) |
+| `<Name>Service` | A class extending `Service`; the default export of its file | [App › Services](./app.md) |
+| `<Name>Screen` | A `Service` meant as a route target, registering views with `@view`; the default export of its file | [App › Views](./app.md) |
 
+## Frequently imported symbols
 
-**Frequently imported symbols**
+| Symbol | Use | Owner |
+| --- | --- | --- |
+| `o` | As a function: make an observable, `o("a string")` (an observable passed in is returned as is). As a namespace: every observable helper. | [Observables](./observables.md) |
+| `css` | Tagged template; one rule per call. A rule starting with `.class-name` gets that class name made unique, and the call returns it. | [elt guide › CSS](./elt-guide.md) |
+| `$click` | `<button>{$click((ev) => …)}</button>`: react to clicks. | [Decorators › Events](./decorators.md) |
+| `$on` / `$once` | `addEventListener`, tied to the node's lifecycle: `{$on("input", (ev) => …)}`. `$once` runs once. | [Decorators › Events](./decorators.md) |
+| `$observe` | Run a callback with an observable's value, while the node is in the document. | [Decorators](./decorators.md) |
+| `$bind.string` / `.number` / `.boolean` / … | Two-way binding between a form control and an observable. | [Decorators › $bind](./decorators.md) |
+| `$connected` / `$disconnected` | Run a callback when the node enters / leaves the document. | [Decorators › Lifecycle](./decorators.md) |
+| `$scrollable` | Make a container scrollable, with touch handling made consistent. | [Decorators](./decorators.md) |
+| `$shadow` | Rare: attach a shadow root to a node. | [Decorators › Shadow DOM](./decorators.md) |
 
-| Use | To |
-| --- | --- |
-| `o`| as function : create or convert values to observables `o("a string")`, as namespace : all observable utility functions |
-| `css` | tagged template function. Only one statement per call. If starting by `.class-name`, the class name will be "uniquified" to avoid collisions and returned as result |
-| `$click` | `<button>{$click(mouse_event => /* */)}</button>` react to the click event. Does nothing more than `$on`, but is more readable. |
-| `$on` / `$once` | Simple addEventListener alias `<input>{$on("input", input_event => { /* */ })}</input>` `<button>{$on("click", mouse_event => { /* */ })}</button>`. `$once` only runs once |
-| `$observe` | Observe an observable and get called when it changes. Return value of callback can further change it before other observers. |
-| `$scrollable` | Make a container scrollable with some touch handling to harmonize behaviour |
-| `$connected` / `$disconnected` | Run a callback when the node enters/leaves the living DOM |
-| `$shadow` | Not common ; attach a shadow DOM to a node |
+## Observables
 
-**Observables**
+An observable holding something renderable (a string, a node, …) can be used directly as a JSX child, and the DOM follows it. Use that everywhere.
 
-If an observable holds a value that extends `Renderable`, it can be used directly as a TSX child for dynamicity. Use it extensively.
+| Use | To | Owner |
+| --- | --- | --- |
+| `.set(v)` | Write. Notifies only if `v !== ` the current value: mutating in place then `set`-ting the same object does nothing. | [Observables](./observables.md) |
+| `.tf(fn)` | Derive a new observable from one other. `tf_*` helpers cover common shapes (filter, sort, group, "equals X"). | [Observables › .tf()](./observables.md) |
+| `o.expression((get) => …)` | Derive from several observables; `get(o_x)` reads and subscribes. | [Observables › o.expression](./observables.md) |
+| `o.get(x)` | The current value of something that may or may not be an observable. | [Observables](./observables.md) |
+| `.assign(partial)` | Immutable update of part of an object or array. | [Observables › Updating](./observables.md) |
+| `.mutate((draft) => …)` | Immutable update written as mutations, through the `mutative` library; needs `import "elt/mutative"`. | [Observables › Updating](./observables.md) |
 
-| Use | To |
-| --- | --- |
-| `.set` | (method) set an observable's value |
-| `.tf`| (method) create a new observable from another |
-| `o.get` | Get the instant value of something that _may_ be an observable, more flexible type-wise than `.get()` |
-| `o.expression` | like .tf, but involving several observables. `o.expression((get) => { const dep1 = get(o_dep1); /* ... */ return result })`.  |
-| `o.assign` | simple immutable updates to `.set` new values or in custom transformers |
-| `o.mutate` | Optional but recommanded way of performing complex immutable updates, in combination with the mutative library and `import "elt/mutative"` |
+## Verbs
 
-**Verbs**
+Uppercase functions that render a dynamic region of the DOM from observables. Use them for anything whose structure changes. Calling `.withKeyFunction()` on `Repeat` / `VirtualScroll` matters a lot for performance and for keeping per-item state; use it whenever items have an id.
 
-Use them extensively. Verbs follow writability of provided observables. `.withKeyFunction()` on `Repeat` and `VirtualScroll` is very important performance-wise and must be used whenever possible.
+| Verb | To | Owner |
+| --- | --- | --- |
+| `If` | One of two branches: `If(oo_cond, (o_truthy) => …).ElseIf(o_cond2, …).Else(() => …)` | [Verbs › If](./verbs.md) |
+| `Switch` | One of several branches by value: `Switch(o_obs).Case(value_or_predicate, (o_v) => …).Else(() => …)` | [Verbs › Switch](./verbs.md) |
+| `Repeat` | A list: `Repeat(o_array, (o_item) => …)` | [Verbs › Repeat](./verbs.md) |
+| `VirtualScroll` | A list in a scrollable container that only renders the visible rows; for lists that can be long. | [elt guide › Verbs](./elt-guide.md) |
+| `DisplayPromise` | A promise's states: `DisplayPromise(o_promise).WhileWaiting(() => …).WhenResolved((o_value) => …).UponRejection((o_err) => …)` | [Verbs › DisplayPromise](./verbs.md) |
 
-| Use | To |
-| --- | --- |
-| `If` | dynamicity `If(oo_condition, o_as_truthy => Renderable).ElseIf(o_cond2, o_as_truthy2 => Renderable).Else(() => Renderable)` |
-| `Repeat` | Simple repeat over array observables `Repeat(o_my_array).RenderEach(o_value => Renderable)`. |
-| `VirtualScroll` | Repeat in a scrollable container, more involved than Repeat to set up, suited whenever arrays can be big. `import { } "elt/virtual"` |
-| `DisplayPromise` | Show a `Promise`-valued observable's loading/resolved/error states: `DisplayPromise(o_promise).WhileWaiting(() => Renderable).WhenResolved(o_value => Renderable).UponRejection(o_err => Renderable)`. |
-| `Switch` | One-of-several branches by value: `Switch(o_obs).Case(ro_value_or_predicate, o_truthy_value => Renderable).Else(() => Renderable)`. |
+## App
 
+| Subject | In short | Owner |
+| --- | --- | --- |
+| `new App()` + `app.setupRouter({ name: [path, () => import("./file")] }, { mode: "path" })` | Declares routes, lazily loaded. Path mode reads routes from the URL path; without options, routes live in the URL fragment (`#/…`). | [App › Setting up routes](./app.md) |
+| `class MyScreen extends Service({ base: import("./base") })` + `@view` | The usual screen shape: dependencies in `Service({ … })`, named views (`Content`, …) as `@view` methods. | [App › Services](./app.md) |
+| `app.DisplayView("Content")` | Insert a named view into the tree. | [App › Views](./app.md) |
+| `srv.param("key")` / `srv.param_soft("key")` | URL parameters. A `param` change rebuilds the service; a `param_soft` change only updates an observable. | [App › Params](./app.md) |
+| `await routes.some_route.activate()` | Always `await` an activation: it can be interrupted (a redirect), and an un-awaited overlapping call throws. | [App › Activation](./app.md) |
+| `routes.some_route.urlFor({ … })` | The URL that activates a route, for `<a href>`. | [App › Links](./app.md) |
 
-**App**
+## Use sparingly
 
-| Subject | Explanation |
-| --- | --- |
-| `new App()` + `app.setupRouter({ name: [path, () => import("./file")] })` | Declares routes; builder is lazy (`() => import(...)`), path is a hash path without `#`, `""` is the landing route. `setupRouter(defs, { mode: "path", base: "/prefix" })` reads routes from the URL path instead. |
-| `class MyScreen extends Service({ base: import("./base") })` + `@view` | Canonical screen shape. Deps go in `Service({...})`; register a named view (e.g. `Content`) with `@view` on a method. |
-| `app.DisplayView("Content")` / `srv.DisplayView("Content")` | Compose a named view into the tree. |
-| `srv.param("key", default?)` / `srv.param_soft("key", default?)` | URL param binding; `param` re-activates the service on change, `param_soft` updates in place via an observable. |
-| `await router.someRoute.activate()` | Always `await` activation; can be interrupted (redirect) or throw if a concurrent un-awaited activation is in flight. |
+Not wrong, but not what to reach for first.
 
-**Avoid the following**
-
-These are not anti-patterns, but they're not meant to be reached for unless for a good reason.
-
-| Avoid | Because |
-| --- | --- |
-| `o.join` / `o.merge` / `o.combine` | Create an observable from several others, lower level that `o.expression` but a _little_ more performant at the cost of much more verbosity. |
-| `node_append` `node_remove` | Meant to only be used to mount the initial App or when integrating 3rd party libraries. Use verbs instead. |
-
+| Avoid | Because | Owner |
+| --- | --- | --- |
+| `o.join` / `o.merge` / `o.combine` | Lower-level than `o.expression`, slightly faster, much more verbose. | [Observables](./observables.md) |
+| `node_append` / `node_remove` | Meant for mounting the app's root or integrating third-party code. Inside the app, verbs do it. | [elt guide › Hard rules](./elt-guide.md) |
 
 ## Do NOT
 
-- **do not** use `o.get` or `.get()` outside of observer logic unless the need is explicitely to look at an observable at a precise point in time
-- **do not** use `addObserver()` yourself on an observer ; `$observe`, `node_observe` or `.observe` method of things like `Service` / `App` exclusively to avoid leaking.
-- **do not** use DOM `Node`'s insertion/removal methods directly such as `append`, `remove`, `insertChild`. They will not set up observables and lifecycle callbacks.
-
+- **Do not** call `o.get` or `.get()` outside observer logic, unless you really mean "the value at this precise moment". See [Observables](./observables.md).
+- **Do not** call `addObserver()` yourself: use `$observe`, `node_observe`, or the `.observe` method of `Service` / `App` / `EltCustomElement`, which stop observing on their own. See [elt guide › Hard rules](./elt-guide.md).
+- **Do not** insert or remove nodes with DOM methods (`append`, `remove`, `appendChild`, …): elt's lifecycle callbacks and observers will not run. Use `node_append` / `node_remove`, or wrap foreign content in [`<e-wrap>`](./custom-elements.md).

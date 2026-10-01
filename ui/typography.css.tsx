@@ -6,6 +6,7 @@
 import { css } from "elt"
 import { theme } from "./theme"
 import "./layout.css.tsx"
+import { TYPOGRAPHIC_BLOCK_SELECTOR } from "./selectors"
 
 css`@layer typography {
   kbd {
@@ -39,8 +40,18 @@ css`@layer typography {
     line-height: 1.5;
     color: inherit;
 
-    & > * {
+    /* Typographic children keep their own rhythm (the per-tag margins below refine this base). */
+    & > :where(${TYPOGRAPHIC_BLOCK_SELECTOR}) {
       margin-block: 1.5em;
+    }
+
+    /* Non-typographic children (rows, columns, widgets, nested prose) are spaced by the prose's
+       ambient spacing, padded or not. Applied as margins on both sides so that, through margin
+       collapsing, the gap next to a text element is the larger of the two — a text run keeps its
+       typographic rhythm, and two widgets get exactly the spacing between them. Zero specificity
+       (:where) so it never outranks anything more targeted. */
+    & > :where(:not(${TYPOGRAPHIC_BLOCK_SELECTOR})) {
+      margin-block: var(--e-spacing);
     }
 
     /* ── Headings ──────────────────────────────────────────── */
@@ -134,7 +145,7 @@ css`@layer typography {
 
       /* Matches whatever radius the immediate wrapper has (e.g. docs/src/code-example.tsx's
          <e-prose border pad="none">), rather than pre's own (nonexistent) radius squaring off a
-         rounded wrapper's corners from the inside — see specs/borders.md. Resolves to 0, same as
+         rounded wrapper's corners from the inside — see docs/md/elt-ui-reference.md. Resolves to 0, same as
          today, when pre's direct parent has no radius of its own (plain prose). */
 
       & code {

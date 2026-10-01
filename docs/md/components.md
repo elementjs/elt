@@ -116,7 +116,7 @@ tied to it. Use a real element as the observing root when you need connect/disco
 ## See also
 
 - [`decorators.md`](./decorators.md) — every `$…` decorator, with runnable examples.
-- [`using-elt-agent.md`](./using-elt-agent.md) — hard rules, routes/services, decorators.
+- [elt guide](./elt-guide.md) — hard rules, routes/services, decorators.
 - [`cheatsheet.md`](./cheatsheet.md) — quick reference tables.
 - `src/elt.ts` (`e()`, `RefChild`), `src/dom.ts` (`node_append`, `basic_attrs`), `src/types.ts`
   (`Attrs`, `Renderable`) — source of truth.

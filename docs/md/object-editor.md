@@ -11,9 +11,7 @@ holding any JSON-like value: objects, arrays (list or table layout), `Set`s, `Ma
 free-form "unknown mode" documents. Every example below is live, using the actual `elt/editor`
 package.
 
-> The widget is under active development — see [`specs/ui-object-editor.md`](../../specs/ui-object-editor.md)
-> for the full behavior spec (schema shapes, table auto-detection, row identity/VirtualScroll,
-> undo/redo).
+**Unstable:** `elt/editor` is under active development and its API may change without notice. Do not build on it in code that must keep working across elt upgrades.
 
 ## Schema-mode object
 
@@ -67,9 +65,7 @@ const shell = new ObjectEditorShell(o_ledger, { schema: ledger_schema })
 return shell.node
 ```
 
-Large tables (thousands of rows) use `VirtualScroll` internally — see
-[`specs/ui-object-editor.md`](../../specs/ui-object-editor.md) for row-identity and virtualization
-rules.
+Large tables (thousands of rows) use `VirtualScroll` internally.
 
 ## Set — unique members
 

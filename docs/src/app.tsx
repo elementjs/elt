@@ -18,9 +18,9 @@ function widget_nav_toggle() {
 
 // Dims the page and closes the drawer on tap, so the drawer behaves like a modal on mobile.
 function widget_nav_backdrop() {
-  return <e-prose class={[cls_nav_backdrop, { open: o_nav_open }]}>
+  return <div class={[cls_nav_backdrop, { open: o_nav_open }]}>
     {$on("click", () => o_nav_open.set(false))}
-  </e-prose>
+  </div>
 }
 
 function widget_nav() {
@@ -132,7 +132,7 @@ const oo_is_full_example = app.o_current_route.tf((rt) => rt?.name.includes("__f
 
 node_append(document.body, If(oo_is_full_example,
   content_column,
-  () => <e-row align="stretch" class={cls_main}>
+  () => <e-row spacing="none" align="stretch" class={cls_main}>
     {$observe(app.o_current_route, () => o_nav_open.set(false))}
     {widget_nav_toggle()}
     {widget_nav_backdrop()}

@@ -1,18 +1,35 @@
 # Elt - Agent Context
 
+This file is for working **on elt itself**. It is not shipped with the package; agents using elt in another project start from the documentation instead.
+
 ## Docs (progressive disclosure)
 
-Do not read all of `./docs` up front. Pick by branch:
+The documentation's entry point is [`docs/md/index.md`](./docs/md/index.md) — the same page agents and humans using the published package start from, and the root of the hosted docs site. Pick the one page it routes you to; do not read all of `./docs` up front. Inside a guide: read **Hard rules**, then only the section that matches the task.
 
-| Branch | Read |
-| ------ | ---- |
-| Choosing which doc to open | [`docs/md/index.md`](./docs/md/index.md) |
-| App code using **core elt** | [`docs/md/using-elt-agent.md`](./docs/md/using-elt-agent.md) |
-| **UI** (layout, theme, widgets, `"elt/ui"`) | [`ui/AGENTS.md`](./ui/AGENTS.md) → [`docs/md/using-elt-ui-agent.md`](./docs/md/using-elt-ui-agent.md) |
-| Feature specs | [`specs/`](./specs/) |
-| Architecture decisions | [`docs/src/adr/`](./docs/src/adr/) |
+`docs/md/` is written for people and agents **using** elt: it never states library-maintenance rules, and never links to `specs/`, `tests/`, `demo/` or this file (none of them are shipped). Maintainer-only rules live here and in [`ui/AGENTS.md`](./ui/AGENTS.md).
 
-Inside a guide: read **Hard rules**, then only the section that matches the task.
+## Commands
+
+| Command | Does |
+| ------- | ---- |
+| `just check` | Lint (biome) and type-check `src/`, `ui/`, `editor/` and `docs/`, and build the docs |
+| `just format` | Format and apply safe lint fixes across the project |
+| `bunx playwright test` | Run the test suite (`tests/*.pw.ts`, real browser) — see [`docs/md/testing.md`](./docs/md/testing.md) |
+| `just watch-docs` | Serve the docs site locally, type-checking `docs/` on every rebuild |
+
+## Repo map
+
+| Path | Role |
+| ---- | ---- |
+| `src/` | Core elt (observables, DOM, verbs, decorators, App) |
+| `ui/` | `elt/ui` sub-library — maintainer rules in [`ui/AGENTS.md`](./ui/AGENTS.md) |
+| `editor/` | `elt/editor`, the object editor (unstable) |
+| `docs/md/` | The documentation (source of truth): guides, reference, topic pages. Every `.md` here becomes a page of the docs site |
+| `docs/src/` | The docs site itself — an elt app (`app.tsx`) plus the markdown-to-page build (`macro.ts`) |
+| `docs/src/adr/` | Architecture decision records |
+| `tests/` | Playwright tests (`*.pw.ts`) and the browser harness (`tests/browser/`) |
+| `specs/` | Temporary implementation specs. Deleted once implemented and their content moved to `docs/md/`; never linked from docs |
+| `demo/` | Demo workspace (currently holds no sources) |
 
 # Instructions
 
@@ -30,22 +47,4 @@ Inside a guide: read **Hard rules**, then only the section that matches the task
 - When alerting me on problems or inconsistencies, use examples if the explanation is complex
 - Maintain `./docs` <-> code relevance
 - Use `biome format --write` when done writing code
-
-# When writing specs or code
-
-The redactor(s) write specs with you as a mirror, to help shape them as best as possible for a prompt implementation by a low/medium thinking agent.
-
-Spec language MUST be specification-only : no musing, rationale, or back-and-forth outside a blockquote. Everything outside a blockquote is a binding rule. A blockquote is optional context — skip it when implementing, and consult it only when a rule seems ambiguous or you want to check a judgment call. No remnant of our conversation may remain outside a blockquote ; code blocks are the one exception, where explanatory inline comments stay regardless.
-
-Blockquote types :
-
-- `> Why:` — rationale/justification for the rule immediately above it.
-- `> Question:` — a lingering question you need answered. Remove it once answered (in the text, or during conversation) ; amend it in place if the answer isn't sufficient yet.
-- `> Thoughts:` — your own scratch reasoning. The redactor deletes these by default ; delete one yourself only once it's gone obsolete (superseded, or its question already resolved elsewhere).
-- `> Advise:` — an explicit question from the redactor to you, however they label it (`Advise`, or whatever they happen to reach for in the moment — treat any clearly question-directed custom blockquote the same way). When you reply, delete the block itself, leaving the updated spec text in its place, plus any `> Thoughts:`/`> Question:` you want to leave behind.
-
-The redactor may also leave a question inline, outside any blockquote (e.g. a parenthetical) while redacting, for commodity. Address it like if it were `> Advise:`.
-
-# When writing code
-
-Similarly to spec work ; leave questions/dialogue with a marker, like //> Question: so that I can find items to go back to more easily by grepping.
+- Specs are implementative works and are eventually deleted ; they can't be the source of truth. Documentation is. Documentation NEVER links to specs. When a spec is to be removed, ensure the relevant parts missing from the docs are merged there.

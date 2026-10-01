@@ -60,7 +60,7 @@ export type ActivationResult = Activated | Reactivated
 export class App {
   /**
    * Register the routes and start the router. `options` choose between hash mode (default) and path mode,
-   * see specs/router-path-mode.md.
+   * see docs/md/app.md, "Hash mode and path mode".
    */
   setupRouter<R extends RouteDef>(route_defs: R, options?: RouterOptions): RoutesRes<R> {
     const _register = <R2 extends RouteDef>(defs: R2, prefix = "") => {

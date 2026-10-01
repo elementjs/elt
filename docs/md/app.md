@@ -59,7 +59,7 @@ export const routes = app.setupRouter(defs, { mode: "path", base: "/admin" })
 | `base` | `"/"` | Path mode only. URL prefix of the app. `"/admin/"` and `"/admin"` are the same. |
 | `intercept_links` | `true` | Path mode only. Handle clicks on `<a href>` that match a route without reloading the page. |
 
-Passing `base` or `intercept_links` without `mode: "path"` throws. The options are read once.
+Passing `base` or `intercept_links` without `mode: "path"` throws, and so does a `base` that does not start with `/`. The options are read once.
 
 In path mode, with base `/admin`:
 
@@ -140,9 +140,17 @@ await routes.user.activate({ id: "42" })
 
 **Always `await` an activation.** `App` tracks whether one is already in flight (`o_activating`); an un-awaited `activate()` call that overlaps another is not queued or stacked — the app detects the race and throws (`"un-waited activate() call detected. They MUST be awaited."`). A second activation requested *while* one is genuinely still pending doesn't stack either: only the most recently requested one survives (as a pending "reactivation"), any activation that had been waiting behind it is rejected, and the survivor runs immediately once the current activation finishes. Awaiting every call is what keeps this invisible in normal use.
 
-Path `""` is the landing route, matched by a bare empty hash — `activateFromUrl` resolves `""` specifically for that case. Path `"/"` is a different route, matched only by the literal hash `#/`. Calling `activateFromUrl()` again on an unchanged URL does nothing; pass `true` to force it.
+In hash mode, path `""` is the landing route, matched by a bare empty fragment, and path `"/"` is a different route, matched only by the literal `#/`. In path mode, see "Hash mode and path mode" above for how the base maps to `""` and `"/"`. Calling `app.router.activateFromUrl()` again on an unchanged URL does nothing; pass `true` to force it.
 
 `App._activate` is an internal entry point, not public API — always go through `router.<name>.activate()` (or a nested route's, same method) instead.
+
+## Links
+
+`route.urlFor(params)` returns the absolute URL that would activate `route` with `params` — path params fill the route path, every other key goes to the query, and `options.defaults` fill in missing path params. `route.url()` is `urlFor({})`. Throws on an internal route (`path: null`). Use these for `<a href>` instead of building URLs by hand; in path mode, a click on such a link is handled by the router without reloading the page (unless `intercept_links: false`).
+
+```tsx
+<a href={routes.user.urlFor({ id: 42 })}>Profile</a>
+```
 
 ## Lifecycle
 
@@ -160,5 +168,4 @@ A common derived value for active-nav styling: `o.expression((get) => get(app.o_
 
 - [`Observables`](./observables.md) — `o()`, `.tf()`, `o.expression`, all used throughout services and views.
 - [`Decorators`](./decorators.md) — `$click`, `$bind.*`, etc., used inside a service's `Content()`.
-- `src/app/app.ts`, `src/app/router.ts`, `src/app/route.ts`, `src/app/url-source.ts`, `src/app/service.ts`, `src/app/state.ts` — source of truth. `specs/router-path-mode.md` — router spec.
-- `tests/app.test.ts` — verified activation/lifecycle behavior.
+- `src/app/app.ts`, `src/app/router.ts`, `src/app/route.ts`, `src/app/url-source.ts`, `src/app/service.ts`, `src/app/state.ts` — source of truth.

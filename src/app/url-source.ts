@@ -1,6 +1,6 @@
 import { _urlKey } from "./params"
 
-/** Options given to `app.setupRouter(defs, options)`. See specs/router-path-mode.md. */
+/** Options given to `app.setupRouter(defs, options)`. See docs/md/app.md, "Hash mode and path mode". */
 export interface RouterOptions {
   /** `"hash"` (default) reads routes from the URL fragment, `"path"` from the URL path under `base`. */
   mode?: "hash" | "path"

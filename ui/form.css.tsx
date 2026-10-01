@@ -43,7 +43,7 @@ label {
 
   /* label wraps a widget-scale control (checkbox/toggle) but doesn't pad itself, so its radius
      can't derive from its own padding — "widget" is a deliberate override matching its sibling
-     controls below (see "Border radius is derived" in specs/elt-ui-guidelines.md). */
+     controls below (see "Borders and radius" in docs/md/elt-ui-reference.md). */
   ${theme.css_radius("widget")}
   gap: 4px;
   cursor: pointer;

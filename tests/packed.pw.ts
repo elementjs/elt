@@ -4,7 +4,7 @@ test.beforeEach(async ({ page }) => {
   await page.goto("/tests/browser/harness.html")
 })
 
-test.describe("packed seam suppression (specs/borders.md, per-element self-detection)", () => {
+test.describe("packed seam suppression (docs/md/elt-ui-reference.md, per-element self-detection)", () => {
   test("row: bordered button followed by an unbordered sibling still suppresses its own trailing border", async ({
     page,
   }) => {
@@ -175,7 +175,7 @@ test.describe("packed seam suppression (specs/borders.md, per-element self-detec
   })
 })
 
-test.describe("packed[border] (specs/borders.md)", () => {
+test.describe("packed[border] (docs/md/elt-ui-reference.md)", () => {
   test("packed[border] draws its own border and its own background matches that border's color", async ({ page }) => {
     const result = await page.evaluate(() => {
       const row = document.createElement("e-row")
@@ -328,7 +328,7 @@ test.describe("packed[border] (specs/borders.md)", () => {
     expect(result.bTrailing).not.toBe("0px")
   })
 
-  test("packed[border] does not clip its own overflow — radius is matched correctly instead (specs/borders.md)", async ({
+  test("packed[border] does not clip its own overflow — radius is matched correctly instead (docs/md/elt-ui-reference.md)", async ({
     page,
   }) => {
     const result = await page.evaluate(() => {
@@ -356,7 +356,7 @@ test.describe("packed[border] (specs/borders.md)", () => {
   })
 })
 
-test.describe("[surface]/[border] color-step value type (specs/borders.md)", () => {
+test.describe("[surface]/[border] color-step value type (docs/md/elt-ui-reference.md)", () => {
   test('border="neutral-surface" on an element with surface="neutral-2" resolves to neutral-3 — the level-stack offset', async ({
     page,
   }) => {
@@ -457,7 +457,7 @@ test.describe("[surface]/[border] color-step value type (specs/borders.md)", () 
   })
 })
 
-test.describe("theme.css_radius own-pad vs ambient priority (specs/borders.md)", () => {
+test.describe("theme.css_radius own-pad vs ambient priority (docs/md/elt-ui-reference.md)", () => {
   test('reads this element\'s own --e-pad when [pad="X"] is set on the same element', async ({ page }) => {
     const result = await page.evaluate(() => {
       const { theme } = window.__ELT__.UI
@@ -493,7 +493,7 @@ test.describe("theme.css_radius own-pad vs ambient priority (specs/borders.md)",
   })
 })
 
-test.describe("[surface]/[border] no longer clip their own overflow (specs/borders.md)", () => {
+test.describe("[surface]/[border] no longer clip their own overflow (docs/md/elt-ui-reference.md)", () => {
   test("[surface] does not set overflow at all, replacing the old unconditional overflow: hidden", async ({ page }) => {
     const overflow = await page.evaluate(() => {
       const el = document.createElement("e-prose")

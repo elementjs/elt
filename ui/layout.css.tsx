@@ -50,7 +50,7 @@ export interface CommonAttrs extends Attrs<HTMLElement> {
    * (no value) uses the `neutral` family; `"tint"`/`"neutral"` forces that family, still one step
    * up from ambient; `"tint-N"`/`"neutral-N"` (`N` 1-6) is that family at an absolute level,
    * ignoring what's ambient; `"background"` is absolute level 0. See "Surfaces and borders" in
-   * specs/elt-ui-guidelines.md.
+   * docs/md/ui-guidelines.md.
    */
   surface?: NRO<boolean | SurfaceValues>
   hover?: NRO<boolean>
@@ -91,7 +91,7 @@ export interface EFlexAttrs extends CommonAttrs {
   align?: NRO<AlignValues>
   justify?: NRO<AlignValues>
   /**
-   * Rule 6 (specs/elt-ui-guidelines.md, Golden rules): a boundary with no spacing whose
+   * Rule 6 (docs/md/ui-guidelines.md, Golden rules): a boundary with no spacing whose
    * children touch directly, uniformly padded. `pad` always pads the container itself, same as
    * everywhere else — it never applies to children here. To also pad every child uniformly: bare
    * `packed` reuses whatever `pad` resolves to (so `pad="X" packed` pads both the container and
@@ -114,7 +114,7 @@ export interface EFlexAttrs extends CommonAttrs {
    * `1px` gap between children, filled by the container's own background (the same color as its
    * border), becomes the visible seam. Every child gets `border: none` and
    * `background: var(--e-current-surface)` (its own explicit background, if any, still wins).
-   * See specs/borders.md.
+   * See docs/md/elt-ui-reference.md.
    */
   packed?: NRO<boolean | SpacingValues>
 }
@@ -150,7 +150,7 @@ function _(strings: TemplateStringsArray, ...values: unknown[]): void {
   more.push(result)
 }
 
-// [surface]/[border] share one value type (ColorStep, ui/theme.tsx) — see specs/borders.md.
+// [surface]/[border] share one value type (ColorStep, ui/theme.tsx) — see docs/md/elt-ui-reference.md.
 // Every literal value below routes through theme.css_surface/css_border (mirroring [pad]/[spacing]/
 // [radius] reading theme.css_pad/css_spacing/css_radius) so the attribute rules and the helpers can't
 // drift apart. Explicit values are excluded from the bare/default rule via a :not() chain, rather
@@ -199,7 +199,7 @@ for (const step of _color_steps) {
 // (no named step): derives from the ambient --e-current-spacing; an element with its own [pad]
 // overrides that with its own --e-pad instead — a second, later rule decides that priority by
 // cascade order, not a var() fallback chain, since --e-pad inherits and is always populated (a
-// var(--e-pad, fallback) chain would never reach its fallback — see specs/borders.md). A named
+// var(--e-pad, fallback) chain would never reach its fallback — see docs/md/elt-ui-reference.md). A named
 // step below overrides both, for an element that doesn't pad itself.
 //
 // `:where(:not(...))` rather than a bare `:not(...)`: `:not([x="none"])` on its own carries the
@@ -225,7 +225,7 @@ for (const al of align) {
 // `pad` implies `spacing` (spec: "a container with more than one child must set spacing between
 // them" — a padded container is exactly such a container). `spacing` never implies `pad` — the two
 // are one-directional, matching a boundary-less container that still needs to space un-merged
-// children (specs/elt-ui-guidelines.md, Golden rules, rule 5).
+// children (docs/md/ui-guidelines.md, Golden rules, rule 5).
 //
 // Priority, lowest to highest (CSS cascade with equal specificity — later wins):
 // 1. bare [pad] (no value) implies `component` spacing, same as bare [spacing] falling back to it.
@@ -242,7 +242,7 @@ for (const al of align) {
 // :not(): a bare :not([pad="none"]) carries the specificity of its argument (an attribute
 // selector), which would outrank the plain [pad="${sp}"] step selectors below despite coming
 // first in source order — silently preventing every named-step override from ever applying
-// (regression, found while implementing specs/borders.md: [pad="section"] and friends resolved to
+// (regression, found while implementing docs/md/elt-ui-reference.md: [pad="section"] and friends resolved to
 // the "component" default instead of their own step). :where() keeps this rule and (2) below
 // equal-specificity, cascading purely by source order, as intended.
 _`${_all}[pad]:where(:not([pad="none"])) { ${theme.css_pad("component")} ${theme.css_spacing("component")} }`
@@ -265,7 +265,7 @@ for (const sp of spaces) {
 // property genuinely absent (not merely 0) on non-[surface] elements, so `var(--e-current-surface-level, fallback)` reaches its fallback there.
 //
 // --e-current-surface-mix is the same pattern for the surface's color *family* — see
-// `--e-current-surface-mix` in `Mix.css_as_surface` (ui/theme.tsx) and specs/borders.md.
+// `--e-current-surface-mix` in `Mix.css_as_surface` (ui/theme.tsx) and docs/md/elt-ui-reference.md.
 css`
 @property --e-current-surface-level {
   syntax: "*";
@@ -284,10 +284,10 @@ css`
 // the purely functional variables that aren't theme settings.
 css`
 @layer components {
+  /* The ambient spacing/pad defaults (component step) live in theme.init, on the theme class, not
+     here: they read --e-spacing-*, which only the theme class defines, so on :root they would
+     resolve to nothing and that empty value is what every descendant would inherit. */
   :root {
-    ${theme.css_spacing("component")}
-    ${theme.css_pad("component")}
-
     --e-surface-level: 0;
     --e-surface-step: 10%;
   }
@@ -328,7 +328,7 @@ css`
      width, flex-shrink: 0). This does not, on its own, constrain the CROSS axis of a non-"stretch"
      item (e-column/e-row/e-flex's own default is align-items: baseline) — that axis needs an
      explicit align="stretch"/align-items: stretch on the container instead, or the item can still
-     grow past it via max-content sizing (see specs/borders.md, the <pre> width investigation). */
+     grow past it via max-content sizing (see docs/md/elt-ui-reference.md, the <pre> width investigation). */
   ${_layouters} > * {
     min-width: 0;
     min-height: 0;
@@ -410,7 +410,7 @@ css`
 
   /* packed WITHOUT its own border: each child suppresses its own trailing-edge border, whether or
      not it actually has one — a no-op on an unbordered child. No BORDERED_SELECTOR lookup, no
-     :has() lookahead at a sibling: each child only ever looks at its own position. See specs/borders.md. */
+     :has() lookahead at a sibling: each child only ever looks at its own position. See docs/md/elt-ui-reference.md. */
   :is(e-row, e-flex:not([column]))[packed]:not([border]) > *:not(:last-child) {
     border-right: none;
   }
@@ -443,7 +443,7 @@ css`
      has neither [border] nor [radius], this does not apply: each child keeps whatever radius it
      resolved on its own (matching [border] ownership itself in that case — see above). The
      inherit keyword on each longhand forces that one declaration to read the parent's computed
-     value, regardless of whether border-radius normally inherits (it doesn't). See specs/borders.md. */
+     value, regardless of whether border-radius normally inherits (it doesn't). See docs/md/elt-ui-reference.md. */
   :is(e-row, e-flex:not([column]))[packed]:is([border],[radius]):where(:not([radius="none"])) > *:first-child {
     border-top-left-radius: inherit;
     border-bottom-left-radius: inherit;

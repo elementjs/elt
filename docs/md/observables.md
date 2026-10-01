@@ -88,13 +88,20 @@ return <e-row spacing>
 
 Checking one box sets `o_color` to that color, which un-checks every other box — because they're all bound to the same underlying observable through `tf_equals`, not to independent local state.
 
-`src/observable/transformers.ts` has more converters for common shapes — a few worth knowing by name (see that file for the full list and exact signatures):
+`elt` exports more converters for common shapes, all named `tf_*` (exact signatures in the JSDoc of `src/observable/transformers.ts`). Each is passed to `.tf()`. Their arguments may themselves be observables, in which case the derived value re-computes when they change. All of them are writable when the source is: writing to the derived observable writes back into the source (the table says how where it is not obvious).
 
-| Converter                    | Does                                                          |
-| ----------------------------- | -------------------------------------------------------------- |
-| `tf_equals(value)`            | Writable boolean: "does the source equal `value`?" (above)     |
-| `tf_array_to_map(extractor)`  | View an array as a `Map`, keyed by `extractor`                 |
-| `tf_array_sort(compareFn)`    | View an array sorted by a comparator, without mutating it      |
+| Converter | Does |
+| --------- | ---- |
+| `tf_equals(value)` | Boolean "does the source equal `value`?". Writing `true` sets the source to `value`; writing `false` does nothing. |
+| `tf_array_filter(condition, stable?)` | The items passing `condition(item, idx, list)`. Writes go back to the matching items of the source. With `stable` true, only re-filters when `condition` changes, not when the array does. |
+| `tf_array_sort(compare)` | The array sorted by `compare` (must return `-1`, `0` or `1`), without mutating the source. |
+| `tf_array_sort_by(sorters)` | Same, by a list of extractors in order of importance; `[extractor, "desc"]` reverses one. |
+| `tf_array_transform(indices)` | The general form behind filter and sort: an array of indices, or a function from the array to indices. |
+| `tf_array_group_by(extractor)` | `[key, items][]` pairs, grouping items by `extractor(item)`. |
+| `tf_array_to_map(extractor)` / `tf_group_by_to_map(extractor)` | A `Map` keyed by `extractor(item)`, holding one item / an array of items per key. |
+| `tf_array_to_object(extractor)` / `tf_group_by_to_object(extractor)` | Same, as a plain object. |
+| `tf_entries()` / `tf_map_entries()` | An object's / a `Map`'s `[key, value][]` entries. |
+| `tf_array_has(...values)` / `tf_set_has(...values)` / `tf_map_has(...pairs)` | Boolean "are all these present?". Writing `true` adds the missing ones, writing `false` removes them. |
 
 ## `.p()` and `.key()` — binding one field
 

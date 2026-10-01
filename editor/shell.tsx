@@ -84,7 +84,7 @@ export class ObjectEditorShell {
             ev.detail.open_as,
           )
         })}
-        <e-flex class={cls_strip}>
+        <e-flex spacing="none" class={cls_strip}>
           {Repeat(this.o_columns, (o_col, o_idx) => {
             if (o_col.get().presentation === "popup") {
               return document.createComment("oe-popup") as unknown as Renderable<Node>
@@ -212,7 +212,7 @@ export class ObjectEditorShell {
       const o_widget = column.o_factory.tf((factory) => factory.render(column.o_value))
 
       const panel = (
-        <e-flex column class={cls_popup_panel}>
+        <e-flex column spacing="none" class={cls_popup_panel}>
           {$connected((el: HTMLElement) => {
             column.host = (el.closest("[popover]") as HTMLElement | null) ?? el
           })}
@@ -252,7 +252,7 @@ export class ObjectEditorShell {
           if (!column.unwatch) this.watch_column(column, idx, is_root)
           const o_widget = column.o_factory.tf((factory) => factory.render(column.o_value))
           return (
-            <e-flex column class={cls_column_body}>
+            <e-flex column spacing="none" class={cls_column_body}>
               <e-flex column pad="widget" class={cls_column_header}>
                 <e-flex full-width justify="space-between" align="center">
                   {column.title != null && <span>{column.title}</span>}
@@ -291,8 +291,8 @@ export class ObjectEditorShell {
 const cls_shell = css`.oe-shell {
   border: 1px solid ${theme.colors.text.separator};
   /* Doesn't pad itself, so radius can't derive from its own padding — "section" is a deliberate
-     override matching the frame's old fixed 16px radius (see "Border radius is derived" in
-     specs/elt-ui-guidelines.md). */
+     override matching the frame's old fixed 16px radius (see "Borders and radius" in
+     docs/md/elt-ui-reference.md). */
   ${theme.css_radius("section")}
   overflow: hidden;
 }`

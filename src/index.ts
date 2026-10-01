@@ -1,3 +1,4 @@
+// Documentation: docs/md/index.md (from the package root) — start there.
 // Export everything.
 export * from "./types"
 export * from "./symbols"

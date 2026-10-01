@@ -12,3 +12,10 @@ export const FORM_CONTROL_SELECTOR =
   'input[type="date"], input[type="time"], input[type="datetime-local"], ' +
   "textarea, select, " +
   'label[e-variant="toggle"]'
+
+// Block-level typographic elements: inside an <e-prose>, a run of these forms one "text run" whose
+// vertical rhythm is set by ui/typography.css.tsx's own margins. Every other direct child of an
+// <e-prose> (rows, columns, widgets, …) is a non-typographic child, spaced by the prose's
+// `spacing` instead (see "Text runs" in docs/md/ui-guidelines.md).
+export const TYPOGRAPHIC_BLOCK_SELECTOR =
+  "h1, h2, h3, h4, h5, h6, p, ul, ol, dl, blockquote, pre, table, hr, figure, details"

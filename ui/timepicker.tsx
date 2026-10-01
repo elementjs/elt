@@ -43,7 +43,7 @@ export function ScrollColumn(opts: ScrollColumnOpts) {
   }
 
   return (
-    <e-column>
+    <e-column spacing="none">
       {$connected((node: HTMLElement) => {
         let touch_id: number | null = null
         let touch_y = 0
