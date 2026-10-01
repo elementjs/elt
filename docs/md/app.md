@@ -46,7 +46,7 @@ A route definition is one of:
 
 ## Hash mode and path mode
 
-By default routes live in the URL fragment (`https://host/page#/users/1?tab=2`). Path mode puts them in the URL path under a fixed prefix, the **base**, and leaves the fragment to the page (anchors, `#section` links):
+By default routes live in the URL fragment (`https://host/page#/users/1?tab=2`). Path mode puts them in the URL path under a fixed prefix, the **base**, and leaves the fragment to the page: once a route has activated, the router scrolls to the element the fragment names (see "Scrolling to a fragment" below):
 
 ```ts
 export const routes = app.setupRouter(defs, { mode: "path", base: "/admin" })
@@ -58,17 +58,41 @@ export const routes = app.setupRouter(defs, { mode: "path", base: "/admin" })
 | `mode` | `"hash"` | `"hash"` or `"path"` |
 | `base` | `"/"` | Path mode only. URL prefix of the app. `"/admin/"` and `"/admin"` are the same. |
 | `intercept_links` | `true` | Path mode only. Handle clicks on `<a href>` that match a route without reloading the page. |
+| `scroll_to_fragment` | `true` | Path mode only. Scroll to the element named by the URL fragment once a route has activated. |
 
-Passing `base` or `intercept_links` without `mode: "path"` throws, and so does a `base` that does not start with `/`. The options are read once.
+Passing `base`, `intercept_links` or `scroll_to_fragment` without `mode: "path"` throws, and so does a `base` that does not start with `/`. The options are read once.
 
 In path mode, with base `/admin`:
 
 - `/admin` is route path `""` (landing), `/admin/` is route path `"/"`, `/admin/users/1` is `"/users/1"`.
 - A URL outside the base (`/other`, `/administration`) activates nothing and logs a warning. With base `/`, the root URL `/` is route path `"/"`: register the root page as `"/"`, not `""`.
-- The query comes from `location.search`. The router never reads nor writes the fragment.
+- The query comes from `location.search`. The fragment is the page's: it is never part of a route path, and the router only writes it when you ask (see "Scrolling to a fragment").
 - Link interception skips links with a modifier key or a non-left button, a `target` other than `_self`, a `download` attribute, another origin, a URL outside the base or matching no route, a fragment-only change, and clicks already cancelled by `preventDefault()`. Those are left to the browser.
 - The server must serve the app for every URL under the base, or deep links 404.
-- The router never scrolls; scrolling to the top or to a fragment after navigation is up to the app.
+- Navigating to a route without a fragment does not scroll: scrolling back to the top after a navigation is up to the app.
+
+### Scrolling to a fragment
+
+In path mode, a navigation that names a fragment (`/admin/docs/1#install`) scrolls to the element with that `id` (or, failing that, an `<a name>`) once the route has activated. The fragment is percent-decoded first. The element is scrolled into view with `scrollIntoView()`, so nested scrollable containers work and CSS `scroll-margin-top` keeps it clear of a fixed header. The scroll is instant, and takes no keyboard focus.
+
+A navigation scrolls when it comes from:
+
+- the initial page load,
+- a click on a link the router handles (the link may change only the query: `?tab=2#install` still scrolls),
+- `route.activate(params, { fragment })`, which also writes the fragment in the URL. Changing only the fragment of the current route does not reactivate its service, but adds a history entry, like clicking a `#anchor` link.
+
+These do not scroll: Back and Forward (the browser restores the position it saved), query changes made by the app's own params, a failed activation, and an empty or unknown fragment. `#top` scrolls to the top of the page unless an element has the id `top`. A fragment-only link (`<a href="#install">` on the current URL) is left to the browser, as with `intercept_links`.
+
+Views often render after the route has activated (lazy imports, data loading). If the element is not in the page yet, the router waits for it to appear, for 2 seconds at most. The wait ends early if the user scrolls or presses a key, or if another navigation starts.
+
+The `:target` CSS pseudo-class does not match elements scrolled to this way, since the browser does not know about the scroll: style the target from your own state instead. Set `scroll_to_fragment: false` to scroll yourself; `{ fragment }` then still writes the URL.
+
+```ts
+await routes.doc.activate({ id: 3 }, { fragment: "install" }) // /admin/docs/3#install
+routes.doc.urlFor({ id: 3 }, { fragment: "install" }) // https://host/admin/docs/3#install
+```
+
+When the route path changes by code without `fragment`, the fragment is dropped: a new page has no business keeping the previous page's anchor. A change of query only keeps it. `fragment` is the bare name, without `#`, and is percent-encoded in the URL. In hash mode, where the fragment holds the route, passing `fragment` throws.
 
 In both modes, the router **adds a history entry** when the route path changes (`/users/1` → `/users/2`) and **replaces the current entry** when only the query changes, so a param-bound filter does not create one Back step per keystroke. Its first URL write after startup always replaces, so that Back leaves the app instead of landing on a non-canonical URL.
 
@@ -146,7 +170,7 @@ In hash mode, path `""` is the landing route, matched by a bare empty fragment, 
 
 ## Links
 
-`route.urlFor(params)` returns the absolute URL that would activate `route` with `params` — path params fill the route path, every other key goes to the query, and `options.defaults` fill in missing path params. `route.url()` is `urlFor({})`. Throws on an internal route (`path: null`). Use these for `<a href>` instead of building URLs by hand; in path mode, a click on such a link is handled by the router without reloading the page (unless `intercept_links: false`).
+`route.urlFor(params)` returns the absolute URL that would activate `route` with `params` — path params fill the route path, every other key goes to the query, and `options.defaults` fill in missing path params. `route.url()` is `urlFor({})`. Throws on an internal route (`path: null`). Use these for `<a href>` instead of building URLs by hand; in path mode, a click on such a link is handled by the router without reloading the page (unless `intercept_links: false`). In path mode, `urlFor(params, { fragment })` appends a page fragment.
 
 ```tsx
 <a href={routes.user.urlFor({ id: 42 })}>Profile</a>

@@ -1,3 +1,4 @@
+import { _fragmentToHash } from "./fragment"
 import { _urlKey } from "./params"
 
 /** Options given to `app.setupRouter(defs, options)`. See docs/md/app.md, "Hash mode and path mode". */
@@ -8,6 +9,8 @@ export interface RouterOptions {
   base?: string
   /** Path mode only. Handle clicks on links that match a route without reloading the page. Default `true`. */
   intercept_links?: boolean
+  /** Path mode only. Once a route has activated by a navigation naming a fragment, scroll to the element it designates. Default `true`. */
+  scroll_to_fragment?: boolean
 }
 
 /** The subset of `Location` / `URL` that a UrlSource reads. */
@@ -23,12 +26,17 @@ export interface UrlLike {
  * so that route matching and activation do not depend on the mode.
  */
 export interface UrlSource {
-  /** Current route path and route query of `loc`, or null when `loc` is outside the base. */
-  read(loc?: UrlLike): { path: string; query: string } | null
-  /** Absolute URL for a route path and route query. */
-  href(path: string, query: string): string
-  /** Adds a history entry if `push`, else replaces the current one. */
-  write(path: string, query: string, push: boolean): void
+  /** True when the URL fragment is free for the page (path mode) ; false when it holds the route (hash mode). */
+  readonly page_fragment: boolean
+  /** Current route path and route query of `loc`, or null when `loc` is outside the base. `fragment` is the raw page fragment, without the `#`. */
+  read(loc?: UrlLike): { path: string; query: string; fragment: string } | null
+  /** Absolute URL for a route path, route query and page fragment name. */
+  href(path: string, query: string, fragment?: string): string
+  /**
+   * Adds a history entry if `push`, else replaces the current one.
+   * Without `fragment` the current fragment is kept on replace and dropped on push.
+   */
+  write(path: string, query: string, push: boolean, fragment?: string): void
   /** Calls `cb` when the user navigates (Back/Forward, typed URL, ...). */
   listen(cb: () => void): void
 }
@@ -40,10 +48,14 @@ function _history_write(url: string, push: boolean) {
 
 /** Routes live in the fragment : `#/route/path?query`. */
 export class HashUrlSource implements UrlSource {
+  page_fragment = false
+
   read(loc: UrlLike = window.location) {
     const fragment = loc.hash.slice(1)
     const q = fragment.indexOf("?") // split at the first "?" only, the query may contain more
-    return q < 0 ? { path: fragment, query: "" } : { path: fragment.slice(0, q), query: fragment.slice(q + 1) }
+    return q < 0
+      ? { path: fragment, query: "", fragment: "" }
+      : { path: fragment.slice(0, q), query: fragment.slice(q + 1), fragment: "" }
   }
 
   href(path: string, query: string) {
@@ -62,6 +74,7 @@ export class HashUrlSource implements UrlSource {
 
 /** Routes live in the URL path after `base`, the query in `location.search`. The fragment is left alone. */
 export class PathUrlSource implements UrlSource {
+  page_fragment = true
   /** normalized base : no trailing "/", so "/" becomes "" */
   base: string
 
@@ -78,7 +91,7 @@ export class PathUrlSource implements UrlSource {
     // the prefix must end at a "/" boundary : /application is not under /app
     else if (p.startsWith(`${b}/`)) path = p.slice(b.length)
     else return null
-    return { path, query: loc.search.slice(1) }
+    return { path, query: loc.search.slice(1), fragment: loc.hash.slice(1) }
   }
 
   /** URL without origin nor fragment */
@@ -87,13 +100,14 @@ export class PathUrlSource implements UrlSource {
     return key === "" || key[0] === "?" ? `/${key}` : key
   }
 
-  href(path: string, query: string) {
-    return location.origin + this.__relative(path, query)
+  href(path: string, query: string, fragment = "") {
+    return location.origin + this.__relative(path, query) + _fragmentToHash(fragment)
   }
 
-  write(path: string, query: string, push: boolean) {
-    // the fragment belongs to the page : keep it when only replacing
-    _history_write(this.__relative(path, query) + (push ? "" : location.hash), push)
+  write(path: string, query: string, push: boolean, fragment?: string) {
+    // the fragment belongs to the page : unless given, keep it when only replacing
+    const hash = fragment !== undefined ? _fragmentToHash(fragment) : push ? "" : location.hash
+    _history_write(this.__relative(path, query) + hash, push)
   }
 
   listen(cb: () => void) {
@@ -104,7 +118,7 @@ export class PathUrlSource implements UrlSource {
 /** @internal build the UrlSource described by `options`, validating them */
 export function _createUrlSource(options: RouterOptions): UrlSource {
   if (options.mode === "path") return new PathUrlSource(options.base ?? "/")
-  if (options.base !== undefined || options.intercept_links !== undefined)
-    throw new Error(`router options "base" and "intercept_links" require mode: "path"`)
+  if (options.base !== undefined || options.intercept_links !== undefined || options.scroll_to_fragment !== undefined)
+    throw new Error(`router options "base", "intercept_links" and "scroll_to_fragment" require mode: "path"`)
   return new HashUrlSource()
 }

@@ -191,12 +191,14 @@ test.describe("Router", () => {
       return {
         base_in_hash_mode: error(() => new App().setupRouter({}, { base: "/app" })),
         intercept_in_hash_mode: error(() => new App().setupRouter({}, { intercept_links: false })),
+        scroll_in_hash_mode: error(() => new App().setupRouter({}, { scroll_to_fragment: false })),
         relative_base: error(() => new App().setupRouter({}, { mode: "path", base: "app" })),
         rest_not_last: error(() => new App().setupRouter({ r: ["/f/:p*/x", srv] })),
       }
     })
     expect(result.base_in_hash_mode).toContain("mode")
     expect(result.intercept_in_hash_mode).toContain("mode")
+    expect(result.scroll_in_hash_mode).toContain("scroll_to_fragment")
     expect(result.relative_base).toContain("must start with")
     expect(result.rest_not_last).toContain("last token")
   })
@@ -534,5 +536,254 @@ test.describe("Router", () => {
       return intercepted
     })
     expect(intercepted).toBe(false)
+  })
+
+  test("path mode: initial URL fragment scrolls to a target rendered late, not to one that never comes", async ({
+    page,
+  }) => {
+    const result = await page.evaluate(async () => {
+      const { App } = window.__ELT__
+      // the harness document does not scroll : use a scroll container, as an app layout would
+      const box = document.createElement("div")
+      box.id = "box"
+      box.style.cssText = "position:fixed;inset:0;overflow:auto"
+      const spacer = document.createElement("div")
+      spacer.style.height = "5000px"
+      box.append(spacer)
+      document.body.append(box)
+      const app = new App()
+      app.setupRouter(
+        {
+          doc: [
+            "/doc",
+            () => async () => {
+              // views render after the activation promise would have been looked at
+              setTimeout(() => {
+                const t = document.createElement("div")
+                t.id = "a b"
+                t.style.cssText = "position:absolute;top:3000px;height:20px"
+                box.append(t)
+              }, 150)
+            },
+          ],
+        },
+        { mode: "path", base: "/app" },
+      )
+      history.replaceState(null, "", "/app/doc#a%20b")
+      await app.router.activateFromUrl(true, true)
+      const before = box.scrollTop
+      const end = Date.now() + 1500
+      while (box.scrollTop === 0 && Date.now() < end) await new Promise((r) => setTimeout(r, 10))
+      const scrolled = Math.abs(document.getElementById("a b")!.getBoundingClientRect().top) < 2
+
+      // an unknown target neither throws nor scrolls
+      box.scrollTop = 0
+      history.replaceState(null, "", "/app/doc#nope")
+      await app.router.activateFromUrl(true, true)
+      await new Promise((r) => setTimeout(r, 100))
+      return { before, scrolled, after_unknown: box.scrollTop, hash: location.hash }
+    })
+    expect(result.before).toBe(0)
+    expect(result.scrolled).toBe(true)
+    expect(result.after_unknown).toBe(0)
+    expect(result.hash).toBe("#nope")
+  })
+
+  test("path mode: link clicks scroll, query-only writes and Back do not", async ({ page }) => {
+    const result = await page.evaluate(async () => {
+      const { App } = window.__ELT__
+      // the harness document does not scroll : use a scroll container, as an app layout would
+      const box = document.createElement("div")
+      box.id = "box"
+      box.style.cssText = "position:fixed;inset:0;overflow:auto"
+      const spacer = document.createElement("div")
+      spacer.style.height = "5000px"
+      box.append(spacer)
+      document.body.append(box)
+      const target = document.createElement("div")
+      target.id = "target"
+      target.style.cssText = "position:absolute;top:3000px;height:20px"
+      box.append(target)
+      const settle = () => new Promise((r) => setTimeout(r, 100))
+
+      const app = new App()
+      app.setupRouter(
+        {
+          doc: [
+            "/doc/:id",
+            () => async (srv: import("elt").ServiceHelper<any>) => {
+              srv.param("id")
+              srv.param_soft("q")
+            },
+          ],
+          other: ["/other", () => async () => {}],
+        },
+        { mode: "path", base: "/app" },
+      )
+      history.replaceState(null, "", "/app/doc/1")
+      await app.router.activateFromUrl(true)
+
+      const click = async (href: string) => {
+        const a = document.createElement("a")
+        a.href = href
+        document.body.append(a)
+        a.click()
+        a.remove()
+        while (app.o_activating.get()) await new Promise((r) => setTimeout(r, 0))
+        await settle()
+      }
+      const top = () => Math.round(Math.abs(target.getBoundingClientRect().top))
+
+      // a link to another route with a fragment
+      await click("/app/doc/2#target")
+      const link_scrolls = top() < 2
+
+      // a query-only write driven by the params, with the fragment still in the URL, does not scroll
+      box.scrollTop = 0
+      app.o_params.set({ id: 2, q: "x" })
+      await settle()
+      const query_write_scrolls = box.scrollTop !== 0
+
+      // a query-only link naming the fragment does
+      await click("/app/doc/2?q=y#target")
+      const query_link_scrolls = top() < 2
+
+      // Back does not : the browser restores the scroll position it saved
+      await click("/app/other")
+      box.scrollTop = 0
+      let back_scrolls = 0
+      const scrollTo = app.router.__scrollTo.bind(app.router)
+      app.router.__scrollTo = (f: string) => (back_scrolls++, scrollTo(f))
+      const popped = new Promise((r) => window.addEventListener("popstate", r, { once: true }))
+      history.back()
+      await popped
+      await settle()
+      const back = { path: location.pathname, back_scrolls }
+      return { link_scrolls, query_write_scrolls, query_link_scrolls, back }
+    })
+    expect(result.link_scrolls).toBe(true)
+    expect(result.query_write_scrolls).toBe(false)
+    expect(result.query_link_scrolls).toBe(true)
+    expect(result.back.path).toBe("/app/doc/2")
+    expect(result.back.back_scrolls).toBe(0)
+  })
+
+  test("path mode: activate and urlFor with a fragment", async ({ page }) => {
+    const result = await page.evaluate(async () => {
+      const { App } = window.__ELT__
+      // the harness document does not scroll : use a scroll container, as an app layout would
+      const box = document.createElement("div")
+      box.id = "box"
+      box.style.cssText = "position:fixed;inset:0;overflow:auto"
+      const spacer = document.createElement("div")
+      spacer.style.height = "5000px"
+      box.append(spacer)
+      document.body.append(box)
+      const target = document.createElement("div")
+      target.id = "target"
+      target.style.cssText = "position:absolute;top:3000px;height:20px"
+      box.append(target)
+      const settle = () => new Promise((r) => setTimeout(r, 100))
+      const rel = () => location.href.slice(location.origin.length)
+
+      const app = new App()
+      const routes = app.setupRouter(
+        {
+          doc: ["/doc/:id", () => async (srv: import("elt").ServiceHelper<any>) => void srv.param("id")],
+          quiet: ["/quiet", () => async () => {}, { silent: true }],
+          bad: ["/bad", () => async () => Promise.reject(new Error("nope"))],
+          __error__: ["/error", () => async () => {}],
+        },
+        { mode: "path", base: "/app" },
+      )
+      history.replaceState(null, "", "/app/doc/1")
+      await app.router.activateFromUrl(true)
+      await routes.doc.activate({ id: 9 }) // the first write after startup replaces : get it out of the way
+      const l0 = history.length
+
+      const url = routes.doc.urlFor({ id: 5 }, { fragment: "a b" }).slice(location.origin.length)
+
+      await routes.doc.activate({ id: 2 }, { fragment: "target" })
+      await settle()
+      const route_change = [rel(), history.length - l0, Math.round(Math.abs(target.getBoundingClientRect().top)) < 2]
+
+      // same route and params, other fragment : no re-activation, one more history entry
+      box.scrollTop = 0
+      await routes.doc.activate({ id: 2 }, { fragment: "other" })
+      await settle()
+      const fragment_only = [rel(), history.length - l0]
+
+      // an empty fragment removes it and scrolls nowhere
+      await routes.doc.activate({ id: 2 }, { fragment: "" })
+      const cleared = [rel(), box.scrollTop]
+
+      // a failed activation neither scrolls nor leaves the fragment in the URL
+      await routes.bad.activate({}, { fragment: "target" }).catch(() => {})
+      await settle()
+      const failed = [box.scrollTop, location.hash]
+
+      // no fragment : the old behaviour, the fragment is dropped on a route change
+      await routes.doc.activate({ id: 3 }, { fragment: "x" })
+      await routes.doc.activate({ id: 4 })
+      return { url, route_change, fragment_only, cleared, failed, dropped: location.hash }
+    })
+    expect(result.url).toBe("/app/doc/5#a%20b")
+    expect(result.route_change).toEqual(["/app/doc/2#target", 1, true])
+    expect(result.fragment_only).toEqual(["/app/doc/2#other", 2])
+    expect(result.cleared).toEqual(["/app/doc/2", 0])
+    expect(result.failed[0]).toBe(0)
+    expect(result.failed[1]).toBe("")
+    expect(result.dropped).toBe("")
+  })
+
+  test("path mode: scroll_to_fragment: false writes the fragment but never scrolls", async ({ page }) => {
+    const result = await page.evaluate(async () => {
+      const { App } = window.__ELT__
+      // the harness document does not scroll : use a scroll container, as an app layout would
+      const box = document.createElement("div")
+      box.id = "box"
+      box.style.cssText = "position:fixed;inset:0;overflow:auto"
+      const spacer = document.createElement("div")
+      spacer.style.height = "5000px"
+      box.append(spacer)
+      document.body.append(box)
+      const target = document.createElement("div")
+      target.id = "target"
+      target.style.cssText = "position:absolute;top:3000px;height:20px"
+      box.append(target)
+
+      const app = new App()
+      const routes = app.setupRouter(
+        { doc: ["/doc", () => async () => {}] },
+        { mode: "path", base: "/app", scroll_to_fragment: false },
+      )
+      history.replaceState(null, "", "/app/doc#target")
+      await app.router.activateFromUrl(true, true)
+      await routes.doc.activate({}, { fragment: "target" })
+      await new Promise((r) => setTimeout(r, 100))
+      return { scrollY: box.scrollTop, hash: location.hash }
+    })
+    expect(result).toEqual({ scrollY: 0, hash: "#target" })
+  })
+
+  test("hash mode: a fragment option throws", async ({ page }) => {
+    const result = await page.evaluate(async () => {
+      const { App } = window.__ELT__
+      const routes = new App().setupRouter({ home: ["/home", () => async () => {}] })
+      const error = async (fn: () => unknown) => {
+        try {
+          await fn()
+          return "no error"
+        } catch (e) {
+          return (e as Error).message
+        }
+      }
+      return [
+        await error(() => routes.home.urlFor({}, { fragment: "x" })),
+        await error(() => routes.home.activate({}, { fragment: "x" })),
+      ]
+    })
+    expect(result[0]).toContain("path")
+    expect(result[1]).toContain("path")
   })
 })

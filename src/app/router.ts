@@ -1,4 +1,5 @@
 import { o } from "../observable"
+import { _decodeFragment, FRAGMENT_NEEDS_PATH_MODE, _scrollToFragment } from "./fragment"
 import { _parseQuery, _urlKey, type ServiceParams } from "./params"
 import { Route } from "./route"
 import type { App, RouteOptions } from "./app"
@@ -26,6 +27,17 @@ export class Router {
   /** false until the router first writes the URL ; that first write replaces the history entry */
   __wrote_url = false
 
+  /** Path mode : scroll to the fragment after a navigation that names one */
+  __scroll_to_fragment = false
+  /** Stops the search of the previous fragment target, if still running */
+  __cancel_scroll: (() => void) | null = null
+  /**
+   * Fragment of the programmatic navigation in progress, and the route it is for.
+   * `_writeUrl` writes it in the URL instead of keeping the current one, unless another route
+   * (the error route of a failed activation) is writing.
+   */
+  __fragment: { route: Route<any>; fragment: string } | null = null
+
   /** routes with a route path, by route path */
   protected __routes = new Map<string, Route<any>>()
   /** routes whose route path has params, in registration order */
@@ -50,8 +62,10 @@ export class Router {
    * @internal
    * activate a service from the current URL
    * @param force if true, the service will be activated even if the URL did not change (useful for login)
+   * @param scroll if true, scroll to the URL fragment once the route has activated (path mode with `scroll_to_fragment`).
+   * Not for Back/Forward, where the browser restores the scroll position it saved.
    */
-  activateFromUrl(force = false) {
+  async activateFromUrl(force = false, scroll = false) {
     const cur = this.source.read()
     if (cur == null) {
       console.warn(`url is outside the router base ${location.pathname}`)
@@ -79,7 +93,37 @@ export class Router {
     }
 
     // path params win over query params ; defaults are applied underneath by activateWithParams
-    return found.route.activateWithParams(Object.assign(query, found.params))
+    await found.route.activateWithParams(Object.assign(query, found.params))
+    // not awaited : the search for a late target must not hold the url lock
+    if (scroll && this.o_active_route.get() === found.route) this.__scrollTo(_decodeFragment(cur.fragment))
+  }
+
+  /** Scroll to the element named `fragment`, if enabled. Replaces any search still running for a previous one. */
+  __scrollTo(fragment: string) {
+    if (this.__scroll_to_fragment) this.__cancel_scroll = _scrollToFragment(fragment)
+  }
+
+  /**
+   * @internal
+   * Activate `route` by code with a page fragment : it goes in the URL, and the page scrolls to it.
+   * A fragment change alone adds a history entry, like clicking a `#anchor` link.
+   */
+  async _activateWithFragment(route: Route<any>, params: ServiceParams, fragment: string) {
+    if (!this.source.page_fragment) throw new Error(FRAGMENT_NEEDS_PATH_MODE)
+    this.__fragment = { route, fragment }
+    try {
+      await route.activateWithParams(params)
+    } finally {
+      this.__fragment = null
+    }
+    // failed (the error route is active) or superseded by another activation
+    if (this.o_active_route.get() !== route) return
+
+    // the URL was not written if it did not change, or if the route is silent
+    const cur = this.source.read()
+    if (cur != null && !route.options.silent && _decodeFragment(cur.fragment) !== fragment)
+      this.source.write(cur.path, cur.query, true, fragment)
+    this.__scrollTo(fragment)
   }
 
   /**
@@ -92,7 +136,8 @@ export class Router {
     const cur = this.source.read()
     if (cur == null || _urlKey(cur.path, cur.query) !== key) {
       const push = this.__wrote_url && cur?.path !== path
-      this.source.write(path, query, push)
+      const fragment = this.__fragment?.route === this.__last_activated_route ? this.__fragment?.fragment : undefined
+      this.source.write(path, query, push, fragment)
       this.__wrote_url = true
     }
     this._last_url = key
@@ -124,7 +169,7 @@ export class Router {
 
     e.preventDefault()
     if (url.href !== location.href) history.pushState(null, "", url.href)
-    this.__url_lock(() => this.activateFromUrl())
+    this.__url_lock(() => this.activateFromUrl(false, true))
   }
 
   /**
@@ -132,8 +177,9 @@ export class Router {
    */
   setupRouter(options: RouterOptions = {}) {
     this.source = _createUrlSource(options)
+    this.__scroll_to_fragment = options.mode === "path" && options.scroll_to_fragment !== false
 
-    setTimeout(() => this.activateFromUrl())
+    setTimeout(() => this.activateFromUrl(false, true))
     this.source.listen(() => {
       this.__url_lock(() => this.activateFromUrl())
     })

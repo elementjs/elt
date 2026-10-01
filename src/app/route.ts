@@ -1,6 +1,7 @@
 import { _decode, _encode, _formatQuery, type ServiceParams } from "./params"
 import type { ServiceBuilder } from "./service"
 import type { RouteOptions } from "./app"
+import { FRAGMENT_NEEDS_PATH_MODE } from "./fragment"
 import type { Router } from "./router"
 
 /** A path param token : `:name` (one segment) or `:name*` (rest of the path, last token only) */
@@ -8,6 +9,12 @@ const PARAM_RE = /:([a-zA-Z_$0-9]+)(\*?)/g
 
 function _escapeRegExp(s: string) {
   return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+}
+
+/** Options of `route.activate()` and `route.urlFor()`. Path mode only. */
+export interface FragmentOptions {
+  /** Page fragment, without the `#` : the name of the element to scroll to. Percent-encoded in the URL. */
+  fragment?: string
 }
 
 export class Route<T extends ServiceParams = {}> {
@@ -92,10 +99,15 @@ export class Route<T extends ServiceParams = {}> {
     return this.urlFor({} as T)
   }
 
-  /** Absolute URL of this route for `params`. `defaults` fill missing path params but do not go into the query. */
-  urlFor(params: T) {
+  /**
+   * Absolute URL of this route for `params`. `defaults` fill missing path params but do not go into the query.
+   * `options.fragment` is the page fragment (path mode only).
+   */
+  urlFor(params: T, options?: FragmentOptions) {
+    const source = this.router.source
+    if (options?.fragment !== undefined && !source.page_fragment) throw new Error(FRAGMENT_NEEDS_PATH_MODE)
     const path = this._buildPath({ ...this.options.defaults, ...params })
-    return this.router.source.href(path, _formatQuery(this.__queryParams(params, Object.keys(params))))
+    return source.href(path, _formatQuery(this.__queryParams(params, Object.keys(params))), options?.fragment)
   }
 
   /** Write the URL for `params` ; only the `keys` that are not path params go into the query. */
@@ -127,6 +139,8 @@ export class Route<T extends ServiceParams = {}> {
   }
 
   async activateWithParams(params: T): Promise<void> {
+    // any navigation ends the search for the previous fragment target
+    this.router.__cancel_scroll?.()
     const full_params = Object.assign({}, this.options.defaults, params)
     const current_route = this.router.o_active_route.get()
     if (current_route === this) {
@@ -142,9 +156,17 @@ export class Route<T extends ServiceParams = {}> {
     return this._activateWithParams(params)
   }
 
-  async activate(..._params: {} extends T ? [] | [T] : [T]): Promise<void> {
-    const params: T = Object.assign({}, _params[0] as T)
+  /**
+   * Activate this route. With `options.fragment` (path mode only), the fragment is written in the URL
+   * and the page scrolls to the element it names once the route has activated.
+   */
+  async activate(
+    ...args: {} extends T ? [params?: T, options?: FragmentOptions] : [params: T, options?: FragmentOptions]
+  ): Promise<void> {
+    const params: T = Object.assign({}, args[0] as T)
+    const fragment = args[1]?.fragment
 
-    return this.activateWithParams(params)
+    if (fragment === undefined) return this.activateWithParams(params)
+    return this.router._activateWithFragment(this, params, fragment)
   }
 }
