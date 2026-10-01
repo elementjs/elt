@@ -6,7 +6,7 @@ const describe = test.describe
 //
 // The original mocked every row's geometry (getBoundingClientRect, scrollTop, clientHeight) by hand,
 // rather than relying on happy-dom's (fake/zeroed) layout engine. That mocking has nothing to do with
-// happy-dom being an emulator — it's how the test drives VirtualScroller deterministically (exact
+// happy-dom being an emulator — it's how the test drives RepeatVirtual deterministically (exact
 // item height, exact scroll position) without depending on real font/box layout timing. So it is kept
 // verbatim here; a real browser executes it exactly the same way (Object.defineProperty / method
 // overrides on a real HTMLElement work identically to a happy-dom one).
@@ -32,7 +32,7 @@ type VirtualMountHandle = {
 
 declare global {
   interface Window {
-    /** Mounts a VirtualScroll instance with fully mocked row/scroller geometry (see file header). */
+    /** Mounts a RepeatVirtual instance with fully mocked row/scroller geometry (see file header). */
     __mountVirtual: (initial: string[], display_contents?: boolean) => VirtualMountHandle
     __flushFrames: (count?: number) => Promise<void>
     __labelsFromCount: (count: number, prefix?: string) => string[]
@@ -81,11 +81,11 @@ const SETUP_SCRIPT = `
   window.__mountVirtual = function (initial, display_contents) {
     const ITEM_HEIGHT = ${ITEM_HEIGHT}
     const VIEWPORT_HEIGHT = ${VIEWPORT_HEIGHT}
-    const { VirtualScroll, node_append, node_remove, o } = window.__ELT__
+    const { RepeatVirtual, node_append, node_remove, o } = window.__ELT__
 
     const o_lst = o(initial.slice())
 
-    const scroller = document.createElement("div")
+    const scroller = document.createElement("e-virtual-scroll")
     scroller.className = "scroll-host"
     Object.defineProperty(scroller, "clientHeight", { value: VIEWPORT_HEIGHT, configurable: true })
 
@@ -99,7 +99,7 @@ const SETUP_SCRIPT = `
 
     const content = document.createElement("div")
 
-    const scroller_instance = VirtualScroll(o_lst, function (item, idx) {
+    const scroller_instance = RepeatVirtual(o_lst, function (item, idx) {
       const row = document.createElement("div")
       row.className = "virtual-row"
       row.getBoundingClientRect = function () {
@@ -116,12 +116,7 @@ const SETUP_SCRIPT = `
         return wrapper
       }
       return row
-    }).configure(function (v) {
-      v.item_size = ITEM_HEIGHT
-      v.threshold = 100
-      v.overflow_parent = scroller
-      v.prev_parent = content
-    })
+    }).ItemSize(ITEM_HEIGHT).Threshold(100)
 
     node_append(content, scroller_instance)
     node_append(scroller, content)
@@ -135,7 +130,7 @@ const SETUP_SCRIPT = `
       const target = Math.max(0, index) * ITEM_HEIGHT
       while (scroll_top !== target) {
         const delta = target - scroll_top
-        // VirtualScroll may ignore one scroll event while it stabilizes layout.
+        // RepeatVirtual may ignore one scroll event while it stabilizes layout.
         scroll_top += Math.abs(delta) <= ITEM_HEIGHT ? delta : Math.sign(delta) * ITEM_HEIGHT
         scroller.dispatchEvent(new Event("scroll"))
         scroller.dispatchEvent(new Event("scroll"))
@@ -171,7 +166,7 @@ function expectVisibleSlice(list: string[], labels: string[]) {
   expect(list.slice(start, start + labels.length)).toEqual(labels)
 }
 
-describe("VirtualScroll", () => {
+describe("RepeatVirtual", () => {
   describe("virtual rendering", () => {
     test("does not render every row for a long list", async ({ page }) => {
       const result = await page.evaluate(async () => {

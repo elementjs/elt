@@ -5,23 +5,12 @@ When selecting a node, it adds a column to the right.
 
 */
 
-import {
-  $click,
-  $observe,
-  $scrollable,
-  type Attrs,
-  css,
-  type NRO,
-  o,
-  type Renderable,
-  Repeat,
-  VirtualScroll,
-} from "elt"
+import { $click, $observe, type Attrs, css, type NRO, o, type Renderable, Repeat, RepeatVirtual } from "elt"
 import * as ph from "elt-phosphor"
 import { popup } from "elt/ui"
 import { theme } from "elt/ui"
 import { data_loader_dialog } from "./data-loader"
-import { $resizable } from "./resizable"
+import { $column_resizable } from "elt/editor"
 
 // type Value = string | number | boolean | null | undefined
 
@@ -262,9 +251,9 @@ export function JsonVisualizerColumn({
               {import_btn}
               {copy}
             </e-flex>
-            <e-column packed="widget" role="list" class={cls_properties_menu}>
-              {$scrollable}
-              {VirtualScroll(o(keys), (o_key) => (
+            <e-virtual-scroll class={cls_properties_menu}>
+              <e-column packed="widget" role="list">
+              {RepeatVirtual(o(keys), (o_key) => (
                 <Property name={o_key} data={data.p(o_key)}>
                   {$click(() => {
                     const pth = o.get(path) ?? []
@@ -276,7 +265,8 @@ export function JsonVisualizerColumn({
                   })}
                 </Property>
               ))}
-            </e-column>
+              </e-column>
+            </e-virtual-scroll>
           </>
         )
       })}
@@ -349,57 +339,60 @@ function ObjectTable({
   const oo_columns = data.tf((dt) => {
     return Object.keys(dt[0])
   })
+  // Widths (px) set by dragging a column header, by column key; other columns keep a fixed width.
+  const o_widths = o<Record<string, number>>({})
+  const oo_template = o.expression((get) => {
+    const widths = get(o_widths)
+    return ["3em", ...get(oo_columns).map((col) => (widths[col] != null ? `${widths[col]}px` : "10em"))].join(" ")
+  })
   return (
-    <e-prose table-container style={{ height: "100%" }}>
-      {$scrollable}
-      <table style={{ width: "max-content" }}>
-        <thead>
-          <tr>
-            <th>#</th>
-            {oo_columns.tf((cols) =>
-              cols.map((h) => (
-                <th>
-                  {$resizable}
-                  {h}
-                </th>
-              )),
-            )}
-          </tr>
-        </thead>
-        <tbody>
-          {VirtualScroll(data).RenderEach((o_row, oo_idx) => {
-            return (
-              <tr>
-                <td>{oo_idx}</td>
-                {Repeat(oo_columns).RenderEach((o_col) => {
-                  const o_prop = o_row.p(o_col)
-                  const oo_is_complex = o_prop.tf((val) => {
-                    return typeof val === "object" && val !== null
-                  })
-                  return (
-                    <td class={{ [cls_clickable]: oo_is_complex }}>
-                      {$click(() => {
-                        if (!oo_is_complex.get()) {
-                          return
-                        }
-                        const pth = o.get(path) ?? []
-                        const key = o.get(o_col)
-                        if (!pth || !paths) return
-                        const i = o.get(idx) ?? -1
-                        const current_paths = (o.get(paths) ?? []).slice(0, i + 1)
-                        current_paths.push([...pth, o.get(oo_idx) as unknown as string, key])
-                        paths?.set(current_paths)
-                      })}
-                      {inline_display(o_prop)}
-                    </td>
-                  )
-                })}
-              </tr>
-            )
-          })}
-        </tbody>
-      </table>
-    </e-prose>
+    // A virtual grid: column widths never depend on the cells' content (rows come and go while
+    // scrolling), so every column starts at a fixed width and is resized by dragging its header.
+    <e-virtual-scroll style={{ height: "100%" }}>
+      <e-grid packed border style={{ gridTemplateColumns: oo_template, width: "max-content" }}>
+        <e-grid-row sticky="top">
+          <span>#</span>
+          {oo_columns.tf((cols) =>
+            cols.map((h) => (
+              <span>
+                {$column_resizable((px) => o_widths.set({ ...o_widths.get(), [h]: px }))}
+                {h}
+              </span>
+            )),
+          )}
+        </e-grid-row>
+        {RepeatVirtual(data).RenderEach((o_row, oo_idx) => {
+          return (
+            <e-grid-row>
+              <span>{oo_idx}</span>
+              {Repeat(oo_columns).RenderEach((o_col) => {
+                const o_prop = o_row.p(o_col)
+                const oo_is_complex = o_prop.tf((val) => {
+                  return typeof val === "object" && val !== null
+                })
+                return (
+                  <span class={{ [cls_clickable]: oo_is_complex }}>
+                    {$click(() => {
+                      if (!oo_is_complex.get()) {
+                        return
+                      }
+                      const pth = o.get(path) ?? []
+                      const key = o.get(o_col)
+                      if (!pth || !paths) return
+                      const i = o.get(idx) ?? -1
+                      const current_paths = (o.get(paths) ?? []).slice(0, i + 1)
+                      current_paths.push([...pth, o.get(oo_idx) as unknown as string, key])
+                      paths?.set(current_paths)
+                    })}
+                    {inline_display(o_prop)}
+                  </span>
+                )
+              })}
+            </e-grid-row>
+          )
+        })}
+      </e-grid>
+    </e-virtual-scroll>
   ) as Element
 }
 
@@ -443,10 +436,6 @@ const cls_visu_column = css`.visu-column {
   min-height: 0;
   height: 100%;
   overflow: hidden;
-
-  & [table-container] {
-    border-radius: 0;
-  }
 }`
 
 const cls_string = css`.string {

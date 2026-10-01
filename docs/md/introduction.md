@@ -34,7 +34,7 @@ node_append(document.body, ui)
 
 - **Observing is tied to the DOM.** An observer kept alive forever leaks memory. elt ties observing to nodes: an observer attached to a node runs only while that node is in the document, and stops on its own when the node leaves. This is why trees are mounted with `node_append` rather than `appendChild`: `node_append` is what runs the connect/disconnect step. See [`$observe`](./decorators.md#reflecting-values-observe-class-style-id-title), and [`$connected` / `$disconnected`](./decorators.md#lifecycle-connected-disconnected) to run code when a node enters or leaves the document.
 
-- **Verbs mark where the structure changes.** Instead of a component that decides what to render, elt uses **verbs**: functions whose name starts with an uppercase letter — [`If`, `Switch`, `Repeat`, `DisplayPromise`](./verbs.md), and [`VirtualScroll`](./verbs.md#virtualscroll-a-long-list) for long lists. Scanning the code for uppercase calls shows every place the DOM's shape can change, and each verb only patches what changed instead of rebuilding.
+- **Verbs mark where the structure changes.** Instead of a component that decides what to render, elt uses **verbs**: functions whose name starts with an uppercase letter — [`If`, `Switch`, `Repeat`, `DisplayPromise`](./verbs.md), and [`RepeatVirtual`](./verbs.md#repeatvirtual-a-long-list) for long lists. Scanning the code for uppercase calls shows every place the DOM's shape can change, and each verb only patches what changed instead of rebuilding.
 
 - **Decorators replace props for behavior.** Functions starting with `$` and a lowercase letter (`$click`, `$bind`, `$observe`, `$class`, …) are [decorators](./decorators.md#anatomy-of-a-decorator): they receive the node they're placed in and act on it. This avoids declaring a variable for every node you need to touch, and keeps "creates a node" (uppercase) visibly different from "modifies a node" (`$`).
 
@@ -129,9 +129,8 @@ Routes, path and hash modes, params and services are covered in [App](./app.md#s
 | `$observe` | Run a callback with an observable's value, while the node is in the document. | [Decorators](./decorators.md#reflecting-values-observe-class-style-id-title) |
 | `$bind.string` / `.number` / `.boolean` / … | Two-way binding between a form control and an observable. | [Decorators](./decorators.md#binding-form-controls-bind) |
 | `$connected` / `$disconnected` | Run a callback when the node enters / leaves the document. | [Decorators](./decorators.md#lifecycle-connected-disconnected) |
-| `$scrollable` | Make a container scrollable, with touch handling made consistent. | [Decorators](./decorators.md#touch-scrolling-scrollable) |
 | `$shadow` | Rare: attach a shadow root to a node. | [Decorators](./decorators.md#shadow-dom-shadow) |
-| `If`, `Switch`, `Repeat`, `DisplayPromise`, `VirtualScroll` | Dynamic structure driven by observables. | [Verbs](./verbs.md) |
+| `If`, `Switch`, `Repeat`, `DisplayPromise`, `RepeatVirtual` | Dynamic structure driven by observables. | [Verbs](./verbs.md) |
 | `App`, `Service`, `view` | Routing, services, named views. | [App](./app.md) |
 
 ## elt/ui
@@ -140,7 +139,7 @@ Routes, path and hash modes, params and services are covered in [App](./app.md#s
 
 **Native HTML, styled.** A `<button>`, `<input>` or `<dialog>` is already a themed control. Variants are attributes (`<button e-variant="inverted">`), not wrapper components.
 
-**Five layout elements do the layout.** `<e-row>`, `<e-column>`, `<e-flex>` and `<e-grid>` arrange things; `<e-prose>` holds text you read. Their attributes (`pad`, `spacing`, `border`, `surface`, `packed`, …) replace most of the CSS you would otherwise write. Spacing is a parent's job: containers space their children, children never set margins.
+**Five layout elements do the layout.** `<e-row>`, `<e-column>`, `<e-flex>` and `<e-grid>` arrange things (with `<e-grid-row>` for the rows of a grid); `<e-prose>` holds text you read. Their attributes (`pad`, `spacing`, `border`, `surface`, `packed`, …) replace most of the CSS you would otherwise write. Spacing is a parent's job: containers space their children, children never set margins.
 
 **Spacing and color are relative.** Spacing flows down from container to container, and each container's step names what its children are: parts of a widget, widgets, or groups of widgets. Background fills stack: a panel inside a panel is one level further from the page, and hover fills and dividers are computed relative to whatever surface they sit on. A component therefore looks right wherever you put it, without knowing its ancestors.
 

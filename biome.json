@@ -1,6 +1,6 @@
 {
   "files": {
-    "includes": ["src/**", "ui/**", "tests/**", "!!**/.claude"]
+    "includes": ["src/**", "ui/**", "editor/**", "tests/**", "!!**/.claude"]
   },
   "assist": {
     "actions": {

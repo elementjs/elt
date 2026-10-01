@@ -17,10 +17,10 @@ Do not write `css` blocks unless absolutely necessary ; use e-flex for layouting
 - Unknown mode (no schema) and schema mode
 - The same widgets in every layout
 - Import/export as add-on modules (interface and planned formats; details later)
-- Undo/redo history (shell toolbar; committed root snapshots)
+- Undo/redo history (root column header line; committed root snapshots)
 - Keyboard use of widgets directly (focus in controls; native control keys only — Enter/blur commit; no global shortcut table yet)
 - Short “preview” text on buttons that open a nested composite
-- Search/filter on composite toolbars (rules in Layer 2)
+- Search/filter in composite toolbars (rules in Layer 2)
 
 When no schema is given, the editor still uses a **default** set of rules: it can show richer JavaScript types, but type changes stay JSON-compatible unless a schema says otherwise.
 
@@ -38,7 +38,7 @@ When no schema is given, the editor still uses a **default** set of rules: it ca
 
 **Gates (do not start implementation until both are binding rules):**
 
-1. **Shell / widget / DOM model** (Layer 1b) — mostly locked; keep it consistent with later edits. Includes the **shell toolbar** (undo/redo, optional global import/export, host slots).
+1. **Shell / widget / DOM model** (Layer 1b) — mostly locked; keep it consistent with later edits. Includes the shell controls (undo/redo on the root column header line; global import/export and host slots later).
 2. **Schema + widget config mock** (Layers 4–5) — typed widget configs (`kind` + args), how options reach widget instances, schema resolution, and the **default unknown schema** written out as data in the spec. Product details in Layers 2–3 and Layer 6 may stay incomplete; these two must not.
 
 ## Type definitions (source of truth)
@@ -99,7 +99,7 @@ So every candidate kind in the menu shows one or two options: Convert (if `canCo
 
 ### Widgets all the way down
 
-**Composites are widgets** that embed other widgets (and usually a title/toolbar). There is no separate “layout” type in the programming model — “object layout / array layout / …” is how those composite widgets present themselves.
+**Composites are widgets** that embed other widgets (and usually a header line and toolbar: Layer 2). There is no separate “layout” type in the programming model — “object layout / array layout / …” is how those composite widgets present themselves.
 
 > Why: One contract for render, bind, errors, type change, and conversion avoids a parallel Layout API. Composite widgets are just richer widgets.
 > Thoughts: Keep using the word “layout” in the UI sections below for how a composite looks; the implementation type is still Widget.
@@ -108,7 +108,7 @@ So every candidate kind in the menu shows one or two options: Convert (if `canCo
 
 The **object editor** is a **shell**. It opens a widget for an **observable** (the root, or a derived observable from a parent composite). Widgets do not own the column strip or popup host; they **ask the shell** to open by dispatching `elt-object-editor-open`. The shell chooses column vs popup (schema and shell options).
 
-The shell owns **chrome above the column strip**: a **shell toolbar** with at least undo/redo, optional global import/export entry points, and **slots** for the host application to insert extra controls. This is distinct from each composite’s own title/toolbar inside a column.
+The shell owns each column's frame and **header line**: the column title, the composite's label and actions, and undo/redo on the root (Layer 2 "Column header line"). Optional global import/export entry points and **slots** for the host application to insert extra controls are later.
 
 When the event originates inside a column that is not the rightmost, the shell **truncates** columns to the right of that column, then opens the new view. When drilling from the rightmost relevant column, it **appends** a column (unless popups are preferred).
 
@@ -140,14 +140,14 @@ This section chooses how the shell and widgets sit on elt and the DOM. Until the
 
 - Prefer a **dedicated converter / `.tf`** (object-editor-specific is fine) for Set ↔ array (and similarly Map ↔ entries if needed): stable row keys, reuse of per-element observables across updates, write-back into the Set.
 - Opening a child uses the **row’s observable** from that projection, reused while the row key lives.
-- VirtualScroll/Repeat **key** rules align with that converter’s element identity (see **Row / element identity** below — not array index).
+- `RepeatVirtual`/`Repeat` **key** rules align with that converter’s element identity (see **Row / element identity** below — not array index).
 
-**Row / element identity:** VirtualScroll / per-row observables need a **stable unique key** that survives reorder and immutable writes. **Array index alone is not sufficient** (drag-reorder moves the same element to a new index) — the rules below are the exceptions to that, and each is a deliberate, documented degradation, not a silent contradiction of it.
+**Row / element identity:** `RepeatVirtual` / per-row observables need a **stable unique key** that survives reorder and immutable writes. **Array index alone is not sufficient** (drag-reorder moves the same element to a new index) — the rules below are the exceptions to that, and each is a deliberate, documented degradation, not a silent contradiction of it.
 
 **Three cases, in priority order:**
 
-1. **Explicit key function.** `ArrayOptions.key` (and the equivalent, once written, for Set/Map projections) is `(item, index) => PropertyKey`. When given, that's the row key: stable across reorder and immutable writes, VirtualScroll reuses the row's observable by it.
-2. **Schema-mode array/set with no key function ("keyless schema").** Falls back to **index/position** as the key. Accepted, degraded behavior: dragging a row to a new position does not migrate its observable — VirtualScroll treats the row now at that position as a new identity, and if a column is open on a row from that array, reordering the array **invalidates that column** the same way any other identity change does (`INVALID_MOUNT`, above) rather than following the element. This tradeoff is why case 2 is opt-out only, never the default (case 3 below).
+1. **Explicit key function.** `ArrayOptions.key` (and the equivalent, once written, for Set/Map projections) is `(item, index) => PropertyKey`. When given, that's the row key: stable across reorder and immutable writes, `RepeatVirtual` reuses the row's observable by it.
+2. **Schema-mode array/set with no key function ("keyless schema").** Falls back to **index/position** as the key. Accepted, degraded behavior: dragging a row to a new position does not migrate its observable — `RepeatVirtual` treats the row now at that position as a new identity, and if a column is open on a row from that array, reordering the array **invalidates that column** the same way any other identity change does (`INVALID_MOUNT`, above) rather than following the element. This tradeoff is why case 2 is opt-out only, never the default (case 3 below).
 3. **Unknown mode ("JSON mode") — no schema at all.** The default/unknown-schema array (Layer 5, `anything`) does **not** use plain index. Instead it **mutably stamps** a well-known **enumerable** symbol property onto each object element the first time it's encountered (`obj[sym_row_id] ??= next_id++`), and uses that as the key. Enumerable (not hidden) because it must survive `o.clone`'s `Object.assign`-based copy for plain objects (verified: `Object.assign` copies enumerable own symbols) and array `slice()` (element references are shared, so the stamp travels with them); the tradeoff is that the symbol shows up in `Object.getOwnPropertySymbols`, though never in `JSON.stringify` or `Object.keys`/`for...in`. This mechanism only applies to **array/set elements that are objects** — primitive elements (strings, numbers, …) can't carry a symbol and fall back to case 2's index/position behavior with the same accepted degradation.
 
 **Array vs Set:** the mechanism is the same (key function → object-stamp → index/position, in that priority order) for both, with one difference — Set's index fallback (case 2) means **iteration-order position**, since Sets have no native index; a Set's own reorder-by-drag already goes through the shared safe-child helper the same way an array's does (see Invalid parent / external writes, above).
@@ -224,12 +224,12 @@ Event: `elt-object-editor-open`, detail `{ o_value, title: string }` (title = br
 
 - Optional: some users want events on widgets only, no marquee.
 - If present: an **overlay** that intercepts pointer input, keeps an in-memory primary cell + range, draws selection (overlay and/or classes fed by a readonly observable), and on F2/typing moves **real** focus into the target widget.
-- VirtualScroll: keyboard may move to a row not mounted yet — selection model is coordinates/keys in memory; overlay/classes apply when the row exists; scrolling may be required before focus.
+- `RepeatVirtual`: keyboard may move to a row not mounted yet — selection model is coordinates/keys in memory; overlay/classes apply when the row exists; scrolling may be required before focus.
 - Hybrid drawing (coordinate overlay + classes on mounted cells) is likely; pure overlay-only struggles with row height variance.
 
 ### Lists
 
-Composite body lists use **VirtualScroll** and `node_append`. Open events bubble to the shell. Projection converters must agree with VirtualScroll key reuse.
+Composite body lists use **`RepeatVirtual`** (in an `<e-virtual-scroll>`, its scroll area) and `node_append`. Open events bubble to the shell. Projection converters must agree with `RepeatVirtual` key reuse.
 
 ### Approaches (locked)
 
@@ -245,25 +245,21 @@ Composite body lists use **VirtualScroll** and `node_append`. Open events bubble
 | Schema widget  | `Factory<Options>` instance (combinator-built); `kind` is a tag, not the dispatch mechanism  |
 | Column stack   | Shell-owned hosts; DOM only to locate source column                                          |
 | Widget ctor    | `factory.render(o_value)` → `RenderableWidget`                                               |
-| Undo           | Root snapshot ring; shell toolbar; dead-column rules on write                                |
+| Undo           | Root snapshot ring; root header line; dead-column rules on write                             |
 
 ---
 
-## Layer 2 — Header, toolbar, and columns
+## Layer 2 — Header line, toolbar, and columns
 
 ### Opening the editor
 
 The caller mounts the **shell** on a root observable (and optional schema; see Layer 5). The shell opens the root observable and shows that widget inside the column/popup host.
 
-### Shell toolbar
+### Shell controls
 
-Above the column strip, the shell shows its **own** toolbar (not the composite title row):
+The shell has no toolbar line of its own: **Undo / redo** (see Layer 5 — Undo / redo) sit at the end of the **root column's header line** (see "Column header line" below). The root column is always present and leftmost, so they stay in one predictable place without costing a line.
 
-- **Undo / redo** controls (see Layer 5 — Undo / redo)
-- Optional **global** import/export entry points (what add-ons allow at the root)
-- **Host slots** — places for the library user to insert extra controls when mounting the shell
-
-Composite toolbars (search, per-node `...`) stay inside each column/popup.
+> Thoughts: Optional **global** import/export entry points and **host slots** (places for the library user to insert extra controls when mounting the shell) would go on the root header line too; if they don't fit there, a shell toolbar above the strip comes back. Not in v1.
 
 ### Columns / drill-down
 
@@ -275,18 +271,38 @@ When the shell/schema uses a **popup** instead of a column: the user closes it w
 
 **Popup stack semantics.** A popup is tracked in the shell's internal column-stack exactly like a column (Layer 1b): same `INVALID_MOUNT` / dead-mount watch, same closing behavior when its mount goes invalid. Opening from inside a popup can open another popup — `elt/ui`'s `popup()` (`ui/popup.tsx`) already anchors a nested popup under the nearest enclosing popup rather than a detached position: `find_parent_node` walks up from the anchor and "stops at a popup or a top layer element," so a popup opened from inside another popup is parented to it automatically. The shell's `open(...)` uses this as-is — no new originator-tracking needed in `elt/ui`, and no need to build one in the object editor either.
 
-### Composite title and toolbar
+### Column header line
 
-Every composite widget has a sticky title row and toolbar at the top (content of the column/popup; the shell owns the outer frame). The shell shows **breadcrumbs** for the current column stack (from each column’s open `title`, see Layer 1b).
+Every column and popup starts with **one header line** (never wraps), built by one shell function for both (`render_chrome` in `shell.tsx`). It is an inverted `<e-row packed="widget" border>`: its widgets touch, each padded at the widget step, separated by seams.
 
-By default the title row shows the value’s **constructor name** and a short cardinality hint when useful (for example `Array [12]`, `Object {4}`, `Map {3}`). Schema may replace or hide that label. Breadcrumb `title` segments (key / index labels) remain separate from this type chrome.
+```
+[address · Object {3}] [⚠] ………… [… menu] [Undo] [Redo]   (root)
+[address · Object {3}] [⚠] ………… [… menu] [×]             (other columns, popups)
+```
 
-Unknown mode toolbar includes:
+- The **label** merges the column's open `title` (the key or index it was opened from, Layer 1b; the root has none) with the composite's **type label**, joined by ` · `. It takes the free space and shrinks with an ellipsis; the buttons never wrap.
+- The type label is by default the value’s **constructor name** and a short cardinality hint when useful (for example `Array [12]`, `Object {4}`, `Map {3}`). Schema may replace or hide it (`chrome_label`).
+- Then the composite's **actions**: Table's divergence warning (Layer 3), and a `...` menu for import/export on this node (what the add-ons and schema allow) and for changing this node’s type or layout (warn if data would be lost).
+- Last, Undo/Redo on the root, × elsewhere.
 
-- a search field (filters the listed rows — rules below)
-- a `...` menu for import/export on this node (what the add-ons and schema allow), and for changing this node’s type or layout (warn if data would be lost)
+The composite provides its label and actions as `RenderableWidget.header` (Layer 4); the shell places them. A scalar widget has none (the line then holds only the title and the shell's buttons). The shell also keeps **breadcrumbs** for the current column stack (`o_breadcrumb`, from each column's open `title`).
 
-Schema mode **starts from the same toolbar** as unknown mode. The schema **opts out** of pieces it does not want (hide or remove actions), rather than starting empty and opting in.
+### Composite toolbar
+
+Right under the header line, above its rows, a composite has a **toolbar** on a neutral surface (`RenderableWidget.toolbar`), outside the scroll area — an `<e-row packed="widget" border>` like the header line:
+
+```
+[+ Add key] [Filter rows…………] [Aa]
+```
+
+- the **add** button ("+ Add key / item / member / entry"), when the composite allows adding
+- the **search** field (filters the listed rows — rules below) and its case toggle
+
+The toolbar is not rendered when it would be empty (no adding allowed and search opted out).
+
+> Why: Under the header, not under the rows. Filtering shortens the rows; a bar below them would jump up as the user types in it.
+
+Schema mode **starts from the same chrome** as unknown mode. The schema **opts out** of pieces it does not want (hide or remove actions), rather than starting empty and opting in.
 
 **Search / filter (v1):**
 
@@ -297,9 +313,12 @@ Schema mode **starts from the same toolbar** as unknown mode. The schema **opts 
 
 ### Lists
 
-Composite lists that can grow use **VirtualScroll**, not `Repeat`, including small lists.
+Composite lists that can grow use **`RepeatVirtual`**, not `Repeat`, including small lists. Each list is its own `<e-virtual-scroll>` (bounded height), holding exactly one `RepeatVirtual`.
 
-> Why: VirtualScroll cost is treated as negligible; one scrolling approach everywhere.
+- **Transient rows share the list.** A composite's entries and its transient rows (Layer 1 "Commit timing") are **one** `RepeatVirtual` over the entries followed by the transient rows, each row rendering as an entry or a transient row (`render_composite_grid` in `editor/grid.tsx`). Not two lists: a scroll area holds a single `RepeatVirtual`, and the transient rows must sit after the list's true end, not after the rows currently rendered. A newly added transient row is rendered immediately (no frame delay), so "+ Add" can focus/fill it right away.
+- **Row-local state is lost when a row scrolls out of the rendered window.** Anything that must survive (a transient row's key/value, …) lives in observables held by the composite, outside the row (as `transient_rows` does).
+
+> Why: `RepeatVirtual` cost is treated as negligible; one scrolling approach everywhere.
 
 ### Focus (v1)
 
@@ -317,6 +336,36 @@ No marquee. Pointer and keyboard go to real controls inside widgets. Opening a c
 
 Composite presentation is implemented as widgets (see Layer 1). This section names how each composite **looks and behaves**.
 
+### Composite grid (all composites)
+
+Every composite — Object, Map, Array, Set, Table — is a **grid**, not a list of rows: an `<e-virtual-scroll>` holding one `<e-grid packed="widget" border>`, one `<e-grid-row>` per entry, the body rows rendered by `RepeatVirtual` (`render_composite_grid`, `editor/grid.tsx`).
+
+**Each column is one frame, seams inside it.** The columns are separate components: a row of them spaced at the component step, in a horizontal scroll area (the columns sit in an inner row: a scroll area would otherwise draw the frame of a `packed border` child itself and take the column's away). Each column is a `<e-column packed border>` — header line, toolbar, rows — so `elt/ui`'s frame ownership draws its frame once and every inner line as a seam: the header line and the toolbar (`packed="widget" border`) draw only the lines between their widgets, the grid (inside its scroll area) the lines between cells. A `packed border` container's own background is the seam color, so its cells must fill it: a column's rows area takes the column's free height.
+
+- **Widgets are cells.** A child widget's element is placed directly in the row as one cell (Layer 4 contract): no wrapper between the row and an `<input>`. In a packed bordered grid, cells lose their own border and take the surface as background, so an input reads as a flat cell framed by the seams; its focus ring draws over its neighbors.
+- **Columns** (in order, each present only when the composite uses it):
+
+  | Column | Holds | Composites |
+  | ------ | ----- | ---------- |
+  | drag handle | reorder handle | Array, Set, Map — only once drag-reorder exists (Layer 3 Array/Set/Map) |
+  | label | key / index / `#` | Object (key, or a key input on a transient row), Array (index, `+` on a transient row), Map (the key's own widget), Table (`#`) |
+  | key type | the key's `...` type-change menu, as its own cell | Map, when `allow_key_type_change !== false` |
+  | value(s) | the value's widget, or the composite preview | all; Table has one per data column |
+  | controls | the row's controls (remove `−`, discard on a transient row) | whenever the composite can remove or add rows |
+
+- **Controls stack.** The controls cell holds a fixed slot per control the composite can show; a row without a given control keeps an invisible placeholder of the same size. Every row's cell is then as wide, and the controls line up from one row to the next.
+- **Cells stretch** to the full row height (the grid default): a cell shorter than its row would leave the seam color showing under it. Every cell has the same padding (`packed="widget"`, the form controls' own), font size and line height, so the **first lines** of all cells line up — also next to a multi-line `textarea`.
+- **A widget that can't fill a cell wraps itself** in one element that does (Layer 4): a checkbox/switch is wrapped in a `<label>`, which also makes the whole cell toggle it.
+- **Nested composites** are a full-cell button showing the value's **preview text** (`value_preview_text`, the same text the filter matches) followed by `›`; clicking it opens the value (Layer 1b).
+
+**Column widths — first layout, then locked.** Rows come and go as the grid scrolls (`RepeatVirtual`); a column sized by its content would change width with them, and make the view jump. So:
+
+- The grid first lays out as its content wants, each column from an initial template: the label column `fit-content(16em)` (its content, capped: longer keys get `…`), fixed-content columns (controls, key type, `#`) `max-content`, the last value column `auto`.
+- On the frame after the grid first has a size and a body row (a `ResizeObserver` on the grid; the lock waits for the next frame, since writing sizes inside the observer would raise the browser's "ResizeObserver loop" error), each column is **locked** to the width it got (the grid's computed `grid-template-columns`: one read for all columns). The last value column keeps that width as a minimum and also takes the width left over (`minmax(<px>, 1fr)`), so the grid always fills its column.
+- Once locked, the grid's own width no longer comes from its cells (`contain: inline-size` plus a `min-width` of the locked columns): a long preview scrolling in can't widen the column it sits in.
+- Only the rows rendered in that first layout count: a longer key further down is truncated with `…`. A grid with no rows yet, or not displayed yet (a popup before it shows), locks on its first layout that has both.
+- A column that appears later (a new table column) is locked the same way on the next layout. Nothing unlocks a column within a mount: reopening the value (a new mount) lays it out again.
+
 Default widget for a composite value:
 
 | Value kind                          | Default composite widget                     |
@@ -333,7 +382,7 @@ Other unknown types are shown as Object, unless a schema treats them as scalar (
 
 ### Object
 
-A vertical list of key/value rows. Keys are editable strings when allowed. Values are widgets, aligned to the **baseline** of the key (a value may be taller than its key; long keys use `…` ellipsis).
+Key/value rows of the composite grid (above). Keys are editable strings when allowed. Values are widgets whose first line lines up with the key's (a value may be taller than its key; long keys use `…` ellipsis).
 
 Giving a key the same name as an existing key is an error (no silent overwrite).
 
@@ -379,12 +428,16 @@ For arrays of objects that look tabular: each row is one element, each data colu
 - Empty array, non-object first element, or a failed sample → Array (list), not Table.
 - A schema may set `columns` manually instead (or force table/array via `presentation`).
 
-**Layout (v1):**
+**Layout (v1):** the composite grid (above), with:
 
-- A leading **`#` index column** always shows the row index (same role as the index in Array mode). It is not a data key and is not resizable as a field column unless the implementation needs a fixed narrow width.
-- Data column headers are **resizable** (drag handle on the header cell). Implemented in `editor/table-resize.ts` (`$resizable` on data `<th>`); `specs/resizable.tsx` remains a reference sketch.
-- The table uses **`width: max-content`**. Its host is a **horizontally scrollable** container when the table is wider than the column body.
-- The **header row is sticky** (`thead` stays visible while the body scrolls vertically). Vertical body scroll uses VirtualScroll like other composites.
+- A leading **`#` index column** always shows the row index (same role as the index in Array mode). It is not a data key and is not resizable.
+- **Column widths never change while scrolling**: every column follows the composite grid's "first layout, then locked" rule; the last data column also fills what's left.
+- Data column headers are **resizable** (drag handle on the header cell's right edge): `$column_resizable` (`editor/table-resize.ts`) reports the new width, which replaces that column's locked width.
+- When the locked columns are wider than the column body, the scroll area scrolls horizontally.
+- The **header row is sticky** (`<e-grid-row sticky="top">`, before the `RepeatVirtual`), so it stays visible while the body scrolls vertically.
+- The filter matches a row on any of its shown cells. "+ Add item" (toolbar) appends `item_default` directly: a table row is an object with every column, already valid, so it has no transient state.
+
+> Thoughts: A text `<input>`'s own width comes from its `size` (20 characters by default), not its value, so text columns all start about as wide; only columns of narrower widgets (switches) or wider headers differ. Setting each input's `size` from its initial value would size them by content — not done in v1.
 
 **Editing:**
 
@@ -399,7 +452,7 @@ For arrays of objects that look tabular: each row is one element, each data colu
 
 > Why: Auto-detect is imperfect on purpose; unknown mode keeps an escape hatch to Array. First-row columns match the common “uniform records” case without requiring every row’s key set to be identical up front.
 
-**Divergence (first version):** when any row has keys outside the table column set, the Table widget exposes `o_has_extra_keys: o.Observable<boolean>` (or equivalent). The toolbar shows a **small warning icon** with tooltip along the lines of “Some rows have keys not shown as columns.”
+**Divergence (first version):** when any row has keys outside the table column set, the Table widget shows a **small warning icon** (`⚠`) among its header-line actions, with the tooltip “Some rows have keys not shown as columns.”
 
 Cells for a column key that is **absent** on that row use the **undefined** widget (missing key — not `null`).
 
@@ -424,6 +477,10 @@ Each `Factory` carries a **`kind`** string (e.g. `"object"`, `"array"`, `"string
 See `Factory` / `RenderableWidget` in `editor/schema.tsx`. A `Factory<Options>` exposes:
 
 - **`render(o_value)`** — mounts a `RenderableWidget` bound to that observable. This is the widget constructor step; there is no separate `new Widget(o_value, config)` — the factory instance already holds the config.
+
+**A widget renders one element, and that element is its cell.** `RenderableWidget.render()` returns a single element; the parent composite places it as-is, as a grid cell (Layer 3 "Composite grid"). No wrapper earns its place by default: `EitherFactory` renders its current branch's element directly. A widget whose control can't fill a cell (a checkbox keeps its own size) wraps it in one element that does — that wrapper is the exception, and it belongs to the widget, not to the parent. A composite's own chrome comes as `header` (label + actions, placed on the column's header line, Layer 2) and `toolbar` (placed under the header line; `null` when empty); scalar widgets have neither.
+
+**Re-rendering follows the value's type, not its value.** The parent re-resolves a child's factory only when the value's JS type changes (`is_same_type`), not on every edit: typing changes the value on every keystroke, and re-resolving then would remount the control under the cursor (losing focus) or switch a union's branch mid-typing (a string leaving a color's pattern). `concrete_factory(factory, value)` unwraps `forward()` / `either()` to the factory that actually renders the value, so a composite reached through a union still renders as a composite (preview, or a column with its own header line and toolbar).
 - **`canHandle(value): boolean`** — **suitability**: can this factory represent `value` as-is? Drives union branch matching and unknown-mode auto-pick. Read-only — never mutates.
 - **`canConvert(value): boolean`** — **convertibility**: could this factory represent `value` if the user explicitly asked to convert it here (Layer 1 "Type changes and conversion")? Kept separate from `canHandle`: a value can be inconvertible-but-already-suitable, or convertible-but-not-suitable-as-is. Only ever consulted from the user-initiated type-change menu, never from automatic union resolution (below).
 - **`convert(value): unknown`** — performs the conversion `canConvert` checked. Only ever called after a passing `canConvert` check for the same value; calling it otherwise is a caller bug (the base implementation throws rather than guessing).
@@ -434,15 +491,15 @@ See `Factory` / `RenderableWidget` in `editor/schema.tsx`. A `Factory<Options>` 
 
 Conversion only happens from the **explicit type-change menu**: for each candidate branch, offer "Convert" when `canConvert(current_value)` (runs `convert`, writes) and always also offer "Reset to default" (runs `defaultValue()`, writes) — see Layer 1 for the full menu-building rule and the warning-before-applying rule.
 
-`RenderableWidget` (what `render()` returns) carries the render output and an **`o_error`** observable — per-mount state, distinct from the factory. Composite widgets aggregate their children's `o_error` into a warning surfaced on their own toolbar (same pattern as Table's `o_has_extra_keys`, Layer 3).
+`RenderableWidget` (what `render()` returns) carries the render output and an **`o_error`** observable — per-mount state, distinct from the factory. Composite widgets aggregate their children's `o_error` into a warning surfaced among their header-line actions (same place as Table's divergence warning, Layer 3).
 
 > Why: Per-mount state must live on the `RenderableWidget` (or the closure inside `render()`), never on the `Factory` instance — one factory (e.g. an array's `values` factory) is shared across every row/cell that uses it, so instance fields would leak state between them.
 
-**Error rendering is the calling composite's responsibility**, not a fixed spec rule — the composite mounting a child widget decides where that child's `o_error` shows (inline, icon + tooltip, aggregated into its own toolbar warning per the `o_has_extra_keys` precedent above), since it already owns the layout the child sits in. v1 doesn't enumerate every source that can set a widget's `o_error` beyond the two already named (Layer 3 Object duplicate key, Layer 1 failed best-effort coercion) — each composite/widget owns its own validation and may set it for whatever it checks.
+**Error rendering is the calling composite's responsibility**, not a fixed spec rule — the composite mounting a child widget decides where that child's `o_error` shows (inline, icon + tooltip, aggregated into a warning among its header-line actions per the Table divergence precedent above), since it already owns the layout the child sits in. v1 doesn't enumerate every source that can set a widget's `o_error` beyond the two already named (Layer 3 Object duplicate key, Layer 1 failed best-effort coercion) — each composite/widget owns its own validation and may set it for whatever it checks.
 
 > Thoughts: Destroy-and-recreate on type change is the v1 default (remove the old widget's nodes, call `new_factory.render(o_value)`). Marquee is out of v1.
 
-Widgets that allow type change show a `...` control on hover and/or focus (scalars). Composite widgets also change type from the toolbar `...`.
+Widgets that allow type change show a `...` control on hover and/or focus (scalars). Composite widgets also change type from the `...` on their header line.
 
 Global editor keyboard shortcuts (clear toward `null`, insert/delete row, …) are **not** in v1 — see Scope Later. Native control behavior (Enter / blur commit, activate preview) remains.
 
@@ -552,7 +609,7 @@ The default schema is written as concrete data: `anything` in `editor/schema.tsx
 
 **`map()` / `set()` factories:** shaped like `ArrayFactory`, following Layer 3's Map/Set behavior:
 
-- `SetOptions`: `{ values: Factory<unknown>, key?: (item, index) => PropertyKey, allow_insert?, allow_delete?, allow_reorder? }` — same fields as `ArrayOptions` minus `mode` (Set has no Table presentation). Elements ARE the key for Set-membership purposes (`Set.has`, Layer 3), independent of the row-identity `key` function used for VirtualScroll (Layer 1b) — the two are unrelated: `key` picks a stable row id for the widget/observable, uniqueness is checked against actual value equality via `Set.has`.
+- `SetOptions`: `{ values: Factory<unknown>, key?: (item, index) => PropertyKey, allow_insert?, allow_delete?, allow_reorder? }` — same fields as `ArrayOptions` minus `mode` (Set has no Table presentation). Elements ARE the key for Set-membership purposes (`Set.has`, Layer 3), independent of the row-identity `key` function used for `RepeatVirtual` (Layer 1b) — the two are unrelated: `key` picks a stable row id for the widget/observable, uniqueness is checked against actual value equality via `Set.has`.
 - `MapOptions`: `{ keys: Factory<unknown>, values: Factory<unknown>, allow_insert?, allow_delete?, allow_reorder? }` — `keys` is a separate factory from `values` (Layer 3 Map: "keys are also edited with widgets"), used to render/validate the key-side widget of each row. No `key` field: a Map entry's own key already is a stable row identity (Layer 1b "Row / element identity" already notes "Map keys can work when the key is the identity").
 
 Heuristic opt-out (disabling the date/color pattern checks per node) doesn't need a new `Options` field: since `either(...)` branches are just factories in an array, opting out is rebuilding the union without `color()`/`date()` in it (already how `.extend()`-based supplementing works, per "Default (unknown) schema," above) — no separate toggle needed.
@@ -597,7 +654,7 @@ Commit timing (Layer 1) defines _when_ a new value is written. The shell keeps a
 - **Depth** `n` is **configurable** (sensible default in the 30–50 range).
 - **Undo** moves back in the stack; **redo** moves forward.
 - Any **new** commit after undo **truncates** the redo side.
-- Controls live on the **shell toolbar** (Layer 2). Global Ctrl+Z / Ctrl+Shift+Z bindings wait with the shortcut table (Scope — Later); toolbar buttons are enough for v1.
+- Controls live on the **root column header line** (Layer 2). Global Ctrl+Z / Ctrl+Shift+Z bindings wait with the shortcut table (Scope — Later); the buttons are enough for v1.
 - After undo/redo writes the root, **dead-column detection** (Layer 1b) closes columns that are no longer valid mounts — no separate undo rule.
 
 > Why: Observables already traffic in immutable values; snapshotting the root is the straightforward history model.

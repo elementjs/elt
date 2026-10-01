@@ -249,7 +249,7 @@ A few rules of thumb, pulled from the library's own source comments, worth inter
 
 ## A gotcha: `disconnect()`'s console warning
 
-`CombinedObservable#disconnect()` is mostly an internal mechanism — `Repeat` and `VirtualScroll` use it to cut a derived observable loose once its underlying list item is gone, so a stray observable watching an out-of-bounds index doesn't crash the program. Application code rarely calls it directly. If you ever see a console warning about an observable "still being watched" after a disconnect, it means something is still holding and observing a reference that was meant to be discarded — worth tracking down rather than ignoring, since it usually points at a stale subscription that outlived what it was watching.
+`CombinedObservable#disconnect()` is mostly an internal mechanism — `Repeat` and `RepeatVirtual` use it to cut a derived observable loose once its underlying list item is gone, so a stray observable watching an out-of-bounds index doesn't crash the program. Application code rarely calls it directly. If you ever see a console warning about an observable "still being watched" after a disconnect, it means something is still holding and observing a reference that was meant to be discarded — worth tracking down rather than ignoring, since it usually points at a stale subscription that outlived what it was watching.
 
 ## See also
 

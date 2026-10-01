@@ -65,8 +65,20 @@ function setup_auto_grow(ta: HTMLTextAreaElement, resize: () => void) {
 
   ta.addEventListener("input", resize)
 
-  // Reflow when the control's box changes (font metrics, padding, width → wrapping).
-  const ro = new ResizeObserver(() => resize())
+  // Reflow when the control's width changes (wrapping changes with it). Its height changes are our
+  // own resizes: nothing to do. The reflow waits for the next frame: resizing inside the observer
+  // would change the size of elements the browser has already measured this frame (the textarea's
+  // ancestors), whose observers then can't be notified until the next one — the browser reports
+  // that as a "ResizeObserver loop completed with undelivered notifications" error.
+  let last_width = -1
+  let frame = 0
+  const ro = new ResizeObserver((entries) => {
+    const width = entries[entries.length - 1]?.contentRect.width ?? -1
+    if (width === last_width) return
+    last_width = width
+    cancelAnimationFrame(frame)
+    frame = requestAnimationFrame(resize)
+  })
   ro.observe(ta)
 
   // Parent layout changes can alter width without changing the textarea's border box first.
@@ -78,6 +90,7 @@ function setup_auto_grow(ta: HTMLTextAreaElement, resize: () => void) {
     ta.removeEventListener("input", resize)
     window.removeEventListener("resize", resize)
     ro.disconnect()
+    cancelAnimationFrame(frame)
     delete (ta as { value?: string }).value
     Object.defineProperty(ta, "value", native_value)
   }
@@ -95,8 +108,9 @@ export function $auto_grow(opts?: { max?: o.RO<number>; min?: o.RO<number> }): R
       resize_to_content(ta, min, max)
     }
 
+    // New bounds: resize, once the textarea is wired (before that, setup_auto_grow sizes it).
     node_observe(ta, o.join(oo_min_lines, oo_max_lines), () => {
-      resize
+      if (teardown != null) resize()
     })
 
     return [

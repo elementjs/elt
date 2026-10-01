@@ -1,21 +1,22 @@
 /*
-Composite title row + toolbar (Layer 2). Shared by Object / Array / Set / Map widgets.
-Search filters rows; the … menu hosts type-change actions and import/export add-on slots.
+Composite chrome (Layer 2), shared by Object / Array / Set / Map / Table widgets: the type label,
+warning and `…` menu the shell puts on the column's single header line, and the toolbar holding the
+add button and the row filter. The … menu hosts type-change actions and import/export add-on slots.
 */
 
-import { $bind, $click, css, o, type Renderable } from "elt"
+import { $bind, $click, o, type Renderable } from "elt"
 import { popup } from "elt/ui/popup"
-import { theme } from "elt/ui"
-import type { CommonNodeOptions, CompositeToolbarOptions, Factory } from "./schema"
+import { cls_text_fill } from "./grid"
+import type { CommonNodeOptions, CompositeToolbarOptions, Factory, WidgetHeader } from "./schema"
 import { apply_type_change, type_change_actions } from "./type-change"
 
-/** Per-mount toolbar filter state — lives in the composite render() closure. */
-export interface CompositeToolbarState {
+/** Per-mount row filter state — lives in the composite render() closure. */
+export interface FilterState {
   o_query: o.Observable<string>
   o_case_sensitive: o.Observable<boolean>
 }
 
-export function create_toolbar_state(): CompositeToolbarState {
+export function create_filter_state(): FilterState {
   return { o_query: o(""), o_case_sensitive: o(false) }
 }
 
@@ -37,7 +38,10 @@ export function value_preview_text(value: unknown): string {
   if (value instanceof Date) return value.toISOString()
   if (Array.isArray(value)) {
     if (value.length === 0) return "[]"
-    const head = value.slice(0, 2).map((v) => value_preview_text(v)).join(", ")
+    const head = value
+      .slice(0, 2)
+      .map((v) => value_preview_text(v))
+      .join(", ")
     return value.length > 2 ? `[${head}, …]` : `[${head}]`
   }
   if (value instanceof Map) return `Map {${value.size}}`
@@ -87,20 +91,31 @@ function toolbar_flags(toolbar: CompositeToolbarOptions | undefined) {
 export interface CompositeToolbarProps {
   factory: Factory<CommonNodeOptions>
   o_value: o.Observable<unknown>
-  toolbar: CompositeToolbarState
+  filter: FilterState
   /** Factory kind tag for titling when value is ambiguous. */
   kind: string
   /** Extra type-change targets (map/set branches, either alternatives, …). */
   type_change_extra?: Factory<unknown>[]
   /** Import/export add-ons registered for this editor instance (v1: usually empty). */
   import_export_addons?: { id: string; label: string }[]
+  /** Header-line warning (Table's "extra keys"). */
+  warning?: Renderable
+  /** The toolbar's add button ("+ Add key", …), when the composite allows adding. */
+  add?: { label: string; on_add: () => void } | null
 }
 
-/** Composite title + toolbar; hoisted into the column header by the shell (`RenderableWidget.header`). */
-export function render_composite_toolbar(props: CompositeToolbarProps): Renderable {
-  const { factory, o_value, toolbar, kind, type_change_extra = [], import_export_addons = [] } = props
+/**
+ * A composite's chrome (Layer 2): its part of the header line (type label, warning, `…` menu),
+ * hoisted into the column's single header line by the shell, and its toolbar (add button, filter).
+ * The toolbar is `null` when it would be empty.
+ */
+export function render_composite_chrome(props: CompositeToolbarProps): {
+  header: WidgetHeader
+  toolbar: Renderable | null
+} {
+  const { factory, o_value, filter, kind, type_change_extra = [], import_export_addons = [] } = props
   const flags = toolbar_flags(factory.options.toolbar)
-  const oo_title = o_value.tf((value) => {
+  const o_label = o_value.tf((value) => {
     const label = factory.options.chrome_label
     if (label === false) return null
     if (typeof label === "string") return label
@@ -111,75 +126,85 @@ export function render_composite_toolbar(props: CompositeToolbarProps): Renderab
 
   const has_menu_content =
     flags.show_menu &&
-    ((flags.show_type_change && type_change_actions(factory, o_value.get(), factory.options, type_change_extra).length > 0) ||
+    ((flags.show_type_change &&
+      type_change_actions(factory, o_value.get(), factory.options, type_change_extra).length > 0) ||
       (flags.show_import_export && import_export_addons.length > 0))
 
-  return (
-    <e-flex column class={cls_toolbar_wrap} spacing="widget">
-      {oo_title.tf((title) => (title != null ? <span class={cls_title}>{title}</span> : null))}
-      {(flags.show_search || has_menu_content) && (
-        <e-flex align="center" spacing="widget" class={cls_toolbar_row}>
-          {flags.show_search && (
-            <>
-              <input type="search" class={cls_search} placeholder="Filter rows…">
-                {$bind.string(toolbar.o_query)}
-              </input>
-              <label class={cls_case_toggle}>
-                <input type="checkbox">{$bind.boolean(toolbar.o_case_sensitive)}</input>
-                Aa
-              </label>
-            </>
-          )}
-          {has_menu_content && (
-            <button type="button" class={cls_menu_btn} aria-label="More actions">
-              {$click(async (ev) => {
-                const value = o_value.get()
-                await popup(ev.currentTarget, (fut) => (
-                  <e-column pad="component" packed="widget" role="menu" aria-label="More actions">
-                    {flags.show_type_change && (
-                      <>
-                        <h3>Type</h3>
-                        {type_change_actions(factory, value, factory.options, type_change_extra).map((action) => (
-                          <button type="button" role="menuitem">
-                            {$click(() => {
-                              if (apply_type_change(o_value, factory, action)) fut.resolve(undefined)
-                            })}
-                            {action.label}
-                          </button>
-                        ))}
-                      </>
-                    )}
-                    {flags.show_import_export && import_export_addons.length > 0 && (
-                      <>
-                        <hr />
-                        <h3>Import / export</h3>
-                        {import_export_addons.map((addon) => (
-                          <button type="button" role="menuitem" disabled title="Add-on slot — not wired in this demo">
-                            {addon.label}
-                          </button>
-                        ))}
-                      </>
-                    )}
-                  </e-column>
-                ))
-              })}
-              …
-            </button>
-          )}
-        </e-flex>
+  const actions = (
+    <>
+      {props.warning}
+      {has_menu_content && (
+        <button type="button" aria-label="More actions">
+          {$click(async (ev) => {
+            const value = o_value.get()
+            await popup(ev.currentTarget, (fut) => (
+              <e-column pad="component" packed="widget" role="menu" aria-label="More actions">
+                {flags.show_type_change && (
+                  <>
+                    <h3>Type</h3>
+                    {type_change_actions(factory, value, factory.options, type_change_extra).map((action) => (
+                      <button type="button" role="menuitem">
+                        {$click(() => {
+                          if (apply_type_change(o_value, factory, action)) fut.resolve(undefined)
+                        })}
+                        {action.label}
+                      </button>
+                    ))}
+                  </>
+                )}
+                {flags.show_import_export && import_export_addons.length > 0 && (
+                  <>
+                    <hr />
+                    <h3>Import / export</h3>
+                    {import_export_addons.map((addon) => (
+                      <button type="button" role="menuitem" disabled title="Add-on slot — not wired in this demo">
+                        {addon.label}
+                      </button>
+                    ))}
+                  </>
+                )}
+              </e-column>
+            ))
+          })}
+          …
+        </button>
       )}
-    </e-flex>
+    </>
   )
+
+  const toolbar =
+    flags.show_search || props.add ? (
+      <e-row surface="neutral-1" packed="widget" border align="stretch">
+        {props.add && (
+          <button type="button">
+            {$click(props.add.on_add)}+ {props.add.label}
+          </button>
+        )}
+        {flags.show_search && (
+          <>
+            <input type="search" class={cls_text_fill} placeholder="Filter rows…">
+              {$bind.string(filter.o_query)}
+            </input>
+            <label e-variant="toggle" title="Match case">
+              <input type="checkbox">{$bind.boolean(filter.o_case_sensitive)}</input>
+              Aa
+            </label>
+          </>
+        )}
+      </e-row>
+    ) : null
+
+  return { header: { o_label, actions }, toolbar }
 }
 
-/** Compact … menu for inline type changes (e.g. Map key cells). */
+/** Compact … menu for inline type changes, as a grid cell of its own (Map keys). */
 export function render_type_change_menu_button(
   o_value: o.Observable<unknown>,
   factory: Factory<CommonNodeOptions>,
   type_change_extra: Factory<unknown>[] = [],
 ): Renderable {
   return (
-    <button type="button" class={cls_menu_btn} aria-label="Change type">
+    <button type="button" aria-label="Change type">
       {$click(async (ev) => {
         const value = o_value.get()
         await popup(ev.currentTarget, (fut) => (
@@ -200,38 +225,3 @@ export function render_type_change_menu_button(
     </button>
   )
 }
-
-const cls_toolbar_wrap = css`.oe-composite-toolbar {
-  flex: 1;
-}`
-
-const cls_title = css`.oe-composite-title {
-  font-weight: bold;
-}`
-
-const cls_toolbar_row = css`.oe-composite-toolbar-row {
-  flex-wrap: wrap;
-}`
-
-const cls_search = css`.oe-composite-search {
-  flex: 1 1 8em;
-  min-width: 6em;
-}`
-
-const cls_case_toggle = css`.oe-composite-case {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.25em;
-  font-size: 0.85em;
-  color: ${theme.colors.text.mid};
-  user-select: none;
-}`
-
-const cls_menu_btn = css`.oe-composite-menu {
-  border: 1px solid ${theme.colors.text.mid};
-  background: none;
-  border-radius: ${theme.settings.borderRadius};
-  padding: 0.2em 0.55em;
-  cursor: pointer;
-  line-height: 1.2;
-}`

@@ -46,3 +46,41 @@ test.describe("disabled controls", () => {
     expect(r.color).toBe(r.ref)
   })
 })
+
+test.describe("$auto_grow (regression: resizing inside its ResizeObserver raised 'ResizeObserver loop completed with undelivered notifications')", () => {
+  test("rewraps when its width changes, without a ResizeObserver loop error", async ({ page }) => {
+    const result = await page.evaluate(async () => {
+      const { node_append } = window.__ELT__
+      const { $auto_grow } = window.__ELT__.UI
+      let errors = 0
+      window.addEventListener("error", (e) => {
+        if (e.message.includes("ResizeObserver")) errors++
+      })
+      // An observed container around the textarea, like a grid whose columns are watched.
+      const box = document.createElement("div")
+      box.style.width = "600px"
+      new ResizeObserver(() => {}).observe(box)
+      const ta = document.createElement("textarea")
+      ta.value = "word ".repeat(40)
+      ta.style.width = "100%" // follows the box, like a grid cell
+      // A decorator returning decorators ($connected/$disconnected): apply them to the textarea.
+      for (const deco of $auto_grow()(ta) as unknown as ((n: Node) => void)[]) deco(ta)
+      box.appendChild(ta)
+      node_append(document.body, box)
+      const frames = (n: number) =>
+        new Promise<void>((r) => {
+          const step = (k: number) => (k === 0 ? r() : requestAnimationFrame(() => step(k - 1)))
+          step(n)
+        })
+      await frames(3)
+      const wide = ta.getBoundingClientRect().height
+      box.style.width = "150px" // narrower: more lines
+      await frames(3)
+      const narrow = ta.getBoundingClientRect().height
+      await new Promise((r) => setTimeout(r, 50))
+      return { wide, narrow, errors }
+    })
+    expect(result.narrow).toBeGreaterThan(result.wide)
+    expect(result.errors).toBe(0)
+  })
+})

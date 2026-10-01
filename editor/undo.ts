@@ -60,20 +60,22 @@ export class RootUndoRing {
   }
 
   undo(): boolean {
-    if (this.cursor <= 0) return false
+    const entry = this.entries[this.cursor - 1]
+    if (this.cursor <= 0 || !entry) return false
     this.recording = false
     this.cursor--
-    this.o_root.set(o.clone(this.entries[this.cursor]!.snapshot))
+    this.o_root.set(o.clone(entry.snapshot))
     this.recording = true
     this.sync_flags()
     return true
   }
 
   redo(): boolean {
-    if (this.cursor >= this.entries.length - 1) return false
+    const entry = this.entries[this.cursor + 1]
+    if (!entry) return false
     this.recording = false
     this.cursor++
-    this.o_root.set(o.clone(this.entries[this.cursor]!.snapshot))
+    this.o_root.set(o.clone(entry.snapshot))
     this.recording = true
     this.sync_flags()
     return true
@@ -98,7 +100,7 @@ export class RootUndoRing {
 
     let import_count = 0
     for (let i = this.entries.length - 1; i >= 0; i--) {
-      if (this.entries[i]!.import_tag) import_count++
+      if (this.entries[i]?.import_tag) import_count++
       if (import_count > this.import_limit()) {
         this.entries = this.entries.slice(i + 1)
         this.cursor = this.entries.length - 1

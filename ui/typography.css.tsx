@@ -256,42 +256,44 @@ css`@layer typography {
      so the per-element margins below refine the base one. */
 
   /* A text run keeps its typographic rhythm, whatever the container's spacing. */
-  :where(${PROSE_CONTAINER_SELECTOR}) > :where(${TEXT_BLOCK_SELECTOR}) {
-    margin-block: 1.5em;
-  }
-  :where(${PROSE_CONTAINER_SELECTOR}) > :where(h1, h2, h3, h4, h5, h6) {
-    margin-block: 2lh 1.5lh;
-  }
-  :where(${PROSE_CONTAINER_SELECTOR}) > :where(p) {
-    margin-block: 1em;
-  }
-  :where(${PROSE_CONTAINER_SELECTOR}) > :where(hr) {
-    margin-block: 2em;
-  }
-  /* Consecutive headings stay together. */
-  :where(${PROSE_CONTAINER_SELECTOR}) > :where(h1, h2, h3, h4, h5, h6) + :where(h1, h2, h3, h4, h5, h6) {
-    margin-block-start: 0.5lh !important;
-  }
-  :where(${PROSE_CONTAINER_SELECTOR}) > :where(h1, h2, h3, h4, h5, h6):has(+ :is(h1, h2, h3, h4, h5, h6)) {
-    margin-block-end: 0 !important;
-  }
+  :where(${PROSE_CONTAINER_SELECTOR}) {
+    & :where(${TEXT_BLOCK_SELECTOR}) {
+      margin-block: 1.5em;
+    }
+    & > :where(h1, h2, h3, h4, h5, h6) {
+      margin-block: 2lh 1.5lh;
+    }
+    &  > :where(p) {
+      margin-block: 1em;
+    }
+    &  > :where(hr) {
+      margin-block: 2em;
+    }
+    /* Consecutive headings stay together. */
+    &  > :where(h1, h2, h3, h4, h5, h6) + :where(h1, h2, h3, h4, h5, h6) {
+      margin-block-start: 0.5lh !important;
+    }
+    &  > :where(h1, h2, h3, h4, h5, h6):has(+ :is(h1, h2, h3, h4, h5, h6)) {
+      margin-block-end: 0 !important;
+    }
 
-  /* Block-level children that are not text blocks (rows, columns, boxes) are spaced by the
-     container's ambient spacing, padded or not. Applied as margins on both sides so that, through
-     margin collapsing, the gap next to a text block is the larger of the two — a text run keeps
-     its typographic rhythm, and two rows get exactly the spacing between them. */
-  :where(${PROSE_CONTAINER_SELECTOR}) > :where(${PROSE_SPACED_SELECTOR}) {
-    /* The container's step, not the child's own: see --e-parent-spacing in ui/layout.css.tsx. */
-    margin-block: var(--e-parent-spacing);
-  }
+    /* Block-level children that are not text blocks (rows, columns, boxes) are spaced by the
+      container's ambient spacing, padded or not. Applied as margins on both sides so that, through
+      margin collapsing, the gap next to a text block is the larger of the two — a text run keeps
+      its typographic rhythm, and two rows get exactly the spacing between them. */
+    &  > :where(${PROSE_SPACED_SELECTOR}) {
+      /* The container's step, not the child's own: see --e-parent-spacing in ui/layout.css.tsx. */
+      margin-block: var(--e-parent-spacing);
+    }
 
-  /* A prose container's own padding (or its parent's spacing) sets its outer distance; its first
-     and last children never add to it. */
-  :where(${PROSE_CONTAINER_SELECTOR}) > :first-child {
-    margin-block-start: 0 !important;
-  }
-  :where(${PROSE_CONTAINER_SELECTOR}) > :last-child {
-    margin-block-end: 0 !important;
+    /* A prose container's own padding (or its parent's spacing) sets its outer distance; its first
+      and last children never add to it. */
+    &  > :first-child {
+      margin-block-start: 0 !important;
+    }
+    &  > :last-child {
+      margin-block-end: 0 !important;
+    }
   }
 
 }`

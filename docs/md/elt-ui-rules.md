@@ -10,7 +10,7 @@ Every binding rule for building UI with `elt/ui`, and nothing else: no explanati
 
 ## Terms
 
-- **Layout element**: `<e-row>`, `<e-column>`, `<e-flex>`, `<e-grid>`, `<e-prose>`. They take the layout attributes (`pad`, `spacing`, `border`, `surface`, …) listed in [Layout § Layout attributes](./ui-layout.md#layout-attributes).
+- **Layout element**: `<e-row>`, `<e-column>`, `<e-flex>`, `<e-grid>`, `<e-prose>`, and, with fewer attributes, `<e-grid-row>` and `<e-virtual-scroll>`. They take the layout attributes (`pad`, `spacing`, `border`, `surface`, …) listed in [Layout § Layout attributes](./ui-layout.md#layout-attributes).
 - **Boundary**: an element with a visible edge — a border, a background (including `surface` and inverted bands), or both. The edge of the window is also a boundary: an element whose edge is the window's edge (the app's outermost container, a full-height content column) may pad itself on that side.
 - **Inline element**: `span`, `strong`, `em`, `a`, `code`, `kbd`, … — what HTML calls "phrasing content".
 - **Text block**: an element that takes part in prose rhythm: `h1`–`h6`, `p`, `pre`, `ul`, `ol`, `dl`, `table`, `hr`, `blockquote`, `figure`, `details`.
@@ -100,7 +100,8 @@ Every layout decision reduces to these six. The layout elements and their attrib
 ## Custom CSS
 
 1. **Custom CSS is the last resort.** Try layout attributes and theme helpers first. If you still need CSS, keep it local, build it from theme helpers, and say in a comment why the layout attributes were not enough ([Theme § Custom CSS](./ui-theme.md#custom-css)).
-2. A grid template (`grid-template-*`) goes in a small `css` rule on an `<e-grid>`; there is no grid system ([Layout § Layout elements](./ui-layout.md#layout-elements)).
+2. Equal grid columns are `columns={N}` on an `<e-grid>`; any other grid template (`grid-template-*`) goes in a small `css` rule on it. Rows of a table-like grid are `<e-grid-row>`s ([Layout § Grids](./ui-layout.md#grids)).
+3. A scroll area is a layout element with `scroll` (or an `<e-virtual-scroll>` for a long list), not `overflow` in CSS nor the deprecated `$scrollable`. It draws the frame (`border`) of what it scrolls, and isn't padded when it holds `sticky` elements ([Layout § Scroll areas and sticky elements](./ui-layout.md#scroll-areas-and-sticky-elements)).
 
 ## Code conventions
 

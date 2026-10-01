@@ -24,7 +24,7 @@ function widget_nav_backdrop() {
 }
 
 function widget_nav() {
-  return <e-column packed align="stretch" class={[cls_nav, { open: o_nav_open }]}>
+  return <e-column packed align="stretch" class={[cls_nav, { open: o_nav_open }]} scroll>
     {menu.map((group) => <e-column packed align="stretch">
       {group.section != null ? <e-prose class={cls_section}>{group.section}</e-prose> : null}
       {group.items.map((item) => <a href={`${item.url}`}>

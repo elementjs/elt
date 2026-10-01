@@ -46,11 +46,7 @@ export function remove_set_member(o_set: import("elt").o.Observable<unknown>, me
   o_set.set(next)
 }
 
-export function insert_map_entry(
-  o_map: import("elt").o.Observable<unknown>,
-  key: unknown,
-  value: unknown,
-): boolean {
+export function insert_map_entry(o_map: import("elt").o.Observable<unknown>, key: unknown, value: unknown): boolean {
   const m = o_map.get()
   if (!(m instanceof Map)) return false
   if (m.has(key)) return false
@@ -69,10 +65,7 @@ export function remove_map_entry(o_map: import("elt").o.Observable<unknown>, key
 }
 
 /** Table column keys — manual list wins, else first-row keys (Layer 3 Table). */
-export function table_column_keys(
-  arr: unknown[],
-  manual?: readonly string[],
-): string[] {
+export function table_column_keys(arr: unknown[], manual?: readonly string[]): string[] {
   if (manual?.length) return [...manual]
   const first = arr[0]
   if (typeof first === "object" && first !== null && !Array.isArray(first)) {

@@ -285,7 +285,7 @@ return <e-column spacing="section">
     <div class={cls_plain_surface}>
       A plain &lt;div&gt;, not an &lt;e-prose&gt; — styled with
       theme.colors.tint.class_as_surface(2)'s underlying CSS directly, since [surface] itself
-      only targets e-flex/e-grid/e-prose.
+      only targets layout elements.
     </div>
   </e-prose>
 </e-column>

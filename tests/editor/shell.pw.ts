@@ -322,9 +322,7 @@ test.describe("ObjectEditorShell", () => {
 
       // Only "name" renders inline — "address" is a preview button, not two more text fields.
       const inline_count_before = shell.node.querySelectorAll('input[type="text"]').length
-      const preview_button = [...shell.node.querySelectorAll("button")].find((b) => b.textContent?.includes("Open")) as
-        | HTMLButtonElement
-        | undefined
+      const preview_button = shell.node.querySelector<HTMLButtonElement>('button[title="Open address"]') ?? undefined
       const breadcrumb_before = shell.o_breadcrumb.get()
 
       preview_button!.dispatchEvent(new Event("click", { bubbles: true }))
@@ -368,7 +366,7 @@ test.describe("ObjectEditorShell", () => {
       const shell = new ObjectEditorShell(o_root, { schema: with_address_schema })
       node_append(document.body, shell.node)
 
-      const has_open_before = [...shell.node.querySelectorAll("button")].some((b) => b.textContent?.includes("Open"))
+      const has_open_before = shell.node.querySelector('button[title^="Open "]') !== null
 
       const prev_confirm = globalThis.confirm
       globalThis.confirm = () => true
@@ -386,9 +384,9 @@ test.describe("ObjectEditorShell", () => {
 
       const address_value = o_root.get().address
       // Still a composite preview (array), not stale object drill-in state.
-      const has_open_after = [...shell.node.querySelectorAll("button")].some((b) => b.textContent?.includes("Open"))
+      const has_open_after = shell.node.querySelector('button[title^="Open "]') !== null
 
-      const preview = [...shell.node.querySelectorAll("button")].find((b) => b.textContent?.includes("Open"))!
+      const preview = shell.node.querySelector<HTMLButtonElement>('button[title^="Open "]')!
       preview.dispatchEvent(new Event("click", { bubbles: true }))
       const breadcrumb = shell.o_breadcrumb.get()
 
@@ -410,12 +408,7 @@ test.describe("ObjectEditorShell", () => {
       node_append(document.body, shell.node)
 
       function find_open(key: string) {
-        for (const span of shell.node.querySelectorAll("span")) {
-          if (span.textContent?.trim() !== key) continue
-          const btn = span.nextElementSibling?.querySelector("button")
-          if (btn?.textContent?.includes("Open")) return btn as HTMLButtonElement
-        }
-        return null
+        return shell.node.querySelector<HTMLButtonElement>(`button[title="Open ${key}"]`)
       }
 
       find_open("meta")!.dispatchEvent(new Event("click", { bubbles: true }))
@@ -448,7 +441,7 @@ test.describe("ObjectEditorShell", () => {
     expect(results.has_revision_after_stats).toBe(false)
   })
 
-  test("composite preview Open button shows only label text, not source comments", async ({ page }) => {
+  test("composite preview cell shows the value's preview text and an arrow, nothing else", async ({ page }) => {
     const text = await page.evaluate(() => {
       const { o, node_append } = window.__ELT__
       const { ObjectEditorShell, anything } = window.__ELT__.Editor
@@ -457,10 +450,10 @@ test.describe("ObjectEditorShell", () => {
       const shell = new ObjectEditorShell(o_root, { schema: anything })
       node_append(document.body, shell.node)
 
-      const preview = [...shell.node.querySelectorAll("button")].find((b) => b.textContent?.includes("Open"))
+      const preview = shell.node.querySelector('button[title="Open meta"]')
       return preview?.textContent?.trim()
     })
-    expect(text).toBe("Open ›")
+    expect(text).toBe("{revision: 1}›")
   })
 
   test("anything (unknown mode) resolves a bare scalar root without a schema", async ({ page }) => {
@@ -512,7 +505,7 @@ test.describe("ObjectEditorShell", () => {
       })
       node_append(document.body, shell.node)
 
-      const open = [...shell.node.querySelectorAll("button")].find((b) => b.textContent?.includes("Open"))
+      const open = shell.node.querySelector('button[title="Open nested"]')
       open!.dispatchEvent(new Event("click", { bubbles: true }))
 
       const breadcrumb = shell.o_breadcrumb.get()

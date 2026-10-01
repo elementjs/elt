@@ -96,10 +96,8 @@ test.describe("ObjectFactory keys", () => {
       const widget = object({ properties: [] }).render(o_root as any)
       const root = widget.render() as HTMLElement
       node_append(document.body, root)
-      const list = root.querySelector("e-prose")!
-      return [...list.querySelectorAll("e-flex > span")]
-        .map((el) => el.textContent?.trim())
-        .filter((t): t is string => !!t && t !== "+")
+      // The label cell is each row's first cell.
+      return [...root.querySelectorAll("e-grid-row > :first-child")].map((el) => el.textContent?.trim())
     })
     expect(result).toEqual(["a", "b"])
   })
@@ -120,34 +118,38 @@ test.describe("ObjectFactory keys", () => {
     expect(result).toBe(2)
   })
 
-  test("object widget includes composite toolbar search", async ({ page }) => {
+  test("object widget's chrome: … menu in its header actions, filter in its toolbar", async ({ page }) => {
     const result = await page.evaluate(() => {
       const { node_append, o } = window.__ELT__
       const { object } = window.__ELT__.Editor
       const o_root = o({ alpha: "one", beta: "two" })
       const widget = object({ properties: [] }).render(o_root as any)
-      node_append(document.body, widget.header)
-      node_append(document.body, widget.render() as HTMLElement)
+      const header = document.createElement("div")
+      const toolbar = document.createElement("div")
+      node_append(header, widget.header!.actions)
+      node_append(toolbar, widget.toolbar!)
+      node_append(document.body, header)
+      node_append(document.body, toolbar)
       return {
-        hasSearch: document.querySelector('input[type="search"]') !== null,
-        hasMoreActions: document.querySelector('button[aria-label="More actions"]') !== null,
+        hasSearch: toolbar.querySelector('input[type="search"]') !== null,
+        hasMoreActions: header.querySelector('button[aria-label="More actions"]') !== null,
       }
     })
     expect(result.hasSearch).toBe(true)
     expect(result.hasMoreActions).toBe(true)
   })
 
-  test("toolbar search: false removes the search field", async ({ page }) => {
+  test("toolbar search: false and no free keys: no toolbar at all", async ({ page }) => {
     const result = await page.evaluate(() => {
-      const { node_append, o } = window.__ELT__
+      const { o } = window.__ELT__
       const { object, string } = window.__ELT__.Editor
       const o_root = o({ only: "x" })
-      const widget = object({ properties: [{ name: "only", type: string() }], toolbar: { search: false } }).render(
-        o_root as any,
-      )
-      node_append(document.body, widget.header)
-      node_append(document.body, widget.render() as HTMLElement)
-      return document.querySelector('input[type="search"]') === null
+      const widget = object({
+        properties: [{ name: "only", type: string() }],
+        toolbar: { search: false },
+        free_keys: false,
+      }).render(o_root as any)
+      return widget.toolbar === null
     })
     expect(result).toBe(true)
   })
@@ -192,6 +194,7 @@ test.describe("ObjectFactory keys", () => {
       const o_tags = o(["alpha"])
       const widget = array({ values: string(), item_default: "" }).render(o_tags as any)
       node_append(document.body, widget.render() as HTMLElement)
+      node_append(document.body, widget.toolbar!)
 
       const add = [...document.querySelectorAll("button")].find((b) => b.textContent?.includes("Add item"))
       const addDefined = add !== undefined

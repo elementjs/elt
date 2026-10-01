@@ -43,8 +43,9 @@ export function type_change_actions(
   }
 
   let allowed = candidates
-  if (options.conversions?.length) {
-    allowed = allowed.filter((f) => options.conversions!.includes(f.kind))
+  const conversions = options.conversions
+  if (conversions?.length) {
+    allowed = allowed.filter((f) => conversions.includes(f.kind))
   }
 
   const actions: TypeChangeAction[] = []

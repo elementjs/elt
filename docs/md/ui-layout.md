@@ -6,7 +6,7 @@ order: 1
 
 # Layout
 
-Layout elements, their attributes, the spacing scale, borders, and `packed` groups. The rules these implement are in [elt/ui rules](./elt-ui-rules.md#golden-rules); the reasoning is at the end of this page, in [Why these rules](#why-these-rules).
+Layout elements, their attributes, the spacing scale, borders, `packed` groups, grids, and scroll areas. The rules these implement are in [elt/ui rules](./elt-ui-rules.md#golden-rules); the reasoning is at the end of this page, in [Why these rules](#why-these-rules).
 
 ## Layout elements
 
@@ -15,7 +15,8 @@ Layout elements, their attributes, the spacing scale, borders, and `packed` grou
 | `<e-row>` | Flex row. Children are baseline-aligned by default. |
 | `<e-column>` | Flex column. |
 | `<e-flex>` | Flex, direction set by the `column` attribute — for direction-agnostic code or a direction that changes at runtime. Otherwise use `e-row`/`e-column`. |
-| `<e-grid>` | CSS grid. There is no grid "system": write `grid-template-*` in a small `css` rule ([Theme § Custom CSS](./ui-theme.md#custom-css)). |
+| `<e-grid>` | CSS grid. `columns={N}` gives N equal columns; any other template is a small `css` rule ([Grids](#grids)). |
+| `<e-grid-row>` | A row of an `e-grid`: spans every column and puts its children on the grid's columns ([Grids](#grids)). Only as a direct child of `e-grid`. |
 | `<e-prose>` | Block container for content you read: a prose container, spacing its text by typographic rules ([Typography](./ui-typography.md#prose-containers-and-text-blocks)). |
 
 A panel or card is just a layout element with `border` and/or `surface` — `elt/ui` has no panel component. Whether a card has a fill or only an edge is your app's decision. The overall app layout (page shell, navigation placement) is left to your app too.
@@ -97,6 +98,8 @@ Every attribute accepts a plain value or an observable.
 | `self-align`, `self-justify` | an alignment value | `align-self` / `justify-self`. |
 | `max-width`, `max-height` | boolean | `max-width: 100%` / `max-height: 100%`. |
 | `full-width`, `full-height`, `full-screen` | boolean | `width: 100%` / `height: 100%` / both. |
+| `scroll` | bare, `"x"`, `"y"` | Makes the element a scroll area, on both axes or on one — see [Scroll areas and sticky elements](#scroll-areas-and-sticky-elements). |
+| `sticky` | `"top"`, `"bottom"` | Sticks to that edge of the nearest scroll area while its content scrolls — see [Scroll areas and sticky elements](#scroll-areas-and-sticky-elements). |
 
 Alignment values: `center`, `start`, `end`, `self-start`, `baseline`, `first baseline`, `last baseline`, `safe center`, `unsafe center`, `normal`, `stretch`, `space-evenly`, `space-around`, `space-between`.
 
@@ -104,12 +107,15 @@ Alignment values: `center`, `start`, `end`, `self-start`, `baseline`, `first bas
 
 | Attribute | Applies to | Effect |
 | --------- | ---------- | ------ |
-| `align` | all four | `align-items`. Flex elements default to `baseline`. |
+| `align` | all four, and `e-grid-row` | `align-items`. Flex elements default to `baseline`. |
 | `justify` | all four | `justify-content`. |
 | `column` | `e-flex` | Column direction. |
 | `reverse` | flex elements | Reverses the direction. |
 | `wrap` | flex elements | `flex-wrap: wrap`. |
-| `packed` | flex elements | Children touch — see [packed](#packed). Bare, or a spacing step for the children's padding. |
+| `packed` | all four | Children touch — see [packed](#packed) and, for grids, [Grids](#grids). Bare, or a spacing step for the children's padding. |
+| `columns` | `e-grid` | 1 to 12: that many equal columns — see [Grids](#grids). |
+
+`e-grid-row` takes only `surface`, `hover`, `align` and `sticky`.
 
 - These four space their children with `gap`, at the ambient step, unless they have `pad="none"`, `spacing="none"` or `packed`.
 - Their children get `min-width: 0; min-height: 0`, so they can shrink below their content's size. To stop a child from overflowing on the cross axis, use `align="stretch"` on the container.
@@ -132,7 +138,7 @@ Alignment values: `center`, `start`, `end`, `self-start`, `baseline`, `first bas
 
 ## packed
 
-`packed` on `e-row`/`e-column`/`e-flex` implements golden rule 6: no gap, children flush against each other, forming one visually uniform group (button groups, menus, list boxes).
+`packed` on `e-row`/`e-column`/`e-flex` (and `e-grid`, see [Grids](#grids)) implements golden rule 6: no gap, children flush against each other, forming one visually uniform group (button groups, menus, list boxes).
 
 `packed` pads the children that don't set their own `pad`; a child with its own `pad` keeps it.
 
@@ -148,6 +154,7 @@ The container's own `pad` still pads the container itself. `packed` never adds a
 - **With `border` on the container**: the container draws the border. It gets a 1px gap between children and a background the same color as its border, so the gap shows as a seam. Every child gets `border: none` and the ambient surface as background (a background you set on the child yourself still wins).
 - **Radius**: interior seams are always square. When the container has a radius (its own `border`, or `radius`), the first and last children's outer corners take exactly the container's radius. When it has neither, each child keeps its own radius at every corner.
 - A focused child is drawn above its neighbors so its focus ring isn't covered.
+- **The outermost container draws the frame.** A `packed border` container inside another `packed border` container (a row of buttons in a bordered column, say) loses its own border like any child, but keeps its seams between its own children. Inside a scroll area, a `packed border` child drops its outer border and radius too: the scroll area draws the frame, with its own `border` ([Scroll areas and sticky elements](#scroll-areas-and-sticky-elements)).
 - Limitation: when a packed row wraps, its first and last children may end up on different lines, and the outer-corner radius then looks wrong.
 
 ```tsx
@@ -160,6 +167,96 @@ The container's own `pad` still pads the container itself. `packed` never adds a
 ```
 
 More examples: [Forms § Button groups and menus](./ui-forms.md#button-groups-and-menus).
+
+## Grids
+
+`<e-grid>` is a CSS grid. `columns={N}` (1 to 12) gives it N equal columns (`repeat(N, minmax(0, 1fr))`). Their width depends on the grid's width only, never on the cells' content — which keeps them steady when rows come and go, as in a [virtual list](./verbs.md#repeatvirtual-a-long-list). Any other template (`1fr auto`, named areas, a template computed from data) goes in a small `css` rule or a `style`, which overrides `columns` ([Theme § Custom CSS](./ui-theme.md#custom-css)).
+
+`<e-grid-row>` is a row of a grid: it spans every column, and its children sit on the grid's own columns (a CSS subgrid), so cells line up from one row to the next. It takes `surface`, `hover`, `align` and `sticky`, nothing else: its spacing comes from the grid. It only makes sense as a direct child of an `e-grid`, and rows don't nest. An `e-row` inside a grid stays an ordinary flex row in one cell.
+
+`packed` on a grid works on its **cells**: the grid's children, except that a row isn't a cell — its children are.
+
+- **Without `border`**: no gap; cells are padded like the children of any `packed` container. Their borders are left alone: a grid has no single "trailing edge".
+- **With `border`**: the grid draws the border, and 1px seams of the same color run between all cells, rows included. Cells take the surface as background. A row with its own `surface` colors its cells and still shows its seams; a row with `hover` changes its cells' color when hovered.
+- **Cells must fill their area** in a bordered grid: the seams are the grid's own background, showing through 1px gaps between cells, so any part of a cell's area the cell doesn't cover shows the seam color. That happens with a control that keeps its own size (a checkbox), a row whose `align` stops its cells from stretching to the row's height (`start`, `center`), and a cell with a transparent background of its own (`e-variant="text"` buttons). Leave rows stretching (the default), and put a fixed-size control in an element that fills the cell, such as a `label` around a checkbox.
+- **Radius**: cells are square, except the outer corners of the first and last rows, which take the grid's radius when it has one. This only works with rows: a cell placed directly in the grid can't be told apart from an inner one, so a square corner cell may show past the grid's rounded border. Use rows, or `radius="none"`.
+
+```tsx
+<e-grid columns={3} packed border>
+  <e-grid-row surface="tint-2"><span>Name</span><span>Kind</span><span>Size</span></e-grid-row>
+  <e-grid-row hover><span>a.txt</span><span>text</span><span>3 kB</span></e-grid-row>
+  <e-grid-row hover><span>b.png</span><span>image</span><span>120 kB</span></e-grid-row>
+</e-grid>
+```
+
+## Scroll areas and sticky elements
+
+`scroll` makes a layout element a scroll area: `overflow: auto` on both axes, or on one with `scroll="x"`/`scroll="y"` (the other axis is clipped). It needs a bounded size (a `height`, a `max-height`, or a parent that bounds it) to scroll at all.
+
+- A scroll that reaches the end stops there: it doesn't carry on to the page (`overscroll-behavior: contain`). The page itself doesn't bounce either: the `elt/ui` reset sets `overscroll-behavior: none` on `html` and `body`. On mobile this also turns off pull-to-refresh; a page that wants it back sets `html { overscroll-behavior: auto }`.
+- In a flex scroll area (`e-column scroll`, `e-row scroll="x"`, …), children keep their size along the scrolled axis instead of shrinking to fit — otherwise nothing would overflow, and nothing would scroll. A child that is itself a scroll area is the exception: it shrinks, and scrolls its own content.
+- The scroll area draws the frame: a `packed border` child loses its own outer border and radius, keeps its seams, and is clipped to the scroll area's rounded edge. Put `border` on the scroll area.
+
+`sticky="top"` / `sticky="bottom"` keeps an element on that edge of the nearest scroll area while the content scrolls under it: a table header, a totals row. It gets an opaque background (the current surface, or its own `surface`) and is drawn above the scrolled content. A sticky row of a `packed border` grid keeps its seams.
+
+- Don't `pad` a scroll area that contains sticky elements: they stick at its padding edge, not its border, and the scrolled content shows through the padding above (or below) them.
+- `<e-virtual-scroll>` is the scroll area of a virtual list ([Verbs § RepeatVirtual](./verbs.md#repeatvirtual-a-long-list)). It takes `border`, `surface`, `radius` and the sizing attributes, but not `pad`, for the same reason.
+
+An infinite grid: a virtual list of 100 000 rows in a packed, bordered grid, with a sticky header and footer.
+
+```tsx
+//@inline-example
+import { $bind, If, o, Repeat, RepeatVirtual } from "elt"
+
+const COLUMNS = [2, 3, 4, 6] as const
+const o_columns_idx = o(1)
+const o_columns = o_columns_idx.tf((i) => COLUMNS[i])
+const o_column_list = o_columns.tf((n) => Array.from({ length: n }, (_, i) => i + 1))
+const o_packed = o(true)
+const o_border = o(true)
+const o_header = o(true)
+const o_footer = o(true)
+const o_tinted = o(true)
+const o_rows = o(Array.from({ length: 100_000 }, (_, i) => i))
+
+return (
+  <e-column align="stretch">
+    <e-row wrap>
+      <label>
+        Columns{" "}
+        <select>
+          {$bind.selected_index(o_columns_idx)}
+          {COLUMNS.map((n) => <option>{n}</option>)}
+        </select>
+      </label>
+      <label><input type="checkbox">{$bind.boolean(o_packed)}</input> packed</label>
+      <label><input type="checkbox">{$bind.boolean(o_border)}</input> border</label>
+      <label><input type="checkbox">{$bind.boolean(o_header)}</input> sticky header</label>
+      <label><input type="checkbox">{$bind.boolean(o_tinted)}</input> tinted header</label>
+      <label><input type="checkbox">{$bind.boolean(o_footer)}</input> sticky footer</label>
+    </e-row>
+    <e-virtual-scroll border style={{ height: "320px" }}>
+      <e-grid columns={o_columns} packed={o_packed} border={o_border}>
+        {If(o_header, () => (
+          <e-grid-row sticky="top" surface={o_tinted.tf((t) => (t ? "tint-2" : false))}>
+            {Repeat(o_column_list, (o_c) => <span>Column {o_c}</span>)}
+          </e-grid-row>
+        ))}
+        {RepeatVirtual(o_rows, (o_i) => (
+          <e-grid-row hover>
+            {Repeat(o_column_list, (o_c) => <span>{o_i} · {o_c}</span>)}
+          </e-grid-row>
+        )).ItemSize(32)}
+        {If(o_footer, () => (
+          <e-grid-row sticky="bottom" surface="neutral-1">
+            {Repeat(o_column_list, () => <span>{o_rows.tf((r) => r.length)} rows</span>)}
+          </e-grid-row>
+        ))}
+      </e-grid>
+    </e-virtual-scroll>
+  </e-column>
+)
+```
 
 ## Why these rules
 
@@ -179,7 +276,9 @@ The step is chosen by what a container's children are, not by nesting depth and 
 
 **Spacing steps are named by meaning.** Steps say the semantic distance between what they separate — inside one widget, between widgets, between groups, between page regions — not a size. Choosing by meaning rather than by eye is what keeps two screens built by different people consistent.
 
-**Element names.** `e-row`/`e-column` name the shape they produce; `e-flex` remains for direction-agnostic code. `e-grid` has no grid system: a grid template is specific enough to its screen that a small CSS rule says it better than a set of attributes.
+**Element names.** `e-row`/`e-column` name the shape they produce; `e-flex` remains for direction-agnostic code. `e-grid` has no grid system beyond `columns`: equal columns are common enough to deserve an attribute, but any other template is specific enough to its screen that a small CSS rule says it better than a set of attributes. A grid row is `e-grid-row` rather than a special meaning of `e-row` inside a grid, so that an `e-row` can still be an ordinary cell.
+
+**The outermost container draws the frame.** When containers that each want a border are nested (packed groups, a scroll area around a grid), drawing every border would double the lines and, in a scroll area, scroll the inner frame away with the content. So only the outermost one draws its frame; the inner ones keep only what separates their own children, the seams.
 
 **Borders.** A bare `border` is a flat, clearly visible edge, independent of nesting, because most borders (a popup, a list box) want a plain, defined boundary wherever they are. The level-relative variants exist but are explicit (`-surface`, `-separator`), so a border never silently depends on nesting depth. `surface` is level-relative even when bare, because a surface *is* a level by definition — the asymmetry between the two attributes is deliberate.
 

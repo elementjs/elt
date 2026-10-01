@@ -304,7 +304,7 @@ export namespace Repeat {
   }
 
   /** A special observable that is not a combined one to prevent unneeded updates when setting a property of the observed array.
-   * Repeat and VirtualScroll are directly responsible for updating the sub-observables they create.
+   * Repeat and RepeatVirtual are directly responsible for updating the sub-observables they create.
    */
   export class RepeatObservable<Obs extends RepeatedObservable<any>> extends o.CombinedObservable<
     [NonNullable<o.ObservedType<Obs>>, number],

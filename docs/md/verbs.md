@@ -132,24 +132,46 @@ return <e-column>
 </e-column>
 ```
 
-## `VirtualScroll` — a long list
+## `RepeatVirtual` — a long list
 
-`VirtualScroll(o_array, (o_item, o_index) => …)` takes the same arguments as `Repeat`, but only renders the rows near the visible part of its scrollable container. Rows above and below are replaced by two spacer elements sized from measured and estimated row heights. Use it for lists that can grow long (hundreds of rows or more); for short lists, `Repeat` is simpler.
+`RepeatVirtual(o_array, (o_item, o_index) => …)` takes the same arguments as `Repeat`, but only renders the rows near the visible part of its scroll area, an `<e-virtual-scroll>`. The rows above and below are stood for by two padders, sized from measured and estimated row heights. Use it for lists that can grow long (hundreds of rows or more); for short lists, `Repeat` is simpler.
 
 ```tsx
-import { $scrollable, VirtualScroll } from "elt"
+import { RepeatVirtual } from "elt"
 
-<e-column class={cls_list}>
-  {$scrollable}
-  {VirtualScroll(o_rows, (o_row) => <e-row>{o_row.tf((r) => r.label)}</e-row>)
-    .withKeyFunction((row) => row.id)}
-</e-column>
+<e-virtual-scroll style={{ height: "400px" }}>
+  <e-column align="stretch">
+    {RepeatVirtual(o_rows, (o_row) => <e-row>{o_row.tf((r) => r.label)}</e-row>)
+      .withKeyFunction((row) => row.id)}
+  </e-column>
+</e-virtual-scroll>
 ```
 
-- It must sit inside an element that scrolls (`overflow: auto` or `scroll`, with a bounded height); it finds the nearest scrolling ancestor itself.
-- It is a `Repeat` underneath, so `.withKeyFunction()` applies and matters even more: rows are created and dropped as the user scrolls.
-- **Each row's height must depend on its own content only**, not on which other rows are rendered at the same time; otherwise the view jumps as rows come and go. The classic case is rows of a shared `<table>` with `table-layout: auto`, where a wide cell re-flows the other rows: set `table-layout: fixed` (or give columns explicit widths). Rows may still change height on their own (an image loading, content wrapping to the container's width).
-- `.configure((scroller) => …)` adjusts it before it renders: `item_size` (the estimated row height in pixels, default 64), `nb_initial_items` (rows rendered before the first measurement, default 20), `initial_position` (index to start at), `threshold` (how many pixels beyond the visible area rows are created or dropped, default 500).
+- `<e-virtual-scroll>` is the scroll area: it scrolls (`overflow: auto`) and needs a bounded height. It holds its padders in its shadow root, out of your elements, so no style meant for your rows (a `packed` container's, for instance) reaches them. With `elt/ui` it takes `border`, `surface`, `radius` and the sizing attributes ([Layout § Scroll areas and sticky elements](./ui-layout.md#scroll-areas-and-sticky-elements)).
+- `RepeatVirtual` must be a child of the `e-virtual-scroll`, or of one of its children (the `e-column` above, an `e-grid`, …); one `RepeatVirtual` per `e-virtual-scroll`. Otherwise it reports an error when connected and renders nothing.
+- It is a `Repeat` underneath, so `.withKeyFunction()` applies and matters even more: rows are created and dropped as the user scrolls. **A row's own state (focus, unsaved input, an expanded panel) is lost when it scrolls out of the rendered window.** Keep such state in observables outside the row.
+- **Each row's height must depend on its own content only**, not on which other rows are rendered at the same time; otherwise the view jumps as rows come and go. The classic cases are rows of a shared `<table>` with `table-layout: auto`, and grid columns sized by their content (`auto`, `max-content`): a wide cell re-flows the other rows. Use `table-layout: fixed`, or columns whose width doesn't depend on content (`columns={N}` on an `e-grid`, fixed widths). Rows may still change height on their own (an image loading, content wrapping to the container's width).
+- `.PrefixBy()` and `.SuffixBy()` show at the list's true start and end: only while the first (last) item is rendered. `.DisplayWhenEmpty()` and `.SeparateWith()` work as with `Repeat`.
+- Rows appended while the window reaches the end of the list show right away (by a screenful at most), so an "add" button finds its new row.
+- Options, chained before it renders: `.ItemSize(px)` (estimated row height, default 64; a close estimate makes the scrollbar accurate sooner), `.Threshold(px)` (how far beyond the visible area rows are created or dropped, default 500), `.InitialPosition(index)` (the row shown first). `.setPosition(index)` jumps to a row later on.
+
+### Virtualizing a grid
+
+An infinite grid is an `e-grid` with `RepeatVirtual` rows inside an `e-virtual-scroll`, with sticky rows around it:
+
+```tsx
+<e-virtual-scroll border style={{ height: "400px" }}>
+  <e-grid columns={4} packed border>
+    <e-grid-row sticky="top" surface="tint-2">…header cells…</e-grid-row>
+    {RepeatVirtual(o_rows, (o_row) => <e-grid-row hover>…cells…</e-grid-row>).withKeyFunction((r) => r.id)}
+    <e-grid-row sticky="bottom">…totals…</e-grid-row>
+  </e-grid>
+</e-virtual-scroll>
+```
+
+- Put the sticky rows outside the `RepeatVirtual`: the header before it, the footer after it.
+- The scroll area draws the frame (`border` on the `e-virtual-scroll`); the grid inside keeps only its seams. Don't `pad` the scroll area: sticky rows stick at its padding edge.
+- Keep the column widths independent of the cells' content (see above). A live example is in [Layout § Scroll areas and sticky elements](./ui-layout.md#scroll-areas-and-sticky-elements); grids themselves are in [Layout § Grids](./ui-layout.md#grids).
 
 ## Good patterns vs. patterns to avoid
 
@@ -190,4 +212,4 @@ This matters if `display`'s closure depends on the *specific* truthy value rathe
 
 - [elt rules](./elt-rules.md#verbs) — the rules for verbs.
 - [Observables](./observables.md) — what verbs consume.
-- `src/verbs.ts` (`If`, `Switch`, `Repeat`, `DisplayPromise`) and `src/virtual.ts` (`VirtualScroll`) — source of truth, with JSDoc.
+- `src/verbs.ts` (`If`, `Switch`, `Repeat`, `DisplayPromise`) and `src/virtual.ts` (`RepeatVirtual`, `<e-virtual-scroll>`) — source of truth, with JSDoc.

@@ -3,8 +3,29 @@ import { INLINE_ONLY_TEXT_BLOCK_SELECTOR } from "./selectors"
 import { ambient_surface_mix, type ColorStep, type SpacingStep, spacing_steps, theme } from "./theme"
 
 declare module "elt" {
+  /** `e-virtual-scroll` (core) takes the frame and sizing attributes of the layout elements — not
+   * `pad`: sticky rows stick at a scroll area's padding edge, so the scrolled rows would show through
+   * the padding above a sticky header. */
+  interface EVirtualScrollAttrs
+    extends Pick<
+      CommonAttrs,
+      | "border"
+      | "surface"
+      | "radius"
+      | "grow"
+      | "relative"
+      | "self-align"
+      | "self-justify"
+      | "max-width"
+      | "max-height"
+      | "full-screen"
+      | "full-width"
+      | "full-height"
+    > {}
+
   interface ElementMap {
-    "e-grid": EFlexAttrs
+    "e-grid": EGridAttrs
+    "e-grid-row": EGridRowAttrs
     "e-flex": EFlexAttrs
     "e-prose": EProseAttrs
     "e-row": EFlexAttrs
@@ -78,6 +99,19 @@ export interface CommonAttrs extends Attrs<HTMLElement> {
   "full-screen"?: NRO<boolean>
   "full-width"?: NRO<boolean>
   "full-height"?: NRO<boolean>
+  /**
+   * Stick to the top or bottom edge of the nearest scroll area while its content scrolls
+   * (`position: sticky`). Implies an opaque background (the current surface) and a `z-index` above
+   * the scrolled content. Don't `pad` the scroll area: sticky elements stick at its padding edge.
+   */
+  sticky?: NRO<"top" | "bottom">
+  /**
+   * Make this element a scroll area: `overflow: auto` on both axes (bare `scroll`) or on one
+   * (`"x"`/`"y"`, the other axis clipped), plus `overscroll-behavior: contain` so a scroll that
+   * reaches the end doesn't carry on to the page. It needs a bounded size to scroll. A `packed
+   * border` child of a scroll area drops its own outer border: the scroll area draws the frame.
+   */
+  scroll?: NRO<boolean | "x" | "y">
 }
 
 export interface EProseAttrs extends CommonAttrs {
@@ -116,8 +150,35 @@ export interface EFlexAttrs extends CommonAttrs {
    * border), becomes the visible seam. Every child gets `border: none` and
    * `background: var(--e-current-surface)` (its own explicit background, if any, still wins).
    * See docs/md/ui-layout.md.
+   *
+   * On `e-grid`, these apply to its cells (an `e-grid-row`'s children rather than the row), there is
+   * no trailing-edge border removal, and every cell is square except the outer corners of the first
+   * and last rows — see "Grids" in docs/md/ui-layout.md.
    */
   packed?: NRO<boolean | SpacingValues>
+}
+
+/** `columns` values on `e-grid`. */
+export type GridColumns = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12
+
+export interface EGridAttrs extends EFlexAttrs {
+  /**
+   * `N` equal columns: `grid-template-columns: repeat(N, minmax(0, 1fr))`. The tracks don't depend
+   * on the cells' content, so column widths stay put while rows come and go (`RepeatVirtual`).
+   * Any other template goes in a CSS rule, which overrides this.
+   */
+  columns?: NRO<GridColumns>
+}
+
+/**
+ * A row of an `e-grid`: spans every column and lays its children out on the grid's own columns
+ * (`grid-template-columns: subgrid`). Only meaningful as a direct child of `e-grid`.
+ */
+export interface EGridRowAttrs extends Attrs<HTMLElement> {
+  surface?: CommonAttrs["surface"]
+  hover?: CommonAttrs["hover"]
+  align?: NRO<AlignValues>
+  sticky?: CommonAttrs["sticky"]
 }
 
 const more: string[] = []
@@ -139,9 +200,23 @@ const align: AlignValues[] = [
   "space-between",
 ]
 
-const _all = `:where(e-flex,e-grid,e-prose,e-column,e-row)`
+// e-grid-row and e-virtual-scroll take only some of the layout attributes; their attribute types
+// (EGridRowAttrs, EVirtualScrollAttrs) restrict which ones, the selectors don't need to.
+const _all = `:where(e-flex,e-grid,e-prose,e-column,e-row,e-grid-row,e-virtual-scroll)`
 const _flex = `:where(e-flex,e-column,e-row)`
-const _layouters = `:where(e-flex,e-grid,e-column,e-row)`
+const _layouters = `:where(e-flex,e-grid,e-column,e-row,e-grid-row)`
+/** Containers that take `packed`. */
+const _packed = `:where(e-flex,e-column,e-row,e-grid)`
+
+/**
+ * The cells of a packed container, with an optional extra `filter` on each. A container's cells
+ * are its children, except that an `e-grid-row` is not a cell: its own children are (they sit on
+ * the grid's columns). Only grids have rows, so for flex containers this is just their children.
+ * `:where()` keeps both forms at the specificity of `container > *`.
+ */
+function _cells(container: string, filter = ""): string {
+  return `${container} > :where(:not(e-grid-row))${filter}, ${container} > :where(e-grid-row) > *${filter}`
+}
 
 function _(strings: TemplateStringsArray, ...values: unknown[]): void {
   let result = strings[0]
@@ -301,6 +376,39 @@ css`
 // Spacing scale values now live in Theme (ui/theme.tsx, spacing1/2/4/Widget/Component/Section/Stage1-4)
 // and are emitted through the theme class, not a literal :root — everything below only needs
 // the purely functional variables that aren't theme settings.
+const columns_rules = Array.from(
+  { length: 12 },
+  (_, i) => `e-grid[columns="${i + 1}"] { grid-template-columns: repeat(${i + 1}, minmax(0, 1fr)); }`,
+).join("\n  ")
+
+// sticky: emitted with the attribute rules (after the packed ones), so that it overrides the
+// `position: relative` packed gives its cells. Its background is the current surface, opaque over
+// the scrolled content; an element's own [surface] resolves --e-current-surface to itself, and a
+// row of a packed bordered grid out-ranks this with the seam color.
+_`
+  ${_all}[sticky] { position: sticky; z-index: 1; background-color: var(--e-current-surface); }
+  ${_all}[sticky]:focus-within { z-index: 2; }
+  ${_all}[sticky="top"] { top: 0; }
+  ${_all}[sticky="bottom"] { bottom: 0; }
+`
+
+// scroll: one-axis values clip the other axis explicitly (with one axis scrolling, a "visible"
+// other axis would compute to auto anyway).
+_`
+  ${_all}[scroll] { overflow: auto; overscroll-behavior: contain; }
+  ${_all}[scroll="x"] { overflow-x: auto; overflow-y: hidden; }
+  ${_all}[scroll="y"] { overflow-x: hidden; overflow-y: auto; }
+`
+// A flex scroll area's children keep their size along the axis it scrolls on, rather than shrinking
+// to fit (layout elements let their children shrink below their content: min-width/min-height 0).
+// Otherwise the content never overflows, and there's nothing to scroll. A child that is itself a
+// scroll area is the exception: it is what should shrink to fit, and scroll its own content (an
+// e-virtual-scroll that grew to its whole content would render every row).
+_`
+  :is(e-column, e-flex[column])[scroll]:where(:not([scroll="x"])) > :where(:not([scroll], e-virtual-scroll)) { flex-shrink: 0; }
+  :is(e-row, e-flex:not([column]))[scroll]:where(:not([scroll="y"])) > :where(:not([scroll], e-virtual-scroll)) { flex-shrink: 0; }
+`
+
 css`
 @layer components {
   /* The ambient spacing/pad defaults (component step) live in theme.init, on the theme class, not
@@ -335,9 +443,19 @@ css`
   :is(e-flex,e-row)[reverse] { flex-direction: row-reverse; }
   :is(e-flex[column],e-column)[reverse] { flex-direction: column-reverse; }
   :is(e-flex,e-row,e-column)[wrap] { flex-wrap: wrap; }
+  /* Browsers still apply the legacy HTML \`align\` attribute as a style hint on any element, custom
+     ones included: \`align="center"\` would also set \`text-align: center\`, inherited by every text
+     inside. Here \`align\` only means \`align-items\`; any stylesheet rule beats a hint, so this one
+     restores normal inheritance. */
+  ${_layouters}[align] { text-align: inherit; }
 
   e-grid { display: grid; }
   e-grid[inline] { display: inline-grid; }
+  ${columns_rules}
+
+  /* A grid row spans every column and puts its children on the grid's own columns; it inherits the
+     grid's column gap (a subgrid's default). */
+  e-grid-row { grid-column: 1 / -1; display: grid; grid-template-columns: subgrid; }
 
   /* A flex item's automatic minimum size along the flex container's MAIN axis defaults to its
      content's min-content size (not 0) unless overridden — a flex row/column otherwise refuses to
@@ -379,23 +497,23 @@ css`
     }
   }
 
-  :is(e-flex,e-grid,e-row,e-column) {
-    &:not([pad="none"]):not([packed]), &[spacing]:not([packed]) {
-      gap: var(--e-spacing);
-    }
+  /* :where() keeps this default at the specificity of a type selector, so [spacing="none"] (below)
+     overrides it — the :not()/attribute chain used to out-rank it, leaving its gap in place. */
+  :is(e-flex,e-grid,e-row,e-column):where(:not([pad="none"]):not([packed]), [spacing]:not([packed])) {
+    gap: var(--e-spacing);
   }
 
   /* packed pads the children that don't set their own [pad]; a child with its own [pad] keeps it.
      Expressed as an exclusion (:not([pad]), wrapped in :where so it adds no specificity) rather
      than left to the cascade, where it used to depend on which rule came later in the sheet. */
-  ${_flex}:where([packed]:not([pad="none"])) > :where(:not([pad])) {
+  ${_cells(`${_packed}:where([packed]:not([pad="none"]))`, ":where(:not([pad]))")} {
     padding: var(--e-pad);
   }
 
   ${spaces
     .map(
       (sp) => `
-  ${_flex}[packed="${sp}"] > :where(:not([pad])) {
+  ${_cells(`${_packed}[packed="${sp}"]`, ":where(:not([pad]))")} {
     ${theme.css_pad(sp)}
     padding: var(--e-pad);
   }`,
@@ -403,11 +521,11 @@ css`
     .join("\n")}
 
   /* A focused child's ring must draw over its packed neighbor rather than being covered by it. */
-  :is(e-row,e-column,e-flex)[packed] > * {
+  ${_cells(`${_packed}[packed]`)} {
     position: relative;
     z-index: 0;
   }
-  :is(e-row,e-column,e-flex)[packed] > :focus-visible {
+  ${_cells(`${_packed}[packed]`, ":focus-visible")} {
     z-index: 1;
   }
 
@@ -446,13 +564,39 @@ css`
      see theme.css_border in ui/theme.tsx), becomes the visible seam. Every child gives up its own
      border and takes the current surface's background instead (its own explicit background, if
      set, still wins — this rule carries no more specificity than any plain author style). */
-  ${_flex}[packed][border] {
+  ${_packed}[packed][border] {
     background-color: var(--e-current-border-color);
     gap: 1px;
   }
-  ${_flex}[packed][border] > * {
+  ${_cells(`${_packed}[packed][border]`)} {
     border: none;
     background-color: var(--e-current-surface);
+  }
+
+  /* In a packed bordered grid, a row paints the seam color too: its cells paint the surface (its
+     own [surface], if set, since that redefines --e-current-surface for them) and the 1px gaps
+     between them keep showing the seams. It also makes the row opaque, which a sticky row needs.
+     Out-ranks [surface]'s own background by specificity. A hovered row changes the surface its
+     cells read: its own background is hidden behind them. */
+  e-grid[packed][border] > e-grid-row {
+    background-color: var(--e-current-border-color);
+  }
+  e-grid[packed][border] > e-grid-row[hover]:hover {
+    --e-current-surface: ${ambient_surface_mix.surface("n+1")};
+  }
+
+  /* Frame ownership: the outermost owner draws the frame, a nested packed bordered container only
+     its seams. A packed bordered child of a packed bordered parent already lost its border to the
+     cell rule above; it gets its seam color back as background (the cell rule painted it with the
+     surface color, hiding the seams between its own children). */
+  ${_packed}[packed][border] > ${_packed}[packed][border] {
+    background-color: var(--e-current-border-color);
+  }
+  /* A packed bordered child of a scroll area drops its outer border and radius: the scroll area
+     draws the frame (with its own [border]), and clips the content to its rounded edge. */
+  :is(${_all}[scroll], e-virtual-scroll) > ${_packed}[packed][border] {
+    border-width: 0;
+    border-radius: 0;
   }
 
   /* Whenever packed itself has a radius in effect — its own [border] (which implies radius) or an
@@ -482,6 +626,29 @@ css`
   :is(e-column, e-flex[column])[packed]:is([border],[radius]):where(:not([radius="none"])) > *:last-child {
     border-bottom-left-radius: inherit;
     border-bottom-right-radius: inherit;
+  }
+
+  /* Grid cells: no "leading"/"trailing" edge in two dimensions, so every cell of a packed grid
+     loses its radius; only the outer corners of the first and last rows take the grid's radius back
+     when it has one — through rows only: cells placed directly in the grid can't be told apart from
+     interior ones without knowing the column count. The rows inherit the radius from the grid so
+     that their cells can inherit it from them (inherit reads the parent). */
+  ${_cells("e-grid[packed]")} {
+    border-radius: 0;
+  }
+  e-grid[packed]:is([border],[radius]):where(:not([radius="none"])) > e-grid-row {
+    &:first-of-type {
+      border-top-left-radius: inherit;
+      border-top-right-radius: inherit;
+      & > :first-child { border-top-left-radius: inherit; }
+      & > :last-child { border-top-right-radius: inherit; }
+    }
+    &:last-of-type {
+      border-bottom-left-radius: inherit;
+      border-bottom-right-radius: inherit;
+      & > :first-child { border-bottom-left-radius: inherit; }
+      & > :last-child { border-bottom-right-radius: inherit; }
+    }
   }
 
   /* [pad="none"]/[spacing="none"] turn one side off on its own — [pad="none"] implies no spacing

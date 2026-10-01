@@ -18,7 +18,8 @@ test.describe("RootUndoRing", () => {
       o_root.set({ name: "Grace" })
       const afterSet = o_root.get().name
 
-      shell.node.querySelectorAll("button")[0]?.click() // Undo
+      const undo = [...shell.node.querySelectorAll("button")].find((b) => b.textContent?.trim() === "Undo")
+      undo?.click()
       const afterUndo = o_root.get().name
 
       return { afterSet, afterUndo }

@@ -11,12 +11,19 @@ css`@layer reset {
     scrollbar-color: ${theme.colors.tint.mid} ${theme.colors.tint.from_bg("10%")};
   }
 
-  :where(button, input, select, label, e-prose, e-row, e-column, e-flex, e-grid) {
+  :where(button, input, select, label, e-prose, e-row, e-column, e-flex, e-grid, e-grid-row) {
     line-height: 1;
   }
 
   [popover] {
     border: none;
+  }
+
+  /* Application-like scrolling: no bounce of the page itself, and a scroll that reaches the end of a
+     scroll area doesn't carry on to the page. On mobile this also turns off pull-to-refresh; a
+     document-like page restores both with html { overscroll-behavior: auto }. */
+  html, body {
+    overscroll-behavior: none;
   }
 
   /* 1. Use a more-intuitive box-sizing model */

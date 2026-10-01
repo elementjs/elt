@@ -11,7 +11,7 @@ These are the highest priority — the spec already promises the behavior, nothi
 - [ ] **Object key rules.** Unknown-mode add/remove/transient commit + RegExp catch-alls landed. **Autocomplete-only rename flow still open.**
 - [x] **Toolbar opt-outs.** `CommonNodeOptions.toolbar` in `composite-toolbar.tsx`.
 - [ ] **`open_as` (popup vs. column per node).** Types + `ShellOptions.prefer_popups` on shell; **popup open path not wired yet.**
-- [x] **Table manual `columns`.** Basic table mode with manual/auto columns, sticky header, extra-keys warning (no resizable headers yet).
+- [x] **Table manual `columns`.** Table mode with manual/auto columns, sticky header row, resizable columns, extra-keys warning.
 - [ ] **Map key-type-change gate.** Map row UI landed; **`allow_key_type_change` menu wiring still open.**
 - [x] **`undef()` combinator.** Exported.
 - [ ] **Masked single-line text input.** No `elt/ui` masked component confirmed yet.
@@ -46,13 +46,20 @@ These are the highest priority — the spec already promises the behavior, nothi
 
 - [ ] **Import/export add-ons** — empty menu slot only; spec question on v1 floor unresolved.
 - [ ] **`ColorInput` / `color()` widget** — blocked on `specs/ui-color-picker.md`.
-- [ ] **Drag-and-drop reorder** (`allow_reorder`) — no DnD in editor yet.
+- [ ] **Drag-and-drop reorder** (`allow_reorder`) — no DnD in editor yet. Its handle goes in a leading grid column (Layer 3 "Composite grid"), added together with the feature.
 - [ ] **Propagate ADR/grill prose into `ui-object-editor.md`.**
 
 ## Quick wins (landed)
 
 - [x] **`open_as` popup opens** — shell uses `elt/ui/popup`; stack + breadcrumb unchanged.
 - [x] **Constructor registry** — `editor/registry.ts`; shell drill-in fallback; builtins registered in `schema.tsx`.
-- [x] **VirtualScroll** on all composite body lists (object keys, array/set/map rows + transients, table body). `Repeat` kept only for table column iteration and the shell column strip.
-- [x] **Table resizable columns** — `editor/table-resize.ts` (`$resizable` on data `<th>`).
+- [x] **RepeatVirtual** on all composite body lists (object keys, array/set/map rows, each with its transient rows merged into the same list; table body). `Repeat` kept only for table column iteration and the shell column strip.
+- [x] **Table resizable columns** — the table is a virtual `e-grid` (sticky header row); `$column_resizable` (`editor/table-resize.ts`) on its header cells replaces the column's locked width in the grid template. `$resizable` (for a `<table>`'s `<th>`) is kept but no longer used by the editor.
+- [x] **Every composite is a grid** (`editor/grid.tsx`): Object/Array/Set/Map/Table share one packed bordered `e-grid`; label / key-type / value / controls columns; widgets are the row's own cells (no wrappers); columns locked after the first layout. Spec: Layer 3 "Composite grid".
+- [x] **Single header line + toolbar** — `RenderableWidget.header` (label + actions) on the column's one header line, shared by columns and popups; `toolbar` (add button, filter) right under it on a neutral surface, absent when empty. Undo/Redo on the root header line (no shell toolbar).
+- [x] **Widget contract: one element per widget** — `EitherFactory` renders its branch's element directly; `boolean()` wraps its checkbox in a `label` cell; nested composites are a preview-text cell. Spec: Layer 4 "Contract".
+- [x] **Focus kept while typing** — child widgets re-resolve their factory only when the value's JS type changes (`o_sticky_factory`); before, every keystroke remounted the input.
+- [x] **Frame ownership instead of custom CSS** — each column, its header line and toolbar are nested `packed border` containers; columns are separate frames spaced at the component step. The editor's custom classes are down to what no layout attribute expresses (text truncation, scroll height, popup size bounds, a column's no-shrink, the cells' shared font size/line height, the controls placeholder). Found on the way: the legacy HTML `align` attribute centered the text of any `align="center"` layout element — fixed in `ui/layout.css.tsx`; `input[type=search/email/url/tel]` weren't form controls (browser font and `color: fieldtext`) — fixed in `ui/selectors.ts`.
+- [x] **Multiline strings grow with their content** (`$auto_grow` from `elt/ui/textarea`).
+- [x] **Unknown mode Map/Set/Date** — `ObjectFactory.canHandle` no longer claims them (they rendered as Object).
 - [x] **Map key type-change menu** — `safe_map_key` + `render_type_change_menu_button` when `allow_key_type_change !== false`.

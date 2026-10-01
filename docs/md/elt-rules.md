@@ -58,10 +58,10 @@ These are conventions: the library does not enforce them, but code using elt fol
 ## Verbs
 
 - Use a verb for anything whose structure changes. See [Verbs](./verbs.md).
-- Call `.withKeyFunction()` on `Repeat` and `VirtualScroll` whenever items have an id: it matters for performance and for keeping per-item state (focus, unsaved input). See [Verbs](./verbs.md#repeat-a-list).
+- Call `.withKeyFunction()` on `Repeat` and `RepeatVirtual` whenever items have an id: it matters for performance and for keeping per-item state (focus, unsaved input). See [Verbs](./verbs.md#repeat-a-list).
 - A promise used directly in JSX shows its resolved content only. When you need a loading or error state, use `DisplayPromise`. See [Verbs](./verbs.md#displaypromise-a-promises-lifecycle).
 - Don't re-render in place with `$observe` + `node_clear` + `node_append`: that is rule 9 again. `If` / `Switch` / `.tf` already skip the swap when nothing changed. See [Verbs](./verbs.md#good-patterns-vs-patterns-to-avoid).
-- A `VirtualScroll` row's height depends on its own content only, never on which other rows are rendered at the same time. See [Verbs](./verbs.md#virtualscroll-a-long-list).
+- A `RepeatVirtual` row's height depends on its own content only, never on which other rows are rendered at the same time. See [Verbs](./verbs.md#repeatvirtual-a-long-list).
 
 ## App
 

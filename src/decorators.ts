@@ -519,6 +519,11 @@ export function $shadow(opts?: Node | $ShadowOptions, child?: Node) {
  * <div class="scrollport">{$scrollable}<Repeat(o_items, ...)/></div>
  * ```
  *
+ * @deprecated Use the `scroll` attribute of the `elt/ui` layout elements (`<e-column scroll>`), or,
+ * without `elt/ui`, `overflow: auto; overscroll-behavior: contain` in CSS (plus
+ * `overscroll-behavior: none` on `html, body`, which the `elt/ui` reset already sets). Unlike
+ * `$scrollable`, CSS doesn't block touch gestures (pinch-zoom, …) on the areas that don't scroll.
+ *
  * @group Decorators
  */
 export function $scrollable(node: HTMLElement): void {

@@ -5,7 +5,7 @@
  * Some popup handling.
  */
 
-import { $scrollable, css, node_append, node_do_disconnect, node_remove, o } from "elt"
+import { css, node_append, node_do_disconnect, node_remove, o } from "elt"
 import { animate, animate_hide, animate_show, stop_animations } from "./animation"
 import { theme } from "./theme"
 import { Future } from "./utils"
@@ -182,8 +182,7 @@ export function popup<T>(
   const fut = new Future<T | typeof sym_popup_closed>()
   const popup = (
     <div popover="manual" class={cls_popup}>
-      <e-column surface="background" border class={cls_popup_content}>
-        {$scrollable}
+      <e-column scroll surface="background" border class={cls_popup_content}>
         {fn(fut)}
       </e-column>
     </div>
@@ -317,7 +316,6 @@ const cls_popup = css`.popup {
     0px 0px 4px ${colors.neutral.from_bg("30%")});
 }`
 const cls_popup_content = css`.popup-content {
-  overflow: hidden;
   max-height: 80vh;
   max-width: 320px;
 }`

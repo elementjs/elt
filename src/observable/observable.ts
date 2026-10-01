@@ -811,7 +811,7 @@ export namespace o {
      *
      * Once this has been called, this observable will no longer be able to refresh its value.
      *
-     * It is generally called by verbs such as Repeat and VirtualScroll, to ensure that when their observed list shrinks, then observables watching for out of bound indices may not crash the program.
+     * It is generally called by verbs such as Repeat and RepeatVirtual, to ensure that when their observed list shrinks, then observables watching for out of bound indices may not crash the program.
      *
      * If this observable is still being (erroneously) watched from somewhere else, a warning is printed in the console.
      */

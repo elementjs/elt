@@ -13,19 +13,20 @@ implementation slice. Implements:
   nothing can represent the value; the root also falls back to unknown
   mode when its schema no longer fits (Layer 1b "Invalid parent / external
   writes", "Dead-column detection (v1)")
-- shell toolbar undo/redo (Layer 5)
+- undo/redo on the root column's header line (Layer 2 / Layer 5)
 - constructor registry fallback when drill-in omits `factory` (Layer 5)
 */
 
 import { $connected, $on, css, o, Repeat, type Renderable } from "elt"
 import { popup, sym_popup_closed } from "elt/ui/popup"
 import { theme } from "elt/ui"
+import { cls_text_fill } from "./grid"
 import { is_valid_mount } from "./mount"
 import { resolve_factory_from_value } from "./registry"
 import {
   anything,
+  concrete_factory,
   dispatch_object_editor_open,
-  EitherFactory,
   type CommonNodeOptions,
   type Factory,
   type ObjectEditorOpenDetail,
@@ -36,6 +37,9 @@ export { dispatch_object_editor_open, type ObjectEditorOpenDetail }
 
 interface ColumnDescriptor {
   o_value: o.Observable<unknown>
+  /** The factory the column was opened with, possibly an `either()`/`forward()` (re-resolved from on a type change). */
+  declared: Factory<unknown>
+  /** The concrete factory rendering the value now (see `concrete_factory`): its header/toolbar are the column's. */
   o_factory: o.Observable<Factory<unknown>>
   title: string | undefined
   presentation: "column" | "popup"
@@ -72,32 +76,28 @@ export class ObjectEditorShell {
     this.o_breadcrumb = this.o_columns.tf((cols) => cols.slice(1).map((c) => c.title ?? ""))
     this.undo = new RootUndoRing(this.o_root, this.options.undo ?? {})
 
+    // The strip of columns: separate components, spaced at the component step (the default), each
+    // with its own frame, in a scroll area for when they're wider than the editor. The columns sit in
+    // an inner row rather than directly in the scroll area: a scroll area draws the frame of a
+    // `packed border` child itself, and would take each column's own frame away.
     this.node = (
-      <e-flex column class={cls_shell}>
+      <e-row scroll="x">
         {$on("elt-object-editor-open", (ev) => {
           ev.stopPropagation()
-          this.open(
-            ev.detail.o_value,
-            ev.detail.title,
-            ev.target as Node,
-            ev.detail.factory,
-            ev.detail.open_as,
-          )
+          this.open(ev.detail.o_value, ev.detail.title, ev.target as Node, ev.detail.factory, ev.detail.open_as)
         })}
-        <e-flex spacing="none" class={cls_strip}>
+        <e-row align="stretch">
           {Repeat(this.o_columns, (o_col, o_idx) => {
             if (o_col.get().presentation === "popup") {
               return document.createComment("oe-popup") as unknown as Renderable<Node>
             }
             return this.render_column(o_col, o_idx)
           })}
-        </e-flex>
-      </e-flex>
+        </e-row>
+      </e-row>
     ) as HTMLElement
 
-    this.o_columns.set([
-      this.create_column(this.o_root, undefined, this.options.schema ?? anything, "column"),
-    ])
+    this.o_columns.set([this.create_column(this.o_root, undefined, this.options.schema ?? anything, "column")])
     this.undo.attach()
   }
 
@@ -107,7 +107,7 @@ export class ObjectEditorShell {
     factory: Factory<unknown>,
     presentation: "column" | "popup",
   ): ColumnDescriptor {
-    return { o_value, title, o_factory: o(factory), presentation }
+    return { o_value, title, declared: factory, o_factory: o(concrete_factory(factory, o_value.get())), presentation }
   }
 
   private resolve_open_factory(factory: Factory<unknown> | undefined, o_value: o.Observable<unknown>) {
@@ -184,7 +184,9 @@ export class ObjectEditorShell {
 
       if (column.o_factory.get().canHandle(value)) return
 
-      const resolved = (anything as EitherFactory).resolve(value)
+      // The declared factory first (a schema's either() keeps its own branches), then any kind.
+      const declared = concrete_factory(column.declared, value)
+      const resolved = declared.canHandle(value) ? declared : concrete_factory(anything, value)
       if (resolved.canHandle(value)) {
         column.o_factory.set(resolved)
         return
@@ -192,7 +194,7 @@ export class ObjectEditorShell {
 
       if (is_root) {
         const schema = this.options.schema
-        column.o_factory.set(schema?.canHandle(value) ? schema : anything)
+        column.o_factory.set(concrete_factory(schema?.canHandle(value) ? schema : anything, value))
         return
       }
 
@@ -203,32 +205,18 @@ export class ObjectEditorShell {
   }
 
   private mount_popup(column: ColumnDescriptor, idx: number, anchor: Element) {
-    const shell = this
     this.watch_column(column, idx, false)
 
     const fut = popup(anchor, (fut) => {
       column.dismiss_popup = () => fut.resolve(sym_popup_closed)
 
-      const o_widget = column.o_factory.tf((factory) => factory.render(column.o_value))
-
       const panel = (
-        <e-flex column spacing="none" class={cls_popup_panel}>
+        <e-column align="stretch" class={cls_popup_panel}>
           {$connected((el: HTMLElement) => {
             column.host = (el.closest("[popover]") as HTMLElement | null) ?? el
           })}
-          <e-flex column pad="widget" class={cls_column_header}>
-            <e-flex full-width justify="space-between" align="center">
-              {column.title != null && <span>{column.title}</span>}
-              <button type="button" class={cls_column_close}>
-                {$on("click", () => fut.resolve(undefined))}×
-              </button>
-            </e-flex>
-            {o_widget.tf((widget) => widget.header ?? null)}
-          </e-flex>
-          <e-flex column pad="widget" class={cls_popup_body}>
-            {o_widget.tf((widget) => widget.render())}
-          </e-flex>
-        </e-flex>
+          {this.render_chrome(column, () => fut.resolve(undefined), false)}
+        </e-column>
       ) as HTMLElement
 
       return panel
@@ -237,106 +225,87 @@ export class ObjectEditorShell {
     fut.then((result) => {
       column.unwatch?.()
       if (result === sym_popup_closed) return
-      const cols = shell.o_columns.get()
-      if (cols[idx] === column) shell.close_after(idx - 1)
+      const cols = this.o_columns.get()
+      if (cols[idx] === column) this.close_after(idx - 1)
     })
   }
 
-  private render_column(o_column: o.Observable<ColumnDescriptor>, o_idx: o.IReadonlyObservable<number>): Renderable<Node> {
-    const host = (
-      <e-flex column class={cls_column}>
-        {o_column.tf((column) => {
-          const idx = o_idx.get()
-          const is_root = idx === 0
-          column.host = host
-          if (!column.unwatch) this.watch_column(column, idx, is_root)
-          const o_widget = column.o_factory.tf((factory) => factory.render(column.o_value))
-          return (
-            <e-flex column spacing="none" class={cls_column_body}>
-              <e-flex column pad="widget" class={cls_column_header}>
-                <e-flex full-width justify="space-between" align="center">
-                  {column.title != null && <span>{column.title}</span>}
-                  {is_root ? (
-                    <e-row spacing="widget">
-                      <button type="button" e-variant="text" disabled={this.undo.o_can_undo.tf((v) => !v)}>
-                        {$on("click", () => this.undo.undo())}
-                        Undo
-                      </button>
-                      <button type="button" e-variant="text" disabled={this.undo.o_can_redo.tf((v) => !v)}>
-                        {$on("click", () => this.undo.redo())}
-                        Redo
-                      </button>
-                    </e-row>
-                  ) : (
-                    <button type="button" class={cls_column_close}>
-                      {$on("click", () => this.close_after(o_idx.get() - 1))}×
-                    </button>
-                  )}
-                </e-flex>
-                {o_widget.tf((widget) => widget.header ?? null)}
-              </e-flex>
-              <e-flex column pad="widget">
-                {o_widget.tf((widget) => widget.render())}
-              </e-flex>
-            </e-flex>
-          )
-        })}
-      </e-flex>
+  /**
+   * A column's or popup's content (Layer 2): one header line, the widget's toolbar if it has one, then
+   * the widget. The header line holds the column title merged with the composite's type label
+   * (`address · Object {3}`), the composite's actions (warning, `…` menu), then Undo/Redo on the
+   * root or × elsewhere. The toolbar sits under the header, not under the rows: filtering shortens
+   * the rows, and a toolbar below them would move. A composite's grid sits flush against the frame;
+   * a scalar root is padded.
+   */
+  private render_chrome(column: ColumnDescriptor, close: () => void, is_root: boolean): HTMLElement {
+    const o_widget = column.o_factory.tf((factory) => factory.render(column.o_value))
+    const o_header = o_widget.tf((widget) => widget.header ?? null)
+    const o_label = o.expression((get) => {
+      const header = get(o_header)
+      const type_label = header ? get(header.o_label) : null
+      return [column.title, type_label].filter((part) => part != null && part !== "").join(" · ")
+    })
+    // `packed border`: the column draws its frame; header line, toolbar and rows touch, separated by
+    // seams (the header line and toolbar, `packed border` themselves, keep only their inner seams).
+    return (
+      <e-column packed border pad="none" align="stretch">
+        {/* Widgets touching, each padded at the widget step, separated by seams. */}
+        <e-row packed="widget" border align="center" class={theme.colors.tint.class_as_inverted}>
+          <strong class={cls_text_fill} title={o_label}>
+            {o_label}
+          </strong>
+          {o_header.tf((header) => header?.actions ?? null)}
+          {is_root ? (
+            <>
+              <button type="button" disabled={this.undo.o_can_undo.tf((v) => !v)}>
+                {$on("click", () => this.undo.undo())}
+                Undo
+              </button>
+              <button type="button" disabled={this.undo.o_can_redo.tf((v) => !v)}>
+                {$on("click", () => this.undo.redo())}
+                Redo
+              </button>
+            </>
+          ) : (
+            <button type="button" aria-label="Close">
+              {$on("click", close)}×
+            </button>
+          )}
+        </e-row>
+        {o_widget.tf((widget) => widget.toolbar ?? null)}
+        {o_widget.tf((widget) =>
+          widget.header ? widget.render() : <e-column pad="component">{widget.render()}</e-column>,
+        )}
+      </e-column>
     ) as HTMLElement
+  }
 
-    return host
+  private render_column(
+    o_column: o.Observable<ColumnDescriptor>,
+    o_idx: o.IReadonlyObservable<number>,
+  ): Renderable<Node> {
+    // The column is its chrome element itself, a direct child of the strip.
+    return o_column.tf((column) => {
+      const idx = o_idx.get()
+      const is_root = idx === 0
+      const el = this.render_chrome(column, () => this.close_after(o_idx.get() - 1), is_root)
+      el.classList.add(cls_column)
+      column.host = el
+      if (!column.unwatch) this.watch_column(column, idx, is_root)
+      return el
+    })
   }
 }
 
-const cls_shell = css`.oe-shell {
-  border: 1px solid ${theme.colors.text.separator};
-  /* Doesn't pad itself, so radius can't derive from its own padding — "section" is a deliberate
-     override matching the frame's old fixed 16px radius (see "Borders and radius" in
-     docs/md/ui-layout.md). */
-  ${theme.css_radius("section")}
-  overflow: hidden;
-}`
-
-const cls_strip = css`.oe-strip {
-  overflow-x: auto;
-  align-items: stretch;
-}`
-
+/* Custom CSS: a flex child shrinks by default; a column keeps its width and the strip scrolls. */
 const cls_column = css`.oe-column {
-  min-width: 260px;
-  border-right: 1px solid ${theme.colors.text.separator};
   flex: none;
 }`
 
-const cls_column_body = css`.oe-column-body {
-  flex: 1;
-  min-height: 0;
-}`
-
-const cls_column_header = css`.oe-column-header {
-  min-height: 1.8em;
-  font-weight: bold;
-  ${theme.colors.tint.css_as_inverted}
-}`
-
-const cls_column_close = css`.oe-column-close {
-  border: none;
-  background: none;
-  cursor: pointer;
-  font-size: 1rem;
-  line-height: 1;
-  padding: 0;
-  width: 1.4em;
-  height: 1.4em;
-}`
-
+/* Custom CSS: a popup's size bounds, which no layout attribute expresses. */
 const cls_popup_panel = css`.oe-popup-panel {
   min-width: 260px;
   max-width: min(90vw, 480px);
   max-height: 70vh;
-}`
-
-const cls_popup_body = css`.oe-popup-body {
-  overflow: auto;
-  min-height: 0;
 }`

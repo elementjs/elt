@@ -792,7 +792,7 @@ export class Mix {
 
   /**
    * Raw CSS text for raising/painting a surface level — the single source of truth shared by the
-   * `[surface]` attribute (`ui/layout.css.tsx`, `e-flex`/`e-grid`/`e-prose` only) and
+   * `[surface]` attribute (`ui/layout.css.tsx`, layout elements only) and
    * `class_as_surface` (any element). Unlike the bare `surface()` color above, this also
    * propagates the level to children.
    */

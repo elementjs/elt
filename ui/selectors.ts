@@ -8,6 +8,7 @@
 export const FORM_CONTROL_SELECTOR =
   "button, " +
   'input:not([type]), input[type="text"], input[type="number"], input[type="password"], ' +
+  'input[type="search"], input[type="email"], input[type="url"], input[type="tel"], ' +
   'input[type="button"], input[type="submit"], input[type="reset"], ' +
   'input[type="date"], input[type="time"], input[type="datetime-local"], ' +
   "textarea, select, " +
