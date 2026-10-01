@@ -20,6 +20,17 @@ check-compile:
     bun build ./docs/index.html --outdir=/tmp
     (cd docs && tsc --noEmit) | wtsc
 
+# run every test suite: bun unit tests, then the Playwright browser tests
+test: test-bun test-pw
+
+# Playwright browser tests (tests/**/*.pw.ts); extra arguments go to playwright, e.g. `just test-pw tests/grid.pw.ts`
+test-pw *args:
+    playwright test {{args}}
+
+# bun unit tests (*.test.ts, currently docs/src/macro.test.ts)
+test-bun *args:
+    bun test {{args}}
+
 # check typings and coding style
 check:
     biome check && just check-compile
