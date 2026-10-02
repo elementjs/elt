@@ -18,7 +18,7 @@ Pages are divided by subject: each topic page holds the how-to, the lookup table
 | `just format` | Format and apply safe lint fixes across the project |
 | `just test` | Run every test suite (`just test-bun`, then `just test-pw`) |
 | `just test-pw [args]` | Run the Playwright tests (`tests/**/*.pw.ts`, real browser); arguments go to `playwright test` — see [`docs/md/testing.md`](./docs/md/testing.md) |
-| `just test-bun [args]` | Run the bun unit tests (`*.test.ts`, currently `docs/src/macro.test.ts`) |
+| `just test-bun [args]` | Run the bun unit tests (`*.test.ts`, currently `docs/src/macro.test.ts` and `tests/bundle.test.ts`) |
 | `just watch-docs` | Serve the docs site locally, type-checking `docs/` on every rebuild |
 
 ## Repo map

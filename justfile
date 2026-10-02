@@ -27,7 +27,7 @@ test: test-bun test-pw
 test-pw *args:
     playwright test {{args}}
 
-# bun unit tests (*.test.ts, currently docs/src/macro.test.ts)
+# bun unit tests (*.test.ts, currently docs/src/macro.test.ts and tests/bundle.test.ts)
 test-bun *args:
     bun test {{args}}
 

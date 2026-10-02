@@ -6,7 +6,7 @@
   "license": "MIT",
   "workspaces": ["docs"],
   "main": "./src/index.ts",
-  "sideEffects": ["./src/css.ts", "./src/mutative.ts"],
+  "sideEffects": ["./src/css.ts", "./src/mutative.ts", "./src/elt.ts", "./src/index.ts", "./ui/index.tsx", "./ui/theme.tsx", "./ui/*.css.tsx"],
   "exports": {
     ".": "./src/index.ts",
     "./ui": "./ui/index.tsx",
