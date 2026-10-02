@@ -36,13 +36,51 @@ const o_choice = o("a")
 | Prop | Type | Meaning |
 | ---- | ---- | ------- |
 | `model` | `o.Observable<T>` | Selected value |
-| `options` | `o.RO<Iterable<T2>>` | Options |
-| `convert_fn` | `(opt: T2) => T` | Map an option to the model's value type |
-| `label_fn` | `(opt: T2) => Renderable` | Option label (default: the option itself) |
+| `options` | `o.RO<Iterable<T2> \| Promise<Iterable<T2>>>` | Options, or a promise of them — see [Options from a server](#options-from-a-server) |
+| `convert_fn` | `(opt: T2) => T` | Map an option to the model's value type. Without it, the option is the value |
+| `label_fn` | `(opt: T2, query: string) => Renderable` | Option label (default: the option as text). `query` is what the user typed in completion mode (`""` otherwise), to highlight it yourself |
+| `text_fn` | `(opt: T2) => string` | The option as text, for completion (default `String(opt)`) |
+| `completion` | `boolean` | Type to filter the options — see [Completion](#completion) |
+| `query` | `o.Observable<string>` | Written with what the user types in completion mode |
 | `disabled` | `o.RO<boolean>` | |
-| `placeholder` | `o.RO<Renderable>` | Shown while no value matches |
+| `placeholder` | `o.RO<Renderable>` | Shown while no value is selected |
 
 `Select` also takes every `button` attribute.
+
+**Keyboard**: ArrowDown or ArrowUp on the Select opens the list, with the selected option active. In the list, Up/Down, Home/End and PageUp/PageDown move, Enter or Space picks, typing letters jumps to the next option starting with them, `Escape` closes it ([Overlays § Keyboard in menus and lists](./ui-overlays.md#keyboard-in-menus-and-lists)).
+
+### Completion
+
+With `completion`, a click (or ArrowDown) turns the Select into a text input holding the current option's text, all selected, with the whole list open. Typing replaces the text and keeps the options whose `text_fn` contains it, ignoring case and accents; the first match becomes active, so Enter picks it. Up/Down move through the options while focus stays in the input. `Escape`, or leaving the input, drops what was typed and shows the selected option again; the model only changes when an option is picked.
+
+Options that are objects need a `text_fn`: with completion and no `text_fn`, `Select` throws when it's created.
+
+```tsx
+<Select
+  model={o_country}
+  options={countries}
+  completion
+  text_fn={(c) => c.name}
+  label_fn={(c) => <><img src={c.flag} alt="" /> {c.name}</>}
+/>
+```
+
+### Options from a server
+
+`options` can hold a promise. While it is pending, the last options stay shown with a loading row at the end. A promise replaced by a newer one before it settles is ignored, so a late reply to an old query never overwrites a newer one. A rejected promise keeps the last options, with an error row at the end. Options from a promise are shown as they come, in their order and unfiltered — the server did the filtering — and the model holds the option itself (no `convert_fn`), so the selected value can be shown before any option has loaded.
+
+Derive the promise from `query`. The Select doesn't know about requests; debouncing them is yours:
+
+```tsx
+const o_query = o("")
+const o_fetched = o<Promise<City[]>>(fetch_cities(""))
+
+<e-row>
+  {/* One request per pause in typing, not per keystroke. */}
+  {$observe(o_query, o.debounce((q: string) => o_fetched.set(fetch_cities(q)), 200), { changes_only: true })}
+  <Select model={o_city} options={o_fetched} query={o_query} completion text_fn={(c) => c.name} />
+</e-row>
+```
 
 ## DateTimePicker
 
