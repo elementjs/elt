@@ -3,26 +3,6 @@ import { INLINE_ONLY_TEXT_BLOCK_SELECTOR } from "./selectors"
 import { ambient_surface_mix, type ColorStep, type SpacingStep, spacing_steps, theme } from "./theme"
 
 declare module "elt" {
-  /** `e-virtual-scroll` (core) takes the frame and sizing attributes of the layout elements — not
-   * `pad`: sticky rows stick at a scroll area's padding edge, so the scrolled rows would show through
-   * the padding above a sticky header. */
-  interface EVirtualScrollAttrs
-    extends Pick<
-      CommonAttrs,
-      | "border"
-      | "surface"
-      | "radius"
-      | "grow"
-      | "relative"
-      | "self-align"
-      | "self-justify"
-      | "max-width"
-      | "max-height"
-      | "full-screen"
-      | "full-width"
-      | "full-height"
-    > {}
-
   interface ElementMap {
     "e-grid": EGridAttrs
     "e-grid-row": EGridRowAttrs
@@ -211,9 +191,9 @@ const align: AlignValues[] = [
   "space-between",
 ]
 
-// e-grid-row and e-virtual-scroll take only some of the layout attributes; their attribute types
-// (EGridRowAttrs, EVirtualScrollAttrs) restrict which ones, the selectors don't need to.
-const _all = `:where(e-flex,e-grid,e-prose,e-column,e-row,e-grid-row,e-virtual-scroll)`
+// e-grid-row takes only some of the layout attributes; its attribute type (EGridRowAttrs) restricts
+// which ones, the selectors don't need to.
+const _all = `:where(e-flex,e-grid,e-prose,e-column,e-row,e-grid-row)`
 const _flex = `:where(e-flex,e-column,e-row)`
 const _layouters = `:where(e-flex,e-grid,e-column,e-row,e-grid-row)`
 /** Containers that take `packed`. */
@@ -425,11 +405,11 @@ _`
 // A flex scroll area's children keep their size along the axis it scrolls on, rather than shrinking
 // to fit (layout elements let their children shrink below their content: min-width/min-height 0).
 // Otherwise the content never overflows, and there's nothing to scroll. A child that is itself a
-// scroll area is the exception: it is what should shrink to fit, and scroll its own content (an
-// e-virtual-scroll that grew to its whole content would render every row).
+// scroll area is the exception: it is what should shrink to fit, and scroll its own content (a
+// virtual list's scroll area that grew to its whole content would render every row).
 _`
-  :is(e-column, e-flex[column])[scroll]:where(:not([scroll="x"])) > :where(:not([scroll], e-virtual-scroll)) { flex-shrink: 0; }
-  :is(e-row, e-flex:not([column]))[scroll]:where(:not([scroll="y"])) > :where(:not([scroll], e-virtual-scroll)) { flex-shrink: 0; }
+  :is(e-column, e-flex[column])[scroll]:where(:not([scroll="x"])) > :where(:not([scroll])) { flex-shrink: 0; }
+  :is(e-row, e-flex:not([column]))[scroll]:where(:not([scroll="y"])) > :where(:not([scroll])) { flex-shrink: 0; }
 `
 
 css`
@@ -670,7 +650,7 @@ css`
 
   /* A packed bordered child of a scroll area drops its outer border and radius: the scroll area
      draws the frame (with its own [border]), and clips the content to its rounded edge. */
-  :is(${_all}[scroll], e-virtual-scroll) > ${_packed}[packed][border] {
+  ${_all}[scroll] > ${_packed}[packed][border] {
     border-width: 0;
     border-radius: 0;
   }

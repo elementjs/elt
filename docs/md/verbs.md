@@ -134,21 +134,22 @@ return <e-column>
 
 ## `RepeatVirtual` — a long list
 
-`RepeatVirtual(o_array, (o_item, o_index) => …)` takes the same arguments as `Repeat`, but only renders the rows near the visible part of its scroll area, an `<e-virtual-scroll>`. The rows above and below are stood for by two padders, sized from measured and estimated row heights. Use it for lists that can grow long (hundreds of rows or more); for short lists, `Repeat` is simpler.
+`RepeatVirtual(o_array, (o_item, o_index) => …)` takes the same arguments as `Repeat`, but only renders the rows near the visible part of its scroll area: the nearest element around it that scrolls vertically. The rows above and below are stood for by two padders, sized from measured and estimated row heights. Use it for lists that can grow long (hundreds of rows or more); for short lists, `Repeat` is simpler.
 
 ```tsx
 import { RepeatVirtual } from "elt"
 
-<e-virtual-scroll style={{ height: "400px" }}>
+<div style={{ height: "400px", overflowY: "auto" }}>
   <e-column align="stretch">
     {RepeatVirtual(o_rows, (o_row) => <e-row>{o_row.tf((r) => r.label)}</e-row>)
       .withKeyFunction((row) => row.id)}
   </e-column>
-</e-virtual-scroll>
+</div>
 ```
 
-- `<e-virtual-scroll>` is the scroll area: it scrolls (`overflow: auto`) and needs a bounded height. It holds its padders in its shadow root, out of your elements, so no style meant for your rows (a `packed` container's, for instance) reaches them. With `elt/ui` it takes `border`, `surface`, `radius` and the sizing attributes ([Layout § Scroll areas and sticky elements](./ui-layout.md#scroll-areas-and-sticky-elements)).
-- `RepeatVirtual` must be a child of the `e-virtual-scroll`, or of one of its children (the `e-column` above, an `e-grid`, …); one `RepeatVirtual` per `e-virtual-scroll`. Otherwise it reports an error when connected and renders nothing.
+- The scroll area is the nearest ancestor whose `overflow-y` is `auto`, `scroll` or `overlay` (not `hidden`: a box that only clips its content doesn't count), at any depth, through shadow roots too. It needs a bounded height. With `elt/ui`, it is a layout element with `scroll` ([Layout § Scroll areas and sticky elements](./ui-layout.md#scroll-areas-and-sticky-elements)). The page itself is never used: without a scrolling ancestor, `RepeatVirtual` reports an error when connected and renders nothing. Several lists may share one scroll area.
+- While connected, the list turns off the browser's scroll anchoring on its scroll area (`overflow-anchor: none`, set inline, put back when the last list using it leaves): the list keeps its visible rows in place itself, and the browser would fight it. Other content in that scroll area loses the browser's anchoring too: an image loading above the visible part pushes it down.
+- The padders are two `<e-virtual-padder>` elements, placed right before and after the rows, in the element holding them. Each shows only while rows are hidden on its side. Their layout (height, padding, margin, border) is set inline, so styles meant for your rows (a `packed` container's padding, for instance) don't change it; in a `<table>`, they are table rows. Don't style them, and skip them when you walk the rows' container in code.
 - It is a `Repeat` underneath, so `.withKeyFunction()` applies and matters even more: rows are created and dropped as the user scrolls. **A row's own state (focus, unsaved input, an expanded panel) is lost when it scrolls out of the rendered window.** Keep such state in observables outside the row.
 - **Each row's height must depend on its own content only**, not on which other rows are rendered at the same time; otherwise the view jumps as rows come and go. The classic cases are rows of a shared `<table>` with `table-layout: auto`, and grid columns sized by their content (`auto`, `max-content`): a wide cell re-flows the other rows. Use `table-layout: fixed`, or columns whose width doesn't depend on content (`columns={N}` on an `e-grid`, fixed widths). Rows may still change height on their own (an image loading, content wrapping to the container's width).
 - `.PrefixBy()` and `.SuffixBy()` show at the list's true start and end: only while the first (last) item is rendered. `.DisplayWhenEmpty()` and `.SeparateWith()` work as with `Repeat`.
@@ -157,21 +158,21 @@ import { RepeatVirtual } from "elt"
 
 ### Virtualizing a grid
 
-An infinite grid is an `e-grid` with `RepeatVirtual` rows inside an `e-virtual-scroll`, with sticky rows around it:
+An infinite grid is an `e-grid` with `RepeatVirtual` rows inside a scroll area, with sticky rows around it:
 
 ```tsx
-<e-virtual-scroll border style={{ height: "400px" }}>
+<e-column scroll align="stretch" border style={{ height: "400px" }}>
   <e-grid columns={4} packed border>
     <e-grid-row sticky="top" surface="tint-2">…header cells…</e-grid-row>
     {RepeatVirtual(o_rows, (o_row) => <e-grid-row hover>…cells…</e-grid-row>).withKeyFunction((r) => r.id)}
     <e-grid-row sticky="bottom">…totals…</e-grid-row>
   </e-grid>
-</e-virtual-scroll>
+</e-column>
 ```
 
 - Put the sticky rows outside the `RepeatVirtual`: the header before it, the footer after it.
-- A sticky row stays within the box of its parent (here the `e-grid`), and the rows that aren't rendered are stood for by padders outside that box. During a very fast scroll, the browser can draw a scroll position the list hasn't caught up with yet; for that moment the grid's edge is in view, and a sticky row on that edge moves with it. A sticky element placed directly in the `e-virtual-scroll`, outside the grid, never moves this way, but then it doesn't share the grid's columns.
-- The scroll area draws the frame (`border` on the `e-virtual-scroll`); the grid inside keeps only its seams. Don't `pad` the scroll area: sticky rows stick at its padding edge.
+- A sticky row stays within the box of its parent (here the `e-grid`). The padders are inside that box, so it spans the whole list, and sticky rows stay on their edge however fast the user scrolls. During a scroll faster than the list follows, the part not rendered yet shows blank for a moment, under the header.
+- The scroll area draws the frame (`border` on it); the grid inside keeps only its seams. Don't `pad` the scroll area: sticky rows stick at its padding edge.
 - Keep the column widths independent of the cells' content (see above). A live example is in [Layout § Scroll areas and sticky elements](./ui-layout.md#scroll-areas-and-sticky-elements); grids themselves are in [Layout § Grids](./ui-layout.md#grids).
 
 ## Good patterns vs. patterns to avoid
@@ -213,4 +214,4 @@ This matters if `display`'s closure depends on the *specific* truthy value rathe
 
 - [elt rules](./elt-rules.md#verbs) — the rules for verbs.
 - [Observables](./observables.md) — what verbs consume.
-- `src/verbs.ts` (`If`, `Switch`, `Repeat`, `DisplayPromise`) and `src/virtual.ts` (`RepeatVirtual`, `<e-virtual-scroll>`) — source of truth, with JSDoc.
+- `src/verbs.ts` (`If`, `Switch`, `Repeat`, `DisplayPromise`) and `src/virtual.ts` (`RepeatVirtual`) — source of truth, with JSDoc.

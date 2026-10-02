@@ -220,7 +220,7 @@ test.describe("composite grid", () => {
     const before = await measure()
     expect(before.template).toMatch(/^\d+(\.\d+)?px minmax\(\d+(\.\d+)?px, 1fr\)$/)
     await page.evaluate(() => {
-      const area = document.querySelector<HTMLElement>("#shell e-virtual-scroll")!
+      const area = document.querySelector<HTMLElement>("#shell e-grid")!.parentElement!
       area.scrollTop = area.scrollHeight
     })
     await page.waitForFunction(
@@ -399,7 +399,7 @@ test.describe("column layout", () => {
         c.tagName === "E-ROW" ? (c.hasAttribute("surface") ? "toolbar" : "header") : c.tagName.toLowerCase(),
       )
     })
-    expect(order).toEqual(["header", "toolbar", "e-virtual-scroll"])
+    expect(order).toEqual(["header", "toolbar", "e-column"])
   })
 
   test("columns are separate components: spaced apart, each with its own frame", async ({ page }) => {

@@ -1,0 +1,16 @@
+# RepeatVirtual's padders sit next to its rows, in the user's DOM
+
+`RepeatVirtual` stands for the rows it doesn't render with two padders, `<e-virtual-padder>` elements placed right before and after its rows, in the element holding them: `[prefix][top padder][rows…][bottom padder][suffix]`. Each shows only while rows are hidden on its side. The scroll area is the nearest ancestor that scrolls vertically, and the list sets `overflow-anchor: none` on it inline while connected. This replaces a dedicated `<e-virtual-scroll>` scroll area that held the padders in its shadow root, around a `<slot>`.
+
+**Why not the shadow root.** A sticky element is held inside its parent's box, and only ever moves down from where it would sit in the flow. With the padders outside the element holding the rows (an `e-grid` with a sticky header row), that element's box only spans the rendered rows. A scroll the list hasn't caught up with yet (the browser scrolls on its compositor thread, the list's IntersectionObserver reports after the frame is drawn) brought the box's edge into view, and the header moved with it: measured at 70–990px off its place for scrolls of 600–1500px per frame. CSS has no way to hold a sticky element by another box than its parent. Next to the rows, the padders are inside that box, which then spans the whole scroll height.
+
+**Why no gap value is needed.** In a grid or a flex container with a gap, a shown padder adds one gap of its own. It shows only while it stands for at least one row, and that row's gap pays for the padder's: the padder's height is the measured shift of the row pinned across each window change, so it comes out as the rows' heights plus their gaps, less its own gap. Hiding it as the window reaches the list's end swaps equal heights. A padder shown while standing for no row would leave an extra gap (a doubled seam in a packed grid) at the list's end; it is never shown then.
+
+**Rules from the page.** The reason for the shadow root was that no rule written for the user's elements (a packed container's padding on its children, for instance) could reach the padders. Their layout properties (`display`, `height`, `padding`, `margin`, `border`, `flex`, `grid-column`) are inline styles instead, which no rule out-ranks short of `!important`. What can still apply (a background, `:nth-child` counts) is harmless; a packed bordered grid paints them with its surface color, which is what a scroll ahead of the list shows.
+
+**Rejected alternatives.**
+- A header slot before the top padder in the scroll area's shadow root: works, but the header becomes a separate grid that has to share the body grid's columns.
+- The top padding as a `margin-top` on the first rendered row: no gap of its own, but a row is a range of nodes (`If`, `display: contents` wrappers), with no guaranteed single element to hold a margin, and the element watched by the observer would change with every window change.
+- One `scrollTop` write when the window reaches row 0: cancels the user's scroll momentum.
+
+**Consequences.** Several lists can share one scroll area, at any depth under it (each anchors its own rows; the index estimate after a jump subtracts what sits above the list in the scroll content). Among a table's rows, the padders are `display: table-row`. The page itself is never used as the scroll area.

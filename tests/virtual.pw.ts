@@ -22,6 +22,7 @@ type VirtualMountHandle = {
   scroll_to: (index: number) => Promise<void>
   visible_labels: () => string[]
   visible_count: () => number
+  rendered_bottom: () => number
   tear_down: () => void
 }
 
@@ -72,9 +73,10 @@ const SETUP_SCRIPT = `
 
     const o_lst = o(initial.slice())
 
-    const scroller = document.createElement("e-virtual-scroll")
+    const scroller = document.createElement("div")
     scroller.className = "scroll-host"
     scroller.style.height = VIEWPORT_HEIGHT + "px"
+    scroller.style.overflow = "auto"
 
     const content = document.createElement("div")
 
@@ -124,6 +126,11 @@ const SETUP_SCRIPT = `
       scroll_to: scroll_to,
       visible_labels: visible_labels,
       visible_count: function () { return __elementsByClass(content, "virtual-row").length },
+      // Bottom of the last rendered row (the content's own box also holds the bottom padder).
+      rendered_bottom: function () {
+        const rows = __elementsByClass(content, "virtual-row")
+        return rows[rows.length - 1].getBoundingClientRect().bottom
+      },
       tear_down: function () { node_remove(scroller) },
     }
   }
@@ -508,7 +515,7 @@ describe("RepeatVirtual", () => {
 
         // Threshold 100: the bottom edge is reported once it comes within 50px of the viewport.
         // Scrolling by small steps until just before that point reads no row.
-        const room = m.content.getBoundingClientRect().bottom - m.scroller.getBoundingClientRect().bottom
+        const room = m.rendered_bottom() - m.scroller.getBoundingClientRect().bottom
         reads = 0
         for (let st = 8; st < room - 60; st += 8) {
           m.scroller.scrollTop = st
@@ -526,7 +533,7 @@ describe("RepeatVirtual", () => {
           record()
         }
         Element.prototype.getBoundingClientRect = original
-        const below = m.content.getBoundingClientRect().bottom - m.scroller.getBoundingClientRect().bottom
+        const below = m.rendered_bottom() - m.scroller.getBoundingClientRect().bottom
         m.tear_down()
         return { reads_within, same_window, windows: windows.size, below }
       })
@@ -541,7 +548,7 @@ describe("RepeatVirtual", () => {
       const res = await page.evaluate(async () => {
         const m = window.__mountVirtual(window.__labelsFromCount(200))
         await window.__flushFrames()
-        const below = () => m.content.getBoundingClientRect().bottom - m.scroller.getBoundingClientRect().bottom
+        const below = () => m.rendered_bottom() - m.scroller.getBoundingClientRect().bottom
         // Threshold 100: the observer's line is 50px below the viewport, and it counts an edge
         // lying exactly on it as inside. Bring the content's bottom edge exactly there, in steps
         // shorter than a jump (the viewport, 300px).

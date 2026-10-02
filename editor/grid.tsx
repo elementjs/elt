@@ -125,7 +125,7 @@ export function render_composite_grid<K>(props: CompositeGridProps<K>): HTMLElem
   ])
 
   return (
-    <e-virtual-scroll class={cls_grid_scroll}>
+    <e-column scroll align="stretch" class={cls_grid_scroll}>
       <e-grid
         packed="widget"
         border
@@ -152,7 +152,7 @@ export function render_composite_grid<K>(props: CompositeGridProps<K>): HTMLElem
           "entry" in row ? row.entry : Symbol.for(`object-editor:transient:${row.transient}`),
         )}
       </e-grid>
-    </e-virtual-scroll>
+    </e-column>
   ) as HTMLElement
 }
 

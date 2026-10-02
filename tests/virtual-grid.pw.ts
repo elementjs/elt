@@ -1,13 +1,13 @@
 import { expect, test } from "@playwright/test"
 
-// RepeatVirtual in a real <e-virtual-scroll> (real layout, no mocked geometry): padders, the
-// structural rule, prefix/suffix/empty, and an infinite e-grid with sticky rows.
+// RepeatVirtual in a real scroll area (real layout, no mocked geometry): padders, finding the scroll
+// area, prefix/suffix/empty, and an infinite e-grid with sticky rows.
 // tests/virtual.pw.ts covers the windowing algorithm itself, with mocked geometry.
 
 declare global {
   interface Window {
     __frames: (count?: number) => Promise<void>
-    /** Mounts `<e-virtual-scroll style="height:200px">` with `build(area)` inside, returns the area. */
+    /** Mounts a 200px-high scroll area (`e-column scroll`, no gap) with `build(area)` inside, returns the area. */
     __area: (build: (area: HTMLElement) => void) => HTMLElement
     __scroll: (area: HTMLElement, top: number) => Promise<void>
     /** `item_size` is the RepeatVirtual's starting estimate (default 21, the rows' real spacing). */
@@ -29,6 +29,7 @@ test.beforeEach(async ({ page }) => {
         await window.__frames(10)
       }
       // e-grid columns=3 packed border in a bordered area, sticky header and footer around 10 000 rows.
+      // Cells clip their text: it would overflow their fixed height and lengthen the scroll content.
       window.__buildGrid = (area, item_size = 21) => {
     const { RepeatVirtual, node_append, o } = window.__ELT__
     area.setAttribute("border", "")
@@ -39,7 +40,7 @@ test.beforeEach(async ({ page }) => {
     const row = (cls, a, b, c) => {
       const r = document.createElement("e-grid-row")
       r.className = cls
-      for (const t of [a, b, c]) r.append(Object.assign(document.createElement("span"), { textContent: t, style: "height: 20px; display: block" }))
+      for (const t of [a, b, c]) r.append(Object.assign(document.createElement("span"), { textContent: t, style: "height: 20px; display: block; overflow: hidden" }))
       return r
     }
     const head = row("head", "A", "B", "C")
@@ -53,7 +54,10 @@ test.beforeEach(async ({ page }) => {
       }
       window.__area = (build) => {
         const { node_append } = window.__ELT__
-        const area = document.createElement("e-virtual-scroll")
+        const area = document.createElement("e-column")
+        area.setAttribute("scroll", "")
+        area.setAttribute("spacing", "none")
+        area.setAttribute("align", "stretch")
         area.style.height = "200px"
         area.style.width = "300px"
         build(area)
@@ -64,22 +68,17 @@ test.beforeEach(async ({ page }) => {
   })
 })
 
-test.describe("e-virtual-scroll", () => {
-  test("leaves overscroll-behavior at auto, so the page scrolls past its end", async ({ page }) => {
-    const res = await page.evaluate(() => {
-      const area = window.__area(() => {})
-      return getComputedStyle(area).overscrollBehaviorY
-    })
-    expect(res).toBe("auto")
-  })
-
-  test("its padders live in its shadow root and stand for the rows that aren't rendered", async ({ page }) => {
+test.describe("padders and scroll area", () => {
+  test("the padders sit right before and after the rows, each shown only while rows are hidden on its side", async ({
+    page,
+  }) => {
     const res = await page.evaluate(async () => {
       const scroll = window.__scroll
       const { RepeatVirtual, node_append, o } = window.__ELT__
       const o_lst = o(Array.from({ length: 1000 }, (_, i) => i))
+      let col!: HTMLElement
       const area = window.__area((area) => {
-        const col = document.createElement("div")
+        col = document.createElement("div")
         node_append(
           col,
           RepeatVirtual(o_lst, (o_i) =>
@@ -93,50 +92,77 @@ test.describe("e-virtual-scroll", () => {
         node_append(area, col)
       })
       await window.__frames()
-      // The padders are the shadow root's first and last elements, around the edges and the slot.
-      const shadow = area.shadowRoot!
-      const divs = [...shadow.querySelectorAll("div")] as HTMLElement[]
-      const [top, bottom] = [divs[0], divs[divs.length - 1]]
+      const elements = () => [...col.children] as HTMLElement[]
+      const [top, bottom] = [elements()[0], elements().at(-1)!]
+      const state = () => ({
+        top: { display: getComputedStyle(top).display, height: top.getBoundingClientRect().height },
+        bottom: { display: getComputedStyle(bottom).display, height: bottom.getBoundingClientRect().height },
+      })
+      const tags = [top.tagName, bottom.tagName, top.getAttribute("aria-hidden")]
+      const rows_between = elements()
+        .slice(1, -1)
+        .every((e) => e.className === "row")
       const rendered = area.querySelectorAll(".row").length
-      const before = { top: top.getBoundingClientRect().height, bottom: bottom.getBoundingClientRect().height }
+      const at_top = state()
       await scroll(area, 5000)
-      const after = { top: top.getBoundingClientRect().height, bottom: bottom.getBoundingClientRect().height }
-      const light_divs = [...area.children].map((c) => c.tagName)
-      return { rendered, before, after, scroll_height: area.scrollHeight, light_divs }
+      const middle = state()
+      await scroll(area, area.scrollHeight)
+      await scroll(area, area.scrollHeight)
+      const at_end = state()
+      return { tags, rows_between, rendered, at_top, middle, at_end, scroll_height: area.scrollHeight }
     })
+    expect(res.tags).toEqual(["E-VIRTUAL-PADDER", "E-VIRTUAL-PADDER", "true"])
+    expect(res.rows_between).toBe(true)
     expect(res.rendered).toBeLessThan(100)
-    expect(res.before.top).toBe(0)
-    expect(res.before.bottom).toBeGreaterThan(10000)
-    expect(res.after.top).toBeGreaterThan(4000)
+    expect(res.at_top.top.display).toBe("none")
+    expect(res.at_top.bottom.height).toBeGreaterThan(10000)
+    expect(res.middle.top.display).toBe("block")
+    expect(res.middle.top.height).toBeGreaterThan(4000)
+    expect(res.middle.bottom.display).toBe("block")
+    expect(res.at_end.bottom.display).toBe("none")
     expect(res.scroll_height).toBeGreaterThan(19000)
-    // Nothing but the user's own element in the light DOM.
-    expect(res.light_divs).toEqual(["DIV"])
   })
 
-  test("a packed container around the list gets no padders among its children", async ({ page }) => {
+  test("in a packed bordered container, the padders take none of the cells' padding or border", async ({ page }) => {
     const res = await page.evaluate(async () => {
       const { RepeatVirtual, node_append, o } = window.__ELT__
       let col!: HTMLElement
-      window.__area((area) => {
+      const area = window.__area((area) => {
         col = document.createElement("e-column")
         col.setAttribute("packed", "")
+        col.setAttribute("border", "")
         node_append(
           col,
-          RepeatVirtual(o(Array.from({ length: 50 }, (_, i) => i)), (o_i) =>
+          RepeatVirtual(o(Array.from({ length: 500 }, (_, i) => i)), (o_i) =>
             Object.assign(document.createElement("div"), { className: "row", textContent: String(o_i.get()) }),
           ),
         )
         node_append(area, col)
       })
       await window.__frames()
-      return [...col.children].every((c) => c.className === "row")
+      await window.__scroll(area, 3000)
+      const padder = col.querySelector("e-virtual-padder") as HTMLElement
+      const cs = getComputedStyle(padder)
+      return {
+        padding: cs.padding,
+        border: cs.borderTopWidth,
+        margin: cs.margin,
+        height: padder.getBoundingClientRect().height,
+        inline: Number.parseFloat(padder.style.height),
+      }
     })
-    expect(res).toBe(true)
+    expect(res.padding).toBe("0px")
+    expect(res.border).toBe("0px")
+    expect(res.margin).toBe("0px")
+    expect(res.inline).toBeGreaterThan(1000)
+    expect(res.height).toBe(res.inline)
   })
 
   // elt reports an exception thrown by a connection callback with console.error rather than
   // letting it reach node_append's caller, so these tests read the logged errors.
-  test("RepeatVirtual outside an e-virtual-scroll, or deeper than one level, reports an error", async ({ page }) => {
+  test("RepeatVirtual finds the nearest vertically scrolling ancestor at any depth, and reports an error without one", async ({
+    page,
+  }) => {
     const res = await page.evaluate(() => {
       const { RepeatVirtual, node_append, o } = window.__ELT__
       const attempt = (wrap: (list: HTMLElement) => HTMLElement) => {
@@ -158,47 +184,163 @@ test.describe("e-virtual-scroll", () => {
         }
         return errors.join("\n") || "ok"
       }
-      const area_of = (child: HTMLElement) => {
-        const a = document.createElement("e-virtual-scroll")
+      const area_of = (child: HTMLElement, overflow = "auto") => {
+        const a = document.createElement("div")
         a.style.height = "100px"
+        a.style.overflowY = overflow
         a.append(child)
         return a
+      }
+      const nest = (child: HTMLElement, depth: number) => {
+        let el = child
+        for (let i = 0; i < depth; i++) {
+          const mid = document.createElement("div")
+          mid.append(el)
+          el = mid
+        }
+        return el
+      }
+      // A scroll area holding the list through a shadow root's slot.
+      const through_slot = (child: HTMLElement) => {
+        const host = document.createElement("div")
+        host.attachShadow({ mode: "open" }).append(document.createElement("slot"))
+        host.append(child)
+        return area_of(host)
       }
       return {
         outside: attempt((h) => h),
         depth1: attempt((h) => area_of(h)),
-        depth2: attempt((h) => {
-          const mid = document.createElement("div")
-          mid.append(h)
-          return area_of(mid)
-        }),
+        depth3: attempt((h) => area_of(nest(h, 3))),
+        slot: attempt(through_slot),
+        clipped_only: attempt((h) => area_of(h, "hidden")),
       }
     })
-    expect(res.outside).toContain("must be a child of an <e-virtual-scroll>")
+    expect(res.outside).toContain("must be inside an element that scrolls vertically")
     expect(res.depth1).toBe("ok")
-    expect(res.depth2).toContain("must be a child of an <e-virtual-scroll>")
+    expect(res.depth3).toBe("ok")
+    expect(res.slot).toBe("ok")
+    expect(res.clipped_only).toContain("must be inside an element that scrolls vertically")
   })
 
-  test("a second RepeatVirtual in the same e-virtual-scroll reports an error", async ({ page }) => {
-    const res = await page.evaluate(() => {
-      const { RepeatVirtual, node_append, o } = window.__ELT__
-      const area = document.createElement("e-virtual-scroll")
-      area.style.height = "100px"
-      const render = (o_i: any) => Object.assign(document.createElement("div"), { textContent: String(o_i.get()) })
-      node_append(area, RepeatVirtual(o([1, 2]), render))
-      node_append(area, RepeatVirtual(o([3, 4]), render))
-      const errors: string[] = []
-      const orig = console.error
-      console.error = (...args: unknown[]) =>
-        errors.push(args.map((a) => (a instanceof Error ? a.message : String(a))).join(" "))
-      try {
-        node_append(document.body, area)
-      } finally {
-        console.error = orig
-      }
-      return errors.join("\n") || "ok"
+  test("the scroll area's overflow-anchor is none while lists use it, and restored after the last one leaves", async ({
+    page,
+  }) => {
+    const res = await page.evaluate(async () => {
+      const { If, RepeatVirtual, node_append, o } = window.__ELT__
+      const render = (o_i: any) =>
+        Object.assign(document.createElement("div"), { style: "height:20px", textContent: String(o_i.get()) })
+      const o_first = o(true)
+      const o_second = o(true)
+      const area = window.__area((area) => {
+        area.style.overflowAnchor = "auto"
+        node_append(
+          area,
+          If(o_first, () => RepeatVirtual(o([1, 2, 3]), render)),
+        )
+        node_append(
+          area,
+          If(o_second, () => RepeatVirtual(o([4, 5, 6]), render)),
+        )
+      })
+      await window.__frames()
+      const both = area.style.overflowAnchor
+      o_first.set(false)
+      const one = area.style.overflowAnchor
+      o_second.set(false)
+      const none = area.style.overflowAnchor
+      return { both, one, none, padders: area.querySelectorAll("e-virtual-padder").length }
     })
-    expect(res).toContain("already holds another RepeatVirtual")
+    expect(res).toEqual({ both: "none", one: "none", none: "auto", padders: 0 })
+  })
+
+  test("two lists in one scroll area each keep their rows in place, and land right after a jump", async ({ page }) => {
+    const res = await page.evaluate(async () => {
+      const scroll = window.__scroll
+      const { RepeatVirtual, node_append, o } = window.__ELT__
+      const list = (prefix: string) =>
+        RepeatVirtual(o(Array.from({ length: 300 }, (_, i) => i)), (o_i) =>
+          Object.assign(document.createElement("div"), {
+            className: "row",
+            style: "height:20px",
+            textContent: `${prefix}${o_i.get()}`,
+          }),
+        ).ItemSize(20)
+      const area = window.__area((area) => {
+        for (const prefix of ["a", "b"]) {
+          const holder = document.createElement("div")
+          node_append(holder, list(prefix))
+          node_append(area, holder)
+        }
+      })
+      await window.__frames()
+      // Each list is 300 rows of 20px: list a spans 0–6000, list b 6000–12000. The row at the area's
+      // top must always be the one its scroll offset designates.
+      const seen: string[] = []
+      const expected: string[] = []
+      for (let st = 0; st <= 11000; st += 150) {
+        await scroll(area, st)
+        const a = area.getBoundingClientRect()
+        seen.push(document.elementFromPoint(a.left + 10, a.top + 1)?.textContent ?? "")
+        const i = Math.floor(st / 20)
+        expected.push(i < 300 ? `a${i}` : `b${i - 300}`)
+      }
+      // Jumps (one scroll farther than the threshold) land from an index estimate, which must count
+      // what sits above the list: list b's estimate starts after list a's 6000px.
+      const jumps: string[] = []
+      for (const st of [1000, 9000, 2000, 11000]) {
+        await scroll(area, st)
+        const a = area.getBoundingClientRect()
+        jumps.push(document.elementFromPoint(a.left + 10, a.top + 1)?.textContent ?? "")
+      }
+      return { seen, expected, jumps, rendered: area.querySelectorAll(".row").length }
+    })
+    expect(res.seen).toEqual(res.expected)
+    expect(res.jumps).toEqual(["a50", "b150", "a100", "b250"])
+    expect(res.rendered).toBeLessThan(200)
+  })
+
+  test("among a table's rows, the padders are table rows", async ({ page }) => {
+    const res = await page.evaluate(async () => {
+      const scroll = window.__scroll
+      const { RepeatVirtual, node_append, o } = window.__ELT__
+      let tbody!: HTMLElement
+      const area = window.__area((area) => {
+        const table = document.createElement("table")
+        table.style.cssText = "table-layout: fixed; width: 100%; border-spacing: 0"
+        tbody = document.createElement("tbody")
+        node_append(
+          tbody,
+          RepeatVirtual(o(Array.from({ length: 1000 }, (_, i) => i)), (o_i) => {
+            const tr = document.createElement("tr")
+            tr.className = "row"
+            tr.append(
+              Object.assign(document.createElement("td"), {
+                textContent: String(o_i.get()),
+                style: "height:20px; padding:0",
+              }),
+            )
+            return tr
+          }).ItemSize(20),
+        )
+        table.append(tbody)
+        node_append(area, table)
+      })
+      await window.__frames()
+      await scroll(area, 5000)
+      const padder = tbody.querySelector("e-virtual-padder") as HTMLElement
+      const a = area.getBoundingClientRect()
+      return {
+        display: getComputedStyle(padder).display,
+        height: padder.getBoundingClientRect().height,
+        inline: Number.parseFloat(padder.style.height),
+        top_row: document.elementFromPoint(a.left + 10, a.top + 1)?.textContent,
+        rendered: tbody.querySelectorAll(".row").length,
+      }
+    })
+    expect(res.display).toBe("table-row")
+    expect(res.height).toBeCloseTo(res.inline, 0)
+    expect(res.top_row).toBe("250")
+    expect(res.rendered).toBeLessThan(100)
   })
 
   test("prefix and suffix show only at the list's true start and end; empty state shows when empty", async ({
@@ -338,11 +480,117 @@ test.describe("infinite e-grid with sticky rows", () => {
   })
 })
 
+test.describe("sticky rows during scrolls faster than the list follows (regression: the header dropped)", () => {
+  // The scroll offset changes in a requestAnimationFrame callback and the header is read right
+  // after, in the same frame: what the browser draws before the list's IntersectionObserver reports.
+  // A sticky row is held inside its parent's box; with the padders inside the grid, that box spans
+  // the whole scroll height, so the header stays on the edge however far ahead of the list the
+  // scroll is (steps above the 500px threshold, and jumps).
+  for (const step of [600, 1500, 5000]) {
+    test(`header and footer stay on the edges with ${step}px per frame, down then up`, async ({ page }) => {
+      const res = await page.evaluate(async (step) => {
+        const area = window.__area(window.__buildGrid)
+        await window.__frames()
+        await window.__scroll(area, 100000)
+        const head = area.querySelector(".head")!
+        const foot = area.querySelector(".foot")!
+        const cs = getComputedStyle(area)
+        const off = () => {
+          const a = area.getBoundingClientRect()
+          return [
+            Math.round(head.getBoundingClientRect().top - a.top - Number.parseFloat(cs.borderTopWidth)),
+            Math.round(a.bottom - Number.parseFloat(cs.borderBottomWidth) - foot.getBoundingClientRect().bottom),
+          ]
+        }
+        const moved: string[] = []
+        for (const dir of [1, -1]) {
+          for (let i = 0; i < 20; i++) {
+            await new Promise((r) => requestAnimationFrame(r))
+            area.scrollTop += dir * step
+            const [h, f] = off()
+            if (h !== 0 || f !== 0) moved.push(`${dir > 0 ? "down" : "up"} #${i}: head ${h}, foot ${f}`)
+          }
+        }
+        return moved
+      }, step)
+      expect(res).toEqual([])
+    })
+  }
+})
+
+test.describe("hiding the top padder at row 0 (no gap value is known: the padder stands for at least one row)", () => {
+  // Scroll down past the margin (the top padder shows), then back up in steps to the top: every
+  // rendered row must stay at the offset its index designates in the scroll content, including on
+  // the step where the window reaches row 0 and the padder hides. A gap or a seam wrongly counted
+  // would shift every row by that much from then on.
+  const cases = {
+    "packed bordered grid (1px seams)": (area: HTMLElement) => window.__buildGrid(area),
+    "flex column with a 30px gap": (area: HTMLElement) => {
+      const { RepeatVirtual, node_append, o } = window.__ELT__
+      const col = document.createElement("div")
+      col.style.cssText = "display: flex; flex-direction: column; gap: 30px"
+      node_append(
+        col,
+        RepeatVirtual(o(Array.from({ length: 2000 }, (_, i) => i)), (o_i) =>
+          Object.assign(document.createElement("div"), {
+            className: "row",
+            style: "height: 20px; flex: none",
+            textContent: String(o_i.get()),
+          }),
+        ).ItemSize(50),
+      )
+      node_append(area, col)
+    },
+  }
+  for (const [name, build] of Object.entries(cases)) {
+    test(name, async ({ page }) => {
+      const res = await page.evaluate(
+        async ({ build_src }) => {
+          const build = new Function(`return ${build_src}`)()
+          const scroll = window.__scroll
+          const area = window.__area(build)
+          await window.__frames()
+          const rows = () => [...area.querySelectorAll(".row")] as HTMLElement[]
+          const index = (row: HTMLElement) => Number.parseInt(row.textContent!, 10)
+          // Offset in the scroll content, from the area's top, of a row's top.
+          const offset = (row: HTMLElement) =>
+            row.getBoundingClientRect().top - area.getBoundingClientRect().top + area.scrollTop
+          const [r0, r1] = rows()
+          const origin = offset(r0)
+          const pitch = offset(r1) - origin
+          const misplaced: string[] = []
+          const check = (label: string) => {
+            for (const row of rows()) {
+              const expected = origin + index(row) * pitch
+              if (Math.abs(offset(row) - expected) > 0.5)
+                misplaced.push(`${label}: row ${index(row)} at ${offset(row)}, expected ${expected}`)
+            }
+          }
+          let shown = false
+          for (let st = 0; st <= 3000; st += 100) {
+            await scroll(area, st)
+            shown ||= getComputedStyle(area.querySelector("e-virtual-padder")!).display !== "none"
+          }
+          for (let st = 3000; st >= 0; st -= 100) {
+            await scroll(area, st)
+            check(`at ${st}`)
+          }
+          const hidden_at_top = getComputedStyle(area.querySelector("e-virtual-padder")!).display === "none"
+          return { shown, hidden_at_top, misplaced: misplaced.slice(0, 5) }
+        },
+        { build_src: build.toString() },
+      )
+      expect(res.shown).toBe(true)
+      expect(res.hidden_at_top).toBe(true)
+      expect(res.misplaced).toEqual([])
+    })
+  }
+})
+
 test.describe("margins after a jump (regression: a jump used to land with no rows rendered above)", () => {
   // A jump (one scroll moving more than max(threshold, viewport)) re-renders the window from an
-  // index estimate. It must land with rows rendered on both sides of the viewport: the sticky header
-  // is held inside the grid's box, so with nothing rendered above, a scroll back up drawn before the
-  // list catches up shows the header in the middle of the viewport.
+  // index estimate. It must land with rows rendered on both sides of the viewport: with nothing
+  // rendered above, a scroll back up drawn before the list catches up shows the blank top padder.
   for (const item_size of [21, 64]) {
     test(`both margins are filled at rest after jumping down then up (estimate ${item_size}px, real 21px)`, async ({
       page,
@@ -375,7 +623,7 @@ test.describe("margins after a jump (regression: a jump used to land with no row
   }
 })
 
-test.describe("ui Select (regression: its list used to get padders among its packed options)", () => {
+test.describe("ui Select", () => {
   test("a long option list stays virtual in the popup, with only options in its packed column", async ({ page }) => {
     const res = await page.evaluate(async () => {
       const { node_append, o, UI } = window.__ELT__
@@ -386,10 +634,12 @@ test.describe("ui Select (regression: its list used to get padders among its pac
       node_append(document.body, btn)
       btn.click()
       await window.__frames(10)
-      const area = document.querySelector("e-virtual-scroll[role=listbox]") as HTMLElement
+      const area = document.querySelector("[role=listbox]") as HTMLElement
       const col = area.querySelector("e-column")!
       const options = col.querySelectorAll("[role=option]").length
-      const others = [...col.children].filter((c) => c.getAttribute("role") !== "option").length
+      const others = [...col.children].filter(
+        (c) => c.getAttribute("role") !== "option" && c.tagName !== "E-VIRTUAL-PADDER",
+      ).length
       return {
         options,
         others,
@@ -447,8 +697,7 @@ test.describe("object editor table (array of objects)", () => {
       const widget = array({ values: object({ properties: [] }), mode: "table" } as any).render(o(rows) as any)
       node_append(document.body, widget.render() as HTMLElement)
       await window.__frames(10)
-      const area = document.querySelector("e-virtual-scroll") as HTMLElement
-      const grid = area.querySelector("e-grid") as HTMLElement
+      const grid = document.querySelector("e-grid") as HTMLElement
       const head = grid.querySelector("e-grid-row[sticky=top]") as HTMLElement
       // The template the grid sets (locked widths), not the used sizes: the last column also fills.
       const tpl_before = grid.style.gridTemplateColumns
@@ -476,31 +725,4 @@ test.describe("object editor table (array of objects)", () => {
     expect(after[1]).toBeCloseTo(before[1]! + 60, 0)
     expect(after[2]).toBe(before[2])
   })
-})
-
-test("removing the list from its e-virtual-scroll resets the padders", async ({ page }) => {
-  const res = await page.evaluate(async () => {
-    const { If, RepeatVirtual, node_append, o } = window.__ELT__
-    const o_show = o(true)
-    const area = window.__area((area) => {
-      node_append(
-        area,
-        If(o_show, () =>
-          RepeatVirtual(o(Array.from({ length: 1000 }, (_, i) => i)), (o_i) =>
-            Object.assign(document.createElement("div"), { style: "height:20px", textContent: String(o_i.get()) }),
-          ).ItemSize(20),
-        ),
-      )
-    })
-    await window.__frames()
-    const { padder_top: top, padder_bottom: bottom } = area as HTMLElement & {
-      padder_top: HTMLElement
-      padder_bottom: HTMLElement
-    }
-    const before = bottom.getBoundingClientRect().height
-    o_show.set(false)
-    return { before, top: top.getBoundingClientRect().height, bottom: bottom.getBoundingClientRect().height }
-  })
-  expect(res.before).toBeGreaterThan(1000)
-  expect(res).toMatchObject({ top: 0, bottom: 0 })
 })

@@ -6,28 +6,38 @@
  *   DOM writes in one loop: every read after a write forces a reflow, making the pass O(n) reflows.
  *   Read once, compute, write in one batch, converge on later frames.
  * - Nothing is measured while the user scrolls within the margins. An IntersectionObserver watches
- *   two empty elements at the edges of the rendered content (in the scroll area's shadow root) and
- *   runs a pass when one comes within `threshold / 2` of the viewport. A pass reads the viewport and
- *   the two edges; rows are read only when the window changes, from each end, stopping at the first
- *   row that doesn't qualify (the trim count, the row pinned across the change), and the one read
- *   after the write (the pinned row's new position) is the pass's only forced layout.
+ *   the two padders and runs a pass when one comes within `threshold / 2` of the viewport. A pass
+ *   reads the viewport and the two ends of the rendered content; rows are read only when the window
+ *   changes, from each end, stopping at the first row that doesn't qualify (the trim count, the row
+ *   pinned across the change), and the one read after the write (the pinned row's new position) is
+ *   the pass's only forced layout.
  * - The observer only reports changes of inside/outside its zone: after every window change, restart
- *   watching the edges so that one still short gets reported again. The scroll listener still
- *   handles jumps (one scroll farther than the viewport), which can carry an edge across the zone
+ *   watching the padders so that one still short gets reported again. The scroll listener still
+ *   handles jumps (one scroll farther than the viewport), which can carry a padder across the zone
  *   without it ever being inside.
  * - Keep the content stable through the **top padder**, never by writing `scrollTop` while the user
  *   scrolls.
- * - The top padder is measurement-driven (the real heights of the rows it replaces), not
- *   `index * estimate`; snap it to `0` at index `0`. The bottom padder may stay estimate-only.
+ * - The top padder is measurement-driven (the real heights of the rows it replaces, gaps and margins
+ *   included, since it is the measured shift of the pinned row), not `index * estimate`. The bottom
+ *   padder may stay estimate-only: it is below everything on screen.
  * - Keep `overflow-anchor: none` on the scroll area so the browser's own scroll anchoring doesn't
- *   fight the padder.
- * - The padders live in `e-virtual-scroll`'s shadow root, never in the user's DOM: there, no
- *   rule written for the user's elements (a packed container's children, …) can reach them. They
- *   can't be the scroll area's own padding instead: a scroll area's padding is part of its own box,
- *   so it would grow to the padding's height and stop scrolling.
+ *   fight the padder. The list sets it inline on the scroll area it finds, and restores the previous
+ *   value when the last list using that scroll area disconnects.
+ * - The padders are `<e-virtual-padder>` elements right next to the rows, in the element holding
+ *   them: `[prefix][top padder][rows…][bottom padder][suffix]`. Not in a shadow root around that
+ *   element (as they once were): a sticky row is held inside its parent's box, so padders outside
+ *   that box let the box's edge, and the sticky row with it, come into view on a scroll the list
+ *   hasn't caught up with yet. Next to the rows, the parent spans the whole scroll height. See
+ *   docs/src/adr/0004-virtual-padders-next-to-rows.md.
+ * - A padder shows only while rows are hidden on its side (`display: none` otherwise). Shown, it
+ *   always stands for at least one row, whose gap pays for the padder's own gap: hiding it as those
+ *   rows render swaps equal heights, so no gap value ever needs to be known. Never show a padder
+ *   standing for no row: its gap would be an extra seam at the list's end.
+ * - Its layout properties are inline styles, which no stylesheet rule (a packed container's padding
+ *   on its children, …) out-ranks short of `!important`.
  */
 
-import type { Attrs, Renderable } from "./types"
+import type { Renderable } from "./types"
 
 import { o } from "./observable"
 
@@ -46,75 +56,76 @@ type RepeatItem<Obs extends Repeat.RepeatedObservable<any>> = Repeat.RepeatItemE
 
 type ItemBounds = { top: number; bottom: number; height: number }
 
-/**
- * The scroll area of one {@link RepeatVirtual}: a plain element that scrolls, and holds the two
- * padders standing for the rows that aren't rendered above and below the visible ones. They live in
- * its shadow root, around a `<slot>` that shows its children:
- *
- * ```
- * <e-virtual-scroll>
- *   #shadow-root: [top padder] [top edge] <slot> [bottom edge] [bottom padder]
- *   …children (the RepeatVirtual itself, or the element that holds it)
- * ```
- *
- * It needs a bounded height to scroll. Its base style (`display: block; overflow: auto`) is a
- * default any stylesheet can override.
- */
-export class EVirtualScroll extends HTMLElement {
-  readonly padder_top: HTMLElement
-  readonly padder_bottom: HTMLElement
-  /** Empty lines at the top and bottom edges of the rendered content, watched by the list's
-   * IntersectionObserver: one entering the zone near the viewport means that side needs rows. */
-  readonly edge_top: HTMLElement
-  readonly edge_bottom: HTMLElement
-  /** The RepeatVirtual using this scroll area, while it is connected. */
-  owner: object | null = null
+/** Inline style of a padder: what it must be whatever rules the page has for its parent's children. */
+const PADDER_STYLE =
+  "display: none; grid-column: 1 / -1; flex: none; box-sizing: content-box; height: 0; min-height: 0; padding: 0; margin: 0; border: 0;"
 
-  constructor() {
-    super()
-    const shadow = this.attachShadow({ mode: "open" })
-    const style = document.createElement("style")
-    // :host rules lose to any rule of the page, so these are defaults.
-    style.textContent = `:host { display: block; overflow: auto; overflow-anchor: none; }`
-    this.padder_top = document.createElement("div")
-    this.padder_bottom = document.createElement("div")
-    this.edge_top = document.createElement("div")
-    this.edge_bottom = document.createElement("div")
-    shadow.append(
-      style,
-      this.padder_top,
-      this.edge_top,
-      document.createElement("slot"),
-      this.edge_bottom,
-      this.padder_bottom,
-    )
-  }
+/** Creates one of a list's two padders (see the maintainer notes). */
+function create_padder(): HTMLElement {
+  const padder = document.createElement("e-virtual-padder")
+  padder.setAttribute("aria-hidden", "true")
+  padder.style.cssText = PADDER_STYLE
+  return padder
 }
 
-if (typeof customElements !== "undefined" && customElements.get("e-virtual-scroll") == null) {
-  customElements.define("e-virtual-scroll", EVirtualScroll)
+/** `overflow-y` values that make an element a scroll area the user can scroll. */
+const SCROLLING_OVERFLOW = new Set(["auto", "scroll", "overlay"])
+
+/** The parent of `node` in the flattened tree: a slotted node's slot, a shadow root's host. */
+function flat_parent(node: Node): Element | null {
+  if (node instanceof Element && node.assignedSlot != null) return node.assignedSlot
+  const parent = node.parentNode
+  if (parent instanceof ShadowRoot) return parent.host
+  return parent instanceof Element ? parent : null
 }
 
-/** Attributes of `<e-virtual-scroll>`. `elt/ui` adds its layout attributes (`border`, `surface`, …). */
-export interface EVirtualScrollAttrs extends Attrs<EVirtualScroll> {}
+/** `display` values of an element whose children are table rows. */
+const TABLE_ROW_PARENTS = new Set([
+  "table",
+  "inline-table",
+  "table-row-group",
+  "table-header-group",
+  "table-footer-group",
+])
 
-declare module "./types" {
-  interface ElementMap {
-    "e-virtual-scroll": EVirtualScrollAttrs
+/** Lists per scroll area, and the inline `overflow-anchor` it had before the first one. */
+const anchor_holds = new WeakMap<HTMLElement, { count: number; previous: string }>()
+
+/** Turns the browser's scroll anchoring off on `area` while at least one list uses it. */
+function hold_anchor(area: HTMLElement) {
+  const hold = anchor_holds.get(area)
+  if (hold != null) {
+    hold.count++
+    return
   }
+  anchor_holds.set(area, { count: 1, previous: area.style.overflowAnchor })
+  area.style.overflowAnchor = "none"
+}
+
+function release_anchor(area: HTMLElement) {
+  const hold = anchor_holds.get(area)
+  if (hold == null) return
+  if (--hold.count > 0) return
+  anchor_holds.delete(area)
+  area.style.overflowAnchor = hold.previous
 }
 
 /**
- * A {@link Repeat} that only renders the rows near the visible part of its scroll area, an
- * `<e-virtual-scroll>`; the rows above and below are replaced by two padders, sized from measured and
- * estimated row heights. It must be a child of the `e-virtual-scroll`, or of one of its children
- * (an `e-grid` in it, for instance):
+ * A {@link Repeat} that only renders the rows near the visible part of its scroll area: the nearest
+ * ancestor that scrolls vertically (`overflow-y: auto`, `scroll` or `overlay`). The rows above and
+ * below are replaced by two padders, `<e-virtual-padder>` elements placed right before and after the
+ * rows, sized from measured and estimated row heights. The page itself is never used as the scroll
+ * area: without a scrolling ancestor, the list reports an error when connected.
  *
  * ```tsx
- * <e-virtual-scroll style="height: 400px">
+ * <div style="height: 400px; overflow: auto">
  *   <e-column>{RepeatVirtual(o_rows, (o_row) => <e-row>{o_row.p("label")}</e-row>)}</e-column>
- * </e-virtual-scroll>
+ * </div>
  * ```
+ *
+ * The list turns the browser's scroll anchoring off on its scroll area (`overflow-anchor: none`,
+ * inline) while it is connected: the list keeps its rows in place itself, and the browser would
+ * fight it.
  *
  * ## Requirement: rows must have a (reasonably) intrinsic height
  *
@@ -161,7 +172,14 @@ export namespace RepeatVirtual {
     protected threshold = 500
 
     /** The scroll area, found when the list is connected */
-    protected scroll_area: EVirtualScroll | null = null
+    protected scroll_area: HTMLElement | null = null
+
+    /** Stand for the rows above and below the rendered ones (see the maintainer notes). */
+    protected padder_top = create_padder()
+    protected padder_bottom = create_padder()
+
+    /** `display` of a shown padder: `table-row` among a table's rows, `block` anywhere else. */
+    protected padder_display = "block"
 
     o_pos_start = o(0)
     o_pos_end = o(0)
@@ -175,15 +193,15 @@ export namespace RepeatVirtual {
     /** The index shown first when the list is connected */
     protected initial_position = 0
 
-    /** Re-evaluates when the scroll area's size changes (the edges' observer only reports edges
+    /** Re-evaluates when the scroll area's size changes (the padders' observer only reports padders
      * crossing its line, not the viewport growing past rows it already rendered). */
     protected _observer = new ResizeObserver(() => {
       this.eval()
     })
 
-    /** Watches the scroll area's two edges (see {@link EVirtualScroll}); created when connected,
-     * since its root is the scroll area. */
-    protected _edges: IntersectionObserver | null = null
+    /** Watches the two padders: one entering the zone near the viewport means that side needs rows.
+     * Created when connected, since its root is the scroll area. */
+    protected _padder_io: IntersectionObserver | null = null
 
     scroll_last_top = -1
 
@@ -237,27 +255,18 @@ export namespace RepeatVirtual {
     }
 
     /**
-     * The `e-virtual-scroll` this list belongs to: its parent element, or its parent's parent.
-     * Anything deeper is refused — the padders stand for rows of this list only, so whatever sits
-     * between them and the list has to stay simple to measure.
+     * The nearest ancestor, in the flattened tree, that scrolls vertically. The page itself doesn't
+     * count (`body` and `html` end the search): a virtual list's scroll area is always deliberate.
      */
-    protected find_scroll_area(): EVirtualScroll {
-      const parent = this.__list.parentElement
-      const area =
-        parent instanceof EVirtualScroll
-          ? parent
-          : parent?.parentElement instanceof EVirtualScroll
-            ? parent.parentElement
-            : null
-      if (area == null) {
-        throw new Error(
-          "RepeatVirtual must be a child of an <e-virtual-scroll>, or of one of its children (e.g. <e-virtual-scroll><e-grid>{RepeatVirtual(...)}</e-grid></e-virtual-scroll>)",
-        )
+    protected find_scroll_area(): HTMLElement {
+      const body = document.body
+      const html = document.documentElement
+      for (let el = flat_parent(this.__list); el != null && el !== body && el !== html; el = flat_parent(el)) {
+        if (el instanceof HTMLElement && SCROLLING_OVERFLOW.has(getComputedStyle(el).overflowY)) return el
       }
-      if (area.owner != null && area.owner !== this) {
-        throw new Error("RepeatVirtual: this <e-virtual-scroll> already holds another RepeatVirtual")
-      }
-      return area
+      throw new Error(
+        "RepeatVirtual must be inside an element that scrolls vertically (overflow-y: auto or scroll) and has a bounded height",
+      )
     }
 
     protected first_item(): RepeatItem<O> | null {
@@ -296,13 +305,21 @@ export namespace RepeatVirtual {
       return null
     }
 
-    /** Rough index from scroll offset; item_size is only an estimate */
-    protected estimateIndexFromScroll(scroll_top: number) {
+    /**
+     * Rough index of the row at the scroll area's top: the scroll offset, less what sits above the
+     * list in the scroll content (a header, other content, another list), over the estimated row
+     * height. Reads layout: call it before writing anything.
+     */
+    protected estimateIndexFromScroll() {
       const count = o.get(this.obs)?.length ?? 0
-      if (count === 0) {
+      const area = this.scroll_area
+      if (count === 0 || area == null) {
         return 0
       }
-      return Math.max(0, Math.min(count - 1, Math.floor(scroll_top / this.item_size)))
+      // Where the list starts in the scroll content: its top padder's top, or its first row's.
+      const top = this.pos_start > 0 ? this.padder_top.getBoundingClientRect().top : this.content_top()
+      const lead = top == null ? 0 : top - area.getBoundingClientRect().top - area.clientTop + area.scrollTop
+      return Math.max(0, Math.min(count - 1, Math.floor((area.scrollTop - lead) / this.item_size)))
     }
 
     protected jump_threshold() {
@@ -347,8 +364,7 @@ export namespace RepeatVirtual {
       }
 
       // Land with a margin's worth of rows on both sides of the viewport, not just below it: with
-      // nothing rendered above, the content's top edge is in view as soon as a scroll back up is drawn
-      // before the next pass, and a sticky row held in the content's box drops with it.
+      // nothing rendered above, a scroll back up drawn before the next pass shows the blank top padder.
       const target = Math.max(0, Math.min(n, count - 1))
       const margin_rows = Math.ceil(this.threshold / this.item_size)
       const start = Math.max(0, target - margin_rows)
@@ -360,21 +376,28 @@ export namespace RepeatVirtual {
       })
       this.update_padding()
       this.reconcileView(start, end)
-      this.observe_edges()
+      this.observe_padders()
       this.eval()
     }
 
-    /** Restart watching both edges, so the observer reports their state afresh on the next frame
-     * even if it didn't change: after a window change that fell short, an edge still inside the zone
+    /** Restart watching both padders, so the observer reports their state afresh on the next frame
+     * even if it didn't change: after a window change that fell short, a padder still inside the zone
      * would otherwise never be reported again. (`observe` on a watched target does nothing.) */
-    protected observe_edges() {
-      const io = this._edges
+    protected observe_padders() {
+      const io = this._padder_io
       const area = this.scroll_area
       if (io == null || area == null) return
-      io.unobserve(area.edge_top)
-      io.unobserve(area.edge_bottom)
-      io.observe(area.edge_top)
-      io.observe(area.edge_bottom)
+      io.unobserve(this.padder_top)
+      io.unobserve(this.padder_bottom)
+      io.observe(this.padder_top)
+      io.observe(this.padder_bottom)
+    }
+
+    /** Show each padder only while rows are hidden on its side (see the maintainer notes). */
+    protected update_padders_display() {
+      const count = o.get(this.obs)?.length ?? 0
+      this.padder_top.style.display = this.pos_start > 0 ? this.padder_display : "none"
+      this.padder_bottom.style.display = this.pos_end < count ? this.padder_display : "none"
     }
 
     /** Keep `anchor` at the same viewport Y after a view change by absorbing the
@@ -471,27 +494,51 @@ export namespace RepeatVirtual {
       return count
     }
 
-    /** The edges' observer reported: a pass, told which edges it saw inside its zone. */
-    protected on_edges(entries: IntersectionObserverEntry[]) {
+    /**
+     * Viewport Y of the top of the rendered content: the top padder's lower side while it shows,
+     * else the first row that has a box.
+     */
+    protected content_top(): number | null {
+      if (this.pos_start > 0) return this.padder_top.getBoundingClientRect().bottom
+      for (let item = this.first_item(); item != null; item = this.next_item(item)) {
+        const bounds = this.getBounds(item)
+        if (this.boundsValid(bounds)) return bounds.top
+      }
+      return null
+    }
+
+    /** Viewport Y of the bottom of the rendered content (see {@link content_top}). */
+    protected content_bottom(list_count: number): number | null {
+      if (this.pos_end < list_count) return this.padder_bottom.getBoundingClientRect().top
+      for (let item = this.last_item(); item != null; item = this.prev_item(item)) {
+        const bounds = this.getBounds(item)
+        if (this.boundsValid(bounds)) return bounds.bottom
+      }
+      return null
+    }
+
+    /** The padders' observer reported: a pass, told which padders it saw inside its zone. */
+    protected on_padders(entries: IntersectionObserverEntry[]) {
       const area = this.scroll_area
       if (area == null) return
       let top = false
       let bottom = false
-      // Entries are in time order: the last one for an edge is its current state.
+      // Entries are in time order: the last one for a padder is its current state. A hidden padder
+      // (no rows left on its side) is reported outside.
       for (const entry of entries) {
-        if (entry.target === area.edge_top) top = entry.isIntersecting
-        else if (entry.target === area.edge_bottom) bottom = entry.isIntersecting
+        if (entry.target === this.padder_top) top = entry.isIntersecting
+        else if (entry.target === this.padder_bottom) bottom = entry.isIntersecting
       }
       this.real_eval(top, bottom)
     }
 
     /**
-     * One windowing pass. Run when an edge crosses the line `threshold / 2` away from the viewport
+     * One windowing pass. Run when a padder crosses the line `threshold / 2` away from the viewport
      * (the IntersectionObserver), and on demand on the next frame after a reposition, a data change
-     * or a resize ({@link eval}). It reads the viewport and the two edges, and only reads rows when
-     * the window changes.
+     * or a resize ({@link eval}). It reads the viewport and the two ends of the rendered content, and
+     * only reads more rows when the window changes.
      */
-    protected real_eval = (edge_top_inside = false, edge_bottom_inside = false) => {
+    protected real_eval = (top_inside = false, bottom_inside = false) => {
       const area = this.scroll_area
       const list_count = o.get(this.obs)?.length ?? 0
       if (area == null || list_count === 0 || this.pos_end === this.pos_start) {
@@ -499,27 +546,30 @@ export namespace RepeatVirtual {
       }
 
       const region = area.getBoundingClientRect()
-      // A hidden scroll area has no layout: every edge would look short, and the window would grow
+      // A hidden scroll area has no layout: every side would look short, and the window would grow
       // to the whole list. Its ResizeObserver runs a pass once it shows.
       if (region.height === 0) {
         return
       }
-      const content_top = area.edge_top.getBoundingClientRect().top
-      const content_bottom = area.edge_bottom.getBoundingClientRect().top
+      const content_top = this.content_top()
+      const content_bottom = this.content_bottom(list_count)
+      if (content_top == null || content_bottom == null) {
+        return
+      }
       const threshold = this.threshold
 
       // The rendered content is entirely out of the zone (programmatic jump, a jump the scroll
       // listener didn't see): reposition wholesale from a scroll estimate.
       if (content_bottom < region.top - threshold || content_top > region.bottom + threshold) {
-        const idx = this.estimateIndexFromScroll(area.scrollTop)
+        const idx = this.estimateIndexFromScroll()
         if (idx < this.pos_start || idx >= this.pos_end) {
           this.setPosition(idx)
           return
         }
       }
 
-      // Refine the average row-height estimate from the content's extent (which includes whatever
-      // sits around the rows in their container, a header for instance). Damped, and only committed
+      // Refine the average row-height estimate from the content's extent (gaps between rows
+      // included). Damped, and only committed
       // past 1px so sub-pixel noise never re-jitters the padders / scrollbar; but taken as is when it
       // is more than 25% off (the first pass with a wrong `ItemSize`), since every margin computed
       // from it until then is off by as much.
@@ -535,11 +585,11 @@ export namespace RepeatVirtual {
       const above = region.top - content_top
       const below = content_bottom - region.bottom
       const low = threshold / 2
-      // An edge the observer reports inside its zone is short, whatever the measures say: it counts
-      // an edge lying exactly on its line as inside, where `below < low` doesn't (and the two may
-      // round differently). Not growing then would leave that edge inside, never reported again.
-      const grow_top = this.pos_start > 0 && (edge_top_inside || above < low)
-      const grow_bottom = this.pos_end < list_count && (edge_bottom_inside || below < low)
+      // A padder the observer reports inside its zone is short, whatever the measures say: it counts
+      // a padder lying exactly on its line as inside, where `below < low` doesn't (and the two may
+      // round differently). Not growing then would leave that padder inside, never reported again.
+      const grow_top = this.pos_start > 0 && (top_inside || above < low)
+      const grow_bottom = this.pos_end < list_count && (bottom_inside || below < low)
       if (!grow_top && !grow_bottom) {
         return
       }
@@ -572,8 +622,8 @@ export namespace RepeatVirtual {
       }
 
       if (this.applyViewChange(new_start, new_end, top.anchor, top.anchor_top)) {
-        // The estimate may have under/over-shot: have the edges reported afresh on the next frame.
-        this.observe_edges()
+        // The estimate may have under/over-shot: have the padders reported afresh on the next frame.
+        this.observe_padders()
       }
     }
 
@@ -716,26 +766,26 @@ export namespace RepeatVirtual {
 
       node_on_disconnected(this.__list, () => {
         this._observer.disconnect()
-        this._edges?.disconnect()
-        this._edges = null
-        const area = this.scroll_area
-        if (area?.owner === this) {
-          // The area may get another list (an If around this one): don't leave it our padders.
-          area.owner = null
-          area.padder_top.style.height = "0px"
-          area.padder_bottom.style.height = "0px"
-        }
+        this._padder_io?.disconnect()
+        this._padder_io = null
+        if (this.scroll_area != null) release_anchor(this.scroll_area)
         this.scroll_area = null
       })
 
       node_on_connected(this.__list, () => {
         const area = this.find_scroll_area()
-        area.owner = this
         this.scroll_area = area
+        hold_anchor(area)
+        // Among a table's rows, a padder must be a row itself: a block there would be wrapped in an
+        // anonymous row and cell by the browser.
+        const parent = this.__list.parentElement
+        this.padder_display =
+          parent != null && TABLE_ROW_PARENTS.has(getComputedStyle(parent).display) ? "table-row" : "block"
+        this.update_padders_display()
         this._observer.observe(area)
-        // Rows changing height after render (images, fonts, async content) move the edges, which
+        // Rows changing height after render (images, fonts, async content) move the padders, which
         // this observer reports once one crosses its line: no need to watch the rows' container.
-        this._edges = new IntersectionObserver((entries) => this.on_edges(entries), {
+        this._padder_io = new IntersectionObserver((entries) => this.on_padders(entries), {
           root: area,
           rootMargin: `${this.threshold / 2}px 0px`,
         })
@@ -752,36 +802,41 @@ export namespace RepeatVirtual {
             const delta = st - prev_top
             if (Math.abs(delta) > this.jump_threshold()) {
               this.scroll_last_top = st
-              this.setPosition(this.estimateIndexFromScroll(st))
+              this.setPosition(this.estimateIndexFromScroll())
               return
             }
           }
 
-          // Smaller scrolls are the edges' observer's business.
+          // Smaller scrolls are the padders' observer's business.
           this.scroll_last_top = st
         })
       })
 
+      // [prefix][top padder][rows…][bottom padder][suffix]: the rows go between the list's marker and
+      // its end marker, created right after it by updateRenderable.
       node_append(parent, this.__prefix, refchild)
+      node_append(parent, this.padder_top, refchild)
       node_append(parent, this.__empty, refchild)
       node_append(parent, this.__list, refchild)
+      node_append(parent, this.padder_bottom, refchild)
       node_append(parent, this.__suffix, refchild)
       this.__list.updateRenderable(null)
 
-      // The padders are in the scroll area's shadow root, which is only known once connected: the
-      // observers live on the list's own marker, so they run while it is connected and see the
-      // scroll area set by then. Writing them synchronously keeps preserveScrollAnchor's
-      // measurement right after a view change accurate.
+      // Written synchronously, so that preserveScrollAnchor's read right after a view change sees
+      // the padders as they now are (shown or hidden, at their new height).
+      const o_count = o.tf(this.obs, (lst) => lst?.length ?? 0)
       node_observe(this.__list, this.o_padding_top, (px) => {
-        if (this.scroll_area != null) this.scroll_area.padder_top.style.height = `${px ?? 0}px`
+        this.padder_top.style.height = `${px ?? 0}px`
       })
       node_observe(this.__list, this.o_padding_bottom, (px) => {
-        if (this.scroll_area != null) this.scroll_area.padder_bottom.style.height = `${px ?? 0}px`
+        this.padder_bottom.style.height = `${px ?? 0}px`
+      })
+      node_observe(this.__list, o.join(this.o_pos_start, this.o_pos_end, o_count), () => {
+        this.update_padders_display()
       })
 
       // Prefix and suffix belong to the list's true start and end, not to the edges of the rendered
       // window: they only show while the first (last) item is rendered.
-      const o_count = o.tf(this.obs, (lst) => lst?.length ?? 0)
       const prefix = this.prefix
       if (prefix != null) {
         this.__prefix.updateRenderable(

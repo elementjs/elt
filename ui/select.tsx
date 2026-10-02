@@ -168,7 +168,9 @@ export function Select<T, T2 = T>(at: SelectAttributes<T, T2>) {
 
   function render_list(anchor: HTMLElement) {
     const list = (
-      <e-virtual-scroll
+      <e-column
+        scroll="y"
+        align="stretch"
         id={list_id}
         role="listbox"
         surface="background"
@@ -220,7 +222,7 @@ export function Select<T, T2 = T>(at: SelectAttributes<T, T2>) {
               ),
           )}
         </e-column>
-      </e-virtual-scroll>
+      </e-column>
     ) as HTMLElement
     return list
   }

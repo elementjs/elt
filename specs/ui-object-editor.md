@@ -229,7 +229,7 @@ Event: `elt-object-editor-open`, detail `{ o_value, title: string }` (title = br
 
 ### Lists
 
-Composite body lists use **`RepeatVirtual`** (in an `<e-virtual-scroll>`, its scroll area) and `node_append`. Open events bubble to the shell. Projection converters must agree with `RepeatVirtual` key reuse.
+Composite body lists use **`RepeatVirtual`** (in an `<e-column scroll>`, its scroll area) and `node_append`. Open events bubble to the shell. Projection converters must agree with `RepeatVirtual` key reuse.
 
 ### Approaches (locked)
 
@@ -313,7 +313,7 @@ Schema mode **starts from the same chrome** as unknown mode. The schema **opts o
 
 ### Lists
 
-Composite lists that can grow use **`RepeatVirtual`**, not `Repeat`, including small lists. Each list is its own `<e-virtual-scroll>` (bounded height), holding exactly one `RepeatVirtual`.
+Composite lists that can grow use **`RepeatVirtual`**, not `Repeat`, including small lists. Each list has its own scroll area, an `<e-column scroll>` (bounded height), holding exactly one `RepeatVirtual`.
 
 - **Transient rows share the list.** A composite's entries and its transient rows (Layer 1 "Commit timing") are **one** `RepeatVirtual` over the entries followed by the transient rows, each row rendering as an entry or a transient row (`render_composite_grid` in `editor/grid.tsx`). Not two lists: a scroll area holds a single `RepeatVirtual`, and the transient rows must sit after the list's true end, not after the rows currently rendered. A newly added transient row is rendered immediately (no frame delay), so "+ Add" can focus/fill it right away.
 - **Row-local state is lost when a row scrolls out of the rendered window.** Anything that must survive (a transient row's key/value, …) lives in observables held by the composite, outside the row (as `transient_rows` does).
@@ -338,7 +338,7 @@ Composite presentation is implemented as widgets (see Layer 1). This section nam
 
 ### Composite grid (all composites)
 
-Every composite — Object, Map, Array, Set, Table — is a **grid**, not a list of rows: an `<e-virtual-scroll>` holding one `<e-grid packed="widget" border>`, one `<e-grid-row>` per entry, the body rows rendered by `RepeatVirtual` (`render_composite_grid`, `editor/grid.tsx`).
+Every composite — Object, Map, Array, Set, Table — is a **grid**, not a list of rows: an `<e-column scroll>` holding one `<e-grid packed="widget" border>`, one `<e-grid-row>` per entry, the body rows rendered by `RepeatVirtual` (`render_composite_grid`, `editor/grid.tsx`).
 
 **Each column is one frame, seams inside it.** The columns are separate components: a row of them spaced at the component step, in a horizontal scroll area (the columns sit in an inner row: a scroll area would otherwise draw the frame of a `packed border` child itself and take the column's away). Each column is a `<e-column packed border>` — header line, toolbar, rows — so `elt/ui`'s frame ownership draws its frame once and every inner line as a seam: the header line and the toolbar (`packed="widget" border`) draw only the lines between their widgets, the grid (inside its scroll area) the lines between cells. A `packed border` container's own background is the seam color, so its cells must fill it: a column's rows area takes the column's free height.
 

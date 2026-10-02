@@ -251,7 +251,7 @@ export function JsonVisualizerColumn({
               {import_btn}
               {copy}
             </e-flex>
-            <e-virtual-scroll class={cls_properties_menu}>
+            <e-column scroll align="stretch" class={cls_properties_menu}>
               <e-column packed="widget" role="list">
               {RepeatVirtual(o(keys), (o_key) => (
                 <Property name={o_key} data={data.p(o_key)}>
@@ -266,7 +266,7 @@ export function JsonVisualizerColumn({
                 </Property>
               ))}
               </e-column>
-            </e-virtual-scroll>
+            </e-column>
           </>
         )
       })}
@@ -348,7 +348,7 @@ function ObjectTable({
   return (
     // A virtual grid: column widths never depend on the cells' content (rows come and go while
     // scrolling), so every column starts at a fixed width and is resized by dragging its header.
-    <e-virtual-scroll style={{ height: "100%" }}>
+    <e-column scroll align="stretch" style={{ height: "100%" }}>
       <e-grid packed border style={{ gridTemplateColumns: oo_template, width: "max-content" }}>
         <e-grid-row sticky="top">
           <span>#</span>
@@ -392,7 +392,7 @@ function ObjectTable({
           )
         })}
       </e-grid>
-    </e-virtual-scroll>
+    </e-column>
   ) as Element
 }
 

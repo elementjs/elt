@@ -220,7 +220,7 @@ More examples: [Forms § Button groups and menus](./ui-forms.md#button-groups-an
 `sticky="top"` / `sticky="bottom"` keeps an element on that edge of the nearest scroll area while the content scrolls under it: a table header, a totals row. It gets an opaque background (the current surface, or its own `surface`) and is drawn above the scrolled content. A sticky row of a `packed border` grid keeps its seams.
 
 - Don't `pad` a scroll area that contains sticky elements: they stick at its padding edge, not its border, and the scrolled content shows through the padding above (or below) them.
-- `<e-virtual-scroll>` is the scroll area of a virtual list ([Verbs § RepeatVirtual](./verbs.md#repeatvirtual-a-long-list)). It takes `border`, `surface`, `radius` and the sizing attributes, but not `pad`, for the same reason.
+- A virtual list ([Verbs § RepeatVirtual](./verbs.md#repeatvirtual-a-long-list)) uses the nearest scroll area around it. Don't `pad` that one either, for the same reason.
 
 An infinite grid: a virtual list of 100 000 rows in a packed, bordered grid, with a sticky header and footer.
 
@@ -255,7 +255,7 @@ return (
       <label><input type="checkbox">{$bind.boolean(o_tinted)}</input> tinted header</label>
       <label><input type="checkbox">{$bind.boolean(o_footer)}</input> sticky footer</label>
     </e-row>
-    <e-virtual-scroll border style={{ height: "320px" }}>
+    <e-column scroll align="stretch" border style={{ height: "320px" }}>
       <e-grid columns={o_columns} packed={o_packed} border={o_border}>
         {If(o_header, () => (
           <e-grid-row sticky="top" surface={o_tinted.tf((t) => (t ? "tint-2" : false))}>
@@ -273,7 +273,7 @@ return (
           </e-grid-row>
         ))}
       </e-grid>
-    </e-virtual-scroll>
+    </e-column>
   </e-column>
 )
 ```
