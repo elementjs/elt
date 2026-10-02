@@ -248,8 +248,11 @@ export class ObjectEditorShell {
     })
     // `packed border`: the column draws its frame; header line, toolbar and rows touch, separated by
     // seams (the header line and toolbar, `packed border` themselves, keep only their inner seams).
+    // `spacing="widget"`: a packed container's step is the step of what it packs (docs/md/ui-layout.md#packed),
+    // here widget-padded groups. It adds no gap (packed), but gives the frame the widget radius its
+    // first/last children's outer corners take, and the widget step to whatever inherits it inside.
     return (
-      <e-column packed border pad="none" align="stretch">
+      <e-column packed border pad="none" spacing="widget" align="stretch">
         {/* Widgets touching, each padded at the widget step, separated by seams. */}
         <e-row packed="widget" border align="center" class={theme.colors.tint.class_as_inverted}>
           <strong class={cls_text_fill} title={o_label}>

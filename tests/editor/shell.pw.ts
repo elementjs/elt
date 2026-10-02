@@ -9,6 +9,23 @@ test.beforeEach(async ({ page }) => {
 // test runs in its own page.evaluate callback (no shared state across calls).
 
 test.describe("ObjectEditorShell", () => {
+  test("a column's frame takes the widget radius, the step of what it packs", async ({ page }) => {
+    // Regression: the column has `pad="none"`, so its `border` radius came from the inherited
+    // `component` step (12px) while the widgets it packs take the widget step's corners (6px).
+    const result = await page.evaluate(() => {
+      const { o, node_append } = window.__ELT__
+      const { ObjectEditorShell } = window.__ELT__.Editor
+      const shell = new ObjectEditorShell(o({ name: "Ada" }))
+      node_append(document.body, shell.node)
+      const column = shell.node.querySelector("e-column[packed][border]") as HTMLElement
+      return {
+        radius: getComputedStyle(column).borderTopLeftRadius,
+        widget: getComputedStyle(column).getPropertyValue("--e-spacing-widget").trim(),
+      }
+    })
+    expect(result.radius).toBe(result.widget)
+  })
+
   test("mounts the root column and binds scalar widgets to the schema's properties", async ({ page }) => {
     const result = await page.evaluate(() => {
       const { o, node_append } = window.__ELT__

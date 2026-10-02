@@ -126,13 +126,15 @@ export interface EFlexAttrs extends CommonAttrs {
   align?: NRO<AlignValues>
   justify?: NRO<AlignValues>
   /**
-   * Rule 6 (docs/md/ui-layout.md, "Why these rules"): a boundary with no spacing whose
+   * Rule 6 (docs/md/ui-layout.md, "Why these rules"): a boundary with no gap whose
    * children touch directly, uniformly padded. `pad` always pads the container itself, same as
    * everywhere else — it never applies to children here. To also pad every child uniformly: bare
    * `packed` reuses whatever `pad` resolves to (so `pad="X" packed` pads both the container and
    * its children at X) ; an explicit step (`packed="Y"`) pads children at Y regardless of `pad`,
    * letting the two differ (e.g. a popup's own edge inset vs. its rows' tighter click-target
-   * padding).
+   * padding). `packed="Y"` also makes Y the container's own step: a packed container's step is the
+   * step of what it packs, so its radius and what its descendants inherit follow its children's
+   * padding. An explicit `spacing` still wins.
    *
    * Without `border` on the `packed` element itself: every non-last child loses its own
    * trailing-edge border (`border-right` in a row, `border-bottom` in a column), whether or not it
@@ -328,6 +330,16 @@ _`${_all}[spacing] { ${theme.css_spacing("component")} }`
 // (2)
 for (const sp of spaces) {
   _`${_all}[pad="${sp}"] { ${theme.css_pad(sp)} ${theme.css_spacing(sp)} }`
+}
+
+// (2b) [packed="X"] is the container's step too: a packed container takes the step of what it
+// packs (its children are padded at X), not the step above it a spaced container would take. It
+// adds no gap (packed never does); it sets the radius a `border` derives from the ambient step,
+// so the frame's corners match the children's, and the step its descendants inherit. Between (2)
+// and (3): wins over the step a [pad] implied, loses to an explicit [spacing]. An own [pad] still
+// sets the radius (css_radius_own_pad, above, is more specific): the padded edge is what rounds.
+for (const sp of spaces) {
+  _`${_all}[packed="${sp}"] { ${theme.css_spacing(sp)} }`
 }
 
 // (3)

@@ -37,7 +37,7 @@ Every layout decision reduces to these six. The layout elements and their attrib
 3. **Never set your own margin.** Spacing between elements is always the parent's job: `spacing` on a layout element, or a prose container's typographic margins. An element never chooses its own margin. There is no exception: when the layout elements can't express a spacing, use a different container, not a margin.
 4. **Padding requires a boundary.** Padding with no border, no background and no window edge behind it is forbidden. Two boundaries may sit flush against each other and share a seam.
 5. **A container with more than one child spaces them**, unless they are meant to touch (rule 6). Layout elements already do: they space their children at the ambient step (`component` by default), and `pad="X"` sets that step to `X` for its own children.
-6. **Children may touch instead of being spaced** when the container sets no spacing and every child carries the same padding; they are then separated only by their own backgrounds or borders. A touching child doesn't need a boundary of its own: padding shown against the group's shared border or background is enough, and a child needs its own fill only to stand out (hover, selection). `packed` implements this rule ([Layout § packed](./ui-layout.md#packed)).
+6. **Children may touch instead of being spaced** when the container leaves no gap between them and every child carries the same padding; they are then separated only by their own backgrounds or borders. A touching child doesn't need a boundary of its own: padding shown against the group's shared border or background is enough, and a child needs its own fill only to stand out (hover, selection). `packed` implements this rule ([Layout § packed](./ui-layout.md#packed)).
 
 ## Text blocks
 
@@ -57,9 +57,10 @@ Every layout decision reduces to these six. The layout elements and their attrib
    | Regions of a page | `stage-1` … `stage-4` (rare) |
 
 2. Spacing is inherited. When an element's children are a different kind of thing than its parent's children, set the step on that element, whether or not it is a boundary. A toolbar is a boundary that contains widgets, so it stays at `component` even deep inside a view ([Layout § Choosing a step](./ui-layout.md#choosing-a-step)).
-3. Bare `pad`/`spacing` (no value) always means `component`; neither is ever "one step below the parent". Write the step you want.
-4. A step has one value, used on both axes. An element that genuinely needs asymmetric spacing (a legend sitting on its fieldset's border) composes values of the scale in its own CSS ([Layout § Spacing scale](./ui-layout.md#spacing-scale)).
-5. `nudge-1`/`nudge-2`/`nudge-4` are pixel-level nudges only, never a default choice ([Layout § Spacing scale](./ui-layout.md#spacing-scale)).
+3. A `packed` container takes the step of what it packs, not the step above. Its children touch instead of being spaced, so its step is the padding they carry: a packed group of controls is at `widget`, where a spaced row of the same controls is at `component`. `packed="widget"` sets that step itself. With bare `packed` and `pad="none"`, write it as `spacing` ([Layout § packed](./ui-layout.md#packed)).
+4. Bare `pad`/`spacing` (no value) always means `component`; neither is ever "one step below the parent". Write the step you want.
+5. A step has one value, used on both axes. An element that genuinely needs asymmetric spacing (a legend sitting on its fieldset's border) composes values of the scale in its own CSS ([Layout § Spacing scale](./ui-layout.md#spacing-scale)).
+6. `nudge-1`/`nudge-2`/`nudge-4` are pixel-level nudges only, never a default choice ([Layout § Spacing scale](./ui-layout.md#spacing-scale)).
 
 ## Theme and colors
 

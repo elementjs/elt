@@ -597,3 +597,57 @@ test.describe("packed and a child's own pad", () => {
     })
   }
 })
+
+// A packed container's step is the step of what it packs: packed="X" sets the container's own step to
+// X, so a bare border's radius matches its children's padding instead of the inherited step.
+test.describe('packed="X" is the container\'s own step (docs/md/ui-layout.md#packed)', () => {
+  const run = (page: import("@playwright/test").Page, attrs: Record<string, string>) =>
+    page.evaluate((attrs) => {
+      const outer = document.createElement("e-column")
+      outer.setAttribute("spacing", "section")
+      const col = document.createElement("e-column")
+      for (const [k, v] of Object.entries(attrs)) col.setAttribute(k, v)
+      // A grandchild: a packed[border] child's outer corners take the container's radius on purpose,
+      // so the inherited step is read one level down.
+      const child = document.createElement("e-row")
+      const inner = document.createElement("e-row")
+      inner.setAttribute("radius", "")
+      child.append(inner)
+      col.append(child, document.createElement("button"))
+      outer.append(col)
+      document.body.appendChild(outer)
+      const probe = (step: string) => {
+        const d = document.createElement("div")
+        d.style.width = `var(--e-spacing-${step})`
+        document.body.appendChild(d)
+        return `${d.getBoundingClientRect().width}px`
+      }
+      return {
+        radius: getComputedStyle(col).borderTopLeftRadius,
+        gap: getComputedStyle(col).rowGap,
+        inherited: getComputedStyle(inner).borderTopLeftRadius,
+        widget: probe("widget"),
+        component: probe("component"),
+      }
+    }, attrs)
+
+  test("its border radius and the step its descendants inherit are X, not the inherited step; still no gap", async ({
+    page,
+  }) => {
+    const r = await run(page, { packed: "widget", border: "" })
+    expect(r.radius).toBe(r.widget)
+    expect(r.inherited).toBe(r.widget)
+    expect(r.gap).toBe("1px") // the seam drawn by border, not the widget step
+  })
+
+  test("an explicit spacing wins over it", async ({ page }) => {
+    const r = await run(page, { packed: "widget", border: "", spacing: "component" })
+    expect(r.radius).toBe(r.component)
+  })
+
+  test("an own pad still sets the radius", async ({ page }) => {
+    const r = await run(page, { packed: "widget", border: "", pad: "component" })
+    expect(r.radius).toBe(r.component)
+    expect(r.inherited).toBe(r.widget)
+  })
+})

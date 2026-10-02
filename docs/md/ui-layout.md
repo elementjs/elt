@@ -63,6 +63,8 @@ Spacing is inherited: a layout element without `pad`/`spacing` spaces its childr
 
 A toolbar is a boundary that contains widgets, so it stays at `component` even deep inside a view.
 
+A `packed` container is the exception to "the step above its children": its children touch, so its step is the padding they carry, the step of what it packs. A row of buttons spaced apart is at `component`; the same buttons packed into a button group are at `widget`. See [packed](#packed).
+
 ## Spacing scale
 
 Steps are named by the distance they express, not by size. Defaults, overridable through the [theme settings](./ui-theme.md#settings) (each step is also the CSS variable `--e-spacing-<step>`):
@@ -112,7 +114,7 @@ Alignment values: `center`, `start`, `end`, `self-start`, `baseline`, `first bas
 | `column` | `e-flex` | Column direction. |
 | `reverse` | flex elements | Reverses the direction. |
 | `wrap` | flex elements | `flex-wrap: wrap`. |
-| `packed` | all four | Children touch — see [packed](#packed) and, for grids, [Grids](#grids). Bare, or a spacing step for the children's padding. |
+| `packed` | all four | Children touch — see [packed](#packed) and, for grids, [Grids](#grids). Bare, or a spacing step for the children's padding, which is also the container's own step. |
 | `columns` | `e-grid` | 1 to 12: that many equal columns — see [Grids](#grids). |
 
 `e-grid-row` takes only `surface`, `hover`, `align` and `sticky`.
@@ -149,6 +151,11 @@ Alignment values: `center`, `start`, `end`, `self-start`, `baseline`, `first bas
 | `pad="none"` with bare `packed` | No padding |
 
 The container's own `pad` still pads the container itself. `packed` never adds a gap, except the 1px seam below.
+
+**A packed container's step is the step of what it packs**, not the step above it that a spaced container would take ([elt/ui rules § Choosing a step](./elt-ui-rules.md#choosing-a-step)). The step still matters without a gap: a bare `border` takes its radius from it, so the frame's corners match its children's, and its descendants inherit it.
+
+- `packed="X"` makes X the container's step as well as its children's padding. An explicit `spacing` wins over it. An own `pad` still sets the container's radius, since its padded edge is what is rounded.
+- Bare `packed` with `pad="none"` pads nothing, so nothing tells it what it packs: set the step with `spacing`. A column that only frames groups that pad themselves, such as a header row and a grid of `packed="widget"` rows, is `<e-column packed border pad="none" spacing="widget">`. Without `spacing="widget"`, it would inherit `component` and draw 12px corners around 6px ones.
 
 - **Without `border` on the container**: each child keeps its own border (native controls already have one; `border` gives one to anything else), and every child except the last drops its trailing-edge border (`border-right` in a row, `border-bottom` in a column), so adjacent bordered children share one line. This happens whether or not the child has a border.
 - **With `border` on the container**: the container draws the border. It gets a 1px gap between children, and the gap shows as a seam of the border's color. Every child gets `border: none` and the ambient surface as background (a background you set on the child yourself still wins). How the seam is drawn depends on the browser:
