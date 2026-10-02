@@ -10,7 +10,8 @@ declare global {
     /** Mounts `<e-virtual-scroll style="height:200px">` with `build(area)` inside, returns the area. */
     __area: (build: (area: HTMLElement) => void) => HTMLElement
     __scroll: (area: HTMLElement, top: number) => Promise<void>
-    __buildGrid: (area: HTMLElement) => void
+    /** `item_size` is the RepeatVirtual's starting estimate (default 21, the rows' real spacing). */
+    __buildGrid: (area: HTMLElement, item_size?: number) => void
   }
 }
 
@@ -28,7 +29,7 @@ test.beforeEach(async ({ page }) => {
         await window.__frames(10)
       }
       // e-grid columns=3 packed border in a bordered area, sticky header and footer around 10 000 rows.
-      window.__buildGrid = (area) => {
+      window.__buildGrid = (area, item_size = 21) => {
     const { RepeatVirtual, node_append, o } = window.__ELT__
     area.setAttribute("border", "")
     const grid = document.createElement("e-grid")
@@ -46,7 +47,7 @@ test.beforeEach(async ({ page }) => {
     const foot = row("foot", "x", "y", "z")
     foot.setAttribute("sticky", "bottom")
     grid.append(head)
-    node_append(grid, RepeatVirtual(o(Array.from({ length: 10000 }, (_, i) => i)), (o_i) => row("row", String(o_i.get()), "b", "c")).ItemSize(21))
+    node_append(grid, RepeatVirtual(o(Array.from({ length: 10000 }, (_, i) => i)), (o_i) => row("row", String(o_i.get()), "b", "c")).ItemSize(item_size))
     grid.append(foot)
     node_append(area, grid)
       }
@@ -333,6 +334,43 @@ test.describe("infinite e-grid with sticky rows", () => {
       expect(res[i] - res[i - 1], `step ${i}: ${res[i - 1]} → ${res[i]}`).toBeLessThanOrEqual(8)
     }
   })
+})
+
+test.describe("margins after a jump (regression: a jump used to land with no rows rendered above)", () => {
+  // A jump (one scroll moving more than max(threshold, viewport)) re-renders the window from an
+  // index estimate. It must land with rows rendered on both sides of the viewport: the sticky header
+  // is held inside the grid's box, so with nothing rendered above, a scroll back up drawn before the
+  // list catches up shows the header in the middle of the viewport.
+  for (const item_size of [21, 64]) {
+    test(`both margins are filled at rest after jumping down then up (estimate ${item_size}px, real 21px)`, async ({
+      page,
+    }) => {
+      const res = await page.evaluate(async (item_size) => {
+        const scroll = window.__scroll
+        const area = window.__area((a) => window.__buildGrid(a, item_size))
+        await window.__frames()
+        // Rendered extent beyond the viewport, above and below.
+        const margins = () => {
+          const a = area.getBoundingClientRect()
+          const rows = area.querySelectorAll(".row")
+          return {
+            above: Math.round(a.top - rows[0].getBoundingClientRect().top),
+            below: Math.round(rows[rows.length - 1].getBoundingClientRect().bottom - a.bottom),
+          }
+        }
+        await scroll(area, 100000)
+        const down = margins()
+        await scroll(area, 50000)
+        const up = margins()
+        return { down, up }
+      }, item_size)
+      // The threshold is 500px; one row (21px) of slack for where the edge row falls.
+      for (const k of ["down", "up"] as const) {
+        expect(res[k].above, `${k}: above`).toBeGreaterThanOrEqual(479)
+        expect(res[k].below, `${k}: below`).toBeGreaterThanOrEqual(479)
+      }
+    })
+  }
 })
 
 test.describe("ui Select (regression: its list used to get padders among its packed options)", () => {

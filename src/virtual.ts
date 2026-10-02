@@ -355,8 +355,13 @@ export namespace RepeatVirtual {
         return
       }
 
-      const start = Math.max(0, Math.min(n, count - 1))
-      const end = Math.min(count, start + this.screenful() + 1)
+      // Land with a margin's worth of rows on both sides of the viewport, not just below it: with
+      // nothing rendered above, the content's top edge is in view as soon as a scroll back up is drawn
+      // before the next pass, and a sticky row held in the content's box drops with it.
+      const target = Math.max(0, Math.min(n, count - 1))
+      const margin_rows = Math.ceil(this.threshold / this.item_size)
+      const start = Math.max(0, target - margin_rows)
+      const end = Math.min(count, target + this.screenful() + margin_rows)
 
       o.transaction(() => {
         this.o_pos_start.set(start)
@@ -504,11 +509,14 @@ export namespace RepeatVirtual {
       }
 
       // Refine the average row-height estimate. Damped, and only committed past 1px
-      // so sub-pixel measurement noise never re-jitters the padders / scrollbar.
+      // so sub-pixel measurement noise never re-jitters the padders / scrollbar; but taken as is
+      // when it is more than 25% off (the first pass with a wrong `ItemSize`), since every margin
+      // computed from it until then is off by as much.
       if (this.pos_end !== this.pos_start) {
         const measured = (bounds_last.bottom - bounds_first.top) / (this.pos_end - this.pos_start)
-        if (measured > 0 && Math.abs(measured - this.item_size) > 1) {
-          this.item_size += (measured - this.item_size) / 4
+        const diff = measured - this.item_size
+        if (measured > 0 && Math.abs(diff) > 1) {
+          this.item_size += Math.abs(diff) > this.item_size / 4 ? diff : diff / 4
         }
       }
 
@@ -528,30 +536,34 @@ export namespace RepeatVirtual {
       // Compute the whole target window from a SINGLE measurement, then perform a
       // single write. We never re-measure mid-frame — that interleaving of reads
       // and writes (one row at a time) was the source of the layout thrashing.
-      // The top/bottom edges are gated by scroll direction so an edge is never
-      // grown and trimmed in the same pass (which would oscillate).
+      //
+      // Both edges grow whenever their margin is short, whatever the scroll direction: a jump
+      // (setPosition) or a resize can leave the side behind the scroll short, and nothing else would
+      // refill it. Growing and trimming one edge can't both apply in a pass (growing needs its edge
+      // row's outer side inside the margin, trimming needs its inner side beyond it), but trimming is
+      // still limited to the side the scroll moves away from, so an estimate that overshoots while
+      // growing isn't trimmed back right away.
       let new_start = this.pos_start
       let new_end = this.pos_end
 
+      if (this.pos_start > 0 && bounds_first.top > region_top) {
+        // Estimate how many rows cover the gap so the whole gap is filled at once.
+        const missing = Math.ceil((bounds_first.top - region_top) / this.item_size)
+        new_start = this.pos_start - Math.max(1, missing)
+      }
+      if (this.pos_end < list_count && bounds_last.bottom < region_bottom) {
+        const missing = Math.ceil((region_bottom - bounds_last.bottom) / this.item_size)
+        new_end = this.pos_end + Math.max(1, missing)
+      }
+
       if (!scrolling_up) {
-        // Scrolling down (or idle): trim from the top, grow at the bottom.
+        // Scrolling down (or idle): trim from the top.
         const shelve = this.computeShelfTop(rows, region)
         if (shelve > 0) {
           new_start = this.pos_start + shelve
         }
-
-        if (this.pos_end < list_count && bounds_last.bottom < region_bottom) {
-          // Estimate how many rows cover the gap so the whole gap is filled at once.
-          const missing = Math.ceil((region_bottom - bounds_last.bottom) / this.item_size)
-          new_end = this.pos_end + Math.max(1, missing)
-        }
       } else {
-        // Scrolling up: grow at the top, trim from the bottom.
-        if (this.pos_start > 0 && bounds_first.top > region_top) {
-          const missing = Math.ceil((bounds_first.top - region_top) / this.item_size)
-          new_start = this.pos_start - Math.max(1, missing)
-        }
-
+        // Scrolling up: trim from the bottom.
         const shelve = this.computeShelfBottom(rows, region)
         if (shelve > 0) {
           new_end = this.pos_end - shelve
