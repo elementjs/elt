@@ -118,7 +118,9 @@ test.describe("ObjectFactory keys", () => {
     expect(result).toBe(2)
   })
 
-  test("object widget's chrome: … menu in its header actions, filter in its toolbar", async ({ page }) => {
+  test("object widget's chrome: filter in its toolbar; the … menu is the shell's, not the widget's", async ({
+    page,
+  }) => {
     const result = await page.evaluate(() => {
       const { node_append, o } = window.__ELT__
       const { object } = window.__ELT__.Editor
@@ -136,7 +138,7 @@ test.describe("ObjectFactory keys", () => {
       }
     })
     expect(result.hasSearch).toBe(true)
-    expect(result.hasMoreActions).toBe(true)
+    expect(result.hasMoreActions).toBe(false)
   })
 
   test("toolbar search: false and no free keys: no toolbar at all", async ({ page }) => {
@@ -222,19 +224,6 @@ test.describe("ObjectFactory keys", () => {
       }).render(o_mood as any)
       node_append(document.body, widget.render() as HTMLElement)
       return document.querySelectorAll("button").length
-    })
-    expect(result).toBeGreaterThan(0)
-  })
-
-  test("map key cells expose a type-change menu by default", async ({ page }) => {
-    const result = await page.evaluate(() => {
-      const { node_append, o } = window.__ELT__
-      const { map, string, boolean } = window.__ELT__.Editor
-      const o_flags = o(new Map([["enabled", true]]))
-      const widget = map({ keys: string(), values: boolean() }).render(o_flags as any)
-      node_append(document.body, widget.render() as HTMLElement)
-      return [...document.querySelectorAll("button")].filter((b) => b.getAttribute("aria-label") === "Change type")
-        .length
     })
     expect(result).toBeGreaterThan(0)
   })

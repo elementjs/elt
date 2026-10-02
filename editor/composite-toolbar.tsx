@@ -1,14 +1,13 @@
 /*
 Composite chrome (Layer 2), shared by Object / Array / Set / Map / Table widgets: the type label,
-warning and `…` menu the shell puts on the column's single header line, and the toolbar holding the
-add button and the row filter. The … menu hosts type-change actions and import/export add-on slots.
+warning and import/export add-ons the shell puts on the column's single header line and in its menu,
+and the toolbar holding the add button and the row filter. The header menu itself (type change,
+import/export, Delete) is the shell's: it knows the column's slot and parent.
 */
 
 import { $bind, $click, o, type Renderable } from "elt"
-import { popup } from "elt/ui/popup"
 import { cls_text_fill } from "./grid"
 import type { CommonNodeOptions, CompositeToolbarOptions, Factory, WidgetHeader } from "./schema"
-import { apply_type_change, type_change_actions } from "./type-change"
 
 /** Per-mount row filter state — lives in the composite render() closure. */
 export interface FilterState {
@@ -79,7 +78,8 @@ function default_type_name(value: unknown, kind: string): string {
   return kind.charAt(0).toUpperCase() + kind.slice(1)
 }
 
-function toolbar_flags(toolbar: CompositeToolbarOptions | undefined) {
+/** Which parts of a composite's chrome its schema keeps (`toolbar` options; all by default). */
+export function toolbar_flags(toolbar: CompositeToolbarOptions | undefined) {
   return {
     show_search: toolbar?.search !== false,
     show_menu: toolbar?.menu !== false,
@@ -94,8 +94,6 @@ export interface CompositeToolbarProps {
   filter: FilterState
   /** Factory kind tag for titling when value is ambiguous. */
   kind: string
-  /** Extra type-change targets (map/set branches, either alternatives, …). */
-  type_change_extra?: Factory<unknown>[]
   /** Import/export add-ons registered for this editor instance (v1: usually empty). */
   import_export_addons?: { id: string; label: string }[]
   /** Header-line warning (Table's "extra keys"). */
@@ -105,15 +103,15 @@ export interface CompositeToolbarProps {
 }
 
 /**
- * A composite's chrome (Layer 2): its part of the header line (type label, warning, `…` menu),
- * hoisted into the column's single header line by the shell, and its toolbar (add button, filter).
- * The toolbar is `null` when it would be empty.
+ * A composite's chrome (Layer 2): its part of the header line (type label, warning, import/export
+ * add-ons for the header menu), hoisted into the column's single header line by the shell, and its
+ * toolbar (add button, filter). The toolbar is `null` when it would be empty.
  */
 export function render_composite_chrome(props: CompositeToolbarProps): {
   header: WidgetHeader
   toolbar: Renderable | null
 } {
-  const { factory, o_value, filter, kind, type_change_extra = [], import_export_addons = [] } = props
+  const { factory, o_value, filter, kind, import_export_addons = [] } = props
   const flags = toolbar_flags(factory.options.toolbar)
   const o_label = o_value.tf((value) => {
     const label = factory.options.chrome_label
@@ -123,54 +121,6 @@ export function render_composite_chrome(props: CompositeToolbarProps): {
     const name = default_type_name(value, kind)
     return hint ? `${name} ${hint}` : name
   })
-
-  const has_menu_content =
-    flags.show_menu &&
-    ((flags.show_type_change &&
-      type_change_actions(factory, o_value.get(), factory.options, type_change_extra).length > 0) ||
-      (flags.show_import_export && import_export_addons.length > 0))
-
-  const actions = (
-    <>
-      {props.warning}
-      {has_menu_content && (
-        <button type="button" aria-label="More actions">
-          {$click(async (ev) => {
-            const value = o_value.get()
-            await popup(ev.currentTarget, (fut) => (
-              <e-column pad="component" packed="widget" role="menu" aria-label="More actions">
-                {flags.show_type_change && (
-                  <>
-                    <h3>Type</h3>
-                    {type_change_actions(factory, value, factory.options, type_change_extra).map((action) => (
-                      <button type="button" role="menuitem">
-                        {$click(() => {
-                          if (apply_type_change(o_value, factory, action)) fut.resolve(undefined)
-                        })}
-                        {action.label}
-                      </button>
-                    ))}
-                  </>
-                )}
-                {flags.show_import_export && import_export_addons.length > 0 && (
-                  <>
-                    <hr />
-                    <h3>Import / export</h3>
-                    {import_export_addons.map((addon) => (
-                      <button type="button" role="menuitem" disabled title="Add-on slot — not wired in this demo">
-                        {addon.label}
-                      </button>
-                    ))}
-                  </>
-                )}
-              </e-column>
-            ))
-          })}
-          …
-        </button>
-      )}
-    </>
-  )
 
   const toolbar =
     flags.show_search || props.add ? (
@@ -194,34 +144,12 @@ export function render_composite_chrome(props: CompositeToolbarProps): {
       </e-row>
     ) : null
 
-  return { header: { o_label, actions }, toolbar }
-}
-
-/** Compact … menu for inline type changes, as a grid cell of its own (Map keys). */
-export function render_type_change_menu_button(
-  o_value: o.Observable<unknown>,
-  factory: Factory<CommonNodeOptions>,
-  type_change_extra: Factory<unknown>[] = [],
-): Renderable {
-  return (
-    <button type="button" aria-label="Change type">
-      {$click(async (ev) => {
-        const value = o_value.get()
-        await popup(ev.currentTarget, (fut) => (
-          <e-column pad="component" packed="widget" role="menu" aria-label="Change type">
-            <h3>Type</h3>
-            {type_change_actions(factory, value, factory.options, type_change_extra).map((action) => (
-              <button type="button" role="menuitem">
-                {$click(() => {
-                  if (apply_type_change(o_value, factory, action)) fut.resolve(undefined)
-                })}
-                {action.label}
-              </button>
-            ))}
-          </e-column>
-        ))
-      })}
-      …
-    </button>
-  )
+  return {
+    header: {
+      o_label,
+      actions: props.warning ?? null,
+      import_export: flags.show_import_export ? import_export_addons : [],
+    },
+    toolbar,
+  }
 }

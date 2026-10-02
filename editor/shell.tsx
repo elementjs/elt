@@ -21,6 +21,15 @@ import { $connected, $on, css, o, Repeat, type Renderable } from "elt"
 import { popup } from "elt/ui/popup"
 import { sym_closed } from "elt/ui/utils"
 import { theme } from "elt/ui"
+import { toolbar_flags } from "./composite-toolbar"
+import {
+  $editor_menu,
+  delete_section,
+  type MenuSection,
+  menu_sections,
+  open_menu_from_button,
+  type_change_item,
+} from "./context-menu"
 import { cls_text_fill } from "./grid"
 import { is_valid_mount } from "./mount"
 import { resolve_factory_from_value } from "./registry"
@@ -31,6 +40,9 @@ import {
   type CommonNodeOptions,
   type Factory,
   type ObjectEditorOpenDetail,
+  resolve_in_slot,
+  slot_type_targets,
+  type WidgetHeader,
 } from "./schema"
 import { RootUndoRing } from "./undo"
 
@@ -43,6 +55,8 @@ interface ColumnDescriptor {
   /** The concrete factory rendering the value now (see `concrete_factory`): its header/toolbar are the column's. */
   o_factory: o.Observable<Factory<unknown>>
   title: string | undefined
+  /** Removes the value from its parent (the header menu's Delete); absent on the root and when the parent doesn't allow it. */
+  on_delete?: () => void
   presentation: "column" | "popup"
   host?: HTMLElement
   /** Close a popup presentation for this stack entry, if open. */
@@ -85,7 +99,8 @@ export class ObjectEditorShell {
       <e-row scroll="x">
         {$on("elt-object-editor-open", (ev) => {
           ev.stopPropagation()
-          this.open(ev.detail.o_value, ev.detail.title, ev.target as Node, ev.detail.factory, ev.detail.open_as)
+          const { o_value, title, factory, open_as, on_delete } = ev.detail
+          this.open(o_value, title, ev.target as Node, factory, open_as, on_delete)
         })}
         <e-row align="start">
           {Repeat(this.o_columns, (o_col, o_idx) => {
@@ -107,8 +122,11 @@ export class ObjectEditorShell {
     title: string | undefined,
     factory: Factory<unknown>,
     presentation: "column" | "popup",
+    on_delete?: () => void,
   ): ColumnDescriptor {
-    return { o_value, title, declared: factory, o_factory: o(concrete_factory(factory, o_value.get())), presentation }
+    // The slot's factory for the value, or unknown mode's when the slot can't handle it.
+    const o_factory = o(resolve_in_slot(factory, o_value.get()))
+    return { o_value, title, declared: factory, o_factory, presentation, on_delete }
   }
 
   private resolve_open_factory(factory: Factory<unknown> | undefined, o_value: o.Observable<unknown>) {
@@ -147,6 +165,7 @@ export class ObjectEditorShell {
     source: Node,
     factory?: Factory<unknown>,
     open_as?: "column" | "popup",
+    on_delete?: () => void,
   ) {
     const resolved = this.resolve_open_factory(factory, o_value)
     const presentation = this.resolve_presentation(resolved, open_as)
@@ -154,7 +173,7 @@ export class ObjectEditorShell {
     const idx = found === -1 ? 0 : found
     this.dismiss_from(idx)
     const kept = this.o_columns.get().slice(0, idx + 1)
-    const column = this.create_column(o_value, title, resolved, presentation)
+    const column = this.create_column(o_value, title, resolved, presentation, on_delete)
 
     if (presentation === "popup" && source instanceof Element) {
       this.o_columns.set([...kept, column])
@@ -239,9 +258,42 @@ export class ObjectEditorShell {
    * the rows, and a toolbar below them would move. A composite's grid sits flush against the frame;
    * a scalar root is padded.
    */
+  /**
+   * The column's header menu: its value's type change (what its slot accepts), the composite's
+   * import/export add-ons, and Delete (removes the value from its parent, closing this column and
+   * those after it). Empty when the composite's schema hides the menu (`toolbar.menu: false`).
+   */
+  private header_menu(column: ColumnDescriptor, header: WidgetHeader | null, close: () => void): MenuSection[] {
+    const current = column.o_factory.get()
+    const options = (current.options ?? {}) as CommonNodeOptions
+    if (!toolbar_flags(options.toolbar).show_menu) return []
+    return menu_sections([
+      type_change_item(
+        "Value",
+        column.o_value,
+        current,
+        slot_type_targets(column.declared, current.type_change_extra()),
+      ),
+      {
+        title: "Import / export",
+        items: (header?.import_export ?? []).map((addon) => ({ label: addon.label, run: () => {}, disabled: true })),
+      },
+      delete_section(
+        column.on_delete &&
+          (() => {
+            column.on_delete?.()
+            close()
+          }),
+      ),
+    ])
+  }
+
   private render_chrome(column: ColumnDescriptor, close: () => void, is_root: boolean): HTMLElement {
     const o_widget = column.o_factory.tf((factory) => factory.render(column.o_value))
     const o_header = o_widget.tf((widget) => widget.header ?? null)
+    const menu = () => this.header_menu(column, o_header.get(), close)
+    // The `…` button shows when the menu has something; re-checked when the value's kind changes.
+    const o_has_menu = o_header.tf(() => menu().length > 0)
     const o_label = o.expression((get) => {
       const header = get(o_header)
       const type_label = header ? get(header.o_label) : null
@@ -256,10 +308,19 @@ export class ObjectEditorShell {
       <e-column packed border pad="none" spacing="widget" align="stretch">
         {/* Widgets touching, each padded at the widget step, separated by seams. */}
         <e-row packed="widget" border align="center" class={theme.colors.tint.class_as_inverted}>
+          {$editor_menu(menu)}
           <strong class={cls_text_fill} title={o_label}>
             {o_label}
           </strong>
           {o_header.tf((header) => header?.actions ?? null)}
+          {o_has_menu.tf(
+            (has) =>
+              has && (
+                <button type="button" aria-label="More actions" aria-haspopup="menu">
+                  {$on("click", (ev) => open_menu_from_button(ev.currentTarget as HTMLElement, menu))}…
+                </button>
+              ),
+          )}
           {is_root ? (
             <>
               <button type="button" disabled={this.undo.o_can_undo.tf((v) => !v)}>

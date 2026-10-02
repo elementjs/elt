@@ -122,5 +122,17 @@ export const X = /** @__PURE__ */ () =>
     s(l, x1, "200", y1, "200", x2, "56", y2, "56", st, cc, sc, ro, sj, ro, sw, "16"),
   )
 
+export const Trash = /** @__PURE__ */ () =>
+  _(
+    vb,
+    vd,
+    s(rt, w, "256", h, "256", f, n),
+    s(l, x1, "216", y1, "56", x2, "40", y2, "56", f, n, st, cc, sc, ro, sj, ro, sw, "16"),
+    s(l, x1, "104", y1, "104", x2, "104", y2, "168", f, n, st, cc, sc, ro, sj, ro, sw, "16"),
+    s(l, x1, "152", y1, "104", x2, "152", y2, "168", f, n, st, cc, sc, ro, sj, ro, sw, "16"),
+    s(p, d, "M200,56V208a8,8,0,0,1-8,8H64a8,8,0,0,1-8-8V56", f, n, st, cc, sc, ro, sj, ro, sw, "16"),
+    s(p, d, "M168,56V40a16,16,0,0,0-16-16H104A16,16,0,0,0,88,40V56", f, n, st, cc, sc, ro, sj, ro, sw, "16"),
+  )
+
 export const Check = /** @__PURE__ */ () =>
   _(vb, vd, s(rt, w, "256", h, "256", f, n), s(py, ps, "40 144 96 200 224 72", f, n, st, cc, sc, ro, sj, ro, sw, "16"))

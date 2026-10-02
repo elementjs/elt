@@ -11,7 +11,7 @@ and go as the list scrolls (RepeatVirtual); a locked width never follows them. A
 later (a new table column) is locked the same way on the next layout.
 */
 
-import { $connected, $disconnected, $on, css, If, o, RepeatVirtual, type Renderable } from "elt"
+import { $connected, $disconnected, css, If, o, RepeatVirtual, type Renderable } from "elt"
 import { theme } from "elt/ui"
 import { observe_layout } from "./table-resize"
 
@@ -165,36 +165,6 @@ export function render_label_cell(text: o.RO<string>): Renderable<HTMLElement> {
   ) as HTMLElement
 }
 
-export interface RowControl {
-  label: string
-  title: string
-  on_click: () => void
-}
-
-/**
- * The row-controls cell. `slots` has one entry per control the composite can show; `null` where
- * this row doesn't have it, which keeps an invisible placeholder of the same size: every row's cell
- * is then as wide, and so is the column, whatever rows are rendered.
- */
-export function render_row_controls(slots: (RowControl | null)[]): Renderable<HTMLElement> {
-  return (
-    <e-row align="center">
-      {slots.map((slot) =>
-        slot == null ? (
-          <button type="button" e-variant="text" class={cls_row_control_placeholder} disabled>
-            −
-          </button>
-        ) : (
-          <button type="button" e-variant="text" title={slot.title} aria-label={slot.title}>
-            {$on("click", slot.on_click)}
-            {slot.label}
-          </button>
-        ),
-      )}
-    </e-row>
-  ) as HTMLElement
-}
-
 /** Template of the label column before it locks: its content, capped (long keys get `…`). */
 export const LABEL_TRACK = "fit-content(16em)"
 
@@ -229,9 +199,4 @@ export const cls_text_fill = css`.oe-text-fill {
   white-space: nowrap;
   /* Start-aligned even inside a button, whose own text is centered. */
   text-align: start;
-}`
-
-/* Custom CSS: an absent control keeps its size (see render_row_controls); `hidden` would drop it. */
-const cls_row_control_placeholder = css`.oe-row-control-placeholder {
-  visibility: hidden;
 }`

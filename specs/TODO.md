@@ -12,7 +12,7 @@ These are the highest priority — the spec already promises the behavior, nothi
 - [x] **Toolbar opt-outs.** `CommonNodeOptions.toolbar` in `composite-toolbar.tsx`.
 - [ ] **`open_as` (popup vs. column per node).** Types + `ShellOptions.prefer_popups` on shell; **popup open path not wired yet.**
 - [x] **Table manual `columns`.** Table mode with manual/auto columns, sticky header row, resizable columns, extra-keys warning.
-- [ ] **Map key-type-change gate.** Map row UI landed; **`allow_key_type_change` menu wiring still open.**
+- [x] **Map key-type-change gate.** `allow_key_type_change` gates the Key section of a Map row's context menu.
 - [x] **`undef()` combinator.** Exported.
 - [ ] **Masked single-line text input.** No `elt/ui` masked component confirmed yet.
 - [x] **Toggle/on-off-buttons boolean presentation.** `BooleanOptions` forwards `e-variant`; default switch.

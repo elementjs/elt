@@ -27,35 +27,38 @@ export interface TypeChangeAction {
   label: string
 }
 
+/**
+ * The type changes offered for `value`, rendered by `current`: one per target kind other than the
+ * value's own — a conversion when the target can convert the value, else a reset to the target's
+ * default ("number (reset)"). `targets` is what the value's slot accepts (`slot_type_targets` in
+ * schema.tsx); by default the unknown-mode catalog. `options.conversions` narrows it further.
+ */
 export function type_change_actions(
   current: Factory<unknown>,
   value: unknown,
   options: CommonNodeOptions,
-  extra: Factory<unknown>[] = [],
+  targets: Factory<unknown>[] = catalog(),
 ): TypeChangeAction[] {
   const seen = new Set<string>()
-  const candidates: Factory<unknown>[] = []
-  for (const f of [...catalog(), ...extra]) {
-    if (f.kind === current.kind && current.canHandle(value)) continue
-    if (seen.has(f.kind)) continue
-    seen.add(f.kind)
-    candidates.push(f)
-  }
-
-  let allowed = candidates
   const conversions = options.conversions
-  if (conversions?.length) {
-    allowed = allowed.filter((f) => conversions.includes(f.kind))
-  }
-
   const actions: TypeChangeAction[] = []
-  for (const target of allowed) {
-    if (target.canConvert(value)) {
-      actions.push({ target, mode: "convert", label: `Convert to ${target.kind}` })
-    }
-    actions.push({ target, mode: "default", label: `Reset to ${target.kind} default` })
+  for (const target of targets) {
+    if (target.kind === current.kind && current.canHandle(value)) continue
+    if (seen.has(target.kind)) continue
+    seen.add(target.kind)
+    if (conversions?.length && !conversions.includes(target.kind)) continue
+    actions.push(
+      target.canConvert(value)
+        ? { target, mode: "convert", label: target.kind }
+        : { target, mode: "default", label: `${target.kind} (reset)` },
+    )
   }
   return actions
+}
+
+/** The unknown-mode catalog: the type-change targets of a value no schema constrains. */
+export function unknown_type_targets(): Factory<unknown>[] {
+  return catalog()
 }
 
 export function apply_type_change(

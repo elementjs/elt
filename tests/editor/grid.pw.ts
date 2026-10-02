@@ -78,7 +78,8 @@ test.describe("composite chrome", () => {
       return res
     })
     expect(result.text).toBe("nested · Object {1}")
-    expect(result.buttons).toEqual(["…", "×"])
+    // No `…`: the declared single-type slot offers no type change, and a declared key can't be deleted.
+    expect(result.buttons).toEqual(["×"])
     expect(result.has_footer).toBe(true)
   })
 
@@ -174,7 +175,7 @@ test.describe("composite grid", () => {
     expect(result.checkbox_cell).toBe("LABEL")
   })
 
-  test("labels, values and controls line up across rows", async ({ page }) => {
+  test("labels and values line up across rows", async ({ page }) => {
     await page.evaluate(() => {
       const { o, node_append } = window.__ELT__
       const { ObjectEditorShell } = window.__ELT__.Editor
@@ -188,7 +189,7 @@ test.describe("composite grid", () => {
       return rows.map((row) => [...row.children].map((c) => Math.round(c.getBoundingClientRect().left)))
     })
     expect(columns.length).toBe(3)
-    expect(columns[0]!.length).toBe(3) // index | value | controls
+    expect(columns[0]!.length).toBe(2) // index | value (removing goes through the row's menu)
     for (const row of columns) expect(row).toEqual(columns[0])
   })
 
@@ -217,7 +218,7 @@ test.describe("composite grid", () => {
         }
       })
     const before = await measure()
-    expect(before.template).toMatch(/^\d+(\.\d+)?px minmax\(\d+(\.\d+)?px, 1fr\) \d+(\.\d+)?px$/)
+    expect(before.template).toMatch(/^\d+(\.\d+)?px minmax\(\d+(\.\d+)?px, 1fr\)$/)
     await page.evaluate(() => {
       const area = document.querySelector<HTMLElement>("#shell e-virtual-scroll")!
       area.scrollTop = area.scrollHeight

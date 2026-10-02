@@ -14,10 +14,27 @@ section: UI Recipes
 
 The editor is a row of columns, each in its own frame: the root value, then one column per value opened from it (a click on a nested object or array opens it to the right; a schema can open it in a popup instead).
 
-- **Header line.** Every column and popup starts with one line: the key it was opened from and the value's type (`address · Object {3}`), then its `…` menu (change type, import/export), then *Undo*/*Redo* on the root column or × on the others.
-- **Rows are a grid.** Each entry is a row of cells: the key (or index), the value's widget, and the row's controls (remove), each in its own column, aligned from one row to the next. A nested object or array is a cell showing a preview of its content; click it to open it.
+- **Header line.** Every column and popup starts with one line: the key it was opened from and the value's type (`address · Object {3}`), then its `…` button opening the column's menu (see [Menus](#menus)), then *Undo*/*Redo* on the root column or × on the others.
+- **Rows are a grid.** Each entry is a row of cells: the key (or index) and the value's widget, each in its own column, aligned from one row to the next. A nested object or array is a cell showing a preview of its content; click it to open it. Removing a row or changing a value's type goes through the row's menu.
 - **Toolbar.** Right under the header line, on a neutral background: the *+ Add …* button, and a filter that keeps the rows whose key or value contains the text (*Aa* makes it case-sensitive). It stays in place while the filter shortens the rows.
 - **Column widths** come from the first rows shown, then stay put while you scroll; a longer key further down is truncated with `…`. Table columns can then be resized by dragging a header's right edge.
+
+### Menus
+
+Actions on a value are in menus rather than buttons on every row. A row's menu opens with a right click anywhere in the row, a long press on a touch screen, Ctrl+click on macOS, or the keyboard's Menu key or Shift+F10 from inside the row. A column's menu opens the same way on its header line, or with its `…` button.
+
+A menu lists what applies to where it was opened, in sections separated by a line:
+
+| Section | In | Holds |
+| ------- | -- | ----- |
+| *Edit* | A menu opened from a text field | Cut, Copy, Paste, Select all — standing in for the browser's own menu, which the editor's replaces there |
+| *Key* | Map rows (unless the schema sets `allow_key_type_change: false`) | *Change type…* for the key |
+| *Value* (a Table: the column's name) | Every row, and a column's header | *Change type…* for the value. In a Table, the value of the cell the menu was opened from |
+| (none) | Rows and columns that can be removed | *Delete*, in red. From a column's header, it removes the value from its parent and closes the column |
+
+*Change type…* opens a second menu listing the types the value may take: the ones its schema declares for it (the branches of an `either()`; a single declared type offers none), or, in unknown mode, null, string, number, boolean, object, array — plus Set and Map for an array, and so on. A type the value converts to is listed by name (`number`); one it can't is listed as a reset to that type's empty value (`number (reset)`). Changes that may lose structure ask first. Deleting doesn't: *Undo* brings the value back.
+
+When there is nothing to offer (a declared key, outside a text field), the browser's own menu shows.
 
 ## Schema-mode object
 
@@ -175,7 +192,7 @@ return shell.node
 
 ## Map — key/value rows
 
-Key/value rows with separate key and value widgets; the `…` cell after a key changes the key's type.
+Key/value rows with separate key and value widgets; the row's menu changes the key's type or the value's ([Menus](#menus)).
 
 ```tsx
 //@inline-example
