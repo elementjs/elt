@@ -21,20 +21,22 @@ import { $click } from "elt"
 import { show_dialog } from "elt/ui"
 
 function showDialog() {
-  show_dialog({ clickOutsideToClose: true }, fut => ({
-    header: "Title here",
-    body: <>
-      <h3>Testing a little</h3>
-      <p>Let's see what dialogs have in store !</p>
-    </>,
-    footer: <>
-      <button>
-        {$click(() => fut.reject(null))}
-        Cancel
-      </button>
-      <button e-variant="inverted">OK</button>
-    </>,
-  })).finally(() => null)
+  show_dialog({ clickOutsideToClose: true }, fut =>
+    <e-column surface="background" border packed>
+      <e-row pad="component"><h1>Title here</h1></e-row>
+      <e-prose pad="component" scroll>
+        <h3>Testing a little</h3>
+        <p>Let's see what dialogs have in store !</p>
+      </e-prose>
+      <e-row pad="component" justify="space-between">
+        <button>
+          {$click(() => fut.resolve(show_dialog.closed))}
+          Cancel
+        </button>
+        <button e-variant="inverted">{$click(() => fut.resolve(true))}OK</button>
+      </e-row>
+    </e-column>
+  )
 }
 
 return <button>
@@ -84,7 +86,7 @@ function FontChooser() {
         return <label><input type="checkbox">{$bind.boolean(tfed)}</input> {fonts[font].fontFamily}</label>
       }
       popup(ev.currentTarget, () =>
-        <e-row pad="component">
+        <e-row pad="component" surface="background" border>
           <e-column>
             <label><P.WindowsLogo/> Windows</label>
             {btn("segoe_ui")}

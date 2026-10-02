@@ -18,7 +18,8 @@ implementation slice. Implements:
 */
 
 import { $connected, $on, css, o, Repeat, type Renderable } from "elt"
-import { popup, sym_popup_closed } from "elt/ui/popup"
+import { popup } from "elt/ui/popup"
+import { sym_closed } from "elt/ui/utils"
 import { theme } from "elt/ui"
 import { cls_text_fill } from "./grid"
 import { is_valid_mount } from "./mount"
@@ -208,10 +209,10 @@ export class ObjectEditorShell {
     this.watch_column(column, idx, false)
 
     const fut = popup(anchor, (fut) => {
-      column.dismiss_popup = () => fut.resolve(sym_popup_closed)
+      column.dismiss_popup = () => fut.resolve(sym_closed)
 
       const panel = (
-        <e-column align="stretch" class={cls_popup_panel}>
+        <e-column align="stretch" surface="background" border class={cls_popup_panel}>
           {$connected((el: HTMLElement) => {
             column.host = (el.closest("[popover]") as HTMLElement | null) ?? el
           })}
@@ -224,7 +225,7 @@ export class ObjectEditorShell {
 
     fut.then((result) => {
       column.unwatch?.()
-      if (result === sym_popup_closed) return
+      if (result === sym_closed) return
       const cols = this.o_columns.get()
       if (cols[idx] === column) this.close_after(idx - 1)
     })

@@ -21,15 +21,17 @@ Use the lightest one that gives the interaction enough room and keeps the user's
 
 ```ts
 popup<T>(
-  anchor: Element,
-  render: (fut: Future<T | typeof sym_popup_closed>) => Node,
+  anchor: Element | { x: number; y: number; element: Element },
+  render: (fut: Future<T | typeof sym_closed>) => Node,
   opts?: Partial<ComputePositionConfig> & { parent?: Element | null; arrow?: boolean },
-): Future<T | typeof sym_popup_closed>
+): Future<T | typeof sym_closed>
 ```
 
-- Positioned next to `anchor` (Floating UI's `computePosition` options: `placement`, …), kept in place while scrolling. Shows an arrow unless `arrow: false`.
-- Its content is wrapped in a bordered, scrollable column at the background surface level.
-- Resolving `fut` with a value closes the popup. A click outside or `Escape` closes every open popup and resolves with `sym_popup_closed` (also available as `popup.closed`).
+- `render` returns **one element, drawn as given**: its own `surface`, `border`, `pad`, `scroll`. The popup adds only what makes it a popup: placement next to the anchor (Floating UI's `computePosition` options: `placement`, …, kept in place while scrolling), a drop shadow, the open/close animation, dismissal, and the arrow.
+- **Anchor**: an element, or a point. A point (`{ x, y, element }`) opens the popup below-right of it, like a native context menu, moved to stay on screen; `element` is the element the point belongs to (usually the event's `currentTarget`), which tells whether the popup opens from inside another one.
+- **Arrow**: shown by default with an element anchor, not with a point; `arrow` overrides. It takes the content's background and border colors.
+- **Size**: the room left next to the anchor is set as `--e-popup-max-height` / `--e-popup-max-width`, and the content is capped to it and to `80vh`. Give the content `scroll` when it can be taller.
+- Resolving `fut` with a value closes the popup. A click outside closes every open popup and resolves them with `sym_closed` (also available as `popup.closed`); `Escape` closes only the innermost one (a submenu, not the menu it came from). On close, focus goes back to what had it when the popup opened.
 - A popup opened from inside another popup is attached to it and keeps it open; any other popup closes the open ones first.
 
 ```tsx
@@ -38,9 +40,9 @@ import { popup } from "elt/ui"
 <button>
   {$click(async (ev) => {
     const result = await popup(ev.currentTarget, (fut) => (
-      <e-column packed="widget" role="menu">
-        <button e-variant="text">{fut.$clickResolve(() => "copy")}Copy</button>
-        <button e-variant="text">{fut.$clickResolve(() => "paste")}Paste</button>
+      <e-column surface="background" border seamless packed="widget" align="stretch" role="menu">
+        <button role="menuitem">{fut.$clickResolve(() => "copy")}Copy</button>
+        <button role="menuitem">{fut.$clickResolve(() => "paste")}Paste</button>
       </e-column>
     ))
     if (result !== popup.closed) run(result)
@@ -49,16 +51,87 @@ import { popup } from "elt/ui"
 </button>
 ```
 
+A context menu opens at the pointer, from [`$context_menu`](./decorators.md#context-menus-contextmenu):
+
+```tsx
+<div>
+  {$context_menu((ev) => {
+    ev.preventDefault()
+    popup({ x: ev.clientX, y: ev.clientY, element: ev.currentTarget }, (fut) => <e-column …>…</e-column>)
+  })}
+</div>
+```
+
+## Keyboard in menus and lists
+
+`menu_nav(menu)` gives a menu built as plain elements the usual keyboard behavior: call it on the menu element once its items are in it, typically inside a popup's `render`.
+
+- The items are the `[role="menuitem"]` elements that aren't disabled; headers and `<hr>` are skipped.
+- Focus goes to the menu once it's shown, and stays there: the active item is named by the menu's `aria-activedescendant` and marked `data-active` (drawn like a hovered item). Hovering an item makes it active.
+- Up/Down move, Home/End jump to the first/last item, PageUp/PageDown move by 10. Enter or Space clicks the active item. Typing letters jumps to the next item starting with them; the same letter repeated cycles through the items starting with it. `Escape` is the popup's: it closes the innermost menu, and focus goes back to what opened it.
+
+```tsx
+popup(ev.currentTarget, (fut) => {
+  const menu = (
+    <e-column surface="background" border seamless packed="widget" align="stretch" role="menu">
+      <button role="menuitem">{fut.$clickResolve(() => "copy")}Copy</button>
+      <button role="menuitem">{fut.$clickResolve(() => "paste")}Paste</button>
+    </e-column>
+  ) as HTMLElement
+  menu_nav(menu)
+  return menu
+})
+```
+
+`list_nav(node, opts)` is the same behavior for any list, working on item **indexes** rather than elements, so it also drives a virtual list whose items are mostly not rendered (`Select` uses it). `node` is the element that keeps focus — the list, or a text input filtering it; in a text input, Home, End, Space and letters are left to the input.
+
+| Option | Role |
+| ------ | ---- |
+| `o_active` | The active index (-1 for none). Yours: mark the active item from it (`data-active`) |
+| `count()` | How many items there are now |
+| `activate(i)` | Run item `i` |
+| `reveal(i)` | Bring item `i` into view |
+| `id_of(i)` | Item `i`'s `id`, for `aria-activedescendant` (`null` when it isn't rendered) |
+| `text_of(i)` | Item `i`'s text, for jumping by typing; without it, typing does nothing |
+| `page_size()` | Items moved by PageUp/PageDown (default 10) |
+
 ## show_dialog
 
 ```ts
-show_dialog<T>(render: (fut: Future<T>) => { header?: Renderable; body: Renderable; footer?: Renderable })
-show_dialog<T>(opts: { clickOutsideToClose?: boolean }, render)
+show_dialog<T>(render: (fut: Future<T | typeof sym_closed>) => Node): Future<T | typeof sym_closed>
+show_dialog<T>(opts: { clickOutsideToClose?: boolean }, render): Future<T | typeof sym_closed>
 ```
 
-- A modal `<dialog>` with a backdrop, animated in and out. `header` becomes an inverted `<header><h1>`; `body` goes into an `<e-prose pad="component">`; `footer` into a `<footer>`.
-- Awaiting the result gives the value passed to `fut.resolve`, or `undefined` when cancelled (`Escape`; a backdrop click when `clickOutsideToClose` is set; `fut.reject`).
-- Size hooks: `--e-dialog-width`, `--e-dialog-max-width`, `--e-dialog-max-height`.
+- A modal `<dialog>` with a backdrop, centered, animated in and out. The dialog itself is an **unstyled box**: `render` returns one element that draws the frame, like a popup's.
+- Awaiting the result gives the value passed to `fut.resolve`, or `sym_closed` (also `show_dialog.closed`) when the user dismissed it: `Escape`, or a backdrop click when `clickOutsideToClose` is set. On close, focus goes back to what had it when the dialog opened.
+- Size hooks: `--e-dialog-width`, `--e-dialog-max-width` (default `60vw`), `--e-dialog-max-height` (default `80vh`). The content is shrunk to the height limit: give its scrolling part `scroll`.
+
+A dialog with a title, a body and actions is a packed bordered column:
+
+```tsx
+//@inline-example
+import { $click, o } from "elt"
+import { show_dialog } from "elt/ui"
+
+const o_answer = o("")
+
+return <button>
+  {$click(async () => {
+    const res = await show_dialog<string>((fut) => (
+      <e-column surface="background" border packed>
+        <e-row pad="component"><h1>Delete the file?</h1></e-row>
+        <e-prose pad="component" scroll>It can't be recovered afterwards.</e-prose>
+        <e-row pad="component" justify="end">
+          <button>{$click(() => fut.resolve(show_dialog.closed))}Cancel</button>
+          <button e-variant="inverted">{$click(() => fut.resolve("deleted"))}Delete</button>
+        </e-row>
+      </e-column>
+    ))
+    o_answer.set(res === show_dialog.closed ? "cancelled" : res)
+  })}
+  Delete… {o_answer}
+</button>
+```
 
 ## Future
 

@@ -1,133 +1,117 @@
-import { css, node_append, type Renderable, $on } from "elt"
+import { $on, css, node_append } from "elt"
 import { theme } from "./theme"
-import { Future } from "./utils"
+import { Future, sym_closed } from "./utils"
 import { animate, animate_hide, animate_show } from "./animation"
 
 export interface DialogOptions {
+  /** A click on the backdrop dismisses the dialog (resolves it with {@link sym_closed}). */
   clickOutsideToClose?: boolean
 }
 
-export interface DialogContent {
-  header?: Renderable
-  body: Renderable
-  footer?: Renderable
-}
+/** Returns the dialog's content: one element, drawing its own frame. Typed `Node` because that is what JSX gives. */
+export type DialogCallback<T> = (fut: Future<T | typeof sym_closed>) => Node
 
-export type DialogCallback<T> = (fut: Future<T>) => DialogContent
-
-export function show_dialog<T>(cbk: DialogCallback<T>): Promise<Future<T>>
-export function show_dialog<T>(opts: DialogOptions, cbk: DialogCallback<T>): Promise<Future<T>>
+/**
+ * Open a modal dialog and return a `Future` resolved by `fut.resolve(value)` from the content, or
+ * with {@link sym_closed} when the user dismisses it (`Escape`, or a backdrop click with
+ * `clickOutsideToClose`).
+ *
+ * The `<dialog>` is an unstyled box — no border, padding, background or radius: the element `render`
+ * returns draws the frame (`<e-column surface border packed>…`). The dialog adds the backdrop,
+ * centering, a shadow, the size limits (`--e-dialog-max-width`, `--e-dialog-max-height`; the content
+ * scrolls itself when it can be taller) and the animation.
+ */
+export function show_dialog<T>(render: DialogCallback<T>): Future<T | typeof sym_closed>
+export function show_dialog<T>(opts: DialogOptions, render: DialogCallback<T>): Future<T | typeof sym_closed>
 
 export function show_dialog<T>(opts: DialogOptions | DialogCallback<T>, cbk?: DialogCallback<T>) {
-  const future = new Future<T>()
+  const future = new Future<T | typeof sym_closed>()
 
   // show_dialog(cbk) or show_dialog(opts, cbk)
   const options: DialogOptions = typeof opts === "function" ? {} : opts
-  const callback = typeof opts === "function" ? opts : cbk
-  if (callback == null) throw new Error("show_dialog(opts, cbk): cbk is required")
+  const render = typeof opts === "function" ? opts : cbk
+  if (render == null) throw new Error("show_dialog(opts, cbk): cbk is required")
 
-  function close_dialog() {
-    Promise.all([
-      animate(dialog, animate_hide, { duration: 100 }),
-      animate(dialog, animate_hide, {
-        duration: 100,
-        pseudoElement: "::backdrop",
-      }),
-    ]).finally(() => {
-      dialog.remove()
-    })
-  }
+  const return_focus = document.activeElement instanceof HTMLElement ? document.activeElement : null
 
-  const content = callback(future)
+  const content = render(future)
+  if (!(content instanceof Element)) throw new Error("show_dialog(): render must return a single element")
 
   const dialog = E(
     "dialog",
-    content.header != null && (
-      <header>
-        <h1>{content.header}</h1>
-      </header>
-    ),
-    <e-prose pad="component" class="e-dialog-body">
-      {content.body}
-    </e-prose>,
-    content.footer != null && <footer>{content.footer}</footer>,
+    content,
     options.clickOutsideToClose &&
       $on("click", (ev) => {
         const rect = dialog.getBoundingClientRect()
         const clickedBackdrop =
           ev.clientX < rect.left || ev.clientX > rect.right || ev.clientY < rect.top || ev.clientY > rect.bottom
 
-        if (clickedBackdrop) {
-          future.reject(new Error("canceled by user"))
-        }
+        if (clickedBackdrop) future.resolve(sym_closed)
       }),
-    $on("keydown", (ev) => {
-      if (ev.key === "Escape") {
-        ev.preventDefault()
-        future.reject(new Error("canceled by user"))
-      }
+    // The native `cancel` (Escape) would close the dialog on its own, behind the future's back.
+    $on("cancel", (ev) => {
+      ev.preventDefault()
+      future.resolve(sym_closed)
     }),
+    // Browsers may refuse to let `cancel` be prevented (a second Escape without user activation in
+    // between): the dialog then closes anyway, and the future must still settle.
+    $on("close", () => future.resolve(sym_closed)),
   )
   node_append(document.body, dialog)
   animate(dialog, animate_show)
   dialog.showModal()
 
+  future.then(() => {
+    Promise.all([
+      animate(dialog, animate_hide, { duration: 100 }),
+      animate(dialog, animate_hide, { duration: 100, pseudoElement: "::backdrop" }),
+    ]).finally(() => {
+      dialog.remove()
+      if (return_focus?.isConnected) return_focus.focus({ preventScroll: true })
+    })
+  })
+
   return future
-    .finally(() => {
-      close_dialog()
-    })
-    .catch((_e) => {
-      // console.warn(_e)
-    })
 }
 
+export namespace show_dialog {
+  /** Alias of {@link sym_closed}. */
+  export const closed: typeof sym_closed = sym_closed
+}
+
+/* An unstyled box: the content draws its own frame. The dialog keeps the backdrop, centering, the
+   shadow (following the content's rounded corners through the radius it inherits), size limits. */
 css`
 dialog {
-  margin: 0;
   position: fixed;
-  overflow: hidden;
-
-  /* modern centering */
   inset: 0;
   margin: auto;
-
-  color: ${theme.colors.text};
-
+  padding: 0;
   border: none;
-  /* The dialog panel doesn't pad itself (its header/body/footer do), so its radius can't derive
-     from its own padding like [radius] normally does — "component" is a deliberate, named
-     override matching the step its children pad at (see "Borders and radius" in
-     docs/md/ui-layout.md). */
-  ${theme.css_radius("component")}
-  border: 1px solid ${theme.colors.neutral.faded};
+  background: transparent;
+  color: ${theme.colors.text};
+  overflow: visible;
 
-  background: var(--e-color-bg);
-  box-shadow: 0 10px 40px rgba(0,0,0,0.3);
-  width: 400px;
   max-width: var(--e-dialog-max-width, 60vw);
   width: var(--e-dialog-width, fit-content);
   max-height: var(--e-dialog-max-height, 80vh);
   opacity: 0;
 
   transform-origin: center top;
-
   transition: opacity 0.25s ease, transform 0.25s ease;
-
-  & > e-prose.e-dialog-body {
-    flex: 1 1 auto;
-    overflow-y: auto;
-    min-height: 0;
-  }
-
-  &:has(> header) > e-prose.e-dialog-body {
-    border-top: 1px solid ${theme.colors.neutral.surface("n+3")};
-  }
 
   &[open] {
     display: flex;
     flex-direction: column;
     opacity: 1;
     transform: scale(1);
+  }
+
+  /* The content fills the box and shrinks to its height limit; it scrolls itself (scroll). */
+  & > * {
+    flex: 1 1 auto;
+    min-height: 0;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.3);
   }
 
   &::backdrop {
@@ -139,28 +123,6 @@ dialog {
 
   &[open]::backdrop {
     opacity: 1;
-  }
-
-  & > header {
-    font-weight: bolder;
-  }
-
-  & > footer {
-    display: flex;
-    gap: 1rem;
-    justify-content: space-between;
-  }
-
-  & button.close {
-    position: absolute;
-    top: 0;
-    right: 0;
-    border: none;
-    background: none;
-    cursor: pointer;
-    font-size: 1.5rem;
-    color: var(--fg);
-    opacity: 0.5;
   }
 }
 `

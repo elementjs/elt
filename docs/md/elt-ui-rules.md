@@ -76,7 +76,7 @@ Every layout decision reduces to these six. The layout elements and their attrib
 
 ## Controls
 
-1. **Native controls first.** `button`, `input`, `textarea`, `label`, checkboxes, radios and `<dialog>` are styled globally. Use them with their `e-variant` attribute before building widget chrome of your own ([Forms](./ui-forms.md#buttons-and-variants)). Prefer the `Select` widget over a native `<select>` ([Widgets § Select](./ui-widgets.md#select)).
+1. **Native controls first.** `button`, `input`, `textarea`, `label`, checkboxes and radios are styled globally. (A `<dialog>` is not: `show_dialog` gives an unstyled box, and its content draws the frame — [Overlays § show_dialog](./ui-overlays.md#show_dialog).) Use them with their `e-variant` attribute before building widget chrome of your own ([Forms](./ui-forms.md#buttons-and-variants)). Prefer the `Select` widget over a native `<select>` ([Widgets § Select](./ui-widgets.md#select)).
 2. **At most one `inverted` action per area**: the heavy, hard-to-reverse one that needs attention ([Theme § Why](./ui-theme.md#why)).
 3. **Two font weights in UI chrome**: regular and bold. Prose hierarchy comes from the headings themselves.
 4. **Form control size.** Controls use `theme.settings.formFontSize`, slightly smaller than body text. Do not bump a control's font size to match a heading.
@@ -94,7 +94,7 @@ Every layout decision reduces to these six. The layout elements and their attrib
 1. **Use the lightest overlay that gives the interaction enough room** and keeps the user's place on the page; use a dialog when an action can't safely happen without a pause. Heavy, hard-to-reverse actions almost always deserve one ([Overlays § Choosing an overlay](./ui-overlays.md#choosing-an-overlay)).
    - A **popup** is a light interruption: anchored to its trigger, small content tied to it, dismissed lightly, no title row.
    - A **dialog** is a full interruption: not anchored; the user must stop, act or leave explicitly; content may be screen-sized.
-2. **Do not reimplement focus trapping, stacking or dismissal** for menus and dialogs: build on `popup` and `show_dialog`.
+2. **Do not reimplement focus trapping, stacking or dismissal** for menus and dialogs: build on `popup` and `show_dialog`. Do not reimplement keyboard navigation in a menu or a list either: use `menu_nav` / `list_nav` ([Overlays § Keyboard in menus and lists](./ui-overlays.md#keyboard-in-menus-and-lists)).
 3. **Do not hide or collapse content by default**, and do not build accordions. Collapse only where it is the content's normal behavior (a tree, code folding) ([Overlays § Why](./ui-overlays.md#why)).
 4. **Page transitions are opt-in per route**, triggered by the app (`document.startViewTransition` around `route.activate()`); nothing transitions automatically, and no transition where the browser lacks support is fine ([Overlays § Page transitions](./ui-overlays.md#page-transitions)).
 

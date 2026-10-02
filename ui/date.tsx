@@ -136,7 +136,7 @@ export function DateTimePicker(at: DatePickerAttrs) {
     await popup(
       anchor,
       () => (
-        <e-column pad="component" class={cls_calendar}>
+        <e-column pad="component" surface="background" border class={cls_calendar}>
           <e-flex spacing="widget" align="center">
             <button type="button" e-variant="text">
               {$click(() => year_delta(-1))}
@@ -223,15 +223,17 @@ export function DateTimePicker(at: DatePickerAttrs) {
                 await popup(
                   ev.currentTarget,
                   () => (
-                    <TimePickerPanel
-                      locale={locale}
-                      o_date={o_cur}
-                      am_pm={o.get(opts.am_pm)}
-                      seconds={o.get(opts.seconds)}
-                      minute_step={o.get(opts.minute_step)}
-                      second_step={o.get(opts.second_step)}
-                      on_change={(d) => set_model(d)}
-                    />
+                    <e-column surface="background" border>
+                      <TimePickerPanel
+                        locale={locale}
+                        o_date={o_cur}
+                        am_pm={o.get(opts.am_pm)}
+                        seconds={o.get(opts.seconds)}
+                        minute_step={o.get(opts.minute_step)}
+                        second_step={o.get(opts.second_step)}
+                        on_change={(d) => set_model(d)}
+                      />
+                    </e-column>
                   ),
                   { arrow: true },
                 )
