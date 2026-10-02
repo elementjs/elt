@@ -13,12 +13,15 @@ import * as UI from "elt/ui"
 import * as EditorCompositeToolbar from "../../editor/composite-toolbar"
 import * as EditorMount from "../../editor/mount"
 import * as EditorTypeChange from "../../editor/type-change"
+// The docs site's code block, for its lazily run examples.
+import * as Docs from "../../docs/src/code-example"
 
 declare global {
   interface Window {
     __ELT__: typeof Elt & {
       UI: typeof UI
       Editor: typeof Editor & typeof EditorCompositeToolbar & typeof EditorMount & typeof EditorTypeChange
+      Docs: typeof Docs
     }
   }
 }
@@ -27,4 +30,5 @@ window.__ELT__ = {
   ...Elt,
   UI,
   Editor: { ...Editor, ...EditorCompositeToolbar, ...EditorMount, ...EditorTypeChange },
+  Docs,
 }

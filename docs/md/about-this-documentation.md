@@ -16,6 +16,7 @@ A fenced code block (` ```tsx ... ``` `) can behave in one of three ways, depend
 
 - **An inline, live example** — start the block with `//@inline-example` as its very first line.
   The rest of the block runs for real, right there on the page, and its result is shown next to the code. Bring your own imports at the top of the block (e.g. `import { o } from "elt"`); end the block with `return <your JSX/>`.
+  The block only runs when its result area first comes near the visible part of the page, so a page with many or heavy examples doesn't render them all when it opens. It runs once: its result stays when you scroll away or switch to the code. Keep everything the example needs inside the block, data included (generate large data at runtime rather than writing it out): readers see only the block, not other files.
 
 - **A full, isolated example** — start the block with `//@full-example` instead. This also runs for
   real, but inside its own isolated frame on the page (not mixed in with the rest of the page). Use this for anything that shouldn't share state or styles with the surrounding page. Same convention: your own imports, ending with `return <your JSX/>`.

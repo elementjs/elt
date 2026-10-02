@@ -478,8 +478,7 @@ describe("elt_md (integration)", () => {
     await t.elt_md()
     const content = await Bun.file(`${t.srcDir}/md/index.tsx`).text()
     expect(content).toContain("<CodeExample")
-    expect(content).not.toContain("runExample(() =>")
-    expect(content).not.toContain("renderResult")
+    expect(content).not.toContain("run={() =>")
     expect(content).toContain('"const"')
     expect(content).toContain('"number"')
     assertValidTsx(content)
@@ -521,12 +520,12 @@ describe("elt_md (integration)", () => {
     tmp = t
     await t.elt_md()
     const content = await Bun.file(`${t.srcDir}/md/index.tsx`).text()
-    expect(content).not.toContain("runExample(() =>")
+    expect(content).not.toContain("run={() =>")
     expect(content).toContain('"echo"')
     expect(content).toContain('"hi"')
   })
 
-  test("@inline-example blocks run via runExample(), with imports merged to the top", async () => {
+  test("@inline-example blocks are passed uncalled as the run prop, with imports merged to the top", async () => {
     const t = await withTempDocsTree({
       "index.md": [
         "# Index", "",
@@ -536,7 +535,7 @@ describe("elt_md (integration)", () => {
     tmp = t
     await t.elt_md()
     const content = await Bun.file(`${t.srcDir}/md/index.tsx`).text()
-    expect(content).toContain("runExample(() =>")
+    expect(content).toContain("run={() =>")
     expect(content).toContain('import { o } from "elt"')
     expect(content).not.toContain("//@inline-example") // marker stripped before display/codegen
     assertValidTsx(content)
@@ -554,7 +553,7 @@ describe("elt_md (integration)", () => {
     expect(pages[0]!.fullExampleLines).toEqual([3])
 
     const pageContent = await Bun.file(`${t.srcDir}/md/index.tsx`).text()
-    expect(pageContent).not.toContain("runExample(() =>")
+    expect(pageContent).not.toContain("run={() =>")
     expect(pageContent).toContain("fullExampleUrl")
     expect(pageContent).toContain("/full-example/index/0")
 

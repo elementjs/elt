@@ -1,4 +1,4 @@
-import { css, o, If, $click, type Renderable } from "elt"
+import { css, o, If, $click, $connected, $disconnected, type Renderable } from "elt"
 import { theme } from "elt/ui"
 import * as ph from "elt-phosphor"
 
@@ -10,25 +10,51 @@ export type CodeExampleProps = {
    * it irrecoverably, so a single materialized node tree can only ever be inserted once. Calling
    * this fresh each time the "Typescript" tab (re)activates rebuilds that tree from scratch. */
   highlighted: () => Renderable
-  /** `@inline-example` only — set via `{...runExample(...)}` by the generated page. */
-  renderResult?: Node
-  /** `@inline-example` only — set via `{...runExample(...)}` when execution threw. */
-  renderError?: string
+  /** `@inline-example` only — the block's body, as a closure the generated page passes uncalled.
+   * It runs once, when the result area first comes near the viewport (see `LazyResult`). */
+  run?: () => Node
   /** `@full-example` only — same-origin route URL this block runs at, embedded in an isolated iframe. */
   fullExampleUrl?: string
 }
 
-/** Runs an `@inline-example` block's body, called directly from the generated page's JSX
- * (`{...runExample(() => {...})}`, spread onto `<CodeExample>`'s props) — replaces the old
- * JSON-tree `renderResult`/`__renderError` dance now that pages are real compiled JSX, not data
- * interpreted by a runtime tree-walker. Isolates one bad example from the rest of the page: a throw
- * here becomes `renderError`, not a crash of the whole page's `Content()`. */
-export function runExample(fn: () => Node): { renderResult?: Node; renderError?: string } {
-  try {
-    return { renderResult: fn() }
-  } catch (e: any) {
-    return { renderError: String(e?.stack ?? e) }
+/** How far outside the viewport a result starts rendering, so it is usually ready by the time it
+ * scrolls into view. */
+const LAZY_MARGIN = "50% 0px"
+
+/** An `@inline-example`'s result, rendered only once it first comes near the viewport: a page with
+ * many examples (some building large editors) doesn't render them all up front. The example runs
+ * once and its node is kept, also when the reader switches to the code and back, and when it scrolls
+ * away again. A throw is shown in place of the result, so one bad example doesn't break the page. */
+function LazyResult(run: () => Node) {
+  const o_result = o<{ node: Node } | { error: string } | null>(null)
+  let observer: IntersectionObserver | null = null
+  const stop = () => {
+    observer?.disconnect()
+    observer = null
   }
+
+  return o_result.tf((result) => {
+    if (result == null) {
+      // Placeholder until visible: gives the area some height so it can intersect at all.
+      return <div class={cls_lazy}>
+        {$connected((el: HTMLElement) => {
+          observer = new IntersectionObserver((entries) => {
+            if (!entries.some((en) => en.isIntersecting)) return
+            stop()
+            try {
+              o_result.set({ node: run() })
+            } catch (e: any) {
+              o_result.set({ error: String(e?.stack ?? e) })
+            }
+          }, { rootMargin: LAZY_MARGIN })
+          observer.observe(el)
+        })}
+        {$disconnected(stop)}
+      </div>
+    }
+    if ("error" in result) return <e-prose class={cls_error}><pre>{result.error}</pre></e-prose>
+    return result.node
+  })
 }
 
 /** Maps a Shiki token color to a shared CSS class instead of a per-span inline `style`, memoized so
@@ -46,7 +72,7 @@ export function tokenColorClass(color: string): string {
 }
 
 /** A code sample with a Typescript/Result toggle (defaults to Result) for runnable blocks
- * (`renderResult`/`renderError`/`fullExampleUrl` set); a plain highlighted block otherwise. */
+ * (`run`/`fullExampleUrl` set); a plain highlighted block otherwise. */
 function renderCode(highlighted: () => Renderable) {
   return <pre><code>{highlighted()}</code></pre>}
 
@@ -64,7 +90,7 @@ const cls_pre_scroll = css`.pre-scroll {
 }`
 
 export function CodeExample(props: CodeExampleProps) {
-  const is_runnable = props.renderResult != null || props.renderError != null || props.fullExampleUrl != null
+  const is_runnable = props.run != null || props.fullExampleUrl != null
 
   if (!is_runnable) {
     return renderCode(props.highlighted)
@@ -72,14 +98,13 @@ export function CodeExample(props: CodeExampleProps) {
 
   const o_showing_code = o(false)
 
+  // Built once, so the example's node survives switching to the code and back.
+  const lazy_result = props.run != null ? LazyResult(props.run) : null
   const result_view = () => {
     if (props.fullExampleUrl != null) {
-      return <iframe class={cls_iframe} src={props.fullExampleUrl}></iframe>
+      return <iframe class={cls_iframe} src={props.fullExampleUrl} loading="lazy"></iframe>
     }
-    if (props.renderError != null) {
-      return <e-prose class={cls_error}><pre>{props.renderError}</pre></e-prose>
-    }
-    return props.renderResult ?? null
+    return lazy_result
   }
 
   return <e-column packed align="stretch">
@@ -108,6 +133,10 @@ const cls_error = css`.error {
   padding: ${theme.settings.spacingWidget};
 
   & pre { margin: 0; white-space: pre-wrap; }
+}`
+
+const cls_lazy = css`.lazy {
+  min-height: 4rem;
 }`
 
 const cls_iframe = css`.iframe {

@@ -491,10 +491,10 @@ function upsFromMdDir(relPath: string): string {
 }
 
 /** Compiles a `"code"` MdNode into a literal `<CodeExample .../>` call at its exact position in the
- * generated JSX (see "Code fences" in the spec). `@inline-example` bodies run inside
- * `runExample(() => {...})`, spread onto the props — this replaces the old JSON-tree
- * `renderResult`/`__renderError` dance, and re-runs the example on every `Content()` call rather
- * than once at module-load time, which is the correct/expected behavior for a rendered component. */
+ * generated JSX (see "Code fences" in the spec). `@inline-example` bodies become the `run` prop,
+ * a closure CodeExample calls once the result area nears the viewport — not at `Content()` time, so
+ * a page with many examples doesn't render them all up front. Each `Content()` call gets fresh
+ * closures, so the example re-runs per rendered page rather than once at module-load time. */
 function codeNodeToJsx(n: MdNode, relPath: string): string {
   const meta = n[1]
   const highlighted = tokensToJsx(meta.tokens ?? [])
@@ -504,7 +504,7 @@ function codeNodeToJsx(n: MdNode, relPath: string): string {
     return `<CodeExample${props.join("")} />`
   }
   if (meta.__inlineBody != null) {
-    return `<CodeExample${props.join("")} {...runExample(() => {\n/* docs/md/${relPath}:${meta.__sourceLine} */\n${meta.__inlineBody}\n})} />`
+    return `<CodeExample${props.join("")} run={() => {\n/* docs/md/${relPath}:${meta.__sourceLine} */\n${meta.__inlineBody}\n}} />`
   }
   return `<CodeExample${props.join("")} />`
 }
@@ -526,15 +526,13 @@ function genPageSource(relPath: string, frontmatter: Frontmatter, root: MdNode, 
     ? [`// Imports merged from @inline-example blocks at ${inline.map((e) => `docs/md/${relPath}:${e.sourceLine}`).join(", ")}`]
     : []
 
-  // Each of CodeExample/runExample/tokenColorClass is only imported when the generated JSX actually
-  // uses it: CodeExample when the page has a code fence, runExample when it has an @inline-example,
-  // tokenColorClass when at least one token got a color (fences in a language without a grammar,
+  // CodeExample/tokenColorClass are only imported when the generated JSX actually uses them:
+  // CodeExample when the page has a code fence, tokenColorClass when at least one token got a color (fences in a language without a grammar,
   // e.g. `text`, yield uncolored tokens only). An unused import is an error under noUnusedLocals,
   // which docs/tsconfig.json matches the root tsconfig on.
   const codeExampleNames = [
     "CodeExample",
     ...(codeNodes.some((n) => (n[1].tokens as ShikiToken[][] | undefined)?.some((line) => line.some((t) => t.color))) ? ["tokenColorClass"] : []),
-    ...(inline.length > 0 ? ["runExample"] : []),
   ]
   const codeExampleImport = codeNodes.length > 0 ? [`import { ${codeExampleNames.join(", ")} } from "${ups}code-example.tsx"`] : []
 

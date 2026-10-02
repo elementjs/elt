@@ -24,7 +24,18 @@
     "noPropertyAccessFromIndexSignature": false,
     "lib": ["ESNext", "dom"],
     "types": [],
-    "skipLibCheck": true
+    "skipLibCheck": true,
+    // The package's own exports, for files outside its package scope: docs/ has its own
+    // package.json, so `elt` doesn't resolve from docs/src/code-example.tsx (which the test harness
+    // imports) by self-reference. Same mapping as docs/tsconfig.json.
+    "paths": {
+      "elt": ["./src/index.ts"],
+      "elt/ui": ["./ui/index.tsx"],
+      "elt/ui/*": ["./ui/*.tsx"],
+      "elt/editor": ["./editor/index.tsx"],
+      "elt/editor/*": ["./editor/*.tsx"],
+      "elt/*": ["./src/*.ts"]
+    }
   },
   "include": [
     "./tests/**/*.ts"

@@ -26,10 +26,41 @@ A `schema` describes known properties up front: scalars, a multiline string, a b
 ```tsx
 //@inline-example
 import { o } from "elt"
-import { profile_schema, profile_seed } from "../object-editor-schemas.ts"
-import { ObjectEditorShell } from "elt/editor"
+import { ObjectEditorShell, array, boolean, date, number, object, string } from "elt/editor"
 
-const o_profile = o(structuredClone(profile_seed))
+const profile_schema = object({
+  chrome_label: "Author profile",
+  properties: [
+    { name: "name", type: string() },
+    { name: "bio", type: string({ multiline: true }) },
+    { name: "age", type: number({ min: 0, max: 130, step: 1 }) },
+    { name: "active", type: boolean() },
+    { name: "birthday", type: date({ date: true, nullable: true }) },
+    { name: "tags", type: array({ values: string(), chrome_label: "Tags (list mode)" }) },
+    {
+      name: "address",
+      type: object({
+        chrome_label: "Postal address",
+        toolbar: { search: false },
+        properties: [
+          { name: "street", type: string() },
+          { name: "city", type: string() },
+          { name: "country", type: string() },
+        ],
+      }),
+    },
+  ],
+})
+
+const o_profile = o({
+  name: "Ada Lovelace",
+  bio: "Wrote the first published algorithm meant to be run on a machine.",
+  age: 36,
+  active: true,
+  birthday: new Date(1815, 11, 10) as Date | null,
+  tags: ["analytical-engine", "algorithm", "notes"],
+  address: { street: "12 Analytical Engine Ave", city: "London", country: "UK" },
+})
 const shell = new ObjectEditorShell(o_profile, { schema: profile_schema })
 
 return shell.node
@@ -42,10 +73,20 @@ An array of uniform objects switches to table layout on its own (`mode: "auto"`)
 ```tsx
 //@inline-example
 import { o } from "elt"
-import { roster_schema, roster_seed } from "../object-editor-schemas.ts"
-import { ObjectEditorShell } from "elt/editor"
+import { ObjectEditorShell, anything, array } from "elt/editor"
 
-const o_roster = o(structuredClone(roster_seed))
+const roster_schema = array({
+  chrome_label: "Team roster",
+  mode: "auto",
+  values: anything,
+  item_default: () => ({ name: "", role: "", active: true }),
+})
+
+const o_roster = o([
+  { name: "Ada Lovelace", role: "Author", active: true },
+  { name: "Charles Babbage", role: "Reviewer", active: false },
+  { name: "Grace Hopper", role: "Editor", active: true },
+])
 const shell = new ObjectEditorShell(o_roster, { schema: roster_schema })
 
 return shell.node
@@ -58,16 +99,58 @@ return shell.node
 ```tsx
 //@inline-example
 import { o } from "elt"
-import { ledger_schema, ledger_seed } from "../object-editor-schemas.ts"
-import { ObjectEditorShell } from "elt/editor"
+import { ObjectEditorShell, anything, array } from "elt/editor"
 
-const o_ledger = o(structuredClone(ledger_seed))
+const ledger_schema = array({
+  chrome_label: "Inventory ledger",
+  mode: "table",
+  columns: ["sku", "qty", "unit"],
+  values: anything,
+  item_default: () => ({ sku: "", qty: 0, unit: "ea" }),
+})
+
+const o_ledger = o([
+  { sku: "BOOK-001", qty: 12, unit: "ea", warehouse: "A" }, // `warehouse` is not a column
+  { sku: "BOOK-002", qty: 3, unit: "ea" },
+  { sku: "PART-9", qty: 140, unit: "mm" },
+])
 const shell = new ObjectEditorShell(o_ledger, { schema: ledger_schema })
 
 return shell.node
 ```
 
-Large tables (thousands of rows) are virtual grids (`RepeatVirtual` in an `e-grid`): only the rows near the visible part are rendered. Columns take the width of the first rows shown, then keep it while you scroll; drag a header's right edge to resize one.
+## Large table — virtual scrolling
+
+Large tables (thousands of rows) are virtual grids (`RepeatVirtual` in an `e-grid`): only the rows near the visible part are rendered. Columns take the width of the first rows shown, then keep it while you scroll; drag a header's right edge to resize one. Here, 10,000 rows generated when the example runs:
+
+```tsx
+//@inline-example
+import { o } from "elt"
+import { ObjectEditorShell, anything, array } from "elt/editor"
+
+const names = ["Ada", "Charles", "Grace", "Alan", "Edsger", "Barbara", "Donald", "Margaret"]
+const statuses = ["pending", "shipped", "delivered", "returned"]
+
+const orders_schema = array({
+  chrome_label: "Orders",
+  mode: "auto",
+  values: anything,
+  item_default: () => ({ id: 0, customer: "", status: "pending", qty: 1, paid: false }),
+})
+
+const o_orders = o(
+  Array.from({ length: 10_000 }, (_, i) => ({
+    id: i + 1,
+    customer: `${names[i % names.length]} #${Math.floor(i / names.length) + 1}`,
+    status: statuses[(i * 7) % statuses.length],
+    qty: ((i * 37) % 50) + 1,
+    paid: i % 3 !== 0,
+  })),
+)
+const shell = new ObjectEditorShell(o_orders, { schema: orders_schema })
+
+return shell.node
+```
 
 ## Set — unique members
 
@@ -76,10 +159,15 @@ Set membership list — duplicates are rejected on commit. *+ Add member* starts
 ```tsx
 //@inline-example
 import { o } from "elt"
-import { tags_set_schema, tags_set_seed } from "../object-editor-schemas.ts"
-import { ObjectEditorShell } from "elt/editor"
+import { ObjectEditorShell, set, string } from "elt/editor"
 
-const o_tags = o(new Set(tags_set_seed))
+const tags_set_schema = set({
+  chrome_label: "Unique tags",
+  values: string(),
+  item_default: "",
+})
+
+const o_tags = o(new Set(["algorithm", "math", "notes"]))
 const shell = new ObjectEditorShell(o_tags, { schema: tags_set_schema })
 
 return shell.node
@@ -92,10 +180,21 @@ Key/value rows with separate key and value widgets; the `…` cell after a key c
 ```tsx
 //@inline-example
 import { o } from "elt"
-import { flags_map_schema, flags_map_seed } from "../object-editor-schemas.ts"
-import { ObjectEditorShell } from "elt/editor"
+import { ObjectEditorShell, boolean, map, string } from "elt/editor"
 
-const o_flags = o(new Map(flags_map_seed))
+const flags_map_schema = map({
+  chrome_label: "Feature flags",
+  keys: string(),
+  values: boolean(),
+})
+
+const o_flags = o(
+  new Map([
+    ["search", true],
+    ["editor", true],
+    ["beta_ui", false],
+  ]),
+)
 const shell = new ObjectEditorShell(o_flags, { schema: flags_map_schema })
 
 return shell.node
@@ -108,10 +207,15 @@ Without a `schema`, the editor infers structure from the value itself: free keys
 ```tsx
 //@inline-example
 import { o } from "elt"
-import { document_seed } from "../object-editor-schemas.ts"
 import { ObjectEditorShell } from "elt/editor"
 
-const o_document = o(structuredClone(document_seed))
+const o_document = o({
+  title: "Notes on the Analytical Engine",
+  tags: ["algorithm", "math", "history"],
+  meta: { revision: 3, published: true },
+  stats: { views: 1284, likes: 97 },
+  links: ["https://example.com/ada", "https://example.com/babbage"],
+})
 const shell = new ObjectEditorShell(o_document)
 
 return shell.node
@@ -124,10 +228,24 @@ A schema-mode object can declare a `RegExp` property name to accept any key matc
 ```tsx
 //@inline-example
 import { o } from "elt"
-import { config_schema, config_seed } from "../object-editor-schemas.ts"
-import { ObjectEditorShell } from "elt/editor"
+import { ObjectEditorShell, boolean, object, string } from "elt/editor"
 
-const o_config = o(structuredClone(config_seed))
+const config_schema = object({
+  chrome_label: "Runtime config",
+  free_keys: true,
+  properties: [
+    { name: "theme", type: string() },
+    { name: "debug", type: boolean() },
+    { name: /^feature_/, type: boolean() },
+  ],
+})
+
+const o_config = o({
+  theme: "dark",
+  debug: false,
+  feature_search: true,
+  feature_editor: true,
+})
 const shell = new ObjectEditorShell(o_config, { schema: config_schema })
 
 return shell.node
