@@ -48,6 +48,7 @@ These are the highest priority — the spec already promises the behavior, nothi
 - [ ] **`ColorInput` / `color()` widget** — blocked on `specs/ui-color-picker.md`.
 - [ ] **Drag-and-drop reorder** (`allow_reorder`) — no DnD in editor yet. Its handle goes in a leading grid column (Layer 3 "Composite grid"), added together with the feature.
 - [ ] **Propagate ADR/grill prose into `ui-object-editor.md`.**
+- [ ] **WebKit: `e-virtual-scroll`'s shadow root makes every row insertion re-lay out all slotted rows.** Measured on Linux WebKit (Playwright Docker image), not Safari: inserting 2 rows + one rect read costs 0.61 ms with 37 rows and 3.36 ms with 337 rows inside `e-virtual-scroll`, against ~0.1 ms in a plain `div` or in Chromium/Firefox. Accepted for now: the shadow-root padders are kept, since they are the only placement that works the same in block, flex, grid and table containers without touching the user's DOM. Known limitation of that placement: a sticky row inside the element holding the rows can't cover the padders, so it can drop when the browser draws a scroll position the list hasn't caught up with yet (very fast scrolls, main-thread stalls).
 
 ## Quick wins (landed)
 

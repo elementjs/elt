@@ -170,6 +170,7 @@ An infinite grid is an `e-grid` with `RepeatVirtual` rows inside an `e-virtual-s
 ```
 
 - Put the sticky rows outside the `RepeatVirtual`: the header before it, the footer after it.
+- A sticky row stays within the box of its parent (here the `e-grid`), and the rows that aren't rendered are stood for by padders outside that box. During a very fast scroll, the browser can draw a scroll position the list hasn't caught up with yet; for that moment the grid's edge is in view, and a sticky row on that edge moves with it. A sticky element placed directly in the `e-virtual-scroll`, outside the grid, never moves this way, but then it doesn't share the grid's columns.
 - The scroll area draws the frame (`border` on the `e-virtual-scroll`); the grid inside keeps only its seams. Don't `pad` the scroll area: sticky rows stick at its padding edge.
 - Keep the column widths independent of the cells' content (see above). A live example is in [Layout § Scroll areas and sticky elements](./ui-layout.md#scroll-areas-and-sticky-elements); grids themselves are in [Layout § Grids](./ui-layout.md#grids).
 
