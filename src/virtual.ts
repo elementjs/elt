@@ -5,6 +5,16 @@
  * - Never interleave layout reads (`getBoundingClientRect`, `scrollTop`, …) with observable-driven
  *   DOM writes in one loop: every read after a write forces a reflow, making the pass O(n) reflows.
  *   Read once, compute, write in one batch, converge on later frames.
+ * - Nothing is measured while the user scrolls within the margins. An IntersectionObserver watches
+ *   two empty elements at the edges of the rendered content (in the scroll area's shadow root) and
+ *   runs a pass when one comes within `threshold / 2` of the viewport. A pass reads the viewport and
+ *   the two edges; rows are read only when the window changes, from each end, stopping at the first
+ *   row that doesn't qualify (the trim count, the row pinned across the change), and the one read
+ *   after the write (the pinned row's new position) is the pass's only forced layout.
+ * - The observer only reports changes of inside/outside its zone: after every window change, restart
+ *   watching the edges so that one still short gets reported again. The scroll listener still
+ *   handles jumps (one scroll farther than the viewport), which can carry an edge across the zone
+ *   without it ever being inside.
  * - Keep the content stable through the **top padder**, never by writing `scrollTop` while the user
  *   scrolls.
  * - The top padder is measurement-driven (the real heights of the rows it replaces), not
@@ -36,12 +46,6 @@ type RepeatItem<Obs extends Repeat.RepeatedObservable<any>> = Repeat.RepeatItemE
 
 type ItemBounds = { top: number; bottom: number; height: number }
 
-type RowMeasure<O extends o.IReadonlyObservable<any[] | null | undefined>> = {
-  item: RepeatItem<O>
-  index: number
-  bounds: ItemBounds
-}
-
 /**
  * The scroll area of one {@link RepeatVirtual}: a plain element that scrolls, and holds the two
  * padders standing for the rows that aren't rendered above and below the visible ones. They live in
@@ -49,7 +53,7 @@ type RowMeasure<O extends o.IReadonlyObservable<any[] | null | undefined>> = {
  *
  * ```
  * <e-virtual-scroll>
- *   #shadow-root: [top padder] <slot> [bottom padder]
+ *   #shadow-root: [top padder] [top edge] <slot> [bottom edge] [bottom padder]
  *   …children (the RepeatVirtual itself, or the element that holds it)
  * ```
  *
@@ -59,6 +63,10 @@ type RowMeasure<O extends o.IReadonlyObservable<any[] | null | undefined>> = {
 export class EVirtualScroll extends HTMLElement {
   readonly padder_top: HTMLElement
   readonly padder_bottom: HTMLElement
+  /** Empty lines at the top and bottom edges of the rendered content, watched by the list's
+   * IntersectionObserver: one entering the zone near the viewport means that side needs rows. */
+  readonly edge_top: HTMLElement
+  readonly edge_bottom: HTMLElement
   /** The RepeatVirtual using this scroll area, while it is connected. */
   owner: object | null = null
 
@@ -70,7 +78,16 @@ export class EVirtualScroll extends HTMLElement {
     style.textContent = `:host { display: block; overflow: auto; overflow-anchor: none; }`
     this.padder_top = document.createElement("div")
     this.padder_bottom = document.createElement("div")
-    shadow.append(style, this.padder_top, document.createElement("slot"), this.padder_bottom)
+    this.edge_top = document.createElement("div")
+    this.edge_bottom = document.createElement("div")
+    shadow.append(
+      style,
+      this.padder_top,
+      this.edge_top,
+      document.createElement("slot"),
+      this.edge_bottom,
+      this.padder_bottom,
+    )
   }
 }
 
@@ -158,11 +175,16 @@ export namespace RepeatVirtual {
     /** The index shown first when the list is connected */
     protected initial_position = 0
 
+    /** Re-evaluates when the scroll area's size changes (the edges' observer only reports edges
+     * crossing its line, not the viewport growing past rows it already rendered). */
     protected _observer = new ResizeObserver(() => {
       this.eval()
     })
 
-    scroll_direction = 0
+    /** Watches the scroll area's two edges (see {@link EVirtualScroll}); created when connected,
+     * since its root is the scroll area. */
+    protected _edges: IntersectionObserver | null = null
+
     scroll_last_top = -1
 
     /** Last index window we reconciled, to skip the redundant observer-driven pass
@@ -287,39 +309,8 @@ export namespace RepeatVirtual {
       return Math.max(this.threshold, this.scroll_area?.clientHeight ?? 0)
     }
 
-    /** True when the rendered window no longer overlaps the viewport */
-    protected viewportMismatch(
-      region: DOMRect,
-      bounds_first: { top: number; bottom: number },
-      bounds_last: { top: number; bottom: number },
-    ) {
-      if (!this.boundsValid(bounds_first) || !this.boundsValid(bounds_last)) {
-        return false
-      }
-      return bounds_last.bottom < region.top - this.threshold || bounds_first.top > region.bottom + this.threshold
-    }
-
     protected boundsValid(bounds: { top: number; bottom: number; height?: number }) {
       return bounds.top !== Infinity && bounds.bottom !== -Infinity && (bounds.height == null || bounds.height > 0)
-    }
-
-    /** Trailing rows fully below the scrollport (symmetric to {@link computeShelfTop}). */
-    protected computeShelfBottom(rows: RowMeasure<O>[], region: DOMRect) {
-      let count = 0
-
-      for (let i = rows.length - 1; i >= 0; i--) {
-        const row = rows[i]
-        if (!this.boundsValid(row.bounds)) {
-          break
-        }
-        if (region.bottom + this.threshold < row.bounds.top) {
-          count++
-        } else {
-          break
-        }
-      }
-
-      return count
     }
 
     /** Bottom spacer is purely an estimate of the not-yet-rendered tail; changing
@@ -369,68 +360,21 @@ export namespace RepeatVirtual {
       })
       this.update_padding()
       this.reconcileView(start, end)
+      this.observe_edges()
       this.eval()
     }
 
-    /** Single layout read: viewport region + every rendered row's bounds. */
-    protected measureWindow(): {
-      rows: RowMeasure<O>[]
-      region: DOMRect
-      scroll_top: number
-    } | null {
+    /** Restart watching both edges, so the observer reports their state afresh on the next frame
+     * even if it didn't change: after a window change that fell short, an edge still inside the zone
+     * would otherwise never be reported again. (`observe` on a watched target does nothing.) */
+    protected observe_edges() {
+      const io = this._edges
       const area = this.scroll_area
-      if (area == null) return null
-      const region = area.getBoundingClientRect()
-      const scroll_top = area.scrollTop
-      const rows: RowMeasure<O>[] = []
-
-      let item: RepeatItem<O> | null = this.first_item()
-      while (item != null) {
-        rows.push({
-          item,
-          index: item[Repeat.sym_obs].o_prop.get(),
-          bounds: this.getBounds(item),
-        })
-        item = this.next_item(item)
-      }
-
-      if (rows.length === 0) {
-        return null
-      }
-
-      return { rows, region, scroll_top }
-    }
-
-    /** First row that reaches the viewport (its bottom is at or past the scrollport
-     * top). This is the row we pin across a view change: anything above it is
-     * off-screen, so reflow there is absorbed by the top spacer rather than jumping
-     * the visible content. Crucial when rows can reflow (e.g. a shared-width
-     * `<table>` where adding/removing rows re-wraps cells of other rows). */
-    protected pickAnchor(rows: RowMeasure<O>[], region: DOMRect) {
-      for (const row of rows) {
-        if (this.boundsValid(row.bounds) && row.bounds.bottom > region.top) {
-          return row
-        }
-      }
-      return null
-    }
-
-    /** Leading rows fully above the scrollport. */
-    protected computeShelfTop(rows: RowMeasure<O>[], region: DOMRect) {
-      let count = 0
-
-      for (const row of rows) {
-        if (!this.boundsValid(row.bounds)) {
-          break
-        }
-        if (region.top - this.threshold > row.bounds.bottom) {
-          count++
-        } else {
-          break
-        }
-      }
-
-      return count
+      if (io == null || area == null) return
+      io.unobserve(area.edge_top)
+      io.unobserve(area.edge_bottom)
+      io.observe(area.edge_top)
+      io.observe(area.edge_bottom)
     }
 
     /** Keep `anchor` at the same viewport Y after a view change by absorbing the
@@ -482,99 +426,143 @@ export namespace RepeatVirtual {
       return true
     }
 
-    protected real_eval = () => {
-      const snapshot = this.measureWindow()
-      if (snapshot == null) {
+    protected prev_item(item: RepeatItem<O>): RepeatItem<O> | null {
+      let iter: Node | null = item.previousSibling
+      while (iter != null && iter !== this.__list) {
+        if (iter instanceof Repeat.RepeatItemElement) {
+          return iter
+        }
+        iter = iter.previousSibling
+      }
+      return null
+    }
+
+    /**
+     * Rows read from the top down, stopping as soon as possible: how many lie fully above
+     * `trim_above` (pass `-Infinity` to trim none), then the first row reaching the viewport's top,
+     * `view_top` — the row pinned across the change. Anything above it is off-screen, so a reflow
+     * there is absorbed by the top padder instead of moving the visible content.
+     */
+    protected scanTop(trim_above: number, view_top: number) {
+      let trim = 0
+      let trimming = true
+      for (let item = this.first_item(); item != null; item = this.next_item(item)) {
+        const bounds = this.getBounds(item)
+        if (!this.boundsValid(bounds)) break
+        if (trimming && bounds.bottom < trim_above) {
+          trim++
+          continue
+        }
+        trimming = false
+        if (bounds.bottom > view_top) return { trim, anchor: item, anchor_top: bounds.top }
+      }
+      return { trim, anchor: null, anchor_top: null }
+    }
+
+    /** Rows read from the bottom up, stopping at the first that doesn't qualify: how many lie fully
+     * below `limit`. */
+    protected countBelow(limit: number) {
+      let count = 0
+      for (let item = this.last_item(); item != null; item = this.prev_item(item)) {
+        const bounds = this.getBounds(item)
+        if (!this.boundsValid(bounds) || bounds.top <= limit) break
+        count++
+      }
+      return count
+    }
+
+    /** The edges' observer reported: a pass, told which edges it saw inside its zone. */
+    protected on_edges(entries: IntersectionObserverEntry[]) {
+      const area = this.scroll_area
+      if (area == null) return
+      let top = false
+      let bottom = false
+      // Entries are in time order: the last one for an edge is its current state.
+      for (const entry of entries) {
+        if (entry.target === area.edge_top) top = entry.isIntersecting
+        else if (entry.target === area.edge_bottom) bottom = entry.isIntersecting
+      }
+      this.real_eval(top, bottom)
+    }
+
+    /**
+     * One windowing pass. Run when an edge crosses the line `threshold / 2` away from the viewport
+     * (the IntersectionObserver), and on demand on the next frame after a reposition, a data change
+     * or a resize ({@link eval}). It reads the viewport and the two edges, and only reads rows when
+     * the window changes.
+     */
+    protected real_eval = (edge_top_inside = false, edge_bottom_inside = false) => {
+      const area = this.scroll_area
+      const list_count = o.get(this.obs)?.length ?? 0
+      if (area == null || list_count === 0 || this.pos_end === this.pos_start) {
         return
       }
 
-      const { rows, region, scroll_top } = snapshot
-      const bounds_first = rows[0].bounds
-      const bounds_last = rows[rows.length - 1].bounds
-
-      // Rows are in the DOM but not laid out yet (0-height): retry next frame.
-      if (!this.boundsValid(bounds_first) || !this.boundsValid(bounds_last)) {
-        this.eval()
+      const region = area.getBoundingClientRect()
+      // A hidden scroll area has no layout: every edge would look short, and the window would grow
+      // to the whole list. Its ResizeObserver runs a pass once it shows.
+      if (region.height === 0) {
         return
       }
+      const content_top = area.edge_top.getBoundingClientRect().top
+      const content_bottom = area.edge_bottom.getBoundingClientRect().top
+      const threshold = this.threshold
 
-      // The window drifted entirely off-screen (programmatic jump / large wheel):
-      // reposition wholesale from a scroll estimate rather than crawling row by row.
-      if (this.viewportMismatch(region, bounds_first, bounds_last)) {
-        const idx = this.estimateIndexFromScroll(scroll_top)
+      // The rendered content is entirely out of the zone (programmatic jump, a jump the scroll
+      // listener didn't see): reposition wholesale from a scroll estimate.
+      if (content_bottom < region.top - threshold || content_top > region.bottom + threshold) {
+        const idx = this.estimateIndexFromScroll(area.scrollTop)
         if (idx < this.pos_start || idx >= this.pos_end) {
           this.setPosition(idx)
           return
         }
       }
 
-      // Refine the average row-height estimate. Damped, and only committed past 1px
-      // so sub-pixel measurement noise never re-jitters the padders / scrollbar; but taken as is
-      // when it is more than 25% off (the first pass with a wrong `ItemSize`), since every margin
-      // computed from it until then is off by as much.
-      if (this.pos_end !== this.pos_start) {
-        const measured = (bounds_last.bottom - bounds_first.top) / (this.pos_end - this.pos_start)
-        const diff = measured - this.item_size
-        if (measured > 0 && Math.abs(diff) > 1) {
-          this.item_size += Math.abs(diff) > this.item_size / 4 ? diff : diff / 4
-        }
+      // Refine the average row-height estimate from the content's extent (which includes whatever
+      // sits around the rows in their container, a header for instance). Damped, and only committed
+      // past 1px so sub-pixel noise never re-jitters the padders / scrollbar; but taken as is when it
+      // is more than 25% off (the first pass with a wrong `ItemSize`), since every margin computed
+      // from it until then is off by as much.
+      const measured = (content_bottom - content_top) / (this.pos_end - this.pos_start)
+      const diff = measured - this.item_size
+      if (measured > 0 && Math.abs(diff) > 1) {
+        this.item_size += Math.abs(diff) > this.item_size / 4 ? diff : diff / 4
       }
 
-      const list_count = o.get(this.obs)?.length ?? 0
-      const region_top = region.top - this.threshold
-      const region_bottom = region.bottom + this.threshold
-      const scrolling_up = this.scroll_direction < 0
+      // A side whose rendered margin fell under half the threshold is refilled to the threshold in
+      // one change, rather than by a row or two every frame: each change costs a layout of all the
+      // rendered rows (a subgrid lays out its whole grid again), whatever the number of rows added.
+      const above = region.top - content_top
+      const below = content_bottom - region.bottom
+      const low = threshold / 2
+      // An edge the observer reports inside its zone is short, whatever the measures say: it counts
+      // an edge lying exactly on its line as inside, where `below < low` doesn't (and the two may
+      // round differently). Not growing then would leave that edge inside, never reported again.
+      const grow_top = this.pos_start > 0 && (edge_top_inside || above < low)
+      const grow_bottom = this.pos_end < list_count && (edge_bottom_inside || below < low)
+      if (!grow_top && !grow_bottom) {
+        return
+      }
 
-      // Pin the first visible row across whatever we do this frame. We anchor on
-      // EVERY view change (not just top-edge ones): any reconcile — even growing
-      // the bottom — can reflow already-rendered rows (shared-width tables), and
-      // without a correction that reflow shifts the viewport and rows vanish off
-      // the top. The first visible row survives all four operations below, since
-      // shelving only removes rows that are a full `threshold` off-screen.
-      const top_anchor = this.pickAnchor(rows, region)
-
-      // Compute the whole target window from a SINGLE measurement, then perform a
-      // single write. We never re-measure mid-frame — that interleaving of reads
-      // and writes (one row at a time) was the source of the layout thrashing.
-      //
-      // Both edges grow whenever their margin is short, whatever the scroll direction: a jump
-      // (setPosition) or a resize can leave the side behind the scroll short, and nothing else would
-      // refill it. Growing and trimming one edge can't both apply in a pass (growing needs its edge
-      // row's outer side inside the margin, trimming needs its inner side beyond it), but trimming is
-      // still limited to the side the scroll moves away from, so an estimate that overshoots while
-      // growing isn't trimmed back right away.
       let new_start = this.pos_start
       let new_end = this.pos_end
-
-      if (this.pos_start > 0 && bounds_first.top > region_top) {
-        // Estimate how many rows cover the gap so the whole gap is filled at once.
-        const missing = Math.ceil((bounds_first.top - region_top) / this.item_size)
-        new_start = this.pos_start - Math.max(1, missing)
+      if (grow_top) {
+        new_start -= Math.max(1, Math.ceil((threshold - above) / this.item_size))
       }
-      if (this.pos_end < list_count && bounds_last.bottom < region_bottom) {
-        const missing = Math.ceil((region_bottom - bounds_last.bottom) / this.item_size)
-        new_end = this.pos_end + Math.max(1, missing)
+      if (grow_bottom) {
+        new_end += Math.max(1, Math.ceil((threshold - below) / this.item_size))
       }
 
-      if (!scrolling_up) {
-        // Scrolling down (or idle): trim from the top.
-        const shelve = this.computeShelfTop(rows, region)
-        if (shelve > 0) {
-          new_start = this.pos_start + shelve
-        }
-      } else {
-        // Scrolling up: trim from the bottom.
-        const shelve = this.computeShelfBottom(rows, region)
-        if (shelve > 0) {
-          new_end = this.pos_end - shelve
-        }
+      // The side opposite the one growing is the one the scroll moves away from: trim it back to the
+      // threshold in the same change.
+      const top = this.scanTop(grow_bottom && !grow_top ? region.top - threshold : -Infinity, region.top)
+      new_start += top.trim
+      if (grow_top && !grow_bottom) {
+        new_end -= this.countBelow(region.bottom + threshold)
       }
 
       new_start = Math.max(0, Math.min(new_start, list_count))
       new_end = Math.max(new_start, Math.min(new_end, list_count))
-
-      const anchor = top_anchor?.item ?? null
-      const anchor_top = top_anchor?.bounds.top ?? null
 
       if (this.debug >= 3 && (new_start !== this.pos_start || new_end !== this.pos_end)) {
         console.log(
@@ -583,10 +571,9 @@ export namespace RepeatVirtual {
         )
       }
 
-      if (this.applyViewChange(new_start, new_end, anchor, anchor_top)) {
-        // The estimate may have under/over-shot the gap; converge on the next
-        // frame. Each pass paints in between, so this is not a busy layout loop.
-        this.eval()
+      if (this.applyViewChange(new_start, new_end, top.anchor, top.anchor_top)) {
+        // The estimate may have under/over-shot: have the edges reported afresh on the next frame.
+        this.observe_edges()
       }
     }
 
@@ -715,7 +702,6 @@ export namespace RepeatVirtual {
         return
       }
 
-      this.scroll_direction = 1
       this.eval()
       if (this.pos_end === this.pos_start) {
         this.setPosition(0)
@@ -730,6 +716,8 @@ export namespace RepeatVirtual {
 
       node_on_disconnected(this.__list, () => {
         this._observer.disconnect()
+        this._edges?.disconnect()
+        this._edges = null
         const area = this.scroll_area
         if (area?.owner === this) {
           // The area may get another list (an If around this one): don't leave it our padders.
@@ -745,13 +733,12 @@ export namespace RepeatVirtual {
         area.owner = this
         this.scroll_area = area
         this._observer.observe(area)
-        // Also watch the element that actually holds the rows: when a row's
-        // height changes after render (images, fonts, async content) the
-        // container resizes, so we re-evaluate the window and refresh padding.
-        const holder = this.__list.parentElement
-        if (holder != null && holder !== area) {
-          this._observer.observe(holder)
-        }
+        // Rows changing height after render (images, fonts, async content) move the edges, which
+        // this observer reports once one crosses its line: no need to watch the rows' container.
+        this._edges = new IntersectionObserver((entries) => this.on_edges(entries), {
+          root: area,
+          rootMargin: `${this.threshold / 2}px 0px`,
+        })
 
         this.setPosition(this.initial_position)
 
@@ -764,19 +751,14 @@ export namespace RepeatVirtual {
           if (prev_top >= 0) {
             const delta = st - prev_top
             if (Math.abs(delta) > this.jump_threshold()) {
-              this.scroll_direction = delta
               this.scroll_last_top = st
               this.setPosition(this.estimateIndexFromScroll(st))
               return
             }
           }
 
-          if (this.scroll_last_top !== st) {
-            this.scroll_direction = st - prev_top
-            this.scroll_last_top = st
-          }
-
-          this.eval()
+          // Smaller scrolls are the edges' observer's business.
+          this.scroll_last_top = st
         })
       })
 

@@ -93,8 +93,10 @@ test.describe("e-virtual-scroll", () => {
         node_append(area, col)
       })
       await window.__frames()
+      // The padders are the shadow root's first and last elements, around the edges and the slot.
       const shadow = area.shadowRoot!
-      const [top, bottom] = [...shadow.querySelectorAll("div")] as HTMLElement[]
+      const divs = [...shadow.querySelectorAll("div")] as HTMLElement[]
+      const [top, bottom] = [divs[0], divs[divs.length - 1]]
       const rendered = area.querySelectorAll(".row").length
       const before = { top: top.getBoundingClientRect().height, bottom: bottom.getBoundingClientRect().height }
       await scroll(area, 5000)
@@ -491,7 +493,10 @@ test("removing the list from its e-virtual-scroll resets the padders", async ({ 
       )
     })
     await window.__frames()
-    const [top, bottom] = [...area.shadowRoot!.querySelectorAll("div")] as HTMLElement[]
+    const { padder_top: top, padder_bottom: bottom } = area as HTMLElement & {
+      padder_top: HTMLElement
+      padder_bottom: HTMLElement
+    }
     const before = bottom.getBoundingClientRect().height
     o_show.set(false)
     return { before, top: top.getBoundingClientRect().height, bottom: bottom.getBoundingClientRect().height }

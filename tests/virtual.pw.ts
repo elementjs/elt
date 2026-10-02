@@ -2,14 +2,9 @@ import { expect, test } from "@playwright/test"
 
 const describe = test.describe
 
-// Ported from tests/virtual.test.ts (happy-dom + bun:test) to real headless Chromium.
-//
-// The original mocked every row's geometry (getBoundingClientRect, scrollTop, clientHeight) by hand,
-// rather than relying on happy-dom's (fake/zeroed) layout engine. That mocking has nothing to do with
-// happy-dom being an emulator — it's how the test drives RepeatVirtual deterministically (exact
-// item height, exact scroll position) without depending on real font/box layout timing. So it is kept
-// verbatim here; a real browser executes it exactly the same way (Object.defineProperty / method
-// overrides on a real HTMLElement work identically to a happy-dom one).
+// The windowing algorithm in a real browser, with real geometry made deterministic: rows of a fixed
+// height (ITEM_HEIGHT, also the list's estimate) in a scroll area of a fixed height. Geometry can't be
+// faked: the list's IntersectionObserver reads the browser's own layout.
 //
 // Shared mount/measurement helpers are injected once per test via `page.addScriptTag` (real script
 // evaluated in the page after the harness loads) instead of being re-declared inline in every single
@@ -32,7 +27,7 @@ type VirtualMountHandle = {
 
 declare global {
   interface Window {
-    /** Mounts a RepeatVirtual instance with fully mocked row/scroller geometry (see file header). */
+    /** Mounts a RepeatVirtual instance with deterministic row/scroller geometry (see file header). */
     __mountVirtual: (initial: string[], display_contents?: boolean) => VirtualMountHandle
     __flushFrames: (count?: number) => Promise<void>
     __labelsFromCount: (count: number, prefix?: string) => string[]
@@ -52,13 +47,6 @@ const SETUP_SCRIPT = `
     return Array.from({ length: count }, function (_, i) { return prefix + "-" + i })
   }
 
-  function __makeRect(top, height) {
-    return {
-      top: top, bottom: top + height, left: 0, right: 200, width: 200, height: height, x: 0, y: top,
-      toJSON: function () { return this },
-    }
-  }
-
   function __elementsByClass(root, class_name) {
     const out = []
     function walk(n) {
@@ -74,10 +62,9 @@ const SETUP_SCRIPT = `
     return out
   }
 
-  /** Fake row layout: each item is ITEM_HEIGHT tall; scrollTop shifts viewport.
+  /** Rows ITEM_HEIGHT tall in a VIEWPORT_HEIGHT scroll area, threshold 100px.
    * When display_contents is true, rows are wrapped in a display:contents element with no box of its
-   * own (getBoundingClientRect returns a zero-height rect), exercising measureElement's descend-into-
-   * children fallback. */
+   * own, exercising measureElement's descend-into-children fallback. */
   window.__mountVirtual = function (initial, display_contents) {
     const ITEM_HEIGHT = ${ITEM_HEIGHT}
     const VIEWPORT_HEIGHT = ${VIEWPORT_HEIGHT}
@@ -87,31 +74,19 @@ const SETUP_SCRIPT = `
 
     const scroller = document.createElement("e-virtual-scroll")
     scroller.className = "scroll-host"
-    Object.defineProperty(scroller, "clientHeight", { value: VIEWPORT_HEIGHT, configurable: true })
-
-    let scroll_top = 0
-    Object.defineProperty(scroller, "scrollTop", {
-      get: function () { return scroll_top },
-      set: function (value) { scroll_top = value },
-      configurable: true,
-    })
-    scroller.getBoundingClientRect = function () { return __makeRect(0, VIEWPORT_HEIGHT) }
+    scroller.style.height = VIEWPORT_HEIGHT + "px"
 
     const content = document.createElement("div")
 
     const scroller_instance = RepeatVirtual(o_lst, function (item, idx) {
       const row = document.createElement("div")
       row.className = "virtual-row"
-      row.getBoundingClientRect = function () {
-        const index = idx.get()
-        const top = index * ITEM_HEIGHT - scroll_top
-        return __makeRect(top, ITEM_HEIGHT)
-      }
+      row.style.height = ITEM_HEIGHT + "px"
+      row.style.overflow = "hidden"
       node_append(row, item)
       if (display_contents) {
         const wrapper = document.createElement("div")
         wrapper.style.display = "contents"
-        wrapper.getBoundingClientRect = function () { return __makeRect(0, 0) }
         node_append(wrapper, row)
         return wrapper
       }
@@ -126,15 +101,18 @@ const SETUP_SCRIPT = `
       return __elementsByClass(content, "virtual-row").map(function (row) { return row.textContent || "" })
     }
 
+    // Scrolls a row at a time (rows are ITEM_HEIGHT tall, the estimate is exact, so a row's
+    // offset is index * ITEM_HEIGHT), letting the list follow, until the target or the end.
     const scroll_to = async function (index) {
       const target = Math.max(0, index) * ITEM_HEIGHT
-      while (scroll_top !== target) {
-        const delta = target - scroll_top
-        // RepeatVirtual may ignore one scroll event while it stabilizes layout.
-        scroll_top += Math.abs(delta) <= ITEM_HEIGHT ? delta : Math.sign(delta) * ITEM_HEIGHT
-        scroller.dispatchEvent(new Event("scroll"))
+      for (;;) {
+        const current = scroller.scrollTop
+        const delta = target - current
+        if (Math.abs(delta) < 1) break
+        scroller.scrollTop = current + (Math.abs(delta) <= ITEM_HEIGHT ? delta : Math.sign(delta) * ITEM_HEIGHT)
         scroller.dispatchEvent(new Event("scroll"))
         await window.__flushFrames(4)
+        if (Math.abs(scroller.scrollTop - current) < 1) break // clamped at an end
       }
     }
 
@@ -510,32 +488,82 @@ describe("RepeatVirtual", () => {
       expect([...seen].sort()).toEqual([...result.list].sort())
     })
 
-    test("measures layout at most once per animation frame (no thrash)", async ({ page }) => {
-      const calls = await page.evaluate(async () => {
+    test("reads no row while scrolling within the margins, and refills a short one in one change", async ({ page }) => {
+      const res = await page.evaluate(async () => {
         const m = window.__mountVirtual(window.__labelsFromCount(200))
         await window.__flushFrames()
 
-        // measureWindow() is the only thing that reads the scrollport rect, so
-        // counting these calls counts real_eval measurement passes. The old loop
-        // re-measured after every single-row mutation; the new one measures once.
-        let calls = 0
-        const original = m.scroller.getBoundingClientRect
-        m.scroller.getBoundingClientRect = function (this: HTMLElement) {
-          calls++
+        // Rows read (a pass reading only the viewport and the content's two edges is fine: the
+        // observer also reports an edge leaving its zone).
+        let reads = 0
+        const original = Element.prototype.getBoundingClientRect
+        Element.prototype.getBoundingClientRect = function (this: Element) {
+          if (this.classList.contains("virtual-row")) reads++
           return original.call(this)
         }
-        ;(m.scroller as any).scrollTop = 64 * 4
+        const windows = new Set<string>()
+        const record = () => windows.add(m.visible_labels()[0] + ".." + m.visible_labels().at(-1))
+        record()
+        const start = m.visible_labels()
+
+        // Threshold 100: the bottom edge is reported once it comes within 50px of the viewport.
+        // Scrolling by small steps until just before that point reads no row.
+        const room = m.content.getBoundingClientRect().bottom - m.scroller.getBoundingClientRect().bottom
+        reads = 0
+        for (let st = 8; st < room - 60; st += 8) {
+          m.scroller.scrollTop = st
+          m.scroller.dispatchEvent(new Event("scroll"))
+          await window.__flushFrames(1)
+        }
+        const reads_within = reads
+        const same_window = m.visible_labels().join() === start.join()
+
+        // Crossing it refills the margin to the threshold in a single window change.
+        m.scroller.scrollTop = room - 30
         m.scroller.dispatchEvent(new Event("scroll"))
-
-        // Advance exactly one frame; the convergence re-eval lands on later frames.
-        await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()))
-
-        m.scroller.getBoundingClientRect = original
+        for (let i = 0; i < 6; i++) {
+          await window.__flushFrames(1)
+          record()
+        }
+        Element.prototype.getBoundingClientRect = original
+        const below = m.content.getBoundingClientRect().bottom - m.scroller.getBoundingClientRect().bottom
         m.tear_down()
-        return calls
+        return { reads_within, same_window, windows: windows.size, below }
       })
 
-      expect(calls).toBe(1)
+      expect(res.reads_within).toBe(0)
+      expect(res.same_window).toBe(true)
+      expect(res.windows).toBe(2)
+      expect(res.below).toBeGreaterThanOrEqual(100)
+    })
+
+    test("an edge stopping exactly on the observer's line still gets refilled (regression)", async ({ page }) => {
+      const res = await page.evaluate(async () => {
+        const m = window.__mountVirtual(window.__labelsFromCount(200))
+        await window.__flushFrames()
+        const below = () => m.content.getBoundingClientRect().bottom - m.scroller.getBoundingClientRect().bottom
+        // Threshold 100: the observer's line is 50px below the viewport, and it counts an edge
+        // lying exactly on it as inside. Bring the content's bottom edge exactly there, in steps
+        // shorter than a jump (the viewport, 300px).
+        const exact = m.scroller.scrollTop + below() - 50
+        for (const st of [exact - 250, exact - 120, exact]) {
+          m.scroller.scrollTop = st
+          m.scroller.dispatchEvent(new Event("scroll"))
+          await window.__flushFrames(3)
+        }
+        const on_line = below()
+        // Then on past it: the list must follow, not leave the viewport's bottom blank.
+        for (let i = 1; i <= 6; i++) {
+          m.scroller.scrollTop = exact + i * 30
+          m.scroller.dispatchEvent(new Event("scroll"))
+          await window.__flushFrames(3)
+        }
+        const after = below()
+        m.tear_down()
+        return { on_line, after }
+      })
+      expect(res.on_line).toBeGreaterThanOrEqual(50)
+      expect(res.after).toBeGreaterThanOrEqual(50)
     })
 
     test("keeps the row-height estimate stable on uniform rows", async ({ page }) => {
