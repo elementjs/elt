@@ -115,6 +115,7 @@ Alignment values: `center`, `start`, `end`, `self-start`, `baseline`, `first bas
 | `reverse` | flex elements | Reverses the direction. |
 | `wrap` | flex elements | `flex-wrap: wrap`. |
 | `packed` | all four | Children touch — see [packed](#packed) and, for grids, [Grids](#grids). Bare, or a spacing step for the children's padding, which is also the container's own step. |
+| `seamless` | all four, with `packed border` | Keeps the frame, draws no seams between the children — see [packed](#packed). |
 | `columns` | `e-grid` | 1 to 12: that many equal columns — see [Grids](#grids). |
 
 `e-grid-row` takes only `surface`, `hover`, `align` and `sticky`.
@@ -161,6 +162,8 @@ The container's own `pad` still pads the container itself. `packed` never adds a
 - **With `border` on the container**: the container draws the border. It gets a 1px gap between children, and the gap shows as a seam of the border's color. Every child gets `border: none` and the ambient surface as background (a background you set on the child yourself still wins). How the seam is drawn depends on the browser:
   - Where CSS gap decorations are supported (Chromium), a 1px `row-rule`/`column-rule` is drawn in the gap, and the container's background is the surface. A rule's width is rounded to whole screen pixels like a border's, so every seam stays one screen pixel wide at a fractional display scale (125%, 150%).
   - Elsewhere (Firefox, Safari), the container's background is the border's color and shows through the gap. A gap isn't rounded to screen pixels, so at a fractional display scale some seams are drawn 1 screen pixel wide and others 2.
+- **`seamless`, with `border`**: the container draws its border and radius, but no seams: no gap, and the surface as background. Use it when seams between every child would be noise, as in a menu, and separate groups of children with `<hr>`.
+- **`<hr>`** directly inside a `packed` row or column is a divider, not a padded child: a 1px line from edge to edge (across a column, down a row), with no padding or margin.
 - **Radius**: interior seams are always square. When the container has a radius (its own `border`, or `radius`), the first and last children's outer corners take exactly the container's radius. When it has neither, each child keeps its own radius at every corner.
 - A focused child is drawn above its neighbors so its focus ring isn't covered.
 - **The outermost container draws the frame.** A `packed border` container inside another `packed border` container (a row of buttons in a bordered column, say) loses its own border like any child, but keeps its seams between its own children. Inside a scroll area, a `packed border` child drops its outer border and radius too: the scroll area draws the frame, with its own `border` ([Scroll areas and sticky elements](#scroll-areas-and-sticky-elements)).
@@ -173,6 +176,13 @@ The container's own `pad` still pads the container itself. `packed` never adds a
 </e-row>
 
 <e-column packed="widget" border="tint-2" role="listbox">…rows…</e-column>
+
+<e-column packed="widget" border seamless align="stretch" role="menu">
+  <button role="menuitem">Cut</button>
+  <button role="menuitem">Copy</button>
+  <hr />
+  <button role="menuitem">Delete</button>
+</e-column>
 ```
 
 More examples: [Forms § Button groups and menus](./ui-forms.md#button-groups-and-menus).

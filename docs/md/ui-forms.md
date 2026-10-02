@@ -71,4 +71,4 @@ Text inputs, `textarea` and native `select` share the same border, focus ring an
 <e-column packed="widget" border="tint-2" role="listbox">…rows…</e-column>
 ```
 
-A menu in a popup is a `packed` column of `text` buttons: [Overlays § popup](./ui-overlays.md#popup).
+A menu in a popup is a `packed border seamless` column of plain buttons (the column removes their borders), with `<hr>` between groups: [Overlays § popup](./ui-overlays.md#popup).

@@ -598,6 +598,95 @@ test.describe("packed and a child's own pad", () => {
   }
 })
 
+test.describe("packed border seamless (docs/md/ui-layout.md#packed)", () => {
+  test("keeps the frame, drops the gap, seam color and gap rules", async ({ page }) => {
+    const r = await page.evaluate(() => {
+      document.body.innerHTML = `
+        <e-column id="plain" packed border><button>a</button><button>b</button></e-column>
+        <e-column id="seamless" packed border seamless><button>a</button><button>b</button></e-column>`
+      const plain = document.getElementById("plain")!
+      const seamless = document.getElementById("seamless")!
+      const cs = getComputedStyle(seamless)
+      const [a, b] = seamless.querySelectorAll("button")
+      return {
+        plain_gap: getComputedStyle(plain).rowGap,
+        gap: cs.rowGap,
+        border: cs.borderTopStyle,
+        radius: cs.borderTopLeftRadius,
+        // the buttons touch: no seam between them
+        touching: Math.abs(a.getBoundingClientRect().bottom - b.getBoundingClientRect().top) < 0.01,
+        child_border: getComputedStyle(a).borderBottomStyle,
+        rule: (cs as unknown as { rowRuleStyle?: string }).rowRuleStyle ?? "none",
+      }
+    })
+    expect(r.plain_gap).toBe("1px")
+    expect(r.gap).toBe("0px")
+    expect(r.border).toBe("solid")
+    expect(r.radius).not.toBe("0px")
+    expect(r.touching).toBe(true)
+    expect(r.child_border).toBe("none")
+    expect(r.rule).toBe("none")
+  })
+
+  test("its background is the surface, not the seam color, even nested in a packed bordered parent", async ({
+    page,
+  }) => {
+    const r = await page.evaluate(() => {
+      document.body.innerHTML = `
+        <e-column packed border>
+          <e-column id="inner" packed border seamless><button>a</button><button>b</button></e-column>
+        </e-column>
+        <e-column id="top" packed border seamless><button>a</button></e-column>`
+      const inner = getComputedStyle(document.getElementById("inner")!)
+      const top = getComputedStyle(document.getElementById("top")!)
+      return {
+        inner_bg: inner.backgroundColor,
+        inner_gap: inner.rowGap,
+        top_bg: top.backgroundColor,
+        top_border: top.borderTopColor,
+      }
+    })
+    expect(r.inner_gap).toBe("0px")
+    expect(r.top_bg).not.toBe(r.top_border)
+    expect(r.inner_bg).not.toBe(r.top_border)
+  })
+
+  test("<hr> in a packed column is an unpadded 1px divider across it", async ({ page }) => {
+    const r = await page.evaluate(() => {
+      document.body.innerHTML = `
+        <e-column id="col" packed="widget" border seamless align="stretch" style="width: 200px">
+          <button>a</button><hr /><button>b</button>
+        </e-column>`
+      const col = document.getElementById("col")!
+      const hr = col.querySelector("hr")!
+      const box = hr.getBoundingClientRect()
+      const cs = getComputedStyle(hr)
+      return {
+        height: box.height,
+        width: box.width,
+        col_inner: col.clientWidth,
+        pad: cs.paddingTop,
+        margin: cs.marginTop,
+      }
+    })
+    expect(r.height).toBe(1)
+    expect(r.width).toBe(r.col_inner)
+    expect(r.pad).toBe("0px")
+    expect(r.margin).toBe("0px")
+  })
+
+  test("<hr> in a packed row is a 1px divider down it", async ({ page }) => {
+    const r = await page.evaluate(() => {
+      document.body.innerHTML = `<e-row id="row" packed border seamless><button>a</button><hr /><button>b</button></e-row>`
+      const row = document.getElementById("row")!
+      const hr = row.querySelector("hr")!.getBoundingClientRect()
+      return { width: hr.width, height: hr.height, row_inner: row.clientHeight }
+    })
+    expect(r.width).toBe(1)
+    expect(r.height).toBeCloseTo(r.row_inner, 0)
+  })
+})
+
 // A packed container's step is the step of what it packs: packed="X" sets the container's own step to
 // X, so a bare border's radius matches its children's padding instead of the inherited step.
 test.describe('packed="X" is the container\'s own step (docs/md/ui-layout.md#packed)', () => {

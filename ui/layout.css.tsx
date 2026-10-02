@@ -157,8 +157,16 @@ export interface EFlexAttrs extends CommonAttrs {
    * On `e-grid`, these apply to its cells (an `e-grid-row`'s children rather than the row), there is
    * no trailing-edge border removal, and every cell is square except the outer corners of the first
    * and last rows — see "Grids" in docs/md/ui-layout.md.
+   *
+   * An `<hr>` directly inside a `packed` flex container is a 1px divider, edge to edge, unpadded.
    */
   packed?: NRO<boolean | SpacingValues>
+  /**
+   * With `packed border`: keep the frame (border and radius) but draw no seams between the children —
+   * no 1px gap, no seam color behind them. Separate groups of children with `<hr>` instead (a menu).
+   * No effect without both `packed` and `border`.
+   */
+  seamless?: NRO<boolean>
 }
 
 /** `columns` values on `e-grid`. */
@@ -625,6 +633,41 @@ css`
       row-rule: 1px solid var(--e-current-border-color);
     }
   }
+  /* [seamless]: packed bordered, frame kept, no seams — no 1px gap, no seam color behind the
+     children, no gap rules. Every selector above that paints seams is out-ranked here by one more
+     attribute ([seamless]), the nested and grid-row ones included. */
+  ${_packed}[packed][border][seamless],
+  ${_packed}[packed][border] > ${_packed}[packed][border][seamless],
+  e-grid[packed][border][seamless] > e-grid-row {
+    gap: 0;
+    background-color: var(--e-current-surface);
+    column-rule: none;
+    row-rule: none;
+  }
+
+  /* An <hr> directly in a packed flex container is a divider between its children, not a padded
+     child: no padding or margin (the packed padding rule above would otherwise thicken it), a 1px
+     line edge to edge — across a column, down a row. */
+  :is(e-column, e-flex[column])[packed] > hr {
+    padding: 0;
+    margin: 0;
+    height: 1px;
+    width: auto;
+    align-self: stretch;
+  }
+  :is(e-row, e-flex:not([column]))[packed] > hr {
+    padding: 0;
+    margin: 0;
+    width: 1px;
+    height: auto;
+    align-self: stretch;
+  }
+  /* In a bordered packed container, the children take the surface color (the cell rule above): the
+     divider takes the frame's color instead, so it reads as part of the frame. */
+  :is(e-column, e-flex[column], e-row, e-flex:not([column]))[packed][border] > hr {
+    background-color: var(--e-current-border-color);
+  }
+
   /* A packed bordered child of a scroll area drops its outer border and radius: the scroll area
      draws the frame (with its own [border]), and clips the content to its rounded edge. */
   :is(${_all}[scroll], e-virtual-scroll) > ${_packed}[packed][border] {
