@@ -63,8 +63,7 @@ test.describe("$auto_grow (regression: resizing inside its ResizeObserver raised
       const ta = document.createElement("textarea")
       ta.value = "word ".repeat(40)
       ta.style.width = "100%" // follows the box, like a grid cell
-      // A decorator returning decorators ($connected/$disconnected): apply them to the textarea.
-      for (const deco of $auto_grow()(ta) as unknown as ((n: Node) => void)[]) deco(ta)
+      node_append(ta, $auto_grow())
       box.appendChild(ta)
       node_append(document.body, box)
       const frames = (n: number) =>
