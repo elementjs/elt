@@ -451,6 +451,190 @@ export function $click<N extends HTMLElement | SVGElement>(
 }
 
 /**
+ * Add a callback on the `contextmenu` event: right click, Ctrl+click on macOS, long press on
+ * touch screens, or the keyboard's Menu key / Shift+F10 on the focused element. Like {@link $click},
+ * it only calls `cbk` — call `ev.preventDefault()` in it to replace the browser's own menu.
+ *
+ * iOS Safari doesn't fire `contextmenu` on long press; the first use of `$context_menu` installs a
+ * shim on the document that does (see {@link $context_menu.install_long_press}). The decorated node
+ * also gets `-webkit-touch-callout: none`, which stops iOS's own link/image preview on long press.
+ * The shim leaves text fields to iOS's own long press (selection, magnifier), unless
+ * `text_fields: true` asks it to fire there too, for the text fields inside this node.
+ *
+ * ```tsx
+ * <div>{$context_menu((ev) => { ev.preventDefault(); open_menu(ev.clientX, ev.clientY) })}</div>
+ * ```
+ *
+ * @group Decorators
+ */
+export function $context_menu<N extends HTMLElement | SVGElement>(
+  cbk: Listener<MouseEvent, N>,
+  opts?: boolean | $context_menu.Options,
+): (node: N) => void {
+  const { capture, text_fields } = typeof opts === "boolean" ? { capture: opts, text_fields: false } : (opts ?? {})
+  return function $context_menu_apply(node) {
+    node.style.setProperty("-webkit-touch-callout", "none")
+    if (text_fields) $context_menu.long_press_in_fields.add(node)
+    const doc = node.ownerDocument
+    if (doc != null && $context_menu.is_ios(navigator.userAgent, navigator.maxTouchPoints)) {
+      $context_menu.install_long_press(doc)
+    }
+    node_add_event_listener(node, "contextmenu", cbk, capture)
+  }
+}
+
+export namespace $context_menu {
+  export interface Options {
+    /** Listen during the capture phase. */
+    capture?: boolean
+    /** On iOS, a long press in a text field inside the node fires `contextmenu` too. Default: iOS keeps its own there. */
+    text_fields?: boolean
+  }
+
+  /** Nodes whose text fields take the long-press shim too (`text_fields`). @internal */
+  export const long_press_in_fields = new WeakSet<Element>()
+
+  /** Whether a long press on `target` is the shim's: outside text fields, or inside an opted-in node. */
+  function long_press_applies(target: Element): boolean {
+    if (!target.closest("input, textarea, [contenteditable]")) return true
+    for (let el: Element | null = target; el != null; el = el.parentElement) {
+      if (long_press_in_fields.has(el)) return true
+    }
+    return false
+  }
+
+  /** How long a touch must stay still before the long-press shim fires `contextmenu`, in ms. */
+  export const LONG_PRESS_DELAY = 500
+  /** How far a touch may move, in px, before it no longer counts as a long press. */
+  export const LONG_PRESS_TOLERANCE = 10
+  /** How long after the finger lifts a click may still come and be swallowed, in ms. */
+  const CLICK_SWALLOW_WINDOW = 400
+
+  /** @internal */
+  const installed = new WeakSet<Document>()
+
+  /**
+   * Whether this platform is iOS / iPadOS, the one whose browsers fire no `contextmenu` on long
+   * press. iPadOS reports a Mac user agent, told apart by its touch points.
+   * @internal
+   */
+  export function is_ios(ua: string, max_touch_points: number): boolean {
+    return /iPhone|iPod|iPad/.test(ua) || (/Macintosh/.test(ua) && max_touch_points > 1)
+  }
+
+  /**
+   * Install, once per document, a shim that dispatches a `contextmenu` event on an element touched
+   * and held still for {@link LONG_PRESS_DELAY} ms. One shim for the whole document rather than one
+   * per decorated node: nested decorated nodes would otherwise each detect the same press.
+   *
+   * Text fields (`input`, `textarea`, `[contenteditable]`) are skipped: iOS keeps its own long press
+   * there (selection, magnifier) — except inside a node decorated with `text_fields: true`. When a listener calls `preventDefault()` on the synthesized event,
+   * the click that follows the release is swallowed, so a long press doesn't also activate what's
+   * under the finger.
+   *
+   * Called by {@link $context_menu} on iOS only; exported so it can be tested on any platform.
+   * @internal
+   */
+  export function install_long_press(doc: Document) {
+    if (installed.has(doc)) return
+    installed.add(doc)
+
+    let timer: ReturnType<typeof setTimeout> | null = null
+    let pointer_id = -1
+    let start_x = 0
+    let start_y = 0
+    // Set once a synthesized contextmenu was handled: the next click is swallowed.
+    let swallow_click = false
+    let swallow_timer: ReturnType<typeof setTimeout> | null = null
+
+    function cancel() {
+      if (timer != null) clearTimeout(timer)
+      timer = null
+      pointer_id = -1
+    }
+
+    function disarm_swallow() {
+      if (swallow_timer != null) clearTimeout(swallow_timer)
+      swallow_timer = null
+      swallow_click = false
+    }
+
+    doc.addEventListener(
+      "pointerdown",
+      (ev) => {
+        cancel()
+        disarm_swallow()
+        if (ev.pointerType !== "touch" || !ev.isPrimary) return
+        const target = ev.target
+        if (!(target instanceof Element) || !long_press_applies(target)) return
+
+        pointer_id = ev.pointerId
+        start_x = ev.clientX
+        start_y = ev.clientY
+        timer = setTimeout(() => {
+          timer = null
+          pointer_id = -1
+          const menu_ev = new MouseEvent("contextmenu", {
+            bubbles: true,
+            cancelable: true,
+            composed: true,
+            clientX: start_x,
+            clientY: start_y,
+            screenX: ev.screenX,
+            screenY: ev.screenY,
+          })
+          if (!target.dispatchEvent(menu_ev)) swallow_click = true
+        }, LONG_PRESS_DELAY)
+      },
+      true,
+    )
+
+    doc.addEventListener(
+      "pointermove",
+      (ev) => {
+        if (ev.pointerId !== pointer_id) return
+        if (Math.hypot(ev.clientX - start_x, ev.clientY - start_y) > LONG_PRESS_TOLERANCE) cancel()
+      },
+      true,
+    )
+
+    doc.addEventListener(
+      "pointerup",
+      () => {
+        cancel()
+        // The click, if any, follows the pointerup closely; if none comes (the finger slid off), the
+        // swallow must not stay armed and eat an unrelated later click.
+        if (swallow_click) swallow_timer = setTimeout(disarm_swallow, CLICK_SWALLOW_WINDOW)
+      },
+      true,
+    )
+
+    doc.addEventListener(
+      "pointercancel",
+      () => {
+        cancel()
+        disarm_swallow()
+      },
+      true,
+    )
+
+    // scroll doesn't bubble: capture catches it from any scrolling element.
+    doc.addEventListener("scroll", cancel, true)
+
+    doc.addEventListener(
+      "click",
+      (ev) => {
+        if (!swallow_click) return
+        disarm_swallow()
+        ev.preventDefault()
+        ev.stopPropagation()
+      },
+      true,
+    )
+  }
+}
+
+/**
  * Call the `fn` callback when the decorated `node` is inserted into the DOM with
  * itself as first argument and its parent as the second.
  *

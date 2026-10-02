@@ -77,6 +77,30 @@ return <e-column>
 </e-column>
 ```
 
+## Context menus: `$context_menu`
+
+`$context_menu(cbk)` calls `cbk` on the `contextmenu` event, like `$click` does for `click`. That one event covers every usual way of asking for a menu: right click, Ctrl+click on macOS, a long press on Android, and the keyboard's Menu key or Shift+F10 on the focused element (the event then reports the element's center as its position). Call `ev.preventDefault()` in `cbk` to replace the browser's own menu; leave it alone (inside a text field, say) to keep it.
+
+iOS is the exception: its browsers fire no `contextmenu` on a long press. On iOS, the first `$context_menu` installs a shim on the document that dispatches one after a touch held still for half a second, at the finger's position. It leaves text fields alone (they keep their own long press: selection, magnifier) unless the decorator is given `{ text_fields: true }` (`$context_menu(cbk, { text_fields: true })`), for menus that replace the text field's own, and when your callback called `preventDefault()`, it swallows the click that follows the release, so the long press doesn't also activate what's under the finger. The decorated node also gets `-webkit-touch-callout: none`, which stops iOS's own preview of links and images.
+
+```tsx
+//@inline-example
+import { $context_menu, o } from "elt"
+
+const o_last = o("Right click, Ctrl+click or long press the box")
+
+return <e-column>
+  <e-column pad="component" border>
+    {$context_menu((ev) => {
+      ev.preventDefault()
+      o_last.set(`Menu asked at ${ev.clientX}, ${ev.clientY}`)
+    })}
+    {o_last}
+  </e-column>
+  <input placeholder="The browser's menu still works here" />
+</e-column>
+```
+
 ## Reflecting values: `$observe`, `$class`, `$style`, `$id`, `$title`
 
 These tie a plain side effect, a set of classes, inline styles, an `id`, or a `title` to an observable, re-running whenever it changes. `class={}` and `style={}` attributes on any element are shorthand for `$class`/`$style` — reach for the decorator form only when composing several class/style definitions on the same node, or when the target isn't the node the attribute would land on.
