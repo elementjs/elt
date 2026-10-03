@@ -8,7 +8,7 @@
  * text input needs, since focus must stay in it while the arrows move through the options.
  */
 
-import { css, node_add_event_listener, node_observe, node_on_connected, o } from "elt"
+import { css, node_add_event_listener, node_is_connected, node_observe, node_on_connected, o } from "elt"
 import { theme } from "./theme"
 
 export interface ListNavOptions {
@@ -129,9 +129,17 @@ function find_by_prefix(text_of: (index: number) => string, count: number, prefi
 /**
  * Focus `el` once it's connected and shown. A popup shows its content a moment after attaching it,
  * and focus can only land on a shown element.
+ *
+ * Nothing happens if `el` was disconnected in the meantime: a popup closed within that frame is
+ * still in the document while it fades out, and focusing it would drop focus to the body once it is
+ * removed.
  */
 export function focus_when_shown(el: HTMLElement) {
-  node_on_connected(el, () => requestAnimationFrame(() => el.focus({ preventScroll: true })))
+  node_on_connected(el, () =>
+    requestAnimationFrame(() => {
+      if (node_is_connected(el)) el.focus({ preventScroll: true })
+    }),
+  )
 }
 
 let menu_ids = 0

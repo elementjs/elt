@@ -28,10 +28,13 @@ async function mount(page: Page, value: string, schema: string | null = null) {
   )
 }
 
+// Menus are looked up under `[popover].open`: a closed menu stays in the DOM while it fades out (no
+// longer `.open`), and a menu opened right after would otherwise match twice.
+
 /** The open menus, outermost first: each its headers and items, in order. */
 function menus(page: Page) {
   return page.evaluate(() =>
-    [...document.querySelectorAll('[popover] [role="menu"]')].map((menu) =>
+    [...document.querySelectorAll('[popover].open [role="menu"]')].map((menu) =>
       [...menu.children].map((c) =>
         c.tagName === "HR" ? "---" : c.tagName === "H3" ? `# ${c.textContent}` : (c.textContent ?? "").trim(),
       ),
@@ -49,10 +52,10 @@ test.describe("row menu", () => {
     await mount(page, `({ name: "Ada", age: 36 })`)
     await row(page, "name").locator("> :first-child").click({ button: "right" })
     await expect.poll(() => menus(page)).toEqual([["# Value", "Change type…", "---", "Delete"]])
-    const del = page.locator('[popover] [role="menuitem"]', { hasText: "Delete" })
+    const del = page.locator('[popover].open [role="menuitem"]', { hasText: "Delete" })
     expect(await del.locator("svg").count()).toBe(1)
     // Red-tinted: its color differs from the other items'.
-    const other = page.locator('[popover] [role="menuitem"]', { hasText: "Change type…" })
+    const other = page.locator('[popover].open [role="menuitem"]', { hasText: "Change type…" })
     const color = (l: typeof del) => l.evaluate((el) => getComputedStyle(el).color)
     expect(await color(del)).not.toBe(await color(other))
 
@@ -68,14 +71,14 @@ test.describe("row menu", () => {
   }) => {
     await mount(page, `({ flag: "abc" })`)
     await row(page, "flag").locator("> :first-child").click({ button: "right" })
-    await page.locator('[popover] [role="menuitem"]', { hasText: "Change type…" }).click()
+    await page.locator('[popover].open [role="menuitem"]', { hasText: "Change type…" }).click()
     await expect.poll(async () => (await menus(page)).length).toBe(2)
     const all = await menus(page)
     expect(all[1]![0]).toBe("# Value type")
     // A string can't become a boolean: reset to its default.
     expect(all[1]).toContain("boolean (reset)")
     expect(all[1]).not.toContain("string")
-    await page.locator('[popover] [role="menuitem"]', { hasText: "boolean (reset)" }).click()
+    await page.locator('[popover].open [role="menuitem"]', { hasText: "boolean (reset)" }).click()
     expect(await root(page)).toEqual({ flag: false })
     await expect(page.locator("[popover]")).toHaveCount(0)
   })
@@ -83,7 +86,7 @@ test.describe("row menu", () => {
   test("Escape closes the submenu only, then the menu", async ({ page }) => {
     await mount(page, `({ flag: "abc" })`)
     await row(page, "flag").locator("> :first-child").click({ button: "right" })
-    await page.locator('[popover] [role="menuitem"]', { hasText: "Change type…" }).click()
+    await page.locator('[popover].open [role="menuitem"]', { hasText: "Change type…" }).click()
     await expect.poll(async () => (await menus(page)).length).toBe(2)
     await page.keyboard.press("Escape")
     await expect.poll(async () => (await menus(page)).length).toBe(1)
@@ -101,7 +104,7 @@ test.describe("row menu", () => {
     )
     await row(page, "v").locator("> :first-child").click({ button: "right" })
     await expect.poll(() => menus(page)).toEqual([["# Value", "Change type…"]])
-    await page.locator('[popover] [role="menuitem"]', { hasText: "Change type…" }).click()
+    await page.locator('[popover].open [role="menuitem"]', { hasText: "Change type…" }).click()
     await expect.poll(async () => (await menus(page))[1]).toEqual(["# Value type", "number (reset)"])
   })
 
@@ -126,7 +129,7 @@ test.describe("row menu", () => {
     await context.grantPermissions(["clipboard-read", "clipboard-write"])
     await mount(page, `({ name: "Ada Lovelace" })`)
     const input = row(page, "name").locator("input")
-    const item = (label: string) => page.locator('[popover] [role="menuitem"]', { hasText: label })
+    const item = (label: string) => page.locator('[popover].open [role="menuitem"]', { hasText: label })
     /** Select `from..to` in the field as the user would, then right click inside the selection. */
     const menu_on = async (from: number, to: number) => {
       await input.focus()
@@ -154,7 +157,7 @@ test.describe("row menu", () => {
     await mount(page, `({ name: "Ada" })`)
     await row(page, "name").locator("input").focus()
     await page.keyboard.press("Shift+F10")
-    await expect(page.locator('[popover] [role="menu"]')).toHaveCount(1)
+    await expect(page.locator('[popover].open [role="menu"]')).toHaveCount(1)
     // The keydown was prevented: no contextmenu event of the browser's on top.
     expect(await page.evaluate(() => (window as unknown as W).prevented)).toEqual([])
   })
@@ -205,7 +208,7 @@ test.describe("row menu", () => {
     await page.keyboard.press("Escape")
     await first.locator("> :first-child").click({ button: "right" })
     await expect.poll(() => menus(page)).toEqual([["Delete"]])
-    await page.locator('[popover] [role="menuitem"]', { hasText: "Delete" }).click()
+    await page.locator('[popover].open [role="menuitem"]', { hasText: "Delete" }).click()
     expect(await root(page)).toEqual([{ a: 2, b: "y" }])
   })
 
@@ -215,7 +218,7 @@ test.describe("row menu", () => {
     await expect(page.locator("#shell e-grid-row")).toHaveCount(2)
     await page.locator("#shell e-grid-row").nth(1).locator("> :first-child").click({ button: "right" })
     await expect.poll(() => menus(page)).toEqual([["Delete"]])
-    await page.locator('[popover] [role="menuitem"]', { hasText: "Delete" }).click()
+    await page.locator('[popover].open [role="menuitem"]', { hasText: "Delete" }).click()
     await expect(page.locator("#shell e-grid-row")).toHaveCount(1)
     expect(await root(page)).toEqual([1])
   })
@@ -241,7 +244,7 @@ test.describe("header menu", () => {
     const header = page.locator("#shell e-row > e-column > e-row", { hasText: "address" })
     await header.locator('button[aria-label="More actions"]').click()
     await expect.poll(() => menus(page)).toEqual([["# Value", "Change type…", "---", "Delete"]])
-    await page.locator('[popover] [role="menuitem"]', { hasText: "Delete" }).click()
+    await page.locator('[popover].open [role="menuitem"]', { hasText: "Delete" }).click()
     expect(await root(page)).toEqual({ b: 1 })
     await expect(city_label).toHaveCount(0)
     expect(await columns.count()).toBeGreaterThan(0)

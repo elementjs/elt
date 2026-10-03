@@ -162,3 +162,25 @@ test.describe("menu_nav / list_nav", () => {
     })
   })
 })
+
+test.describe("focus_when_shown", () => {
+  // A popup closed within the frame it opened in is disconnected but still fades out in the document:
+  // the delayed focus must not land in it, or focus drops to the body once it is removed.
+  test("does not focus an element disconnected before the next frame (regression)", async ({ page }) => {
+    const focused_ghost = await page.evaluate(async () => {
+      const { UI, node_append, node_do_disconnect, node_remove } = window.__ELT__
+      document.body.innerHTML = `<button id="before">before</button>`
+      const before = document.getElementById("before")!
+      before.focus()
+      const el = document.createElement("button")
+      UI.focus_when_shown(el)
+      node_append(document.body, el)
+      node_do_disconnect(el)
+      await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))
+      const result = document.activeElement === el
+      node_remove(el)
+      return result
+    })
+    expect(focused_ghost).toBe(false)
+  })
+})
