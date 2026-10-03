@@ -17,6 +17,9 @@ Every binding rule for building UI with `elt/ui`, and nothing else: no explanati
 - **Prose container**: an element that gives prose rhythm to its direct children: `e-prose`, `article`, `section`, `aside`, `main`, `blockquote`, `figure`, `details`, `li`, `dd`, `td`, `th`. An element may be both: a `blockquote` is a text block for its parent and a prose container for its own children.
 - **Text run**: consecutive text blocks inside a prose container. A text run is spaced by typography, not by `spacing` ([Typography § Text runs](./ui-typography.md#text-runs)).
 - **Atomic visual entity**: a widget (a control, a bordered or filled block), or a text run as a whole.
+- **Band**: a strip running the full width of a view, a dialog or a card, with a background of its own (inverted or a surface): a top toolbar, a title row, a table header, a status bar.
+- **Bar**: a row holding a title and/or controls along the edge of a view, a dialog or a card: the app's top toolbar, a title row, a footer or status bar. A bar is usually a band.
+- **Button toolbar**: a row of buttons inside a view (formatting buttons, a list's actions). It only groups its controls: it is not a band.
 
 ## Setup
 
@@ -24,7 +27,7 @@ Every binding rule for building UI with `elt/ui`, and nothing else: no explanati
 
 ## Which container
 
-1. `<e-prose>` (or another prose container) holds content you *read*. `<e-row>`/`<e-column>`/`<e-grid>` hold things you *operate or arrange*: controls, cards, toolbars, form fields. Controls never go directly in a prose container: a control, or a group of them, goes in its own `<e-row>`/`<e-column>`, except inline controls inside a sentence ([Text blocks](#text-blocks) rule 1; [Typography § Controls in text](./ui-typography.md#controls-in-text)).
+1. `<e-prose>` (or another prose container) holds content you *read*. `<e-row>`/`<e-column>`/`<e-grid>` hold things you *operate or arrange*: controls, cards, bars, form fields. Controls never go directly in a prose container: a control, or a group of them, goes in its own `<e-row>`/`<e-column>`, except inline controls inside a sentence ([Text blocks](#text-blocks) rule 1; [Typography § Controls in text](./ui-typography.md#controls-in-text)).
 2. Prefer `<e-row>`/`<e-column>` over `<e-flex>`. Use `<e-flex column>` only for direction-agnostic code or a direction that changes at runtime ([Layout § Layout elements](./ui-layout.md#layout-elements)).
 3. A plain `div` is the escape hatch: use it only when you deliberately step outside these rules (an unstyled positioning wrapper, an overlay backdrop), never as a default box.
 
@@ -56,7 +59,7 @@ Every layout decision reduces to these six. The layout elements and their attrib
    | Components, or groups of widgets | `section` |
    | Regions of a page | `stage-1` … `stage-4` (rare) |
 
-2. Spacing is inherited. When an element's children are a different kind of thing than its parent's children, set the step on that element, whether or not it is a boundary. A toolbar is a boundary that contains widgets, so it stays at `component` even deep inside a view ([Layout § Choosing a step](./ui-layout.md#choosing-a-step)).
+2. Spacing is inherited. When an element's children are a different kind of thing than its parent's children, set the step on that element, whether or not it is a boundary. A bar is a boundary that contains widgets, so it stays at `component` even deep inside a view ([Layout § Choosing a step](./ui-layout.md#choosing-a-step)).
 3. A `packed` container takes the step of what it packs, not the step above. Its children touch instead of being spaced, so its step is the padding they carry: a packed group of controls is at `widget`, where a spaced row of the same controls is at `component`. `packed="widget"` sets that step itself. With bare `packed` and `pad="none"`, write it as `spacing` ([Layout § packed](./ui-layout.md#packed)).
 4. Bare `pad`/`spacing` (no value) always means `component`; neither is ever "one step below the parent". Write the step you want.
 5. A step has one value, used on both axes. An element that genuinely needs asymmetric spacing (a legend sitting on its fieldset's border) composes values of the scale in its own CSS ([Layout § Spacing scale](./ui-layout.md#spacing-scale)).
@@ -71,17 +74,30 @@ Every layout decision reduces to these six. The layout elements and their attrib
 5. **A palette's tint has a WCAG contrast of at least 3, ideally 4.5**, against both its text and its background ([Theme § Custom theme](./ui-theme.md#custom-theme)).
 6. **Status hues**: which hue means error, warning or success is your app's decision; red/error, yellow/warning, green/success is the default, and deviating needs a reason ([Theme § Colors](./ui-theme.md#colors)).
 7. **Swapping a `text`-based border for `neutral`: go one step stronger** (`.mid` → `.faded`, one level up, or bare) and compare, since `neutral` is lighter than `text` ([Theme § Colors](./ui-theme.md#colors)).
-8. **An inverted container is a boundary and pads itself** (golden rule 4): toolbars, title rows, the important part of a view ([Theme § Inversion](./ui-theme.md#inversion)).
-9. **Do not fork widget source for one-off colors.** Build a `Theme`, recolor a subtree with `as_tint`, or override the `--e-color-*` variables on a container ([Theme § Custom theme](./ui-theme.md#custom-theme)).
+8. **Do not fork widget source for one-off colors.** Build a `Theme`, recolor a subtree with `as_tint`, or override the `--e-color-*` variables on a container ([Theme § Custom theme](./ui-theme.md#custom-theme)).
+
+## Emphasis
+
+1. **Pick the family, then the strength.** Every band, control and state answers two questions ([Theme § Emphasis](./ui-theme.md#emphasis)):
+   - *What is it?* `neutral` for furniture: the structure and chrome around the content. `tint` for what the user should notice, or a choice they made. A status hue (`red`, `yellow`, `green`…), applied with `as_tint`, for a meaning.
+   - *How much attention does it need?* From quietest to loudest: none, outline (a border only), surface (one level up), surface jump (two levels up or more), inverted.
+2. **At most one tint-inverted action per area**: the heavy, hard-to-reverse one that needs attention ([Theme § Why](./ui-theme.md#why)). Bands don't count: a dialog's inverted title row and its inverted "Delete" button can sit together.
+3. **A selected item is a choice, not an action**: a tint surface three levels above where it sits, four when hovered or keyboard-active, never an inversion. The same goes for a checked toggle and the current tab ([Theme § State](./ui-theme.md#state)).
+4. **Text colors are never backgrounds.** A grey fill or band is `neutral` (a surface, or `neutral` inverted), not `text.faded` or another mix of `text`.
+5. **An inverted container is a boundary and pads itself** (golden rule 4) ([Theme § Inversion](./ui-theme.md#inversion)).
+
+## Bars
+
+1. **A bar is one line**, unless the request explicitly asks for two: no subtitle under the title, no second row of buttons, no `wrap` ([Layout § Bars](./ui-layout.md#bars)).
+2. **It fits at the app's smallest window width.** The title shrinks and ends with "…" (`e-ellipsis`); the actions keep their size. When the actions don't fit, move the rarely used ones into a "…" menu (`popup` with `menu_nav`), chosen when the bar is designed.
+3. **A button toolbar is not a band**: `<e-row packed="widget">` (or a spaced row of such groups), with no background and not inverted. Its buttons keep their own borders, tints and variants.
 
 ## Controls
 
 1. **Native controls first.** `button`, `input`, `textarea`, `label`, checkboxes and radios are styled globally. (A `<dialog>` is not: `show_dialog` gives an unstyled box, and its content draws the frame — [Overlays § show_dialog](./ui-overlays.md#show_dialog).) Use them with their `e-variant` attribute before building widget chrome of your own ([Forms](./ui-forms.md#buttons-and-variants)). Prefer the `Select` widget over a native `<select>` ([Widgets § Select](./ui-widgets.md#select)).
-2. **At most one `inverted` action per area**: the heavy, hard-to-reverse one that needs attention ([Theme § Why](./ui-theme.md#why)).
-3. **Two font weights in UI chrome**: regular and bold. Prose hierarchy comes from the headings themselves.
-4. **Form control size.** Controls use `theme.settings.formFontSize`, slightly smaller than body text. Do not bump a control's font size to match a heading.
-5. **Focus is a ring** (`tint.mid`), never a fill or a replaced border ([Theme § State](./ui-theme.md#state)).
-6. **Selected is an inversion of `tint.faded`**: quieter than an `inverted` button, so several selected items side by side stay readable ([Theme § State](./ui-theme.md#state)).
+2. **Two font weights in UI chrome**: regular and bold. Prose hierarchy comes from the headings themselves.
+3. **Form control size.** Controls use `theme.settings.formFontSize`, slightly smaller than body text. Do not bump a control's font size to match a heading.
+4. **Focus is a ring** (`tint.mid`), never a fill or a replaced border ([Theme § State](./ui-theme.md#state)).
 
 ## Building app-specific widgets
 
@@ -103,6 +119,23 @@ Every layout decision reduces to these six. The layout elements and their attrib
 1. **Custom CSS is the last resort.** Try layout attributes and theme helpers first. If you still need CSS, keep it local, build it from theme helpers, and say in a comment why the layout attributes were not enough ([Theme § Custom CSS](./ui-theme.md#custom-css)).
 2. Equal grid columns are `columns={N}` on an `<e-grid>`; any other grid template (`grid-template-*`) goes in a small `css` rule on it. Rows of a table-like grid are `<e-grid-row>`s ([Layout § Grids](./ui-layout.md#grids)).
 3. A scroll area is a layout element with `scroll` (a long list's too), not `overflow` in CSS nor the deprecated `$scrollable`. It draws the frame (`border`) of what it scrolls, and isn't padded when it holds `sticky` elements ([Layout § Scroll areas and sticky elements](./ui-layout.md#scroll-areas-and-sticky-elements)).
+
+## Recommendations
+
+Defaults, not rules: deviate when the app has a reason. Apps stay free to look the way they want.
+
+1. **Where things go by default** ([Theme § Emphasis](./ui-theme.md#emphasis)):
+
+   | Strength | `neutral` (furniture) | `tint` (to notice, or a choice) | Status hue (`as_tint`) |
+   | -------- | --------------------- | ------------------------------- | ---------------------- |
+   | None | button toolbar (only groups its controls) | `text` and `link` buttons | error text |
+   | Outline | default button, inputs | `tint` button, `tint` input | an invalid input's border |
+   | Surface (+1) | status bar, footer, title row of a secondary card, header of a table inside a widget; hover, keyboard-active item | code examples, callouts | a warning callout |
+   | Surface jump (+2 or more) | pressed | selected item, checked toggle, current tab (+3) | |
+   | Inverted | header of a table that is the main thing on the screen | the app's top toolbar, a dialog's title row, the title row of the card the screen is about, the dominant action | the dominant destructive action |
+
+2. **`<header>` is the tint-inverted bar**: use it for the app's top toolbar, a dialog's title row and the title row of the card the screen is about. A quieter title row is an `<e-row surface pad="component">`. `<footer>` is already a neutral surface ([Layout § Layout elements](./ui-layout.md#layout-elements)).
+3. **Lasting fills stop at surface level 4.** Bands, cards and selected items don't go past level 4; hover and pressed may go two levels past it, since they only last a moment. A selectable list therefore sits at level 0 or 1 (a popup is at level 0). With the default palette, text keeps a WCAG AA contrast up to level 6 and loses it from level 7 in dark mode ([Theme § Why](./ui-theme.md#why)).
 
 ## Code conventions
 

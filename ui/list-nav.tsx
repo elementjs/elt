@@ -185,6 +185,20 @@ export function menu_nav(menu: HTMLElement) {
 css`:is([role="menuitem"], [role="option"])[data-active] {
   background-color: ${theme.colors.tint.hover};
 }`
+/* A selected option is a choice: a tint surface jump (+ 3), not an inversion; active or hovered, one
+   level further, so it doesn't fall back to the hover fill (docs/md/ui-theme.md, Emphasis). Options
+   only: aria-selected isn't valid on a menuitem. */
+css`[role="option"][aria-selected="true"] {
+  background-color: ${theme.colors.tint.surface("n+3")};
+  &[data-active] {
+    background-color: ${theme.colors.tint.surface("n+4")};
+  }
+  @media (hover: hover) and (pointer: fine) {
+    &:hover {
+      background-color: ${theme.colors.tint.surface("n+4")};
+    }
+  }
+}`
 css`:is([role="menu"], [role="listbox"]):focus-visible {
   outline: none;
 }`

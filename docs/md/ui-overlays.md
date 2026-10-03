@@ -106,7 +106,7 @@ show_dialog<T>(opts: { clickOutsideToClose?: boolean }, render): Future<T | type
 - Awaiting the result gives the value passed to `fut.resolve`, or `sym_closed` (also `show_dialog.closed`) when the user dismissed it: `Escape`, or a backdrop click when `clickOutsideToClose` is set. On close, focus goes back to what had it when the dialog opened.
 - Size hooks: `--e-dialog-width`, `--e-dialog-max-width` (default `60vw`), `--e-dialog-max-height` (default `80vh`). The content is shrunk to the height limit: give its scrolling part `scroll`.
 
-A dialog with a title, a body and actions is a packed bordered column:
+A dialog with a title, a body and actions is a packed bordered column. Its title row is a `<header>`, a tint-inverted bar, since a dialog wants the user's attention ([elt/ui rules § Recommendations](./elt-ui-rules.md#recommendations)):
 
 ```tsx
 //@inline-example
@@ -119,7 +119,7 @@ return <button>
   {$click(async () => {
     const res = await show_dialog<string>((fut) => (
       <e-column surface="background" border packed>
-        <e-row pad="component"><h1>Delete the file?</h1></e-row>
+        <header><h1 e-ellipsis>Delete the file?</h1></header>
         <e-prose pad="component" scroll>It can't be recovered afterwards.</e-prose>
         <e-row pad="component" justify="end">
           <button>{$click(() => fut.resolve(show_dialog.closed))}Cancel</button>

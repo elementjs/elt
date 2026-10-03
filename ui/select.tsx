@@ -420,12 +420,9 @@ const cls_item = css`.item {
     width: 16px;
   }
 
-  &[aria-selected="true"] {
-    ${colors.tint.faded.css_as_inverted}
-  }
-
+  /* The selected fill (tint + 3, + 4 hovered or active) is list_nav's, shared by every option. */
   @media (hover: hover) and (pointer: fine) {
-    &:hover, &:hover .selected-icon {
+    &:where(:not([aria-selected="true"])):hover {
       background-color: ${colors.tint.hover};
     }
   }

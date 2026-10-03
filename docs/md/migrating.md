@@ -50,6 +50,6 @@ They were **removed, not renamed**: they named a lightness, and the replacement 
 | --------------------- | ----------- |
 | `:hover` background | `.hover` |
 | A container's edge or a divider, on a non-focusable element | `.separator` |
-| Table header, toolbar or title-row band | `text.faded.class_as_inverted` / `.css_as_inverted` |
+| Table header, toolbar or title-row band | Depends on how much attention it needs ([Theme § Emphasis](./ui-theme.md#emphasis)): `surface` (neutral, one level up) for a status bar or a table header, `neutral.class_as_inverted` for an important one, `tint.class_as_inverted` (or `<header>`) for the app's top toolbar or a dialog's title row; a row of buttons gets no band (`<e-row packed="widget">`). Never `text.faded` |
 | A focusable control's border | The control's own variant color (usually bare `neutral`, as `ui/form.css.tsx` does) |
 | A static fill that is not a surface background, or anything with no semantic role (shadow, scrollbar track) | An explicit `.from_bg("10%")` / `.from_bg("20%")` |

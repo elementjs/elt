@@ -239,15 +239,24 @@ test.describe("packed[border] (docs/md/ui-layout.md)", () => {
         on: st("#packed > label:nth-of-type(2)"),
         loose_off: st("#loose > label:nth-of-type(1)"),
         loose_on: st("#loose > label:nth-of-type(2)"),
+        // The checked fill is tint + 3 relative to where the toggle sits (the group's level here).
+        on_ref: (() => {
+          const ref = document.createElement("div")
+          ref.style.backgroundColor = window.__ELT__.UI.theme.colors.tint.surface("n+3")
+          document.querySelector("#packed")!.appendChild(ref)
+          const bg = getComputedStyle(ref).backgroundColor
+          ref.remove()
+          return bg
+        })(),
       }
     })
     // Packed: no border of their own; unchecked on the group's surface, like the button; checked
-    // keeps its fill.
+    // keeps its fill (tint + 3 from the group's level, docs/md/ui-theme.md, Emphasis).
     expect(result.off.border).toBe("none")
     expect(result.on.border).toBe("none")
     expect(result.off.bg).toBe(result.button.bg)
     expect(result.on.bg).not.toBe(result.button.bg)
-    expect(result.on.bg).toBe(result.loose_on.bg)
+    expect(result.on.bg).toBe(result.on_ref)
     // Outside a packed group, the unchecked toggle keeps its own border.
     expect(result.loose_off.border).toBe("solid")
   })

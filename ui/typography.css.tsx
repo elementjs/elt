@@ -4,12 +4,41 @@
  * containers. Vocabulary in ui/selectors.ts.
  */
 
-import { css } from "elt"
+import { css, type NRO } from "elt"
 import { theme } from "./theme"
 import "./layout.css.tsx"
 import { PROSE_CONTAINER_SELECTOR, PROSE_SPACED_SELECTOR, TEXT_BLOCK_SELECTOR } from "./selectors"
 
+declare module "elt" {
+  interface Attrs<N extends Node = HTMLElement> {
+    /** Keep the text on one line and end it with "…" when it doesn't fit (a title in a bar). */
+    "e-ellipsis"?: NRO<boolean>
+  }
+}
+
 css`@layer typography {
+  /* One line, cut with "…". text-overflow needs a block box: a flex or grid item (anything directly
+     in a row) is one already; an inline element elsewhere is made inline-block. overflow-x: clip cuts
+     sideways only: overflow: hidden would also cut the descenders of a tightly set heading, and
+     (unlike hidden) clip doesn't turn the other axis into a scroll container. min-width: 0 lets a
+     flex item shrink below its text's width, so the cut happens instead of an overflow. Layout
+     elements let every child shrink, buttons included: the large flex-shrink makes the cut text take
+     (nearly) all of the shrinking, so the bar's buttons keep their size. flex-grow: the cut text is
+     the elastic part of its row, so it also takes the free space, which puts what follows at the end. */
+  [e-ellipsis] {
+    overflow-x: clip;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
+    flex-grow: 1;
+    flex-shrink: 10000;
+  }
+  :where(span, strong, em, a, code, b, i, small)[e-ellipsis] {
+    display: inline-block;
+    max-width: 100%;
+    vertical-align: bottom;
+  }
+
   kbd {
     font-family: ${theme.settings.monospaceFontFamily};
     font-size: 0.75em;

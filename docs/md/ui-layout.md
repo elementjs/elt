@@ -31,7 +31,7 @@ A panel or card is just a layout element with `border` and/or `surface` — `elt
 </e-column>
 ```
 
-`<header>` and `<footer>` are styled globally as padded flex rows at the `component` step: `header` is an inverted tint band ([Theme § Inversion](./ui-theme.md#inversion)), `footer` a neutral surface at level 1.
+`<header>` and `<footer>` are styled globally as padded flex rows at the `component` step: `header` is an inverted tint band ([Theme § Inversion](./ui-theme.md#inversion)), `footer` a neutral surface one level up. Both are bars ([Bars](#bars)).
 
 ## Choosing a step
 
@@ -40,7 +40,7 @@ Look at the container's children, not at its position ([elt/ui rules § Choosing
 | The children are… | Step | Examples |
 | ----------------- | ---- | -------- |
 | Parts of one widget | `widget` | An icon and its label, a field's label and its input |
-| Widgets | `component` | The buttons of a toolbar, the fields and buttons of a card |
+| Widgets | `component` | The title and buttons of a bar, the fields and buttons of a card |
 | Components, or groups of widgets | `section` | Cards in a list, the panels of a view |
 | Regions of a page | `stage-1` … `stage-4` | Rare |
 
@@ -61,7 +61,7 @@ Spacing is inherited: a layout element without `pad`/`spacing` spaces its childr
 </e-column>
 ```
 
-A toolbar is a boundary that contains widgets, so it stays at `component` even deep inside a view.
+A bar is a boundary that contains widgets, so it stays at `component` even deep inside a view.
 
 A `packed` container is the exception to "the step above its children": its children touch, so its step is the padding they carry, the step of what it packs. A row of buttons spaced apart is at `component`; the same buttons packed into a button group are at `widget`. See [packed](#packed).
 
@@ -73,7 +73,7 @@ Steps are named by the distance they express, not by size. Defaults, overridable
 | ---- | ------- | ------- |
 | `nudge-1` / `nudge-2` / `nudge-4` | 1 / 2 / 4px | Pixel-level nudges only. Never a default choice. |
 | `widget` | 6px | Between the parts of one widget. Also the padding of every control. |
-| `component` | 12px | Between widgets; the padding of a container of widgets (a toolbar, a card). The default. |
+| `component` | 12px | Between widgets; the padding of a container of widgets (a bar, a card). The default. |
 | `section` | 24px | Between components or groups of widgets: cards, panels, the sections of a view. |
 | `stage-1` … `stage-4` | 48 / 96 / 128 / 256px | Between independent regions of a page. |
 
@@ -278,13 +278,48 @@ return (
 )
 ```
 
+## Bars
+
+A bar is a row holding a title and/or controls along the edge of a view, a dialog or a card: the app's top toolbar, a title row, a footer or status bar. A button toolbar, a row of buttons inside a view, is not a bar: it has no background of its own. The binding rules are in [elt/ui rules § Bars](./elt-ui-rules.md#bars); which color a bar gets is in [Theme § Emphasis](./ui-theme.md#emphasis).
+
+**One line.** A bar is a single row: the title, then the actions. Stacking a subtitle under the title or wrapping the actions onto a second row doubles the bar's height for little information, and makes it look different on every screen width. Only a request that explicitly asks for two lines gets them.
+
+**When space runs short**, the title gives way, not the actions. `e-ellipsis` keeps an element's text on one line and ends it with "…" where it is cut. Directly in a row (or a `<header>`/`<footer>`), the cut element is the elastic part: it takes the free space, which puts the actions after it at the end, and (nearly) all the shrinking, so the buttons keep their size; layout elements otherwise let every child shrink, buttons included. Put it directly in the bar: wrapped in another element, that wrapper sets the size and nothing gets cut.
+
+```tsx
+<header>
+  <h2 e-ellipsis>Quarterly report — draft for the board meeting</h2>
+  <button>Share</button>
+  <button>{$click((ev) => more_menu(ev.currentTarget))}…</button>
+</header>
+```
+
+`e-ellipsis` works on any element. An inline element (`span`, `strong`, …) outside a row is made `inline-block` so the cut can happen.
+
+**Too many actions.** The bar must fit at the smallest window width the app supports. Keep the frequent actions in the bar and put the rarely used ones in a "…" menu built with `popup` and `menu_nav` ([Overlays § Keyboard in menus and lists](./ui-overlays.md#keyboard-in-menus-and-lists)). Which actions go in the menu is decided when the bar is designed; nothing moves them there automatically when the window narrows.
+
+**A button toolbar** groups related buttons with no band around them: a `packed="widget"` row, or a spaced row of such groups. Each button keeps its own border and variant, so one of them can be `tint` or `inverted`.
+
+```tsx
+<e-row>
+  <e-row packed="widget">
+    <button>Bold</button>
+    <button>Italic</button>
+  </e-row>
+  <e-row packed="widget">
+    <button>Link</button>
+    <button e-variant="tint">Comment</button>
+  </e-row>
+</e-row>
+```
+
 ## Why these rules
 
 **Golden rule 1 — content never touches.** Content needs room to breathe. A widget's content sitting directly against another widget's, or a paragraph running straight into a control, reads as one cramped blob. Boundaries are a different matter: two bordered buttons may share an edge (rule 6), because what the eye separates is their content, which stays padded. A text run counts as one entity because its internal rhythm is already correct: typography has spaced its headings and paragraphs on purpose, and layout spacing must not disturb it.
 
 **Golden rule 2 — whitespace creates groups.** The distance between elements is what tells the reader which ones belong together. Things of the same kind must therefore be spaced alike, and the parts of one thing must sit closer together than the things themselves — otherwise a field's label would look as related to the next field as to its own input.
 
-The step is chosen by what a container's children are, not by nesting depth and not by boundaries. Nesting depth is an accident of how the DOM is built: a boundary-less row inside a column is just a way of arranging things, and keeps the column's spacing because its children are the same kind of thing. Boundaries are no better a signal: a toolbar is a boundary, yet its children are widgets like those around it, so it spaces them at `component` wherever it sits. Asking "what are these children?" gives the same answer on every screen, whoever builds it. The step is written explicitly where the kind of children changes, which keeps it visible in the code.
+The step is chosen by what a container's children are, not by nesting depth and not by boundaries. Nesting depth is an accident of how the DOM is built: a boundary-less row inside a column is just a way of arranging things, and keeps the column's spacing because its children are the same kind of thing. Boundaries are no better a signal: a bar is a boundary, yet its children are widgets like those around it, so it spaces them at `component` wherever it sits. Asking "what are these children?" gives the same answer on every screen, whoever builds it. The step is written explicitly where the kind of children changes, which keeps it visible in the code.
 
 **Golden rule 3 — never set your own margin.** A margin is an element deciding how far it stands from neighbors it knows nothing about. The parent is the only element that sees all its children, so it alone decides their spacing. Margins set by children also stack and collapse in ways that are hard to predict, which breaks rule 2.
 

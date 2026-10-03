@@ -27,7 +27,7 @@ Native controls are styled globally; their variants are the `e-variant` attribut
 | `button` | `"link"` | Like `text`, underlined — reads as a hyperlink |
 | `input` | `"tint"` | Tint-colored border (and placeholder) |
 | `input[type=checkbox]` | *(none)* / `"switch"` | Square checkbox / pill switch |
-| `label` | `"toggle"` | Wrapping a checkbox: the checkbox is hidden, the label becomes a toggle button, filled when checked |
+| `label` | `"toggle"` | Wrapping a checkbox: the checkbox is hidden, the label becomes a toggle button. Checked, it is drawn like a selected item: a tint fill three levels up and a full `tint` border, not the `inverted` fill of the dominant action |
 
 From quietest to loudest, the five emphasis levels are `link`, `text`, default, `tint`, `inverted`. `link` and `text` have no border, hence no padding — the same boundary rule as everything else ([golden rule 4](./elt-ui-rules.md#golden-rules)), with no exception for controls. Use `inverted` for at most one action per area ([Theme § Why](./ui-theme.md#why)).
 

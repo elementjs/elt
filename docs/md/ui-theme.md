@@ -37,7 +37,8 @@ A palette supplies `bg`, `text` and `tint`; the default theme adds semantic hues
 | Strong emphasis | `.strong`, `.very_strong` (mixed toward text) |
 | A one-off mix no named helper covers | `.from_bg("20%")`, `.from_text("20%")`, `.from(other, "20%")` |
 | Make another color the subtree's accent | `theme.colors.orange.class_as_tint` (class) |
-| Inverted band (toolbar, title row, table header) | `theme.colors.tint.class_as_inverted` (class) or `.css_as_inverted` (declarations) |
+| Inverted band (top toolbar, dialog title row; `neutral` for a main table's header) | `theme.colors.tint.class_as_inverted` (class) or `.css_as_inverted` (declarations) |
+| A selected item's fill | `theme.colors.tint.surface("n+3")`, `"n+4"` when hovered ([State](#state)) |
 
 ```ts
 import { css } from "elt"
@@ -68,24 +69,47 @@ A surface **level** counts how many background fills deep an element is. The pag
 - Outside layout elements, use the class or declaration forms: `theme.colors.tint.class_as_surface(2)`, `.css_as_surface(2)`. They accept any level, a relative `"n+K"`, or `"background"`.
 - `theme.colors.tint.surface(2)` is just the color value of that level (for a one-off declaration); it does not set a level for children.
 
+## Emphasis
+
+Every band, control and state is placed by answering two questions. The binding rules are in [elt/ui rules § Emphasis](./elt-ui-rules.md#emphasis), the default placements in [§ Recommendations](./elt-ui-rules.md#recommendations).
+
+**Family: what is it?**
+
+- `neutral` — furniture: the structure and chrome that organize the screen around the content (a status bar, a table header, a secondary title row). Grey reads as "part of the frame" and doesn't compete with the content.
+- `tint` — what the user should notice, or a choice they made: the top toolbar, a dialog's title row, the dominant action, code examples, callouts, a selected item.
+- A status hue (`red`, `yellow`, `green`…) — a meaning (error, warning, success). Apply it with `as_tint`, so it takes the tint's place and the strengths below work unchanged.
+
+**Strength: how much attention?** From quietest to loudest:
+
+| Strength | How | Example |
+| -------- | --- | ------- |
+| None | No border, no fill | `text`/`link` buttons, a button toolbar |
+| Outline | A border only | the default and `tint` buttons, inputs |
+| Surface | One level up (`surface`, `.hover`) | a status bar, a code example, a hovered item |
+| Surface jump | Two levels up or more | a selected item (+3), a pressed control (+2) |
+| Inverted | The color becomes the background ([Inversion](#inversion)) | the dominant action, the top toolbar, a dialog's title row |
+
+**Jumps between levels carry meaning.** One level up means "one step deeper" (a nested panel) or "passing" (hover). Two levels up or more means "a state that lasts and stands out from its siblings", however deep it sits. Lasting fills stop at level 4; hover and pressed may go two levels past ([Why](#why)).
+
 ## Inversion
 
 Inversion is one mechanism: given a color, the new background is that color and the new `text` and `tint` are the old background (`.class_as_inverted`, `.css_as_inverted`, and the `inverted` button variant). How loud the result is depends only on the color you invert:
 
-- `tint` — maximum attention: toolbars, the dominant action (the `inverted` button), `<header>`.
-- `tint.faded` — selection (several selected rows at once are fine).
-- a soft, low-saturation color such as `text.faded` — structural chrome around content: table headers, status bars, navigation.
+- `tint` — maximum attention: the dominant action (the `inverted` button), the app's top toolbar, a dialog's title row, `<header>`.
+- `neutral` — strong but quieter: furniture that needs attention, such as the header of a table that is the main thing on the screen.
+
+Selection is not an inversion: it is a tint surface jump ([State](#state)). Text colors (`text.faded`, …) are never inverted or used as backgrounds; a grey band is `neutral`.
 
 The new text and tint are frozen to the *light* theme's background, so an inverted band looks identical in light and dark mode. Inverting the same color again inside an inverted band inverts it again rather than returning to normal; to nest something visible inside an inverted band, invert a different color, or change the subtree's tint first with `as_tint`.
 
 Inside an inverted band, `text` and `tint` are the same color, so `neutral` collapses to it too. This does not hold under `as_tint`, which only changes `tint`.
 
-An inverted container (a toolbar, a title row, an important region) creates a background, so it is a boundary and pads itself (golden rule 4).
+An inverted container (a top toolbar, a title row, an important region) creates a background, so it is a boundary and pads itself (golden rule 4).
 
 ## State
 
 - **Hover**: one level above the current surface, in the current surface's color family, so it matches whatever it is drawn on.
-- **Selected**: inversion of `tint.faded` — one notch quieter than the `inverted` button, so a selection doesn't compete with a dominant action elsewhere.
+- **Selected**: a tint surface three levels above where the item sits (`tint.surface("n+3")`), four when hovered or keyboard-active; the text keeps its color. The same goes for a checked toggle (with a full `tint` border) and the current tab. Any `role="option"` with `aria-selected="true"` is drawn this way (Select's options included), and so is the date picker's selected day.
 - **Pressed**: one level past hover.
 - **Focus**: a ring around the element (`tint.mid`, `theme.settings.focusRingSize` wide), never a fill or a replaced border.
 - **Disabled**: every full-strength color of the control moves halfway toward its background (`.mid`): text becomes `text.mid`, a tint border or label `tint.mid`, a neutral border `neutral.mid`. An `inverted` control's fill moves to the halfway mix while its label keeps its color. A `<label>` around a disabled control uses `text.mid`. No opacity is involved.
@@ -178,7 +202,7 @@ const cls_toolbar = css`.toolbar {
 
 ## Why
 
-**Emphasis.** Every interactive control has one of five emphasis levels, from quietest to loudest: `link`, `text`, default, `tint`, `inverted` ([Forms § Buttons and variants](./ui-forms.md#buttons-and-variants)). `inverted` draws the eye, so it is reserved for the one action in an area that needs outsized attention — typically a heavy, hard-to-reverse one. Two inverted buttons side by side compete and cancel each other out. The name "inverted" was chosen over a Material-style "elevation": elevation implies depth and shadow, which this has none of. "Inverted" names only the mechanism — the button variant and the `Mix` helper are the same thing.
+**Emphasis.** Every band, control and state gets a family and a strength ([Emphasis](#emphasis)). Separating the two keeps one vocabulary for everything: a status bar and a hovered row are both "neutral, one level up", for the same reason. For buttons, the five variants map onto it, from quietest to loudest: `link`, `text`, default, `tint`, `inverted` ([Forms § Buttons and variants](./ui-forms.md#buttons-and-variants)). `inverted` draws the eye, so it is reserved for the one action in an area that needs outsized attention — typically a heavy, hard-to-reverse one. Two inverted buttons side by side compete and cancel each other out. The name "inverted" was chosen over a Material-style "elevation": elevation implies depth and shadow, which this has none of. "Inverted" names only the mechanism — the button variant and the `Mix` helper are the same thing.
 
 **Color theory.** There is no fixed palette: an app brings `bg` (what we draw on), `text`, and `tint` (the color with a hue). Every other color is a mix along an axis from `bg` to `text`, with the tint in between: the `bg` side separates space (fills, borders, dividers), the `text` side gives textual alternatives (stronger, weaker text). Transparency is never used for this, outside shadows and deliberate effects such as the selection highlight — a transparent color changes depending on what's behind it, which breaks the surface levels. Each named color mixes with `bg` and with `text` independently; there is no single continuum routed through `tint` except for `tint` itself.
 
@@ -188,4 +212,14 @@ const cls_toolbar = css`.toolbar {
 
 **Relative surfaces.** Surfaces stack relative to where they sit, not to the page: a panel inside a panel is one level further from the background than its parent, whatever the parent's own depth. Any component therefore renders correctly wherever it is placed, without knowing its ancestors. Hover (n+1) and separators (n+2) use the same relative stack, so a hover fill or a divider always contrasts with whatever it is drawn on; they are one level apart so that both stay distinguishable on the same row. Absolute levels exist for content whose position in the DOM doesn't match where it appears: a popup attached to `document.body` doesn't inherit the level of the button that opened it.
 
-**State.** A selection is one notch quieter than the dominant action because it is a different kind of emphasis than "the next action to take". A press may coincide with a border color at that level; it is too brief for that to matter. Focus is a ring so it never hides the element's own state. Disabled controls mix toward their background rather than fading with opacity, so they never show what is behind them.
+**State.** A selection is a choice, not "the next action to take", so it is a tint surface jump rather than an inversion: several selected items side by side stay quiet, and none competes with the dominant action. Three levels is a clear jump from hover (one level), and from a popup (level 0) it lands at level 3, or 4 when hovered. A press may coincide with a border color at that level; it is too brief for that to matter. On a tint surface, a pressed item and a selected one can look the same for the same reason.
+
+**How deep surfaces go.** Each level mixes 10% more of its color into the background, so text loses contrast as fills get deeper. With the default palette, measured in the browser:
+
+| Level | `text`, light / dark | `text.faded`, light / dark |
+| ----- | -------------------- | -------------------------- |
+| 4 | 9.2 / 8.3 | 5.4 / 5.2 |
+| 6 | 6.5 / 5.5 | 3.8 / 3.4 |
+| 7 | 5.3 / 4.4 | 3.1 / 2.8 |
+
+`tint` and `neutral` give the same numbers within 0.1. Up to level 6, text keeps WCAG AA contrast (4.5) and muted text keeps 3; dark mode loses both at level 7. Lasting fills stop at level 4, where reading stays comfortable rather than merely compliant. Hover and pressed may go two levels further, because they last only a moment. Focus is a ring so it never hides the element's own state. Disabled controls mix toward their background rather than fading with opacity, so they never show what is behind them.

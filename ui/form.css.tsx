@@ -310,7 +310,7 @@ button[e-variant="tint"] {
    weighs the same as the other variant rules (\`button[e-variant="inverted"]\`). The checked fill
    survives packing like the inverted button's: both set --e-current-surface, the color packed
    paints its children with. */
-button[e-variant="inverted"], label[e-variant="toggle"]:where(:has(> input:checked)) {
+button[e-variant="inverted"] {
   --e-color-bg: var(--e-light-color-tint);
   --e-current-surface: var(--e-color-bg);
   --e-color-text: var(--e-light-color-bg);
@@ -327,6 +327,21 @@ button[e-variant="inverted"] {
   border-left-color: var(--e-color-shadow-raise);
   border-right-color: var(--e-color-shadow-drop);
   border-bottom-color: var(--e-color-shadow-drop);
+}
+
+/* A checked toggle is a choice, not an action: a tint surface jump (+3) with a full tint border, like a
+   selected item, never the inverted fill of the dominant action (docs/md/ui-theme.md, Emphasis). */
+label[e-variant="toggle"]:where(:has(> input:checked)) {
+  --e-current-surface: ${colors.tint.surface("n+3")};
+  border-color: ${colors.tint};
+  background-color: var(--e-current-surface);
+  color: ${colors.text};
+
+  @media (hover: hover) and (pointer: fine) {
+    &:hover:not(:disabled) {
+      background: ${colors.tint.surface("n+4")};
+    }
+  }
 }
 
 label[e-variant="toggle"]:where(:has(> input:not(:checked))) {
@@ -378,14 +393,19 @@ input[e-variant="tint"]:disabled {
 
 /* Inverted controls redefine --e-color-bg/--e-color-text locally (the tint fill becomes their
    background), so their fill is mixed from the light palette directly, like the variant itself. */
-button[e-variant="inverted"]:disabled,
-label[e-variant="toggle"]:has(> input:checked:disabled) {
+button[e-variant="inverted"]:disabled {
   --e-disabled-fill: color-mix(in oklab, var(--e-light-color-bg) calc(100% - ${theme.settings.intensityMid}), var(--e-light-color-tint) ${theme.settings.intensityMid});
   background-color: var(--e-disabled-fill);
   border-color: var(--e-disabled-fill);
   /* The label keeps its full color: its own background is the fill, which already moved halfway, so
      moving the label halfway too would make it the same color as the fill. */
   color: var(--e-color-text);
+}
+
+/* A disabled checked toggle keeps its fill; its border and label move halfway, like any control. */
+label[e-variant="toggle"]:has(> input:checked:disabled) {
+  border-color: ${colors.tint.mid};
+  color: ${colors.text.mid};
 }
 
 input[type="checkbox"]:checked:disabled,

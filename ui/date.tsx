@@ -296,12 +296,16 @@ const cls_day = css`.date-day {
   &.outside {
     opacity: 0.35;
   }
+  /* Selected: a tint surface jump (+3), one level further when hovered (docs/md/ui-theme.md, Emphasis). */
   &.selected {
-    ${colors.tint.faded.css_as_inverted}
+    background: ${colors.tint.surface("n+3")};
   }
   @media (hover: hover) and (pointer: fine) {
     &:hover {
       background: ${colors.tint.hover};
+    }
+    &.selected:hover {
+      background: ${colors.tint.surface("n+4")};
     }
   }
 }`
