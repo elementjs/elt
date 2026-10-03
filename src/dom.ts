@@ -1,11 +1,37 @@
 import { o } from "./observable"
 import type { ClassDefinition, StyleDefinition, Listener, Appender, Attrs, Renderable } from "./types"
-import { sym_connected_status, sym_observers, sym_connected, sym_disconnected, sym_insert, sym_attrs } from "./symbols"
+import {
+  sym_connected_status,
+  sym_observers,
+  sym_connected,
+  sym_disconnected,
+  sym_insert,
+  sym_attrs,
+  sym_leave,
+} from "./symbols"
 
 const NODE_IS_CONNECTED = 0b001
 const NODE_IS_OBSERVING = 0b010
+/** Removed, but kept in the page while its leave hooks run. Condemned: it never comes back. */
+const NODE_IS_LEAVING = 0b100
 
 export type LifecycleCallback<N = Node> = (n: N) => void
+
+/**
+ * A function run when a node leaves the page (see {@link node_on_leave}). Returning a promise keeps
+ * the node in the page until it settles ; returning nothing removes it right away.
+ */
+export type LeaveCallback<N extends Element = Element> = (node: N) => PromiseLike<unknown> | void
+
+export interface LeaveOptions {
+  /** Keep the leaving node in the layout until it is removed, instead of floating it out of it at once. */
+  flow?: boolean
+}
+
+interface LeaveHook {
+  fn: LeaveCallback<any>
+  flow: boolean
+}
 
 declare global {
   interface Node {
@@ -14,6 +40,7 @@ declare global {
 
     [sym_connected]?: LifecycleCallback[]
     [sym_disconnected]?: LifecycleCallback[]
+    [sym_leave]?: LeaveHook[]
   }
 }
 
@@ -50,8 +77,11 @@ export class CommentHolder extends Comment {
     if (first !== end) node_remove_range(first as Node, end.previousSibling as Node)
   }
 
+  /** Whether something other than leaving nodes sits between this node and its end marker. */
   get hasContent() {
-    return this.nextSibling !== this.end
+    let n = this.nextSibling
+    while (n != null && n !== this.end && n[sym_connected_status] & NODE_IS_LEAVING) n = n.nextSibling
+    return n !== this.end
   }
 
   /** The last node this holder spans : its end marker when it has one in the same parent, itself otherwise. */
@@ -140,13 +170,22 @@ function _apply_connected(node: Node) {
  * @internal
  */
 export function node_do_connected(node: Node) {
-  if (node[sym_connected_status] & NODE_IS_CONNECTED) return
+  const st = node[sym_connected_status]
+  if (st & NODE_IS_CONNECTED) return
+  // A leaving node put back in the page (its detached ancestor re-inserted, a late mutation record)
+  // is condemned : it goes now, it is never reconnected.
+  if (st & NODE_IS_LEAVING) {
+    node.parentNode?.removeChild(node)
+    return
+  }
 
   _apply_connected(node)
   let iter = node.firstChild
   while (iter) {
+    // saved first : connecting `iter` may remove it
+    const next = iter.nextSibling
     node_do_connected(iter)
-    iter = iter.nextSibling
+    iter = next
   }
 }
 
@@ -157,7 +196,8 @@ export function node_do_connected(node: Node) {
 function _apply_disconnected(node: Node) {
   const st = node[sym_connected_status]
 
-  node[sym_connected_status] = 0
+  // A leaving node stays condemned, even inside a removed ancestor that is later put back.
+  node[sym_connected_status] = st & NODE_IS_LEAVING
 
   if (st & NODE_IS_OBSERVING) {
     _node_stop_observers(node)
@@ -188,36 +228,234 @@ export function node_do_disconnect(node: Node) {
 
 let _range: Range | null = null
 
+/** When false, leave hooks are not run : every removal is instant. */
+let _motion_enabled = true
+
+/**
+ * Turn motion on or off for the whole page. Off, every node leaves the page at once, as if it had no
+ * leave hook. Tests usually turn it off.
+ *
+ * @group Motion
+ */
+export function motion_enabled(enabled: boolean) {
+  _motion_enabled = enabled
+}
+
+/** @internal */
+export function motion_is_enabled() {
+  return _motion_enabled
+}
+
+/**
+ * Run `fn` when `node` leaves the page : when it is one of the nodes removed by `node_remove`, a verb
+ * or a comment holder (not a descendant of one), while it is connected.
+ *
+ * `node` is disconnected first (its observers stop, its `disconnected` callbacks run). If `fn`
+ * returns a promise, `node` stays in the page until it settles, marked with the `e-leaving` attribute
+ * and `inert`, and out of the layout unless `opts.flow` is set ; elt then removes it. If it returns
+ * nothing, `node` is removed right away.
+ *
+ * A leaving node is condemned : removing it again, moving it, or putting it back in the page removes it
+ * at once.
+ *
+ * @group Motion
+ */
+export function node_on_leave<N extends Element>(node: N, fn: LeaveCallback<N>, opts?: LeaveOptions) {
+  node[sym_leave] ??= []
+  node[sym_leave].push({ fn, flow: !!opts?.flow })
+}
+
+/** Display values of table parts : positioned absolutely, they would stop being table parts. */
+const TABLE_PARTS = new Set([
+  "table-row",
+  "table-cell",
+  "table-row-group",
+  "table-header-group",
+  "table-footer-group",
+  "table-column",
+  "table-column-group",
+  "table-caption",
+])
+
+/** A leaving node and what its removal needs. */
+interface Leaving {
+  node: Element
+  /** Its inline style before it was taken out of the layout, restored if it does not leave after all. */
+  style: string | null
+  promises: PromiseLike<unknown>[]
+}
+
+/**
+ * Take `nodes` out of the layout while keeping them visually in place, for those that can be ; the
+ * others keep their space. Reads and writes are batched : two forced layouts in all.
+ */
+function float_out(nodes: Leaving[]) {
+  const rects: (DOMRect | null)[] = []
+  const offsets: number[] = []
+  for (const l of nodes) {
+    const el = l.node
+    // Only HTML elements are laid out by the flow and know their offsets ; table parts stop being
+    // table parts once absolute, and a box split over several lines has no single rectangle.
+    if (
+      !(el instanceof HTMLElement) ||
+      (l.node[sym_leave] as LeaveHook[]).some((h) => h.flow) ||
+      TABLE_PARTS.has(getComputedStyle(el).display) ||
+      el.getClientRects().length > 1
+    ) {
+      rects.push(null)
+      continue
+    }
+    rects.push(el.getBoundingClientRect())
+    offsets.push(el.offsetTop, el.offsetLeft, el.offsetWidth, el.offsetHeight)
+  }
+
+  for (let i = 0, j = 0; i < nodes.length; i++) {
+    if (rects[i] == null) continue
+    const l = nodes[i]
+    const st = (l.node as HTMLElement).style
+    l.style = st.cssText
+    st.position = "absolute"
+    st.boxSizing = "border-box"
+    st.margin = "0"
+    st.top = `${offsets[j++]}px`
+    st.left = `${offsets[j++]}px`
+    st.width = `${offsets[j++]}px`
+    st.height = `${offsets[j++]}px`
+  }
+
+  // `offsetTop` / `offsetLeft` are relative to the offsetParent, absolute positioning to the containing
+  // block ; they differ under a transformed or contained ancestor. Shift by what moved.
+  const after = rects.map((r, i) => (r == null ? null : nodes[i].node.getBoundingClientRect()))
+  for (let i = 0; i < nodes.length; i++) {
+    const r = rects[i]
+    const a = after[i]
+    if (r == null || a == null || (r.top === a.top && r.left === a.left)) continue
+    const st = (nodes[i].node as HTMLElement).style
+    st.top = `${Number.parseFloat(st.top) + r.top - a.top}px`
+    st.left = `${Number.parseFloat(st.left) + r.left - a.left}px`
+  }
+}
+
+/** Remove a leaving node once its hooks are done, unless something already did. */
+function _leave_done(node: Element) {
+  if (node[sym_connected_status] & NODE_IS_LEAVING) {
+    node[sym_connected_status] = 0
+    node.parentNode?.removeChild(node)
+  }
+}
+
 /**
  * Remove the siblings from `first` to `last` (inclusive). Every removal done by elt goes through
  * here (`node_remove`, `node_clear`, verbs, comment holders).
  *
  * The nodes are disconnected first, so their `disconnected` callbacks still see them in place, then
- * detached : a single node with `removeChild`, a run of several with one Range call.
+ * detached : a single node with `removeChild`, a run of several with one Range call. Nodes with leave
+ * hooks (see {@link node_on_leave}) may stay in the page while their hooks run ; leaving nodes already
+ * in the range are removed at once. With `motion` false, no leave hook runs.
  *
  * @internal
  */
-export function node_remove_range(first: Node, last: Node): void {
+export function node_remove_range(first: Node, last: Node, motion = true): void {
+  // Nodes with leave hooks that may leave : connected (removing a detached node is always instant)
+  let candidates: Leaving[] | null = null
+  const may_leave = motion && _motion_enabled
   for (let n: Node | null = first; n != null; n = n.nextSibling) {
+    // Already leaving : removed again, it goes now with the rest (its final removal will do nothing).
+    n[sym_connected_status] &= ~NODE_IS_LEAVING
+    if (may_leave && n[sym_leave] != null && n[sym_connected_status] & NODE_IS_CONNECTED) {
+      candidates ??= []
+      candidates.push({ node: n as Element, style: null, promises: [] })
+    }
     node_do_disconnect(n)
     if (n === last) break
   }
 
   const parent = first.parentNode
   if (parent == null) return
-  if (first === last) {
-    parent.removeChild(first)
+
+  let leaving = false
+  if (candidates != null) leaving = start_leaving(candidates)
+
+  if (!leaving) {
+    // The usual case : everything goes, in one call.
+    if (first === last) {
+      parent.removeChild(first)
+      return
+    }
+    _range ??= document.createRange()
+    _range.setStartBefore(first)
+    _range.setEndAfter(last)
+    _range.deleteContents()
     return
   }
-  _range ??= document.createRange()
-  _range.setStartBefore(first)
-  _range.setEndAfter(last)
-  _range.deleteContents()
+
+  // Remove everything but the leaving nodes, one Range call per run in between.
+  let run_first: Node | null = null
+  let run_last: Node | null = null
+  const flush = () => {
+    if (run_first == null || run_last == null) return
+    if (run_first === run_last) parent.removeChild(run_first)
+    else {
+      _range ??= document.createRange()
+      _range.setStartBefore(run_first)
+      _range.setEndAfter(run_last)
+      _range.deleteContents()
+    }
+    run_first = null
+  }
+  for (let n: Node | null = first; n != null; ) {
+    const next: Node | null = n === last ? null : n.nextSibling
+    if (n[sym_connected_status] & NODE_IS_LEAVING) flush()
+    else {
+      run_first ??= n
+      run_last = n
+    }
+    n = next
+  }
+  flush()
+}
+
+/**
+ * Float the candidates out of the layout, run their hooks, and mark those that leave. Returns whether
+ * any does. The other candidates get their inline style back and are removed with the rest.
+ */
+function start_leaving(candidates: Leaving[]): boolean {
+  // A node without a box shows nothing while leaving : it goes at once.
+  const shown = candidates.filter((l) => l.node.getClientRects().length > 0)
+  if (shown.length === 0) return false
+  // Measured before the hooks : an animation started by a hook would move the node's rectangle.
+  float_out(shown)
+
+  let any = false
+  for (const l of shown) {
+    const node = l.node
+    for (const h of node[sym_leave] as LeaveHook[]) {
+      try {
+        const res = h.fn(node)
+        if (res != null && typeof (res as PromiseLike<unknown>).then === "function")
+          l.promises.push(res as PromiseLike<unknown>)
+      } catch (e) {
+        console.error("leave hooks should not throw", e)
+      }
+    }
+
+    if (l.promises.length === 0) {
+      if (l.style != null) (node as HTMLElement).style.cssText = l.style
+      continue
+    }
+    any = true
+    node[sym_connected_status] = NODE_IS_LEAVING
+    node.setAttribute("e-leaving", "")
+    node.setAttribute("inert", "")
+    const done = () => _leave_done(node)
+    Promise.all(l.promises).then(done, done)
+  }
+  return any
 }
 
 /**
  * Move the siblings from `first` to `last` (inclusive) before `refchild` in `parent`. Every move done
- * by elt goes through here.
+ * by elt goes through here. Leaving nodes are not moved : they are removed at once.
  *
  * @internal
  */
@@ -228,7 +466,8 @@ export function node_move_range(first: Node, last: Node, parent: Node, refchild:
   let node: Node | null = first
   while (node != null) {
     const next: Node | null = node.nextSibling
-    if (atomic) (parent as ParentNode).moveBefore(node, refchild)
+    if (node[sym_connected_status] & NODE_IS_LEAVING) node.parentNode?.removeChild(node)
+    else if (atomic) (parent as ParentNode).moveBefore(node, refchild)
     else node_append(parent, node, refchild)
     if (node === last) break
     node = next
@@ -362,8 +601,10 @@ export function node_append<N extends Node>(
       if (node.isConnected) {
         // `start` was the fragment's first child, now moved into `node` : walk until the insertion point
         while (start != null && start !== refchild) {
+          // saved first : connecting `start` may remove it (a leaving node is never reconnected)
+          const next: ChildNode | null = start.nextSibling
           node_do_connected(start)
-          start = start.nextSibling
+          start = next
         }
       }
     } else {

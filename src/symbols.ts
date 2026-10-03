@@ -43,3 +43,9 @@ export const sym_connected = Symbol("--elt-node-connected-callbacks--")
  * @internal
  */
 export const sym_disconnected = Symbol("--elt-node-disconnected-callbacks--")
+
+/**
+ * A symbol property on `Node` to the leave hooks of the node (see `node_on_leave`).
+ * @internal
+ */
+export const sym_leave = Symbol("--elt-node-leave-hooks--")

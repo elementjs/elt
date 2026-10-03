@@ -32,3 +32,7 @@ window.__ELT__ = {
   Editor: { ...Editor, ...EditorCompositeToolbar, ...EditorMount, ...EditorTypeChange },
   Docs,
 }
+
+// Enter and leave motions would keep removed nodes in the page for a while : tests expect removals to
+// be instant unless they test motion, and turn it back on themselves (motion_enabled(true)).
+Elt.motion_enabled(false)

@@ -1,0 +1,428 @@
+import { test, expect } from "@playwright/test"
+
+// Leaving (docs/md/motion.md): nodes with leave hooks stay in the page while their hooks run, every
+// other removal is instant and synchronous. The harness turns motion off ; these tests turn it on.
+
+declare global {
+  interface Window {
+    __motion__: {
+      /** A live container holding one `div` per id (20px tall each), with `style` on the container. */
+      mount: (ids: string[], style?: string) => HTMLElement
+      /** A promise settled from outside, recording whether it is still pending. */
+      deferred: () => { promise: Promise<void>; resolve: () => void; reject: () => void }
+      tick: () => Promise<void>
+    }
+  }
+}
+
+test.beforeEach(async ({ page }) => {
+  await page.goto("/tests/browser/harness.html")
+  await page.evaluate(() => {
+    const { node_append, motion_enabled } = window.__ELT__
+    motion_enabled(true)
+    document.body.innerHTML = ""
+    window.__motion__ = {
+      mount(ids, style = "") {
+        const c = document.createElement("div")
+        c.setAttribute("style", style)
+        for (const id of ids) {
+          const d = document.createElement("div")
+          d.id = id
+          d.style.height = "20px"
+          d.textContent = id
+          c.append(d)
+        }
+        node_append(document.body, c)
+        return c
+      },
+      deferred() {
+        let resolve!: () => void
+        let reject!: () => void
+        const promise = new Promise<void>((res, rej) => {
+          resolve = res
+          reject = rej
+        })
+        return { promise, resolve, reject }
+      },
+      tick: () => new Promise((r) => setTimeout(r)),
+    }
+  })
+})
+
+test.describe("leaving", () => {
+  test("a node without a leave hook, or whose hook returns nothing, is removed in the same call", async ({ page }) => {
+    const r = await page.evaluate(() => {
+      const { node_remove, node_on_leave, node_is_observing, $observe, o } = window.__ELT__
+      const c = window.__motion__.mount(["a", "b"])
+      const a = c.querySelector("#a") as HTMLElement
+      const b = c.querySelector("#b") as HTMLElement
+      $observe(o(0), () => {})(b)
+      let observing_in_hook: boolean | null = null
+      node_on_leave(b, (n) => {
+        observing_in_hook = node_is_observing(n)
+      })
+      node_remove(a)
+      node_remove(b)
+      return {
+        left: c.children.length,
+        observing_in_hook,
+        inert: b.hasAttribute("inert"),
+        leaving: b.hasAttribute("e-leaving"),
+      }
+    })
+    // The hook ran on an already disconnected node
+    expect(r).toEqual({ left: 0, observing_in_hook: false, inert: false, leaving: false })
+  })
+
+  test("a hook returning a promise keeps the node, disconnected, inert and marked, until it settles", async ({
+    page,
+  }) => {
+    const r = await page.evaluate(async () => {
+      const { node_remove, node_on_leave, node_is_observing, node_is_connected, $observe, o } = window.__ELT__
+      const c = window.__motion__.mount(["a"])
+      const a = c.querySelector("#a") as HTMLElement
+      $observe(o(0), () => {})(a)
+      const d = window.__motion__.deferred()
+      node_on_leave(a, () => d.promise)
+      node_remove(a)
+      const during = {
+        in_page: a.parentNode === c,
+        observing: node_is_observing(a),
+        connected: node_is_connected(a),
+        attrs: [a.hasAttribute("e-leaving"), a.hasAttribute("inert")],
+      }
+      await window.__motion__.tick()
+      const before_settle = a.parentNode === c
+      d.resolve()
+      await window.__motion__.tick()
+      return { during, before_settle, after: a.parentNode === c }
+    })
+    expect(r.during).toEqual({ in_page: true, observing: false, connected: false, attrs: [true, true] })
+    expect(r.before_settle).toBe(true)
+    expect(r.after).toBe(false)
+  })
+
+  test("a rejected promise removes the node ; a throwing hook removes it at once", async ({ page }) => {
+    const r = await page.evaluate(async () => {
+      const { node_remove, node_on_leave } = window.__ELT__
+      const c = window.__motion__.mount(["a", "b"])
+      const a = c.querySelector("#a") as HTMLElement
+      const b = c.querySelector("#b") as HTMLElement
+      const d = window.__motion__.deferred()
+      node_on_leave(a, () => d.promise)
+      node_on_leave(b, () => {
+        throw new Error("boom")
+      })
+      node_remove(a)
+      node_remove(b)
+      const b_at_once = b.parentNode == null
+      d.reject()
+      await window.__motion__.tick()
+      return { b_at_once, a_removed: a.parentNode == null }
+    })
+    expect(r).toEqual({ b_at_once: true, a_removed: true })
+  })
+
+  test("several hooks: the node waits for all their promises", async ({ page }) => {
+    const r = await page.evaluate(async () => {
+      const { node_remove, node_on_leave } = window.__ELT__
+      const c = window.__motion__.mount(["a"])
+      const a = c.querySelector("#a") as HTMLElement
+      const d1 = window.__motion__.deferred()
+      const d2 = window.__motion__.deferred()
+      node_on_leave(a, () => d1.promise)
+      node_on_leave(a, () => d2.promise)
+      node_on_leave(a, () => {})
+      node_remove(a)
+      d1.resolve()
+      await window.__motion__.tick()
+      const after_first = a.parentNode === c
+      d2.resolve()
+      await window.__motion__.tick()
+      return { after_first, after_both: a.parentNode === c }
+    })
+    expect(r).toEqual({ after_first: true, after_both: false })
+  })
+
+  test("only the removed nodes run their hooks, not their descendants ; detached nodes never do", async ({ page }) => {
+    const r = await page.evaluate(() => {
+      const { node_remove, node_on_leave, node_append } = window.__ELT__
+      const c = window.__motion__.mount(["a"])
+      const a = c.querySelector("#a") as HTMLElement
+      const inner = document.createElement("span")
+      node_append(a, inner)
+      const calls: string[] = []
+      node_on_leave(inner, () => {
+        calls.push("inner")
+        return new Promise(() => {})
+      })
+      node_remove(a)
+      const detached = document.createElement("div")
+      node_on_leave(detached, () => {
+        calls.push("detached")
+        return new Promise(() => {})
+      })
+      const holder = document.createElement("div")
+      node_append(holder, detached)
+      node_remove(detached)
+      return { calls, a_gone: a.parentNode == null, detached_gone: detached.parentNode == null }
+    })
+    expect(r).toEqual({ calls: [], a_gone: true, detached_gone: true })
+  })
+
+  test("with motion off, hooks don't run and removal is instant", async ({ page }) => {
+    const r = await page.evaluate(() => {
+      const { node_remove, node_on_leave, motion_enabled } = window.__ELT__
+      const c = window.__motion__.mount(["a"])
+      const a = c.querySelector("#a") as HTMLElement
+      let called = false
+      node_on_leave(a, () => {
+        called = true
+        return new Promise(() => {})
+      })
+      motion_enabled(false)
+      node_remove(a)
+      motion_enabled(true)
+      return { called, gone: a.parentNode == null }
+    })
+    expect(r).toEqual({ called: false, gone: true })
+  })
+
+  test("a node without a box is removed at once, without running its hook", async ({ page }) => {
+    const r = await page.evaluate(() => {
+      const { node_remove, node_on_leave } = window.__ELT__
+      const c = window.__motion__.mount(["a", "b"])
+      const a = c.querySelector("#a") as HTMLElement
+      const b = c.querySelector("#b") as HTMLElement
+      a.style.display = "none"
+      b.style.display = "contents"
+      let called = 0
+      for (const n of [a, b])
+        node_on_leave(n, () => {
+          called++
+          return new Promise(() => {})
+        })
+      node_remove(a)
+      node_remove(b)
+      return { called, left: c.childNodes.length }
+    })
+    expect(r).toEqual({ called: 0, left: 0 })
+  })
+
+  test("a range keeps its leaving nodes and removes everything else", async ({ page }) => {
+    const r = await page.evaluate(() => {
+      const { node_remove_range, node_on_leave } = window.__ELT__
+      const c = window.__motion__.mount(["a", "b", "c", "d", "e"])
+      const [, b, , d] = [...c.children] as HTMLElement[]
+      for (const n of [b, d]) node_on_leave(n, () => new Promise(() => {}))
+      node_remove_range(c.children[0], c.children[4])
+      return [...c.children].map((e) => e.id)
+    })
+    expect(r).toEqual(["b", "d"])
+  })
+})
+
+test.describe("condemned leaving nodes", () => {
+  test("removed again (an If flipping twice), a leaving node goes at once", async ({ page }) => {
+    const r = await page.evaluate(() => {
+      const { o, If, node_append, node_on_leave } = window.__ELT__
+      const c = window.__motion__.mount([])
+      const o_flag = o(true)
+      const mk = (id: string) => {
+        const el = document.createElement("b")
+        el.id = id
+        el.textContent = id
+        node_on_leave(el, () => new Promise(() => {}))
+        return el
+      }
+      node_append(
+        c,
+        If(
+          o_flag,
+          () => mk("then"),
+          () => mk("else"),
+        ),
+      )
+      o_flag.set(false)
+      const after_one = [...c.querySelectorAll("b")].map((b) => `${b.id}${b.hasAttribute("e-leaving") ? "*" : ""}`)
+      o_flag.set(true)
+      const after_two = [...c.querySelectorAll("b")].map((b) => `${b.id}${b.hasAttribute("e-leaving") ? "*" : ""}`)
+      return { after_one, after_two }
+    })
+    // The new branch is inserted at once, before the leaving one ; the second flip cuts the first exit.
+    expect(r.after_one).toEqual(["else", "then*"])
+    expect(r.after_two).toEqual(["then", "else*"])
+  })
+
+  test("a move never carries a leaving node: it is removed", async ({ page }) => {
+    const r = await page.evaluate(() => {
+      const { node_remove, node_move_range, node_on_leave } = window.__ELT__
+      const c = window.__motion__.mount(["a", "b", "c"])
+      const other = window.__motion__.mount([])
+      const [a, b, cc] = [...c.children] as HTMLElement[]
+      node_on_leave(b, () => new Promise(() => {}))
+      node_remove(b)
+      node_move_range(a, cc, other, null)
+      return { moved: [...other.children].map((e) => e.id), left: c.children.length, b_gone: b.parentNode == null }
+    })
+    expect(r).toEqual({ moved: ["a", "c"], left: 0, b_gone: true })
+  })
+
+  test("put back in the page with its ancestor, a leaving node is removed and never reconnected", async ({ page }) => {
+    const r = await page.evaluate(async () => {
+      const { node_remove, node_append, node_on_leave, node_is_observing, $observe, o } = window.__ELT__
+      const c = window.__motion__.mount(["a", "b"])
+      const b = c.querySelector("#b") as HTMLElement
+      $observe(o(0), () => {})(b)
+      const d = window.__motion__.deferred()
+      node_on_leave(b, () => d.promise)
+      node_remove(b)
+      node_remove(c)
+      node_append(document.body, c)
+      const out = {
+        b_gone: b.parentNode == null,
+        b_observing: node_is_observing(b),
+        ids: [...c.children].map((e) => e.id),
+      }
+      // Its final removal, after the cut, does nothing
+      d.resolve()
+      await window.__motion__.tick()
+      return out
+    })
+    expect(r).toEqual({ b_gone: true, b_observing: false, ids: ["a"] })
+  })
+
+  test("a comment holder whose content is only leaving nodes has no content", async ({ page }) => {
+    const r = await page.evaluate(() => {
+      const { CommentHolder, node_append, node_on_leave } = window.__ELT__
+      const c = window.__motion__.mount([])
+      const holder = new CommentHolder("holder")
+      node_append(c, holder)
+      const el = document.createElement("b")
+      el.textContent = "x"
+      node_on_leave(el, () => new Promise(() => {}))
+      holder.updateRenderable(el)
+      const before = holder.hasContent
+      holder.empty()
+      return { before, after: holder.hasContent, still_there: el.parentNode === c }
+    })
+    expect(r).toEqual({ before: true, after: false, still_there: true })
+  })
+})
+
+test.describe("floating", () => {
+  for (const [name, wrapper] of [
+    ["in a plain container", ""],
+    ["under a transformed ancestor", "transform: translate(13px, 7px)"],
+    ["in a positioned container", "position: relative; margin: 11px"],
+  ] as const) {
+    test(`the page lays out as without the node, which stays where it was (${name})`, async ({ page }) => {
+      const r = await page.evaluate((wrapper) => {
+        const { node_remove, node_on_leave } = window.__ELT__
+        const outer = window.__motion__.mount([], wrapper)
+        const c = document.createElement("div")
+        c.style.padding = "5px"
+        for (const id of ["a", "b", "c"]) {
+          const d = document.createElement("div")
+          d.id = id
+          d.style.height = "20px"
+          d.style.margin = "3px"
+          c.append(d)
+        }
+        window.__ELT__.node_append(outer, c)
+        const b = c.querySelector("#b") as HTMLElement
+        const cc = c.querySelector("#c") as HTMLElement
+        const rect = (e: Element) => {
+          const r = e.getBoundingClientRect()
+          return [r.left, r.top, r.width, r.height]
+        }
+        const b_before = rect(b)
+        const c_target = rect(b) // c will take b's place
+        node_on_leave(b, () => new Promise(() => {}))
+        node_remove(b)
+        return { b_before, b_after: rect(b), c_target, c_after: rect(cc), position: b.style.position }
+      }, wrapper)
+      expect(r.position).toBe("absolute")
+      expect(r.b_after).toEqual(r.b_before)
+      expect(r.c_after).toEqual(r.c_target)
+    })
+  }
+
+  test("flow: true keeps the node's space until it is removed", async ({ page }) => {
+    const r = await page.evaluate(async () => {
+      const { node_remove, node_on_leave } = window.__ELT__
+      const c = window.__motion__.mount(["a", "b", "c"])
+      const b = c.querySelector("#b") as HTMLElement
+      const cc = c.querySelector("#c") as HTMLElement
+      const top = cc.offsetTop
+      const d = window.__motion__.deferred()
+      node_on_leave(b, () => d.promise, { flow: true })
+      node_remove(b)
+      const during = cc.offsetTop
+      d.resolve()
+      await window.__motion__.tick()
+      return { kept: during === top, after: cc.offsetTop === top - 20, position: b.style.position }
+    })
+    expect(r).toEqual({ kept: true, after: true, position: "" })
+  })
+
+  test("a table row stays in flow", async ({ page }) => {
+    const r = await page.evaluate(() => {
+      const { node_remove, node_on_leave, node_append } = window.__ELT__
+      const table = document.createElement("table")
+      table.innerHTML = "<tbody><tr id=r1><td>1</td></tr><tr id=r2><td>2</td></tr><tr id=r3><td>3</td></tr></tbody>"
+      node_append(document.body, table)
+      const r2 = table.querySelector("#r2") as HTMLElement
+      const r3 = table.querySelector("#r3") as HTMLElement
+      const top = r3.offsetTop
+      node_on_leave(r2, () => new Promise(() => {}))
+      node_remove(r2)
+      return { position: r2.style.position, r3_kept: r3.offsetTop === top }
+    })
+    expect(r).toEqual({ position: "", r3_kept: true })
+  })
+
+  test("a hook that returns nothing leaves the node's inline style as it was", async ({ page }) => {
+    const r = await page.evaluate(() => {
+      const { node_remove, node_on_leave } = window.__ELT__
+      const c = window.__motion__.mount(["a"])
+      const a = c.querySelector("#a") as HTMLElement
+      a.style.color = "red"
+      const before = a.style.cssText
+      node_on_leave(a, () => {})
+      node_remove(a)
+      return { same: a.style.cssText === before, gone: a.parentNode == null }
+    })
+    expect(r).toEqual({ same: true, gone: true })
+  })
+})
+
+test.describe("Repeat", () => {
+  test("a removed item with a leave hook floats out ; the others take their final place at once", async ({ page }) => {
+    const r = await page.evaluate(() => {
+      const { o, Repeat, node_append, node_on_leave } = window.__ELT__
+      const c = window.__motion__.mount([])
+      const o_list = o(["a", "b", "c"])
+      node_append(
+        c,
+        Repeat(o_list, (o_item) => {
+          const d = document.createElement("div")
+          d.id = o_item.get()
+          d.style.height = "20px"
+          node_on_leave(d, () => new Promise(() => {}))
+          return d
+        }).withKeyFunction((s: string) => s),
+      )
+      const c_el = c.querySelector("#c") as HTMLElement
+      const b_top = (c.querySelector("#b") as HTMLElement).getBoundingClientRect().top
+      o_list.set(["a", "c"])
+      const leaving = [...c.querySelectorAll("[e-leaving]")].map((e) => e.id)
+      const c_moved_up = c_el.getBoundingClientRect().top === b_top
+      // Further updates leave the leaving item alone
+      o_list.set(["c", "a", "d"])
+      const order = [...c.children].filter((e) => !e.hasAttribute("e-leaving")).map((e) => e.id)
+      return { leaving, c_moved_up, order, b_still_there: c.querySelector("#b") != null }
+    })
+    expect(r).toEqual({ leaving: ["b"], c_moved_up: true, order: ["c", "a", "d"], b_still_there: true })
+  })
+})
