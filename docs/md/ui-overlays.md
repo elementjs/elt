@@ -137,16 +137,57 @@ return <button>
 
 `Future<T>` — a promise you resolve or reject from outside: `.resolve(v)`, `.reject(e)` (only the first call counts), and `.$clickResolve(fn)`, a decorator that resolves with `fn(ev)` on click. It is awaitable like any promise.
 
-## Animation
+## Motion
 
-| Export | Use |
-| ------ | --- |
-| `animate(el, keyframes, options?)` | Web Animations wrapper returning a promise that settles on finish or cancel. Default duration 100ms; duration 0 when the user prefers reduced motion. |
-| `animate_show`, `animate_hide` | Keyframes for a small fade + slide in / out |
-| `stop_animations(el)` | Cancel every running animation on `el`; resolves when done |
-| `prefers_reduced_motion()` | Whether the user asked for reduced motion |
+`elt/ui` standardizes motion: durations and easings are theme tokens, and ready-made motions use them. Use them with `$enter` / `$leave` / `animate` from `elt` ([Motion](./motion.md)).
 
-Small appear/disappear effects (popups, dialogs, individual widgets) use these, so they respect the user's reduced-motion preference.
+**Tokens** (theme settings, see [Theme § Settings](./ui-theme.md#settings)): numbers in JS (`theme.motion`), CSS custom properties for transitions (`theme.settings.durationFast` is `var(--e-duration-fast, 100ms)`).
+
+| Token | Default | For |
+| ---- | ---- | ---- |
+| `durationFast` | 100ms | hovers, small controls; `$enter()` / `$leave()` without argument |
+| `durationMedium` | 150ms | popups, menus |
+| `durationSlow` | 250ms | dialogs, page-level changes |
+| `easingEnter` | `cubic-bezier(0.22, 1, 0.36, 1)` | entering |
+| `easingLeave` | `cubic-bezier(0.4, 0, 1, 1)` | leaving |
+
+The default theme also sets `motion_defaults` (what `$enter()` / `$leave()` play without argument) to a fade with `durationFast` and these easings. A motion reads the tokens of the default `theme` when it plays: overriding `--e-duration-*` in CSS on a subtree changes the CSS transitions there, not these motions.
+
+**Motions** (each a `MotionSpec`, imported from `elt/ui`):
+
+| Motion | Plays | Duration |
+| ---- | ---- | ---- |
+| `fade_in`, `fade_out` | a fade | `durationFast` |
+| `rise_in`, `sink_out` | a fade with a 3px rise: popups, menus | `durationMedium` |
+| `zoom_in`, `zoom_out` | a fade with a slight zoom: dialogs | `durationSlow` |
+| `slide_in(from?, distance?, duration?)`, `slide_out(to?, distance?, duration?)` | a fade while sliding `distance` px (8 by default) from / towards `"top"`, `"bottom"` (default), `"left"` or `"right"` | `durationMedium` by default |
+
+Under reduced motion, the ones that move keep only their fade ([Motion § Reduced motion](./motion.md#reduced-motion-and-turning-motion-off)).
+
+```tsx
+//@inline-example
+import { $click, $enter, $leave, o, If } from "elt"
+import { fade_in, fade_out, rise_in, sink_out, zoom_in, zoom_out, slide_in, slide_out } from "elt/ui"
+
+const pairs = [
+  ["fade", fade_in, fade_out],
+  ["rise / sink", rise_in, sink_out],
+  ["zoom", zoom_in, zoom_out],
+  ["slide (left)", slide_in("left"), slide_out("right")],
+] as const
+
+return <e-row spacing wrap>
+  {pairs.map(([name, enter, leave]) => {
+    const o_show = o(true)
+    return <e-column spacing>
+      <button>{$click(() => o_show.set(!o_show.get()))}{name}</button>
+      {If(o_show, () => <e-column surface border pad>{$enter(enter)}{$leave(leave)}{name}</e-column>)}
+    </e-column>
+  })}
+</e-row>
+```
+
+`popup` plays `rise_in` / `sink_out`, and `show_dialog` plays `zoom_in` / `zoom_out` with its backdrop fading in step. Both keep the element on screen while it leaves: a closed menu is no longer `.open`, and carries `e-leaving` until it is removed.
 
 ## Page transitions
 

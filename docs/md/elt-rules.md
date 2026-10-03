@@ -62,6 +62,7 @@ These are conventions: the library does not enforce them, but code using elt fol
 - A promise used directly in JSX shows its resolved content only. When you need a loading or error state, use `DisplayPromise`. See [Verbs](./verbs.md#displaypromise-a-promises-lifecycle).
 - Don't re-render in place with `$observe` + `node_clear` + `node_append`: that is rule 9 again. `If` / `Switch` / `.tf` already skip the swap when nothing changed. See [Verbs](./verbs.md#good-patterns-vs-patterns-to-avoid).
 - A `RepeatVirtual` row's height depends on its own content only, never on which other rows are rendered at the same time. See [Verbs](./verbs.md#repeatvirtual-a-long-list).
+- For items to play their exit (`$leave`) when a `Repeat` both removes and adds items, give it a key function. See [Motion § Repeat](./motion.md#repeat).
 
 ## App
 
@@ -80,6 +81,8 @@ These are conventions: the library does not enforce them, but code using elt fol
 
 ## DOM and layout
 
+- Animate a node entering or leaving the page with `$enter` / `$leave` on the node itself, not with `$connected` + an animation, nor by animating and then removing it by hand: verbs and `node_remove` then play it whoever removes the node. Put them on the root element of what gets inserted or removed. See [Motion](./motion.md).
+- Code that runs later on a node (an animation frame, a timeout, a promise) checks `node_is_connected(node)`, not `node.isConnected`: a node playing its exit is still in the document but already disconnected. See [Motion § Notes](./motion.md#notes).
 - When a change drives layout, never interleave reading layout (`getBoundingClientRect`, `offsetHeight`, `scrollTop`, …) and writing to the DOM in the same pass: each read after a write forces the browser to lay out again. Read everything once, compute, apply one batch of writes, and converge on later frames (`requestAnimationFrame`) if needed.
 
 ## Use sparingly

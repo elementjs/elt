@@ -110,7 +110,7 @@ return <e-column>
 | `.withKeyFunction(fn)`          | Identify items by `fn(item)` instead of by the item itself (see below) |
 | `.ForView(start, end)` / `.reconcileView(start, end)` | Render only an index window — for very long lists |
 
-**Keys.** Each item is identified by a key: the item itself (`===`) by default, or `fn(item)` with `.withKeyFunction(fn)`. An item whose key is still in the list keeps its nodes, wherever it moves. An item whose key disappears gives its nodes to the next new key, in place when the order allows it — so editing an item (which replaces it with a modified copy) updates its nodes where they are, and a focused input inside it keeps its focus.
+**Keys.** Each item is identified by a key: the item itself (`===`) by default, or `fn(item)` with `.withKeyFunction(fn)`. An item whose key is still in the list keeps its nodes, wherever it moves. An item whose key disappears gives its nodes to the next new key, in place when the order allows it — so editing an item (which replaces it with a modified copy) updates its nodes where they are, and a focused input inside it keeps its focus. With a key function, an item with an exit motion (`$leave`) is not reused this way: it plays its exit, and the new item gets its own nodes ([Motion § Repeat](./motion.md#repeat)).
 
 **Equal keys.** Two equal keys, e.g. `["a", "a"]` without a key function, or two items with the same `id`, are allowed: the list stays correct, and items sharing a key take the existing nodes for that key in order. Which of the equal items keeps a given node (with its focus or unsaved input state) is not tied to the item itself though, so when that matters, use `.withKeyFunction()` with a unique id.
 

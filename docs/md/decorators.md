@@ -189,6 +189,8 @@ return <e-column>
 
 `$inserted` is a deprecated alias for `$connected` — use `$connected`.
 
+To animate a node as it enters or leaves the page, use `$enter` / `$leave` instead: they play when a verb or `node_append` / `node_remove` inserts or removes the node, and keep a removed node on screen until its exit is done. See [Motion](./motion.md).
+
 ## Shadow DOM: `$shadow`
 
 Attaches a shadow root to the decorated element. The content passed to `$shadow` becomes the shadow tree; a `<slot>` inside it projects the element's own JSX children (its "light DOM") — same native slotting rules as any other shadow root. Use named `<slot name="…">` elements when children must land in more than one place.

@@ -9,6 +9,7 @@ This file is for changing the `ui/` library itself. To *use* `elt/ui`, start at 
 - **Native HTML first.** Style native elements with CSS; add a component only when native elements can't give a consistent result.
 - **Promotion threshold:** an app pattern becomes a `ui/` widget only once a second app needs it.
 - **New public widgets:** match form sizing (`formFontSize`, `widget`-step padding), radius (`theme.css_radius`), focus ring and color helpers of existing controls. Add Playwright tests under `tests/` for non-visual behavior.
+- **Leaving nodes are still siblings:** a node playing its exit (`$leave`) still matches `:first-child` / `:last-child` until it is removed. `ui/` accepts the brief glitch; where it shows (the packed-layout seams and corners in `layout.css.tsx` are the first candidates), the fix and its measured cost are in [`motion.md`](../docs/md/motion.md#css-that-depends-on-sibling-position).
 - **Theme values only:** every padding, gap and radius in `ui/` reads a named spacing step (`theme.settings.spacing*`, `theme.css_pad`/`css_spacing`/`css_radius`); every color goes through `theme.colors.*`.
 - **Keep docs aligned:** when the public surface or semantics change, update [`elt-ui-rules.md`](../docs/md/elt-ui-rules.md) when a rule changes, and the `ui-*.md` topic page of the subject (how-to, tables, and its "Why" section for a change in reasoning). Code comments point to these docs, not to `specs/`.
 

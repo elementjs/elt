@@ -144,6 +144,7 @@ const brand = new Theme({ light: { bg: "#fff", text: "#1b1b1f", tint: "#5b3cc4" 
 | `borderRadius` | `8px` — fixed fallback for the rare element that can't derive its radius; prefer `[radius]`/`css_radius` |
 | `intensityMid`, `intensityFaded`, `intensityStrong`, `intensityVeryStrong` | `50%`, `80%`, `10%`, `50%` — the mix percentages behind `.mid`, `.faded`, `.strong`, `.very_strong` |
 | `spacingNudge1`, `spacingNudge2`, `spacingNudge4`, `spacingWidget`, `spacingComponent`, `spacingSection`, `spacingStage1`…`spacingStage4` | The [spacing scale](./ui-layout.md#spacing-scale), also exposed as `--e-spacing-<step>` |
+| `durationFast`, `durationMedium`, `durationSlow`, `easingEnter`, `easingLeave` | `100`, `150`, `250` (ms), `cubic-bezier(0.22, 1, 0.36, 1)`, `cubic-bezier(0.4, 0, 1, 1)` — the [motion tokens](./ui-overlays.md#motion). Given as numbers to `new Theme({ settings })`; `theme.motion` holds the values for JS, `theme.settings.durationFast` gives `var(--e-duration-fast, 100ms)` for CSS transitions |
 
 ## Helpers
 

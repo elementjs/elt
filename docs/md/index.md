@@ -29,6 +29,7 @@ This page is the entry point for humans and coding agents alike. Pick the page t
 | State, derived values, batching | [Observables](./observables.md) |
 | Lists, conditions, promises, long lists | [Verbs](./verbs.md) |
 | Events, bindings, lifecycle, shadow DOM | [Decorators](./decorators.md) |
+| Nodes animating as they enter and leave the page | [Motion](./motion.md) |
 | Function components, children, `Renderable` | [Components](./components.md) |
 | Routes, services, views, params | [App](./app.md) |
 | Styles | [CSS](./css.md) |
@@ -44,7 +45,7 @@ This page is the entry point for humans and coding agents alike. Pick the page t
 | Theme, dark mode, colors, surfaces, custom CSS | [Theme and colors](./ui-theme.md) |
 | Buttons, inputs, checkboxes, button groups | [Forms](./ui-forms.md) |
 | Select, date/time pickers, app-specific widgets | [Widgets](./ui-widgets.md) |
-| Popups, dialogs, animation | [Overlays](./ui-overlays.md) |
+| Popups, dialogs, motion | [Overlays](./ui-overlays.md) |
 | Keyboard shortcuts | [Keyboard shortcuts](./ui-keymap.md) |
 
 **More**

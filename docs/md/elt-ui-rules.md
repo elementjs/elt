@@ -113,7 +113,8 @@ Every layout decision reduces to these six. The layout elements and their attrib
    - A **dialog** is a full interruption: not anchored; the user must stop, act or leave explicitly; content may be screen-sized.
 2. **Do not reimplement focus trapping, stacking or dismissal** for menus and dialogs: build on `popup` and `show_dialog`. Do not reimplement keyboard navigation in a menu or a list either: use `menu_nav` / `list_nav` ([Overlays § Keyboard in menus and lists](./ui-overlays.md#keyboard-in-menus-and-lists)).
 3. **Do not hide or collapse content by default**, and do not build accordions. Collapse only where it is the content's normal behavior (a tree, code folding) ([Overlays § Why](./ui-overlays.md#why)).
-4. **Page transitions are opt-in per route**, triggered by the app (`document.startViewTransition` around `route.activate()`); nothing transitions automatically, and no transition where the browser lacks support is fine ([Overlays § Page transitions](./ui-overlays.md#page-transitions)).
+4. **Use the motion presets and tokens** for anything that enters, leaves or transitions: `$enter(rise_in)` / `$leave(sink_out)` and the like, and `theme.settings.durationFast` (or `Medium` / `Slow`) in CSS transitions. Don't write durations or easings by hand ([Overlays § Motion](./ui-overlays.md#motion)).
+5. **Page transitions are opt-in per route**, triggered by the app (`document.startViewTransition` around `route.activate()`); nothing transitions automatically, and no transition where the browser lacks support is fine ([Overlays § Page transitions](./ui-overlays.md#page-transitions)).
 
 ## Custom CSS
 

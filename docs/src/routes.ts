@@ -17,6 +17,7 @@ import md_elt_ui_rules_text from "../md/elt-ui-rules.md" with { type: "text" }
 import md_index_text from "../md/index.md" with { type: "text" }
 import md_introduction_text from "../md/introduction.md" with { type: "text" }
 import md_migrating_text from "../md/migrating.md" with { type: "text" }
+import md_motion_text from "../md/motion.md" with { type: "text" }
 import md_object_editor_text from "../md/object-editor.md" with { type: "text" }
 import md_observables_text from "../md/observables.md" with { type: "text" }
 import md_testing_text from "../md/testing.md" with { type: "text" }
@@ -30,7 +31,7 @@ import md_ui_widgets_text from "../md/ui-widgets.md" with { type: "text" }
 import md_utilities_text from "../md/utilities.md" with { type: "text" }
 import md_verbs_text from "../md/verbs.md" with { type: "text" }
 import md_visual_test_text from "../md/visual-test.md" with { type: "text" }
-void [md_about_this_documentation_text, md_app_text, md_components_text, md_css_text, md_custom_elements_text, md_decorators_text, md_elt_rules_text, md_elt_ui_rules_text, md_index_text, md_introduction_text, md_migrating_text, md_object_editor_text, md_observables_text, md_testing_text, md_ui_forms_text, md_ui_keymap_text, md_ui_layout_text, md_ui_overlays_text, md_ui_theme_text, md_ui_typography_text, md_ui_widgets_text, md_utilities_text, md_verbs_text, md_visual_test_text]
+void [md_about_this_documentation_text, md_app_text, md_components_text, md_css_text, md_custom_elements_text, md_decorators_text, md_elt_rules_text, md_elt_ui_rules_text, md_index_text, md_introduction_text, md_migrating_text, md_motion_text, md_object_editor_text, md_observables_text, md_testing_text, md_ui_forms_text, md_ui_keymap_text, md_ui_layout_text, md_ui_overlays_text, md_ui_theme_text, md_ui_typography_text, md_ui_widgets_text, md_utilities_text, md_verbs_text, md_visual_test_text]
 // GENERATED-END
 
 await elt_md()
