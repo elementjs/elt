@@ -8,6 +8,8 @@ order: 30
 
 Verbs are UpperCased functions that render *dynamic structure* — content that appears, disappears, switches, or repeats — driven by an observable. A verb returns an **appender** (see [Renderable](./components.md#renderable)): an object that inserts its own nodes where it is placed among the JSX children and keeps them up to date, rather than a node. Where `.tf()` derives one value from another, a Verb derives DOM: `If`, `Switch`, and `Repeat` each patch only the part of the tree that actually needs to change, instead of tearing down and rebuilding a subtree by hand. `DisplayPromise` does the same for a `Promise`'s pending/resolved/rejected states.
 
+A verb renders its content as soon as it is built, while the tree around it is still offscreen, including when its observable is derived (`.tf`, `o.expression`) and nothing watches it yet. Mounting the tree puts that content on the page in one go without rendering it again; it only re-renders if a value it depends on changed in between. A transform that reads something other than observables (the DOM's layout, a global) therefore reads it when the tree is built, not when it is mounted. The same goes for an observable used directly as a child or an attribute.
+
 Everything below reads as complete documentation on its own; the "Try it" panels that follow some examples run the code for real, in this page, but they're a bonus on top of the prose and code, not a replacement for it.
 
 ## `If` — one of two branches

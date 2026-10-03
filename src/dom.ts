@@ -506,7 +506,7 @@ export function node_observe<T>(
   const obser = options?.changes_only ? new o.SilentObserver(obsfn, obs) : new o.Observer(obsfn, obs)
   options?.observer_callback?.(obser)
   node_add_observer(node, obser)
-  if (options?.immediate) obser.refresh()
+  if (options?.immediate) obser.refreshImmediate()
   return obser
 }
 

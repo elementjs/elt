@@ -234,6 +234,20 @@ export namespace o {
     }
 
     /**
+     * Run the first call of an `immediate` observer, which may not be observing yet (its node is
+     * still offscreen).
+     *
+     * `refresh` reads the observable's stored value, which the queue and `addObserver` bring up to
+     * date before calling it. Nothing does here: a derived observable nobody watches yet has never
+     * computed its value, so `get()` computes it first. When the observer starts observing later,
+     * the value is only computed again if a dependency changed in the meantime.
+     */
+    refreshImmediate(): void {
+      this.observable.get()
+      this.refresh()
+    }
+
+    /**
      * Called by the `observable` currently being watched.
      */
     refresh(): void {
@@ -2006,7 +2020,7 @@ export namespace o {
 
       const observer = options?.changes_only ? new SilentObserver(fn, o(obs)) : new Observer(fn, o(obs))
       options?.observer_callback?.(observer)
-      if (options?.immediate) observer.refresh()
+      if (options?.immediate) observer.refreshImmediate()
       return this.addObserver(observer)
     }
 
