@@ -58,6 +58,8 @@ Clicking twice quickly removes the first exit at once: a node that is leaving is
 
 A node enters when it is **inserted into a parent that is already in the page**: by a verb updating (an `If` flipping, a `Repeat` adding an item, a promise resolving), or by your own `node_append` into a live parent. For a fragment, each of its top-level nodes enters.
 
+Only the inserted nodes themselves are considered, never what they contain. When an `If` renders `<e-row><e-column>{$enter()}…</e-column></e-row>`, the `<e-row>` is what gets inserted: the `<e-column>` arrives with it and doesn't enter. Put `$enter` on the `<e-row>`, or render a fragment (`<>…</>`) whose top-level nodes carry it, as in the [motions example](#motions-keyframes-specs-functions). The same goes for `$leave` (see [Leaving](#leaving)).
+
 A node does **not** enter:
 
 - when it arrives with an ancestor. A tree built offscreen and then mounted enters only through its root: the first render of a screen doesn't fade in piece by piece;
@@ -156,7 +158,7 @@ const o_show = o(true)
 
 return <e-column>
   <button>{$click(() => o_show.set(!o_show.get()))}Toggle</button>
-  {If(o_show, () => <e-row spacing>
+  <e-row spacing>{If(o_show, () => <>
     <e-column surface border pad>
       {$enter([{ opacity: 0 }, { opacity: 1 }])}
       {$leave([{ opacity: 0 }])}
@@ -172,7 +174,7 @@ return <e-column>
       {$leave((node) => animate(node, [{ background: "tomato" }, { opacity: 0 }], { dir: "leave", fill: "forwards" }))}
       function
     </e-column>
-  </e-row>)}
+  </>)}</e-row>
 </e-column>
 ```
 
@@ -307,25 +309,27 @@ return <e-column spacing>
 
 ### `DisplayPromise` and observables shown as children
 
-The waiting state leaves and the result enters, like an `If`. The same goes for any observable shown as a child: each new value replaces the previous content.
+When its promise settles, `DisplayPromise` swaps the waiting content for the result, like an `If`: the waiting state leaves and the result enters. A new promise given to the same `DisplayPromise` keeps showing the previous result while it resolves (its second argument, `oo_waiting`, tells), so nothing enters or leaves then; to show the waiting state again, render a new `DisplayPromise`, as "Load" does here.
+
+An observable shown as a child works the same way: each new value replaces the previous content, which leaves while the new one enters ("Count").
 
 ```tsx
 //@inline-example
 import { $click, $enter, $leave, o, DisplayPromise } from "elt"
 
 const fade = { keyframes: [{ opacity: 0 }, { opacity: 1 }], duration: 300 }
-const o_promise = o(Promise.resolve("ready"))
-const load = () => o_promise.set(new Promise<string>((resolve) => setTimeout(() => resolve(`loaded at ${new Date().toLocaleTimeString()}`), 1000)))
+const wait = (n: number) => new Promise<string>((resolve) => setTimeout(() => resolve(`Load #${n} done`), 1000))
+const o_loads = o(1)
 const o_count = o(0)
 
 return <e-column spacing>
   <e-row spacing>
-    <button>{$click(load)}Load</button>
+    <button>{$click(() => o_loads.set(o_loads.get() + 1))}Load</button>
     <button>{$click(() => o_count.set(o_count.get() + 1))}Count</button>
   </e-row>
-  {DisplayPromise(o_promise)
+  {o_loads.tf((n) => DisplayPromise(o(wait(n)))
     .WhileWaiting(() => <e-column pad>{$enter(fade)}{$leave([{ opacity: 0 }])}Loading…</e-column>)
-    .WhenResolved((o_text) => <e-column surface border pad>{$enter(fade)}{$leave([{ opacity: 0 }])}{o_text}</e-column>)}
+    .WhenResolved((o_text) => <e-column surface border pad>{$enter(fade)}{$leave([{ opacity: 0 }])}{o_text}</e-column>))}
   {o_count.tf((n) => <e-column pad>{$enter(fade)}{$leave([{ opacity: 0 }])}Count: {n}</e-column>)}
 </e-column>
 ```
