@@ -338,7 +338,7 @@ return <e-column spacing>
 
 ### `DisplayPromise` and observables shown as children
 
-When its promise settles, `DisplayPromise` swaps the waiting content for the result, like an `If`: the waiting state leaves and the result enters. A new promise given to the same `DisplayPromise` keeps showing the previous result while it resolves (its second argument, `oo_waiting`, tells), so nothing enters or leaves then; to show the waiting state again, render a new `DisplayPromise`, as "Load" does here.
+Each arm of a `DisplayPromise` enters and leaves with its own changes ([Verbs § DisplayPromise](./verbs.md#displaypromise-a-promises-lifecycle)): when a new promise is set, the waiting content enters next to the previous result; when it settles, the waiting content leaves, and the result stays (following the new value) or gives way to the error.
 
 An observable shown as a child works the same way: each new value replaces the previous content, which leaves while the new one enters ("Count").
 
@@ -347,18 +347,19 @@ An observable shown as a child works the same way: each new value replaces the p
 import { $click, $enter, $leave, o, DisplayPromise } from "elt"
 
 const fade = { keyframes: [{ opacity: 0 }, { opacity: 1 }], duration: 300 }
-const wait = (n: number) => new Promise<string>((resolve) => setTimeout(() => resolve(`Load #${n} done`), 1000))
-const o_loads = o(1)
+let loads = 0
+const wait = () => new Promise<string>((resolve) => setTimeout(() => resolve(`Load #${++loads} done`), 1000))
+const o_promise = o(wait())
 const o_count = o(0)
 
 return <e-column spacing>
   <e-row spacing>
-    <button>{$click(() => o_loads.set(o_loads.get() + 1))}Load</button>
+    <button>{$click(() => o_promise.set(wait()))}Load</button>
     <button>{$click(() => o_count.set(o_count.get() + 1))}Count</button>
   </e-row>
-  {o_loads.tf((n) => DisplayPromise(o(wait(n)))
+  {DisplayPromise(o_promise)
     .WhileWaiting(() => <e-column pad>{$enter(fade)}{$leave([{ opacity: 0 }])}Loading…</e-column>)
-    .WhenResolved((o_text) => <e-column surface border pad>{$enter(fade)}{$leave([{ opacity: 0 }])}{o_text}</e-column>))}
+    .WhenResolved((o_text) => <e-column surface border pad>{$enter(fade)}{$leave([{ opacity: 0 }])}{o_text}</e-column>)}
   {o_count.tf((n) => <e-column pad>{$enter(fade)}{$leave([{ opacity: 0 }])}Count: {n}</e-column>)}
 </e-column>
 ```

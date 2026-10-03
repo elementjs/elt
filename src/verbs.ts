@@ -788,6 +788,12 @@ export function DisplayPromise<T>(o_promise: o.IReadonlyObservable<Promise<T>>) 
 }
 
 export namespace DisplayPromise {
+  /**
+   * Each arm shows on its own, in the order the arms were declared: the waiting arm while a promise
+   * is resolving (the first one, or a new one), the resolved / rejected arm for the last outcome. A
+   * new promise thus shows the waiting arm next to the previous result (above it when `WhileWaiting`
+   * was declared before that arm, below otherwise) until it settles.
+   */
   export class PromiseDisplayer<T> extends Verb<Node> implements ReadonlyPromiseDisplayer<T> {
     _resolved:
       | null
@@ -799,36 +805,22 @@ export namespace DisplayPromise {
 
     _waiting: null | (() => Renderable<HTMLElement>) = null
 
+    /** The arms, in the order they were declared. */
+    protected arms: ("waiting" | "resolved" | "rejected")[] = []
+    protected wrapped: o.ReadonlyObservable<o.wrap_promise.Result<T>>
+
     constructor(public o_promise: o.Observable<Promise<T>>) {
       super("e-unpromise")
+      this.wrapped = o.wrap_promise(o_promise)
+    }
 
-      const wrapped = o.wrap_promise(o_promise)
-
-      const pre_render = wrapped.tf((wr) => {
-        if (wr.resolved === "value") {
-          return this._resolved
-        } else if (wr.resolved === "error") {
-          return this._rejected
-        }
-        return this._waiting
-      })
-
-      const render = pre_render.tf((rd) => {
-        const o_cheat = wrapped as o.Observable<any>
-        if (rd === this._resolved) {
-          return rd?.(o_cheat.p("value"), o_cheat.p("resolving"))
-        } else if (rd === this._rejected) {
-          return rd?.(o_cheat.p("error"), o_cheat.p("resolving"))
-        }
-        // Last case is necessarily waiting
-        return (rd as any)?.()
-      })
-
-      this.setRenderable(render)
+    protected declare(arm: "waiting" | "resolved" | "rejected") {
+      if (!this.arms.includes(arm)) this.arms.push(arm)
     }
 
     WhileWaiting(fn: () => Renderable<HTMLElement>) {
       this._waiting = fn
+      this.declare("waiting")
       return this
     }
 
@@ -836,6 +828,7 @@ export namespace DisplayPromise {
       fn: (o_result: o.Observable<T>, oo_waiting: o.ReadonlyObservable<boolean>) => Renderable<HTMLElement>,
     ) {
       this._resolved = fn
+      this.declare("resolved")
       return this
     }
 
@@ -843,7 +836,30 @@ export namespace DisplayPromise {
       fn: (o_error: o.Observable<any>, oo_waiting: o.ReadonlyObservable<boolean>) => Renderable<HTMLElement>,
     ) {
       this._rejected = fn
+      this.declare("rejected")
       return this
+    }
+
+    override [sym_insert](parent: Node, refchild: Node | null) {
+      // Built at insertion: the arms may be declared after construction.
+      const o_cheat = this.wrapped as o.Observable<any>
+      const oo_waiting = this.wrapped.tf((w) => !!w.resolving)
+      this.setRenderable(
+        this.arms.map((arm) =>
+          arm === "waiting"
+            ? If(oo_waiting, () => this._waiting?.())
+            : arm === "resolved"
+              ? If(
+                  this.wrapped.tf((w) => w.resolved === "value"),
+                  () => this._resolved?.(o_cheat.p("value"), oo_waiting),
+                )
+              : If(
+                  this.wrapped.tf((w) => w.resolved === "error"),
+                  () => this._rejected?.(o_cheat.p("error"), oo_waiting),
+                ),
+        ),
+      )
+      super[sym_insert](parent, refchild)
     }
   }
 

@@ -134,6 +134,13 @@ return <e-column>
 </e-column>
 ```
 
+Each arm shows on its own, in the order the arms were declared:
+
+- `WhileWaiting` shows while a promise is resolving: the first one, and every new one set later;
+- `WhenResolved` / `UponRejection` show the last outcome. A new promise doesn't remove it: the previous result stays, next to the waiting content, until the new promise settles. The result arm is not rendered again for a new value: it follows `o_result` (its second argument, `oo_waiting`, tells whether a new promise is pending).
+
+So where the waiting content appears depends on where `WhileWaiting` is in the chain: declared first, as here, it shows above the previous result; declared after `WhenResolved`, below it.
+
 ## `RepeatVirtual` — a long list
 
 `RepeatVirtual(o_array, (o_item, o_index) => …)` takes the same arguments as `Repeat`, but only renders the rows near the visible part of its scroll area: the nearest element around it that scrolls vertically. The rows above and below are stood for by two padders, sized from measured and estimated row heights. Use it for lists that can grow long (hundreds of rows or more); for short lists, `Repeat` is simpler.
