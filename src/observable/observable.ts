@@ -348,8 +348,9 @@ export namespace o {
       node_observe(
         cmi,
         this,
-        (renderable) => {
-          cmi.updateRenderable(renderable)
+        (renderable, old) => {
+          // The first render is not an update: it doesn't enter (docs/md/motion.md).
+          cmi.updateRenderable(renderable, old !== NoValue)
         },
         { immediate: true },
       )

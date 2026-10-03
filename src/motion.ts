@@ -104,7 +104,10 @@ function resolve(motion: Keyframe[] | MotionSpec | undefined, dir: "enter" | "le
   return { keyframes, duration: spec.duration ?? def.duration, easing: spec.easing ?? def.easing }
 }
 
-/** Start `motion` on `node`, or return `null` when it is reduced to nothing. */
+/**
+ * Start `motion` on `node`, or return `null` when it is reduced to nothing. An exit that would never
+ * end (an infinite duration) plays nothing: its node would never be removed.
+ */
 function play(
   node: Element,
   motion: Keyframe[] | MotionSpec | undefined,
@@ -113,7 +116,13 @@ function play(
 ): Animation | null {
   const r = resolve(motion, dir)
   if (r == null) return null
-  return node.animate(r.keyframes, { duration: r.duration, easing: r.easing, ...opts })
+  const a = node.animate(r.keyframes, { duration: r.duration, easing: r.easing, ...opts })
+  if (dir === "leave" && a.effect?.getComputedTiming().endTime === Infinity) {
+    a.cancel()
+    console.warn("an exit motion must end: it was not played, the node goes at once", node)
+    return null
+  }
+  return a
 }
 
 /** Settles when `a` finishes or is cancelled (the browser restarting it, a cut). */
@@ -167,9 +176,9 @@ function stop_entering(node: Element) {
 }
 
 /**
- * Play `motion` when the node enters the page (see {@link node_on_enter}): when a verb or `node_append`
- * inserts it into the live page, not when it arrives with an ancestor nor on moves. `opts.always`:
- * on every connection. Without `motion`, {@link motion_defaults}.enter.
+ * Play `motion` when the node enters the page with an update of its verb (see {@link node_on_enter}):
+ * the update inserts it or an ancestor of it ; not on a verb's first render, nor on moves.
+ * `opts.always`: on every connection. Without `motion`, {@link motion_defaults}.enter.
  *
  * @group Motion
  */
@@ -193,18 +202,20 @@ export function $enter<N extends Element>(motion?: Motion, opts?: EnterOptions):
 }
 
 /**
- * Play `motion` when the node leaves the page (see {@link node_on_leave}): it stays in the page,
- * disconnected and out of the layout (unless `opts.flow`), until the motion is done. Without `motion`,
- * {@link motion_defaults}.leave.
+ * Play `motion` when the node leaves the page with an update of its verb (see {@link node_on_leave}):
+ * it stays in the page, disconnected and out of the layout (unless `opts.flow`), until its motion and
+ * its descendants' are done. Without `motion`, {@link motion_defaults}.leave ; with `null`, no motion
+ * of its own: it waits for its descendants' exits.
  *
  * @group Motion
  */
-export function $leave<N extends Element>(motion?: Motion, opts?: LeaveOptions): Decorator<N> {
+export function $leave<N extends Element>(motion?: Motion | null, opts?: LeaveOptions): Decorator<N> {
   return (node: N) => {
     node_on_leave(
       node,
       (n) => {
         stop_entering(n)
+        if (motion === null) return
         if (typeof motion === "function") return motion(n)
         // forwards: the node must not flash back to its natural style before it is removed
         const a = play(n, motion, "leave", { fill: "forwards" })

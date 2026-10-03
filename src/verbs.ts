@@ -124,49 +124,63 @@ export namespace If {
         ? o.ReadonlyObservable<Truthy<U>>
         : Truthy<T>
 
+  /**
+   * `If(...).ElseIf(...).Else(...)` is one verb: the branch of the first truthy condition shows, or
+   * `Else` when none is. Its content is rendered again only when another branch is picked, so a
+   * condition changing from one truthy value to another keeps its render.
+   */
   export class IfDisplayer<T, N extends Node> extends Verb<N> {
-    last?: IfDisplayer<any, N>
+    /** The conditions in order, each with its branch. */
+    branches: [o.RO<any>, ((arg: any) => Renderable<N>) | undefined][]
 
     constructor(
-      public _if: o.RO<T>,
-      public _then?: (arg: If.TruthyRO<T>) => Renderable<N>,
+      _if: o.RO<T>,
+      _then?: (arg: If.TruthyRO<T>) => Renderable<N>,
       public _else?: () => Renderable<N>,
     ) {
       super("e-if")
-      this.setRenderable(
-        o.tf<T, Renderable<N>>(_if, (cond, old, v) => {
-          // Same truthiness as before (both truthy, or both falsy) and a render already exists:
-          // reuse it instead of tearing it down and re-invoking _then/_else. Only a truthy<->falsy
-          // flip re-renders — e.g. a truthy value changing to a different truthy value does not.
-          if (old !== o.NoValue && !!cond === !!old && v !== o.NoValue) return v as Renderable<N>
-          if (cond && this._then) {
-            return this._then(this._if as If.TruthyRO<T>)
-          } else if (this._else) {
-            return this._else()
-          } else {
-            return null
-          }
-        }),
-      )
+      this.branches = [[_if, _then]]
     }
 
     Then(display: (arg: If.TruthyRO<T>) => Renderable<N>) {
-      this._then = display
+      this.branches[0][1] = display
       return this
     }
 
     ElseIf<T2 extends o.RO<any>>(condition: T2, display?: (arg: If.TruthyRO<T2>) => Renderable<N>) {
-      const last = this.last ?? this
-      const add = new IfDisplayer<T2, N>(condition, display)
-      last._else = () => add
-      this.last = add
+      this.branches.push([condition, display])
       return this
     }
 
     Else(otherwise: () => Renderable<N>) {
-      const last = this.last ?? this
-      last._else = otherwise
+      this._else = otherwise
       return this
+    }
+
+    /** The content of branch `idx` (-1: `Else`). */
+    protected render(idx: number): Renderable<N> {
+      if (idx < 0) return this._else?.() ?? null
+      const [cond, display] = this.branches[idx]
+      return display?.(cond) ?? null
+    }
+
+    override [sym_insert](parent: N, refchild: Node | null) {
+      // Built at insertion: ElseIf / Else may be chained after construction.
+      const conds = this.branches.map((b) => b[0])
+      const pick = (values: any[]) => values.findIndex((v) => !!v)
+      if (!conds.some((c) => o.is_observable(c))) {
+        // Nothing can change: resolved once, without an observable.
+        this.setRenderable(this.render(pick(conds)))
+      } else {
+        this.setRenderable(
+          o
+            .combine(conds, pick)
+            .tf((idx, old, prev) =>
+              old !== o.NoValue && idx === old && prev !== o.NoValue ? (prev as Renderable<N>) : this.render(idx),
+            ),
+        )
+      }
+      super[sym_insert](parent, refchild)
     }
   }
 }
@@ -291,8 +305,13 @@ export namespace Repeat {
 
   export type RepeatedObservable<T> = o.IReadonlyObservable<T[] | null | undefined>
 
+  /** The markers of one item: a unit of its Repeat, not a verb of its own (its content enters and leaves with the Repeat's updates). */
   export class RepeatItemElement<Obs extends RepeatedObservable<any>> extends CommentHolder {
     [sym_obs]!: RepeatObservable<Obs>
+
+    constructor(data: string) {
+      super(data, false)
+    }
   }
 
   /** A special observable that is not a combined one to prevent unneeded updates when setting a property of the observed array.
@@ -488,8 +507,10 @@ export namespace Repeat {
       const flush = () => {
         // run_last is always set along with run_first ; checking both lets TS narrow them
         if (run_first == null || run_last == null) return
-        // Out of the window, not out of the list: no exit motion
-        node_remove_range(run_first, run_last, false)
+        // Out of the window, not out of the list: no exit motion, not even `always` ones
+        const first = run_first
+        const last = run_last
+        without_motion(() => node_remove_range(first, last))
         run_first = null
       }
 
@@ -514,29 +535,38 @@ export namespace Repeat {
       flush()
     }
 
+    /**
+     * Whether a change of the list is an update, whose items enter and leave: not the first render,
+     * nor catching up on what changed while the list was out of the page (docs/md/motion.md).
+     */
+    protected is_update(old_lst: unknown) {
+      return old_lst !== o.NoValue && !this.__list.isConnecting
+    }
+
     protected updateChildrenPre(
       new_lst: NonNullable<o.ObservedType<Obs>>,
       old_lst: NonNullable<o.ObservedType<Obs>> | o.NoValue,
     ) {
+      const motion = this.is_update(old_lst)
       if (new_lst.length > 0 && (old_lst === o.NoValue || old_lst.length === 0)) {
         if (this.__empty.hasContent) {
-          this.__empty.empty()
+          this.__empty.empty(motion)
         }
         if (this.prefix != null) {
-          this.__prefix.updateRenderable(this.prefix(this.obs))
+          this.__prefix.updateRenderable(this.prefix(this.obs), motion)
         }
         if (this.suffix != null) {
-          this.__suffix.updateRenderable(this.suffix(this.obs))
+          this.__suffix.updateRenderable(this.suffix(this.obs), motion)
         }
       }
-      this.updateChildren(new_lst)
+      this.updateChildren(new_lst, undefined, motion)
       if (new_lst.length === 0 && (old_lst === o.NoValue || old_lst.length > 0)) {
         if (this.on_empty) {
-          this.__empty.updateRenderable(this.on_empty())
+          this.__empty.updateRenderable(this.on_empty(), motion)
         }
-        this.__prefix.empty()
-        this.__list.empty()
-        this.__suffix.empty()
+        this.__prefix.empty(motion)
+        this.__list.empty(motion)
+        this.__suffix.empty(motion)
       }
     }
 
@@ -551,10 +581,13 @@ export namespace Repeat {
      *   only the others move, with `moveBefore` so they keep focus,
      * - new items are grouped in one fragment per run of consecutive slots and inserted in one go,
      * - unused items are removed at the end, one Range call per run of consecutive items.
+     *
+     * With `motion` (an update of the list), new items enter and removed ones leave.
      */
     protected updateChildren(
       new_lst: NonNullable<o.ObservedType<Obs>>,
       view_override?: { start: number; end: number },
+      motion = false,
     ) {
       const keyfn = this.keyfn
       const { start: view_start, end: view_end } = this.resolve_view(new_lst.length, view_override)
@@ -657,7 +690,7 @@ export namespace Repeat {
       const flush = () => {
         if (pending == null) return
         const first = pending.firstChild // never null : `pending` only exists once something was put in it
-        node_append(parent, pending, ref)
+        node_append(parent, pending, ref, motion)
         if (first != null) ref = first
         pending = null
       }
@@ -695,13 +728,13 @@ export namespace Repeat {
         const node = old[dead[d]]
         // run_last is always set along with run_first ; checking both lets TS narrow them
         if (run_first != null && run_last != null && run_last.nextSibling !== node) {
-          node_remove_range(run_first, run_last)
+          node_remove_range(run_first, run_last, motion)
           run_first = null
         }
         run_first ??= node
         run_last = node.end ?? node
       }
-      if (run_first != null && run_last != null) node_remove_range(run_first, run_last)
+      if (run_first != null && run_last != null) node_remove_range(run_first, run_last, motion)
     }
 
     /**

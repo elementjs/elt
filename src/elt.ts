@@ -1,4 +1,4 @@
-import { node_append } from "./dom"
+import { _node_append, node_append } from "./dom"
 import { sym_elt_init } from "./symbols"
 
 import type { Attrs, ElementMap, EmptyAttributes, Renderable } from "./types"
@@ -191,7 +191,7 @@ export function e<N extends Node>(
   }
 
   for (let i = 0, l = children.length; i < l; i++) {
-    node_append(node, children[i], refchild, is_basic_node)
+    _node_append(node, children[i], refchild, is_basic_node, false)
   }
 
   if (refchild != null) {

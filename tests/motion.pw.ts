@@ -1,16 +1,20 @@
 import { test, expect } from "@playwright/test"
 
-// Leaving (docs/md/motion.md): nodes with leave hooks stay in the page while their hooks run, every
-// other removal is instant and synchronous. The harness turns motion off ; these tests turn it on.
+// Motion, scoped to verbs (docs/md/motion.md): nodes enter and leave with a verb's updates (or an
+// insertion / removal with `motion`), never on a verb's first render, and only up to the content of
+// nested verbs. Removals that play nothing are instant and synchronous. The harness turns motion
+// off ; these tests turn it on.
 
 declare global {
   interface Window {
     __motion__: {
       /** A live container holding one `div` per id (20px tall each), with `style` on the container. */
       mount: (ids: string[], style?: string) => HTMLElement
-      /** A promise settled from outside, recording whether it is still pending. */
+      /** A promise settled from outside. */
       deferred: () => { promise: Promise<void>; resolve: () => void; reject: () => void }
       tick: () => Promise<void>
+      /** An element with an id, its text the id. */
+      el: (tag: string, id: string) => HTMLElement
     }
   }
 }
@@ -21,15 +25,19 @@ test.beforeEach(async ({ page }) => {
     const { node_append, motion_enabled } = window.__ELT__
     motion_enabled(true)
     document.body.innerHTML = ""
+    const el = (tag: string, id: string) => {
+      const e = document.createElement(tag)
+      e.id = id
+      e.textContent = id
+      return e
+    }
     window.__motion__ = {
       mount(ids, style = "") {
         const c = document.createElement("div")
         c.setAttribute("style", style)
         for (const id of ids) {
-          const d = document.createElement("div")
-          d.id = id
+          const d = el("div", id)
           d.style.height = "20px"
-          d.textContent = id
           c.append(d)
         }
         node_append(document.body, c)
@@ -45,33 +53,36 @@ test.beforeEach(async ({ page }) => {
         return { promise, resolve, reject }
       },
       tick: () => new Promise((r) => setTimeout(r)),
+      el,
     }
   })
 })
 
-test.describe("leaving", () => {
-  test("a node without a leave hook, or whose hook returns nothing, is removed in the same call", async ({ page }) => {
+test.describe("leaving: the removed node", () => {
+  test("without a hook, with a hook returning nothing, or without `motion`, a node is removed in the same call", async ({
+    page,
+  }) => {
     const r = await page.evaluate(() => {
       const { node_remove, node_on_leave, node_is_observing, $observe, o } = window.__ELT__
-      const c = window.__motion__.mount(["a", "b"])
-      const a = c.querySelector("#a") as HTMLElement
-      const b = c.querySelector("#b") as HTMLElement
-      $observe(o(0), () => {})(b)
+      const c = window.__motion__.mount(["none", "nothing", "no_motion"])
+      const [none, nothing, no_motion] = [...c.children] as HTMLElement[]
+      $observe(o(0), () => {})(nothing)
       let observing_in_hook: boolean | null = null
-      node_on_leave(b, (n) => {
+      node_on_leave(nothing, (n) => {
         observing_in_hook = node_is_observing(n)
       })
-      node_remove(a)
-      node_remove(b)
-      return {
-        left: c.children.length,
-        observing_in_hook,
-        inert: b.hasAttribute("inert"),
-        leaving: b.hasAttribute("e-leaving"),
-      }
+      let called = false
+      node_on_leave(no_motion, () => {
+        called = true
+        return new Promise(() => {})
+      })
+      node_remove(none, true)
+      node_remove(nothing, true)
+      node_remove(no_motion)
+      return { left: c.children.length, observing_in_hook, called }
     })
-    // The hook ran on an already disconnected node
-    expect(r).toEqual({ left: 0, observing_in_hook: false, inert: false, leaving: false })
+    // The hook ran on an already disconnected node ; a plain hook doesn't run without `motion`
+    expect(r).toEqual({ left: 0, observing_in_hook: false, called: false })
   })
 
   test("a hook returning a promise keeps the node, disconnected, inert and marked, until it settles", async ({
@@ -84,7 +95,7 @@ test.describe("leaving", () => {
       $observe(o(0), () => {})(a)
       const d = window.__motion__.deferred()
       node_on_leave(a, () => d.promise)
-      node_remove(a)
+      node_remove(a, true)
       const during = {
         in_page: a.parentNode === c,
         observing: node_is_observing(a),
@@ -106,15 +117,14 @@ test.describe("leaving", () => {
     const r = await page.evaluate(async () => {
       const { node_remove, node_on_leave } = window.__ELT__
       const c = window.__motion__.mount(["a", "b"])
-      const a = c.querySelector("#a") as HTMLElement
-      const b = c.querySelector("#b") as HTMLElement
+      const [a, b] = [...c.children] as HTMLElement[]
       const d = window.__motion__.deferred()
       node_on_leave(a, () => d.promise)
       node_on_leave(b, () => {
         throw new Error("boom")
       })
-      node_remove(a)
-      node_remove(b)
+      node_remove(a, true)
+      node_remove(b, true)
       const b_at_once = b.parentNode == null
       d.reject()
       await window.__motion__.tick()
@@ -133,7 +143,7 @@ test.describe("leaving", () => {
       node_on_leave(a, () => d1.promise)
       node_on_leave(a, () => d2.promise)
       node_on_leave(a, () => {})
-      node_remove(a)
+      node_remove(a, true)
       d1.resolve()
       await window.__motion__.tick()
       const after_first = a.parentNode === c
@@ -144,69 +154,45 @@ test.describe("leaving", () => {
     expect(r).toEqual({ after_first: true, after_both: false })
   })
 
-  test("only the removed nodes run their hooks, not their descendants ; detached nodes never do", async ({ page }) => {
+  test("detached nodes, nodes without a box, and motion off: instant, hooks not run", async ({ page }) => {
     const r = await page.evaluate(() => {
-      const { node_remove, node_on_leave, node_append } = window.__ELT__
-      const c = window.__motion__.mount(["a"])
-      const a = c.querySelector("#a") as HTMLElement
-      const inner = document.createElement("span")
-      node_append(a, inner)
+      const { node_remove, node_on_leave, node_append, motion_enabled } = window.__ELT__
       const calls: string[] = []
-      node_on_leave(inner, () => {
-        calls.push("inner")
-        return new Promise(() => {})
-      })
-      node_remove(a)
-      const detached = document.createElement("div")
-      node_on_leave(detached, () => {
-        calls.push("detached")
-        return new Promise(() => {})
-      })
-      const holder = document.createElement("div")
-      node_append(holder, detached)
-      node_remove(detached)
-      return { calls, a_gone: a.parentNode == null, detached_gone: detached.parentNode == null }
-    })
-    expect(r).toEqual({ calls: [], a_gone: true, detached_gone: true })
-  })
-
-  test("with motion off, hooks don't run and removal is instant", async ({ page }) => {
-    const r = await page.evaluate(() => {
-      const { node_remove, node_on_leave, motion_enabled } = window.__ELT__
-      const c = window.__motion__.mount(["a"])
-      const a = c.querySelector("#a") as HTMLElement
-      let called = false
-      node_on_leave(a, () => {
-        called = true
-        return new Promise(() => {})
-      })
-      motion_enabled(false)
-      node_remove(a)
-      motion_enabled(true)
-      return { called, gone: a.parentNode == null }
-    })
-    expect(r).toEqual({ called: false, gone: true })
-  })
-
-  test("a node without a box is removed at once, without running its hook", async ({ page }) => {
-    const r = await page.evaluate(() => {
-      const { node_remove, node_on_leave } = window.__ELT__
-      const c = window.__motion__.mount(["a", "b"])
-      const a = c.querySelector("#a") as HTMLElement
-      const b = c.querySelector("#b") as HTMLElement
-      a.style.display = "none"
-      b.style.display = "contents"
-      let called = 0
-      for (const n of [a, b])
+      const hook = (n: HTMLElement) =>
         node_on_leave(n, () => {
-          called++
+          calls.push(n.id)
           return new Promise(() => {})
         })
-      node_remove(a)
-      node_remove(b)
-      return { called, left: c.childNodes.length }
+      const detached = window.__motion__.el("div", "detached")
+      hook(detached)
+      node_append(document.createElement("div"), detached)
+      node_remove(detached, true)
+      const c = window.__motion__.mount(["hidden", "contents", "off"])
+      const [hidden, contents, off] = [...c.children] as HTMLElement[]
+      hidden.style.display = "none"
+      contents.style.display = "contents"
+      contents.textContent = ""
+      for (const n of [hidden, contents, off]) hook(n)
+      node_remove(hidden, true)
+      node_remove(contents, true)
+      motion_enabled(false)
+      node_remove(off, true)
+      motion_enabled(true)
+      return { calls, left: c.childNodes.length }
     })
-    expect(r).toEqual({ called: 0, left: 0 })
+    expect(r).toEqual({ calls: [], left: 0 })
+  })
+
+  test("`always`: plays on a removal without `motion`", async ({ page }) => {
+    const r = await page.evaluate(() => {
+      const { node_remove, node_on_leave } = window.__ELT__
+      const c = window.__motion__.mount(["a"])
+      const a = c.querySelector("#a") as HTMLElement
+      node_on_leave(a, () => new Promise(() => {}), { always: true })
+      node_remove(a)
+      return a.hasAttribute("e-leaving")
+    })
+    expect(r).toBe(true)
   })
 
   test("a range keeps its leaving nodes and removes everything else", async ({ page }) => {
@@ -215,10 +201,175 @@ test.describe("leaving", () => {
       const c = window.__motion__.mount(["a", "b", "c", "d", "e"])
       const [, b, , d] = [...c.children] as HTMLElement[]
       for (const n of [b, d]) node_on_leave(n, () => new Promise(() => {}))
-      node_remove_range(c.children[0], c.children[4])
+      node_remove_range(c.children[0], c.children[4], true)
       return [...c.children].map((e) => e.id)
     })
     expect(r).toEqual(["b", "d"])
+  })
+})
+
+test.describe("leaving: descendants and verbs", () => {
+  test("a removed node with a leave hook waits for its descendants' exits too", async ({ page }) => {
+    const r = await page.evaluate(async () => {
+      const { node_remove, node_on_leave, node_append } = window.__ELT__
+      const c = window.__motion__.mount([])
+      const row = window.__motion__.el("div", "row")
+      const cell = window.__motion__.el("span", "cell")
+      node_append(row, cell)
+      node_append(c, row)
+      const own = window.__motion__.deferred()
+      const child = window.__motion__.deferred()
+      node_on_leave(row, () => own.promise)
+      node_on_leave(cell, () => child.promise)
+      node_remove(row, true)
+      own.resolve()
+      await window.__motion__.tick()
+      const after_own = row.parentNode === c
+      child.resolve()
+      await window.__motion__.tick()
+      return { after_own, after_child: row.parentNode === c }
+    })
+    expect(r).toEqual({ after_own: true, after_child: false })
+  })
+
+  test("a removed node without a leave hook goes at once: its descendants' hooks (even `always`) don't run", async ({
+    page,
+  }) => {
+    const r = await page.evaluate(() => {
+      const { node_remove, node_on_leave, node_append } = window.__ELT__
+      const c = window.__motion__.mount([])
+      const row = window.__motion__.el("div", "row")
+      const plain = window.__motion__.el("span", "plain")
+      const always = window.__motion__.el("span", "always")
+      node_append(row, [plain, always])
+      node_append(c, row)
+      const calls: string[] = []
+      node_on_leave(plain, () => {
+        calls.push("plain")
+        return new Promise(() => {})
+      })
+      node_on_leave(
+        always,
+        () => {
+          calls.push("always")
+          return new Promise(() => {})
+        },
+        { always: true },
+      )
+      node_remove(row, true)
+      return { calls, gone: row.parentNode == null }
+    })
+    expect(r).toEqual({ calls: [], gone: true })
+  })
+
+  test("$leave(null): no exit of its own, waits for its descendants' ; with none, goes at once", async ({ page }) => {
+    const r = await page.evaluate(async () => {
+      const { node_remove, node_on_leave, node_append, $leave } = window.__ELT__
+      const c = window.__motion__.mount([])
+      const row = window.__motion__.el("div", "row")
+      const cell = window.__motion__.el("span", "cell")
+      node_append(row, cell)
+      const lonely = window.__motion__.el("div", "lonely")
+      node_append(c, [row, lonely])
+      $leave(null)(row)
+      $leave(null)(lonely)
+      const d = window.__motion__.deferred()
+      node_on_leave(cell, () => d.promise)
+      node_remove(row, true)
+      node_remove(lonely, true)
+      const out = {
+        row_waits: row.parentNode === c,
+        row_animations: row.getAnimations().length,
+        lonely_gone: lonely.parentNode == null,
+      }
+      d.resolve()
+      await window.__motion__.tick()
+      return { ...out, row_gone: row.parentNode == null }
+    })
+    expect(r).toEqual({ row_waits: true, row_animations: 0, lonely_gone: true, row_gone: true })
+  })
+
+  test("inside a removed node that stays, a nested verb's content only plays `always` hooks", async ({ page }) => {
+    const r = await page.evaluate(() => {
+      const { node_remove, node_on_leave, node_append, o, If } = window.__ELT__
+      const c = window.__motion__.mount([])
+      const panel = window.__motion__.el("div", "panel")
+      const calls: string[] = []
+      const hook = (n: HTMLElement, always = false) =>
+        node_on_leave(
+          n,
+          () => {
+            calls.push(n.id)
+            return new Promise(() => {})
+          },
+          { always },
+        )
+      const own = window.__motion__.el("b", "own")
+      hook(own)
+      node_append(panel, [
+        own,
+        If(o(true), () => {
+          const plain = window.__motion__.el("i", "nested_plain")
+          const always = window.__motion__.el("u", "nested_always")
+          hook(plain)
+          hook(always, true)
+          const f = document.createDocumentFragment()
+          f.append(plain, always)
+          return f
+        }),
+      ])
+      node_append(c, panel)
+      hook(panel)
+      node_remove(panel, true)
+      return calls.sort()
+    })
+    expect(r).toEqual(["nested_always", "own", "panel"])
+  })
+
+  test("at the top of a removal, a nested verb's content doesn't play its plain exits", async ({ page }) => {
+    const r = await page.evaluate(() => {
+      const { node_append, node_on_leave, o, If } = window.__ELT__
+      const c = window.__motion__.mount([])
+      const o_outer = o(true)
+      const calls: string[] = []
+      const mk = (id: string) => {
+        const e = window.__motion__.el("b", id)
+        node_on_leave(e, () => {
+          calls.push(id)
+          return new Promise(() => {})
+        })
+        return e
+      }
+      node_append(
+        c,
+        If(o_outer, () => {
+          const f = document.createDocumentFragment()
+          node_append(f, [mk("own"), If(o(true), () => mk("nested"))])
+          return f
+        }),
+      )
+      o_outer.set(false)
+      return calls
+    })
+    expect(r).toEqual(["own"])
+  })
+
+  test("a removed node without a box stays in the layout while its descendants leave", async ({ page }) => {
+    const r = await page.evaluate(() => {
+      const { node_remove, node_on_leave, node_append, $leave } = window.__ELT__
+      const c = window.__motion__.mount([])
+      const wrapper = window.__motion__.el("div", "wrapper")
+      wrapper.textContent = ""
+      wrapper.style.display = "contents"
+      const cell = window.__motion__.el("div", "cell")
+      node_append(wrapper, cell)
+      node_append(c, wrapper)
+      $leave(null)(wrapper)
+      node_on_leave(cell, () => new Promise(() => {}))
+      node_remove(wrapper, true)
+      return { stays: wrapper.parentNode === c, position: wrapper.style.position }
+    })
+    expect(r).toEqual({ stays: true, position: "" })
   })
 })
 
@@ -229,11 +380,9 @@ test.describe("condemned leaving nodes", () => {
       const c = window.__motion__.mount([])
       const o_flag = o(true)
       const mk = (id: string) => {
-        const el = document.createElement("b")
-        el.id = id
-        el.textContent = id
-        node_on_leave(el, () => new Promise(() => {}))
-        return el
+        const e = window.__motion__.el("b", id)
+        node_on_leave(e, () => new Promise(() => {}))
+        return e
       }
       node_append(
         c,
@@ -243,11 +392,11 @@ test.describe("condemned leaving nodes", () => {
           () => mk("else"),
         ),
       )
+      const state = () => [...c.querySelectorAll("b")].map((b) => `${b.id}${b.hasAttribute("e-leaving") ? "*" : ""}`)
       o_flag.set(false)
-      const after_one = [...c.querySelectorAll("b")].map((b) => `${b.id}${b.hasAttribute("e-leaving") ? "*" : ""}`)
+      const after_one = state()
       o_flag.set(true)
-      const after_two = [...c.querySelectorAll("b")].map((b) => `${b.id}${b.hasAttribute("e-leaving") ? "*" : ""}`)
-      return { after_one, after_two }
+      return { after_one, after_two: state() }
     })
     // The new branch is inserted at once, before the leaving one ; the second flip cuts the first exit.
     expect(r.after_one).toEqual(["else", "then*"])
@@ -261,7 +410,7 @@ test.describe("condemned leaving nodes", () => {
       const other = window.__motion__.mount([])
       const [a, b, cc] = [...c.children] as HTMLElement[]
       node_on_leave(b, () => new Promise(() => {}))
-      node_remove(b)
+      node_remove(b, true)
       node_move_range(a, cc, other, null)
       return { moved: [...other.children].map((e) => e.id), left: c.children.length, b_gone: b.parentNode == null }
     })
@@ -276,7 +425,7 @@ test.describe("condemned leaving nodes", () => {
       $observe(o(0), () => {})(b)
       const d = window.__motion__.deferred()
       node_on_leave(b, () => d.promise)
-      node_remove(b)
+      node_remove(b, true)
       node_remove(c)
       node_append(document.body, c)
       const out = {
@@ -292,19 +441,33 @@ test.describe("condemned leaving nodes", () => {
     expect(r).toEqual({ b_gone: true, b_observing: false, ids: ["a"] })
   })
 
+  test("a leaving node put back with node_append is removed and does not enter", async ({ page }) => {
+    const r = await page.evaluate(() => {
+      const { node_append, node_remove, node_on_enter, node_on_leave } = window.__ELT__
+      const c = window.__motion__.mount(["a"])
+      const a = c.querySelector("#a") as HTMLElement
+      let entered = 0
+      node_on_enter(a, () => entered++)
+      node_on_leave(a, () => new Promise(() => {}))
+      node_remove(a, true)
+      node_append(c, a, null, true)
+      return { entered, gone: a.parentNode == null }
+    })
+    expect(r).toEqual({ entered: 0, gone: true })
+  })
+
   test("a comment holder whose content is only leaving nodes has no content", async ({ page }) => {
     const r = await page.evaluate(() => {
       const { CommentHolder, node_append, node_on_leave } = window.__ELT__
       const c = window.__motion__.mount([])
       const holder = new CommentHolder("holder")
       node_append(c, holder)
-      const el = document.createElement("b")
-      el.textContent = "x"
-      node_on_leave(el, () => new Promise(() => {}))
-      holder.updateRenderable(el)
+      const e = window.__motion__.el("b", "x")
+      node_on_leave(e, () => new Promise(() => {}))
+      holder.updateRenderable(e)
       const before = holder.hasContent
-      holder.empty()
-      return { before, after: holder.hasContent, still_there: el.parentNode === c }
+      holder.empty(true)
+      return { before, after: holder.hasContent, still_there: e.parentNode === c }
     })
     expect(r).toEqual({ before: true, after: false, still_there: true })
   })
@@ -318,18 +481,17 @@ test.describe("floating", () => {
   ] as const) {
     test(`the page lays out as without the node, which stays where it was (${name})`, async ({ page }) => {
       const r = await page.evaluate((wrapper) => {
-        const { node_remove, node_on_leave } = window.__ELT__
+        const { node_remove, node_on_leave, node_append } = window.__ELT__
         const outer = window.__motion__.mount([], wrapper)
         const c = document.createElement("div")
         c.style.padding = "5px"
         for (const id of ["a", "b", "c"]) {
-          const d = document.createElement("div")
-          d.id = id
+          const d = window.__motion__.el("div", id)
           d.style.height = "20px"
           d.style.margin = "3px"
           c.append(d)
         }
-        window.__ELT__.node_append(outer, c)
+        node_append(outer, c)
         const b = c.querySelector("#b") as HTMLElement
         const cc = c.querySelector("#c") as HTMLElement
         const rect = (e: Element) => {
@@ -337,14 +499,14 @@ test.describe("floating", () => {
           return [r.left, r.top, r.width, r.height]
         }
         const b_before = rect(b)
-        const c_target = rect(b) // c will take b's place
         node_on_leave(b, () => new Promise(() => {}))
-        node_remove(b)
-        return { b_before, b_after: rect(b), c_target, c_after: rect(cc), position: b.style.position }
+        node_remove(b, true)
+        return { b_before, b_after: rect(b), c_after: rect(cc), position: b.style.position }
       }, wrapper)
       expect(r.position).toBe("absolute")
       expect(r.b_after).toEqual(r.b_before)
-      expect(r.c_after).toEqual(r.c_target)
+      // c took b's place
+      expect(r.c_after).toEqual(r.b_before)
     })
   }
 
@@ -357,7 +519,7 @@ test.describe("floating", () => {
       const top = cc.offsetTop
       const d = window.__motion__.deferred()
       node_on_leave(b, () => d.promise, { flow: true })
-      node_remove(b)
+      node_remove(b, true)
       const during = cc.offsetTop
       d.resolve()
       await window.__motion__.tick()
@@ -376,7 +538,7 @@ test.describe("floating", () => {
       const r3 = table.querySelector("#r3") as HTMLElement
       const top = r3.offsetTop
       node_on_leave(r2, () => new Promise(() => {}))
-      node_remove(r2)
+      node_remove(r2, true)
       return { position: r2.style.position, r3_kept: r3.offsetTop === top }
     })
     expect(r).toEqual({ position: "", r3_kept: true })
@@ -390,102 +552,117 @@ test.describe("floating", () => {
       a.style.color = "red"
       const before = a.style.cssText
       node_on_leave(a, () => {})
-      node_remove(a)
+      node_remove(a, true)
       return { same: a.style.cssText === before, gone: a.parentNode == null }
     })
     expect(r).toEqual({ same: true, gone: true })
   })
 })
 
-test.describe("Repeat", () => {
-  test("a removed item with a leave hook floats out ; the others take their final place at once", async ({ page }) => {
-    const r = await page.evaluate(() => {
-      const { o, Repeat, node_append, node_on_leave } = window.__ELT__
-      const c = window.__motion__.mount([])
-      const o_list = o(["a", "b", "c"])
-      node_append(
-        c,
-        Repeat(o_list, (o_item) => {
-          const d = document.createElement("div")
-          d.id = o_item.get()
-          d.style.height = "20px"
-          node_on_leave(d, () => new Promise(() => {}))
-          return d
-        }).withKeyFunction((s: string) => s),
-      )
-      const c_el = c.querySelector("#c") as HTMLElement
-      const b_top = (c.querySelector("#b") as HTMLElement).getBoundingClientRect().top
-      o_list.set(["a", "c"])
-      const leaving = [...c.querySelectorAll("[e-leaving]")].map((e) => e.id)
-      const c_moved_up = c_el.getBoundingClientRect().top === b_top
-      // Further updates leave the leaving item alone
-      o_list.set(["c", "a", "d"])
-      const order = [...c.children].filter((e) => !e.hasAttribute("e-leaving")).map((e) => e.id)
-      return { leaving, c_moved_up, order, b_still_there: c.querySelector("#b") != null }
-    })
-    expect(r).toEqual({ leaving: ["b"], c_moved_up: true, order: ["c", "a", "d"], b_still_there: true })
-  })
-})
-
 test.describe("entering", () => {
-  // Each test records which ids had their enter hook run.
-  test("a tree built offscreen then mounted: only its root enters", async ({ page }) => {
+  // Each test records the ids whose enter hook ran.
+  test("a verb's update: the new content and its descendants enter, not a nested verb's first render", async ({
+    page,
+  }) => {
     const r = await page.evaluate(() => {
-      const { o, If, Switch, Repeat, node_append, node_on_enter } = window.__ELT__
+      const { o, If, Repeat, node_append, node_on_enter } = window.__ELT__
       const entered: string[] = []
       const mk = (tag: string, id: string) => {
-        const el = document.createElement(tag)
-        el.id = id
-        node_on_enter(el, () => entered.push(id))
-        return el
+        const e = window.__motion__.el(tag, id)
+        node_on_enter(e, () => entered.push(id))
+        return e
+      }
+      const o_open = o(false)
+      const o_items = o(["a"])
+      const c = window.__motion__.mount([])
+      node_append(
+        c,
+        If(o_open, () => {
+          const panel = mk("div", "panel")
+          node_append(panel, [
+            mk("h3", "title"),
+            Repeat(o_items, (o_s) => mk("li", o_s.get())).withKeyFunction((s: string) => s),
+          ])
+          return panel
+        }),
+      )
+      const steps: Record<string, string[]> = {}
+      o_open.set(true)
+      steps.open = [...entered]
+      entered.length = 0
+      o_items.set(["a", "b"])
+      steps.add = [...entered]
+      return steps
+    })
+    expect(r.open.sort()).toEqual(["panel", "title"])
+    expect(r.add).toEqual(["b"])
+  })
+
+  test("a verb's first render never enters: built offscreen then mounted, or appended directly into the page", async ({
+    page,
+  }) => {
+    const r = await page.evaluate(() => {
+      const { o, If, Repeat, node_append, node_on_enter } = window.__ELT__
+      const entered: string[] = []
+      const mk = (tag: string, id: string) => {
+        const e = window.__motion__.el(tag, id)
+        node_on_enter(e, () => entered.push(id))
+        return e
       }
       const root = mk("div", "root")
       node_append(
         root,
         If(o(true), () => mk("b", "then")),
       )
-      node_append(
-        root,
-        Switch(o("x")).Case("x", () => mk("em", "case")),
-      )
-      node_append(
-        root,
-        Repeat(
-          o(["a", "b"]).tf((l) => l),
-          (o_s) => mk("li", o_s.get()),
-        ),
-      )
       node_append(document.body, root)
+      const c = window.__motion__.mount([])
+      node_append(
+        c,
+        Repeat(o(["p", "q"]), (o_s) => mk("li", o_s.get())),
+      )
       return entered
     })
-    expect(r).toEqual(["root"])
+    expect(r).toEqual([])
   })
 
-  test("updates enter: an If / Switch branch, new Repeat items (not moved ones), a resolved promise", async ({
+  test("node_append with `motion`: the inserted nodes and their descendants enter, up to verbs", async ({ page }) => {
+    const r = await page.evaluate(() => {
+      const { o, If, node_append, node_on_enter } = window.__ELT__
+      const entered: string[] = []
+      const mk = (tag: string, id: string) => {
+        const e = window.__motion__.el(tag, id)
+        node_on_enter(e, () => entered.push(id))
+        return e
+      }
+      const box = mk("div", "box")
+      node_append(box, [mk("b", "child"), If(o(true), () => mk("i", "verb_content"))])
+      const f = document.createDocumentFragment()
+      f.append(mk("u", "f1"), mk("u", "f2"))
+      const c = window.__motion__.mount([])
+      node_append(c, box, null, true)
+      node_append(c, f, null, true)
+      node_append(c, mk("s", "no_motion"))
+      return entered.sort()
+    })
+    expect(r).toEqual(["box", "child", "f1", "f2"])
+  })
+
+  test("updates enter: Switch, new Repeat items (not moved ones), a resolved promise, an observable child", async ({
     page,
   }) => {
     const r = await page.evaluate(async () => {
-      const { o, If, Switch, Repeat, node_append, node_on_enter } = window.__ELT__
+      const { o, Switch, Repeat, node_append, node_on_enter } = window.__ELT__
       const entered: string[] = []
       const mk = (tag: string, id: string) => {
-        const el = document.createElement(tag)
-        el.id = id
-        node_on_enter(el, () => entered.push(id))
-        return el
+        const e = window.__motion__.el(tag, id)
+        node_on_enter(e, () => entered.push(id))
+        return e
       }
-      const o_flag = o(true)
       const o_mode = o("x")
       const o_list = o(["a", "b"])
+      const o_n = o(1)
       let resolve!: (n: Node) => void
       const root = document.createElement("div")
-      node_append(
-        root,
-        If(
-          o_flag,
-          () => mk("b", "then"),
-          () => mk("i", "else"),
-        ),
-      )
       node_append(
         root,
         Switch(o_mode)
@@ -497,76 +674,135 @@ test.describe("entering", () => {
         Repeat(o_list, (o_s) => mk("li", o_s.get())).withKeyFunction((s: string) => s),
       )
       node_append(root, new Promise<Node>((res) => (resolve = res)) as any)
+      node_append(
+        root,
+        o_n.tf((n) => mk("p", `n${n}`)),
+      )
       node_append(document.body, root)
-      const steps: Record<string, string[]> = {}
+      const steps: Record<string, string[]> = { mount: [...entered] }
       const step = (name: string, fn: () => void) => {
         entered.length = 0
         fn()
         steps[name] = [...entered]
       }
-      step("if", () => o_flag.set(false))
       step("switch", () => o_mode.set("y"))
       step("repeat add", () => o_list.set(["a", "b", "c", "d"]))
       step("repeat reorder", () => o_list.set(["d", "c", "b", "a"]))
+      step("observable", () => o_n.set(2))
       entered.length = 0
-      resolve(mk("p", "resolved"))
+      resolve(mk("q", "resolved"))
       await new Promise((r) => setTimeout(r))
       steps.promise = [...entered]
       return steps
     })
     expect(r).toEqual({
-      if: ["else"],
+      mount: [],
       switch: ["y"],
       "repeat add": ["c", "d"],
       "repeat reorder": [],
+      observable: ["n2"],
       promise: ["resolved"],
     })
   })
 
-  test("each top-level node of an inserted fragment enters, not their children", async ({ page }) => {
+  test("If / ElseIf / Else is one verb: switching between its branches enters", async ({ page }) => {
     const r = await page.evaluate(() => {
       const { o, If, node_append, node_on_enter } = window.__ELT__
       const entered: string[] = []
       const mk = (id: string) => {
-        const el = document.createElement("b")
-        el.id = id
-        node_on_enter(el, () => entered.push(id))
-        return el
+        const e = window.__motion__.el("b", id)
+        node_on_enter(e, () => entered.push(id))
+        return e
       }
-      const o_flag = o(false)
+      const o_a = o(true)
+      const o_b = o(false)
       const c = window.__motion__.mount([])
       node_append(
         c,
-        If(o_flag, () => {
-          const f = document.createDocumentFragment()
-          const first = mk("f1")
-          first.append(mk("child"))
-          f.append(first, mk("f2"))
-          return f
+        If(o_a, () => mk("a"))
+          .ElseIf(o_b, () => mk("b"))
+          .Else(() => mk("else")),
+      )
+      const shown = () => [...c.querySelectorAll("b")].map((e) => e.id)
+      const steps: [string[], string[]][] = []
+      const step = (fn: () => void) => {
+        entered.length = 0
+        fn()
+        steps.push([shown(), [...entered]])
+      }
+      step(() =>
+        o.transaction(() => {
+          o_a.set(false)
+          o_b.set(true)
         }),
       )
-      o_flag.set(true)
-      return entered
+      step(() => o_b.set(false))
+      step(() => o_a.set(true))
+      step(() => o_a.set(2 as any)) // still truthy: same branch, no re-render
+      return steps
     })
-    expect(r).toEqual(["f1", "f2"])
+    expect(r).toEqual([
+      [["b"], ["b"]],
+      [["else"], ["else"]],
+      [["a"], ["a"]],
+      [["a"], []],
+    ])
   })
 
-  test("a verb appended directly into a live parent: its first content enters", async ({ page }) => {
+  test("catching up while being connected is a first render, after mount and after coming back", async ({ page }) => {
     const r = await page.evaluate(() => {
-      const { o, Repeat, node_append, node_on_enter } = window.__ELT__
+      const { o, If, node_append, node_remove, node_on_enter } = window.__ELT__
       const entered: string[] = []
-      const c = window.__motion__.mount([])
+      const mk = (id: string) => {
+        const e = window.__motion__.el("b", id)
+        node_on_enter(e, () => entered.push(id))
+        return e
+      }
+      const o_flag = o(true)
+      const root = document.createElement("div")
       node_append(
-        c,
-        Repeat(o(["p", "q"]), (o_s) => {
-          const li = document.createElement("li")
-          node_on_enter(li, () => entered.push(o_s.get()))
-          return li
+        root,
+        If(
+          o_flag,
+          () => mk("then"),
+          () => mk("else"),
+        ),
+      )
+      o_flag.set(false) // offscreen: caught up on mount
+      node_append(document.body, root)
+      const mount = [...entered, root.textContent]
+      node_remove(root)
+      o_flag.set(true) // out of the page: caught up when it comes back
+      node_append(document.body, root)
+      return { mount, back: [...entered, root.textContent] }
+    })
+    expect(r).toEqual({ mount: ["else"], back: ["then"] })
+  })
+
+  test("`always`: every connection, a verb's first render included, never moves", async ({ page }) => {
+    const r = await page.evaluate(() => {
+      const { o, If, node_append, node_remove, node_move_range, node_on_enter } = window.__ELT__
+      let count = 0
+      const root = document.createElement("div")
+      let b!: HTMLElement
+      node_append(
+        root,
+        If(o(true), () => {
+          b = document.createElement("b")
+          node_on_enter(b, () => count++, { always: true })
+          return b
         }),
       )
-      return entered
+      node_append(document.body, root)
+      const first = count
+      const other = window.__motion__.mount([])
+      node_move_range(b, b, other, null)
+      const after_move = count
+      node_remove(other)
+      node_append(document.body, other)
+      return { first, after_move, after_remount: count }
     })
-    expect(r).toEqual(["p", "q"])
+    expect(r).toEqual({ first: 1, after_move: 1, after_remount: 2 })
   })
 
   test("nothing enters into a detached parent, through raw DOM calls, or while motion is off", async ({ page }) => {
@@ -574,54 +810,43 @@ test.describe("entering", () => {
       const { node_append, node_on_enter, motion_enabled } = window.__ELT__
       const entered: string[] = []
       const mk = (id: string) => {
-        const el = document.createElement("b")
-        node_on_enter(el, () => entered.push(id))
-        return el
+        const e = document.createElement("b")
+        node_on_enter(e, () => entered.push(id))
+        return e
       }
-      node_append(document.createElement("div"), mk("detached"))
+      node_append(document.createElement("div"), mk("detached"), null, true)
       document.body.append(mk("raw"))
       motion_enabled(false)
-      node_append(document.body, mk("off"))
+      node_append(document.body, mk("off"), null, true)
       motion_enabled(true)
       return entered
     })
     expect(r).toEqual([])
   })
 
-  test("always: runs on every connection, including with an ancestor, never on moves", async ({ page }) => {
+  test("nodes after a verb catching up on mount are connected (regression: the walk stopped there)", async ({
+    page,
+  }) => {
     const r = await page.evaluate(() => {
-      const { node_append, node_remove, node_move_range, node_on_enter } = window.__ELT__
-      let count = 0
+      const { o, If, node_append, node_is_connected, $observe } = window.__ELT__
+      const o_flag = o(true)
       const root = document.createElement("div")
-      const b = document.createElement("b")
-      node_on_enter(b, () => count++, { always: true })
-      node_append(root, b)
+      node_append(
+        root,
+        If(
+          o_flag,
+          () => document.createElement("b"),
+          () => document.createElement("i"),
+        ),
+      )
+      const after = document.createElement("span")
+      $observe(o(1), () => {})(after)
+      node_append(root, after)
+      o_flag.set(false)
       node_append(document.body, root)
-      const with_ancestor = count
-      const other = window.__motion__.mount([])
-      node_move_range(b, b, other, null)
-      const after_move = count
-      // b now lives in `other` : remounting it reconnects b
-      node_remove(other)
-      node_append(document.body, other)
-      return { with_ancestor, after_move, after_remount: count }
+      return { swapped: root.querySelector("i") != null, after_connected: node_is_connected(after) }
     })
-    expect(r).toEqual({ with_ancestor: 1, after_move: 1, after_remount: 2 })
-  })
-
-  test("a leaving node put back with node_append is removed and does not enter", async ({ page }) => {
-    const r = await page.evaluate(() => {
-      const { node_append, node_remove, node_on_enter, node_on_leave } = window.__ELT__
-      const c = window.__motion__.mount(["a"])
-      const a = c.querySelector("#a") as HTMLElement
-      let entered = 0
-      node_on_enter(a, () => entered++)
-      node_on_leave(a, () => new Promise(() => {}))
-      node_remove(a)
-      node_append(c, a)
-      return { entered, gone: a.parentNode == null }
-    })
-    expect(r).toEqual({ entered: 0, gone: true })
+    expect(r).toEqual({ swapped: true, after_connected: true })
   })
 })
 
@@ -633,7 +858,7 @@ test.describe("$enter / $leave", () => {
       const c = window.__motion__.mount(["a"])
       const a = c.querySelector("#a") as HTMLElement
       $leave()(a)
-      node_remove(a)
+      node_remove(a, true)
       const anims = a.getAnimations()
       const during = {
         count: anims.length,
@@ -660,7 +885,7 @@ test.describe("$enter / $leave", () => {
       $leave({ keyframes: [{ opacity: 0 }], duration: 60, easing: "ease-in" })(spec)
       let resolve!: () => void
       $leave(() => new Promise<void>((r) => (resolve = r)))(fn)
-      for (const n of [kf, spec, fn]) node_remove(n)
+      for (const n of [kf, spec, fn]) node_remove(n, true)
       const timing = (n: Element) => {
         const t = (n.getAnimations()[0]?.effect as KeyframeEffect | undefined)?.getTiming()
         return t ? [t.duration, t.easing] : null
@@ -677,16 +902,27 @@ test.describe("$enter / $leave", () => {
     expect(r.after_resolve).toBe(0)
   })
 
+  test("an exit that would never end plays nothing: the node goes at once", async ({ page }) => {
+    const r = await page.evaluate(() => {
+      const { $leave, node_remove } = window.__ELT__
+      const c = window.__motion__.mount(["a"])
+      const a = c.querySelector("#a") as HTMLElement
+      $leave({ keyframes: [{ opacity: 0 }], duration: Infinity })(a)
+      node_remove(a, true)
+      return { gone: a.parentNode == null, animations: a.getAnimations().length }
+    })
+    expect(r).toEqual({ gone: true, animations: 0 })
+  })
+
   test("$enter plays on an update, not on the first render of a mounted tree", async ({ page }) => {
     const r = await page.evaluate(() => {
       const { $enter, o, If, node_append } = window.__ELT__
       const o_flag = o(true)
       const root = document.createElement("div")
       const mk = (id: string) => {
-        const el = document.createElement("b")
-        el.id = id
-        $enter({ keyframes: [{ opacity: 0 }, { opacity: 1 }], duration: 500 })(el)
-        return el
+        const e = window.__motion__.el("b", id)
+        $enter({ keyframes: [{ opacity: 0 }, { opacity: 1 }], duration: 500 })(e)
+        return e
       }
       node_append(
         root,
@@ -716,13 +952,13 @@ test.describe("$enter / $leave", () => {
       $leave({ keyframes: [{ opacity: 0, transform: "translateY(8px)" }], duration: 500 })(slide)
       $leave({ keyframes: [{ transform: "translateY(8px)" }], duration: 500 })(only_move)
       $leave({ keyframes: [{ opacity: 0 }], duration: 500, reduced: null })(none)
-      for (const n of [slide, only_move, none]) node_remove(n)
+      for (const n of [slide, only_move, none]) node_remove(n, true)
       const entering = document.createElement("i")
       $enter({
         keyframes: [{ transform: "scale(0)" }, { transform: "none" }],
         reduced: [{ color: "red" }, { color: "blue" }],
       })(entering)
-      node_append(custom, entering)
+      node_append(custom, entering, null, true)
       const kfs = (n: Element) =>
         (n.getAnimations()[0]?.effect as KeyframeEffect | undefined)?.getKeyframes().map((k) =>
           Object.keys(k)
@@ -750,7 +986,7 @@ test.describe("$enter / $leave", () => {
       const c = window.__motion__.mount(["a"])
       const a = c.querySelector("#a") as HTMLElement
       $leave({ keyframes: [{ transform: "translateX(10px)" }], duration: 500 })(a)
-      node_remove(a)
+      node_remove(a, true)
       return { reduced: motion_is_reduced(), gone: a.parentNode == null }
     })
     expect(r).toEqual({ reduced: true, gone: true })
@@ -760,20 +996,20 @@ test.describe("$enter / $leave", () => {
     const r = await page.evaluate(async () => {
       const { $enter, $leave, node_append, node_remove } = window.__ELT__
       const c = window.__motion__.mount([])
-      const el = document.createElement("div")
-      el.style.height = "20px"
-      $enter({ keyframes: [{ opacity: 0 }, { opacity: 1 }], duration: 400, easing: "linear" })(el)
-      $leave({ keyframes: [{ opacity: 0 }], duration: 400, easing: "linear" })(el)
-      node_append(c, el)
-      const enter = el.getAnimations()[0]
+      const e = document.createElement("div")
+      e.style.height = "20px"
+      $enter({ keyframes: [{ opacity: 0 }, { opacity: 1 }], duration: 400, easing: "linear" })(e)
+      $leave({ keyframes: [{ opacity: 0 }], duration: 400, easing: "linear" })(e)
+      node_append(c, e, null, true)
+      const enter = e.getAnimations()[0]
       await new Promise((r) => setTimeout(r, 120))
-      node_remove(el)
-      const leave = el.getAnimations().find((a) => a !== enter)
+      node_remove(e, true)
+      const leave = e.getAnimations().find((a) => a !== enter)
       return {
         enter_state: enter.playState,
-        committed: Number(el.style.opacity),
+        committed: Number(e.style.opacity),
         leave_running: leave?.playState === "running",
-        opacity_now: Number(getComputedStyle(el).opacity),
+        opacity_now: Number(getComputedStyle(e).opacity),
       }
     })
     expect(r.enter_state).toBe("idle")
@@ -786,22 +1022,28 @@ test.describe("$enter / $leave", () => {
 })
 
 test.describe("without_motion", () => {
-  test("no hook runs while fn runs ; motion_is_enabled tells ; its result is returned", async ({ page }) => {
+  test("no hook runs while fn runs, `always` ones included ; motion_is_enabled tells ; its result is returned", async ({
+    page,
+  }) => {
     const r = await page.evaluate(() => {
       const { node_append, node_remove, node_on_enter, node_on_leave, without_motion, motion_is_enabled } =
         window.__ELT__
       const c = window.__motion__.mount(["a"])
       const a = c.querySelector("#a") as HTMLElement
       const calls: string[] = []
-      node_on_leave(a, () => {
-        calls.push("leave")
-        return new Promise(() => {})
-      })
+      node_on_leave(
+        a,
+        () => {
+          calls.push("leave")
+          return new Promise(() => {})
+        },
+        { always: true },
+      )
       const b = document.createElement("b")
-      node_on_enter(b, () => calls.push("enter"))
+      node_on_enter(b, () => calls.push("enter"), { always: true })
       const result = without_motion(() => {
-        node_remove(a)
-        node_append(c, b)
+        node_remove(a, true)
+        node_append(c, b, null, true)
         return motion_is_enabled()
       })
       return { result, after: motion_is_enabled(), calls, a_gone: a.parentNode == null }
@@ -816,7 +1058,6 @@ test.describe("windowed lists", () => {
   }) => {
     const r = await page.evaluate(() => {
       const { o, Repeat, node_append, node_on_enter, node_on_leave } = window.__ELT__
-      // Built offscreen, then mounted: its first rows don't enter
       const c = document.createElement("div")
       const counts = { enter: 0, leave: 0 }
       const o_list = o(Array.from({ length: 20 }, (_, i) => i))
@@ -904,14 +1145,13 @@ test.describe("windowed lists", () => {
         first_rows,
         scrolled_to: shown[0],
         after_scroll,
-        after_remove: { ...counts, leaving: content.querySelectorAll("[e-leaving]").length },
+        after_remove: { leave: counts.leave, leaving: content.querySelectorAll("[e-leaving]").length },
       }
     })
     expect(r.first_rows).toBeGreaterThan(0)
     expect(r.scrolled_to).toBeGreaterThan(50)
     expect(r.after_scroll).toEqual({ enter: 0, leave: 0, leaving: 0 })
-    expect(r.after_remove.leave).toBe(1)
-    expect(r.after_remove.leaving).toBe(1)
+    expect(r.after_remove).toEqual({ leave: 1, leaving: 1 })
   })
 })
 

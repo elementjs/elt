@@ -73,7 +73,7 @@ function _popup_resolve(p: Element) {
   }
   p.classList.remove("open")
   // Its $leave plays the exit; the popup is already out of the flow (absolute), so it stays in flow.
-  node_remove(p)
+  node_remove(p, true)
 }
 
 /** Escape closes the innermost popup only (the last opened), like one level of a native menu. */
@@ -284,7 +284,8 @@ export function popup<T>(
       node_append(popup, arro)
     }
 
-    node_append(opts?.parent ?? find_parent_node(anchor_el), popup)
+    // Opening and closing are updates: the popup plays its $enter / $leave.
+    node_append(opts?.parent ?? find_parent_node(anchor_el), popup, null, true)
 
     popup.showPopover()
     popup.classList.add("open")

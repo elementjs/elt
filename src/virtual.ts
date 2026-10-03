@@ -749,7 +749,7 @@ export namespace RepeatVirtual {
         }
       }
 
-      this.updateChildren(new_lst)
+      this.updateChildren(new_lst, undefined, this.is_update(old_lst))
       this.update_padding()
 
       if (new_lst.length === 0) {

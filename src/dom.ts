@@ -11,10 +11,18 @@ import {
   sym_enter,
 } from "./symbols"
 
-const NODE_IS_CONNECTED = 0b001
-const NODE_IS_OBSERVING = 0b010
+const NODE_IS_CONNECTED = 0b00001
+const NODE_IS_OBSERVING = 0b00010
 /** Removed, but kept in the page while its leave hooks run. Condemned: it never comes back. */
-const NODE_IS_LEAVING = 0b100
+const NODE_IS_LEAVING = 0b00100
+/** The start marker of a verb's content (a CommentHolder): what lies up to its `end` is that verb's. */
+const NODE_IS_VERB = 0b01000
+/** Set while the node's observers start on connection: a verb re-rendering then catches up, it doesn't update. */
+const NODE_IS_CONNECTING = 0b10000
+/** Bits that survive connections and disconnections. */
+const NODE_KEPT = NODE_IS_LEAVING | NODE_IS_VERB
+
+declare const DEBUG: boolean
 
 export type LifecycleCallback<N = Node> = (n: N) => void
 
@@ -27,19 +35,29 @@ export type LeaveCallback<N extends Element = Element> = (node: N) => PromiseLik
 export interface LeaveOptions {
   /** Keep the leaving node in the layout until it is removed, instead of floating it out of it at once. */
   flow?: boolean
+  /**
+   * Run even when the removal isn't an update of the node's verb: inside another verb's content, or a
+   * removal without `motion`. It never keeps an ancestor in the page: only the removed node, or a node
+   * inside a removed node that stays anyway.
+   */
+  always?: boolean
 }
 
 /** A function run when a node enters the page (see {@link node_on_enter}). */
 export type EnterCallback<N extends Element = Element> = (node: N) => unknown
 
 export interface EnterOptions {
-  /** Run on every connection, including when the node arrives with an ancestor (never on moves). */
+  /**
+   * Run on every connection, even when it isn't an update of the node's verb: a verb's first render,
+   * arriving with an ancestor, an insertion without `motion`. Never on moves.
+   */
   always?: boolean
 }
 
 interface LeaveHook {
   fn: LeaveCallback<any>
   flow: boolean
+  always: boolean
 }
 
 declare global {
@@ -58,33 +76,55 @@ declare global {
 const HAS_MOVE_BEFORE = typeof Element !== "undefined" && "moveBefore" in Element.prototype
 
 /**
- * The comment holder is a class meant to help verbs and observables maintain nodes between two comments.
+ * The content of a verb: what lies between this comment and its `end` comment. Verbs and observables
+ * shown as children render through it.
+ *
+ * It marks a boundary for motion: what a verb manages enters and leaves with that verb's updates, not
+ * with the updates of the verbs around it (docs/md/motion.md).
  */
 export class CommentHolder extends Comment {
   end: Comment | null = null
 
-  /** Change and update this nodes' content. Will only work if the CommentHolder has a parent ; use a DocumentFragment when preparing the node. */
-  updateRenderable(renderable: Renderable<Node>) {
+  /** `verb` false: the holder is a unit of the verb around it (a Repeat item), not a verb of its own. */
+  constructor(data?: string, verb = true) {
+    super(data)
+    if (verb) this[sym_connected_status] = NODE_IS_VERB
+  }
+
+  /**
+   * Replace the content by `renderable`. With `motion`, this is an update of the verb: the content
+   * plays its exit and the new content its entry. A re-render while the holder is being connected (a
+   * verb catching up on what changed while it was out of the page) is never an update.
+   *
+   * Will only work if the CommentHolder has a parent ; use a DocumentFragment when preparing the node.
+   */
+  updateRenderable(renderable: Renderable<Node>, motion = false) {
     const parent = this.parentNode
     if (parent == null) throw new Error("CommentHolder.updateRenderable: not attached to a parent")
+    motion &&= !this.isConnecting
 
     if (this.end != null) {
-      this.empty()
+      this.empty(motion)
     } else {
       this.end = document.createComment(`${this.textContent ?? ""} end`)
       node_append(parent, this.end, this.nextSibling)
     }
 
-    node_append(parent, renderable, this.nextSibling)
+    node_append(parent, renderable, this.nextSibling, motion)
   }
 
-  /** Remove the content between this node and its end marker. */
-  empty() {
+  /** Remove the content between this node and its end marker ; with `motion`, as an update. */
+  empty(motion = false) {
     const end = this.end
     if (end == null || end.parentNode !== this.parentNode) return
     const first = this.nextSibling
     // `end` is a later sibling, so both are non-null whenever the range is not empty
-    if (first !== end) node_remove_range(first as Node, end.previousSibling as Node)
+    if (first !== end) node_remove_range(first as Node, end.previousSibling as Node, motion)
+  }
+
+  /** Whether its observers are starting right now, as it is being connected. */
+  get isConnecting() {
+    return !!(this[sym_connected_status] & NODE_IS_CONNECTING)
   }
 
   /** Whether something other than leaving nodes sits between this node and its end marker. */
@@ -167,19 +207,24 @@ export function node_is_connected(node: Node) {
 function _apply_connected(node: Node) {
   const st = node[sym_connected_status] || 0
 
-  node[sym_connected_status] = NODE_IS_CONNECTED | NODE_IS_OBSERVING // now inserted
+  // now inserted ; connecting while its observers start, so a verb re-rendering then knows it catches up
+  node[sym_connected_status] = NODE_IS_CONNECTED | NODE_IS_OBSERVING | NODE_IS_CONNECTING | (st & NODE_IS_VERB)
 
   // restart observers
   if (!(st & NODE_IS_OBSERVING)) _node_start_observers(node)
+  node[sym_connected_status] &= ~NODE_IS_CONNECTING
 
   // then, call inserted.
   if (!(st & NODE_IS_CONNECTED)) _node_call_cbks(node, sym_connected)
 }
 
 /**
+ * Connect `node` and its subtree. With `entering`, the connection is part of an update (see
+ * `node_append`'s `motion`): the subtree's enter hooks run, up to the content of other verbs.
+ *
  * @internal
  */
-export function node_do_connected(node: Node) {
+export function node_do_connected(node: Node, entering = false) {
   const st = node[sym_connected_status]
   if (st & NODE_IS_CONNECTED) return
   // A leaving node put back in the page (its detached ancestor re-inserted, a late mutation record)
@@ -190,12 +235,27 @@ export function node_do_connected(node: Node) {
   }
 
   _apply_connected(node)
-  let iter = node.firstChild
-  while (iter) {
-    // saved first : connecting `iter` may remove it
-    const next = iter.nextSibling
-    node_do_connected(iter)
-    iter = next
+  if (node.firstChild != null) _connect_siblings(node.firstChild, null, entering)
+  if (entering) _node_enter(node)
+}
+
+/**
+ * Connect the siblings from `first` up to `stop` (excluded). With `entering`, they enter, except what
+ * lies between another verb's markers: that is the verb's own content, which only enters with its
+ * own updates.
+ */
+function _connect_siblings(first: Node, stop: Node | null, entering: boolean) {
+  const parent = first.parentNode
+  let verb_end: Node | null = null
+  for (let iter: Node | null = first; iter != null && iter !== stop; ) {
+    const next: Node | null = iter.nextSibling
+    if (entering && verb_end == null && iter[sym_connected_status] & NODE_IS_VERB)
+      verb_end = (iter as CommentHolder).end
+    node_do_connected(iter, entering && verb_end == null)
+    if (iter === verb_end) verb_end = null
+    // Connecting may change what follows: a verb catching up replaces its content. Unless `iter` was
+    // removed itself (a leaving node), its current next sibling is where to go on.
+    iter = iter.parentNode === parent ? iter.nextSibling : next
   }
 }
 
@@ -207,7 +267,7 @@ function _apply_disconnected(node: Node) {
   const st = node[sym_connected_status]
 
   // A leaving node stays condemned, even inside a removed ancestor that is later put back.
-  node[sym_connected_status] = st & NODE_IS_LEAVING
+  node[sym_connected_status] = st & NODE_KEPT
 
   if (st & NODE_IS_OBSERVING) {
     _node_stop_observers(node)
@@ -281,13 +341,15 @@ export function without_motion<T>(fn: () => T): T {
 }
 
 /**
- * Run `fn` when `node` leaves the page : when it is one of the nodes removed by `node_remove`, a verb
- * or a comment holder (not a descendant of one), while it is connected.
+ * Run `fn` when `node` leaves the page with an update of its verb (docs/md/motion.md): when it is
+ * removed by that update (or by a removal with `motion`), or is inside such a removed node that has a
+ * leave hook of its own. Not when it is another verb's content, not when the removed node around it
+ * has no leave hook, not when it is detached. `opts.always`: see {@link LeaveOptions}.
  *
  * `node` is disconnected first (its observers stop, its `disconnected` callbacks run). If `fn`
- * returns a promise, `node` stays in the page until it settles, marked with the `e-leaving` attribute
- * and `inert`, and out of the layout unless `opts.flow` is set ; elt then removes it. If it returns
- * nothing, `node` is removed right away.
+ * returns a promise, the removed node stays in the page until every such promise settled, marked with
+ * the `e-leaving` attribute and `inert`, and out of the layout unless `opts.flow` is set ; elt then
+ * removes it. If it returns nothing, nothing waits for it.
  *
  * A leaving node is condemned : removing it again, moving it, or putting it back in the page removes it
  * at once.
@@ -296,14 +358,13 @@ export function without_motion<T>(fn: () => T): T {
  */
 export function node_on_leave<N extends Element>(node: N, fn: LeaveCallback<N>, opts?: LeaveOptions) {
   node[sym_leave] ??= []
-  node[sym_leave].push({ fn, flow: !!opts?.flow })
+  node[sym_leave].push({ fn, flow: !!opts?.flow, always: !!opts?.always })
 }
 
 /**
- * Run `fn` when `node` enters the page : when it is inserted by `node_append` (a verb, a comment
- * holder, a direct call) into a parent that is in the page, as the inserted node or one of the
- * top-level nodes of an inserted fragment. Not when it arrives with an ancestor (the first render of
- * a tree built offscreen, then mounted), not on moves, not when inserted into a detached parent.
+ * Run `fn` when `node` enters the page with an update of its verb (docs/md/motion.md): when that
+ * update (or a `node_append` with `motion`) inserts it, or inserts an ancestor of it, up to the
+ * content of other verbs. Not on a verb's first render, not on moves, not into a detached parent.
  *
  * With `opts.always`, `fn` runs on every connection instead (still never on moves). Nothing runs while
  * motion is off ({@link motion_enabled}).
@@ -321,7 +382,7 @@ export function node_on_enter<N extends Element>(node: N, fn: EnterCallback<N>, 
   node[sym_enter].push(fn)
 }
 
-/** Run the enter hooks of `node`, just inserted into the page by `node_append` and connected. */
+/** Run the enter hooks of `node`, just connected as part of an update. */
 function _node_enter(node: Node) {
   const hooks = node[sym_enter]
   if (hooks == null || !motion_is_enabled() || !(node[sym_connected_status] & NODE_IS_CONNECTED)) return
@@ -346,12 +407,41 @@ const TABLE_PARTS = new Set([
   "table-caption",
 ])
 
-/** A leaving node and what its removal needs. */
+/** A removed node that may stay while leave hooks run, in itself and its descendants. */
 interface Leaving {
   node: Element
+  /** The nodes whose hooks run, each with whether its plain (not `always`) hooks run. */
+  hooks: [Element, boolean][]
   /** Its inline style before it was taken out of the layout, restored if it does not leave after all. */
   style: string | null
-  promises: PromiseLike<unknown>[]
+  /** Whether it stays in the layout: a hook asked `flow`, or it can't float. */
+  flow: boolean
+}
+
+/** Whether `node` has leave hooks that run: `always` ones, and plain ones when `plain`. */
+function _has_leave(node: Node, plain: boolean) {
+  const hooks = node[sym_leave]
+  if (hooks == null) return false
+  for (let i = 0; i < hooks.length; i++) if (plain || hooks[i].always) return true
+  return false
+}
+
+/**
+ * Disconnect `node`'s subtree, collecting into `hooks` the descendants whose leave hooks run: plain
+ * ones while `plain`, which stops at other verbs' content, `always` ones anywhere.
+ */
+function _disconnect_collect(node: Node, hooks: [Element, boolean][], plain: boolean) {
+  let verb_end: Node | null = null
+  let iter = node.firstChild
+  while (iter) {
+    if (plain && verb_end == null && iter[sym_connected_status] & NODE_IS_VERB) verb_end = (iter as CommentHolder).end
+    const p = plain && verb_end == null
+    _disconnect_collect(iter, hooks, p)
+    if (_has_leave(iter, p)) hooks.push([iter as Element, p])
+    if (iter === verb_end) verb_end = null
+    iter = iter.nextSibling
+  }
+  _apply_disconnected(node)
 }
 
 /**
@@ -364,12 +454,12 @@ function float_out(nodes: Leaving[]) {
   for (const l of nodes) {
     const el = l.node
     // Only HTML elements are laid out by the flow and know their offsets ; table parts stop being
-    // table parts once absolute, and a box split over several lines has no single rectangle.
+    // table parts once absolute, and a box split over several lines (or no box) has no single rectangle.
     if (
+      l.flow ||
       !(el instanceof HTMLElement) ||
-      (l.node[sym_leave] as LeaveHook[]).some((h) => h.flow) ||
       TABLE_PARTS.has(getComputedStyle(el).display) ||
-      el.getClientRects().length > 1
+      el.getClientRects().length !== 1
     ) {
       rects.push(null)
       continue
@@ -418,24 +508,34 @@ function _leave_done(node: Element) {
  * here (`node_remove`, `node_clear`, verbs, comment holders).
  *
  * The nodes are disconnected first, so their `disconnected` callbacks still see them in place, then
- * detached : a single node with `removeChild`, a run of several with one Range call. Nodes with leave
- * hooks (see {@link node_on_leave}) may stay in the page while their hooks run ; leaving nodes already
- * in the range are removed at once. With `motion` false, no leave hook runs.
+ * detached : a single node with `removeChild`, a run of several with one Range call.
+ *
+ * With `motion`, the removal is an update (docs/md/motion.md): a removed node with a leave hook stays
+ * while its hooks and its descendants' run, up to the content of other verbs (whose markers may be in
+ * the range too). Without, only `always` hooks run. Leaving nodes already in the range go at once.
  *
  * @group Dom
  */
-export function node_remove_range(first: Node, last: Node, motion = true): void {
-  // Nodes with leave hooks that may leave : connected (removing a detached node is always instant)
+export function node_remove_range(first: Node, last: Node, motion = false): void {
+  // Removed nodes that may stay: connected (removing a detached node is always instant), with a hook.
   let candidates: Leaving[] | null = null
-  const may_leave = motion && motion_is_enabled()
+  const may_leave = motion_is_enabled()
+  let verb_end: Node | null = null
   for (let n: Node | null = first; n != null; n = n.nextSibling) {
     // Already leaving : removed again, it goes now with the rest (its final removal will do nothing).
     n[sym_connected_status] &= ~NODE_IS_LEAVING
-    if (may_leave && n[sym_leave] != null && n[sym_connected_status] & NODE_IS_CONNECTED) {
+    if (motion && verb_end == null && n[sym_connected_status] & NODE_IS_VERB) verb_end = (n as CommentHolder).end
+    const plain = motion && verb_end == null
+    if (may_leave && n[sym_connected_status] & NODE_IS_CONNECTED && _has_leave(n, plain)) {
+      const hooks: [Element, boolean][] = []
+      _disconnect_collect(n, hooks, plain)
+      hooks.push([n as Element, plain])
       candidates ??= []
-      candidates.push({ node: n as Element, style: null, promises: [] })
+      candidates.push({ node: n as Element, hooks, style: null, flow: false })
+    } else {
+      node_do_disconnect(n)
     }
-    node_do_disconnect(n)
+    if (n === verb_end) verb_end = null
     if (n === last) break
   }
 
@@ -485,39 +585,51 @@ export function node_remove_range(first: Node, last: Node, motion = true): void 
 }
 
 /**
- * Float the candidates out of the layout, run their hooks, and mark those that leave. Returns whether
- * any does. The other candidates get their inline style back and are removed with the rest.
+ * Float the candidates out of the layout, run their hooks and their descendants', and mark those that
+ * leave. Returns whether any does. The others get their inline style back and go with the rest.
  */
 function start_leaving(candidates: Leaving[]): boolean {
-  // A node without a box shows nothing while leaving : it goes at once.
-  const shown = candidates.filter((l) => l.node.getClientRects().length > 0)
+  // Nothing visible to animate (no box among the nodes whose hooks run): it goes at once.
+  const shown = candidates.filter((l) => l.hooks.some(([n]) => n.getClientRects().length > 0))
   if (shown.length === 0) return false
+  for (const l of shown)
+    l.flow = l.hooks.some(([n, plain]) => (n[sym_leave] as LeaveHook[]).some((h) => h.flow && (plain || h.always)))
   // Measured before the hooks : an animation started by a hook would move the node's rectangle.
   float_out(shown)
 
   let any = false
   for (const l of shown) {
-    const node = l.node
-    for (const h of node[sym_leave] as LeaveHook[]) {
-      try {
-        const res = h.fn(node)
-        if (res != null && typeof (res as PromiseLike<unknown>).then === "function")
-          l.promises.push(res as PromiseLike<unknown>)
-      } catch (e) {
-        console.error("leave hooks should not throw", e)
+    const promises: PromiseLike<unknown>[] = []
+    for (const [n, plain] of l.hooks) {
+      for (const h of n[sym_leave] as LeaveHook[]) {
+        if (!plain && !h.always) continue
+        try {
+          const res = h.fn(n)
+          if (res != null && typeof (res as PromiseLike<unknown>).then === "function")
+            promises.push(res as PromiseLike<unknown>)
+        } catch (e) {
+          console.error("leave hooks should not throw", e)
+        }
       }
     }
 
-    if (l.promises.length === 0) {
+    const node = l.node
+    if (promises.length === 0) {
       if (l.style != null) (node as HTMLElement).style.cssText = l.style
       continue
     }
     any = true
-    node[sym_connected_status] = NODE_IS_LEAVING
+    node[sym_connected_status] = NODE_IS_LEAVING | (node[sym_connected_status] & NODE_IS_VERB)
     node.setAttribute("e-leaving", "")
     node.setAttribute("inert", "")
     const done = () => _leave_done(node)
-    Promise.all(l.promises).then(done, done)
+    Promise.all(promises).then(done, done)
+    if (DEBUG) {
+      setTimeout(() => {
+        if (node[sym_connected_status] & NODE_IS_LEAVING)
+          console.warn("still waiting for its leave hooks after 5s (a promise that never settles?)", node)
+      }, 5000)
+    }
   }
   return any
 }
@@ -547,22 +659,25 @@ export function node_move_range(first: Node, last: Node, parent: Node, refchild:
 }
 
 /**
- * Remove a `node` from the tree and call `removed` on its mixins and all the `removed` callbacks. A node inserted with `node_append` should be removed with this function.
+ * Remove `node` from the tree: disconnect it (its observers stop, its `disconnected` callbacks run),
+ * then detach it. A node inserted with `node_append` should be removed with this function.
+ *
+ * With `motion`, the removal plays exits like a verb's update would ({@link node_remove_range}).
  *
  * @group Dom
  */
-export function node_remove(node: Node): void {
-  node_remove_range(node, node)
+export function node_remove(node: Node, motion = false): void {
+  node_remove_range(node, node, motion)
 }
 
 /**
- * Remove all elements within a node and call the remove callback.
+ * Remove all the children of `node`, like {@link node_remove}.
  * @group Dom
  */
-export function node_clear(node: Node): void {
+export function node_clear(node: Node, motion = false): void {
   const first = node.firstChild
   // `lastChild` is non-null whenever `firstChild` is
-  if (first != null) node_remove_range(first, node.lastChild as Node)
+  if (first != null) node_remove_range(first, node.lastChild as Node, motion)
 }
 
 /**
@@ -643,18 +758,40 @@ function insert_before(node: Node, new_child: Node, refchild: Node | null, is_ba
 }
 
 /**
- * Process an insertable and insert it where desired.
+ * Insert `renderable` into `node`, before `refchild`: a node, a string, an array, an observable, a verb,
+ * a promise, a decorator or an attribute object. When `node` is in the page, what it inserts is
+ * connected (observers start, `connected` callbacks run).
+ *
+ * With `motion`, the insertion is an update (docs/md/motion.md): the inserted nodes and their
+ * descendants play their entry, up to the content of verbs, which only enters with their own updates.
  *
  * @param node The parent to insert the node on
  * @param renderable The insertable that has to be handled
  * @param refchild The child before which to append
+ * @param motion Whether the insertion is an update: its content enters
  * @group Dom
  */
 export function node_append<N extends Node>(
   node: N,
   renderable: Renderable<N> | Attrs<N>,
   refchild: Node | null = null,
-  is_basic_node = true,
+  motion = false,
+) {
+  _node_append(node, renderable, refchild, true, motion)
+}
+
+/**
+ * {@link node_append}, also told whether `node` is an element (`is_basic_node`) or uses a
+ * `RefChild` insertion point, for the attributes it accepts.
+ *
+ * @internal
+ */
+export function _node_append<N extends Node>(
+  node: N,
+  renderable: Renderable<N> | Attrs<N>,
+  refchild: Node | null,
+  is_basic_node: boolean,
+  motion: boolean,
 ) {
   if (renderable == null || typeof renderable === "boolean") return
 
@@ -665,29 +802,18 @@ export function node_append<N extends Node>(
     // A node being added
     if (renderable.nodeType === Node.DOCUMENT_FRAGMENT_NODE) {
       // DocumentFragment
-      let start = renderable.firstChild
+      const start = renderable.firstChild
       if (start == null) return // there are no children to append, nothing more to do
 
       insert_before(node, renderable, refchild, is_basic_node)
 
-      if (node.isConnected) {
-        // `start` was the fragment's first child, now moved into `node` : walk until the insertion point
-        while (start != null && start !== refchild) {
-          // saved first : connecting `start` may remove it (a leaving node is never reconnected)
-          const next: ChildNode | null = start.nextSibling
-          // Fresh from the fragment, so not connected yet : once connected, it enters the page.
-          node_do_connected(start)
-          _node_enter(start)
-          start = next
-        }
-      }
+      // `start` was the fragment's first child, now moved into `node` : connect until the insertion point
+      if (node.isConnected) _connect_siblings(start, refchild, motion)
     } else {
       insert_before(node, renderable, refchild, is_basic_node)
       if (node.isConnected) {
-        // Already connected : this is a move, which never enters the page.
-        const entering = !(renderable[sym_connected_status] & NODE_IS_CONNECTED)
-        node_do_connected(renderable)
-        if (entering) _node_enter(renderable)
+        // Already connected, this is a move: it returns at once, nothing enters.
+        node_do_connected(renderable, motion)
       } else if (node_is_connected(renderable)) {
         node_do_disconnect(renderable)
       }
@@ -695,13 +821,14 @@ export function node_append<N extends Node>(
   } else if (renderable instanceof Function) {
     // A decorator
     const res = renderable(node)
-    if (res != null) node_append(node, res, refchild, is_basic_node)
+    if (res != null) _node_append(node, res, refchild, is_basic_node, motion)
   } else if (is_appender(renderable)) {
+    // A verb: its first render is its own, it doesn't enter.
     renderable[sym_insert](node, refchild)
   } else if (typeof (renderable as any)[Symbol.iterator] === "function") {
     // An array of children
     for (const item of renderable as Iterable<N>) {
-      node_append(node, item, refchild, is_basic_node)
+      _node_append(node, item, refchild, is_basic_node, motion)
     }
   } else if (renderable.constructor === Object) {
     // An attribute object. We assume this is an Element that is being handled
@@ -721,18 +848,21 @@ export function node_append<N extends Node>(
       }
     }
   } else if (typeof (renderable as any).then === "function") {
+    // A promise is a verb: its content appears between its markers when it resolves, an update when
+    // it is in the page by then.
     const _pro = renderable as unknown as Promise<Renderable<N>>
-    const cmt = document.createComment("promise-loading")
-    insert_before(node, cmt, refchild, is_basic_node)
+    const holder = new CommentHolder("promise-loading")
+    insert_before(node, holder, refchild, is_basic_node)
+    if (node.isConnected) node_do_connected(holder)
     _pro
       .then((res) => {
-        if (!cmt.parentNode) return
-        node_append(cmt.parentNode as unknown as N, res, cmt)
-        cmt.textContent = "promise-resolved"
+        if (!holder.parentNode) return
+        holder.textContent = "promise-resolved"
+        holder.updateRenderable(res as Renderable<Node>, node_is_connected(holder))
       })
       .catch((e) => {
         console.error(e)
-        cmt.textContent = `promise-error: ${e.toString()}`
+        holder.textContent = `promise-error: ${e.toString()}`
       })
   } else {
     // Otherwise, make it a string and append it.

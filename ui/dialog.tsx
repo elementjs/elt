@@ -84,11 +84,12 @@ export function show_dialog<T>(opts: DialogOptions | DialogCallback<T>, cbk?: Di
     if (return_focus?.isConnected) return_focus.focus({ preventScroll: true })
   }
 
-  node_append(document.body, dialog)
+  // Opening and closing are updates: the dialog plays its $enter / $leave.
+  node_append(document.body, dialog, null, true)
   dialog.showModal()
 
   future.then(() => {
-    node_remove(dialog)
+    node_remove(dialog, true)
     // Gone at once (motion off, or already closed by the browser): no exit gives focus back.
     if (dialog.parentNode == null) give_focus_back()
   })
