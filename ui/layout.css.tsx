@@ -349,6 +349,11 @@ _`${_all}[spacing] > * { --e-parent-spacing: var(--e-spacing-component); }`
 for (const sp of spaces) {
   _`${_all}[pad="${sp}"] > * { --e-parent-spacing: var(--e-spacing-${sp}); }`
 }
+// [packed="X"] sets the container's step like [spacing="X"] does (2b above), so its children see it
+// as their parent's spacing too. Same priority between [pad] and [spacing], mirroring (2b).
+for (const sp of spaces) {
+  _`${_all}[packed="${sp}"] > * { --e-parent-spacing: var(--e-spacing-${sp}); }`
+}
 for (const sp of spaces) {
   _`${_all}[spacing="${sp}"] > * { --e-parent-spacing: var(--e-spacing-${sp}); }`
 }
@@ -514,16 +519,24 @@ css`
 
   /* packed pads the children that don't set their own [pad]; a child with its own [pad] keeps it.
      Expressed as an exclusion (:not([pad]), wrapped in :where so it adds no specificity) rather
-     than left to the cascade, where it used to depend on which rule came later in the sheet. */
-  ${_cells(`${_packed}:where([packed]:not([pad="none"]))`, ":where(:not([pad]))")} {
+     than left to the cascade, where it used to depend on which rule came later in the sheet.
+     A child that is itself [packed] is a group, not a cell: its own cells carry the padding, so
+     padding it too would inset their content twice (golden rule 4: one padding between a boundary
+     and its content). It only keeps a padding it asks for with its own [pad]. */
+  ${_cells(`${_packed}:where([packed]:not([pad="none"]))`, ":where(:not([pad]):not([packed]))")} {
     padding: var(--e-pad);
   }
 
   ${spaces
     .map(
       (sp) => `
+  /* The step goes to every cell, packed groups included: a group doesn't pad itself, but its own
+     bare [packed] reads --e-pad, so it must inherit the step from here rather than from the
+     container's own --e-pad. */
   ${_cells(`${_packed}[packed="${sp}"]`, ":where(:not([pad]))")} {
     ${theme.css_pad(sp)}
+  }
+  ${_cells(`${_packed}[packed="${sp}"]`, ":where(:not([pad]):not([packed]))")} {
     padding: var(--e-pad);
   }`,
     )

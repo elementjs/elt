@@ -131,6 +131,64 @@ test.describe("packed e-grid", () => {
     expect((await styles(page, "#s1", ["padding-top"]))["padding-top"]).toBe(sect)
   })
 
+  test("a packed group inside a packed container isn't padded again: only the innermost cells carry the padding", async ({
+    page,
+  }) => {
+    await mount(
+      page,
+      `<e-column id="outer" packed>
+         <e-column id="group" packed><span id="leaf">a</span></e-column>
+         <e-column id="own" packed pad="section"><span>b</span></e-column>
+         <e-column id="step" packed="section"><span id="step_leaf">c</span></e-column>
+         <span id="loose">d</span>
+       </e-column>
+       <span id="ref_component" style="padding: var(--e-spacing-component)"></span>
+       <span id="ref_section" style="padding: var(--e-spacing-section)"></span>`,
+    )
+    const pad = async (sel: string) => (await styles(page, sel, ["padding-top"]))["padding-top"]
+    const comp = await pad("#ref_component")
+    const sect = await pad("#ref_section")
+    expect(comp).not.toBe(sect)
+    // The group carries no padding of its own; its cell carries the one.
+    expect(await pad("#group")).toBe("0px")
+    expect(await pad("#leaf")).toBe(comp)
+    // A plain child of the outer container is padded as before: same inset as the group's cells.
+    expect(await pad("#loose")).toBe(comp)
+    // A group's own `pad` is kept (the explicit opt-out), and its step is its own cells' step.
+    expect(await pad("#own")).toBe(sect)
+    expect(await pad("#step")).toBe("0px")
+    expect(await pad("#step_leaf")).toBe(sect)
+  })
+
+  test("packed=step is inherited by a nested bare packed group (regression: it fell back to the ambient step)", async ({
+    page,
+  }) => {
+    await mount(
+      page,
+      `<e-column packed="widget"><e-column id="group" packed><span id="leaf">a</span></e-column></e-column>
+       <e-column pad="section" packed><e-column packed><span id="leaf2">b</span></e-column></e-column>
+       <span id="ref_widget" style="padding: var(--e-spacing-widget)"></span>
+       <span id="ref_section" style="padding: var(--e-spacing-section)"></span>`,
+    )
+    const pad = async (sel: string) => (await styles(page, sel, ["padding-top"]))["padding-top"]
+    const widget = await pad("#ref_widget")
+    expect(await pad("#group")).toBe("0px")
+    expect(await pad("#leaf")).toBe(widget)
+    // A bare packed outer passes its own pad down the same way.
+    expect(await pad("#leaf2")).toBe(await pad("#ref_section"))
+  })
+
+  test("packed=step is the step children see their parent spacing them at, like spacing=step", async ({ page }) => {
+    await mount(
+      page,
+      `<e-column packed="widget"><span id="c">a</span></e-column>
+       <e-column spacing="widget"><span id="s">a</span></e-column>`,
+    )
+    const parent_spacing = async (sel: string) =>
+      (await styles(page, sel, ["--e-parent-spacing"]))["--e-parent-spacing"]
+    expect(await parent_spacing("#c")).toBe(await parent_spacing("#s"))
+  })
+
   test("with border: 1px seams in the border color, drawn by the grid and its rows, cells on the surface", async ({
     page,
   }) => {
