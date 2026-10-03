@@ -123,18 +123,20 @@ test.describe("dialog", () => {
         w.result = v === UI.show_dialog.closed ? "closed" : String(v)
       })
     })
-    const opening = await page.evaluate(() =>
-      document
+    // Two animations on the dialog (itself and its backdrop), both durationSlow. Which one is the
+    // backdrop's is told by what shows: WebKit reports its pseudoElement as "".
+    const opening = await page.evaluate(async () => {
+      const dialog = document.querySelector("dialog")!
+      const durations = document
         .getAnimations()
         // the dialog's own motion, not transitions inside it (a focused button)
-        .filter((a) => (a.effect as KeyframeEffect).target === document.querySelector("dialog"))
-        .map(
-          (a) =>
-            `${(a.effect as KeyframeEffect).pseudoElement ?? "dialog"}:${(a.effect as KeyframeEffect).getTiming().duration}`,
-        )
-        .sort(),
-    )
-    expect(opening).toEqual(["::backdrop:250", "dialog:250"])
+        .filter((a) => (a.effect as KeyframeEffect).target === dialog)
+        .map((a) => (a.effect as KeyframeEffect).getTiming().duration)
+      await new Promise((r) => setTimeout(r, 60))
+      const opacity = (pseudo?: string) => Number(getComputedStyle(dialog, pseudo).opacity)
+      return { durations, mid: [opacity(), opacity("::backdrop")].map((v) => v > 0 && v < 1) }
+    })
+    expect(opening).toEqual({ durations: [250, 250], mid: [true, true] })
     await page.keyboard.press("Escape")
     const closing = await page.evaluate(() => ({
       still_there: document.querySelector("dialog") != null,

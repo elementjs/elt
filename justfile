@@ -27,6 +27,24 @@ test: test-bun test-pw
 test-pw *args:
     playwright test {{args}}
 
+# Playwright tests in WebKit, inside Playwright's Docker image (its WebKit build needs system libraries some hosts
+# lack): the motion tests by default, or the given arguments. Uses the harness already served on port 5391, or serves it.
+test-webkit *args:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    url=http://localhost:5391/tests/browser/harness.html
+    if ! curl -sf -o /dev/null "$url"; then
+      PORT=5391 bun tests/browser/harness.html > /dev/null 2>&1 &
+      trap "kill $!" EXIT
+      for _ in $(seq 50); do curl -sf -o /dev/null "$url" && break; sleep 0.2; done
+    fi
+    version=$(bun -e 'console.log(require("@playwright/test/package.json").version)')
+    args="{{args}}"
+    docker run --rm --network host --user "$(id -u):$(id -g)" -e HOME=/tmp -v "$PWD":/work:ro -w /work \
+      "mcr.microsoft.com/playwright:v$version-noble" \
+      npx playwright test --config tests/browser/webkit.config.ts \
+      ${args:-tests/motion.pw.ts tests/ui-motion.pw.ts tests/removal.pw.ts tests/offscreen-render.pw.ts}
+
 # bun unit tests (*.test.ts, currently docs/src/macro.test.ts and tests/bundle.test.ts)
 test-bun *args:
     bun test {{args}}
