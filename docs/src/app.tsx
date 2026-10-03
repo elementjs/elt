@@ -1,5 +1,5 @@
 import "elt/ui"
-import { $observe, $on, $scrollable, App, If, node_append, css, o } from "elt"
+import { $observe, $on, App, If, node_append, css, o } from "elt"
 import { routes as routeDefs, menu } from "./routes.ts"
 
 export const app = new App()
@@ -36,8 +36,7 @@ function widget_nav() {
 }
 
 function content_column() {
-  return <e-column grow align="stretch">
-    {$scrollable}
+  return <e-column grow align="stretch" scroll>
     {app.DisplayView("Content")}
   </e-column>
 }

@@ -297,6 +297,30 @@ test.describe("scroll", () => {
     expect(await styles(page, "#y", props)).toEqual({ "overflow-x": "hidden", "overflow-y": "auto", ...auto })
   })
 
+  // Regression (docs site): a padded child of a scroll column shrank to the column's height (layout
+  // elements give children min-height: 0), so its content overflowed its box and its bottom padding
+  // sat mid-content; scrolled to the end, the last line touched the column's bottom edge.
+  test("a padded child of a scroll column keeps its bottom padding past its content when scrolled to the end", async ({
+    page,
+  }) => {
+    const paras = Array.from({ length: 30 }, (_, i) => `<p>line ${i}</p>`).join("")
+    await mount(
+      page,
+      `<e-column id="sc" scroll align="stretch" style="height:200px"><e-prose id="pr" pad>${paras}</e-prose></e-column>`,
+    )
+    const r = await page.evaluate(() => {
+      const sc = document.getElementById("sc")!
+      const pr = document.getElementById("pr")!
+      sc.scrollTop = sc.scrollHeight
+      return {
+        gap: sc.getBoundingClientRect().bottom - pr.lastElementChild!.getBoundingClientRect().bottom,
+        pad: parseFloat(getComputedStyle(pr).paddingBottom),
+      }
+    })
+    expect(r.pad).toBeGreaterThan(0)
+    expect(r.gap).toBeGreaterThanOrEqual(r.pad - 1)
+  })
+
   // Regression: overscroll-behavior: contain on every scroll area blocked wheel scrolling of what
   // encloses it (the page, or an outer scroll area) over an area that had nothing to scroll, and past
   // the end of one that had. The elt/ui reset keeps html and body from scrolling, so the enclosing
