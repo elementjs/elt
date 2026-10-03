@@ -34,10 +34,66 @@ test.describe("disabled controls", () => {
     expect(r.color).toBe(r.ref)
   })
 
-  test("a disabled tint button uses tint.mid", async ({ page }) => {
-    const r = await probe(page, `<button e-variant="tint" disabled>b</button>`, "button", "tint.mid")
+  // A disabled control is furniture, whatever its variant: it loses its tint for neutral.
+  test("a disabled tint button uses text.mid, like the default one", async ({ page }) => {
+    const r = await probe(page, `<button e-variant="tint" disabled>b</button>`, "button", "text.mid")
     expect(r.opacity).toBe("1")
     expect(r.color).toBe(r.ref)
+  })
+
+  test("a disabled tint button's border is neutral.mid", async ({ page }) => {
+    const r = await page.evaluate(() => {
+      const { theme } = window.__ELT__.UI
+      document.body.insertAdjacentHTML("beforeend", `<div id="h"><button e-variant="tint" disabled>b</button></div>`)
+      const ref = document.createElement("span")
+      ref.style.borderColor = theme.colors.neutral.mid.toString()
+      document.getElementById("h")!.appendChild(ref)
+      return {
+        border: getComputedStyle(document.querySelector("#h > button")!).borderTopColor,
+        ref: getComputedStyle(ref).borderTopColor,
+      }
+    })
+    expect(r.border).toBe(r.ref)
+  })
+
+  test("a disabled inverted button's fill is mixed with neutral, not tint", async ({ page }) => {
+    const r = await page.evaluate(() => {
+      document.body.insertAdjacentHTML(
+        "beforeend",
+        `<button id="d" e-variant="inverted" disabled>b</button>
+         <div id="n" style="background: color-mix(in oklab, var(--e-light-color-bg) 50%, var(--e-light-color-neutral) 50%)"></div>`,
+      )
+      const bg = (id: string) => getComputedStyle(document.getElementById(id)!).backgroundColor
+      return { d: bg("d"), n: bg("n") }
+    })
+    expect(r.d).toBe(r.n)
+  })
+
+  test("a disabled toggle is neutral: border neutral.mid, checked fill neutral + 3", async ({ page }) => {
+    const r = await page.evaluate(() => {
+      const { theme } = window.__ELT__.UI
+      document.body.insertAdjacentHTML(
+        "beforeend",
+        `<e-row id="r"><label e-variant="toggle"><input type="checkbox" disabled>a</label><label e-variant="toggle"><input type="checkbox" checked disabled>b</label></e-row>`,
+      )
+      const row = document.getElementById("r")!
+      const ref = document.createElement("div")
+      ref.style.borderColor = theme.colors.neutral.mid.toString()
+      ref.style.backgroundColor = theme.colors.neutral.surface("n+3")
+      row.appendChild(ref)
+      const [off, on] = [...row.querySelectorAll("label")].map((l) => getComputedStyle(l))
+      const rs = getComputedStyle(ref)
+      return {
+        off_border: off.borderTopColor,
+        on_border: on.borderTopColor,
+        on_bg: on.backgroundColor,
+        ref_border: rs.borderTopColor,
+        ref_bg: rs.backgroundColor,
+      }
+    })
+    expect(r.off_border).toBe(r.ref_border)
+    expect(r.on_border).toBe(r.ref_border)
+    expect(r.on_bg).toBe(r.ref_bg)
   })
 
   test("a label around a disabled control uses text.mid and is fully opaque", async ({ page }) => {

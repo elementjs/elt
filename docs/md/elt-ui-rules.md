@@ -82,9 +82,10 @@ Every layout decision reduces to these six. The layout elements and their attrib
    - *What is it?* `neutral` for furniture: the structure and chrome around the content. `tint` for what the user should notice, or a choice they made. A status hue (`red`, `yellow`, `green`…), applied with `as_tint`, for a meaning.
    - *How much attention does it need?* From quietest to loudest: none, outline (a border only), surface (one level up), surface jump (two levels up or more), inverted.
 2. **At most one tint-inverted action per area**: the heavy, hard-to-reverse one that needs attention ([Theme § Why](./ui-theme.md#why)). Bands don't count: a dialog's inverted title row and its inverted "Delete" button can sit together.
-3. **A selected item is a choice, not an action**: a tint surface three levels above where it sits, four when hovered or keyboard-active, never an inversion. The same goes for a checked toggle and the current tab ([Theme § State](./ui-theme.md#state)).
-4. **Text colors are never backgrounds.** A grey fill or band is `neutral` (a surface, or `neutral` inverted), not `text.faded` or another mix of `text`.
-5. **An inverted container is a boundary and pads itself** (golden rule 4) ([Theme § Inversion](./ui-theme.md#inversion)).
+3. **A disabled control is furniture**: `neutral`, whatever its variant ([Theme § State](./ui-theme.md#state)).
+4. **A selected item is a choice, not an action**: a tint surface three levels above where it sits, four when hovered or keyboard-active, never an inversion. The same goes for a checked toggle and the current tab ([Theme § State](./ui-theme.md#state)).
+5. **Text colors are never backgrounds.** A grey fill or band is `neutral` (a surface, or `neutral` inverted), not `text.faded` or another mix of `text`.
+6. **An inverted container is a boundary and pads itself** (golden rule 4) ([Theme § Inversion](./ui-theme.md#inversion)).
 
 ## Bars
 

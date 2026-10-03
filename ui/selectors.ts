@@ -37,3 +37,15 @@ export const PROSE_SPACED_SELECTOR =
 // ui/layout.css.tsx makes it inline-flex there. Elements that also accept blocks (li, dd, td, th,
 // blockquote, …) are excluded: a flex element there may be block content.
 export const INLINE_ONLY_TEXT_BLOCK_SELECTOR = "p, h1, h2, h3, h4, h5, h6, pre, summary, legend"
+
+// Children whose border carries meaning: a variant's color or a state (docs/md/ui-layout.md#packed).
+// In a packed row or column without its own border, such a child keeps the border it shares with
+// the next child, which gives up its own there: a checked toggle's tint edge shows on both sides
+// instead of hiding behind a plain neighbour's. Two such children side by side: the first one's
+// border wins. The ARIA states are listed so an app's own widgets get the same treatment by marking
+// their state. Disabled children are excluded: a disabled control is furniture.
+export const MEANINGFUL_BORDER_SELECTOR =
+  ':is(button[e-variant="tint"], button[e-variant="inverted"], input[e-variant="tint"], ' +
+  'label[e-variant="toggle"]:has(> input:checked), ' +
+  '[aria-pressed="true"], [aria-selected="true"], [aria-current]:not([aria-current="false"]), ' +
+  '[aria-invalid="true"], :user-invalid):not(:disabled, :has(> input:disabled))'

@@ -112,7 +112,7 @@ An inverted container (a top toolbar, a title row, an important region) creates 
 - **Selected**: a tint surface three levels above where the item sits (`tint.surface("n+3")`), four when hovered or keyboard-active; the text keeps its color. The same goes for a checked toggle (with a full `tint` border) and the current tab. Any `role="option"` with `aria-selected="true"` is drawn this way (Select's options included), and so is the date picker's selected day.
 - **Pressed**: one level past hover.
 - **Focus**: a ring around the element (`tint.mid`, `theme.settings.focusRingSize` wide), never a fill or a replaced border.
-- **Disabled**: every full-strength color of the control moves halfway toward its background (`.mid`): text becomes `text.mid`, a tint border or label `tint.mid`, a neutral border `neutral.mid`. An `inverted` control's fill moves to the halfway mix while its label keeps its color. A `<label>` around a disabled control uses `text.mid`. No opacity is involved.
+- **Disabled**: a disabled control is furniture, whatever its variant: it turns `neutral`, and its full-strength colors move halfway toward its background (`.mid`). Its label becomes `text.mid` and its border `neutral.mid`, including for `tint`, `text` and `link` buttons. An `inverted` control's fill becomes the halfway mix of `neutral` while its label keeps its color. A checked toggle's fill becomes `neutral` three levels up; checkboxes and switches use `neutral` for their check mark and track. A `<label>` around a disabled control uses `text.mid`. No opacity is involved.
 
 ## Custom theme
 

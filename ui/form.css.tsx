@@ -375,10 +375,11 @@ input[type="color"]::-webkit-color-swatch {
 }
 
 /* ── Disabled ──────────────────────────────────────────────────────────────────────────────────
-   A disabled control moves each of its full-strength colors halfway toward the background (.mid)
-   instead of fading with opacity: a transparent control would let whatever is behind it show
-   through. Colors that are already faded stay as they are. Emitted last so these win over the
-   variant rules above at equal specificity. */
+   A disabled control is furniture, whatever its variant: it loses its tint for neutral, and moves
+   each of its full-strength colors halfway toward the background (.mid) instead of fading with
+   opacity: a transparent control would let whatever is behind it show through. Colors that are
+   already faded stay as they are. Emitted last so these win over the variant rules above at equal
+   specificity (docs/md/ui-theme.md, State). */
 :is(button, input, select, textarea):disabled {
   color: ${colors.text.mid};
   border-color: ${colors.neutral.mid};
@@ -387,14 +388,18 @@ input[type="color"]::-webkit-color-swatch {
 
 button:is([e-variant="tint"], [e-variant="text"], [e-variant="link"]):disabled,
 input[e-variant="tint"]:disabled {
-  color: ${colors.tint.mid};
-  border-color: ${colors.tint.mid};
+  color: ${colors.text.mid};
+  border-color: ${colors.neutral.mid};
+  &::placeholder {
+    color: ${colors.text.mid};
+  }
 }
 
 /* Inverted controls redefine --e-color-bg/--e-color-text locally (the tint fill becomes their
-   background), so their fill is mixed from the light palette directly, like the variant itself. */
+   background), so their fill is mixed from the light palette directly, like the variant itself:
+   halfway between the background and neutral. */
 button[e-variant="inverted"]:disabled {
-  --e-disabled-fill: color-mix(in oklab, var(--e-light-color-bg) calc(100% - ${theme.settings.intensityMid}), var(--e-light-color-tint) ${theme.settings.intensityMid});
+  --e-disabled-fill: color-mix(in oklab, var(--e-light-color-bg) calc(100% - ${theme.settings.intensityMid}), var(--e-light-color-neutral) ${theme.settings.intensityMid});
   background-color: var(--e-disabled-fill);
   border-color: var(--e-disabled-fill);
   /* The label keeps its full color: its own background is the fill, which already moved halfway, so
@@ -402,22 +407,26 @@ button[e-variant="inverted"]:disabled {
   color: var(--e-color-text);
 }
 
-/* A disabled checked toggle keeps its fill; its border and label move halfway, like any control. */
-label[e-variant="toggle"]:has(> input:checked:disabled) {
-  border-color: ${colors.tint.mid};
+/* A disabled toggle: neutral border and label; checked, its fill becomes the neutral jump (+ 3). */
+label[e-variant="toggle"]:has(> input:disabled) {
+  border-color: ${colors.neutral.mid};
   color: ${colors.text.mid};
+}
+label[e-variant="toggle"]:has(> input:checked:disabled) {
+  --e-current-surface: ${colors.neutral.surface("n+3")};
+  background-color: var(--e-current-surface);
 }
 
 input[type="checkbox"]:checked:disabled,
 input[type="checkbox"][e-variant="switch"]:checked:disabled {
-  border-color: ${colors.tint.mid};
+  border-color: ${colors.neutral.mid};
 }
 input[type="checkbox"]:disabled::after,
 input[type="checkbox"][e-variant="switch"]:checked:disabled::after {
-  background-color: ${colors.tint.mid};
+  background-color: ${colors.neutral.mid};
 }
 input[type="checkbox"][e-variant="switch"]:checked:disabled {
-  background-color: ${colors.tint.faded};
+  background-color: ${colors.neutral.faded};
 }
 input[type="checkbox"][e-variant="switch"]:not(:checked):disabled::after {
   background-color: ${colors.neutral.faded};

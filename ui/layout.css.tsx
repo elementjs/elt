@@ -1,5 +1,5 @@
 import { type Attrs, type NRO, css } from "elt"
-import { INLINE_ONLY_TEXT_BLOCK_SELECTOR } from "./selectors"
+import { INLINE_ONLY_TEXT_BLOCK_SELECTOR, MEANINGFUL_BORDER_SELECTOR } from "./selectors"
 import { ambient_surface_mix, type ColorStep, type SpacingStep, spacing_steps, theme } from "./theme"
 
 declare module "elt" {
@@ -554,12 +554,22 @@ css`
 
   /* packed WITHOUT its own border: each child suppresses its own trailing-edge border, whether or
      not it actually has one — a no-op on an unbordered child. No BORDERED_SELECTOR lookup, no
-     :has() lookahead at a sibling: each child only ever looks at its own position. See docs/md/ui-layout.md. */
-  :is(e-row, e-flex:not([column]))[packed]:not([border]) > *:not(:last-child) {
+     :has() lookahead at a sibling: each child only ever looks at its own position and at the one
+     before it. Exception: a child whose border carries meaning (MEANINGFUL_BORDER_SELECTOR, ui/selectors.ts)
+     keeps its trailing edge, and the child after it gives up its leading edge instead. Overlapping
+     neighbours by 1px would avoid the list, but at a fractional display scale the overlapped edge is
+     antialiased and blends both colors. :where() keeps the list's specificity out. See docs/md/ui-layout.md. */
+  :is(e-row, e-flex:not([column]))[packed]:not([border]) > *:not(:last-child):where(:not(${MEANINGFUL_BORDER_SELECTOR})) {
     border-right: none;
   }
-  :is(e-column, e-flex[column])[packed]:not([border]) > *:not(:last-child) {
+  :is(e-row, e-flex:not([column]))[packed]:not([border]) > :where(${MEANINGFUL_BORDER_SELECTOR}) + * {
+    border-left: none;
+  }
+  :is(e-column, e-flex[column])[packed]:not([border]) > *:not(:last-child):where(:not(${MEANINGFUL_BORDER_SELECTOR})) {
     border-bottom: none;
+  }
+  :is(e-column, e-flex[column])[packed]:not([border]) > :where(${MEANINGFUL_BORDER_SELECTOR}) + * {
+    border-top: none;
   }
 
   /* packed WITH its own border: packed draws the border, not its children — a 1px gap, filled by

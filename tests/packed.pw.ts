@@ -52,6 +52,71 @@ test.describe("packed seam suppression (docs/md/ui-layout.md, per-element self-d
     expect(bLeft).toBe("solid")
   })
 
+  // A child whose border carries meaning (ui/selectors.ts MEANINGFUL_BORDER_SELECTOR) owns the line it
+  // shares with the next child: it keeps its trailing edge and the next child drops its leading one.
+  test("row: a checked toggle keeps its trailing edge; the plain neighbour after it drops its leading one", async ({
+    page,
+  }) => {
+    const r = await page.evaluate(() => {
+      document.body.insertAdjacentHTML(
+        "beforeend",
+        `<e-row id="r" packed><button>a</button><label e-variant="toggle"><input type="checkbox" checked>b</label><button>c</button></e-row>`,
+      )
+      const [a, b, c] = [...document.getElementById("r")!.children].map((e) => getComputedStyle(e))
+      return {
+        a_right: a.borderRightStyle,
+        b_left: b.borderLeftStyle,
+        b_right: b.borderRightStyle,
+        c_left: c.borderLeftStyle,
+      }
+    })
+    // Before the toggle: the plain button drops its trailing edge, the toggle's leading edge shows.
+    expect(r.a_right).toBe("none")
+    expect(r.b_left).toBe("solid")
+    // After it: the toggle's trailing edge shows, the plain button's leading edge goes.
+    expect(r.b_right).toBe("solid")
+    expect(r.c_left).toBe("none")
+  })
+
+  test("row: two meaningful children side by side share one line, the first one's", async ({ page }) => {
+    const r = await page.evaluate(() => {
+      document.body.insertAdjacentHTML(
+        "beforeend",
+        `<e-row id="r" packed><button aria-pressed="true">a</button><button e-variant="tint">b</button></e-row>`,
+      )
+      const [a, b] = [...document.getElementById("r")!.children].map((e) => getComputedStyle(e))
+      return { a_right: a.borderRightStyle, b_left: b.borderLeftStyle }
+    })
+    expect(r.a_right).toBe("solid")
+    expect(r.b_left).toBe("none")
+  })
+
+  test("column: a selected item keeps its bottom edge; the next one drops its top edge", async ({ page }) => {
+    const r = await page.evaluate(() => {
+      document.body.insertAdjacentHTML(
+        "beforeend",
+        `<e-column id="c" packed><button aria-selected="true">a</button><button>b</button></e-column>`,
+      )
+      const [a, b] = [...document.getElementById("c")!.children].map((e) => getComputedStyle(e))
+      return { a_bottom: a.borderBottomStyle, b_top: b.borderTopStyle }
+    })
+    expect(r.a_bottom).toBe("solid")
+    expect(r.b_top).toBe("none")
+  })
+
+  test("row: a disabled tint button is furniture: it gives up its trailing edge like a plain one", async ({ page }) => {
+    const r = await page.evaluate(() => {
+      document.body.insertAdjacentHTML(
+        "beforeend",
+        `<e-row id="r" packed><button e-variant="tint" disabled>a</button><button>b</button></e-row>`,
+      )
+      const [a, b] = [...document.getElementById("r")!.children].map((e) => getComputedStyle(e))
+      return { a_right: a.borderRightStyle, b_left: b.borderLeftStyle }
+    })
+    expect(r.a_right).toBe("none")
+    expect(r.b_left).toBe("solid")
+  })
+
   test("row: a bordered :last-child keeps its border on every side", async ({ page }) => {
     const result = await page.evaluate(() => {
       const row = document.createElement("e-row")

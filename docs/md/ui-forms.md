@@ -51,7 +51,7 @@ Text inputs, `textarea` and native `select` share the same border, focus ring an
 
 - Controls use `theme.settings.formFontSize`, a `widget`-step padding and radius, and a focus ring (`tint.mid`, `theme.settings.focusRingSize`) instead of a fill.
 - A focusable control's border comes from its variant — `neutral` for the default one, `tint` for `tint`, a bevel in the fill color for `inverted` — not from the surface levels it sits on. It expresses the control's own emphasis, not its position.
-- Disabled controls move their colors halfway toward the background ([Theme § State](./ui-theme.md#state)).
+- Disabled controls turn `neutral`, whatever their variant, and move their colors halfway toward the background ([Theme § State](./ui-theme.md#state)).
 
 ## Other elements
 
