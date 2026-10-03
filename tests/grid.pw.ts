@@ -249,7 +249,7 @@ test.describe("sticky", () => {
     }
     const top = await styles(page, "#top", ["position", "z-index", "background-color"])
     expect(top.position).toBe("sticky")
-    expect(top["z-index"]).toBe("1")
+    expect(top["z-index"]).toBe("2")
     expect(top["background-color"]).not.toBe("rgba(0, 0, 0, 0)")
   })
 
@@ -269,6 +269,88 @@ test.describe("sticky", () => {
       return Math.round(document.getElementById("head")!.getBoundingClientRect().top - sc.getBoundingClientRect().top)
     })
     expect(offset).toBe(0)
+  })
+
+  // The seam between a stuck row and the content is the container's gap, which scrolls away: the
+  // sticky row must paint it itself, over the gap, without changing the layout.
+  for (const [name, container, child] of [
+    ["grid", `<e-grid id="g" columns="3" packed border>`, row3],
+    [
+      "column",
+      `<e-column id="g" packed border align="stretch">`,
+      (id = "", attrs = "") => `<e-row ${id ? `id="${id}"` : ""} ${attrs}><span>a</span></e-row>`,
+    ],
+  ] as const) {
+    test(`sticky rows of a packed bordered ${name} keep their seam with the scrolled content`, async ({ page }) => {
+      const rows = Array.from({ length: 10 }, (_, i) => child(`r${i}`)).join("")
+      const close = container.startsWith("<e-grid") ? "</e-grid>" : "</e-column>"
+      await mount(
+        page,
+        scroll_area(`${container}${child("head", 'sticky="top"')}${rows}${child("foot", 'sticky="bottom"')}${close}`),
+      )
+      const seam = await color(page, "var(--e-current-border-color)", "#g")
+      const head = await styles(page, "#head", ["border-bottom-width", "border-bottom-color", "margin-bottom"])
+      expect(head).toEqual({ "border-bottom-width": "1px", "border-bottom-color": seam, "margin-bottom": "-1px" })
+      const foot = await styles(page, "#foot", ["border-top-width", "border-top-color", "margin-top"])
+      expect(foot).toEqual({ "border-top-width": "1px", "border-top-color": seam, "margin-top": "-1px" })
+
+      const res = await page.evaluate(() => {
+        const rect = (id: string) => document.getElementById(id)!.getBoundingClientRect()
+        // At rest (the head at the start of the scroll, the foot at its end, where neither is stuck),
+        // the copy covers the gap exactly: the next row starts where the sticky row's border ends.
+        const sc = document.getElementById("sc")!
+        const head_at_rest = rect("r0").top - rect("head").bottom
+        sc.scrollTop = sc.scrollHeight
+        const at_rest = { head: head_at_rest, foot: rect("foot").top - rect("r9").bottom }
+        sc.scrollTop = 103
+        // Stuck, the row (its border included, which the checks above put over the gap) is drawn over
+        // the content scrolling under it.
+        const h = rect("head")
+        const f = rect("foot")
+        const hit = (y: number) => document.elementFromPoint(h.left + 5, y)?.closest("[id]")?.id
+        return { at_rest, head: hit(h.bottom - 0.5), foot: hit(f.top + 0.5) }
+      })
+      expect(res).toEqual({ at_rest: { head: 0, foot: 0 }, head: "head", foot: "foot" })
+    })
+  }
+
+  // A focused cell is raised over its neighbors so its focus ring shows, but scrolled under a stuck
+  // header or footer it passes beneath them, ring included (as in a spreadsheet).
+  test("a focused cell scrolls under the sticky rows of a packed grid", async ({ page }) => {
+    const cells = (id: string) =>
+      `<e-grid-row><span id="${id}" tabindex="0">a</span><span>b</span><span>c</span></e-grid-row>`
+    const rows = Array.from({ length: 10 }, (_, i) => cells(`c${i}`)).join("")
+    await mount(
+      page,
+      scroll_area(
+        `<e-grid id="g" columns="3" packed border>${row3("head", 'sticky="top"')}${rows}${row3("foot", 'sticky="bottom"')}</e-grid>`,
+      ),
+    )
+    const under = async (cell: string, sticky: string) => {
+      await page.focus(`#${cell}`)
+      await page.keyboard.press("Shift+Tab")
+      await page.keyboard.press("Tab") // keyboard focus, so :focus-visible applies
+      return page.evaluate(
+        ({ cell, sticky }) => {
+          const sc = document.getElementById("sc")!
+          const s = document.getElementById(sticky)!
+          const c = document.getElementById(cell)!
+          // Scroll the cell so that its middle sits under the middle of the sticky row.
+          const r = c.getBoundingClientRect()
+          const t = s.getBoundingClientRect()
+          sc.scrollTop += r.top + r.height / 2 - (t.top + t.height / 2)
+          const t2 = s.getBoundingClientRect()
+          return {
+            focused: document.querySelector(":focus-visible")?.id,
+            z: getComputedStyle(c).zIndex,
+            hit: document.elementFromPoint(t2.left + 5, t2.top + t2.height / 2)?.closest("[id]")?.id,
+          }
+        },
+        { cell, sticky },
+      )
+    }
+    expect(await under("c5", "head")).toEqual({ focused: "c5", z: "1", hit: "head" })
+    expect(await under("c5", "foot")).toEqual({ focused: "c5", z: "1", hit: "foot" })
   })
 
   test("a sticky cell of a packed container keeps position: sticky over packed's position: relative", async ({

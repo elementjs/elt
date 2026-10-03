@@ -167,7 +167,7 @@ The container's own `pad` still pads the container itself. `packed` never adds a
 - **`seamless`, with `border`**: the container draws its border and radius, but no seams: no gap, and the surface as background. Use it when seams between every child would be noise, as in a menu, and separate groups of children with `<hr>`.
 - **`<hr>`** directly inside a `packed` row or column is a divider, not a padded child: a 1px line from edge to edge (across a column, down a row), with no padding or margin.
 - **Radius**: interior seams are always square. When the container has a radius (its own `border`, or `radius`), the first and last children's outer corners take exactly the container's radius. When it has neither, each child keeps its own radius at every corner.
-- A focused child is drawn above its neighbors so its focus ring isn't covered.
+- A focused child is drawn above its neighbors so its focus ring isn't covered. Sticky elements stay above it ([Scroll areas and sticky elements](#scroll-areas-and-sticky-elements)).
 - **The outermost container draws the frame.** A `packed border` container inside another `packed border` container (a row of buttons in a bordered column, say) loses its own border like any child, but keeps its seams between its own children. Inside a scroll area, a `packed border` child drops its outer border and radius too: the scroll area draws the frame, with its own `border` ([Scroll areas and sticky elements](#scroll-areas-and-sticky-elements)).
 - Limitation: when a packed row wraps, its first and last children may end up on different lines, and the outer-corner radius then looks wrong.
 
@@ -221,7 +221,9 @@ More examples: [Forms § Button groups and menus](./ui-forms.md#button-groups-an
 - In a flex scroll area (`e-column scroll`, `e-row scroll="x"`, …), children keep their size along the scrolled axis instead of shrinking to fit — otherwise nothing would overflow, and nothing would scroll. A child that is itself a scroll area is the exception: it shrinks, and scrolls its own content.
 - The scroll area draws the frame: a `packed border` child loses its own outer border and radius, keeps its seams, and is clipped to the scroll area's rounded edge. Put `border` on the scroll area.
 
-`sticky="top"` / `sticky="bottom"` keeps an element on that edge of the nearest scroll area while the content scrolls under it: a table header, a totals row. It gets an opaque background (the current surface, or its own `surface`) and is drawn above the scrolled content. A sticky row of a `packed border` grid keeps its seams.
+`sticky="top"` / `sticky="bottom"` keeps an element on that edge of the nearest scroll area while the content scrolls under it: a table header, a totals row. It gets an opaque background (the current surface, or its own `surface`) and is drawn above the scrolled content, a focused cell included: as in a spreadsheet, a cell scrolled under a stuck header passes beneath it, focus ring and all. A sticky row of a `packed border` grid keeps its seams.
+
+- In a `packed border` grid or column (not `seamless`), a sticky element keeps the seam between it and the scrolled content while it is stuck. That seam is normally the container's 1px gap, which scrolls away with the content, so the sticky element draws a copy of it as its own border on that side (bottom for `sticky="top"`, top for `sticky="bottom"`), pulled back over the gap by a -1px margin. Nothing to set: layout is unchanged, and at rest the copy covers the gap exactly. It uses that side's border and margin for this, so don't set them yourself.
 
 - Don't `pad` a scroll area that contains sticky elements: they stick at its padding edge, not its border, and the scrolled content shows through the padding above (or below) them.
 - A virtual list ([Verbs § RepeatVirtual](./verbs.md#repeatvirtual-a-long-list)) uses the nearest scroll area around it. Don't `pad` that one either, for the same reason.

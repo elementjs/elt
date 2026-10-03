@@ -387,10 +387,14 @@ const columns_rules = Array.from(
 // sticky: emitted with the attribute rules (after the packed ones), so that it overrides the
 // `position: relative` packed gives its cells. Its background is the current surface, opaque over
 // the scrolled content; an element's own [surface] resolves --e-current-surface to itself, and a
-// row of a packed bordered grid out-ranks this with the seam color.
+// row of a packed bordered grid out-ranks this with the seam color. Its z-index sits above the
+// cells of a packed container (0, or 1 when focused, so a focus ring shows over the neighbors): a
+// focused cell scrolled under a stuck row passes beneath it, ring included, as in a spreadsheet;
+// content drawn over the header would be worse than a hidden ring. With focus inside, a sticky
+// element goes one level up again, so its own focus ring shows over the other sticky elements.
 _`
-  ${_all}[sticky] { position: sticky; z-index: 1; background-color: var(--e-current-surface); }
-  ${_all}[sticky]:focus-within { z-index: 2; }
+  ${_all}[sticky] { position: sticky; z-index: 2; background-color: var(--e-current-surface); }
+  ${_all}[sticky]:focus-within { z-index: 3; }
   ${_all}[sticky="top"] { top: 0; }
   ${_all}[sticky="bottom"] { bottom: 0; }
 `
@@ -606,6 +610,22 @@ css`
      surface color, hiding the seams between its own children). */
   ${_packed}[packed][border] > ${_packed}[packed][border] {
     background-color: var(--e-current-border-color);
+  }
+
+  /* A sticky child of a packed bordered column or grid carries its own copy of the seam on the side
+     facing the scrolled content. The seam there is the container's 1px gap (its background or a gap
+     rule), painted by the container, so it scrolls away with the content and, once the child is
+     stuck, the content passing under it shows in its place. The copy is a border, pixel-snapped like
+     the seams, pulled back over the gap by a -1px margin: the child's track or flex size is
+     unchanged, and at rest it covers the container's seam exactly, in the same color. Library
+     internal, so not a golden rule 3 margin: its net effect on layout is zero. */
+  :is(e-column, e-flex[column], e-grid)[packed][border]:not([seamless]) > [sticky="top"] {
+    border-bottom: 1px solid var(--e-current-border-color);
+    margin-bottom: -1px;
+  }
+  :is(e-column, e-flex[column], e-grid)[packed][border]:not([seamless]) > [sticky="bottom"] {
+    border-top: 1px solid var(--e-current-border-color);
+    margin-top: -1px;
   }
 
   /* Where gap decorations are supported (Chromium; not yet Firefox or Safari), the seams are 1px

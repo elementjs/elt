@@ -439,7 +439,11 @@ test.describe("infinite e-grid with sticky rows", () => {
     expect(res.rendered).toBeLessThan(200)
   })
 
-  test("row 0 sits one 1px seam below the sticky header, and the grid draws no frame of its own", async ({ page }) => {
+  // The 1px seam under the header is the header's own bottom border, laid over the grid's gap
+  // (ui/layout.css.tsx): row 0 starts where the header's box ends.
+  test("row 0 sits right under the sticky header's 1px seam, and the grid draws no frame of its own", async ({
+    page,
+  }) => {
     const res = await page.evaluate(async () => {
       const area = window.__area(window.__buildGrid)
       await window.__frames()
@@ -447,13 +451,15 @@ test.describe("infinite e-grid with sticky rows", () => {
       const row0 = area.querySelector(".row")!.getBoundingClientRect()
       const grid = getComputedStyle(area.querySelector("e-grid")!)
       return {
-        seam: row0.top - head.bottom,
+        seam: getComputedStyle(area.querySelector(".head")!).borderBottomWidth,
+        gap: row0.top - head.bottom,
         label: area.querySelector(".row")!.textContent,
         grid_border: grid.borderTopWidth,
       }
     })
     expect(res.label).toBe("0bc")
-    expect(res.seam).toBe(1)
+    expect(res.seam).toBe("1px")
+    expect(res.gap).toBe(0)
     expect(res.grid_border).toBe("0px")
   })
 
