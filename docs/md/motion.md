@@ -104,6 +104,8 @@ When `node_remove`, a verb or a comment holder removes a node with a `$leave`:
 3. It is **taken out of the layout and kept where it was**: it becomes `position: absolute` at its current place, and the page lays out at once as if it were gone. `$leave(motion, { flow: true })` keeps it in the layout instead, for an exit that animates its own size ([collapse](#repeat)). Table rows and text wrapping over several lines always stay in the layout.
 4. Its motion plays; once done, elt removes it.
 
+A floating node is positioned against its containing block (the nearest positioned ancestor). When that ancestor is outside the node's scroll container, the leaving node neither scrolls nor clips with it: a fading row may show outside its scroll area. elt doesn't change your ancestors' positioning to avoid it; give the scroll container `position: relative` if it matters. A floating node is drawn above its non-positioned siblings, and below positioned ones.
+
 Everything else removed by the same call goes at once, synchronously, as without motion. In particular, nothing waits when:
 
 - the node has no `$leave`, or its motion is reduced to nothing ([reduced motion](#reduced-motion-and-turning-motion-off));
