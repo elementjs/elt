@@ -8,6 +8,7 @@ import {
   sym_insert,
   sym_attrs,
   sym_leave,
+  sym_enter,
 } from "./symbols"
 
 const NODE_IS_CONNECTED = 0b001
@@ -28,6 +29,14 @@ export interface LeaveOptions {
   flow?: boolean
 }
 
+/** A function run when a node enters the page (see {@link node_on_enter}). */
+export type EnterCallback<N extends Element = Element> = (node: N) => unknown
+
+export interface EnterOptions {
+  /** Run on every connection, including when the node arrives with an ancestor (never on moves). */
+  always?: boolean
+}
+
 interface LeaveHook {
   fn: LeaveCallback<any>
   flow: boolean
@@ -41,6 +50,7 @@ declare global {
     [sym_connected]?: LifecycleCallback[]
     [sym_disconnected]?: LifecycleCallback[]
     [sym_leave]?: LeaveHook[]
+    [sym_enter]?: EnterCallback<any>[]
   }
 }
 
@@ -263,6 +273,41 @@ export function motion_is_enabled() {
 export function node_on_leave<N extends Element>(node: N, fn: LeaveCallback<N>, opts?: LeaveOptions) {
   node[sym_leave] ??= []
   node[sym_leave].push({ fn, flow: !!opts?.flow })
+}
+
+/**
+ * Run `fn` when `node` enters the page : when it is inserted by `node_append` (a verb, a comment
+ * holder, a direct call) into a parent that is in the page, as the inserted node or one of the
+ * top-level nodes of an inserted fragment. Not when it arrives with an ancestor (the first render of
+ * a tree built offscreen, then mounted), not on moves, not when inserted into a detached parent.
+ *
+ * With `opts.always`, `fn` runs on every connection instead (still never on moves). Nothing runs while
+ * motion is off ({@link motion_enabled}).
+ *
+ * @group Motion
+ */
+export function node_on_enter<N extends Element>(node: N, fn: EnterCallback<N>, opts?: EnterOptions) {
+  if (opts?.always) {
+    node_on_connected(node, (n) => {
+      if (_motion_enabled) fn(n)
+    })
+    return
+  }
+  node[sym_enter] ??= []
+  node[sym_enter].push(fn)
+}
+
+/** Run the enter hooks of `node`, just inserted into the page by `node_append` and connected. */
+function _node_enter(node: Node) {
+  const hooks = node[sym_enter]
+  if (hooks == null || !_motion_enabled || !(node[sym_connected_status] & NODE_IS_CONNECTED)) return
+  for (let i = 0, l = hooks.length; i < l; i++) {
+    try {
+      hooks[i](node)
+    } catch (e) {
+      console.error("enter hooks should not throw", e)
+    }
+  }
 }
 
 /** Display values of table parts : positioned absolutely, they would stop being table parts. */
@@ -603,14 +648,19 @@ export function node_append<N extends Node>(
         while (start != null && start !== refchild) {
           // saved first : connecting `start` may remove it (a leaving node is never reconnected)
           const next: ChildNode | null = start.nextSibling
+          // Fresh from the fragment, so not connected yet : once connected, it enters the page.
           node_do_connected(start)
+          _node_enter(start)
           start = next
         }
       }
     } else {
       insert_before(node, renderable, refchild, is_basic_node)
       if (node.isConnected) {
+        // Already connected : this is a move, which never enters the page.
+        const entering = !(renderable[sym_connected_status] & NODE_IS_CONNECTED)
         node_do_connected(renderable)
+        if (entering) _node_enter(renderable)
       } else if (node_is_connected(renderable)) {
         node_do_disconnect(renderable)
       }

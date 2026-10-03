@@ -426,3 +426,201 @@ test.describe("Repeat", () => {
     expect(r).toEqual({ leaving: ["b"], c_moved_up: true, order: ["c", "a", "d"], b_still_there: true })
   })
 })
+
+test.describe("entering", () => {
+  // Each test records which ids had their enter hook run.
+  test("a tree built offscreen then mounted: only its root enters", async ({ page }) => {
+    const r = await page.evaluate(() => {
+      const { o, If, Switch, Repeat, node_append, node_on_enter } = window.__ELT__
+      const entered: string[] = []
+      const mk = (tag: string, id: string) => {
+        const el = document.createElement(tag)
+        el.id = id
+        node_on_enter(el, () => entered.push(id))
+        return el
+      }
+      const root = mk("div", "root")
+      node_append(
+        root,
+        If(o(true), () => mk("b", "then")),
+      )
+      node_append(
+        root,
+        Switch(o("x")).Case("x", () => mk("em", "case")),
+      )
+      node_append(
+        root,
+        Repeat(
+          o(["a", "b"]).tf((l) => l),
+          (o_s) => mk("li", o_s.get()),
+        ),
+      )
+      node_append(document.body, root)
+      return entered
+    })
+    expect(r).toEqual(["root"])
+  })
+
+  test("updates enter: an If / Switch branch, new Repeat items (not moved ones), a resolved promise", async ({
+    page,
+  }) => {
+    const r = await page.evaluate(async () => {
+      const { o, If, Switch, Repeat, node_append, node_on_enter } = window.__ELT__
+      const entered: string[] = []
+      const mk = (tag: string, id: string) => {
+        const el = document.createElement(tag)
+        el.id = id
+        node_on_enter(el, () => entered.push(id))
+        return el
+      }
+      const o_flag = o(true)
+      const o_mode = o("x")
+      const o_list = o(["a", "b"])
+      let resolve!: (n: Node) => void
+      const root = document.createElement("div")
+      node_append(
+        root,
+        If(
+          o_flag,
+          () => mk("b", "then"),
+          () => mk("i", "else"),
+        ),
+      )
+      node_append(
+        root,
+        Switch(o_mode)
+          .Case("x", () => mk("em", "x"))
+          .Case("y", () => mk("em", "y")),
+      )
+      node_append(
+        root,
+        Repeat(o_list, (o_s) => mk("li", o_s.get())).withKeyFunction((s: string) => s),
+      )
+      node_append(root, new Promise<Node>((res) => (resolve = res)))
+      node_append(document.body, root)
+      const steps: Record<string, string[]> = {}
+      const step = (name: string, fn: () => void) => {
+        entered.length = 0
+        fn()
+        steps[name] = [...entered]
+      }
+      step("if", () => o_flag.set(false))
+      step("switch", () => o_mode.set("y"))
+      step("repeat add", () => o_list.set(["a", "b", "c", "d"]))
+      step("repeat reorder", () => o_list.set(["d", "c", "b", "a"]))
+      entered.length = 0
+      resolve(mk("p", "resolved"))
+      await new Promise((r) => setTimeout(r))
+      steps.promise = [...entered]
+      return steps
+    })
+    expect(r).toEqual({
+      if: ["else"],
+      switch: ["y"],
+      "repeat add": ["c", "d"],
+      "repeat reorder": [],
+      promise: ["resolved"],
+    })
+  })
+
+  test("each top-level node of an inserted fragment enters, not their children", async ({ page }) => {
+    const r = await page.evaluate(() => {
+      const { o, If, node_append, node_on_enter } = window.__ELT__
+      const entered: string[] = []
+      const mk = (id: string) => {
+        const el = document.createElement("b")
+        el.id = id
+        node_on_enter(el, () => entered.push(id))
+        return el
+      }
+      const o_flag = o(false)
+      const c = window.__motion__.mount([])
+      node_append(
+        c,
+        If(o_flag, () => {
+          const f = document.createDocumentFragment()
+          const first = mk("f1")
+          first.append(mk("child"))
+          f.append(first, mk("f2"))
+          return f
+        }),
+      )
+      o_flag.set(true)
+      return entered
+    })
+    expect(r).toEqual(["f1", "f2"])
+  })
+
+  test("a verb appended directly into a live parent: its first content enters", async ({ page }) => {
+    const r = await page.evaluate(() => {
+      const { o, Repeat, node_append, node_on_enter } = window.__ELT__
+      const entered: string[] = []
+      const c = window.__motion__.mount([])
+      node_append(
+        c,
+        Repeat(o(["p", "q"]), (o_s) => {
+          const li = document.createElement("li")
+          node_on_enter(li, () => entered.push(o_s.get()))
+          return li
+        }),
+      )
+      return entered
+    })
+    expect(r).toEqual(["p", "q"])
+  })
+
+  test("nothing enters into a detached parent, through raw DOM calls, or while motion is off", async ({ page }) => {
+    const r = await page.evaluate(() => {
+      const { node_append, node_on_enter, motion_enabled } = window.__ELT__
+      const entered: string[] = []
+      const mk = (id: string) => {
+        const el = document.createElement("b")
+        node_on_enter(el, () => entered.push(id))
+        return el
+      }
+      node_append(document.createElement("div"), mk("detached"))
+      document.body.append(mk("raw"))
+      motion_enabled(false)
+      node_append(document.body, mk("off"))
+      motion_enabled(true)
+      return entered
+    })
+    expect(r).toEqual([])
+  })
+
+  test("always: runs on every connection, including with an ancestor, never on moves", async ({ page }) => {
+    const r = await page.evaluate(() => {
+      const { node_append, node_remove, node_move_range, node_on_enter } = window.__ELT__
+      let count = 0
+      const root = document.createElement("div")
+      const b = document.createElement("b")
+      node_on_enter(b, () => count++, { always: true })
+      node_append(root, b)
+      node_append(document.body, root)
+      const with_ancestor = count
+      const other = window.__motion__.mount([])
+      node_move_range(b, b, other, null)
+      const after_move = count
+      // b now lives in `other` : remounting it reconnects b
+      node_remove(other)
+      node_append(document.body, other)
+      return { with_ancestor, after_move, after_remount: count }
+    })
+    expect(r).toEqual({ with_ancestor: 1, after_move: 1, after_remount: 2 })
+  })
+
+  test("a leaving node put back with node_append is removed and does not enter", async ({ page }) => {
+    const r = await page.evaluate(() => {
+      const { node_append, node_remove, node_on_enter, node_on_leave } = window.__ELT__
+      const c = window.__motion__.mount(["a"])
+      const a = c.querySelector("#a") as HTMLElement
+      let entered = 0
+      node_on_enter(a, () => entered++)
+      node_on_leave(a, () => new Promise(() => {}))
+      node_remove(a)
+      node_append(c, a)
+      return { entered, gone: a.parentNode == null }
+    })
+    expect(r).toEqual({ entered: 0, gone: true })
+  })
+})
