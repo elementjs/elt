@@ -1155,12 +1155,3 @@ function node_off<N extends Node>(
   const idx = cbks.indexOf(callback as LifecycleCallback)
   if (idx > -1) cbks.splice(idx, 1)
 }
-
-export function animate(node: Element, keyframes: Keyframe[], options?: KeyframeAnimationOptions) {
-  const animation = node.animate(keyframes, options)
-  return new Promise<void>((accept, reject) => {
-    animation.onfinish = () => accept()
-    animation.oncancel = () => accept()
-    animation.onremove = (ev) => reject(ev)
-  })
-}

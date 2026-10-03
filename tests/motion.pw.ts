@@ -496,7 +496,7 @@ test.describe("entering", () => {
         root,
         Repeat(o_list, (o_s) => mk("li", o_s.get())).withKeyFunction((s: string) => s),
       )
-      node_append(root, new Promise<Node>((res) => (resolve = res)))
+      node_append(root, new Promise<Node>((res) => (resolve = res)) as any)
       node_append(document.body, root)
       const steps: Record<string, string[]> = {}
       const step = (name: string, fn: () => void) => {
@@ -622,5 +622,165 @@ test.describe("entering", () => {
       return { entered, gone: a.parentNode == null }
     })
     expect(r).toEqual({ entered: 0, gone: true })
+  })
+})
+
+test.describe("$enter / $leave", () => {
+  test("$leave() plays the default leave motion, then the node is removed", async ({ page }) => {
+    const r = await page.evaluate(async () => {
+      const { $leave, motion_defaults, node_remove } = window.__ELT__
+      motion_defaults.leave.duration = 40
+      const c = window.__motion__.mount(["a"])
+      const a = c.querySelector("#a") as HTMLElement
+      $leave()(a)
+      node_remove(a)
+      const anims = a.getAnimations()
+      const during = {
+        count: anims.length,
+        duration: (anims[0]?.effect as KeyframeEffect | undefined)?.getTiming().duration,
+        props: (anims[0]?.effect as KeyframeEffect | undefined)?.getKeyframes().map((k) => k.opacity),
+        in_page: a.parentNode === c,
+      }
+      await new Promise((r) => setTimeout(r, 150))
+      return { during, after: a.parentNode === c }
+    })
+    // A single keyframe: the exit starts from the node's current opacity
+    expect(r.during).toEqual({ count: 1, duration: 40, props: ["0"], in_page: true })
+    expect(r.after).toBe(false)
+  })
+
+  test("keyframes take the default duration and easing ; a spec its own ; a function decides", async ({ page }) => {
+    const r = await page.evaluate(async () => {
+      const { $leave, motion_defaults, node_remove } = window.__ELT__
+      motion_defaults.leave.duration = 30
+      motion_defaults.leave.easing = "linear"
+      const c = window.__motion__.mount(["kf", "spec", "fn"])
+      const [kf, spec, fn] = [...c.children] as HTMLElement[]
+      $leave([{ opacity: 0.5 }, { opacity: 0 }])(kf)
+      $leave({ keyframes: [{ opacity: 0 }], duration: 60, easing: "ease-in" })(spec)
+      let resolve!: () => void
+      $leave(() => new Promise<void>((r) => (resolve = r)))(fn)
+      for (const n of [kf, spec, fn]) node_remove(n)
+      const timing = (n: Element) => {
+        const t = (n.getAnimations()[0]?.effect as KeyframeEffect | undefined)?.getTiming()
+        return t ? [t.duration, t.easing] : null
+      }
+      const timings = { kf: timing(kf), spec: timing(spec), fn: timing(fn) }
+      await new Promise((r) => setTimeout(r, 200))
+      const after_200 = [...c.children].map((e) => e.id)
+      resolve()
+      await new Promise((r) => setTimeout(r))
+      return { timings, after_200, after_resolve: c.children.length }
+    })
+    expect(r.timings).toEqual({ kf: [30, "linear"], spec: [60, "ease-in"], fn: null })
+    expect(r.after_200).toEqual(["fn"])
+    expect(r.after_resolve).toBe(0)
+  })
+
+  test("$enter plays on an update, not on the first render of a mounted tree", async ({ page }) => {
+    const r = await page.evaluate(() => {
+      const { $enter, o, If, node_append } = window.__ELT__
+      const o_flag = o(true)
+      const root = document.createElement("div")
+      const mk = (id: string) => {
+        const el = document.createElement("b")
+        el.id = id
+        $enter({ keyframes: [{ opacity: 0 }, { opacity: 1 }], duration: 500 })(el)
+        return el
+      }
+      node_append(
+        root,
+        If(
+          o_flag,
+          () => mk("then"),
+          () => mk("else"),
+        ),
+      )
+      node_append(document.body, root)
+      const first = root.querySelector("#then")!.getAnimations().length
+      o_flag.set(false)
+      const update = root.querySelector("#else")!.getAnimations().length
+      return { first, update }
+    })
+    expect(r).toEqual({ first: 0, update: 1 })
+  })
+
+  test("reduced motion: movement dropped, fades kept ; `reduced` keyframes used ; null and nothing left are instant", async ({
+    page,
+  }) => {
+    const r = await page.evaluate(() => {
+      const { $enter, $leave, motion_reduced, node_append, node_remove } = window.__ELT__
+      motion_reduced(true)
+      const c = window.__motion__.mount(["slide", "only_move", "none", "custom"])
+      const [slide, only_move, none, custom] = [...c.children] as HTMLElement[]
+      $leave({ keyframes: [{ opacity: 0, transform: "translateY(8px)" }], duration: 500 })(slide)
+      $leave({ keyframes: [{ transform: "translateY(8px)" }], duration: 500 })(only_move)
+      $leave({ keyframes: [{ opacity: 0 }], duration: 500, reduced: null })(none)
+      for (const n of [slide, only_move, none]) node_remove(n)
+      const entering = document.createElement("i")
+      $enter({
+        keyframes: [{ transform: "scale(0)" }, { transform: "none" }],
+        reduced: [{ color: "red" }, { color: "blue" }],
+      })(entering)
+      node_append(custom, entering)
+      const kfs = (n: Element) =>
+        (n.getAnimations()[0]?.effect as KeyframeEffect | undefined)?.getKeyframes().map((k) =>
+          Object.keys(k)
+            .filter((x) => !["offset", "easing", "composite", "computedOffset"].includes(x))
+            .sort()
+            .join(","),
+        )
+      return {
+        slide: { in_page: slide.parentNode === c, kfs: kfs(slide) },
+        only_move: only_move.parentNode === c,
+        none: none.parentNode === c,
+        custom: kfs(entering),
+      }
+    })
+    expect(r.slide).toEqual({ in_page: true, kfs: ["opacity"] })
+    expect(r.only_move).toBe(false)
+    expect(r.none).toBe(false)
+    expect(r.custom).toEqual(["color", "color"])
+  })
+
+  test("motion_reduced(null) follows the user's setting", async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: "reduce" })
+    const r = await page.evaluate(() => {
+      const { $leave, node_remove, motion_is_reduced } = window.__ELT__
+      const c = window.__motion__.mount(["a"])
+      const a = c.querySelector("#a") as HTMLElement
+      $leave({ keyframes: [{ transform: "translateX(10px)" }], duration: 500 })(a)
+      node_remove(a)
+      return { reduced: motion_is_reduced(), gone: a.parentNode == null }
+    })
+    expect(r).toEqual({ reduced: true, gone: true })
+  })
+
+  test("leaving while entering cancels the entry, and the exit continues from where it was", async ({ page }) => {
+    const r = await page.evaluate(async () => {
+      const { $enter, $leave, node_append, node_remove } = window.__ELT__
+      const c = window.__motion__.mount([])
+      const el = document.createElement("div")
+      el.style.height = "20px"
+      $enter({ keyframes: [{ opacity: 0 }, { opacity: 1 }], duration: 400, easing: "linear" })(el)
+      $leave({ keyframes: [{ opacity: 0 }], duration: 400, easing: "linear" })(el)
+      node_append(c, el)
+      const enter = el.getAnimations()[0]
+      await new Promise((r) => setTimeout(r, 120))
+      node_remove(el)
+      const leave = el.getAnimations().find((a) => a !== enter)
+      return {
+        enter_state: enter.playState,
+        committed: Number(el.style.opacity),
+        leave_running: leave?.playState === "running",
+        opacity_now: Number(getComputedStyle(el).opacity),
+      }
+    })
+    expect(r.enter_state).toBe("idle")
+    expect(r.leave_running).toBe(true)
+    // Mid-entry: well above 0 and below 1 ; the exit starts from there, not from 1
+    expect(r.committed).toBeGreaterThan(0.1)
+    expect(r.committed).toBeLessThan(0.9)
+    expect(r.opacity_now).toBeLessThanOrEqual(r.committed + 0.01)
   })
 })
