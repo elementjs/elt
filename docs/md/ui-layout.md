@@ -195,6 +195,8 @@ More examples: [Forms § Button groups and menus](./ui-forms.md#button-groups-an
 
 `<e-grid-row>` is a row of a grid: it spans every column, and its children sit on the grid's own columns (a CSS subgrid), so cells line up from one row to the next. It takes `surface`, `hover`, `align` and `sticky`, nothing else: its spacing comes from the grid. It only makes sense as a direct child of an `e-grid`, and rows don't nest. An `e-row` inside a grid stays an ordinary flex row in one cell.
 
+**A table-like grid is `packed`.** As soon as its rows or cells are boundaries — a row with `surface` or `hover`, a `sticky` row (which gets an opaque background), or `border` on the grid — the cells need padding against those edges ([golden rule 4](./elt-ui-rules.md#golden-rules)), and cells padded alike with no gap between them is what `packed` does. An unpacked grid, spaced with a gap and with unpadded cells, arranges things that pad themselves (a grid of cards), or plain content inside a container that pads itself (labels and fields in a card).
+
 `packed` on a grid works on its **cells**: the grid's children, except that a row isn't a cell — its children are.
 
 - **Without `border`**: no gap; cells are padded like the children of any `packed` container. Their borders are left alone: a grid has no single "trailing edge".
@@ -234,7 +236,6 @@ const COLUMNS = [2, 3, 4, 6] as const
 const o_columns_idx = o(1)
 const o_columns = o_columns_idx.tf((i) => COLUMNS[i])
 const o_column_list = o_columns.tf((n) => Array.from({ length: n }, (_, i) => i + 1))
-const o_packed = o(true)
 const o_border = o(true)
 const o_header = o(true)
 const o_footer = o(true)
@@ -251,14 +252,13 @@ return (
           {COLUMNS.map((n) => <option>{n}</option>)}
         </select>
       </label>
-      <label><input type="checkbox">{$bind.boolean(o_packed)}</input> packed</label>
       <label><input type="checkbox">{$bind.boolean(o_border)}</input> border</label>
       <label><input type="checkbox">{$bind.boolean(o_header)}</input> sticky header</label>
       <label><input type="checkbox">{$bind.boolean(o_tinted)}</input> tinted header</label>
       <label><input type="checkbox">{$bind.boolean(o_footer)}</input> sticky footer</label>
     </e-row>
     <e-column scroll align="stretch" border style={{ height: "320px" }}>
-      <e-grid columns={o_columns} packed={o_packed} border={o_border}>
+      <e-grid columns={o_columns} packed border={o_border}>
         {If(o_header, () => (
           <e-grid-row sticky="top" surface={o_tinted.tf((t) => (t ? "tint-2" : false))}>
             {Repeat(o_column_list, (o_c) => <span>Column {o_c}</span>)}
@@ -325,7 +325,7 @@ The step is chosen by what a container's children are, not by nesting depth and 
 
 **Golden rule 3 — never set your own margin.** A margin is an element deciding how far it stands from neighbors it knows nothing about. The parent is the only element that sees all its children, so it alone decides their spacing. Margins set by children also stack and collapse in ways that are hard to predict, which breaks rule 2.
 
-**Golden rule 4 — padding requires a boundary.** Padding is the distance between content and its own edge. Without a border or a background, there is no edge, and the padding is invisible space that behaves like a margin — with all of rule 3's problems. That is why it is forbidden, not merely discouraged. The edge of the window counts as an edge: the outermost container of a screen pads itself against it, which keeps content off the window's border.
+**Golden rule 4 — padding requires a boundary, and a boundary pads its content.** Padding is the distance between content and its own edge. Without a border or a background, there is no edge, and the padding is invisible space that behaves like a margin — with all of rule 3's problems. That is why it is forbidden, not merely discouraged. The edge of the window counts as an edge: the outermost container of a screen pads itself against it, which keeps content off the window's border. The rule also holds the other way around: an edge with content pressed against it reads as content cut off by its frame, the same cramped look rule 1 forbids between two widgets. Rule 1 alone doesn't catch it, since a border or a fill isn't another entity's content. Who provides the padding is free — the boundary itself, or its children when they are `packed` — but some element between the edge and the content has to.
 
 **Golden rule 5 — multiple children are spaced.** Follows from rule 1 for containers. Layout elements satisfy it by default: they space their children at the ambient step even with no attribute. `pad` implies `spacing` because a padded container is precisely a container whose children must be spaced; `spacing` doesn't imply `pad`, because a container without a boundary may need to space its children without becoming a boundary.
 

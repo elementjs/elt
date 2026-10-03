@@ -164,6 +164,8 @@ export interface EGridAttrs extends EFlexAttrs {
 /**
  * A row of an `e-grid`: spans every column and lays its children out on the grid's own columns
  * (`grid-template-columns: subgrid`). Only meaningful as a direct child of `e-grid`.
+ * A row with `surface`, `hover` or `sticky` is a boundary: its grid must be `packed`, or its cells
+ * touch the row's edges (golden rule 4).
  */
 export interface EGridRowAttrs extends Attrs<HTMLElement> {
   surface?: CommonAttrs["surface"]
