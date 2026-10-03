@@ -177,6 +177,20 @@ An infinite grid is an `e-grid` with `RepeatVirtual` rows inside a scroll area, 
 - The scroll area draws the frame (`border` on it); the grid inside keeps only its seams. Don't `pad` the scroll area: sticky rows stick at its padding edge.
 - Keep the column widths independent of the cells' content (see above). A live example is in [Layout § Scroll areas and sticky elements](./ui-layout.md#scroll-areas-and-sticky-elements); grids themselves are in [Layout § Grids](./ui-layout.md#grids).
 
+## Below the verbs: inserting, removing and moving nodes
+
+Verbs, comment holders and `App` views insert, remove and move nodes through a handful of functions. Use them to mount the app's root, to integrate third-party code, or to write your own verb-like code; inside the app, let verbs do it ([elt rules § Use sparingly](./elt-rules.md#use-sparingly)).
+
+| Function | Does |
+| -------- | ---- |
+| `node_append(parent, renderable, refchild?)` | Inserts anything renderable (a node, a string, an array, an observable, a verb, a promise, an attribute object) before `refchild`. When `parent` is in the page, connects what it inserts (observers start, `$connected` runs) and plays its `$enter` |
+| `node_remove(node)` | Removes `node`: disconnects it first (observers stop, `$disconnected` runs, while it is still in place), then detaches it. Plays its `$leave` |
+| `node_clear(parent)` | Removes all of `parent`'s children, in one go |
+| `node_remove_range(first, last, motion?)` | Removes the siblings from `first` to `last` (inclusive) in one go: one disconnect pass, then one `Range` deletion. Those with a `$leave` stay until their exit is over; with `motion` false, none plays |
+| `node_move_range(first, last, parent, refchild)` | Moves the siblings from `first` to `last` before `refchild` in `parent`. Between two places in the page it uses `moveBefore` where the browser has it: focus, selection and running animations are kept, and no connected / disconnected callback runs. Otherwise the nodes are removed and re-inserted (disconnected if `parent` is not in the page). Leaving nodes are removed rather than moved |
+
+Ranges are how verbs track their content: a verb renders between two comment nodes, and removes or moves everything between them at once. The rules about entering and leaving are in [Motion](./motion.md); `without_motion(fn)` turns them off while `fn` runs.
+
 ## Good patterns vs. patterns to avoid
 
 **Model dynamic structure as an observable + a Verb, not a manually tracked array.** If code keeps a plain array/list as a field and pairs every mutation with matching `node_append`/`node_remove` calls, that's the shape `Repeat` already implements — with a diff against the previous render, not a rebuild, and without a second bookkeeping structure that can drift from the DOM.

@@ -785,6 +785,31 @@ test.describe("$enter / $leave", () => {
   })
 })
 
+test.describe("without_motion", () => {
+  test("no hook runs while fn runs ; motion_is_enabled tells ; its result is returned", async ({ page }) => {
+    const r = await page.evaluate(() => {
+      const { node_append, node_remove, node_on_enter, node_on_leave, without_motion, motion_is_enabled } =
+        window.__ELT__
+      const c = window.__motion__.mount(["a"])
+      const a = c.querySelector("#a") as HTMLElement
+      const calls: string[] = []
+      node_on_leave(a, () => {
+        calls.push("leave")
+        return new Promise(() => {})
+      })
+      const b = document.createElement("b")
+      node_on_enter(b, () => calls.push("enter"))
+      const result = without_motion(() => {
+        node_remove(a)
+        node_append(c, b)
+        return motion_is_enabled()
+      })
+      return { result, after: motion_is_enabled(), calls, a_gone: a.parentNode == null }
+    })
+    expect(r).toEqual({ result: false, after: true, calls: [], a_gone: true })
+  })
+})
+
 test.describe("windowed lists", () => {
   test("Repeat with a view window (keyed): moving the window has no motion, removing an item in view does", async ({
     page,

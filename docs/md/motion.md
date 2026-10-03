@@ -394,7 +394,10 @@ These selectors cost something on every insertion and removal in that parent, an
 - `node_on_enter(node, fn, { always? })` runs `fn(node)` when the node enters the page, with the rules of [Entering](#entering).
 - `node_on_leave(node, fn, { flow? })` runs `fn(node)` when the node leaves, with the rules of [Leaving](#leaving). If `fn` returns a promise, the node stays until it settles (a rejected promise also removes it); if it returns nothing, the node goes at once. Several hooks on one node all run, and the node waits for every promise.
 
-Use them to write your own decorators.
+Use them to write your own decorators. Two more functions tell or change whether hooks run:
+
+- `motion_is_enabled()`: whether enter and leave hooks run right now (motion is on, and no `without_motion` call is in progress).
+- `without_motion(fn)`: runs `fn` with motion off, and returns its result: nodes it removes go at once, nodes it inserts don't enter. Windowed lists use it for the rows that come and go with scrolling; use it when you re-render something that shouldn't look like content arriving or leaving.
 
 ## See also
 

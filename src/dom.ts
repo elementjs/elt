@@ -254,16 +254,22 @@ export function motion_enabled(enabled: boolean) {
 /** Depth of {@link without_motion} calls in progress. */
 let _motion_suspended = 0
 
-/** Whether enter and leave hooks may run now. @internal */
+/**
+ * Whether enter and leave hooks run now: motion is on ({@link motion_enabled}) and no
+ * {@link without_motion} call is in progress.
+ *
+ * @group Motion
+ */
 export function motion_is_enabled() {
   return _motion_enabled && _motion_suspended === 0
 }
 
 /**
- * Run `fn` with motion off: nodes it removes leave at once and nodes it inserts don't enter. Used by
- * windowed lists, whose rows come and go with scrolling, not with the data.
+ * Run `fn` with motion off: nodes it removes leave at once and nodes it inserts don't enter. Windowed
+ * lists use it, since their rows come and go with scrolling, not with the data ; so can your own code
+ * when it re-renders something that should not look like content arriving or leaving.
  *
- * @internal
+ * @group Motion
  */
 export function without_motion<T>(fn: () => T): T {
   _motion_suspended++
@@ -416,7 +422,7 @@ function _leave_done(node: Element) {
  * hooks (see {@link node_on_leave}) may stay in the page while their hooks run ; leaving nodes already
  * in the range are removed at once. With `motion` false, no leave hook runs.
  *
- * @internal
+ * @group Dom
  */
 export function node_remove_range(first: Node, last: Node, motion = true): void {
   // Nodes with leave hooks that may leave : connected (removing a detached node is always instant)
@@ -520,7 +526,10 @@ function start_leaving(candidates: Leaving[]): boolean {
  * Move the siblings from `first` to `last` (inclusive) before `refchild` in `parent`. Every move done
  * by elt goes through here. Leaving nodes are not moved : they are removed at once.
  *
- * @internal
+ * Between two nodes in the page, the move is atomic (`moveBefore`, where the browser has it): focus,
+ * selection and running animations are kept, and no connected / disconnected callback runs.
+ *
+ * @group Dom
  */
 export function node_move_range(first: Node, last: Node, parent: Node, refchild: Node | null): void {
   // Live to live: an atomic move keeps focus, selection, iframes and running animations. The nodes
