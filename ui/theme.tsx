@@ -1,4 +1,4 @@
-import { css, memoize } from "elt"
+import { css, memoize, motion_defaults } from "elt"
 
 export interface ThemeSettings {
   lineHeight: string
@@ -34,7 +34,41 @@ export interface ThemeSettings {
   spacingStage2: string
   spacingStage3: string
   spacingStage4: string
+
+  /** `var(--e-duration-*)` / `var(--e-easing-*)` of {@link MotionTokens}, for CSS transitions. */
+  durationFast: string
+  durationMedium: string
+  durationSlow: string
+  easingEnter: string
+  easingLeave: string
 }
+
+/**
+ * Motion durations (milliseconds) and easings (any CSS easing function), the same values for
+ * `el.animate` and CSS: given as `settings` to a `Theme`, read in JS from `theme.motion`, in CSS from
+ * `theme.settings.durationFast` (`var(--e-duration-fast, 100ms)`) and the like.
+ */
+export interface MotionTokens {
+  /** Hovers, small controls. */
+  durationFast: number
+  /** Popups, menus. */
+  durationMedium: number
+  /** Dialogs, page-level changes. */
+  durationSlow: number
+  easingEnter: string
+  easingLeave: string
+}
+
+const DEFAULT_MOTION: MotionTokens = {
+  durationFast: 100,
+  durationMedium: 150,
+  durationSlow: 250,
+  easingEnter: "cubic-bezier(0.22, 1, 0.36, 1)",
+  easingLeave: "cubic-bezier(0.4, 0, 1, 1)",
+}
+
+/** What `new Theme({ settings })` takes: CSS values, and motion tokens as numbers / easings. */
+export type ThemeSettingsInput = Partial<Omit<ThemeSettings, keyof MotionTokens>> & Partial<MotionTokens>
 
 /**
  * The named spacing steps above the raw px nudges — the closed set `theme.css_pad`/`css_spacing` and
@@ -212,7 +246,7 @@ export class Theme<AllColors extends ColorScheme> {
   private _light_values: Record<string, string> = {}
   private _dark_values: Record<string, string> = {}
 
-  constructor(theme: { light: AllColors; dark?: Partial<AllColors>; settings?: Partial<ThemeSettings> }) {
+  constructor(theme: { light: AllColors; dark?: Partial<AllColors>; settings?: ThemeSettingsInput }) {
     if (!(theme.light.bg || theme.light.text || theme.light.tint)) {
       throw new Error("Light theme must have a bg, text, and tint color")
     }
@@ -304,14 +338,27 @@ export class Theme<AllColors extends ColorScheme> {
     this._set(theme.settings ?? {}, "spacingStage2", "96px")
     this._set(theme.settings ?? {}, "spacingStage3", "128px")
     this._set(theme.settings ?? {}, "spacingStage4", "256px")
+
+    // Motion tokens: numbers for el.animate, `ms` in CSS.
+    const motion = { ...DEFAULT_MOTION }
+    for (const name of Object.keys(DEFAULT_MOTION) as (keyof MotionTokens)[]) {
+      const given = theme.settings?.[name]
+      if (given != null) (motion as Record<string, number | string>)[name] = given
+      const value = motion[name]
+      this._set({}, name, typeof value === "number" ? `${value}ms` : value)
+    }
+    this.motion = motion
   }
+
+  /** This theme's motion durations and easings, for `el.animate` and motion specs. */
+  motion!: Readonly<MotionTokens>
 
   settings: ThemeSettings = {} as ThemeSettings
   __settings: string[] = []
   __light_colors: string[] = []
   __dark_colors: string[] = []
 
-  private _set(obj: Partial<ThemeSettings>, name: keyof ThemeSettings, def: string) {
+  private _set(obj: ThemeSettingsInput, name: keyof ThemeSettings, def: string) {
     const css_name = name.replace(_re_setting, "-$&").toLowerCase()
     const value = obj[name] ?? def
     this.__settings.push(`--e-${css_name}: ${value};`)
@@ -898,3 +945,28 @@ export const theme = new Theme({
     bg: "#1c1c1b",
   },
 })
+
+// `$enter()` / `$leave()` without argument, and motions without their own duration or easing, follow
+// the default theme's tokens, unless set explicitly on motion_defaults.
+function follow_tokens(spec: { duration: number; easing: string }, easing: "easingEnter" | "easingLeave") {
+  let own_duration: number | undefined
+  let own_easing: string | undefined
+  Object.defineProperties(spec, {
+    duration: {
+      get: () => own_duration ?? theme.motion.durationFast,
+      set: (v: number) => {
+        own_duration = v
+      },
+      configurable: true,
+    },
+    easing: {
+      get: () => own_easing ?? theme.motion[easing],
+      set: (v: string) => {
+        own_easing = v
+      },
+      configurable: true,
+    },
+  })
+}
+follow_tokens(motion_defaults.enter, "easingEnter")
+follow_tokens(motion_defaults.leave, "easingLeave")

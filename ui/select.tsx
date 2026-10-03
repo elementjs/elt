@@ -400,7 +400,7 @@ const cls_indicator = css`.indicator {
   font-weight: bold;
   margin-left: 4px;
   rotate: 0deg;
-  transition: rotate 0.2s ease;
+  transition: rotate ${theme.settings.durationMedium} ease;
   transform-origin: center;
   &.open {
     rotate: -90deg;

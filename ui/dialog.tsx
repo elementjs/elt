@@ -1,7 +1,7 @@
-import { $on, css, node_append, node_remove } from "elt"
+import { $enter, $leave, $on, animate, css, node_append, node_remove } from "elt"
 import { theme } from "./theme"
 import { Future, sym_closed } from "./utils"
-import { animate, animate_hide, animate_show } from "./animation"
+import { fade_in, fade_out, zoom_in, zoom_out } from "./motion"
 
 export interface DialogOptions {
   /** A click on the backdrop dismisses the dialog (resolves it with {@link sym_closed}). */
@@ -56,19 +56,41 @@ export function show_dialog<T>(opts: DialogOptions | DialogCallback<T>, cbk?: Di
     // Browsers may refuse to let `cancel` be prevented (a second Escape without user activation in
     // between): the dialog then closes anyway, and the future must still settle.
     $on("close", () => future.resolve(sym_closed)),
+    $enter((d) => {
+      animate(d, zoom_in)
+      // The backdrop only exists once showModal() ran, right after the insertion that runs this.
+      queueMicrotask(() => animate(d, { ...fade_in, duration: zoom_in.duration }, { pseudoElement: "::backdrop" }))
+    }),
+    // Out of the flow already (fixed, top layer). While it plays, the dialog stays modal: focus can
+    // only go back to the page once it is closed.
+    $leave(
+      (d) =>
+        Promise.all([
+          animate(d, zoom_out, { dir: "leave", fill: "forwards" }),
+          animate(
+            d,
+            { ...fade_out, duration: zoom_out.duration },
+            { dir: "leave", fill: "forwards", pseudoElement: "::backdrop" },
+          ),
+        ]).then(() => {
+          ;(d as HTMLDialogElement).close()
+          give_focus_back()
+        }),
+      { flow: true },
+    ),
   )
+
+  const give_focus_back = () => {
+    if (return_focus?.isConnected) return_focus.focus({ preventScroll: true })
+  }
+
   node_append(document.body, dialog)
-  animate(dialog, animate_show)
   dialog.showModal()
 
   future.then(() => {
-    Promise.all([
-      animate(dialog, animate_hide, { duration: 100 }),
-      animate(dialog, animate_hide, { duration: 100, pseudoElement: "::backdrop" }),
-    ]).finally(() => {
-      node_remove(dialog)
-      if (return_focus?.isConnected) return_focus.focus({ preventScroll: true })
-    })
+    node_remove(dialog)
+    // Gone at once (motion off, or already closed by the browser): no exit gives focus back.
+    if (dialog.parentNode == null) give_focus_back()
   })
 
   return future
@@ -95,16 +117,12 @@ dialog {
   max-width: var(--e-dialog-max-width, 60vw);
   width: var(--e-dialog-width, fit-content);
   max-height: var(--e-dialog-max-height, 80vh);
-  opacity: 0;
 
   transform-origin: center top;
-  transition: opacity 0.25s ease, transform 0.25s ease;
 
   &[open] {
     display: flex;
     flex-direction: column;
-    opacity: 1;
-    transform: scale(1);
   }
 
   /* The content fills the box and shrinks to its height limit; it scrolls itself (scroll). */
@@ -117,12 +135,6 @@ dialog {
   &::backdrop {
     background: rgba(0, 0, 0, 0.5);
     backdrop-filter: blur(3px);
-    transition: opacity 0.25s ease;
-    opacity: 0;
-  }
-
-  &[open]::backdrop {
-    opacity: 1;
   }
 }
 `

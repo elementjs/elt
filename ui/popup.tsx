@@ -5,8 +5,8 @@
  * Some popup handling.
  */
 
-import { css, node_append, node_do_disconnect, node_remove, o } from "elt"
-import { animate, animate_hide, animate_show, stop_animations } from "./animation"
+import { $enter, $leave, css, node_append, node_remove, o } from "elt"
+import { rise_in, sink_out } from "./motion"
 import { theme } from "./theme"
 import { Future, sym_closed } from "./utils"
 const colors = theme.colors
@@ -57,7 +57,7 @@ function find_parent_node(start: Node) {
   return document.body
 }
 
-async function _popup_resolve(p: Element) {
+function _popup_resolve(p: Element) {
   // Popups opened from this one are attached inside it: they close with it.
   for (const child of [...popups]) if (child !== p && p.contains(child)) _popup_resolve(child)
   popups.delete(p)
@@ -71,11 +71,8 @@ async function _popup_resolve(p: Element) {
   if (return_to?.isConnected && (active == null || active === p.ownerDocument.body || p.contains(active))) {
     return_to.focus({ preventScroll: true })
   }
-  const _p = p as HTMLElement
-  _p.classList.remove("open")
-  node_do_disconnect(_p)
-  await stop_animations(_p)
-  await animate(_p, animate_hide, { duration: 150, easing: "cubic-bezier(0.22, 1, 0.36, 1)", fill: "forwards" })
+  p.classList.remove("open")
+  // Its $leave plays the exit; the popup is already out of the flow (absolute), so it stays in flow.
   node_remove(p)
 }
 
@@ -238,6 +235,8 @@ export function popup<T>(
   content.classList.add(cls_popup_content)
   const popup = (
     <div popover="manual" class={cls_popup}>
+      {$enter(rise_in)}
+      {$leave(sink_out, { flow: true })}
       {content}
     </div>
   ) as HTMLElement
@@ -382,7 +381,6 @@ export function popup<T>(
     fut.finally(() => {
       cleanup()
     })
-    animate(popup, animate_show, { duration: 150, easing: "cubic-bezier(0.22, 1, 0.36, 1)" })
   })
 
   return fut

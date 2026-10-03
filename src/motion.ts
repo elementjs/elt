@@ -2,7 +2,7 @@
  * Enter and leave motions: what `$enter` / `$leave` play, built on the protocol of `node_on_enter` /
  * `node_on_leave` (dom.ts). Documentation: docs/md/motion.md.
  */
-import { node_on_enter, node_on_leave, type EnterOptions, type LeaveOptions } from "./dom"
+import { motion_is_enabled, node_on_enter, node_on_leave, type EnterOptions, type LeaveOptions } from "./dom"
 import type { Decorator } from "./types"
 
 /**
@@ -104,6 +104,48 @@ function resolve(motion: Keyframe[] | MotionSpec | undefined, dir: "enter" | "le
   return { keyframes, duration: spec.duration ?? def.duration, easing: spec.easing ?? def.easing }
 }
 
+/** Start `motion` on `node`, or return `null` when it is reduced to nothing. */
+function play(
+  node: Element,
+  motion: Keyframe[] | MotionSpec | undefined,
+  dir: "enter" | "leave",
+  opts?: { pseudoElement?: string; fill?: FillMode },
+): Animation | null {
+  const r = resolve(motion, dir)
+  if (r == null) return null
+  return node.animate(r.keyframes, { duration: r.duration, easing: r.easing, ...opts })
+}
+
+/** Settles when `a` finishes or is cancelled (the browser restarting it, a cut). */
+function done(a: Animation | null): Promise<void> {
+  if (a == null) return Promise.resolve()
+  return a.finished.then(
+    () => {},
+    () => {},
+  )
+}
+
+/**
+ * Play `motion` on `node` now, following the same rules as `$enter` / `$leave`: nothing while motion is
+ * off ({@link motion_enabled}), reduced motion ({@link motion_reduced}), and the duration and easing of
+ * {@link motion_defaults} (`opts.dir`, `"enter"` by default) when the motion has none. Settles when
+ * done, or at once when nothing plays.
+ *
+ * For what `$enter` / `$leave` can't express: a pseudo-element (`opts.pseudoElement`), or several
+ * animations in a leave function.
+ *
+ * @group Motion
+ */
+export function animate(
+  node: Element,
+  motion: Keyframe[] | MotionSpec,
+  opts?: { dir?: "enter" | "leave"; pseudoElement?: string; fill?: FillMode },
+): Promise<void> {
+  if (!motion_is_enabled()) return Promise.resolve()
+  const { dir = "enter", ...rest } = opts ?? {}
+  return done(play(node, motion, dir, rest))
+}
+
 /** Enter animations still running, cancelled when their node starts leaving. */
 const _entering = new WeakMap<Element, Animation>()
 
@@ -137,15 +179,13 @@ export function $enter<N extends Element>(motion?: Motion, opts?: EnterOptions):
       node,
       (n) => {
         if (typeof motion === "function") return motion(n)
-        const r = resolve(motion, "enter")
-        if (r == null) return
-        const a = n.animate(r.keyframes, { duration: r.duration, easing: r.easing })
+        const a = play(n, motion, "enter")
+        if (a == null) return
         _entering.set(n, a)
         // The node may have left meanwhile (its entry cancelled): only forget our own animation.
-        const forget = () => {
+        done(a).then(() => {
           if (_entering.get(n) === a) _entering.delete(n)
-        }
-        a.finished.then(forget, forget)
+        })
       },
       opts,
     )
@@ -166,15 +206,9 @@ export function $leave<N extends Element>(motion?: Motion, opts?: LeaveOptions):
       (n) => {
         stop_entering(n)
         if (typeof motion === "function") return motion(n)
-        const r = resolve(motion, "leave")
-        if (r == null) return
         // forwards: the node must not flash back to its natural style before it is removed
-        const a = n.animate(r.keyframes, { duration: r.duration, easing: r.easing, fill: "forwards" })
-        // A cancelled animation (the browser restarting it, a cut) counts as finished.
-        return a.finished.then(
-          () => {},
-          () => {},
-        )
+        const a = play(n, motion, "leave", { fill: "forwards" })
+        return a == null ? undefined : done(a)
       },
       opts,
     )

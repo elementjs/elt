@@ -6,7 +6,7 @@ import "./layout.css"
 import "./typography.css"
 import "./form.css"
 
-export * from "./animation"
+export * from "./motion"
 export * from "./dialog"
 export * from "./popup"
 export * from "./select"

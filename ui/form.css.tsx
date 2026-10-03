@@ -85,9 +85,9 @@ ${FORM_CONTROL_SELECTOR} {
     font-size: ${theme.settings.formFontSize};
 
     transition:
-      outline 0.1s ease,
-      background 0.1s ease,
-      box-shadow 0.1s ease;
+      outline ${theme.settings.durationFast} ease,
+      background ${theme.settings.durationFast} ease,
+      box-shadow ${theme.settings.durationFast} ease;
 
     @media (hover: hover) and (pointer: fine) {
       &:hover {
@@ -142,7 +142,7 @@ input[type="checkbox"] {
   ${theme.css_radius("nudge-4")}
   cursor: pointer;
   position: relative;
-  transition: box-shadow 0.1s ease;
+  transition: box-shadow ${theme.settings.durationFast} ease;
   top: 0.1em;
 }
 
@@ -163,9 +163,9 @@ input[type="checkbox"]::after {
 
 
   transition:
-    transform .1s cubic-bezier(.2, .7, .3, 1),
-    opacity .1s ease-out,
-    mask-position .1s ease-out;
+    transform ${theme.settings.durationFast} cubic-bezier(.2, .7, .3, 1),
+    opacity ${theme.settings.durationFast} ease-out,
+    mask-position ${theme.settings.durationFast} ease-out;
 }
 
 /* Checked state */
@@ -191,8 +191,8 @@ input[type="checkbox"][e-variant="switch"] {
   border: 1px solid ${colors.neutral.faded};
   background-color: ${colors.neutral.faded};
   transition:
-    background-color 0.1s ease-out,
-    border-color 0.1s ease-out,
+    background-color ${theme.settings.durationFast} ease-out,
+    border-color ${theme.settings.durationFast} ease-out,
   ;
   box-shadow:
     inset 0 -1px 2px rgba(255, 255, 255, 0.2),
@@ -221,8 +221,8 @@ input[type="checkbox"][e-variant="switch"]::after {
   opacity: 1;
   background-color: ${colors.neutral.faded};
   transition:
-    transform 0.1s cubic-bezier(0.2, 0.85, 0.25, 1),
-    background-color 0.1s ease;
+    transform ${theme.settings.durationFast} cubic-bezier(0.2, 0.85, 0.25, 1),
+    background-color ${theme.settings.durationFast} ease;
   box-shadow:
     0 -1px 2px rgba(255, 255, 255, 0.2),
     0 1px 2px rgba(0, 0, 0, 0.2);
@@ -252,7 +252,7 @@ hr {
 }
 
 button, label[e-variant="toggle"] {
-  transition: transform 5ms ease, background 0.1s ease, box-shadow 0.1s ease;
+  transition: transform 5ms ease, background ${theme.settings.durationFast} ease, box-shadow ${theme.settings.durationFast} ease;
   transform-origin: bottom;
 
   @media (hover: hover) and (pointer: fine) {
