@@ -35,6 +35,45 @@ From quietest to loudest, the five emphasis levels are `link`, `text`, default, 
 
 Text inputs, `textarea` and native `select` share the same border, focus ring and hover fill. Prefer the [`Select` widget](./ui-widgets.md#select) over a native `<select>`. A `<textarea>` that grows with its content: [`$auto_grow`](./ui-widgets.md#other-widgets).
 
+## Invalid fields
+
+A field whose value is wrong gets the `error` color on its border and focus ring, whatever its variant; nothing else changes, so put the explanation in a message next to it. Two triggers, styled the same:
+
+- **The browser's own checks** (`required`, `type="email"`, `min`/`max`, `pattern`, a `$bind` `extra_check`): the field matches `:user-invalid` once the user has edited it and left it, or tried to submit the form. An untouched empty field is not flagged.
+- **Your app's checks**: set `aria-invalid="true"` on the field. Screen readers announce it as invalid too. On a widget whose root wraps its control, such as the [`Select`](./ui-widgets.md#select), set it on the widget: a control directly inside an element marked `aria-invalid` is flagged.
+
+A disabled field stays neutral even when invalid: it can't be fixed while disabled. In a `packed` group, an invalid field's border wins the line it shares with its neighbour ([Layout § packed](./ui-layout.md#packed)).
+
+```tsx
+//@inline-example
+import { $bind, css, o } from "elt"
+import { theme } from "elt/ui"
+
+// The message under a field: error-colored text, like the field's border.
+const cls_error = css`.error-message { color: ${theme.colors.error}; }`
+
+const o_email = o("")
+const o_email_error = o<string | null>(null)
+const o_password = o("")
+const o_confirm = o("")
+// The app's own check: the browser can't know the two fields must match.
+const o_mismatch = o.expression((get) => get(o_confirm) !== "" && get(o_confirm) !== get(o_password))
+
+return <e-column align="stretch">
+  <e-column spacing="widget" align="stretch">
+    <label>Email</label>
+    <input type="email" required placeholder="name@example.com">{$bind.string(o_email, { o_error: o_email_error })}</input>
+    {o_email_error.tf((e) => e && <small class={cls_error}>{e}</small>)}
+  </e-column>
+  <e-column spacing="widget" align="stretch">
+    <label>Password, twice</label>
+    <input type="password">{$bind.string(o_password)}</input>
+    <input type="password" aria-invalid={o_mismatch.tf(String)}>{$bind.string(o_confirm)}</input>
+    {o_mismatch.tf((m) => m && <small class={cls_error}>The passwords don't match</small>)}
+  </e-column>
+</e-column>
+```
+
 ## Checkboxes, switches and toggles
 
 - `<input type="checkbox">` is a square checkbox with an animated check mark.

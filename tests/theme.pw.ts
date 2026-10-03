@@ -408,17 +408,17 @@ test.describe("Mix.surface / [surface] parity", () => {
   })
 })
 
-test.describe("Theme.colors.neutral", () => {
-  // Parses the "--e-<mode>-color-<name>: oklch(l c h);" entries `Theme.all_colors` emits, so tests
-  // assert against whatever tint/text actually resolved to (including auto-derived dark values)
-  // instead of hardcoding expected numbers.
-  function parse_ok_lch(all_colors: string, mode: "light" | "dark", name: string) {
-    const re = new RegExp(`--e-${mode}-color-${name}: oklch\\(([^ ]+) ([^ ]+) ([^)]+)\\);`)
-    const m = re.exec(all_colors)
-    if (!m) throw new Error(`no ${mode} oklch entry for "${name}" in: ${all_colors}`)
-    return { l: parseFloat(m[1]), c: parseFloat(m[2]), h: parseFloat(m[3]) }
-  }
+// Parses the "--e-<mode>-color-<name>: oklch(l c h);" entries `Theme.all_colors` emits, so tests
+// assert against whatever tint/text actually resolved to (including auto-derived dark values)
+// instead of hardcoding expected numbers.
+function parse_ok_lch(all_colors: string, mode: "light" | "dark", name: string) {
+  const re = new RegExp(`--e-${mode}-color-${name}: oklch\\(([^ ]+) ([^ ]+) ([^)]+)\\);`)
+  const m = re.exec(all_colors)
+  if (!m) throw new Error(`no ${mode} oklch entry for "${name}" in: ${all_colors}`)
+  return { l: parseFloat(m[1]), c: parseFloat(m[2]), h: parseFloat(m[3]) }
+}
 
+test.describe("Theme.colors.neutral", () => {
   test("derives neutral's lightness from tint and chroma/hue from text, independently per mode", async ({ page }) => {
     const all_colors = await page.evaluate(() => {
       const { Theme } = window.__ELT__.UI
@@ -490,6 +490,45 @@ test.describe("Theme.colors.neutral", () => {
     expect(result.is_mix).toBe(true)
     expect(result.all_colors).toContain("--e-light-color-neutral: oklch(")
     expect(result.all_colors).toContain("--e-dark-color-neutral: oklch(")
+  })
+})
+
+// `error`: invalid fields and error messages. Palette `error` > palette `red` > a red at tint's
+// lightness and chroma (docs/md/ui-theme.md#colors).
+test.describe("Theme.colors.error", () => {
+  test("is the palette's red when there is one (the default theme)", async ({ page }) => {
+    const all_colors = await page.evaluate(() => window.__ELT__.UI.theme.all_colors)
+    for (const mode of ["light", "dark"] as const) {
+      expect(parse_ok_lch(all_colors, mode, "error"), mode).toEqual(parse_ok_lch(all_colors, mode, "red"))
+    }
+  })
+
+  test("without red, is derived per mode: tint's lightness, a red hue, a chroma floor", async ({ page }) => {
+    const all_colors = await page.evaluate(() => {
+      const { Theme } = window.__ELT__.UI
+      // A nearly grey tint: its own chroma is below the floor.
+      return new Theme({
+        light: { bg: "#ffffff", text: "#1c1c1b", tint: "#55606a" },
+        dark: { bg: "#1c1c1b", text: "#ffffff", tint: "#33aa66" },
+      }).all_colors
+    })
+    for (const mode of ["light", "dark"] as const) {
+      const tint = parse_ok_lch(all_colors, mode, "tint")
+      const error = parse_ok_lch(all_colors, mode, "error")
+      expect(error.l, `${mode} lightness`).toBeCloseTo(tint.l, 3)
+      expect(error.h, `${mode} hue`).toBeCloseTo(25, 1)
+      expect(error.c, `${mode} chroma`).toBeGreaterThanOrEqual(0.15)
+    }
+  })
+
+  test("an explicit error in the palette wins over red", async ({ page }) => {
+    const all_colors = await page.evaluate(() => {
+      const { Theme } = window.__ELT__.UI
+      return new Theme({ light: { bg: "#ffffff", text: "#1c1c1b", tint: "#005FCC", red: "#ff0000", error: "#ff00ff" } })
+        .all_colors
+    })
+    // magenta's hue (~328) rather than red's (~29)
+    expect(parse_ok_lch(all_colors, "light", "error").h).toBeGreaterThan(300)
   })
 })
 

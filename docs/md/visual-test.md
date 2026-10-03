@@ -169,6 +169,16 @@ return <e-column spacing style={oo_style} class={o_color.tf(col => theme.colors[
     </button>
   </e-row>
 
+  <e-row spacing align="stretch">
+    <input type="email" required placeholder="Required email: type, erase, leave" />
+    <input aria-invalid="true" value="aria-invalid" />
+    <e-row packed align="stretch">
+      <input aria-invalid="true" value="invalid, packed" />
+      <button><P.MagnifyingGlass/></button>
+    </e-row>
+    <input aria-invalid="true" disabled value="invalid, disabled" />
+  </e-row>
+
   <e-row spacing>
     <label><input type="checkbox" e-variant="switch"/> Switch</label>
     <label><input type="checkbox" e-variant="switch" checked/> Switch checked</label>
@@ -196,10 +206,18 @@ return <e-column spacing style={oo_style} class={o_color.tf(col => theme.colors[
 import { o } from "elt"
 import { Select } from "elt/ui"
 
-return <Select
-  options={["Option 1", "Option 2", "Option 3"]}
-  model={o("Option 1")}
-/>
+return <e-row spacing>
+  <Select
+    options={["Option 1", "Option 2", "Option 3"]}
+    model={o("Option 1")}
+  />
+  <Select
+    aria-invalid="true"
+    options={["Option 1", "Option 2", "Option 3"]}
+    model={o<string | null>(null)}
+    placeholder="Invalid"
+  />
+</e-row>
 ```
 
 ## Pickers

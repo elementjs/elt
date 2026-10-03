@@ -24,7 +24,7 @@ o_force_theme.set("dark") // "light" | "dark" | "default"
 
 Import `theme` from `"elt/ui"`. Every `theme.colors.*` entry is a `Mix`: a color you use directly as a CSS value, plus helpers that derive related colors.
 
-A palette supplies `bg`, `text` and `tint`; the default theme adds semantic hues (`red`, `orange`, `yellow`, `green`, `cyan`, `blue`, `purple`, `magenta`, …). `neutral` is always there too: a grey derived from `text`'s hue at `tint`'s lightness, for structural borders, dividers and fills that should read as grey. A palette may define its own `neutral`, which wins over the derived one. Which hue means "error" or "success" is your app's decision; red/error, yellow/warning, green/success is the default.
+A palette supplies `bg`, `text` and `tint`; the default theme adds semantic hues (`red`, `orange`, `yellow`, `green`, `cyan`, `blue`, `purple`, `magenta`, …). `neutral` is always there too: a grey derived from `text`'s hue at `tint`'s lightness, for structural borders, dividers and fills that should read as grey. A palette may define its own `neutral`, which wins over the derived one. `error` is always there as well, for invalid fields and error messages: the palette's own `error` if it has one, else its `red`, else a red derived like `neutral`, at `tint`'s lightness and chroma (with a minimum chroma, so a nearly grey tint still gives a recognizable red), which keeps it as readable as `tint`. Which hue means "warning" or "success" is your app's decision; yellow/warning and green/success are the default.
 
 | Need | Use |
 | ---- | --- |
@@ -34,6 +34,7 @@ A palette supplies `bg`, `text` and `tint`; the default theme adds semantic hues
 | A focus ring, a moderate accent, disabled text | `.mid` |
 | Muted text | `.faded` |
 | Grey structural border, divider or fill | `theme.colors.neutral` and its helpers, not `text` |
+| An invalid field, an error message | `theme.colors.error` (fields are styled already, [Forms § Invalid fields](./ui-forms.md#invalid-fields)) |
 | Strong emphasis | `.strong`, `.very_strong` (mixed toward text) |
 | A one-off mix no named helper covers | `.from_bg("20%")`, `.from_text("20%")`, `.from(other, "20%")` |
 | Make another color the subtree's accent | `theme.colors.orange.class_as_tint` (class) |
@@ -77,7 +78,7 @@ Every band, control and state is placed by answering two questions. The binding 
 
 - `neutral` — furniture: the structure and chrome that organize the screen around the content (a status bar, a table header, a secondary title row). Grey reads as "part of the frame" and doesn't compete with the content.
 - `tint` — what the user should notice, or a choice they made: the top toolbar, a dialog's title row, the dominant action, code examples, callouts, a selected item.
-- A status hue (`red`, `yellow`, `green`…) — a meaning (error, warning, success). Apply it with `as_tint`, so it takes the tint's place and the strengths below work unchanged.
+- A status hue — a meaning: `error`, or another hue for warning or success (`yellow`, `green`…). Apply it with `as_tint`, so it takes the tint's place and the strengths below work unchanged.
 
 **Strength: how much attention?** From quietest to loudest:
 

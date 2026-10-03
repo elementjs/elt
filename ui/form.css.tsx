@@ -1,6 +1,6 @@
 import { css, type NRO } from "elt"
 import { theme } from "./theme"
-import { FORM_CONTROL_SELECTOR } from "./selectors"
+import { FORM_CONTROL_SELECTOR, INVALID_SELECTOR } from "./selectors"
 
 const colors = theme.colors
 
@@ -372,6 +372,17 @@ input[type="color"]::-webkit-color-swatch-wrapper {
 input[type="color"]::-webkit-color-swatch {
   border: 1px solid ${theme.colors.text};
   border-radius: 50%; /* match parent shape */
+}
+
+/* ── Invalid ───────────────────────────────────────────────────────────────────────────────────
+   A field whose value is wrong (INVALID_SELECTOR, ui/selectors.ts): its border and focus ring take
+   the error color, whatever its variant; nothing else changes, the app's message under the field
+   explains. A disabled field is furniture and stays neutral: it can't be fixed while disabled. */
+:is(${FORM_CONTROL_SELECTOR}, input[type="checkbox"]):where(${INVALID_SELECTOR}):not(:disabled) {
+  border-color: ${colors.error};
+  &:focus-visible {
+    box-shadow: 0 0 0 ${theme.settings.focusRingSize} ${colors.error.mid};
+  }
 }
 
 /* ── Disabled ──────────────────────────────────────────────────────────────────────────────────

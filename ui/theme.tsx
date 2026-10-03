@@ -191,12 +191,17 @@ function getOkLch<T extends ColorScheme>(colors: T): { [key in keyof T]: OkLch }
 
 const _re_setting = /[A-Z]|[0-9]+/g
 
+/** Hue (oklch, degrees) and chroma floor of the `error` color derived when the palette has neither
+ * `error` nor `red` — the hue of the default theme's red. */
+const ERROR_HUE = 25
+const ERROR_MIN_CHROMA = 0.15
+
 export class Theme<AllColors extends ColorScheme> {
   /**
    * Every named palette color, plus `neutral` — auto-derived (see below), always present
    * regardless of whether the palette passed in defines it.
    */
-  colors = {} as { [key in keyof AllColors]: Mix } & { neutral: Mix }
+  colors = {} as { [key in keyof AllColors]: Mix } & { neutral: Mix; error: Mix }
 
   /**
    * Raw light/dark values per named color, keyed by name — used only to emit the
@@ -254,6 +259,19 @@ export class Theme<AllColors extends ColorScheme> {
       this._light_values.neutral = light_neutral.toString()
       this._dark_values.neutral = dark_neutral.toString()
       colors_by_name.neutral = new Mix(`var(--e-color-neutral)`, "neutral")
+    }
+
+    // `error`: invalid fields and error messages (docs/md/ui-theme.md#colors). An explicit palette
+    // `error` wins (handled by the loop above), then the palette's `red`; failing both, a red at
+    // `tint`'s lightness and chroma — like `neutral`, it then sits in the palette's family and,
+    // lightness driving contrast, reads like `tint` does against `bg` and `text`. The chroma has a
+    // floor so a nearly grey tint still gives a recognizable red. Per mode, like `neutral`.
+    if (!("error" in colors_by_name)) {
+      const error_of = (scheme: Record<string, OkLch>) =>
+        scheme.red ?? new OkLch(scheme.tint.l, Math.max(scheme.tint.c, ERROR_MIN_CHROMA), ERROR_HUE)
+      this._light_values.error = error_of(light).toString()
+      this._dark_values.error = error_of(dark).toString()
+      colors_by_name.error = new Mix(`var(--e-color-error)`, "error")
     }
 
     // Now set the theme settings

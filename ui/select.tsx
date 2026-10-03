@@ -213,7 +213,7 @@ export function Select<T, T2 = T>(at: SelectAttributes<T, T2>) {
             () =>
               If(
                 o_state.p("failed"),
-                () => <e-flex class={cls_status}>Couldn't load the options</e-flex>,
+                () => <e-flex class={[cls_status, "error"]}>Couldn't load the options</e-flex>,
                 () =>
                   If(
                     o_visible.tf((v) => v.length === 0),
@@ -433,4 +433,7 @@ const cls_status = css`.select-status {
   justify-content: center;
   color: ${colors.text.faded};
   font-size: ${theme.settings.formFontSize};
+  &.error {
+    color: ${colors.error};
+  }
 }`

@@ -38,6 +38,13 @@ export const PROSE_SPACED_SELECTOR =
 // blockquote, …) are excluded: a flex element there may be block content.
 export const INLINE_ONLY_TEXT_BLOCK_SELECTOR = "p, h1, h2, h3, h4, h5, h6, pre, summary, legend"
 
+// A field whose value is wrong (docs/md/ui-forms.md#invalid-fields): the browser's own checks
+// (:user-invalid — required, type, min/max, pattern, setCustomValidity — once the user has edited the
+// field and left it, or tried to submit), or the app's (aria-invalid="true"). A control directly
+// inside an element marked aria-invalid counts too: the Select widget, or an app's own composite
+// widget, carries the attribute on its root, around its button or input.
+export const INVALID_SELECTOR = ':is(:user-invalid, [aria-invalid="true"], [aria-invalid="true"] > *)'
+
 // Children whose border carries meaning: a variant's color or a state (docs/md/ui-layout.md#packed).
 // In a packed row or column without its own border, such a child keeps the border it shares with
 // the next child, which gives up its own there: a checked toggle's tint edge shows on both sides
@@ -48,4 +55,4 @@ export const MEANINGFUL_BORDER_SELECTOR =
   ':is(button[e-variant="tint"], button[e-variant="inverted"], input[e-variant="tint"], ' +
   'label[e-variant="toggle"]:has(> input:checked), ' +
   '[aria-pressed="true"], [aria-selected="true"], [aria-current]:not([aria-current="false"]), ' +
-  '[aria-invalid="true"], :user-invalid):not(:disabled, :has(> input:disabled))'
+  `${INVALID_SELECTOR}):not(:disabled, :has(> input:disabled))`

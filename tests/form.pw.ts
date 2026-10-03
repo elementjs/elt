@@ -139,3 +139,84 @@ test.describe("$auto_grow (regression: resizing inside its ResizeObserver raised
     expect(result.errors).toBe(0)
   })
 })
+
+// A field whose value is wrong: border and focus ring take the error color (docs/md/ui-forms.md#invalid-fields).
+test.describe("invalid fields", () => {
+  /** The border and box-shadow of `selector`, and the error / error.mid / neutral.mid colors resolved next to it. */
+  async function look(page: import("@playwright/test").Page, selector: string) {
+    return page.evaluate((selector) => {
+      const { theme } = window.__ELT__.UI
+      const el = document.querySelector(selector) as HTMLElement
+      const ref = (prop: "borderColor" | "color", value: string) => {
+        const r = document.createElement("span")
+        r.style[prop] = value
+        el.parentElement!.appendChild(r)
+        const out = prop === "borderColor" ? getComputedStyle(r).borderTopColor : getComputedStyle(r).color
+        r.remove()
+        return out
+      }
+      const cs = getComputedStyle(el)
+      return {
+        border: cs.borderTopColor,
+        shadow: cs.boxShadow,
+        error: ref("borderColor", theme.colors.error.toString()),
+        error_mid: ref("color", theme.colors.error.mid.toString()),
+        neutral_mid: ref("borderColor", theme.colors.neutral.mid.toString()),
+      }
+    }, selector)
+  }
+
+  test("the browser's own check: a required field turns error once the user has left it empty", async ({ page }) => {
+    await page.evaluate(() =>
+      document.body.insertAdjacentHTML("beforeend", `<input id="f" required><button id="other">x</button>`),
+    )
+    // Untouched: not flagged yet (:user-invalid waits for the user).
+    let r = await look(page, "#f")
+    expect(r.border).not.toBe(r.error)
+    await page.fill("#f", "a")
+    await page.fill("#f", "")
+    await page.focus("#other")
+    r = await look(page, "#f")
+    expect(r.border).toBe(r.error)
+  })
+
+  test("the app's check: aria-invalid turns the border error and the focus ring error.mid", async ({ page }) => {
+    await page.evaluate(() => document.body.insertAdjacentHTML("beforeend", `<input id="f" aria-invalid="true">`))
+    await page.focus("#f")
+    const r = await look(page, "#f")
+    expect(r.border).toBe(r.error)
+    // The ring fades in (box-shadow transition): poll until it has settled.
+    await expect.poll(async () => (await look(page, "#f")).shadow).toContain(r.error_mid)
+  })
+
+  test("whatever the variant: a tint input turns error too", async ({ page }) => {
+    await page.evaluate(() =>
+      document.body.insertAdjacentHTML("beforeend", `<input id="f" e-variant="tint" aria-invalid="true">`),
+    )
+    const r = await look(page, "#f")
+    expect(r.border).toBe(r.error)
+  })
+
+  test("a disabled invalid field stays neutral: it can't be fixed while disabled", async ({ page }) => {
+    await page.evaluate(() =>
+      document.body.insertAdjacentHTML("beforeend", `<input id="f" aria-invalid="true" disabled>`),
+    )
+    const r = await look(page, "#f")
+    expect(r.border).toBe(r.neutral_mid)
+  })
+
+  test("a Select marked aria-invalid draws its button with the error border", async ({ page }) => {
+    await page.evaluate(() => {
+      const { o, node_append, UI } = window.__ELT__
+      const holder = document.createElement("div")
+      holder.id = "holder"
+      node_append(document.body, holder)
+      const select = UI.Select<string | null, string>({ model: o<string | null>(null), options: ["a", "b"] })
+      // What <Select aria-invalid="true"/> does in JSX: global attributes land on the component's root.
+      select.setAttribute("aria-invalid", "true")
+      node_append(holder, select)
+    })
+    const r = await look(page, "#holder button")
+    expect(r.border).toBe(r.error)
+  })
+})

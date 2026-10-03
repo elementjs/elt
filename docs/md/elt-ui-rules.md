@@ -72,14 +72,14 @@ Every layout decision reduces to these six. The layout elements and their attrib
 3. **No transparency in color mixes.** Mix toward `bg` or `text` (`.from_bg`, `.from_text`, the named helpers), never with an alpha, except for shadows and deliberate effects such as the selection highlight ([Theme § Why](./ui-theme.md#why)).
 4. **No new named mix steps.** A one-off need goes through `.from_bg`/`.from_text`/`.from` with an explicit percentage ([Theme § Mix](./ui-theme.md#mix)).
 5. **A palette's tint has a WCAG contrast of at least 3, ideally 4.5**, against both its text and its background ([Theme § Custom theme](./ui-theme.md#custom-theme)).
-6. **Status hues**: which hue means error, warning or success is your app's decision; red/error, yellow/warning, green/success is the default, and deviating needs a reason ([Theme § Colors](./ui-theme.md#colors)).
+6. **Errors use `error`**: an invalid field (already styled) or an error message takes `theme.colors.error`, not a hue picked ad hoc. Which hue means warning or success is your app's decision; yellow/warning, green/success is the default, and deviating needs a reason ([Theme § Colors](./ui-theme.md#colors)).
 7. **Swapping a `text`-based border for `neutral`: go one step stronger** (`.mid` → `.faded`, one level up, or bare) and compare, since `neutral` is lighter than `text` ([Theme § Colors](./ui-theme.md#colors)).
 8. **Do not fork widget source for one-off colors.** Build a `Theme`, recolor a subtree with `as_tint`, or override the `--e-color-*` variables on a container ([Theme § Custom theme](./ui-theme.md#custom-theme)).
 
 ## Emphasis
 
 1. **Pick the family, then the strength.** Every band, control and state answers two questions ([Theme § Emphasis](./ui-theme.md#emphasis)):
-   - *What is it?* `neutral` for furniture: the structure and chrome around the content. `tint` for what the user should notice, or a choice they made. A status hue (`red`, `yellow`, `green`…), applied with `as_tint`, for a meaning.
+   - *What is it?* `neutral` for furniture: the structure and chrome around the content. `tint` for what the user should notice, or a choice they made. A status hue (`error`, or `yellow`, `green`… for warning or success), applied with `as_tint`, for a meaning.
    - *How much attention does it need?* From quietest to loudest: none, outline (a border only), surface (one level up), surface jump (two levels up or more), inverted.
 2. **At most one tint-inverted action per area**: the heavy, hard-to-reverse one that needs attention ([Theme § Why](./ui-theme.md#why)). Bands don't count: a dialog's inverted title row and its inverted "Delete" button can sit together.
 3. **A disabled control is furniture**: `neutral`, whatever its variant ([Theme § State](./ui-theme.md#state)).
@@ -127,10 +127,10 @@ Defaults, not rules: deviate when the app has a reason. Apps stay free to look t
 
 1. **Where things go by default** ([Theme § Emphasis](./ui-theme.md#emphasis)):
 
-   | Strength | `neutral` (furniture) | `tint` (to notice, or a choice) | Status hue (`as_tint`) |
+   | Strength | `neutral` (furniture) | `tint` (to notice, or a choice) | Status hue (`error`, … via `as_tint`) |
    | -------- | --------------------- | ------------------------------- | ---------------------- |
-   | None | button toolbar (only groups its controls) | `text` and `link` buttons | error text |
-   | Outline | default button, inputs | `tint` button, `tint` input | an invalid input's border |
+   | None | button toolbar (only groups its controls) | `text` and `link` buttons | an error message |
+   | Outline | default button, inputs | `tint` button, `tint` input | an invalid field's border (automatic) |
    | Surface (+1) | status bar, footer, title row of a secondary card, header of a table inside a widget; hover, keyboard-active item | code examples, callouts | a warning callout |
    | Surface jump (+2 or more) | pressed | selected item, checked toggle, current tab (+3) | |
    | Inverted | header of a table that is the main thing on the screen | the app's top toolbar, a dialog's title row, the title row of the card the screen is about, the dominant action | the dominant destructive action |
