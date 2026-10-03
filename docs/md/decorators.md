@@ -189,7 +189,7 @@ return <e-column>
 
 `$inserted` is a deprecated alias for `$connected` — use `$connected`.
 
-To animate a node as it enters or leaves the page, use `$enter` / `$leave` instead: they play when a verb or `node_append` / `node_remove` inserts or removes the node, and keep a removed node on screen until its exit is done. See [Motion](./motion.md).
+To animate a node as it enters or leaves the page, use `$enter` / `$leave` instead: they play with a verb's updates (not its first render), and keep a removed node on screen until its exit is done. See [Motion](./motion.md).
 
 ## Shadow DOM: `$shadow`
 

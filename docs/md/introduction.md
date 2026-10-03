@@ -129,7 +129,7 @@ Routes, path and hash modes, params and services are covered in [App](./app.md#s
 | `$observe` | Run a callback with an observable's value, while the node is in the document. | [Decorators](./decorators.md#reflecting-values-observe-class-style-id-title) |
 | `$bind.string` / `.number` / `.boolean` / … | Two-way binding between a form control and an observable. | [Decorators](./decorators.md#binding-form-controls-bind) |
 | `$connected` / `$disconnected` | Run a callback when the node enters / leaves the document. | [Decorators](./decorators.md#lifecycle-connected-disconnected) |
-| `$enter` / `$leave` | Animate the node when it is inserted into / removed from the page; a removed node stays until its exit is done. | [Motion](./motion.md) |
+| `$enter` / `$leave` | Animate the node when a verb's update brings it in / takes it away; a removed node stays until its exit is done. | [Motion](./motion.md) |
 | `$shadow` | Rare: attach a shadow root to a node. | [Decorators](./decorators.md#shadow-dom-shadow) |
 | `If`, `Switch`, `Repeat`, `DisplayPromise`, `RepeatVirtual` | Dynamic structure driven by observables. | [Verbs](./verbs.md) |
 | `App`, `Service`, `view` | Routing, services, named views. | [App](./app.md) |

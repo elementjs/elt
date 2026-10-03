@@ -81,7 +81,7 @@ These are conventions: the library does not enforce them, but code using elt fol
 
 ## DOM and layout
 
-- Animate a node entering or leaving the page with `$enter` / `$leave` on the node itself, not with `$connected` + an animation, nor by animating and then removing it by hand: verbs and `node_remove` then play it whoever removes the node. Put them on the root element of what gets inserted or removed. See [Motion](./motion.md).
+- Animate a node entering or leaving the page with `$enter` / `$leave` on the node itself, not with `$connected` + an animation, nor by animating and then removing it by hand: they play with verbs' updates, never on a verb's first render. A `$leave` inside removed content only plays when the removed node has a `$leave` too (`$leave(null)` when it has no exit of its own). Code that inserts or removes nodes itself passes `motion` (`node_append(…, true)`, `node_remove(node, true)`) to animate them. See [Motion](./motion.md).
 - Code that runs later on a node (an animation frame, a timeout, a promise) checks `node_is_connected(node)`, not `node.isConnected`: a node playing its exit is still in the document but already disconnected. See [Motion § Notes](./motion.md#notes).
 - When a change drives layout, never interleave reading layout (`getBoundingClientRect`, `offsetHeight`, `scrollTop`, …) and writing to the DOM in the same pass: each read after a write forces the browser to lay out again. Read everything once, compute, apply one batch of writes, and converge on later frames (`requestAnimationFrame`) if needed.
 

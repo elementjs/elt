@@ -183,13 +183,13 @@ Verbs, comment holders and `App` views insert, remove and move nodes through a h
 
 | Function | Does |
 | -------- | ---- |
-| `node_append(parent, renderable, refchild?)` | Inserts anything renderable (a node, a string, an array, an observable, a verb, a promise, an attribute object) before `refchild`. When `parent` is in the page, connects what it inserts (observers start, `$connected` runs) and plays its `$enter` |
-| `node_remove(node)` | Removes `node`: disconnects it first (observers stop, `$disconnected` runs, while it is still in place), then detaches it. Plays its `$leave` |
-| `node_clear(parent)` | Removes all of `parent`'s children, in one go |
-| `node_remove_range(first, last, motion?)` | Removes the siblings from `first` to `last` (inclusive) in one go: one disconnect pass, then one `Range` deletion. Those with a `$leave` stay until their exit is over; with `motion` false, none plays |
+| `node_append(parent, renderable, refchild?, motion?)` | Inserts anything renderable (a node, a string, an array, an observable, a verb, a promise, an attribute object) before `refchild`. When `parent` is in the page, connects what it inserts (observers start, `$connected` runs). With `motion`, the insertion is an update: what it inserts plays its `$enter` |
+| `node_remove(node, motion?)` | Removes `node`: disconnects it first (observers stop, `$disconnected` runs, while it is still in place), then detaches it. With `motion`, the removal is an update: `node` plays its `$leave` |
+| `node_clear(parent, motion?)` | Removes all of `parent`'s children, in one go |
+| `node_remove_range(first, last, motion?)` | Removes the siblings from `first` to `last` (inclusive) in one go: one disconnect pass, then one `Range` deletion. With `motion`, those with a `$leave` stay until their exit is over |
 | `node_move_range(first, last, parent, refchild)` | Moves the siblings from `first` to `last` before `refchild` in `parent`. Between two places in the page it uses `moveBefore` where the browser has it: focus, selection and running animations are kept, and no connected / disconnected callback runs. Otherwise the nodes are removed and re-inserted (disconnected if `parent` is not in the page). Leaving nodes are removed rather than moved |
 
-Ranges are how verbs track their content: a verb renders between two comment nodes, and removes or moves everything between them at once. The rules about entering and leaving are in [Motion](./motion.md); `without_motion(fn)` turns them off while `fn` runs.
+Ranges are how verbs track their content: a verb renders between two comment nodes (a `CommentHolder`), and removes or moves everything between them at once. `motion` is `false` by default: verbs pass `true` for their updates, and code acting like a verb (a popup opening and closing) passes it itself. The rules about entering and leaving are in [Motion](./motion.md); `without_motion(fn)` turns them off while `fn` runs.
 
 ## Good patterns vs. patterns to avoid
 
@@ -222,7 +222,7 @@ const o_items = o<Item[]>([])
 
 ## A gotcha: `If` reuses its previous render across same-truthiness updates
 
-`If` doesn't re-invoke `display`/`display_otherwise` on every update to `condition` — only when truthiness actually flips (falsy → truthy or truthy → falsy). If `condition` changes from one truthy value to a different truthy value, the previous render is kept as-is; `display` is not called again. See the comment in `src/verbs.ts`, directly above the guard clause in `IfDisplayer`'s constructor, for exactly where this happens.
+`If` doesn't re-invoke `display`/`display_otherwise` on every update to `condition` — only when truthiness actually flips (falsy → truthy or truthy → falsy). If `condition` changes from one truthy value to a different truthy value, the previous render is kept as-is; `display` is not called again. The same holds for an `ElseIf` chain: its content is rendered again only when another branch is picked. See `IfDisplayer` in `src/verbs.ts`, where the branch is picked.
 
 This matters if `display`'s closure depends on the *specific* truthy value rather than just its presence — e.g. `If(o_user, (u) => <span>{u.tf((x) => x.name)}</span>)` will keep showing the *first* user's name if `o_user` is later set to a different (still truthy) user object, because `If` never called `display` again — but the `<span>` it already rendered stays reactive, since `u.tf(...)` derives from the `u` observable it was given, not from a snapshot. If `display` instead captured a plain value out of the closure at render time, that captured value would go stale.
 

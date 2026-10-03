@@ -6,14 +6,14 @@ order: 45
 
 # Motion
 
-Nodes can animate when they **enter** the page and when they **leave** it, whoever puts them there or takes them away: a verb (`If`, `Switch`, `Repeat`, `DisplayPromise`, an observable shown as a child), a popup, or your own `node_append` / `node_remove`. You declare it once, on the node, with two decorators:
+Nodes can animate when they **enter** the page and when they **leave** it. You declare it once, on the node, with two decorators:
 
-- `$enter(motion?)` plays when the node is inserted into the page;
-- `$leave(motion?)` plays when it is removed: the node stays on screen until its exit is done, then elt removes it.
+- `$enter(motion?)` plays when the node arrives with an update;
+- `$leave(motion?)` plays when it goes with an update: the node stays on screen until its exit is done, then elt removes it.
 
 Without an argument, both play a short fade. `elt/ui` replaces that default with its theme's tokens and adds ready-made motions ([Overlays § Motion](./ui-overlays.md#motion)).
 
-The rules are in [elt rules § DOM and layout](./elt-rules.md#dom-and-layout); this page explains them.
+Motion belongs to **verbs**: `If`, `Switch`, `Repeat`, `RepeatVirtual`, `DisplayPromise`, any observable shown as a child (`{o_count.tf((n) => …)}`), App views, a promise shown as a child. They are what makes content change, so they decide when it animates: content enters and leaves with a verb's **updates**, never with its first render. The rules are in [elt rules § DOM and layout](./elt-rules.md#dom-and-layout); this page explains them.
 
 ## `$enter` and `$leave`
 
@@ -32,6 +32,8 @@ return <e-column>
   </e-column>)}
 </e-column>
 ```
+
+The box doesn't fade in when the page opens: that is the `If`'s first render. It does on every toggle after.
 
 Both branches of an `If` can have their own motion. The new branch is inserted at once while the old one plays its exit on top of it, out of the layout: the page lays out as if the old branch were already gone.
 
@@ -56,70 +58,93 @@ Clicking twice quickly removes the first exit at once: a node that is leaving is
 
 ## Entering
 
-A node enters when it is **inserted into a parent that is already in the page**: by a verb updating (an `If` flipping, a `Repeat` adding an item, a promise resolving), or by your own `node_append` into a live parent. For a fragment, each of its top-level nodes enters.
+When a verb **updates** (an `If` or `Switch` changing branch, a `Repeat` adding items, an observable shown as a child taking a new value, a promise resolving), everything it inserts enters: the inserted nodes and all their descendants that have an `$enter`, nested elements included.
 
-Only the inserted nodes themselves are considered, never what they contain. When an `If` renders `<e-row><e-column>{$enter()}…</e-column></e-row>`, the `<e-row>` is what gets inserted: the `<e-column>` arrives with it and doesn't enter. Put `$enter` on the `<e-row>`, or render a fragment (`<>…</>`) whose top-level nodes carry it, as in the [motions example](#motions-keyframes-specs-functions). The same goes for `$leave` (see [Leaving](#leaving)).
+It stops at other verbs. A verb inside the new content renders it for the first time: what that verb shows is its initial state, not an update, so it doesn't enter. It will with that verb's own updates.
+
+```tsx
+//@inline-example
+import { $click, $enter, o, If, Repeat } from "elt"
+
+const o_open = o(false)
+const o_items = o([1, 2])
+const pop = { keyframes: [{ opacity: 0, transform: "scale(0.9)" }, { opacity: 1, transform: "none" }], duration: 400 }
+
+return <e-column spacing>
+  <e-row spacing>
+    <button>{$click(() => o_open.set(!o_open.get()))}Open / close</button>
+    <button>{$click(() => o_items.set([...o_items.get(), o_items.get().length + 1]))}Add an item</button>
+  </e-row>
+  {If(o_open, () => <e-column surface border pad spacing>
+    {$enter(pop)}
+    <h4>{$enter(pop)}The panel and its title enter</h4>
+    {Repeat(o_items, (o_n) => <e-column surface="tint" pad>{$enter(pop)}Item {o_n}</e-column>)
+      .withKeyFunction((n) => n)}
+  </e-column>)}
+</e-column>
+```
+
+Opening the panel makes it and its title enter, but not the items: they are the `Repeat`'s first render. An item added afterwards enters, since that is the `Repeat`'s update.
 
 A node does **not** enter:
 
-- when it arrives with an ancestor. A tree built offscreen and then mounted enters only through its root: the first render of a screen doesn't fade in piece by piece;
+- on a verb's first render: a screen mounted, a route's first view, a verb inside content that is itself arriving;
+- when a verb re-renders while it is being connected, to catch up on what changed while it was out of the page: that is still its first appearance;
 - when it moves (a `Repeat` reordering its items);
 - when it is inserted into a parent that is not in the page;
 - while motion is off ([`motion_enabled`](#reduced-motion-and-turning-motion-off)).
 
-`$enter(motion, { always: true })` plays on every connection instead, including when the node arrives with an ancestor (still never on moves).
+`If(…).ElseIf(…).Else(…)` is one verb: changing from one of its branches to another is an update, whichever branches.
 
-```tsx
-//@inline-example
-import { $click, $enter, node_append, node_clear, o, Repeat } from "elt"
+**Your own insertions** don't make anything enter: `node_append(parent, node)` is not a verb's update. Pass `motion` to make it one: `node_append(parent, node, refchild, true)` (`refchild` may be `null`). Popups and dialogs open that way.
 
-const o_items = o<number[]>([])
-const slow = { keyframes: [{ opacity: 0, transform: "scale(0.9)" }, { opacity: 1, transform: "none" }], duration: 400 }
-const host = <e-column />
-
-const mount = () => {
-  node_clear(host)
-  // Built offscreen, then mounted: only the box enters, not the items it already holds.
-  const box = <e-column surface border pad spacing>
-    {$enter(slow)}
-    The box
-    {Repeat(o_items, (o_n) => <e-column surface="tint" pad>{$enter(slow)}Item {o_n}</e-column>)}
-  </e-column>
-  node_append(host, box)
-}
-
-return <e-column>
-  <e-row spacing>
-    <button>{$click(mount)}Mount the box</button>
-    <button>{$click(() => o_items.set([...o_items.get(), o_items.get().length + 1]))}Add an item</button>
-  </e-row>
-  {host}
-</e-column>
-```
+**`$enter(motion, { always: true })`** plays even when it isn't its verb's update: on every connection, including a verb's first render and an insertion without `motion` (still never on moves).
 
 ## Leaving
 
-When `node_remove`, a verb or a comment holder removes a node with a `$leave`:
+When a verb's update removes content, or `node_remove` / `node_clear` / `node_remove_range` are given `motion` (`node_remove(node, true)`), each removed node **with a `$leave`**:
 
-1. The node is **disconnected first**: its observers stop and its `$disconnected` callbacks run. What stays on screen is a frozen snapshot; it no longer follows any data.
-2. It gets the `e-leaving` attribute and `inert` (no focus, no clicks, ignored by assistive technology).
-3. It is **taken out of the layout and kept where it was**: it becomes `position: absolute` at its current place, and the page lays out at once as if it were gone. `$leave(motion, { flow: true })` keeps it in the layout instead, for an exit that animates its own size ([collapse](#repeat)). Table rows and text wrapping over several lines always stay in the layout.
-4. Its motion plays; once done, elt removes it.
+1. is **disconnected first**: its observers stop and its `$disconnected` callbacks run. What stays on screen is a frozen snapshot; it no longer follows any data.
+2. gets the `e-leaving` attribute and `inert` (no focus, no clicks, ignored by assistive technology).
+3. is **taken out of the layout and kept where it was**: it becomes `position: absolute` at its current place, and the page lays out at once as if it were gone. `$leave(motion, { flow: true })` keeps it in the layout instead, for an exit that animates its own size ([collapse](#repeat)). Table rows, text wrapping over several lines and nodes without a box of their own (`display: contents`) always stay in the layout.
+4. plays its exit, and its descendants' exits (up to other verbs' content, as for entering). Once all are done, elt removes it.
 
-A floating node is positioned against its containing block (the nearest positioned ancestor). When that ancestor is outside the node's scroll container, the leaving node neither scrolls nor clips with it: a fading row may show outside its scroll area. elt doesn't change your ancestors' positioning to avoid it; give the scroll container `position: relative` if it matters. A floating node is drawn above its non-positioned siblings, and below positioned ones.
+A removed node **without** a `$leave` goes at once, with everything in it: its descendants' `$leave` don't play, since they would need it to stay on screen. To let them play without an exit of its own, give it `$leave(null)`: it waits for its descendants' exits.
+
+```tsx
+//@inline-example
+import { $click, $leave, o, If } from "elt"
+
+const o_show = o(true)
+const out = (dx: number) => ({ keyframes: [{ opacity: 0, transform: `translateX(${dx}px)` }], duration: 400 })
+
+return <e-column>
+  <button>{$click(() => o_show.set(!o_show.get()))}Toggle</button>
+  {If(o_show, () => <e-row spacing>
+    {$leave(null)}
+    <e-column surface border pad>{$leave(out(-30))}left</e-column>
+    <e-column surface border pad>{$leave(out(30))}right</e-column>
+  </e-row>)}
+  <e-column pad>This line moves up at once.</e-column>
+</e-column>
+```
 
 Everything else removed by the same call goes at once, synchronously, as without motion. In particular, nothing waits when:
 
-- the node has no `$leave`, or its motion is reduced to nothing ([reduced motion](#reduced-motion-and-turning-motion-off));
+- no `$leave` applies (none on the removed node, or the removal is neither a verb's update nor given `motion`), or the motion is reduced to nothing ([reduced motion](#reduced-motion-and-turning-motion-off));
 - the node is not in the page (removing from a detached tree is always instant);
-- the node has no box (`display: none` or `contents`): nothing would be seen;
+- nothing that would play has a box (`display: none`): nothing would be seen;
 - motion is off.
 
-Only the nodes being removed are considered, not their descendants: removing a `<li>` removes a `$leave` element inside it at once, with the `<li>`. Put `$leave` on the root element of what gets removed: the root of a component, of an `If` branch, of a `Repeat` item.
+**`$leave(motion, { always: true })`** plays even when it isn't its verb's update: inside another verb's content, or a removal without `motion`. It never keeps an ancestor on screen: it plays when its node is the removed one, or is inside a removed node that stays anyway.
+
+A floating node is positioned against its containing block (the nearest positioned ancestor). When that ancestor is outside the node's scroll container, the leaving node neither scrolls nor clips with it: a fading row may show outside its scroll area. elt doesn't change your ancestors' positioning to avoid it; give the scroll container `position: relative` if it matters. A floating node is drawn above its non-positioned siblings, and below positioned ones.
 
 **A leaving node is condemned.** It never comes back: removing it again (an `If` flipping twice quickly), moving it, or putting it back in the page (its ancestor re-inserted) removes it at once. Its data may already be gone (an item removed from its list), so it is never reconnected to it.
 
-A direct `node_remove` works the same way as a verb:
+**Exits must end.** A keyframes or spec exit that would never end (an infinite `duration`) plays nothing, with a warning, and the node goes at once. A function exit's promise must settle: the node stays until it does (in development builds, a warning names a node still waiting after 5 seconds).
+
+A direct `node_remove` with `motion` works the same way as a verb:
 
 ```tsx
 //@inline-example
@@ -127,11 +152,11 @@ import { $click, $leave, node_remove } from "elt"
 
 const box = <e-column surface border pad>
   {$leave({ keyframes: [{ opacity: 0, transform: "translateX(40px)" }], duration: 400 })}
-  Removed with node_remove
+  Removed with node_remove(box, true)
 </e-column>
 
 return <e-column>
-  <button>{$click(() => node_remove(box))}Remove</button>
+  <button>{$click(() => node_remove(box, true))}Remove</button>
   {box}
   <e-column pad>This one moves up at once.</e-column>
 </e-column>
@@ -147,6 +172,9 @@ return <e-column>
 | `Keyframe[]` | these keyframes, with the default duration and easing |
 | `MotionSpec`: `{ keyframes, duration?, easing?, reduced? }` | these keyframes; `duration` in ms, `easing` any CSS easing function; `reduced`: the keyframes for [reduced motion](#reduced-motion-and-turning-motion-off) (`null`: none) |
 | `(node) => Promise \| void` | anything: for `$leave`, the node stays until the promise settles (returning nothing removes it at once); for `$enter`, the result is ignored |
+| `null` (`$leave` only) | nothing of its own: the node waits for its descendants' exits |
+
+The three boxes enter with the row (the `If`'s update brings them in). For their exits, the row has `$leave(null)`: without it, the row would go at once with them.
 
 Exits play with `fill: "forwards"`, so a fading node doesn't flash back before it is removed. An exit without a starting keyframe (`[{ opacity: 0 }]`) starts from the node's current state: when a node leaves while still entering, its entry stops where it was and the exit continues from there.
 
@@ -158,7 +186,8 @@ const o_show = o(true)
 
 return <e-column>
   <button>{$click(() => o_show.set(!o_show.get()))}Toggle</button>
-  <e-row spacing>{If(o_show, () => <>
+  {If(o_show, () => <e-row spacing>
+    {$leave(null)}
     <e-column surface border pad>
       {$enter([{ opacity: 0 }, { opacity: 1 }])}
       {$leave([{ opacity: 0 }])}
@@ -174,7 +203,7 @@ return <e-column>
       {$leave((node) => animate(node, [{ background: "tomato" }, { opacity: 0 }], { dir: "leave", fill: "forwards" }))}
       function
     </e-column>
-  </>)}</e-row>
+  </e-row>)}
 </e-column>
 ```
 
@@ -186,7 +215,7 @@ return <e-column>
 
 ### `If` and `Switch`
 
-The new branch is inserted at once; the old one plays its exit on top of it. A `Switch` works the same way:
+The new branch is inserted at once; the old one plays its exit on top of it. A chain `If(…).ElseIf(…).Else(…)` is one verb, and a `Switch` works the same way:
 
 ```tsx
 //@inline-example
@@ -208,7 +237,7 @@ return <e-column>
 
 ### `Repeat`
 
-Items with `$enter` / `$leave` animate when they are added and removed; the others take their new place at once, and moved items don't animate.
+Items with `$enter` / `$leave` animate when the list adds and removes them; the others take their new place at once, and moved items don't animate. The list's first render doesn't animate, and neither does what `PrefixBy`, `SuffixBy` and `DisplayWhenEmpty` show then; afterwards they enter and leave with the list's updates.
 
 **Give the list a key function** (`withKeyFunction`). When an update removes some items and adds others, `Repeat` reuses the nodes of removed items for the new ones. Without a key function, that is what keeps an edited item (a new object, so a new key) in place, and it stays so. With one, a removed item with a `$leave` leaves, and the new item gets its own nodes, which enter.
 
@@ -389,19 +418,19 @@ These selectors cost something on every insertion and removal in that parent, an
 
 - **Code that runs later checks `node_is_connected`, not `isConnected`.** A callback scheduled on a node (an animation frame, a timeout, a promise) may run while the node is leaving: it is still in the document (`isConnected` is true), but elt has disconnected it (`node_is_connected` is false). Focusing it, measuring it or updating it then acts on a node that is about to disappear.
 - **Moves in WebKit.** Browsers without `moveBefore` (WebKit) move nodes by removing and re-inserting them, which restarts CSS animations and cancels running exits inside the moved nodes: those leaving nodes are removed early. Animations started by `$enter` / `$leave` / `animate` keep running.
-- **Page transitions** are a different tool: the browser's View Transitions, opt-in per route ([Overlays § Page transitions](./ui-overlays.md#page-transitions)). A `$leave` on the root of a route's view also plays when the route changes.
+- **Route changes** are updates of the App's views (a verb): a view's content enters and leaves with them like any other. An old view with exits stays on screen, frozen, while they play, over the new one; that is up to you. Real page transitions are a different tool: the browser's View Transitions, opt-in per route ([Overlays § Page transitions](./ui-overlays.md#page-transitions)).
 
 ## Low-level: `node_on_enter` / `node_on_leave`
 
 `$enter` / `$leave` are built on two functions, like `$connected` on `node_on_connected`:
 
-- `node_on_enter(node, fn, { always? })` runs `fn(node)` when the node enters the page, with the rules of [Entering](#entering).
-- `node_on_leave(node, fn, { flow? })` runs `fn(node)` when the node leaves, with the rules of [Leaving](#leaving). If `fn` returns a promise, the node stays until it settles (a rejected promise also removes it); if it returns nothing, the node goes at once. Several hooks on one node all run, and the node waits for every promise.
+- `node_on_enter(node, fn, { always? })` runs `fn(node)` when the node enters, with the rules of [Entering](#entering).
+- `node_on_leave(node, fn, { flow?, always? })` runs `fn(node)` when the node leaves, with the rules of [Leaving](#leaving). If `fn` returns a promise, the removed node stays until it settles (a rejected promise also removes it); if it returns nothing, nothing waits for it. Several hooks on one node all run, and the removed node waits for every promise.
 
-Use them to write your own decorators. Two more functions tell or change whether hooks run:
+Use them to write your own decorators. Writing your own verb-like code, insert and remove its content with `node_append(…, motion)` / `node_remove_range(…, motion)`, passing whether the change is an update ([Verbs § Below the verbs](./verbs.md#below-the-verbs-inserting-removing-and-moving-nodes)). Two more functions tell or change whether hooks run:
 
 - `motion_is_enabled()`: whether enter and leave hooks run right now (motion is on, and no `without_motion` call is in progress).
-- `without_motion(fn)`: runs `fn` with motion off, and returns its result: nodes it removes go at once, nodes it inserts don't enter. Windowed lists use it for the rows that come and go with scrolling; use it when you re-render something that shouldn't look like content arriving or leaving.
+- `without_motion(fn)`: runs `fn` with motion off, `always` hooks included, and returns its result. Windowed lists use it for the rows that come and go with scrolling; use it when you re-render something that shouldn't look like content arriving or leaving.
 
 ## See also
 
