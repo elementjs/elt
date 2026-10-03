@@ -3,27 +3,10 @@
  */
 import { o } from "./observable"
 
-import { CommentHolder, node_append, node_do_disconnect, node_observe } from "./dom"
+import { CommentHolder, node_append, node_observe, node_remove_range } from "./dom"
 
 import { sym_insert } from "./symbols"
 import type { Appender, Renderable } from "./types"
-
-let _range: Range | null = null
-
-/**
- * Remove the siblings from `first` to `last` (inclusive) with a single Range call, after running
- * their disconnected callbacks.
- */
-function remove_run(first: Node, last: Node) {
-  for (let n: Node | null = first; n != null; n = n.nextSibling) {
-    node_do_disconnect(n)
-    if (n === last) break
-  }
-  _range ??= document.createRange()
-  _range.setStartBefore(first)
-  _range.setEndAfter(last)
-  _range.deleteContents()
-}
 
 /**
  * Flag the entries of `seq` forming a longest strictly increasing subsequence, ignoring negative
@@ -495,7 +478,7 @@ export namespace Repeat {
       const flush = () => {
         // run_last is always set along with run_first ; checking both lets TS narrow them
         if (run_first == null || run_last == null) return
-        remove_run(run_first, run_last)
+        node_remove_range(run_first, run_last)
         run_first = null
       }
 
@@ -692,13 +675,13 @@ export namespace Repeat {
         const node = old[dead[d]]
         // run_last is always set along with run_first ; checking both lets TS narrow them
         if (run_first != null && run_last != null && run_last.nextSibling !== node) {
-          remove_run(run_first, run_last)
+          node_remove_range(run_first, run_last)
           run_first = null
         }
         run_first ??= node
         run_last = node.end ?? node
       }
-      if (run_first != null && run_last != null) remove_run(run_first, run_last)
+      if (run_first != null && run_last != null) node_remove_range(run_first, run_last)
     }
 
     /**

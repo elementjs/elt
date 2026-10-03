@@ -1,4 +1,4 @@
-import { $on, css, node_append } from "elt"
+import { $on, css, node_append, node_remove } from "elt"
 import { theme } from "./theme"
 import { Future, sym_closed } from "./utils"
 import { animate, animate_hide, animate_show } from "./animation"
@@ -66,7 +66,7 @@ export function show_dialog<T>(opts: DialogOptions | DialogCallback<T>, cbk?: Di
       animate(dialog, animate_hide, { duration: 100 }),
       animate(dialog, animate_hide, { duration: 100, pseudoElement: "::backdrop" }),
     ]).finally(() => {
-      dialog.remove()
+      node_remove(dialog)
       if (return_focus?.isConnected) return_focus.focus({ preventScroll: true })
     })
   })

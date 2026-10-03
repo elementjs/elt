@@ -160,6 +160,25 @@ test.describe("show_dialog (docs/md/ui-overlays.md#show_dialog)", () => {
     expect(r).toEqual({ result: "closed", focus: "opener" })
   })
 
+  test("closing disconnects the content (regression: the dialog was removed without elt's lifecycle)", async ({
+    page,
+  }) => {
+    await page.evaluate(() => {
+      const { UI, $disconnected } = window.__ELT__
+      const w = window as W
+      UI.show_dialog((fut) => {
+        const c = document.createElement("e-column")
+        $disconnected(() => {
+          w.result = "disconnected"
+        })(c)
+        setTimeout(() => fut.resolve(UI.sym_closed))
+        return c
+      })
+    })
+    await page.waitForFunction(() => document.querySelector("dialog") == null)
+    expect(await page.evaluate(() => (window as W).result)).toBe("disconnected")
+  })
+
   test("resolves with the value given by the content", async ({ page }) => {
     await page.evaluate(() => {
       const { UI } = window.__ELT__

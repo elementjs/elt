@@ -32,10 +32,7 @@ export class CommentHolder extends Comment {
     if (parent == null) throw new Error("CommentHolder.updateRenderable: not attached to a parent")
 
     if (this.end != null) {
-      const end = this.end
-      while (this.nextSibling != null && this.nextSibling !== end) {
-        node_remove(this.nextSibling)
-      }
+      this.empty()
     } else {
       this.end = document.createComment(`${this.textContent ?? ""} end`)
       node_append(parent, this.end, this.nextSibling)
@@ -44,69 +41,33 @@ export class CommentHolder extends Comment {
     node_append(parent, renderable, this.nextSibling)
   }
 
+  /** Remove the content between this node and its end marker. */
   empty() {
-    if (this.end == null || this.end.parentNode !== this.parentNode) {
-      return
-    }
     const end = this.end
-    while (this.nextSibling != null && this.nextSibling !== end) {
-      node_remove(this.nextSibling)
-    }
+    if (end == null || end.parentNode !== this.parentNode) return
+    const first = this.nextSibling
+    // `end` is a later sibling, so both are non-null whenever the range is not empty
+    if (first !== end) node_remove_range(first as Node, end.previousSibling as Node)
   }
 
   get hasContent() {
     return this.nextSibling !== this.end
   }
 
+  /** The last node this holder spans : its end marker when it has one in the same parent, itself otherwise. */
+  get last(): Node {
+    const end = this.end
+    return end != null && end.parentNode === this.parentNode ? end : this
+  }
+
   /** Remove the node and its handled content from the DOM */
   override remove() {
-    if (this.end != null) {
-      const end = this.end
-      while (this.nextSibling != null && this.nextSibling !== end) {
-        node_remove(this.nextSibling)
-      }
-      node_remove(this.end)
-      node_remove(this)
-    }
-    return super.remove()
+    node_remove_range(this, this.last)
   }
 
   /** Move this node and its contents to a new destination */
   moveTo(parent: Node, refchild: Node | null = null) {
-    if (HAS_MOVE_BEFORE && this.isConnected && parent.isConnected) {
-      // Live to live: an atomic move keeps focus, selection, iframes and running animations. The
-      // nodes never leave the document, so no connected/disconnected callback has to run.
-      const last = this.end ?? this
-      let node: Node = this
-      while (true) {
-        const next = node.nextSibling
-        ;(parent as ParentNode).moveBefore(node, refchild)
-        if (node === last || next == null) break
-        node = next
-      }
-      return
-    }
-
-    let iter = this as Node | null
-    let next: Node | null = this.nextSibling as Node | null
-
-    node_append(parent, this, refchild)
-
-    const end = this.end
-    if (end == null) {
-      return
-    }
-    while (true) {
-      iter = next
-      if (iter == null) {
-        break
-      }
-      next = iter.nextSibling
-      node_append(parent, iter, refchild)
-      if (iter === end) {
-        break
-      }
-    }
+    node_move_range(this, this.last, parent, refchild)
   }
 }
 
@@ -225,17 +186,62 @@ export function node_do_disconnect(node: Node) {
   _apply_disconnected(node)
 }
 
+let _range: Range | null = null
+
+/**
+ * Remove the siblings from `first` to `last` (inclusive). Every removal done by elt goes through
+ * here (`node_remove`, `node_clear`, verbs, comment holders).
+ *
+ * The nodes are disconnected first, so their `disconnected` callbacks still see them in place, then
+ * detached : a single node with `removeChild`, a run of several with one Range call.
+ *
+ * @internal
+ */
+export function node_remove_range(first: Node, last: Node): void {
+  for (let n: Node | null = first; n != null; n = n.nextSibling) {
+    node_do_disconnect(n)
+    if (n === last) break
+  }
+
+  const parent = first.parentNode
+  if (parent == null) return
+  if (first === last) {
+    parent.removeChild(first)
+    return
+  }
+  _range ??= document.createRange()
+  _range.setStartBefore(first)
+  _range.setEndAfter(last)
+  _range.deleteContents()
+}
+
+/**
+ * Move the siblings from `first` to `last` (inclusive) before `refchild` in `parent`. Every move done
+ * by elt goes through here.
+ *
+ * @internal
+ */
+export function node_move_range(first: Node, last: Node, parent: Node, refchild: Node | null): void {
+  // Live to live: an atomic move keeps focus, selection, iframes and running animations. The nodes
+  // never leave the document, so no connected/disconnected callback has to run.
+  const atomic = HAS_MOVE_BEFORE && first.isConnected && parent.isConnected
+  let node: Node | null = first
+  while (node != null) {
+    const next: Node | null = node.nextSibling
+    if (atomic) (parent as ParentNode).moveBefore(node, refchild)
+    else node_append(parent, node, refchild)
+    if (node === last) break
+    node = next
+  }
+}
+
 /**
  * Remove a `node` from the tree and call `removed` on its mixins and all the `removed` callbacks. A node inserted with `node_append` should be removed with this function.
  *
  * @group Dom
  */
 export function node_remove(node: Node): void {
-  node_do_disconnect(node) // just stop observers otherwise...
-  const parent = node.parentNode
-  if (parent) {
-    parent.removeChild(node)
-  }
+  node_remove_range(node, node)
 }
 
 /**
@@ -243,11 +249,9 @@ export function node_remove(node: Node): void {
  * @group Dom
  */
 export function node_clear(node: Node): void {
-  while (node.firstChild) {
-    const c = node.firstChild
-    node.removeChild(c)
-    node_do_disconnect(c)
-  }
+  const first = node.firstChild
+  // `lastChild` is non-null whenever `firstChild` is
+  if (first != null) node_remove_range(first, node.lastChild as Node)
 }
 
 /**
