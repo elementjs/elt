@@ -144,6 +144,7 @@ When reduced motion applies (`motion_reduced(true)`, or `prefers-reduced-motion:
 
 - `If` / `Switch`: the new branch is inserted at once, while the old one floats out. No "wait for the exit" mode.
 - `Repeat`: removed items whose root has `$leave` float out; the others move around them (a leaving item belongs to no item range: its comment markers were deleted).
+- `Repeat` reuses the nodes of removed items for new keys in the same update. Without a key function that is what keeps an edited item (a new immutable object, so a new key) in place, and it stays. With a key function, keys survive edits, so a removed key is a real removal: an item with a leave hook is not reused, it leaves, and its replacement gets fresh nodes and enters. Exit motion in a `Repeat` therefore needs `withKeyFunction` (implemented: `has_leave_hook` in `src/verbs.ts`).
 - **Windowed lists** (`Repeat(...).ForView`, `RepeatVirtual`): rows dropped because they left the view window must not play their exit, and rows rendered because they scrolled into the window must not play their entry. Eviction (`evict_outside_view`) and view-driven reconciliations (`reconcile_view`, `reconcileView`) run without motion (an internal flag around those calls; `node_remove_range` / `node_append` read it). Data-driven updates keep their motion. To check during implementation: `RepeatVirtual`'s row measurements must ignore floating rows (`e-leaving`).
 
 ### Other changes in the core

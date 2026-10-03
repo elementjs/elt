@@ -251,9 +251,27 @@ export function motion_enabled(enabled: boolean) {
   _motion_enabled = enabled
 }
 
-/** @internal */
+/** Depth of {@link without_motion} calls in progress. */
+let _motion_suspended = 0
+
+/** Whether enter and leave hooks may run now. @internal */
 export function motion_is_enabled() {
-  return _motion_enabled
+  return _motion_enabled && _motion_suspended === 0
+}
+
+/**
+ * Run `fn` with motion off: nodes it removes leave at once and nodes it inserts don't enter. Used by
+ * windowed lists, whose rows come and go with scrolling, not with the data.
+ *
+ * @internal
+ */
+export function without_motion<T>(fn: () => T): T {
+  _motion_suspended++
+  try {
+    return fn()
+  } finally {
+    _motion_suspended--
+  }
 }
 
 /**
@@ -289,7 +307,7 @@ export function node_on_leave<N extends Element>(node: N, fn: LeaveCallback<N>, 
 export function node_on_enter<N extends Element>(node: N, fn: EnterCallback<N>, opts?: EnterOptions) {
   if (opts?.always) {
     node_on_connected(node, (n) => {
-      if (_motion_enabled) fn(n)
+      if (motion_is_enabled()) fn(n)
     })
     return
   }
@@ -300,7 +318,7 @@ export function node_on_enter<N extends Element>(node: N, fn: EnterCallback<N>, 
 /** Run the enter hooks of `node`, just inserted into the page by `node_append` and connected. */
 function _node_enter(node: Node) {
   const hooks = node[sym_enter]
-  if (hooks == null || !_motion_enabled || !(node[sym_connected_status] & NODE_IS_CONNECTED)) return
+  if (hooks == null || !motion_is_enabled() || !(node[sym_connected_status] & NODE_IS_CONNECTED)) return
   for (let i = 0, l = hooks.length; i < l; i++) {
     try {
       hooks[i](node)
@@ -403,7 +421,7 @@ function _leave_done(node: Element) {
 export function node_remove_range(first: Node, last: Node, motion = true): void {
   // Nodes with leave hooks that may leave : connected (removing a detached node is always instant)
   let candidates: Leaving[] | null = null
-  const may_leave = motion && _motion_enabled
+  const may_leave = motion && motion_is_enabled()
   for (let n: Node | null = first; n != null; n = n.nextSibling) {
     // Already leaving : removed again, it goes now with the rest (its final removal will do nothing).
     n[sym_connected_status] &= ~NODE_IS_LEAVING

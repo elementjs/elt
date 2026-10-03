@@ -3,10 +3,19 @@
  */
 import { o } from "./observable"
 
-import { CommentHolder, node_append, node_observe, node_remove_range } from "./dom"
+import { CommentHolder, node_append, node_observe, node_remove_range, without_motion } from "./dom"
 
-import { sym_insert } from "./symbols"
+import { sym_insert, sym_leave } from "./symbols"
 import type { Appender, Renderable } from "./types"
+
+/** Whether the content of a repeat item has a node with a leave hook (see `node_on_leave`). */
+function has_leave_hook(item: CommentHolder): boolean {
+  const end = item.end
+  for (let n = item.nextSibling; n != null && n !== end; n = n.nextSibling) {
+    if (n[sym_leave] != null) return true
+  }
+  return false
+}
 
 /**
  * Flag the entries of `seq` forming a longest strictly increasing subsequence, ignoring negative
@@ -441,7 +450,8 @@ export namespace Repeat {
     reconcileView(start: number, end: number) {
       this.update_lock(() => {
         const lst = (o.get(this.obs) as unknown as NonNullable<o.ObservedType<Obs>>) ?? []
-        this.updateChildren(lst, { start, end })
+        // Rows come and go with the window, not with the data: no motion.
+        without_motion(() => this.updateChildren(lst, { start, end }))
       })
       return this
     }
@@ -449,7 +459,7 @@ export namespace Repeat {
     protected reconcile_view() {
       this.update_lock(() => {
         const lst = (o.get(this.obs) as unknown as NonNullable<o.ObservedType<Obs>>) ?? []
-        this.updateChildren(lst)
+        without_motion(() => this.updateChildren(lst))
       })
     }
 
@@ -478,7 +488,8 @@ export namespace Repeat {
       const flush = () => {
         // run_last is always set along with run_first ; checking both lets TS narrow them
         if (run_first == null || run_last == null) return
-        node_remove_range(run_first, run_last)
+        // Out of the window, not out of the list: no exit motion
+        node_remove_range(run_first, run_last, false)
         run_first = null
       }
 
@@ -623,11 +634,15 @@ export namespace Repeat {
       }
 
       // Re-key dead items for the new keys, in order ; they keep their place if the order allows.
-      // Slots left without a node are created during placement below.
-      let dead_used = 0
-      for (let s = 0; s < mid_len && dead_used < dead.length; s++) {
+      // Slots left without a node are created during placement below. Without a key function, an
+      // edited item (a new object, so a new key) keeps its nodes this way. With one, keys survive
+      // edits and a dead key is a removal: an item with a leave hook leaves instead of being reused,
+      // and its replacement gets fresh nodes (and enters).
+      const reusable = keyfn == null ? dead : dead.filter((k) => !has_leave_hook(old[k]))
+      let used = 0
+      for (let s = 0; s < mid_len && used < reusable.length; s++) {
         if (nodes[s] != null) continue
-        const k = dead[dead_used++]
+        const k = reusable[used++]
         nodes[s] = old[k]
         src[s] = k
       }
@@ -668,10 +683,15 @@ export namespace Repeat {
       }
       flush()
 
-      // Remove the dead items that were not re-keyed.
+      // Remove the dead items that were not re-keyed: the first `used` of `reusable`, an ordered
+      // subsequence of `dead`.
       let run_first: RepeatItemElement<Obs> | null = null
       let run_last: Node | null = null
-      for (let d = dead_used; d < dead.length; d++) {
+      for (let d = 0, u = 0; d < dead.length; d++) {
+        if (u < used && reusable[u] === dead[d]) {
+          u++
+          continue
+        }
         const node = old[dead[d]]
         // run_last is always set along with run_first ; checking both lets TS narrow them
         if (run_first != null && run_last != null && run_last.nextSibling !== node) {

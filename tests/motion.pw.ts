@@ -784,3 +784,143 @@ test.describe("$enter / $leave", () => {
     expect(r.opacity_now).toBeLessThanOrEqual(r.committed + 0.01)
   })
 })
+
+test.describe("windowed lists", () => {
+  test("Repeat with a view window (keyed): moving the window has no motion, removing an item in view does", async ({
+    page,
+  }) => {
+    const r = await page.evaluate(() => {
+      const { o, Repeat, node_append, node_on_enter, node_on_leave } = window.__ELT__
+      // Built offscreen, then mounted: its first rows don't enter
+      const c = document.createElement("div")
+      const counts = { enter: 0, leave: 0 }
+      const o_list = o(Array.from({ length: 20 }, (_, i) => i))
+      const o_start = o(0)
+      const o_end = o(5)
+      node_append(
+        c,
+        Repeat(o_list, (o_n) => {
+          const d = document.createElement("div")
+          d.style.height = "10px"
+          d.textContent = String(o_n.get())
+          node_on_enter(d, () => counts.enter++)
+          node_on_leave(d, () => {
+            counts.leave++
+            return new Promise(() => {})
+          })
+          return d
+        })
+          .withKeyFunction((n: number) => n)
+          .ForView(o_start, o_end),
+      )
+      node_append(document.body, c)
+      o.transaction(() => {
+        o_start.set(10)
+        o_end.set(15)
+      })
+      const after_window = { ...counts, leaving: c.querySelectorAll("[e-leaving]").length, rows: c.children.length }
+      o_list.set(o_list.get().filter((n) => n !== 12))
+      return {
+        after_window,
+        after_remove: { ...counts, leaving: c.querySelectorAll("[e-leaving]").length },
+        texts: [...c.children].map((e) => `${e.textContent}${e.hasAttribute("e-leaving") ? "*" : ""}`),
+      }
+    })
+    expect(r.after_window).toEqual({ enter: 0, leave: 0, leaving: 0, rows: 5 })
+    // 12 leaves ; 15, now in the window, gets its own fresh node (and enters)
+    expect(r.after_remove).toEqual({ enter: 1, leave: 1, leaving: 1 })
+    expect(r.texts).toEqual(["10", "11", "12*", "13", "14", "15"])
+  })
+
+  test("RepeatVirtual (keyed): scrolling never animates rows ; removing a rendered row does", async ({ page }) => {
+    const r = await page.evaluate(async () => {
+      const { o, RepeatVirtual, node_append, node_on_enter, node_on_leave } = window.__ELT__
+      const frames = async (n: number) => {
+        for (let i = 0; i < n; i++) await new Promise((r) => requestAnimationFrame(r))
+      }
+      const counts = { enter: 0, leave: 0 }
+      const o_list = o(Array.from({ length: 300 }, (_, i) => i))
+      const scroller = document.createElement("div")
+      scroller.style.height = "100px"
+      scroller.style.overflow = "auto"
+      const content = document.createElement("div")
+      node_append(
+        content,
+        RepeatVirtual(o_list, (o_n) => {
+          const d = document.createElement("div")
+          d.className = "row"
+          d.style.height = "20px"
+          node_append(d, o_n.tf(String))
+          node_on_enter(d, () => counts.enter++)
+          node_on_leave(d, () => {
+            counts.leave++
+            return new Promise(() => {})
+          })
+          return d
+        })
+          .withKeyFunction((n: number) => n)
+          .ItemSize(20),
+      )
+      node_append(scroller, content)
+      node_append(document.body, scroller)
+      await frames(4)
+      const first_rows = content.querySelectorAll(".row").length
+      for (let y = 0; y <= 3000; y += 100) {
+        scroller.scrollTop = y
+        scroller.dispatchEvent(new Event("scroll"))
+        await frames(2)
+      }
+      await frames(4)
+      const after_scroll = { ...counts, leaving: content.querySelectorAll("[e-leaving]").length }
+      const shown = [...content.querySelectorAll(".row")].map((e) => Number(e.textContent))
+      const victim = shown[Math.floor(shown.length / 2)]
+      o_list.set(o_list.get().filter((n) => n !== victim))
+      return {
+        first_rows,
+        scrolled_to: shown[0],
+        after_scroll,
+        after_remove: { ...counts, leaving: content.querySelectorAll("[e-leaving]").length },
+      }
+    })
+    expect(r.first_rows).toBeGreaterThan(0)
+    expect(r.scrolled_to).toBeGreaterThan(50)
+    expect(r.after_scroll).toEqual({ enter: 0, leave: 0, leaving: 0 })
+    expect(r.after_remove.leave).toBe(1)
+    expect(r.after_remove.leaving).toBe(1)
+  })
+})
+
+test.describe("Repeat reuse of removed items", () => {
+  // A filter change: banana and cherry go, date comes. Rows marked * are leaving.
+  const run = (page: import("@playwright/test").Page, keyed: boolean) =>
+    page.evaluate((keyed) => {
+      const { o, Repeat, node_append, node_on_enter, node_on_leave } = window.__ELT__
+      const c = document.createElement("div")
+      const entered: string[] = []
+      const o_list = o(["apple", "banana", "cherry"])
+      const rep = Repeat(o_list, (o_s) => {
+        const d = document.createElement("div")
+        node_append(d, o_s)
+        node_on_enter(d, () => entered.push(o_s.get()))
+        node_on_leave(d, () => new Promise(() => {}))
+        return d
+      })
+      node_append(c, keyed ? rep.withKeyFunction((s: string) => s) : rep)
+      node_append(document.body, c)
+      o_list.set(["apple", "date"])
+      return {
+        rows: [...c.children].map((e) => `${e.textContent}${e.hasAttribute("e-leaving") ? "*" : ""}`),
+        entered,
+      }
+    }, keyed)
+
+  test("keyed: removed items with a leave hook leave, the new one gets a fresh node and enters", async ({ page }) => {
+    expect(await run(page, true)).toEqual({ rows: ["apple", "banana*", "cherry*", "date"], entered: ["date"] })
+  })
+
+  test("unkeyed: a removed item's node is still reused for the new one (edits of immutable items stay in place)", async ({
+    page,
+  }) => {
+    expect(await run(page, false)).toEqual({ rows: ["apple", "date", "cherry*"], entered: [] })
+  })
+})

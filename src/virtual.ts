@@ -41,7 +41,14 @@ import type { Renderable } from "./types"
 
 import { o } from "./observable"
 
-import { node_add_event_listener, node_append, node_observe, node_on_connected, node_on_disconnected } from "./dom"
+import {
+  node_add_event_listener,
+  node_append,
+  node_observe,
+  node_on_connected,
+  node_on_disconnected,
+  without_motion,
+} from "./dom"
 
 import { If, Repeat } from "./verbs"
 
@@ -690,7 +697,8 @@ export namespace RepeatVirtual {
         this._last_view_start = start
         this._last_view_end = end
         const lst = (o.get(this.obs) as unknown as NonNullable<o.ObservedType<O>>) ?? []
-        this.updateChildren(lst, { start, end })
+        // Rows come and go with the window, not with the data: no motion.
+        without_motion(() => this.updateChildren(lst, { start, end }))
       })
       return this
     }
@@ -706,7 +714,7 @@ export namespace RepeatVirtual {
         this._last_view_start = this.pos_start
         this._last_view_end = this.pos_end
         const lst = (o.get(this.obs) as unknown as NonNullable<o.ObservedType<O>>) ?? []
-        this.updateChildren(lst)
+        without_motion(() => this.updateChildren(lst))
       })
     }
 
