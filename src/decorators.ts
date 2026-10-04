@@ -288,7 +288,8 @@ export namespace $bind {
 
 /**
  * Observe one or several class definition, where a class definition is either
- *  - A `o.RO<string>`
+ *  - Class names: a string, an array of strings, or an observable of either. `false`, `null` and
+ *    `undefined` add no class, so `o_cond.tf((c) => c && "active")` adds `active` only while `o_cond` is truthy.
  *  - An object which keys are class names and values are `o.RO<any>` and whose truthiness
  *    determine the inclusion of the class on the target element.
  *
@@ -320,7 +321,15 @@ export function $class<N extends Element>(...clss: ClassDefinition[]) {
  */
 export function $id<N extends Element>(id: o.RO<string>) {
   return (node: N) => {
-    node_observe(node, id, (id) => (node.id = id))
+    // `immediate`, as the `id` attribute: a constant applies at once, not on connection
+    node_observe(
+      node,
+      id,
+      (id) => {
+        node.id = id
+      },
+      { immediate: true },
+    )
   }
 }
 
@@ -335,7 +344,14 @@ export function $id<N extends Element>(id: o.RO<string>) {
  */
 export function $title<N extends HTMLElement>(title: o.RO<string>) {
   return (node: N) => {
-    node_observe(node, title, (title) => (node.title = title))
+    node_observe(
+      node,
+      title,
+      (title) => {
+        node.title = title
+      },
+      { immediate: true },
+    )
   }
 }
 
@@ -422,7 +438,7 @@ export function $once<N extends Node, K extends KEvent | KEvent[]>(
   return function $once_apply(node) {
     const opts: AddEventListenerOptions =
       typeof useCapture === "boolean"
-        ? { once: true, capture: true }
+        ? { once: true, capture: useCapture }
         : {
             ...useCapture,
             once: true,
@@ -432,8 +448,7 @@ export function $once<N extends Node, K extends KEvent | KEvent[]>(
 }
 
 /**
- * Add a callback on the click event, or touchend if we are on a mobile
- * device.
+ * Add a callback on the click event.
  *
  * ```tsx
  * <button>{$click(() => o_count.set(o_count.get() + 1))}</button>
@@ -635,8 +650,7 @@ export namespace $context_menu {
 }
 
 /**
- * Call the `fn` callback when the decorated `node` is inserted into the DOM with
- * itself as first argument and its parent as the second.
+ * Call the `fn` callback with the decorated `node` when it is inserted into the DOM.
  *
  * See {@link $init} for examples.
  *
@@ -655,8 +669,7 @@ export function $connected<N extends Node>(fn: (node: N) => any) {
 export const $inserted = $connected
 
 /**
- * Run a callback when the node is removed from its holding document, with `node`
- * as the node being removed and `parent` with its previous parent.
+ * Run a callback with the node when it is removed from its holding document.
  *
  * See {@link $init} for examples.
  *
@@ -669,7 +682,7 @@ export function $disconnected<N extends Node>(fn: (node: N) => void) {
 }
 
 /**
- * Attach a shadow root to a node and setup an internal mutation observer
+ * Attach a shadow root to a node, and connect and disconnect its content with the node.
  *
  * ```tsx
  * <div>{$shadow(<><h1>Title</h1><slot /></>)}</div>
@@ -746,7 +759,7 @@ export function $scrollable(node: HTMLElement): void {
 
 export namespace $scrollable {
   /** @internal */
-  const documents_wm = new WeakMap<Document>()
+  const documents_ws = new WeakSet<Document>()
 
   /** @internal */
   export const sym_letscroll = Symbol("elt-scrollstop")
@@ -759,7 +772,8 @@ export namespace $scrollable {
    * @internal
    */
   export function setUpNoscroll(dc: Document) {
-    if (documents_wm.has(dc)) return
+    if (documents_ws.has(dc)) return
+    documents_ws.add(dc)
 
     dc.body.addEventListener(
       "touchmove",

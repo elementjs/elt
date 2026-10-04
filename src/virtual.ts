@@ -41,14 +41,7 @@ import type { Renderable } from "./types"
 
 import { o } from "./observable"
 
-import {
-  node_add_event_listener,
-  node_append,
-  node_observe,
-  node_on_connected,
-  node_on_disconnected,
-  without_motion,
-} from "./dom"
+import { node_append, node_observe, node_on_connected, node_on_disconnected } from "./dom"
 
 import { If, Repeat } from "./verbs"
 
@@ -276,40 +269,33 @@ export namespace RepeatVirtual {
       )
     }
 
-    protected first_item(): RepeatItem<O> | null {
-      const end = this.__list.end
-      const n = this.__list.nextSibling
-      if (n == null || n === end || !(n instanceof Repeat.RepeatItemElement)) {
-        return null
-      }
-      return n
-    }
-
-    protected last_item(): RepeatItem<O> | null {
-      const end = this.__list.end
-      if (end == null) {
-        return null
-      }
-      let iter: Node | null = end.previousSibling
-      while (iter != null && iter !== this.__list) {
-        if (iter instanceof Repeat.RepeatItemElement) {
-          return iter
-        }
-        iter = iter.previousSibling
+    /**
+     * The first item met walking from `from` (included) towards the list's end, or its start when
+     * `backward`, skipping other nodes (an item's content, a leaving row). Null past the list's
+     * markers.
+     */
+    protected find_item(from: Node | null | undefined, backward: boolean): RepeatItem<O> | null {
+      const stop = backward ? this.__list : this.__list.end
+      for (let iter = from; iter != null && iter !== stop; iter = backward ? iter.previousSibling : iter.nextSibling) {
+        if (iter instanceof Repeat.RepeatItemElement) return iter
       }
       return null
     }
 
-    protected next_item(item: RepeatItem<O>): RepeatItem<O> | null {
-      const end = this.__list.end
-      let iter: Node | null = item.end?.nextSibling ?? item.nextSibling
-      while (iter != null && iter !== end) {
-        if (iter instanceof Repeat.RepeatItemElement) {
-          return iter
-        }
-        iter = iter.nextSibling
-      }
-      return null
+    protected first_item() {
+      return this.find_item(this.__list.nextSibling, false)
+    }
+
+    protected last_item() {
+      return this.find_item(this.__list.end?.previousSibling, true)
+    }
+
+    protected next_item(item: RepeatItem<O>) {
+      return this.find_item((item.end ?? item).nextSibling, false)
+    }
+
+    protected prev_item(item: RepeatItem<O>) {
+      return this.find_item(item.previousSibling, true)
     }
 
     /**
@@ -454,17 +440,6 @@ export namespace RepeatVirtual {
       }
 
       return true
-    }
-
-    protected prev_item(item: RepeatItem<O>): RepeatItem<O> | null {
-      let iter: Node | null = item.previousSibling
-      while (iter != null && iter !== this.__list) {
-        if (iter instanceof Repeat.RepeatItemElement) {
-          return iter
-        }
-        iter = iter.previousSibling
-      }
-      return null
     }
 
     /**
@@ -693,14 +668,7 @@ export namespace RepeatVirtual {
       if (start === this._last_view_start && end === this._last_view_end) {
         return this
       }
-      this.update_lock(() => {
-        this._last_view_start = start
-        this._last_view_end = end
-        const lst = (o.get(this.obs) as unknown as NonNullable<o.ObservedType<O>>) ?? []
-        // Rows come and go with the window, not with the data: no motion.
-        without_motion(() => this.updateChildren(lst, { start, end }))
-      })
-      return this
+      return super.reconcileView(start, end)
     }
 
     protected override reconcile_view() {
@@ -710,12 +678,13 @@ export namespace RepeatVirtual {
       if (this.pos_start === this._last_view_start && this.pos_end === this._last_view_end) {
         return
       }
-      this.update_lock(() => {
-        this._last_view_start = this.pos_start
-        this._last_view_end = this.pos_end
-        const lst = (o.get(this.obs) as unknown as NonNullable<o.ObservedType<O>>) ?? []
-        without_motion(() => this.updateChildren(lst))
-      })
+      super.reconcile_view()
+    }
+
+    /** Record the window being reconciled (see {@link reconcileView}). */
+    protected override before_reconcile(override?: Repeat.View) {
+      this._last_view_start = override?.start ?? this.pos_start
+      this._last_view_end = override?.end ?? this.pos_end
     }
 
     protected override updateChildrenPre(
@@ -766,6 +735,28 @@ export namespace RepeatVirtual {
       }
     }
 
+    /** Scroll listener of the scroll area, bound so that the disconnection can remove it. */
+    protected on_scroll = () => {
+      // biome-ignore lint/style/noNonNullAssertion: only listening while connected, with a scroll area
+      const area = this.scroll_area!
+      // We never write scrollTop (anchoring is done via the top padder), so
+      // every scroll event is a genuine user scroll.
+      const st = area.scrollTop
+      const prev_top = this.scroll_last_top
+
+      if (prev_top >= 0) {
+        const delta = st - prev_top
+        if (Math.abs(delta) > this.jump_threshold()) {
+          this.scroll_last_top = st
+          this.setPosition(this.estimateIndexFromScroll())
+          return
+        }
+      }
+
+      // Smaller scrolls are the padders' observer's business.
+      this.scroll_last_top = st
+    }
+
     /** Insert the list. Nothing is rendered until it is connected and has found its scroll area. */
     override [sym_insert](parent: Node, refchild: Node | null): void {
       if (this.renderfn == null) {
@@ -776,7 +767,10 @@ export namespace RepeatVirtual {
         this._observer.disconnect()
         this._padder_io?.disconnect()
         this._padder_io = null
-        if (this.scroll_area != null) release_anchor(this.scroll_area)
+        if (this.scroll_area != null) {
+          this.scroll_area.removeEventListener("scroll", this.on_scroll)
+          release_anchor(this.scroll_area)
+        }
         this.scroll_area = null
       })
 
@@ -800,24 +794,8 @@ export namespace RepeatVirtual {
 
         this.setPosition(this.initial_position)
 
-        node_add_event_listener(this.__list, area, "scroll", () => {
-          // We never write scrollTop (anchoring is done via the top padder), so
-          // every scroll event is a genuine user scroll.
-          const st = area.scrollTop
-          const prev_top = this.scroll_last_top
-
-          if (prev_top >= 0) {
-            const delta = st - prev_top
-            if (Math.abs(delta) > this.jump_threshold()) {
-              this.scroll_last_top = st
-              this.setPosition(this.estimateIndexFromScroll())
-              return
-            }
-          }
-
-          // Smaller scrolls are the padders' observer's business.
-          this.scroll_last_top = st
-        })
+        // Added on each connection and removed on each disconnection: the area may change in between.
+        area.addEventListener("scroll", this.on_scroll)
       })
 
       // [prefix][top padder][rows…][bottom padder][suffix]: the rows go between the list's marker and
@@ -873,25 +851,7 @@ export namespace RepeatVirtual {
         )
       }
 
-      this.observer = node_observe(
-        this.__list,
-        this.obs,
-        (lst, old_lst) => {
-          this.update_lock(() => {
-            this.updateChildrenPre(
-              (lst as unknown as NonNullable<o.ObservedType<O>>) ?? [],
-              (old_lst as unknown as NonNullable<o.ObservedType<O>>) ?? [],
-            )
-          })
-        },
-        { immediate: true },
-      )
-
-      if (this.o_view_start != null && this.o_view_end != null) {
-        this.view_observer = node_observe(this.__list, o.join(this.o_view_start, this.o_view_end), () => {
-          this.reconcile_view()
-        })
-      }
+      this.start_observing()
     }
   }
 }

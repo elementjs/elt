@@ -38,28 +38,36 @@ export type Renderable<N extends Node = Element> =
  *
  * If the result is a decorator, then it is reexecuted on the `node`.
  *
- * If the result is a {@link Mixin}, then it is associated to the `node`.
- *
  * @category dom
  */
 export type DecoratorResult<N extends Node> = void | Renderable<N>
 export type Decorator<N extends Node> = (node: N) => DecoratorResult<N>
 
-/**
- * CSS Style attribute definition for the style={} attribute
- */
-export type StyleDefinition =
-  | o.RO<Partial<CSSStyleDeclaration & { [K: `--${string}`]: string }>>
-  | o.ROProps<Partial<CSSStyleDeclaration & { [K: `--${string}`]: string }>>
-  | o.RO<string>
+/** Style properties, as in `CSSStyleDeclaration` (camelCase), plus custom properties (`--name`). */
+export type StyleObject = Partial<CSSStyleDeclaration & { [K: `--${string}`]: string }>
 
 /**
- * CSS classes for the class={} attribute
+ * CSS Style attribute definition for the style={} attribute: a string (the whole attribute), an object of
+ * properties, or an object whose property values are observables. An observable may switch between a string
+ * and an object, and `null` or `false` removes the attribute (so `cond && {...}` works).
  */
-export type ClassDefinition = { [name: string]: o.RO<any> } | o.RO<string>
+export type StyleDefinition = o.RO<StyleObject | string | null | undefined | false> | o.ROProps<StyleObject>
 
 /**
- * Used with {@link $on} or {@link Mixin#on}
+ * Class names: a space-separated string. `false`, `null` and `undefined` add no class, so a class can be
+ * conditional, as in `cond && "active"`.
+ */
+export type ClassValue = string | false | null | undefined
+
+/**
+ * CSS classes for the class={} attribute: class names (a string or an array, see {@link ClassValue}), an
+ * observable of either, or an object whose keys are class names and whose values, possibly observables,
+ * add the class when truthy.
+ */
+export type ClassDefinition = { [name: string]: o.RO<any> } | o.RO<ClassValue | ClassValue[]>
+
+/**
+ * Used with {@link $on} and {@link node_add_event_listener}
  */
 export type Listener<EventType extends Event, N extends EventTarget = EventTarget> = (
   ev: EventType & { currentTarget: N },

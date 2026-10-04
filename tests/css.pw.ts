@@ -4,6 +4,19 @@ test.beforeEach(async ({ page }) => {
   await page.goto("/tests/browser/harness.html")
 })
 
+test("css`` rewrites a class name of one letter, as longer ones (regression: one letter gave an empty class)", async ({
+  page,
+}) => {
+  const result = await page.evaluate(() => {
+    const { CSSBuilder } = window.__ELT__
+    const builder = new CSSBuilder()
+    return [builder.css`.a { color: red; }`, builder.css`.ab { color: red; }`, builder.css`div { color: red; }`]
+  })
+  expect(result[0]).toMatch(/^a-\w+$/)
+  expect(result[1]).toMatch(/^ab-\w+$/)
+  expect(result[2]).toBe("")
+})
+
 test.describe("css() / CSSBuilder.adopt (regression: adoptedStyleSheets duplicate-push bug)", () => {
   test("repeated css`` calls adopt the sheet into document exactly once, however many rules are inserted", async ({
     page,

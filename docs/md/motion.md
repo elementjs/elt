@@ -133,8 +133,10 @@ Everything else removed by the same call goes at once, synchronously, as without
 
 - no `$leave` applies (none on the removed node, or the removal is neither a verb's update nor given `motion`), or the motion is reduced to nothing ([reduced motion](#reduced-motion-and-turning-motion-off));
 - the node is not in the page (removing from a detached tree is always instant);
-- nothing that would play has a box (`display: none`): nothing would be seen;
+- nothing that would play is rendered: `display: none`, or a node without a box of its own (`display: contents`) with nothing rendered inside it. Nothing would be seen;
 - motion is off.
+
+**A node without a box of its own** (`display: contents`, like `<e-wrap>` or a component root that only groups its children) leaves like any other when something inside it is rendered: it stays, in the layout, while its exit plays. But keyframes on it don't show: `opacity` or `transform` apply to a box, and it has none (only inherited properties such as `color` reach its children). Its children stay as they were until the exit's duration is over, then disappear. Put `$leave(null)` on it and the exits on its children, or give it a function exit that animates its children.
 
 **`$leave(motion, { always: true })`** plays even when it isn't its verb's update: inside another verb's content, or a removal without `motion`. It never keeps an ancestor on screen: it plays when its node is the removed one, or is inside a removed node that stays anyway.
 

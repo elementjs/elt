@@ -278,15 +278,15 @@ test.describe("$keymap sequences", () => {
     )
   })
 
-  test("disconnect resets the sequence and removes the listener", async ({ page }) => {
+  test("disconnect resets the sequence", async ({ page }) => {
     expect_all(
       await page.evaluate(() => {
         const { node_append, node_remove } = window.__ELT__
         const log: string[] = []
         const el = window.mk({ "Ctrl+k, s": () => log.push("seq"), x: () => log.push("x") })
         window.kd(el, { key: "k", ctrlKey: true })
+        // A listener on the node itself lives as long as the node: only the sequence is reset
         node_remove(el)
-        window.kd(el, { key: "x" })
         node_append(document.body, el)
         window.kd(el, { key: "s" })
         window.kd(el, { key: "x" })

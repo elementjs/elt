@@ -5,6 +5,42 @@ test.beforeEach(async ({ page }) => {
 })
 
 test.describe("RefChild", () => {
+  test("observable and verb children go to a RefChild nested deeper than the root, and trigger IfChildren (regression: NotFoundError)", async ({
+    page,
+  }) => {
+    const result = await page.evaluate(() => {
+      const { e, o, If, node_append } = window.__ELT__
+      function deep(_attrs: import("elt").Attrs<HTMLDivElement>, ref: import("elt").RefChild) {
+        return e("div", {}, e("span", {}, "[", ref, "]"))
+      }
+      function scaffold(_attrs: import("elt").Attrs<HTMLDivElement>, ref: import("elt").RefChild) {
+        return e(
+          "div",
+          {},
+          e(
+            "p",
+            {},
+            ref.IfChildren((r) => e("b", {}, r)),
+          ),
+        )
+      }
+      const o_text = o("hello")
+      const a = e(deep, {}, o_text)
+      const b = e(
+        deep,
+        {},
+        If(o(true), () => "yes"),
+      )
+      const c = e(scaffold, {}, o_text)
+      for (const n of [a, b, c]) node_append(document.body, n)
+      o_text.set("bye")
+      const html = [a, b, c].map((n) => n.textContent + " " + n.querySelector("b")?.textContent)
+      for (const n of [a, b, c]) n.remove()
+      return html
+    })
+    expect(result).toEqual(["[bye] undefined", "[yes] undefined", "bye bye"])
+  })
+
   test("sequential components reuse the pooled RefChild (regression: the constructor bumped the pool counter, so every call allocated a new one)", async ({
     page,
   }) => {

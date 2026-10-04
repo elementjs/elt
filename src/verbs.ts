@@ -17,6 +17,39 @@ function has_leave_hook(item: CommentHolder): boolean {
   return false
 }
 
+/** `[start, end)` floored and clamped to a list of `length` items, with `start <= end`. */
+function clamp_view(length: number, start: number, end: number): Repeat.View {
+  const s = Math.max(0, Math.min(length, Math.floor(start)))
+  return { start: s, end: Math.max(s, Math.min(length, Math.floor(end))) }
+}
+
+/**
+ * Removes scattered items with as few DOM calls as possible: the items given to {@link add}, in
+ * document order, are grouped into runs of adjacent siblings, each removed with one
+ * `node_remove_range` call once the run is complete. Call {@link flush} after the last one.
+ */
+class RunRemover {
+  protected first: Node | null = null
+  protected last: Node | null = null
+
+  constructor(protected motion: boolean) {}
+
+  /** Remove the siblings `first` to `last` (inclusive), with the run they extend if they follow it. */
+  add(first: Node, last: Node) {
+    if (this.last != null && this.last.nextSibling !== first) this.flush()
+    this.first ??= first
+    this.last = last
+  }
+
+  /** Remove the pending run. */
+  flush() {
+    // `last` is always set along with `first` ; checking both lets TS narrow them
+    if (this.first == null || this.last == null) return
+    node_remove_range(this.first, this.last, this.motion)
+    this.first = this.last = null
+  }
+}
+
 /**
  * Flag the entries of `seq` forming a longest strictly increasing subsequence, ignoring negative
  * entries. O(n log n) time, three typed arrays of length n.
@@ -49,9 +82,6 @@ function lis_mask(seq: Int32Array): Uint8Array {
 export class Verb<N extends Node> implements Appender<N> {
   attrs?: { [name: string]: string | number | null | false }
   renderable!: o.RO<Renderable<N>>
-
-  start = document.createComment(this.constructor.name)
-  end = document.createComment("")
 
   constructor(public node_name = "") {}
 
@@ -215,8 +245,6 @@ export namespace Switch {
   export class Switcher<T, N extends Node> extends Verb<N> {
     cases: [T | ((t: T) => any), (t: o.Observable<T>) => Renderable<N>][] = []
     passthrough: () => Renderable<N> = () => null
-    prev_case: any = null
-    prev: Renderable<N> = ""
 
     constructor(public value: o.Observable<T>) {
       super("e-switch")
@@ -303,6 +331,9 @@ export function Repeat<Obs extends Repeat.RepeatedObservable<any>>(
 export namespace Repeat {
   export const sym_obs = Symbol("ritem-obs")
 
+  /** A window of list indices, `[start, end)`. */
+  export type View = { start: number; end: number }
+
   export type RepeatedObservable<T> = o.IReadonlyObservable<T[] | null | undefined>
 
   /** The markers of one item: a unit of its Repeat, not a verb of its own (its content enters and leaves with the Repeat's updates). */
@@ -325,18 +356,12 @@ export namespace Repeat {
       public override key: any,
       public repeat: Repeater<Obs>,
       public o_prop: o.Observable<number>,
-      public repeat_key?: any,
     ) {
       super([repeat.obs as o.RO<NonNullable<o.ObservedType<Obs>>>, o_prop])
     }
 
     override getter(values: [o.ObservedType<Obs>, number]) {
       return values[0]?.[values[1]]
-    }
-
-    // Normal set behaviour that doesn't change the original array
-    repeatSet(value: ItemType<Obs>) {
-      super.set(value)
     }
 
     override setter(
@@ -374,9 +399,6 @@ export namespace Repeat {
     protected __list = new CommentHolder("repeat-list")
 
     protected lst: ItemType<Obs>[] = []
-    // protected node!: Comment
-    observer: o.Observer<ItemType<Obs>[] | null | undefined> | null = null
-    protected view_observer: o.Observer<[number, number]> | null = null
     protected o_view_start: o.Observable<number> | null = null
     protected o_view_end: o.Observable<number> | null = null
     protected keyfn: ((item: ItemType<Obs>, index: number) => any) | null = null
@@ -406,7 +428,15 @@ export namespace Repeat {
       this.__suffix.updateRenderable(null)
       this.__list.updateRenderable(null)
 
-      this.observer = node_observe(
+      this.start_observing()
+    }
+
+    /**
+     * Watch the list, and the view window when one is set (see {@link ForView}). Called once the
+     * markers are in place. The observers live as long as the list marker: no reference to keep.
+     */
+    protected start_observing() {
+      node_observe(
         this.__list,
         this.obs,
         (lst, old_lst) => {
@@ -421,7 +451,7 @@ export namespace Repeat {
       )
 
       if (this.o_view_start != null && this.o_view_end != null) {
-        this.view_observer = node_observe(this.__list, o.join(this.o_view_start, this.o_view_end), () => {
+        node_observe(this.__list, o.join(this.o_view_start, this.o_view_end), () => {
           this.reconcile_view()
         })
       }
@@ -467,33 +497,37 @@ export namespace Repeat {
 
     /** Reconcile the current list against an explicit index window. */
     reconcileView(start: number, end: number) {
-      this.update_lock(() => {
-        const lst = (o.get(this.obs) as unknown as NonNullable<o.ObservedType<Obs>>) ?? []
-        // Rows come and go with the window, not with the data: no motion.
-        without_motion(() => this.updateChildren(lst, { start, end }))
-      })
+      this.reconcile({ start, end })
       return this
     }
 
+    /** The view window changed: reconcile against it. */
     protected reconcile_view() {
+      this.reconcile()
+    }
+
+    /**
+     * Reconcile the current list against `override`, or against the view window when there is
+     * none. Does nothing while another reconcile runs (`update_lock`). Rows come and go with the
+     * window, not with the data: no motion.
+     */
+    protected reconcile(override?: View) {
       this.update_lock(() => {
+        this.before_reconcile(override)
         const lst = (o.get(this.obs) as unknown as NonNullable<o.ObservedType<Obs>>) ?? []
-        without_motion(() => this.updateChildren(lst))
+        without_motion(() => this.updateChildren(lst, override))
       })
     }
 
-    protected resolve_view(length: number, override?: { start: number; end: number }) {
-      if (override != null) {
-        const start = Math.max(0, Math.min(length, Math.floor(override.start)))
-        const end = Math.max(start, Math.min(length, Math.floor(override.end)))
-        return { start, end }
-      }
+    /** Called by {@link reconcile} inside the lock, right before it runs: only when it does run. */
+    protected before_reconcile(_override?: View) {}
+
+    protected resolve_view(length: number, override?: View) {
+      if (override != null) return clamp_view(length, override.start, override.end)
       if (this.o_view_start == null || this.o_view_end == null) {
         return { start: 0, end: length }
       }
-      const start = Math.max(0, Math.min(length, Math.floor(o.get(this.o_view_start))))
-      const end = Math.max(start, Math.min(length, Math.floor(o.get(this.o_view_end))))
-      return { start, end }
+      return clamp_view(length, o.get(this.o_view_start), o.get(this.o_view_end))
     }
 
     /**
@@ -502,37 +536,24 @@ export namespace Repeat {
      */
     protected evict_outside_view(view_start: number, view_end: number) {
       // Consecutive evicted items are removed together, with one Range call per run.
-      let run_first: Node | null = null
-      let run_last: Node | null = null
-      const flush = () => {
-        // run_last is always set along with run_first ; checking both lets TS narrow them
-        if (run_first == null || run_last == null) return
-        // Out of the window, not out of the list: no exit motion, not even `always` ones
-        const first = run_first
-        const last = run_last
-        without_motion(() => node_remove_range(first, last))
-        run_first = null
-      }
-
-      let iter = this.__list.nextSibling
-      while (iter != null && iter !== this.__list.end) {
-        const obs = (iter as RepeatItemElement<Obs>)[sym_obs]
-        if (obs == null) {
-          flush()
-          iter = iter.nextSibling
-          continue
+      const runs = new RunRemover(false)
+      // Out of the window, not out of the list: no exit motion, not even `always` ones
+      without_motion(() => {
+        let iter = this.__list.nextSibling
+        while (iter != null && iter !== this.__list.end) {
+          const obs = (iter as RepeatItemElement<Obs>)[sym_obs]
+          if (obs == null) {
+            iter = iter.nextSibling
+            continue
+          }
+          const item = iter as RepeatItemElement<Obs>
+          const abs = obs.o_prop.get()
+          // Computed before `add`, which may remove the run before this item (never this one).
+          iter = (item.end ?? item).nextSibling
+          if (abs < view_start || abs >= view_end) runs.add(item, item.end ?? item)
         }
-        const item = iter as RepeatItemElement<Obs>
-        const abs = obs.o_prop.get()
-        if (abs < view_start || abs >= view_end) {
-          run_first ??= item
-          run_last = item.end ?? item
-        } else {
-          flush()
-        }
-        iter = (item.end ?? item).nextSibling
-      }
-      flush()
+        runs.flush()
+      })
     }
 
     /**
@@ -584,11 +605,7 @@ export namespace Repeat {
      *
      * With `motion` (an update of the list), new items enter and removed ones leave.
      */
-    protected updateChildren(
-      new_lst: NonNullable<o.ObservedType<Obs>>,
-      view_override?: { start: number; end: number },
-      motion = false,
-    ) {
+    protected updateChildren(new_lst: NonNullable<o.ObservedType<Obs>>, view_override?: View, motion = false) {
       const keyfn = this.keyfn
       const { start: view_start, end: view_end } = this.resolve_view(new_lst.length, view_override)
 
@@ -708,7 +725,6 @@ export namespace Repeat {
         const obs = node[sym_obs]
         obs.o_prop.set(i)
         obs.key = keys[head + s]
-        obs.repeatSet(new_lst[i])
 
         flush()
         if (!stay[s]) node.moveTo(parent, ref)
@@ -718,23 +734,16 @@ export namespace Repeat {
 
       // Remove the dead items that were not re-keyed: the first `used` of `reusable`, an ordered
       // subsequence of `dead`.
-      let run_first: RepeatItemElement<Obs> | null = null
-      let run_last: Node | null = null
+      const runs = new RunRemover(motion)
       for (let d = 0, u = 0; d < dead.length; d++) {
         if (u < used && reusable[u] === dead[d]) {
           u++
           continue
         }
         const node = old[dead[d]]
-        // run_last is always set along with run_first ; checking both lets TS narrow them
-        if (run_first != null && run_last != null && run_last.nextSibling !== node) {
-          node_remove_range(run_first, run_last, motion)
-          run_first = null
-        }
-        run_first ??= node
-        run_last = node.end ?? node
+        runs.add(node, node.end ?? node)
       }
-      if (run_first != null && run_last != null) node_remove_range(run_first, run_last, motion)
+      runs.flush()
     }
 
     /**

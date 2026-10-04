@@ -10,6 +10,6 @@ test("a production bundle keeps elt's and elt/ui's side effects", async () => {
   const result = await Bun.build({ entrypoints: [`${import.meta.dir}/fixtures/bundle-entry.ts`] })
   expect(result.success).toBe(true)
   const code = await result.outputs[0]!.text()
-  expect(code).toContain("window.E = e") // src/elt.ts
+  expect(code).toContain("globalThis.E = e") // src/elt.ts
   expect(code).toContain(":where(e-flex,e-grid,e-prose") // ui/layout.css.tsx
 })

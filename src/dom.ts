@@ -1,5 +1,5 @@
 import { o } from "./observable"
-import type { ClassDefinition, StyleDefinition, Listener, Appender, Attrs, Renderable } from "./types"
+import type { ClassDefinition, ClassValue, StyleDefinition, Listener, Appender, Attrs, Renderable } from "./types"
 import {
   sym_connected_status,
   sym_observers,
@@ -279,10 +279,8 @@ function _apply_disconnected(node: Node) {
 }
 
 /**
- * Traverse the node tree of `node` and call the `removed()` handlers, begininning by the leafs and ending
- * on the root.
- *
- * If `prev_parent` is not supplied, then the `removed` is not run, but observers are stopped.
+ * Traverse the node tree of `node` and run its `disconnected` callbacks and stop its observers, beginning with
+ * the leaves and ending on the root.
  *
  * @internal
  */
@@ -495,6 +493,29 @@ function float_out(nodes: Leaving[]) {
   }
 }
 
+/**
+ * Whether anything of `node` is rendered: a box of its own or, with `display: contents` (no box, its
+ * children are laid out in its place), something rendered inside it. Not stopped by nested verbs'
+ * content: that stays on screen with the node too. Only nodes without a box are descended into, and
+ * the descent stops at the first rendered child.
+ */
+function _renders(node: Element): boolean {
+  if (node.getClientRects().length > 0) return true
+  if (getComputedStyle(node).display !== "contents") return false
+  for (let c = node.firstChild; c != null; c = c.nextSibling) {
+    if (c.nodeType === Node.ELEMENT_NODE) {
+      if (_renders(c as Element)) return true
+    } else if (c.nodeType === Node.TEXT_NODE) {
+      // A text node has no getClientRects of its own ; a range over it gives its line boxes (none
+      // for collapsed whitespace). `_range` is free: node_remove_range sets it again after this.
+      _range ??= document.createRange()
+      _range.selectNodeContents(c)
+      if (_range.getClientRects().length > 0) return true
+    }
+  }
+  return false
+}
+
 /** Remove a leaving node once its hooks are done, unless something already did. */
 function _leave_done(node: Element) {
   if (node[sym_connected_status] & NODE_IS_LEAVING) {
@@ -547,41 +568,40 @@ export function node_remove_range(first: Node, last: Node, motion = false): void
 
   if (!leaving) {
     // The usual case : everything goes, in one call.
-    if (first === last) {
-      parent.removeChild(first)
-      return
-    }
-    _range ??= document.createRange()
-    _range.setStartBefore(first)
-    _range.setEndAfter(last)
-    _range.deleteContents()
+    _detach_run(parent, first, last)
     return
   }
 
-  // Remove everything but the leaving nodes, one Range call per run in between.
+  // Remove everything but the leaving nodes, one call per run in between.
   let run_first: Node | null = null
   let run_last: Node | null = null
-  const flush = () => {
-    if (run_first == null || run_last == null) return
-    if (run_first === run_last) parent.removeChild(run_first)
-    else {
-      _range ??= document.createRange()
-      _range.setStartBefore(run_first)
-      _range.setEndAfter(run_last)
-      _range.deleteContents()
-    }
-    run_first = null
-  }
   for (let n: Node | null = first; n != null; ) {
     const next: Node | null = n === last ? null : n.nextSibling
-    if (n[sym_connected_status] & NODE_IS_LEAVING) flush()
-    else {
+    if (!(n[sym_connected_status] & NODE_IS_LEAVING)) {
       run_first ??= n
       run_last = n
+    } else if (run_first != null && run_last != null) {
+      _detach_run(parent, run_first, run_last)
+      run_first = null
     }
     n = next
   }
-  flush()
+  if (run_first != null && run_last != null) _detach_run(parent, run_first, run_last)
+}
+
+/**
+ * Detach the siblings `first` to `last` (inclusive) of `parent`, already disconnected: a single node
+ * with `removeChild`, several with one Range call (cheaper than one `removeChild` each).
+ */
+function _detach_run(parent: Node, first: Node, last: Node) {
+  if (first === last) {
+    parent.removeChild(first)
+    return
+  }
+  _range ??= document.createRange()
+  _range.setStartBefore(first)
+  _range.setEndAfter(last)
+  _range.deleteContents()
 }
 
 /**
@@ -589,8 +609,8 @@ export function node_remove_range(first: Node, last: Node, motion = false): void
  * leave. Returns whether any does. The others get their inline style back and go with the rest.
  */
 function start_leaving(candidates: Leaving[]): boolean {
-  // Nothing visible to animate (no box among the nodes whose hooks run): it goes at once.
-  const shown = candidates.filter((l) => l.hooks.some(([n]) => n.getClientRects().length > 0))
+  // Nothing visible to animate (nothing rendered among the nodes whose hooks run): it goes at once.
+  const shown = candidates.filter((l) => l.hooks.some(([n]) => _renders(n)))
   if (shown.length === 0) return false
   for (const l of shown)
     l.flow = l.hooks.some(([n, plain]) => (n[sym_leave] as LeaveHook[]).some((h) => h.flow && (plain || h.always)))
@@ -724,6 +744,7 @@ export function setup_mutation_observer(node: Node) {
   const target_document = (node.ownerDocument ?? node) as Document
 
   if (!_registered_documents.has(target_document)) {
+    _registered_documents.add(target_document)
     target_document.defaultView?.addEventListener("unload", () => {
       // Calls a `removed` on all the nodes in the closing window.
       const root = target_document.firstChild
@@ -749,12 +770,14 @@ function is_appender(ins: any): ins is Appender<Node> {
   return typeof ins?.[sym_insert] === "function"
 }
 
-function insert_before(node: Node, new_child: Node, refchild: Node | null, is_basic_node = false) {
-  if (is_basic_node === false && refchild != null) {
-    ;(refchild as Comment).before(new_child)
-  } else {
-    node.insertBefore(new_child, refchild)
-  }
+/**
+ * Insert `new_child` before `refchild`, or at the end of `node`. `refchild` may sit deeper than `node` (the
+ * `RefChild` of a component is anywhere in its tree), so the insertion goes through `refchild.before`, which
+ * also lets a `RefChild` build its `IfChildren` scaffold.
+ */
+function insert_before(node: Node, new_child: Node, refchild: Node | null) {
+  if (refchild != null) (refchild as ChildNode).before(new_child)
+  else node.insertBefore(new_child, null)
 }
 
 /**
@@ -797,7 +820,7 @@ export function _node_append<N extends Node>(
 
   if (typeof renderable === "string") {
     // A simple string
-    insert_before(node, document.createTextNode(renderable), refchild, is_basic_node)
+    insert_before(node, document.createTextNode(renderable), refchild)
   } else if (renderable instanceof Node) {
     // A node being added
     if (renderable.nodeType === Node.DOCUMENT_FRAGMENT_NODE) {
@@ -805,12 +828,12 @@ export function _node_append<N extends Node>(
       const start = renderable.firstChild
       if (start == null) return // there are no children to append, nothing more to do
 
-      insert_before(node, renderable, refchild, is_basic_node)
+      insert_before(node, renderable, refchild)
 
       // `start` was the fragment's first child, now moved into `node` : connect until the insertion point
       if (node.isConnected) _connect_siblings(start, refchild, motion)
     } else {
-      insert_before(node, renderable, refchild, is_basic_node)
+      insert_before(node, renderable, refchild)
       if (node.isConnected) {
         // Already connected, this is a move: it returns at once, nothing enters.
         node_do_connected(renderable, motion)
@@ -852,21 +875,23 @@ export function _node_append<N extends Node>(
     // it is in the page by then.
     const _pro = renderable as unknown as Promise<Renderable<N>>
     const holder = new CommentHolder("promise-loading")
-    insert_before(node, holder, refchild, is_basic_node)
+    insert_before(node, holder, refchild)
     if (node.isConnected) node_do_connected(holder)
-    _pro
-      .then((res) => {
+    // Both handlers in one `.then`: an error while rendering the result is not the promise's error.
+    _pro.then(
+      (res) => {
         if (!holder.parentNode) return
         holder.textContent = "promise-resolved"
         holder.updateRenderable(res as Renderable<Node>, node_is_connected(holder))
-      })
-      .catch((e) => {
+      },
+      (e) => {
         console.error(e)
         holder.textContent = `promise-error: ${e.toString()}`
-      })
+      },
+    )
   } else {
     // Otherwise, make it a string and append it.
-    insert_before(node, document.createTextNode(renderable.toString()), refchild, is_basic_node)
+    insert_before(node, document.createTextNode(renderable.toString()), refchild)
   }
 }
 
@@ -888,13 +913,11 @@ export interface $ShadowOptions extends Partial<ShadowRootInit> {
  * @param add_callbacks Whether to add inserted/removed callbacks (when not using EltCustomElement for instance)
  */
 export function node_attach_shadow(node: HTMLElement, child: Node, opts: $ShadowOptions, add_callbacks: boolean) {
-  const shadow = node.attachShadow({
-    mode: opts?.mode ?? "open",
-    delegatesFocus: opts?.delegatesFocus ?? true,
-    slotAssignment: opts?.slotAssignment ?? "named",
-  })
+  // Every ShadowRootInit option is passed on (`clonable`, `serializable`, …), with elt's defaults
+  const { css: _css, ...init } = opts
+  const shadow = node.attachShadow({ mode: "open", delegatesFocus: true, slotAssignment: "named", ...init })
 
-  let css = opts?.css
+  let css = _css
   if (css != null) {
     if (!Array.isArray(css)) {
       css = [css]
@@ -909,7 +932,7 @@ export function node_attach_shadow(node: HTMLElement, child: Node, opts: $Shadow
     }
   }
 
-  shadow.insertBefore(opts == null ? (opts as Node) : (child as Node), null)
+  shadow.insertBefore(child, null)
 
   if (add_callbacks) {
     node_on_connected(node, () => {
@@ -927,7 +950,7 @@ export function node_attach_shadow(node: HTMLElement, child: Node, opts: $Shadow
 /**
  * Tie the observal of an `#Observable` to the presence of this `node` in the DOM.
  *
- * Used mostly by {@link $observe} and {@link Mixin.observe}
+ * Used mostly by {@link $observe}; {@link o.ObserverHolder.observe} follows the same rules (see {@link o.make_observer}).
  *
  * @group Dom
  */
@@ -942,20 +965,13 @@ export function node_observe<T>(
     return null
   }
 
-  if (!o.isReadonlyObservable(obs)) {
-    // If the node is already inited, run the callback
-    if (!options?.changes_only) {
-      if (options?.immediate) obsfn(obs as T, o.NoValue)
-      else node_on_connected(node, () => obsfn(obs as T, o.NoValue))
-    }
-    return null
-  }
-  // Create the observer and append it to the observer array of the node
-  const obser = options?.changes_only ? new o.SilentObserver(obsfn, obs) : new o.Observer(obsfn, obs)
-  options?.observer_callback?.(obser)
-  node_add_observer(node, obser)
-  if (options?.immediate) obser.refreshImmediate()
-  return obser
+  return o.make_observer(node_owner, node, obs, obsfn, options)
+}
+
+/** Observers of a node observe while it is in the document. */
+const node_owner: o.ObserverOwner<Node> = {
+  add: node_add_observer,
+  when_observing: node_on_connected,
 }
 
 /**
@@ -996,6 +1012,13 @@ export type EventsForKeys<K extends KEvent | KEvent[]> = K extends any[]
     ? EventForKey<K>
     : Event
 
+/**
+ * Listen to `key` events on `node`, or on another `target`. On the node itself, the listener is added once and
+ * lives as long as the node. On another target, it is added while `node` is in the page, and removed when it
+ * leaves, so that the target never keeps a removed node alive.
+ *
+ * @group Dom
+ */
 export function node_add_event_listener<N extends Node, K extends KEvent | KEvent[]>(
   node: N,
   key: K,
@@ -1019,10 +1042,17 @@ export function node_add_event_listener(node: any, target: any, events: any, lis
   }
 
   function add_listener(event: string, listener: Listener<any>) {
+    if (target === node) {
+      // On the node itself, the listener goes away with the node: add it once, whether the node is in the page or
+      // not (so that `once` really means once, and no lifecycle callback is needed).
+      node.addEventListener(event, listener, use_capture)
+      return
+    }
     function add() {
       target.addEventListener(event, listener, use_capture)
     }
-    // If the targeted node is not the same, then we *must* remove the event listener if the node observing the events goes away. Otherwise, we get memory leaks.
+    // On another target, the listener *must* be removed when the node goes away, or the target keeps it (and the
+    // node) alive: it is added while the node is in the page only.
     node_on_connected(node, add)
     if (node.isConnected) add()
     node_on_disconnected(node, () => {
@@ -1125,55 +1155,53 @@ export function node_observe_attribute(
  * @group Dom
  */
 export function node_observe_style(node: HTMLElement | SVGElement, style: StyleDefinition) {
+  // `style={cond && {...}}`: false (or a stray true) is no style, like null
+  if (style == null || typeof style === "boolean") return
   if (o.is_observable(style)) {
     node_observe(
       node,
       style,
-      (st) => {
-        if (st == null)
-          if (typeof st === "string") {
-            node.setAttribute("style", st)
-            return
-          }
-
-        const ns = node.style
-        const props = Object.keys(st)
-        for (let i = 0, l = props.length; i < l; i++) {
-          const x = props[i]
-          const css_name = x.replace(/[A-Z]/g, (m) => `-${m.toLowerCase()}`)
-          const value = st[x as any] as any
-          if (value) {
-            ns.setProperty(css_name, value)
-          } else {
-            ns.removeProperty(css_name)
-          }
+      (st: any, old: any) => {
+        if (st == null || typeof st === "boolean") {
+          node.removeAttribute("style")
+          return
         }
+        if (typeof st === "string") {
+          node.setAttribute("style", st)
+          return
+        }
+        if (typeof old === "string") {
+          // The previous value was the whole attribute: start from an empty style
+          node.removeAttribute("style")
+        } else if (old != null && typeof old === "object") {
+          // Remove the properties the previous object had and this one does not
+          for (const x of Object.keys(old)) if (!(x in st)) node.style.removeProperty(css_property_name(x))
+        }
+        for (const x of Object.keys(st)) set_style_property(node, css_property_name(x), st[x])
       },
       { immediate: true },
     )
   } else if (typeof style === "string") {
     node.setAttribute("style", style)
   } else {
-    // c is a MaybeObservableObject
+    // An object whose values may be observables
     const st = style as any
-    const props = Object.keys(st)
-    for (let i = 0, l = props.length; i < l; i++) {
-      const x = props[i]
-      const css_name = x.replace(/[A-Z]/g, (m) => `-${m.toLowerCase()}`)
-      node_observe(
-        node,
-        st[x],
-        (value) => {
-          if (!value) {
-            node.style.removeProperty(css_name)
-          } else {
-            node.style.setProperty(css_name, value)
-          }
-        },
-        { immediate: true },
-      )
+    for (const x of Object.keys(st)) {
+      const css_name = css_property_name(x)
+      node_observe(node, st[x], (value) => set_style_property(node, css_name, value), { immediate: true })
     }
   }
+}
+
+/** `backgroundColor` → `background-color`; custom properties (`--myColor`) are case-sensitive and kept as they are. */
+function css_property_name(name: string) {
+  return name.startsWith("--") ? name : name.replace(/[A-Z]/g, (m) => `-${m.toLowerCase()}`)
+}
+
+/** `null`, `undefined`, `false` and `""` remove the property; any other value (`0` included) sets it. */
+function set_style_property(node: HTMLElement | SVGElement, css_name: string, value: unknown) {
+  if (value == null || value === false || value === "") node.style.removeProperty(css_name)
+  else node.style.setProperty(css_name, String(value))
 }
 
 function _is_plain_class_object(c: any): c is { [name: string]: o.RO<any> } {
@@ -1185,15 +1213,16 @@ function _is_plain_class_object(c: any): c is { [name: string]: o.RO<any> } {
  * @group Dom
  */
 export function node_observe_class(node: Element, c: ClassDefinition) {
-  if (!c) return
-  if (typeof c === "string" || typeof c === "boolean" || !_is_plain_class_object(c)) {
-    // c is an Observable<string>
+  // `class={cond && "x"}`: false, null, undefined (and a stray true) add no class
+  if (!c || typeof c === "boolean") return
+  if (typeof c === "string" || !_is_plain_class_object(c)) {
+    // c is a string, an array of class names, or an observable of either (whose value may be false / null)
     node_observe(
       node,
       c,
       (str, chg) => {
-        if (chg !== o.NoValue && chg) node_remove_class(node, chg as string)
-        if (str) node_apply_class(node, str)
+        if (chg !== o.NoValue) node_remove_class(node, chg)
+        node_apply_class(node, str)
       },
       { immediate: true },
     )
@@ -1216,31 +1245,26 @@ export function node_observe_class(node: Element, c: ClassDefinition) {
   }
 }
 
-export function node_apply_class(node: Element, c: string | string[] | null | false) {
-  if (Array.isArray(c)) {
-    for (let i = 0, l = c.length; i < l; i++) {
-      node_apply_class(node, c[i])
-    }
-    return
-  }
-  const cs = c?.toString()
-  if (!cs) return
-  for (const _ of cs.split(/\s+/g)) {
-    if (_) node.classList.add(_)
-  }
+/** Add the classes of `c`, a space-separated string or an array of them. `false`, `null`, `undefined` and `true` (here or as array entries) add nothing. */
+export function node_apply_class(node: Element, c: ClassValue | ClassValue[] | true) {
+  _class_each(c, (name) => node.classList.add(name))
 }
 
-export function node_remove_class(node: Element, c: string | string[]) {
+/** Remove the classes of `c`, given as {@link node_apply_class} takes them. */
+export function node_remove_class(node: Element, c: ClassValue | ClassValue[] | true) {
+  _class_each(c, (name) => node.classList.remove(name))
+}
+
+function _class_each(c: ClassValue | ClassValue[] | true, fn: (name: string) => void) {
   if (Array.isArray(c)) {
-    for (let i = 0, l = c.length; i < l; i++) {
-      node_remove_class(node, c[i])
-    }
+    for (let i = 0, l = c.length; i < l; i++) _class_each(c[i], fn)
     return
   }
-  const cs = c?.toString()
+  if (c == null || typeof c === "boolean") return
+  const cs = String(c)
   if (!cs) return
   for (const _ of cs.split(/\s+/g)) {
-    if (_) node.classList.remove(_)
+    if (_) fn(_)
   }
 }
 

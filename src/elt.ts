@@ -59,10 +59,8 @@ export class RefChild extends Comment {
 
 // Just to avoid Comment allocations
 let refchild_counter = 0
-const refchildren = new Array<RefChild>(
-  32,
-) /** pre-allocate a size 32, but there is little chance that it will ever reach that size. */
-refchildren.length = 0
+/** One RefChild per nesting depth of component calls, reused across calls (grows as deep as the deepest nesting). */
+const refchildren: RefChild[] = []
 
 export type NodeTypeFromCreator<T extends string> =
   // If it is a string of a known HTML element, return it
@@ -261,13 +259,10 @@ export namespace e {
   export const Fragment: (at: EmptyAttributes<DocumentFragment>) => DocumentFragment = $
 }
 
-declare let global: any
-if (typeof global !== "undefined" && typeof global.E === "undefined") {
-  ;(global as any).E = e
-}
-
-if ("undefined" !== typeof window && typeof (window as any).E === "undefined") {
-  ;(window as any).E = e
+// `E` as a global, for the JSX factory (`jsxFactory: "E"`): `globalThis` is `window` in a page and
+// `global` under node / bun.
+if (typeof (globalThis as any).E === "undefined") {
+  ;(globalThis as any).E = e
 }
 
 declare global {

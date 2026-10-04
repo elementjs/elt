@@ -5,6 +5,30 @@ test.beforeEach(async ({ page }) => {
 })
 
 test.describe("EltCustomElement attributes", () => {
+  test("an attribute written in the HTML is converted on connection (regression: the raw string was copied)", async ({
+    page,
+  }) => {
+    const result = await page.evaluate(() => {
+      const { attr, EltCustomElement, node_append } = window.__ELT__
+
+      class TestAttrConvert extends EltCustomElement {
+        declare count: unknown
+      }
+      // decorator syntax can't be serialized into page.evaluate, so apply @attr by hand
+      attr({ convert: Number })(TestAttrConvert.prototype, "count")
+      customElements.define("test-attr-convert", TestAttrConvert)
+
+      const holder = document.createElement("div")
+      holder.innerHTML = `<test-attr-convert count="3"></test-attr-convert>`
+      const el = holder.firstElementChild as TestAttrConvert
+      node_append(document.body, holder)
+      const value = el.count
+      holder.remove()
+      return { type: typeof value, value }
+    })
+    expect(result).toEqual({ type: "number", value: 3 })
+  })
+
   test("an observable bound to a registered attribute forwards its values (regression: the observable itself was passed to setAttribute)", async ({
     page,
   }) => {

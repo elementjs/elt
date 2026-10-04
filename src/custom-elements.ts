@@ -247,11 +247,8 @@ export class EltCustomElement extends HTMLElement {
     if (attrs) {
       for (const attr of attrs) {
         const actual = this.getAttribute(attr.name)
-        if (actual == null) continue
-        const current = (this as any)[attr.prop]
-        if (actual !== current) {
-          ;(this as any)[attr.prop] = actual
-        }
+        // Through setAttribute, which applies `convert`; the property setter skips an unchanged value
+        if (actual != null) this.setAttribute(attr.name, actual)
       }
     }
 

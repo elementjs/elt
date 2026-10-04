@@ -48,9 +48,10 @@ function rewrite_css(
   while (spaces[css[start]]) {
     start++
   }
-  let end = start + 1
   if (css[start] === ".") {
+    // The class name runs from after the dot to the first character that can't be in it
     start++
+    let end = start
     while (true) {
       const c = css[end]
       if (
@@ -66,11 +67,10 @@ function rewrite_css(
         break
       }
     }
-  }
-
-  if (end > start + 1) {
-    class_name = `${css.slice(start, end)}-${id}`
-    css = `.${class_name}${css.slice(end)}`
+    if (end > start) {
+      class_name = `${css.slice(start, end)}-${id}`
+      css = `.${class_name}${css.slice(end)}`
+    }
   }
 
   return { css, class_name }

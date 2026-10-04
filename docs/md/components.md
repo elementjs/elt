@@ -77,7 +77,7 @@ A component with more than one place to put content takes the extra content as p
 
 After the component returns, `node_append` applies a fixed set of attributes to the **root node**, whether or not the component reads or forwards them from `attrs`:
 
-- `class`, `style` — always applied. Both accept observables and map forms, exactly like [`$class` / `$style`](./decorators.md#reflecting-values-observe-class-style-id-title): `class={[cls_row, { active: o_on }]}`, `style={{ color: oo_color }}`.
+- `class`, `style` — always applied. Both accept observables and map forms, exactly like [`$class` / `$style`](./decorators.md#reflecting-values-observe-class-style-id-title): `class={[cls_row, { active: o_on }]}`, `style={{ color: oo_color }}`. `false` and `null` add no class or style, so `class={o_on.tf((on) => on && "active")}` and `style={cond && { color: "red" }}` work.
 - `id`, `slot`, `part`, `role`, `tabindex`, `lang`, `inert`, `title`, `autofocus`, `nonce`.
 - Any `data-*` / `aria-*` key.
 

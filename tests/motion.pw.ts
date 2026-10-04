@@ -154,7 +154,7 @@ test.describe("leaving: the removed node", () => {
     expect(r).toEqual({ after_first: true, after_both: false })
   })
 
-  test("detached nodes, nodes without a box, and motion off: instant, hooks not run", async ({ page }) => {
+  test("detached nodes, nodes with nothing rendered, and motion off: instant, hooks not run", async ({ page }) => {
     const r = await page.evaluate(() => {
       const { node_remove, node_on_leave, node_append, motion_enabled } = window.__ELT__
       const calls: string[] = []
@@ -181,6 +181,110 @@ test.describe("leaving: the removed node", () => {
       return { calls, left: c.childNodes.length }
     })
     expect(r).toEqual({ calls: [], left: 0 })
+  })
+
+  test("display: contents with nothing rendered inside: instant, hooks not run", async ({ page }) => {
+    const r = await page.evaluate(() => {
+      const { node_remove, node_on_leave } = window.__ELT__
+      const calls: string[] = []
+      const hook = (n: HTMLElement) =>
+        node_on_leave(n, () => {
+          calls.push(n.id)
+          return new Promise(() => {})
+        })
+      // Children that render nothing: hidden, or collapsed whitespace
+      const c = window.__motion__.mount(["hidden_child", "blank"])
+      const [hidden_child, blank] = [...c.children] as HTMLElement[]
+      hidden_child.style.display = "contents"
+      hidden_child.innerHTML = "<div style='display: none'>x</div><span style='display: contents'></span>"
+      blank.style.display = "contents"
+      blank.textContent = "  \n  "
+      // A display: contents node inside a hidden ancestor
+      const hidden = window.__motion__.mount(["in_hidden"], "display: none")
+      const in_hidden = hidden.firstElementChild as HTMLElement
+      in_hidden.style.display = "contents"
+      for (const n of [hidden_child, blank, in_hidden]) hook(n)
+      for (const n of [hidden_child, blank, in_hidden]) node_remove(n, true)
+      return { calls, left: c.childNodes.length + hidden.childNodes.length }
+    })
+    expect(r).toEqual({ calls: [], left: 0 })
+  })
+
+  test("display: contents with something rendered inside: its hooks run and it waits for them", async ({ page }) => {
+    const r = await page.evaluate(async () => {
+      const { node_remove, node_on_leave, node_append, If, o } = window.__ELT__
+      const calls: string[] = []
+      const ds: (() => void)[] = []
+      const hook = (n: HTMLElement) =>
+        node_on_leave(n, () => {
+          calls.push(n.id)
+          const d = window.__motion__.deferred()
+          ds.push(d.resolve)
+          return d.promise
+        })
+      const c = window.__motion__.mount([])
+      // A child element, a text node, a child that is itself display: contents, `<e-wrap>`, and a
+      // wrapper whose only content is a nested verb's
+      const child = window.__motion__.el("div", "child")
+      child.style.display = "contents"
+      child.innerHTML = "<div>row</div>"
+      const text = window.__motion__.el("div", "text")
+      text.style.display = "contents"
+      const nested = window.__motion__.el("div", "nested")
+      nested.style.display = "contents"
+      nested.innerHTML = "<span style='display: contents'><b>deep</b></span>"
+      const wrap = document.createElement("e-wrap")
+      wrap.id = "wrap"
+      wrap.innerHTML = "<div>wrapped</div>"
+      const verb = window.__motion__.el("div", "verb")
+      verb.style.display = "contents"
+      verb.textContent = ""
+      node_append(
+        verb,
+        If(o(true), () => window.__motion__.el("div", "in_verb")),
+      )
+      const all = [child, text, nested, wrap, verb]
+      for (const n of all) node_append(c, n)
+      for (const n of all) hook(n)
+      for (const n of all) node_remove(n, true)
+      const during = all.map((n) => n.parentNode === c && n.hasAttribute("e-leaving"))
+      for (const resolve of ds) resolve()
+      await window.__motion__.tick()
+      return { calls, during, left: c.childNodes.length }
+    })
+    expect(r).toEqual({
+      calls: ["child", "text", "nested", "wrap", "verb"],
+      during: [true, true, true, true, true],
+      left: 0,
+    })
+  })
+
+  // Documents a browser behavior the docs rely on: a display: contents node has no box, so an
+  // opacity exit on it shows nothing ; its children stay as they were until it is removed.
+  test("an opacity exit on a display: contents node doesn't show on its children", async ({ page }) => {
+    const exit_on = async (display: string) => {
+      await page.evaluate((display) => {
+        const { node_append, $leave } = window.__ELT__
+        document.body.innerHTML = ""
+        const wrapper = window.__motion__.el("div", "wrapper")
+        wrapper.style.display = display
+        wrapper.innerHTML = "<div id='box' style='width: 40px; height: 40px; background: red'></div>"
+        node_append(document.body, wrapper)
+        // Fully transparent for its whole (long) duration
+        $leave({ keyframes: [{ opacity: 0 }, { opacity: 0 }], duration: 100000 })(wrapper)
+      }, display)
+      const before = await page.locator("#box").screenshot()
+      const leaving = await page.evaluate(() => {
+        const wrapper = document.getElementById("wrapper") as HTMLElement
+        window.__ELT__.node_remove(wrapper, true)
+        return wrapper.hasAttribute("e-leaving")
+      })
+      const during = await page.locator("#box").screenshot()
+      return { leaving, unchanged: before.equals(during) }
+    }
+    // Control: on a block, the same exit hides the box
+    expect(await exit_on("block")).toEqual({ leaving: true, unchanged: false })
+    expect(await exit_on("contents")).toEqual({ leaving: true, unchanged: true })
   })
 
   test("`always`: plays on a removal without `motion`", async ({ page }) => {

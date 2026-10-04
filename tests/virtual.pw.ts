@@ -152,6 +152,42 @@ function expectVisibleSlice(list: string[], labels: string[]) {
 }
 
 describe("RepeatVirtual", () => {
+  test("keeps one scroll listener on its scroll area across reconnections (regression: each connection added one more)", async ({
+    page,
+  }) => {
+    const result = await page.evaluate(async () => {
+      const { node_append, node_remove } = window.__ELT__
+      // Count the scroll listeners added and removed on each target
+      const live = new Map<EventTarget, number>()
+      const add = EventTarget.prototype.addEventListener
+      const remove = EventTarget.prototype.removeEventListener
+      EventTarget.prototype.addEventListener = function (this: EventTarget, type: string, ...rest: any[]) {
+        if (type === "scroll") live.set(this, (live.get(this) ?? 0) + 1)
+        return add.call(this, type, ...(rest as [any]))
+      }
+      EventTarget.prototype.removeEventListener = function (this: EventTarget, type: string, ...rest: any[]) {
+        if (type === "scroll") live.set(this, (live.get(this) ?? 0) - 1)
+        return remove.call(this, type, ...(rest as [any]))
+      }
+      try {
+        const m = window.__mountVirtual(window.__labelsFromCount(50))
+        await window.__flushFrames()
+        for (let i = 0; i < 4; i++) {
+          node_remove(m.scroller)
+          node_append(document.body, m.scroller)
+          await window.__flushFrames(2)
+        }
+        const connected = live.get(m.scroller) ?? 0
+        m.tear_down()
+        return { connected, after_tear_down: live.get(m.scroller) ?? 0 }
+      } finally {
+        EventTarget.prototype.addEventListener = add
+        EventTarget.prototype.removeEventListener = remove
+      }
+    })
+    expect(result).toEqual({ connected: 1, after_tear_down: 0 })
+  })
+
   describe("virtual rendering", () => {
     test("does not render every row for a long list", async ({ page }) => {
       const result = await page.evaluate(async () => {

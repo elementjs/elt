@@ -60,7 +60,7 @@ return <e-column>
 
 ## Events: `$on`, `$once`, `$click`
 
-`$click` is a shortcut for the common case (click, or `touchend` on mobile). `$on` takes any event name (or an array of names) and registers through `node_add_event_listener`, which — regardless of whether the listener target is the decorated node itself or a different `EventTarget` — re-adds the listener every time the node (re)connects and removes it on disconnect, with no manual cleanup required. `$once` is `$on` with `{ once: true }` baked in.
+`$click` is a shortcut for the common case, the `click` event. `$on` takes any event name (or an array of names) and registers through `node_add_event_listener`. On the decorated node itself, the listener is added once and lives as long as the node. On a different `EventTarget` (`window`, `document`, …), it is added every time the node (re)connects and removed on disconnect, so the target never keeps a removed node alive. No manual cleanup is required in either case. `$once` is `$on` with `{ once: true }` baked in.
 
 ```tsx
 //@inline-example
@@ -124,6 +124,10 @@ return <e-column>
 ```
 
 > `$observe`'s callback also receives the previous value and the decorated node — useful for effects that need to diff against what came before, or reach into the DOM directly. See `src/decorators.ts` for the full signature.
+
+A class definition is class names (a space-separated string, an array of them, or an observable of either) or an object whose keys are class names and whose values, possibly observables, add the class while truthy. `false`, `null` and `undefined` add no class, wherever they appear: `class={o_cond.tf((c) => c && "active")}` adds `active` while `o_cond` is truthy and removes it when it becomes falsy, the same way `{cond && <p />}` renders nothing among children. `class={["row", o_sel.tf((s) => s && "selected")]}` mixes both.
+
+A style is a string (the whole `style` attribute), an object of properties (camelCase names such as `fontWeight`; custom properties such as `--myColor` are kept as written), or an object whose values are observables. An observable style may switch between a string and an object, and `null` or `false` removes the attribute: `style={cond && { color: "red" }}` sets no style when `cond` is false. A property whose value is `null`, `undefined`, `false` or `""` is removed; `0` is a value.
 
 ## Binding form controls: `$bind`
 
@@ -244,7 +248,7 @@ return <div>{$logLifecycle("demo-node")}{o_tag}</div>
 
 ## Good patterns vs. patterns to avoid
 
-**Prefer a decorator built on `node_add_event_listener`/`node_on_connected`/`node_on_disconnected` over calling the raw DOM API directly and tracking cleanup by hand.** The manual version is easy to get subtly wrong (forgetting to remove a listener on disconnect, or removing it too early on a transient reconnect); the decorator form ties the listener's lifetime to the node's own connected state for free.
+**Prefer a decorator built on `node_add_event_listener`/`node_on_connected`/`node_on_disconnected` over calling the raw DOM API directly and tracking cleanup by hand.** The manual version is easy to get subtly wrong (forgetting to remove a listener on disconnect, or removing it too early on a transient reconnect); the decorator form ties the listener's lifetime to the node for free.
 
 Don't:
 ```ts
