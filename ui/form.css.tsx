@@ -1,13 +1,23 @@
 import { css, type NRO } from "elt"
-import { theme } from "./theme"
+import { CHECK_POINTS } from "./icons"
+import { Mix, theme } from "./theme"
 import { FORM_CONTROL_SELECTOR, INVALID_SELECTOR } from "./selectors"
 
 const colors = theme.colors
 
-/** Tight viewBox around the polyline so the mark scales up inside the box; stroke is mask alpha. */
+/** The checkbox's check mark: the `Check` icon's polyline as a mask (its opaque stroke is what shows
+ * the tint behind it), twice the icon's stroke width so it reads at checkbox size. */
 const CHECKBOX_CHECK_MASK = encodeURIComponent(
-  '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256"><polyline points="40 144 96 200 224 72" fill="none" stroke="white" stroke-linecap="round" stroke-linejoin="round" stroke-width="32"/></svg>',
+  `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256"><polyline points="${CHECK_POINTS}" fill="none" stroke="white" stroke-linecap="round" stroke-linejoin="round" stroke-width="32"/></svg>`,
 )
+
+/** The bevel of raised controls (the switch, the inverted button): a highlight above, a shadow below.
+ * The light palette's `bg` and `text` at 20% opacity, so the light comes from the same side in both
+ * schemes, and an inverted button, which redefines --e-color-bg locally, keeps it. */
+const light_bg = new Mix(colors.bg.light_frozen_expr)
+const light_text = new Mix(colors.text.light_frozen_expr)
+const bevel_raise = light_bg.from(light_bg, "100%", 0.2)
+const bevel_drop = light_text.from(light_text, "100%", 0.2)
 
 declare module "elt" {
   interface attrs_button {
@@ -29,6 +39,10 @@ css`
 a {
   cursor: pointer;
   color: ${colors.tint};
+  /* (0,1,1): wins over the plain \`a\` color above. */
+  &:visited {
+    color: ${colors.tint.faded};
+  }
   &:hover {
     text-decoration: underline;
     background-color: ${colors.tint.hover};
@@ -45,7 +59,7 @@ label {
      can't derive from its own padding — "widget" is a deliberate override matching its sibling
      controls below (see "Borders and radius" in docs/md/ui-layout.md). */
   ${theme.css_radius("widget")}
-  gap: 4px;
+  gap: ${theme.settings.spacingNudge4};
   cursor: pointer;
   font-size: ${theme.settings.formFontSize};
 
@@ -110,9 +124,12 @@ fieldset > legend {
   margin-bottom: -0.4em;
 }
 
+/* A frame around fields: padded at the component step, its radius following its padding
+   (docs/md/ui-layout.md#borders-and-radius). */
 fieldset {
   width: fit-content;
-  padding: 8px 16px;
+  padding: ${theme.settings.spacingComponent};
+  ${theme.css_radius("component")}
 }
 
 
@@ -195,8 +212,8 @@ input[type="checkbox"][e-variant="switch"] {
     border-color ${theme.settings.durationFast} ease-out,
   ;
   box-shadow:
-    inset 0 -1px 2px rgba(255, 255, 255, 0.2),
-    inset 0 1px 2px rgba(0, 0, 0, 0.2);
+    inset 0 -1px 2px ${bevel_raise},
+    inset 0 1px 2px ${bevel_drop};
 }
 
 input[type="checkbox"][e-variant="switch"]:checked {
@@ -224,8 +241,8 @@ input[type="checkbox"][e-variant="switch"]::after {
     transform ${theme.settings.durationFast} cubic-bezier(0.2, 0.85, 0.25, 1),
     background-color ${theme.settings.durationFast} ease;
   box-shadow:
-    0 -1px 2px rgba(255, 255, 255, 0.2),
-    0 1px 2px rgba(0, 0, 0, 0.2);
+    0 -1px 2px ${bevel_raise},
+    0 1px 2px ${bevel_drop};
 }
 
 input[type="checkbox"][e-variant="switch"]:checked::after {
@@ -245,10 +262,6 @@ hr {
   height: 1px;
   width: 100%;
   background-color: ${colors.neutral.surface("n+3")};
-
-  &[e-variant="tint"] {
-    border-color: ${colors.tint.separator};
-  }
 }
 
 button, label[e-variant="toggle"] {
@@ -315,31 +328,22 @@ button[e-variant="inverted"] {
   --e-current-surface: var(--e-color-bg);
   --e-color-text: var(--e-light-color-bg);
   --e-color-tint: var(--e-light-color-bg);
-  --e-color-shadow-raise: rgba(255, 255, 255, 0.2);
-  --e-color-shadow-drop: rgba(0, 0, 0, 0.2);
   color: var(--e-color-text);
-  border-color: var(--e-color-bg);
   background-color: var(--e-color-bg);
-}
-
-button[e-variant="inverted"] {
-  border-top-color: var(--e-color-shadow-raise);
-  border-left-color: var(--e-color-shadow-raise);
-  border-right-color: var(--e-color-shadow-drop);
-  border-bottom-color: var(--e-color-shadow-drop);
+  border-color: ${bevel_raise} ${bevel_drop} ${bevel_drop} ${bevel_raise};
 }
 
 /* A checked toggle is a choice, not an action: a tint surface jump (+3) with a full tint border, like a
    selected item, never the inverted fill of the dominant action (docs/md/ui-theme.md, Emphasis). */
 label[e-variant="toggle"]:where(:has(> input:checked)) {
-  --e-current-surface: ${colors.tint.surface("n+3")};
+  --e-current-surface: ${colors.tint.selected};
   border-color: ${colors.tint};
   background-color: var(--e-current-surface);
   color: ${colors.text};
 
   @media (hover: hover) and (pointer: fine) {
     &:hover:not(:disabled) {
-      background: ${colors.tint.surface("n+4")};
+      background: ${colors.tint.selected_hover};
     }
   }
 }
@@ -348,8 +352,6 @@ label[e-variant="toggle"]:where(:has(> input:not(:checked))) {
   border: 1px solid ${colors.tint.mid};
   background-color: ${colors.bg};
   color: ${colors.tint.mid};
-  --e-color-shadow-raise: rgba(255, 255, 255, 0.2);
-  --e-color-shadow-drop: rgba(0, 0, 0, 0.2);
 }
 
 input[type="color"] {
@@ -372,6 +374,17 @@ input[type="color"]::-webkit-color-swatch-wrapper {
 input[type="color"]::-webkit-color-swatch {
   border: 1px solid ${theme.colors.text};
   border-radius: 50%; /* match parent shape */
+}
+
+/* A control alone in a table cell fills the cell: the cell drops its padding, the control its border
+   and radius (the cell's own borders frame it). Here rather than in typography: it must win over the
+   control rules above, and typography is a lower layer (ui/reset.css.tsx). */
+:where(table) :is(th, td):has(> :is(button, label, input):first-child:last-child) {
+  padding: 0;
+  & :first-child {
+    border: none;
+    border-radius: 0;
+  }
 }
 
 /* ── Invalid ───────────────────────────────────────────────────────────────────────────────────
@@ -424,7 +437,7 @@ label[e-variant="toggle"]:has(> input:disabled) {
   color: ${colors.text.mid};
 }
 label[e-variant="toggle"]:has(> input:checked:disabled) {
-  --e-current-surface: ${colors.neutral.surface("n+3")};
+  --e-current-surface: ${colors.neutral.selected};
   background-color: var(--e-current-surface);
 }
 

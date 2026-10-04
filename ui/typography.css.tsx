@@ -64,8 +64,9 @@ css`@layer typography {
 
   /* ── Appearance ────────────────────────────────────────────────────────────────────────────────
      Applies everywhere, not only inside a prose container: an <h3> used as a menu title looks like
-     an <h3>. Zero specificity (:where) so any component can override it. Margins are NOT set here:
-     they are rhythm, which only a prose container gives (see "Rhythm" below). */
+     an <h3>. Zero specificity (:where), in a layer below "components" (ui/reset.css.tsx), so any
+     component overrides it. Margins are NOT set here: they are rhythm, which only a prose container
+     gives (see "Rhythm" below). */
 
   e-prose {
     display: block;
@@ -133,7 +134,7 @@ css`@layer typography {
 
   /* ── Code ──────────────────────────────────────────────── */
   :where(code) {
-    font-family: ui-monospace, 'Cascadia Code', 'Fira Code', monospace;
+    font-family: ${theme.settings.monospaceFontFamily};
     font-size: 0.875em;
     background: color-mix(in oklab, currentColor 8%, transparent);
     padding: 0.15em 0.35em;
@@ -203,9 +204,6 @@ css`@layer typography {
     text-underline-offset: 0.2em;
     text-decoration: underline dotted;
   }
-  :where(a:visited) {
-    color: ${theme.colors.tint.faded};
-  }
   :where(strong, b) { font-weight: bolder; }
   :where(em) { font-style: italic; }
   :where(mark) {
@@ -232,15 +230,6 @@ css`@layer typography {
       vertical-align: baseline;
     }
 
-    /* reset buttons and inputs to be the whole cell */
-    & :is(th, td):has(> :is(button, label, input):first-child:last-child) {
-      padding: 0;
-      & :first-child {
-        border: none;
-        border-radius: 0;
-      }
-    }
-
     /* neutral.surface("n+3") stands in for the old text.separator (surface n+2) — one level up,
        since neutral needs a larger mix fraction than text to read at the same visual weight. */
     & > :is(thead, tr:first-child) :is(th, td) {
@@ -264,20 +253,6 @@ css`@layer typography {
     }
   }
 
-  e-prose[table-container] {
-    border-radius: ${theme.settings.borderRadius};
-    max-width: 100%;
-    width: fit-content;
-
-    min-height: 0; /* necessary to allow shrinking */
-    flex: 0 1 auto; /* shrink to fit, but don't grow ! */
-
-    & thead tr:has(th) {
-      position: sticky;
-      top: 0;
-    }
-  }
-
   /* ── Rhythm ────────────────────────────────────────────────────────────────────────────────────
      Margins only apply to direct children of a prose container (docs/md/ui-typography.md, "Text
      runs"). A text block anywhere else — directly in a row, column or grid — gets no margin, and
@@ -286,7 +261,7 @@ css`@layer typography {
 
   /* A text run keeps its typographic rhythm, whatever the container's spacing. */
   :where(${PROSE_CONTAINER_SELECTOR}) {
-    & :where(${TEXT_BLOCK_SELECTOR}) {
+    & > :where(${TEXT_BLOCK_SELECTOR}) {
       margin-block: 1.5em;
     }
     & > :where(h1, h2, h3, h4, h5, h6) {

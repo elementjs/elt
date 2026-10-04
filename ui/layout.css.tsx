@@ -279,7 +279,7 @@ for (const step of _color_steps) {
 // source order, as intended.
 _`${_all}[border]:where(:not([radius="none"])) { ${theme.css_radius()} }`
 _`${_all}[radius]:where(:not([radius="none"])) { ${theme.css_radius()} }`
-_`${_all}[pad]:where(:not([pad="none"])):is([border],[radius]):where(:not([radius="none"])) { ${theme.css_radius_own_pad()} }`
+_`${_all}[pad]:where(:not([pad="none"])):is([border],[radius]):where(:not([radius="none"])) { border-radius: var(--e-pad); }`
 for (const sp of spaces) {
   _`${_all}[radius="${sp}"] { ${theme.css_radius(sp)} }`
 }
@@ -327,7 +327,7 @@ for (const sp of spaces) {
 // adds no gap (packed never does); it sets the radius a `border` derives from the ambient step,
 // so the frame's corners match the children's, and the step its descendants inherit. Between (2)
 // and (3): wins over the step a [pad] implied, loses to an explicit [spacing]. An own [pad] still
-// sets the radius (css_radius_own_pad, above, is more specific): the padded edge is what rounds.
+// sets the radius (the [pad] radius rule above is more specific): the padded edge is what rounds.
 for (const sp of spaces) {
   _`${_all}[packed="${sp}"] { ${theme.css_spacing(sp)} }`
 }
@@ -446,6 +446,21 @@ css`
 
   e-prose { display: block; }
   e-prose[inline] { display: inline-block; }
+  /* A data table's wrapper (docs/md/ui-typography.md). Its fixed radius out-ranks the one a bare
+     [border] derives (more specific). */
+  e-prose[table-container] {
+    border-radius: ${theme.settings.borderRadius};
+    max-width: 100%;
+    width: fit-content;
+
+    min-height: 0; /* necessary to allow shrinking */
+    flex: 0 1 auto; /* shrink to fit, but don't grow ! */
+
+    & thead tr:has(th) {
+      position: sticky;
+      top: 0;
+    }
+  }
 
   e-flex,e-row,e-column { display: flex; flex-direction: row; flex-wrap: nowrap; align-items: baseline; }
   e-flex[column],e-column { flex-direction: column; }

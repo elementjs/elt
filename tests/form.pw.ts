@@ -220,3 +220,48 @@ test.describe("invalid fields", () => {
     expect(r.border).toBe(r.error)
   })
 })
+
+// The checkbox's check mark is the Check icon's polyline (ui/icons.tsx), not a copy of it.
+test("the checkbox mark is drawn with the Check icon's points", async ({ page }) => {
+  const r = await page.evaluate(() => {
+    const { CHECK_POINTS, Check } = window.__ELT__.UI
+    const box = document.createElement("input")
+    box.type = "checkbox"
+    document.body.appendChild(box)
+    return {
+      mask: decodeURIComponent(getComputedStyle(box, "::after").maskImage),
+      icon: Check().querySelector("polyline")!.getAttribute("points"),
+      points: CHECK_POINTS,
+    }
+  })
+  expect(r.icon).toBe(r.points)
+  expect(r.mask).toContain(`points="${r.points}"`)
+})
+
+test.describe("$auto_grow without a window resize listener", () => {
+  test("rewraps when the viewport narrows (the ResizeObserver sees the width change)", async ({ page }) => {
+    await page.setViewportSize({ width: 900, height: 600 })
+    await page.evaluate(() => {
+      const { node_append } = window.__ELT__
+      const { $auto_grow } = window.__ELT__.UI
+      const ta = document.createElement("textarea")
+      ta.id = "ta"
+      ta.value = "word ".repeat(60)
+      ta.style.width = "100%"
+      node_append(ta, $auto_grow())
+      node_append(document.body, ta)
+    })
+    const height = () =>
+      page.evaluate(
+        () =>
+          new Promise<number>((r) =>
+            requestAnimationFrame(() =>
+              requestAnimationFrame(() => r(document.getElementById("ta")!.getBoundingClientRect().height)),
+            ),
+          ),
+      )
+    const wide = await height()
+    await page.setViewportSize({ width: 300, height: 600 })
+    await expect.poll(height).toBeGreaterThan(wide)
+  })
+})

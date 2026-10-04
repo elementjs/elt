@@ -99,11 +99,6 @@ export const spacing_steps: SpacingStep[] = [
   "stage-4",
 ]
 
-/** The three raw px nudges are read as a bare variable in `radius_css` below, skipping the
- * `calc()` wrapper every other step gets — a nudge step is already a single literal px value,
- * with no expression to build. */
-const _spacing_nudges = new Set<SpacingStep>(["nudge-1", "nudge-2", "nudge-4"])
-
 /** Shared by `Theme.css_pad`/`css_spacing` — the one place that knows how a step maps to its custom
  * property. Every step (nudges included) now resolves to the same single `--e-spacing-<step>`
  * value, applied uniformly to both axes. `"spacing"` also sets `--e-current-spacing`, the same
@@ -127,19 +122,7 @@ function spacing_css(prop: "pad" | "spacing", step: SpacingStep): string {
  * radius" in docs/md/ui-layout.md).
  */
 function radius_css(step?: SpacingStep): string {
-  if (step == null) {
-    return `border-radius: calc(var(--e-current-spacing, var(--e-spacing-widget)));`
-  }
-  if (_spacing_nudges.has(step)) {
-    return `border-radius: var(--e-spacing-${step});`
-  }
-  return `border-radius: calc(var(--e-spacing-${step}));`
-}
-
-/** `theme.css_radius()`'s own-`[pad]` override (`ui/layout.css.tsx`) reads `--e-pad` directly —
- * this element's own explicitly specified padding, when its own `[pad]` attribute is present. */
-function radius_own_pad_css(): string {
-  return `border-radius: calc(var(--e-pad));`
+  return `border-radius: var(${step == null ? "--e-current-spacing, var(--e-spacing-widget)" : `--e-spacing-${step}`});`
 }
 
 /**
@@ -197,29 +180,36 @@ class OkLch {
   }
 }
 
+/** Each color of `colors` as oklch, as the browser computes it. Throws, naming the key, on a value the
+ * browser can't read as a color (or when it lacks relative color syntax, `oklch(from …)`): a missing
+ * color would otherwise surface later as an unrelated TypeError. */
 function getOkLch<T extends ColorScheme>(colors: T): { [key in keyof T]: OkLch } {
-  // Create a temporary element
+  // A temporary element, so the browser normalizes each color for us
   const el = document.createElement("div")
   el.style.visibility = "hidden"
   document.body.appendChild(el)
 
   const res = {} as { [key in keyof T]: OkLch }
-  for (const [key, value] of Object.entries(colors)) {
-    el.style.setProperty(`--color`, value)
-    el.style.color = "oklch(from var(--color) l c h)"
-    // The browser normalizes the color for us
-    const cs = getComputedStyle(el).color
-    const match = cs.match(/oklch\((?<l>[^ ]+)\s+(?<c>[^ ]+)\s+(?<h>[^)]+)\)/)
-    if (match) {
+  try {
+    for (const [key, value] of Object.entries(colors)) {
+      el.style.setProperty(`--color`, value)
+      el.style.color = "oklch(from var(--color) l c h)"
+      const cs = getComputedStyle(el).color
+      const match = cs.match(/oklch\((?<l>[^ ]+)\s+(?<c>[^ ]+)\s+(?<h>[^)]+)\)/)
+      // An invalid value makes `color` invalid at computed-value time: it is then inherited, which can
+      // be an oklch color too, so the value is also checked on its own.
+      if (match == null || !CSS.supports("color", value)) {
+        throw new Error(`Theme color "${key}": cannot read "${value}" as a color (computed as "${cs}")`)
+      }
       res[key as keyof T] = new OkLch(
         parseFloat(match.groups?.l ?? "0"),
         parseFloat(match.groups?.c ?? "0"),
         parseFloat(match.groups?.h ?? "0"),
       )
     }
+  } finally {
+    document.body.removeChild(el)
   }
-
-  document.body.removeChild(el)
   return res
 }
 
@@ -247,7 +237,7 @@ export class Theme<AllColors extends ColorScheme> {
   private _dark_values: Record<string, string> = {}
 
   constructor(theme: { light: AllColors; dark?: Partial<AllColors>; settings?: ThemeSettingsInput }) {
-    if (!(theme.light.bg || theme.light.text || theme.light.tint)) {
+    if (!(theme.light.bg && theme.light.text && theme.light.tint)) {
       throw new Error("Light theme must have a bg, text, and tint color")
     }
 
@@ -441,17 +431,11 @@ export class Theme<AllColors extends ColorScheme> {
     return spacing_css("spacing", step)
   }
 
-  /** Called with no step: derives from the ambient ("component") ~or~ this element's own
-   * `[pad]` (see `css_radius_own_pad`, consumed by `ui/layout.css.tsx`). Called with a named
-   * step: a fixed override for elements that don't pad themselves. */
+  /** Called with no step: derives from the ambient ("component") spacing; `ui/layout.css.tsx`
+   * overrides it with the element's own `--e-pad` when it has a `[pad]`. Called with a named step:
+   * a fixed override for elements that don't pad themselves. */
   css_radius(step?: SpacingStep): string {
     return radius_css(step)
-  }
-
-  /** `ui/layout.css.tsx`'s own-`[pad]` override for the no-step `css_radius` case — see
-   * `radius_own_pad_css`. */
-  css_radius_own_pad(): string {
-    return radius_own_pad_css()
   }
 
   /** `background: var(--e-current-surface);` alone — the resolved color of whatever surface
@@ -514,49 +498,32 @@ export class Theme<AllColors extends ColorScheme> {
   #surface_classes = new Map<string, string>()
   #border_classes = new Map<string, string>()
 
-  @memoize
-  get class_light_scheme() {
-    return css`.e-light-theme {
-      --e-color-shadow-raise: rgba(255, 255, 255, 0.2);
-      --e-color-shadow-drop: rgba(0, 0, 0, 0.2);
+  /** The class that puts this theme on a subtree: both palettes' raw values, the settings, the base
+   * styles, and `--e-color-*` pointing at the light or dark palette — or, for "dynamic", at the
+   * light one, switched to the dark one under `prefers-color-scheme: dark`. */
+  private scheme_class(scheme: "light" | "dark" | "dynamic") {
+    return css`.e-${scheme}-theme {
       ${this.all_colors}
       ${this.css_settings}
-      ${this.css_light_colors}
+      ${scheme === "dark" ? this.css_dark_colors : this.css_light_colors}
       ${this.init}
+      ${scheme === "dynamic" ? `@media (prefers-color-scheme: dark) { & { ${this.css_dark_colors} } }` : ""}
     }`
+  }
+
+  @memoize
+  get class_light_scheme() {
+    return this.scheme_class("light")
   }
 
   @memoize
   get class_dark_scheme() {
-    return css`.e-dark-theme {
-      ${this.all_colors}
-      ${this.css_settings}
-      ${this.css_dark_colors}
-      ${this.init}
-      --e-color-shadow-raise: rgba(0, 0, 0, 0.2);
-      --e-color-shadow-drop: rgba(255, 255, 255, 0.2);
-    }`
+    return this.scheme_class("dark")
   }
 
   @memoize
   get class_dynamic_scheme() {
-    return css`.e-dynamic-theme {
-      ${this.all_colors}
-      ${this.css_settings}
-      ${this.css_light_colors}
-      ${this.init}
-      --e-color-shadow-raise: rgba(255, 255, 255, 0.2);
-      --e-color-shadow-drop: rgba(0, 0, 0, 0.2);
-
-      @media (prefers-color-scheme: dark) {
-        & {
-          ${this.css_dark_colors}
-          --e-color-shadow-raise: rgba(0, 0, 0, 0.2);
-          --e-color-shadow-drop: rgba(255, 255, 255, 0.2);
-        }
-    }
-
-    }`
+    return this.scheme_class("dynamic")
   }
 
   /** Standalone padding class — see `css_pad`. */
@@ -735,7 +702,7 @@ export class Mix {
     --e-current-surface: var(--e-color-bg);
     --e-color-text: var(--e-light-color-bg);
     --e-color-tint: var(--e-light-color-bg);
-    ${this.label != null && this.label !== "tint" ? `--e-light-color-tint: var(--e-light-color-${this.label ?? "bg"});` : ""}
+    ${this.label != null && this.label !== "tint" ? `--e-light-color-tint: var(--e-light-color-${this.label});` : ""}
     /* neutral = text's chroma/hue at tint's luminance — since inversion sets text and tint to the
        exact same value (old bg), neutral collapses to that same value too, no recombination needed. */
     --e-color-neutral: var(--e-light-color-bg);
@@ -824,6 +791,20 @@ export class Mix {
    */
   get separator() {
     return this.surface("n+2")
+  }
+
+  /**
+   * A selected item's fill: three surface levels up from the ambient one, a clear jump from `hover`
+   * (n+1) — a selection is a choice, not an inversion (see "State" in docs/md/ui-theme.md). Shared by
+   * selected options (ui/list-nav.tsx), the date picker's selected day and checked toggles.
+   */
+  get selected() {
+    return this.surface("n+3")
+  }
+
+  /** `selected`, hovered or keyboard-active: one level further, so it doesn't fall back to a hover fill. */
+  get selected_hover() {
+    return this.surface("n+4")
   }
 
   /**

@@ -227,3 +227,101 @@ test.describe("prose containers and text blocks", () => {
     expect(r.pad).toBe(r.component)
   })
 })
+
+/** Mounts `html` in a fresh host under the light theme and returns `fn(host)`'s result, evaluated in the page. */
+async function mount<T>(page: import("@playwright/test").Page, html: string, fn: string) {
+  return page.evaluate(
+    ({ html, fn }) => {
+      document.body.className = String(window.__ELT__.UI.theme.class_light_scheme)
+      const host = document.createElement("div")
+      host.innerHTML = html
+      document.body.appendChild(host)
+      return new Function("host", fn)(host)
+    },
+    { html, fn },
+  ) as Promise<T>
+}
+
+// Regression: @layer typography was missing from the layer order (ui/reset.css.tsx), so the browser
+// put it last, above components: typography's zero-specificity rules won over every component rule.
+test.describe("typography sits below components", () => {
+  test("e-prose[inline] is inline-block", async ({ page }) => {
+    const d = await mount<string>(
+      page,
+      `<p>a <e-prose inline>b</e-prose> c</p>`,
+      `return getComputedStyle(host.querySelector("e-prose")).display`,
+    )
+    expect(d).toBe("inline-block")
+  })
+
+  test("a hovered link is underlined with a solid line (form.css), not typography's dotted one", async ({ page }) => {
+    await mount(page, `<e-prose><p><a id="l" href="#nowhere">link</a></p></e-prose>`, `return 0`)
+    await page.mouse.move(600, 600)
+    expect(await page.$eval("#l", (a) => getComputedStyle(a).textDecorationStyle)).toBe("dotted")
+    await page.hover("#l")
+    expect(await page.$eval("#l", (a) => getComputedStyle(a).textDecorationStyle)).toBe("solid")
+  })
+
+  test("a control alone in a table cell still fills the cell, without its own border", async ({ page }) => {
+    const r = await mount<{ border: string; pad: string }>(
+      page,
+      `<table><tr><td><button>b</button></td></tr></table>`,
+      `return { border: getComputedStyle(host.querySelector("button")).borderTopStyle, pad: getComputedStyle(host.querySelector("td")).paddingTop }`,
+    )
+    expect(r).toEqual({ border: "none", pad: "0px" })
+  })
+
+  test("a bordered table-container keeps the theme's borderRadius", async ({ page }) => {
+    const r = await mount<{ radius: string; ref: string }>(
+      page,
+      `<e-prose table-container border><table><tr><td>x</td></tr></table></e-prose><div id="ref"></div>`,
+      `const ref = host.querySelector("#ref"); ref.style.borderRadius = window.__ELT__.UI.theme.settings.borderRadius;
+       return { radius: getComputedStyle(host.querySelector("e-prose")).borderTopLeftRadius, ref: getComputedStyle(ref).borderTopLeftRadius }`,
+    )
+    expect(r.radius).toBe(r.ref)
+  })
+
+  // The visited color moved from typography to form.css: in typography it would now lose to form.css's
+  // `a { color }`. getComputedStyle hides :visited styles on purpose and headless Chromium doesn't
+  // paint them for test navigations, so this checks the rule itself: in the components layer, with
+  // more specificity than `a` (a :visited selector), and tint.faded as its color.
+  test("the visited link color is set in the components layer", async ({ page }) => {
+    const r = await page.evaluate(() => {
+      const found: string[] = []
+      const walk = (rules: CSSRuleList, layer: string) => {
+        for (const rule of rules) {
+          const name = rule instanceof CSSLayerBlockRule ? rule.name : layer
+          if (rule instanceof CSSStyleRule && rule.selectorText.includes(":visited")) {
+            found.push(`${layer}|${rule.selectorText}|${rule.style.color}`)
+          }
+          if ("cssRules" in rule) walk((rule as CSSGroupingRule).cssRules, name)
+        }
+      }
+      for (const sheet of document.adoptedStyleSheets) walk(sheet.cssRules, "")
+      return { found, faded: window.__ELT__.UI.theme.colors.tint.faded.toString() }
+    })
+    expect(r.found).toEqual([`components|&:visited|${r.faded}`])
+  })
+})
+
+// Regression: the rhythm rule used a descendant combinator, so a text block anywhere inside a prose
+// container (a <main>, a <section>…) got typographic margins, even inside a row or a column.
+test("prose margins apply to direct children only: a heading in a row in <main> gets none", async ({ page }) => {
+  const r = await mount<{ h3: string; p: string; direct: string }>(
+    page,
+    `<main style="height:auto"><e-row><h3>t</h3></e-row><section><e-column><p>p</p></e-column></section><p id="d">d</p><p>e</p></main>`,
+    `return { h3: getComputedStyle(host.querySelector("h3")).marginTop, p: getComputedStyle(host.querySelector("e-column p")).marginTop, direct: getComputedStyle(host.querySelector("#d")).marginBottom }`,
+  )
+  expect(r.h3).toBe("0px")
+  expect(r.p).toBe("0px")
+  expect(r.direct).not.toBe("0px")
+})
+
+test("code uses the theme's monospace font, like kbd", async ({ page }) => {
+  const r = await mount<{ code: string; kbd: string }>(
+    page,
+    `<p><code>c</code> <kbd>k</kbd></p>`,
+    `return { code: getComputedStyle(host.querySelector("code")).fontFamily, kbd: getComputedStyle(host.querySelector("kbd")).fontFamily }`,
+  )
+  expect(r.code).toBe(r.kbd)
+})

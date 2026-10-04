@@ -1,31 +1,20 @@
-import { $connected, $disconnected, node_observe, o, type attrs_textarea, type NRO, type Renderable } from "elt"
-
-declare module "elt" {
-  interface attrs_textarea {
-    auto?: true
-    "max-lines"?: NRO<number>
-    "min-lines"?: NRO<number>
-  }
-}
+import { $connected, $disconnected, node_observe, o, type attrs_textarea, type Renderable } from "elt"
 
 export type TextAreaAttrs = attrs_textarea
 
-function line_height_px(ta: HTMLTextAreaElement) {
+/** Line height and vertical padding + border of the textarea, from a single computed style read. */
+function measure_box(ta: HTMLTextAreaElement) {
   const st = getComputedStyle(ta)
   const lh = parseFloat(st.lineHeight)
-  if (Number.isFinite(lh)) return lh
-  // "normal" — approximate from font-size for clamp math.
-  return (parseFloat(st.fontSize) || 16) * 1.2
-}
-
-function box_vertical_extra(ta: HTMLTextAreaElement) {
-  const st = getComputedStyle(ta)
-  return (
-    (parseFloat(st.paddingTop) || 0) +
-    (parseFloat(st.paddingBottom) || 0) +
-    (parseFloat(st.borderTopWidth) || 0) +
-    (parseFloat(st.borderBottomWidth) || 0)
-  )
+  return {
+    // "normal" line height — approximate from font-size for clamp math.
+    line_height: Number.isFinite(lh) ? lh : (parseFloat(st.fontSize) || 16) * 1.2,
+    extra:
+      (parseFloat(st.paddingTop) || 0) +
+      (parseFloat(st.paddingBottom) || 0) +
+      (parseFloat(st.borderTopWidth) || 0) +
+      (parseFloat(st.borderBottomWidth) || 0),
+  }
 }
 
 /** Fit block size to content, clamped to [min_lines, max_lines]. */
@@ -33,8 +22,7 @@ function resize_to_content(ta: HTMLTextAreaElement, min_lines: number, max_lines
   const min_l = Math.max(1, min_lines)
   const max_l = Number.isFinite(max_lines) ? max_lines : Number.MAX_SAFE_INTEGER
 
-  const lh = line_height_px(ta)
-  const extra = box_vertical_extra(ta)
+  const { line_height: lh, extra } = measure_box(ta)
   const min_h = min_l * lh + extra
   const max_h = max_l * lh + extra
 
@@ -81,14 +69,10 @@ function setup_auto_grow(ta: HTMLTextAreaElement, resize: () => void) {
   })
   ro.observe(ta)
 
-  // Parent layout changes can alter width without changing the textarea's border box first.
-  window.addEventListener("resize", resize, { passive: true })
-
   resize()
 
   return () => {
     ta.removeEventListener("input", resize)
-    window.removeEventListener("resize", resize)
     ro.disconnect()
     cancelAnimationFrame(frame)
     delete (ta as { value?: string }).value

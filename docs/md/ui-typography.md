@@ -26,7 +26,7 @@ Readable content goes in a prose container — usually `<e-prose>`, but `article
 
 Two separate things are styled:
 
-- **Appearance applies everywhere**: heading sizes, list markers, `blockquote`, `pre` and inline `code`, table cells, link colors, `mark`, `abbr`, `kbd`. An `<h3>` used as a menu title looks like an `<h3>`. These styles have zero specificity, so any class of yours overrides them.
+- **Appearance applies everywhere**: heading sizes, list markers, `blockquote`, `pre` and inline `code`, table cells, link colors, `mark`, `abbr`, `kbd`. An `<h3>` used as a menu title looks like an `<h3>`. These styles have zero specificity, so any class of yours overrides them. They also sit in a cascade layer below elt/ui's controls and layout attributes, which win over them: a `<pre>` or `<blockquote>` placed directly in a `packed` container looks like the container's other cells, not like a framed block.
 - **Rhythm (margins) only applies inside a prose container**: a text block gets typographic margins only when it is a *direct child* of a prose container. Anywhere else — directly in a row, column or grid — a text block gets no margin, and its parent's `spacing` applies like for any other child.
 
 So a heading used as a title inside a row or a popup needs no wrapper:

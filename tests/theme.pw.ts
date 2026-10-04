@@ -662,3 +662,78 @@ test.describe("Theme class_*_scheme (regression: renamed from class_light/class_
     expect(result.rule).toContain("gap: var(--e-spacing)")
   })
 })
+
+// Regression: the guard used `||`, so it threw only when all three colors were missing; one missing
+// color, or one the browser can't read, surfaced later as an unrelated TypeError.
+test.describe("Theme validation", () => {
+  async function construct(page: import("@playwright/test").Page, light: Record<string, string>) {
+    return page.evaluate((light) => {
+      const { Theme } = window.__ELT__.UI
+      const before = document.body.childElementCount
+      try {
+        new Theme({ light: light as never })
+        return { error: null, leftover: document.body.childElementCount - before }
+      } catch (e) {
+        return { error: (e as Error).message, leftover: document.body.childElementCount - before }
+      }
+    }, light)
+  }
+
+  test("a missing bg, text or tint throws a clear error", async ({ page }) => {
+    for (const missing of ["bg", "text", "tint"]) {
+      const light: Record<string, string> = { bg: "#ffffff", text: "#1c1c1b", tint: "#005FCC" }
+      delete light[missing]
+      const r = await construct(page, light)
+      expect(r.error, missing).toBe("Light theme must have a bg, text, and tint color")
+    }
+  })
+
+  test("a color the browser can't read throws an error naming it, and leaves no probe element behind", async ({
+    page,
+  }) => {
+    const r = await construct(page, { bg: "#ffffff", text: "#1c1c1b", tint: "not-a-color" })
+    expect(r.error).toContain(`"tint"`)
+    expect(r.error).toContain("not-a-color")
+    expect(r.leftover).toBe(0)
+  })
+})
+
+test.describe("Mix.selected / Mix.selected_hover", () => {
+  test("are surface levels n+3 and n+4", async ({ page }) => {
+    const r = await page.evaluate(() => {
+      const { theme } = window.__ELT__.UI
+      const t = theme.colors.tint
+      return [t.selected === t.surface("n+3"), t.selected_hover === t.surface("n+4")]
+    })
+    expect(r).toEqual([true, true])
+  })
+})
+
+// The three scheme classes are built by one function: the dynamic one switches to the dark palette
+// under prefers-color-scheme: dark, the light and dark ones never do.
+test("class_dynamic_scheme follows prefers-color-scheme; class_light_scheme / class_dark_scheme don't", async ({
+  page,
+}) => {
+  const read = () =>
+    page.evaluate(() => {
+      const { theme } = window.__ELT__.UI
+      const out: Record<string, string> = {}
+      for (const name of ["class_light_scheme", "class_dark_scheme", "class_dynamic_scheme"] as const) {
+        const el = document.createElement("div")
+        el.className = theme[name]
+        document.body.appendChild(el)
+        out[name] = getComputedStyle(el).backgroundColor
+        el.remove()
+      }
+      return out
+    })
+  await page.emulateMedia({ colorScheme: "light" })
+  const light = await read()
+  await page.emulateMedia({ colorScheme: "dark" })
+  const dark = await read()
+  expect(light.class_dynamic_scheme).toBe(light.class_light_scheme)
+  expect(dark.class_dynamic_scheme).toBe(dark.class_dark_scheme)
+  expect(dark.class_light_scheme).toBe(light.class_light_scheme)
+  expect(light.class_dark_scheme).toBe(dark.class_dark_scheme)
+  expect(light.class_light_scheme).not.toBe(light.class_dark_scheme)
+})

@@ -39,7 +39,7 @@ A palette supplies `bg`, `text` and `tint`; the default theme adds semantic hues
 | A one-off mix no named helper covers | `.from_bg("20%")`, `.from_text("20%")`, `.from(other, "20%")` |
 | Make another color the subtree's accent | `theme.colors.orange.class_as_tint` (class) |
 | Inverted band (top toolbar, dialog title row; `neutral` for a main table's header) | `theme.colors.tint.class_as_inverted` (class) or `.css_as_inverted` (declarations) |
-| A selected item's fill | `theme.colors.tint.surface("n+3")`, `"n+4"` when hovered ([State](#state)) |
+| A selected item's fill | `theme.colors.tint.selected` (surface n+3), `.selected_hover` when hovered ([State](#state)) |
 
 ```ts
 import { css } from "elt"
@@ -110,7 +110,7 @@ An inverted container (a top toolbar, a title row, an important region) creates 
 ## State
 
 - **Hover**: one level above the current surface, in the current surface's color family, so it matches whatever it is drawn on.
-- **Selected**: a tint surface three levels above where the item sits (`tint.surface("n+3")`), four when hovered or keyboard-active; the text keeps its color. The same goes for a checked toggle (with a full `tint` border) and the current tab. Any `role="option"` with `aria-selected="true"` is drawn this way (Select's options included), and so is the date picker's selected day.
+- **Selected**: a tint surface three levels above where the item sits (`tint.selected`, surface n+3), four when hovered or keyboard-active (`tint.selected_hover`); the text keeps its color. The same goes for a checked toggle (with a full `tint` border) and the current tab. Any `role="option"` with `aria-selected="true"` is drawn this way (Select's options included), and so is the date picker's selected day.
 - **Pressed**: one level past hover.
 - **Focus**: a ring around the element (`tint.mid`, `theme.settings.focusRingSize` wide), never a fill or a replaced border.
 - **Disabled**: a disabled control is furniture, whatever its variant: it turns `neutral`, and its full-strength colors move halfway toward its background (`.mid`). Its label becomes `text.mid` and its border `neutral.mid`, including for `tint`, `text` and `link` buttons. An `inverted` control's fill becomes the halfway mix of `neutral` while its label keeps its color. A checked toggle's fill becomes `neutral` three levels up; checkboxes and switches use `neutral` for their check mark and track. A `<label>` around a disabled control uses `text.mid`. No opacity is involved.
@@ -172,6 +172,7 @@ Every `theme.colors.<name>` is a `Mix`. Its string value is a CSS color expressi
 | `.strong`, `.very_strong` | Mixed toward `text` |
 | `.hover` | Surface level n+1 relative to the ambient level |
 | `.separator` | Surface level n+2 — container edges, dividers |
+| `.selected`, `.selected_hover` | Surface level n+3, n+4 — a selected item, and the same item hovered or keyboard-active |
 | `.surface(level)` | Color of a surface level: a number, `"n+K"`, or `"background"` |
 | `.from_bg(pct, alpha?)`, `.from_text(pct, alpha?)`, `.from(other, pct, alpha?)` | Explicit mix, for needs no named member covers |
 | `.css_as_surface(level)`, `.class_as_surface(level)` | Become a surface at that level, propagating it to children |

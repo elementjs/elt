@@ -1,8 +1,9 @@
 import { css } from "elt"
 import { theme } from "./theme"
 
-// This is going to be our layer order
-css`@layer reset, base, theme, components, utilities, overrides;`
+// The layer order. typography sits below components: it styles text elements at zero specificity,
+// and a component's (or a control's) own rule must win over it (docs/md/ui-typography.md).
+css`@layer reset, base, theme, typography, components, utilities, overrides;`
 
 css`@layer reset {
   * {

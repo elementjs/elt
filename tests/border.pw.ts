@@ -242,7 +242,7 @@ test.describe("Theme.css_radius (ui/theme.tsx)", () => {
       const { theme } = window.__ELT__.UI
       return theme.css_radius()
     })
-    expect(result).toBe("border-radius: calc(var(--e-current-spacing, var(--e-spacing-widget)));")
+    expect(result).toBe("border-radius: var(--e-current-spacing, var(--e-spacing-widget));")
   })
 
   test("a named step overrides with that step's own value", async ({ page }) => {
@@ -250,7 +250,7 @@ test.describe("Theme.css_radius (ui/theme.tsx)", () => {
       const { theme } = window.__ELT__.UI
       return theme.css_radius("component")
     })
-    expect(result).toBe("border-radius: calc(var(--e-spacing-component));")
+    expect(result).toBe("border-radius: var(--e-spacing-component);")
   })
 
   test("a raw nudge step reads its symmetric variable, not a -vertical suffix", async ({ page }) => {
