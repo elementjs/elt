@@ -50,6 +50,30 @@ export class IndexableArray<T extends Indexable> {
     }
   }
 
+  /**
+   * Delete by moving the last item into the hole: O(1), and the array never holds holes.
+   * Only for arrays whose order has no meaning, and that are never iterated while items are deleted.
+   */
+  swap_delete(a: T) {
+    const idx = a.idx
+    if (idx == null) return
+    const arr = this.arr
+    // biome-ignore lint/style/noNonNullAssertion: `a` is in the array, so it is not empty
+    const last = arr.pop()!
+    if (last !== a) {
+      arr[idx] = last
+      last.idx = idx
+    }
+    a.idx = null
+    this.real_size--
+  }
+
+  /** Compact when more than half the slots are holes, so that the cost of deletions stays amortized O(1). */
+  compact_if_sparse() {
+    const len = this.arr.length
+    if (len > 8 && this.real_size < len >> 1) this.actualize()
+  }
+
   clear() {
     const a = this.arr
     for (let i = 0; i < a.length; i++) {

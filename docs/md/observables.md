@@ -58,7 +58,7 @@ Replace the whole value instead, or use `.assign()`/`.mutate()` (see below), whi
 
 ## `.tf()` — deriving a read-only value
 
-`.tf(fn)` returns a new, read-only observable that stays in sync with the source: whenever the source changes, `fn` re-runs and the derived observable updates.
+`.tf(fn)` returns a new, read-only observable that stays in sync with the source: whenever the source changes, `fn` re-runs and the derived observable updates. Writing to it throws, as for any read-only observable.
 
 ```tsx
 //@inline-example
@@ -166,6 +166,15 @@ o_user.mutate((draft) => {
 })
 ```
 
+The callback may also return a value instead of editing the draft: that value replaces the whole value. Returning `o.NoValue` writes nothing, so a callback can read the draft and then decide not to write:
+
+```ts
+o_user.mutate((draft) => {
+  if (draft.tags.includes("new-tag")) return o.NoValue // nothing changes, no observer runs
+  draft.tags.push("new-tag")
+})
+```
+
 ## `o.expression` — deriving from several sources
 
 `.tf()` derives from one observable. `o.expression` derives from as many as you like, read dynamically through a `get` function — no need to declare the dependency list up front:
@@ -190,6 +199,8 @@ The callback actually receives four arguments: `(get, old, updated, prev)`.
 | `prev`         | The expression's own previous result (or `o.NoValue`, the first time)  |
 
 `old`/`updated`/`prev` let an expensive expression skip recomputation when the thing that changed isn't actually relevant to it — return `prev` unchanged instead of redoing the work.
+
+To save memory, the previous values are kept only when the callback declares the parameter that needs them (it reads the function's `length`): `old` and `updated` need at least two declared parameters, `prev` needs four. A rest parameter (`...args`) or a parameter with a default value is not counted in `length`, so the arguments after it stay `o.NoValue`.
 
 Passing a second callback makes the result **writable**: writes to it get translated back into the source observables.
 
@@ -224,6 +235,8 @@ o.transaction(() => {
 })
 ```
 
+Keep the callback small and synchronous, and **never let it throw**: it only sets observables. A throw leaves the transaction open, and no observer runs again until the page reloads. Compute or validate anything that can fail before `o.transaction`, and an `await` inside the callback does not extend the transaction.
+
 ## `o.exclusive_lock` — breaking feedback loops
 
 Two observables that set each other from their own observers can loop forever. `o.exclusive_lock()` returns a function that runs its callback normally the first time, but is a no-op on any call made *while* the first one is still running — it is not reentrant, so nested calls don't queue up, they just get skipped entirely:
@@ -246,10 +259,6 @@ A few rules of thumb, pulled from the library's own source comments, worth inter
 **Observe through the DOM lifecycle, not with a raw `addObserver`.** Prefer `$observe(...)`, `node_observe(...)`, or a class's own `.observe(...)` (on a service, an `EltCustomElement`, or anything else extending `o.ObserverHolder`). These unregister the observer automatically when the node/service goes away; a raw `addObserver` call has to be torn down by hand or it leaks.
 
 **For dynamic DOM structure driven by an observable array or condition, prefer a Verb** (`Repeat`, `If`, `Switch`) over manually tracking state and calling `node_append`/`node_remove` yourself — see the [Verbs](./verbs.md) page.
-
-## A gotcha: `disconnect()`'s console warning
-
-`CombinedObservable#disconnect()` is mostly an internal mechanism — `Repeat` and `RepeatVirtual` use it to cut a derived observable loose once its underlying list item is gone, so a stray observable watching an out-of-bounds index doesn't crash the program. Application code rarely calls it directly. If you ever see a console warning about an observable "still being watched" after a disconnect, it means something is still holding and observing a reference that was meant to be discarded — worth tracking down rather than ignoring, since it usually points at a stale subscription that outlived what it was watching.
 
 ## See also
 

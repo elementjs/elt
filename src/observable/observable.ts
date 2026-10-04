@@ -165,6 +165,47 @@ export namespace o {
   }
 
   /**
+   * What owns observers: a node (`node_observe`) or an {@link ObserverHolder}. A static object, so that observing
+   * allocates no closure for it.
+   * @internal
+   */
+  export interface ObserverOwner<T> {
+    /** Attach `observer` to `target`; it observes while `target` does. */
+    add(target: T, observer: Observer<any>): void
+    /** Run `call` once `target` observes (at once if it already does). */
+    when_observing(target: T, call: () => void): void
+  }
+
+  /**
+   * The one rule for observing, shared by `node_observe` and {@link ObserverHolder.observe}:
+   * - A plain value never changes: `fn` runs once with it (at once with `immediate`, else when `target` starts
+   *   observing), and never with `changes_only`.
+   * - An observable gets an `Observer` (a `SilentObserver` with `changes_only`), attached to `target` before the
+   *   `immediate` call.
+   * @internal
+   */
+  export function make_observer<T, A>(
+    owner: ObserverOwner<T>,
+    target: T,
+    obs: RO<A>,
+    fn: ObserverCallback<A>,
+    options?: ObserveOptions<A>,
+  ): Observer<A> | null {
+    if (!is_observable(obs)) {
+      if (!options?.changes_only) {
+        if (options?.immediate) fn(obs as A, NoValue)
+        else owner.when_observing(target, () => fn(obs as A, NoValue))
+      }
+      return null
+    }
+    const observer = options?.changes_only ? new SilentObserver(fn, obs) : new Observer(fn, obs)
+    options?.observer_callback?.(observer)
+    owner.add(target, observer)
+    if (options?.immediate) observer.refreshImmediate()
+    return observer
+  }
+
+  /**
    * An `Observer` observes an {@link o.Observable}. `Observable`s maintain a list of **active**
    * observers that are observing it. Whenever their value change, all the registered
    * `Observer`s have their `refresh` method called.
@@ -212,8 +253,8 @@ export namespace o {
     }
 
     evalNewalue(new_value: A) {
-      // only store the old_value if the observer will need it. Useful to not keep
-      // useless references in memory.
+      // Always stored, even when `fn` ignores `old`: `refresh` compares it to the current value to skip unchanged
+      // values, as the queue refreshes the observers of an observable even when its value did not change.
       const old = this.old_value
       this.old_value = new_value
       const res = (this.fn as ObserverCallback<A>)(new_value, old)
@@ -368,6 +409,11 @@ export namespace o {
      */
     idx = null as null | number
 
+    /** Mark of the last `queue.schedule` walk that visited this observable, see {@link Queue.schedule}.
+     * @internal
+     */
+    _visit = 0
+
     /** only available in development build */
     debug?: string
     _value: any // do not give it a type, this is on purpose.
@@ -397,7 +443,7 @@ export namespace o {
     /**
      * Add an observer to this observable, which will be updated as soon as the `Observable` is set to a new value.
      *
-     * > **Note**: This method should rarely be used. Prefer using {@link $observe}, {@link node_observe}, [`Mixin#observe()`](#Mixin) or [`App.Service#observe()`](#App.Service#observe) for observing values.
+     * > **Note**: This method should rarely be used. Prefer using {@link $observe}, {@link node_observe} or the `observe()` method of an {@link ObserverHolder} (such as `App.Service`) for observing values.
      *
      * @returns The newly created observer if a function was given to this method or
      *   the observable that was passed.
@@ -435,7 +481,8 @@ export namespace o {
      */
     removeChild(ch: ChildObservableLink) {
       if (ch.idx == null) return
-      this._children.delete(ch)
+      // Children order has no meaning: the queue order comes from the dependencies (see Queue.schedule).
+      this._children.swap_delete(ch)
       this.checkWatch()
     }
 
@@ -449,6 +496,9 @@ export namespace o {
      */
     removeObserver(ob: Observer<A>): void {
       this._observers.delete(ob)
+      // Observers keep their order (they are called in the order they were added), so holes are compacted
+      // instead of swapped; never while the queue is calling these very observers, it compacts them after.
+      if (queue.notifying !== this) this._observers.compact_if_sparse()
       this.checkWatch()
     }
 
@@ -538,7 +588,9 @@ export namespace o {
         },
         (newv, old, [curr, conv, rev]) => {
           if (typeof rev === "function") return [rev(newv, old as B, curr), NoValue, NoValue] as const
-          if (typeof conv === "function") return [NoValue, NoValue, NoValue] as const // this means the set is being silently ignored. should it be an error ?
+          // A transform function with no revert function is read-only, as a `combine` with no setter
+          if (typeof conv === "function")
+            throw new Error("tf: this observable is read-only, no revert function was given")
           const new_orig = (conv as Converter<A2, B>).revert(newv, old as B, curr)
           return [new_orig, NoValue, NoValue] as const
         },
@@ -614,27 +666,65 @@ export namespace o {
     }
   }
 
-  /** @internal */
-  export function each_recursive(obs: ReadonlyObservable<any>, fn: (v: ReadonlyObservable<any>) => void) {
-    fn(obs)
-    for (let i = 0, ch = obs._children.arr, l = ch.length; i < l; i++) {
-      const child = ch[i]
-      if (child) each_recursive(child.child, fn)
+  /** Mark of the current `Queue.schedule` walk; an observable whose `_visit` equals it was already visited. */
+  let visit_mark = 0
+  /** Reused by every `Queue.schedule` walk, which never runs user code and so is never re-entered. */
+  const post_order: ReadonlyObservable<any>[] = []
+
+  /**
+   * Depth-first walk of `obs` and the observables that depend on it, each one once, pushed to `post_order` in
+   * post-order. Children are walked last to first, so that once reversed, siblings keep the order they were
+   * added in. A child with no children of its own is pushed without a recursive call.
+   */
+  function collect_post_order(obs: ReadonlyObservable<any>, mark: number) {
+    obs._visit = mark
+    for (let ch = obs._children.arr, i = ch.length - 1; i >= 0; i--) {
+      // biome-ignore lint/style/noNonNullAssertion: `_children` only uses `swap_delete`, so it has no holes
+      const child = ch[i]!.child
+      if (child._visit === mark) continue
+      if (child._children.real_size === 0) {
+        child._visit = mark
+        post_order.push(child)
+      } else collect_post_order(child, mark)
     }
+    post_order.push(obs)
   }
 
   /** @internal */
   export class Queue extends IndexableArray<ReadonlyObservable<any>> {
     transaction_count = 0
     flushing = false
+    /** The observable whose observers `flush` is calling, see {@link ReadonlyObservable.removeObserver}. */
+    notifying: ReadonlyObservable<any> | null = null
 
+    /**
+     * Queue `obs` and every observable that depends on it, directly or not, so that each one comes after all
+     * the observables it depends on. An observable that is already queued moves to the end, after its new
+     * dependencies.
+     *
+     * While the walk meets observables with at most one dependent, it is a plain chain: they are queued in
+     * walk order. From the first one with several dependents, the order is the reverse post-order of a
+     * depth-first walk that visits each observable once, so the cost stays O(observables + links) even when
+     * dependencies share a source (`b` and `c` derive from `a`, `d` combines `b` and `c`).
+     */
     schedule(obs: ReadonlyObservable<any>) {
       const was_empty = this.real_size === 0
       if (obs.idx == null) {
         // No need to reschedule an observable
-        each_recursive(obs, (ob) => {
-          this.add(ob)
-        })
+        let node = obs
+        let children = node._children
+        while (children.real_size < 2) {
+          this.add(node)
+          if (children.real_size === 0) break
+          // biome-ignore lint/style/noNonNullAssertion: `_children` only uses `swap_delete`, so it has no holes
+          node = children.arr[0]!.child
+          children = node._children
+        }
+        if (children.real_size > 1) {
+          collect_post_order(node, ++visit_mark)
+          for (let i = post_order.length - 1; i >= 0; i--) this.add(post_order[i])
+          post_order.length = 0
+        }
       }
 
       if (this.transaction_count === 0 && was_empty && this.real_size > 0) {
@@ -642,10 +732,7 @@ export namespace o {
       }
     }
 
-    unschedule(obs: Observable<any>) {
-      each_recursive(obs, (ob) => this.delete(ob))
-    }
-
+    /** `fn` must not throw, see {@link o.transaction}. */
     transaction(fn: () => void) {
       this.transaction_count++
       fn()
@@ -669,16 +756,21 @@ export namespace o {
           obs.ensureRefreshed()
           obs.idx = null
 
+          this.notifying = obs
           for (let i = 0, oa = obs._observers.arr; i < oa.length; i++) {
             const or = oa[i]
             if (or == null) continue
             or.refresh()
           }
+          this.notifying = null
 
           obs._observers.actualize()
         } catch (e) {
           console.error(e)
-          continue
+          this.notifying = null
+          // The queue is emptied below: an index left on `obs` would point into it, and a later `queue.delete(obs)`
+          // (when `obs` gets unwatched) would make `real_size` negative, so that no flush would ever run again.
+          obs.idx = null
         }
 
         arr[i] = null // just in case...
@@ -699,6 +791,9 @@ export namespace o {
    *
    * Use it when you know you will modify two or more observables that trigger the same transforms
    * to avoid calling the observers each time one of the observable is modified.
+   *
+   * `fn` must be small, synchronous, and must never throw: a throw leaves the transaction open and
+   * no observer runs again. Compute anything that can fail before calling `o.transaction`.
    *
    * ```tsx
    * o.transaction(() => {
@@ -775,18 +870,13 @@ export namespace o {
   // Mark all observables with a known symbol
   Observable.prototype[sym_is_observable] = true
 
-  export class ReadonlyCombinedObservable<A extends any[], T = A> extends ReadonlyObservable<T> {}
-
   /**
    * An observable that does not its own value, but that depends
    * from outside getters and setters. The {@link o.combine} helper makes creating them easier.
    *
    * @internal
    */
-  export class CombinedObservable<A extends any[], T = A>
-    extends Observable<T>
-    implements ReadonlyCombinedObservable<A, T>
-  {
+  export class CombinedObservable<A extends any[], T = A> extends Observable<T> {
     /** @internal */
     _links = [] as ChildObservableLink[]
 
@@ -819,20 +909,6 @@ export namespace o {
         const link = l[i]
         link.parent.removeChild(link)
       }
-    }
-
-    /**
-     * Brutally disconnect this combined observable from its parents.
-     *
-     * Once this has been called, this observable will no longer be able to refresh its value.
-     *
-     * It is generally called by verbs such as Repeat and RepeatVirtual, to ensure that when their observed list shrinks, then observables watching for out of bound indices may not crash the program.
-     *
-     * If this observable is still being (erroneously) watched from somewhere else, a warning is printed in the console.
-     */
-    disconnect() {
-      this.unwatched()
-      this._links = []
     }
 
     override ensureRefreshed(): void {
@@ -926,14 +1002,6 @@ export namespace o {
     return path
   }
 
-  function sameProxyPath(a: ReadonlyObservable<unknown>[], b: ReadonlyObservable<unknown>[]): boolean {
-    if (a.length !== b.length) return false
-    for (let i = 0; i < a.length; i++) {
-      if (a[i] !== b[i]) return false
-    }
-    return true
-  }
-
   /** Non-empty dependency path for {@link ProxyObservable}. */
   type ProxyPath = [ReadonlyObservable<unknown>, ...ReadonlyObservable<unknown>[]]
 
@@ -961,22 +1029,30 @@ export namespace o {
       this._path = newPath
       this.dependsOn(asProxyPath(newPath))
       if (watched) {
+        // `watched` refreshes the value: the new links start without parent values.
         this.watched()
-        this.refreshValue()
         if (schedule) {
           queue.schedule(this)
         }
       }
     }
 
-    /** Re-resolve from path[0] when a link now points at a different observable. */
+    /**
+     * Re-resolve from path[0] when a link now points at a different observable. The walk compares in place, so
+     * that the common case (nothing changed) allocates nothing.
+     */
     private ensurePathSynced() {
-      const root = this._links[0]?.parent as ReadonlyObservable<unknown> | undefined
-      if (root == null) return
-      const newPath = resolveProxyPath(root)
-      if (!sameProxyPath(newPath, this._path)) {
-        this.relink(newPath, false)
+      const path = this._path
+      const root = path[0]
+      let i = 1
+      let v = root.get()
+      while (o.is_observable(v)) {
+        if (path[i] !== v) break
+        i++
+        v = v.get()
       }
+      // Changed when a link differs, or when the chain is shorter or longer than the current path.
+      if (o.is_observable(v) || i !== path.length) this.relink(resolveProxyPath(root), false)
     }
 
     override ensureRefreshed(): void {
@@ -992,10 +1068,9 @@ export namespace o {
     override setter(nval: T, _oval: T | NoValue, _last: ProxyPath): ProxySetterResult {
       const noop = this._path.map(() => o.NoValue) as unknown as ProxySetterResult
       if ((nval as any) === o.NoValue) return noop
-      const terminal = this._path[this._path.length - 1]
-      if (terminal instanceof Observable) {
-        terminal.set(nval as any)
-      }
+      // A read-only terminal throws from its own `set`.
+      const terminal = this._path[this._path.length - 1] as Observable<unknown>
+      terminal.set(nval)
       return noop
     }
 
@@ -1024,7 +1099,7 @@ export namespace o {
    * Start from `root` (the argument, or a new root after {@link changeTarget}). Walk
    * `root.get()`, and while the result is itself an observable, keep going. The
    * **terminal** observable is the last one in that walk; this proxy's `.get()`,
-   * `.set()` (if the terminal is writable), and observers all use the terminal.
+   * `.set()` and observers all use the terminal. `.set()` throws when the terminal is read-only.
    *
    * The root may be any observable, including a derived one (e.g. `.p("field")` when
    * that field holds an observable).
@@ -1180,9 +1255,9 @@ export namespace o {
     // It tolerates ?. chaining, but will create simple objects for non-existent paths.
     let setter: (obj: T, newv: any) => T
     let getter: (obj: T) => any
-    let last_prop: any = null
+    let last_prop: any = NoValue
 
-    function make_getter_from_path(path: string[]) {
+    function make_getter_from_path(path: readonly PropertyKey[]) {
       return (obj: T) => {
         let a: any = obj
         for (const key of path) {
@@ -1243,18 +1318,35 @@ export namespace o {
       }
     }
 
-    function make_function_assigner() {
-      const body = last_prop.toString() as string
-      const brk = /\??\.(?<name>[^.[?]+)|\??\["(?<name>(\\"|[^"])+)"|\??\['(?<name>(\\'|[^'])+)']\]/g
-      // biome-ignore lint/style/noNonNullAssertion: `brk` has named groups, so `groups` is always set
-      const path = [...body.matchAll(brk).map((match) => match.groups!.name)]
-      return make_setter_from_path(path)
+    /**
+     * Build the write path from the getter's source: `.name`, `?.name`, `[0]`, `?.[0]`, `["key"]` and `['key']`.
+     * Since this is a guess from the source text, every write first checks that the path reads the same
+     * value as the getter itself, and throws instead of writing somewhere else.
+     */
+    function make_function_assigner(fn: (obj: T) => any) {
+      const body = fn.toString()
+      const brk =
+        /\??\.\s*(?<name>[\w$]+)|\??\.?\[\s*(?<index>\d+)\s*\]|\??\.?\[\s*(?<quote>["'])(?<key>(?:\\.|(?!\k<quote>).)*)\k<quote>\s*\]/g
+      const path = [
+        // biome-ignore lint/style/noNonNullAssertion: `brk` has named groups, so `groups` is always set
+        ...body.matchAll(brk).map(({ groups: g }) => (g!.index != null ? Number(g!.index) : (g!.name ?? g!.key)!)),
+      ]
+      const read_path = make_getter_from_path(path)
+      const write_path = make_setter_from_path(path)
+      return (obj: T, newv: any) => {
+        if (!Object.is(read_path(obj), fn(obj))) {
+          throw new Error(
+            `o.prop: cannot write through \`${body}\`, its guessed path [${path.join(", ")}] does not read the same value; give a path array instead`,
+          )
+        }
+        return write_path(obj, newv)
+      }
     }
 
     function eval_prop(prop: any) {
       last_prop = prop
       if (typeof prop === "function") {
-        setter = make_function_assigner()
+        setter = make_function_assigner(prop)
         getter = prop
       } else if (Array.isArray(prop)) {
         setter = make_setter_from_path(prop)
@@ -1265,15 +1357,9 @@ export namespace o {
       }
     }
 
-    if (!o.is_observable(prop)) {
-      eval_prop(prop)
-      return combine(
-        [obj] as const,
-        ([obj]) => getter(obj),
-        (nval, _, [orig]) => [setter(orig, nval), NoValue, NoValue] as any,
-      )
-    }
-
+    // `prop` and `def` may be plain values or observables: both are dependencies, so one path handles all cases.
+    // A plain `prop` is parsed now, so a write before any read already has its setter.
+    if (!o.is_observable(prop)) eval_prop(prop)
     return combine(
       [obj, prop, def] as const,
       ([obj, prop, def]: [T, any, any]) => {
@@ -1302,9 +1388,17 @@ export namespace o {
       if (prevreject) prevreject(new Error("Promise changed, cancelling"))
       return new Promise((accept, reject) => {
         prevreject = reject
-        if (Array.isArray(newpro)) Promise.all(newpro).then((val) => accept(tffn(val)))
-        else if (newpro && typeof newpro.then === "function") newpro.then((val: any) => accept(tffn(val)))
-        else setTimeout(() => accept(tffn(newpro)), 0)
+        // A rejection of the source, or a throw in `tffn`, rejects the returned promise.
+        const run = (val: any) => {
+          try {
+            accept(tffn(val))
+          } catch (e) {
+            reject(e)
+          }
+        }
+        if (Array.isArray(newpro)) Promise.all(newpro).then(run, reject)
+        else if (newpro && typeof newpro.then === "function") newpro.then(run, reject)
+        else setTimeout(() => run(newpro), 0)
       })
     })
   }
@@ -1333,9 +1427,7 @@ export namespace o {
    */
   export function tf<A, B>(arg: RO<A>, fn: Converter<A, B> | TransfomFn<A, B>): RO<B> {
     if (o.is_observable(arg)) {
-      if (typeof fn === "function") {
-        return (arg as ReadonlyObservable<A>).tf(fn)
-      } else return (arg as ReadonlyObservable<A>).tf(fn)
+      return (arg as ReadonlyObservable<A>).tf(fn)
     } else {
       if (typeof fn === "function") return fn(arg as A, NoValue, NoValue)
       else return fn.transform(arg as A, NoValue, NoValue)
@@ -1343,24 +1435,16 @@ export namespace o {
   }
 
   /**
-   * Same as o.none
-   * @param args
-   * @returns
+   * Return true only if no argument is truthy. Same as {@link o.none}.
    */
   export function not(...args: any[]): ReadonlyObservable<boolean> {
-    return combine(args, (args) => {
-      return args.every((a) => !!a === false)
-    })
+    return combine(args, (args) => args.every((a) => !a))
   }
 
   /**
-   * Return true only if no argument are true
-   * @param args
-   * @returns
+   * Return true only if no argument is truthy. Same as {@link o.not}.
    */
-  export function none(...args: any[]): ReadonlyObservable<boolean> {
-    return not(...args)
-  }
+  export const none = not
 
   /**
    * Combine several MaybeObservables into an Observable<boolean>
@@ -1442,6 +1526,10 @@ export namespace o {
    * - `updated`: a function that returns the value of the observable if it has changed or NoValue if this is the first time the observable was triggered or if its value has not changed since the previous invocation of `expression`.
    * - `prev`: the last value returned by `expression`, or NoValue if this was the first time.
    *
+   * The previous values are kept only when `fn` declares the parameter that needs them (`fn.length`): `old` and
+   * `updated` need at least 2 declared parameters, `prev` needs 4. A rest parameter or a parameter with a default
+   * value is not counted in `fn.length`, so the arguments after it stay NoValue.
+   *
    * To make the resultant observable writable, you can provide a `fn_revert` function that will be called when set with the following arguments:
    *
    * - `value`: the value that is being set
@@ -1458,7 +1546,7 @@ export namespace o {
    * })
    *
    * const oo_only_interesting_if_changes = ...
-   * const obs = o.expression((_get, _old, updated) => {
+   * const obs = o.expression((_get, _old, updated, prev) => {
    *   const val = updated(oo_only_interesting_if_changes)
    *   if (val !== NoValue) {
    *     // Use val
@@ -1502,8 +1590,9 @@ export namespace o {
     }
 
     function _updated(m: o.RO<any>) {
+      // A plain value never changes
       if (!o.is_observable(m)) {
-        return false
+        return NoValue
       }
       const val = _get(m)
       const oval = _old(m)
@@ -1533,7 +1622,8 @@ export namespace o {
         old = cmb._parents_values.slice()
       }
 
-      if (fn.length > 2) {
+      // `prev` is the 4th parameter
+      if (fn.length > 3) {
         prev = res
       }
       return res
@@ -1614,22 +1704,18 @@ export namespace o {
     if (mutator == null || typeof mutator !== "object" || Object.getPrototypeOf(mutator) !== Object.prototype)
       return mutator as any
 
-    if (typeof mutator === "object") {
-      const clone: A = o.clone(value) || ({} as A) // shallow clone
-      let changed = false
+    const clone: A = o.clone(value) || ({} as A) // shallow clone
+    let changed = false
 
-      for (const name in mutator) {
-        const old_value = clone[name]
-        const new_value = assign(clone[name], mutator[name] as any)
-        changed = changed || old_value !== new_value
-        clone[name] = new_value
-      }
-
-      if (!changed) return value
-      return clone
-    } else {
-      return value
+    for (const name in mutator) {
+      const old_value = clone[name]
+      const new_value = assign(clone[name], mutator[name] as any)
+      changed = changed || old_value !== new_value
+      clone[name] = new_value
     }
+
+    if (!changed) return value
+    return clone
   }
 
   export namespace assign {
@@ -1643,6 +1729,21 @@ export namespace o {
         : T[P] extends object
           ? T[P] | AssignPartial<T[P]>
           : T[P]
+    }
+  }
+
+  /**
+   * Method decorator that wraps the method with `wrap`, once per instance: each instance gets its own
+   * wrapped function (and so its own timer), built on its first call and stored under a private symbol.
+   */
+  function per_instance(wrap: (original: (...a: any[]) => any) => (...a: any[]) => any) {
+    return (_target: any, _key: string, desc: PropertyDescriptor) => {
+      const original = desc.value
+      const sym = Symbol()
+      desc.value = function (this: any, ...args: any[]) {
+        this[sym] ??= wrap(original)
+        return this[sym].apply(this, args)
+      }
     }
   }
 
@@ -1674,10 +1775,7 @@ export namespace o {
     if (typeof fn === "number") {
       leading = ms
       ms = fn
-      return (_target: any, _key: string, desc: PropertyDescriptor) => {
-        const original = desc.value
-        desc.value = debounce(original, ms, leading)
-      }
+      return per_instance((original) => debounce(original, ms, leading))
     }
 
     return function (this: any, ...args: any[]) {
@@ -1702,14 +1800,16 @@ export namespace o {
   }
 
   /**
-   * Create a throttled function that will only call the wrapped function at most every `ms` milliseconds.
+   * Create a throttled function that calls the wrapped function at most once every `ms` milliseconds.
+   * A call that comes less than `ms` milliseconds after the last trigger is delayed until `ms` milliseconds
+   * have passed, with the arguments of the last call. A call that comes later triggers immediately.
    *
-   * If `leading` is true, then the first time this function is called it will
-   * call `fn` immediately.
-   *
-   * If `leading` is a number, then the first time it is called it will wait `leading` milliseconds before triggering the function, and then activate every `ms` milliseconds. If it is not called within `ms` milliseconds after that, it will reset to waiting `leading` milliseconds again.
-   *
-   * Otherwise, it will wait `ms` milliseconds before triggering each time.
+   * `leading` only changes how the very first call is handled:
+   * - `true`: it triggers immediately.
+   * - `false` (the default): it starts the timer, and the function triggers `ms` milliseconds later.
+   * - a number: it waits `leading` milliseconds before triggering the function, and then activates every `ms`
+   *   milliseconds. If it is not called within `ms` milliseconds after that, it resets to waiting `leading`
+   *   milliseconds again.
    *
    * Also works as an es7 decorator.
    *
@@ -1729,10 +1829,7 @@ export namespace o {
     if (typeof fn === "number") {
       leading = ms
       ms = fn
-      return (_target: any, _key: string, desc: PropertyDescriptor) => {
-        const original = desc.value
-        desc.value = throttle(original, ms, leading)
-      }
+      return per_instance((original) => throttle(original, ms, leading))
     }
 
     let timer: number | null
@@ -1868,14 +1965,18 @@ export namespace o {
         // since right now we can't cancel that
         if (old === o.NoValue || old.pro !== pro) {
           // Changing promise, so we have to get its .then
-          pro.then((pres) => {
-            if (last_promise !== pro) return // ignore if this is not our promise anymore
-            o_result.set({ resolving: false, value: pres, resolved: "value" })
-          })
-          pro.catch((perr) => {
-            if (last_promise !== pro) return // ignore if this is not our promise anymore
-            o_result.set({ resolving: false, error: perr, resolved: "error" })
-          })
+          // One `.then` with both handlers: a separate `.catch` would leave the promise returned by `.then` rejected
+          // with no handler, which reports an unhandled rejection.
+          pro.then(
+            (pres) => {
+              if (last_promise !== pro) return // ignore if this is not our promise anymore
+              o_result.set({ resolving: false, value: pres, resolved: "value" })
+            },
+            (perr) => {
+              if (last_promise !== pro) return // ignore if this is not our promise anymore
+              o_result.set({ resolving: false, error: perr, resolved: "error" })
+            },
+          )
           return { ...res, resolving: true }
         }
         return res
@@ -1926,12 +2027,12 @@ export namespace o {
    * @group Observable
    */
   export function exclusive_lock() {
-    const o_locked = o(false)
-    exclusive_lock.o_locked = o_locked
+    // A plain flag: nothing observes it, and this runs on every DOM event of `$bind`, verbs and the router.
+    let locked = false
     function exclusive_lock(fn: () => any) {
-      if (o_locked.get()) return
+      if (locked) return
 
-      o_locked.set(true)
+      locked = true
       let r: any
       try {
         r = fn()
@@ -1948,7 +2049,7 @@ export namespace o {
     }
 
     function unlock() {
-      o_locked.set(false)
+      locked = false
     }
 
     return exclusive_lock
@@ -1963,6 +2064,17 @@ export namespace o {
    *
    * @group Observable
    */
+  const noop = () => {}
+
+  const holder_owner: ObserverOwner<ObserverHolder> = {
+    add: (holder, observer) => holder.addObserver(observer),
+    when_observing(holder, call) {
+      if (holder.is_observing) return call()
+      holder._callback_queue ??= []
+      holder._callback_queue.push(call)
+    },
+  }
+
   export class ObserverHolder {
     /** @internal */
     _observers: o.Observer<any>[] = []
@@ -2009,20 +2121,7 @@ export namespace o {
      * Does pretty much what {@link $observe} does.
      */
     observe<A>(obs: RO<A>, fn?: ObserverCallback<A>, options?: ObserveOptions<A>): Observer<A> | null {
-      fn ??= () => {}
-      if (!o.is_observable(obs)) {
-        if (this.is_observing) fn(obs as A, NoValue)
-        else {
-          this._callback_queue ??= []
-          this._callback_queue.push(() => fn(obs as A, NoValue))
-        }
-        return null
-      }
-
-      const observer = options?.changes_only ? new SilentObserver(fn, o(obs)) : new Observer(fn, o(obs))
-      options?.observer_callback?.(observer)
-      if (options?.immediate) observer.refreshImmediate()
-      return this.addObserver(observer)
+      return make_observer(holder_owner, this, obs, fn ?? noop, options)
     }
 
     observeChanges<A>(obs: RO<A>, fn: ObserverCallback<A>, options?: ObserveOptions<A>): Observer<A> | null {

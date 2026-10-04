@@ -5,6 +5,8 @@
 // nested `:has()` through `:is()` — the old tests/setup.ts happy-dom shim needed workarounds for
 // all of these and has since been removed.
 import * as Elt from "elt"
+// Adds `.mutate()` to observables
+import "elt/mutative"
 import * as Editor from "elt/editor"
 import * as UI from "elt/ui"
 

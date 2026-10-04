@@ -163,9 +163,10 @@ test.describe("Observable extended", () => {
         }
         // decorator syntax can't be serialized into page.evaluate, so apply the decorator by hand
         o.debounce(20, true)(null, "method", desc)
-        desc.value()
+        const self = {}
+        desc.value.call(self)
         const after_first_call = calls
-        desc.value()
+        desc.value.call(self)
         const after_second_call = calls
         await new Promise((r) => setTimeout(r, 40))
         return { after_first_call, after_second_call, after_wait: calls }
@@ -239,9 +240,153 @@ test.describe("Observable extended", () => {
       })
       for (const r of results) expect(r.actual, r.name).toBe(r.expected)
     })
+
+    test("o.then() rejects when the source rejects or the function throws, with no unhandled rejection (regression: it never settled)", async ({
+      page,
+    }) => {
+      const result = await page.evaluate(async () => {
+        const { o } = window.__ELT__
+        const unhandled: unknown[] = []
+        const on_unhandled = (e: PromiseRejectionEvent) => unhandled.push(String(e.reason))
+        window.addEventListener("unhandledrejection", on_unhandled)
+        const settle = (p: Promise<unknown>) =>
+          Promise.race([
+            p.then(
+              (v) => `value ${v}`,
+              (e) => `error ${e.message}`,
+            ),
+            new Promise((r) => setTimeout(() => r("pending"), 50)),
+          ])
+        const from_source = await settle(o.then(o(Promise.reject(new Error("E1"))), (n: number) => n).get())
+        const from_fn = await settle(
+          o
+            .then(o(Promise.resolve(1)), () => {
+              throw new Error("E2")
+            })
+            .get(),
+        )
+        await new Promise((r) => setTimeout(r, 20))
+        window.removeEventListener("unhandledrejection", on_unhandled)
+        return { from_source, from_fn, unhandled }
+      })
+      expect(result).toEqual({ from_source: "error E1", from_fn: "error E2", unhandled: [] })
+    })
+
+    test("o.prop() applies def with a plain key, as with an observable key (regression: def was ignored)", async ({
+      page,
+    }) => {
+      const result = await page.evaluate(() => {
+        const { o } = window.__ELT__
+        const obj = o<{ a?: number }>({ a: undefined })
+        return [o.prop(obj, "a", () => 42).get(), o.prop(obj, o("a" as const), () => 42).get()]
+      })
+      expect(result).toEqual([42, 42])
+    })
+
+    test(".p(fn) writes through index access, and throws when it cannot guess the path (regression: it wrote to the wrong place)", async ({
+      page,
+    }) => {
+      const result = await page.evaluate(() => {
+        const { o } = window.__ELT__
+        const obj = o({ items: [{ name: "x" }], a: { b: 1 } })
+        obj.p((v) => v.items[0].name).set("y")
+        // biome-ignore lint/complexity/useArrowFunction: the `function` form is the shape under test
+        const getter = function (v: { a: { b: number } }) {
+          return v.a.b
+        }
+        obj.p(getter).set(2)
+        let error = ""
+        try {
+          obj.p((v) => v.a.b + 1).set(10)
+        } catch (e) {
+          error = (e as Error).message.startsWith("o.prop: cannot write through") ? "thrown" : (e as Error).message
+        }
+        return { value: obj.get(), error }
+      })
+      expect(result).toEqual({ value: { items: [{ name: "y" }], a: { b: 2 } }, error: "thrown" })
+    })
+  })
+
+  test("a read-only .tf(fn) throws on set, as a read-only combine does (regression: the write was silently ignored)", async ({
+    page,
+  }) => {
+    const result = await page.evaluate(() => {
+      const { o } = window.__ELT__
+      const o_n = o(1)
+      const oo_double = o_n.tf((n) => n * 2) as unknown as { set(v: number): void }
+      try {
+        oo_double.set(10)
+        return "no error"
+      } catch (e) {
+        return (e as Error).message
+      }
+    })
+    expect(result).toBe("tf: this observable is read-only, no revert function was given")
+  })
+
+  test.describe("mutate()", () => {
+    test("edits a draft, replaces the value with a returned one, and writes nothing on o.NoValue", async ({ page }) => {
+      const result = await page.evaluate(() => {
+        const { o } = window.__ELT__
+        const o_user = o({ tags: ["a"] })
+        let calls = 0
+        o_user.addObserver(() => {
+          calls++
+        })
+        o_user.mutate((draft) => {
+          draft.tags.push("b")
+        })
+        const edited = o_user.get().tags.join(",")
+        o_user.mutate(() => ({ tags: ["z"] }))
+        const replaced = o_user.get().tags.join(",")
+        o_user.mutate(() => o.NoValue)
+        return { edited, replaced, after_novalue: o_user.get().tags.join(","), calls }
+      })
+      expect(result).toEqual({ edited: "a,b", replaced: "z", after_novalue: "z", calls: 3 })
+    })
   })
 
   test.describe("o.expression() advanced", () => {
+    test("o.expression() gives prev only to a callback that declares it", async ({ page }) => {
+      const result = await page.evaluate(() => {
+        const { o } = window.__ELT__
+        const o_n = o(1)
+        const seen: { three: unknown[]; four: unknown[] } = { three: [], four: [] }
+        const three = o.expression(function (get, _old, _updated) {
+          // biome-ignore lint/complexity/noArguments: reads the 4th argument without declaring it, which is the case under test
+          const prev = arguments[3]
+          seen.three.push(prev === o.NoValue ? "none" : prev)
+          return get(o_n)
+        })
+        const four = o.expression((get, _old, _updated, prev) => {
+          seen.four.push(prev === o.NoValue ? "none" : prev)
+          return get(o_n)
+        })
+        three.addObserver(() => {})
+        four.addObserver(() => {})
+        o_n.set(2)
+        return seen
+      })
+      expect(result).toEqual({ three: ["none", "none"], four: ["none", 1] })
+    })
+
+    test("updated() of a plain value gives o.NoValue, as for an unchanged observable (regression: it gave false)", async ({
+      page,
+    }) => {
+      const result = await page.evaluate(() => {
+        const { o } = window.__ELT__
+        const o_n = o(1)
+        let plain: unknown = null
+        const ex = o.expression((get, _old, updated) => {
+          plain = updated(5)
+          return get(o_n)
+        })
+        ex.addObserver(() => {})
+        return plain === o.NoValue
+      })
+      expect(result).toBe(true)
+    })
+
     test("skips recomputation when unrelated deps change via prev", async ({ page }) => {
       const results = await page.evaluate(() => {
         const { o } = window.__ELT__
@@ -437,6 +582,119 @@ test.describe("Observable extended", () => {
   })
 
   test.describe("observer lifecycle extended", () => {
+    test("ObserverHolder.observe follows the node_observe rule for plain values (regression: changes_only still fired)", async ({
+      page,
+    }) => {
+      const result = await page.evaluate(() => {
+        const { o } = window.__ELT__
+        const calls: string[] = []
+        const holder = new o.ObserverHolder()
+        holder.observeChanges(5, () => {
+          calls.push("changes_only")
+        })
+        holder.observe(
+          6,
+          () => {
+            calls.push("immediate")
+          },
+          { immediate: true },
+        )
+        holder.observe(7, () => {
+          calls.push("deferred")
+        })
+        calls.push("start")
+        holder.startObservers()
+        return calls
+      })
+      expect(result).toEqual(["immediate", "start", "deferred"])
+    })
+
+    test("observer and child arrays stay small when observers come and go (regression: removals left holes forever)", async ({
+      page,
+    }) => {
+      const result = await page.evaluate(() => {
+        const { o } = window.__ELT__
+        const o_src = o(0)
+        o_src.addObserver(() => {})
+        const oo_derived = o_src.tf((v) => v)
+        const keep = [0, 1, 2].map(() => oo_derived.addObserver(() => {}))
+        for (let i = 0; i < 1000; i++) {
+          const ob = oo_derived.addObserver(() => {})
+          oo_derived.removeObserver(ob)
+          const oo_tmp = o_src.tf((v) => v + 1)
+          oo_tmp.removeObserver(oo_tmp.addObserver(() => {}))
+        }
+        for (const ob of keep) oo_derived.removeObserver(ob)
+        return { children: o_src._children.arr.length, observers: oo_derived._observers.arr.length }
+      })
+      expect(result.children).toBeLessThanOrEqual(8)
+      expect(result.observers).toBeLessThanOrEqual(8)
+    })
+
+    test("a chain of diamonds is scheduled in linear time, and each node sees consistent values (regression: exponential walk)", async ({
+      page,
+    }) => {
+      const result = await page.evaluate(() => {
+        const { o } = window.__ELT__
+        const o_src = o(0)
+        let top: o.ReadonlyObservable<number> = o_src
+        let runs = 0
+        for (let i = 0; i < 24; i++) {
+          // b and c both derive from top, d combines them: d must run after both
+          const b = top.tf((v) => v + 1)
+          const c = top.tf((v) => v - 1)
+          top = o.combine([b, c] as const, ([x, y]) => {
+            runs++
+            return (x + y) / 2
+          })
+        }
+        const seen: number[] = []
+        top.addObserver((v) => {
+          seen.push(v)
+        })
+        runs = 0
+        const t0 = performance.now()
+        o_src.set(5)
+        return { ms: performance.now() - t0, runs, seen }
+      })
+      // 24 layers would be 2^24 paths for a walk that does not skip visited nodes
+      expect(result.ms).toBeLessThan(50)
+      expect(result.runs).toBe(24)
+      expect(result.seen).toEqual([0, 5])
+    })
+
+    test("an observable whose computation threw once leaves the queue usable after it is unwatched (regression: its stale queue index made later flushes never run)", async ({
+      page,
+    }) => {
+      const result = await page.evaluate(() => {
+        const { o } = window.__ELT__
+        const errors: unknown[] = []
+        const console_error = console.error
+        console.error = (e: unknown) => errors.push(e)
+        try {
+          const o_src = o(1)
+          const oo_bad = o_src.tf((v) => {
+            if (v === 2) throw new Error("boom")
+            return v
+          })
+          const bad_observer = oo_bad.addObserver(() => {})
+          o_src.set(2) // the computation throws during the flush
+          oo_bad.removeObserver(bad_observer) // unwatched while its queue index is stale
+
+          const o_other = o("a")
+          const seen: string[] = []
+          o_other.addObserver((v) => {
+            seen.push(v)
+          })
+          o_other.set("b")
+          return { seen, errors: errors.length }
+        } finally {
+          console.error = console_error
+        }
+      })
+      expect(result).toEqual({ seen: ["a", "b"], errors: 1 })
+    })
+
     test("removeObserver stops further notifications", async ({ page }) => {
       const results = await page.evaluate(() => {
         const { o } = window.__ELT__
@@ -524,6 +782,23 @@ test.describe("Observable extended", () => {
         return out
       })
       for (const r of results) expect(r.actual, r.name).toBe(r.expected)
+    })
+
+    test("o.wrap_promise() reports a rejection with no unhandled rejection (regression: .then and .catch were separate)", async ({
+      page,
+    }) => {
+      const result = await page.evaluate(async () => {
+        const { o } = window.__ELT__
+        const unhandled: unknown[] = []
+        const on_unhandled = (e: PromiseRejectionEvent) => unhandled.push(String(e.reason))
+        window.addEventListener("unhandledrejection", on_unhandled)
+        const wrapped = o.wrap_promise(o(Promise.reject(new Error("E1"))))
+        wrapped.addObserver(() => {})
+        await new Promise((r) => setTimeout(r, 20))
+        window.removeEventListener("unhandledrejection", on_unhandled)
+        return { resolved: wrapped.get().resolved, unhandled }
+      })
+      expect(result).toEqual({ resolved: "error", unhandled: [] })
     })
   })
 
@@ -619,6 +894,23 @@ test.describe("Observable extended", () => {
       expect(result).toEqual([1, 3])
     })
 
+    test("tf_array_group_by() writes a changed group back to the source positions", async ({ page }) => {
+      const result = await page.evaluate(() => {
+        const { o, tf_array_group_by } = window.__ELT__
+        type Item = { type: string; v: number }
+        const arr = o<Item[]>([
+          { type: "a", v: 1 },
+          { type: "b", v: 2 },
+          { type: "a", v: 3 },
+        ])
+        const grouped = arr.tf(tf_array_group_by((item: Item) => item.type))
+        grouped.addObserver(() => {})
+        grouped.set(grouped.get().map(([k, items]) => [k, items.map((it) => ({ ...it, v: it.v * 10 }))]))
+        return arr.get().map((x) => `${x.type}${x.v}`)
+      })
+      expect(result).toEqual(["a10", "b20", "a30"])
+    })
+
     test("tf_map_entries() round-trips map entries", async ({ page }) => {
       const result = await page.evaluate(() => {
         const { o, tf_map_entries } = window.__ELT__
@@ -681,6 +973,55 @@ test.describe("Observable extended", () => {
         return out
       })
       for (const r of results) expect(r.actual, r.name).toEqual(r.expected)
+    })
+
+    test("tf_array_filter() stable mode refilters everything when the condition changes (regression: it kept only the items added after the change)", async ({
+      page,
+    }) => {
+      const result = await page.evaluate(() => {
+        const { o, tf_array_filter } = window.__ELT__
+        const arr = o([1, 2, 3, 4, 5, 6])
+        const o_cond = o((n: number) => n % 2 === 0)
+        const filtered = arr.tf(tf_array_filter(o_cond, true))
+        filtered.addObserver(() => {})
+        const even = filtered.get()
+        o_cond.set((n: number) => n % 2 === 1)
+        const odd = filtered.get()
+        // stable: the kept indices stay, only the new items are checked; a shrink drops the indices past the end
+        arr.set([1, 20, 3, 4, 5, 6, 7, 8])
+        const grown = filtered.get()
+        arr.set([1, 20, 3])
+        return { even, odd, grown, shrunk: filtered.get() }
+      })
+      expect(result).toEqual({ even: [2, 4, 6], odd: [1, 3, 5], grown: [1, 3, 5, 7], shrunk: [1, 3] })
+    })
+
+    test("group writes put each item back at its source position, and append added items", async ({ page }) => {
+      const result = await page.evaluate(() => {
+        const { o, tf_group_by_to_object, tf_group_by_to_map, tf_array_group_by } = window.__ELT__
+        type Item = { k: string; v: number }
+        const make = () =>
+          o<Item[]>([
+            { k: "a", v: 1 },
+            { k: "b", v: 2 },
+            { k: "a", v: 3 },
+          ])
+        const to_object = make()
+        const obj = to_object.tf(tf_group_by_to_object<Item>("k"))
+        obj.addObserver(() => {})
+        obj.set({ ...obj.get(), a: [...obj.get().a, { k: "a", v: 4 }] })
+        const to_map = make()
+        const map = to_map.tf(tf_group_by_to_map((it: Item) => it.k))
+        map.addObserver(() => {})
+        map.set(new Map([...map.get()].map(([k, items]) => [k, items.map((it) => ({ ...it, v: it.v * 10 }))])))
+        const to_array = make()
+        const groups = to_array.tf(tf_array_group_by((it: Item) => it.k))
+        groups.addObserver(() => {})
+        groups.set(groups.get().map(([k, items]) => [k, k === "b" ? [...items, { k: "b", v: 5 }] : items]))
+        const vs = (o_list: typeof to_object) => o_list.get().map((it) => it.v)
+        return { object: vs(to_object), map: vs(to_map), array: vs(to_array) }
+      })
+      expect(result).toEqual({ object: [1, 2, 3, 4], map: [10, 20, 30], array: [1, 2, 3, 5] })
     })
 
     test("tf_array_has() adding values via true revert", async ({ page }) => {
@@ -746,6 +1087,37 @@ test.describe("Observable extended", () => {
       })
       for (const r of results) expect(r.actual, r.name).toBe(r.expected)
     })
+
+    test("o.debounce() and o.throttle() decorators keep one timer per instance (regression: all instances shared one timer)", async ({
+      page,
+    }) => {
+      const result = await page.evaluate(async () => {
+        const { o } = window.__ELT__
+        const hits: string[] = []
+        // decorator syntax can't be serialized into page.evaluate, so apply the decorators by hand
+        const deb: PropertyDescriptor = {
+          value(this: { name: string }) {
+            hits.push(`deb ${this.name}`)
+          },
+        }
+        const thr: PropertyDescriptor = {
+          value(this: { name: string }) {
+            hits.push(`thr ${this.name}`)
+          },
+        }
+        o.debounce(20)(null, "deb", deb)
+        o.throttle(20)(null, "thr", thr)
+        const c1 = { name: "c1" }
+        const c2 = { name: "c2" }
+        deb.value.call(c1)
+        deb.value.call(c2)
+        thr.value.call(c1)
+        thr.value.call(c2)
+        await new Promise((r) => setTimeout(r, 50))
+        return hits.sort()
+      })
+      expect(result).toEqual(["deb c1", "deb c2", "thr c1", "thr c2"])
+    })
   })
 
   test.describe("transformer revert paths", () => {
@@ -772,34 +1144,6 @@ test.describe("Observable extended", () => {
         out.push({ name: "initial", actual: has.get(), expected: false })
         has.set(true)
         out.push({ name: "map.get(b) after revert", actual: map.get().get("b"), expected: 2 })
-        return out
-      })
-      for (const r of results) expect(r.actual, r.name).toBe(r.expected)
-    })
-  })
-
-  test.describe("CombinedObservable disconnect", () => {
-    test("disconnect stops parent dependency tracking", async ({ page }) => {
-      const results = await page.evaluate(() => {
-        const { o } = window.__ELT__
-        const out: { name: string; actual: unknown; expected: unknown }[] = []
-
-        function spy<T>(obs: o.ReadonlyObservable<T>, immediate = false) {
-          let count = 0
-          obs.addObserver((_v, old) => {
-            if (old !== o.NoValue || immediate) count++
-          })
-          return { count: () => count }
-        }
-
-        const a = o(1)
-        const combined = o.combine([a], ([x]) => x * 2) as o.CombinedObservable<any>
-        const s = spy(combined)
-
-        combined.disconnect()
-        a.set(5)
-        out.push({ name: "spy count", actual: s.count(), expected: 0 })
-        out.push({ name: "combined value", actual: combined.get(), expected: 2 })
         return out
       })
       for (const r of results) expect(r.actual, r.name).toBe(r.expected)

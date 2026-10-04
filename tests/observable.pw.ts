@@ -1020,6 +1020,27 @@ test.describe("Transactions", () => {
 test.describe("ProxyObservable", () => {
   // Wraps `hold` (o.Observable constructor bypassing o()'s "return same ref" dedup) and
   // every test as a self-contained page.evaluate; no state shared across tests here.
+  test("set() through a proxy writes to a writable terminal and throws on a read-only one", async ({ page }) => {
+    const result = await page.evaluate(() => {
+      const { o } = window.__ELT__
+      const a = o(5)
+      const writable = o.proxy(a)
+      writable.set(6)
+      const readonly = o.proxy(o.combine([a], ([v]) => v * 2))
+      readonly.addObserver(() => {})
+      let error = ""
+      try {
+        // the type already forbids it: force the write to check the runtime error
+        ;(readonly as unknown as { set(v: number): void }).set(1)
+      } catch (e) {
+        error = (e as Error).message
+      }
+      return { a: a.get(), error }
+    })
+    expect(result.a).toBe(6)
+    expect(result.error).not.toBe("")
+  })
+
   test("o.proxy() creates changeable proxy", async ({ page }) => {
     const results = await page.evaluate(() => {
       const { o } = window.__ELT__

@@ -21,6 +21,12 @@ export function tf_equals<T>(value: T): o.Converter<T, boolean> {
 }
 
 /**
+ * A function that picks indices in `array`. It also gets the previous array and the indices it returned for it,
+ * or `o.NoValue` and `[]` on its first call.
+ */
+export type IndexFn<T> = (array: T[], old_array: T[] | o.NoValue, old_indices: number[]) => number[]
+
+/**
  * Transform an observable of array into another array based on either
  * an array of numbers (which are indices) or a function that takes the
  * array and returns indices.
@@ -29,16 +35,19 @@ export function tf_equals<T>(value: T): o.Converter<T, boolean> {
  *
  * The resulting observable can have set() called on it.
  *
- * This is the basis of {@link tf.filter} and {@link tf.array_sort}
+ * This is the basis of {@link tf_array_filter} and {@link tf_array_sort}
  * @group Transformer
  */
-export function tf_array_transform<T>(fn: o.RO<number[] | ((array: T[]) => number[])>): o.RO<IndexConverter<T>> {
+export function tf_array_transform<T>(fn: o.RO<number[] | IndexFn<T>>): o.RO<IndexConverter<T>> {
   return o.tf(fn, (fn) => {
+    // A new `fn` gets a new converter: its first call sees no previous array, even though `tf` remembers one.
+    let has_run = false
     const res: IndexConverter<T> = {
       indices: [] as number[],
-      transform(list: T[]) {
+      transform(list: T[], old_list: T[] | o.NoValue) {
         if (Array.isArray(fn)) this.indices = fn
-        else this.indices = fn(list)
+        else this.indices = fn(list, has_run ? old_list : o.NoValue, this.indices)
+        has_run = true
         return this.indices.map((i) => list[i])
       },
       revert(newval, _, current) {
@@ -65,43 +74,33 @@ export function tf_array_filter<T>(
   condition: o.RO<(item: T, idx: number, lst: T[]) => any>,
   stable: o.RO<boolean> = false,
 ): o.RO<IndexConverter<T>> {
-  return o.combine([condition, stable] as const, ([cond, stable]) => {
-    const res: IndexConverter<T> = {
-      indices: [] as number[],
-      transform(lst: T[], old_val: T[] | o.NoValue) {
-        let indices: number[] = stable && old_val !== o.NoValue ? this.indices : []
+  return tf_array_transform(
+    o.combine(
+      [condition, stable] as const,
+      ([cond, stable]): IndexFn<T> =>
+        (lst, old_lst, old_indices) => {
+          const keep = stable && old_lst !== o.NoValue
+          // A stable filter keeps its indices, and only checks the items added at the end of the array.
+          let indices: number[] = keep ? old_indices.slice() : []
+          const start = keep ? old_lst.length : 0
 
-        // If the filter is stable, then start adding values at the end if the array changed length
-        const start = stable && old_val !== o.NoValue ? old_val.length : 0
+          // this will only run if the old length is smaller than the new length.
+          for (let i = start, l = lst.length; i < l; i++) {
+            if (cond(lst[i], i, lst)) indices.push(i)
+          }
 
-        // this will only run if the old length is smaller than the new length.
-        let i = 0,
-          l = 0
-        for (i = start, l = lst.length; i < l; i++) {
-          if (cond(lst[i], i, lst)) indices.push(i)
-        }
+          // if the array lost elements, then we have to remove those indices that are no longer relevant.
+          // fortunately, the indices are sorted and we just have to go back from the end.
+          if (start > lst.length) {
+            let i = indices.length - 1
+            while (i >= 0 && indices[i] >= lst.length) i--
+            indices = indices.slice(0, i + 1)
+          }
 
-        // if the array lost elements, then we have to remove those indices that are no longer relevant.
-        // fortunately, this.indices is sorted and we just have to go back from the beginning.
-        if (start > lst.length) {
-          // eslint-disable-next-line no-empty
-          for (i = indices.length - 1; indices[i] >= lst.length && i >= 0; i--) {}
-          indices = i < 0 ? [] : indices.slice(0, i + 1)
-        }
-
-        this.indices = indices
-        return indices.map((i) => lst[i]) as T[]
-      },
-      revert(newval, _, current) {
-        const res = current.slice()
-        for (let i = 0, idx = this.indices; i < idx.length; i++) {
-          res[idx[i]] = newval[i]
-        }
-        return res
-      },
-    }
-    return res
-  })
+          return indices
+        },
+    ),
+  )
 }
 
 /**
@@ -162,18 +161,28 @@ export function tf_array_sort_by<T>(
 }
 
 /**
+ * Write a group back into the source array `target`: item `i` goes back to the position it came from
+ * (`indices[i]`), and an item with no such position (added to the group) is appended.
+ */
+function write_back_group<T>(target: T[], items: T[], indices: number[] | undefined) {
+  for (let i = 0, l = items.length; i < l; i++) {
+    const orig_idx = indices?.[i]
+    if (orig_idx != null) target[orig_idx] = items[i]
+    else target.push(items[i])
+  }
+}
+
+/**
  * Group by an extractor function.
  * @group Transformer
  */
 export function tf_array_group_by<T, R>(
   extractor: o.RO<(a: T) => R>,
-): o.RO<o.Converter<T[], [R, T[]][]> & { indices: number[][]; length: number }> {
+): o.RO<o.Converter<T[], [R, T[]][]> & { indices: number[][] }> {
   return o.tf(extractor, (extractor) => {
     return {
-      length: 0 as number,
       indices: [] as number[][],
       transform(lst: T[]) {
-        this.length = lst.length
         const m = new Map<R, number[]>()
         for (let i = 0, l = lst.length; i < l; i++) {
           const item = lst[i]
@@ -197,18 +206,12 @@ export function tf_array_group_by<T, R>(
           }
           res.push([entry[0], newl])
         }
+        this.indices = indices
         return res
       },
-      revert(nval) {
-        const res = new Array(this.length) as T[]
-        const ind = this.indices
-        for (let i = 0, li = ind.length; i < li; i++) {
-          const line = ind[i]
-          for (let j = 0, lj = line.length; j < lj; j++) {
-            const nval_line = nval[i][1]
-            res[line[j]] = nval_line[j]
-          }
-        }
+      revert(nval, _, orig) {
+        const res = orig.slice()
+        for (let i = 0, ind = this.indices, l = nval.length; i < l; i++) write_back_group(res, nval[i][1], ind[i])
         return res
       },
     }
@@ -242,7 +245,7 @@ export function tf_entries<T extends object>(): o.Converter<T, [keyof T, T[keyof
 }
 
 /**
- * Object entries, as returned by Object.keys() and returned as an array of [key, value][]
+ * Map entries, as an array of [key, value][]. Setting the array builds a new Map from it.
  * @group Transformer
  */
 export function tf_map_entries<K, V>(): o.Converter<Map<K, V>, [K, V][]> {
@@ -413,22 +416,7 @@ export function tf_group_by_to_object<T>(
       },
       revert(nval, _, orig) {
         const newarr = orig.slice()
-        const keys = Object.getOwnPropertyNames(nval) as (keyof typeof nval)[]
-        const indices = this.indices
-        for (const k of keys) {
-          const _newobjs = nval[k]
-          const _indices = indices[k]
-          for (let i = 0, l = _newobjs.length; i < l; i++) {
-            const orig_idx = _indices?.[i]
-            if (orig_idx != null) {
-              // If it corresponds to an old index, it is put back the original array
-              newarr[orig_idx] = _newobjs[i]
-            } else {
-              // If the object had no index, it still gets pushed to the original object
-              newarr.push(_newobjs[i])
-            }
-          }
-        }
+        for (const k of Object.getOwnPropertyNames(nval)) write_back_group(newarr, nval[k], this.indices[k])
         return newarr
       },
     }
@@ -488,20 +476,7 @@ export function tf_group_by_to_map<T, V>(extractor: o.RO<(v: T) => V>): o.RO<o.C
       },
       revert(nval, _, orig) {
         const newarr = orig.slice()
-        const indices = this.indices
-        for (const [key, _newobjs] of nval.entries()) {
-          const _indices = indices.get(key)
-          for (let i = 0, l = _newobjs.length; i < l; i++) {
-            const orig_idx = _indices?.[i]
-            if (orig_idx != null) {
-              // If it corresponds to an old index, it is put back the original array
-              newarr[orig_idx] = _newobjs[i]
-            } else {
-              // If the object had no index, it still gets pushed to the original object
-              newarr.push(_newobjs[i])
-            }
-          }
-        }
+        for (const [key, items] of nval) write_back_group(newarr, items, this.indices.get(key))
         return newarr
       },
     }

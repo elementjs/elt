@@ -43,40 +43,24 @@ export function memoize<This, Value>(
   descriptor?: PropertyDescriptor,
 ): any {
   if (typeof key === "symbol" || typeof key === "string") {
-    if (descriptor == null) {
-      return
-    }
-    const sym = Symbol(`memoize-${key.toString()}`)
-    const original = descriptor.get
-    if (original == null) {
-      return descriptor
-    }
-    descriptor.get = function (this: any) {
-      if (this[sym] != null) {
-        return this[sym]
-      }
-      const res = original.apply(this)
-      if (res == null) {
-        return res
-      }
-      this[sym] = res
-      return res
-    }
+    // Legacy decorator: replace the getter of the descriptor
+    const original = descriptor?.get
+    if (descriptor == null || original == null) return descriptor
+    descriptor.get = cached_getter(original, key.toString())
   } else {
-    // New-style decorator
-    const context = key
-    const sym = Symbol(`memoize-${String(context.name)}`)
+    // Standard decorator: return the replacement getter
+    return cached_getter(target, String(key.name))
+  }
+}
 
-    return function (this: This): Value {
-      if ((this as any)[sym] != null) {
-        return (this as any)[sym]
-      }
-      const res = target.call(this)
-      if (res == null) {
-        return res
-      }
-      ;(this as any)[sym] = res
-      return res
-    }
+/** A getter that computes `original` once per instance and stores the result; `null` and `undefined` are not stored. */
+function cached_getter(original: (this: any) => any, name: string) {
+  const sym = Symbol(`memoize-${name}`)
+  return function (this: any) {
+    const cached = this[sym]
+    if (cached != null) return cached
+    const res = original.call(this)
+    if (res != null) this[sym] = res
+    return res
   }
 }
