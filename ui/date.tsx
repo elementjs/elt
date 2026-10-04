@@ -5,11 +5,12 @@ import {
   calendar_month_cells,
   type WeekdayName,
   month_names,
+  normalize_step,
   resolve_locale,
   weekday_labels,
   week_start_js,
 } from "./date-format"
-import { setup_input_api, type DateInputController } from "./date-input"
+import { DateInputController } from "./date-input"
 import { Calendar, CaretLeft, CaretRight, Clock, X } from "./icons"
 import { popup } from "./popup"
 import { Select } from "./select"
@@ -21,6 +22,7 @@ const colors = theme.colors
 export interface DateTimePickerAttributesBAse extends Attrs<HTMLElement> {
   week_starts_on?: o.RO<"monday" | "tuesday" | "wednesday" | "thursday" | "friday" | "saturday" | "sunday">
 
+  /** The look of the buttons next to the text field: `"full"` filled with the tint color (the `inverted` button), `"tint"` outlined (default). */
   variant?: o.RO<"full" | "tint">
 
   /** if true, show the date selector. Default is true. */
@@ -32,10 +34,10 @@ export interface DateTimePickerAttributesBAse extends Attrs<HTMLElement> {
   /** if true, display 0-11 for hours and AM/PM instead of 0-23 */
   am_pm?: o.RO<boolean>
 
-  /** the step for the minute selector. Default is 1. */
+  /** the step for the minute selector, 1 to 30. Default is 1. */
   minute_step?: o.RO<number>
 
-  /** the step for the second selector. Default is 1. */
+  /** the step for the second selector, 1 to 30. Default is 1. */
   second_step?: o.RO<number>
 
   /** if true, show the seconds selector */
@@ -65,8 +67,8 @@ function picker_options(at: DatePickerAttrs) {
     show_time: o.tf(at.show_time, (t) => t ?? false),
     am_pm: o.tf(at.am_pm, (a) => a ?? false),
     seconds: o.tf(at.seconds, (s) => s ?? false),
-    minute_step: o.tf(at.minute_step, (s) => Math.max(1, Math.trunc(s ?? 1))),
-    second_step: o.tf(at.second_step, (s) => Math.max(1, Math.trunc(s ?? 1))),
+    minute_step: o.tf(at.minute_step, normalize_step),
+    second_step: o.tf(at.second_step, normalize_step),
   }
 }
 
@@ -76,7 +78,8 @@ export function DateTimePicker(at: DatePickerAttrs) {
   const o_locale = o("")
   let input_ctrl: DateInputController | null = null
 
-  const oo_variant = o.tf(at.variant, (v) => v ?? "tint")
+  // "full" was the name of the button variant now called "inverted" (filled with the tint color).
+  const oo_variant = o.tf(at.variant, (v) => (v === "full" ? "inverted" : "tint"))
 
   const oo_layout = o.expression((get) => {
     const locale = get(o_locale)
@@ -101,14 +104,22 @@ export function DateTimePicker(at: DatePickerAttrs) {
 
   const get_model = () => at.model.get()
 
-  const input_ctx = () => ({
+  // Getters: the text input reads the props' current values on each use.
+  const input_ctx = {
     get_layout: () => oo_layout.get(),
     set_model,
-    clearable: o.get(clearable),
+    get_base: () => get_model() ?? default_popup_date(),
+    get clearable() {
+      return o.get(clearable)
+    },
     lock,
-    minute_step: o.get(opts.minute_step),
-    second_step: o.get(opts.second_step),
-  })
+    get minute_step() {
+      return o.get(opts.minute_step)
+    },
+    get second_step() {
+      return o.get(opts.second_step)
+    },
+  }
 
   const open_calendar = async (anchor: HTMLElement) => {
     const locale = o_locale.get()
@@ -149,7 +160,7 @@ export function DateTimePicker(at: DatePickerAttrs) {
             </button>
             <Select model={o_month} options={[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]} label_fn={(i) => months[i]} />
           </e-flex>
-          <e-grid class={cls_grid}>
+          <e-grid columns={7} spacing="nudge-2" class={cls_grid}>
             {weekday_labels(locale, week_start).map((label) => (
               <span class={cls_dow}>{label}</span>
             ))}
@@ -190,7 +201,7 @@ export function DateTimePicker(at: DatePickerAttrs) {
       })}
       <input type="text" autocomplete="off" spellcheck={false} class={cls_date_input}>
         {(input: HTMLInputElement) => {
-          const ctrl = setup_input_api(input, input_ctx())
+          const ctrl = new DateInputController(input, input_ctx)
           input_ctrl = ctrl
           lock(() => ctrl.apply_model(at.model.get()))
         }}
@@ -274,9 +285,6 @@ const cls_year = css`.date-year {
 }`
 
 const cls_grid = css`.date-grid {
-  display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  gap: 2px;
   text-align: center;
   font-size: ${theme.settings.formFontSize};
 }`
@@ -298,14 +306,14 @@ const cls_day = css`.date-day {
   }
   /* Selected: a tint surface jump (+3), one level further when hovered (docs/md/ui-theme.md, Emphasis). */
   &.selected {
-    background: ${colors.tint.surface("n+3")};
+    background: ${colors.tint.selected};
   }
   @media (hover: hover) and (pointer: fine) {
     &:hover {
       background: ${colors.tint.hover};
     }
     &.selected:hover {
-      background: ${colors.tint.surface("n+4")};
+      background: ${colors.tint.selected_hover};
     }
   }
 }`

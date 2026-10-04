@@ -89,19 +89,19 @@ const o_fetched = o<Promise<City[]>>(fetch_cities(""))
 | Prop | Meaning |
 | ---- | ------- |
 | `model` | `o.Observable<Date \| null>` with `clearable: true` (or an observable boolean); a model that never receives `null` with `clearable` omitted or `false` |
-| `show_date` / `show_time` | Show the date (default `true`) / time (default `false`) selectors |
+| `show_date` / `show_time` | Show the date (default `true`) / time (default `false`) selectors. With the time only, a typed time goes on the model's day, or on `date_popup_default_date`'s day while the model is empty |
 | `seconds`, `am_pm` | Seconds selector; 12-hour display |
-| `minute_step`, `second_step` | Selector steps (default 1) |
+| `minute_step`, `second_step` | Steps of the time selectors and of the arrow keys in the text field: 1 (default) to 30 |
 | `week_starts_on` | `"monday"` … `"sunday"` |
-| `variant` | `"full"` / `"tint"` |
-| `date_popup_default_date` | Date the popup opens on while the model is empty (default: now) |
+| `variant` | Buttons next to the text field: `"full"` filled with the tint color (like `e-variant="inverted"`), `"tint"` outlined (default) |
+| `date_popup_default_date` | Date the popups open on while the model is empty (default: now) |
 
 ## Other widgets
 
 | Export | Signature / use |
 | ------ | --------------- |
 | `TimePickerPanel(opts)` | Time selection panel: `{ locale, o_date, am_pm, seconds, minute_step?, second_step?, on_change }` |
-| `ScrollColumn(opts)` | One scrollable numeric column: `{ label?, min, max, loop?, step_size?, format, get_value, on_change }` |
+| `ScrollColumn(opts)` | One numeric column stepped by its buttons, the wheel or a touch drag: `{ label?, min, max, loop?, step_size?, format, value, on_change }`. `value` is an `o.RO<number>` the column shows; `on_change` receives the next value; `label` is shown above the column |
 | `$auto_grow(opts?)` | Decorator for `<textarea>`: grows with its content between `min` and `max` lines (`o.RO<number>`) |
 | `Search()` | A packed row: a text input and a search button. Takes no props. |
 | `Spinner(attrs)` | SVG loading indicator |

@@ -4,41 +4,49 @@ import {
   clamp_segment,
   date_to_values,
   is_literal_index,
+  normalize_step,
   parse_segments,
   format_unavailable,
   rebuild_from_segments,
   segment_at_caret,
   segments_complete,
   values_to_date,
+  wrap,
 } from "./date-format"
 
+/**
+ * What the input reads from its picker. The controller reads each property when it needs it, so
+ * the picker may define them as getters over its observable props (they then apply live).
+ */
 export interface DateInputControllerCtx {
   get_layout: () => DateFormatLayout | null
   set_model: (d: Date | null) => void
-  clearable: boolean
+  /** The date a time-only input puts its time on: the model, or the picker's default date when it is empty. */
+  get_base: () => Date
+  readonly clearable: boolean
   lock: (fn: () => void) => void
-  minute_step?: number
-  second_step?: number
+  readonly minute_step?: number
+  readonly second_step?: number
 }
 
-function segment_arrow_step(kind: SegmentKind, ctx: DateInputControllerCtx): number {
-  if (kind === "minute") return Math.max(1, Math.trunc(ctx.minute_step ?? 1))
-  if (kind === "second") return Math.max(1, Math.trunc(ctx.second_step ?? 1))
-  return 1
-}
-
+/** A segment's value after one arrow step (`delta` is 1 or -1): minutes and seconds go around, the others stop at their bounds. */
 function bump_segment(kind: SegmentKind, cur: number, delta: number, ctx: DateInputControllerCtx): number {
-  const step = segment_arrow_step(kind, ctx) * delta
-  if (kind === "minute" || kind === "second") {
-    return (((cur + step) % 60) + 60) % 60
-  }
-  return clamp_segment(kind, cur + step, { [kind]: cur + step })
+  if (kind === "minute") return wrap(cur + normalize_step(ctx.minute_step) * delta, 0, 59)
+  if (kind === "second") return wrap(cur + normalize_step(ctx.second_step) * delta, 0, 59)
+  return clamp_segment(kind, cur + delta, { [kind]: cur + delta })
+}
+
+/**
+ * No value at all: a blank text or the bare mask (`-` in every segment). A `-` elsewhere is not enough,
+ * since some locales separate the date parts with it (`2000-11-22` in en-CA, `22-11-2000` in nl).
+ */
+function is_empty(layout: DateFormatLayout, text: string): boolean {
+  return text.trim() === "" || text === format_unavailable(layout)
 }
 
 /** Segmented date/time text input: display, edit, validate, sync with an observable model. */
 export class DateInputController {
   #editing = false
-  #skip_input = false
 
   constructor(
     private input: HTMLInputElement,
@@ -65,13 +73,13 @@ export class DateInputController {
     if (!layout) return
     const text = this.input.value
     this.ctx.lock(() => {
-      if (this.ctx.clearable && (text.trim() === "" || text === format_unavailable(layout))) {
+      if (this.ctx.clearable && is_empty(layout, text)) {
         this.ctx.set_model(null)
         this.#refresh_validity(text)
         return
       }
       const vals = parse_segments(layout, text)
-      const d = values_to_date(layout, vals)
+      const d = values_to_date(layout, vals, this.ctx.get_base())
       if (d != null) this.ctx.set_model(d)
       this.#write_text(rebuild_from_segments(layout, vals))
     })
@@ -82,23 +90,20 @@ export class DateInputController {
     if (!layout) return
     const vals = parse_segments(layout, text)
     const complete = segments_complete(layout, vals)
-    const d = complete ? values_to_date(layout, vals) : null
-    const empty = text.trim() === "" || text.includes("-")
-    if (!complete && !(this.ctx.clearable && empty)) {
+    if (!complete && !(this.ctx.clearable && is_empty(layout, text))) {
       this.input.setCustomValidity("Incomplete date")
-    } else if (complete && d == null) {
+    } else if (complete && values_to_date(layout, vals, this.ctx.get_base()) == null) {
       this.input.setCustomValidity("Invalid date")
     } else {
       this.input.setCustomValidity("")
     }
   }
 
+  /** Setting `value` from code fires no `input` / `beforeinput` event: the listeners below don't see these writes. */
   #write_text(text: string, sel?: [number, number]) {
-    this.#skip_input = true
     this.input.value = text
     this.#refresh_validity(text)
     if (sel) this.input.setSelectionRange(sel[0], sel[1])
-    this.#skip_input = false
   }
 
   #select_segment(seg: { start: number; end: number } | null) {
@@ -203,7 +208,6 @@ export class DateInputController {
   }
 
   #on_beforeinput(ev: Event) {
-    if (this.#skip_input) return
     const layout = this.ctx.get_layout()
     if (!layout) return
     const ie = ev as InputEvent
@@ -222,13 +226,8 @@ export class DateInputController {
   }
 
   #on_input() {
-    if (this.#skip_input) return
     const text = this.#clamp_text(this.input.value)
     if (text !== this.input.value) this.#write_text(text)
     else this.#refresh_validity(text)
   }
-}
-
-export function setup_input_api(input: HTMLInputElement, ctx: DateInputControllerCtx): DateInputController {
-  return new DateInputController(input, ctx)
 }

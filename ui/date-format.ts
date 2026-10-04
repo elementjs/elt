@@ -96,7 +96,7 @@ export function build_layout(locale: string, opts: LayoutOptions): DateFormatLay
     fmt_opts.hour12 = opts.am_pm
   }
 
-  const parts = new Intl.DateTimeFormat(locale, fmt_opts).formatToParts(REF_DATE)
+  const parts = date_format(locale, fmt_opts).formatToParts(REF_DATE)
   let length = 0
   const segments: DateFormatSegment[] = []
   const literals: DateFormatLayout["literals"] = []
@@ -123,13 +123,62 @@ function pad(n: number, digits: number): string {
   return String(n).padStart(digits, "0")
 }
 
-/** Localized AM/PM (or equivalent) trimmed to the segment width from the mask. */
-function day_period_text(locale: string, am: boolean, digits: number): string {
-  const sample =
-    new Intl.DateTimeFormat(locale, { hour: "numeric", hour12: true })
+/**
+ * `Intl.DateTimeFormat` instances, one per locale and options. Building one is costly (it resolves the
+ * locale data), and the input asks for the same few formats on each key press.
+ */
+const formats = new Map<string, Intl.DateTimeFormat>()
+
+/** The shared `Intl.DateTimeFormat` for `locale` and `opts`; `opts` is keyed by its JSON, so pass literals in a stable key order. */
+function date_format(locale: string, opts: Intl.DateTimeFormatOptions): Intl.DateTimeFormat {
+  const key = `${locale}\n${JSON.stringify(opts)}`
+  let fmt = formats.get(key)
+  if (fmt == null) {
+    fmt = new Intl.DateTimeFormat(locale, opts)
+    formats.set(key, fmt)
+  }
+  return fmt
+}
+
+/** Localized AM/PM (or equivalent), e.g. "AM" / "PM" in English. */
+export function day_period_text(locale: string, am: boolean): string {
+  return (
+    date_format(locale, { hour: "numeric", hour12: true })
       .formatToParts(am ? new Date(2000, 0, 1, 9, 0) : new Date(2000, 0, 1, 21, 0))
       .find((p) => p.type === "dayPeriod")?.value ?? (am ? "AM" : "PM")
-  return sample.slice(0, digits).padEnd(digits, " ")
+  )
+}
+
+/** {@link day_period_text} trimmed or padded to the segment width from the mask. */
+function day_period_segment(locale: string, am: boolean, digits: number): string {
+  return day_period_text(locale, am).slice(0, digits).padEnd(digits, " ")
+}
+
+/**
+ * 12-hour clock to 24-hour: `h` is 1–12 (12 is midnight in the morning, noon in the afternoon).
+ * `% 12` also leaves a 0–23 hour's period part alone, so a 24-hour value gets the period given.
+ */
+export function to_24h(h: number, pm: boolean): number {
+  return (h % 12) + (pm ? 12 : 0)
+}
+
+/** 24-hour clock to 12-hour: 0 and 12 show as 12. */
+export function to_12h(h: number): number {
+  return h % 12 || 12
+}
+
+/** `v` brought back into `min`–`max` by going around, e.g. `wrap(62, 0, 59)` is 2 and `wrap(-1, 0, 59)` is 59. */
+export function wrap(v: number, min: number, max: number): number {
+  const span = max - min + 1
+  return min + ((((v - min) % span) + span) % span)
+}
+
+/**
+ * A minute or second step as given by the user: a whole number from 1 to 30. Above 30 a column of
+ * 0–59 would hold fewer than two values.
+ */
+export function normalize_step(step: number | undefined): number {
+  return Math.max(1, Math.min(30, Math.trunc(step ?? 1)))
 }
 
 /** Full mask with `-` in every segment — shown when there is no model value. */
@@ -150,7 +199,7 @@ export function rebuild_from_segments(layout: DateFormatLayout, vals: SegmentVal
       if (v == null) {
         for (let i = 0; i < seg.digits; i++) buf[seg.start + i] = "-"
       } else {
-        const text = day_period_text(layout.locale, v === 0, seg.digits)
+        const text = day_period_segment(layout.locale, v === 0, seg.digits)
         for (let i = 0; i < seg.digits; i++) buf[seg.start + i] = text[i] ?? " "
       }
     } else if (v != null) {
@@ -204,7 +253,7 @@ export function parse_segments(layout: DateFormatLayout, text: string): SegmentV
   for (const seg of layout.segments) {
     const slice = text.slice(seg.start, seg.end)
     if (seg.kind === "dayPeriod") {
-      const pm_sample = day_period_text(layout.locale, false, 2).trim().toLowerCase()
+      const pm_sample = day_period_text(layout.locale, false).trim().toLowerCase()
       vals.dayPeriod = slice
         .trim()
         .toLowerCase()
@@ -214,7 +263,8 @@ export function parse_segments(layout: DateFormatLayout, text: string): SegmentV
       continue
     }
     const digits = slice.replace(/[^0-9]/g, "")
-    if (digits.length === 0 || /^-+$/.test(slice)) continue
+    // A `-` placeholder has no digits: the segment has no value yet.
+    if (digits.length === 0) continue
     vals[seg.kind] = clamp_segment(seg.kind, Number(digits), { ...vals, [seg.kind]: Number(digits) })
   }
   return vals
@@ -294,7 +344,7 @@ export function date_to_values(d: Date, layout: DateFormatLayout): SegmentValues
         vals.day = d.getDate()
         break
       case "hour":
-        vals.hour = layout.segments.some((s) => s.kind === "dayPeriod") ? d.getHours() % 12 || 12 : d.getHours()
+        vals.hour = layout.segments.some((s) => s.kind === "dayPeriod") ? to_12h(d.getHours()) : d.getHours()
         break
       case "minute":
         vals.minute = d.getMinutes()
@@ -313,22 +363,18 @@ export function date_to_values(d: Date, layout: DateFormatLayout): SegmentValues
 /**
  * Build a local `Date` from parsed segments; `null` if incomplete or calendar-invalid
  * (e.g. 31 February). Applies 12h + dayPeriod rules when present.
+ * A time-only layout has no calendar date: the time goes on the day of `base`.
+ * Time fields the layout doesn't show are 0 (midnight on a date-only layout, `:00` without seconds).
  */
-export function values_to_date(layout: DateFormatLayout, vals: SegmentValues): Date | null {
+export function values_to_date(layout: DateFormatLayout, vals: SegmentValues, base: Date): Date | null {
   if (!segments_complete(layout, vals)) return null
-  // null on a time-only layout : no calendar date to build (new Date() would be Invalid Date anyway)
-  const { year: y, day: da } = vals
-  if (y == null || vals.month == null || da == null) return null
-  const mo = vals.month - 1
-  let h = vals.hour ?? 0
-  const min = vals.minute ?? 0
-  const sec = vals.second ?? 0
-  if (vals.dayPeriod != null) {
-    if (h === 12) h = vals.dayPeriod === 0 ? 0 : 12
-    else if (vals.dayPeriod === 1) h = (h % 12) + 12
-    else h = h % 12
+  const { year: y, month, day: da } = vals
+  // A complete layout has all three date segments or none (build_layout asks Intl for all or none).
+  if (y == null || month == null || da == null) {
+    return apply_time_part(new Date(base.getFullYear(), base.getMonth(), base.getDate()), vals)
   }
-  const d = new Date(y, mo, da, h, min, sec)
+  const mo = month - 1
+  const d = apply_time_part(new Date(y, mo, da), vals)
   if (d.getFullYear() !== y || d.getMonth() !== mo || d.getDate() !== da) return null
   return d
 }
@@ -338,17 +384,17 @@ export function apply_date_part(base: Date, y: number, mo: number, da: number): 
   return new Date(y, mo - 1, da, base.getHours(), base.getMinutes(), base.getSeconds())
 }
 
-/** Time-only edit: replace clock fields on the same calendar day as `base`. */
+/** Replace the clock fields given in `vals` on the same calendar day as `base`; the others keep `base`'s. */
 export function apply_time_part(base: Date, vals: SegmentValues): Date {
-  let h = vals.hour ?? base.getHours()
-  const min = vals.minute ?? base.getMinutes()
-  const sec = vals.second ?? base.getSeconds()
-  if (vals.dayPeriod != null) {
-    if (h === 12) h = vals.dayPeriod === 0 ? 0 : 12
-    else if (vals.dayPeriod === 1) h = (h % 12) + 12
-    else h = h % 12
-  }
-  return new Date(base.getFullYear(), base.getMonth(), base.getDate(), h, min, sec)
+  const h = vals.hour ?? base.getHours()
+  return new Date(
+    base.getFullYear(),
+    base.getMonth(),
+    base.getDate(),
+    vals.dayPeriod != null ? to_24h(h, vals.dayPeriod === 1) : h,
+    vals.minute ?? base.getMinutes(),
+    vals.second ?? base.getSeconds(),
+  )
 }
 
 /** Six rows × seven columns for the month popup; includes leading/trailing outside days. */
@@ -369,15 +415,13 @@ export function calendar_month_cells(view: Date, week_start: number): { date: Da
 
 /** Month labels for the calendar toolbar select (index 0 = January). */
 export function month_names(locale: string): string[] {
-  return Array.from({ length: 12 }, (_, i) =>
-    new Intl.DateTimeFormat(locale, { month: "long" }).format(new Date(2000, i, 1)),
-  )
+  const fmt = date_format(locale, { month: "long" })
+  return Array.from({ length: 12 }, (_, i) => fmt.format(new Date(2000, i, 1)))
 }
 
 /** Narrow weekday headers, ordered from `week_start`. */
 export function weekday_labels(locale: string, week_start: number): string[] {
-  return Array.from({ length: 7 }, (_, i) => {
-    const day = (week_start + i) % 7
-    return new Intl.DateTimeFormat(locale, { weekday: "narrow" }).format(new Date(2024, 0, 7 + day))
-  })
+  const fmt = date_format(locale, { weekday: "narrow" })
+  // 7 January 2024 is a Sunday (day 0).
+  return Array.from({ length: 7 }, (_, i) => fmt.format(new Date(2024, 0, 7 + ((week_start + i) % 7))))
 }
