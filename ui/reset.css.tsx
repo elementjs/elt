@@ -20,6 +20,13 @@ css`@layer reset {
     border: none;
   }
 
+  /* The browser hides [hidden] from its own stylesheet, which loses to any page rule that sets
+     display (e-prose, e-row, button…). An important declaration in this first layer wins over every
+     later layer. hidden="until-found" is left to the browser: it must stay searchable. */
+  [hidden]:not([hidden="until-found"]) {
+    display: none !important;
+  }
+
   /* Application-like scrolling: no bounce of the page itself, and no browser gesture (pull-to-refresh,
      swipe navigation) once a scroll reaches the end of the page. Scroll areas inside the page still
      pass a scroll that reaches their end on to the page. A document-like page restores the browser

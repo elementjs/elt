@@ -373,9 +373,6 @@ const cls_combo = css`.select-combo {
   & > * {
     grid-area: 1 / 1;
   }
-  & > input[hidden] {
-    display: none;
-  }
   &:has(> input:not([hidden])) > button {
     visibility: hidden;
   }

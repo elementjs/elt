@@ -19,6 +19,8 @@ Layout elements, their attributes, the spacing scale, borders, `packed` groups, 
 | `<e-grid-row>` | A row of an `e-grid`: spans every column and puts its children on the grid's columns ([Grids](#grids)). Only as a direct child of `e-grid`. |
 | `<e-prose>` | Block container for content you read: a prose container, spacing its text by typographic rules ([Typography](./ui-typography.md#prose-containers-and-text-blocks)). |
 
+The `hidden` attribute hides any element, layout elements and controls included: the `elt/ui` reset makes it win over their own `display` (except `hidden="until-found"`, left to the browser).
+
 A panel or card is just a layout element with `border` and/or `surface` — `elt/ui` has no panel component. Whether a card has a fill or only an edge is your app's decision. The overall app layout (page shell, navigation placement) is left to your app too.
 
 ```tsx
@@ -174,6 +176,7 @@ The container's own `pad` still pads the container itself. `packed` never adds a
 - A focused child is drawn above its neighbors so its focus ring isn't covered. Sticky elements stay above it ([Scroll areas and sticky elements](#scroll-areas-and-sticky-elements)).
 - **The outermost container draws the frame.** A `packed border` container inside another `packed border` container (a row of buttons in a bordered column, say) loses its own border like any child, but keeps its seams between its own children. Inside a scroll area, a `packed border` child drops its outer border and radius too: the scroll area draws the frame, with its own `border` ([Scroll areas and sticky elements](#scroll-areas-and-sticky-elements)).
 - Limitation: when a packed row wraps, its first and last children may end up on different lines, and the outer-corner radius then looks wrong.
+- Limitation: a `hidden` child still counts as the first or last child. When the last child is hidden, the visible last child does not get the container's outer corners and border; render it conditionally (`If`) instead of hiding it.
 
 ```tsx
 <e-row packed>
