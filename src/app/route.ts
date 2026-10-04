@@ -17,6 +17,12 @@ export interface FragmentOptions {
   fragment?: string
 }
 
+/**
+ * @internal
+ * For `.catch()` on an activation nobody awaits : `Route._failed` already logged its failure.
+ */
+export function _logged() {}
+
 export class Route<T extends ServiceParams = {}> {
   error?: Route<any>
 
@@ -115,29 +121,34 @@ export class Route<T extends ServiceParams = {}> {
     // Do not update the URL if this route is silent.
     if (this.options.silent || this.path == null) return
 
-    // no-op while the lock is held (activation triggered by the URL itself)
-    this.router.__url_lock(() => {
-      this.router._writeUrl(this, this._buildPath(params), _formatQuery(this.__queryParams(params, keys)))
-    })
+    this.router._writeUrl(this, this._buildPath(params), _formatQuery(this.__queryParams(params, keys)))
   }
 
-  async _activateWithParams(params: T): Promise<void> {
+  /** `from_url` : requested by a URL change, see `App._activate` */
+  async _activateWithParams(params: T, from_url: boolean): Promise<void> {
     const full_params = Object.assign({}, this.options.defaults, params)
     try {
       // The active route is set by the activation that commits, which is not this one when it is superseded
       // (a service redirecting during its init, or a newer navigation) : see App.__activate
-      await this.router.app._activate(this.builder(), full_params, this)
+      await this.router.app._activate(this.builder(), full_params, this, from_url)
     } catch (e) {
-      if (this.error) {
-        await this.error.activate({ __error__: e })
-      } else {
-        console.error(e)
-        throw e
-      }
+      await this._failed(e, from_url)
     }
   }
 
-  async activateWithParams(params: T): Promise<void> {
+  /**
+   * @internal
+   * An activation of this route failed with `e` : activate its error route with `{ __error__: e }`,
+   * or, without one, log `e` and throw it.
+   */
+  async _failed(e: unknown, from_url: boolean): Promise<void> {
+    if (this.error) return this.error.activateWithParams({ __error__: e }, from_url)
+    console.error(e)
+    throw e
+  }
+
+  /** `from_url` (internal) : requested by a URL change, which the activation does not write back */
+  async activateWithParams(params: T, from_url = false): Promise<void> {
     // any navigation ends the search for the previous fragment target
     this.router.__cancel_scroll?.()
     const full_params = Object.assign({}, this.options.defaults, params)
@@ -152,7 +163,7 @@ export class Route<T extends ServiceParams = {}> {
       }
     }
 
-    return this._activateWithParams(params)
+    return this._activateWithParams(params, from_url)
   }
 
   /**

@@ -67,7 +67,7 @@ These are conventions: the library does not enforce them, but code using elt fol
 
 ## App
 
-- **Always `await` an activation** (`await routes.home.activate()`): it can be interrupted by a redirect, and an un-awaited activation that overlaps another throws. See [App](./app.md#activation).
+- **Always `await` an activation** (`await routes.home.activate()`): it can be interrupted by a redirect, a redirect not awaited inside a service's init shows the redirecting route before its target replaces it, and a failure nobody awaits is an unhandled rejection. See [App](./app.md#activation).
 - Activate through `router.<route>.activate()`. `App._activate` is internal. See [App](./app.md#activation).
 - Route builders are functions that **return** a service builder; prefer a lazy `() => import("./file")`. See [App](./app.md#setting-up-routes).
 - The usual screen shape: dependencies declared in `Service({ … })`, state in `o_*` fields, derived values in `oo_*` fields, named views as `@view` methods. See [App](./app.md#services).

@@ -1,7 +1,7 @@
 import type { Renderable } from "../types"
 import { o } from "../observable"
 import { Deferred } from "../utils"
-import { Route } from "./route"
+import { _logged, Route } from "./route"
 import { Router } from "./router"
 import type { RouterOptions } from "./url-source"
 import { State } from "./state"
@@ -37,23 +37,37 @@ export class Reactivation extends Deferred<ActivationResult> {
     public builder: ServiceBuilderConcreteType<any>,
     public params: ServiceParams,
     public route: Route<any>,
+    /** requested by a URL change : does not write the URL back */
+    public from_url: boolean,
   ) {
     super()
   }
 }
 
+/** The activation ran and committed */
 export interface Activated {
   activated: true
   service: ServiceBuilderConcreteType<any>
 }
 
+/**
+ * The activation did not commit (yet) : `reactivation` runs instead of it. It is this activation itself when it
+ * has to wait for the running one, or the newer activation that superseded it once it ran.
+ */
 export interface Reactivated {
   activated: false
   service: ServiceBuilderConcreteType<any>
   reactivation: Promise<ActivationResult>
 }
 
-export type ActivationResult = Activated | Reactivated
+/** The activation never ran : a newer one was requested before it could start */
+export interface Abandoned {
+  activated: false
+  abandoned: true
+  service: ServiceBuilderConcreteType<any>
+}
+
+export type ActivationResult = Activated | Reactivated | Abandoned
 
 /**
  * An app is a collection of services and their associated view map.
@@ -86,7 +100,9 @@ export class App {
       const seterror = (routes: any, error: Route<any>) => {
         for (const route of Object.values(routes)) {
           if (route instanceof Route) {
-            if (route.error == null) {
+            // the error route does not handle its own failure, else a failing error route runs itself again
+            // without end (a nested group's error route gets its parent group's one)
+            if (route.error == null && route !== error) {
               route.error = error
             }
           } else {
@@ -121,33 +137,42 @@ export class App {
   })
   o_activating = o(false)
 
+  /** The activation waiting for the running one, if any */
   __reactivate: Reactivation | null = null
+  /** Number of activations requested so far : orders them by request time */
+  __requests = 0
+
+  /**
+   * Activate `builder` for `route`. When another activation runs, this one waits for it and runs instead of it
+   * (see `__activate`) : the returned `Reactivated` resolves at once, without waiting, since a service redirecting
+   * during its init calls this, and the running activation it would wait for is that very init.
+   * `from_url` : requested by a URL change, so the URL is not written back.
+   */
   async _activate<S>(
     builder: ServiceBuilder<S, any>,
     params: ServiceParams | undefined,
     route: Route<any>,
+    from_url = false,
   ): Promise<ActivationResult> {
-    const _was_activating_when_called = this.o_activating.get()
+    // The last request wins, in request order : one made while this one's builder loads (a lazy import) replaces it,
+    // even when its own builder loads first.
+    const request = ++this.__requests
     const full_params = Object.assign({}, params)
     const builder_fn = await _get_builder(builder)
+    if (request !== this.__requests) return { activated: false, abandoned: true, service: builder_fn }
 
-    if (_was_activating_when_called && !this.o_activating.get()) {
-      const error = "un-waited activate() call detected. They MUST be awaited."
-      console.error(error)
-      throw new Error(error)
-    }
+    // Decided once the builder is loaded, not when requested : the activation that ran then may be over by now.
+    if (!this.o_activating.get()) return this.__activate(builder_fn, full_params, route, from_url)
 
-    if (_was_activating_when_called) {
-      this.__reactivate?.reject(new Error("reactivation"))
-      this.__reactivate = new Reactivation(builder_fn, full_params, route)
-      return {
-        activated: false,
-        reactivation: this.__reactivate,
-        service: builder_fn,
-      }
-    }
-
-    return this.__activate(builder_fn, full_params, route)
+    // The activation that was waiting, if any, never runs
+    this.__reactivate?.resolve({ activated: false, abandoned: true, service: this.__reactivate.builder })
+    const re = new Reactivation(builder_fn, full_params, route, from_url)
+    this.__reactivate = re
+    // Nobody awaits `re` (see above) : its failure is handled here, once, by running its route's error route.
+    // Attached here rather than by the callers of `_activate`, since the activation that `re` supersedes also gets
+    // `re` as its `reactivation`, and the error route would run twice.
+    re.catch((e) => route._failed(e, from_url).catch(_logged))
+    return { activated: false, reactivation: re, service: builder_fn }
   }
 
   /**
@@ -162,6 +187,7 @@ export class App {
     builder: ServiceBuilderConcreteType<S>,
     params: ServiceParams,
     route: Route<any>,
+    from_url: boolean,
   ): Promise<ActivationResult> {
     const previous = this.o_state.get()
     this.o_activating.set(true)
@@ -179,7 +205,7 @@ export class App {
         const keys = staging.paramKeys()
         for (const key of route.route_params) keys.add(key)
         const kept = Object.fromEntries(Object.entries(staging.params.get()).filter(([key]) => keys.has(key)))
-        route.updateUrl(keys, kept)
+        if (!from_url) route.updateUrl(keys, kept)
 
         committed = true
         // The new state is published first : the previous state's services see they are no longer active,
@@ -206,7 +232,7 @@ export class App {
     if (re) {
       // A newer activation was requested while this one ran : it supersedes this one,
       // so this one's error, if any, is dropped on purpose.
-      this.__activate(re.builder, re.params, re.route).then(re.resolve, re.reject)
+      this.__activate(re.builder, re.params, re.route, re.from_url).then(re.resolve, re.reject)
       return {
         activated: false,
         service: builder,

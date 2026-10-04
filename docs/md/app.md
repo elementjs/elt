@@ -163,12 +163,16 @@ await routes.home.activate()
 await routes.user.activate({ id: "42" })
 ```
 
-**Always `await` an activation.** `App` tracks whether one is already in flight (`o_activating`); an un-awaited `activate()` call that overlaps another is not queued or stacked — the app detects the race and throws (`"un-waited activate() call detected. They MUST be awaited."`). An activation requested *while* another one runs does not stack either. This is how a service redirects: during its init, a service of route `a` finds nobody logged in and calls `await srv.activate(routes.login)`. It also happens when the user navigates again before the previous navigation is over. The new activation waits for the running one to finish, then runs instead of it:
+**Always `await` an activation.** Inside a service's init, a redirect that is not awaited may not be registered yet when the init ends (its route's builder loads first): the redirecting route then commits and shows, and the redirect target replaces it right after. Anywhere, an activation that fails without an error route rejects its `activate()` call, an unhandled rejection if nobody awaits it.
+
+An activation requested *while* another one runs does not stack. This is how a service redirects: during its init, a service of route `a` finds nobody logged in and calls `await srv.activate(routes.login)`. It also happens when the user navigates again (by code, a link or the URL) before the previous navigation is over. The new activation waits for the running one to finish, then runs instead of it:
 
 - The running activation does not commit: its views are never shown, its route never becomes active, and the services it built are deinit-ed (see "Lifecycle"), except those the live state also uses.
-- Only the last one requested waits. One requested before it, and still waiting, is dropped without running.
-- `app.o_current_route` is always the route of the activation that committed, and the URL is written for that route.
+- Only the last one requested waits. One requested before it, and still waiting, never runs. Requests count in the order they are made: a route whose builder (a lazy `import()`) is still loading is replaced by a route requested after it, even if that one loads first.
+- What happens is decided once the route's builder is loaded: requested while another activation ran, but loaded once it was over, the activation runs at once.
+- `app.o_current_route` is always the route of the activation that committed, and the URL is written for that route. An activation started by a URL change (a typed URL, Back or Forward, a link the router handles) leaves the URL as it is, error route included; only the first one, on page load, writes it in its canonical form.
 - The `activate()` call that had to wait returns at once, before its route is active: inside the redirecting service's init, waiting for it would never end, since it runs only once that init is over. Watch `app.o_activating` (or `app.o_current_route`) to know when it is done.
+- If the activation that waited fails, what it built is deinit-ed and its route's error route runs, as for any failed activation. Without an error route, the error is logged and the app stays as it was. Its `activate()` call has already returned, so it never sees the error.
 
 In hash mode, path `""` is the landing route, matched by a bare empty fragment, and path `"/"` is a different route, matched only by the literal `#/`. In path mode, see "Hash mode and path mode" above for how the base maps to `""` and `"/"`. Calling `app.router.activateFromUrl()` again on an unchanged URL does nothing; pass `true` to force it.
 

@@ -1,7 +1,7 @@
 import { o } from "../observable"
 import { _decodeFragment, FRAGMENT_NEEDS_PATH_MODE, _scrollToFragment } from "./fragment"
 import { _parseQuery, _urlKey, type ServiceParams } from "./params"
-import { Route } from "./route"
+import { _logged, Route } from "./route"
 import type { App, RouteOptions } from "./app"
 import type { ServiceBuilder } from "./service"
 import { _createUrlSource, HashUrlSource, type RouterOptions, type UrlSource } from "./url-source"
@@ -18,8 +18,6 @@ export class Router {
   /** Reads and writes the URL. Replaced by `setupRouter` according to its options. */
   source: UrlSource = new HashUrlSource()
 
-  /** Held while activating from the URL, so that the activation does not write the URL back */
-  __url_lock = o.exclusive_lock()
   /** URL key of the last URL read or written */
   _last_url: string | null = null
   /** false until the router first writes the URL ; that first write replaces the history entry */
@@ -62,8 +60,11 @@ export class Router {
    * @param force if true, the service will be activated even if the URL did not change (useful for login)
    * @param scroll if true, scroll to the URL fragment once the route has activated (path mode with `scroll_to_fragment`).
    * Not for Back/Forward, where the browser restores the scroll position it saved.
+   * @param write_back (internal) false when the URL was changed by the user (typed URL, Back/Forward, link click) :
+   * the activation then keeps the URL as it is instead of writing its own. Our own writes (`pushState`,
+   * `replaceState`) fire no event, and `_last_url` makes a call for the URL just written a no-op.
    */
-  async activateFromUrl(force = false, scroll = false) {
+  async activateFromUrl(force = false, scroll = false, write_back = true) {
     const cur = this.source.read()
     if (cur == null) {
       console.warn(`url is outside the router base ${location.pathname}`)
@@ -82,7 +83,11 @@ export class Router {
       query = _parseQuery(cur.query)
     } catch (e) {
       // malformed percent-encoding in a user-typed URL : same as not found
-      if (!(e instanceof URIError)) throw e
+      if (!(e instanceof URIError)) {
+        // the callers that nobody awaits ignore the failures, which are logged
+        console.error(e)
+        throw e
+      }
     }
 
     if (found == null) {
@@ -91,8 +96,9 @@ export class Router {
     }
 
     // path params win over query params ; defaults are applied underneath by activateWithParams
-    await found.route.activateWithParams(Object.assign(query, found.params))
-    // not awaited : the search for a late target must not hold the url lock
+    // A navigation already running is replaced by this one, like any activation requested while another runs
+    await found.route.activateWithParams(Object.assign(query, found.params), !write_back)
+    // not awaited : the search for a late target ends on its own
     if (scroll && this.o_active_route.get() === found.route) this.__scrollTo(_decodeFragment(cur.fragment))
   }
 
@@ -167,7 +173,7 @@ export class Router {
 
     e.preventDefault()
     if (url.href !== location.href) history.pushState(null, "", url.href)
-    this.__url_lock(() => this.activateFromUrl(false, true))
+    this.activateFromUrl(false, true, false).catch(_logged)
   }
 
   /**
@@ -177,9 +183,10 @@ export class Router {
     this.source = _createUrlSource(options)
     this.__scroll_to_fragment = options.mode === "path" && options.scroll_to_fragment !== false
 
-    setTimeout(() => this.activateFromUrl(false, true))
+    // a failure was logged, and there is nobody to throw it to
+    setTimeout(() => this.activateFromUrl(false, true).catch(_logged))
     this.source.listen(() => {
-      this.__url_lock(() => this.activateFromUrl())
+      this.activateFromUrl(false, false, false).catch(_logged)
     })
     if (options.mode === "path" && options.intercept_links !== false) {
       document.addEventListener("click", this.__onClick)
@@ -195,7 +202,7 @@ export class Router {
 
       if (srv == null || srv.areParamsInvalidating(params)) {
         // reactivate !
-        rt?.activate(params)
+        rt?.activate(params).catch(_logged)
       } else {
         const keys = srv?.state?.paramKeys() ?? new Set<string>()
         rt?.updateUrl(keys, params)

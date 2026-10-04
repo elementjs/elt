@@ -2031,7 +2031,7 @@ export namespace o {
    * @group Observable
    */
   export function exclusive_lock() {
-    // A plain flag: nothing observes it, and this runs on every DOM event of `$bind`, verbs and the router.
+    // A plain flag: nothing observes it, and this runs on every DOM event of `$bind` and verbs.
     let locked = false
     function exclusive_lock(fn: () => any) {
       if (locked) return
