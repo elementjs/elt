@@ -4,7 +4,9 @@ import { create } from "mutative"
 declare module "./observable" {
   namespace o {
     interface IObservable<Get, Set> {
-      mutate(mutator: (value: Set) => void | Set | o.NoValue): void
+      // The draft is a copy of the current value, so it has the read type `Get`; what the mutator returns (or
+      // the edited draft) is written, so it has the write type `Set`.
+      mutate(mutator: (value: Get) => void | Set | o.NoValue): void
     }
     interface Observable<A> {
       /**
