@@ -7,6 +7,10 @@ order: 0
 
 This page is for anyone writing or editing the `.md` files under `docs/md/`. It explains, from a writer's point of view, how a markdown file becomes a docs page — not the implementation, just what you need to know to write a page that works.
 
+## Previewing your page
+
+`just watch-docs` (in the elt repository) serves the docs site locally and rebuilds a page when you save its `.md` file. A `.md` file added while that server runs does not show up until you edit an existing page or restart the server: the build only re-runs when a file it already uses changes, and a new file is not one of them yet.
+
 ## Code blocks: three kinds
 
 A fenced code block (` ```tsx ... ``` `) can behave in one of three ways, depending on its first line:

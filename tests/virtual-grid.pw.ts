@@ -1,8 +1,8 @@
 import { expect, test } from "./fixture"
 
-// RepeatVirtual in a real scroll area (real layout, no mocked geometry): padders, finding the scroll
+// RepeatVirtual in a real scroll area, laid out by the components' own CSS: padders, finding the scroll
 // area, prefix/suffix/empty, and an infinite e-grid with sticky rows.
-// tests/virtual.pw.ts covers the windowing algorithm itself, with mocked geometry.
+// tests/virtual.pw.ts covers the windowing algorithm itself, with fixed, deterministic geometry.
 
 declare global {
   interface Window {

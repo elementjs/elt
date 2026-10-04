@@ -19,8 +19,12 @@
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 
         <!-- IBM Plex Sans: the default theme font (ui/theme.tsx), which uses weights 400 to 700; the
-             variable font covers them in one file per style. Public Sans: one of the fonts docs/md/visual-test.md compares. -->
-        <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,100..700;1,100..700&family=Public+Sans:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet">
+             variable font covers them in one file per style. IBM Plex Mono: the theme's monospace font
+             (code, kbd), not a variable font, so each weight is listed: 400 (code), 500 (kbd), 600 and 700
+             (code inside dt/summary, headings and strong), 400 italic (code inside em). The browser
+             downloads only the weights the page actually uses. Public Sans: one of the fonts
+             docs/md/visual-test.md compares. -->
+        <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,400;0,500;0,600;0,700;1,400&family=IBM+Plex+Sans:ital,wght@0,100..700;1,100..700&family=Public+Sans:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet">
 	</head>
 
 	<body>

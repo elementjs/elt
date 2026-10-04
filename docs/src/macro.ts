@@ -14,7 +14,23 @@ import { posix, resolve } from "node:path"
 // the client bundle — confirmed by testing (a live page load threw "Bun is not defined" before this split).
 import type { Frontmatter } from "./menu.ts"
 
-const { codeToTokens } = await import("shiki")
+// Types only (erased at build time); Shiki itself is loaded by the dynamic import below.
+import type { BundledLanguage, SpecialLanguage } from "shiki"
+
+const { codeToTokens, codeToTokensWithThemes } = await import("shiki")
+
+/** The Shiki theme of each page scheme: code colors follow the page's light/dark scheme (see
+ * tokenColorClass in code-example.tsx, which switches between the two). */
+const CODE_THEMES = { light: "github-light", dark: "github-dark" } as const
+
+/** Each theme's default text color, upper-cased like token colors. A token drawn in the default
+ * color of both themes gets no color of its own: it inherits the page's text color, which is
+ * readable on the page's code background in either scheme, and it costs no class call in the
+ * generated page (about half the tokens of a typical block are plain identifiers and punctuation). */
+const CODE_DEFAULT_FG = {
+  light: (await codeToTokens("", { lang: "text", theme: CODE_THEMES.light })).fg?.toUpperCase(),
+  dark: (await codeToTokens("", { lang: "text", theme: CODE_THEMES.dark })).fg?.toUpperCase(),
+}
 
 export type MdNode = [type: string, meta: Record<string, any>, children: MdNode[] | string]
 
@@ -492,20 +508,37 @@ function nodeToJsx(n: MdNode, relPath: string): string {
   }
 }
 
-type ShikiToken = { content: string; color?: string }
+/** One highlighted token: its text, and its color in the light and dark themes — both absent when
+ * the token keeps the page's text color (see CODE_DEFAULT_FG). */
+type ShikiToken = { content: string; light?: string; dark?: string }
+
+/** Highlights `code` with both CODE_THEMES at once (one token list, each token carrying a color per
+ * theme), dropping the colors of tokens drawn in both themes' default text color. */
+async function highlight(code: string, lang: BundledLanguage | SpecialLanguage): Promise<ShikiToken[][]> {
+  const lines = await codeToTokensWithThemes(code, { lang, themes: CODE_THEMES })
+  return lines.map((line) =>
+    line.map((t): ShikiToken => {
+      const light = t.variants.light?.color?.toUpperCase() ?? CODE_DEFAULT_FG.light
+      const dark = t.variants.dark?.color?.toUpperCase() ?? CODE_DEFAULT_FG.dark
+      return light === CODE_DEFAULT_FG.light && dark === CODE_DEFAULT_FG.dark
+        ? { content: t.content }
+        : { content: t.content, light, dark }
+    }),
+  )
+}
 
 /** Compiles Shiki's structured token output (not its HTML-string output — see the spec's "Why" on
  * avoiding `.innerHTML`) into a literal JSX array-of-lines: each line a `<>`-fragment of colored
  * `<span>`s (or plain text for uncolored runs), lines separated by literal `"\n"` text children so
  * they render as separate lines inside a `<pre>`. Colors go through `tokenColorClass` (a shared,
- * memoized CSS class per distinct color) rather than a per-span inline `style` — see its doc comment
- * in code-example.tsx for why. */
+ * memoized CSS class per distinct light/dark color pair) rather than a per-span inline `style` —
+ * see its doc comment in code-example.tsx for why. */
 function tokensToJsx(lines: ShikiToken[][]): string {
   const lineFrags = lines.map((line) => {
     const spans = line
       .map((t) =>
-        t.color
-          ? `<span class={tokenColorClass(${JSON.stringify(t.color)})}>${jsxText(t.content)}</span>`
+        t.light
+          ? `<span class={tokenColorClass(${JSON.stringify(t.light)}, ${JSON.stringify(t.dark)})}>${jsxText(t.content)}</span>`
           : jsxText(t.content),
       )
       .join("")
@@ -541,8 +574,7 @@ async function processCodeNodes(
     const { annotation, body: withoutMarker } = isTs ? annotationOf(raw) : { annotation: null as Annotation, body: raw }
 
     const displayText = annotation ? withoutMarker.replace(/^\n/, "") : raw
-    const { tokens } = await codeToTokens(displayText, { lang: lang || "text", theme: "github-dark" })
-    n[1] = { ...n[1], tokens }
+    n[1] = { ...n[1], tokens: await highlight(displayText, lang || "text") }
     n[2] = displayText
 
     if (annotation === "inline-example") {
@@ -641,12 +673,12 @@ function genPageSource(
       : []
 
   // CodeExample/tokenColorClass are only imported when the generated JSX actually uses them:
-  // CodeExample when the page has a code fence, tokenColorClass when at least one token got a color (fences in a language without a grammar,
-  // e.g. `text`, yield uncolored tokens only). An unused import is an error under noUnusedLocals,
+  // CodeExample when the page has a code fence, tokenColorClass when at least one token got a color of its own (fences in a language without a
+  // grammar, e.g. `text`, yield only tokens in the default text color, which stay uncolored — see highlight). An unused import is an error under noUnusedLocals,
   // which docs/tsconfig.json matches the root tsconfig on.
   const codeExampleNames = [
     "CodeExample",
-    ...(codeNodes.some((n) => (n[1].tokens as ShikiToken[][] | undefined)?.some((line) => line.some((t) => t.color)))
+    ...(codeNodes.some((n) => (n[1].tokens as ShikiToken[][] | undefined)?.some((line) => line.some((t) => t.light)))
       ? ["tokenColorClass"]
       : []),
   ]
@@ -965,15 +997,11 @@ function genRoutesSource(pages: PageEntry[]): string {
  * what's on disk, which is what stops them from re-triggering themselves (editing either is itself
  * a watched change that would otherwise call `elt_md()` again).
  *
- * Returns the same page list it just wrote into `routes.generated.ts`, mainly so tests can assert
- * on it directly — a Bun macro's return value is inlined as a literal at its call site, so in the
- * real (non-test) call from `docs/src/routes.ts` this return value is JSON-serializable data,
- * discarded in favor of the fresh `routes.generated.ts` file being imported separately right after.
- *
- * `roots` is a test-only seam (see macro.test.ts): every real call site invokes `elt_md()` with no
- * arguments, scanning the real `docs/md` next to this file.
+ * Returns the same page list it just wrote into `routes.generated.ts`, so tests can assert on it
+ * directly. `roots` is a test-only seam (see macro.test.ts): the real call, elt_md() below, scans the
+ * real `docs/md` next to this file.
  */
-export async function elt_md(roots?: { mdDir: string; srcDir: string }): Promise<{ pages: PageEntry[] }> {
+export async function generate_docs(roots?: { mdDir: string; srcDir: string }): Promise<{ pages: PageEntry[] }> {
   const mdDir = roots?.mdDir ?? resolve(import.meta.dir, "..", "md")
   const srcDir = roots?.srcDir ?? import.meta.dir
   const genDir = resolve(srcDir, "md")
@@ -1030,4 +1058,12 @@ export async function elt_md(roots?: { mdDir: string; srcDir: string }): Promise
   }
 
   return { pages }
+}
+
+/** The macro called by `docs/src/routes.ts`: generates everything (see generate_docs) and returns
+ * nothing. A Bun macro's return value is pasted as a literal at its call site, so returning the page
+ * list here would put it in the client bundle, where nothing reads it. Bun waits for an async macro
+ * at bundle time, so the call site needs no `await`. */
+export async function elt_md(): Promise<void> {
+  await generate_docs()
 }

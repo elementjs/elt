@@ -22,6 +22,7 @@ Pages are divided by subject: each topic page holds the how-to, the lookup table
 | `just test-bun [args]` | Run the bun unit tests (`*.test.ts`, currently `docs/src/macro.test.ts` and `tests/bundle.test.ts`) |
 | `just bench` | Benchmark the observable scheduling (`tests/bench/observable.bench.ts`) against the current `src/`, in Bun then in Chromium; prints nanoseconds per operation for each case. Not a test (asserts nothing, not run by `just test`); compare runs made one after the other on the same machine |
 | `just watch-docs` | Serve the docs site locally, type-checking `docs/` on every rebuild |
+| `just docs-generate` | Generate the docs pages (`docs/src/md/`) and `docs/src/routes.generated.ts` without building; `check-compile` and `watch-docs` run it first, since `bun build` on a fresh checkout cannot generate `routes.generated.ts` in time (the dev server, `bun ./docs/index.html`, recovers on its own) |
 
 ## Repo map
 

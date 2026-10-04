@@ -31,9 +31,33 @@ import md_ui_widgets_text from "../md/ui-widgets.md" with { type: "text" }
 import md_utilities_text from "../md/utilities.md" with { type: "text" }
 import md_verbs_text from "../md/verbs.md" with { type: "text" }
 import md_visual_test_text from "../md/visual-test.md" with { type: "text" }
-void [md_about_this_documentation_text, md_app_text, md_components_text, md_css_text, md_custom_elements_text, md_decorators_text, md_elt_rules_text, md_elt_ui_rules_text, md_index_text, md_introduction_text, md_migrating_text, md_motion_text, md_object_editor_text, md_observables_text, md_testing_text, md_ui_forms_text, md_ui_keymap_text, md_ui_layout_text, md_ui_overlays_text, md_ui_theme_text, md_ui_typography_text, md_ui_widgets_text, md_utilities_text, md_verbs_text, md_visual_test_text]
+void md_about_this_documentation_text
+void md_app_text
+void md_components_text
+void md_css_text
+void md_custom_elements_text
+void md_decorators_text
+void md_elt_rules_text
+void md_elt_ui_rules_text
+void md_index_text
+void md_introduction_text
+void md_migrating_text
+void md_motion_text
+void md_object_editor_text
+void md_observables_text
+void md_testing_text
+void md_ui_forms_text
+void md_ui_keymap_text
+void md_ui_layout_text
+void md_ui_overlays_text
+void md_ui_theme_text
+void md_ui_typography_text
+void md_ui_widgets_text
+void md_utilities_text
+void md_verbs_text
+void md_visual_test_text
 // GENERATED-END
 
-await elt_md()
+elt_md()
 
 export { routes, menu } from "./routes.generated.ts"

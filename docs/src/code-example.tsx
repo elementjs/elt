@@ -67,16 +67,27 @@ function LazyResult(run: () => Node) {
   })
 }
 
-/** Maps a Shiki token color to a shared CSS class instead of a per-span inline `style`, memoized so
- * each distinct color only ever inserts one stylesheet rule (a theme has on the order of a few dozen
- * distinct colors, however many thousands of tokens use them) — see macro.ts's tokensToJsx, which
- * calls this once per token at render time. */
+/** Maps a Shiki token's light-theme and dark-theme colors to a shared CSS class instead of a
+ * per-span inline `style`, memoized so each distinct pair only ever inserts one stylesheet rule (the
+ * two themes have on the order of a few dozen distinct pairs, however many thousands of tokens use
+ * them) — see macro.ts's tokensToJsx, which calls this once per token at render time.
+ *
+ * The class follows the same thing the page's palette follows: the elt/ui scheme class on an
+ * ancestor (on `<body>`, set from `o_force_theme`). The light color by default; the dark one under
+ * the forced-dark class, or under the default (dynamic) class when the system prefers dark. Like any
+ * ancestor selector, it takes the dark color inside a forced-light subtree nested in a dark one; the
+ * docs never nest scheme classes. */
 const tokenColorClasses = new Map<string, string>()
-export function tokenColorClass(color: string): string {
-  let cls = tokenColorClasses.get(color)
+export function tokenColorClass(light: string, dark: string): string {
+  const key = `${light} ${dark}`
+  let cls = tokenColorClasses.get(key)
   if (cls == null) {
-    cls = css`.tok { color: ${color}; }`
-    tokenColorClasses.set(color, cls)
+    cls = css`.tok {
+      color: ${light};
+      .${theme.class_dark_scheme} & { color: ${dark}; }
+      @media (prefers-color-scheme: dark) { .${theme.class_dynamic_scheme} & { color: ${dark}; } }
+    }`
+    tokenColorClasses.set(key, cls)
   }
   return cls
 }

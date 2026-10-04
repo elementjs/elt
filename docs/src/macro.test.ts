@@ -2,7 +2,7 @@ import { afterEach, describe, expect, test } from "bun:test"
 import { mkdtemp, rm, utimes } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import {
-  elt_md,
+  generate_docs,
   ImportParseError,
   mergeImports,
   parseImportLine,
@@ -274,7 +274,7 @@ describe("mergeImports", () => {
   })
 })
 
-// Every real call site invokes elt_md() with no arguments, scanning docs/md next to macro.ts (see
+// The real macro, elt_md(), calls generate_docs() with no arguments, scanning docs/md next to macro.ts (see
 // docs/src/macro.ts). These tests instead point it at a temporary docs/md
 // tree via the `roots` test-only seam, so they don't touch the real docs/md or docs/src/md.
 async function withTempDocsTree(files: Record<string, string>) {
@@ -285,7 +285,7 @@ async function withTempDocsTree(files: Record<string, string>) {
   for (const [rel, content] of Object.entries(files)) {
     await Bun.write(`${mdDir}/${rel}`, content)
   }
-  // Fixture routes.ts: elt_md() splices its generated import block between these markers, exactly
+  // Fixture routes.ts: generate_docs() splices its generated import block between these markers, exactly
   // like the real (hand-written, tracked) docs/src/routes.ts — see spliceGeneratedBlock in macro.ts.
   await Bun.write(
     `${srcDir}/routes.ts`,
@@ -301,7 +301,7 @@ async function withTempDocsTree(files: Record<string, string>) {
     root,
     mdDir,
     srcDir,
-    elt_md: () => elt_md({ mdDir, srcDir }),
+    generate_docs: () => generate_docs({ mdDir, srcDir }),
   }
 }
 
@@ -316,7 +316,7 @@ function assertValidTsx(source: string) {
   expect(() => transpiler.transformSync(source)).not.toThrow()
 }
 
-describe("elt_md (integration)", () => {
+describe("generate_docs (integration)", () => {
   let tmp: { root: string } | null = null
 
   afterEach(async () => {
@@ -332,7 +332,7 @@ describe("elt_md (integration)", () => {
     })
     tmp = t
 
-    const { pages } = await t.elt_md()
+    const { pages } = await t.generate_docs()
     const names = pages.map((p) => p.name).sort()
     expect(names).toEqual(["guide/intro", "index", "using-elt"])
 
@@ -350,16 +350,16 @@ describe("elt_md (integration)", () => {
     const t = await withTempDocsTree({ "index.md": "---\ntitle: Index\n---\n# Index\n" })
     tmp = t
 
-    await t.elt_md()
+    await t.generate_docs()
     const targetPath = `${t.srcDir}/md/index.tsx`
     const firstWrite = Bun.file(targetPath).lastModified
 
-    await t.elt_md()
+    await t.generate_docs()
     expect(Bun.file(targetPath).lastModified).toBe(firstWrite)
 
     await new Promise((r) => setTimeout(r, 10))
     await Bun.write(`${t.mdDir}/index.md`, "---\ntitle: Index\n---\n# Index changed\n")
-    await t.elt_md()
+    await t.generate_docs()
     expect(Bun.file(targetPath).lastModified).toBeGreaterThan(firstWrite)
   })
 
@@ -367,13 +367,13 @@ describe("elt_md (integration)", () => {
     const t = await withTempDocsTree({ "index.md": "---\ntitle: Original\n---\n# Index\n" })
     tmp = t
 
-    await t.elt_md()
+    await t.generate_docs()
     let content = await Bun.file(`${t.srcDir}/md/index.tsx`).text()
     expect(content).toContain('"title":"Original"')
 
     await new Promise((r) => setTimeout(r, 10))
     await Bun.write(`${t.mdDir}/index.md`, "---\ntitle: Renamed\n---\n# Index\n")
-    await t.elt_md()
+    await t.generate_docs()
     content = await Bun.file(`${t.srcDir}/md/index.tsx`).text()
     expect(content).toContain('"title":"Renamed"')
   })
@@ -383,7 +383,7 @@ describe("elt_md (integration)", () => {
     tmp = t
     const routesPath = `${t.srcDir}/routes.ts`
 
-    await t.elt_md()
+    await t.generate_docs()
     const content = await Bun.file(routesPath).text()
     expect(content).toContain('import md_index_text from "../md/index.md" with { type: "text" }')
     expect(content).toContain('import md_using_elt_text from "../md/using-elt.md" with { type: "text" }')
@@ -398,12 +398,12 @@ describe("elt_md (integration)", () => {
     tmp = t
     const routesPath = `${t.srcDir}/routes.ts`
 
-    await t.elt_md()
+    await t.generate_docs()
     const before = await Bun.file(routesPath).text()
     const firstWrite = Bun.file(routesPath).lastModified
 
     await new Promise((r) => setTimeout(r, 10))
-    await t.elt_md()
+    await t.generate_docs()
     const after = await Bun.file(routesPath).text()
     expect(after).toBe(before)
     expect(Bun.file(routesPath).lastModified).toBe(firstWrite) // no rewrite when content is unchanged
@@ -413,10 +413,10 @@ describe("elt_md (integration)", () => {
     const t = await withTempDocsTree({ "index.md": "# Index\n" })
     tmp = t
     const routesPath = `${t.srcDir}/routes.ts`
-    await t.elt_md()
+    await t.generate_docs()
 
     await Bun.write(`${t.mdDir}/using-elt.md`, "# Using elt\n")
-    await t.elt_md()
+    await t.generate_docs()
     const content = await Bun.file(routesPath).text()
     expect(content).toContain('import md_using_elt_text from "../md/using-elt.md" with { type: "text" }')
     expect(content).toContain("// fixture: hand-written part\n")
@@ -427,13 +427,13 @@ describe("elt_md (integration)", () => {
     const t = await withTempDocsTree({ "index.md": "# Index\n" })
     tmp = t
     await Bun.write(`${t.srcDir}/routes.ts`, "// no markers here\n")
-    expect(t.elt_md()).rejects.toThrow(/GENERATED-BEGIN\/GENERATED-END markers/)
+    expect(t.generate_docs()).rejects.toThrow(/GENERATED-BEGIN\/GENERATED-END markers/)
   })
 
   test("generated page exports a named PageService class, not a default export", async () => {
     const t = await withTempDocsTree({ "index.md": "# Index\n" })
     tmp = t
-    await t.elt_md()
+    await t.generate_docs()
     const content = await Bun.file(`${t.srcDir}/md/index.tsx`).text()
     expect(content).toContain("export class PageService extends Service({}, {})")
     expect(content).not.toContain("export default")
@@ -445,7 +445,7 @@ describe("elt_md (integration)", () => {
       "index.md": ["# Title", "", "A paragraph with **bold** text.", "", "- one", "- two"].join("\n"),
     })
     tmp = t
-    await t.elt_md()
+    await t.generate_docs()
     const content = await Bun.file(`${t.srcDir}/md/index.tsx`).text()
     expect(content).toContain("<h1 ")
     expect(content).toContain("<p>")
@@ -461,7 +461,7 @@ describe("elt_md (integration)", () => {
       "index.md": ["# Title", "", 'Text with { braces }, <angle> brackets, a backslash \\ and a "quote".'].join("\n"),
     })
     tmp = t
-    await t.elt_md()
+    await t.generate_docs()
     const content = await Bun.file(`${t.srcDir}/md/index.tsx`).text()
     assertValidTsx(content) // would throw if the raw characters broke out of JSX/JS syntax
   })
@@ -472,7 +472,7 @@ describe("elt_md (integration)", () => {
       "index.md": ["# Title", "", '<div class="note">a note</div>', "", "more text"].join("\n"),
     })
     tmp = t
-    await t.elt_md()
+    await t.generate_docs()
     const content = await Bun.file(`${t.srcDir}/md/index.tsx`).text()
     expect(content).toContain('<div class="note">a note</div>')
     assertValidTsx(content)
@@ -484,7 +484,7 @@ describe("elt_md (integration)", () => {
       "index.md": ["# Title", "", "<br>", "", "more"].join("\n"),
     })
     tmp = t
-    await t.elt_md()
+    await t.generate_docs()
     const content = await Bun.file(`${t.srcDir}/md/index.tsx`).text()
     expect(content).toContain("<br>")
     expect(() =>
@@ -500,7 +500,7 @@ describe("elt_md (integration)", () => {
       "index.md": ["# Index", "", "```ts", "const x: number = 1", "```", ""].join("\n"),
     })
     tmp = t
-    await t.elt_md()
+    await t.generate_docs()
     const content = await Bun.file(`${t.srcDir}/md/index.tsx`).text()
     expect(content).toContain("<CodeExample")
     expect(content).not.toContain("run={() =>")
@@ -514,7 +514,7 @@ describe("elt_md (integration)", () => {
       "index.md": ["# Index", "", "```ts", "const x = 1", "```", ""].join("\n"),
     })
     tmp = t
-    await t.elt_md()
+    await t.generate_docs()
     const content = await Bun.file(`${t.srcDir}/md/index.tsx`).text()
     expect(content).toMatch(/<span class=\{tokenColorClass\("#/)
     expect(content).toContain("tokenColorClass")
@@ -523,13 +523,33 @@ describe("elt_md (integration)", () => {
     expect(content).not.toContain("highlightedHtml")
   })
 
+  test("each colored token carries its light-theme and dark-theme colors; default-colored tokens stay uncolored", async () => {
+    const t = await withTempDocsTree({
+      "index.md": ["# Index", "", "```ts", 'const o_user = o({ name: "Ada" })', "```", ""].join("\n"),
+    })
+    tmp = t
+    await t.generate_docs()
+    const content = await Bun.file(`${t.srcDir}/md/index.tsx`).text()
+    // `const` is red in github-light, pink in github-dark: one class call with both colors.
+    expect(content).toContain('<span class={tokenColorClass("#D73A49", "#F97583")}>{"const"}</span>')
+    // Every call passes both colors (a single-color call would leave one scheme to the other's color).
+    const calls = [...content.matchAll(/tokenColorClass\("(#[0-9A-F]+)", "(#[0-9A-F]+)"\)/g)]
+    expect(calls.length).toBeGreaterThan(0)
+    expect(content.match(/tokenColorClass\(/g)?.length).toBe(calls.length)
+    // `name` and the punctuation use the themes' default text color: plain text, the page's text color.
+    expect(content).toContain('</span>{"({ name: "}<span')
+    expect(content).not.toContain("#24292E")
+    expect(content).not.toContain("#E1E4E8")
+    assertValidTsx(content)
+  })
+
   test("tokenColorClass is only imported when some token is colored", async () => {
     const t = await withTempDocsTree({
       "index.md": ["# Index", "", "```text", "hello", "```", ""].join("\n"),
       "colored.md": ["# Colored", "", "```ts", "const x = 1", "```", ""].join("\n"),
     })
     tmp = t
-    await t.elt_md()
+    await t.generate_docs()
     const plain = await Bun.file(`${t.srcDir}/md/index.tsx`).text()
     expect(plain).toContain("import { CodeExample } from")
     expect(plain).not.toContain("tokenColorClass")
@@ -543,7 +563,7 @@ describe("elt_md (integration)", () => {
       "index.md": ["# Index", "", "```bash", "echo hi", "```", ""].join("\n"),
     })
     tmp = t
-    await t.elt_md()
+    await t.generate_docs()
     const content = await Bun.file(`${t.srcDir}/md/index.tsx`).text()
     expect(content).not.toContain("run={() =>")
     expect(content).toContain('"echo"')
@@ -565,7 +585,7 @@ describe("elt_md (integration)", () => {
       ].join("\n"),
     })
     tmp = t
-    await t.elt_md()
+    await t.generate_docs()
     const content = await Bun.file(`${t.srcDir}/md/index.tsx`).text()
     expect(content).toContain("run={() =>")
     expect(content).toContain('import { o } from "elt"')
@@ -588,7 +608,7 @@ describe("elt_md (integration)", () => {
       ].join("\n"),
     })
     tmp = t
-    const { pages } = await t.elt_md()
+    const { pages } = await t.generate_docs()
     expect(pages[0]!.fullExampleLines).toEqual([3])
 
     const pageContent = await Bun.file(`${t.srcDir}/md/index.tsx`).text()
@@ -605,7 +625,7 @@ describe("elt_md (integration)", () => {
   test("every generated page file cites its markdown source path", async () => {
     const t = await withTempDocsTree({ "guide/intro.md": "# Intro\n" })
     tmp = t
-    await t.elt_md()
+    await t.generate_docs()
     const content = await Bun.file(`${t.srcDir}/md/guide/intro.tsx`).text()
     expect(content).toContain("// Source: docs/md/guide/intro.md")
   })
@@ -616,7 +636,7 @@ describe("elt_md (integration)", () => {
       "guide/intro.md": ["# Intro", "", "```tsx", "//@full-example", "return <div/>", "```", ""].join("\n"),
     })
     tmp = t
-    await t.elt_md()
+    await t.generate_docs()
     const content = await Bun.file(`${t.srcDir}/routes.generated.ts`).text()
 
     expect(content).toContain('import * as md_index from "./md/index.tsx"')
@@ -637,13 +657,13 @@ describe("elt_md (integration)", () => {
   test("routes.generated.ts content is stable across repeated calls with no underlying change", async () => {
     const t = await withTempDocsTree({ "index.md": "# Index\n" })
     tmp = t
-    await t.elt_md()
+    await t.generate_docs()
     const routesPath = `${t.srcDir}/routes.generated.ts`
     const before = await Bun.file(routesPath).text()
 
-    await t.elt_md()
+    await t.generate_docs()
     const after = await Bun.file(routesPath).text()
-    expect(after).toBe(before) // stable content is what makes the write-skip (see elt_md) a no-op
+    expect(after).toBe(before) // stable content is what makes the write-skip (see generate_docs) a no-op
   })
 
   test("two pages whose names sanitize to the same module alias get distinct aliases", async () => {
@@ -652,13 +672,13 @@ describe("elt_md (integration)", () => {
       "guide/intro.md": "# B\n",
     })
     tmp = t
-    const { pages } = await t.elt_md()
+    const { pages } = await t.generate_docs()
     const aliases = pages.map((p) => p.moduleAlias)
     expect(new Set(aliases).size).toBe(aliases.length) // no collision
   })
 })
 
-describe("elt_md (generated files follow their sources)", () => {
+describe("generate_docs (generated files follow their sources)", () => {
   let tmp: { root: string } | null = null
 
   afterEach(async () => {
@@ -683,22 +703,22 @@ describe("elt_md (generated files follow their sources)", () => {
   test("a page is regenerated when macro.ts is newer than its generated file, even if its .md is older", async () => {
     const t = await withTempDocsTree({ "index.md": "# Index\n" })
     tmp = t
-    await t.elt_md()
+    await t.generate_docs()
     const target = `${t.srcDir}/md/index.tsx`
     // .md at t=1000s, generated file at t=2000s: up to date with its .md, but older than macro.ts.
     await utimes(`${t.mdDir}/index.md`, 1000, 1000)
     await utimes(target, 2000, 2000)
-    await t.elt_md()
+    await t.generate_docs()
     expect(Bun.file(target).lastModified).toBeGreaterThan(2000 * 1000)
   })
 
   test("the generated file of a deleted .md is deleted", async () => {
     const t = await withTempDocsTree({ "index.md": "# Index\n", "guide/old.md": "# Old\n" })
     tmp = t
-    await t.elt_md()
+    await t.generate_docs()
     expect(await Bun.file(`${t.srcDir}/md/guide/old.tsx`).exists()).toBe(true)
     await rm(`${t.mdDir}/guide/old.md`)
-    await t.elt_md()
+    await t.generate_docs()
     expect(await Bun.file(`${t.srcDir}/md/guide/old.tsx`).exists()).toBe(false)
     expect(await Bun.file(`${t.srcDir}/md/index.tsx`).exists()).toBe(true)
   })
@@ -706,11 +726,11 @@ describe("elt_md (generated files follow their sources)", () => {
   test("the .full-N.tsx of a removed @full-example is deleted", async () => {
     const t = await withTempDocsTree({ "index.md": fullExamplePage(2) })
     tmp = t
-    await t.elt_md()
+    await t.generate_docs()
     expect(await Bun.file(`${t.srcDir}/md/index.full-1.tsx`).exists()).toBe(true)
     await Bun.write(`${t.mdDir}/index.md`, fullExamplePage(1))
     await utimes(`${t.srcDir}/md/index.tsx`, 1000, 1000) // older than the .md just written
-    const { pages } = await t.elt_md()
+    const { pages } = await t.generate_docs()
     expect(pages[0]?.fullExampleLines).toEqual([3])
     expect(await Bun.file(`${t.srcDir}/md/index.full-0.tsx`).exists()).toBe(true)
     expect(await Bun.file(`${t.srcDir}/md/index.full-1.tsx`).exists()).toBe(false)
@@ -719,17 +739,17 @@ describe("elt_md (generated files follow their sources)", () => {
   test("a deleted .full-N.tsx is re-created even though the page is otherwise up to date", async () => {
     const t = await withTempDocsTree({ "index.md": fullExamplePage(1) })
     tmp = t
-    await t.elt_md()
+    await t.generate_docs()
     await rm(`${t.srcDir}/md/index.full-0.tsx`)
-    await t.elt_md()
+    await t.generate_docs()
     expect(await Bun.file(`${t.srcDir}/md/index.full-0.tsx`).exists()).toBe(true)
   })
 
   test("full-example routes survive a second call, when the page is up to date and not parsed again", async () => {
     const t = await withTempDocsTree({ "index.md": fullExamplePage(2) })
     tmp = t
-    await t.elt_md()
-    const { pages } = await t.elt_md()
+    await t.generate_docs()
+    const { pages } = await t.generate_docs()
     expect(pages[0]?.fullExampleLines).toEqual([3, 8])
   })
 
@@ -738,14 +758,14 @@ describe("elt_md (generated files follow their sources)", () => {
       "index.md": ["# Index", "", "```js", "//@full-example", "console.log(1)", "```", ""].join("\n"),
     })
     tmp = t
-    const { pages } = await t.elt_md()
+    const { pages } = await t.generate_docs()
     expect(pages[0]?.fullExampleLines).toEqual([])
     const routes = await Bun.file(`${t.srcDir}/routes.generated.ts`).text()
     expect(routes).not.toContain("full-example")
   })
 })
 
-describe("elt_md (source line numbers of code blocks)", () => {
+describe("generate_docs (source line numbers of code blocks)", () => {
   let tmp: { root: string } | null = null
 
   afterEach(async () => {
@@ -760,7 +780,7 @@ describe("elt_md (source line numbers of code blocks)", () => {
       "index.md": ["# Index", "", "    indented code", "", ...inlineExample, ""].join("\n"),
     })
     tmp = t
-    await t.elt_md()
+    await t.generate_docs()
     const content = await Bun.file(`${t.srcDir}/md/index.tsx`).text()
     expect(content).toContain("/* docs/md/index.md:5 */")
   })
@@ -770,7 +790,7 @@ describe("elt_md (source line numbers of code blocks)", () => {
       "index.md": ["# Index", "", "````md", "```ts", "inner", "```", "````", "", ...inlineExample, ""].join("\n"),
     })
     tmp = t
-    await t.elt_md()
+    await t.generate_docs()
     const content = await Bun.file(`${t.srcDir}/md/index.tsx`).text()
     expect(content).toContain("/* docs/md/index.md:9 */")
   })
@@ -780,7 +800,7 @@ describe("elt_md (source line numbers of code blocks)", () => {
       "index.md": ["# Index", "", "- item", "", "    continued paragraph", "", ...inlineExample, ""].join("\n"),
     })
     tmp = t
-    await t.elt_md()
+    await t.generate_docs()
     const content = await Bun.file(`${t.srcDir}/md/index.tsx`).text()
     expect(content).toContain("/* docs/md/index.md:7 */")
   })
@@ -811,7 +831,7 @@ describe("extractImports", () => {
       ].join("\n"),
     })
     tmp = t
-    await t.elt_md()
+    await t.generate_docs()
     const content = await Bun.file(`${t.srcDir}/md/index.tsx`).text()
     expect(content).not.toMatch(/^import \{ x \} from "y"/m)
     expect(content).toContain('  import { x } from "y"')
@@ -864,7 +884,7 @@ describe("wiki links", () => {
         "# Intro\n\nSee [[other]], [[other#part]], [[../index|home]], [[#here|above]] and `[[not a link]]`.\n",
     })
     tmp = t
-    await t.elt_md()
+    await t.generate_docs()
     const content = await Bun.file(`${t.srcDir}/md/guide/intro.tsx`).text()
     expect(content).toContain('<a href={"/guide/other"}>{"other"}</a>')
     expect(content).toContain('<a href={"/guide/other#part"}>{"other#part"}</a>')
