@@ -17,7 +17,7 @@ Pages are divided by subject: each topic page holds the how-to, the lookup table
 | `just check` | Lint (biome) and type-check `src/`, `ui/`, `editor/` and `docs/`, and build the docs |
 | `just format` | Format and apply safe lint fixes across the project |
 | `just test` | Run every test suite (`just test-bun`, then `just test-pw`) |
-| `just test-pw [args]` | Run the Playwright tests (`tests/**/*.pw.ts`, real browser); arguments go to `playwright test` — see [`docs/md/testing.md`](./docs/md/testing.md) |
+| `just test-pw [args]` | Run the Playwright tests (`tests/**/*.pw.ts`, real browser); arguments go to `playwright test`. The harness is served on port 5391 (an already running server is reused); `PLAYWRIGHT_PORT=<port> just test-pw` uses another one, e.g. alongside another session — see [`docs/md/testing.md`](./docs/md/testing.md) |
 | `just test-webkit [args]` | Run Playwright tests in WebKit inside Playwright's Docker image (WebKit can't run natively on every host): the motion tests by default — see [`docs/md/testing.md`](./docs/md/testing.md) |
 | `just test-bun [args]` | Run the bun unit tests (`*.test.ts`, currently `docs/src/macro.test.ts` and `tests/bundle.test.ts`) |
 | `just bench` | Benchmark the observable scheduling (`tests/bench/observable.bench.ts`) against the current `src/`, in Bun then in Chromium; prints nanoseconds per operation for each case. Not a test (asserts nothing, not run by `just test`); compare runs made one after the other on the same machine |

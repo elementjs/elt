@@ -9,7 +9,6 @@ export type Frontmatter = {
   title?: string
   order?: number
   section?: string
-  draft?: boolean
 }
 
 /** One entry of the generated menu, grouped by section (see buildMenu). */

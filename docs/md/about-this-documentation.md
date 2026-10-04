@@ -23,6 +23,15 @@ A fenced code block (` ```tsx ... ``` `) can behave in one of three ways, depend
 
 Any other language (bash, json, css, …) is always just displayed — there's no live/example mode for non-TypeScript blocks.
 
+## Markdown syntax
+
+Pages use GitHub-flavored markdown (tables, `~~strikethrough~~`, task lists, bare URLs as links), plus links between pages:
+
+- A relative link to another page's file, `[Verbs](./verbs.md#if)`, becomes a link to that page (and heading).
+- A wiki link is a shorter form of the same: `[[verbs]]`, `[[verbs#if]]`, `[[verbs#if|the If verb]]` (the text after `|` is the link text; without it, the target is shown), or `[[#if]]` for a heading of the current page. Its label must be plain text: `[[verbs|**If**]]` stays as written.
+
+There is no math syntax (`$x$` stays as written) and no underline: `__text__` is bold, like `**text**`.
+
 ## Raw HTML/TSX in a markdown file
 
 If you write literal HTML directly in a `.md` file (e.g. `<div class="note">...</div>`), it directly becomes typescript tsx code when the page is built — it is **not** run through a forgiving HTML parser. Write it the way you'd write JSX: close every tag, including "void" ones like `<br/>` or `<img src="..."/>` (with the trailing slash). Malformed HTML here will fail the whole page's build, not just quietly render wrong — treat it the same care you'd give to any other code you write.
@@ -36,7 +45,7 @@ When a page has more than one `@inline-example` block, their imports are combine
 - **Don't reuse a name for two different things.** If one example imports something as `x` and
   another example on the same page imports something *different* as `x` (even from a different module), the page will fail to build. Pick a different local name in one of the two examples.
 
-Only single-line import statements are understood (e.g. `import { a, b as c } from "mod"`, `import Foo from "mod"`, `import * as ns from "mod"`, `import "mod"`, or `import Foo, { a, b as c } from "mod"`). Don't split an import across multiple lines, and don't use `import type` inside an example — regular imports are fine even for types, since these blocks aren't separately type-checked at build time.
+Only single-line import statements starting at the beginning of a line are understood (e.g. `import { a, b as c } from "mod"`, `import Foo from "mod"`, `import * as ns from "mod"`, `import "mod"`, or `import Foo, { a, b as c } from "mod"`). Don't split an import across multiple lines, and don't use `import type` inside an example — regular imports are fine even for types, since these blocks aren't separately type-checked at build time.
 
 ## Page metadata
 

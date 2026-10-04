@@ -1,23 +1,30 @@
-# salesway-discovery — ported from Makefile
+# elt — development commands: type-checking, linting, the docs site and the test suites.
+# `just --list` shows every recipe.
 
-
-export PATH := "./node_modules/.bin:" + env("PATH")
+# The project's own tools (tsc, wtsc, biome, playwright) before any global ones, also after a `cd`.
+export PATH := justfile_directory() + "/node_modules/.bin:" + env("PATH")
 
 watch:
     tsc -w --noEmit | wtsc
 
 # run the docs dev server, type-checking docs/ on every (re)build. The macro that generates docs
-# pages does no type-checking of its own (see specs/markdown-docs-reloaded.md, "Type-checking") —
-# `bun index.html` only strips types, it never checks them — so this pipes its output through awk,
-# printing it unchanged, and on every "Bundled page in ..."/"Reloaded in ..." line (a rebuild just
-# happened) shells out to a real `tsc --noEmit` pass over the whole docs/ project.
+# pages does no type-checking of its own — `bun index.html` only strips types, it never checks them
+# (design notes: `git show 0153257^:specs/markdown-docs-reloaded.md`, "Type-checking") — so this
+# pipes its output through awk, printing it unchanged, and on every "Bundled page in ..."/"Reloaded
+# in ..." line (a rebuild just happened) shells out to a real `tsc --noEmit` pass over the whole docs/ project.
 watch-docs:
     cd docs && bun index.html 2>&1 | awk '{ print; fflush(); if ($0 ~ /^(Bundled page in|(\[x[0-9]+\] )?Reloaded in)/) system("tsc --noEmit -p tsconfig.json | wtsc") }'
 
+# A bash script with pipefail, so a tsc failure fails the recipe even though wtsc, at the end of its
+# pipe, succeeds. The docs build also regenerates the out-of-date pages under docs/src/md.
+# type-check src/, ui/, editor/ and docs/, and build the docs into a temporary directory, deleted afterwards
 check-compile:
+    #!/usr/bin/env bash
+    set -euo pipefail
     tsc --noEmit | wtsc
-    rm -rf docs/src/md/*
-    bun build ./docs/index.html --outdir=/tmp
+    out=$(mktemp -d)
+    trap 'rm -rf "$out"' EXIT
+    bun build ./docs/index.html --outdir="$out"
     (cd docs && tsc --noEmit) | wtsc
 
 # run every test suite: bun unit tests, then the Playwright browser tests

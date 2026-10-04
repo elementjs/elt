@@ -4,35 +4,19 @@
 // literal generated JSX source rather than a JSON tree interpreted at runtime, and why every page is
 // statically imported by the generated router rather than lazily loaded).
 
-// Tiny inline replacement for node:path's resolve, to avoid a @types/node dependency (docs/tsconfig.json
-// only declares @types/bun) for a single one-line operation.
-const path = {
-  /** Like node:path's resolve: a later absolute segment resets everything before it. */
-  resolve: (...parts: string[]) => {
-    let out: string[] = []
-    for (const part of parts) {
-      if (part.startsWith("/")) out = []
-      for (const seg of part.split("/")) {
-        if (seg === "" || seg === ".") continue
-        if (seg === "..") out.pop()
-        else out.push(seg)
-      }
-    }
-    return `/${out.join("/")}`
-  },
-}
+import { exists, unlink } from "node:fs/promises"
+// `resolve` for file-system paths; `posix` for the "/"-separated paths of docs/md and docs/src/md,
+// which are also URLs and import specifiers, so they must not take the host's separator.
+import { posix, resolve } from "node:path"
+// Frontmatter/MenuEntry/MenuGroup/buildMenu live in ./menu.ts, not here: routes.generated.ts needs
+// buildMenu as a real (non-macro) runtime import, and macro.ts has top-level Bun-only code
+// (`new Bun.Glob(...)`, below) that a plain `import ... from "./macro.ts"` would otherwise drag into
+// the client bundle — confirmed by testing (a live page load threw "Bun is not defined" before this split).
+import type { Frontmatter } from "./menu.ts"
 
 const { codeToTokens } = await import("shiki")
 
 export type MdNode = [type: string, meta: Record<string, any>, children: MdNode[] | string]
-
-// Frontmatter/MenuEntry/MenuGroup/buildMenu live in ./menu.ts, not here: routes.generated.ts needs
-// buildMenu as a real (non-macro) runtime import, and macro.ts has top-level Bun-only code
-// (`new Bun.Glob(...)`, below) that a plain `import ... from "./macro.ts"` would otherwise drag into
-// the client bundle — confirmed by testing (a live page load threw "Bun is not defined" before this
-// split). Re-exported here so macro.ts's own call sites don't need two import lines.
-export { buildMenu, type Frontmatter, type MenuEntry, type MenuGroup } from "./menu.ts"
-import type { Frontmatter } from "./menu.ts"
 
 /** One discovered page, as returned by the macro (JSON-serializable only — see elt_md). Frontmatter
  * is deliberately NOT included: the menu reads it live off each page's own statically-imported
@@ -49,9 +33,26 @@ export type PageEntry = {
 }
 
 const NODE_TYPES = [
-  "heading", "paragraph", "blockquote", "code", "list", "listItem", "hr", "table",
-  "thead", "tbody", "tr", "th", "td", "html", "strong", "emphasis", "link", "image",
-  "codespan", "strikethrough",
+  "heading",
+  "paragraph",
+  "blockquote",
+  "code",
+  "list",
+  "listItem",
+  "hr",
+  "table",
+  "thead",
+  "tbody",
+  "tr",
+  "th",
+  "td",
+  "html",
+  "strong",
+  "emphasis",
+  "link",
+  "image",
+  "codespan",
+  "strikethrough",
 ] as const
 
 /**
@@ -80,7 +81,10 @@ export function splitNodes(raw: string): MdNode[] {
           else if (c === "[") depth++
           else if (c === "]") {
             depth--
-            if (depth === 0) { i++; break }
+            if (depth === 0) {
+              i++
+              break
+            }
           }
         }
       }
@@ -95,7 +99,7 @@ export function splitNodes(raw: string): MdNode[] {
   return out
 }
 
-export function node(type: string, meta: unknown, childrenRaw: string): string {
+function node(type: string, meta: unknown, childrenRaw: string): string {
   return JSON.stringify([type, meta ?? {}, splitNodes(childrenRaw)])
 }
 
@@ -118,21 +122,11 @@ export function urlFor(relPath: string): string {
   return name === "index" ? "/" : `/${name}`
 }
 
-/** Valid-JS-identifier module alias for a route name's static import, e.g. "guide/intro" ->
- * "md_guide_intro". Collisions (two names sanitizing to the same alias) get a numeric suffix. */
-function moduleAliasFor(name: string, taken: Set<string>): string {
-  const base = `md_${name.replace(/[^A-Za-z0-9_$]/g, "_")}`
-  let alias = base
-  let n = 2
-  while (taken.has(alias)) alias = `${base}_${n++}`
-  taken.add(alias)
-  return alias
-}
-
-/** Same shape as moduleAliasFor, `_text` suffixed and tracked in its own taken-set — used for the
- * named `with { type: "text" }` imports spliced into docs/src/routes.ts (see genRoutesTextImportsBlock). */
-function textImportAliasFor(name: string, taken: Set<string>): string {
-  const base = `md_${name.replace(/[^A-Za-z0-9_$]/g, "_")}_text`
+/** Valid-JS-identifier alias for a route name's import, e.g. "guide/intro" -> "md_guide_intro", or
+ * "md_guide_intro_text" with `suffix` "_text". Collisions within `taken` (two names sanitizing to the
+ * same alias) get a numeric suffix; each kind of import keeps its own `taken` set. */
+function aliasFor(name: string, taken: Set<string>, suffix = ""): string {
+  const base = `md_${name.replace(/[^A-Za-z0-9_$]/g, "_")}${suffix}`
   let alias = base
   let n = 2
   while (taken.has(alias)) alias = `${base}_${n++}`
@@ -147,27 +141,66 @@ function textImportAliasFor(name: string, taken: Set<string>): string {
  */
 export function resolveMdLink(href: string, fromPath: string): string | null {
   if (!/^\.\.?\//.test(href)) return null
-  if (!href.replace(/[?#].*$/, "").endsWith(".md")) return null
-  const [cleanHref, hash] = href.split(/(?=[?#])/, 2)
-  const fromDir = fromPath.split("/").slice(0, -1)
-  const parts = [...fromDir, ...(cleanHref ?? href).split("/")]
-  const resolved: string[] = []
-  for (const part of parts) {
-    if (part === "." || part === "") continue
-    if (part === "..") resolved.pop()
-    else resolved.push(part)
-  }
-  return `${urlFor(resolved.join("/"))}${hash ?? ""}`
+  // `?query` / `#hash` are carried over to the route unchanged.
+  const cut = href.search(/[?#]/)
+  const file = cut === -1 ? href : href.slice(0, cut)
+  if (!file.endsWith(".md")) return null
+  return `${urlFor(posix.join(posix.dirname(fromPath), file))}${cut === -1 ? "" : href.slice(cut)}`
 }
 
+/** `[[target]]` or `[[target|label]]`, where target is `page`, `page#heading` or `#heading`. */
+const RE_WIKI_LINK = /\[\[([^\]|]+)\|?([^\]]*)\]\]/g
+
+/** A wiki link's target resolved like the relative link `./page.md#heading` (so relative to the
+ * current file's directory); `#heading` alone stays an in-page anchor. */
+function wikiHref(target: string, fromPath: string): string {
+  const hashAt = target.indexOf("#")
+  const page = (hashAt === -1 ? target : target.slice(0, hashAt)).replace(/\.md$/, "")
+  const hash = hashAt === -1 ? "" : target.slice(hashAt)
+  return page === "" ? hash : (resolveMdLink(`./${page}.md${hash}`, fromPath) ?? target)
+}
+
+/**
+ * Turns `[[...]]` in prose into link nodes. Bun's parser can't do it for us: with its `wikiLinks`
+ * option, `render()` callbacks only get the label, never the target (see the tests). So the option
+ * stays off, `[[page]]` arrives as plain text, and is rewritten here. Bun splits that text at each
+ * `[`, so adjacent text nodes are merged first. A label must be plain text: `[[page|**bold**]]` spans
+ * several nodes and stays literal.
+ */
+function expandWikiLinks(children: MdNode[], fromPath: string): MdNode[] {
+  const merged: MdNode[] = []
+  for (const child of children) {
+    const prev = merged[merged.length - 1]
+    if (child[0] === "text" && prev?.[0] === "text") prev[2] = `${prev[2]}${child[2]}`
+    else merged.push(child[0] === "text" ? ["text", {}, child[2]] : child)
+  }
+  return merged.flatMap((child): MdNode[] => {
+    if (child[0] !== "text" || typeof child[2] !== "string" || !child[2].includes("[[")) return [child]
+    const text = child[2]
+    const out: MdNode[] = []
+    let last = 0
+    for (const m of text.matchAll(RE_WIKI_LINK)) {
+      const [whole, target = "", label] = m
+      if (m.index > last) out.push(["text", {}, text.slice(last, m.index)])
+      out.push(["link", { href: wikiHref(target, fromPath) }, [["text", {}, label || target]]])
+      last = m.index + whole.length
+    }
+    if (last < text.length) out.push(["text", {}, text.slice(last)])
+    return out
+  })
+}
+
+/** Rewrites relative `.md` links and wiki links into routes, everywhere but in code and raw HTML. */
 function rewriteLinks(n: MdNode, fromPath: string): void {
-  if (n[0] === "link" && typeof n[1]?.href === "string") {
-    const rewritten = resolveMdLink(n[1].href, fromPath)
-    if (rewritten) n[1] = { ...n[1], href: rewritten }
+  const [type, meta, children] = n
+  if (!Array.isArray(children) || type === "code" || type === "codespan" || type === "html") return
+  if (type === "link") {
+    const rewritten = typeof meta?.href === "string" ? resolveMdLink(meta.href, fromPath) : null
+    if (rewritten) n[1] = { ...meta, href: rewritten }
+  } else {
+    n[2] = expandWikiLinks(children, fromPath)
   }
-  if (Array.isArray(n[2])) {
-    for (const child of n[2]) rewriteLinks(child, fromPath)
-  }
+  for (const child of n[2] as MdNode[]) rewriteLinks(child, fromPath)
 }
 
 function collectCodeNodes(n: MdNode, out: MdNode[]): void {
@@ -205,12 +238,16 @@ function annotationOf(code: string): { annotation: Annotation; body: string } {
   return { annotation: null, body: code }
 }
 
+/** An `import` statement on one line, starting at column 0: an indented `import` line sits inside
+ * something else (a string, a template literal) and is left in the body. */
+const RE_IMPORT_LINE = /^import(?:\s+.*\bfrom\s*|\s*)["'][^"']+["'];?\s*$/
+
 /** Splits a snippet into its top-level `import ...` lines (verbatim) and the remaining body. */
 function extractImports(code: string): { importLines: string[]; body: string } {
-  const lines = code.split("\n")
-  const importLines = lines.filter((l) => /^import\s+.*\bfrom\s*["'][^"']+["'];?\s*$/.test(l.trim()) || /^import\s*["'][^"']+["'];?\s*$/.test(l.trim()))
-  const body = lines.filter((l) => !importLines.includes(l)).join("\n")
-  return { importLines, body }
+  const importLines: string[] = []
+  const bodyLines: string[] = []
+  for (const line of code.split("\n")) (RE_IMPORT_LINE.test(line) ? importLines : bodyLines).push(line)
+  return { importLines, body: bodyLines.join("\n") }
 }
 
 // ---------------------------------------------------------------------------
@@ -237,14 +274,18 @@ const RE_NAMED = /^import\s*\{([^}]*)\}\s*from\s*["']([^"']+)["'];?$/
 const RE_DEFAULT = /^import\s+([A-Za-z_$][\w$]*)\s+from\s*["']([^"']+)["'];?$/
 
 function parseNamedList(raw: string): ImportBinding[] {
-  return raw.split(",").map((s) => s.trim()).filter(Boolean).map((s) => {
-    const t = s.match(/^type\s+(.*)$/)
-    const type_only = t != null
-    if (t) s = t[1]!
-    const m = s.match(/^([A-Za-z_$][\w$]*)\s+as\s+([A-Za-z_$][\w$]*)$/)
-    if (m) return { imported: m[1]!, local: m[2]!, type_only }
-    return { imported: s, local: s, type_only }
-  })
+  return raw
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .map((s) => {
+      const t = s.match(/^type\s+(.*)$/)
+      const type_only = t != null
+      if (t) s = t[1]!
+      const m = s.match(/^([A-Za-z_$][\w$]*)\s+as\s+([A-Za-z_$][\w$]*)$/)
+      if (m) return { imported: m[1]!, local: m[2]!, type_only }
+      return { imported: s, local: s, type_only }
+    })
 }
 
 export class ImportParseError extends Error {}
@@ -265,9 +306,9 @@ export function parseImportLine(line: string, loc: string): ParsedImportLine {
   m = trimmed.match(RE_SIDE_EFFECT)
   if (m) return { kind: "side-effect", module: m[1]! }
   throw new ImportParseError(
-    `Unsupported import form at ${loc}: "${trimmed}". @inline-example imports must be a single-line `
-    + `import "mod" / import Foo from "mod" / import * as ns from "mod" / import { a, b as c } from "mod" `
-    + `/ import Foo, { a, b as c } from "mod" — no multi-line statements, "import type", or dynamic import().`,
+    `Unsupported import form at ${loc}: "${trimmed}". @inline-example imports must be a single-line ` +
+      `import "mod" / import Foo from "mod" / import * as ns from "mod" / import { a, b as c } from "mod" ` +
+      `/ import Foo, { a, b as c } from "mod" — no multi-line statements, "import type", or dynamic import().`,
   )
 }
 
@@ -291,7 +332,10 @@ export function mergeImports(groups: { importLines: string[]; loc: string }[]): 
 
   const bucketFor = (mod: string): ModuleBucket => {
     let b = modules.get(mod)
-    if (!b) { b = { sideEffectOnly: false, defaults: new Map(), namespaces: new Map(), named: new Map() }; modules.set(mod, b) }
+    if (!b) {
+      b = { sideEffectOnly: false, defaults: new Map(), namespaces: new Map(), named: new Map() }
+      modules.set(mod, b)
+    }
     return b
   }
 
@@ -301,8 +345,8 @@ export function mergeImports(groups: { importLines: string[]; loc: string }[]): 
       const same = existing.module === rec.module && existing.kind === rec.kind && existing.imported === rec.imported
       if (!same) {
         throw new ImportParseError(
-          `Import conflict: local name "${local}" is bound differently at ${existing.loc} and ${rec.loc} `
-          + `— use distinct aliases for these two examples on this page.`,
+          `Import conflict: local name "${local}" is bound differently at ${existing.loc} and ${rec.loc} ` +
+            `— use distinct aliases for these two examples on this page.`,
         )
       }
       return
@@ -314,7 +358,10 @@ export function mergeImports(groups: { importLines: string[]; loc: string }[]): 
     for (const rawLine of group.importLines) {
       const parsed = parseImportLine(rawLine, group.loc)
       const bucket = bucketFor(parsed.module)
-      if (parsed.kind === "side-effect") { bucket.sideEffectOnly = true; continue }
+      if (parsed.kind === "side-effect") {
+        bucket.sideEffectOnly = true
+        continue
+      }
       if (parsed.kind === "namespace") {
         claim(parsed.local, { module: parsed.module, kind: "namespace", loc: group.loc })
         bucket.namespaces.set(parsed.local, group.loc)
@@ -329,7 +376,11 @@ export function mergeImports(groups: { importLines: string[]; loc: string }[]): 
         claim(local, { module: parsed.module, kind: "named", imported, loc: group.loc })
         // `{ type X }` and `{ X }` of the same binding merge into one : type-only only if every occurrence is
         const prev = bucket.named.get(local)
-        bucket.named.set(local, { imported, type_only: type_only && (prev?.type_only ?? true), loc: prev?.loc ?? group.loc })
+        bucket.named.set(local, {
+          imported,
+          type_only: type_only && (prev?.type_only ?? true),
+          loc: prev?.loc ?? group.loc,
+        })
       }
     }
   }
@@ -337,12 +388,18 @@ export function mergeImports(groups: { importLines: string[]; loc: string }[]): 
   const out: string[] = []
   for (const [mod, bucket] of modules) {
     const q = JSON.stringify(mod)
-    if (bucket.sideEffectOnly && bucket.defaults.size === 0 && bucket.namespaces.size === 0 && bucket.named.size === 0) {
+    if (
+      bucket.sideEffectOnly &&
+      bucket.defaults.size === 0 &&
+      bucket.namespaces.size === 0 &&
+      bucket.named.size === 0
+    ) {
       out.push(`import ${q}`)
     }
     for (const local of bucket.namespaces.keys()) out.push(`import * as ${local} from ${q}`)
     const namedClause = [...bucket.named].map(
-      ([local, { imported, type_only }]) => `${type_only ? "type " : ""}${imported === local ? local : `${imported} as ${local}`}`,
+      ([local, { imported, type_only }]) =>
+        `${type_only ? "type " : ""}${imported === local ? local : `${imported} as ${local}`}`,
     )
     const defaultLocals = [...bucket.defaults.keys()]
     if (defaultLocals.length === 0) {
@@ -373,9 +430,17 @@ function jsxAttr(name: string, value: unknown): string {
 }
 
 const TAG_MAP: Record<string, string> = {
-  blockquote: "blockquote", table: "table", thead: "thead", tbody: "tbody",
-  tr: "tr", th: "th", td: "td", strong: "strong", emphasis: "em",
-  strikethrough: "s", codespan: "code",
+  blockquote: "blockquote",
+  table: "table",
+  thead: "thead",
+  tbody: "tbody",
+  tr: "tr",
+  th: "th",
+  td: "td",
+  strong: "strong",
+  emphasis: "em",
+  strikethrough: "s",
+  codespan: "code",
 }
 
 function childrenJsx(n: MdNode, relPath: string): string {
@@ -393,21 +458,32 @@ function childrenJsx(n: MdNode, relPath: string): string {
 function nodeToJsx(n: MdNode, relPath: string): string {
   const [type, meta] = n
   switch (type) {
-    case "root": return childrenJsx(n, relPath)
-    case "heading": return `<h${meta.level}${jsxAttr("id", meta.id)}>${childrenJsx(n, relPath)}</h${meta.level}>`
-    case "paragraph": return `<p>${childrenJsx(n, relPath)}</p>`
-    case "list": return `<${meta.ordered ? "ol" : "ul"}>${childrenJsx(n, relPath)}</${meta.ordered ? "ol" : "ul"}>`
-    case "listItem": return `<li>${childrenJsx(n, relPath)}</li>`
-    case "hr": return "<hr/>"
-    case "link": return `<a${jsxAttr("href", meta.href)}${jsxAttr("title", meta.title)}>${childrenJsx(n, relPath)}</a>`
-    case "image": return `<img${jsxAttr("src", meta.src)}${jsxAttr("alt", meta.alt)}/>`
+    case "root":
+      return childrenJsx(n, relPath)
+    case "heading":
+      return `<h${meta.level}${jsxAttr("id", meta.id)}>${childrenJsx(n, relPath)}</h${meta.level}>`
+    case "paragraph":
+      return `<p>${childrenJsx(n, relPath)}</p>`
+    case "list":
+      return `<${meta.ordered ? "ol" : "ul"}>${childrenJsx(n, relPath)}</${meta.ordered ? "ol" : "ul"}>`
+    case "listItem":
+      return `<li>${childrenJsx(n, relPath)}</li>`
+    case "hr":
+      return "<hr/>"
+    case "link":
+      return `<a${jsxAttr("href", meta.href)}${jsxAttr("title", meta.title)}>${childrenJsx(n, relPath)}</a>`
+    case "image":
+      return `<img${jsxAttr("src", meta.src)}${jsxAttr("alt", meta.alt)}/>`
     // node() always wraps children as an array (only "text" callbacks get a raw string — see
     // splitNodes/node above), so an "html" node's own n[2] is never a string in practice; textOf
     // recovers the literal raw HTML text from its "text" descendants, spliced verbatim (unescaped —
     // see the spec's "Why" on raw HTML: this is deliberate, not a bug).
-    case "html": return textOf(n)
-    case "text": return jsxText(typeof n[2] === "string" ? n[2] : "")
-    case "code": return codeNodeToJsx(n, relPath)
+    case "html":
+      return textOf(n)
+    case "text":
+      return jsxText(typeof n[2] === "string" ? n[2] : "")
+    case "code":
+      return codeNodeToJsx(n, relPath)
     default: {
       const tag = TAG_MAP[type]
       if (tag) return `<${tag}>${childrenJsx(n, relPath)}</${tag}>`
@@ -426,7 +502,13 @@ type ShikiToken = { content: string; color?: string }
  * in code-example.tsx for why. */
 function tokensToJsx(lines: ShikiToken[][]): string {
   const lineFrags = lines.map((line) => {
-    const spans = line.map((t) => (t.color ? `<span class={tokenColorClass(${JSON.stringify(t.color)})}>${jsxText(t.content)}</span>` : jsxText(t.content))).join("")
+    const spans = line
+      .map((t) =>
+        t.color
+          ? `<span class={tokenColorClass(${JSON.stringify(t.color)})}>${jsxText(t.content)}</span>`
+          : jsxText(t.content),
+      )
+      .join("")
     return `<>${spans}</>`
   })
   return `[${lineFrags.join(',"\\n",')}]`
@@ -438,17 +520,21 @@ type FullExample = { node: MdNode; index: number; importLines: string[]; body: s
 /**
  * Highlights every code node (all languages, via Shiki's token API) and classifies ts/tsx ones per
  * the spec's three fence kinds. Mutates `codeNodes` in place (stores `tokens` on each node's meta,
- * consumed later by `codeNodeToJsx`) and returns the inline/full examples collected for codegen.
- * `fenceLines[i]` is the source line of `codeNodes[i]`'s opening fence (see computeFenceLines).
+ * consumed later by `codeNodeToJsx`, and the route of each `@full-example`) and returns the
+ * inline/full examples collected for codegen. `codeLines[i]` is the source line of `codeNodes[i]`
+ * (see locateCodeBlocks); `name` is the page's route name.
  */
-async function processCodeNodes(codeNodes: MdNode[], fenceLines: number[]): Promise<{ inline: InlineExample[]; full: FullExample[] }> {
+async function processCodeNodes(
+  codeNodes: MdNode[],
+  codeLines: number[],
+  name: string,
+): Promise<{ inline: InlineExample[]; full: FullExample[] }> {
   const inline: InlineExample[] = []
   const full: FullExample[] = []
-  let fullIndex = 0
 
   for (let i = 0; i < codeNodes.length; i++) {
     const n = codeNodes[i]!
-    const sourceLine = fenceLines[i] ?? 1
+    const sourceLine = codeLines[i] ?? 1
     const lang = n[1]?.language
     const raw = textOf(n)
     const isTs = lang === "ts" || lang === "tsx"
@@ -464,8 +550,8 @@ async function processCodeNodes(codeNodes: MdNode[], fenceLines: number[]): Prom
       inline.push({ node: n, body, importLines, sourceLine })
     } else if (annotation === "full-example") {
       const { importLines, body } = extractImports(displayText)
-      const index = fullIndex++
-      n[1].fullExampleIndex = index
+      const index = full.length
+      n[1].fullExampleUrl = fullExampleUrl(name, index)
       full.push({ node: n, index, importLines, body, sourceLine })
     }
   }
@@ -473,21 +559,20 @@ async function processCodeNodes(codeNodes: MdNode[], fenceLines: number[]): Prom
   return { inline, full }
 }
 
-/** Cheap, parse-free line numbers of every `@full-example` fence's opening ` ``` ` — used to size
- * and comment the routes generated on every macro call, even for pages whose generated .tsx file is
- * up to date and not being re-parsed (see computeFenceLines for why a full parse isn't needed). */
-function findFullExampleLines(raw: string): number[] {
-  const lines = raw.split("\n")
-  const out: number[] = []
-  for (let i = 0; i < lines.length; i++) {
-    if (/^\s*```/.test(lines[i]!) && lines[i + 1]?.trim() === "//@full-example") out.push(i + 1)
-  }
-  return out
+/** Route of a page's `index`-th `@full-example` block (0-based, in document order). */
+function fullExampleUrl(name: string, index: number): string {
+  return `/full-example/${name}/${index}`
 }
 
-/** "../".repeat(n) up to `docs/src/` from a generated file at `docs/src/md/<segments...>.tsx`. */
-function upsFromMdDir(relPath: string): string {
-  return "../".repeat(relPath.replace(/\.md$/, "").split("/").length)
+/** Generated file of a page (`index` omitted) or of its `index`-th `@full-example` block, relative
+ * to docs/src/md. */
+function generatedFileFor(name: string, index?: number): string {
+  return index == null ? `${name}.tsx` : `${name}.full-${index}.tsx`
+}
+
+/** Import specifier of `docs/src/<target>` from the generated page of `relPath` (at docs/src/md/<name>.tsx). */
+function importFromPage(relPath: string, target: string): string {
+  return posix.relative(posix.dirname(`md/${relPath}`), target)
 }
 
 /** Compiles a `"code"` MdNode into a literal `<CodeExample .../>` call at its exact position in the
@@ -509,9 +594,35 @@ function codeNodeToJsx(n: MdNode, relPath: string): string {
   return `<CodeExample${props.join("")} />`
 }
 
-function genPageSource(relPath: string, frontmatter: Frontmatter, root: MdNode, inline: InlineExample[], codeNodes: MdNode[]): string {
-  const ups = upsFromMdDir(relPath)
-  const mergedImports = mergeImports(inline.map((e) => ({ importLines: e.importLines, loc: `docs/md/${relPath}:${e.sourceLine}` })))
+/**
+ * Third line of every generated page: the source line of each of its `@full-example` blocks, e.g.
+ * `// full-example lines: [12,40]`. The routes and the expected `.full-N.tsx` files are rebuilt on
+ * every macro call, also for pages that are up to date and not parsed again: they read this line
+ * back (see readFullExampleLines) instead of scanning the markdown a second, different way. A comment
+ * rather than an export, so nothing of it reaches the client bundle.
+ */
+const FULL_EXAMPLE_LINES_HEADER = "// full-example lines: "
+
+/** The `@full-example` source lines recorded in a generated page (see FULL_EXAMPLE_LINES_HEADER), or
+ * null when the file has no such line (written by an older macro.ts: it is then out of date anyway). */
+async function readFullExampleLines(pagePath: string): Promise<number[] | null> {
+  // The header is within the first few hundred bytes; the rest of a page can weigh hundreds of KB.
+  const head = await Bun.file(pagePath).slice(0, 1024).text()
+  const line = head.split("\n").find((l) => l.startsWith(FULL_EXAMPLE_LINES_HEADER))
+  return line == null ? null : JSON.parse(line.slice(FULL_EXAMPLE_LINES_HEADER.length))
+}
+
+function genPageSource(
+  relPath: string,
+  frontmatter: Frontmatter,
+  root: MdNode,
+  inline: InlineExample[],
+  full: FullExample[],
+  codeNodes: MdNode[],
+): string {
+  const mergedImports = mergeImports(
+    inline.map((e) => ({ importLines: e.importLines, loc: `docs/md/${relPath}:${e.sourceLine}` })),
+  )
 
   for (const e of inline) {
     ;(e.node[1] as any).__inlineBody = e.body
@@ -522,9 +633,12 @@ function genPageSource(relPath: string, frontmatter: Frontmatter, root: MdNode, 
   // since codeNodeToJsx, reached via nodeToJsx's "code" case, reads them).
   const bodyJsx = nodeToJsx(root, relPath)
 
-  const importsComment = inline.length > 0
-    ? [`// Imports merged from @inline-example blocks at ${inline.map((e) => `docs/md/${relPath}:${e.sourceLine}`).join(", ")}`]
-    : []
+  const importsComment =
+    inline.length > 0
+      ? [
+          `// Imports merged from @inline-example blocks at ${inline.map((e) => `docs/md/${relPath}:${e.sourceLine}`).join(", ")}`,
+        ]
+      : []
 
   // CodeExample/tokenColorClass are only imported when the generated JSX actually uses them:
   // CodeExample when the page has a code fence, tokenColorClass when at least one token got a color (fences in a language without a grammar,
@@ -532,13 +646,19 @@ function genPageSource(relPath: string, frontmatter: Frontmatter, root: MdNode, 
   // which docs/tsconfig.json matches the root tsconfig on.
   const codeExampleNames = [
     "CodeExample",
-    ...(codeNodes.some((n) => (n[1].tokens as ShikiToken[][] | undefined)?.some((line) => line.some((t) => t.color))) ? ["tokenColorClass"] : []),
+    ...(codeNodes.some((n) => (n[1].tokens as ShikiToken[][] | undefined)?.some((line) => line.some((t) => t.color)))
+      ? ["tokenColorClass"]
+      : []),
   ]
-  const codeExampleImport = codeNodes.length > 0 ? [`import { ${codeExampleNames.join(", ")} } from "${ups}code-example.tsx"`] : []
+  const codeExampleImport =
+    codeNodes.length > 0
+      ? [`import { ${codeExampleNames.join(", ")} } from "${importFromPage(relPath, "code-example.tsx")}"`]
+      : []
 
   return [
     "// GENERATED by docs/src/macro.ts — do not edit by hand (gitignored).",
     `// Source: docs/md/${relPath}`,
+    `${FULL_EXAMPLE_LINES_HEADER}${JSON.stringify(full.map((ex) => ex.sourceLine))}`,
     'import "elt"',
     `import { Service, view } from "elt"`,
     ...codeExampleImport,
@@ -569,7 +689,7 @@ function genFullExampleSource(relPath: string, ex: FullExample): string {
     "// GENERATED by docs/src/macro.ts — do not edit by hand (gitignored).",
     `// Source: docs/md/${relPath}:${ex.sourceLine}`,
     'import "elt"',
-    "import { Service, view } from \"elt\"",
+    'import { Service, view } from "elt"',
     ...ex.importLines,
     "",
     "export default class extends Service({}, {}) {",
@@ -588,11 +708,11 @@ function genFullExampleSource(relPath: string, ex: FullExample): string {
 // ---------------------------------------------------------------------------
 
 export const ROUTES_GENERATED_BEGIN_MARKER =
-  '// GENERATED-BEGIN (docs/src/macro.ts) — do not hand-edit until GENERATED-END.'
+  "// GENERATED-BEGIN (docs/src/macro.ts) — do not hand-edit until GENERATED-END."
 export const ROUTES_GENERATED_END_MARKER = "// GENERATED-END"
 
 /** One named, referenced `with { type: "text" }` import per discovered `.md` file, between the
- * markers above. Named + referenced (the trailing `void [...]`) is required, not cosmetic: it's
+ * markers above. Named + referenced (the trailing `void` lines) is required, not cosmetic: it's
  * what makes Bun invalidate the `{ type: "macro" }` call's cached result when a `.md` file's
  * content changes (see the spec) — dead-code-eliminated entirely from a real production build. */
 function genRoutesTextImportsBlock(files: string[]): string {
@@ -600,14 +720,15 @@ function genRoutesTextImportsBlock(files: string[]): string {
   const importLines: string[] = []
   const aliases: string[] = []
   for (const f of files) {
-    const alias = textImportAliasFor(nameFor(f), taken)
+    const alias = aliasFor(nameFor(f), taken, "_text")
     aliases.push(alias)
     importLines.push(`import ${alias} from "../md/${f}" with { type: "text" }`)
   }
   return [
     ROUTES_GENERATED_BEGIN_MARKER,
     ...importLines,
-    `void [${aliases.join(", ")}]`,
+    // one statement per alias, so the block is already as biome formats it, whatever the number of pages
+    ...aliases.map((a) => `void ${a}`),
     ROUTES_GENERATED_END_MARKER,
   ].join("\n")
 }
@@ -620,16 +741,18 @@ function spliceGeneratedBlock(routesSource: string, block: string): string {
   const endIdx = routesSource.indexOf(ROUTES_GENERATED_END_MARKER)
   if (beginIdx === -1 || endIdx === -1 || endIdx < beginIdx) {
     throw new Error(
-      "docs/src/routes.ts is missing the GENERATED-BEGIN/GENERATED-END markers required by elt_md() "
-      + "— see docs/src/macro.ts.",
+      "docs/src/routes.ts is missing the GENERATED-BEGIN/GENERATED-END markers required by elt_md() " +
+        "— see docs/src/macro.ts.",
     )
   }
   const afterEndLineStart = routesSource.indexOf("\n", endIdx)
   const after = afterEndLineStart === -1 ? "" : routesSource.slice(afterEndLineStart + 1)
-  return routesSource.slice(0, beginIdx) + block + "\n" + after
+  return `${routesSource.slice(0, beginIdx)}${block}\n${after}`
 }
 
 const mdGlob = new Bun.Glob("**/*.md")
+/** The generated pages and examples, under docs/src/md. */
+const generatedGlob = new Bun.Glob("**/*.tsx")
 
 /** Recursively lists every "*.md" under `mdDir`, relative to it, in a deterministic (sorted) order. */
 async function scanMdFiles(mdDir: string): Promise<string[]> {
@@ -640,63 +763,132 @@ async function scanMdFiles(mdDir: string): Promise<string[]> {
   // never converges.
 }
 
-/** 1-based line number, in `raw` (the *whole* source file, frontmatter included), of every opening
- * ` ``` ` fence, in document order — used to cite "docs/md/<file>:<line>" in generated output (see
- * the spec, "Generated file provenance"). Bun.markdown.render's node tree carries no position info. */
-function computeFenceLines(raw: string): number[] {
-  const lines: number[] = []
-  let open = false
-  const rawLines = raw.split("\n")
-  for (let i = 0; i < rawLines.length; i++) {
-    if (/^\s*```/.test(rawLines[i]!)) {
-      if (!open) lines.push(i + 1)
-      open = !open
+/** A code block found by scanCodeBlocks: its 1-based source line, and the info string of a fence
+ * (the text after the opening ``` — its first word is the language), or null for an indented block. */
+type ScannedBlock = { line: number; info: string | null }
+
+/**
+ * Finds the code blocks of a markdown body by scanning its lines, since Bun.markdown.render gives
+ * its callbacks no source position. Handles fences of ``` or ~~~ of any length (a fence closes
+ * only on the same character, at least as long, so a ```` fence can show ``` lines), fences inside
+ * blockquotes and list items, and indented code blocks (4+ spaces after a blank line, outside a
+ * list). It is not a full CommonMark parser — e.g. it does not know that a fence inside a raw HTML
+ * block is no fence — so locateCodeBlocks checks its result against the parser's.
+ * `firstLine` is the source line of the body's first line (after the frontmatter).
+ */
+function scanCodeBlocks(body: string, firstLine: number): ScannedBlock[] {
+  const out: ScannedBlock[] = []
+  let fence: { char: string; length: number } | null = null
+  let inIndented = false
+  let inList = false
+  let prevBlank = true
+  const lines = body.split("\n")
+  for (let i = 0; i < lines.length; i++) {
+    // Strip blockquote markers, and expand leading tabs to the 4 columns they count for.
+    const line = lines[i]!.replace(/^(?: {0,3}> ?)+/, "").replace(/^[ \t]+/, (ws) => ws.replace(/\t/g, "    "))
+    const blank = line.trim() === ""
+    if (fence) {
+      const close = line.match(/^\s*(`{3,}|~{3,})\s*$/)
+      if (close && close[1]![0] === fence.char && close[1]!.length >= fence.length) fence = null
+      prevBlank = false
+      continue
     }
+    const indent = line.length - line.trimStart().length
+    if (!blank && indent >= 4 && !inList && (prevBlank || inIndented)) {
+      if (!inIndented) out.push({ line: firstLine + i, info: null })
+      inIndented = true
+      prevBlank = false
+      continue
+    }
+    // A blank line may sit inside an indented block; any other line ends it.
+    if (!blank) inIndented = false
+    const open = line.match(/^\s*(`{3,}|~{3,})(.*)$/)
+    // A backtick fence's info string can't contain a backtick (that's an inline code span).
+    if (open && !(open[1]![0] === "`" && open[2]!.includes("`"))) {
+      fence = { char: open[1]![0]!, length: open[1]!.length }
+      out.push({ line: firstLine + i, info: open[2]!.trim() })
+      prevBlank = false
+      continue
+    }
+    // In a list, indented lines continue the item; a non-indented line after a blank line ends it.
+    if (/^ {0,3}(?:[-*+]|\d{1,9}[.)])(?:\s|$)/.test(line)) inList = true
+    else if (!blank && indent === 0 && prevBlank) inList = false
+    prevBlank = blank
   }
-  return lines
+  return out
 }
 
-async function parseAndGenerate(srcDir: string, relPath: string, raw: string, frontmatter: Frontmatter, body: string): Promise<void> {
+/** 1-based line number in `raw` (the whole file, frontmatter included) of each of `codeNodes`, used
+ * to cite "docs/md/<file>:<line>" in generated output (see the spec, "Generated file provenance").
+ * Throws when the scan and the parser disagree, rather than cite wrong lines. */
+function locateCodeBlocks(raw: string, body: string, codeNodes: MdNode[], relPath: string): number[] {
+  const firstLine = raw.slice(0, raw.length - body.length).split("\n").length
+  const blocks = scanCodeBlocks(body, firstLine)
+  const agree =
+    blocks.length === codeNodes.length &&
+    codeNodes.every((n, i) => n[1].language == null || blocks[i]?.info?.split(/\s/)[0] === n[1].language)
+  if (!agree) {
+    throw new Error(
+      `docs/md/${relPath}: cannot find the source lines of its code blocks — the markdown parser sees ` +
+        `${codeNodes.length} (${codeNodes.map((n) => n[1].language ?? "?").join(", ")}), the line scanner of ` +
+        `docs/src/macro.ts sees ${blocks.length} (at lines ${blocks.map((b) => b.line).join(", ")}). ` +
+        "A code fence inside raw HTML or in an unusual list layout can cause this; see scanCodeBlocks.",
+    )
+  }
+  return blocks.map((b) => b.line)
+}
+
+/**
+ * Parses a markdown body into a tree of MdNodes. Of Bun's optional syntaxes, `wikiLinks`,
+ * `underline` and `latexMath` stay off: in Bun 1.4.2 the last two do nothing, and `render()` drops
+ * a wiki link's target (see macro.test.ts) — wiki links are rewritten by rewriteLinks instead.
+ */
+export function renderMarkdownNodes(body: string): MdNode[] {
   const callbacks: Record<string, (...args: any[]) => string> = {}
   for (const type of NODE_TYPES) {
     callbacks[type] = (children: string, meta?: unknown) => node(type, meta, children)
   }
   callbacks.text = (text: string) => JSON.stringify(["text", {}, text])
 
-  const out = Bun.markdown.render(body, callbacks as any, {
-    autolinks: true, wikiLinks: true, underline: true, latexMath: true,
-    headings: true, hardSoftBreaks: true,
-  })
+  const out = Bun.markdown.render(body, callbacks as any, { autolinks: true, headings: true, hardSoftBreaks: true })
 
   // Bun.markdown.render's overall return has no wrapping "document" node — for any file with more
   // than one top-level block, `out` is multiple concatenated sibling JSON values, not one, so it
   // can't be JSON.parse'd directly. Scan it the same way a parent node scans its children.
-  const root: MdNode = ["root", {}, splitNodes(out)]
+  return splitNodes(out)
+}
+
+/** Writes the generated page of `relPath` and the files of its `@full-example` blocks; returns the
+ * source line of each of those blocks. */
+async function parseAndGenerate(
+  srcDir: string,
+  relPath: string,
+  raw: string,
+  frontmatter: Frontmatter,
+  body: string,
+): Promise<number[]> {
+  const root: MdNode = ["root", {}, renderMarkdownNodes(body)]
 
   rewriteLinks(root, relPath)
 
+  const name = nameFor(relPath)
   const codeNodes: MdNode[] = []
   collectCodeNodes(root, codeNodes)
-  const fenceLines = computeFenceLines(raw)
-  const { inline, full } = await processCodeNodes(codeNodes, fenceLines)
-  const name = nameFor(relPath)
-  for (const ex of full) {
-    ex.node[1].fullExampleUrl = `/full-example/${name}/${ex.index}`
-    delete ex.node[1].fullExampleIndex
-  }
+  const { inline, full } = await processCodeNodes(codeNodes, locateCodeBlocks(raw, body, codeNodes, relPath), name)
 
   if (frontmatter.title == null) {
     const heading = findFirstHeading(root)
     if (heading) frontmatter.title = textOf(heading)
   }
 
-  const pageTargetPath = path.resolve(srcDir, "md", `${nameFor(relPath)}.tsx`)
-  await Bun.write(pageTargetPath, genPageSource(relPath, frontmatter, root, inline, codeNodes))
-
+  await Bun.write(
+    resolve(srcDir, "md", generatedFileFor(name)),
+    genPageSource(relPath, frontmatter, root, inline, full, codeNodes),
+  )
   for (const ex of full) {
-    const exPath = path.resolve(srcDir, "md", `${nameFor(relPath)}.full-${ex.index}.tsx`)
-    await Bun.write(exPath, genFullExampleSource(relPath, ex))
+    await Bun.write(resolve(srcDir, "md", generatedFileFor(name, ex.index)), genFullExampleSource(relPath, ex))
   }
+  return full.map((ex) => ex.sourceLine)
 }
 
 /**
@@ -713,14 +905,16 @@ function genRoutesSource(pages: PageEntry[]): string {
   const menuEntryLines: string[] = []
 
   for (const p of pages) {
-    importLines.push(`import * as ${p.moduleAlias} from "./md/${p.name}.tsx"`)
+    importLines.push(`import * as ${p.moduleAlias} from "./md/${generatedFileFor(p.name)}"`)
     routeLines.push(`  // docs/md/${p.name}.md:1`)
     routeLines.push(`  ${JSON.stringify(p.name)}: ["${p.url}", () => ${p.moduleAlias}.PageService],`)
-    menuEntryLines.push(`  { name: ${JSON.stringify(p.name)}, url: ${JSON.stringify(p.url)}, frontmatter: ${p.moduleAlias}.frontmatter },`)
+    menuEntryLines.push(
+      `  { name: ${JSON.stringify(p.name)}, url: ${JSON.stringify(p.url)}, frontmatter: ${p.moduleAlias}.frontmatter },`,
+    )
     for (let n = 0; n < p.fullExampleLines.length; n++) {
       routeLines.push(`  // docs/md/${p.name}.md:${p.fullExampleLines[n]}`)
       routeLines.push(
-        `  ${JSON.stringify(`${p.name}__full-${n}`)}: ["/full-example/${p.name}/${n}", () => import("./md/${p.name}.full-${n}.tsx")],`,
+        `  ${JSON.stringify(`${p.name}__full-${n}`)}: ["${fullExampleUrl(p.name, n)}", () => import("./md/${generatedFileFor(p.name, n)}")],`,
       )
     }
   }
@@ -749,9 +943,12 @@ function genRoutesSource(pages: PageEntry[]): string {
  * directory `bun` was launched from).
  *
  * For each file, regenerates the corresponding `docs/src/md/<path>.tsx` (and any `.full-N.tsx` files
- * for its `@full-example` blocks) only if that target is missing or older than the source — the
- * expensive parse/highlight/codegen step. `docs/src/routes.generated.ts`, by contrast, is cheap
- * (no full parse — just names and a line-numbered scan for `@full-example` fences) and is
+ * for its `@full-example` blocks) — the expensive parse/highlight/codegen step — only if it is out
+ * of date: missing, older than its `.md` or than macro.ts itself (whose changes change the output),
+ * or missing one of its `.full-N.tsx` files. Generated files that no source accounts for any more
+ * (the page of a deleted `.md`, the `.full-N.tsx` of a removed block) are deleted.
+ * `docs/src/routes.generated.ts`, by contrast, is cheap (no parse — names, and the `@full-example`
+ * lines each generated page records, see FULL_EXAMPLE_LINES_HEADER) and is
  * recomputed — and rewritten — from scratch on every call. It no longer needs to track frontmatter
  * at all: since every page is now a static import, the menu just reads `<alias>.frontmatter` live
  * off each already-imported module at that generated file's own module-eval time, so a
@@ -777,42 +974,60 @@ function genRoutesSource(pages: PageEntry[]): string {
  * arguments, scanning the real `docs/md` next to this file.
  */
 export async function elt_md(roots?: { mdDir: string; srcDir: string }): Promise<{ pages: PageEntry[] }> {
-  const mdDir = roots?.mdDir ?? path.resolve(import.meta.dir, "..", "md")
-  const srcDir = roots?.srcDir ?? path.resolve(import.meta.dir)
+  const mdDir = roots?.mdDir ?? resolve(import.meta.dir, "..", "md")
+  const srcDir = roots?.srcDir ?? import.meta.dir
+  const genDir = resolve(srcDir, "md")
   const files = await scanMdFiles(mdDir)
+  // A change to this file can change every generated page.
+  const macroModified = Bun.file(import.meta.path).lastModified
 
-  const routesTsPath = path.resolve(srcDir, "routes.ts")
+  const routesTsPath = resolve(srcDir, "routes.ts")
   const existingRoutesTs = await Bun.file(routesTsPath).text()
   const newRoutesTs = spliceGeneratedBlock(existingRoutesTs, genRoutesTextImportsBlock(files))
   if (newRoutesTs !== existingRoutesTs) await Bun.write(routesTsPath, newRoutesTs)
 
   const pages: PageEntry[] = []
   const takenAliases = new Set<string>()
-  // Sequential, not Promise.all: full-example index assignment and target-file writes for a given
-  // page must not interleave with another page's.
+  /** Every file under docs/src/md that some source accounts for; the others are deleted below. */
+  const expected = new Set<string>()
+  // Sequential, not Promise.all: the files of a page are written and read back in this iteration.
   for (const relPath of files) {
-    const srcPath = path.resolve(mdDir, relPath)
-    const raw = await Bun.file(srcPath).text()
-    const { frontmatter, body } = splitFrontmatter(raw)
+    const srcPath = resolve(mdDir, relPath)
     const name = nameFor(relPath)
+    const targetPath = resolve(genDir, generatedFileFor(name))
+    const target = Bun.file(targetPath)
 
-    const targetPath = path.resolve(srcDir, "md", `${name}.tsx`)
-    const targetFile = Bun.file(targetPath)
-    const stale = !(await targetFile.exists()) || targetFile.lastModified < Bun.file(srcPath).lastModified
-    if (stale) {
-      await parseAndGenerate(srcDir, relPath, raw, frontmatter, body)
+    // Lines recorded by the generated page, when it is newer than both its .md and macro.ts.
+    let fullExampleLines =
+      (await target.exists()) && target.lastModified >= Math.max(Bun.file(srcPath).lastModified, macroModified)
+        ? await readFullExampleLines(targetPath)
+        : null
+    // Up to date only if every .full-N.tsx it records is still there.
+    for (let n = 0; fullExampleLines != null && n < fullExampleLines.length; n++) {
+      if (!(await Bun.file(resolve(genDir, generatedFileFor(name, n))).exists())) fullExampleLines = null
+    }
+    if (fullExampleLines == null) {
+      const raw = await Bun.file(srcPath).text()
+      const { frontmatter, body } = splitFrontmatter(raw)
+      fullExampleLines = await parseAndGenerate(srcDir, relPath, raw, frontmatter, body)
     }
 
-    pages.push({
-      name, url: urlFor(relPath), moduleAlias: moduleAliasFor(name, takenAliases),
-      fullExampleLines: findFullExampleLines(raw),
-    })
+    expected.add(generatedFileFor(name))
+    for (let n = 0; n < fullExampleLines.length; n++) expected.add(generatedFileFor(name, n))
+    pages.push({ name, url: urlFor(relPath), moduleAlias: aliasFor(name, takenAliases), fullExampleLines })
   }
 
   const routesContent = genRoutesSource(pages)
-  const routesPath = path.resolve(srcDir, "routes.generated.ts")
+  const routesPath = resolve(srcDir, "routes.generated.ts")
   const existingRoutes = (await Bun.file(routesPath).exists()) ? await Bun.file(routesPath).text() : null
   if (existingRoutes !== routesContent) await Bun.write(routesPath, routesContent)
+
+  // After routes.generated.ts stopped importing them. (Scanning a missing directory throws.)
+  if (await exists(genDir)) {
+    for await (const file of generatedGlob.scan(genDir)) {
+      if (!expected.has(file)) await unlink(resolve(genDir, file))
+    }
+  }
 
   return { pages }
 }

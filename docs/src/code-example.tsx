@@ -8,7 +8,7 @@ export type CodeExampleProps = {
    * `.innerHTML` is used to render it. A callback rather than a plain `Renderable`: the compiled
    * JSX wraps each line in a `<>` fragment, and appending a fragment's children to the DOM empties
    * it irrecoverably, so a single materialized node tree can only ever be inserted once. Calling
-   * this fresh each time the "Typescript" tab (re)activates rebuilds that tree from scratch. */
+   * this fresh each time the "Code" button shows the source again rebuilds that tree from scratch. */
   highlighted: () => Renderable
   /** `@inline-example` only — the block's body, as a closure the generated page passes uncalled.
    * It runs once, when the result area first comes near the viewport (see `LazyResult`). */
@@ -36,23 +36,33 @@ function LazyResult(run: () => Node) {
   return o_result.tf((result) => {
     if (result == null) {
       // Placeholder until visible: gives the area some height so it can intersect at all.
-      return <div class={cls_lazy}>
-        {$connected((el: HTMLElement) => {
-          observer = new IntersectionObserver((entries) => {
-            if (!entries.some((en) => en.isIntersecting)) return
-            stop()
-            try {
-              o_result.set({ node: run() })
-            } catch (e: any) {
-              o_result.set({ error: String(e?.stack ?? e) })
-            }
-          }, { rootMargin: LAZY_MARGIN })
-          observer.observe(el)
-        })}
-        {$disconnected(stop)}
-      </div>
+      return (
+        <div class={cls_lazy}>
+          {$connected((el: HTMLElement) => {
+            observer = new IntersectionObserver(
+              (entries) => {
+                if (!entries.some((en) => en.isIntersecting)) return
+                stop()
+                try {
+                  o_result.set({ node: run() })
+                } catch (e: any) {
+                  o_result.set({ error: String(e?.stack ?? e) })
+                }
+              },
+              { rootMargin: LAZY_MARGIN },
+            )
+            observer.observe(el)
+          })}
+          {$disconnected(stop)}
+        </div>
+      )
     }
-    if ("error" in result) return <e-prose class={cls_error}><pre>{result.error}</pre></e-prose>
+    if ("error" in result)
+      return (
+        <e-prose class={cls_error}>
+          <pre>{result.error}</pre>
+        </e-prose>
+      )
     return result.node
   })
 }
@@ -71,10 +81,15 @@ export function tokenColorClass(color: string): string {
   return cls
 }
 
-/** A code sample with a Typescript/Result toggle (defaults to Result) for runnable blocks
- * (`run`/`fullExampleUrl` set); a plain highlighted block otherwise. */
+/** A fresh `<pre><code>` of the highlighted source (see `CodeExampleProps.highlighted` for why it
+ * is rebuilt on every call). */
 function renderCode(highlighted: () => Renderable) {
-  return <pre><code>{highlighted()}</code></pre>}
+  return (
+    <pre>
+      <code>{highlighted()}</code>
+    </pre>
+  )
+}
 
 /** The real vertical scroll boundary for a code block: capped at half the viewport height so one
  * long example can't push the rest of the page out of reach, and scrollable past that cap. Kept on
@@ -89,6 +104,8 @@ const cls_pre_scroll = css`.pre-scroll {
   border-radius: inherit;
 }`
 
+/** A code sample with "Example" / "Code" buttons (showing the example first) for runnable blocks
+ * (`run` or `fullExampleUrl` set); a plain highlighted block otherwise. */
 export function CodeExample(props: CodeExampleProps) {
   const is_runnable = props.run != null || props.fullExampleUrl != null
 
@@ -98,34 +115,49 @@ export function CodeExample(props: CodeExampleProps) {
 
   const o_showing_code = o(false)
 
-  // Built once, so the example's node survives switching to the code and back.
-  const lazy_result = props.run != null ? LazyResult(props.run) : null
-  const result_view = () => {
-    if (props.fullExampleUrl != null) {
-      return <iframe class={cls_iframe} src={props.fullExampleUrl} loading="lazy"></iframe>
-    }
-    return lazy_result
-  }
+  // Built once, and only hidden while the code shows, never taken out of the document: the example
+  // keeps its node and state when the reader switches to the code and back — an iframe even reloads
+  // its page whenever it is put back into a document.
+  const result =
+    props.fullExampleUrl != null ? (
+      <iframe class={cls_iframe} src={props.fullExampleUrl} loading="lazy" title="Example"></iframe>
+    ) : (
+      LazyResult(props.run!)
+    )
 
-  return <e-column packed align="stretch">
-    <e-row packed="widget" border pad="none" align="stretch" surface="neutral-2" class={theme.colors.neutral.class_as_tint}>
-      <button e-variant={o_showing_code.tf(v => !v ? "inverted" : "")}>
-        {$click(() => o_showing_code.set(false))}
-        <ph.TelevisionSimple/> Example
-      </button>
-      <button e-variant={o_showing_code.tf(v => v && "inverted")}>
-        {$click(() => o_showing_code.set(true))}
-        Code <ph.Code/>
-      </button>
-      <e-row grow>&nbsp;</e-row>
-    </e-row>
-    {If(o_showing_code,
-      () => <e-prose border="neutral" pad="none" self-align="stretch">
-        <div class={cls_pre_scroll}>{renderCode(props.highlighted)}</div>
-      </e-prose>,
-      () => <e-prose border self-align="stretch">{result_view()}</e-prose>,
-    )}
-  </e-column>
+  return (
+    <e-column packed align="stretch">
+      <e-row
+        packed="widget"
+        border
+        pad="none"
+        align="stretch"
+        surface="neutral-2"
+        class={theme.colors.neutral.class_as_tint}
+      >
+        <button e-variant={o_showing_code.tf((v) => (!v ? "inverted" : ""))}>
+          {$click(() => o_showing_code.set(false))}
+          <ph.TelevisionSimple /> Example
+        </button>
+        <button e-variant={o_showing_code.tf((v) => v && "inverted")}>
+          {$click(() => o_showing_code.set(true))}
+          Code <ph.Code />
+        </button>
+        <e-row grow>&nbsp;</e-row>
+      </e-row>
+      {If(o_showing_code, () => (
+        <e-prose border="neutral" pad="none" self-align="stretch">
+          <div class={cls_pre_scroll}>{renderCode(props.highlighted)}</div>
+        </e-prose>
+      ))}
+      {/* A plain div for `hidden`: e-prose sets its own `display`, which would override it. */}
+      <div hidden={o_showing_code}>
+        <e-prose border self-align="stretch">
+          {result}
+        </e-prose>
+      </div>
+    </e-column>
+  )
 }
 
 const cls_error = css`.error {

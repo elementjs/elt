@@ -4,9 +4,6 @@
   "scripts": {
     "dev": "bun index.html"
   },
-  "devDependencies": {
-    "@types/bun": "latest"
-  },
   "dependencies": {
     "elt-phosphor": "^2.1.2",
     "shiki": "^3.0.0"

@@ -12,6 +12,7 @@ This page describes how elt's own tests are written. It is mostly for people cha
 Tests run in a real browser with [Playwright](https://playwright.dev), because elt relies on modern CSS (`@property`, nesting, `:has()`, `oklch()`) and real layout that a simulated DOM gets wrong.
 
 - Test files are `tests/*.pw.ts`. Run them all with `bunx playwright test`, or one file with `bunx playwright test tests/<file>.pw.ts`.
+- Playwright serves the harness on port 5391, or reuses a server already listening there. To run a second session at the same time (another checkout, another agent), give it its own port with the `PLAYWRIGHT_PORT` environment variable: `PLAYWRIGHT_PORT=5443 bunx playwright test`.
 - Each test opens the **harness page**, `/tests/browser/harness.html`. It loads `elt`, `elt/ui` (with its theme and styles) and `elt/editor`, and exposes them on `window.__ELT__`: core exports directly, `elt/ui` exports under `.UI`, `elt/editor` exports under `.Editor`.
 - The test body runs inside the page with `page.evaluate(() => { … })` and returns plain data (numbers, strings, objects) that the test then checks with `expect`. Code inside `page.evaluate` can't use JSX or decorator syntax and can't see variables from the test file: build nodes with `document.createElement` (or `window.__ELT__.e`) and pass any input as `page.evaluate`'s second argument.
 - Mount with `node_append` (from `window.__ELT__`) when the test depends on elt's lifecycle — observers, `$connected`, verbs. Plain `appendChild` is fine for pure CSS checks.
