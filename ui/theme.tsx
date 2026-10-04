@@ -299,8 +299,10 @@ export class Theme<AllColors extends ColorScheme> {
     }
 
     // Now set the theme settings
-    // Derived: aligned to the vertical padding step controls/frames use (widget/component), not
-    // independently chosen — see "Borders and radius" in docs/md/ui-layout.md.
+    // Fixed fallback, not derived: used only where an element has no padding step of its own to
+    // derive its radius from (`kbd`, a data table's wrapper). Every other radius is derived from the
+    // element's padding step by `css_radius` / `[radius]` — see "Borders and radius" in
+    // docs/md/ui-layout.md.
     this._set(theme.settings ?? {}, "borderRadius", "8px")
     this._set(theme.settings ?? {}, "intensityMid", "50%")
     this._set(theme.settings ?? {}, "intensityFaded", "80%")
@@ -319,15 +321,17 @@ export class Theme<AllColors extends ColorScheme> {
     this._set(theme.settings ?? {}, "spacingNudge2", "2px")
     this._set(theme.settings ?? {}, "spacingNudge4", "4px")
 
-    // Each step doubles the previous one, applied uniformly to both axes — no separate
+    // From widget to section each step doubles the previous one (6 → 12 → 24px); from stage-1 on,
+    // each step is the sum of the two before it (24 + 12 = 36, then 60, 96, 156px), so the stages grow
+    // more slowly than a doubling would. Each step is applied uniformly to both axes — no separate
     // vertical/horizontal values (see "Spacing scale" in docs/md/ui-layout.md).
     this._set(theme.settings ?? {}, "spacingWidget", "6px")
     this._set(theme.settings ?? {}, "spacingComponent", "12px")
     this._set(theme.settings ?? {}, "spacingSection", "24px")
-    this._set(theme.settings ?? {}, "spacingStage1", "48px")
-    this._set(theme.settings ?? {}, "spacingStage2", "96px")
-    this._set(theme.settings ?? {}, "spacingStage3", "128px")
-    this._set(theme.settings ?? {}, "spacingStage4", "256px")
+    this._set(theme.settings ?? {}, "spacingStage1", "36px")
+    this._set(theme.settings ?? {}, "spacingStage2", "60px")
+    this._set(theme.settings ?? {}, "spacingStage3", "96px")
+    this._set(theme.settings ?? {}, "spacingStage4", "156px")
 
     // Motion tokens: numbers for el.animate, `ms` in CSS.
     const motion = { ...DEFAULT_MOTION }
@@ -618,7 +622,7 @@ function surface_level_expr(level: number | `n+${number}` | "background", base =
 
 let _mix_id = 0
 
-/** Every `Mix` produced by `Mix.from`, keyed by its CSS expression — see there. Grows with the number
+/** Every `Mix` produced by `Mix.from` and `Mix.alpha`, keyed by its CSS expression — see `Mix.#computed`. Grows with the number
  * of distinct mixes the app uses, which is bounded by its source code, not by how often they're read. */
 const _computed_mixes = new Map<string, Mix>()
 
@@ -727,20 +731,35 @@ export class Mix {
    * @param alpha - The alpha of the mix
    * @returns The mixed color
    */
-  from(other: Mix | string, intensity: string, alpha: number = 1) {
+  from(other: Mix | string, intensity: string, alpha: number = 1): Mix {
     const other_expr = other instanceof Mix ? other.toString() : `var(--e-color-${other})`
-    let res = `color-mix(in oklab, ${other_expr} calc(100% - ${intensity}), ${this.toString()} ${intensity})`
+    return Mix.#computed(
+      `color-mix(in oklab, ${other_expr} calc(100% - ${intensity}), ${this.toString()} ${intensity})`,
+    ).alpha(alpha)
+  }
 
-    if (alpha < 1) {
-      res = `oklch(from ${res} l c h / ${alpha.toFixed(2)})`
-    }
-    // One `Mix` per distinct expression: `tint.faded` (etc.) re-runs this on every access, and a
-    // fresh instance each time would mint a fresh `anon-N` class — a new stylesheet rule — on every
-    // read of `class_as_*`.
-    let mix = _computed_mixes.get(res)
+  /**
+   * This color at opacity `a` (0–1): `oklch(from <color> l c h / a)`. `a >= 1` returns the color itself.
+   *
+   * For faded text and light fills that must let the surface underneath show through, where `.faded`
+   * (an opaque mix toward `bg`) would not do: an opaque mix with `bg` can land on a surface level's own
+   * fill (inline code inside a blockquote would vanish), and it is computed from the page palette, while
+   * this reads the live `--e-color-*` variables, so inside an inverted band or button, which redefines
+   * them, it fades the band's own text color. Typography's `h6`, `blockquote`, `dd`, `figcaption`,
+   * inline `code` and `mark`, and the bevel of raised controls in ui/form.css.tsx use it.
+   */
+  alpha(a: number): Mix {
+    return a >= 1 ? this : Mix.#computed(`oklch(from ${this.toString()} l c h / ${a.toFixed(2)})`)
+  }
+
+  /** The one `Mix` for a computed expression. `tint.faded` (etc.) recomputes its mix on every access,
+   * and a fresh instance each time would mint a fresh `anon-N` class — a new stylesheet rule — on every
+   * read of `class_as_*`. */
+  static #computed(expr: string): Mix {
+    let mix = _computed_mixes.get(expr)
     if (mix == null) {
-      mix = new Mix(res)
-      _computed_mixes.set(res, mix)
+      mix = new Mix(expr)
+      _computed_mixes.set(expr, mix)
     }
     return mix
   }

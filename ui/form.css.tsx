@@ -16,8 +16,8 @@ const CHECKBOX_CHECK_MASK = encodeURIComponent(
  * schemes, and an inverted button, which redefines --e-color-bg locally, keeps it. */
 const light_bg = new Mix(colors.bg.light_frozen_expr)
 const light_text = new Mix(colors.text.light_frozen_expr)
-const bevel_raise = light_bg.from(light_bg, "100%", 0.2)
-const bevel_drop = light_text.from(light_text, "100%", 0.2)
+const bevel_raise = light_bg.alpha(0.2)
+const bevel_drop = light_text.alpha(0.2)
 
 declare module "elt" {
   interface attrs_button {
@@ -120,7 +120,7 @@ fieldset > legend {
   color: ${colors.text.faded};
   font-size: ${theme.settings.formFontSize};
   background-color: ${colors.bg};
-  padding: 0 6px;
+  padding: 0 ${theme.settings.spacingWidget};
   margin-bottom: -0.4em;
 }
 

@@ -9,6 +9,8 @@ import { theme } from "./theme"
 import "./layout.css.tsx"
 import { PROSE_CONTAINER_SELECTOR, PROSE_SPACED_SELECTOR, TEXT_BLOCK_SELECTOR } from "./selectors"
 
+const text = theme.colors.text
+
 declare module "elt" {
   interface Attrs<N extends Node = HTMLElement> {
     /** Keep the text on one line and end it with "…" when it doesn't fit (a title in a bar). */
@@ -42,7 +44,8 @@ css`@layer typography {
   kbd {
     font-family: ${theme.settings.monospaceFontFamily};
     font-size: 0.75em;
-    padding: 0em 0.3em;
+    /* No vertical padding: the key sits in the line of text, its height is the line's. */
+    padding: 0 ${theme.settings.spacingNudge4};
     font-weight: 500;
     /* neutral has no bg-mix strong enough to match text.faded's darkness (its lightness floor is
        tint's own, well above text's) — bare neutral is the closest achievable border tone. */
@@ -86,7 +89,7 @@ css`@layer typography {
   :where(h3) { font-size: 1.1rem; }
   :where(h4) { font-size: 1rem; }
   :where(h5) { font-size: 1rem; font-style: italic; }
-  :where(h6) { font-size: 1rem; font-style: italic; color: color-mix(in oklab, currentColor 70%, transparent); }
+  :where(h6) { font-size: 1rem; font-style: italic; color: ${text.alpha(0.7)}; }
 
   /* ── Paragraphs ────────────────────────────────────────── */
   :where(p) {
@@ -101,8 +104,8 @@ css`@layer typography {
     ${theme.css_pad("component")};
     /* css_pad only sets --e-pad; the padding itself must still read it. */
     padding: var(--e-pad);
-    border-inline-start: 3px solid color-mix(in oklab, currentColor 35%, transparent);
-    color: color-mix(in oklab, currentColor 75%, transparent);
+    border-inline-start: 3px solid ${text.alpha(0.35)};
+    color: ${text.alpha(0.75)};
     font-style: italic;
   }
 
@@ -120,25 +123,26 @@ css`@layer typography {
   :where(ol) { list-style-type: decimal; }
 
   /* ── Definition list ───────────────────────────────────── */
-  :where(dl) { display: grid; grid-template-columns: max-content 1fr; gap: 0.25em 1.5em; }
+  :where(dl) { display: grid; grid-template-columns: max-content 1fr; gap: ${theme.settings.spacingNudge4} ${theme.settings.spacingSection}; }
   :where(dt) {
     font-weight: 600;
     grid-column: 1;
-    padding-block-start: 0.15em;
+    padding-block-start: ${theme.settings.spacingNudge2};
   }
   :where(dd) {
     grid-column: 2;
     margin: 0;
-    color: color-mix(in oklab, currentColor 80%, transparent);
+    color: ${text.alpha(0.8)};
   }
 
   /* ── Code ──────────────────────────────────────────────── */
   :where(code) {
     font-family: ${theme.settings.monospaceFontFamily};
     font-size: 0.875em;
-    background: color-mix(in oklab, currentColor 8%, transparent);
-    padding: 0.15em 0.35em;
-    border-radius: 0.25em;
+    background: ${text.alpha(0.08)};
+    /* Fixed steps: the box no longer grows with the font size (code in a heading keeps them). */
+    padding: ${theme.settings.spacingNudge2} ${theme.settings.spacingNudge4};
+    ${theme.css_radius("nudge-4")}
   }
   :where(pre) {
     overflow-x: auto;
@@ -175,7 +179,7 @@ css`@layer typography {
   }
   :where(figcaption) {
     font-size: 0.875em;
-    color: color-mix(in oklab, currentColor 60%, transparent);
+    color: ${text.alpha(0.6)};
     text-align: center;
     font-style: italic;
   }
@@ -207,10 +211,10 @@ css`@layer typography {
   :where(strong, b) { font-weight: bolder; }
   :where(em) { font-style: italic; }
   :where(mark) {
-    background: color-mix(in oklab, var(--e-color-tint) 45%, transparent);
+    background: ${theme.colors.tint.alpha(0.45)};
     color: inherit;
-    padding-inline: 0.15em;
-    border-radius: 0.15em;
+    padding-inline: ${theme.settings.spacingNudge2};
+    ${theme.css_radius("nudge-2")}
   }
   :where(abbr[title]) {
     text-decoration: underline dotted;

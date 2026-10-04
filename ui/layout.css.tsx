@@ -381,7 +381,7 @@ css`
 }
 `
 
-// Spacing scale values now live in Theme (ui/theme.tsx, spacing1/2/4/Widget/Component/Section/Stage1-4)
+// Spacing scale values now live in Theme (ui/theme.tsx, spacingNudge1/2/4/Widget/Component/Section/Stage1-4)
 // and are emitted through the theme class, not a literal :root — everything below only needs
 // the purely functional variables that aren't theme settings.
 const columns_rules = Array.from(

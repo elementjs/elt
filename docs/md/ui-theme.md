@@ -32,11 +32,12 @@ A palette supplies `bg`, `text` and `tint`; the default theme adds semantic hues
 | A `:hover` fill | `.hover` — one surface level above the ambient one. The `hover` attribute does this for layout elements. |
 | A container's edge, a divider | `.separator` — two levels above the ambient one |
 | A focus ring, a moderate accent, disabled text | `.mid` |
-| Muted text | `.faded` |
+| Muted text on a known surface | `.faded` — opaque, computed from the page palette |
+| Muted text that must follow an inverted band, a light fill that lets the surface show through | `.alpha(0.7)` — the color at an opacity, read from the live colors (typography's `h6`, `blockquote`, `dd`, `figcaption`, inline `code`, `mark`) |
 | Grey structural border, divider or fill | `theme.colors.neutral` and its helpers, not `text` |
 | An invalid field, an error message | `theme.colors.error` (fields are styled already, [Forms § Invalid fields](./ui-forms.md#invalid-fields)) |
 | Strong emphasis | `.strong`, `.very_strong` (mixed toward text) |
-| A one-off mix no named helper covers | `.from_bg("20%")`, `.from_text("20%")`, `.from(other, "20%")` |
+| A one-off mix no named helper covers | `.from_bg("20%")`, `.from_text("20%")`, `.from(other, "20%")`; `.alpha(0.5)` for the color at an opacity |
 | Make another color the subtree's accent | `theme.colors.orange.class_as_tint` (class) |
 | Inverted band (top toolbar, dialog title row; `neutral` for a main table's header) | `theme.colors.tint.class_as_inverted` (class) or `.css_as_inverted` (declarations) |
 | A selected item's fill | `theme.colors.tint.selected` (surface n+3), `.selected_hover` when hovered ([State](#state)) |
@@ -168,13 +169,14 @@ Every `theme.colors.<name>` is a `Mix`. Its string value is a CSS color expressi
 | ------ | ----- |
 | *(itself)* | The color: `var(--e-color-<name>)` |
 | `.mid` | Halfway between `bg` and the color (`intensityMid`) — focus rings, moderate accents, disabled text |
-| `.faded` | The color softened toward `bg` (`intensityFaded`) — muted text |
+| `.faded` | The color softened toward `bg` (`intensityFaded`) — opaque muted text on a known surface |
 | `.strong`, `.very_strong` | Mixed toward `text` |
 | `.hover` | Surface level n+1 relative to the ambient level |
 | `.separator` | Surface level n+2 — container edges, dividers |
 | `.selected`, `.selected_hover` | Surface level n+3, n+4 — a selected item, and the same item hovered or keyboard-active |
 | `.surface(level)` | Color of a surface level: a number, `"n+K"`, or `"background"` |
 | `.from_bg(pct, alpha?)`, `.from_text(pct, alpha?)`, `.from(other, pct, alpha?)` | Explicit mix, for needs no named member covers |
+| `.alpha(a)` | The color at opacity `a` (0–1): `oklch(from <color> l c h / a)`. Translucent, so the surface underneath shows through, and read from the live colors, so inside an inverted band it fades the band's own text — muted text that must follow inverted bands, light fills |
 | `.css_as_surface(level)`, `.class_as_surface(level)` | Become a surface at that level, propagating it to children |
 | `.css_as_tint`, `.class_as_tint` | Make this color the subtree's `tint` |
 | `.css_as_inverted`, `.class_as_inverted` | Invert: background = this color, `text` and `tint` = the light theme's `bg` ([Inversion](#inversion)) |
@@ -207,7 +209,7 @@ const cls_toolbar = css`.toolbar {
 
 **Emphasis.** Every band, control and state gets a family and a strength ([Emphasis](#emphasis)). Separating the two keeps one vocabulary for everything: a status bar and a hovered row are both "neutral, one level up", for the same reason. For buttons, the five variants map onto it, from quietest to loudest: `link`, `text`, default, `tint`, `inverted` ([Forms § Buttons and variants](./ui-forms.md#buttons-and-variants)). `inverted` draws the eye, so it is reserved for the one action in an area that needs outsized attention — typically a heavy, hard-to-reverse one. Two inverted buttons side by side compete and cancel each other out. The name "inverted" was chosen over a Material-style "elevation": elevation implies depth and shadow, which this has none of. "Inverted" names only the mechanism — the button variant and the `Mix` helper are the same thing.
 
-**Color theory.** There is no fixed palette: an app brings `bg` (what we draw on), `text`, and `tint` (the color with a hue). Every other color is a mix along an axis from `bg` to `text`, with the tint in between: the `bg` side separates space (fills, borders, dividers), the `text` side gives textual alternatives (stronger, weaker text). Transparency is never used for this, outside shadows and deliberate effects such as the selection highlight — a transparent color changes depending on what's behind it, which breaks the surface levels. Each named color mixes with `bg` and with `text` independently; there is no single continuum routed through `tint` except for `tint` itself.
+**Color theory.** There is no fixed palette: an app brings `bg` (what we draw on), `text`, and `tint` (the color with a hue). Every other color is a mix along an axis from `bg` to `text`, with the tint in between: the `bg` side separates space (fills, borders, dividers), the `text` side gives textual alternatives (stronger, weaker text). Transparency is never used for this, outside shadows, deliberate effects such as the selection highlight, and `.alpha` where following what's behind is the point: muted text that must stay readable on an inverted band (typography's `h6`, `blockquote`, `dd`, `figcaption`) and light fills that must stay distinct from any surface level (inline `code`, `mark`). Elsewhere a transparent color changes depending on what's behind it, which breaks the surface levels. Each named color mixes with `bg` and with `text` independently; there is no single continuum routed through `tint` except for `tint` itself.
 
 **`neutral`** is derived because structural chrome (borders, dividers, muted fills) should read as grey, but `text` is tuned for legibility and is far too dark or too light for a border. Because it sits closer to `bg`, the same mix percentage reads fainter on `neutral` than on `text`: when replacing a `text`-based border with `neutral`, go one step stronger (`.mid` → `.faded`, one surface level up, or bare `neutral` instead of `.faded`) and compare visually.
 

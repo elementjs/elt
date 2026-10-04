@@ -529,7 +529,7 @@ test.describe("Theme.colors.error", () => {
 })
 
 test.describe("Spacing scale (regression: no separate vertical/horizontal values — one value per step, both axes)", () => {
-  test("a named step has a single value, doubling from the previous step", async ({ page }) => {
+  test("a named step has a single value", async ({ page }) => {
     const result = await page.evaluate(() => {
       const { theme } = window.__ELT__.UI
       return {
@@ -542,6 +542,21 @@ test.describe("Spacing scale (regression: no separate vertical/horizontal values
     expect(result.css_settings).not.toContain("--e-spacing-widget-vertical")
     expect(result.css_settings).not.toContain("--e-spacing-widget-horizontal")
     expect(result.spacing_widget).toBe("var(--e-spacing-widget, 6px)")
+  })
+
+  // The default scale doubles up to `section`, then each step is the sum of the two before it
+  // ("Spacing scale" in docs/md/ui-layout.md).
+  test("the default values: doubling up to section, then each step the sum of the two before it", async ({ page }) => {
+    const px = await page.evaluate(() => {
+      const { spacing_steps } = window.__ELT__.UI
+      const probe = document.createElement("div")
+      document.body.appendChild(probe)
+      return spacing_steps.map((s) => {
+        probe.style.height = `var(--e-spacing-${s})`
+        return probe.getBoundingClientRect().height
+      })
+    })
+    expect(px).toEqual([1, 2, 4, 6, 12, 24, 36, 60, 96, 156])
   })
 })
 
@@ -732,4 +747,60 @@ test("class_dynamic_scheme follows prefers-color-scheme; class_light_scheme / cl
   expect(dark.class_light_scheme).toBe(light.class_light_scheme)
   expect(light.class_dark_scheme).toBe(dark.class_dark_scheme)
   expect(light.class_light_scheme).not.toBe(light.class_dark_scheme)
+})
+
+test.describe("Mix.alpha", () => {
+  test("gives the color at an opacity, one instance per expression", async ({ page }) => {
+    const r = await page.evaluate(() => {
+      const { theme } = window.__ELT__.UI
+      const text = theme.colors.text
+      return {
+        expr: text.alpha(0.7).toString(),
+        same_instance: text.alpha(0.7) === theme.colors.text.alpha(0.7),
+        opaque_is_itself: text.alpha(1) === text,
+        // `from`'s alpha argument goes through `alpha`: same instance as chaining it by hand.
+        from_with_alpha: text.from_bg("50%", 0.5) === text.from_bg("50%").alpha(0.5),
+      }
+    })
+    expect(r.expr).toBe("oklch(from var(--e-color-text) l c h / 0.70)")
+    expect(r.same_instance).toBe(true)
+    expect(r.opaque_is_itself).toBe(true)
+    expect(r.from_with_alpha).toBe(true)
+  })
+
+  // typography.css.tsx used to write these as `color.from(color, "100%", alpha)` (a color-mix of the
+  // color with itself, then the opacity). `alpha` drops the no-op mix: the computed colors must not move.
+  for (const scheme of ["light", "dark"] as const) {
+    test(`typography's translucent colors are unchanged (${scheme})`, async ({ page }) => {
+      await page.emulateMedia({ colorScheme: scheme })
+      const r = await page.evaluate(() => {
+        const old_form = (name: string, a: string) =>
+          `oklch(from color-mix(in oklab, var(--e-color-${name}) calc(100% - 100%), var(--e-color-${name}) 100%) l c h / ${a})`
+        const host = document.createElement("e-prose")
+        host.innerHTML = `<h6>h</h6><blockquote><p>q</p></blockquote><dl><dt>t</dt><dd>d</dd></dl>
+          <p><code>c</code><mark>m</mark></p><figure><figcaption>f</figcaption></figure>`
+        document.body.appendChild(host)
+        /** The computed value of `prop` when set to `value` on a probe inside the same prose. */
+        const probe = (prop: string, value: string) => {
+          const el = document.createElement("span")
+          el.style.setProperty(prop, value)
+          host.appendChild(el)
+          const v = getComputedStyle(el).getPropertyValue(prop)
+          el.remove()
+          return v
+        }
+        const cs = (sel: string) => getComputedStyle(host.querySelector(sel) as Element)
+        return [
+          [cs("h6").color, probe("color", old_form("text", "0.70"))],
+          [cs("blockquote").color, probe("color", old_form("text", "0.75"))],
+          [cs("blockquote").borderInlineStartColor, probe("color", old_form("text", "0.35"))],
+          [cs("dd").color, probe("color", old_form("text", "0.80"))],
+          [cs("code").backgroundColor, probe("background-color", old_form("text", "0.08"))],
+          [cs("figcaption").color, probe("color", old_form("text", "0.60"))],
+          [cs("mark").backgroundColor, probe("background-color", old_form("tint", "0.45"))],
+        ]
+      })
+      for (const [now, before] of r) expect(now).toBe(before)
+    })
+  }
 })

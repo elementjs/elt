@@ -222,6 +222,27 @@ test.describe("prose containers and text blocks", () => {
     )
     expect(r.pad).toBe(r.component)
   })
+
+  // These used to be font-relative (0.15em, 0.25em 1.5em): they now read named steps, so they follow
+  // the theme and no longer grow with the font size.
+  test("a definition list and a fieldset's legend are spaced with named steps", async ({ page }) => {
+    const r = await measure<Record<string, string>>(
+      page,
+      `<dl style="font-size: 40px"><dt>t</dt><dd>d</dd></dl><fieldset><legend>l</legend></fieldset><div></div>`,
+      `const probe = host.querySelector("div")
+       const step = (s) => { probe.style.width = "var(--e-spacing-" + s + ")"; return getComputedStyle(probe).width }
+       const dl = getComputedStyle(host.querySelector("dl"))
+       return {
+         dt_top: getComputedStyle(host.querySelector("dt")).paddingBlockStart, nudge2: step("nudge-2"),
+         row_gap: dl.rowGap, nudge4: step("nudge-4"), column_gap: dl.columnGap, section: step("section"),
+         legend: getComputedStyle(host.querySelector("legend")).paddingLeft, widget: step("widget"),
+       }`,
+    )
+    expect(r.dt_top).toBe(r.nudge2)
+    expect(r.row_gap).toBe(r.nudge4)
+    expect(r.column_gap).toBe(r.section)
+    expect(r.legend).toBe(r.widget)
+  })
 })
 
 /** Mounts `html` in a fresh host under the light theme and returns `fn(host)`'s result, evaluated in the page. */
@@ -320,4 +341,50 @@ test("code uses the theme's monospace font, like kbd", async ({ page }) => {
     `return { code: getComputedStyle(host.querySelector("code")).fontFamily, kbd: getComputedStyle(host.querySelector("kbd")).fontFamily }`,
   )
   expect(r.code).toBe(r.kbd)
+})
+
+// Theme values only (ui/AGENTS.md): the boxes of inline code, kbd and mark use named spacing steps,
+// not em sizes, so a code in a heading has the same padding as one in a paragraph.
+test("code, kbd and mark pad and round themselves with nudge steps, at any font size", async ({ page }) => {
+  const r = await mount<Record<string, string[]>>(
+    page,
+    `<h1><code id="hc">c</code></h1><p><code id="pc">c</code> <kbd>k</kbd> <mark>m</mark></p>
+     <div id="n2" style="width: var(--e-spacing-nudge-2)"></div><div id="n4" style="width: var(--e-spacing-nudge-4)"></div>`,
+    `const cs = (s) => getComputedStyle(host.querySelector(s))
+     const box = (s) => [cs(s).paddingTop, cs(s).paddingLeft, cs(s).borderTopLeftRadius]
+     return { hc: box("#hc"), pc: box("#pc"), kbd: [cs("kbd").paddingTop, cs("kbd").paddingLeft], mark: [cs("mark").paddingLeft, cs("mark").borderTopLeftRadius], steps: [cs("#n2").width, cs("#n4").width] }`,
+  )
+  const [n2, n4] = r.steps
+  expect(r.pc).toEqual([n2, n4, n4])
+  expect(r.hc).toEqual(r.pc)
+  expect(r.kbd).toEqual(["0px", n4])
+  expect(r.mark).toEqual([n2, n2])
+})
+
+// The faded text (h6, blockquote, dd, figcaption) is the theme's text color made translucent. Inside an
+// inverted band, which redefines the text color, it must fade the band's text color, not the page's,
+// or it would be dark text on the tint fill.
+test("faded text fades the text color of an inverted band it sits in", async ({ page }) => {
+  const r = await mount<{ page: number[][]; band: number[][]; page_text: number[]; band_text: number[] }>(
+    page,
+    `<e-prose id="p"><h6>h</h6><blockquote>q</blockquote><dl><dt>t</dt><dd>d</dd></dl><figure><figcaption>c</figcaption></figure></e-prose>`,
+    `const p = host.querySelector("#p")
+     const band = p.cloneNode(true)
+     band.className = String(window.__ELT__.UI.theme.colors.tint.class_as_inverted)
+     host.appendChild(band)
+     // A CSS color's sRGB channels without its alpha: paint one canvas pixel on a cleared (transparent)
+     // canvas; getImageData returns the channels un-premultiplied, the alpha apart.
+     const ctx = document.createElement("canvas").getContext("2d", { willReadFrequently: true })
+     const rgb = (css) => {
+       ctx.clearRect(0, 0, 1, 1); ctx.fillStyle = css; ctx.fillRect(0, 0, 1, 1)
+       return [...ctx.getImageData(0, 0, 1, 1).data.slice(0, 3)]
+     }
+     const faded = (root) => ["h6", "blockquote", "dd", "figcaption"].map((s) => rgb(getComputedStyle(root.querySelector(s)).color))
+     return { page: faded(p), band: faded(band), page_text: rgb(getComputedStyle(p).color), band_text: rgb(getComputedStyle(band).color) }`,
+  )
+  expect(r.band_text).not.toEqual(r.page_text)
+  // The translucent pixel loses precision once un-premultiplied: compare channels within 3 levels.
+  const near = (a: number[], b: number[]) => a.every((c, i) => Math.abs(c - b[i]) <= 3)
+  for (const c of r.page) expect(near(c, r.page_text), `${c} vs ${r.page_text}`).toBe(true)
+  for (const c of r.band) expect(near(c, r.band_text), `${c} vs ${r.band_text}`).toBe(true)
 })

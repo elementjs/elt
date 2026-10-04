@@ -75,8 +75,9 @@ Steps are named by the distance they express, not by size. Defaults, overridable
 | `widget` | 6px | Between the parts of one widget. Also the padding of every control. |
 | `component` | 12px | Between widgets; the padding of a container of widgets (a bar, a card). The default. |
 | `section` | 24px | Between components or groups of widgets: cards, panels, the sections of a view. |
-| `stage-1` … `stage-4` | 48 / 96 / 128 / 256px | Between independent regions of a page. |
+| `stage-1` … `stage-4` | 36 / 60 / 96 / 156px | Between independent regions of a page. |
 
+- The default values double up to `section` (6, 12, 24px); from `stage-1` on, each is the sum of the two before it (24 + 12 = 36, 36 + 24 = 60, …), so the large steps grow more slowly than a doubling would.
 - Each step has one value, applied to both axes. An element that genuinely needs asymmetric spacing (a legend sitting on its fieldset's border) takes its numbers from the scale and composes them in its own CSS.
 - Controls pad themselves with the same scale (`widget`); there is no separate control-sizing system.
 
