@@ -255,7 +255,8 @@ export namespace o {
       const old = this.old_value
       this.old_value = new_value
       const res = (this.fn as ObserverCallback<A>)(new_value, old)
-      // If the observer function returns a result, use it as the new value to avoid being re-triggered
+      // A returned value is written back to the observable (a "trigger", see docs/md/observables.md, an observer's
+      // return value); it is also stored as the last seen value, so that this observer is not re-triggered by it
       if (res !== undefined) {
         if (is_promise_like(res)) {
           const pro = Promise.resolve(res).then((res) => {
@@ -757,7 +758,13 @@ export namespace o {
           for (let i = 0, oa = obs._observers.arr; i < oa.length; i++) {
             const or = oa[i]
             if (or == null) continue
-            or.refresh()
+            // One `try` per observer, so that one that throws (a bug) does not keep the others stale. Measured with
+            // `just bench`: no cost when nothing throws.
+            try {
+              or.refresh()
+            } catch (e) {
+              console.error(e)
+            }
           }
           this.notifying = null
 

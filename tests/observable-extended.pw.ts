@@ -582,6 +582,30 @@ test.describe("Observable extended", () => {
   })
 
   test.describe("observer lifecycle extended", () => {
+    test("an observer that throws does not stop the other observers of the same observable", async ({ page }) => {
+      const result = await page.evaluate(() => {
+        const { o } = window.__ELT__
+        const errors: unknown[] = []
+        const console_error = console.error
+        console.error = (e: unknown) => errors.push(e)
+        try {
+          const o_n = o(1)
+          const seen: number[] = []
+          o_n.addObserver((v) => {
+            if (v === 2) throw new Error("boom")
+          })
+          o_n.addObserver((v) => {
+            seen.push(v)
+          })
+          o_n.set(2)
+          return { seen, errors: errors.length }
+        } finally {
+          console.error = console_error
+        }
+      })
+      expect(result).toEqual({ seen: [1, 2], errors: 1 })
+    })
+
     test("ObserverHolder.observe follows the node_observe rule for plain values (regression: changes_only still fired)", async ({
       page,
     }) => {

@@ -248,6 +248,21 @@ $observe(o_a, (v) => lock(() => o_b.set(transform(v))))
 $observe(o_b, (v) => lock(() => o_a.set(untransform(v))))
 ```
 
+## An observer's return value
+
+An observer callback (`$observe`, `node_observe`, `.observe`, `addObserver`) that returns something other than `undefined` writes that value back to the observable it watches; a returned promise is awaited, then its value is written. This is a trigger: the observer reacts to a value and replaces it in the same step.
+
+```ts
+// a one-shot flag: whoever sets it to true gets it reset once the list reloaded
+node_observe(list_node, o_refresh_requested, (requested) => {
+  if (!requested) return
+  reload()
+  return false
+})
+```
+
+The flip side: an arrow function with an expression body returns its value without anyone meaning it. `(v) => (node.title = v + "!")` writes the new title back to the observable. On a read-only observable (a `.tf()`, an `o.expression` without a write-back), that write throws. Write side-effect observers with a block body: `(v) => { node.title = v + "!" }`.
+
 ## Good patterns vs. patterns to avoid
 
 A few rules of thumb, pulled from the library's own source comments, worth internalizing:
