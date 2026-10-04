@@ -31,14 +31,27 @@ export type RoutesRes<R extends RouteDef> = {
       : Route
 }
 
+/**
+ * @internal
+ * What an activation does with the URL and the scroll position once it commits. It travels with the activation,
+ * also while it waits for a running one (`Reactivation`), so that only the activation that commits applies it.
+ */
+export interface ActivationUrl {
+  /** Requested by a URL change (typed URL, Back/Forward, link click) : the URL is not written back */
+  from_url: boolean
+  /** Page fragment to write in the URL (path mode, `route.activate(params, { fragment })`, so never `from_url`) */
+  fragment?: string
+  /** Page fragment name to scroll to (path mode, see `Router.__scrollTo`) */
+  scroll?: string
+}
+
 /** An activation requested while another one runs : it runs once that one is done, unless a newer one replaces it. */
 export class Reactivation extends Deferred<ActivationResult> {
   constructor(
     public builder: ServiceBuilderConcreteType<any>,
     public params: ServiceParams,
     public route: Route<any>,
-    /** requested by a URL change : does not write the URL back */
-    public from_url: boolean,
+    public url: ActivationUrl,
   ) {
     super()
   }
@@ -146,32 +159,32 @@ export class App {
    * Activate `builder` for `route`. When another activation runs, this one waits for it and runs instead of it
    * (see `__activate`) : the returned `Reactivated` resolves at once, without waiting, since a service redirecting
    * during its init calls this, and the running activation it would wait for is that very init.
-   * `from_url` : requested by a URL change, so the URL is not written back.
+   * `params` is used as is (`Route.activateWithParams` made it a copy of the caller's, under the route defaults).
+   * `url` : what the activation does with the URL once it commits, see `ActivationUrl`.
    */
   async _activate<S>(
     builder: ServiceBuilder<S, any>,
-    params: ServiceParams | undefined,
+    params: ServiceParams,
     route: Route<any>,
-    from_url = false,
+    url: ActivationUrl = { from_url: false },
   ): Promise<ActivationResult> {
     // The last request wins, in request order : one made while this one's builder loads (a lazy import) replaces it,
     // even when its own builder loads first.
     const request = ++this.__requests
-    const full_params = Object.assign({}, params)
     const builder_fn = await _get_builder(builder)
     if (request !== this.__requests) return { activated: false, abandoned: true, service: builder_fn }
 
     // Decided once the builder is loaded, not when requested : the activation that ran then may be over by now.
-    if (!this.o_activating.get()) return this.__activate(builder_fn, full_params, route, from_url)
+    if (!this.o_activating.get()) return this.__activate(builder_fn, params, route, url)
 
     // The activation that was waiting, if any, never runs
     this.__reactivate?.resolve({ activated: false, abandoned: true, service: this.__reactivate.builder })
-    const re = new Reactivation(builder_fn, full_params, route, from_url)
+    const re = new Reactivation(builder_fn, params, route, url)
     this.__reactivate = re
     // Nobody awaits `re` (see above) : its failure is handled here, once, by running its route's error route.
     // Attached here rather than by the callers of `_activate`, since the activation that `re` supersedes also gets
     // `re` as its `reactivation`, and the error route would run twice.
-    re.catch((e) => route._failed(e, from_url).catch(_logged))
+    re.catch((e) => route._failed(e, url.from_url).catch(_logged))
     return { activated: false, reactivation: re, service: builder_fn }
   }
 
@@ -181,14 +194,26 @@ export class App {
    * The activation commits only if no newer one was requested while it ran (`__reactivate`, set by `_activate`,
    * for instance by a service that redirects to another route during its init). Every service built that the
    * live state does not use is deinit-ed : the previous state's dropped services when this activation commits,
-   * its own services when it does not (superseded, or failed).
+   * its own services when it does not (superseded, or failed). Only when it commits does it write the URL
+   * and scroll, as `url` says.
    */
   async __activate<S>(
     builder: ServiceBuilderConcreteType<S>,
     params: ServiceParams,
     route: Route<any>,
-    from_url: boolean,
+    url: ActivationUrl,
   ): Promise<ActivationResult> {
+    // "Same route, only the params change", decided when the activation runs : a request that waited for a
+    // running activation finds the same active route, since that one did not commit (`__reactivate` was set),
+    // unless it committed before this request was registered (while its builder loaded).
+    if (this._keepsService(route, params)) {
+      // Nothing else runs now (the reactivation, if this is one, was taken) ; set before the params, so that the
+      // router's params observer writes the URL
+      this.o_activating.set(false)
+      this._setParams(route, params, url)
+      return { activated: true, service: builder }
+    }
+
     const previous = this.o_state.get()
     this.o_activating.set(true)
     const staging = new State(this)
@@ -205,7 +230,7 @@ export class App {
         const keys = staging.paramKeys()
         for (const key of route.route_params) keys.add(key)
         const kept = Object.fromEntries(Object.entries(staging.params.get()).filter(([key]) => keys.has(key)))
-        if (!from_url) route.updateUrl(keys, kept)
+        if (!url.from_url) route.updateUrl(keys, kept, url.fragment)
 
         committed = true
         // The new state is published first : the previous state's services see they are no longer active,
@@ -218,6 +243,7 @@ export class App {
           staging.commit()
           this.router.o_active_route.set(route)
         })
+        this.router._committed(route, url)
       }
     } catch (e) {
       failure = { error: e }
@@ -232,7 +258,7 @@ export class App {
     if (re) {
       // A newer activation was requested while this one ran : it supersedes this one,
       // so this one's error, if any, is dropped on purpose.
-      this.__activate(re.builder, re.params, re.route, re.from_url).then(re.resolve, re.reject)
+      this.__activate(re.builder, re.params, re.route, re.url).then(re.resolve, re.reject)
       return {
         activated: false,
         service: builder,
@@ -246,6 +272,32 @@ export class App {
       activated: true,
       service: builder,
     }
+  }
+
+  /**
+   * @internal
+   * True when `route` is the active route and `params` do not invalidate its active service : they can then be
+   * set on it without rebuilding anything (the "same route, only the params change" shortcut, see `_setParams`).
+   */
+  _keepsService(route: Route<any>, params: ServiceParams): boolean {
+    return this.router.o_active_route.get() === route && !this.o_active_service.get()?.areParamsInvalidating(params)
+  }
+
+  /**
+   * @internal
+   * The "same route, only the params change" shortcut : set `params` on the active route `route` instead of
+   * activating it again. The router's params observer writes the URL, with `url.fragment` if there is one,
+   * then `Router._committed` scrolls. Not while an activation runs : that observer would not write the URL.
+   */
+  _setParams(route: Route<any>, params: ServiceParams, url: ActivationUrl) {
+    const router = this.router
+    router.__fragment = url.fragment
+    try {
+      this.o_params.set(params)
+    } finally {
+      router.__fragment = undefined
+    }
+    router._committed(route, url)
   }
 
   /** Display a view, optionally wrapping it with another function */

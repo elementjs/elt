@@ -1526,6 +1526,251 @@ test.describe("Router", () => {
     expect(result.dropped).toBe("")
   })
 
+  // The navigation with a fragment is requested while another activation runs : it waits for it, and its
+  // `activate()` call (or the link click) returns before it commits.
+  for (const shape of ["activate with a fragment", "link click with a fragment"] as const) {
+    test(`path mode: ${shape} while another activation runs writes the fragment and scrolls once it commits (regression: neither happened)`, async ({
+      page,
+    }) => {
+      const result = await page.evaluate(async (shape) => {
+        const { App } = window.__ELT__
+        const { promise: gate, resolve: open_slow } = window.__ELT__.deferred<void>()
+        // the harness document does not scroll : use a scroll container, as an app layout would
+        const box = document.createElement("div")
+        box.style.cssText = "position:fixed;inset:0;overflow:auto"
+        const spacer = document.createElement("div")
+        spacer.style.height = "5000px"
+        box.append(spacer)
+        document.body.append(box)
+        const target = document.createElement("div")
+        target.id = "target"
+        target.style.cssText = "position:absolute;top:3000px;height:20px"
+        box.append(target)
+        const rel = () => location.href.slice(location.origin.length)
+
+        let slow_started = false
+        const app = new App()
+        const routes = app.setupRouter(
+          {
+            home: ["/home", () => async () => {}],
+            doc: ["/doc/:id", () => async (srv: import("elt").ServiceHelper<any>) => void srv.param("id")],
+            slow: [
+              "/slow",
+              () => async () => {
+                slow_started = true
+                await gate
+              },
+            ],
+          },
+          { mode: "path", base: "/app" },
+        )
+        history.replaceState(null, "", "/app/home")
+        await app.router.activateFromUrl(true)
+
+        const slow = routes.slow.activate()
+        while (!slow_started) await new Promise((r) => setTimeout(r, 0))
+
+        if (shape === "activate with a fragment") {
+          await routes.doc.activate({ id: 2 }, { fragment: "target" })
+        } else {
+          const a = document.createElement("a")
+          a.href = "/app/doc/2#target"
+          document.body.append(a)
+          a.click()
+          a.remove()
+        }
+        // the waiting navigation has not committed yet
+        const before = { route: app.o_current_route.get()?.name, scrolled: box.scrollTop !== 0 }
+
+        open_slow()
+        await slow
+        while (app.o_activating.get()) await new Promise((r) => setTimeout(r, 0))
+        await new Promise((r) => setTimeout(r, 100))
+        const scrolled = Math.round(Math.abs(target.getBoundingClientRect().top)) < 2
+        box.remove()
+        return { before, route: app.o_current_route.get()?.name, url: rel(), scrolled }
+      }, shape)
+      expect(result.before).toEqual({ route: "home", scrolled: false })
+      expect(result.route).toBe("doc")
+      expect(result.url).toBe("/app/doc/2#target")
+      expect(result.scrolled).toBe(true)
+    })
+  }
+
+  // A request for the active route whose params do not rebuild it ("same route, only the params change") :
+  // with nothing running, the params are set at once ; while another activation runs, the request waits and
+  // replaces it like any other. `lazy` : the running request is a lazy builder still loading, not yet running.
+  for (const shape of ["nothing running", "another activation running", "a lazy builder loading"] as const) {
+    test(`path mode: a params-only request with a fragment, ${shape}, wins (regression: the earlier request committed over it)`, async ({
+      page,
+    }) => {
+      const result = await page.evaluate(async (shape) => {
+        const { App } = window.__ELT__
+        const { promise: gate, resolve: open_gate } = window.__ELT__.deferred<void>()
+        // the harness document does not scroll : use a scroll container, as an app layout would
+        const box = document.createElement("div")
+        box.style.cssText = "position:fixed;inset:0;overflow:auto"
+        const spacer = document.createElement("div")
+        spacer.style.height = "5000px"
+        box.append(spacer)
+        document.body.append(box)
+        const target = document.createElement("div")
+        target.id = "target"
+        target.style.cssText = "position:absolute;top:3000px;height:20px"
+        box.append(target)
+        const rel = () => location.href.slice(location.origin.length)
+
+        let other_started = false
+        let doc_builds = 0
+        const other_srv = async () => {
+          other_started = true
+          await gate
+        }
+        const app = new App()
+        const routes = app.setupRouter(
+          {
+            doc: [
+              "/doc/:id",
+              () => async (srv: import("elt").ServiceHelper<any>) => {
+                doc_builds++
+                srv.param("id")
+                srv.param_soft("page")
+              },
+            ],
+            // `other` is slow to run, or (lazy) slow to load : its builder is a promise of the service function
+            other: [
+              "/other",
+              () => (shape === "a lazy builder loading" ? gate.then(() => other_srv) : other_srv) as any,
+            ],
+          },
+          { mode: "path", base: "/app" },
+        )
+        history.replaceState(null, "", "/app/doc/1")
+        await app.router.activateFromUrl(true)
+        const service = app.o_active_service.get()
+        let activating_seen = false
+        app.o_activating.addObserver((v) => {
+          if (v) activating_seen = true
+        })
+
+        let other: Promise<void> | undefined
+        if (shape === "another activation running") {
+          other = routes.other.activate()
+          while (!other_started) await new Promise((r) => setTimeout(r, 0))
+        } else if (shape === "a lazy builder loading") {
+          other = routes.other.activate()
+          await new Promise((r) => setTimeout(r, 0))
+        }
+        activating_seen = false
+
+        await routes.doc.activate({ id: 1, page: 2 }, { fragment: "target" })
+        const before = { page: app.o_params.get().page, url: rel() }
+
+        open_gate()
+        await other
+        while (app.o_activating.get()) await new Promise((r) => setTimeout(r, 0))
+        await new Promise((r) => setTimeout(r, 100))
+        const scrolled = Math.round(Math.abs(target.getBoundingClientRect().top)) < 2
+        box.remove()
+        return {
+          before,
+          route: app.o_current_route.get()?.name,
+          page: app.o_params.get().page,
+          url: rel(),
+          scrolled,
+          same_service: app.o_active_service.get() === service,
+          doc_builds,
+          other_started,
+          activating_seen,
+        }
+      }, shape)
+      if (shape === "another activation running") {
+        // the request waits : nothing changes before the running activation is over
+        expect(result.before).toEqual({ page: undefined, url: "/app/doc/1" })
+      } else {
+        // nothing runs (a builder still loading does not run) : the params are set at once, no rebuild
+        expect(result.before).toEqual({ page: 2, url: "/app/doc/1?page=2#target" })
+        expect(result.activating_seen).toBe(false)
+      }
+      // the running activation (or the lazy builder) is replaced : `other` never commits, nor runs once loaded,
+      // and `doc` is still active once it is over, so the waiting request only sets the params
+      expect(result.other_started).toBe(shape === "another activation running")
+      expect(result.route).toBe("doc")
+      expect(result.page).toBe(2)
+      expect(result.url).toBe("/app/doc/1?page=2#target")
+      expect(result.scrolled).toBe(true)
+      expect(result.same_service).toBe(true)
+      expect(result.doc_builds).toBe(1)
+    })
+  }
+
+  // The params-only request is made while another route's activation runs, but its own (lazy) builder loads only
+  // once that activation has committed : the route it asked for is no longer active, so it activates it in full.
+  test("path mode: a params-only request whose route is no longer active once it runs activates it (regression: lost)", async ({
+    page,
+  }) => {
+    const result = await page.evaluate(async () => {
+      const { App } = window.__ELT__
+      const { promise: other_gate, resolve: open_other } = window.__ELT__.deferred<void>()
+      const { promise: doc_gate, resolve: load_doc } = window.__ELT__.deferred<void>()
+      const rel = () => location.href.slice(location.origin.length)
+
+      let other_started = false
+      let doc_builds = 0
+      let lazy_doc = false
+      const doc = async (srv: import("elt").ServiceHelper<any>) => {
+        doc_builds++
+        srv.param("id")
+        srv.param_soft("page")
+      }
+      const app = new App()
+      const routes = app.setupRouter(
+        {
+          // stands for `() => import("./doc")`, loaded at once the first time, late the second
+          doc: ["/doc/:id", () => (lazy_doc ? doc_gate.then(() => ({ default: doc })) : doc) as any],
+          other: [
+            "/other",
+            () => async () => {
+              other_started = true
+              await other_gate
+            },
+          ],
+        },
+        { mode: "path", base: "/app" },
+      )
+      history.replaceState(null, "", "/app/doc/1")
+      await app.router.activateFromUrl(true)
+
+      const other = routes.other.activate()
+      while (!other_started) await new Promise((r) => setTimeout(r, 0))
+      lazy_doc = true
+      const doc_req = routes.doc.activate({ id: 1, page: 2 }, { fragment: "x" })
+      const before = { page: app.o_params.get().page, url: rel() }
+
+      // `other` commits while doc's builder loads, then doc's builder arrives
+      open_other()
+      await other
+      const between = app.o_current_route.get()?.name
+      load_doc()
+      await doc_req
+      while (app.o_activating.get()) await new Promise((r) => setTimeout(r, 0))
+      return {
+        before,
+        between,
+        route: app.o_current_route.get()?.name,
+        page: app.o_params.get().page,
+        url: rel(),
+        doc_builds,
+      }
+    })
+    expect(result.before).toEqual({ page: undefined, url: "/app/doc/1" })
+    expect(result.between).toBe("other")
+    expect(result.route).toBe("doc")
+    expect(result.page).toBe(2)
+    expect(result.url).toBe("/app/doc/1?page=2#x")
+    expect(result.doc_builds).toBe(2)
+  })
+
   test("path mode: scroll_to_fragment: false writes the fragment but never scrolls", async ({ page }) => {
     const result = await page.evaluate(async () => {
       const { App } = window.__ELT__

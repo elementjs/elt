@@ -1,6 +1,6 @@
 import { _decode, _encode, _formatQuery, type ServiceParams } from "./params"
 import type { ServiceBuilder } from "./service"
-import type { RouteOptions } from "./app"
+import type { ActivationUrl, RouteOptions } from "./app"
 import { FRAGMENT_NEEDS_PATH_MODE } from "./fragment"
 import type { Router } from "./router"
 
@@ -116,24 +116,15 @@ export class Route<T extends ServiceParams = {}> {
     return source.href(path, _formatQuery(this.__queryParams(params, Object.keys(params))), options?.fragment)
   }
 
-  /** Write the URL for `params` ; only the `keys` that are not path params go into the query. */
-  updateUrl(keys: Set<string>, params: ServiceParams) {
+  /**
+   * Write the URL for `params` ; only the `keys` that are not path params go into the query.
+   * `fragment` : the page fragment to write with it, see `Router._writeUrl`.
+   */
+  updateUrl(keys: Set<string>, params: ServiceParams, fragment?: string) {
     // Do not update the URL if this route is silent.
     if (this.options.silent || this.path == null) return
 
-    this.router._writeUrl(this, this._buildPath(params), _formatQuery(this.__queryParams(params, keys)))
-  }
-
-  /** `from_url` : requested by a URL change, see `App._activate` */
-  async _activateWithParams(params: T, from_url: boolean): Promise<void> {
-    const full_params = Object.assign({}, this.options.defaults, params)
-    try {
-      // The active route is set by the activation that commits, which is not this one when it is superseded
-      // (a service redirecting during its init, or a newer navigation) : see App.__activate
-      await this.router.app._activate(this.builder(), full_params, this, from_url)
-    } catch (e) {
-      await this._failed(e, from_url)
-    }
+    this.router._writeUrl(this._buildPath(params), _formatQuery(this.__queryParams(params, keys)), fragment)
   }
 
   /**
@@ -142,28 +133,37 @@ export class Route<T extends ServiceParams = {}> {
    * or, without one, log `e` and throw it.
    */
   async _failed(e: unknown, from_url: boolean): Promise<void> {
-    if (this.error) return this.error.activateWithParams({ __error__: e }, from_url)
+    // neither the fragment nor the scroll target of the failed activation : they were for its own page
+    if (this.error) return this.error.activateWithParams({ __error__: e }, { from_url })
     console.error(e)
     throw e
   }
 
-  /** `from_url` (internal) : requested by a URL change, which the activation does not write back */
-  async activateWithParams(params: T, from_url = false): Promise<void> {
+  /** `url` (internal) : what the activation does with the URL once it commits, see `ActivationUrl` */
+  async activateWithParams(params: T, url: ActivationUrl = { from_url: false }): Promise<void> {
+    const router = this.router
     // any navigation ends the search for the previous fragment target
-    this.router.__cancel_scroll?.()
-    const full_params = Object.assign({}, this.options.defaults, params)
-    const current_route = this.router.o_active_route.get()
-    if (current_route === this) {
-      const current_service = this.router.app.o_active_service.get()
-
-      // Do not reactivate if the params are not invalidating and just set them on the application.
-      if (!current_service?.areParamsInvalidating(full_params as any)) {
-        this.router.app.o_params.set(full_params)
-        return
-      }
+    router.__cancel_scroll?.()
+    // The one copy of the caller's params, `defaults` underneath : everything below uses it as is.
+    const full_params: ServiceParams = Object.assign({}, this.options.defaults, params)
+    const app = router.app
+    // "Same route, only the params change" : set them at once, no rebuild. Only when no activation runs : one
+    // that runs would commit over them, so this request then waits and replaces it like any other (`App._activate`,
+    // which takes this shortcut once its turn comes if it still applies, see `App.__activate`).
+    if (!app.o_activating.get() && app._keepsService(this, full_params)) {
+      // a request like any other : one made before it whose builder still loads never runs (see `App._activate`)
+      app.__requests++
+      app._setParams(this, full_params, url)
+      return
     }
 
-    return this._activateWithParams(params, from_url)
+    try {
+      // The active route is set by the activation that commits, which is not this one when it is superseded
+      // (a service redirecting during its init, or a newer navigation) : see App.__activate
+      await router.app._activate(this.builder(), full_params, this, url)
+    } catch (e) {
+      await this._failed(e, url.from_url)
+    }
   }
 
   /**
@@ -173,10 +173,9 @@ export class Route<T extends ServiceParams = {}> {
   async activate(
     ...args: {} extends T ? [params?: T, options?: FragmentOptions] : [params: T, options?: FragmentOptions]
   ): Promise<void> {
-    const params: T = Object.assign({}, args[0] as T)
     const fragment = args[1]?.fragment
-
-    if (fragment === undefined) return this.activateWithParams(params)
-    return this.router._activateWithFragment(this, params, fragment)
+    if (fragment !== undefined && !this.router.source.page_fragment) throw new Error(FRAGMENT_NEEDS_PATH_MODE)
+    // `activateWithParams` copies the params : the caller's object is never kept
+    return this.activateWithParams((args[0] ?? {}) as T, { from_url: false, fragment, scroll: fragment })
   }
 }

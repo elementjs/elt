@@ -147,7 +147,7 @@ export class State {
     const persistents = new Set<ServiceHelper>()
 
     for (const srv of this.previous_state?.services.values() ?? []) {
-      if (srv.is_persistent && !srv.areParamsInvalidating(params ?? {})) {
+      if (srv.is_persistent && !srv.areParamsInvalidating(params)) {
         // keep a persistent service that is not invalidated
         persistents.add(srv)
         this.addServiceDep(srv)

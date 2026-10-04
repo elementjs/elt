@@ -1,8 +1,8 @@
 import { o } from "../observable"
-import { _decodeFragment, FRAGMENT_NEEDS_PATH_MODE, _scrollToFragment } from "./fragment"
+import { _decodeFragment, _scrollToFragment } from "./fragment"
 import { _parseQuery, _urlKey, type ServiceParams } from "./params"
 import { _logged, Route } from "./route"
-import type { App, RouteOptions } from "./app"
+import type { ActivationUrl, App, RouteOptions } from "./app"
 import type { ServiceBuilder } from "./service"
 import { _createUrlSource, HashUrlSource, type RouterOptions, type UrlSource } from "./url-source"
 
@@ -28,11 +28,11 @@ export class Router {
   /** Stops the search of the previous fragment target, if still running */
   __cancel_scroll: (() => void) | null = null
   /**
-   * Fragment of the programmatic navigation in progress, and the route it is for.
-   * `_writeUrl` writes it in the URL instead of keeping the current one, unless another route
-   * (the error route of a failed activation, or the route a service redirected to) is writing.
+   * Page fragment for the params observer (see `setupRouter`) to write with the URL : set while
+   * `App._setParams` only changes the params of the active route, by code with a fragment.
+   * An activation that runs passes its own fragment to `Route.updateUrl` when it commits.
    */
-  __fragment: { route: Route<any>; fragment: string } | null = null
+  __fragment: string | undefined = undefined
 
   /** routes with a route path, by route path */
   protected __routes = new Map<string, Route<any>>()
@@ -96,10 +96,12 @@ export class Router {
     }
 
     // path params win over query params ; defaults are applied underneath by activateWithParams
-    // A navigation already running is replaced by this one, like any activation requested while another runs
-    await found.route.activateWithParams(Object.assign(query, found.params), !write_back)
-    // not awaited : the search for a late target ends on its own
-    if (scroll && this.o_active_route.get() === found.route) this.__scrollTo(_decodeFragment(cur.fragment))
+    // A navigation already running is replaced by this one, like any activation requested while another runs :
+    // the scroll then happens when this one commits, which may be after this call returns.
+    await found.route.activateWithParams(Object.assign(query, found.params), {
+      from_url: !write_back,
+      scroll: scroll ? _decodeFragment(cur.fragment) : undefined,
+    })
   }
 
   /** Scroll to the element named `fragment`, if enabled. Replaces any search still running for a previous one. */
@@ -109,38 +111,32 @@ export class Router {
 
   /**
    * @internal
-   * Activate `route` by code with a page fragment : it goes in the URL, and the page scrolls to it.
+   * `route` is now active for an activation, which committed or only changed the params of the active route.
+   * Write the page fragment it was given by code, when the URL does not hold it yet (the URL was not written
+   * because only the fragment changed, or the route is silent), then scroll to its scroll target.
    * A fragment change alone adds a history entry, like clicking a `#anchor` link.
    */
-  async _activateWithFragment(route: Route<any>, params: ServiceParams, fragment: string) {
-    if (!this.source.page_fragment) throw new Error(FRAGMENT_NEEDS_PATH_MODE)
-    this.__fragment = { route, fragment }
-    try {
-      await route.activateWithParams(params)
-    } finally {
-      this.__fragment = null
+  _committed(route: Route<any>, url: ActivationUrl) {
+    if (url.fragment !== undefined && !route.options.silent) {
+      const cur = this.source.read()
+      if (cur != null && _decodeFragment(cur.fragment) !== url.fragment)
+        this.source.write(cur.path, cur.query, true, url.fragment)
     }
-    // failed (the error route is active) or superseded by another activation
-    if (this.o_active_route.get() !== route) return
-
-    // the URL was not written if it did not change, or if the route is silent
-    const cur = this.source.read()
-    if (cur != null && !route.options.silent && _decodeFragment(cur.fragment) !== fragment)
-      this.source.write(cur.path, cur.query, true, fragment)
-    this.__scrollTo(fragment)
+    // not awaited : the search for a late target ends on its own
+    if (url.scroll !== undefined) this.__scrollTo(url.scroll)
   }
 
   /**
    * @internal
-   * Write the URL of `route` for a route path and route query, if it changed.
+   * Write the URL for a route path and route query, if it changed, with the page `fragment` when given
+   * (else the URL source keeps or drops the current one, see `UrlSource.write`).
    * Adds a history entry when the route path changes, except for the very first write ; replaces it otherwise.
    */
-  _writeUrl(route: Route<any>, path: string, query: string) {
+  _writeUrl(path: string, query: string, fragment?: string) {
     const key = _urlKey(path, query)
     const cur = this.source.read()
     if (cur == null || _urlKey(cur.path, cur.query) !== key) {
       const push = this.__wrote_url && cur?.path !== path
-      const fragment = this.__fragment?.route === route ? this.__fragment.fragment : undefined
       this.source.write(path, query, push, fragment)
       this.__wrote_url = true
     }
@@ -204,8 +200,7 @@ export class Router {
         // reactivate !
         rt?.activate(params).catch(_logged)
       } else {
-        const keys = srv?.state?.paramKeys() ?? new Set<string>()
-        rt?.updateUrl(keys, params)
+        rt?.updateUrl(srv.state.paramKeys(), params, this.__fragment)
       }
     })
   }
