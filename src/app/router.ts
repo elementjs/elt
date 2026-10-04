@@ -18,8 +18,6 @@ export class Router {
   /** Reads and writes the URL. Replaced by `setupRouter` according to its options. */
   source: UrlSource = new HashUrlSource()
 
-  // the last route to have called activate()
-  __last_activated_route: Route<any> | null = null
   /** Held while activating from the URL, so that the activation does not write the URL back */
   __url_lock = o.exclusive_lock()
   /** URL key of the last URL read or written */
@@ -34,7 +32,7 @@ export class Router {
   /**
    * Fragment of the programmatic navigation in progress, and the route it is for.
    * `_writeUrl` writes it in the URL instead of keeping the current one, unless another route
-   * (the error route of a failed activation) is writing.
+   * (the error route of a failed activation, or the route a service redirected to) is writing.
    */
   __fragment: { route: Route<any>; fragment: string } | null = null
 
@@ -128,15 +126,15 @@ export class Router {
 
   /**
    * @internal
-   * Write the URL for a route path and route query, if it changed.
+   * Write the URL of `route` for a route path and route query, if it changed.
    * Adds a history entry when the route path changes, except for the very first write ; replaces it otherwise.
    */
-  _writeUrl(path: string, query: string) {
+  _writeUrl(route: Route<any>, path: string, query: string) {
     const key = _urlKey(path, query)
     const cur = this.source.read()
     if (cur == null || _urlKey(cur.path, cur.query) !== key) {
       const push = this.__wrote_url && cur?.path !== path
-      const fragment = this.__fragment?.route === this.__last_activated_route ? this.__fragment?.fragment : undefined
+      const fragment = this.__fragment?.route === route ? this.__fragment.fragment : undefined
       this.source.write(path, query, push, fragment)
       this.__wrote_url = true
     }

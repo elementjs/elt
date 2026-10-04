@@ -48,12 +48,16 @@ export class State {
     this.addServiceDep(srv)
 
     const builder_fn = _service_class_init(builder)
-    // typeof builder[sym_service_init] === "function"
-    //   ? builder[sym_service_init].bind(builder)
-    //   : builder
-    srv.result_promise = builder_fn(srv)
-    srv.result = await srv.result_promise
-    srv.result_promise = null
+    srv._building = true
+    try {
+      srv.result_promise = builder_fn(srv)
+      srv.result = await srv.result_promise
+      srv.result_promise = null
+    } finally {
+      srv._building = false
+      // this state was dropped while the service was building : drop the service now that its init is over
+      this.__drop?.(srv)
+    }
     return srv
   }
 
@@ -118,16 +122,21 @@ export class State {
     this.previous_state = null
   }
 
-  /** Call deinits on the services that didn't make the cut. */
-  deactivate(other_state: State) {
-    const other_services = new Set([...other_state.services.values()])
+  /** Set by `deactivate` : deinits `srv` unless the state that replaces this one uses it */
+  private __drop?: (srv: ServiceHelper) => void
+
+  /**
+   * Deinit the services of this state that `other_state` (the live one, null if there is none) does not use.
+   * A service whose init is still running (a sibling of a failed dependency) is deinit-ed once its init is over,
+   * so that the deinit callbacks it registers late still run.
+   */
+  deactivate(other_state: State | null) {
+    const kept = new Set(other_state?.services.values())
+    this.__drop = (srv) => {
+      if (!kept.has(srv)) srv._deinit()
+    }
     for (const srv of this.services.values()) {
-      if (!other_services.has(srv)) {
-        srv.stopObservers()
-        for (const de of srv._on_deinit) {
-          de()
-        }
-      }
+      if (!srv._building) this.__drop(srv)
     }
   }
 

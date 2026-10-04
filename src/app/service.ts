@@ -1,5 +1,6 @@
 import type { Renderable } from "../types"
 import { o } from "../observable"
+import { memoize } from "../utils"
 import type { ServiceParams } from "./params"
 import type { State } from "./state"
 import type { Route } from "./route"
@@ -44,8 +45,8 @@ export function view<R extends Renderable>(
 export function view(target: any, prop: any, descriptor?: TypedPropertyDescriptor<any>) {
   if (descriptor != null) {
     if (!Object.hasOwn(target, sym_view_fns)) {
-      // Try to get views on the prototype
-      target[sym_view_fns] = target[sym_view_fns] ?? []
+      // A copy of the parent class's views : pushing to the inherited array would add this class's views to the parent
+      target[sym_view_fns] = [...(target[sym_view_fns] ?? [])]
     }
     target[sym_view_fns].push(descriptor.value)
   } else {
@@ -157,12 +158,34 @@ export class ServiceHelper<T extends ServiceParams = {}> extends o.ObserverHolde
     super()
   }
   _on_deinit: (() => any)[] = []
+  /** @internal true while the init of this service runs */
+  _building = false
+  /** @internal set once `_deinit` ran */
+  private __deinited = false
+
+  /**
+   * @internal
+   * Stop observing and run the deinit callbacks, once. A callback that throws is logged and does not stop the others.
+   */
+  _deinit() {
+    if (this.__deinited) return
+    this.__deinited = true
+    this.stopObservers()
+    for (const de of this._on_deinit) {
+      try {
+        de()
+      } catch (e) {
+        console.error(e)
+      }
+    }
+  }
 
   require<S, TP extends ServiceParams, TC extends TP>(this: ServiceHelper<TC>, fn: ServiceBuilder<S, TP>): Promise<S> {
     return this.state.require(fn as any, this)
   }
 
   /** true if this service is the currently activated one */
+  @memoize
   get oo_is_active() {
     return this.state.app.o_active_service.tf((ac) => ac === this)
   }
@@ -207,14 +230,19 @@ export class ServiceHelper<T extends ServiceParams = {}> extends o.ObserverHolde
     this.state.params.assign({ [name as string]: value })
   }
 
+  /** The value of param `name`, set to `default_value` first if it has none and `default_value` is not undefined */
+  private __paramOrDefault(name: string, default_value: ServiceParams[string]) {
+    const par = this.state.params
+    const v = par.get()[name]
+    if (v != null || default_value === undefined) return v
+    // 0, false and "" are defaults too
+    par.assign({ [name]: default_value })
+    return default_value
+  }
+
   /** gets a service parameter and locks it ; should the parameter change (in the URL, or directly in the App State,) then this service will have to be recreated instead of reused. */
   param<K extends keyof T>(name: K, default_value?: T[K]): T[K] {
-    const par = this.state.params
-    const v = par.get()[name as string]
-    if (v == null && default_value) {
-      par.assign({ [name as string]: default_value })
-    }
-    const value = v ?? default_value ?? v
+    const value = this.__paramOrDefault(name as string, default_value as ServiceParams[string])
     this.params_deps.set(name as string, value as any)
     return value as T[K]
   }
@@ -223,11 +251,7 @@ export class ServiceHelper<T extends ServiceParams = {}> extends o.ObserverHolde
   param_soft<K extends keyof T>(name: K): o.Observable<T[K]>
   param_soft<K extends keyof T>(name: K, default_value: T[K]): o.Observable<NonNullable<T[K]>>
   param_soft<K extends keyof T>(name: K, default_value?: T[K]): o.Observable<T[K]> {
-    const par = this.state.params
-    const v = par.get()[name as string]
-    if (v == null && default_value) {
-      par.assign({ [name as string]: default_value })
-    }
+    this.__paramOrDefault(name as string, default_value as ServiceParams[string])
     this.params_deps.set(name as string, sym_soft_param_dep)
     return this.state.params.p(name as string) as o.Observable<T[K]>
   }
@@ -237,8 +261,8 @@ export class ServiceHelper<T extends ServiceParams = {}> extends o.ObserverHolde
   }
 
   /**
-   * Set this property to true to make this service persistent ; once created,
-   * it will never be deinited.
+   * Set this property to true to make this service persistent : it is kept across activations that do not
+   * require it, as long as its hard params (`param()`) still hold, and deinit-ed once they change.
    */
   is_persistent = false
 
@@ -256,7 +280,6 @@ export class ServiceHelper<T extends ServiceParams = {}> extends o.ObserverHolde
 
   /** */
   params_deps = new Map<string, string | number | boolean | null | typeof sym_soft_param_dep>()
-  o_params = o({} as ServiceParams)
 
   /** Shortcut function to set a view */
   view(name: string, view: () => Renderable) {

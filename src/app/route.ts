@@ -117,17 +117,16 @@ export class Route<T extends ServiceParams = {}> {
 
     // no-op while the lock is held (activation triggered by the URL itself)
     this.router.__url_lock(() => {
-      this.router._writeUrl(this._buildPath(params), _formatQuery(this.__queryParams(params, keys)))
+      this.router._writeUrl(this, this._buildPath(params), _formatQuery(this.__queryParams(params, keys)))
     })
   }
 
   async _activateWithParams(params: T): Promise<void> {
     const full_params = Object.assign({}, this.options.defaults, params)
-    this.router.__last_activated_route = this
     try {
-      await this.router.app._activate(this.builder(), full_params)
-      this.router.app.o_current_route.set(this)
-      this.router.o_active_route.set(this)
+      // The active route is set by the activation that commits, which is not this one when it is superseded
+      // (a service redirecting during its init, or a newer navigation) : see App.__activate
+      await this.router.app._activate(this.builder(), full_params, this)
     } catch (e) {
       if (this.error) {
         await this.error.activate({ __error__: e })

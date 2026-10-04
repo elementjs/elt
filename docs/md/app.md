@@ -140,7 +140,7 @@ Useful observables exposed by `App`:
 | `app.o_views`          | The combined map of named views of the active service and its dependencies |
 | `app.o_active_service` | The currently active service instance                   |
 | `app.o_current_route`  | The `Route` that led to the active service               |
-| `app.o_params`         | The active service's resolved params                    |
+| `app.o_params`         | The active params: the route's path params and the params a service reads (`param`, `param_soft`) |
 | `app.o_activating`     | `true` while an activation is in flight                 |
 | `app.router.o_active_route` | Same as `app.o_current_route`, read directly off the router |
 | `srv.oo_is_active`     | (on a `Service` instance) whether *this* service is the active one |
@@ -154,7 +154,7 @@ Two ways to read a param a service depends on, from inside that service:
 | `srv.param("key", default?)`       | Updates the URL on activation (unless `silent`) | **Hard** dependency — a change re-activates (rebuilds) this service |
 | `srv.param_soft("key", default?)`  | Same                                                    | **Soft** dependency — returns a live observable; a change updates it in place, no re-activation |
 
-Both read from (and, if given a default and nothing's set yet, write into) `app.o_params`. Use `param` when a changed value genuinely means "this is now a different screen" (e.g. a `:id` segment); use `param_soft` when it's closer to a filter or view option that shouldn't tear down and rebuild the service just because it changed.
+Both read from (and, if given a default and nothing's set yet, write into) `app.o_params`. Any default but `undefined` counts, `0`, `false` and `""` included. Use `param` when a changed value genuinely means "this is now a different screen" (e.g. a `:id` segment); use `param_soft` when it's closer to a filter or view option that shouldn't tear down and rebuild the service just because it changed.
 
 ## Activation
 
@@ -163,7 +163,12 @@ await routes.home.activate()
 await routes.user.activate({ id: "42" })
 ```
 
-**Always `await` an activation.** `App` tracks whether one is already in flight (`o_activating`); an un-awaited `activate()` call that overlaps another is not queued or stacked — the app detects the race and throws (`"un-waited activate() call detected. They MUST be awaited."`). A second activation requested *while* one is genuinely still pending doesn't stack either: only the most recently requested one survives (as a pending "reactivation"), any activation that had been waiting behind it is rejected, and the survivor runs immediately once the current activation finishes. Awaiting every call is what keeps this invisible in normal use.
+**Always `await` an activation.** `App` tracks whether one is already in flight (`o_activating`); an un-awaited `activate()` call that overlaps another is not queued or stacked — the app detects the race and throws (`"un-waited activate() call detected. They MUST be awaited."`). An activation requested *while* another one runs does not stack either. This is how a service redirects: during its init, a service of route `a` finds nobody logged in and calls `await srv.activate(routes.login)`. It also happens when the user navigates again before the previous navigation is over. The new activation waits for the running one to finish, then runs instead of it:
+
+- The running activation does not commit: its views are never shown, its route never becomes active, and the services it built are deinit-ed (see "Lifecycle"), except those the live state also uses.
+- Only the last one requested waits. One requested before it, and still waiting, is dropped without running.
+- `app.o_current_route` is always the route of the activation that committed, and the URL is written for that route.
+- The `activate()` call that had to wait returns at once, before its route is active: inside the redirecting service's init, waiting for it would never end, since it runs only once that init is over. Watch `app.o_activating` (or `app.o_current_route`) to know when it is done.
 
 In hash mode, path `""` is the landing route, matched by a bare empty fragment, and path `"/"` is a different route, matched only by the literal `#/`. In path mode, see "Hash mode and path mode" above for how the base maps to `""` and `"/"`. Calling `app.router.activateFromUrl()` again on an unchanged URL does nothing; pass `true` to force it.
 
@@ -179,7 +184,7 @@ In hash mode, path `""` is the landing route, matched by a bare empty fragment, 
 
 ## Lifecycle
 
-- `srv.onDeinit(fn)` — runs when the service is dropped (i.e. not reused) on deactivation.
+- `srv.onDeinit(fn)` — runs once, when the service is dropped: the activation that replaces its state does not reuse it, or the activation that built it does not commit (it failed, or was superseded by a redirect or a newer navigation). A service whose init is still running when its activation fails (a sibling of the dependency that threw) is dropped once its init is over, so callbacks it registers late run too. A callback that throws is logged and does not stop the others.
 - `srv.is_persistent = true` — keep this instance alive across activations that would otherwise replace it, as long as its params still validate.
 - Class-based services can override `init()`/`deinit()` directly instead of (or alongside) `onDeinit`.
 

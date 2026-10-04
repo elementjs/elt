@@ -31,10 +31,12 @@ export type RoutesRes<R extends RouteDef> = {
       : Route
 }
 
+/** An activation requested while another one runs : it runs once that one is done, unless a newer one replaces it. */
 export class Reactivation extends Deferred<ActivationResult> {
   constructor(
     public builder: ServiceBuilderConcreteType<any>,
-    public params: ServiceParams = {},
+    public params: ServiceParams,
+    public route: Route<any>,
   ) {
     super()
   }
@@ -106,12 +108,11 @@ export class App {
 
   o_state = o(null as State | null)
   router = new Router(this)
-  // setupRouter = this.router.setupRouter.bind(this.router)
 
   /** An observable containing the currently active service */
   o_active_service = this.o_state.tf((st) => st?.active)
 
-  /** The currently active route */
+  /** The route of the active service : set by the activation that commits, see `__activate` */
   o_current_route = this.router.o_active_route
 
   o_params = o({} as ServiceParams)
@@ -121,7 +122,11 @@ export class App {
   o_activating = o(false)
 
   __reactivate: Reactivation | null = null
-  async _activate<S>(builder: ServiceBuilder<S, any>, params?: ServiceParams): Promise<ActivationResult> {
+  async _activate<S>(
+    builder: ServiceBuilder<S, any>,
+    params: ServiceParams | undefined,
+    route: Route<any>,
+  ): Promise<ActivationResult> {
     const _was_activating_when_called = this.o_activating.get()
     const full_params = Object.assign({}, params)
     const builder_fn = await _get_builder(builder)
@@ -134,7 +139,7 @@ export class App {
 
     if (_was_activating_when_called) {
       this.__reactivate?.reject(new Error("reactivation"))
-      this.__reactivate = new Reactivation(builder_fn, full_params)
+      this.__reactivate = new Reactivation(builder_fn, full_params, route)
       return {
         activated: false,
         reactivation: this.__reactivate,
@@ -142,16 +147,26 @@ export class App {
       }
     }
 
-    return this.__activate(builder_fn, full_params)
+    return this.__activate(builder_fn, full_params, route)
   }
 
   /**
-   * Does like require() but sets the resulting service as the active instance.
+   * Does like require() but sets the resulting service as the active instance, and `route` as the active route.
+   *
+   * The activation commits only if no newer one was requested while it ran (`__reactivate`, set by `_activate`,
+   * for instance by a service that redirects to another route during its init). Every service built that the
+   * live state does not use is deinit-ed : the previous state's dropped services when this activation commits,
+   * its own services when it does not (superseded, or failed).
    */
-  async __activate<S>(builder: ServiceBuilderConcreteType<S>, params?: ServiceParams): Promise<ActivationResult> {
-    let current = this.o_state.get()
+  async __activate<S>(
+    builder: ServiceBuilderConcreteType<S>,
+    params: ServiceParams,
+    route: Route<any>,
+  ): Promise<ActivationResult> {
+    const previous = this.o_state.get()
     this.o_activating.set(true)
     const staging = new State(this)
+    let committed = false
     // set when the activation below throws, rethrown once the reactivation check is done
     let failure: { error: unknown } | null = null
 
@@ -159,40 +174,39 @@ export class App {
       await staging.activate(builder, params)
 
       if (!this.__reactivate) {
-        this.o_state.set(staging)
-        current?.deactivate(staging)
-        current = null
+        // What can fail runs before anything is published. The URL and `o_params` keep the params some service
+        // listens to, plus the route's path params, without which the route has no URL.
         const keys = staging.paramKeys()
-        const params = Object.fromEntries(Object.entries(staging.params.get()).filter(([key]) => keys.has(key)))
-        this.router.__last_activated_route?.updateUrl(keys, params)
+        for (const key of route.route_params) keys.add(key)
+        const kept = Object.fromEntries(Object.entries(staging.params.get()).filter(([key]) => keys.has(key)))
+        route.updateUrl(keys, kept)
 
-        const _commit = () => {
-          o.transaction(() => {
-            // Remove from params unneeded keys
-            this.o_params.set(params)
-            staging.params.changeTarget(this.o_params)
-            staging.commit()
-          })
-        }
-
-        _commit()
-
-        // whoever gets here is the route that "won" if we got here through a route
+        committed = true
+        // The new state is published first : the previous state's services see they are no longer active,
+        // then are dropped before the new params reach them, and the new state's observers start on the new state.
+        this.o_state.set(staging)
+        previous?.deactivate(staging)
+        o.transaction(() => {
+          this.o_params.set(kept)
+          staging.params.changeTarget(this.o_params)
+          staging.commit()
+          this.router.o_active_route.set(route)
+        })
       }
     } catch (e) {
       failure = { error: e }
-      if (current) {
-        staging?.deactivate(current)
-      }
     }
 
+    // superseded or failed : drop what this activation built, keep what the live state uses
+    if (!committed) staging.deactivate(previous)
     staging.previous_state = null
+
     const re = this.__reactivate
     this.__reactivate = null
     if (re) {
       // A newer activation was requested while this one ran : it supersedes this one,
       // so this one's error, if any, is dropped on purpose.
-      this.__activate(re.builder, re.params).then(re.resolve, re.reject)
+      this.__activate(re.builder, re.params, re.route).then(re.resolve, re.reject)
       return {
         activated: false,
         service: builder,

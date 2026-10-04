@@ -174,6 +174,340 @@ test.describe("App", () => {
   })
 })
 
+// See docs/md/app.md, "Activation" and "Lifecycle"
+test.describe("App: the activation that commits, and service lifetimes", () => {
+  test.beforeEach(async ({ page }) => {
+    // `track(srv, name)` registers a deinit counter on a new service instance, named `name#n`;
+    // `deinits()` gives, for every instance built so far, how many times it was deinit-ed.
+    // `idle(app)` waits until no activation runs, including the reactivations run detached.
+    await page.evaluate(() => {
+      const counts: Record<string, number> = {}
+      const deinits: Record<string, number> = {}
+      ;(window as any).__kit = {
+        track(srv: import("elt").ServiceHelper<any>, name: string) {
+          counts[name] = (counts[name] ?? 0) + 1
+          const id = `${name}#${counts[name]}`
+          deinits[id] = 0
+          srv.onDeinit(() => deinits[id]++)
+          return id
+        },
+        deinits: () => ({ ...deinits }),
+        async idle(app: import("elt").App) {
+          const tick = () => new Promise((r) => setTimeout(r, 10))
+          await tick()
+          while (app.o_activating.get()) await tick()
+          await tick()
+        },
+      }
+    })
+  })
+
+  test.afterEach(async ({ page }) => {
+    await page.evaluate(() => {
+      window.location.hash = ""
+    })
+  })
+
+  // A service of route a redirects to route b during its init (the "not logged in, go to login" case),
+  // started by code or by the URL ; or the user asks for a, then for b before a's init is over.
+  for (const shape of ["redirect by code", "redirect from the URL", "two navigations by code"] as const) {
+    test(`${shape}: b is active, a's services are deinit-ed, shared ones kept`, async ({ page }) => {
+      const result = await page.evaluate(async (shape) => {
+        const { App } = window.__ELT__
+        const kit = (window as any).__kit
+        type H = import("elt").ServiceHelper<any>
+        let open_a!: () => void
+        const gate_a = new Promise<void>((r) => (open_a = r))
+
+        const store = async (srv: H) => {
+          kit.track(srv, "store")
+        }
+        const home = async (srv: H) => {
+          kit.track(srv, "home")
+          await srv.require(store)
+          srv.views.set("Main", () => "home")
+        }
+        const a = async (srv: H) => {
+          kit.track(srv, "a")
+          await srv.require(store)
+          // not awaited by the caller of a redirect : it returns before b runs, b runs once a's init is over
+          if (shape === "two navigations by code") await gate_a
+          else await srv.activate(routes.b)
+          srv.views.set("Main", () => "a")
+        }
+        const b = async (srv: H) => {
+          kit.track(srv, "b")
+          await srv.require(store)
+          srv.views.set("Main", () => "b")
+        }
+        const app = new App()
+        const routes = app.setupRouter({ home: ["/home", () => home], a: ["/a", () => a], b: ["/b", () => b] })
+        await routes.home.activate()
+
+        if (shape === "redirect by code") await routes.a.activate()
+        else if (shape === "redirect from the URL") location.hash = "#/a"
+        else {
+          const first = routes.a.activate()
+          while (!app.o_activating.get()) await new Promise((r) => setTimeout(r, 0))
+          await routes.b.activate()
+          open_a()
+          await first
+        }
+        await kit.idle(app)
+        const snap = () => ({
+          route: app.o_current_route.get()?.name,
+          main: app.o_views.get().get("Main")?.(),
+          hash: location.hash,
+        })
+        const final = snap()
+        // a later params change (a filter, a param_soft) writes the URL of the active route
+        app.o_params.set({ filter: "x" })
+        await kit.idle(app)
+        return { final, after_params_change: snap(), deinits: kit.deinits() }
+      }, shape)
+
+      expect(result.final).toEqual({ route: "b", main: "b", hash: "#/b" })
+      expect(result.after_params_change).toEqual({ route: "b", main: "b", hash: "#/b" })
+      expect(result.deinits).toEqual({ "home#1": 1, "store#1": 0, "a#1": 1, "b#1": 0 })
+    })
+  }
+
+  test("a failed first activation deinits what it built, the service that threw included", async ({ page }) => {
+    const result = await page.evaluate(async () => {
+      const { App } = window.__ELT__
+      const kit = (window as any).__kit
+      type H = import("elt").ServiceHelper<any>
+      const dep = async (srv: H) => {
+        kit.track(srv, "dep")
+      }
+      const bad = async (srv: H) => {
+        kit.track(srv, "bad")
+        await srv.require(dep)
+        throw new Error("boom")
+      }
+      const app = new App()
+      const routes = app.setupRouter({ bad: ["/bad", () => bad] })
+      let message = ""
+      await routes.bad.activate().catch((e: Error) => (message = e.message))
+      return { message, state: app.o_state.get(), route: app.o_current_route.get(), deinits: kit.deinits() }
+    })
+    expect(result).toEqual({ message: "boom", state: null, route: null, deinits: { "bad#1": 1, "dep#1": 1 } })
+  })
+
+  test("a failed activation keeps the live state's services and drops its own, even those still building", async ({
+    page,
+  }) => {
+    const result = await page.evaluate(async () => {
+      const { App } = window.__ELT__
+      const kit = (window as any).__kit
+      type H = import("elt").ServiceHelper<any>
+      let open_slow!: () => void
+      const gate_slow = new Promise<void>((r) => (open_slow = r))
+      let late_deinits = 0
+
+      const store = async (srv: H) => {
+        kit.track(srv, "store")
+      }
+      const home = async (srv: H) => {
+        kit.track(srv, "home")
+        await srv.require(store)
+        srv.views.set("Main", () => "home")
+      }
+      const failing = async (_srv: H): Promise<void> => {
+        throw new Error("boom")
+      }
+      // still building when its sibling fails : registers its deinit callback late
+      const slow = async (srv: H) => {
+        kit.track(srv, "slow")
+        await gate_slow
+        srv.onDeinit(() => late_deinits++)
+      }
+      const bad = async (srv: H) => {
+        kit.track(srv, "bad")
+        await srv.require(store)
+        await Promise.all([srv.require(slow), srv.require(failing)])
+      }
+      const app = new App()
+      const routes = app.setupRouter({ home: ["/home", () => home], bad: ["/bad", () => bad] })
+      await routes.home.activate()
+      let message = ""
+      await routes.bad.activate().catch((e: Error) => (message = e.message))
+      const before_slow_ends = { ...kit.deinits(), late_deinits }
+      open_slow()
+      await kit.idle(app)
+      return {
+        message,
+        route: app.o_current_route.get()?.name,
+        main: app.o_views.get().get("Main")?.(),
+        before_slow_ends,
+        after: { ...kit.deinits(), late_deinits },
+      }
+    })
+    expect(result.message).toBe("boom")
+    expect(result.route).toBe("home")
+    expect(result.main).toBe("home")
+    // slow is deinit-ed only once its init is over, so that the callback it registered late runs too
+    expect(result.before_slow_ends).toEqual({ "home#1": 0, "store#1": 0, "bad#1": 1, "slow#1": 0, late_deinits: 0 })
+    expect(result.after).toEqual({ "home#1": 0, "store#1": 0, "bad#1": 1, "slow#1": 1, late_deinits: 1 })
+  })
+
+  test("a persistent service is kept while its hard params hold, and deinit-ed once when they change", async ({
+    page,
+  }) => {
+    const result = await page.evaluate(async () => {
+      const { App } = window.__ELT__
+      const kit = (window as any).__kit
+      type H = import("elt").ServiceHelper<any>
+      const session = async (srv: H) => {
+        kit.track(srv, "session")
+        srv.param("org")
+        srv.is_persistent = true
+      }
+      const a = async (srv: H) => {
+        kit.track(srv, "a")
+        await srv.require(session)
+      }
+      const b = async (srv: H) => {
+        kit.track(srv, "b")
+      }
+      const app = new App()
+      const routes = app.setupRouter({ a: ["/a", () => a], b: ["/b", () => b] })
+      await routes.a.activate({ org: 1 })
+      await routes.b.activate({ org: 1 })
+      const kept = kit.deinits()
+      await routes.a.activate({ org: 2 })
+      return { kept, changed: kit.deinits() }
+    })
+    expect(result.kept).toEqual({ "a#1": 1, "session#1": 0, "b#1": 0 })
+    expect(result.changed).toEqual({ "a#1": 1, "session#1": 1, "b#1": 1, "a#2": 0, "session#2": 0 })
+  })
+
+  test("a path param no service reads still builds the URL, and the previous state is dropped", async ({ page }) => {
+    const result = await page.evaluate(async () => {
+      const { App } = window.__ELT__
+      const kit = (window as any).__kit
+      type H = import("elt").ServiceHelper<any>
+      const home = async (srv: H) => {
+        kit.track(srv, "home")
+      }
+      // does not call param("id")
+      const user = async (srv: H) => {
+        kit.track(srv, "user")
+        srv.views.set("Main", () => "user")
+      }
+      const app = new App()
+      const routes = app.setupRouter({ home: ["/home", () => home], user: ["/users/:id", () => user] })
+      await routes.home.activate()
+      let error = ""
+      await routes.user.activate({ id: 7 }).catch((e: Error) => (error = e.message))
+      return {
+        error,
+        hash: location.hash,
+        params: app.o_params.get(),
+        route: app.o_current_route.get()?.name,
+        main: app.o_views.get().get("Main")?.(),
+        deinits: kit.deinits(),
+      }
+    })
+    expect(result).toEqual({
+      error: "",
+      hash: "#/users/7",
+      params: { id: 7 },
+      route: "user",
+      main: "user",
+      deinits: { "home#1": 1, "user#1": 0 },
+    })
+  })
+
+  test("param() with a falsy default sets it and is not invalidated by an unrelated param change", async ({ page }) => {
+    const result = await page.evaluate(async () => {
+      const { App } = window.__ELT__
+      const kit = (window as any).__kit
+      let builds = 0
+      let page_value: unknown
+      const list = async (srv: import("elt").ServiceHelper<{ page?: number; q?: string }>) => {
+        builds++
+        page_value = srv.param("page", 0)
+        srv.param_soft("q", "")
+      }
+      const app = new App()
+      const routes = app.setupRouter({ list: ["/list", () => list] })
+      await routes.list.activate()
+      const params = app.o_params.get()
+      app.o_params.set({ ...app.o_params.get(), q: "x" })
+      await kit.idle(app)
+      return { builds, page_value, params, hash: location.hash }
+    })
+    expect(result).toEqual({ builds: 1, page_value: 0, params: { page: 0, q: "" }, hash: "#/list?page=0&q=x" })
+  })
+
+  test("@view in legacy decorator form does not add a subclass's views to its parent class", async ({ page }) => {
+    const result = await page.evaluate(async () => {
+      const { App, ServiceResult, view } = window.__ELT__
+      // what TypeScript's experimentalDecorators emits for a @view method
+      class Parent extends ServiceResult {
+        ParentView() {
+          return "parent"
+        }
+      }
+      view(Parent.prototype, "ParentView", { value: Parent.prototype.ParentView })
+      class Child extends Parent {
+        ChildView() {
+          return "child"
+        }
+      }
+      view(Child.prototype, "ChildView", { value: Child.prototype.ChildView })
+
+      const app = new App()
+      const routes = app.setupRouter({ parent: ["/parent", () => Parent], child: ["/child", () => Child] })
+      await routes.child.activate()
+      const child_views = [...app.o_views.get().keys()]
+      await routes.parent.activate()
+      return { child_views, parent_views: [...app.o_views.get().keys()] }
+    })
+    expect(result).toEqual({ child_views: ["ParentView", "ChildView"], parent_views: ["ParentView"] })
+  })
+
+  test("a service's observers start on the state that made it active, and see it inactive before its deinit", async ({
+    page,
+  }) => {
+    const calls = await page.evaluate(async () => {
+      const { App } = window.__ELT__
+      type H = import("elt").ServiceHelper
+      const calls: string[] = []
+      const a = async (srv: H) => {
+        srv.observe(srv.oo_is_active, (v) => {
+          calls.push(`active ${v}`)
+        })
+        srv.onDeinit(() => calls.push(`deinit, still the active service: ${app.o_active_service.get() === srv}`))
+      }
+      const b = async (_srv: H) => {}
+      const app = new App()
+      const routes = app.setupRouter({ a: ["/a", () => a], b: ["/b", () => b] })
+      await routes.a.activate()
+      await routes.b.activate()
+      return calls
+    })
+    expect(calls).toEqual(["active true", "active false", "deinit, still the active service: false"])
+  })
+
+  test("oo_is_active is one observable per service", async ({ page }) => {
+    const result = await page.evaluate(async () => {
+      const { App } = window.__ELT__
+      let helper!: import("elt").ServiceHelper
+      const a = async (srv: import("elt").ServiceHelper) => {
+        helper = srv
+      }
+      const app = new App()
+      const routes = app.setupRouter({ a: ["/a", () => a] })
+      await routes.a.activate()
+      const first = helper.oo_is_active
+      return { same: first === helper.oo_is_active, active: first.get() }
+    })
+    expect(result).toEqual({ same: true, active: true })
+  })
+})
+
 // See docs/md/app.md, "Hash mode and path mode"
 test.describe("Router", () => {
   test("rejects invalid options and route paths", async ({ page }) => {
