@@ -116,7 +116,7 @@ return <e-column>
 
 ## `DisplayPromise` — a promise's lifecycle
 
-A bare `Promise` used directly in JSX shows its resolved content once it settles, but gives you no way to show a loading state or an error. `DisplayPromise` wraps a `Promise`-valued observable and gives you all three states:
+`DisplayPromise` is how a `Promise` goes into the DOM: it wraps a `Promise`-valued observable and shows its three states (waiting, resolved, rejected):
 
 ```tsx
 //@inline-example
@@ -190,7 +190,7 @@ Verbs, comment holders and `App` views insert, remove and move nodes through a h
 
 | Function | Does |
 | -------- | ---- |
-| `node_append(parent, renderable, refchild?, motion?)` | Inserts anything renderable (a node, a string, an array, an observable, a verb, a promise, an attribute object) before `refchild`. When `parent` is in the page, connects what it inserts (observers start, `$connected` runs). With `motion`, the insertion is an update: what it inserts plays its `$enter` |
+| `node_append(parent, renderable, refchild?, motion?)` | Inserts anything renderable (a node, a string, an array, an observable, a verb, an attribute object) before `refchild`. When `parent` is in the page, connects what it inserts (observers start, `$connected` runs). With `motion`, the insertion is an update: what it inserts plays its `$enter` |
 | `node_remove(node, motion?)` | Removes `node`: disconnects it first (observers stop, `$disconnected` runs, while it is still in place), then detaches it. With `motion`, the removal is an update: `node` plays its `$leave` |
 | `node_clear(parent, motion?)` | Removes all of `parent`'s children, in one go |
 | `node_remove_range(first, last, motion?)` | Removes the siblings from `first` to `last` (inclusive) in one go: one disconnect pass, then one `Range` deletion. With `motion`, those with a `$leave` stay until their exit is over |

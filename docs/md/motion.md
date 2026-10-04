@@ -13,7 +13,7 @@ Nodes can animate when they **enter** the page and when they **leave** it. You d
 
 Without an argument, both play a short fade. `elt/ui` replaces that default with its theme's tokens and adds ready-made motions ([Overlays § Motion](./ui-overlays.md#motion)).
 
-Motion belongs to **verbs**: `If`, `Switch`, `Repeat`, `RepeatVirtual`, `DisplayPromise`, any observable shown as a child (`{o_count.tf((n) => …)}`), App views, a promise shown as a child. They are what makes content change, so they decide when it animates: content enters and leaves with a verb's **updates**, never with its first render. The rules are in [elt rules § DOM and layout](./elt-rules.md#dom-and-layout); this page explains them.
+Motion belongs to **verbs**: `If`, `Switch`, `Repeat`, `RepeatVirtual`, `DisplayPromise`, any observable shown as a child (`{o_count.tf((n) => …)}`), App views. They are what makes content change, so they decide when it animates: content enters and leaves with a verb's **updates**, never with its first render. The rules are in [elt rules § DOM and layout](./elt-rules.md#dom-and-layout); this page explains them.
 
 ## `$enter` and `$leave`
 
@@ -58,7 +58,7 @@ Clicking twice quickly removes the first exit at once: a node that is leaving is
 
 ## Entering
 
-When a verb **updates** (an `If` or `Switch` changing branch, a `Repeat` adding items, an observable shown as a child taking a new value, a promise resolving), everything it inserts enters: the inserted nodes and all their descendants that have an `$enter`, nested elements included.
+When a verb **updates** (an `If` or `Switch` changing branch, a `Repeat` adding items, an observable shown as a child taking a new value, a `DisplayPromise` promise settling), everything it inserts enters: the inserted nodes and all their descendants that have an `$enter`, nested elements included.
 
 It stops at other verbs. A verb inside the new content renders it for the first time: what that verb shows is its initial state, not an update, so it doesn't enter. It will with that verb's own updates.
 

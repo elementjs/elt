@@ -739,11 +739,11 @@ test.describe("entering", () => {
     expect(r).toEqual(["box", "child", "f1", "f2"])
   })
 
-  test("updates enter: Switch, new Repeat items (not moved ones), a resolved promise, an observable child", async ({
+  test("updates enter: Switch, new Repeat items (not moved ones), a DisplayPromise resolving, an observable child", async ({
     page,
   }) => {
     const r = await page.evaluate(async () => {
-      const { o, Switch, Repeat, node_append, node_on_enter } = window.__ELT__
+      const { o, Switch, Repeat, DisplayPromise, node_append, node_on_enter } = window.__ELT__
       const entered: string[] = []
       const mk = (tag: string, id: string) => {
         const e = window.__motion__.el(tag, id)
@@ -753,7 +753,7 @@ test.describe("entering", () => {
       const o_mode = o("x")
       const o_list = o(["a", "b"])
       const o_n = o(1)
-      let resolve!: (n: Node) => void
+      const { promise, resolve } = window.__ELT__.deferred<void>()
       const root = document.createElement("div")
       node_append(
         root,
@@ -765,7 +765,10 @@ test.describe("entering", () => {
         root,
         Repeat(o_list, (o_s) => mk("li", o_s.get())).withKeyFunction((s: string) => s),
       )
-      node_append(root, new Promise<Node>((res) => (resolve = res)) as any)
+      node_append(
+        root,
+        DisplayPromise(o(promise.then(() => "resolved"))).WhenResolved((o_v) => mk("q", o_v.get())),
+      )
       node_append(
         root,
         o_n.tf((n) => mk("p", `n${n}`)),
@@ -782,7 +785,7 @@ test.describe("entering", () => {
       step("repeat reorder", () => o_list.set(["d", "c", "b", "a"]))
       step("observable", () => o_n.set(2))
       entered.length = 0
-      resolve(mk("q", "resolved"))
+      resolve()
       await new Promise((r) => setTimeout(r))
       steps.promise = [...entered]
       return steps

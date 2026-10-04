@@ -782,7 +782,7 @@ function insert_before(node: Node, new_child: Node, refchild: Node | null) {
 
 /**
  * Insert `renderable` into `node`, before `refchild`: a node, a string, an array, an observable, a verb,
- * a promise, a decorator or an attribute object. When `node` is in the page, what it inserts is
+ * a decorator or an attribute object. When `node` is in the page, what it inserts is
  * connected (observers start, `connected` callbacks run).
  *
  * With `motion`, the insertion is an update (docs/md/motion.md): the inserted nodes and their
@@ -870,27 +870,9 @@ export function _node_append<N extends Node>(
         node_observe_attribute(_node, key, (attrs as any)[key])
       }
     }
-  } else if (typeof (renderable as any).then === "function") {
-    // A promise is a verb: its content appears between its markers when it resolves, an update when
-    // it is in the page by then.
-    const _pro = renderable as unknown as Promise<Renderable<N>>
-    const holder = new CommentHolder("promise-loading")
-    insert_before(node, holder, refchild)
-    if (node.isConnected) node_do_connected(holder)
-    // Both handlers in one `.then`: an error while rendering the result is not the promise's error.
-    _pro.then(
-      (res) => {
-        if (!holder.parentNode) return
-        holder.textContent = "promise-resolved"
-        holder.updateRenderable(res as Renderable<Node>, node_is_connected(holder))
-      },
-      (e) => {
-        console.error(e)
-        holder.textContent = `promise-error: ${e.toString()}`
-      },
-    )
   } else {
-    // Otherwise, make it a string and append it.
+    // Anything else (a number, a Date, an object that is none of the above — a promise included, use
+    // `DisplayPromise` for those) is shown as its string conversion.
     insert_before(node, document.createTextNode(renderable.toString()), refchild)
   }
 }

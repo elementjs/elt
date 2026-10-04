@@ -226,37 +226,21 @@ test.describe("$shadow", () => {
   })
 })
 
-test.describe("promise children", () => {
-  test("an error while rendering the resolved value is not reported as the promise's error", async ({ page }) => {
+test.describe("unrecognized children", () => {
+  test("a promise is not rendered once it resolves: it is shown as its string conversion, like any other unrecognized object (regression: node_append rendered resolved promises)", async ({
+    page,
+  }) => {
     const result = await page.evaluate(async () => {
       const { e, node_append } = window.__ELT__
-      const errors: unknown[] = []
-      const console_error = console.error
-      console.error = (...args: unknown[]) => errors.push(args[0])
-      const on_unhandled = (ev: PromiseRejectionEvent) => {
-        ev.preventDefault()
-        errors.push(`unhandled ${ev.reason?.message}`)
-      }
-      window.addEventListener("unhandledrejection", on_unhandled)
-      try {
-        const div = e("div")
-        node_append(document.body, div)
-        // a decorator that throws while the resolved value is rendered (node_append renders promises, but the
-        // `Renderable` type does not list them)
-        const pro = Promise.resolve((_node: HTMLDivElement): void => {
-          throw new Error("render")
-        })
-        node_append(div, pro as unknown as import("elt").Renderable<HTMLDivElement>)
-        await new Promise((r) => setTimeout(r, 20))
-        const comment = [...div.childNodes].find((n) => n.nodeType === Node.COMMENT_NODE)?.textContent
-        div.remove()
-        return { comment, errors: errors.map(String) }
-      } finally {
-        console.error = console_error
-        window.removeEventListener("unhandledrejection", on_unhandled)
-      }
+      const div = e("div")
+      node_append(document.body, div)
+      // Not a `Renderable`: the cast stands for untyped code passing one anyway
+      node_append(div, Promise.resolve("resolved") as unknown as import("elt").Renderable<HTMLDivElement>)
+      await new Promise((r) => setTimeout(r, 20))
+      const nodes = [...div.childNodes].map((n) => [n.nodeType, n.textContent])
+      div.remove()
+      return nodes
     })
-    expect(result.comment).not.toContain("promise-error")
-    expect(result.errors).toEqual(["unhandled render"])
+    expect(result).toEqual([[3 /* Node.TEXT_NODE */, "[object Promise]"]])
   })
 })

@@ -60,7 +60,7 @@ These are conventions: the library does not enforce them, but code using elt fol
 
 - Use a verb for anything whose structure changes. See [Verbs](./verbs.md).
 - Call `.withKeyFunction()` on `Repeat` and `RepeatVirtual` whenever items have an id: it matters for performance and for keeping per-item state (focus, unsaved input). See [Verbs](./verbs.md#repeat-a-list).
-- A promise used directly in JSX shows its resolved content only. When you need a loading or error state, use `DisplayPromise`. See [Verbs](./verbs.md#displaypromise-a-promises-lifecycle).
+- Show a promise with `DisplayPromise`; a promise used directly as a JSX child is not rendered (it shows as its string conversion). See [Verbs](./verbs.md#displaypromise-a-promises-lifecycle).
 - Don't re-render in place with `$observe` + `node_clear` + `node_append`: that is rule 9 again. `If` / `Switch` / `.tf` already skip the swap when nothing changed. See [Verbs](./verbs.md#good-patterns-vs-patterns-to-avoid).
 - A `RepeatVirtual` row's height depends on its own content only, never on which other rows are rendered at the same time. See [Verbs](./verbs.md#repeatvirtual-a-long-list).
 - For items to play their exit (`$leave`) when a `Repeat` both removes and adds items, give it a key function. See [Motion § Repeat](./motion.md#repeat).
