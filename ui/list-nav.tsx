@@ -154,7 +154,19 @@ let menu_ids = 0
  * shown (so in a popup, focus is in the menu from the start and keys work right away).
  */
 export function menu_nav(menu: HTMLElement) {
-  const items = () => [...menu.querySelectorAll<HTMLElement>('[role="menuitem"]:not([disabled])')]
+  // The items, looked up once per key press or pointer move rather than on each call list_nav makes
+  // (a typed letter calls text_of up to once per item). The list is dropped in a microtask, that is once
+  // the current event handler returns, so items added or removed between two events are seen.
+  let cached: HTMLElement[] | null = null
+  const items = () => {
+    if (cached == null) {
+      cached = [...menu.querySelectorAll<HTMLElement>('[role="menuitem"]:not([disabled])')]
+      queueMicrotask(() => {
+        cached = null
+      })
+    }
+    return cached
+  }
   const o_active = o(items().length > 0 ? 0 : -1)
   menu.tabIndex = -1
 
@@ -197,13 +209,13 @@ css`:is([role="menuitem"], [role="option"])[data-active] {
    level further, so it doesn't fall back to the hover fill (docs/md/ui-theme.md, Emphasis). Options
    only: aria-selected isn't valid on a menuitem. */
 css`[role="option"][aria-selected="true"] {
-  background-color: ${theme.colors.tint.surface("n+3")};
+  background-color: ${theme.colors.tint.selected};
   &[data-active] {
-    background-color: ${theme.colors.tint.surface("n+4")};
+    background-color: ${theme.colors.tint.selected_hover};
   }
   @media (hover: hover) and (pointer: fine) {
     &:hover {
-      background-color: ${theme.colors.tint.surface("n+4")};
+      background-color: ${theme.colors.tint.selected_hover};
     }
   }
 }`

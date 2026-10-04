@@ -1,4 +1,4 @@
-import { $click, $observe, $on, type Attrs, css, If, o, type Renderable, RepeatVirtual } from "elt"
+import { $click, $observe, $on, type Attrs, css, If, is_promise_like, o, type Renderable, RepeatVirtual } from "elt"
 import { CaretDown, Check } from "./icons"
 import { focus_when_shown, list_nav, type ListNavOptions } from "./list-nav"
 import { popup } from "./popup"
@@ -46,10 +46,6 @@ function normalize(s: string) {
     .toLocaleLowerCase()
 }
 
-function is_promise<V>(v: unknown): v is Promise<V> {
-  return typeof (v as Promise<V> | null)?.then === "function"
-}
-
 interface OptionsState<T2> {
   items: T2[]
   /** A promise is pending. */
@@ -80,7 +76,7 @@ export function Select<T, T2 = T>(at: SelectAttributes<T, T2>) {
   // Fail at creation, not at the first keystroke, when completion has no way to read object options.
   if (at.completion && !at.text_fn) {
     const initial = o.get(at.options)
-    if (!is_promise(initial)) for (const opt of initial) text_of(opt)
+    if (!is_promise_like(initial)) for (const opt of initial) text_of(opt)
   }
 
   const list_id = `e-select-${++select_ids}`
@@ -96,7 +92,7 @@ export function Select<T, T2 = T>(at: SelectAttributes<T, T2>) {
   let current: unknown
   function on_options(v: Iterable<T2> | Promise<Iterable<T2>>) {
     current = v
-    if (!is_promise<Iterable<T2>>(v)) {
+    if (!is_promise_like<Iterable<T2>>(v)) {
       o_state.set({ items: [...v], loading: false, failed: false, remote: false })
       return
     }
@@ -398,7 +394,7 @@ const cls_indicator = css`.indicator {
   display: inline-block;
   width: 16px;
   font-weight: bold;
-  margin-left: 4px;
+  margin-left: ${theme.settings.spacingNudge4};
   rotate: 0deg;
   transition: rotate ${theme.settings.durationMedium} ease;
   transform-origin: center;

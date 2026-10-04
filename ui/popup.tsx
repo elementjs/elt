@@ -16,20 +16,20 @@ import {
   autoPlacement,
   autoUpdate,
   computePosition,
-  type ComputePositionConfig,
   flip,
   hide,
   type Middleware,
+  type Placement,
   shift,
   size,
 } from "@floating-ui/dom"
-
-export type PopupResolution<T> = { resolution: "value"; value: T } | { resolution: "closed" }
 
 const popups = new Set<Element>()
 const popups_futures = new WeakMap<Element, Future<any | undefined>>()
 /** What had focus when each popup opened, given it back when the popup closes. */
 const popups_return_focus = new WeakMap<Element, HTMLElement>()
+/** The document whose click and keydown listeners are installed: set while at least one popup is open. */
+let listening_doc: Document | null = null
 
 /** Find a suitable parent for a popup ; stops at a popup or a top layer element, or document.body if no root is found.
  * This helps avoid closing popups when clicking on a child of a popup.
@@ -74,33 +74,41 @@ function _popup_resolve(p: Element) {
   p.classList.remove("open")
   // Its $leave plays the exit; the popup is already out of the flow (absolute), so it stays in flow.
   node_remove(p, true)
-}
-
-/** Escape closes the innermost popup only (the last opened), like one level of a native menu. */
-function _close_popups_keydown(ev: KeyboardEvent) {
-  if (ev.key === "Escape") {
-    const innermost = [...popups].pop()
-    if (innermost) _popup_resolve(innermost)
-    _stop_listening_if_none()
-    ev.preventDefault()
-    ev.stopPropagation()
-    ev.stopImmediatePropagation()
-  }
-}
-
-function _close_popups() {
-  if (popups.size === 0) return
-  for (const p of popups) {
-    _popup_resolve(p)
-  }
   _stop_listening_if_none()
 }
 
+/**
+ * Escape closes the innermost popup only (the last opened), like one level of a native menu. The
+ * event is stopped only when it closed one: otherwise it goes on to a surrounding dialog or keymap.
+ */
+function _close_popups_keydown(ev: KeyboardEvent) {
+  if (ev.key !== "Escape") return
+  const innermost = [...popups].pop()
+  if (innermost == null) return
+  _popup_resolve(innermost)
+  ev.preventDefault()
+  ev.stopPropagation()
+  ev.stopImmediatePropagation()
+}
+
+function _close_popups() {
+  for (const p of popups) _popup_resolve(p)
+}
+
+/** Listen for dismissals (click outside, Escape) on `doc`, unless already listening. */
+function _listen(doc: Document) {
+  if (listening_doc != null) return
+  listening_doc = doc
+  doc.addEventListener("click", _eval_popup_click, { capture: true })
+  doc.addEventListener("keydown", _close_popups_keydown, { capture: true })
+}
+
+/** Called each time a popup goes: the last one gone, the listeners go too (from the document they were added on). */
 function _stop_listening_if_none() {
-  if (popups.size === 0) {
-    document.removeEventListener("click", _eval_popup_click, { capture: true })
-    document.removeEventListener("keydown", _close_popups_keydown, { capture: true })
-  }
+  if (popups.size > 0 || listening_doc == null) return
+  listening_doc.removeEventListener("click", _eval_popup_click, { capture: true })
+  listening_doc.removeEventListener("keydown", _close_popups_keydown, { capture: true })
+  listening_doc = null
 }
 
 function _eval_popup_click(ev: MouseEvent) {
@@ -131,7 +139,12 @@ function _eval_popup_click(ev: MouseEvent) {
  */
 export type PopupAnchor = Element | { x: number; y: number; element: Element }
 
-export interface PopupOptions extends Partial<ComputePositionConfig> {
+export interface PopupOptions {
+  /**
+   * With an element anchor, one more side the popup may open on besides above and below it; the
+   * side with the most room wins. With a point anchor, where the popup opens (default `"bottom-start"`).
+   */
+  placement?: Placement
   /** Where to attach the popup; by default the nearest open popup or dialog around the anchor, or the body. */
   parent?: Element | null
   /** Draw the arrow pointing at the anchor. Default: `true` with an element anchor, `false` with a point. */
@@ -174,7 +187,7 @@ function popup_arrow(o_state: o.Observable<ArrowState>) {
     } else {
       if (ay != null) style.top = `${ay}px`
       if (side === "left") style.left = `calc(-1 * var(--arrow-size, 12px) / 2)`
-      else style.right = `calc(-1 * var(--arrow-size, 12px))`
+      else style.right = `calc(-1 * var(--arrow-size, 12px) / 2)`
     }
 
     return style
@@ -245,12 +258,15 @@ export function popup<T>(
   if (doc.activeElement instanceof HTMLElement) popups_return_focus.set(popup, doc.activeElement)
 
   // However the future settles — a value from the content, sym_closed from the content (closing it
-  // from code) or from a dismissal — the popup goes. A dismissal already took it out of `popups`.
+  // from code) or from a dismissal, or a rejection — the popup goes. A dismissal already took it out
+  // of `popups`. Handling both outcomes also keeps this derived promise from rejecting unhandled: the
+  // rejection is for whoever awaits the future.
   let settled = false
-  fut.then(() => {
+  const on_settled = () => {
     settled = true
     if (popups.has(popup)) _popup_resolve(popup)
-  })
+  }
+  fut.then(on_settled, on_settled)
 
   // Figure out if we were created from inside a popup, in which case
   // we do not close the previous pop-ups
@@ -273,7 +289,6 @@ export function popup<T>(
   setTimeout(async () => {
     // Settled before it was even shown (closed right after opening): never show it.
     if (settled) return
-    // node_append(anchor.parentElement!, popup_root, anchor.nextSibling)
 
     const o_arrow_state = o<ArrowState>({ side: "bottom", ax: null, ay: null, visible: true })
     const with_arrow = opts?.arrow ?? anchor instanceof Element
@@ -289,6 +304,8 @@ export function popup<T>(
 
     popup.showPopover()
     popup.classList.add("open")
+    // Read once per open, now that the content is connected: not on each repositioning.
+    if (arro) arrow_colors_from(content, arro)
 
     // Expose the room left next to the anchor; the content is capped to it (cls_popup_content).
     const size_middleware = size({
@@ -320,10 +337,8 @@ export function popup<T>(
         : [flip(), shift({ padding: 4 })]
 
     async function updatePosition() {
-      if (arro) arrow_colors_from(content, arro)
       let { x, y, middlewareData, placement } = await computePosition(reference, popup, {
-        placement: anchor instanceof Element ? undefined : "bottom-start",
-        ...opts,
+        placement: opts?.placement ?? (anchor instanceof Element ? undefined : "bottom-start"),
         middleware: [
           ...placement_middleware,
           size_middleware,
@@ -369,19 +384,12 @@ export function popup<T>(
       }
     }
 
-    if (popups.size === 0) {
-      doc.addEventListener("click", _eval_popup_click, { capture: true })
-      doc.addEventListener("keydown", _close_popups_keydown, { capture: true })
-    }
-
-    // doc.body.appendChild(popup_root)
+    _listen(doc)
     popups.add(popup)
     popups_futures.set(popup, fut)
     const cleanup = autoUpdate(reference, popup, updatePosition)
-
-    fut.finally(() => {
-      cleanup()
-    })
+    // Both outcomes: `finally` would make a promise that rejects unhandled when the future is rejected.
+    fut.then(cleanup, cleanup)
   })
 
   return fut
@@ -419,17 +427,6 @@ const cls_popup_content = css`.popup-content {
   max-width: var(--e-popup-max-width, 100vw);
 }`
 
-/* Not sure if interesting
-  &::backdrop {
-    background: rgba(0, 0, 0, 0);
-    transition: background 0.2s ease;
-  }
-
-  &.open::backdrop {
-    background: rgba(0, 0, 0, 0.1);
-  }
-*/
-
 const cls_arrow_inner = css`.arrow-inner {
   position: absolute;
   border: 1px solid var(--e-arrow-border, ${colors.neutral.faded});
@@ -465,7 +462,7 @@ const cls_arrow_placer = css`.arrow-placer {
   }
   &[data-placement="right"] {
     transform:
-      translateX(calc(var(--arrow-size, 12px) / 2 - 1px))
+      translateX(-1px)
       translateY(calc(var(--arrow-size, 12px) / 2));
   }
 }`

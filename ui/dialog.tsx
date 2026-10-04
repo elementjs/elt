@@ -88,11 +88,14 @@ export function show_dialog<T>(opts: DialogOptions | DialogCallback<T>, cbk?: Di
   node_append(document.body, dialog, null, true)
   dialog.showModal()
 
-  future.then(() => {
+  // Settled either way (a value, sym_closed, or a rejection), the dialog goes. Handling both outcomes
+  // also keeps this derived promise from rejecting unhandled: the rejection is for whoever awaits.
+  const close = () => {
     node_remove(dialog, true)
     // Gone at once (motion off, or already closed by the browser): no exit gives focus back.
     if (dialog.parentNode == null) give_focus_back()
-  })
+  }
+  future.then(close, close)
 
   return future
 }

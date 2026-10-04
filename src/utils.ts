@@ -31,6 +31,11 @@ export class Deferred<T> implements Promise<T> {
   }
 }
 
+/** Whether `a` is a promise or any other thenable (an object with a `then` method), as `await` sees it. */
+export function is_promise_like<T = unknown>(a: unknown): a is PromiseLike<T> {
+  return typeof (a as PromiseLike<T> | null | undefined)?.then === "function"
+}
+
 /** Decorator to memoize the result of a class's get property, in old style and new style decorators */
 export function memoize(target: any, key: string | symbol, descriptor: PropertyDescriptor): void
 export function memoize<This, Value>(

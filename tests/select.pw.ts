@@ -91,6 +91,22 @@ test.describe("Select", () => {
     await page.click('[role="option"]:has-text("Date")')
     expect(await model(page)).toBe("Date")
   })
+
+  test("after a pick, Escape goes on to the page (regression: the closed list kept eating it)", async ({ page }) => {
+    await mount(page, {})
+    await page.evaluate(() => {
+      const w = window as unknown as W & { escapes: number }
+      w.escapes = 0
+      document.addEventListener("keydown", (ev) => {
+        if (ev.key === "Escape") w.escapes++
+      })
+    })
+    await page.click("#holder button")
+    await page.click('[role="option"]:has-text("Date")')
+    await page.waitForFunction(() => document.querySelector('[role="listbox"]') == null)
+    await page.keyboard.press("Escape")
+    expect(await page.evaluate(() => (window as unknown as W & { escapes: number }).escapes)).toBe(1)
+  })
 })
 
 test.describe("Select completion", () => {

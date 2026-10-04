@@ -85,6 +85,33 @@ test.describe("menu_nav / list_nav", () => {
     expect((await active(page)).by_aria).toBe("Apricot")
   })
 
+  test("a key press looks the items up once, and sees items added since the last one", async ({ page }) => {
+    await mount_menu(page, ["Apple", "Banana", "Apricot", "Blueberry", "Cherry"])
+    await page.evaluate(() => {
+      const menu = document.getElementById("menu")!
+      const w = window as unknown as W & { lookups: number }
+      w.lookups = 0
+      const qsa = menu.querySelectorAll.bind(menu)
+      menu.querySelectorAll = ((sel: string) => {
+        if (sel.includes("menuitem")) w.lookups++
+        return qsa(sel)
+      }) as typeof menu.querySelectorAll
+    })
+    const lookups = () => page.evaluate(() => (window as unknown as W & { lookups: number }).lookups)
+    // A typed letter reads every item's text: one lookup for all of them, not one per item.
+    await page.keyboard.press("c")
+    expect((await active(page)).by_aria).toBe("Cherry")
+    expect(await lookups()).toBe(1)
+    await page.evaluate(() => {
+      const b = document.createElement("button")
+      b.setAttribute("role", "menuitem")
+      b.textContent = "Date"
+      document.getElementById("menu")!.append(b)
+    })
+    await page.keyboard.press("End")
+    expect((await active(page)).by_aria).toBe("Date")
+  })
+
   test("hovering an item makes it active", async ({ page }) => {
     await mount_menu(page, ["One", "Two", "Three"])
     await page.hover("#menu button:nth-of-type(3)")

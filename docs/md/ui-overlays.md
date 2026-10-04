@@ -23,15 +23,17 @@ Use the lightest one that gives the interaction enough room and keeps the user's
 popup<T>(
   anchor: Element | { x: number; y: number; element: Element },
   render: (fut: Future<T | typeof sym_closed>) => Node,
-  opts?: Partial<ComputePositionConfig> & { parent?: Element | null; arrow?: boolean },
+  opts?: { placement?: Placement; parent?: Element | null; arrow?: boolean },
 ): Future<T | typeof sym_closed>
 ```
 
-- `render` returns **one element, drawn as given**: its own `surface`, `border`, `pad`, `scroll`. The popup adds only what makes it a popup: placement next to the anchor (Floating UI's `computePosition` options: `placement`, …, kept in place while scrolling), a drop shadow, the open/close animation, dismissal, and the arrow.
+- `render` returns **one element, drawn as given**: its own `surface`, `border`, `pad`, `scroll`. The popup adds only what makes it a popup: placement next to the anchor (kept in place while scrolling), a drop shadow, the open/close animation, dismissal, and the arrow.
 - **Anchor**: an element, or a point. A point (`{ x, y, element }`) opens the popup below-right of it, like a native context menu, moved to stay on screen; `element` is the element the point belongs to (usually the event's `currentTarget`), which tells whether the popup opens from inside another one.
+- **Placement**: with an element anchor, the popup opens above or below it, on the side with the most room; `placement` (a Floating UI `Placement`: `"left-start"`, `"right"`, …) adds one more side to choose from, as a submenu opening beside its item does. With a point anchor, `placement` is where the popup opens (default `"bottom-start"`).
+- **Parent**: the popup is attached inside the nearest open popup or modal dialog around the anchor, or the body; `parent` overrides.
 - **Arrow**: shown by default with an element anchor, not with a point; `arrow` overrides. It takes the content's background and border colors.
 - **Size**: the room left next to the anchor is set as `--e-popup-max-height` / `--e-popup-max-width`, and the content is capped to it and to `80vh`. Give the content `scroll` when it can be taller.
-- Resolving `fut` with a value closes the popup. A click outside closes every open popup and resolves them with `sym_closed` (also available as `popup.closed`); `Escape` closes only the innermost one (a submenu, not the menu it came from). On close, focus goes back to what had it when the popup opened.
+- Resolving `fut` with a value closes the popup, and so does rejecting it (the rejection goes to whoever awaits the future). A click outside closes every open popup and resolves them with `sym_closed` (also available as `popup.closed`); `Escape` closes only the innermost one (a submenu, not the menu it came from); once no popup is open, `Escape` is left to the rest of the page (a surrounding dialog, a keymap). On close, focus goes back to what had it when the popup opened.
 - A popup opened from inside another popup is attached to it and keeps it open; any other popup closes the open ones first.
 
 ```tsx
@@ -135,7 +137,7 @@ return <button>
 
 ## Future
 
-`Future<T>` — a promise you resolve or reject from outside: `.resolve(v)`, `.reject(e)` (only the first call counts), and `.$clickResolve(fn)`, a decorator that resolves with `fn(ev)` on click. It is awaitable like any promise.
+`Future<T>` is a [`Deferred<T>`](./utilities.md#deferred) — a promise you resolve or reject from outside: `.resolve(v)`, `.reject(e)` (only the first call counts) — with one more method, `.$clickResolve(fn)`, a decorator that resolves with `fn(ev)` on click. It is awaitable like any promise. Rejecting the future of a popup or a dialog closes it, like resolving it does.
 
 ## Motion
 

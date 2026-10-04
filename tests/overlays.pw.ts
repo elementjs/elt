@@ -103,6 +103,92 @@ test.describe("popup (docs/md/ui-overlays.md#popup)", () => {
     expect(r.focus).toBe("anchor")
   })
 
+  test("the arrow touches the popup and points at the anchor, on all four sides", async ({ page }) => {
+    // Wide and short: tall content can only open beside its anchor, short content above or below it.
+    await page.setViewportSize({ width: 800, height: 300 })
+    const cases = [
+      { placement: "left", anchor: "left: 700px; top: 140px", h: 200 },
+      { placement: "right", anchor: "left: 20px; top: 140px", h: 200 },
+      { placement: "top", anchor: "left: 380px; top: 260px", h: 40 },
+      { placement: "bottom", anchor: "left: 380px; top: 10px", h: 40 },
+    ] as const
+    for (const c of cases) {
+      const r = await page.evaluate(async (c) => {
+        const { UI } = window.__ELT__
+        document.body.innerHTML = `<button id="anchor" style="position: absolute; ${c.anchor}">a</button>`
+        const content = document.createElement("e-column")
+        content.setAttribute("surface", "tint-2")
+        content.setAttribute("border", "")
+        content.style.cssText = `width: 80px; height: ${c.h}px`
+        const fut = UI.popup(document.getElementById("anchor")!, () => content, { placement: c.placement })
+        // Shown on the next task, then positioned by floating-ui.
+        await new Promise((r) => setTimeout(r, 100))
+        const p = content.getBoundingClientRect()
+        const outer = content.parentElement!.querySelector("[class*=outer-arrow]")!.getBoundingClientRect()
+        const inner = content.parentElement!.querySelector("[class*=arrow-inner]")!.getBoundingClientRect()
+        fut.resolve(UI.sym_closed)
+        const cx = (inner.left + inner.right) / 2
+        const cy = (inner.top + inner.bottom) / 2
+        // The arrow box lies against the popup's edge facing the anchor, and the diamond is centered
+        // on the box's edge against the popup, so only its half pointing at the anchor shows.
+        if (c.placement === "left") return { gap: outer.left - p.right, center: cx - outer.left }
+        if (c.placement === "right") return { gap: p.left - outer.right, center: outer.right - cx }
+        if (c.placement === "top") return { gap: outer.top - p.bottom, center: cy - outer.top }
+        return { gap: p.top - outer.bottom, center: outer.bottom - cy }
+      }, c)
+      expect(Math.abs(r.gap), `${c.placement}: gap`).toBeLessThan(1)
+      expect(Math.abs(r.center), `${c.placement}: diamond center`).toBeLessThan(2)
+    }
+  })
+
+  test("a rejected future closes the popup without an unhandled rejection", async ({ page }) => {
+    await page.evaluate(() => {
+      const { UI } = window.__ELT__
+      const w = window as W
+      w.result = []
+      window.addEventListener("unhandledrejection", (ev) => (w.result as unknown[]).push(String(ev.reason)))
+      document.body.innerHTML = `<button id="anchor">open</button>`
+      const fut = UI.popup(document.getElementById("anchor")!, () => {
+        const c = document.createElement("e-column")
+        c.id = "content"
+        return c
+      })
+      // Whoever awaits the future gets the rejection; nothing else may leave one unhandled.
+      fut.catch(() => {})
+      ;(window as W & { fut?: typeof fut }).fut = fut
+    })
+    await page.waitForSelector("[popover] #content", { state: "attached" })
+    await page.evaluate(() => (window as W & { fut?: { reject(e: unknown): void } }).fut!.reject(new Error("boom")))
+    await page.waitForFunction(() => document.querySelector("[popover]") == null)
+    await page.waitForTimeout(100)
+    expect(await page.evaluate(() => (window as W).result)).toEqual([])
+  })
+
+  test("once no popup is left, Escape goes on to the page (regression: a resolved popup kept eating it)", async ({
+    page,
+  }) => {
+    await page.evaluate(() => {
+      const { UI } = window.__ELT__
+      const w = window as W
+      w.result = 0
+      document.addEventListener("keydown", (ev) => {
+        if (ev.key === "Escape") w.result = (w.result as number) + 1
+      })
+      document.body.innerHTML = `<button id="anchor">open</button>`
+      UI.popup(document.getElementById("anchor")!, (fut) => {
+        const c = document.createElement("button")
+        c.id = "inside"
+        c.onclick = () => fut.resolve("picked")
+        return c
+      })
+    })
+    // Resolved by its content, not dismissed: the path a Select pick takes.
+    await page.click("[popover] #inside")
+    await page.waitForFunction(() => document.querySelector("[popover]") == null)
+    await page.keyboard.press("Escape")
+    expect(await page.evaluate(() => (window as W).result)).toBe(1)
+  })
+
   test("render must return one element", async ({ page }) => {
     const message = await page.evaluate(() => {
       const { UI } = window.__ELT__
@@ -177,6 +263,23 @@ test.describe("show_dialog (docs/md/ui-overlays.md#show_dialog)", () => {
     })
     await page.waitForFunction(() => document.querySelector("dialog") == null)
     expect(await page.evaluate(() => (window as W).result)).toBe("disconnected")
+  })
+
+  test("a rejected future closes the dialog without an unhandled rejection", async ({ page }) => {
+    await page.evaluate(() => {
+      const { UI } = window.__ELT__
+      const w = window as W
+      w.result = []
+      window.addEventListener("unhandledrejection", (ev) => (w.result as unknown[]).push(String(ev.reason)))
+      const fut = UI.show_dialog(() => document.createElement("e-column"))
+      fut.catch(() => {})
+      ;(window as W & { fut?: typeof fut }).fut = fut
+    })
+    await page.waitForSelector("dialog[open]", { state: "attached" })
+    await page.evaluate(() => (window as W & { fut?: { reject(e: unknown): void } }).fut!.reject(new Error("boom")))
+    await page.waitForFunction(() => document.querySelector("dialog") == null)
+    await page.waitForTimeout(100)
+    expect(await page.evaluate(() => (window as W).result)).toEqual([])
   })
 
   test("resolves with the value given by the content", async ({ page }) => {

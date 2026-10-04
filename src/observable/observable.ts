@@ -18,12 +18,9 @@ import { IndexableArray, type Indexable } from "./indexable"
 import { sym_insert, sym_is_observable } from "../symbols"
 import type { Renderable } from "../types"
 import { CommentHolder, node_append, node_observe } from "../dom"
+import { is_promise_like } from "../utils"
 ;(window as any).DEBUG ??= false
 declare const DEBUG: boolean
-
-function _is_promise_like(a: any): a is PromiseLike<unknown> {
-  return typeof a?.then === "function"
-}
 
 /** Returns true if the type is a strict readonly observable, false otherwise. This is used in the o() function, and it works because for a union of types, if just one of the types is readonly, then it becomes a union of true with never, which evaluates to true below. */
 type HasStrictReadonly<T> =
@@ -260,7 +257,7 @@ export namespace o {
       const res = (this.fn as ObserverCallback<A>)(new_value, old)
       // If the observer function returns a result, use it as the new value to avoid being re-triggered
       if (res !== undefined) {
-        if (_is_promise_like(res)) {
+        if (is_promise_like(res)) {
           const pro = Promise.resolve(res).then((res) => {
             if (res === undefined || pro !== this._promise) {
               return

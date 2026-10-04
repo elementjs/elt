@@ -34,7 +34,7 @@ This page is the entry point for humans and coding agents alike. Pick the page t
 | Routes, services, views, params | [App](./app.md) |
 | Styles | [CSS](./css.md) |
 | `<e-wrap>`, `EltCustomElement`, `@register`, `@attr` | [Custom elements](./custom-elements.md) |
-| `Deferred`, `@memoize` | [Utilities](./utilities.md) |
+| `Deferred`, `is_promise_like`, `@memoize` | [Utilities](./utilities.md) |
 
 **UI**
 

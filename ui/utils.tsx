@@ -1,4 +1,4 @@
-import { $click } from "elt"
+import { $click, Deferred } from "elt"
 
 /**
  * What a popup or a dialog resolves with when the user dismisses it (click outside, `Escape`) rather
@@ -6,58 +6,13 @@ import { $click } from "elt"
  */
 export const sym_closed = Symbol("closed")
 
-export class Future<T> implements Promise<T> {
-  #promise!: Promise<T>
-  #reject!: (reason: any) => void
-  #resolve!: (value: T) => void
-  #resolved = false
-  constructor() {
-    this.#promise = new Promise((resolve, reject) => {
-      this.#reject = reject
-      this.#resolve = resolve
-    })
-  }
-
-  reject(reason: any) {
-    if (this.#resolved) return
-    this.#resolved = true
-    this.#reject(reason)
-  }
-
-  resolve(value: T) {
-    if (this.#resolved) return
-    this.#resolved = true
-    this.#resolve(value)
-  }
-
+/**
+ * What `popup` and `show_dialog` return and hand to their content: a {@link Deferred} (resolve or
+ * reject it from outside; only the first call counts) with a click decorator that resolves it.
+ */
+export class Future<T> extends Deferred<T> {
+  /** A decorator: a click on the element resolves the future with `fn(ev)`. */
   $clickResolve<N extends HTMLElement | SVGElement>(fn: (ev: MouseEvent & { currentTarget: N }) => T): (e: N) => void {
-    return (e: N) => {
-      $click<N>((ev) => {
-        const res = fn(ev)
-        this.resolve(res)
-      })(e)
-    }
-  }
-
-  get [Symbol.toStringTag]() {
-    return this.#promise[Symbol.toStringTag]
-  }
-
-  // biome-ignore lint/suspicious/noThenProperty: intentionally thenable, so instances can be awaited like a Promise
-  then<TResult1 = T, TResult2 = never>(
-    onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | null | undefined,
-    onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | null | undefined,
-  ): Promise<TResult1 | TResult2> {
-    return this.#promise.then(onfulfilled, onrejected)
-  }
-
-  catch<TResult = never>(
-    onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | null | undefined,
-  ): Promise<T | TResult> {
-    return this.#promise.catch(onrejected)
-  }
-
-  finally(onfinally?: (() => void) | null | undefined): Promise<T> {
-    return this.#promise.finally(onfinally)
+    return $click<N>((ev) => this.resolve(fn(ev)))
   }
 }
