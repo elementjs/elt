@@ -20,6 +20,7 @@ Pages are divided by subject: each topic page holds the how-to, the lookup table
 | `just test-pw [args]` | Run the Playwright tests (`tests/**/*.pw.ts`, real browser); arguments go to `playwright test` — see [`docs/md/testing.md`](./docs/md/testing.md) |
 | `just test-webkit [args]` | Run Playwright tests in WebKit inside Playwright's Docker image (WebKit can't run natively on every host): the motion tests by default — see [`docs/md/testing.md`](./docs/md/testing.md) |
 | `just test-bun [args]` | Run the bun unit tests (`*.test.ts`, currently `docs/src/macro.test.ts` and `tests/bundle.test.ts`) |
+| `just bench` | Benchmark the observable scheduling (`tests/bench/observable.bench.ts`) against the current `src/`, in Bun then in Chromium; prints nanoseconds per operation for each case. Not a test (asserts nothing, not run by `just test`); compare runs made one after the other on the same machine |
 | `just watch-docs` | Serve the docs site locally, type-checking `docs/` on every rebuild |
 
 ## Repo map
@@ -32,7 +33,7 @@ Pages are divided by subject: each topic page holds the how-to, the lookup table
 | `docs/md/` | The documentation (source of truth): guides, reference, topic pages. Every `.md` here becomes a page of the docs site |
 | `docs/src/` | The docs site itself — an elt app (`app.tsx`) plus the markdown-to-page build (`macro.ts`) |
 | `docs/src/adr/` | Architecture decision records |
-| `tests/` | Playwright tests (`*.pw.ts`) and the browser harness (`tests/browser/`) |
+| `tests/` | Playwright tests (`*.pw.ts`), the browser harness (`tests/browser/`) and the benchmark (`tests/bench/`, run by `just bench`) |
 | `specs/` | Temporary implementation specs. Deleted once implemented and their content moved to `docs/md/`; never linked from docs |
 | `demo/` | Demo workspace (currently holds no sources) |
 

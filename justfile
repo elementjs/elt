@@ -49,6 +49,14 @@ test-webkit *args:
 test-bun *args:
     bun test {{args}}
 
+# benchmark of the observable scheduling (tests/bench/observable.bench.ts) against the current src/, in Bun then
+# in Chromium; prints nanoseconds per operation, compare runs made one after the other on the same machine
+bench:
+    @echo "== Bun"
+    bun tests/bench/bun.ts
+    @echo "== Chromium"
+    bun tests/bench/chromium.ts
+
 # check typings and coding style
 check:
     biome check && just check-compile
