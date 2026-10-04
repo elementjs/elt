@@ -39,7 +39,7 @@ import {
 // not ui/index.tsx's side effects (theme init, reset/layout/form/typography
 // CSS) -- a real elt/ui app will load those anyway, but editor/schema.tsx
 // shouldn't force them as a side effect of importing one component.
-import { DateTimePicker, type DateTimePickerAttributesBAse } from "elt/ui/date"
+import { DateTimePicker, type DateTimePickerAttributesBase } from "elt/ui/date"
 import { $auto_grow } from "elt/ui/textarea"
 import type { SelectAttributes } from "elt/ui/select"
 import { $forward_attrs, skip_keys } from "./forward-attrs"
@@ -507,7 +507,7 @@ export type BooleanOptions = Omit<attrs_input, "type" | "value" | "checked">
 
 export type ColorOptions = NoOptions
 
-export interface DatetimeOptions extends Omit<DateTimePickerAttributesBAse, "model" | "clearable"> {
+export interface DatetimeOptions extends Omit<DateTimePickerAttributesBase, "model" | "clearable"> {
   date?: boolean
   time?: boolean
   nullable?: boolean

@@ -19,11 +19,14 @@ import { theme } from "./theme"
 
 const colors = theme.colors
 
-export interface DateTimePickerAttributesBAse extends Attrs<HTMLElement> {
+/** @deprecated `"full"` is the former name of `"inverted"`; it still draws the inverted buttons. */
+export type DeprecatedFullVariant = "full"
+
+export interface DateTimePickerAttributesBase extends Attrs<HTMLElement> {
   week_starts_on?: o.RO<"monday" | "tuesday" | "wednesday" | "thursday" | "friday" | "saturday" | "sunday">
 
-  /** The look of the buttons next to the text field: `"full"` filled with the tint color (the `inverted` button), `"tint"` outlined (default). */
-  variant?: o.RO<"full" | "tint">
+  /** The look of the buttons next to the text field: `"inverted"` filled with the tint color (like `e-variant="inverted"`), `"tint"` outlined (default). */
+  variant?: o.RO<"inverted" | "tint" | DeprecatedFullVariant>
 
   /** if true, show the date selector. Default is true. */
   show_date?: o.RO<boolean>
@@ -47,14 +50,17 @@ export interface DateTimePickerAttributesBAse extends Attrs<HTMLElement> {
   date_popup_default_date?: o.RO<Date>
 }
 
+/** @deprecated use DateTimePickerAttributesBase (the former name had a typo). */
+export type DateTimePickerAttributesBAse = DateTimePickerAttributesBase
+
 /** The model accepts `null` : the picker may be cleared, always (`true`) or only while the observable is `true`. */
-export interface DatePickerNullable extends DateTimePickerAttributesBAse {
+export interface DatePickerNullable extends DateTimePickerAttributesBase {
   model: o.Observable<Date | null>
   clearable: true | o.IReadonlyObservable<boolean>
 }
 
 /** The model never receives `null` : the picker is never cleared. */
-export interface DatePickerNotNullable extends DateTimePickerAttributesBAse {
+export interface DatePickerNotNullable extends DateTimePickerAttributesBase {
   model: o.IObservable<Date | null, Date>
   clearable?: false
 }
@@ -78,8 +84,8 @@ export function DateTimePicker(at: DatePickerAttrs) {
   const o_locale = o("")
   let input_ctrl: DateInputController | null = null
 
-  // "full" was the name of the button variant now called "inverted" (filled with the tint color).
-  const oo_variant = o.tf(at.variant, (v) => (v === "full" ? "inverted" : "tint"))
+  // "full" is the former name of "inverted" (filled with the tint color), kept as an alias.
+  const oo_variant = o.tf(at.variant, (v) => (v === "inverted" || v === "full" ? "inverted" : "tint"))
 
   const oo_layout = o.expression((get) => {
     const locale = get(o_locale)
@@ -301,8 +307,10 @@ const cls_day = css`.date-day {
   line-height: 28px;
   ${theme.css_radius("nudge-4")}
   width: 32px;
+  /* A day of the previous or next month: its text color softened toward the background (a theme
+     color, not opacity, which would also fade the selected or hovered fill behind it). */
   &.outside {
-    opacity: 0.35;
+    color: ${colors.tint.faded};
   }
   /* Selected: a tint surface jump (+3), one level further when hovered (docs/md/ui-theme.md, Emphasis). */
   &.selected {

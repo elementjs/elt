@@ -208,9 +208,10 @@ const cls_step = css`.scroll-step {
   text-align: center;
 }`
 
+/* The values above and below the current one: muted text (a theme color, not opacity). */
 const cls_adj = css`.scroll-adj {
   font-size: 0.7em;
-  opacity: 0.45;
+  color: ${theme.colors.text.faded};
   line-height: 1.2;
 }`
 

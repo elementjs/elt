@@ -93,8 +93,10 @@ const o_fetched = o<Promise<City[]>>(fetch_cities(""))
 | `seconds`, `am_pm` | Seconds selector; 12-hour display |
 | `minute_step`, `second_step` | Steps of the time selectors and of the arrow keys in the text field: 1 (default) to 30 |
 | `week_starts_on` | `"monday"` … `"sunday"` |
-| `variant` | Buttons next to the text field: `"full"` filled with the tint color (like `e-variant="inverted"`), `"tint"` outlined (default) |
+| `variant` | Buttons next to the text field: `"inverted"` filled with the tint color (like `e-variant="inverted"`), `"tint"` outlined (default). `"full"` is a deprecated alias of `"inverted"` |
 | `date_popup_default_date` | Date the popups open on while the model is empty (default: now) |
+
+The text field is edited one part (segment) at a time — day, month, year, hour, minute, second, AM/PM — as in a native date input. Clicking selects the part under the pointer; Left and Right select the previous or next part. Digits typed into a part replace its value and are collected until the part is full (2 digits, 4 for the year), then the next part is selected: typing `15` into the minutes gives `15`. A first digit that no second digit could follow is complete at once: `4` in a day gives `04`, `2` in a month gives `02`. A separator (`/`, `-`, `:`, a space…) ends the part being typed and selects the next one (`1/5/2026` gives January 5 in en-US); typed right after a part that completed on its own, it does nothing, so `2026-10-03` can be typed as written. Moving to another part starts a new value. Up and Down step the part (minutes and seconds by `minute_step` / `second_step`), Backspace and Delete empty it. The model receives the date when the field loses focus, if the date is complete and valid; with `clearable`, an empty field sets it to `null`. Phone and tablet on-screen keyboards, which send their characters as text input rather than identifiable key presses, behave the same: each character goes through the rules above, and deleting empties the part as Backspace does.
 
 ## Other widgets
 

@@ -18,7 +18,7 @@ interface MountOpts {
   am_pm?: boolean
   /** `"live"`: an observable, initially 1, exposed as `window.o_step`. */
   minute_step?: number | "live"
-  variant?: "full" | "tint"
+  variant?: "inverted" | "full" | "tint"
 }
 
 type W = Window & {
@@ -100,12 +100,8 @@ test.describe("time-only input (show_date={false})", () => {
   test("on an empty model, a typed time lands on today", async ({ page }) => {
     await mount(page, { lang: "en-GB", model: null, clearable: true, show_date: false, show_time: true })
     expect((await input_state(page)).value).toBe("--:--")
-    // Arrows rather than digits, around a pre-existing bug: digits typed into an empty segment are
-    // padded one by one ("1" then "5" gives 05).
     await caret(page, 0)
-    await page.keyboard.press("ArrowUp")
-    await caret(page, 3)
-    await page.keyboard.press("ArrowDown")
+    await page.keyboard.type("0159")
     expect(await input_state(page)).toEqual({ value: "01:59", error: "" })
     await blur(page)
     // The seconds the layout doesn't show are 0, not the current time's.
@@ -304,16 +300,300 @@ test("ScrollColumn shows its label above the values", async ({ page }) => {
   expect(r.texts).toEqual(["Min", "6", "5", "4"])
 })
 
-test('variant="full" draws the buttons as the inverted (filled) button', async ({ page }) => {
-  await mount(page, { lang: "en-GB", model: [2026, 9, 3, 0, 0, 0], variant: "full" })
-  const r = await page.evaluate(() => {
-    const btn = document.querySelector('#holder button[title="Date"]') as HTMLElement
-    const ref = document.createElement("button")
-    ref.setAttribute("e-variant", "inverted")
-    btn.parentElement!.parentElement!.appendChild(ref)
-    const out = { bg: getComputedStyle(btn).backgroundColor, ref: getComputedStyle(ref).backgroundColor }
-    ref.remove()
-    return out
+// "full" is the deprecated former name of "inverted".
+for (const variant of ["inverted", "full"] as const) {
+  test(`variant="${variant}" draws the buttons as the inverted (filled) button`, async ({ page }) => {
+    await mount(page, { lang: "en-GB", model: [2026, 9, 3, 0, 0, 0], variant })
+    const r = await page.evaluate(() => {
+      const btn = document.querySelector('#holder button[title="Date"]') as HTMLElement
+      const ref = document.createElement("button")
+      ref.setAttribute("e-variant", "inverted")
+      btn.parentElement!.parentElement!.appendChild(ref)
+      const out = {
+        attr: btn.getAttribute("e-variant"),
+        bg: getComputedStyle(btn).backgroundColor,
+        ref: getComputedStyle(ref).backgroundColor,
+      }
+      ref.remove()
+      return out
+    })
+    expect(r).toEqual({ attr: "inverted", bg: r.ref, ref: r.ref })
   })
-  expect(r.bg).toBe(r.ref)
+}
+
+test.describe("faded text uses theme colors, not opacity", () => {
+  /**
+   * The computed color and opacity of `sel`, and the computed color of a reference span placed next
+   * to it whose color is the theme color at `path` (e.g. "tint.faded"): the mix reads the ambient
+   * `bg`, so the reference sits in the same place.
+   */
+  function faded(page: Page, sel: string, path: string) {
+    return page.evaluate(
+      ([sel, path]) => {
+        const el = document.querySelector(sel) as HTMLElement
+        const [family, step] = path.split(".") as ["tint" | "text", "faded"]
+        const ref = document.createElement("span")
+        ref.style.color = window.__ELT__.UI.theme.colors[family][step].toString()
+        el.parentElement!.appendChild(ref)
+        const out = {
+          color: getComputedStyle(el).color,
+          opacity: getComputedStyle(el).opacity,
+          ref: getComputedStyle(ref).color,
+        }
+        ref.remove()
+        return out
+      },
+      [sel, path] as const,
+    )
+  }
+
+  test("a calendar day outside the month is tint.faded", async ({ page }) => {
+    await mount(page, { lang: "en-GB", model: [2026, 9, 15, 0, 0, 0] })
+    await page.click('#holder button[title="Date"]')
+    await page.waitForSelector('[class^="date-day-"].outside')
+    const r = await faded(page, '[class^="date-day-"].outside', "tint.faded")
+    expect(r).toEqual({ color: r.ref, opacity: "1", ref: r.ref })
+    // ... and it differs from a day of the month.
+    const in_month = await page.evaluate(
+      () => getComputedStyle(document.querySelector('[class^="date-day-"]:not(.outside)') as HTMLElement).color,
+    )
+    expect(in_month).not.toBe(r.color)
+  })
+
+  test("the time columns' neighbouring values are text.faded", async ({ page }) => {
+    await mount(page, { lang: "en-GB", model: [2026, 9, 3, 8, 30, 0], show_date: false, show_time: true })
+    await page.click('#holder button[title="Time"]')
+    await page.waitForSelector('[class^="scroll-adj-"]')
+    const r = await faded(page, '[class^="scroll-adj-"]', "text.faded")
+    expect(r).toEqual({ color: r.ref, opacity: "1", ref: r.ref })
+  })
+})
+
+test.describe("typing digits into the text field", () => {
+  /** Mount an empty, clearable picker, put the caret at `pos` and type `keys`. */
+  async function type_into_empty(page: Page, opts: Omit<MountOpts, "model" | "clearable">, pos: number, keys: string) {
+    await mount(page, { ...opts, model: null, clearable: true })
+    await caret(page, pos)
+    await page.keyboard.type(keys)
+    return input_state(page)
+  }
+
+  /** The selected range of the input: the segment the next digit goes to. */
+  function selected(page: Page) {
+    return page.evaluate(() => {
+      const input = document.querySelector("#holder input") as HTMLInputElement
+      return [input.selectionStart, input.selectionEnd]
+    })
+  }
+
+  const time_24h = { lang: "en-GB", show_date: false, show_time: true }
+  const time_12h = { lang: "en-US", show_date: false, show_time: true, am_pm: true }
+
+  test("24-hour time: two digits fill the minutes of an empty field", async ({ page }) => {
+    expect(await type_into_empty(page, time_24h, 3, "15")).toEqual({ value: "--:15", error: "Incomplete date" })
+  })
+
+  test("24-hour time: digits fill each segment in turn, then the model", async ({ page }) => {
+    expect(await type_into_empty(page, time_24h, 0, "2359")).toEqual({ value: "23:59", error: "" })
+    await blur(page)
+    const today = new Date()
+    expect(await model(page)).toEqual([today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 0])
+  })
+
+  test("a digit that no second digit could follow completes the segment at once", async ({ page }) => {
+    // 24-hour: 3 can't start an hour (30 > 23), 6 can't start a minute (60 > 59).
+    expect(await type_into_empty(page, time_24h, 0, "36")).toEqual({ value: "03:06", error: "" })
+  })
+
+  test("en-GB date: a whole date typed into an empty field", async ({ page }) => {
+    expect(await type_into_empty(page, { lang: "en-GB" }, 0, "03102026")).toEqual({ value: "03/10/2026", error: "" })
+    await blur(page)
+    expect(await model(page)).toEqual([2026, 9, 3, 0, 0, 0])
+  })
+
+  test("en-GB date: a day of 4-9 and a month of 2-9 complete at once", async ({ page }) => {
+    expect(await type_into_empty(page, { lang: "en-GB" }, 0, "722026")).toEqual({ value: "07/02/2026", error: "" })
+  })
+
+  test("en-CA ('-' separator): the year takes four digits", async ({ page }) => {
+    expect(await type_into_empty(page, { lang: "en-CA" }, 0, "20261003")).toEqual({ value: "2026-10-03", error: "" })
+    await blur(page)
+    expect(await model(page)).toEqual([2026, 9, 3, 0, 0, 0])
+  })
+
+  test("en-CA: a date typed with its separators", async ({ page }) => {
+    // Each '-' follows a segment that completed on its own: it doesn't skip the next one.
+    expect(await type_into_empty(page, { lang: "en-CA" }, 0, "2026-10-03")).toEqual({ value: "2026-10-03", error: "" })
+  })
+
+  test("en-US date: a separator ends a one-digit segment", async ({ page }) => {
+    // Month 1 and day 1 could each take a second digit: '/' ends them.
+    expect(await type_into_empty(page, { lang: "en-US" }, 0, "1/1/2026")).toEqual({ value: "01/01/2026", error: "" })
+  })
+
+  test("en-US date: a separator after a segment that completed on its own does nothing", async ({ page }) => {
+    // Day 5 completes at once (50 > 31) and selects the year: the '/' after it doesn't skip the year.
+    expect(await type_into_empty(page, { lang: "en-US" }, 0, "1/5/2026")).toEqual({ value: "01/05/2026", error: "" })
+  })
+
+  test("a separator typed in a segment the user moved to selects the next one", async ({ page }) => {
+    await mount(page, { lang: "en-GB", model: [2026, 9, 3, 0, 0, 0] })
+    await caret(page, 3)
+    await page.keyboard.type("/")
+    expect(await selected(page)).toEqual([6, 10])
+    await page.keyboard.type("2027")
+    expect((await input_state(page)).value).toBe("03/10/2027")
+  })
+
+  test("12-hour time: hour, minutes, then the day period is selected", async ({ page }) => {
+    // 2 can't start a 12-hour hour (20 > 12): it completes at once.
+    expect((await type_into_empty(page, time_12h, 0, "245")).value).toBe("02:45 AM")
+    expect(await selected(page)).toEqual([6, 8])
+  })
+
+  test("12-hour time: 1 waits for a second digit", async ({ page }) => {
+    expect((await type_into_empty(page, time_12h, 0, "1")).value).toBe("01:-- AM")
+    expect(await selected(page)).toEqual([0, 2])
+    await page.keyboard.type("1")
+    expect((await input_state(page)).value).toBe("11:-- AM")
+    expect(await selected(page)).toEqual([3, 5])
+  })
+
+  test("typing into a segment that has a value replaces it", async ({ page }) => {
+    await mount(page, { lang: "en-GB", model: [2026, 9, 3, 8, 47, 0], show_date: false, show_time: true })
+    // One digit: the minutes become 05 (not 57, editing one character), and wait for a second one.
+    await caret(page, 3)
+    await page.keyboard.type("5")
+    expect((await input_state(page)).value).toBe("08:05")
+    await page.keyboard.type("2")
+    expect((await input_state(page)).value).toBe("08:52")
+    await blur(page)
+    expect(await model(page)).toEqual([2026, 9, 3, 8, 52, 0])
+  })
+
+  test("moving to another segment starts a new collection", async ({ page }) => {
+    await type_into_empty(page, time_24h, 0, "1")
+    // ArrowRight then ArrowLeft come back to the hour: the next digit starts over.
+    await page.keyboard.press("ArrowRight")
+    await page.keyboard.press("ArrowLeft")
+    await page.keyboard.type("2")
+    expect((await input_state(page)).value).toBe("02:--")
+    // A click on the segment too (it selects the segment on the next frame).
+    const click_hour = async () => {
+      const box = (await page.locator("#holder input").boundingBox())!
+      await page.mouse.click(box.x + 12, box.y + box.height / 2)
+      await page.evaluate(() => window.__ELT__.frames(2))
+    }
+    await click_hour()
+    await page.keyboard.type("1")
+    expect((await input_state(page)).value).toBe("01:--")
+    await click_hour()
+    await page.keyboard.type("2")
+    expect((await input_state(page)).value).toBe("02:--")
+  })
+
+  test("a Shift press doesn't end the collection (layouts that type digits with Shift)", async ({ page }) => {
+    await type_into_empty(page, time_24h, 3, "1")
+    await page.keyboard.press("Shift")
+    await page.keyboard.type("5")
+    expect((await input_state(page)).value).toBe("--:15")
+  })
+
+  test("the last segment stays selected; a further digit starts it over", async ({ page }) => {
+    await type_into_empty(page, time_24h, 3, "45")
+    expect(await selected(page)).toEqual([3, 5])
+    await page.keyboard.type("7")
+    expect((await input_state(page)).value).toBe("--:07")
+  })
+})
+
+test.describe("on-screen keyboards (text sent as beforeinput)", () => {
+  /**
+   * Type `text` as an Android on-screen keyboard does: for each character, a `keydown` whose key is
+   * `Unidentified` (keyCode 229), then a cancelable `beforeinput` carrying the character. Returns, for each
+   * character, whether its `beforeinput` was cancelled.
+   */
+  function soft_type(page: Page, text: string, inputType = "insertText") {
+    return page.evaluate(
+      ({ text, inputType }) => {
+        const input = document.querySelector("#holder input") as HTMLInputElement
+        return [...text].map((ch) => {
+          input.dispatchEvent(
+            new KeyboardEvent("keydown", { key: "Unidentified", keyCode: 229, bubbles: true, cancelable: true }),
+          )
+          const ev = new InputEvent("beforeinput", { inputType, data: ch, bubbles: true, cancelable: true })
+          input.dispatchEvent(ev)
+          return ev.defaultPrevented
+        })
+      },
+      { text, inputType },
+    )
+  }
+
+  const time_24h = { lang: "en-GB", model: null, clearable: true, show_date: false, show_time: true }
+
+  test("digits fill the segments as typed keys do", async ({ page }) => {
+    await mount(page, { lang: "en-GB", model: null, clearable: true })
+    await caret(page, 0)
+    // Each digit's keydown is `Unidentified`: it must not end the collection (month 12, not 1 then 2).
+    expect(await soft_type(page, "03122026")).toEqual(Array(8).fill(true))
+    expect(await input_state(page)).toEqual({ value: "03/12/2026", error: "" })
+    await blur(page)
+    expect(await model(page)).toEqual([2026, 11, 3, 0, 0, 0])
+  })
+
+  test("a separator ends a one-digit segment; other characters are not inserted", async ({ page }) => {
+    await mount(page, { lang: "en-US", model: null, clearable: true })
+    await caret(page, 0)
+    expect(await soft_type(page, "1/x5/2026")).toEqual(Array(9).fill(true))
+    expect((await input_state(page)).value).toBe("01/05/2026")
+  })
+
+  test("a letter ends the digits being typed", async ({ page }) => {
+    await mount(page, time_24h)
+    await caret(page, 3)
+    await soft_type(page, "1a2")
+    expect((await input_state(page)).value).toBe("--:02")
+  })
+
+  test("insertReplacementText goes through the same path", async ({ page }) => {
+    await mount(page, time_24h)
+    await caret(page, 0)
+    await soft_type(page, "2359", "insertReplacementText")
+    expect((await input_state(page)).value).toBe("23:59")
+  })
+
+  test("deleteContentBackward empties the segment, as Backspace does", async ({ page }) => {
+    await mount(page, { lang: "en-GB", model: [2026, 9, 3, 8, 47, 0], show_date: false, show_time: true })
+    await caret(page, 3)
+    const prevented = await page.evaluate(() => {
+      const input = document.querySelector("#holder input") as HTMLInputElement
+      input.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "Unidentified", keyCode: 229, bubbles: true, cancelable: true }),
+      )
+      const ev = new InputEvent("beforeinput", { inputType: "deleteContentBackward", bubbles: true, cancelable: true })
+      input.dispatchEvent(ev)
+      return ev.defaultPrevented
+    })
+    expect(prevented).toBe(true)
+    expect((await input_state(page)).value).toBe("08:--")
+  })
+
+  test("a desktop key press is handled once: its keydown is cancelled, so no beforeinput follows", async ({ page }) => {
+    await mount(page, time_24h)
+    await page.evaluate(() => {
+      const w = window as unknown as { beforeinputs: number }
+      w.beforeinputs = 0
+      document.querySelector("#holder input")!.addEventListener("beforeinput", () => w.beforeinputs++)
+    })
+    await caret(page, 3)
+    // Handled a second time, the 1 would be collected twice: minute 11.
+    await page.keyboard.type("1")
+    expect((await input_state(page)).value).toBe("--:01")
+    expect(await page.evaluate(() => (window as unknown as { beforeinputs: number }).beforeinputs)).toBe(0)
+    // A letter is not handled by keydown: its beforeinput fires and is cancelled.
+    await page.keyboard.type("a")
+    expect((await input_state(page)).value).toBe("--:01")
+    expect(await page.evaluate(() => (window as unknown as { beforeinputs: number }).beforeinputs)).toBe(1)
+  })
 })
