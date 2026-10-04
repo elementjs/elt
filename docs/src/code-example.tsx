@@ -126,15 +126,25 @@ export function CodeExample(props: CodeExampleProps) {
 
   const o_showing_code = o(false)
 
-  // Built once, and only hidden while the code shows, never taken out of the document: the example
-  // keeps its node and state when the reader switches to the code and back — an iframe even reloads
-  // its page whenever it is put back into a document.
+  // Built once: an inline example keeps its node and state when the reader switches to the code and back.
+  // An iframe reloads its page each time it is put back into the document (accepted: a full example
+  // restarts after the code was shown).
   const result =
     props.fullExampleUrl != null ? (
       <iframe class={cls_iframe} src={props.fullExampleUrl} loading="lazy" title="Example"></iframe>
     ) : (
       LazyResult(props.run!)
     )
+  const code_panel = () => (
+    <e-prose border="neutral" pad="none" self-align="stretch">
+      <div class={cls_pre_scroll}>{renderCode(props.highlighted)}</div>
+    </e-prose>
+  )
+  const result_panel = () => (
+    <e-prose border self-align="stretch">
+      {result}
+    </e-prose>
+  )
 
   return (
     <e-column packed align="stretch">
@@ -156,17 +166,8 @@ export function CodeExample(props: CodeExampleProps) {
         </button>
         <e-row grow>&nbsp;</e-row>
       </e-row>
-      {If(o_showing_code, () => (
-        <e-prose border="neutral" pad="none" self-align="stretch">
-          <div class={cls_pre_scroll}>{renderCode(props.highlighted)}</div>
-        </e-prose>
-      ))}
-      {/* A plain div for `hidden`: e-prose sets its own `display`, which would override it. */}
-      <div hidden={o_showing_code}>
-        <e-prose border self-align="stretch">
-          {result}
-        </e-prose>
-      </div>
+      {/* The panels are direct children of the packed column, so they join the toolbar. */}
+      {If(o_showing_code, code_panel, result_panel)}
     </e-column>
   )
 }

@@ -69,37 +69,35 @@ test.describe("docs CodeExample: lazily run inline examples", () => {
 })
 
 // A @full-example runs in an iframe, built once (docs/md/about-this-documentation.md).
-test.describe("docs CodeExample: full examples", () => {
-  test("the iframe keeps its page across the code toggle (regression: it was rebuilt, reloading the example)", async ({
-    page,
-  }) => {
-    await page.evaluate(() => {
-      const { node_append } = window.__ELT__
-      const { CodeExample } = window.__ELT__.Docs
-      node_append(
-        document.body,
-        CodeExample({ highlighted: () => "const x = 1", fullExampleUrl: "/tests/browser/harness.html" }) as Node,
-      )
+// The panels are direct children of the packed column, so they join the toolbar and close the group.
+test.describe("docs CodeExample: panels in the packed column", () => {
+  for (const kind of ["inline", "full"] as const) {
+    test(`${kind} example: the result and code panels join the toolbar and close the group (regression: a wrapper div broke packed)`, async ({
+      page,
+    }) => {
+      const r = await page.evaluate(async (kind) => {
+        const { node_append, frames } = window.__ELT__
+        const { CodeExample } = window.__ELT__.Docs
+        const ex = CodeExample(
+          kind === "inline"
+            ? { highlighted: () => "const x = 1", run: () => document.createTextNode("ran") }
+            : { highlighted: () => "const x = 1", fullExampleUrl: "/tests/browser/harness.html" },
+        ) as HTMLElement
+        node_append(document.body, ex)
+        await frames(3)
+        const panel = () => {
+          const p = ex.lastElementChild as HTMLElement
+          const s = getComputedStyle(p)
+          return { tag: p.tagName, top_radius: s.borderTopLeftRadius, bottom: s.borderBottomWidth }
+        }
+        const example = panel()
+        ;(ex.querySelectorAll("button")[1] as HTMLButtonElement).click()
+        await frames(2)
+        return { example, code: panel() }
+      }, kind)
+      expect(r.example.tag).toBe("E-PROSE")
+      expect(r.example.top_radius).toBe("0px")
+      expect(r.code).toEqual({ tag: "E-PROSE", top_radius: "0px", bottom: "1px" })
     })
-    const iframe = page.locator("iframe")
-    await expect(iframe).toBeVisible()
-    // Leave a mark in the iframe's page: a reload or a new iframe would not have it.
-    await expect
-      .poll(() =>
-        page.evaluate(() => {
-          const win = document.querySelector("iframe")?.contentWindow as any
-          // Not the initial about:blank document, which the real page replaces.
-          if (!win?.location.pathname.endsWith("harness.html") || win.document.readyState !== "complete") return false
-          win.__mark = "kept"
-          return true
-        }),
-      )
-      .toBe(true)
-
-    await page.getByRole("button", { name: "Code" }).click()
-    await expect(iframe).toBeHidden()
-    await page.getByRole("button", { name: "Example" }).click()
-    await expect(iframe).toBeVisible()
-    expect(await page.evaluate(() => (document.querySelector("iframe")?.contentWindow as any)?.__mark)).toBe("kept")
-  })
+  }
 })
