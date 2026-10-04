@@ -18,18 +18,38 @@ import * as EditorTypeChange from "../../editor/type-change"
 // The docs site's code block, for its lazily run examples.
 import * as Docs from "../../docs/src/code-example"
 
+// Helpers for the tests themselves, not part of elt.
+const helpers = {
+  /** Resolves after `n` animation frames. */
+  async frames(n = 1): Promise<void> {
+    for (let i = 0; i < n; i++) await new Promise((r) => requestAnimationFrame(r))
+  },
+  /** A promise, with the functions that settle it. */
+  deferred<T = void>() {
+    let resolve!: (v: T) => void
+    let reject!: (e?: unknown) => void
+    const promise = new Promise<T>((res, rej) => {
+      resolve = res
+      reject = rej
+    })
+    return { promise, resolve, reject }
+  },
+}
+
 declare global {
   interface Window {
-    __ELT__: typeof Elt & {
-      UI: typeof UI
-      Editor: typeof Editor & typeof EditorCompositeToolbar & typeof EditorMount & typeof EditorTypeChange
-      Docs: typeof Docs
-    }
+    __ELT__: typeof Elt &
+      typeof helpers & {
+        UI: typeof UI
+        Editor: typeof Editor & typeof EditorCompositeToolbar & typeof EditorMount & typeof EditorTypeChange
+        Docs: typeof Docs
+      }
   }
 }
 
 window.__ELT__ = {
   ...Elt,
+  ...helpers,
   UI,
   Editor: { ...Editor, ...EditorCompositeToolbar, ...EditorMount, ...EditorTypeChange },
   Docs,

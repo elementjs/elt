@@ -1,8 +1,4 @@
-import { expect, type Page, test } from "@playwright/test"
-
-test.beforeEach(async ({ page }) => {
-  await page.goto("/tests/browser/harness.html")
-})
+import { expect, type Page, test } from "./fixture"
 
 /*
  * Selected items and checked toggles are a choice, drawn as a tint surface jump (ambient + 3, + 4 when

@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test"
+import { expect, test } from "./fixture"
 
 const describe = test.describe
 
@@ -30,19 +30,11 @@ declare global {
   interface Window {
     /** Mounts a RepeatVirtual instance with deterministic row/scroller geometry (see file header). */
     __mountVirtual: (initial: string[], display_contents?: boolean) => VirtualMountHandle
-    __flushFrames: (count?: number) => Promise<void>
     __labelsFromCount: (count: number, prefix?: string) => string[]
   }
 }
 
 const SETUP_SCRIPT = `
-  window.__flushFrames = async function (count) {
-    count = count || 8
-    for (let i = 0; i < count; i++) {
-      await new Promise((resolve) => requestAnimationFrame(() => resolve()))
-    }
-  }
-
   window.__labelsFromCount = function (count, prefix) {
     prefix = prefix || "item"
     return Array.from({ length: count }, function (_, i) { return prefix + "-" + i })
@@ -113,7 +105,7 @@ const SETUP_SCRIPT = `
         if (Math.abs(delta) < 1) break
         scroller.scrollTop = current + (Math.abs(delta) <= ITEM_HEIGHT ? delta : Math.sign(delta) * ITEM_HEIGHT)
         scroller.dispatchEvent(new Event("scroll"))
-        await window.__flushFrames(4)
+        await window.__ELT__.frames(4)
         if (Math.abs(scroller.scrollTop - current) < 1) break // clamped at an end
       }
     }
@@ -137,7 +129,6 @@ const SETUP_SCRIPT = `
 `
 
 test.beforeEach(async ({ page }) => {
-  await page.goto("/tests/browser/harness.html")
   await page.addScriptTag({ content: SETUP_SCRIPT })
 })
 
@@ -171,11 +162,11 @@ describe("RepeatVirtual", () => {
       }
       try {
         const m = window.__mountVirtual(window.__labelsFromCount(50))
-        await window.__flushFrames()
+        await window.__ELT__.frames(8)
         for (let i = 0; i < 4; i++) {
           node_remove(m.scroller)
           node_append(document.body, m.scroller)
-          await window.__flushFrames(2)
+          await window.__ELT__.frames(2)
         }
         const connected = live.get(m.scroller) ?? 0
         m.tear_down()
@@ -192,7 +183,7 @@ describe("RepeatVirtual", () => {
     test("does not render every row for a long list", async ({ page }) => {
       const result = await page.evaluate(async () => {
         const m = window.__mountVirtual(window.__labelsFromCount(200))
-        await window.__flushFrames()
+        await window.__ELT__.frames(8)
 
         const visible_count = m.visible_count()
         const list = m.o_lst.get()
@@ -209,7 +200,7 @@ describe("RepeatVirtual", () => {
     test("renders only a window of rows after scrolling down", async ({ page }) => {
       const result = await page.evaluate(async () => {
         const m = window.__mountVirtual(window.__labelsFromCount(100))
-        await window.__flushFrames()
+        await window.__ELT__.frames(8)
 
         const initial_count = m.visible_count()
         await m.scroll_to(40)
@@ -231,7 +222,7 @@ describe("RepeatVirtual", () => {
     test("updates the visible window when scrolling back up", async ({ page }) => {
       const result = await page.evaluate(async () => {
         const m = window.__mountVirtual(window.__labelsFromCount(80))
-        await window.__flushFrames()
+        await window.__ELT__.frames(8)
 
         await m.scroll_to(50)
         const mid = m.visible_labels()
@@ -252,7 +243,7 @@ describe("RepeatVirtual", () => {
     test("measures rows wrapped in display:contents", async ({ page }) => {
       const result = await page.evaluate(async () => {
         const m = window.__mountVirtual(window.__labelsFromCount(100), true)
-        await window.__flushFrames()
+        await window.__ELT__.frames(8)
 
         const first_visible_count = m.visible_count()
         const list1 = m.o_lst.get()
@@ -299,10 +290,10 @@ describe("RepeatVirtual", () => {
     test("clears rows when the list becomes empty", async ({ page }) => {
       const result = await page.evaluate(async () => {
         const m = window.__mountVirtual(window.__labelsFromCount(30))
-        await window.__flushFrames()
+        await window.__ELT__.frames(8)
 
         m.o_lst.set([])
-        await window.__flushFrames()
+        await window.__ELT__.frames(8)
 
         const visible_count = m.visible_count()
         const labels = m.visible_labels()
@@ -317,11 +308,11 @@ describe("RepeatVirtual", () => {
     test("removes trailing rows when the list shrinks", async ({ page }) => {
       const result = await page.evaluate(async () => {
         const m = window.__mountVirtual(window.__labelsFromCount(40))
-        await window.__flushFrames()
+        await window.__ELT__.frames(8)
         await m.scroll_to(10)
 
         m.o_lst.set(window.__labelsFromCount(15))
-        await window.__flushFrames()
+        await window.__ELT__.frames(8)
         await m.scroll_to(0)
 
         const list = m.o_lst.get()
@@ -339,12 +330,12 @@ describe("RepeatVirtual", () => {
     test("handles deleting a middle item while scrolled", async ({ page }) => {
       const result = await page.evaluate(async () => {
         const m = window.__mountVirtual(window.__labelsFromCount(25))
-        await window.__flushFrames()
+        await window.__ELT__.frames(8)
         await m.scroll_to(12)
 
         const next = m.o_lst.get().filter((_, i) => i !== 10)
         m.o_lst.set(next)
-        await window.__flushFrames()
+        await window.__ELT__.frames(8)
         await m.scroll_to(10)
 
         const list = m.o_lst.get()
@@ -377,12 +368,12 @@ describe("RepeatVirtual", () => {
     test("handles deleting several random items", async ({ page }) => {
       const result = await page.evaluate(async () => {
         const m = window.__mountVirtual(window.__labelsFromCount(50))
-        await window.__flushFrames()
+        await window.__ELT__.frames(8)
 
         const remove = new Set([3, 17, 22, 31, 44])
         const next = m.o_lst.get().filter((_, i) => !remove.has(i))
         m.o_lst.set(next)
-        await window.__flushFrames()
+        await window.__ELT__.frames(8)
 
         const list = m.o_lst.get()
         const steps: { index: number; labels: string[] }[] = []
@@ -411,11 +402,11 @@ describe("RepeatVirtual", () => {
     test("shows reversed order after scrolling to the top", async ({ page }) => {
       const result = await page.evaluate(async () => {
         const m = window.__mountVirtual(window.__labelsFromCount(30))
-        await window.__flushFrames()
+        await window.__ELT__.frames(8)
         await m.scroll_to(15)
 
         m.o_lst.set([...m.o_lst.get()].reverse())
-        await window.__flushFrames()
+        await window.__ELT__.frames(8)
         await m.scroll_to(0)
 
         const list = m.o_lst.get()
@@ -431,10 +422,10 @@ describe("RepeatVirtual", () => {
     test("shows swapped elements in the new order", async ({ page }) => {
       const labels = await page.evaluate(async () => {
         const m = window.__mountVirtual(["a", "b", "c", "d", "e", "f"])
-        await window.__flushFrames()
+        await window.__ELT__.frames(8)
 
         m.o_lst.set(["f", "e", "d", "c", "b", "a"])
-        await window.__flushFrames()
+        await window.__ELT__.frames(8)
         await m.scroll_to(0)
 
         const labels = m.visible_labels()
@@ -448,12 +439,12 @@ describe("RepeatVirtual", () => {
     test("replaces the whole list and keeps a single visible row", async ({ page }) => {
       const result = await page.evaluate(async () => {
         const m = window.__mountVirtual(window.__labelsFromCount(20))
-        await window.__flushFrames()
+        await window.__ELT__.frames(8)
         await m.scroll_to(12)
         await m.scroll_to(0)
 
         m.o_lst.set(["solo"])
-        await window.__flushFrames()
+        await window.__ELT__.frames(8)
 
         const labels = m.visible_labels()
         const visible_count = m.visible_count()
@@ -468,10 +459,10 @@ describe("RepeatVirtual", () => {
     test("moves an item from the head to the tail", async ({ page }) => {
       const labels = await page.evaluate(async () => {
         const m = window.__mountVirtual(["a", "b", "c", "d", "e"])
-        await window.__flushFrames()
+        await window.__ELT__.frames(8)
 
         m.o_lst.set(["b", "c", "d", "e", "a"])
-        await window.__flushFrames()
+        await window.__ELT__.frames(8)
         await m.scroll_to(0)
 
         const labels = m.visible_labels()
@@ -487,7 +478,7 @@ describe("RepeatVirtual", () => {
     test("never shows duplicate rows in the same viewport", async ({ page }) => {
       const label_sets = await page.evaluate(async () => {
         const m = window.__mountVirtual(window.__labelsFromCount(120))
-        await window.__flushFrames()
+        await window.__ELT__.frames(8)
 
         const label_sets: string[][] = []
         for (const index of [0, 15, 40, 75, 100]) {
@@ -507,7 +498,7 @@ describe("RepeatVirtual", () => {
     test("covers every list item when scrolling through the full range", async ({ page }) => {
       const result = await page.evaluate(async () => {
         const m = window.__mountVirtual(window.__labelsFromCount(60))
-        await window.__flushFrames()
+        await window.__ELT__.frames(8)
 
         const list = m.o_lst.get()
         const steps: { index: number; labels: string[] }[] = []
@@ -534,7 +525,7 @@ describe("RepeatVirtual", () => {
     test("reads no row while scrolling within the margins, and refills a short one in one change", async ({ page }) => {
       const res = await page.evaluate(async () => {
         const m = window.__mountVirtual(window.__labelsFromCount(200))
-        await window.__flushFrames()
+        await window.__ELT__.frames(8)
 
         // Rows read (a pass reading only the viewport and the content's two edges is fine: the
         // observer also reports an edge leaving its zone).
@@ -556,7 +547,7 @@ describe("RepeatVirtual", () => {
         for (let st = 8; st < room - 60; st += 8) {
           m.scroller.scrollTop = st
           m.scroller.dispatchEvent(new Event("scroll"))
-          await window.__flushFrames(1)
+          await window.__ELT__.frames(1)
         }
         const reads_within = reads
         const same_window = m.visible_labels().join() === start.join()
@@ -565,7 +556,7 @@ describe("RepeatVirtual", () => {
         m.scroller.scrollTop = room - 30
         m.scroller.dispatchEvent(new Event("scroll"))
         for (let i = 0; i < 6; i++) {
-          await window.__flushFrames(1)
+          await window.__ELT__.frames(1)
           record()
         }
         Element.prototype.getBoundingClientRect = original
@@ -583,7 +574,7 @@ describe("RepeatVirtual", () => {
     test("an edge stopping exactly on the observer's line still gets refilled (regression)", async ({ page }) => {
       const res = await page.evaluate(async () => {
         const m = window.__mountVirtual(window.__labelsFromCount(200))
-        await window.__flushFrames()
+        await window.__ELT__.frames(8)
         const below = () => m.rendered_bottom() - m.scroller.getBoundingClientRect().bottom
         // Threshold 100: the observer's line is 50px below the viewport, and it counts an edge
         // lying exactly on it as inside. Bring the content's bottom edge exactly there, in steps
@@ -592,14 +583,14 @@ describe("RepeatVirtual", () => {
         for (const st of [exact - 250, exact - 120, exact]) {
           m.scroller.scrollTop = st
           m.scroller.dispatchEvent(new Event("scroll"))
-          await window.__flushFrames(3)
+          await window.__ELT__.frames(3)
         }
         const on_line = below()
         // Then on past it: the list must follow, not leave the viewport's bottom blank.
         for (let i = 1; i <= 6; i++) {
           m.scroller.scrollTop = exact + i * 30
           m.scroller.dispatchEvent(new Event("scroll"))
-          await window.__flushFrames(3)
+          await window.__ELT__.frames(3)
         }
         const after = below()
         m.tear_down()
@@ -612,7 +603,7 @@ describe("RepeatVirtual", () => {
     test("keeps the row-height estimate stable on uniform rows", async ({ page }) => {
       const item_sizes = await page.evaluate(async () => {
         const m = window.__mountVirtual(window.__labelsFromCount(120))
-        await window.__flushFrames()
+        await window.__ELT__.frames(8)
 
         // Rows are all exactly ITEM_HEIGHT: the damped, 1px-thresholded estimate
         // must not drift (drift is what jitters the padders and the scrollbar).
@@ -634,20 +625,20 @@ describe("RepeatVirtual", () => {
     test("stays consistent after grow-shrink-update cycles", async ({ page }) => {
       const results = await page.evaluate(async () => {
         const m = window.__mountVirtual(["a"])
-        await window.__flushFrames()
+        await window.__ELT__.frames(8)
 
         const out: { list: string[]; labels: string[] }[] = []
         for (let round = 0; round < 4; round++) {
           m.o_lst.set(["a", "b", "c", "d", "e"])
-          await window.__flushFrames()
+          await window.__ELT__.frames(8)
           out.push({ list: m.o_lst.get(), labels: m.visible_labels() })
 
           m.o_lst.set(["x"])
-          await window.__flushFrames()
+          await window.__ELT__.frames(8)
           out.push({ list: m.o_lst.get(), labels: m.visible_labels() })
 
           m.o_lst.set(["p", "q", "r"])
-          await window.__flushFrames()
+          await window.__ELT__.frames(8)
           out.push({ list: m.o_lst.get(), labels: m.visible_labels() })
         }
 

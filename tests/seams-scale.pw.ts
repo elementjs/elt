@@ -1,14 +1,10 @@
-import { expect, test } from "@playwright/test"
+import { expect, test } from "./fixture"
 import { gap_rules_supported } from "./seams"
 
 // How packed bordered containers draw their seams at a fractional display scale (ui/layout.css.tsx,
 // docs/md/ui-layout.md "packed"). Its own file: a real 125% scale is a browser launch option, and
 // Playwright's emulated `deviceScaleFactor` antialiases every edge in Chromium.
 test.use({ launchOptions: { args: ["--force-device-scale-factor=1.25"] }, viewport: null })
-
-test.beforeEach(async ({ page }) => {
-  await page.goto("/tests/browser/harness.html")
-})
 
 test.describe("packed border seams at a fractional display scale (regression: some seams drew 2 screen pixels wide)", () => {
   test("with gap decorations, every interior seam of a grid is one screen pixel wide", async ({ page }) => {

@@ -1,16 +1,12 @@
-import { test, expect } from "@playwright/test"
+import { type Page, test, expect } from "./fixture"
 
 // DisplayPromise (docs/md/verbs.md#displaypromise-a-promises-lifecycle): each arm shows on its own,
 // in the order the arms were declared. The waiting arm shows while a promise resolves, the first one
 // or a later one ; the resolved / rejected arm shows the last outcome, kept while a new promise
 // resolves.
 
-test.beforeEach(async ({ page }) => {
-  await page.goto("/tests/browser/harness.html")
-})
-
 /** Mount a DisplayPromise with arms declared in `order`, drive it through `steps`, and record what shows. */
-async function run(page: import("@playwright/test").Page, order: string[], motion = false) {
+async function run(page: Page, order: string[], motion = false) {
   return page.evaluate(
     async ({ order, motion }) => {
       const { o, DisplayPromise, node_append, motion_enabled, $enter } = window.__ELT__

@@ -1,8 +1,4 @@
-import { expect, test } from "@playwright/test"
-
-test.beforeEach(async ({ page }) => {
-  await page.goto("/tests/browser/harness.html")
-})
+import { expect, test } from "../fixture"
 
 // INVALID_MOUNT is a unique symbol — it can't survive structured-clone serialization back to
 // Node, so every comparison against it happens inside the page.evaluate callback and only a

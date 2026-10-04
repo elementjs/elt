@@ -1,8 +1,4 @@
-import { test, expect } from "@playwright/test"
-
-test.beforeEach(async ({ page }) => {
-  await page.goto("/tests/browser/harness.html")
-})
+import { type Page, test, expect } from "./fixture"
 
 test.describe("$context_menu", () => {
   test("right click calls the callback; preventDefault is the callback's job", async ({ page }) => {
@@ -105,7 +101,7 @@ test.describe("$context_menu long-press shim", () => {
   })
 
   /** Dispatch a touch pointer event on the element `id`, at `dx`/`dy` from its top-left. */
-  async function touch(page: import("@playwright/test").Page, type: string, id: string, dx = 5, dy = 5) {
+  async function touch(page: Page, type: string, id: string, dx = 5, dy = 5) {
     await page.evaluate(
       ({ type, id, dx, dy }) => {
         const el = document.getElementById(id)!
@@ -126,14 +122,14 @@ test.describe("$context_menu long-press shim", () => {
     )
   }
 
-  async function counts(page: import("@playwright/test").Page) {
+  async function counts(page: Page) {
     return page.evaluate(() => {
       const w = window as unknown as { menus: number; clicks: number }
       return { menus: w.menus, clicks: w.clicks }
     })
   }
 
-  async function click_target(page: import("@playwright/test").Page) {
+  async function click_target(page: Page) {
     await page.evaluate(() =>
       document.getElementById("target")!.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true })),
     )

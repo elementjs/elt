@@ -1,8 +1,4 @@
-import { expect, test } from "@playwright/test"
-
-test.beforeEach(async ({ page }) => {
-  await page.goto("/tests/browser/harness.html")
-})
+import { type Page, expect, test } from "./fixture"
 
 // Inside <e-prose>, a run of typographic elements keeps its own rhythm, while non-typographic
 // children (rows, columns, widgets) are spaced by the prose's `spacing` — padded or not. Where the
@@ -10,7 +6,7 @@ test.beforeEach(async ({ page }) => {
 test.describe("e-prose spacing between non-typographic children", () => {
   /** Builds `<e-prose {attrs}>{children}</e-prose>` and returns the vertical gap between each pair of
    * consecutive children, in px. */
-  async function gaps(page: import("@playwright/test").Page, attrs: Record<string, string>, tags: string[]) {
+  async function gaps(page: Page, attrs: Record<string, string>, tags: string[]) {
     return page.evaluate(
       ({ attrs, tags }) => {
         const prose = document.createElement("e-prose")
@@ -127,7 +123,7 @@ test("a flex element directly inside a text-only element is inline-flex; inside 
 // applies to their direct children. Appearance (heading sizes, …) applies everywhere.
 test.describe("prose containers and text blocks", () => {
   /** Mounts `html` in a fresh host and returns `fn`'s result, evaluated in the page. */
-  async function measure<T>(page: import("@playwright/test").Page, html: string, fn: string) {
+  async function measure<T>(page: Page, html: string, fn: string) {
     return page.evaluate(
       ({ html, fn }) => {
         const host = document.createElement("div")
@@ -229,7 +225,7 @@ test.describe("prose containers and text blocks", () => {
 })
 
 /** Mounts `html` in a fresh host under the light theme and returns `fn(host)`'s result, evaluated in the page. */
-async function mount<T>(page: import("@playwright/test").Page, html: string, fn: string) {
+async function mount<T>(page: Page, html: string, fn: string) {
   return page.evaluate(
     ({ html, fn }) => {
       document.body.className = String(window.__ELT__.UI.theme.class_light_scheme)

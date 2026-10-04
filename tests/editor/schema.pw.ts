@@ -1,8 +1,4 @@
-import { expect, test } from "@playwright/test"
-
-test.beforeEach(async ({ page }) => {
-  await page.goto("/tests/browser/harness.html")
-})
+import { expect, test } from "../fixture"
 
 test.describe("schema CommonNodeOptions", () => {
   test("composite Options accept shared node config fields", async ({ page }) => {

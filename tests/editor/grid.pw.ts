@@ -1,20 +1,11 @@
-import { expect, test } from "@playwright/test"
+import { type Page, expect, test } from "../fixture"
 
 // Composite grid layout (Layer 2 header/toolbar, Layer 3 grid, Layer 4 "a widget is its cell").
 // Geometry is read from the real layout, so these run in a real browser like every other test.
 
-test.beforeEach(async ({ page }) => {
-  await page.goto("/tests/browser/harness.html")
-})
-
 /** Waits three frames: laid out on the first, columns locked on the next (observe_layout defers). */
-async function settle(page: import("@playwright/test").Page) {
-  await page.evaluate(
-    () =>
-      new Promise((r) =>
-        requestAnimationFrame(() => requestAnimationFrame(() => requestAnimationFrame(() => r(undefined)))),
-      ),
-  )
+async function settle(page: Page) {
+  await page.evaluate(() => window.__ELT__.frames(3))
 }
 
 test.describe("composite chrome", () => {
@@ -64,7 +55,7 @@ test.describe("composite chrome", () => {
       })
       node_append(document.body, shell.node)
       shell.node.querySelector<HTMLButtonElement>('button[title="Open nested"]')!.click()
-      await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))
+      await window.__ELT__.frames(2)
       const panel = document.querySelector("[popover] e-column[packed]")!
       const header = panel.querySelector("e-row")!
       const res = {
@@ -265,7 +256,7 @@ test.describe("composite grid", () => {
       const search = shell.node.querySelector<HTMLInputElement>('input[type="search"]')!
       search.value = "second" // third column: beyond the two-key preview text
       search.dispatchEvent(new Event("input", { bubbles: true }))
-      await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))
+      await window.__ELT__.frames(2)
       return [...shell.node.querySelectorAll("e-grid-row:not([sticky]) > :first-child")].map((c) => c.textContent)
     })
     expect(labels).toEqual(["1"])
@@ -350,7 +341,7 @@ test("opening and closing nested columns leaves the root's cells and locked widt
     const root_input = () => shell.querySelector('e-grid-row > input[type="text"]')
     const template = () => shell.querySelector<HTMLElement>("e-grid")!.style.gridTemplateColumns
     const before = { input: root_input(), template: template() }
-    const frames = () => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))
+    const frames = () => window.__ELT__.frames(2)
     shell.querySelector<HTMLButtonElement>('button[title="Open a"]')!.click()
     await frames()
     shell.querySelector<HTMLButtonElement>('button[title="Open b"]')!.click()
@@ -373,7 +364,7 @@ test("$resizable freezes a <table>'s header widths once it is laid out", async (
     node_append(document.body, table)
     const before = table.style.tableLayout
     // Laid out on the first frame, frozen on the next (observe_layout defers to the next frame).
-    await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(() => requestAnimationFrame(r))))
+    await window.__ELT__.frames(3)
     const ths = [...table.querySelectorAll("th")]
     return {
       before,
@@ -431,7 +422,7 @@ test.describe("column layout", () => {
       })
       node_append(document.body, shell.node)
       const ta = shell.node.querySelector("textarea")!
-      const frames = () => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))
+      const frames = () => window.__ELT__.frames(2)
       await frames()
       const before = ta.getBoundingClientRect().height
       o_root.set({ bio: "1\n2\n3\n4\n5" })
@@ -446,7 +437,6 @@ test.describe("column layout", () => {
 test.describe("search inputs are form controls (regression: input[type=search] kept the browser's own style)", () => {
   test("same font size and text color as a text input, in dark mode too", async ({ page }) => {
     await page.emulateMedia({ colorScheme: "dark" })
-    await page.goto("/tests/browser/harness.html")
     const result = await page.evaluate(() => {
       const { node_append } = window.__ELT__
       const make = (type: string) => {

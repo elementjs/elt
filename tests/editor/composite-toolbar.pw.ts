@@ -1,8 +1,4 @@
-import { expect, test } from "@playwright/test"
-
-test.beforeEach(async ({ page }) => {
-  await page.goto("/tests/browser/harness.html")
-})
+import { expect, test } from "../fixture"
 
 test.describe("composite toolbar search", () => {
   test("empty query shows all rows", async ({ page }) => {

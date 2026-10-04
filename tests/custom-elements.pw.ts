@@ -1,8 +1,4 @@
-import { expect, test } from "@playwright/test"
-
-test.beforeEach(async ({ page }) => {
-  await page.goto("/tests/browser/harness.html")
-})
+import { expect, test } from "./fixture"
 
 test.describe("EltCustomElement attributes", () => {
   test("an attribute written in the HTML is converted on connection (regression: the raw string was copied)", async ({

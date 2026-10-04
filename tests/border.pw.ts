@@ -1,8 +1,4 @@
-import { expect, test } from "@playwright/test"
-
-test.beforeEach(async ({ page }) => {
-  await page.goto("/tests/browser/harness.html")
-})
+import { expect, test } from "./fixture"
 
 test.describe("[border]/[surface] color-step value type (docs/md/ui-theme.md)", () => {
   test('bare [border] resolves to the flat "widget" neutral color (neutral.faded), independent of ambient surface', async ({

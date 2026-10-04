@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test"
+import { type Page, test, expect } from "@playwright/test"
 
 // Shared helpers, installed on `window` before the harness script runs (see addInitScript below),
 // so every test's page.evaluate() can reuse them instead of redefining them inline. They only
@@ -899,7 +899,7 @@ test.describe("Repeat", () => {
   test.describe("minimal DOM operations", () => {
     // Mounts a keyed list of inputs, one per string, and records the child list mutations of the
     // container during `o_lst.set(next)`.
-    const run_update = (page: import("@playwright/test").Page, initial: string[], next: string[], focus?: string) =>
+    const run_update = (page: Page, initial: string[], next: string[], focus?: string) =>
       page.evaluate(
         ({ initial, next, focus }) => {
           const { o, Repeat, node_append } = window.__ELT__

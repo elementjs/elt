@@ -1,8 +1,4 @@
-import { expect, test } from "@playwright/test"
-
-test.beforeEach(async ({ page }) => {
-  await page.goto("/tests/browser/harness.html")
-})
+import { expect, test } from "../fixture"
 
 test.describe("constructor registry", () => {
   test("resolve_factory_from_value returns fallback for null and primitives", async ({ page }) => {

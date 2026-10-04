@@ -1,13 +1,9 @@
-import { test, expect } from "@playwright/test"
+import { test, expect } from "./fixture"
 
 // Content shown through an observable (If, Switch, Repeat, an observable child, a derived
 // attribute) is rendered as soon as it is built, while its tree is still offscreen, even when the
 // observable is derived (`.tf`) and nobody watches it yet. Mounting the tree then renders nothing
 // again: transforms only run a second time if a dependency changed in between.
-
-test.beforeEach(async ({ page }) => {
-  await page.goto("/tests/browser/harness.html")
-})
 
 test.describe("offscreen first render", () => {
   test("If, Switch and a Repeat over a derived list render before the tree is mounted (regression)", async ({
@@ -201,8 +197,7 @@ test.describe("offscreen first render", () => {
     const r = await page.evaluate(async () => {
       const { o, DisplayPromise, node_append, node_remove } = window.__ELT__
       let thens = 0
-      let resolve!: (v: string) => void
-      const p = new Promise<string>((res) => (resolve = res))
+      const { promise: p, resolve } = window.__ELT__.deferred<string>()
       const orig_then = p.then.bind(p)
       // biome-ignore lint/suspicious/noThenProperty: counts the subscriptions to the promise
       ;(p as any).then = (...args: any[]) => {

@@ -1,15 +1,11 @@
-import { expect, test } from "@playwright/test"
-
-test.beforeEach(async ({ page }) => {
-  await page.goto("/tests/browser/harness.html")
-})
+import { type Page, expect, test } from "./fixture"
 
 // Disabled controls move their full-strength colors halfway toward the background (`.mid`), with no
 // transparency (docs/md/ui-theme.md, "State").
 test.describe("disabled controls", () => {
   /** Mounts `html`, returns the computed color/opacity of `selector`, and the reference value of `mix`
    * (a theme.colors expression such as "text.mid") resolved through the same element's context. */
-  async function probe(page: import("@playwright/test").Page, html: string, selector: string, mix: string) {
+  async function probe(page: Page, html: string, selector: string, mix: string) {
     return page.evaluate(
       ({ html, selector, mix }) => {
         const { theme } = window.__ELT__.UI
@@ -122,11 +118,7 @@ test.describe("$auto_grow (regression: resizing inside its ResizeObserver raised
       node_append(ta, $auto_grow())
       box.appendChild(ta)
       node_append(document.body, box)
-      const frames = (n: number) =>
-        new Promise<void>((r) => {
-          const step = (k: number) => (k === 0 ? r() : requestAnimationFrame(() => step(k - 1)))
-          step(n)
-        })
+      const { frames } = window.__ELT__
       await frames(3)
       const wide = ta.getBoundingClientRect().height
       box.style.width = "150px" // narrower: more lines
@@ -143,7 +135,7 @@ test.describe("$auto_grow (regression: resizing inside its ResizeObserver raised
 // A field whose value is wrong: border and focus ring take the error color (docs/md/ui-forms.md#invalid-fields).
 test.describe("invalid fields", () => {
   /** The border and box-shadow of `selector`, and the error / error.mid / neutral.mid colors resolved next to it. */
-  async function look(page: import("@playwright/test").Page, selector: string) {
+  async function look(page: Page, selector: string) {
     return page.evaluate((selector) => {
       const { theme } = window.__ELT__.UI
       const el = document.querySelector(selector) as HTMLElement
@@ -252,13 +244,8 @@ test.describe("$auto_grow without a window resize listener", () => {
       node_append(document.body, ta)
     })
     const height = () =>
-      page.evaluate(
-        () =>
-          new Promise<number>((r) =>
-            requestAnimationFrame(() =>
-              requestAnimationFrame(() => r(document.getElementById("ta")!.getBoundingClientRect().height)),
-            ),
-          ),
+      page.evaluate(() =>
+        window.__ELT__.frames(2).then(() => document.getElementById("ta")!.getBoundingClientRect().height),
       )
     const wide = await height()
     await page.setViewportSize({ width: 300, height: 600 })

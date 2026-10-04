@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test"
+import { expect, test } from "./fixture"
 
 // RepeatVirtual in a real scroll area (real layout, no mocked geometry): padders, finding the scroll
 // area, prefix/suffix/empty, and an infinite e-grid with sticky rows.
@@ -6,7 +6,6 @@ import { expect, test } from "@playwright/test"
 
 declare global {
   interface Window {
-    __frames: (count?: number) => Promise<void>
     /** Mounts a 200px-high scroll area (`e-column scroll`, no gap) with `build(area)` inside, returns the area. */
     __area: (build: (area: HTMLElement) => void) => HTMLElement
     __scroll: (area: HTMLElement, top: number) => Promise<void>
@@ -16,17 +15,13 @@ declare global {
 }
 
 test.beforeEach(async ({ page }) => {
-  await page.goto("/tests/browser/harness.html")
   await page.addScriptTag({
     content: `
-      window.__frames = async (count = 6) => {
-        for (let i = 0; i < count; i++) await new Promise((r) => requestAnimationFrame(r))
-      }
       // Scrolls area to top and lets RepeatVirtual converge.
       window.__scroll = async (area, top) => {
         area.scrollTop = top
         area.dispatchEvent(new Event("scroll"))
-        await window.__frames(10)
+        await window.__ELT__.frames(10)
       }
       // e-grid columns=3 packed border in a bordered area, sticky header and footer around 10 000 rows.
       // Cells clip their text: it would overflow their fixed height and lengthen the scroll content.
@@ -91,7 +86,7 @@ test.describe("padders and scroll area", () => {
         )
         node_append(area, col)
       })
-      await window.__frames()
+      await window.__ELT__.frames(6)
       const elements = () => [...col.children] as HTMLElement[]
       const [top, bottom] = [elements()[0], elements().at(-1)!]
       const state = () => ({
@@ -139,7 +134,7 @@ test.describe("padders and scroll area", () => {
         )
         node_append(area, col)
       })
-      await window.__frames()
+      await window.__ELT__.frames(6)
       await window.__scroll(area, 3000)
       const padder = col.querySelector("e-virtual-padder") as HTMLElement
       const cs = getComputedStyle(padder)
@@ -242,7 +237,7 @@ test.describe("padders and scroll area", () => {
           If(o_second, () => RepeatVirtual(o([4, 5, 6]), render)),
         )
       })
-      await window.__frames()
+      await window.__ELT__.frames(6)
       const both = area.style.overflowAnchor
       o_first.set(false)
       const one = area.style.overflowAnchor
@@ -272,7 +267,7 @@ test.describe("padders and scroll area", () => {
           node_append(area, holder)
         }
       })
-      await window.__frames()
+      await window.__ELT__.frames(6)
       // Each list is 300 rows of 20px: list a spans 0–6000, list b 6000–12000. The row at the area's
       // top must always be the one its scroll offset designates.
       const seen: string[] = []
@@ -325,7 +320,7 @@ test.describe("padders and scroll area", () => {
         table.append(tbody)
         node_append(area, table)
       })
-      await window.__frames()
+      await window.__ELT__.frames(6)
       await scroll(area, 5000)
       const padder = tbody.querySelector("e-virtual-padder") as HTMLElement
       const a = area.getBoundingClientRect()
@@ -362,7 +357,7 @@ test.describe("padders and scroll area", () => {
             .DisplayWhenEmpty(() => mk("empty", "E")),
         )
       })
-      await window.__frames()
+      await window.__ELT__.frames(6)
       const has = (cls: string) => area.querySelector(`.${cls}`) != null
       const at_top = { prefix: has("prefix"), suffix: has("suffix"), empty: has("empty") }
       await scroll(area, 4000)
@@ -371,7 +366,7 @@ test.describe("padders and scroll area", () => {
       await scroll(area, area.scrollHeight)
       const at_end = { prefix: has("prefix"), suffix: has("suffix") }
       o_lst.set([])
-      await window.__frames()
+      await window.__ELT__.frames(6)
       const empty = { prefix: has("prefix"), suffix: has("suffix"), empty: has("empty") }
       return { at_top, middle, at_end, empty }
     })
@@ -398,7 +393,7 @@ test.describe("padders and scroll area", () => {
             .SeparateWith(() => Object.assign(document.createElement("hr"), { className: "sep" })),
         )
       })
-      await window.__frames()
+      await window.__ELT__.frames(6)
       const rows = area.querySelectorAll(".row").length
       const seps = area.querySelectorAll(".sep").length
       return { rows, seps }
@@ -413,7 +408,7 @@ test.describe("infinite e-grid with sticky rows", () => {
     const res = await page.evaluate(async () => {
       const scroll = window.__scroll
       const area = window.__area(window.__buildGrid)
-      await window.__frames()
+      await window.__ELT__.frames(6)
       const pos = () => {
         const a = area.getBoundingClientRect()
         const cs = getComputedStyle(area)
@@ -446,7 +441,7 @@ test.describe("infinite e-grid with sticky rows", () => {
   }) => {
     const res = await page.evaluate(async () => {
       const area = window.__area(window.__buildGrid)
-      await window.__frames()
+      await window.__ELT__.frames(6)
       const head = area.querySelector(".head")!.getBoundingClientRect()
       const row0 = area.querySelector(".row")!.getBoundingClientRect()
       const grid = getComputedStyle(area.querySelector("e-grid")!)
@@ -467,7 +462,7 @@ test.describe("infinite e-grid with sticky rows", () => {
     const res = await page.evaluate(async () => {
       const scroll = window.__scroll
       const area = window.__area(window.__buildGrid)
-      await window.__frames()
+      await window.__ELT__.frames(6)
       // Scroll down in small steps; after each, the row under a fixed point must match the
       // scroll offset (rows are 20px + 1px seam), never jump back or skip.
       const labels: number[] = []
@@ -496,7 +491,7 @@ test.describe("sticky rows during scrolls faster than the list follows (regressi
     test(`header and footer stay on the edges with ${step}px per frame, down then up`, async ({ page }) => {
       const res = await page.evaluate(async (step) => {
         const area = window.__area(window.__buildGrid)
-        await window.__frames()
+        await window.__ELT__.frames(6)
         await window.__scroll(area, 100000)
         const head = area.querySelector(".head")!
         const foot = area.querySelector(".foot")!
@@ -511,7 +506,7 @@ test.describe("sticky rows during scrolls faster than the list follows (regressi
         const moved: string[] = []
         for (const dir of [1, -1]) {
           for (let i = 0; i < 20; i++) {
-            await new Promise((r) => requestAnimationFrame(r))
+            await window.__ELT__.frames()
             area.scrollTop += dir * step
             const [h, f] = off()
             if (h !== 0 || f !== 0) moved.push(`${dir > 0 ? "down" : "up"} #${i}: head ${h}, foot ${f}`)
@@ -555,7 +550,7 @@ test.describe("hiding the top padder at row 0 (no gap value is known: the padder
           const build = new Function(`return ${build_src}`)()
           const scroll = window.__scroll
           const area = window.__area(build)
-          await window.__frames()
+          await window.__ELT__.frames(6)
           const rows = () => [...area.querySelectorAll(".row")] as HTMLElement[]
           const index = (row: HTMLElement) => Number.parseInt(row.textContent!, 10)
           // Offset in the scroll content, from the area's top, of a row's top.
@@ -604,7 +599,7 @@ test.describe("margins after a jump (regression: a jump used to land with no row
       const res = await page.evaluate(async (item_size) => {
         const scroll = window.__scroll
         const area = window.__area((a) => window.__buildGrid(a, item_size))
-        await window.__frames()
+        await window.__ELT__.frames(6)
         // Rendered extent beyond the viewport, above and below.
         const margins = () => {
           const a = area.getBoundingClientRect()
@@ -639,7 +634,7 @@ test.describe("ui Select", () => {
       })
       node_append(document.body, btn)
       btn.click()
-      await window.__frames(10)
+      await window.__ELT__.frames(10)
       const area = document.querySelector("[role=listbox]") as HTMLElement
       const col = area.querySelector("e-column")!
       const options = col.querySelectorAll("[role=option]").length
@@ -679,7 +674,7 @@ test.describe("appending while the window reaches the end", () => {
           ).ItemSize(20),
         )
       })
-      await window.__frames()
+      await window.__ELT__.frames(6)
       o_lst.set([...o_lst.get(), 3])
       const after_one = area.querySelectorAll(".row").length
       o_lst.set([...o_lst.get(), ...Array.from({ length: 10000 }, (_, i) => i + 4)])
@@ -702,7 +697,7 @@ test.describe("object editor table (array of objects)", () => {
       const rows = Array.from({ length: 5000 }, (_, i) => ({ name: `n${i}`, kind: "k" }))
       const widget = array({ values: object({ properties: [] }), mode: "table" } as any).render(o(rows) as any)
       node_append(document.body, widget.render() as HTMLElement)
-      await window.__frames(10)
+      await window.__ELT__.frames(10)
       const grid = document.querySelector("e-grid") as HTMLElement
       const head = grid.querySelector("e-grid-row[sticky=top]") as HTMLElement
       // The template the grid sets (locked widths), not the used sizes: the last column also fills.

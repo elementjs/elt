@@ -1,8 +1,4 @@
-import { expect, test } from "@playwright/test"
-
-test.beforeEach(async ({ page }) => {
-  await page.goto("/tests/browser/harness.html")
-})
+import { expect, test } from "./fixture"
 
 // An @inline-example's result renders only once it nears the viewport (docs/md/about-this-documentation.md).
 test.describe("docs CodeExample: lazily run inline examples", () => {

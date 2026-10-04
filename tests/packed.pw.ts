@@ -1,9 +1,5 @@
-import { expect, test } from "@playwright/test"
+import { type Page, expect, test } from "./fixture"
 import { expect_seams } from "./seams"
-
-test.beforeEach(async ({ page }) => {
-  await page.goto("/tests/browser/harness.html")
-})
 
 test.describe("packed seam suppression (docs/md/ui-layout.md, per-element self-detection)", () => {
   test("row: bordered button followed by an unbordered sibling still suppresses its own trailing border", async ({
@@ -764,7 +760,7 @@ test.describe("packed border seamless (docs/md/ui-layout.md#packed)", () => {
 // A packed container's step is the step of what it packs: packed="X" sets the container's own step to
 // X, so a bare border's radius matches its children's padding instead of the inherited step.
 test.describe('packed="X" is the container\'s own step (docs/md/ui-layout.md#packed)', () => {
-  const run = (page: import("@playwright/test").Page, attrs: Record<string, string>) =>
+  const run = (page: Page, attrs: Record<string, string>) =>
     page.evaluate((attrs) => {
       const outer = document.createElement("e-column")
       outer.setAttribute("spacing", "section")

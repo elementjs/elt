@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test"
+import { type Page, expect, test } from "./fixture"
 
 /*
  * Contrast of text on surface levels, with the default palette.
@@ -21,7 +21,7 @@ type Row = {
 
 type Band = { scheme: "light" | "dark"; family: "tint" | "neutral"; text: number }
 
-async function measure(page: import("@playwright/test").Page): Promise<{ rows: Row[]; bands: Band[] }> {
+async function measure(page: Page): Promise<{ rows: Row[]; bands: Band[] }> {
   return page.evaluate(() => {
     const { theme } = window.__ELT__.UI
 
@@ -98,13 +98,11 @@ async function measure(page: import("@playwright/test").Page): Promise<{ rows: R
  * hover and pressed may go two levels past, since they only last a moment.
  */
 test("text stays readable on tint- and neutral-inverted bands (default palette)", async ({ page }) => {
-  await page.goto("/tests/browser/harness.html")
   const { bands } = await measure(page)
   for (const b of bands) expect(b.text, `${b.scheme} ${b.family} inverted`).toBeGreaterThanOrEqual(4.5)
 })
 
 test("text stays readable on every surface level up to 6 (default palette)", async ({ page }) => {
-  await page.goto("/tests/browser/harness.html")
   const { rows } = await measure(page)
   for (const r of rows.filter((r) => r.level <= 6)) {
     const where = `${r.scheme} ${r.family} level ${r.level}`

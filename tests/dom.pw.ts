@@ -1,8 +1,4 @@
-import { test, expect } from "@playwright/test"
-
-test.beforeEach(async ({ page }) => {
-  await page.goto("/tests/browser/harness.html")
-})
+import { test, expect } from "./fixture"
 
 test.describe("style attribute", () => {
   test("an observable style accepts a string, null and objects, and removes the properties a new object drops (regression: strings and null broke)", async ({

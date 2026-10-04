@@ -1,8 +1,4 @@
-import { expect, test } from "@playwright/test"
-
-test.beforeEach(async ({ page }) => {
-  await page.goto("/tests/browser/harness.html")
-})
+import { expect, test } from "./fixture"
 
 test("css`` rewrites a class name of one letter, as longer ones (regression: one letter gave an empty class)", async ({
   page,

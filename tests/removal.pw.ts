@@ -1,12 +1,8 @@
-import { test, expect } from "@playwright/test"
+import { test, expect } from "./fixture"
 
 // Every removal and move done by elt goes through node_remove_range / node_move_range. These tests
 // pin the behaviour shared by all their callers: nodes are disconnected while still in place, then
 // detached, and moves carry a comment holder with its whole content.
-
-test.beforeEach(async ({ page }) => {
-  await page.goto("/tests/browser/harness.html")
-})
 
 test.describe("removal", () => {
   test("node_remove_range disconnects every node while still attached, then detaches them all", async ({ page }) => {

@@ -1,8 +1,4 @@
-import { expect, test } from "@playwright/test"
-
-test.beforeEach(async ({ page }) => {
-  await page.goto("/tests/browser/harness.html")
-})
+import { expect, test } from "../fixture"
 
 // Shared helper used inside every page.evaluate below: mounts an element into
 // document.body and fires a real DOM event on it. Rebuilt per-test since each

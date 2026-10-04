@@ -1,13 +1,9 @@
-import { expect, test } from "@playwright/test"
-
-test.beforeEach(async ({ page }) => {
-  await page.goto("/tests/browser/harness.html")
-})
+import { type Page, expect, test } from "./fixture"
 
 type W = Window & { activated: string[] }
 
 /** A menu of `labels` (null → an <hr>, "#x" → a header, "-x" → a disabled item) wired with menu_nav. */
-async function mount_menu(page: import("@playwright/test").Page, labels: (string | null)[]) {
+async function mount_menu(page: Page, labels: (string | null)[]) {
   await page.evaluate((labels) => {
     const { UI, node_append } = window.__ELT__
     const w = window as unknown as W
@@ -40,7 +36,7 @@ async function mount_menu(page: import("@playwright/test").Page, labels: (string
   await page.waitForFunction(() => document.activeElement?.id === "menu")
 }
 
-async function active(page: import("@playwright/test").Page) {
+async function active(page: Page) {
   return page.evaluate(() => {
     const menu = document.getElementById("menu")!
     const id = menu.getAttribute("aria-activedescendant")
@@ -203,7 +199,7 @@ test.describe("focus_when_shown", () => {
       UI.focus_when_shown(el)
       node_append(document.body, el)
       node_do_disconnect(el)
-      await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))
+      await window.__ELT__.frames(2)
       const result = document.activeElement === el
       node_remove(el)
       return result

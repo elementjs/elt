@@ -1,8 +1,4 @@
-import { expect, test } from "@playwright/test"
-
-test.beforeEach(async ({ page }) => {
-  await page.goto("/tests/browser/harness.html")
-})
+import { type Page, expect, test } from "./fixture"
 
 test.describe("Color.hover / Color.separator", () => {
   test("hover mixes at level n+1", async ({ page }) => {
@@ -666,7 +662,7 @@ test.describe("Theme class_*_scheme (regression: renamed from class_light/class_
 // Regression: the guard used `||`, so it threw only when all three colors were missing; one missing
 // color, or one the browser can't read, surfaced later as an unrelated TypeError.
 test.describe("Theme validation", () => {
-  async function construct(page: import("@playwright/test").Page, light: Record<string, string>) {
+  async function construct(page: Page, light: Record<string, string>) {
     return page.evaluate((light) => {
       const { Theme } = window.__ELT__.UI
       const before = document.body.childElementCount

@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test"
+import { type Page, test, expect } from "./fixture"
 
 // Motion, scoped to verbs (docs/md/motion.md): nodes enter and leave with a verb's updates (or an
 // insertion / removal with `motion`), never on a verb's first render, and only up to the content of
@@ -10,8 +10,6 @@ declare global {
     __motion__: {
       /** A live container holding one `div` per id (20px tall each), with `style` on the container. */
       mount: (ids: string[], style?: string) => HTMLElement
-      /** A promise settled from outside. */
-      deferred: () => { promise: Promise<void>; resolve: () => void; reject: () => void }
       tick: () => Promise<void>
       /** An element with an id, its text the id. */
       el: (tag: string, id: string) => HTMLElement
@@ -20,7 +18,6 @@ declare global {
 }
 
 test.beforeEach(async ({ page }) => {
-  await page.goto("/tests/browser/harness.html")
   await page.evaluate(() => {
     const { node_append, motion_enabled } = window.__ELT__
     motion_enabled(true)
@@ -42,15 +39,6 @@ test.beforeEach(async ({ page }) => {
         }
         node_append(document.body, c)
         return c
-      },
-      deferred() {
-        let resolve!: () => void
-        let reject!: () => void
-        const promise = new Promise<void>((res, rej) => {
-          resolve = res
-          reject = rej
-        })
-        return { promise, resolve, reject }
       },
       tick: () => new Promise((r) => setTimeout(r)),
       el,
@@ -93,7 +81,7 @@ test.describe("leaving: the removed node", () => {
       const c = window.__motion__.mount(["a"])
       const a = c.querySelector("#a") as HTMLElement
       $observe(o(0), () => {})(a)
-      const d = window.__motion__.deferred()
+      const d = window.__ELT__.deferred()
       node_on_leave(a, () => d.promise)
       node_remove(a, true)
       const during = {
@@ -118,7 +106,7 @@ test.describe("leaving: the removed node", () => {
       const { node_remove, node_on_leave } = window.__ELT__
       const c = window.__motion__.mount(["a", "b"])
       const [a, b] = [...c.children] as HTMLElement[]
-      const d = window.__motion__.deferred()
+      const d = window.__ELT__.deferred()
       node_on_leave(a, () => d.promise)
       node_on_leave(b, () => {
         throw new Error("boom")
@@ -138,8 +126,8 @@ test.describe("leaving: the removed node", () => {
       const { node_remove, node_on_leave } = window.__ELT__
       const c = window.__motion__.mount(["a"])
       const a = c.querySelector("#a") as HTMLElement
-      const d1 = window.__motion__.deferred()
-      const d2 = window.__motion__.deferred()
+      const d1 = window.__ELT__.deferred()
+      const d2 = window.__ELT__.deferred()
       node_on_leave(a, () => d1.promise)
       node_on_leave(a, () => d2.promise)
       node_on_leave(a, () => {})
@@ -218,7 +206,7 @@ test.describe("leaving: the removed node", () => {
       const hook = (n: HTMLElement) =>
         node_on_leave(n, () => {
           calls.push(n.id)
-          const d = window.__motion__.deferred()
+          const d = window.__ELT__.deferred()
           ds.push(d.resolve)
           return d.promise
         })
@@ -321,8 +309,8 @@ test.describe("leaving: descendants and verbs", () => {
       const cell = window.__motion__.el("span", "cell")
       node_append(row, cell)
       node_append(c, row)
-      const own = window.__motion__.deferred()
-      const child = window.__motion__.deferred()
+      const own = window.__ELT__.deferred()
+      const child = window.__ELT__.deferred()
       node_on_leave(row, () => own.promise)
       node_on_leave(cell, () => child.promise)
       node_remove(row, true)
@@ -377,7 +365,7 @@ test.describe("leaving: descendants and verbs", () => {
       node_append(c, [row, lonely])
       $leave(null)(row)
       $leave(null)(lonely)
-      const d = window.__motion__.deferred()
+      const d = window.__ELT__.deferred()
       node_on_leave(cell, () => d.promise)
       node_remove(row, true)
       node_remove(lonely, true)
@@ -527,7 +515,7 @@ test.describe("condemned leaving nodes", () => {
       const c = window.__motion__.mount(["a", "b"])
       const b = c.querySelector("#b") as HTMLElement
       $observe(o(0), () => {})(b)
-      const d = window.__motion__.deferred()
+      const d = window.__ELT__.deferred()
       node_on_leave(b, () => d.promise)
       node_remove(b, true)
       node_remove(c)
@@ -621,7 +609,7 @@ test.describe("floating", () => {
       const b = c.querySelector("#b") as HTMLElement
       const cc = c.querySelector("#c") as HTMLElement
       const top = cc.offsetTop
-      const d = window.__motion__.deferred()
+      const d = window.__ELT__.deferred()
       node_on_leave(b, () => d.promise, { flow: true })
       node_remove(b, true)
       const during = cc.offsetTop
@@ -1205,9 +1193,7 @@ test.describe("windowed lists", () => {
   test("RepeatVirtual (keyed): scrolling never animates rows ; removing a rendered row does", async ({ page }) => {
     const r = await page.evaluate(async () => {
       const { o, RepeatVirtual, node_append, node_on_enter, node_on_leave } = window.__ELT__
-      const frames = async (n: number) => {
-        for (let i = 0; i < n; i++) await new Promise((r) => requestAnimationFrame(r))
-      }
+      const { frames } = window.__ELT__
       const counts = { enter: 0, leave: 0 }
       const o_list = o(Array.from({ length: 300 }, (_, i) => i))
       const scroller = document.createElement("div")
@@ -1261,7 +1247,7 @@ test.describe("windowed lists", () => {
 
 test.describe("Repeat reuse of removed items", () => {
   // A filter change: banana and cherry go, date comes. Rows marked * are leaving.
-  const run = (page: import("@playwright/test").Page, keyed: boolean) =>
+  const run = (page: Page, keyed: boolean) =>
     page.evaluate((keyed) => {
       const { o, Repeat, node_append, node_on_enter, node_on_leave } = window.__ELT__
       const c = document.createElement("div")

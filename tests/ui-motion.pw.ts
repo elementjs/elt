@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test"
+import { test, expect } from "./fixture"
 
 // elt/ui motion: tokens, the defaults they drive, presets, and popup / dialog entering and leaving.
 // The harness turns motion off ; these tests turn it on.
@@ -6,7 +6,6 @@ import { test, expect } from "@playwright/test"
 type W = Window & { result?: string }
 
 test.beforeEach(async ({ page }) => {
-  await page.goto("/tests/browser/harness.html")
   await page.evaluate(() => window.__ELT__.motion_enabled(true))
 })
 

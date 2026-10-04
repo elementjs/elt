@@ -1,15 +1,11 @@
-import { expect, test } from "@playwright/test"
+import { type Page, expect, test } from "./fixture"
 import { expect_seams } from "./seams"
 
 // e-grid (columns, packed), e-grid-row, frame ownership, sticky and scroll — ui/layout.css.tsx,
 // docs/md/ui-layout.md.
 
-test.beforeEach(async ({ page }) => {
-  await page.goto("/tests/browser/harness.html")
-})
-
 /** Mounts `html` in a fixed-width host and returns nothing; tests query it with `#id`s. */
-async function mount(page: import("@playwright/test").Page, html: string) {
+async function mount(page: Page, html: string) {
   await page.evaluate((html) => {
     const host = document.createElement("div")
     host.style.width = "300px"
@@ -19,7 +15,7 @@ async function mount(page: import("@playwright/test").Page, html: string) {
 }
 
 /** Computed style properties of the element matching `sel`. */
-function styles(page: import("@playwright/test").Page, sel: string, props: string[]) {
+function styles(page: Page, sel: string, props: string[]) {
   return page.evaluate(
     ({ sel, props }) => {
       const st = getComputedStyle(document.querySelector(sel) as Element)
@@ -30,7 +26,7 @@ function styles(page: import("@playwright/test").Page, sel: string, props: strin
 }
 
 /** Resolves a CSS color expression to its computed rgb() form, through a probe element. */
-function color(page: import("@playwright/test").Page, expr: string, inside = "body") {
+function color(page: Page, expr: string, inside = "body") {
   return page.evaluate(
     ({ expr, inside }) => {
       const probe = document.createElement("div")

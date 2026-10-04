@@ -14,6 +14,8 @@ Tests run in a real browser with [Playwright](https://playwright.dev), because e
 - Test files are `tests/*.pw.ts`. Run them all with `bunx playwright test`, or one file with `bunx playwright test tests/<file>.pw.ts`.
 - Playwright serves the harness on port 5391, or reuses a server already listening there. To run a second session at the same time (another checkout, another agent), give it its own port with the `PLAYWRIGHT_PORT` environment variable: `PLAYWRIGHT_PORT=5443 bunx playwright test`.
 - Each test opens the **harness page**, `/tests/browser/harness.html`. It loads `elt`, `elt/ui` (with its theme and styles) and `elt/editor`, and exposes them on `window.__ELT__`: core exports directly, `elt/ui` exports under `.UI`, `elt/editor` exports under `.Editor`.
+- Test files import `test` and `expect` from `tests/fixture.ts`, not from `@playwright/test`: its `test` opens the harness page before each test. A test that must act before the page loads (`page.addInitScript`) imports from `@playwright/test` and calls `page.goto` itself.
+- `window.__ELT__` also holds two helpers for tests, which are not part of elt: `frames(n)` resolves after `n` animation frames (default 1), and `deferred<T>()` returns `{ promise, resolve, reject }`, a promise settled from outside.
 - The test body runs inside the page with `page.evaluate(() => { … })` and returns plain data (numbers, strings, objects) that the test then checks with `expect`. Code inside `page.evaluate` can't use JSX or decorator syntax and can't see variables from the test file: build nodes with `document.createElement` (or `window.__ELT__.e`) and pass any input as `page.evaluate`'s second argument.
 - Mount with `node_append` (from `window.__ELT__`) when the test depends on elt's lifecycle — observers, `$connected`, verbs. Plain `appendChild` is fine for pure CSS checks.
 - `just test-webkit [args]` runs tests in WebKit, inside Playwright's Docker image (Playwright's WebKit build needs system libraries some hosts lack): the motion tests by default, or the given files and options.
@@ -24,11 +26,8 @@ Tests run in a real browser with [Playwright](https://playwright.dev), because e
 ## Example
 
 ```ts
-import { expect, test } from "@playwright/test"
-
-test.beforeEach(async ({ page }) => {
-  await page.goto("/tests/browser/harness.html")
-})
+// tests/fixture.ts: `test` opens the harness page before each test
+import { expect, test } from "./fixture"
 
 test("two widgets in a padded prose are spaced at the pad's step", async ({ page }) => {
   const r = await page.evaluate(() => {

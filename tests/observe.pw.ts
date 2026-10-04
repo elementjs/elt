@@ -1,8 +1,4 @@
-import { test, expect } from "@playwright/test"
-
-test.beforeEach(async ({ page }) => {
-  await page.goto("/tests/browser/harness.html")
-})
+import { test, expect } from "./fixture"
 
 test.describe("$observe", () => {
   test("starts observing when appended and stops after node_remove", async ({ page }) => {

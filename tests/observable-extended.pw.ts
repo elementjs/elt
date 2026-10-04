@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test"
+import { expect, test } from "./fixture"
 // Type-only import: brings in the `o` namespace (for `o.ReadonlyObservable<T>` etc.) used to type
 // the local `spy()` helpers below. The actual runtime `o` used inside `page.evaluate` always comes
 // from `window.__ELT__`, never from this import.
@@ -10,10 +10,6 @@ import type { o } from "elt"
 // `window.__ELT__` instead of a direct `../src/observable` import, and pushes
 // `{ name, actual, expected }` entries into a results array that's returned and then asserted with
 // real `expect()` in Node so Playwright's reporter shows per-assertion pass/fail.
-
-test.beforeEach(async ({ page }) => {
-  await page.goto("/tests/browser/harness.html")
-})
 
 test.describe("Observable extended", () => {
   test.describe("utility and combinators", () => {
@@ -749,10 +745,7 @@ test.describe("Observable extended", () => {
       const results = await page.evaluate(async () => {
         const { o } = window.__ELT__
         const out: { name: string; actual: unknown; expected: unknown }[] = []
-        let resolve!: (v: number) => void
-        const pro = new Promise<number>((r) => {
-          resolve = r
-        })
+        const { promise: pro, resolve } = window.__ELT__.deferred<number>()
         const o_pro = o(pro)
         const wrapped = o.wrap_promise(o_pro)
 
@@ -776,19 +769,13 @@ test.describe("Observable extended", () => {
       const results = await page.evaluate(async () => {
         const { o } = window.__ELT__
         const out: { name: string; actual: unknown; expected: unknown }[] = []
-        let resolve_slow!: (v: number) => void
-        const slow = new Promise<number>((r) => {
-          resolve_slow = r
-        })
+        const { promise: slow, resolve: resolve_slow } = window.__ELT__.deferred<number>()
         const o_pro = o(slow)
         const wrapped = o.wrap_promise(o_pro)
 
         out.push({ name: "resolving before any resolve", actual: wrapped.get().resolving, expected: true })
 
-        let resolve_fast!: (v: number) => void
-        const fast = new Promise<number>((r) => {
-          resolve_fast = r
-        })
+        const { promise: fast, resolve: resolve_fast } = window.__ELT__.deferred<number>()
         o_pro.set(fast)
         out.push({ name: "resolving after swapping promise", actual: wrapped.get().resolving, expected: true })
 

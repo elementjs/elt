@@ -1,10 +1,6 @@
-import { expect, type Page, test } from "@playwright/test"
+import { expect, type Page, test } from "../fixture"
 
 // The editor's context menus (row and header): docs/md/object-editor.md.
-
-test.beforeEach(async ({ page }) => {
-  await page.goto("/tests/browser/harness.html")
-})
 
 type W = Window & { o_root: { get(): any }; prevented: boolean[] }
 

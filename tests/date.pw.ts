@@ -1,13 +1,9 @@
-import { expect, type Page, test } from "@playwright/test"
+import { expect, type Page, test } from "./fixture"
 
 /*
  * DateTimePicker (ui/date.tsx), its text input (ui/date-input.ts) and the time picker columns
  * (ui/timepicker.tsx), driven through the picker as a user would.
  */
-
-test.beforeEach(async ({ page }) => {
-  await page.goto("/tests/browser/harness.html")
-})
 
 type Parts = [number, number, number, number, number, number]
 

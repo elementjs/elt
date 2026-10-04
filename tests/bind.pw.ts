@@ -1,8 +1,4 @@
-import { test, expect } from "@playwright/test"
-
-test.beforeEach(async ({ page }) => {
-  await page.goto("/tests/browser/harness.html")
-})
+import { test, expect } from "./fixture"
 
 test.describe("$bind", () => {
   test("string binds DOM <-> observable", async ({ page }) => {

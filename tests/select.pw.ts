@@ -1,8 +1,4 @@
-import { expect, type Page, test } from "@playwright/test"
-
-test.beforeEach(async ({ page }) => {
-  await page.goto("/tests/browser/harness.html")
-})
+import { expect, type Page, test } from "./fixture"
 
 type W = Window & {
   o_model: { get(): unknown; set(v: unknown): void }

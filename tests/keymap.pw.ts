@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test"
+import { test, expect } from "./fixture"
 
 // Helpers installed on `window` in beforeEach, so that each page.evaluate stays short.
 declare global {
@@ -13,7 +13,6 @@ declare global {
 }
 
 test.beforeEach(async ({ page }) => {
-  await page.goto("/tests/browser/harness.html")
   await page.evaluate(() => {
     const { node_append, UI } = window.__ELT__
     window.kd = (target, init) =>
