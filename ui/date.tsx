@@ -214,7 +214,11 @@ export function DateTimePicker(at: DatePickerAttrs) {
         {$observe(at.model, (val) => {
           lock(() => input_ctrl?.apply_model(val))
         })}
-        {$observe(oo_layout, () => {
+        {$observe(oo_layout, (layout, _, input: HTMLInputElement) => {
+          // Phones show a number pad for `inputmode="numeric"`; a layout with an AM/PM part keeps the
+          // default keyboard, since its letters set AM or PM. No attribute before the locale is known.
+          if (layout && !layout.segments.some((s) => s.kind === "dayPeriod")) input.setAttribute("inputmode", "numeric")
+          else input.removeAttribute("inputmode")
           lock(() => input_ctrl?.apply_model(at.model.get()))
         })}
       </input>

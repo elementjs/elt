@@ -149,6 +149,31 @@ export function day_period_text(locale: string, am: boolean): string {
   )
 }
 
+/**
+ * The AM and PM texts of `locale` (in that order), trimmed and lower-cased for that locale: what typed
+ * letters are compared with. Their first characters can be the same: `오전` / `오후` (ko), `午前` / `午後` (ja),
+ * `ÖÖ` / `ÖS` (tr), and one text can start the other: `PG` / `PTG` (ms).
+ */
+export function day_period_texts(locale: string): [string, string] {
+  return [
+    day_period_text(locale, true).trim().toLocaleLowerCase(locale),
+    day_period_text(locale, false).trim().toLocaleLowerCase(locale),
+  ]
+}
+
+/**
+ * The AM/PM part of the input text (`slice`, `digits` wide) as 0 (AM) or 1 (PM). The texts the mask writes
+ * (cut to the segment width) are recognized whole, so that two texts starting alike (`오전` / `오후`) are told
+ * apart; any other text (pasted, or the `--` of an empty part) is PM when it starts like the PM text, else AM.
+ */
+function parse_day_period(locale: string, slice: string, digits: number): number {
+  const text = slice.trim().toLocaleLowerCase(locale)
+  const [am, pm] = day_period_texts(locale).map((t) => t.slice(0, digits).trim())
+  if (text === pm) return 1
+  if (text === am) return 0
+  return text.startsWith(pm[0] ?? "p") ? 1 : 0
+}
+
 /** {@link day_period_text} trimmed or padded to the segment width from the mask. */
 function day_period_segment(locale: string, am: boolean, digits: number): string {
   return day_period_text(locale, am).slice(0, digits).padEnd(digits, " ")
@@ -253,13 +278,7 @@ export function parse_segments(layout: DateFormatLayout, text: string): SegmentV
   for (const seg of layout.segments) {
     const slice = text.slice(seg.start, seg.end)
     if (seg.kind === "dayPeriod") {
-      const pm_sample = day_period_text(layout.locale, false).trim().toLowerCase()
-      vals.dayPeriod = slice
-        .trim()
-        .toLowerCase()
-        .startsWith(pm_sample[0] ?? "p")
-        ? 1
-        : 0
+      vals.dayPeriod = parse_day_period(layout.locale, slice, seg.digits)
       continue
     }
     const digits = slice.replace(/[^0-9]/g, "")

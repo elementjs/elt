@@ -15,7 +15,8 @@ interface MountOpts {
   clearable?: boolean | "live"
   show_date?: boolean
   show_time?: boolean
-  am_pm?: boolean
+  /** `"live"`: an observable, initially `false`, exposed as `window.o_am_pm`. */
+  am_pm?: boolean | "live"
   /** `"live"`: an observable, initially 1, exposed as `window.o_step`. */
   minute_step?: number | "live"
   variant?: "inverted" | "full" | "tint"
@@ -25,6 +26,7 @@ type W = Window & {
   o_model: { get(): Date | null }
   o_clear: { set(v: boolean): void }
   o_step: { set(v: number): void }
+  o_am_pm: { set(v: boolean): void }
 }
 
 async function mount(page: Page, opts: MountOpts) {
@@ -38,13 +40,15 @@ async function mount(page: Page, opts: MountOpts) {
     const o_model = o<Date | null>(opts.model ? new Date(...opts.model) : null)
     const o_clear = o(false)
     const o_step = o(1)
+    const o_am_pm = o(false)
+    w.o_am_pm = o_am_pm
     w.o_model = o_model
     w.o_clear = o_clear
     w.o_step = o_step
     const common = {
       show_date: opts.show_date,
       show_time: opts.show_time,
-      am_pm: opts.am_pm,
+      am_pm: opts.am_pm === "live" ? o_am_pm : opts.am_pm,
       minute_step: opts.minute_step === "live" ? o_step : opts.minute_step,
       variant: opts.variant,
     }
@@ -126,6 +130,16 @@ test.describe("time-only input (show_date={false})", () => {
     expect(await input_state(page)).toEqual({ value: "12:05 PM", error: "" })
     await blur(page)
     expect(await model(page)).toEqual([2026, 9, 3, 12, 5, 0])
+  })
+
+  test("12-hour time where AM and PM start alike (ja 午前 / 午後): AM stays AM", async ({ page }) => {
+    await mount(page, { lang: "ja", model: [2026, 9, 3, 8, 0, 0], show_date: false, show_time: true, am_pm: true })
+    expect((await input_state(page)).value).toBe("午前08:00")
+    // Focus then blur commits the text as it is: it must read back as the morning, not 20:00.
+    await caret(page, 0)
+    await blur(page)
+    expect(await model(page)).toEqual([2026, 9, 3, 8, 0, 0])
+    expect((await input_state(page)).value).toBe("午前08:00")
   })
 })
 
@@ -505,6 +519,50 @@ test.describe("typing digits into the text field", () => {
     await page.keyboard.type("7")
     expect((await input_state(page)).value).toBe("--:07")
   })
+
+  test("12-hour time: a letter starting AM or PM sets it, in either case", async ({ page }) => {
+    await mount(page, { ...time_12h, model: [2026, 9, 3, 8, 0, 0] })
+    await caret(page, 6)
+    await page.keyboard.type("p")
+    expect(await input_state(page)).toEqual({ value: "08:00 PM", error: "" })
+    // The AM/PM part is the last one: it stays selected.
+    expect(await selected(page)).toEqual([6, 8])
+    await page.keyboard.type("a")
+    expect((await input_state(page)).value).toBe("08:00 AM")
+    await page.keyboard.type("P")
+    expect((await input_state(page)).value).toBe("08:00 PM")
+    await blur(page)
+    expect(await model(page)).toEqual([2026, 9, 3, 20, 0, 0])
+    await caret(page, 6)
+    await page.keyboard.type("A")
+    await blur(page)
+    expect(await model(page)).toEqual([2026, 9, 3, 8, 0, 0])
+  })
+
+  test("12-hour time: a letter starting neither AM nor PM changes nothing", async ({ page }) => {
+    await mount(page, { ...time_12h, model: [2026, 9, 3, 20, 0, 0] })
+    await caret(page, 6)
+    await page.keyboard.type("x")
+    expect((await input_state(page)).value).toBe("08:00 PM")
+  })
+
+  test("AM/PM texts one letter can't tell apart (ms PG / PTG): letters are collected", async ({ page }) => {
+    await mount(page, { lang: "ms", model: [2026, 9, 3, 8, 0, 0], show_date: false, show_time: true, am_pm: true })
+    expect((await input_state(page)).value).toBe("08:00 PG")
+    await caret(page, 6)
+    // `p` starts both texts: nothing changes yet; `t` leaves PTG only (cut to the part's width: PT).
+    await page.keyboard.type("p")
+    expect((await input_state(page)).value).toBe("08:00 PG")
+    await page.keyboard.type("t")
+    expect((await input_state(page)).value).toBe("08:00 PT")
+    await blur(page)
+    expect(await model(page)).toEqual([2026, 9, 3, 20, 0, 0])
+    await caret(page, 6)
+    await page.keyboard.type("pg")
+    expect((await input_state(page)).value).toBe("08:00 PG")
+    await blur(page)
+    expect(await model(page)).toEqual([2026, 9, 3, 8, 0, 0])
+  })
 })
 
 test.describe("on-screen keyboards (text sent as beforeinput)", () => {
@@ -595,5 +653,63 @@ test.describe("on-screen keyboards (text sent as beforeinput)", () => {
     await page.keyboard.type("a")
     expect((await input_state(page)).value).toBe("--:01")
     expect(await page.evaluate(() => (window as unknown as { beforeinputs: number }).beforeinputs)).toBe(1)
+  })
+
+  const time_12h = { model: [2026, 9, 3, 8, 0, 0] as Parts, show_date: false, show_time: true, am_pm: true }
+
+  test("a letter in the AM/PM part sets it, as a typed key does", async ({ page }) => {
+    await mount(page, { ...time_12h, lang: "en-US" })
+    await caret(page, 6)
+    expect(await soft_type(page, "p")).toEqual([true])
+    expect((await input_state(page)).value).toBe("08:00 PM")
+    await soft_type(page, "A")
+    expect((await input_state(page)).value).toBe("08:00 AM")
+    await soft_type(page, "P")
+    await blur(page)
+    expect(await model(page)).toEqual([2026, 9, 3, 20, 0, 0])
+  })
+
+  test("ko (오전 / 오후, AM/PM part first): letters collected until one text is left, then the hour", async ({
+    page,
+  }) => {
+    await mount(page, { ...time_12h, lang: "ko" })
+    expect((await input_state(page)).value).toBe("오전 08:00")
+    await caret(page, 0)
+    expect(await soft_type(page, "오후")).toEqual([true, true])
+    expect((await input_state(page)).value).toBe("오후 08:00")
+    // The next part, the hour, is selected.
+    const sel = await page.evaluate(() => {
+      const input = document.querySelector("#holder input") as HTMLInputElement
+      return [input.selectionStart, input.selectionEnd]
+    })
+    expect(sel).toEqual([3, 5])
+    await blur(page)
+    expect(await model(page)).toEqual([2026, 9, 3, 20, 0, 0])
+  })
+})
+
+test.describe("inputmode: a number pad on phones when there is no AM/PM part", () => {
+  function inputmode(page: Page) {
+    return page.evaluate(() => document.querySelector("#holder input")!.getAttribute("inputmode"))
+  }
+
+  test("a date with a 24-hour time is numeric", async ({ page }) => {
+    await mount(page, { lang: "en-GB", model: [2026, 9, 3, 8, 0, 0], show_time: true })
+    expect(await inputmode(page)).toBe("numeric")
+  })
+
+  test("a 12-hour time keeps the default keyboard (its letters set AM or PM)", async ({ page }) => {
+    await mount(page, { lang: "en-US", model: [2026, 9, 3, 8, 0, 0], show_date: false, show_time: true, am_pm: true })
+    expect(await inputmode(page)).toBe(null)
+  })
+
+  test("follows am_pm changed after mounting", async ({ page }) => {
+    await mount(page, { lang: "en-US", model: [2026, 9, 3, 8, 0, 0], show_date: false, show_time: true, am_pm: "live" })
+    expect(await inputmode(page)).toBe("numeric")
+    await page.evaluate(() => (window as unknown as W).o_am_pm.set(true))
+    await expect.poll(() => inputmode(page)).toBe(null)
+    expect((await input_state(page)).value).toBe("08:00 AM")
+    await page.evaluate(() => (window as unknown as W).o_am_pm.set(false))
+    await expect.poll(() => inputmode(page)).toBe("numeric")
   })
 })

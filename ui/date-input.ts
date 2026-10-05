@@ -4,6 +4,7 @@ import {
   type SegmentKind,
   clamp_segment,
   date_to_values,
+  day_period_texts,
   normalize_step,
   parse_segments,
   format_unavailable,
@@ -70,8 +71,9 @@ export class DateInputController {
    * segment is full (or can't take another digit), then the next segment is selected. Any other way
    * of moving (click, arrows, Backspace, a separator key, focus or blur) starts a new collection, so
    * typing into a segment that already has a value replaces it rather than editing one character.
+   * In the AM/PM segment, the letters typed so far, lower-cased, while they start both texts (see #type_day_period).
    */
-  #typed: { seg: DateFormatSegment; digits: string } | null = null
+  #typed: { seg: DateFormatSegment; chars: string } | null = null
 
   /** The last key completed a segment and selected the next one: a separator typed now is skipped. */
   #auto_advanced = false
@@ -185,8 +187,8 @@ export class DateInputController {
     const start = this.input.selectionStart ?? 0
     const seg = segment_at_caret(layout, start)
 
-    // A digit or a separator is handled here and cancelled, so no `beforeinput` follows for it. A
-    // character this doesn't handle (a letter, a digit outside the digit segments) reaches
+    // A digit, a separator or an AM/PM letter is handled here and cancelled, so no `beforeinput` follows for it. A
+    // character this doesn't handle (another letter, a digit outside the digit segments) reaches
     // #on_beforeinput, which finds it unhandled again and only cancels it: each character is handled once.
     if (ev.key.length === 1 && this.#type_char(layout, ev.key)) {
       ev.preventDefault()
@@ -238,8 +240,9 @@ export class DateInputController {
 
   /**
    * One typed character, from a key press or from text inserted by an on-screen keyboard: a digit goes to
-   * the segment at the caret, a separator selects the next segment. False for any other character (and for
-   * a digit outside the digit segments), which ends the digits being typed.
+   * the segment at the caret, a letter starting the AM or PM text sets the AM/PM segment, a separator
+   * selects the next segment. False for any other character (and for a digit outside the digit segments),
+   * which ends the digits being typed.
    */
   #type_char(layout: DateFormatLayout, ch: string): boolean {
     const seg = segment_at_caret(layout, this.input.selectionStart ?? 0)
@@ -248,6 +251,8 @@ export class DateInputController {
         this.#type_digit(layout, seg, ch)
         return true
       }
+    } else if (seg?.kind === "dayPeriod" && this.#type_day_period(layout, seg, ch)) {
+      return true
     } else if (layout.literals.some((l) => l.char === ch)) {
       this.#type_separator(layout, seg)
       return true
@@ -263,7 +268,7 @@ export class DateInputController {
    * of month, `2` in a month, `3` in a 24-hour hour, `6` in a minute).
    */
   #type_digit(layout: DateFormatLayout, seg: DateFormatSegment, digit: string) {
-    const digits = this.#typed?.seg === seg ? this.#typed.digits + digit : digit
+    const digits = this.#typed?.seg === seg ? this.#typed.chars + digit : digit
     const vals = parse_segments(layout, this.input.value)
     const value = Number(digits)
     vals[seg.kind] = clamp_segment(seg.kind, value, vals)
@@ -273,9 +278,41 @@ export class DateInputController {
     const idx = layout.segments.indexOf(seg)
     // The last segment stays selected: a further digit starts a new collection in it.
     const next = complete ? (layout.segments[idx + 1] ?? seg) : seg
-    this.#typed = complete ? null : { seg, digits }
+    this.#typed = complete ? null : { seg, chars: digits }
     this.#auto_advanced = next !== seg
     this.#write_text(rebuild_from_segments(layout, vals), [next.start, next.end])
+  }
+
+  /**
+   * A character typed into the AM/PM segment `seg`: true when it starts the localized AM or PM text
+   * (ignoring case), which is then set and the next segment selected (`p` gives PM in en-US). When the
+   * letters typed so far start both texts (`p` in ms, whose texts are `PG` / `PTG`), the value is left as
+   * it is and the letters are collected until one text is left (`pt` gives PM). A character that continues
+   * neither text but starts one on its own begins a new collection; one that starts neither returns false.
+   */
+  #type_day_period(layout: DateFormatLayout, seg: DateFormatSegment, ch: string): boolean {
+    const texts = day_period_texts(layout.locale)
+    const typed = ch.toLocaleLowerCase(layout.locale)
+    // The letters typed so far plus this one, or this one alone when that matches nothing.
+    let chars = this.#typed?.seg === seg ? this.#typed.chars + typed : typed
+    let matches = texts.filter((t) => t.startsWith(chars))
+    if (matches.length === 0 && chars !== typed) {
+      chars = typed
+      matches = texts.filter((t) => t.startsWith(chars))
+    }
+    if (matches.length === 0) return false
+    if (matches.length > 1) {
+      this.#typed = { seg, chars }
+      this.#auto_advanced = false
+      return true
+    }
+    const vals = parse_segments(layout, this.input.value)
+    vals.dayPeriod = texts.indexOf(matches[0]) // 0: AM, 1: PM
+    const next = layout.segments[layout.segments.indexOf(seg) + 1] ?? seg
+    this.#typed = null
+    this.#auto_advanced = next !== seg
+    this.#write_text(rebuild_from_segments(layout, vals), [next.start, next.end])
+    return true
   }
 
   /**
