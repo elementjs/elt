@@ -18,7 +18,7 @@ import { o_force_theme } from "elt/ui"
 o_force_theme.set("dark") // "light" | "dark" | "default"
 ```
 
-`o_force_theme` switches the scheme class on `<body>`. To put a fixed scheme on a subtree instead, use the theme's scheme classes (see [Custom theme](#custom-theme)).
+`o_force_theme` switches the scheme class on `<body>`. To put a fixed scheme on a subtree instead, use the theme's scheme classes (see [Custom theme](#custom-theme)). Each scheme class also sets the CSS `color-scheme` (`light`, `dark`, or `light dark` for the default one), so what the browser draws itself (scrollbars, the native parts of form controls such as date picker icons and select dropdowns, system colors like `Canvas`) and CSS `light-dark()` follow the scheme too, including inside a subtree that has its own scheme class.
 
 ## Colors
 
@@ -159,7 +159,7 @@ const brand = new Theme({ light: { bg: "#fff", text: "#1b1b1f", tint: "#5b3cc4" 
 | `css_surface(value)` | `class_surface(value)` | Same as the `surface` attribute |
 | `css_border(value)` | `class_border(value)` | Same as the `border` attribute |
 | `css_current_surface()` | `class_current_surface` | `background:` the ambient surface's color |
-| — | `class_light_scheme`, `class_dark_scheme`, `class_dynamic_scheme` | Puts this theme's colors and settings on a subtree: light, dark, or following `prefers-color-scheme`. `theme.toString()` is `class_dynamic_scheme`. |
+| — | `class_light_scheme`, `class_dark_scheme`, `class_dynamic_scheme` | Puts this theme's colors and settings on a subtree: light, dark, or following `prefers-color-scheme`, with the matching CSS `color-scheme`. `theme.toString()` is `class_dynamic_scheme`. |
 
 ## Mix
 

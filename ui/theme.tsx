@@ -504,9 +504,16 @@ export class Theme<AllColors extends ColorScheme> {
 
   /** The class that puts this theme on a subtree: both palettes' raw values, the settings, the base
    * styles, and `--e-color-*` pointing at the light or dark palette — or, for "dynamic", at the
-   * light one, switched to the dark one under `prefers-color-scheme: dark`. */
+   * light one, switched to the dark one under `prefers-color-scheme: dark`.
+   *
+   * It also sets `color-scheme`, so what the browser draws itself follows the scheme too: its
+   * scrollbars where `scrollbar-color` (ui/reset.css.tsx) does not reach, the native parts of form
+   * controls (date picker icons, select dropdowns, autofill), the system colors (`Canvas`,
+   * `CanvasText`…) and `light-dark()`. "dynamic" gives `light dark`, letting the browser pick the
+   * one the system prefers — the same choice as the `@media` rule below. */
   private scheme_class(scheme: "light" | "dark" | "dynamic") {
     return css`.e-${scheme}-theme {
+      color-scheme: ${scheme === "dynamic" ? "light dark" : scheme};
       ${this.all_colors}
       ${this.css_settings}
       ${scheme === "dark" ? this.css_dark_colors : this.css_light_colors}

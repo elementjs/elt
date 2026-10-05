@@ -20,7 +20,7 @@ import type { BundledLanguage, SpecialLanguage } from "shiki"
 const { codeToTokens, codeToTokensWithThemes } = await import("shiki")
 
 /** The Shiki theme of each page scheme: code colors follow the page's light/dark scheme (see
- * tokenColorClass in code-example.tsx, which switches between the two). */
+ * tokenColorClass in code-example.tsx, which picks one of the two with CSS `light-dark()`). */
 const CODE_THEMES = { light: "github-light", dark: "github-dark" } as const
 
 /** Each theme's default text color, upper-cased like token colors. A token drawn in the default

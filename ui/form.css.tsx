@@ -133,14 +133,6 @@ fieldset {
 }
 
 
-input[type="date"]::-webkit-calendar-picker-indicator,
-input[type="time"]::-webkit-calendar-picker-indicator,
-input[type="datetime-local"]::-webkit-calendar-picker-indicator {
-  @media (prefers-color-scheme: dark) {
-    filter: invert(1);
-  }
-}
-
 input[type="date"],
 input[type="time"],
 input[type="datetime-local"] {

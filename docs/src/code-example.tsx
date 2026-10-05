@@ -72,21 +72,16 @@ function LazyResult(run: () => Node) {
  * two themes have on the order of a few dozen distinct pairs, however many thousands of tokens use
  * them) — see macro.ts's tokensToJsx, which calls this once per token at render time.
  *
- * The class follows the same thing the page's palette follows: the elt/ui scheme class on an
- * ancestor (on `<body>`, set from `o_force_theme`). The light color by default; the dark one under
- * the forced-dark class, or under the default (dynamic) class when the system prefers dark. Like any
- * ancestor selector, it takes the dark color inside a forced-light subtree nested in a dark one; the
- * docs never nest scheme classes. */
+ * The color is `light-dark(light, dark)`, which follows the nearest `color-scheme`: the one the
+ * elt/ui scheme class on an ancestor sets (on `<body>`, from `o_force_theme`; `light dark` for the
+ * default class, which the browser resolves from the system preference). A scheme class put on a
+ * subtree inside another one wins for that subtree, as the palette does. */
 const tokenColorClasses = new Map<string, string>()
 export function tokenColorClass(light: string, dark: string): string {
   const key = `${light} ${dark}`
   let cls = tokenColorClasses.get(key)
   if (cls == null) {
-    cls = css`.tok {
-      color: ${light};
-      .${theme.class_dark_scheme} & { color: ${dark}; }
-      @media (prefers-color-scheme: dark) { .${theme.class_dynamic_scheme} & { color: ${dark}; } }
-    }`
+    cls = css`.tok { color: light-dark(${light}, ${dark}); }`
     tokenColorClasses.set(key, cls)
   }
   return cls
