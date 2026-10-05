@@ -810,3 +810,161 @@ test.describe('packed="X" is the container\'s own step (docs/md/ui-layout.md#pac
     expect(r.inherited).toBe(r.widget)
   })
 })
+
+// A `hidden` child is not displayed (the reset's `display: none`), so packed skips it when it picks
+// the first, last and interior children: the visible outer children get the outer corners and
+// borders, the seams stay single (docs/md/ui-layout.md#packed).
+test.describe("packed and hidden children (docs/md/ui-layout.md#packed)", () => {
+  /** The edges and corners of each visible child of a packed `tag` holding four buttons, one hidden. */
+  const run = (page: Page, tag: string, hide: number, border: boolean) =>
+    page.evaluate(
+      ({ tag, hide, border }) => {
+        const c = document.createElement(tag)
+        c.setAttribute("packed", "")
+        if (border) c.setAttribute("border", "")
+        c.setAttribute("radius", "section")
+        c.id = "hc"
+        for (let i = 0; i < 4; i++) {
+          const b = document.createElement("button")
+          b.textContent = `b${i}`
+          if (i === hide) b.hidden = true
+          c.append(b)
+        }
+        document.body.appendChild(c)
+        const row = tag === "e-row"
+        const visible = [...c.children].filter((e) => !(e as HTMLElement).hidden)
+        return {
+          radius: getComputedStyle(c).borderTopLeftRadius,
+          // In flow order: leading edge, trailing edge, the two leading corners, the two trailing corners.
+          kids: visible.map((e) => {
+            const s = getComputedStyle(e)
+            return row
+              ? {
+                  lead: s.borderLeftStyle,
+                  trail: s.borderRightStyle,
+                  lead_r: [s.borderTopLeftRadius, s.borderBottomLeftRadius],
+                  trail_r: [s.borderTopRightRadius, s.borderBottomRightRadius],
+                }
+              : {
+                  lead: s.borderTopStyle,
+                  trail: s.borderBottomStyle,
+                  lead_r: [s.borderTopLeftRadius, s.borderTopRightRadius],
+                  trail_r: [s.borderBottomLeftRadius, s.borderBottomRightRadius],
+                }
+          }),
+        }
+      },
+      { tag, hide, border },
+    )
+
+  for (const tag of ["e-row", "e-column"]) {
+    // A hidden first or last child of a packed row or column still counts as first / last (skipping it
+    // would cost a restyle of every earlier sibling on each insertion at the end): only the middle
+    // case is checked here (docs/md/ui-layout.md#packed).
+    for (const [name, hide] of [["middle", 1]] as const) {
+      test(`${tag} without border, hidden ${name} child: the visible ones share single lines, outer corners kept`, async ({
+        page,
+      }) => {
+        const r = await run(page, tag, hide, false)
+        const [a, b, c] = r.kids
+        // Every visible child but the last drops its trailing edge; the last keeps it.
+        expect([a.trail, b.trail, c.trail]).toEqual(["none", "none", "solid"])
+        expect([a.lead, b.lead, c.lead]).toEqual(["solid", "solid", "solid"])
+        // Interior corners square, outer corners take the container's radius.
+        expect(a.lead_r).toEqual([r.radius, r.radius])
+        expect(c.trail_r).toEqual([r.radius, r.radius])
+        expect([...a.trail_r, ...b.lead_r, ...b.trail_r, ...c.lead_r]).toEqual(Array(8).fill("0px"))
+      })
+
+      test(`${tag} with border, hidden ${name} child: outer corners on the visible outer children, seams drawn`, async ({
+        page,
+      }) => {
+        const r = await run(page, tag, hide, true)
+        const [a, b, c] = r.kids
+        expect(r.radius).not.toBe("0px")
+        expect(a.lead_r).toEqual([r.radius, r.radius])
+        expect(c.trail_r).toEqual([r.radius, r.radius])
+        expect([...a.trail_r, ...b.lead_r, ...b.trail_r, ...c.lead_r]).toEqual(Array(8).fill("0px"))
+        expect([a.lead, a.trail, b.lead, b.trail, c.lead, c.trail]).toEqual(Array(6).fill("none"))
+        await expect_seams(page, "#hc")
+      })
+    }
+  }
+
+  // The shared-line rules look at the previous sibling: it must be the previous *visible* one.
+  const edges = (page: Page, html: string) =>
+    page.evaluate((html) => {
+      document.body.insertAdjacentHTML("beforeend", `<e-row id="m" packed>${html}</e-row>`)
+      return [...document.getElementById("m")!.children]
+        .filter((e) => !(e as HTMLElement).hidden)
+        .map((e) => [getComputedStyle(e).borderLeftStyle, getComputedStyle(e).borderRightStyle])
+    }, html)
+
+  test("a hidden meaningful child does not take the next child's leading edge", async ({ page }) => {
+    // Before the fix, the hidden tint button made `c` drop its leading edge while `a` dropped its
+    // trailing one: no line at all between the two visible buttons.
+    const [a, c] = await edges(page, `<button>a</button><button e-variant="tint" hidden>b</button><button>c</button>`)
+    expect(a[1]).toBe("none")
+    expect(c[0]).toBe("solid")
+  })
+
+  for (const n of [1, 2]) {
+    test(`a meaningful child followed by ${n} hidden one(s) still owns the line it shares with the next visible child`, async ({
+      page,
+    }) => {
+      const hidden = "<button hidden>h</button>".repeat(n)
+      const [m, c] = await edges(page, `<button aria-pressed="true">m</button>${hidden}<button>c</button>`)
+      expect(m[1]).toBe("solid")
+      expect(c[0]).toBe("none")
+    })
+  }
+
+  test("packed bordered grid: hidden first and last rows and a hidden last cell are skipped for the outer corners", async ({
+    page,
+  }) => {
+    const r = await page.evaluate(() => {
+      document.body.insertAdjacentHTML(
+        "beforeend",
+        `<e-grid id="g" columns="2" packed border radius="section">
+          <e-grid-row hidden><span>h</span><span>h</span></e-grid-row>
+          <e-grid-row><span>a</span><span>b</span><span hidden>h</span></e-grid-row>
+          <e-grid-row><span>c</span><span>d</span></e-grid-row>
+          <e-grid-row hidden><span>h</span><span>h</span></e-grid-row>
+        </e-grid>`,
+      )
+      const g = document.getElementById("g")!
+      const cell = (row: number, col: number) => getComputedStyle(g.children[row].children[col])
+      return {
+        radius: getComputedStyle(g).borderTopLeftRadius,
+        a: cell(1, 0).borderTopLeftRadius,
+        b: cell(1, 1).borderTopRightRadius,
+        c: cell(2, 0).borderBottomLeftRadius,
+        d: cell(2, 1).borderBottomRightRadius,
+      }
+    })
+    expect(r.radius).not.toBe("0px")
+    expect([r.a, r.b, r.c, r.d]).toEqual(Array(4).fill(r.radius))
+  })
+
+  // hidden="until-found" is left to the browser (content-visibility: hidden): the element keeps its
+  // box, padding included, so packed still counts it.
+  test('a hidden="until-found" child still counts: it keeps a box and the outer corners', async ({ page }) => {
+    const r = await page.evaluate(() => {
+      document.body.insertAdjacentHTML(
+        "beforeend",
+        `<e-row id="u" packed border radius="section"><button>a</button><button>b</button><e-row hidden="until-found">c</e-row></e-row>`,
+      )
+      const row = document.getElementById("u")!
+      const [, b, c] = [...row.children].map((e) => getComputedStyle(e))
+      return {
+        radius: getComputedStyle(row).borderTopRightRadius,
+        width: row.children[2].getBoundingClientRect().width,
+        b_trail: b.borderTopRightRadius,
+        c_trail: c.borderTopRightRadius,
+      }
+    })
+    expect(r.width).toBeGreaterThan(0)
+    expect(r.b_trail).toBe("0px")
+    expect(r.c_trail).toBe(r.radius)
+  })
+})

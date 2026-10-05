@@ -1,4 +1,5 @@
 import { css } from "elt"
+import { HIDDEN_SELECTOR } from "./selectors"
 import { theme } from "./theme"
 
 // The layer order. typography sits below components: it styles text elements at zero specificity,
@@ -23,7 +24,7 @@ css`@layer reset {
   /* The browser hides [hidden] from its own stylesheet, which loses to any page rule that sets
      display (e-prose, e-row, button…). An important declaration in this first layer wins over every
      later layer. hidden="until-found" is left to the browser: it must stay searchable. */
-  [hidden]:not([hidden="until-found"]) {
+  ${HIDDEN_SELECTOR} {
     display: none !important;
   }
 

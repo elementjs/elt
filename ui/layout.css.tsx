@@ -1,5 +1,5 @@
 import { type Attrs, type NRO, css } from "elt"
-import { INLINE_ONLY_TEXT_BLOCK_SELECTOR, MEANINGFUL_BORDER_SELECTOR } from "./selectors"
+import { HIDDEN_SELECTOR, INLINE_ONLY_TEXT_BLOCK_SELECTOR, MEANINGFUL_BORDER_SELECTOR } from "./selectors"
 import { ambient_surface_mix, type ColorStep, type SpacingStep, spacing_steps, theme } from "./theme"
 
 declare module "elt" {
@@ -209,6 +209,40 @@ const _packed = `:where(e-flex,e-column,e-row,e-grid)`
  */
 function _cells(container: string, filter = ""): string {
   return `${container} > :where(:not(e-grid-row))${filter}, ${container} > :where(e-grid-row) > *${filter}`
+}
+
+/**
+ * First and last *displayed* child, for packed grids (rows, and cells within a row): a hidden
+ * child (`display: none`, HIDDEN_SELECTOR) is skipped, so when the last row is hidden, the one before
+ * it gets the outer corners (docs/md/ui-layout.md#packed). Grids already paid this cost with
+ * `:first-of-type`/`:last-of-type`; packed rows and columns keep `:first-child`/`:last-child`, as
+ * `:nth-last-child(1 of S)` restyles every earlier sibling when a child is added at the end. `:nth-child(1 of S)` counts only the siblings
+ * matching S. Its specificity is that of a pseudo-class plus S's; S is in `:where()` so the whole
+ * stays at one pseudo-class, the same as the `:first-child`/`:last-child` it replaces, and rules
+ * keep cascading against each other as before. `type` restricts S to an element type (the rows of a
+ * grid, counted among themselves like `:first-of-type` would).
+ */
+function _first(type = ""): string {
+  return `:nth-child(1 of :where(${type}:not(${HIDDEN_SELECTOR})))`
+}
+function _last(type = ""): string {
+  return `:nth-last-child(1 of :where(${type}:not(${HIDDEN_SELECTOR})))`
+}
+
+/**
+ * The child right after a displayed child whose border carries meaning, in a packed container
+ * without its own border: that child gives up its leading edge (see the rule below). Hidden children
+ * in between are skipped, one or two of them: CSS has no "previous displayed sibling" (`~` means
+ * *some* earlier sibling, not the nearest one, and `:has()` can't look backwards), so the run of
+ * hidden children is spelled out. After three or more hidden children in a row, both the
+ * meaningful child's trailing edge and the next child's leading edge show (a 2px line). The hidden
+ * meaningful child itself is excluded: it draws nothing, so the next child keeps its edge. All in
+ * `:where()`, at zero specificity like the original `:where(MEANINGFUL) + *`.
+ */
+function _after_meaningful(container: string): string {
+  const shown_meaningful = `:where(${MEANINGFUL_BORDER_SELECTOR}):where(:not(${HIDDEN_SELECTOR}))`
+  const hidden = `:where(${HIDDEN_SELECTOR})`
+  return [0, 1, 2].map((n) => `${container} > ${shown_meaningful} + ${`${hidden} + `.repeat(n)}*`).join(",\n  ")
 }
 
 function _(strings: TemplateStringsArray, ...values: unknown[]): void {
@@ -568,7 +602,9 @@ css`
 
   /* Interior packed seams always lose their corner radii, whether or not either side has a
      border there, so a packed group of rounded children still reads as one shape. Outer corners
-     (the first child's leading edge, the last child's trailing edge) are untouched either way. */
+     (the first child's leading edge, the last child's trailing edge) are untouched either way.
+     A hidden first or last child still counts here: skipping it (_first/_last) makes adding a child
+     at the end of a long packed row or column restyle every earlier sibling (docs/md/ui-layout.md#packed). */
   :is(e-row, e-flex:not([column]))[packed] > *:not(:last-child) {
     border-top-right-radius: 0;
     border-bottom-right-radius: 0;
@@ -588,7 +624,7 @@ css`
 
   /* packed WITHOUT its own border: each child suppresses its own trailing-edge border, whether or
      not it actually has one — a no-op on an unbordered child. No BORDERED_SELECTOR lookup, no
-     :has() lookahead at a sibling: each child only ever looks at its own position and at the one
+     :has() lookahead at a sibling: each child only ever looks at its own position and at the ones
      before it. Exception: a child whose border carries meaning (MEANINGFUL_BORDER_SELECTOR, ui/selectors.ts)
      keeps its trailing edge, and the child after it gives up its leading edge instead. Overlapping
      neighbours by 1px would avoid the list, but at a fractional display scale the overlapped edge is
@@ -596,13 +632,13 @@ css`
   :is(e-row, e-flex:not([column]))[packed]:not([border]) > *:not(:last-child):where(:not(${MEANINGFUL_BORDER_SELECTOR})) {
     border-right: none;
   }
-  :is(e-row, e-flex:not([column]))[packed]:not([border]) > :where(${MEANINGFUL_BORDER_SELECTOR}) + * {
+  ${_after_meaningful(":is(e-row, e-flex:not([column]))[packed]:not([border])")} {
     border-left: none;
   }
   :is(e-column, e-flex[column])[packed]:not([border]) > *:not(:last-child):where(:not(${MEANINGFUL_BORDER_SELECTOR})) {
     border-bottom: none;
   }
-  :is(e-column, e-flex[column])[packed]:not([border]) > :where(${MEANINGFUL_BORDER_SELECTOR}) + * {
+  ${_after_meaningful(":is(e-column, e-flex[column])[packed]:not([border])")} {
     border-top: none;
   }
 
@@ -753,17 +789,17 @@ css`
     border-radius: 0;
   }
   e-grid[packed]:is([border],[radius]):where(:not([radius="none"])) > e-grid-row {
-    &:first-of-type {
+    &${_first("e-grid-row")} {
       border-top-left-radius: inherit;
       border-top-right-radius: inherit;
-      & > :first-child { border-top-left-radius: inherit; }
-      & > :last-child { border-top-right-radius: inherit; }
+      & > ${_first()} { border-top-left-radius: inherit; }
+      & > ${_last()} { border-top-right-radius: inherit; }
     }
-    &:last-of-type {
+    &${_last("e-grid-row")} {
       border-bottom-left-radius: inherit;
       border-bottom-right-radius: inherit;
-      & > :first-child { border-bottom-left-radius: inherit; }
-      & > :last-child { border-bottom-right-radius: inherit; }
+      & > ${_first()} { border-bottom-left-radius: inherit; }
+      & > ${_last()} { border-bottom-right-radius: inherit; }
     }
   }
 

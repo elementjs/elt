@@ -56,3 +56,8 @@ export const MEANINGFUL_BORDER_SELECTOR =
   'label[e-variant="toggle"]:has(> input:checked), ' +
   '[aria-pressed="true"], [aria-selected="true"], [aria-current]:not([aria-current="false"]), ' +
   `${INVALID_SELECTOR}):not(:disabled, :has(> input:disabled))`
+
+// Elements the reset hides (`display: none`, ui/reset.css.tsx). hidden="until-found" is left out:
+// the browser keeps its box (content-visibility: hidden) so that find-in-page can reveal it, so it
+// still takes up room in a layout and counts as a child (docs/md/ui-layout.md#packed).
+export const HIDDEN_SELECTOR = '[hidden]:not([hidden="until-found" i])'

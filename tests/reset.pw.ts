@@ -20,10 +20,17 @@ test.describe("hidden", () => {
       document.body.append(found)
       out.until_found = getComputedStyle(found).display
       found.remove()
+      // The browser reads the value case-insensitively: "Until-Found" is until-found too
+      const found_upper = document.createElement("e-prose")
+      found_upper.setAttribute("hidden", "Until-Found")
+      document.body.append(found_upper)
+      out.until_found_upper = getComputedStyle(found_upper).display
+      found_upper.remove()
       return out
     })
-    const { until_found, ...rest } = r
+    const { until_found, until_found_upper, ...rest } = r
     for (const [tag, display] of Object.entries(rest)) expect(display, tag).toBe("none")
     expect(until_found).not.toBe("none")
+    expect(until_found_upper).not.toBe("none")
   })
 })
