@@ -126,23 +126,35 @@ test.describe("row menu", () => {
     await mount(page, `({ name: "Ada Lovelace" })`)
     const input = row(page, "name").locator("input")
     const item = (label: string) => page.locator('[popover].open [role="menuitem"]', { hasText: label })
-    /** Select `from..to` in the field as the user would, then right click inside the selection. */
-    const menu_on = async (from: number, to: number) => {
+    /**
+     * Select `from..to` in the field as the user would, then right click between characters `at - 1`
+     * and `at`. The x comes from the field's own padding, border and font, so a change of padding or
+     * font size does not move the click to another character.
+     */
+    const menu_on = async (from: number, to: number, at: number) => {
       await input.focus()
       await input.evaluate((el: HTMLInputElement, [a, b]) => el.setSelectionRange(a, b), [from, to])
-      await input.click({ button: "right", position: { x: 6, y: 6 } })
+      const x = await input.evaluate((el: HTMLInputElement, at) => {
+        const s = getComputedStyle(el)
+        const ctx = document.createElement("canvas").getContext("2d")!
+        ctx.font = s.font
+        const text_x = Number.parseFloat(s.borderLeftWidth) + Number.parseFloat(s.paddingLeft)
+        return text_x + ctx.measureText(el.value.slice(0, at)).width
+      }, at)
+      const box = (await input.boundingBox())!
+      await input.click({ button: "right", position: { x, y: box.height / 2 } })
     }
-    // Select "Ada" (0..3), cut it.
-    await menu_on(0, 3)
+    // Select "Ada" (0..3), right click inside it (after "A"), cut it.
+    await menu_on(0, 3, 1)
     await item("Cut").click()
     await expect.poll(() => root(page)).toEqual({ name: " Lovelace" })
     // Paste: a right click outside the selection moves the caret where it lands (the start), as
     // natively; the clipboard goes there.
-    await menu_on(9, 9)
+    await menu_on(9, 9, 0)
     await item("Paste").click()
     await expect.poll(() => root(page)).toEqual({ name: "Ada Lovelace" })
     // Nothing selected: Cut and Copy are disabled, Paste isn't.
-    await menu_on(2, 2)
+    await menu_on(2, 2, 2)
     await expect(item("Cut")).toBeDisabled()
     await expect(item("Copy")).toBeDisabled()
     await expect(item("Paste")).toBeEnabled()
