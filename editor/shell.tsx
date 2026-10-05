@@ -307,7 +307,7 @@ export class ObjectEditorShell {
     return (
       <e-column packed border pad="none" spacing="widget" align="stretch">
         {/* Widgets touching, each padded at the widget step, separated by seams. */}
-        <e-row packed="widget" border align="center" class={theme.colors.tint.class_as_inverted}>
+        <e-row packed="widget" seamless border align="center" class={theme.colors.tint.class_as_inverted}>
           {$editor_menu(menu)}
           <strong class={cls_text_fill} title={o_label}>
             {o_label}

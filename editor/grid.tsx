@@ -127,7 +127,7 @@ export function render_composite_grid<K>(props: CompositeGridProps<K>): HTMLElem
   return (
     <e-column scroll align="stretch" class={cls_grid_scroll}>
       <e-grid
-        packed="widget"
+        packed="nudge-4"
         border
         align="stretch"
         class={cls_grid}
