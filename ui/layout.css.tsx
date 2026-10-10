@@ -211,6 +211,9 @@ function _cells(container: string, filter = ""): string {
   return `${container} > :where(:not(e-grid-row))${filter}, ${container} > :where(e-grid-row) > *${filter}`
 }
 
+/** The borderless packed groups that are cells of a packed bordered container. */
+const _nested = `:is(${_cells(`${_packed}[packed][border]`, ":where([packed]:not([border]))")})`
+
 /**
  * First and last *displayed* child, for packed grids (rows, and cells within a row): a hidden
  * child (`display: none`, HIDDEN_SELECTOR) is skipped, so when the last row is hidden, the one before
@@ -676,6 +679,21 @@ css`
     background-color: var(--e-current-border-color);
   }
 
+  /* A borderless packed group that is a cell of a packed bordered container (a date field's
+     input + button row in a cell of the editor's grid) is under the same ownership: the outermost
+     container draws the frame, so the group's own children give up their borders and radii, and
+     the group draws its seams in a 1px gap like a nested bordered one. Without this, the group
+     would keep the borders of its children inside the cell the container already framed. */
+  ${_nested} {
+    gap: 1px;
+    background-color: var(--e-current-border-color);
+  }
+  ${_nested} > * {
+    border: none;
+    border-radius: 0;
+    background-color: var(--e-current-surface);
+  }
+
   /* A sticky child of a packed bordered column or grid carries its own copy of the seam on the side
      facing the scrolled content. The seam there is the container's 1px gap (its background or a gap
      rule), painted by the container, so it scrolls away with the content and, once the child is
@@ -703,7 +721,8 @@ css`
   @supports (row-rule: 1px solid) {
     ${_packed}[packed][border],
     e-grid[packed][border] > e-grid-row,
-    ${_packed}[packed][border] > ${_packed}[packed][border] {
+    ${_packed}[packed][border] > ${_packed}[packed][border],
+    ${_nested} {
       background-color: var(--e-current-surface);
       column-rule: 1px solid var(--e-current-border-color);
       row-rule: 1px solid var(--e-current-border-color);

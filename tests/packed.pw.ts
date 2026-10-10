@@ -721,6 +721,33 @@ test.describe("packed border seamless (docs/md/ui-layout.md#packed)", () => {
     expect(r.inner_bg).not.toBe(r.top_border)
   })
 
+  test("a borderless packed group in a cell of a packed bordered grid loses its children's borders and keeps a 1px seam", async ({
+    page,
+  }) => {
+    const r = await page.evaluate(() => {
+      document.body.innerHTML = `
+        <e-grid columns="2" packed border>
+          <e-grid-row><span>k</span><e-row id="grp" packed><input><button>b</button></e-row></e-grid-row>
+        </e-grid>
+        <e-column packed border><e-row id="direct" packed><button>a</button><button>b</button></e-row></e-column>`
+      const side = (sel: string) => {
+        const kids = [...document.querySelectorAll(`${sel} > *`)] as HTMLElement[]
+        return kids.map((k) => {
+          const st = getComputedStyle(k)
+          return [st.borderTopStyle, st.borderRightStyle, st.borderLeftStyle, st.borderTopLeftRadius].join(" ")
+        })
+      }
+      return {
+        grp: side("#grp"),
+        direct: side("#direct"),
+        gap: getComputedStyle(document.getElementById("grp")!).columnGap,
+      }
+    })
+    expect(r.grp).toEqual(["none none none 0px", "none none none 0px"])
+    expect(r.direct).toEqual(["none none none 0px", "none none none 0px"])
+    expect(r.gap).toBe("1px")
+  })
+
   test("<hr> in a packed column is an unpadded 1px divider across it", async ({ page }) => {
     const r = await page.evaluate(() => {
       document.body.innerHTML = `

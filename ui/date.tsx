@@ -331,5 +331,6 @@ const cls_day = css`.date-day {
 }`
 
 const cls_date_input = css`.date-input {
+  flex: 1;
   cursor: default;
 }`
