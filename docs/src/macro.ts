@@ -703,7 +703,7 @@ function genPageSource(
     "export class PageService extends Service({}, {}) {",
     "  @view",
     "  Content() {",
-    `    return <e-prose pad>${bodyJsx}</e-prose>`,
+    `    return <e-prose>${bodyJsx}</e-prose>`,
     "  }",
     "}",
     "",

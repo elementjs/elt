@@ -142,7 +142,7 @@ export function CodeExample(props: CodeExampleProps) {
   )
 
   return (
-    <e-column packed align="stretch">
+    <e-column packed align="stretch" radius="component">
       <e-row
         packed="widget"
         border

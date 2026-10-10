@@ -51,7 +51,7 @@ return <button>
 //@inline-example
 import { $bind, $click, o, tf_equals } from "elt"
 import * as P from "elt-phosphor"
-import { popup, theme } from "elt/ui"
+import { popup, theme, $auto_grow } from "elt/ui"
 
 type FontStyle = { fontFamily: string, fontWeight?: string }
 
@@ -167,6 +167,12 @@ return <e-column spacing style={oo_style} class={o_color.tf(col => theme.colors[
     <button e-variant="inverted">
       Not the same height !
     </button>
+  </e-row>
+
+  <e-row>
+    <textarea>
+      {$auto_grow({min: 4})}
+    </textarea>
   </e-row>
 
   <e-row spacing align="stretch">
