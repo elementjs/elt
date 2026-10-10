@@ -4,6 +4,24 @@ import { expect, test } from "../fixture"
 // document.body and fires a real DOM event on it. Rebuilt per-test since each
 // test runs in its own page.evaluate callback (no shared state across calls).
 
+test.describe("ObjectEditor component", () => {
+  test("renders the model with its schema, forwards class, and follows external writes", async ({ page }) => {
+    const result = await page.evaluate(() => {
+      const { o, e, node_append } = window.__ELT__
+      const { ObjectEditor, object, string } = window.__ELT__.Editor
+      const o_root = o({ name: "Ada" })
+      const schema = object({ properties: [{ name: "name", type: string() }] })
+      const node = e(ObjectEditor as any, { model: o_root, schema, class: "my-editor" }) as HTMLElement
+      node_append(document.body, node)
+      const input = node.querySelector('input[type="text"]') as HTMLInputElement
+      const before = input.value
+      o_root.set({ name: "Grace" })
+      return { before, after: input.value, has_class: node.classList.contains("my-editor") }
+    })
+    expect(result).toEqual({ before: "Ada", after: "Grace", has_class: true })
+  })
+})
+
 test.describe("ObjectEditorShell", () => {
   test("a column's frame takes the widget radius, the step of what it packs", async ({ page }) => {
     // Regression: the column has `pad="none"`, so its `border` radius came from the inherited
@@ -478,7 +496,7 @@ test.describe("ObjectEditorShell", () => {
       const shell = new ObjectEditorShell(o_root as any)
       node_append(document.body, shell.node)
 
-      const input = shell.node.querySelector("input") as HTMLInputElement
+      const input = shell.node.querySelector('input[type="text"]') as HTMLInputElement
       return { value: input.value, can_handle: anything.canHandle("hello") }
     })
     expect(results.value).toBe("hello")

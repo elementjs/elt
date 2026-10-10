@@ -17,7 +17,7 @@ implementation slice. Implements:
 - constructor registry fallback when drill-in omits `factory` (Layer 5)
 */
 
-import { $connected, $on, css, o, Repeat, type Renderable } from "elt"
+import { $connected, $on, type Attrs, css, o, Repeat, type Renderable } from "elt"
 import { popup } from "elt/ui/popup"
 import { sym_closed } from "elt/ui/utils"
 import { theme } from "elt/ui"
@@ -361,6 +361,22 @@ export class ObjectEditorShell {
       return el
     })
   }
+}
+
+/** Attributes of the `<ObjectEditor>` component; the options are those of `ShellOptions`. */
+export interface ObjectEditorAttrs extends ShellOptions, Attrs<HTMLElement> {
+  /** The edited value. Edits write back into it, and external writes to it show up in the editor. */
+  model: o.Observable<unknown>
+}
+
+/**
+ * The object editor: `<ObjectEditor model={o_value} schema={...} />`. Renders the strip of columns
+ * (see `ObjectEditorShell`, which does the work and is not needed to use the editor). `class` and
+ * `style` apply to the strip.
+ */
+export function ObjectEditor(attrs: ObjectEditorAttrs): HTMLElement {
+  const { model, schema, prefer_popups, undo } = attrs
+  return new ObjectEditorShell(model, { schema, prefer_popups, undo }).node
 }
 
 /* Custom CSS: a flex child shrinks by default; a column keeps its width and the strip scrolls. */

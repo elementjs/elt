@@ -6,9 +6,22 @@ section: UI Recipes
 
 # Object Editor
 
-`ObjectEditorShell` (`elt/editor`) renders a generic tree/table editor over an `Observable` holding any JSON-like value: objects, arrays (list or table layout), `Set`s, `Map`s, and free-form "unknown mode" documents. Every example below is live, using the actual `elt/editor` package.
+`<ObjectEditor model={o_value} />` (`elt/editor`) renders a generic tree/table editor over an `Observable` holding any JSON-like value: objects, arrays (list or table layout), `Set`s, `Map`s, and free-form "unknown mode" documents. Every example below is live, using the actual `elt/editor` package.
 
 **Unstable:** `elt/editor` is under active development and its API may change without notice. Do not build on it in code that must keep working across elt upgrades.
+
+## Using the component
+
+`<ObjectEditor model={o_value} />` edits the value held by `o_value` in place: edits write into the observable, and writes made elsewhere show up in the editor. Its attributes:
+
+| Attribute | Type | Does |
+| --------- | ---- | ---- |
+| `model` | `Observable<unknown>` | The edited value (required) |
+| `schema` | a schema (`object(...)`, `array(...)`, `either(...)`, …) | What the value may hold. Without it, the editor works in unknown mode: any JSON-like value, with its type changeable |
+| `prefer_popups` | `boolean` | Open nested values in a popup instead of a new column to the right (a schema can still choose per value) |
+| `undo` | `{ depth?, import_undo_depth? }` | Size of the *Undo*/*Redo* history |
+
+`class` and `style` apply to the editor's outer row, like on any element.
 
 ## Layout
 
@@ -43,7 +56,7 @@ A `schema` describes known properties up front: scalars, a multiline string, a b
 ```tsx
 //@inline-example
 import { o } from "elt"
-import { ObjectEditorShell, array, boolean, date, number, object, string } from "elt/editor"
+import { ObjectEditor, array, boolean, date, number, object, string } from "elt/editor"
 
 const profile_schema = object({
   chrome_label: "Author profile",
@@ -78,9 +91,7 @@ const o_profile = o({
   tags: ["analytical-engine", "algorithm", "notes"],
   address: { street: "12 Analytical Engine Ave", city: "London", country: "UK" },
 })
-const shell = new ObjectEditorShell(o_profile, { schema: profile_schema })
-
-return shell.node
+return <ObjectEditor model={o_profile} schema={profile_schema} />
 ```
 
 ## Table — auto-detect
@@ -90,7 +101,7 @@ An array of uniform objects switches to table layout on its own (`mode: "auto"`)
 ```tsx
 //@inline-example
 import { o } from "elt"
-import { ObjectEditorShell, anything, array } from "elt/editor"
+import { ObjectEditor, anything, array } from "elt/editor"
 
 const roster_schema = array({
   chrome_label: "Team roster",
@@ -104,9 +115,7 @@ const o_roster = o([
   { name: "Charles Babbage", role: "Reviewer", active: false },
   { name: "Grace Hopper", role: "Editor", active: true },
 ])
-const shell = new ObjectEditorShell(o_roster, { schema: roster_schema })
-
-return shell.node
+return <ObjectEditor model={o_roster} schema={roster_schema} />
 ```
 
 ## Table — manual columns
@@ -116,7 +125,7 @@ return shell.node
 ```tsx
 //@inline-example
 import { o } from "elt"
-import { ObjectEditorShell, anything, array } from "elt/editor"
+import { ObjectEditor, anything, array } from "elt/editor"
 
 const ledger_schema = array({
   chrome_label: "Inventory ledger",
@@ -131,9 +140,7 @@ const o_ledger = o([
   { sku: "BOOK-002", qty: 3, unit: "ea" },
   { sku: "PART-9", qty: 140, unit: "mm" },
 ])
-const shell = new ObjectEditorShell(o_ledger, { schema: ledger_schema })
-
-return shell.node
+return <ObjectEditor model={o_ledger} schema={ledger_schema} />
 ```
 
 ## Large table — virtual scrolling
@@ -143,7 +150,7 @@ Large tables (thousands of rows) are virtual grids (`RepeatVirtual` in an `e-gri
 ```tsx
 //@inline-example
 import { o } from "elt"
-import { ObjectEditorShell, anything, array } from "elt/editor"
+import { ObjectEditor, anything, array } from "elt/editor"
 
 const names = ["Ada", "Charles", "Grace", "Alan", "Edsger", "Barbara", "Donald", "Margaret"]
 const statuses = ["pending", "shipped", "delivered", "returned"]
@@ -164,9 +171,7 @@ const o_orders = o(
     paid: i % 3 !== 0,
   })),
 )
-const shell = new ObjectEditorShell(o_orders, { schema: orders_schema })
-
-return shell.node
+return <ObjectEditor model={o_orders} schema={orders_schema} />
 ```
 
 ## Set — unique members
@@ -176,7 +181,7 @@ Set membership list — duplicates are rejected on commit. *+ Add member* starts
 ```tsx
 //@inline-example
 import { o } from "elt"
-import { ObjectEditorShell, set, string } from "elt/editor"
+import { ObjectEditor, set, string } from "elt/editor"
 
 const tags_set_schema = set({
   chrome_label: "Unique tags",
@@ -185,9 +190,7 @@ const tags_set_schema = set({
 })
 
 const o_tags = o(new Set(["algorithm", "math", "notes"]))
-const shell = new ObjectEditorShell(o_tags, { schema: tags_set_schema })
-
-return shell.node
+return <ObjectEditor model={o_tags} schema={tags_set_schema} />
 ```
 
 ## Map — key/value rows
@@ -197,7 +200,7 @@ Key/value rows with separate key and value widgets; the row's menu changes the k
 ```tsx
 //@inline-example
 import { o } from "elt"
-import { ObjectEditorShell, boolean, map, string } from "elt/editor"
+import { ObjectEditor, boolean, map, string } from "elt/editor"
 
 const flags_map_schema = map({
   chrome_label: "Feature flags",
@@ -212,9 +215,7 @@ const o_flags = o(
     ["beta_ui", false],
   ]),
 )
-const shell = new ObjectEditorShell(o_flags, { schema: flags_map_schema })
-
-return shell.node
+return <ObjectEditor model={o_flags} schema={flags_map_schema} />
 ```
 
 ## Unknown mode — no schema
@@ -224,7 +225,7 @@ Without a `schema`, the editor infers structure from the value itself: free keys
 ```tsx
 //@inline-example
 import { o } from "elt"
-import { ObjectEditorShell } from "elt/editor"
+import { ObjectEditor } from "elt/editor"
 
 const o_document = o({
   title: "Notes on the Analytical Engine",
@@ -233,9 +234,7 @@ const o_document = o({
   stats: { views: 1284, likes: 97 },
   links: ["https://example.com/ada", "https://example.com/babbage"],
 })
-const shell = new ObjectEditorShell(o_document)
-
-return shell.node
+return <ObjectEditor model={o_document} />
 ```
 
 ## RegExp catch-all keys
@@ -245,7 +244,7 @@ A schema-mode object can declare a `RegExp` property name to accept any key matc
 ```tsx
 //@inline-example
 import { o } from "elt"
-import { ObjectEditorShell, boolean, object, string } from "elt/editor"
+import { ObjectEditor, boolean, object, string } from "elt/editor"
 
 const config_schema = object({
   chrome_label: "Runtime config",
@@ -263,9 +262,7 @@ const o_config = o({
   feature_search: true,
   feature_editor: true,
 })
-const shell = new ObjectEditorShell(o_config, { schema: config_schema })
-
-return shell.node
+return <ObjectEditor model={o_config} schema={config_schema} />
 ```
 
 ## Writing a widget
