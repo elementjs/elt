@@ -7,7 +7,7 @@ import/export, Delete) is the shell's: it knows the column's slot and parent.
 
 import { $bind, $click, o, type Renderable } from "elt"
 import { cls_text_fill } from "./grid"
-import type { CommonNodeOptions, CompositeToolbarOptions, Factory, WidgetHeader } from "./schema"
+import type { CommonNodeOptions, Factory, WidgetHeader } from "./schema"
 
 /** Per-mount row filter state — lives in the composite render() closure. */
 export interface FilterState {
@@ -78,13 +78,43 @@ function default_type_name(value: unknown, kind: string): string {
   return kind.charAt(0).toUpperCase() + kind.slice(1)
 }
 
-/** Which parts of a composite's chrome its schema keeps (`toolbar` options; all by default). */
-export function toolbar_flags(toolbar: CompositeToolbarOptions | undefined) {
+/**
+ * The presentation settings of a composite, resolved. `packed` draws the column frame, the header line,
+ * the toolbar and the rows as one touching group with seams; unpacked, they are plain, loosely spaced
+ * rows. The `show_*` flags choose which parts of the chrome appear.
+ */
+export interface EditorSettings {
+  packed: boolean
+  /** The label on the header line (the key it was opened from and the type). */
+  show_title: boolean
+  /** The row filter of the toolbar. */
+  show_filter: boolean
+  /** The "+ Add …" button of the toolbar. */
+  show_add: boolean
+  /** The `…` button and menus: change type, import/export, delete. */
+  show_menu: boolean
+}
+
+/** The editor-wide defaults, before any attribute or node option. */
+export const default_settings: EditorSettings = {
+  packed: false,
+  show_title: true,
+  show_filter: true,
+  show_add: true,
+  show_menu: true,
+}
+
+/**
+ * A composite's own settings: its node options (`CommonNodeOptions`) over `defaults` -- the editor
+ * attributes, with `packed` inherited from the value it was opened from.
+ */
+export function resolve_settings(options: CommonNodeOptions | undefined, defaults: EditorSettings): EditorSettings {
   return {
-    show_search: toolbar?.search !== false,
-    show_menu: toolbar?.menu !== false,
-    show_type_change: toolbar?.type_change !== false,
-    show_import_export: toolbar?.import_export !== false,
+    packed: options?.packed ?? defaults.packed,
+    show_title: options?.show_title ?? defaults.show_title,
+    show_filter: options?.show_filter ?? defaults.show_filter,
+    show_add: options?.show_add ?? defaults.show_add,
+    show_menu: options?.show_menu ?? defaults.show_menu,
   }
 }
 
@@ -100,6 +130,8 @@ export interface CompositeToolbarProps {
   warning?: Renderable
   /** The toolbar's add button ("+ Add key", …), when the composite allows adding. */
   add?: { label: string; on_add: () => void } | null
+  /** The settings in force where this composite is shown (editor attributes, inherited `packed`). */
+  settings: EditorSettings
 }
 
 /**
@@ -112,7 +144,7 @@ export function render_composite_chrome(props: CompositeToolbarProps): {
   toolbar: Renderable | null
 } {
   const { factory, o_value, filter, kind, import_export_addons = [] } = props
-  const flags = toolbar_flags(factory.options.toolbar)
+  const settings = resolve_settings(factory.options, props.settings)
   const o_label = o_value.tf((value) => {
     const label = factory.options.chrome_label
     if (label === false) return null
@@ -122,15 +154,22 @@ export function render_composite_chrome(props: CompositeToolbarProps): {
     return hint ? `${name} ${hint}` : name
   })
 
+  const add = settings.show_add ? props.add : null
+  // Packed: a band of touching widgets in the column's frame. Unpacked: a plain row of spaced widgets.
   const toolbar =
-    flags.show_search || props.add ? (
-      <e-row surface="neutral-1" packed="widget" border align="stretch">
-        {props.add && (
+    settings.show_filter || add ? (
+      <e-row
+        surface={settings.packed ? "neutral-1" : undefined}
+        packed={settings.packed ? "widget" : undefined}
+        border={settings.packed}
+        align={settings.packed ? "stretch" : "baseline"}
+      >
+        {add && (
           <button type="button">
-            {$click(props.add.on_add)}+ {props.add.label}
+            {$click(add.on_add)}+ {add.label}
           </button>
         )}
-        {flags.show_search && (
+        {settings.show_filter && (
           <>
             <input type="search" class={cls_text_fill} placeholder="Filter rows…">
               {$bind.string(filter.o_query)}
@@ -148,7 +187,7 @@ export function render_composite_chrome(props: CompositeToolbarProps): {
     header: {
       o_label,
       actions: props.warning ?? null,
-      import_export: flags.show_import_export ? import_export_addons : [],
+      import_export: factory.options.show_import_export === false ? [] : import_export_addons,
     },
     toolbar,
   }

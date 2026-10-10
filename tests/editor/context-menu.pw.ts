@@ -13,7 +13,10 @@ async function mount(page: Page, value: string, schema: string | null = null) {
       const w = window as unknown as W
       const o_root = o<unknown>(new Function("E", `return ${value}`)(E))
       w.o_root = o_root
-      const shell = new E.ObjectEditorShell(o_root, schema ? { schema: new Function("E", `return ${schema}`)(E) } : {})
+      const shell = new E.ObjectEditorShell(o_root, {
+        packed: true,
+        ...(schema ? { schema: new Function("E", `return ${schema}`)(E) } : {}),
+      })
       shell.node.id = "shell"
       node_append(document.body, shell.node)
       // Records, after every listener ran, whether the browser's own menu was suppressed.

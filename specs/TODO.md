@@ -65,3 +65,10 @@ These are the highest priority — the spec already promises the behavior, nothi
 - [x] **Multiline strings grow with their content** (`$auto_grow` from `elt/ui/textarea`).
 - [x] **Unknown mode Map/Set/Date** — `ObjectFactory.canHandle` no longer claims them (they rendered as Object).
 - [x] **Map key type-change menu** — `safe_map_key` + `render_type_change_menu_button` when `allow_key_type_change !== false`.
+
+## Presentation settings (done)
+
+- [x] **`packed` is opt-in** (default loose, the form look): `<ObjectEditor packed>` and `CommonNodeOptions.packed`; inherited by what a node opens. A table's grid is always packed. Rows are baseline-aligned when loose.
+- [x] **`show_title` / `show_filter` / `show_add` / `show_menu`** as editor attributes (defaults) and node options (replace for that node), replacing `toolbar: { search, menu, type_change, import_export }`; node-only `show_import_export`. `show_undo_redo` and `undo: false` on the editor; Ctrl/Cmd+Z and +Shift+Z shortcut outside text fields (`tests/editor/settings.pw.ts`).
+- [ ] Loose styling (borders/background between columns, a stacked label-above-input variant for narrow screens) is left to the host page for now.
+- [ ] A type change that lands on a node with another `packed` keeps the column's frame (read when the column is created); only the grid follows.

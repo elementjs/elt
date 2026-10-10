@@ -29,7 +29,7 @@ test.describe("ObjectEditorShell", () => {
     const result = await page.evaluate(() => {
       const { o, node_append } = window.__ELT__
       const { ObjectEditorShell } = window.__ELT__.Editor
-      const shell = new ObjectEditorShell(o({ name: "Ada" }))
+      const shell = new ObjectEditorShell(o({ name: "Ada" }), { packed: true })
       node_append(document.body, shell.node)
       const column = shell.node.querySelector("e-column[packed][border]") as HTMLElement
       return {

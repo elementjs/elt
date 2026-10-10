@@ -16,7 +16,7 @@ test.describe("composite chrome", () => {
       const { o, node_append } = window.__ELT__
       const { ObjectEditorShell } = window.__ELT__.Editor
       const o_root = o({ name: "Ada", address: { street: "Main", city: "London" } })
-      const shell = new ObjectEditorShell(o_root)
+      const shell = new ObjectEditorShell(o_root, { packed: true })
       shell.node.id = "shell"
       node_append(document.body, shell.node)
       shell.node.querySelector<HTMLButtonElement>('button[title="Open address"]')!.click()
@@ -51,6 +51,7 @@ test.describe("composite chrome", () => {
       const { ObjectEditorShell, object, number } = window.__ELT__.Editor
       const nested = object({ properties: [{ name: "x", type: number() }], open_as: "popup" })
       const shell = new ObjectEditorShell(o({ nested: { x: 1 } }), {
+        packed: true,
         schema: object({ properties: [{ name: "nested", type: nested }] }),
       })
       node_append(document.body, shell.node)
@@ -78,9 +79,10 @@ test.describe("composite chrome", () => {
     const result = await page.evaluate(() => {
       const { o, node_append } = window.__ELT__
       const { ObjectEditorShell, object, string } = window.__ELT__.Editor
-      const free = new ObjectEditorShell(o({ a: "x" }))
+      const free = new ObjectEditorShell(o({ a: "x" }), { packed: true })
       const closed = new ObjectEditorShell(o({ a: "x" }), {
-        schema: object({ properties: [{ name: "a", type: string() }], free_keys: false, toolbar: { search: false } }),
+        packed: true,
+        schema: object({ properties: [{ name: "a", type: string() }], free_keys: false, show_filter: false }),
       })
       node_append(document.body, free.node)
       node_append(document.body, closed.node)
@@ -129,7 +131,7 @@ test.describe("composite grid", () => {
     const width = await page.evaluate(() => {
       const { o, node_append } = window.__ELT__
       const { ObjectEditorShell } = window.__ELT__.Editor
-      const shell = new ObjectEditorShell(o({ a: "x" }))
+      const shell = new ObjectEditorShell(o({ a: "x" }), { packed: true })
       node_append(document.body, shell.node)
       const cs = getComputedStyle(shell.node.querySelector("e-grid-row > input")!)
       return [cs.borderTopWidth, cs.borderRightWidth, cs.borderBottomWidth, cs.borderLeftWidth]
@@ -141,7 +143,7 @@ test.describe("composite grid", () => {
     await page.evaluate(() => {
       const { o, node_append } = window.__ELT__
       const { ObjectEditorShell } = window.__ELT__.Editor
-      const shell = new ObjectEditorShell(o({ active: true, bio: "x", name: "Ada" }))
+      const shell = new ObjectEditorShell(o({ active: true, bio: "x", name: "Ada" }), { packed: true })
       shell.node.id = "shell"
       node_append(document.body, shell.node)
     })
@@ -194,7 +196,7 @@ test.describe("composite grid", () => {
       const value: Record<string, string> = {}
       for (let i = 0; i < 300; i++) value[`k${String(i).padStart(3, "0")}`] = "v"
       value.zz_a_much_longer_key_name = "v"
-      const shell = new ObjectEditorShell(o(value))
+      const shell = new ObjectEditorShell(o(value), { packed: true })
       shell.node.id = "shell"
       node_append(document.body, shell.node)
     })
@@ -383,7 +385,7 @@ test.describe("column layout", () => {
     const order = await page.evaluate(() => {
       const { o, node_append } = window.__ELT__
       const { ObjectEditorShell } = window.__ELT__.Editor
-      const shell = new ObjectEditorShell(o({ a: "x" }))
+      const shell = new ObjectEditorShell(o({ a: "x" }), { packed: true })
       node_append(document.body, shell.node)
       const column = shell.node.querySelector("e-column[packed]")!
       return [...column.children].map((c) =>
@@ -397,7 +399,7 @@ test.describe("column layout", () => {
     const result = await page.evaluate(() => {
       const { o, node_append } = window.__ELT__
       const { ObjectEditorShell } = window.__ELT__.Editor
-      const shell = new ObjectEditorShell(o({ a: { b: 1 } }))
+      const shell = new ObjectEditorShell(o({ a: { b: 1 } }), { packed: true })
       node_append(document.body, shell.node)
       shell.node.querySelector<HTMLButtonElement>('button[title="Open a"]')!.click()
       const [first, second] = [...shell.node.querySelectorAll("e-column[packed]")] as HTMLElement[]

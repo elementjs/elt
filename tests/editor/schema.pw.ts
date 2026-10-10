@@ -7,7 +7,7 @@ test.describe("schema CommonNodeOptions", () => {
         properties: [],
         open_as: "popup",
         conversions: ["string", "number"],
-        toolbar: { search: false },
+        show_filter: false,
         free_keys: false,
       }
       return { open_as: opts.open_as, conversions: opts.conversions }
@@ -144,7 +144,7 @@ test.describe("ObjectFactory keys", () => {
       const o_root = o({ only: "x" })
       const widget = object({
         properties: [{ name: "only", type: string() }],
-        toolbar: { search: false },
+        show_filter: false,
         free_keys: false,
       }).render(o_root as any)
       return widget.toolbar === null

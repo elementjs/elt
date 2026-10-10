@@ -19,15 +19,43 @@ section: UI Recipes
 | `model` | `Observable<unknown>` | The edited value (required) |
 | `schema` | a schema (`object(...)`, `array(...)`, `either(...)`, …) | What the value may hold. Without it, the editor works in unknown mode: any JSON-like value, with its type changeable |
 | `prefer_popups` | `boolean` | Open nested values in a popup instead of a new column to the right (a schema can still choose per value) |
-| `undo` | `{ depth?, import_undo_depth? }` | Size of the *Undo*/*Redo* history |
+| `packed` | `boolean` (default `false`) | Draw each column as one framed group whose header line, toolbar and rows touch and share seams, instead of loose rows. See [Packed or loose](#packed-or-loose) |
+| `show_title`, `show_filter`, `show_add`, `show_menu` | `boolean` (default `true`) | Which parts of a column appear. See [Showing and hiding parts](#showing-and-hiding-parts) |
+| `show_undo_redo` | `boolean` (default `true`) | The *Undo*/*Redo* buttons of the root column's header line |
+| `undo` | `{ depth?, import_undo_depth? } \| false` | Size of the *Undo*/*Redo* history. `false` turns the history off: no buttons, no shortcut |
 
 `class` and `style` apply to the editor's outer row, like on any element.
 
+*Undo* and *Redo* are also on Ctrl+Z and Ctrl+Shift+Z (Cmd on macOS) while focus is inside the editor, whether or not their buttons are shown. In a text field, the keys are left to the browser, which undoes the typing in that field.
+
+## Packed or loose
+
+By default the editor is **loose**: no frame, no background, rows spaced by the page's own spacing, and the host page decides how it looks. A row's key and its input are aligned on the baseline of their first line. This is the form look: use it to edit the fields of a record.
+
+`packed` gives each column a frame in which the header line, the toolbar and the rows touch and are separated by thin lines. This is the look of the examples below, unless they say otherwise.
+
+`packed` is also an option of every schema node (`object({ packed: true, … })`), and then replaces the attribute for that node. Unlike the other settings, it carries on to what the node opens: the columns and popups opened from a packed node are packed, and those opened from a loose one are loose, until a node sets it again. A popup is always a framed panel; packed, its content is one group, loose it is rows.
+
+The grid of a table (an array of objects shown with a column per key) is always packed, whatever `packed` says: it is a spreadsheet-like control whose cells need their seams. The frame, header line and toolbar around it follow the setting.
+
+## Showing and hiding parts
+
+Each of these is an attribute of `<ObjectEditor>`, which sets it for every column, and an option of a schema node, which replaces it for that node only (what the node opens is not affected).
+
+| Setting | Shows |
+| ------- | ----- |
+| `show_title` | The label of the header line: the key the column was opened from and the type (`address · Object {3}`). *Undo*/*Redo*, × and `…` stay |
+| `show_filter` | The filter of the toolbar |
+| `show_add` | The *+ Add …* button of the toolbar |
+| `show_menu` | The `…` button and the right-click menus: change type, import/export, delete. Without them, the browser's own menu shows |
+
+A part that would be empty goes away: the toolbar with neither filter nor *+ Add*, and the root's header line with no label, `…` or *Undo*/*Redo*. A schema node also has `show_import_export`, for the import/export entries of its `…` menu only.
+
 ## Layout
 
-The editor is a row of columns, each in its own frame: the root value, then one column per value opened from it (a click on a nested object or array opens it to the right; a schema can open it in a popup instead).
+The editor is a row of columns (each in its own frame when [packed](#packed-or-loose)): the root value, then one column per value opened from it (a click on a nested object or array opens it to the right; a schema can open it in a popup instead).
 
-- **Header line.** Every column and popup starts with one line: the key it was opened from and the value's type (`address · Object {3}`), then its `…` button opening the column's menu (see [Menus](#menus)), then *Undo*/*Redo* on the root column or × on the others.
+- **Header line.** Every column and popup starts with one line (unless `show_title` and the others leave it empty): the key it was opened from and the value's type (`address · Object {3}`), then its `…` button opening the column's menu (see [Menus](#menus)), then *Undo*/*Redo* on the root column or × on the others.
 - **Rows are a grid.** Each entry is a row of cells: the key (or index) and the value's widget, each in its own column, aligned from one row to the next. A nested object or array is a cell showing a preview of its content; click it to open it. Removing a row or changing a value's type goes through the row's menu.
 - **Toolbar.** Right under the header line, on a neutral background: the *+ Add …* button, and a filter that keeps the rows whose key or value contains the text (*Aa* makes it case-sensitive). It stays in place while the filter shortens the rows.
 - **Column widths** come from the first rows shown, then stay put while you scroll; a longer key further down is truncated with `…`. Table columns can then be resized by dragging a header's right edge.
@@ -51,7 +79,7 @@ When there is nothing to offer (a declared key, outside a text field), the brows
 
 ## Schema-mode object
 
-A `schema` describes known properties up front: scalars, a multiline string, a bounded number, a nullable date, a string array in list mode, and a nested object with its own filter opted out (`toolbar: { search: false }`).
+A `schema` describes known properties up front: scalars, a multiline string, a bounded number, a nullable date, a string array in list mode, and a nested object with its own filter opted out (`show_filter: false`). This one is loose, as a form is: no `packed`.
 
 ```tsx
 //@inline-example
@@ -71,7 +99,7 @@ const profile_schema = object({
       name: "address",
       type: object({
         chrome_label: "Postal address",
-        toolbar: { search: false },
+        show_filter: false,
         properties: [
           { name: "street", type: string() },
           { name: "city", type: string() },
@@ -115,7 +143,7 @@ const o_roster = o([
   { name: "Charles Babbage", role: "Reviewer", active: false },
   { name: "Grace Hopper", role: "Editor", active: true },
 ])
-return <ObjectEditor model={o_roster} schema={roster_schema} />
+return <ObjectEditor model={o_roster} schema={roster_schema} packed />
 ```
 
 ## Table — manual columns
@@ -140,7 +168,7 @@ const o_ledger = o([
   { sku: "BOOK-002", qty: 3, unit: "ea" },
   { sku: "PART-9", qty: 140, unit: "mm" },
 ])
-return <ObjectEditor model={o_ledger} schema={ledger_schema} />
+return <ObjectEditor model={o_ledger} schema={ledger_schema} packed />
 ```
 
 ## Large table — virtual scrolling
@@ -171,7 +199,7 @@ const o_orders = o(
     paid: i % 3 !== 0,
   })),
 )
-return <ObjectEditor model={o_orders} schema={orders_schema} />
+return <ObjectEditor model={o_orders} schema={orders_schema} packed />
 ```
 
 ## Set — unique members
@@ -190,7 +218,7 @@ const tags_set_schema = set({
 })
 
 const o_tags = o(new Set(["algorithm", "math", "notes"]))
-return <ObjectEditor model={o_tags} schema={tags_set_schema} />
+return <ObjectEditor model={o_tags} schema={tags_set_schema} packed />
 ```
 
 ## Map — key/value rows
@@ -234,7 +262,7 @@ const o_document = o({
   stats: { views: 1284, likes: 97 },
   links: ["https://example.com/ada", "https://example.com/babbage"],
 })
-return <ObjectEditor model={o_document} />
+return <ObjectEditor model={o_document} packed />
 ```
 
 ## RegExp catch-all keys
@@ -262,7 +290,7 @@ const o_config = o({
   feature_search: true,
   feature_editor: true,
 })
-return <ObjectEditor model={o_config} schema={config_schema} />
+return <ObjectEditor model={o_config} schema={config_schema} packed />
 ```
 
 ## Writing a widget

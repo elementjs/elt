@@ -124,7 +124,7 @@ export function type_change_item(
   targets: Factory<unknown>[],
 ): MenuSection | null {
   const options = (current.options ?? {}) as CommonNodeOptions
-  if (options.toolbar?.type_change === false) return null
+  if (options.show_menu === false) return null
   const actions = type_change_actions(current, o_value.get(), options, targets)
   if (actions.length === 0) return null
   return {
@@ -152,7 +152,7 @@ export function delete_section(run: (() => void) | null | undefined): MenuSectio
 }
 
 /** The text field (`input`, `textarea`) the event came from, if any. */
-function text_field_of(target: EventTarget | null): HTMLInputElement | HTMLTextAreaElement | null {
+export function text_field_of(target: EventTarget | null): HTMLInputElement | HTMLTextAreaElement | null {
   const field = target instanceof Element ? target.closest("input, textarea") : null
   if (field instanceof HTMLTextAreaElement) return field
   // Checkboxes, radios, buttons, colors… hold no text to edit.
@@ -247,6 +247,11 @@ export function $editor_menu(sections: (target: Element | null) => (MenuSection 
       open_menu({ ...point_below(ev.target), element: node }, list)
     })(node)
   }
+}
+
+/** `$editor_menu(sections)`, or nothing (the browser's own menu shows) when the node hides its menus. */
+export function $editor_menu_when(enabled: boolean, sections: Parameters<typeof $editor_menu>[0]) {
+  return enabled ? $editor_menu(sections) : null
 }
 
 /** Under the bottom-left corner of `target`: where a menu opened without a pointer goes. */

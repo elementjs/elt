@@ -21,13 +21,15 @@ import { $connected, $on, type Attrs, css, o, Repeat, type Renderable } from "el
 import { popup } from "elt/ui/popup"
 import { sym_closed } from "elt/ui/utils"
 import { theme } from "elt/ui"
-import { toolbar_flags } from "./composite-toolbar"
+import { $keymap } from "elt/ui/keymap"
+import { default_settings, type EditorSettings, resolve_settings } from "./composite-toolbar"
 import {
-  $editor_menu,
+  $editor_menu_when,
   delete_section,
   type MenuSection,
   menu_sections,
   open_menu_from_button,
+  text_field_of,
   type_change_item,
 } from "./context-menu"
 import { cls_text_fill } from "./grid"
@@ -58,6 +60,8 @@ interface ColumnDescriptor {
   /** Removes the value from its parent (the header menu's Delete); absent on the root and when the parent doesn't allow it. */
   on_delete?: () => void
   presentation: "column" | "popup"
+  /** The settings this column starts from: the editor's attributes, with `packed` taken from the value that opened it. */
+  inherited: EditorSettings
   host?: HTMLElement
   /** Close a popup presentation for this stack entry, if open. */
   dismiss_popup?: () => void
@@ -65,10 +69,18 @@ interface ColumnDescriptor {
   unwatch?: () => void
 }
 
-export interface ShellOptions {
+/**
+ * The editor-wide settings: every one is the default for the nodes of the schema, which replace it
+ * for themselves with the option of the same name (`CommonNodeOptions`). Unlike the others, `packed`
+ * also carries on to what a node opens.
+ */
+export interface ShellOptions extends Partial<EditorSettings> {
   schema?: Factory<unknown>
   prefer_popups?: boolean
-  undo?: { depth?: number; import_undo_depth?: number }
+  /** The size of the history, or `false` for none: no Undo/Redo buttons, no shortcut. */
+  undo?: { depth?: number; import_undo_depth?: number } | false
+  /** The Undo/Redo buttons of the root's header line; the shortcut stays. Default true. */
+  show_undo_redo?: boolean
 }
 
 function root_is_scalar(value: unknown): boolean {
@@ -83,13 +95,22 @@ export class ObjectEditorShell {
   private readonly o_columns = o<ColumnDescriptor[]>([])
   readonly o_breadcrumb: o.ReadonlyObservable<string[]>
   private readonly undo: RootUndoRing
+  /** The settings of the root column, and the defaults of every node (`packed` aside, see `ColumnDescriptor.inherited`). */
+  private readonly defaults: EditorSettings
 
   constructor(
     private readonly o_root: o.Observable<unknown>,
     private readonly options: ShellOptions = {},
   ) {
     this.o_breadcrumb = this.o_columns.tf((cols) => cols.slice(1).map((c) => c.title ?? ""))
-    this.undo = new RootUndoRing(this.o_root, this.options.undo ?? {})
+    this.undo = new RootUndoRing(this.o_root, this.options.undo || {})
+    this.defaults = {
+      packed: this.options.packed ?? default_settings.packed,
+      show_title: this.options.show_title ?? default_settings.show_title,
+      show_filter: this.options.show_filter ?? default_settings.show_filter,
+      show_add: this.options.show_add ?? default_settings.show_add,
+      show_menu: this.options.show_menu ?? default_settings.show_menu,
+    }
 
     // The strip of columns: separate components, spaced at the component step (the default), each
     // with its own frame, in a scroll area for when they're wider than the editor. The columns sit in
@@ -97,6 +118,15 @@ export class ObjectEditorShell {
     // `packed border` child itself, and would take each column's own frame away.
     this.node = (
       <e-row scroll="x">
+        {this.options.undo !== false &&
+          $keymap({
+            // Not in a text field: there, the browser undoes the typing, which is what the user means.
+            "Mod+z": { callback: (_, __, ev) => this.shortcut(ev, () => this.undo.undo()), prevent_default: false },
+            "Mod+Shift+z": {
+              callback: (_, __, ev) => this.shortcut(ev, () => this.undo.redo()),
+              prevent_default: false,
+            },
+          })}
         {$on("elt-object-editor-open", (ev) => {
           ev.stopPropagation()
           const { o_value, title, factory, open_as, on_delete } = ev.detail
@@ -113,8 +143,22 @@ export class ObjectEditorShell {
       </e-row>
     ) as HTMLElement
 
-    this.o_columns.set([this.create_column(this.o_root, undefined, this.options.schema ?? anything, "column")])
-    this.undo.attach()
+    this.o_columns.set([
+      this.create_column(this.o_root, undefined, this.options.schema ?? anything, "column", this.defaults),
+    ])
+    if (this.options.undo !== false) this.undo.attach()
+  }
+
+  /** Runs an undo/redo shortcut unless focus is in a text field, whose own undo the browser keeps. */
+  private shortcut(ev: KeyboardEvent, run: () => void) {
+    if (text_field_of(ev.target)) return
+    ev.preventDefault()
+    run()
+  }
+
+  /** What a column's node resolves to: its own options over the settings the column starts from. */
+  private settings_of(column: ColumnDescriptor): EditorSettings {
+    return resolve_settings(column.o_factory.get().options as CommonNodeOptions | undefined, column.inherited)
   }
 
   private create_column(
@@ -122,11 +166,12 @@ export class ObjectEditorShell {
     title: string | undefined,
     factory: Factory<unknown>,
     presentation: "column" | "popup",
+    inherited: EditorSettings,
     on_delete?: () => void,
   ): ColumnDescriptor {
     // The slot's factory for the value, or unknown mode's when the slot can't handle it.
     const o_factory = o(resolve_in_slot(factory, o_value.get()))
-    return { o_value, title, declared: factory, o_factory, presentation, on_delete }
+    return { o_value, title, declared: factory, o_factory, presentation, inherited, on_delete }
   }
 
   private resolve_open_factory(factory: Factory<unknown> | undefined, o_value: o.Observable<unknown>) {
@@ -173,7 +218,10 @@ export class ObjectEditorShell {
     const idx = found === -1 ? 0 : found
     this.dismiss_from(idx)
     const kept = this.o_columns.get().slice(0, idx + 1)
-    const column = this.create_column(o_value, title, resolved, presentation, on_delete)
+    // `packed` carries on from the column the value is opened from; the other settings restart from the editor's.
+    const opener = kept[idx]
+    const inherited = { ...this.defaults, packed: opener ? this.settings_of(opener).packed : this.defaults.packed }
+    const column = this.create_column(o_value, title, resolved, presentation, inherited, on_delete)
 
     if (presentation === "popup" && source instanceof Element) {
       this.o_columns.set([...kept, column])
@@ -230,8 +278,16 @@ export class ObjectEditorShell {
     const fut = popup(anchor, (fut) => {
       column.dismiss_popup = () => fut.resolve(sym_closed)
 
+      // Unpacked, the popup is a floating panel of loose rows: it keeps a frame, and pads its content itself.
+      const packed = this.settings_of(column).packed
       const panel = (
-        <e-column align="stretch" surface="background" border class={cls_popup_panel}>
+        <e-column
+          align="stretch"
+          surface="background"
+          border
+          pad={packed ? undefined : "component"}
+          class={cls_popup_panel}
+        >
           {$connected((el: HTMLElement) => {
             column.host = (el.closest("[popover]") as HTMLElement | null) ?? el
           })}
@@ -261,12 +317,12 @@ export class ObjectEditorShell {
   /**
    * The column's header menu: its value's type change (what its slot accepts), the composite's
    * import/export add-ons, and Delete (removes the value from its parent, closing this column and
-   * those after it). Empty when the composite's schema hides the menu (`toolbar.menu: false`).
+   * those after it). Empty when the composite's schema hides the menu (`show_menu: false`).
    */
   private header_menu(column: ColumnDescriptor, header: WidgetHeader | null, close: () => void): MenuSection[] {
     const current = column.o_factory.get()
     const options = (current.options ?? {}) as CommonNodeOptions
-    if (!toolbar_flags(options.toolbar).show_menu) return []
+    if (!resolve_settings(options, column.inherited).show_menu) return []
     return menu_sections([
       type_change_item(
         "Value",
@@ -289,55 +345,85 @@ export class ObjectEditorShell {
   }
 
   private render_chrome(column: ColumnDescriptor, close: () => void, is_root: boolean): HTMLElement {
-    const o_widget = column.o_factory.tf((factory) => factory.render(column.o_value))
+    const settings = this.settings_of(column)
+    const { packed } = settings
+    // The widget gets the column's starting settings: it resolves its own node options over them.
+    const o_widget = column.o_factory.tf((factory) => factory.render(column.o_value, column.inherited))
     const o_header = o_widget.tf((widget) => widget.header ?? null)
     const menu = () => this.header_menu(column, o_header.get(), close)
     // The `…` button shows when the menu has something; re-checked when the value's kind changes.
     const o_has_menu = o_header.tf(() => menu().length > 0)
     const o_label = o.expression((get) => {
+      if (!settings.show_title) return ""
       const header = get(o_header)
       const type_label = header ? get(header.o_label) : null
       return [column.title, type_label].filter((part) => part != null && part !== "").join(" · ")
     })
-    // `packed border`: the column draws its frame; header line, toolbar and rows touch, separated by
-    // seams (the header line and toolbar, `packed border` themselves, keep only their inner seams).
-    // `spacing="widget"`: a packed container's step is the step of what it packs (docs/md/ui-layout.md#packed),
-    // here widget-padded groups. It adds no gap (packed), but gives the frame the widget radius its
-    // first/last children's outer corners take, and the widget step to whatever inherits it inside.
+    const has_undo_buttons = is_root && this.options.undo !== false && this.options.show_undo_redo !== false
+    // The root's header line goes away when nothing is left on it. Any other column keeps it for its ×.
+    const o_has_header = o.expression(
+      (get) => !is_root || has_undo_buttons || get(o_label) !== "" || get(o_has_menu) || get(o_header)?.actions != null,
+    )
+    // Packed: `packed border` -- the column draws its frame; header line, toolbar and rows touch,
+    // separated by seams (the header line and toolbar, `packed border` themselves, keep only their
+    // inner seams). `spacing="widget"`: a packed container's step is the step of what it packs
+    // (docs/md/ui-layout.md#packed), here widget-padded groups. It adds no gap (packed), but gives the
+    // frame the widget radius its first/last children's outer corners take, and the widget step to
+    // whatever inherits it inside. Unpacked, all of it is plain rows and columns, spaced by the
+    // ambient step and with no frame: the host page decides how it looks.
     return (
-      <e-column packed border pad="none" spacing="widget" align="stretch">
-        {/* Widgets touching, each padded at the widget step, separated by seams. */}
-        <e-row packed="widget" seamless border align="center" class={theme.colors.tint.class_as_inverted}>
-          {$editor_menu(menu)}
-          <strong class={cls_text_fill} title={o_label}>
-            {o_label}
-          </strong>
-          {o_header.tf((header) => header?.actions ?? null)}
-          {o_has_menu.tf(
-            (has) =>
-              has && (
-                <button type="button" aria-label="More actions" aria-haspopup="menu">
-                  {$on("click", (ev) => open_menu_from_button(ev.currentTarget as HTMLElement, menu))}…
-                </button>
-              ),
-          )}
-          {is_root ? (
-            <>
-              <button type="button" disabled={this.undo.o_can_undo.tf((v) => !v)}>
-                {$on("click", () => this.undo.undo())}
-                Undo
-              </button>
-              <button type="button" disabled={this.undo.o_can_redo.tf((v) => !v)}>
-                {$on("click", () => this.undo.redo())}
-                Redo
-              </button>
-            </>
-          ) : (
-            <button type="button" aria-label="Close">
-              {$on("click", close)}×
-            </button>
-          )}
-        </e-row>
+      <e-column
+        packed={packed}
+        border={packed}
+        pad={packed ? "none" : undefined}
+        spacing={packed ? "widget" : undefined}
+        align="stretch"
+      >
+        {o_has_header.tf(
+          (has_header) =>
+            has_header && (
+              // Packed: widgets touching, each padded at the widget step, separated by seams.
+              <e-row
+                packed={packed ? "widget" : undefined}
+                seamless={packed}
+                border={packed}
+                align={packed ? "center" : "baseline"}
+                class={packed ? theme.colors.tint.class_as_inverted : undefined}
+              >
+                {$editor_menu_when(settings.show_menu, menu)}
+                <strong class={cls_text_fill} title={o_label}>
+                  {o_label}
+                </strong>
+                {o_header.tf((header) => header?.actions ?? null)}
+                {o_has_menu.tf(
+                  (has) =>
+                    has && (
+                      <button type="button" aria-label="More actions" aria-haspopup="menu">
+                        {$on("click", (ev) => open_menu_from_button(ev.currentTarget as HTMLElement, menu))}…
+                      </button>
+                    ),
+                )}
+                {has_undo_buttons ? (
+                  <>
+                    <button type="button" disabled={this.undo.o_can_undo.tf((v) => !v)}>
+                      {$on("click", () => this.undo.undo())}
+                      Undo
+                    </button>
+                    <button type="button" disabled={this.undo.o_can_redo.tf((v) => !v)}>
+                      {$on("click", () => this.undo.redo())}
+                      Redo
+                    </button>
+                  </>
+                ) : (
+                  !is_root && (
+                    <button type="button" aria-label="Close">
+                      {$on("click", close)}×
+                    </button>
+                  )
+                )}
+              </e-row>
+            ),
+        )}
         {o_widget.tf((widget) => widget.toolbar ?? null)}
         {o_widget.tf((widget) =>
           widget.header ? widget.render() : <e-column pad="component">{widget.render()}</e-column>,
@@ -375,8 +461,8 @@ export interface ObjectEditorAttrs extends ShellOptions, Attrs<HTMLElement> {
  * `style` apply to the strip.
  */
 export function ObjectEditor(attrs: ObjectEditorAttrs): HTMLElement {
-  const { model, schema, prefer_popups, undo } = attrs
-  return new ObjectEditorShell(model, { schema, prefer_popups, undo }).node
+  const { model, ...options } = attrs
+  return new ObjectEditorShell(model, options).node
 }
 
 /* Custom CSS: a flex child shrinks by default; a column keeps its width and the strip scrolls. */

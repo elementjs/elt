@@ -45,12 +45,15 @@ import type { SelectAttributes } from "elt/ui/select"
 import { $forward_attrs, skip_keys } from "./forward-attrs"
 import {
   create_filter_state,
+  default_settings,
+  type EditorSettings,
   type FilterState,
   render_composite_chrome,
+  resolve_settings,
   row_matches_search,
   value_preview_text,
 } from "./composite-toolbar"
-import { $editor_menu, delete_section, type MenuSection, type_change_item } from "./context-menu"
+import { $editor_menu_when, delete_section, type MenuSection, type_change_item } from "./context-menu"
 import {
   cls_text_fill,
   type GridTrack,
@@ -323,7 +326,7 @@ export abstract class Factory<Options> {
   // method's closure or on the returned RenderableWidget -- never as a field
   // on `this`, since one Factory instance is shared across every row/cell
   // that uses it (e.g. an ArrayFactory's `values`).
-  abstract render(o_value: o.Observable<unknown>): RenderableWidget
+  abstract render(o_value: o.Observable<unknown>, defaults?: EditorSettings): RenderableWidget
 
   // Suitability: can this factory's widget represent `value` as-is? Drives
   // union branch matching (EitherFactory) and unknown-mode auto-pick.
@@ -409,22 +412,29 @@ export interface EitherOptions {
 
 export type UndefinedOptions = NoOptions
 
-/** Per-composite toolbar pieces; set a flag to false to hide (schema opt-out). */
-export interface CompositeToolbarOptions {
-  search?: false
-  menu?: false
-  type_change?: false
-  import_export?: false
-}
-
-/** Node-level config shared by every composite factory (Layer 5). */
+/**
+ * Node-level config shared by every composite factory (Layer 5). The presentation options below
+ * replace, for this node, the editor-wide attribute of the same name (`<ObjectEditor packed …>`);
+ * `packed` also carries on to the columns and popups opened from this node, the others do not.
+ */
 export interface CommonNodeOptions {
   /** Replace default constructor/cardinality title, or false to hide. */
   chrome_label?: string | false
-  toolbar?: CompositeToolbarOptions
   open_as?: "column" | "popup"
   /** When set, only these factory `kind` values appear in the type-change menu. */
   conversions?: readonly string[]
+  /** Frame, header line, toolbar and rows touching and separated by seams (see `EditorSettings`). */
+  packed?: boolean
+  /** The label on the header line. */
+  show_title?: boolean
+  /** The row filter. */
+  show_filter?: boolean
+  /** The "+ Add …" button. */
+  show_add?: boolean
+  /** The `…` button and menus (change type, import/export, delete). */
+  show_menu?: boolean
+  /** The import/export entries of the `…` menu. This node only; there is no editor-wide attribute. */
+  show_import_export?: boolean
 }
 
 export interface PropertyOption {
@@ -925,7 +935,8 @@ export class ObjectFactory extends Factory<ObjectOptions> {
     return {}
   }
 
-  render(o_value: o.Observable<unknown>): RenderableWidget {
+  render(o_value: o.Observable<unknown>, defaults: EditorSettings = default_settings): RenderableWidget {
+    const settings = resolve_settings(this.options, defaults)
     const can_add = object_allows_free_keys(this.options)
     const filter = create_filter_state()
     const declared_keys = new Set(
@@ -997,6 +1008,7 @@ export class ObjectFactory extends Factory<ObjectOptions> {
 
     return {
       ...render_composite_chrome({
+        settings: defaults,
         factory: this as Factory<CommonNodeOptions>,
         o_value,
         filter,
@@ -1005,12 +1017,13 @@ export class ObjectFactory extends Factory<ObjectOptions> {
       }),
       render: () =>
         render_composite_grid({
+          packed: settings.packed,
           o_tracks: tracks,
           o_keys: o_visible_keys,
           o_transient_ids,
           render_entry: (o_key) => (
             <e-grid-row>
-              {$editor_menu(() => {
+              {$editor_menu_when(settings.show_menu, () => {
                 const key = o_key.get()
                 const o_child = safe_object_child(o_value, key)
                 return [
@@ -1033,7 +1046,7 @@ export class ObjectFactory extends Factory<ObjectOptions> {
             const { o_key, o_value: o_child } = row
             return (
               <e-grid-row>
-                {transient_menu(transient_rows, o_transient_ids, id)}
+                {transient_menu(settings.show_menu, transient_rows, o_transient_ids, id)}
                 <input type="text" placeholder="key">
                   {$bind.string(o_key)}
                   {$on("change", () => try_commit_transient(id))}
@@ -1074,8 +1087,8 @@ function element_menu_section(title: string, o_child: o.Observable<unknown>, slo
 }
 
 /** A row not committed yet: its menu only discards it. */
-function transient_menu<T>(rows: Map<string, T>, o_ids: o.Observable<string[]>, id: string) {
-  return $editor_menu(() => [delete_section(() => discard_transient(rows, o_ids, id))])
+function transient_menu<T>(enabled: boolean, rows: Map<string, T>, o_ids: o.Observable<string[]>, id: string) {
+  return $editor_menu_when(enabled, () => [delete_section(() => discard_transient(rows, o_ids, id))])
 }
 
 /** Removes `id` from a composite's transient rows. */
@@ -1114,7 +1127,7 @@ export class ArrayFactory extends Factory<ArrayOptions> {
     return [set({ values: this.options.values }), map({ keys: string(), values: this.options.values })]
   }
 
-  render(o_value: o.Observable<unknown>): RenderableWidget {
+  render(o_value: o.Observable<unknown>, defaults: EditorSettings = default_settings): RenderableWidget {
     const filter = create_filter_state()
     const values_factory = this.options.values
     const mode = this.options.mode ?? "auto"
@@ -1122,16 +1135,18 @@ export class ArrayFactory extends Factory<ArrayOptions> {
     const use_table = mode === "table" || (mode === "auto" && Array.isArray(arr) && this.eval_auto_table(arr))
 
     if (use_table) {
-      return this.render_table(o_value, filter, values_factory)
+      return this.render_table(o_value, filter, values_factory, defaults)
     }
-    return this.render_list(o_value, filter, values_factory)
+    return this.render_list(o_value, filter, values_factory, defaults)
   }
 
   private render_list(
     o_value: o.Observable<unknown>,
     filter: FilterState,
     values_factory: Factory<unknown>,
+    defaults: EditorSettings,
   ): RenderableWidget {
+    const settings = resolve_settings(this.options, defaults)
     const o_visible_indices = visible_array_indices(o_value, filter, (item) => [value_preview_text(item)])
 
     const transient_rows = new Map<string, o.Observable<unknown>>()
@@ -1167,6 +1182,7 @@ export class ArrayFactory extends Factory<ArrayOptions> {
 
     return {
       ...render_composite_chrome({
+        settings: defaults,
         factory: this as Factory<CommonNodeOptions>,
         o_value,
         filter,
@@ -1175,12 +1191,13 @@ export class ArrayFactory extends Factory<ArrayOptions> {
       }),
       render: () =>
         render_composite_grid({
+          packed: settings.packed,
           o_tracks: tracks,
           o_keys: o_visible_indices,
           o_transient_ids,
           render_entry: (o_i) => (
             <e-grid-row>
-              {$editor_menu(() => [
+              {$editor_menu_when(settings.show_menu, () => [
                 element_menu_section("Value", safe_array_index(o_value, o_i.get()), values_factory),
                 delete_section(delete_at(o_i.get())),
               ])}
@@ -1195,7 +1212,7 @@ export class ArrayFactory extends Factory<ArrayOptions> {
             if (!row) return null
             return (
               <e-grid-row>
-                {transient_menu(transient_rows, o_transient_ids, id)}
+                {transient_menu(settings.show_menu, transient_rows, o_transient_ids, id)}
                 {render_label_cell("+")}
                 {render_element_or_preview(row, "new", values_factory)}
               </e-grid-row>
@@ -1210,7 +1227,9 @@ export class ArrayFactory extends Factory<ArrayOptions> {
     o_value: o.Observable<unknown>,
     filter: FilterState,
     values_factory: Factory<unknown>,
+    defaults: EditorSettings,
   ): RenderableWidget {
+    const settings = resolve_settings(this.options, defaults)
     const o_columns = o_value.tf((value) =>
       Array.isArray(value) ? table_column_keys(value, this.options.columns) : [],
     )
@@ -1246,6 +1265,7 @@ export class ArrayFactory extends Factory<ArrayOptions> {
 
     return {
       ...render_composite_chrome({
+        settings: defaults,
         factory: this as Factory<CommonNodeOptions>,
         o_value,
         filter,
@@ -1257,6 +1277,9 @@ export class ArrayFactory extends Factory<ArrayOptions> {
       }),
       render: () =>
         render_composite_grid({
+          // A table is a spreadsheet-like control: its cells always touch and share seams, whatever
+          // the `packed` setting says about the frame, header line and toolbar around it.
+          packed: true,
           o_tracks,
           o_widths,
           o_keys: o_visible_indices,
@@ -1273,7 +1296,7 @@ export class ArrayFactory extends Factory<ArrayOptions> {
           ),
           render_entry: (o_i) => (
             <e-grid-row>
-              {$editor_menu((target) => {
+              {$editor_menu_when(settings.show_menu, (target) => {
                 const i = o_i.get()
                 // The cell is the row's child holding the target; after the index cell, one per column.
                 const row = target?.closest("e-grid-row")
@@ -1366,7 +1389,8 @@ export class SetFactory extends Factory<SetOptions> {
     return [array({ values: this.options.values }), map({ keys: string(), values: this.options.values })]
   }
 
-  render(o_value: o.Observable<unknown>): RenderableWidget {
+  render(o_value: o.Observable<unknown>, defaults: EditorSettings = default_settings): RenderableWidget {
+    const settings = resolve_settings(this.options, defaults)
     const filter = create_filter_state()
     const values_factory = this.options.values
     const o_members = o_value.tf((v) => (v instanceof Set ? [...v] : []))
@@ -1408,6 +1432,7 @@ export class SetFactory extends Factory<SetOptions> {
 
     return {
       ...render_composite_chrome({
+        settings: defaults,
         factory: this as Factory<CommonNodeOptions>,
         o_value,
         filter,
@@ -1416,12 +1441,13 @@ export class SetFactory extends Factory<SetOptions> {
       }),
       render: () =>
         render_composite_grid({
+          packed: settings.packed,
           o_tracks: tracks,
           o_keys: o_visible_members,
           o_transient_ids,
           render_entry: (o_member) => (
             <e-grid-row>
-              {$editor_menu(() => [
+              {$editor_menu_when(settings.show_menu, () => [
                 element_menu_section("Value", safe_set_member(o_value, o_member.get()), values_factory),
                 delete_section(delete_member(o_member.get())),
               ])}
@@ -1440,7 +1466,7 @@ export class SetFactory extends Factory<SetOptions> {
             if (!row) return null
             return (
               <e-grid-row>
-                {transient_menu(transient_rows, o_transient_ids, id)}
+                {transient_menu(settings.show_menu, transient_rows, o_transient_ids, id)}
                 {render_element_or_preview(row, "new", values_factory)}
               </e-grid-row>
             )
@@ -1480,7 +1506,8 @@ export class MapFactory extends Factory<MapOptions> {
     return [array({ values: this.options.values }), set({ values: this.options.values })]
   }
 
-  render(o_value: o.Observable<unknown>): RenderableWidget {
+  render(o_value: o.Observable<unknown>, defaults: EditorSettings = default_settings): RenderableWidget {
+    const settings = resolve_settings(this.options, defaults)
     const filter = create_filter_state()
     const keys_factory = this.options.keys
     const values_factory = this.options.values
@@ -1531,6 +1558,7 @@ export class MapFactory extends Factory<MapOptions> {
 
     return {
       ...render_composite_chrome({
+        settings: defaults,
         factory: this as Factory<CommonNodeOptions>,
         o_value,
         filter,
@@ -1539,12 +1567,13 @@ export class MapFactory extends Factory<MapOptions> {
       }),
       render: () =>
         render_composite_grid({
+          packed: settings.packed,
           o_tracks: tracks,
           o_keys: o_visible_keys,
           o_transient_ids,
           render_entry: (o_key) => (
             <e-grid-row>
-              {$editor_menu(() => {
+              {$editor_menu_when(settings.show_menu, () => {
                 const key = o_key.get()
                 return [
                   key_type_change ? element_menu_section("Key", safe_map_key(o_value, key), keys_factory) : null,
@@ -1570,7 +1599,7 @@ export class MapFactory extends Factory<MapOptions> {
             if (!row) return null
             return (
               <e-grid-row>
-                {transient_menu(transient_rows, o_transient_ids, id)}
+                {transient_menu(settings.show_menu, transient_rows, o_transient_ids, id)}
                 {render_element_or_preview(row.o_key, "new key", keys_factory)}
                 {render_element_or_preview(row.o_val, "new", values_factory)}
               </e-grid-row>
@@ -1618,14 +1647,14 @@ export class EitherFactory extends Factory<EitherOptions> {
     return this.options.options.find((f) => f.canHandle(value)) ?? unrepresentable_factory
   }
 
-  render(o_value: o.Observable<unknown>): RenderableWidget {
+  render(o_value: o.Observable<unknown>, defaults: EditorSettings = default_settings): RenderableWidget {
     // The current branch's widget, re-created only when the value's JS type
     // changes (o_sticky_factory) -- not on every edit, which would remount
     // the control under the user's cursor. Per-mount, in this closure: this
     // EitherFactory instance is shared across every cell/row that resolves to
     // a union (e.g. every element of an `array({ values: anything })`).
     const o_current_widget = o_sticky_factory(o_value, (value) => concrete_factory(this, value)).tf(
-      (branch) => branch?.render(o_value) ?? null_widget,
+      (branch) => branch?.render(o_value, defaults) ?? null_widget,
     )
 
     return {
@@ -1667,8 +1696,8 @@ class ForwardFactory<O> extends Factory<O> {
     return this.resolve() as Factory<unknown>
   }
 
-  render(o_value: o.Observable<unknown>): RenderableWidget {
-    return this.resolve().render(o_value)
+  render(o_value: o.Observable<unknown>, defaults: EditorSettings = default_settings): RenderableWidget {
+    return this.resolve().render(o_value, defaults)
   }
 
   override canHandle(value: unknown): boolean {

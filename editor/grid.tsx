@@ -1,8 +1,9 @@
 /*
-Composite grid (Layer 3): every composite (Object, Array, Set, Map, Table) is one packed, bordered
-`e-grid`, one `e-grid-row` per entry, whose cells are the widgets' own elements (Layer 4 "a widget
-renders one element: its cell"). The packed border draws the seams; cells take no border of their
-own (see "Grids" in docs/md/ui-layout.md).
+Composite grid (Layer 3): every composite (Object, Array, Set, Map, Table) is one `e-grid`, one
+`e-grid-row` per entry, whose cells are the widgets' own elements (Layer 4 "a widget renders one
+element: its cell"). Packed, the grid is bordered and its border draws the seams; cells take no
+border of their own (see "Grids" in docs/md/ui-layout.md). Unpacked, the rows are loose, aligned on the
+baseline of their first line, and each widget keeps its own border.
 
 Column widths: the grid first lays out as its content wants (each track's `initial` template), then
 each track is locked to the width it got, as soon as the grid has a body row and a size
@@ -38,6 +39,8 @@ export type GridWidths = Record<string, number>
 type GridRow<K> = { entry: K } | { transient: string }
 
 export interface CompositeGridProps<K> {
+  /** Cells touching in one bordered group with seams, or loose rows (the form look). */
+  packed: boolean
   o_tracks: o.RO<GridTrack[]>
   o_keys: o.RO<K[]>
   o_transient_ids?: o.RO<string[]>
@@ -127,9 +130,9 @@ export function render_composite_grid<K>(props: CompositeGridProps<K>): HTMLElem
   return (
     <e-column scroll align="stretch" class={cls_grid_scroll}>
       <e-grid
-        packed="nudge-4"
-        border
-        align="stretch"
+        packed={props.packed ? "nudge-4" : undefined}
+        border={props.packed}
+        align={props.packed ? "stretch" : "baseline"}
         class={cls_grid}
         style={{ gridTemplateColumns: o_template, minWidth: o_min_width, contain: o_contain }}
       >
