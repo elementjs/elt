@@ -520,8 +520,9 @@ css`
   ${columns_rules}
 
   /* A grid row spans every column and puts its children on the grid's own columns; it inherits the
-     grid's column gap (a subgrid's default). */
-  e-grid-row { grid-column: 1 / -1; display: grid; grid-template-columns: subgrid; }
+     grid's column gap (a subgrid's default), and its \`align\`, since the grid's \`align\` is about
+     its cells, which sit in the rows (an \`align\` on the row itself wins). */
+  e-grid-row { grid-column: 1 / -1; display: grid; grid-template-columns: subgrid; align-items: inherit; }
 
   /* A flex item's automatic minimum size along the flex container's MAIN axis defaults to its
      content's min-content size (not 0) unless overridden — a flex row/column otherwise refuses to

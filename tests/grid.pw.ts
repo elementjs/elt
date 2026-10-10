@@ -549,3 +549,25 @@ test.describe("[align] on layout elements (regression: the legacy HTML align att
     })
   })
 })
+
+test.describe("grid align", () => {
+  // Regression: the grid's `align` stopped at the row (a subgrid, `align-items: normal`), so cells of
+  // different heights in a row were stretched instead of aligned as asked.
+  test("align on e-grid applies to the cells of its rows; an align on the row wins", async ({ page }) => {
+    await mount(
+      page,
+      `<e-grid id="g" columns="2" align="baseline">
+        <e-grid-row id="r1"><span id="a" style="font-size:12px">a</span><span id="b" style="font-size:32px">b</span></e-grid-row>
+        <e-grid-row id="r2" align="start"><span id="c">c</span><span id="d" style="font-size:32px">d</span></e-grid-row>
+      </e-grid>`,
+    )
+    expect(await styles(page, "#r1", ["align-items"])).toEqual({ "align-items": "baseline" })
+    expect(await styles(page, "#r2", ["align-items"])).toEqual({ "align-items": "start" })
+    const bottoms = await page.evaluate(() => {
+      const bottom = (id: string) => document.getElementById(id)!.getBoundingClientRect().bottom
+      return { small: bottom("a"), big: bottom("b") }
+    })
+    // Baseline-aligned: the small text sits lower than the top of the tall one, not stretched with it.
+    expect(bottoms.small).toBeLessThan(bottoms.big)
+  })
+})
