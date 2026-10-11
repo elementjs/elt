@@ -604,22 +604,22 @@ test.describe("packed cells read at the size of controls", () => {
 })
 
 test.describe("focus ring", () => {
-  test("buttons, textareas and text and number inputs draw it inside, so a scroll area's edge cannot clip it", async ({
+  test("buttons, textareas and text, number and search inputs draw it inside, so a scroll area's edge cannot clip it", async ({
     page,
   }) => {
     const r = await page.evaluate(() => {
       document.body.innerHTML = `<e-column scroll border style="height: 120px"><e-grid columns="2" packed border><e-grid-row><input id="in_scroll"><input></e-grid-row></e-grid></e-column>
-        <input id="text" type="text"><input id="number" type="number"><textarea id="area"></textarea><button id="button">b</button>
+        <input id="text" type="text"><input id="number" type="number"><input id="search" type="search"><textarea id="area"></textarea><button id="button">b</button>
         <input type="checkbox" id="check"><input type="checkbox" id="switch" e-variant="switch"><select id="select"><option>a</option></select>`
       const ring = (id: string) => {
         const el = document.getElementById(id) as HTMLInputElement
         el.focus()
         return getComputedStyle(el).boxShadow
       }
-      const ids = ["in_scroll", "text", "number", "area", "button", "check", "switch", "select"]
+      const ids = ["in_scroll", "text", "number", "search", "area", "button", "check", "switch", "select"]
       return Object.fromEntries(ids.map((id) => [id, ring(id)]))
     })
-    for (const id of ["in_scroll", "text", "number", "area", "button"]) expect(r[id], id).toContain("inset")
+    for (const id of ["in_scroll", "text", "number", "search", "area", "button"]) expect(r[id], id).toContain("inset")
     for (const id of ["check", "switch", "select"]) {
       expect(r[id], id).not.toContain("inset")
       expect(r[id], id).not.toBe("none")
