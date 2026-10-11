@@ -508,3 +508,64 @@ test.describe("focus ring of the first cell", () => {
     expect(r.scrollers).toBeGreaterThan(0)
   })
 })
+
+test.describe("typing into a Set member (regression: the row was rebuilt on each key, losing focus)", () => {
+  for (const virtual of [true, false]) {
+    test(`keeps the focus across keystrokes (${virtual ? "scroll area" : "packed"})`, async ({ page }) => {
+      await page.evaluate((packed) => {
+        const { o, node_append } = window.__ELT__
+        const { ObjectEditorShell, set, string } = window.__ELT__.Editor
+        const o_root = o(new Set(["algorithm", "math"]))
+        ;(window as any).o_root = o_root
+        const shell = new ObjectEditorShell(o_root, { schema: set({ values: string() }), packed })
+        node_append(document.body, shell.node)
+      }, !virtual)
+      await settle(page)
+      const input = page.locator("input[type=text], input:not([type])").first()
+      await input.click()
+      await page.keyboard.press("End")
+      await page.keyboard.type("xyz")
+      const result = await page.evaluate(() => ({
+        members: [...(window as any).o_root.get()],
+        focused: document.activeElement?.tagName === "INPUT" && (document.activeElement as HTMLInputElement).value,
+      }))
+      expect(result.members).toEqual(["algorithmxyz", "math"])
+      expect(result.focused).toBe("algorithmxyz")
+    })
+  }
+})
+
+test.describe("typing into a Map key (regression: the row was rebuilt on each key, losing focus)", () => {
+  for (const virtual of [true, false]) {
+    test(`keeps the focus across keystrokes and the entry's place (${virtual ? "scroll area" : "packed"})`, async ({
+      page,
+    }) => {
+      await page.evaluate((packed) => {
+        const { o, node_append } = window.__ELT__
+        const { ObjectEditorShell, map, string } = window.__ELT__.Editor
+        const o_root = o(
+          new Map([
+            ["alpha", "one"],
+            ["beta", "two"],
+          ]),
+        )
+        ;(window as any).o_root = o_root
+        const shell = new ObjectEditorShell(o_root, { schema: map({ keys: string(), values: string() }), packed })
+        node_append(document.body, shell.node)
+      }, !virtual)
+      await settle(page)
+      await page.locator("input[type=text], input:not([type])").first().click()
+      await page.keyboard.press("End")
+      await page.keyboard.type("xyz")
+      const result = await page.evaluate(() => ({
+        entries: [...(window as any).o_root.get()],
+        focused: document.activeElement?.tagName === "INPUT" && (document.activeElement as HTMLInputElement).value,
+      }))
+      expect(result.entries).toEqual([
+        ["alphaxyz", "one"],
+        ["beta", "two"],
+      ])
+      expect(result.focused).toBe("alphaxyz")
+    })
+  }
+})

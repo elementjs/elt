@@ -1460,16 +1460,15 @@ export class SetFactory extends Factory<SetOptions> {
           render_entry: (o_member) => (
             <e-grid-row>
               {$editor_menu_when(settings.show_menu, () => [
-                element_menu_section("Value", safe_set_member(o_value, o_member.get()), values_factory),
+                element_menu_section("Value", safe_set_member(o_value, o_member), values_factory),
                 delete_section(delete_member(o_member.get())),
               ])}
-              {o_member.tf((member) =>
-                render_element_or_preview(
-                  safe_set_member(o_value, member),
-                  value_preview_text(member),
-                  values_factory,
-                  delete_member(member),
-                ),
+              {/* Rendered once: editing the member re-keys this row, it must keep its input (and focus). */}
+              {render_element_or_preview(
+                safe_set_member(o_value, o_member),
+                value_preview_text(o_member.get()),
+                values_factory,
+                can_delete ? () => remove_set_member(o_value, o_member.get()) : undefined,
               )}
             </e-grid-row>
           ),
@@ -1584,24 +1583,18 @@ export class MapFactory extends Factory<MapOptions> {
           o_transient_ids,
           render_entry: (o_key) => (
             <e-grid-row>
-              {$editor_menu_when(settings.show_menu, () => {
-                const key = o_key.get()
-                return [
-                  key_type_change ? element_menu_section("Key", safe_map_key(o_value, key), keys_factory) : null,
-                  element_menu_section("Value", safe_map_value(o_value, key), values_factory),
-                  delete_section(delete_entry(key)),
-                ]
-              })}
-              {o_key.tf((key) =>
-                render_element_or_preview(safe_map_key(o_value, key), value_preview_text(key), keys_factory),
-              )}
-              {o_key.tf((key) =>
-                render_element_or_preview(
-                  safe_map_value(o_value, key),
-                  value_preview_text(key),
-                  values_factory,
-                  delete_entry(key),
-                ),
+              {$editor_menu_when(settings.show_menu, () => [
+                key_type_change ? element_menu_section("Key", safe_map_key(o_value, o_key), keys_factory) : null,
+                element_menu_section("Value", safe_map_value(o_value, o_key), values_factory),
+                delete_section(delete_entry(o_key.get())),
+              ])}
+              {/* Rendered once: renaming the entry re-keys this row, it must keep its inputs (and focus). */}
+              {render_element_or_preview(safe_map_key(o_value, o_key), value_preview_text(o_key.get()), keys_factory)}
+              {render_element_or_preview(
+                safe_map_value(o_value, o_key),
+                value_preview_text(o_key.get()),
+                values_factory,
+                can_delete ? () => remove_map_entry(o_value, o_key.get()) : undefined,
               )}
             </e-grid-row>
           ),

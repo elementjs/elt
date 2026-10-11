@@ -52,10 +52,14 @@ export function safe_array_index(o_arr: o.Observable<unknown>, index: number): o
 }
 
 /** Map entry value for a row keyed by its Map key at mount time. */
-export function safe_map_value(o_map: o.Observable<unknown>, entry_key: unknown): o.Observable<unknown> {
+export function safe_map_value(
+  o_map: o.Observable<unknown>,
+  o_entry_key: o.ReadonlyObservable<unknown>,
+): o.Observable<unknown> {
   return o.expression(
     (get) => {
       const m = get(o_map)
+      const entry_key = get(o_entry_key)
       if (!(m instanceof Map)) return INVALID_MOUNT
       if (!m.has(entry_key)) return INVALID_MOUNT
       return m.get(entry_key)
@@ -63,6 +67,7 @@ export function safe_map_value(o_map: o.Observable<unknown>, entry_key: unknown)
     (value, set) => {
       if (value === INVALID_MOUNT) return
       const m = o_map.get()
+      const entry_key = o_entry_key.get()
       if (!(m instanceof Map) || !m.has(entry_key)) return
       const next = new Map(m)
       next.set(entry_key, value)
@@ -71,11 +76,19 @@ export function safe_map_value(o_map: o.Observable<unknown>, entry_key: unknown)
   )
 }
 
-/** Map entry key — renames the entry when the key value changes. */
-export function safe_map_key(o_map: o.Observable<unknown>, entry_key: unknown): o.Observable<unknown> {
+/**
+ * Map entry key — renames the entry when the key value changes, where it stands. `o_entry_key` is the
+ * key the row currently shows: like a Set member row (see `safe_set_member`), the row outlives a
+ * rename and follows it instead of a key fixed at mount.
+ */
+export function safe_map_key(
+  o_map: o.Observable<unknown>,
+  o_entry_key: o.ReadonlyObservable<unknown>,
+): o.Observable<unknown> {
   return o.expression(
     (get) => {
       const m = get(o_map)
+      const entry_key = get(o_entry_key)
       if (!(m instanceof Map)) return INVALID_MOUNT
       if (!m.has(entry_key)) return INVALID_MOUNT
       return entry_key
@@ -83,22 +96,27 @@ export function safe_map_key(o_map: o.Observable<unknown>, entry_key: unknown): 
     (next_key, set) => {
       if (next_key === INVALID_MOUNT) return
       const m = o_map.get()
+      const entry_key = o_entry_key.get()
       if (!(m instanceof Map) || !m.has(entry_key)) return
       if (m.has(next_key) && next_key !== entry_key) return
-      const val = m.get(entry_key)
-      const next = new Map(m)
-      next.delete(entry_key)
-      next.set(next_key, val)
-      set(o_map, next)
+      set(o_map, new Map([...m].map(([k, v]) => [k === entry_key ? next_key : k, v])))
     },
   )
 }
 
-/** Set member row — identity is the member value present when the row was mounted. */
-export function safe_set_member(o_set: o.Observable<unknown>, member: unknown): o.Observable<unknown> {
+/**
+ * Set member row. `o_member` is the member the row currently shows: a row's nodes outlive an edit of
+ * its member (the list re-keys the row for the new value), so the row follows `o_member` rather than
+ * a value fixed at mount, and an edit replaces the member where it stands instead of moving it last.
+ */
+export function safe_set_member(
+  o_set: o.Observable<unknown>,
+  o_member: o.ReadonlyObservable<unknown>,
+): o.Observable<unknown> {
   return o.expression(
     (get) => {
       const s = get(o_set)
+      const member = get(o_member)
       if (!(s instanceof Set)) return INVALID_MOUNT
       if (!s.has(member)) return INVALID_MOUNT
       return member
@@ -106,11 +124,10 @@ export function safe_set_member(o_set: o.Observable<unknown>, member: unknown): 
     (value, set) => {
       if (value === INVALID_MOUNT) return
       const s = o_set.get()
+      const member = o_member.get()
       if (!(s instanceof Set) || !s.has(member)) return
-      const next = new Set(s)
-      next.delete(member)
-      next.add(value)
-      set(o_set, next)
+      if (value !== member && s.has(value)) return // would merge two members
+      set(o_set, new Set([...s].map((m) => (m === member ? value : m))))
     },
   )
 }

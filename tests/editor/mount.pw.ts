@@ -56,7 +56,7 @@ test.describe("mount safe-child", () => {
       const { o } = window.__ELT__
       const { safe_map_key } = window.__ELT__.Editor
       const o_map = o(new Map<string, number>([["a", 1]]))
-      const o_key = safe_map_key(o_map, "a")
+      const o_key = safe_map_key(o_map, o("a"))
       const initial = o_key.get()
       o_key.set("b")
       return [
@@ -73,7 +73,7 @@ test.describe("mount safe-child", () => {
       const { o } = window.__ELT__
       const { INVALID_MOUNT, safe_map_key } = window.__ELT__.Editor
       const o_map = o(new Map([["x", 1]]))
-      const o_key = safe_map_key(o_map, "x")
+      const o_key = safe_map_key(o_map, o("x"))
       o_map.set(new Map())
       return o_key.get() === INVALID_MOUNT
     })
