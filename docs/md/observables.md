@@ -263,6 +263,39 @@ node_observe(list_node, o_refresh_requested, (requested) => {
 
 The flip side: an arrow function with an expression body returns its value without anyone meaning it. `(v) => (node.title = v + "!")` writes the new title back to the observable. On a read-only observable (a `.tf()`, an `o.expression` without a write-back), that write throws. Write side-effect observers with a block body: `(v) => { node.title = v + "!" }`.
 
+## Observing: `$observe`, `node_observe`, `.observe`
+
+An observer is a callback `(value, old) => …` that runs when an observable's value changes. Three entry points create one, and all three accept the same options and follow the same timing:
+
+| Entry point | Observes while | Use it for |
+| ----------- | -------------- | ---------- |
+| `$observe(obs, cb, options?)` | its node is in the document | a decorator in JSX; `cb` also receives the node as third argument |
+| `node_observe(node, obs, cb, options?)` | `node` is in the document | the same, from code that has a node but no JSX (a custom decorator) |
+| `holder.observe(obs, cb, options?)` | the holder observes | a service, an `EltCustomElement`, or any object extending `o.ObserverHolder` |
+
+**The first call.** An observer is not called at creation. It starts when its node connects (or its holder starts) and its first call then gets the value `obs` has at that moment, with `old === o.NoValue`. Later calls get the new value and the one before. An observer that is stopped (the node left the document) and started again is only called if the value changed in between, with the last value it saw as `old`.
+
+**Options**
+
+| Option | Does | Use it when |
+| ------ | ---- | ----------- |
+| `immediate: true` | Also makes the first call right away, without waiting for the node to connect. The first call at connection is then skipped, since the value has not changed since | the callback must run now, e.g. to derive something from the current value before the node is mounted |
+| `changes_only: true` | Never makes the first call: the value at start is only the baseline, the callback runs on later changes | the callback is a reaction to edits, not to the initial state. It replaces the `if (old === o.NoValue) return` guard |
+
+A value that is not observable never changes: the callback runs once with it (at once with `immediate`, at connection otherwise) and never with `changes_only`.
+
+```ts
+// react to user edits only, not to the value the field starts with
+$observe(o_draft, (draft) => { save_later(draft) }, { changes_only: true })
+
+// compute from the current value now, then follow it
+$observe(o_items, (items) => { total = sum(items) }, { immediate: true })
+```
+
+Keep the callback body a block when it only has side effects: an expression body returns its value, which is written back (see above).
+
+**What if there is no node?** An object that does not render anything usually can be given one: observe from the decorators of the element it renders, or from the root node of the component that owns it. Extend `o.ObserverHolder` only when the object really has no node, and start it with `startObservers()` and stop it with `stopObservers()`.
+
 ## Good patterns vs. patterns to avoid
 
 A few rules of thumb, pulled from the library's own source comments, worth internalizing:
@@ -271,7 +304,7 @@ A few rules of thumb, pulled from the library's own source comments, worth inter
 
 **Prefer `.assign()`/`.mutate()` over chaining `.p()` for deep or ad-hoc writes** (see above) — `.p()` is for binding one path to one control, not for patching application state.
 
-**Observe through the DOM lifecycle, not with a raw `addObserver`.** Prefer `$observe(...)`, `node_observe(...)`, or a class's own `.observe(...)` (on a service, an `EltCustomElement`, or anything else extending `o.ObserverHolder`). These unregister the observer automatically when the node/service goes away; a raw `addObserver` call has to be torn down by hand or it leaks.
+**Observe through the DOM lifecycle, not with a raw `addObserver`.** Use `$observe(...)`, `node_observe(...)`, or a class's own `.observe(...)` (see [Observing](#observing-observe-nodeobserve-observe)). They unregister the observer automatically when the node or holder goes away; a raw `addObserver` call has to be torn down by hand (`removeObserver`) or it leaks. Needing the call right away is no reason for `addObserver`: use `immediate: true`. Wanting to skip the initial value is no reason either: use `changes_only: true`.
 
 **For dynamic DOM structure driven by an observable array or condition, prefer a Verb** (`Repeat`, `If`, `Switch`) over manually tracking state and calling `node_append`/`node_remove` yourself — see the [Verbs](./verbs.md) page.
 

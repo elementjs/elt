@@ -2,6 +2,9 @@
 
 This file is for working **on elt itself**. It is not shipped with the package; agents using elt in another project start from the documentation instead.
 
+- Be sure to [respect elt rules](docs/md/elt-rules.md)
+- If working with or in elt/ui, [respect its rules as well](docs/md/elt-ui-rules.md)
+
 ## Docs (progressive disclosure)
 
 The documentation's entry point is [`docs/md/index.md`](./docs/md/index.md) — the same page agents and humans using the published package start from, and the root of the hosted docs site. Read the rules page for your side in full (`elt-rules.md`, `elt-ui-rules.md`), then only the topic page and section that matches the task; do not read all of `./docs` up front.

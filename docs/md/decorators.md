@@ -123,7 +123,7 @@ return <e-column>
 </e-column>
 ```
 
-> `$observe`'s callback also receives the previous value and the decorated node — useful for effects that need to diff against what came before, or reach into the DOM directly. See `src/decorators.ts` for the full signature.
+> `$observe`'s callback also receives the previous value and the decorated node (as third argument), and takes the options `immediate` and `changes_only`: see [Observing](./observables.md#observing-observe-nodeobserve-observe).
 
 A class definition is class names (a space-separated string, an array of them, or an observable of either) or an object whose keys are class names and whose values, possibly observables, add the class while truthy. `false`, `null` and `undefined` add no class, wherever they appear: `class={o_cond.tf((c) => c && "active")}` adds `active` while `o_cond` is truthy and removes it when it becomes falsy, the same way `{cond && <p />}` renders nothing among children. `class={["row", o_sel.tf((s) => s && "selected")]}` mixes both.
 
