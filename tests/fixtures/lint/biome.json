@@ -1,0 +1,13 @@
+{
+  "plugins": [
+    "../../../lint/no-add-observer.grit",
+    "../../../lint/no-node-mutation.grit",
+    "../../../lint/no-raw-dom-insertion.grit"
+  ],
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "recommended": false
+    }
+  }
+}

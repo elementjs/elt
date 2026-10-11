@@ -1,0 +1,21 @@
+language js
+
+// The DOM's own insertion and removal skip elt's connect and disconnect step. `append` and `remove` are not
+// checked: other objects have them too (classList.remove, FormData.append). See docs/md/hard-dont.md.
+or {
+  `$n.appendChild($args)`,
+  `$n.insertBefore($args)`,
+  `$n.removeChild($args)`,
+  `$n.replaceChildren($args)`,
+  `$n.replaceWith($args)`,
+  `$n.insertAdjacentElement($args)`,
+  `$n.insertAdjacentHTML($args)`,
+  `$n.innerHTML = $v`,
+  `$n.outerHTML = $v`
+} as $call where {
+  register_diagnostic(
+    span = $call,
+    message = "Never insert or remove nodes with the DOM's own methods: they skip elt's connect / disconnect step (docs/md/hard-dont.md).",
+    severity = "error"
+  )
+}

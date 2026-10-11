@@ -14,10 +14,18 @@ Open items carried over from specs that were folded into `docs/md/` and deleted.
 - [ ] **Appear/disappear motion rule.** Write the local rule: trigger conditions, duration/easing tokens, reduced-motion handling (partly covered by `prefers_reduced_motion()` in `ui/animation.tsx`).
 - [ ] **Stale-name audit.** The old-name → new-name migration (now in `docs/md/migrating.md`) only inventoried Color-axis call sites; a dedicated pass is still needed to confirm no other stale Spacing/Layout references remain.
 
+## Hard-don't follow-ups
+
+- [ ] **`sym_closed`.** Kept for now as the "user dismissed it" result of `popup`/`show_dialog` (an expected outcome, unlike the `AbortError` of `show`). Undecided whether it earns its place: three spellings (`sym_closed`, `popup.closed`, `show_dialog.closed`), and the editor imports it from `elt/ui/utils`.
+- [ ] **Alerts.** To design: they need a container (an alert host) to be `show`n in; how `show_alert` finds it is open.
+- [ ] **Layout CSS in `editor/`.** Audit against `docs/md/ui-hard-dont.md#check-before-you-write`: `cls_text_fill` still serves the filter field and the preview inside a button; `.oe-column` (`flex: none`), `.oe-popup-panel`, `.oe-grid-scroll`, `.oe-grid` (font size and line height) and the `.oe-*` menu classes were not audited yet for a layout attribute that does the same.
+- [ ] **Layout CSS in `ui/`** is exempt from the check but not audited either.
+- [ ] **`just check` covers `ui/`, `editor/` and `docs/src/` with the Biome plugins** (`lint/`); `src/` and `tests/` are exempt. `ui/index.tsx` (`addObserver` on `document.body`'s theme class), `ui/theme.tsx` and `ui/icons.tsx` carry a `biome-ignore` with the reason.
+
 ## Found while rewriting the docs (not fixed)
 
 - [ ] `e-prose`'s `variant="vertical"` is typed but no CSS handles it.
-- [ ] `show_dialog` is typed as returning `Promise<Future<T>>`, but awaiting it yields `T | undefined`.
+- [ ] `show_dialog` and `popup` return a `Deferred<T | typeof sym_closed>` (was `Future`, now removed): check the docs' claim "awaiting yields `T | undefined`" no longer applies.
 - [ ] `RouterOptions` (`src/app/url-source.ts`) isn't re-exported from `elt`, although apps pass it to `app.setupRouter`.
 - [ ] `@attr` (custom elements) only works with legacy decorators; with `target: es2022` a property initializer silently shadows the decorated property. Docs tell users to use `declare` with no initializer and set defaults in `init()`.
 - [ ] `docs/md/components.md` has hard-wrapped lines.

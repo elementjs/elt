@@ -118,7 +118,7 @@ Every layout decision reduces to these six. The layout elements and their attrib
 
 ## Custom CSS
 
-1. **Custom CSS is the last resort.** Try layout attributes and theme helpers first. If you still need CSS, keep it local, build it from theme helpers, and say in a comment why the layout attributes were not enough ([Theme § Custom CSS](./ui-theme.md#custom-css)).
+1. **Custom CSS is the last resort.** Before writing layout CSS, do the check in [Never do these with elt/ui § Check before you write](./ui-hard-dont.md#check-before-you-write). If you still need CSS, keep it local, build it from theme helpers, and say in a comment which attribute or helper you tried and why it was not enough ([Theme § Custom CSS](./ui-theme.md#custom-css)).
 2. Equal grid columns are `columns={N}` on an `<e-grid>`; any other grid template (`grid-template-*`) goes in a small `css` rule on it. Rows of a table-like grid are `<e-grid-row>`s ([Layout § Grids](./ui-layout.md#grids)).
 3. A scroll area is a layout element with `scroll` (a long list's too), not `overflow` in CSS nor the deprecated `$scrollable`. It draws the frame (`border`) of what it scrolls, and isn't padded when it holds `sticky` elements ([Layout § Scroll areas and sticky elements](./ui-layout.md#scroll-areas-and-sticky-elements)).
 

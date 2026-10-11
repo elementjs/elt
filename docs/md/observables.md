@@ -265,13 +265,13 @@ The flip side: an arrow function with an expression body returns its value witho
 
 ## Observing: `$observe`, `node_observe`, `.observe`
 
-An observer is a callback `(value, old) => …` that runs when an observable's value changes. Three entry points create one, and all three accept the same options and follow the same timing:
+An observer is a callback `(value, old) => …` that runs when an observable's value changes. Three entry points create one (`node_observe` is what a decorator of your own calls), and all three accept the same options and follow the same timing:
 
 | Entry point | Observes while | Use it for |
 | ----------- | -------------- | ---------- |
 | `$observe(obs, cb, options?)` | its node is in the document | a decorator in JSX; `cb` also receives the node as third argument |
 | `node_observe(node, obs, cb, options?)` | `node` is in the document | the same, from code that has a node but no JSX (a custom decorator) |
-| `holder.observe(obs, cb, options?)` | the holder observes | a service, an `EltCustomElement`, or any object extending `o.ObserverHolder` |
+| `.observe(obs, cb, options?)` of a service or an `EltCustomElement` | the service or the element is active | observing from inside one of these |
 
 **The first call.** An observer is not called at creation. It starts when its node connects (or its holder starts) and its first call then gets the value `obs` has at that moment, with `old === o.NoValue`. Later calls get the new value and the one before. An observer that is stopped (the node left the document) and started again is only called if the value changed in between, with the last value it saw as `old`.
 
@@ -294,7 +294,7 @@ $observe(o_items, (items) => { total = sum(items) }, { immediate: true })
 
 Keep the callback body a block when it only has side effects: an expression body returns its value, which is written back (see above).
 
-**What if there is no node?** An object that does not render anything usually can be given one: observe from the decorators of the element it renders, or from the root node of the component that owns it. Extend `o.ObserverHolder` only when the object really has no node, and start it with `startObservers()` and stop it with `stopObservers()`.
+**Where to observe.** Observe from a decorator on the node whose time on screen the observation should follow, or, in a service or a custom element, with its own `.observe`. An object that has neither (a model, an undo history) does not observe: the code that does tells it what changed, from a decorator, with `$observe(o_root, (value) => history.record(value), { changes_only: true })`.
 
 ## Good patterns vs. patterns to avoid
 

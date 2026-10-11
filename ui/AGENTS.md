@@ -2,6 +2,8 @@
 
 This file is for changing the `ui/` library itself. To *use* `elt/ui`, start at [`docs/md/index.md`](../docs/md/index.md) → [`docs/md/elt-ui-rules.md`](../docs/md/elt-ui-rules.md); those rules apply to `ui/`'s own code too.
 
+**Never do** what [`hard-dont.md`](../docs/md/hard-dont.md) lists: `ui/` is a consumer of elt like any other. [`ui-hard-dont.md`](../docs/md/ui-hard-dont.md) does not apply to `ui/` itself (it implements the layout attributes and the theme), but does to everything built on it.
+
 ## When modifying `ui/`
 
 - **Do not add dependencies.** `@floating-ui/dom` (popups) is the only one, as a peer dependency.

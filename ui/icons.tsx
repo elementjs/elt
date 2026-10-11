@@ -46,7 +46,9 @@ function _(...shapes: SVGElement[]) {
   sp.classList.add(cls_icon)
   const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg")
   svg.setAttribute("viewBox", "0 0 256 256")
+  // biome-ignore lint/plugin: building a detached svg, before elt ever sees it
   for (const shape of shapes) svg.appendChild(shape)
+  // biome-ignore lint/plugin: same, a detached tree
   sp.appendChild(svg)
   return sp
 }

@@ -32,6 +32,7 @@ const oo_correct_theme = o_force_theme.tf((th) => {
   return th === "default" ? theme.toString() : th === "dark" ? theme.class_dark_scheme : theme.class_light_scheme
 })
 
+// biome-ignore lint/plugin: lives as long as the page and acts on `body`, which elt never connects: no node or service to tie it to
 oo_correct_theme.addObserver((cls, old) => {
   if (old !== o.NoValue) {
     document.body.classList.remove(old)

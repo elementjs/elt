@@ -8,6 +8,7 @@
       "docs/src/**",
       "!docs/src/md",
       "!docs/src/routes.generated.ts",
+      "!tests/fixtures/lint",
       "!!**/.claude"
     ]
   },
@@ -46,6 +47,10 @@
     }
   },
   "overrides": [
+    {
+      "includes": ["ui/**", "editor/**", "docs/src/**"],
+      "plugins": ["./lint/no-add-observer.grit", "./lint/no-node-mutation.grit", "./lint/no-raw-dom-insertion.grit"]
+    },
     {
       "includes": ["tests/**", "docs/src/**"],
       "linter": {

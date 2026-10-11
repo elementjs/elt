@@ -1,0 +1,10 @@
+language js
+
+// Never observe by hand: the observer outlives what it was meant for. See docs/md/hard-dont.md.
+or { `$obs.addObserver($args)`, `$obs.removeObserver($args)` } as $call where {
+  register_diagnostic(
+    span = $call,
+    message = "Never call addObserver / removeObserver. Observe with $observe, or with the .observe of a service or a custom element (docs/md/hard-dont.md).",
+    severity = "error"
+  )
+}

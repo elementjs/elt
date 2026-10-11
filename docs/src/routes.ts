@@ -14,6 +14,7 @@ import md_custom_elements_text from "../md/custom-elements.md" with { type: "tex
 import md_decorators_text from "../md/decorators.md" with { type: "text" }
 import md_elt_rules_text from "../md/elt-rules.md" with { type: "text" }
 import md_elt_ui_rules_text from "../md/elt-ui-rules.md" with { type: "text" }
+import md_hard_dont_text from "../md/hard-dont.md" with { type: "text" }
 import md_index_text from "../md/index.md" with { type: "text" }
 import md_introduction_text from "../md/introduction.md" with { type: "text" }
 import md_migrating_text from "../md/migrating.md" with { type: "text" }
@@ -22,6 +23,7 @@ import md_object_editor_text from "../md/object-editor.md" with { type: "text" }
 import md_observables_text from "../md/observables.md" with { type: "text" }
 import md_testing_text from "../md/testing.md" with { type: "text" }
 import md_ui_forms_text from "../md/ui-forms.md" with { type: "text" }
+import md_ui_hard_dont_text from "../md/ui-hard-dont.md" with { type: "text" }
 import md_ui_keymap_text from "../md/ui-keymap.md" with { type: "text" }
 import md_ui_layout_text from "../md/ui-layout.md" with { type: "text" }
 import md_ui_overlays_text from "../md/ui-overlays.md" with { type: "text" }
@@ -39,6 +41,7 @@ void md_custom_elements_text
 void md_decorators_text
 void md_elt_rules_text
 void md_elt_ui_rules_text
+void md_hard_dont_text
 void md_index_text
 void md_introduction_text
 void md_migrating_text
@@ -47,6 +50,7 @@ void md_object_editor_text
 void md_observables_text
 void md_testing_text
 void md_ui_forms_text
+void md_ui_hard_dont_text
 void md_ui_keymap_text
 void md_ui_layout_text
 void md_ui_overlays_text

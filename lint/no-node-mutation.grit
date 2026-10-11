@@ -1,0 +1,18 @@
+language js
+
+// Content that follows state is a verb, content that lives until a promise settles is a show(), the app goes on the
+// page with app.mount. See docs/md/hard-dont.md.
+or {
+  `node_append($args)`,
+  `node_remove($args)`,
+  `node_clear($args)`,
+  `$obj.node_append($args)`,
+  `$obj.node_remove($args)`,
+  `$obj.node_clear($args)`
+} as $call where {
+  register_diagnostic(
+    span = $call,
+    message = "Never call node_append / node_remove / node_clear. Use a verb (If, Repeat, Switch), show(), or app.mount (docs/md/hard-dont.md).",
+    severity = "error"
+  )
+}

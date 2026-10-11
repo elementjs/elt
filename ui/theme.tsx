@@ -187,6 +187,7 @@ function getOkLch<T extends ColorScheme>(colors: T): { [key in keyof T]: OkLch }
   // A temporary element, so the browser normalizes each color for us
   const el = document.createElement("div")
   el.style.visibility = "hidden"
+  // biome-ignore lint/plugin: a measuring probe that elt never renders, removed below
   document.body.appendChild(el)
 
   const res = {} as { [key in keyof T]: OkLch }
@@ -208,6 +209,7 @@ function getOkLch<T extends ColorScheme>(colors: T): { [key in keyof T]: OkLch }
       )
     }
   } finally {
+    // biome-ignore lint/plugin: the probe added above
     document.body.removeChild(el)
   }
   return res

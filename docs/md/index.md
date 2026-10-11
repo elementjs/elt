@@ -17,6 +17,7 @@ This page is the entry point for humans and coding agents alike. Pick the page t
 | You are… | Read |
 | -------- | ---- |
 | New to elt, wanting the ideas behind it and a first app | [Introduction](./introduction.md) |
+| About to write anything: the short list of what is never done | [Never do these](./hard-dont.md), and [with elt/ui](./ui-hard-dont.md) |
 | Coming from React | [elt rules § Hard rules](./elt-rules.md#hard-rules): what is different, on one screen |
 | Writing or changing **application code** (observables, verbs, components, routes, services) | [elt rules](./elt-rules.md) — read it in full first, then the topic page below for your subject |
 | Writing or changing **UI** with `elt/ui` | [elt/ui rules](./elt-ui-rules.md) — read it in full first, then the UI page below for your subject |
