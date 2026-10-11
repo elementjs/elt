@@ -6,7 +6,7 @@ order: 6
 
 # Overlays and motion
 
-Popups, dialogs, the `Future` they return, and animation. The rules are in [elt/ui rules § Overlays](./elt-ui-rules.md#overlays); the reasoning is in [Why](#why).
+Popups, dialogs, the future they return, and animation. The rules are in [elt/ui rules § Overlays](./elt-ui-rules.md#overlays); the reasoning is in [Why](#why).
 
 ## Choosing an overlay
 
@@ -22,9 +22,9 @@ Use the lightest one that gives the interaction enough room and keeps the user's
 ```ts
 popup<T>(
   anchor: Element | { x: number; y: number; element: Element },
-  render: (fut: Future<T | typeof sym_closed>) => Node,
+  render: (fut: Deferred<T | typeof sym_closed>) => Node,
   opts?: { placement?: Placement; parent?: Element | null; arrow?: boolean },
-): Future<T | typeof sym_closed>
+): Deferred<T | typeof sym_closed>
 ```
 
 - `render` returns **one element, drawn as given**: its own `surface`, `border`, `pad`, `scroll`. The popup adds only what makes it a popup: placement next to the anchor (kept in place while scrolling), a drop shadow, the open/close animation, dismissal, and the arrow.
@@ -37,14 +37,15 @@ popup<T>(
 - A popup opened from inside another popup is attached to it and keeps it open; any other popup closes the open ones first.
 
 ```tsx
+import { $click } from "elt"
 import { popup } from "elt/ui"
 
 <button>
   {$click(async (ev) => {
     const result = await popup(ev.currentTarget, (fut) => (
       <e-column surface="background" border seamless packed="widget" align="stretch" role="menu">
-        <button role="menuitem">{fut.$clickResolve(() => "copy")}Copy</button>
-        <button role="menuitem">{fut.$clickResolve(() => "paste")}Paste</button>
+        <button role="menuitem">{$click(() => fut.resolve("copy"))}Copy</button>
+        <button role="menuitem">{$click(() => fut.resolve("paste"))}Paste</button>
       </e-column>
     ))
     if (result !== popup.closed) run(result)
@@ -76,8 +77,8 @@ A context menu opens at the pointer, from [`$context_menu`](./decorators.md#cont
 popup(ev.currentTarget, (fut) => {
   const menu = (
     <e-column surface="background" border seamless packed="widget" align="stretch" role="menu">
-      <button role="menuitem">{fut.$clickResolve(() => "copy")}Copy</button>
-      <button role="menuitem">{fut.$clickResolve(() => "paste")}Paste</button>
+      <button role="menuitem">{$click(() => fut.resolve("copy"))}Copy</button>
+      <button role="menuitem">{$click(() => fut.resolve("paste"))}Paste</button>
     </e-column>
   ) as HTMLElement
   menu_nav(menu)
@@ -100,8 +101,8 @@ popup(ev.currentTarget, (fut) => {
 ## show_dialog
 
 ```ts
-show_dialog<T>(render: (fut: Future<T | typeof sym_closed>) => Node): Future<T | typeof sym_closed>
-show_dialog<T>(opts: { clickOutsideToClose?: boolean }, render): Future<T | typeof sym_closed>
+show_dialog<T>(render: (fut: Deferred<T | typeof sym_closed>) => Node): Deferred<T | typeof sym_closed>
+show_dialog<T>(opts: { clickOutsideToClose?: boolean }, render): Deferred<T | typeof sym_closed>
 ```
 
 - A modal `<dialog>` with a backdrop, centered, animated in and out. The dialog itself is an **unstyled box**: `render` returns one element that draws the frame, like a popup's.
@@ -135,9 +136,15 @@ return <button>
 </button>
 ```
 
-## Future
+## The future
 
-`Future<T>` is a [`Deferred<T>`](./utilities.md#deferred) — a promise you resolve or reject from outside: `.resolve(v)`, `.reject(e)` (only the first call counts) — with one more method, `.$clickResolve(fn)`, a decorator that resolves with `fn(ev)` on click. It is awaitable like any promise. Rejecting the future of a popup or a dialog closes it, like resolving it does.
+`popup` and `show_dialog` return, and hand to their content, a [`Deferred<T>`](./utilities.md#deferred): a promise you resolve or reject from outside with `.resolve(v)` and `.reject(e)` (only the first call counts). It is awaitable like any promise, and it ends the popup or the dialog, however it ends.
+
+- **A value:** `fut.resolve(value)` from the content. Awaiting gives the value.
+- **A dismissal:** `sym_closed` (also `popup.closed`, `show_dialog.closed`) when the user dismissed it, with a click outside or `Escape`. This is an expected outcome, not an error.
+- **A rejection:** `fut.reject(e)` closes it too, and the rejection goes to whoever awaits the future. It is also what happens when the element the popup or the dialog was put in leaves the page while it is shown: the future is rejected with an `AbortError` (a `DOMException`), so that code waiting for an answer is told that none will come. `try { await … } catch (e) { if (e.name !== "AbortError") throw e }` ignores it.
+
+Both are built on [`show`](./verbs.md#show-content-that-lives-until-a-promise-settles), which you can use for overlays of your own.
 
 ## Motion
 

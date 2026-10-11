@@ -137,6 +137,54 @@ test.describe("popup (docs/md/ui-overlays.md#popup)", () => {
     }
   })
 
+  test("the future is rejected with an AbortError when the popup's parent leaves the page", async ({ page }) => {
+    await page.evaluate(() => {
+      const { UI, node_append } = window.__ELT__
+      const w = window as W
+      document.body.innerHTML = ""
+      const host = document.createElement("div")
+      host.id = "host"
+      node_append(document.body, host)
+      const anchor = document.createElement("button")
+      anchor.id = "anchor"
+      host.append(anchor)
+      const fut = UI.popup(
+        anchor,
+        () => {
+          const c = document.createElement("e-column")
+          c.id = "content"
+          return c
+        },
+        { parent: host },
+      )
+      w.result = "pending"
+      fut.then(
+        () => (w.result = "resolved"),
+        (e: DOMException) => (w.result = e.name),
+      )
+    })
+    await page.waitForSelector("#host #content", { state: "attached" })
+    await page.evaluate(() => window.__ELT__.node_remove(document.getElementById("host")!))
+    await page.waitForFunction(() => (window as W).result !== "pending")
+    expect(await page.evaluate(() => (window as W).result)).toBe("AbortError")
+  })
+
+  test("a parent that is not in the page rejects the future instead of throwing later", async ({ page }) => {
+    const result = await page.evaluate(async () => {
+      const { UI } = window.__ELT__
+      document.body.innerHTML = `<button id="anchor">open</button>`
+      const detached = document.createElement("div")
+      const fut = UI.popup(document.getElementById("anchor")!, () => document.createElement("e-column"), {
+        parent: detached,
+      })
+      return fut.then(
+        () => "resolved",
+        (e: Error) => e.message,
+      )
+    })
+    expect(result).toContain("parent must be in the page")
+  })
+
   test("a rejected future closes the popup without an unhandled rejection", async ({ page }) => {
     await page.evaluate(() => {
       const { UI } = window.__ELT__

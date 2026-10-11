@@ -5,10 +5,10 @@
  * Some popup handling.
  */
 
-import { $enter, $leave, css, node_append, node_remove, o } from "elt"
+import { $connected, $enter, $leave, css, Deferred, o, show } from "elt"
 import { rise_in, sink_out } from "./motion"
 import { theme } from "./theme"
-import { Future, sym_closed } from "./utils"
+import { sym_closed } from "./utils"
 const colors = theme.colors
 
 import {
@@ -25,7 +25,7 @@ import {
 } from "@floating-ui/dom"
 
 const popups = new Set<Element>()
-const popups_futures = new WeakMap<Element, Future<any | undefined>>()
+const popups_futures = new WeakMap<Element, Deferred<any | undefined>>()
 /** What had focus when each popup opened, given it back when the popup closes. */
 const popups_return_focus = new WeakMap<Element, HTMLElement>()
 /** The document whose click and keydown listeners are installed: set while at least one popup is open. */
@@ -72,8 +72,7 @@ function _popup_resolve(p: Element) {
     return_to.focus({ preventScroll: true })
   }
   p.classList.remove("open")
-  // Its $leave plays the exit; the popup is already out of the flow (absolute), so it stays in flow.
-  node_remove(p, true)
+  // Its future ended: `show` removes it, and its $leave plays the exit.
   _stop_listening_if_none()
 }
 
@@ -219,7 +218,7 @@ const popup_transform_origins = new Map<string, string>([
 ])
 
 /**
- * Open a popup next to `anchor` and return a `Future` resolved by `fut.resolve(value)` from the
+ * Open a popup next to `anchor` and return a `Deferred` resolved by `fut.resolve(value)` from the
  * content, or with {@link sym_closed} when the user dismisses it (click outside, `Escape`).
  *
  * The element `render` returns is drawn as given — its own `border`, `surface`, `scroll` and padding;
@@ -230,7 +229,7 @@ const popup_transform_origins = new Map<string, string>([
  */
 export function popup<T>(
   anchor: PopupAnchor,
-  render: (fut: Future<T | typeof sym_closed>) => Node,
+  render: (fut: Deferred<T | typeof sym_closed>) => Node,
   opts?: PopupOptions,
 ) {
   const anchor_el = anchor instanceof Element ? anchor : anchor.element
@@ -240,17 +239,26 @@ export function popup<T>(
       ? anchor
       : { getBoundingClientRect: () => new DOMRect(anchor.x, anchor.y, 0, 0), contextElement: anchor_el }
   const doc = anchor_el.ownerDocument
-  const fut = new Future<T | typeof sym_closed>()
+  const fut = new Deferred<T | typeof sym_closed>()
   const rendered = render(fut)
   // Typed Node because that is what JSX gives; the popup needs one element to cap and color from.
   if (!(rendered instanceof HTMLElement)) throw new Error("popup(): render must return a single HTML element")
   const content = rendered
   content.classList.add(cls_popup_content)
+
+  const o_arrow_state = o<ArrowState>({ side: "bottom", ax: null, ay: null, visible: true })
+  const with_arrow = opts?.arrow ?? anchor instanceof Element
+  const arro = with_arrow ? popup_arrow(o_arrow_state) : null
+
   const popup = (
     <div popover="manual" class={cls_popup}>
       {$enter(rise_in)}
       {$leave(sink_out, { flow: true })}
       {content}
+      {/* A sibling of the content, not a child: a scrolling content would clip it. Drawn after the
+          content, so above it. */}
+      {arro}
+      {$connected(open)}
     </div>
   ) as HTMLElement
 
@@ -286,22 +294,8 @@ export function popup<T>(
     _close_popups()
   }
 
-  setTimeout(async () => {
-    // Settled before it was even shown (closed right after opening): never show it.
-    if (settled) return
-
-    const o_arrow_state = o<ArrowState>({ side: "bottom", ax: null, ay: null, visible: true })
-    const with_arrow = opts?.arrow ?? anchor instanceof Element
-    const arro = with_arrow ? popup_arrow(o_arrow_state) : null
-    if (arro) {
-      // A sibling of the content, not a child: a scrolling content would clip it. Drawn after the
-      // content, so above it.
-      node_append(popup, arro)
-    }
-
-    // Opening and closing are updates: the popup plays its $enter / $leave.
-    node_append(opts?.parent ?? find_parent_node(anchor_el), popup, null, true)
-
+  // Once the popup is in the page: shown in the top layer, then placed next to its anchor.
+  function open() {
     popup.showPopover()
     popup.classList.add("open")
     // Read once per open, now that the content is connected: not on each repositioning.
@@ -390,6 +384,23 @@ export function popup<T>(
     const cleanup = autoUpdate(reference, popup, updatePosition)
     // Both outcomes: `finally` would make a promise that rejects unhandled when the future is rejected.
     fut.then(cleanup, cleanup)
+  }
+
+  setTimeout(() => {
+    // Settled before it was even shown (closed right after opening): never show it.
+    if (settled) return
+    try {
+      // Opening and closing are updates of `show`: the popup plays its $enter / $leave, and goes when its
+      // future ends. The content already got `fut`, so the two futures end together.
+      show<T | typeof sym_closed>(opts?.parent ?? find_parent_node(anchor_el), (shown) => {
+        fut.then(shown.resolve, shown.reject)
+        shown.then(fut.resolve, fut.reject)
+        return popup
+      })
+    } catch (e) {
+      // The parent is not in the page.
+      fut.reject(e)
+    }
   })
 
   return fut

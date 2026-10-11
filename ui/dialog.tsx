@@ -1,6 +1,6 @@
-import { $enter, $leave, $on, animate, css, node_append, node_remove } from "elt"
+import { $connected, $enter, $leave, $on, animate, css, type Deferred, show } from "elt"
 import { theme } from "./theme"
-import { Future, sym_closed } from "./utils"
+import { sym_closed } from "./utils"
 import { fade_in, fade_out, zoom_in, zoom_out } from "./motion"
 
 export interface DialogOptions {
@@ -9,10 +9,10 @@ export interface DialogOptions {
 }
 
 /** Returns the dialog's content: one element, drawing its own frame. Typed `Node` because that is what JSX gives. */
-export type DialogCallback<T> = (fut: Future<T | typeof sym_closed>) => Node
+export type DialogCallback<T> = (fut: Deferred<T | typeof sym_closed>) => Node
 
 /**
- * Open a modal dialog and return a `Future` resolved by `fut.resolve(value)` from the content, or
+ * Open a modal dialog and return a `Deferred` resolved by `fut.resolve(value)` from the content, or
  * with {@link sym_closed} when the user dismisses it (`Escape`, or a backdrop click with
  * `clickOutsideToClose`).
  *
@@ -21,81 +21,81 @@ export type DialogCallback<T> = (fut: Future<T | typeof sym_closed>) => Node
  * centering, a shadow, the size limits (`--e-dialog-max-width`, `--e-dialog-max-height`; the content
  * scrolls itself when it can be taller) and the animation.
  */
-export function show_dialog<T>(render: DialogCallback<T>): Future<T | typeof sym_closed>
-export function show_dialog<T>(opts: DialogOptions, render: DialogCallback<T>): Future<T | typeof sym_closed>
+export function show_dialog<T>(render: DialogCallback<T>): Deferred<T | typeof sym_closed>
+export function show_dialog<T>(opts: DialogOptions, render: DialogCallback<T>): Deferred<T | typeof sym_closed>
 
 export function show_dialog<T>(opts: DialogOptions | DialogCallback<T>, cbk?: DialogCallback<T>) {
-  const future = new Future<T | typeof sym_closed>()
-
   // show_dialog(cbk) or show_dialog(opts, cbk)
   const options: DialogOptions = typeof opts === "function" ? {} : opts
   const render = typeof opts === "function" ? opts : cbk
   if (render == null) throw new Error("show_dialog(opts, cbk): cbk is required")
 
   const return_focus = document.activeElement instanceof HTMLElement ? document.activeElement : null
-
-  const content = render(future)
-  if (!(content instanceof Element)) throw new Error("show_dialog(): render must return a single element")
-
-  const dialog = E(
-    "dialog",
-    content,
-    options.clickOutsideToClose &&
-      $on("click", (ev) => {
-        const rect = dialog.getBoundingClientRect()
-        const clickedBackdrop =
-          ev.clientX < rect.left || ev.clientX > rect.right || ev.clientY < rect.top || ev.clientY > rect.bottom
-
-        if (clickedBackdrop) future.resolve(sym_closed)
-      }),
-    // The native `cancel` (Escape) would close the dialog on its own, behind the future's back.
-    $on("cancel", (ev) => {
-      ev.preventDefault()
-      future.resolve(sym_closed)
-    }),
-    // Browsers may refuse to let `cancel` be prevented (a second Escape without user activation in
-    // between): the dialog then closes anyway, and the future must still settle.
-    $on("close", () => future.resolve(sym_closed)),
-    $enter((d) => {
-      animate(d, zoom_in)
-      // The backdrop only exists once showModal() ran, right after the insertion that runs this.
-      queueMicrotask(() => animate(d, { ...fade_in, duration: zoom_in.duration }, { pseudoElement: "::backdrop" }))
-    }),
-    // Out of the flow already (fixed, top layer). While it plays, the dialog stays modal: focus can
-    // only go back to the page once it is closed.
-    $leave(
-      (d) =>
-        Promise.all([
-          animate(d, zoom_out, { dir: "leave", fill: "forwards" }),
-          animate(
-            d,
-            { ...fade_out, duration: zoom_out.duration },
-            { dir: "leave", fill: "forwards", pseudoElement: "::backdrop" },
-          ),
-        ]).then(() => {
-          ;(d as HTMLDialogElement).close()
-          give_focus_back()
-        }),
-      { flow: true },
-    ),
-  )
-
   const give_focus_back = () => {
     if (return_focus?.isConnected) return_focus.focus({ preventScroll: true })
   }
 
-  // Opening and closing are updates: the dialog plays its $enter / $leave.
-  node_append(document.body, dialog, null, true)
-  dialog.showModal()
+  let dialog!: HTMLDialogElement
 
-  // Settled either way (a value, sym_closed, or a rejection), the dialog goes. Handling both outcomes
-  // also keeps this derived promise from rejecting unhandled: the rejection is for whoever awaits.
-  const close = () => {
-    node_remove(dialog, true)
-    // Gone at once (motion off, or already closed by the browser): no exit gives focus back.
+  // Opening and closing are updates of `show`: the dialog plays its $enter / $leave, and goes when the
+  // future ends, whatever the outcome.
+  const future = show<T | typeof sym_closed>(document.body, (future) => {
+    const content = render(future)
+    if (!(content instanceof Element)) throw new Error("show_dialog(): render must return a single element")
+
+    dialog = E(
+      "dialog",
+      content,
+      options.clickOutsideToClose &&
+        $on("click", (ev) => {
+          const rect = dialog.getBoundingClientRect()
+          const clickedBackdrop =
+            ev.clientX < rect.left || ev.clientX > rect.right || ev.clientY < rect.top || ev.clientY > rect.bottom
+
+          if (clickedBackdrop) future.resolve(sym_closed)
+        }),
+      // The native `cancel` (Escape) would close the dialog on its own, behind the future's back.
+      $on("cancel", (ev) => {
+        ev.preventDefault()
+        future.resolve(sym_closed)
+      }),
+      // Browsers may refuse to let `cancel` be prevented (a second Escape without user activity in
+      // between): the dialog then closes anyway, and the future must still settle.
+      $on("close", () => future.resolve(sym_closed)),
+      // Modal once in the page, before $enter runs (connected callbacks come first): the backdrop exists
+      // when the enter animation starts.
+      $connected((d) => d.showModal()),
+      $enter((d) => {
+        animate(d, zoom_in)
+        animate(d, { ...fade_in, duration: zoom_in.duration }, { pseudoElement: "::backdrop" })
+      }),
+      // Out of the flow already (fixed, top layer). While it plays, the dialog stays modal: focus can
+      // only go back to the page once it is closed.
+      $leave(
+        (d) =>
+          Promise.all([
+            animate(d, zoom_out, { dir: "leave", fill: "forwards" }),
+            animate(
+              d,
+              { ...fade_out, duration: zoom_out.duration },
+              { dir: "leave", fill: "forwards", pseudoElement: "::backdrop" },
+            ),
+          ]).then(() => {
+            ;(d as HTMLDialogElement).close()
+            give_focus_back()
+          }),
+        { flow: true },
+      ),
+    )
+    return dialog
+  })
+
+  // Gone at once (motion off, or already closed by the browser): no exit gives focus back. This runs
+  // after the removal `show` does when the future ends.
+  const settled = () => {
     if (dialog.parentNode == null) give_focus_back()
   }
-  future.then(close, close)
+  future.then(settled, settled)
 
   return future
 }
