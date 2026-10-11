@@ -383,7 +383,7 @@ const cls_combo_input = css`.select-combo-input {
 }`
 
 const cls_listbox = css`.select-listbox {
-  max-height: min(24em, var(--e-popup-max-height, 24em));
+  max-height: min(24em, var(--e-popup-room-height, 24em));
 }`
 
 const cls_indicator = css`.indicator {

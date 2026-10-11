@@ -16,7 +16,7 @@ test.describe("popup (docs/md/ui-overlays.md#popup)", () => {
     })
     await page.waitForSelector("[popover] #content")
     await page.waitForFunction(() =>
-      document.querySelector<HTMLElement>("[popover]")?.style.getPropertyValue("--e-popup-max-height"),
+      document.querySelector<HTMLElement>("[popover]")?.style.getPropertyValue("--e-popup-room-height"),
     )
     const r = await page.evaluate(() => {
       const content = document.getElementById("content")!
@@ -31,8 +31,8 @@ test.describe("popup (docs/md/ui-overlays.md#popup)", () => {
         arrow_bg: acs.backgroundColor,
         content_border: cs.borderTopColor,
         arrow_border: acs.borderTopColor,
-        max_h: pop.style.getPropertyValue("--e-popup-max-height"),
-        max_w: pop.style.getPropertyValue("--e-popup-max-width"),
+        max_h: pop.style.getPropertyValue("--e-popup-room-height"),
+        max_w: pop.style.getPropertyValue("--e-popup-room-width"),
       }
     })
     expect(r.parent_is_popover).toBe(true)
@@ -420,5 +420,42 @@ test.describe("show_dialog (docs/md/ui-overlays.md#show_dialog)", () => {
     await page.mouse.click(5, 5)
     await page.waitForFunction(() => (window as W).result !== "pending")
     expect(await page.evaluate(() => (window as W).result)).toBe("closed")
+  })
+})
+
+test.describe("popup size limits", () => {
+  test("theme tokens and per-popup options set the content's min width and max size, within the room by the anchor", async ({
+    page,
+  }) => {
+    const r = await page.evaluate(async () => {
+      const UI = window.__ELT__.UI
+      document.body.insertAdjacentHTML("beforeend", '<button id="anchor">anchor</button>')
+      const open = async (opts?: Record<string, unknown>, style = "") => {
+        const content = document.createElement("e-column")
+        content.setAttribute("border", "")
+        content.setAttribute("style", style)
+        content.textContent = "x"
+        UI.popup(document.getElementById("anchor")!, () => content, opts)
+        await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)))
+        const cs = getComputedStyle(content)
+        return {
+          min: cs.minWidth,
+          max_w: cs.maxWidth,
+          max_h: cs.maxHeight,
+          width: content.getBoundingClientRect().width,
+        }
+      }
+      const by_default = await open()
+      const by_option = await open({ min_width: 300, max_width: "320px", max_height: 100 })
+      // A token set on the content wins over the theme's, an option over the token.
+      const by_token = await open(undefined, "--e-popup-min-width: 200px")
+      return { by_default, by_option, by_token, vh: innerHeight, vw: innerWidth }
+    })
+    expect(r.by_default.min).toBe("0px")
+    expect(Number.parseFloat(r.by_default.max_h)).toBeLessThanOrEqual(r.vh * 0.8 + 1)
+    expect(r.by_option).toMatchObject({ min: "300px", max_w: "320px", max_h: "100px" })
+    expect(r.by_option.width).toBe(300)
+    expect(r.by_token.min).toBe("200px")
+    expect(r.by_token.width).toBe(200)
   })
 })

@@ -147,6 +147,14 @@ export interface PopupOptions {
   parent?: Element | null
   /** Draw the arrow pointing at the anchor. Default: `true` with an element anchor, `false` with a point. */
   arrow?: boolean
+  /**
+   * Size limits of the content, for this popup only: a number is px, a string any CSS length. They
+   * win over the theme's `popupMinWidth`, `popupMaxWidth` and `popupMaxHeight`; the content is
+   * still capped to the room next to the anchor.
+   */
+  min_width?: number | string
+  max_width?: number | string
+  max_height?: number | string
 }
 
 type ArrowPlacement = "top" | "bottom" | "left" | "right"
@@ -231,8 +239,9 @@ export type OverlayResult = NonNullable<unknown> | null
  * The element `render` returns is drawn as given — its own `border`, `surface`, `scroll` and padding;
  * the popup only adds placement, a drop shadow, the animation, dismissal and the arrow, whose colors
  * follow the element's background and border. The space available next to the anchor is exposed as
- * `--e-popup-max-height` / `--e-popup-max-width`, and the element is capped to it (and to `80vh`):
- * give it `scroll` when its content can be taller.
+ * `--e-popup-room-height` / `--e-popup-room-width`, and the element is capped to it and to the
+ * theme's `popupMaxWidth` / `popupMaxHeight` (`100vw`, `80vh`; `PopupOptions` overrides them for one
+ * popup): give it `scroll` when its content can be taller. `popupMinWidth` is its minimum width.
  */
 export function popup<T extends OverlayResult = boolean>(
   anchor: PopupAnchor,
@@ -252,6 +261,14 @@ export function popup<T extends OverlayResult = boolean>(
   if (!(rendered instanceof HTMLElement)) throw new Error("popup(): render must return a single HTML element")
   const content = rendered
   content.classList.add(cls_popup_content)
+  // Per-popup size limits go on the content itself, where cls_popup_content reads them.
+  for (const [token, value] of [
+    ["min-width", opts?.min_width],
+    ["max-width", opts?.max_width],
+    ["max-height", opts?.max_height],
+  ] as const) {
+    if (value != null) content.style.setProperty(`--e-popup-${token}`, typeof value === "number" ? `${value}px` : value)
+  }
 
   const o_arrow_state = o<ArrowState>({ side: "bottom", ax: null, ay: null, visible: true })
   const with_arrow = opts?.arrow ?? anchor instanceof Element
@@ -311,8 +328,8 @@ export function popup<T extends OverlayResult = boolean>(
     // Expose the room left next to the anchor; the content is capped to it (cls_popup_content).
     const size_middleware = size({
       apply({ availableWidth, availableHeight }) {
-        popup.style.setProperty("--e-popup-max-width", `${Math.max(0, Math.floor(availableWidth))}px`)
-        popup.style.setProperty("--e-popup-max-height", `${Math.max(0, Math.floor(availableHeight))}px`)
+        popup.style.setProperty("--e-popup-room-width", `${Math.max(0, Math.floor(availableWidth))}px`)
+        popup.style.setProperty("--e-popup-room-height", `${Math.max(0, Math.floor(availableHeight))}px`)
       },
     })
 
@@ -434,10 +451,12 @@ const cls_popup = css`.popup {
   filter: drop-shadow(
     0px 0px 4px ${colors.neutral.from_bg("30%")});
 }`
-/* The content's size caps: the room left next to the anchor (set by the size middleware), and 80vh. */
+/* The content's size: the theme's limits (or the popup's own, set on the element), within the room
+   left next to the anchor (set by the size middleware on the popup). */
 const cls_popup_content = css`.popup-content {
-  max-height: min(80vh, var(--e-popup-max-height, 80vh));
-  max-width: var(--e-popup-max-width, 100vw);
+  min-width: ${theme.settings.popupMinWidth};
+  max-height: min(${theme.settings.popupMaxHeight}, var(--e-popup-room-height, 100vh));
+  max-width: min(${theme.settings.popupMaxWidth}, var(--e-popup-room-width, 100vw));
 }`
 
 const cls_arrow_inner = css`.arrow-inner {

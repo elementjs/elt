@@ -153,7 +153,7 @@ export function DateTimePicker(at: DatePickerAttrs) {
     await popup(
       anchor,
       () => (
-        <e-column pad="component" surface="background" border class={cls_calendar}>
+        <e-column pad="component" surface="background" border>
           <e-flex spacing="widget" align="center">
             <button type="button" e-variant="text">
               {$click(() => year_delta(-1))}
@@ -196,7 +196,8 @@ export function DateTimePicker(at: DatePickerAttrs) {
           </e-grid>
         </e-column>
       ),
-      { arrow: true },
+      // Wide enough for the month grid.
+      { arrow: true, min_width: 260 },
     )
   }
 
@@ -283,10 +284,6 @@ function same_day(a: Date, b: Date | null): boolean {
   if (b == null) return false
   return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate()
 }
-
-const cls_calendar = css`.date-calendar {
-  min-width: 260px;
-}`
 
 const cls_year = css`.date-year {
   min-width: 3.5em;

@@ -12,6 +12,11 @@ export interface ThemeSettings {
   formFontSize: string
   focusRingSize: string
 
+  /** Size of a popup's content: at least `popupMinWidth` wide, at most `popupMaxWidth` wide and `popupMaxHeight` tall (and within the room next to its anchor). */
+  popupMinWidth: string
+  popupMaxWidth: string
+  popupMaxHeight: string
+
   monospaceFontFamily: string
   fontFamily: string
 
@@ -318,6 +323,10 @@ export class Theme<AllColors extends ColorScheme> {
     this._set(theme.settings ?? {}, "formFontSize", "14px")
 
     this._set(theme.settings ?? {}, "focusRingSize", "2px")
+
+    this._set(theme.settings ?? {}, "popupMinWidth", "0px")
+    this._set(theme.settings ?? {}, "popupMaxWidth", "100vw")
+    this._set(theme.settings ?? {}, "popupMaxHeight", "80vh")
 
     this._set(theme.settings ?? {}, "spacingNudge1", "1px")
     this._set(theme.settings ?? {}, "spacingNudge2", "2px")
