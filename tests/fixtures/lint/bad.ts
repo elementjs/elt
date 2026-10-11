@@ -1,4 +1,5 @@
 // Every line that ends with the word error in a comment must be reported by the plugins of lint/.
+export {}
 declare const obs: any
 declare const body: HTMLElement
 declare function node_append(...args: unknown[]): void

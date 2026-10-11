@@ -536,7 +536,7 @@ describe("RepeatVirtual", () => {
           return original.call(this)
         }
         const windows = new Set<string>()
-        const record = () => windows.add(m.visible_labels()[0] + ".." + m.visible_labels().at(-1))
+        const record = () => windows.add(`${m.visible_labels()[0]}..${m.visible_labels().at(-1)}`)
         record()
         const start = m.visible_labels()
 

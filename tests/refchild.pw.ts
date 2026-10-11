@@ -30,7 +30,7 @@ test.describe("RefChild", () => {
       const c = e(scaffold, {}, o_text)
       for (const n of [a, b, c]) node_append(document.body, n)
       o_text.set("bye")
-      const html = [a, b, c].map((n) => n.textContent + " " + n.querySelector("b")?.textContent)
+      const html = [a, b, c].map((n) => `${n.textContent} ${n.querySelector("b")?.textContent}`)
       for (const n of [a, b, c]) n.remove()
       return html
     })

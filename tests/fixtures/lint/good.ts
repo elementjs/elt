@@ -1,5 +1,6 @@
 // None of these may be reported: other objects share the names of `append` and `remove`, and a documented exception is
 // disabled on its line.
+export {}
 declare const body: HTMLElement
 declare function node_append(...args: unknown[]): void
 

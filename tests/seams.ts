@@ -28,8 +28,8 @@ export async function expect_seams(page: Page, sel: string) {
     return {
       rules: CSS.supports("row-rule", "1px solid"),
       background: st.backgroundColor,
-      row_rule: st.getPropertyValue("row-rule-style") + " " + st.getPropertyValue("row-rule-width"),
-      column_rule: st.getPropertyValue("column-rule-style") + " " + st.getPropertyValue("column-rule-width"),
+      row_rule: `${st.getPropertyValue("row-rule-style")} ${st.getPropertyValue("row-rule-width")}`,
+      column_rule: `${st.getPropertyValue("column-rule-style")} ${st.getPropertyValue("column-rule-width")}`,
       row_rule_color: st.getPropertyValue("row-rule-color"),
       column_rule_color: st.getPropertyValue("column-rule-color"),
       surface: resolve("var(--e-current-surface)"),
