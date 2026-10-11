@@ -14,6 +14,10 @@ export const FORM_CONTROL_SELECTOR =
   "textarea, select, " +
   'label[e-variant="toggle"]'
 
+// Controls whose focus ring is drawn inside their edge (ui/form.css.tsx): buttons, textareas and
+// text and number inputs.
+export const INSET_FOCUS_SELECTOR = 'button, textarea, input:not([type]), input[type="text"], input[type="number"]'
+
 // Vocabulary (docs/md/elt-ui-rules.md, Terms):
 // - a *text block* takes part in prose rhythm: it gets typographic margins when it is a direct child
 //   of a prose container;

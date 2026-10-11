@@ -1,7 +1,7 @@
 import { css, type NRO } from "elt"
 import { CHECK_POINTS } from "./icons"
 import { Mix, theme } from "./theme"
-import { FORM_CONTROL_SELECTOR, INVALID_SELECTOR } from "./selectors"
+import { FORM_CONTROL_SELECTOR, INSET_FOCUS_SELECTOR, INVALID_SELECTOR } from "./selectors"
 
 const colors = theme.colors
 
@@ -114,6 +114,13 @@ ${FORM_CONTROL_SELECTOR} {
     }
   }
 
+}
+
+/* Inset, inside the control's own edge, for the controls that fill their cell: nothing around them can
+   clip the ring (a scroll area cuts what is outside its padding box, even when nothing overflows), and
+   cells that touch don't cover it. Checkboxes and switches keep the ring around them. */
+:is(${INSET_FOCUS_SELECTOR}):focus-visible {
+  box-shadow: inset 0 0 0 ${theme.settings.focusRingSize} ${colors.tint.mid};
 }
 
 fieldset > legend {
@@ -387,6 +394,9 @@ input[type="color"]::-webkit-color-swatch {
   border-color: ${colors.error};
   &:focus-visible {
     box-shadow: 0 0 0 ${theme.settings.focusRingSize} ${colors.error.mid};
+  }
+  &:is(${INSET_FOCUS_SELECTOR}):focus-visible {
+    box-shadow: inset 0 0 0 ${theme.settings.focusRingSize} ${colors.error.mid};
   }
 }
 

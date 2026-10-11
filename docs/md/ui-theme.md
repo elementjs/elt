@@ -113,7 +113,7 @@ An inverted container (a top toolbar, a title row, an important region) creates 
 - **Hover**: one level above the current surface, in the current surface's color family, so it matches whatever it is drawn on.
 - **Selected**: a tint surface three levels above where the item sits (`tint.selected`, surface n+3), four when hovered or keyboard-active (`tint.selected_hover`); the text keeps its color. The same goes for a checked toggle (with a full `tint` border) and the current tab. Any `role="option"` with `aria-selected="true"` is drawn this way (Select's options included), and so is the date picker's selected day.
 - **Pressed**: one level past hover.
-- **Focus**: a ring around the element (`tint.mid`, `theme.settings.focusRingSize` wide), never a fill or a replaced border.
+- **Focus**: a ring (`tint.mid`, `theme.settings.focusRingSize` wide), never a fill or a replaced border. Buttons, textareas and text and number inputs draw it inside their edge, so nothing can cut it (a scroll area clips what is outside its padding box, even when nothing overflows) and cells that touch don't cover it; the other controls draw it around themselves.
 - **Disabled**: a disabled control is furniture, whatever its variant: it turns `neutral`, and its full-strength colors move halfway toward its background (`.mid`). Its label becomes `text.mid` and its border `neutral.mid`, including for `tint`, `text` and `link` buttons. An `inverted` control's fill becomes the halfway mix of `neutral` while its label keeps its color. A checked toggle's fill becomes `neutral` three levels up; checkboxes and switches use `neutral` for their check mark and track. A `<label>` around a disabled control uses `text.mid`. No opacity is involved.
 
 ## Custom theme
@@ -142,6 +142,7 @@ const brand = new Theme({ light: { bg: "#fff", text: "#1b1b1f", tint: "#5b3cc4" 
 | `fontSize`, `lineHeight` | `16px`, `1.5` — body text |
 | `formFontSize` | `14px` — controls |
 | `focusRingSize` | `2px` |
+| `popupMinWidth`, `popupMaxWidth`, `popupMaxHeight` | `0px`, `100vw`, `80vh` — the size limits of a [popup](./ui-overlays.md#popup)'s content |
 | `borderRadius` | `8px` — fixed fallback for the rare element that can't derive its radius; prefer `[radius]`/`css_radius` |
 | `intensityMid`, `intensityFaded`, `intensityStrong`, `intensityVeryStrong` | `50%`, `80%`, `10%`, `50%` — the mix percentages behind `.mid`, `.faded`, `.strong`, `.very_strong` |
 | `spacingNudge1`, `spacingNudge2`, `spacingNudge4`, `spacingWidget`, `spacingComponent`, `spacingSection`, `spacingStage1`…`spacingStage4` | The [spacing scale](./ui-layout.md#spacing-scale), also exposed as `--e-spacing-<step>` |
