@@ -80,7 +80,7 @@ function default_type_name(value: unknown, kind: string): string {
 
 /**
  * The presentation settings of a composite, resolved. `packed` draws the column frame, the header line,
- * the toolbar and the rows as one touching group with seams; unpacked, they are plain, loosely spaced
+ * the toolbar and the rows as one touching group with seams; unpacked, they are plain
  * rows. The `show_*` flags choose which parts of the chrome appear.
  */
 export interface EditorSettings {

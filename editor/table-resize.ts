@@ -4,7 +4,7 @@ on a <table>'s <th>; `$column_resizable` on any header cell, reporting the new w
 (a grid then puts it in its template).
 */
 
-import { $connected, css, node_add_event_listener } from "elt"
+import { $on, css, node_on_connected } from "elt"
 
 const DEFAULT_MIN_WIDTH = 48
 
@@ -120,23 +120,31 @@ const cls_resize_handle = css`.oe-col-resize-handle {
   touch-action: none;
 }`
 
-/** Adds the drag handle to `cell`'s right edge. */
-function add_handle(cell: HTMLElement, min_width: number, set_width: (px: number) => void) {
+/** The drag handle of `cell`'s right edge, for the decorator to return: elt puts it in the cell. */
+function resize_handle(cell: HTMLElement, min_width: number, set_width: (px: number) => void) {
   cell.classList.add(cls_resizable_th)
-  const handle = document.createElement("span")
-  handle.className = cls_resize_handle
-  cell.appendChild(handle)
-  node_add_event_listener(handle, "mousedown", start_resize(cell, min_width, set_width))
+  return E("span", { class: cls_resize_handle }, $on("mousedown", start_resize(cell, min_width, set_width)))
+}
+
+/** The table a header cell is in, once it is in one. */
+function table_of(th: HTMLTableCellElement) {
+  const table = th.closest("table")
+  return table instanceof HTMLTableElement ? table : null
 }
 
 function make_resizable(opts?: TableResizeOptions) {
   const min_width = opts?.minWidth ?? DEFAULT_MIN_WIDTH
-  return $connected((th: HTMLTableCellElement) => {
-    const table = th.closest("table")
-    if (!(table instanceof HTMLTableElement)) return
-    add_handle(th, min_width, (px) => set_column_width(table, th.cellIndex, px))
-    schedule_freeze(table)
-  })
+  return (th: HTMLTableCellElement) => {
+    // The cell is in its table only once connected: freeze the columns then.
+    node_on_connected(th, () => {
+      const table = table_of(th)
+      if (table) schedule_freeze(table)
+    })
+    return resize_handle(th, min_width, (px) => {
+      const table = table_of(th)
+      if (table) set_column_width(table, th.cellIndex, px)
+    })
+  }
 }
 
 /**
@@ -145,16 +153,13 @@ function make_resizable(opts?: TableResizeOptions) {
  */
 export function $column_resizable(set_width: (px: number) => void, opts?: TableResizeOptions) {
   const min_width = opts?.minWidth ?? DEFAULT_MIN_WIDTH
-  return (cell: HTMLElement) => add_handle(cell, min_width, set_width)
+  return (cell: HTMLElement) => resize_handle(cell, min_width, set_width)
 }
 
 /** Attach a drag handle to a `<th>` for column resize. */
-export function $resizable(th: HTMLTableCellElement): void
-export function $resizable(opts: TableResizeOptions): (th: HTMLTableCellElement) => void
+export function $resizable(th: HTMLTableCellElement): HTMLElement
+export function $resizable(opts: TableResizeOptions): (th: HTMLTableCellElement) => HTMLElement
 export function $resizable(arg: HTMLTableCellElement | TableResizeOptions) {
-  if (arg instanceof HTMLTableCellElement) {
-    make_resizable()(arg)
-    return
-  }
+  if (arg instanceof HTMLTableCellElement) return make_resizable()(arg)
   return make_resizable(arg)
 }

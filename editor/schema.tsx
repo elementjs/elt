@@ -10,7 +10,7 @@ Recursion goes through `forward()` (like `z.lazy`): `object-editor.tsx` and
 `resizable.tsx` are unrelated proofs of concept, not part of this shape.
 */
 
-import { $bind, $on, o, Repeat, type attrs_input, type Renderable } from "elt"
+import { $bind, $observe, $on, o, Repeat, type attrs_input, type Renderable } from "elt"
 import { Select } from "elt/ui/select"
 import {
   allows_delete,
@@ -1091,6 +1091,23 @@ function transient_menu<T>(enabled: boolean, rows: Map<string, T>, o_ids: o.Obse
   return $editor_menu_when(enabled, () => [delete_section(() => discard_transient(rows, o_ids, id))])
 }
 
+/**
+ * Commits a transient row as soon as one of its observables changes: the value it starts with is not an
+ * edit. Observing from the row's own element ties it to the row: it stops when the row goes, committed
+ * or discarded.
+ */
+function $commit_on_edit(try_commit: () => void, ...rows: o.Observable<unknown>[]) {
+  return rows.map((row) =>
+    $observe(
+      row,
+      () => {
+        try_commit()
+      },
+      { changes_only: true },
+    ),
+  )
+}
+
 /** Removes `id` from a composite's transient rows. */
 function discard_transient<T>(rows: Map<string, T>, o_ids: o.Observable<string[]>, id: string) {
   rows.delete(id)
@@ -1165,10 +1182,6 @@ export class ArrayFactory extends Factory<ArrayOptions> {
       const id = `t-${Date.now()}-${Math.random()}`
       const row = o(resolve_item_default(this.options.item_default))
       transient_rows.set(id, row)
-      row.addObserver((_val, old) => {
-        if (old === o.NoValue) return
-        try_commit_transient(id)
-      })
       o_transient_ids.set([...o_transient_ids.get(), id])
     }
 
@@ -1213,6 +1226,7 @@ export class ArrayFactory extends Factory<ArrayOptions> {
             return (
               <e-grid-row>
                 {transient_menu(settings.show_menu, transient_rows, o_transient_ids, id)}
+                {$commit_on_edit(() => try_commit_transient(id), row)}
                 {render_label_cell("+")}
                 {render_element_or_preview(row, "new", values_factory)}
               </e-grid-row>
@@ -1418,10 +1432,6 @@ export class SetFactory extends Factory<SetOptions> {
       const id = `t-${Date.now()}-${Math.random()}`
       const row = o(resolve_item_default(this.options.item_default))
       transient_rows.set(id, row)
-      row.addObserver((_val, old) => {
-        if (old === o.NoValue) return
-        try_commit_transient(id)
-      })
       o_transient_ids.set([...o_transient_ids.get(), id])
     }
 
@@ -1467,6 +1477,7 @@ export class SetFactory extends Factory<SetOptions> {
             return (
               <e-grid-row>
                 {transient_menu(settings.show_menu, transient_rows, o_transient_ids, id)}
+                {$commit_on_edit(() => try_commit_transient(id), row)}
                 {render_element_or_preview(row, "new", values_factory)}
               </e-grid-row>
             )
@@ -1542,8 +1553,6 @@ export class MapFactory extends Factory<MapOptions> {
         o_val: o(values_factory.defaultValue()),
       }
       transient_rows.set(id, row)
-      row.o_key.addObserver(() => try_commit_transient(id))
-      row.o_val.addObserver(() => try_commit_transient(id))
       o_transient_ids.set([...o_transient_ids.get(), id])
     }
 
@@ -1600,6 +1609,7 @@ export class MapFactory extends Factory<MapOptions> {
             return (
               <e-grid-row>
                 {transient_menu(settings.show_menu, transient_rows, o_transient_ids, id)}
+                {$commit_on_edit(() => try_commit_transient(id), row.o_key, row.o_val)}
                 {render_element_or_preview(row.o_key, "new key", keys_factory)}
                 {render_element_or_preview(row.o_val, "new", values_factory)}
               </e-grid-row>

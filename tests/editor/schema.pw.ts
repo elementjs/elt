@@ -209,6 +209,58 @@ test.describe("ObjectFactory keys", () => {
     expect(result.tags).toEqual(["alpha", "beta"])
   })
 
+  // The transient rows of a composite commit on the first edit, through an observer on the row's own element
+  // (regression: they were observed by hand, from the moment the row was added).
+  test("set adds a member as soon as its transient row is edited", async ({ page }) => {
+    const result = await page.evaluate(() => {
+      const { node_append, o } = window.__ELT__
+      const { set, string } = window.__ELT__.Editor
+      const o_tags = o(new Set(["alpha"]))
+      const widget = set({ values: string(), item_default: "" }).render(o_tags as any)
+      node_append(document.body, widget.render() as HTMLElement)
+      node_append(document.body, widget.toolbar!)
+
+      const add = [...document.querySelectorAll("button")].find((b) => b.textContent?.includes("Add member"))
+      add?.click()
+      // Adding the row is not an edit: nothing is committed yet.
+      const after_add = [...o_tags.get()]
+
+      const inputs = document.querySelectorAll('input[type="text"]')
+      const input = inputs[inputs.length - 1] as HTMLInputElement
+      input.value = "beta"
+      input.dispatchEvent(new Event("input", { bubbles: true }))
+
+      return { after_add, tags: [...o_tags.get()] }
+    })
+    expect(result.after_add).toEqual(["alpha"])
+    expect(result.tags).toEqual(["alpha", "beta"])
+  })
+
+  test("map adds an entry once its transient row has a valid key", async ({ page }) => {
+    const result = await page.evaluate(() => {
+      const { node_append, o } = window.__ELT__
+      const { map, string } = window.__ELT__.Editor
+      const o_dict = o(new Map([["a", "1"]]))
+      const widget = map({ keys: string(), values: string() }).render(o_dict as any)
+      node_append(document.body, widget.render() as HTMLElement)
+      node_append(document.body, widget.toolbar!)
+
+      const add = [...document.querySelectorAll("button")].find((b) => b.textContent?.includes("Add entry"))
+      add?.click()
+      const after_add = [...o_dict.get().entries()]
+
+      // The first text field of the new row is its key.
+      const inputs = document.querySelectorAll('input[type="text"]')
+      const key_input = inputs[inputs.length - 2] as HTMLInputElement
+      key_input.value = "b"
+      key_input.dispatchEvent(new Event("input", { bubbles: true }))
+
+      return { after_add, entries: [...o_dict.get().entries()] }
+    })
+    expect(result.after_add).toEqual([["a", "1"]])
+    expect(result.entries.map(([k]) => k)).toEqual(["a", "b"])
+  })
+
   test("select() wires elt/ui Select", async ({ page }) => {
     const result = await page.evaluate(() => {
       const { node_append, o } = window.__ELT__

@@ -330,6 +330,32 @@ test.describe("ObjectEditorShell", () => {
     expect(results.name).toBe("Ada")
   })
 
+  // The column's watcher is an observer on the column's own element (regression: an observer added by hand,
+  // removed through a field the column kept).
+  test("a column's watcher goes with the column: closing it leaves no observer on its value", async ({ page }) => {
+    const results = await page.evaluate(() => {
+      const { o, node_append } = window.__ELT__
+      const { ObjectEditorShell, object, string, dispatch_object_editor_open } = window.__ELT__.Editor
+
+      const schema = object({ properties: [{ name: "name", type: string() }] })
+      const o_root = o({ name: "Ada" })
+      const o_other = o<unknown>({ name: "Linus" })
+      const observers = () => (o_other as any)._observers.real_size as number
+      const before = observers()
+      const shell = new ObjectEditorShell(o_root, { schema })
+      node_append(document.body, shell.node)
+
+      dispatch_object_editor_open(shell.node, { o_value: o_other, title: "other" })
+      const while_open = observers()
+      const close = [...shell.node.querySelectorAll("button")].find((b) => b.textContent?.trim() === "×")
+      close?.dispatchEvent(new Event("click", { bubbles: true }))
+      return { before, while_open, after_close: observers(), columns: shell.o_breadcrumb.get() }
+    })
+    expect(results.while_open).toBeGreaterThan(results.before)
+    expect(results.after_close).toBe(results.before)
+    expect(results.columns).toEqual([])
+  })
+
   test("a nested Object property renders as a preview button, not inline, and drills in on click", async ({ page }) => {
     const results = await page.evaluate(() => {
       const { o, node_append } = window.__ELT__

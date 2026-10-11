@@ -1,6 +1,6 @@
 /*
-Root snapshot undo/redo ring (Layer 5). Watches the shell root observable and
-records immutable snapshots on each commit after the initial state.
+Root snapshot undo/redo ring (Layer 5). Records immutable snapshots of the shell root
+observable on each commit after the initial state; the shell tells it what changed.
 */
 
 import { o } from "elt"
@@ -41,14 +41,18 @@ export class RootUndoRing {
     return this.opts.import_undo_depth ?? DEFAULT_IMPORT_DEPTH
   }
 
-  /** Seed history and start watching root writes. */
-  attach() {
-    this.push(o.clone(this.o_root.get()), false, false)
-    this.o_root.addObserver((value, old) => {
-      if (old === o.NoValue) return
-      if (!this.recording) return
-      this.push(o.clone(value), false, true)
-    })
+  /**
+   * The root has a value, or has changed. The first time (`old` is `o.NoValue`) seeds the history with the
+   * initial state; the next ones are edits. Called by the shell from an observer on its element, so that the
+   * history stops with the editor.
+   */
+  record(value: unknown, old: unknown) {
+    if (old === o.NoValue) {
+      this.push(o.clone(value), false, false)
+      return
+    }
+    if (!this.recording) return
+    this.push(o.clone(value), false, true)
   }
 
   /** Tag the most recent entry as an import snapshot (Layer 6 hook). */

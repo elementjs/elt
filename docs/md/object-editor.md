@@ -19,7 +19,7 @@ section: UI Recipes
 | `model` | `Observable<unknown>` | The edited value (required) |
 | `schema` | a schema (`object(...)`, `array(...)`, `either(...)`, …) | What the value may hold. Without it, the editor works in unknown mode: any JSON-like value, with its type changeable |
 | `prefer_popups` | `boolean` | Open nested values in a popup instead of a new column to the right (a schema can still choose per value) |
-| `packed` | `boolean` (default `false`) | Draw each column as one framed group whose header line, toolbar and rows touch and share seams, instead of loose rows. See [Packed or loose](#packed-or-loose) |
+| `packed` | `boolean` (default `false`) | Draw each column as one framed group whose header line, toolbar and rows touch and share seams, Without it, a column has no frame: its rows are spaced by the usual elt/ui spacing. See [Packed or not](#packed-or-not) |
 | `show_title`, `show_filter`, `show_add`, `show_menu` | `boolean` (default `true`) | Which parts of a column appear. See [Showing and hiding parts](#showing-and-hiding-parts) |
 | `show_undo_redo` | `boolean` (default `true`) | The *Undo*/*Redo* buttons of the root column's header line |
 | `undo` | `{ depth?, import_undo_depth? } \| false` | Size of the *Undo*/*Redo* history. `false` turns the history off: no buttons, no shortcut |
@@ -28,13 +28,13 @@ section: UI Recipes
 
 *Undo* and *Redo* are also on Ctrl+Z and Ctrl+Shift+Z (Cmd on macOS) while focus is inside the editor, whether or not their buttons are shown. In a text field, the keys are left to the browser, which undoes the typing in that field.
 
-## Packed or loose
+## Packed or not
 
-By default the editor is **loose**: no frame, no background, rows spaced by the page's own spacing, and the host page decides how it looks. A row's key and its input are aligned on the baseline of their first line. This is the form look: use it to edit the fields of a record.
+The editor can be packed. By default it is not: a column has no frame and no background, and its header line, toolbar and rows are plain elt/ui rows and columns, spaced by the usual spacing step, each widget keeping its own border. A row's key and its input are aligned on the baseline of their first line. This is the form look: use it to edit the fields of a record.
 
 `packed` gives each column a frame in which the header line, the toolbar and the rows touch and are separated by thin lines. This is the look of the examples below, unless they say otherwise.
 
-`packed` is also an option of every schema node (`object({ packed: true, … })`), and then replaces the attribute for that node. Unlike the other settings, it carries on to what the node opens: the columns and popups opened from a packed node are packed, and those opened from a loose one are loose, until a node sets it again. A popup is always a framed panel; packed, its content is one group, loose it is rows.
+`packed` is also an option of every schema node (`object({ packed: true, … })`), and then replaces the attribute for that node. Unlike the other settings, it carries on to what the node opens: the columns and popups opened from a packed node are packed, and those opened from an unpacked one are not, until a node sets it again. A popup is always a framed panel; packed, its content is one group; unpacked, it is rows.
 
 The grid of a table (an array of objects shown with a column per key) is always packed, whatever `packed` says: it is a spreadsheet-like control whose cells need their seams. The frame, header line and toolbar around it follow the setting.
 
@@ -53,7 +53,7 @@ A part that would be empty goes away: the toolbar with neither filter nor *+ Add
 
 ## Layout
 
-The editor is a row of columns (each in its own frame when [packed](#packed-or-loose)): the root value, then one column per value opened from it (a click on a nested object or array opens it to the right; a schema can open it in a popup instead).
+The editor is a row of columns (each in its own frame when [packed](#packed-or-not)): the root value, then one column per value opened from it (a click on a nested object or array opens it to the right; a schema can open it in a popup instead).
 
 - **Header line.** Every column and popup starts with one line (unless `show_title` and the others leave it empty): the key it was opened from and the value's type (`address · Object {3}`), then its `…` button opening the column's menu (see [Menus](#menus)), then *Undo*/*Redo* on the root column or × on the others.
 - **Rows are a grid.** Each entry is a row of cells: the key (or index) and the value's widget, each in its own column, aligned from one row to the next. A nested object or array is a cell showing a preview of its content; click it to open it. Removing a row or changing a value's type goes through the row's menu.
@@ -79,7 +79,7 @@ When there is nothing to offer (a declared key, outside a text field), the brows
 
 ## Schema-mode object
 
-A `schema` describes known properties up front: scalars, a multiline string, a bounded number, a nullable date, a string array in list mode, and a nested object with its own filter opted out (`show_filter: false`). This one is loose, as a form is: no `packed`.
+A `schema` describes known properties up front: scalars, a multiline string, a bounded number, a nullable date, a string array in list mode, and a nested object with its own filter opted out (`show_filter: false`). This one is not packed, as a form is.
 
 ```tsx
 //@inline-example

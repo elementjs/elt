@@ -17,7 +17,7 @@ implementation slice. Implements:
 - constructor registry fallback when drill-in omits `factory` (Layer 5)
 */
 
-import { $connected, $on, type Attrs, css, o, Repeat, type Renderable } from "elt"
+import { $connected, $observe, $on, type Attrs, css, type Decorator, o, Repeat, type Renderable } from "elt"
 import { popup } from "elt/ui/popup"
 import { sym_closed } from "elt/ui/utils"
 import { theme } from "elt/ui"
@@ -32,7 +32,6 @@ import {
   text_field_of,
   type_change_item,
 } from "./context-menu"
-import { cls_text_fill } from "./grid"
 import { is_valid_mount } from "./mount"
 import { resolve_factory_from_value } from "./registry"
 import {
@@ -65,8 +64,6 @@ interface ColumnDescriptor {
   host?: HTMLElement
   /** Close a popup presentation for this stack entry, if open. */
   dismiss_popup?: () => void
-  /** Remove the dead-column observer when dismissing. */
-  unwatch?: () => void
 }
 
 /**
@@ -119,6 +116,16 @@ export class ObjectEditorShell {
     this.node = (
       <e-row scroll="x">
         {this.options.undo !== false &&
+          // The history follows the root while the editor is on screen. Immediate: the first call, now, seeds it with
+          // the initial state, and a write made before the editor is mounted is still seen once it is.
+          $observe(
+            this.o_root,
+            (value, old) => {
+              this.undo.record(value, old)
+            },
+            { immediate: true },
+          )}
+        {this.options.undo !== false &&
           $keymap({
             // Not in a text field: there, the browser undoes the typing, which is what the user means.
             "Mod+z": { callback: (_, __, ev) => this.shortcut(ev, () => this.undo.undo()), prevent_default: false },
@@ -146,7 +153,6 @@ export class ObjectEditorShell {
     this.o_columns.set([
       this.create_column(this.o_root, undefined, this.options.schema ?? anything, "column", this.defaults),
     ])
-    if (this.options.undo !== false) this.undo.attach()
   }
 
   /** Runs an undo/redo shortcut unless focus is in a text field, whose own undo the browser keeps. */
@@ -200,7 +206,6 @@ export class ObjectEditorShell {
     const cols = this.o_columns.get()
     for (let i = idx + 1; i < cols.length; i++) {
       cols[i]?.dismiss_popup?.()
-      cols[i]?.unwatch?.()
     }
   }
 
@@ -237,48 +242,50 @@ export class ObjectEditorShell {
     this.o_columns.set(this.o_columns.get().slice(0, idx + 1))
   }
 
+  /**
+   * Keeps a column's widget in step with its value: when the value stops fitting it, the widget changes or
+   * the column closes. A decorator of the column's element: it observes while the column is on screen.
+   */
   private watch_column(column: ColumnDescriptor, idx: number, is_root: boolean) {
-    const observer = column.o_value.addObserver((value, old) => {
-      if (old === o.NoValue) return
+    return $observe(
+      column.o_value,
+      (value) => {
+        if (is_root && root_is_scalar(value) && this.o_columns.get().length > 1) {
+          this.close_after(0)
+        }
 
-      if (is_root && root_is_scalar(value) && this.o_columns.get().length > 1) {
-        this.close_after(0)
-      }
+        if (!is_valid_mount(value)) {
+          if (!is_root) this.close_after(idx - 1)
+          return
+        }
 
-      if (!is_valid_mount(value)) {
-        if (!is_root) this.close_after(idx - 1)
-        return
-      }
+        if (column.o_factory.get().canHandle(value)) return
 
-      if (column.o_factory.get().canHandle(value)) return
+        // The declared factory first (a schema's either() keeps its own branches), then any kind.
+        const declared = concrete_factory(column.declared, value)
+        const resolved = declared.canHandle(value) ? declared : concrete_factory(anything, value)
+        if (resolved.canHandle(value)) {
+          column.o_factory.set(resolved)
+          return
+        }
 
-      // The declared factory first (a schema's either() keeps its own branches), then any kind.
-      const declared = concrete_factory(column.declared, value)
-      const resolved = declared.canHandle(value) ? declared : concrete_factory(anything, value)
-      if (resolved.canHandle(value)) {
-        column.o_factory.set(resolved)
-        return
-      }
+        if (is_root) {
+          const schema = this.options.schema
+          column.o_factory.set(concrete_factory(schema?.canHandle(value) ? schema : anything, value))
+          return
+        }
 
-      if (is_root) {
-        const schema = this.options.schema
-        column.o_factory.set(concrete_factory(schema?.canHandle(value) ? schema : anything, value))
-        return
-      }
-
-      this.close_after(idx - 1)
-    })
-
-    column.unwatch = () => column.o_value.removeObserver(observer)
+        this.close_after(idx - 1)
+      },
+      { changes_only: true },
+    )
   }
 
   private mount_popup(column: ColumnDescriptor, idx: number, anchor: Element) {
-    this.watch_column(column, idx, false)
-
     const fut = popup(anchor, (fut) => {
       column.dismiss_popup = () => fut.resolve(sym_closed)
 
-      // Unpacked, the popup is a floating panel of loose rows: it keeps a frame, and pads its content itself.
+      // Unpacked, the popup is a floating panel of plain rows: it keeps a frame, and pads its content itself.
       const packed = this.settings_of(column).packed
       const panel = (
         <e-column
@@ -291,7 +298,7 @@ export class ObjectEditorShell {
           {$connected((el: HTMLElement) => {
             column.host = (el.closest("[popover]") as HTMLElement | null) ?? el
           })}
-          {this.render_chrome(column, () => fut.resolve(undefined), false)}
+          {this.render_chrome(column, () => fut.resolve(undefined), false, this.watch_column(column, idx, false))}
         </e-column>
       ) as HTMLElement
 
@@ -299,7 +306,6 @@ export class ObjectEditorShell {
     })
 
     fut.then((result) => {
-      column.unwatch?.()
       if (result === sym_closed) return
       const cols = this.o_columns.get()
       if (cols[idx] === column) this.close_after(idx - 1)
@@ -344,7 +350,12 @@ export class ObjectEditorShell {
     ])
   }
 
-  private render_chrome(column: ColumnDescriptor, close: () => void, is_root: boolean): HTMLElement {
+  private render_chrome(
+    column: ColumnDescriptor,
+    close: () => void,
+    is_root: boolean,
+    watch: Decorator<HTMLElement>,
+  ): HTMLElement {
     const settings = this.settings_of(column)
     const { packed } = settings
     // The widget gets the column's starting settings: it resolves its own node options over them.
@@ -370,7 +381,7 @@ export class ObjectEditorShell {
     // (docs/md/ui-layout.md#packed), here widget-padded groups. It adds no gap (packed), but gives the
     // frame the widget radius its first/last children's outer corners take, and the widget step to
     // whatever inherits it inside. Unpacked, all of it is plain rows and columns, spaced by the
-    // ambient step and with no frame: the host page decides how it looks.
+    // ambient step and with no frame.
     return (
       <e-column
         packed={packed}
@@ -379,6 +390,7 @@ export class ObjectEditorShell {
         spacing={packed ? "widget" : undefined}
         align="stretch"
       >
+        {watch}
         {o_has_header.tf(
           (has_header) =>
             has_header && (
@@ -391,7 +403,7 @@ export class ObjectEditorShell {
                 class={packed ? theme.colors.tint.class_as_inverted : undefined}
               >
                 {$editor_menu_when(settings.show_menu, menu)}
-                <strong class={cls_text_fill} title={o_label}>
+                <strong e-ellipsis title={o_label}>
                   {o_label}
                 </strong>
                 {o_header.tf((header) => header?.actions ?? null)}
@@ -440,10 +452,14 @@ export class ObjectEditorShell {
     return o_column.tf((column) => {
       const idx = o_idx.get()
       const is_root = idx === 0
-      const el = this.render_chrome(column, () => this.close_after(o_idx.get() - 1), is_root)
+      const el = this.render_chrome(
+        column,
+        () => this.close_after(o_idx.get() - 1),
+        is_root,
+        this.watch_column(column, idx, is_root),
+      )
       el.classList.add(cls_column)
       column.host = el
-      if (!column.unwatch) this.watch_column(column, idx, is_root)
       return el
     })
   }
