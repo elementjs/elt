@@ -356,6 +356,36 @@ test.describe("ObjectEditorShell", () => {
     expect(results.columns).toEqual([])
   })
 
+  test("columns keep their width in a strip narrower than they are: the strip scrolls instead", async ({ page }) => {
+    // Regression guard for dropping the editor's own `flex: none` on a column: the strip is a
+    // horizontal scroll area, and the row of columns inside it (a child of a scroll area, which
+    // elt/ui keeps from shrinking) is as wide as its columns.
+    const result = await page.evaluate(() => {
+      const { o, node_append } = window.__ELT__
+      const { ObjectEditorShell, object, string } = window.__ELT__.Editor
+      const schema = object({
+        properties: [
+          { name: "name", type: string() },
+          { name: "address", type: object({ properties: [{ name: "city", type: string() }] }) },
+        ],
+      })
+      const shell = new ObjectEditorShell(o({ name: "Ada", address: { city: "London" } }), { schema })
+      const host = document.createElement("div")
+      host.style.width = "200px"
+      node_append(document.body, host)
+      node_append(host, shell.node)
+      const widths = () => [...shell.node.firstElementChild!.children].map((c) => c.getBoundingClientRect().width)
+      const before = widths()
+      shell.node.querySelector<HTMLButtonElement>('button[title="Open address"]')!.click()
+      const after = widths()
+      return { before, after, scrolls: shell.node.scrollWidth > shell.node.clientWidth }
+    })
+    expect(result.after).toHaveLength(2)
+    // The root column does not shrink when a second one opens.
+    expect(result.after[0]).toBe(result.before[0])
+    expect(result.scrolls).toBe(true)
+  })
+
   test("a nested Object property renders as a preview button, not inline, and drills in on click", async ({ page }) => {
     const results = await page.evaluate(() => {
       const { o, node_append } = window.__ELT__

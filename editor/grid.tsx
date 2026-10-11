@@ -7,14 +7,13 @@ baseline of their first line, and each widget keeps its own border.
 
 Column widths: the grid first lays out as its content wants (each track's `initial` template), then
 each track is locked to the width it got, as soon as the grid has a body row and a size
-(`observe_layout`, shared with the `<table>` freeze of `$resizable`). Rows come
+(`observe_layout` of elt/ui, also used by `$resizable`). Rows come
 and go as the list scrolls (RepeatVirtual); a locked width never follows them. A track that appears
 later (a new table column) is locked the same way on the next layout.
 */
 
-import { $connected, $disconnected, css, If, o, RepeatVirtual, type Renderable } from "elt"
-import { theme } from "elt/ui"
-import { observe_layout } from "./table-resize"
+import { $connected, $disconnected, css, If, o, Repeat, RepeatVirtual, type Renderable } from "elt"
+import { observe_layout } from "elt/ui"
 
 export interface GridTrack {
   /** Stable id of the track ("label", "value", a table column's key…): widths are kept by id. */
@@ -39,6 +38,13 @@ export type GridWidths = Record<string, number>
 type GridRow<K> = { entry: K } | { transient: string }
 
 export interface CompositeGridProps<K> {
+  /**
+   * Rows are one RepeatVirtual in a scroll area (default), or all rendered by a plain Repeat in a
+   * grid that doesn't scroll. The second is for a list whose size is bounded by a schema (an
+   * object's declared properties): a scroll area clips the focus ring of a cell at its edge even
+   * when nothing overflows, and a short list has no use for windowing.
+   */
+  virtual?: boolean
   /** Cells touching in one bordered group with seams, or plain rows spaced by elt/ui (the form look). */
   packed: boolean
   o_tracks: o.RO<GridTrack[]>
@@ -56,9 +62,9 @@ export interface CompositeGridProps<K> {
 const no_transients = o<string[]>([])
 
 /**
- * The scroll area and grid of a composite. Entries then transient rows are one RepeatVirtual: a
- * scroll area holds a single one, and transient rows must sit after the list's true end, not after
- * the rows currently rendered.
+ * The scroll area and grid of a composite (the grid alone when `virtual` is false). Entries then
+ * transient rows are one RepeatVirtual: a scroll area holds a single one, and transient rows must sit
+ * after the list's true end, not after the rows currently rendered.
  *
  * A row's node can be re-keyed for another row (see Repeat), so whether it shows an entry or a
  * transient row, and which one, is observed rather than read once.
@@ -127,36 +133,45 @@ export function render_composite_grid<K>(props: CompositeGridProps<K>): HTMLElem
     ...get(o_transient_ids).map((transient) => ({ transient })),
   ])
 
-  return (
-    <e-column scroll align="stretch" class={cls_grid_scroll}>
-      <e-grid
-        packed={props.packed ? "nudge-4" : undefined}
-        border={props.packed}
-        align={props.packed ? "stretch" : "baseline"}
-        class={cls_grid}
-        style={{ gridTemplateColumns: o_template, minWidth: o_min_width, contain: o_contain }}
-      >
-        {$connected((grid: HTMLElement) => {
-          stop_observing ??= observe_layout(grid, () => lock(grid))
-        })}
-        {$disconnected(() => {
-          stop_observing?.()
-          stop_observing = null
-        })}
-        {props.head}
-        {RepeatVirtual(o_rows, (o_row) =>
-          If(
-            o_row.tf((row) => "entry" in row),
-            () => props.render_entry(o_row.tf((row) => (row as { entry: K }).entry)),
-            () => o_row.tf((row) => render_transient((row as { transient: string }).transient)),
-          ),
-        ).withKeyFunction((row) =>
-          // A symbol per transient id can't be equal to any entry key, whatever its type.
-          "entry" in row ? row.entry : Symbol.for(`object-editor:transient:${row.transient}`),
-        )}
-      </e-grid>
-    </e-column>
+  const render_row = (o_row: o.ReadonlyObservable<GridRow<K>>) =>
+    If(
+      o_row.tf((row) => "entry" in row),
+      () => props.render_entry(o_row.tf((row) => (row as { entry: K }).entry)),
+      () => o_row.tf((row) => render_transient((row as { transient: string }).transient)),
+    )
+  // A symbol per transient id can't be equal to any entry key, whatever its type.
+  const key_of = (row: GridRow<K>) =>
+    "entry" in row ? row.entry : Symbol.for(`object-editor:transient:${row.transient}`)
+  const virtual = props.virtual !== false
+
+  const grid = (
+    <e-grid
+      packed={props.packed ? "nudge-4" : undefined}
+      border={props.packed}
+      align={props.packed ? "stretch" : "baseline"}
+      style={{ gridTemplateColumns: o_template, minWidth: o_min_width, contain: o_contain }}
+    >
+      {$connected((grid: HTMLElement) => {
+        stop_observing ??= observe_layout(grid, () => lock(grid))
+      })}
+      {$disconnected(() => {
+        stop_observing?.()
+        stop_observing = null
+      })}
+      {props.head}
+      {virtual
+        ? RepeatVirtual(o_rows, render_row).withKeyFunction(key_of)
+        : Repeat(o_rows, render_row).withKeyFunction(key_of)}
+    </e-grid>
   ) as HTMLElement
+
+  return virtual
+    ? ((
+        <e-column scroll align="stretch" class={cls_grid_scroll}>
+          {grid}
+        </e-column>
+      ) as HTMLElement)
+    : grid
 }
 
 /** The text cell of a grid's label column (a key, an index): ellipsis when it's wider than the column. */
@@ -177,17 +192,6 @@ export const LABEL_TRACK = "fit-content(16em)"
 const cls_grid_scroll = css`.oe-grid-scroll {
   max-height: 24em;
   flex-grow: 1;
-}`
-
-/* Custom CSS: every cell the same font size and line height, form controls included (they set their
-   own), on top of the same padding (packed="widget", the form controls' own padding): the first
-   lines of all cells line up. Cells stretch to the row's height (align="stretch"): a shorter one
-   would leave the seam color showing under it. */
-const cls_grid = css`.oe-grid {
-  & > e-grid-row > * {
-    font-size: ${theme.settings.formFontSize};
-    line-height: 1.5;
-  }
 }`
 
 /**

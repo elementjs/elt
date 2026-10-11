@@ -6,11 +6,12 @@ registry is implicit (class identity), not a `kind: string` switch -- `kind` is
 kept as a stable tag for introspection / custom-widget registration / later
 JSON-Schema-subset import, not for dispatch.
 
-Recursion goes through `forward()` (like `z.lazy`): `object-editor.tsx` and
-`resizable.tsx` are unrelated proofs of concept, not part of this shape.
+Recursion goes through `forward()` (like `z.lazy`): `object-editor.tsx` is an unrelated
+proof of concept, not part of this shape.
 */
 
 import { $bind, $observe, $on, o, Repeat, type attrs_input, type Renderable } from "elt"
+import { $resizable } from "elt/ui"
 import { Select } from "elt/ui/select"
 import {
   allows_delete,
@@ -63,7 +64,6 @@ import {
   render_label_cell,
 } from "./grid"
 import { register_constructor } from "./registry"
-import { $column_resizable } from "./table-resize"
 import { register_unknown_type_change_catalog, unknown_type_targets } from "./type-change"
 
 // A value that isn't null, an array, or one of the composite built-ins --
@@ -1018,6 +1018,8 @@ export class ObjectFactory extends Factory<ObjectOptions> {
       render: () =>
         render_composite_grid({
           packed: settings.packed,
+          // Only free keys make the list unbounded.
+          virtual: can_add,
           o_tracks: tracks,
           o_keys: o_visible_keys,
           o_transient_ids,
@@ -1301,8 +1303,8 @@ export class ArrayFactory extends Factory<ArrayOptions> {
             <e-grid-row sticky="top" surface="tint-2">
               {render_label_cell("#")}
               {Repeat(o_columns, (o_col) => (
-                <strong>
-                  {$column_resizable((px) => o_widths.set({ ...o_widths.get(), [`col:${o_col.get()}`]: px }))}
+                <strong e-ellipsis>
+                  {$resizable({ on_resize: (px) => o_widths.set({ ...o_widths.get(), [`col:${o_col.get()}`]: px }) })}
                   {o_col}
                 </strong>
               ))}

@@ -455,3 +455,56 @@ test.describe("search inputs are form controls (regression: input[type=search] k
     expect(result.search.color).not.toBe("rgb(0, 0, 0)")
   })
 })
+
+test.describe("focus ring of the first cell", () => {
+  // Regression: every composite sat in a scroll area, which clips what is outside its padding box
+  // even when nothing overflows, so the ring of a focused cell at the grid's edge was cut.
+  const measure = (page: import("../fixture").Page, free_keys: boolean) =>
+    page.evaluate((free_keys) => {
+      const { o, node_append } = window.__ELT__
+      const { ObjectEditorShell, object, string } = window.__ELT__.Editor
+      const schema = object({
+        properties: [
+          { name: "name", type: string() },
+          { name: "city", type: string() },
+        ],
+        free_keys,
+      })
+      const shell = new ObjectEditorShell(o({ name: "Ada", city: "London" }), { schema })
+      node_append(document.body, shell.node)
+      const input = shell.node.querySelector("input")!
+      input.focus()
+      const r = input.getBoundingClientRect()
+      const ring = 2
+      // Every ancestor of the cell, up to the editor's own strip, that clips must contain the ring.
+      // (The strip itself still clips a flush, unpacked grid: see TODO.md.)
+      const clipped_by: string[] = []
+      for (let el = input.parentElement; el && el !== shell.node; el = el.parentElement) {
+        const cs = getComputedStyle(el)
+        if (cs.overflowX === "visible" && cs.overflowY === "visible") continue
+        const c = el.getBoundingClientRect()
+        const left = c.left + el.clientLeft
+        const top = c.top + el.clientTop
+        const inside =
+          r.left - ring >= left &&
+          r.top - ring >= top &&
+          r.right + ring <= left + el.clientWidth &&
+          r.bottom + ring <= top + el.clientHeight
+        if (!inside) clipped_by.push(el.tagName.toLowerCase())
+      }
+      return { clipped_by, scrollers: shell.node.querySelectorAll("e-column[scroll]").length }
+    }, free_keys)
+
+  test("an object with a fixed set of keys has no scroll area around its grid: the ring is not clipped", async ({
+    page,
+  }) => {
+    const r = await measure(page, false)
+    expect(r.clipped_by).toEqual([])
+    expect(r.scrollers).toBe(0)
+  })
+
+  test("an object that accepts free keys keeps its windowed, scrolling grid", async ({ page }) => {
+    const r = await measure(page, true)
+    expect(r.scrollers).toBeGreaterThan(0)
+  })
+})

@@ -17,7 +17,7 @@ implementation slice. Implements:
 - constructor registry fallback when drill-in omits `factory` (Layer 5)
 */
 
-import { $connected, $observe, $on, type Attrs, css, type Decorator, o, Repeat, type Renderable } from "elt"
+import { $connected, $observe, $on, type Attrs, type Decorator, o, Repeat, type Renderable } from "elt"
 import { popup } from "elt/ui/popup"
 import { theme } from "elt/ui"
 import { $keymap } from "elt/ui/keymap"
@@ -281,28 +281,27 @@ export class ObjectEditorShell {
   }
 
   private mount_popup(column: ColumnDescriptor, idx: number, anchor: Element) {
-    const fut = popup(anchor, (fut) => {
-      column.dismiss_popup = () => fut.resolve(undefined)
+    const fut = popup(
+      anchor,
+      (fut) => {
+        column.dismiss_popup = () => fut.resolve(undefined)
 
-      // Unpacked, the popup is a floating panel of plain rows: it keeps a frame, and pads its content itself.
-      const packed = this.settings_of(column).packed
-      const panel = (
-        <e-column
-          align="stretch"
-          surface="background"
-          border
-          pad={packed ? undefined : "component"}
-          class={cls_popup_panel}
-        >
-          {$connected((el: HTMLElement) => {
-            column.host = (el.closest("[popover]") as HTMLElement | null) ?? el
-          })}
-          {this.render_chrome(column, () => fut.resolve(undefined), false, this.watch_column(column, idx, false))}
-        </e-column>
-      ) as HTMLElement
+        // Unpacked, the popup is a floating panel of plain rows: it keeps a frame, and pads its content itself.
+        const packed = this.settings_of(column).packed
+        const panel = (
+          <e-column align="stretch" surface="background" border pad={packed ? undefined : "component"}>
+            {$connected((el: HTMLElement) => {
+              column.host = (el.closest("[popover]") as HTMLElement | null) ?? el
+            })}
+            {this.render_chrome(column, () => fut.resolve(undefined), false, this.watch_column(column, idx, false))}
+          </e-column>
+        ) as HTMLElement
 
-      return panel
-    })
+        return panel
+      },
+      // A column's width is more than a menu's: room for a label and a field, but not the whole page.
+      { min_width: 260, max_width: "min(90vw, 480px)" },
+    )
 
     // However it ends (the × button, the shell closing it, a dismissal), the column goes with it;
     // `close_after` is idempotent, so the shell closing it first is harmless.
@@ -448,7 +447,7 @@ export class ObjectEditorShell {
     o_column: o.Observable<ColumnDescriptor>,
     o_idx: o.IReadonlyObservable<number>,
   ): Renderable<Node> {
-    // The column is its chrome element itself, a direct child of the strip.
+    // The column is its chrome element itself, a direct child of the strip's row of columns.
     return o_column.tf((column) => {
       const idx = o_idx.get()
       const is_root = idx === 0
@@ -458,7 +457,6 @@ export class ObjectEditorShell {
         is_root,
         this.watch_column(column, idx, is_root),
       )
-      el.classList.add(cls_column)
       column.host = el
       return el
     })
@@ -480,15 +478,3 @@ export function ObjectEditor(attrs: ObjectEditorAttrs): HTMLElement {
   const { model, ...options } = attrs
   return new ObjectEditorShell(model, options).node
 }
-
-/* Custom CSS: a flex child shrinks by default; a column keeps its width and the strip scrolls. */
-const cls_column = css`.oe-column {
-  flex: none;
-}`
-
-/* Custom CSS: a popup's size bounds, which no layout attribute expresses. */
-const cls_popup_panel = css`.oe-popup-panel {
-  min-width: 260px;
-  max-width: min(90vw, 480px);
-  max-height: 70vh;
-}`
