@@ -1,5 +1,5 @@
 import "elt/ui"
-import { $observe, $on, App, If, node_append, css, o } from "elt"
+import { $observe, $on, App, If, css, o } from "elt"
 import { routes as routeDefs, menu } from "./routes.ts"
 
 export const app = new App()
@@ -143,8 +143,7 @@ const cls_nav = css`.nav {
 // routing") — it should show only the example itself, not this app's own nav chrome around it.
 const oo_is_full_example = app.o_current_route.tf((rt) => rt?.name.includes("__full-") ?? false)
 
-node_append(
-  document.body,
+app.mount(document.body, () =>
   If(oo_is_full_example, content_column, () => (
     <e-row spacing="none" align="stretch" class={cls_main}>
       {$observe(app.o_current_route, () => o_nav_open.set(false))}

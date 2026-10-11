@@ -1,3 +1,4 @@
+import { node_append } from "../dom"
 import type { Renderable } from "../types"
 import { o } from "../observable"
 import { Deferred } from "../utils"
@@ -298,6 +299,15 @@ export class App {
       router.__fragment = undefined
     }
     router._committed(route, url)
+  }
+
+  /**
+   * Put the app on the page: display in `parent`, usually `document.body`, the view named `view` or, for an app
+   * whose shell is not a view, what the function `view` returns. This is where an app starts; everything else is
+   * displayed by the views themselves.
+   */
+  mount(parent: Element, view: string | (() => Renderable)) {
+    node_append(parent, typeof view === "string" ? this.DisplayView(view) : view())
   }
 
   /** Display a view, optionally wrapping it with another function */

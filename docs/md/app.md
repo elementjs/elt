@@ -13,7 +13,7 @@ The examples on this page are plain code, not the "Try it" live panels used else
 ## Setting up routes
 
 ```ts
-import { App, node_append } from "elt"
+import { App } from "elt"
 
 export const app = new App()
 
@@ -23,8 +23,10 @@ export const routes = app.setupRouter({
   user: ["/users/:id", () => import("./user")], // :id becomes a param
 })
 
-node_append(document.body, app.DisplayView("Main"))
+app.mount(document.body, "Main")
 ```
+
+`app.mount(parent, view)` puts the app on the page: it displays in `parent` the view named `view`, or, when `view` is a function, what it returns (for an app whose outer shell is not a view). It is where an app starts, and the only place it puts something on the page by itself: everything else is displayed by views.
 
 `setupRouter` both registers the routes and starts the router: it schedules an initial `activateFromUrl()` and starts listening for URL changes (`hashchange` in hash mode, `popstate` in path mode). It returns a typed object of `Route` instances shaped exactly like the definitions passed in — `routes.home`, `routes.user`, etc. — which is how code elsewhere activates a route directly (`await routes.home.activate()`) instead of only reacting to URL changes.
 

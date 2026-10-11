@@ -3,10 +3,19 @@
  */
 import { o } from "./observable"
 
-import { CommentHolder, node_append, node_observe, node_remove_range, without_motion } from "./dom"
+import {
+  CommentHolder,
+  node_append,
+  node_observe,
+  node_on_disconnected,
+  node_remove,
+  node_remove_range,
+  without_motion,
+} from "./dom"
 
 import { sym_insert, sym_leave } from "./symbols"
 import type { Appender, Renderable } from "./types"
+import { Deferred } from "./utils"
 
 /** Whether the content of a repeat item has a node with a leave hook (see `node_on_leave`). */
 function has_leave_hook(item: CommentHolder): boolean {
@@ -881,4 +890,53 @@ export namespace DisplayPromise {
       fn: (o_error: o.ReadonlyObservable<any>, oo_waiting: o.ReadonlyObservable<boolean>) => Renderable<HTMLElement>,
     ): this
   }
+}
+
+/**
+ * Put what `render` returns in `parent` (before `before`, at the end by default) until the future it is
+ * given ends, and return that future. This is for content whose life is a promise: a dialog, a
+ * popup, an alert. Content that follows state is an `If`, a `Repeat` or a `Switch`.
+ *
+ * - The content enters and leaves as an update (docs/md/motion.md): its own `$enter` and `$leave`
+ *   decide what is animated, and the content stays until its `$leave` is done.
+ * - The future ends the content, however it ends: resolved or rejected, the content goes.
+ * - The future always ends. If `parent` leaves the page while the content is shown, the future is
+ *   rejected with an `AbortError` (a `DOMException`): whoever awaits it is told, and can ignore it
+ *   by checking the error's `name`. Nothing else settles the future for you.
+ * - `parent` must be in the page: `show` throws otherwise. If `render` throws, nothing is inserted.
+ *
+ * @group Verbs
+ */
+export function show<T>(
+  parent: Node,
+  render: (fut: Deferred<T>) => Renderable<Node>,
+  before: Node | null = null,
+): Deferred<T> {
+  // The document's own `body` is never connected as far as elt goes (nothing inserted it): ask the document.
+  if (!parent.isConnected) throw new Error("show(): the parent must be in the page")
+
+  const fut = new Deferred<T>()
+  const content = render(fut)
+
+  const holder = new CommentHolder("show")
+  node_append(parent, holder, before)
+
+  // Both outcomes are handled here, so a future nobody awaits never ends as an unhandled rejection.
+  const leave = () => {
+    // The content plays its exit; once gone (or leaving on its own), only the two markers are left.
+    holder.empty(true)
+    const end = holder.end
+    node_remove(holder)
+    if (end != null) node_remove(end)
+  }
+  fut.then(leave, leave)
+
+  // The parent left the page: nothing else would ever end the future. A no-op once it is settled,
+  // which includes the disconnection that removing the holder just above causes.
+  node_on_disconnected(holder, () =>
+    fut.reject(new DOMException("show(): the parent left the page before the future ended", "AbortError")),
+  )
+
+  holder.updateRenderable(content, true)
+  return fut
 }

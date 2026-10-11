@@ -184,9 +184,31 @@ An infinite grid is an `e-grid` with `RepeatVirtual` rows inside a scroll area, 
 - The scroll area draws the frame (`border` on it); the grid inside keeps only its seams. Don't `pad` the scroll area: sticky rows stick at its padding edge.
 - Keep the column widths independent of the cells' content (see above). A live example is in [Layout § Scroll areas and sticky elements](./ui-layout.md#scroll-areas-and-sticky-elements); grids themselves are in [Layout § Grids](./ui-layout.md#grids).
 
+## `show` — content that lives until a promise settles
+
+`If`, `Repeat` and `Switch` show what an observable says. Some content has no state to follow: a dialog, a popup or an alert exists from the moment code asks for it until an answer comes. `show(parent, render, before?)` puts what `render` returns in `parent` (before `before`, at the end by default) and removes it when the future it gives to `render` ends. It returns that future.
+
+```tsx
+import { show } from "elt"
+
+const answer = await show<boolean>(host, (fut) => (
+  <e-row border pad="component">
+    Delete the file?
+    <button>{$click(() => fut.resolve(true))}Delete</button>
+    <button>{$click(() => fut.resolve(false))}Keep</button>
+  </e-row>
+))
+```
+
+- **The future ends the content.** The future is a [`Deferred`](./utilities.md#deferred). Resolved or rejected, the content goes, and a rejection also goes to whoever awaits it.
+- **Motion is the content's business.** The content enters and leaves as an update of a verb would ([Motion](./motion.md)): its own `$enter` and `$leave` decide what is animated, and it stays in the page until its `$leave` is done.
+- **The future always ends.** If `parent` leaves the page while the content is shown, the future is rejected with an `AbortError` (a `DOMException`), so that code waiting for an answer is told none will come. Check `e.name !== "AbortError"` to ignore it. Nothing else settles the future for you: close it from the content, or from code that holds it.
+- **`parent` must be in the page.** `show` throws otherwise, and inserts nothing. If `render` throws, nothing is inserted either.
+- **Not for state.** If the content is there because of a value (a flag, a list, a selection), use `If`, `Switch` or `Repeat`.
+
 ## Below the verbs: inserting, removing and moving nodes
 
-Verbs, comment holders and `App` views insert, remove and move nodes through a handful of functions. Use them to mount the app's root, to integrate third-party code, or to write your own verb-like code; inside the app, let verbs do it ([elt rules § Use sparingly](./elt-rules.md#use-sparingly)).
+Verbs, comment holders and `App` views insert, remove and move nodes through a handful of functions. They are what verbs, `show`, decorators and `App` views are built on. An application does not call them: it puts its root on the page with `app.mount`, structure that follows state is a verb, and content that lives until a promise settles is a `show`. Call them to write a decorator or a verb of your own, or to integrate third-party code ([Never do these](./hard-dont.md)).
 
 | Function | Does |
 | -------- | ---- |

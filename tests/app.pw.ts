@@ -7,6 +7,31 @@ test.describe("App", () => {
     })
   })
 
+  test("mount puts a view on the page and follows it", async ({ page }) => {
+    const result = await page.evaluate(async () => {
+      const { App, node_remove } = window.__ELT__
+      const view_of = (text: string) => async (srv: import("elt").ServiceHelper<any>) => {
+        srv.views.set("Main", () => text)
+      }
+      const root = document.createElement("div")
+      document.body.append(root)
+      const app = new App()
+      const router = app.setupRouter({
+        one: ["/one", () => view_of("first")],
+        two: ["/two", () => view_of("second")],
+      })
+      await router.one.activate()
+      app.mount(root, "Main")
+      const before = root.textContent
+      await router.two.activate()
+      const after = root.textContent
+      node_remove(root)
+      return { before, after }
+    })
+    expect(result.before).toContain("first")
+    expect(result.after).toContain("second")
+  })
+
   test("route activation registers views on the app", async ({ page }) => {
     const result = await page.evaluate(async () => {
       const { App } = window.__ELT__

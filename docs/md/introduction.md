@@ -26,7 +26,7 @@ const ui = <div>
 node_append(document.body, ui)
 ```
 
-`ui` is an actual `HTMLDivElement`. Putting `o_name` in the JSX keeps that text in sync with it, `$bind.string` keeps the input in sync both ways, and `$click` is a **decorator**: a function placed among the children rather than a React-style `onClick` prop.
+`ui` is an actual `HTMLDivElement`. `node_append` puts it on the page; it is the call for a page with no `App` (an app mounts with `app.mount`), and the only place application code calls it ([Never do these](./hard-dont.md)). Putting `o_name` in the JSX keeps that text in sync with it, `$bind.string` keeps the input in sync both ways, and `$click` is a **decorator**: a function placed among the children rather than a React-style `onClick` prop.
 
 ## The ideas, in order
 
@@ -70,7 +70,7 @@ A multi-screen app is three kinds of files: the routes, a shared shell, and one 
 
 ```ts
 // routes.ts
-import { App, node_append } from "elt"
+import { App } from "elt"
 
 export const app = new App()
 
@@ -82,7 +82,7 @@ export const routes = app.setupRouter({
 }, { mode: "path" })
 
 // app entry — setupRouter already schedules the first activation from the current URL
-node_append(document.body, app.DisplayView("Main"))
+app.mount(document.body, "Main")
 ```
 
 ```tsx
