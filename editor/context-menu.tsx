@@ -10,7 +10,6 @@ import { theme } from "elt/ui/theme"
 import { Trash } from "elt/ui/icons"
 import { menu_nav } from "elt/ui/list-nav"
 import { type PopupAnchor, popup } from "elt/ui/popup"
-import { sym_closed } from "elt/ui/utils"
 import type { CommonNodeOptions, Factory } from "./schema"
 import { apply_type_change, type_change_actions } from "./type-change"
 
@@ -53,7 +52,7 @@ export function open_menu(anchor: PopupAnchor, sections: MenuSection[], close_pa
     anchor,
     (fut) => {
       close = () => {
-        fut.resolve(sym_closed)
+        fut.resolve(undefined)
         close_parent?.()
       }
       return render_menu(sections, () => close())

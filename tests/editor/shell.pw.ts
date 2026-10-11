@@ -585,4 +585,30 @@ test.describe("ObjectEditorShell", () => {
     })
     expect(breadcrumb).toEqual(["nested"])
   })
+
+  test("dismissing a column popup (click outside, Escape) removes its column (regression: it stayed in the breadcrumb)", async ({
+    page,
+  }) => {
+    for (const dismissal of ["click", "Escape"]) {
+      const r = await page.evaluate(async (dismissal) => {
+        const { o, node_append } = window.__ELT__
+        const { ObjectEditorShell, object, number } = window.__ELT__.Editor
+        document.body.innerHTML = ""
+        const nested_schema = object({ properties: [{ name: "x", type: number() }], open_as: "popup" })
+        const shell = new ObjectEditorShell(o({ nested: { x: 1 } }), {
+          schema: object({ properties: [{ name: "nested", type: nested_schema }] }),
+        })
+        node_append(document.body, shell.node)
+        shell.node.querySelector('button[title="Open nested"]')!.dispatchEvent(new Event("click", { bubbles: true }))
+        const wait = () => new Promise((r) => setTimeout(r, 50))
+        await wait()
+        const opened = shell.o_breadcrumb.get()
+        if (dismissal === "click") document.body.dispatchEvent(new Event("click", { bubbles: true }))
+        else document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }))
+        await wait()
+        return { opened, closed: shell.o_breadcrumb.get() }
+      }, dismissal)
+      expect(r, dismissal).toEqual({ opened: ["nested"], closed: [] })
+    }
+  })
 })

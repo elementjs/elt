@@ -1,4 +1,4 @@
-export class Deferred<T> implements Promise<T> {
+export class Future<T> implements Promise<T> {
   promise: Promise<T>
   resolve!: (value: T | PromiseLike<T>) => void
   reject!: (reason?: any) => void
@@ -10,7 +10,7 @@ export class Deferred<T> implements Promise<T> {
     })
   }
 
-  [Symbol.toStringTag] = "Deferred"
+  [Symbol.toStringTag] = "Future"
 
   // biome-ignore lint/suspicious/noThenProperty: intentionally thenable, so instances can be awaited like a Promise
   then<TResult1 = T, TResult2 = never>(

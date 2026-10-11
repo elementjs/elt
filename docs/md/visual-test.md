@@ -30,7 +30,7 @@ function showDialog() {
       </e-prose>
       <e-row pad="component" justify="space-between">
         <button>
-          {$click(() => fut.resolve(show_dialog.closed))}
+          {$click(() => fut.resolve(undefined))}
           Cancel
         </button>
         <button e-variant="inverted">{$click(() => fut.resolve(true))}OK</button>

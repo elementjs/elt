@@ -1,30 +1,37 @@
-import { $connected, $enter, $leave, $on, animate, css, type Deferred, show } from "elt"
+import { $connected, $enter, $leave, $on, animate, css, type Future, show } from "elt"
+import type { OverlayResult } from "./popup"
 import { theme } from "./theme"
-import { sym_closed } from "./utils"
 import { fade_in, fade_out, zoom_in, zoom_out } from "./motion"
 
 export interface DialogOptions {
-  /** A click on the backdrop dismisses the dialog (resolves it with {@link sym_closed}). */
+  /** A click on the backdrop dismisses the dialog (resolves it with `undefined`). */
   clickOutsideToClose?: boolean
 }
 
 /** Returns the dialog's content: one element, drawing its own frame. Typed `Node` because that is what JSX gives. */
-export type DialogCallback<T> = (fut: Deferred<T | typeof sym_closed>) => Node
+export type DialogCallback<T extends OverlayResult> = (fut: Future<T | undefined>) => Node
 
 /**
- * Open a modal dialog and return a `Deferred` resolved by `fut.resolve(value)` from the content, or
- * with {@link sym_closed} when the user dismisses it (`Escape`, or a backdrop click with
- * `clickOutsideToClose`).
+ * Open a modal dialog and return a `Future` resolved by `fut.resolve(value)` from the content, or
+ * with `undefined` when it closes with no result: the user dismissed it (`Escape`, or a backdrop
+ * click with `clickOutsideToClose`), or the content called `fut.resolve(undefined)` (a Cancel button, say). An
+ * affirmative answer is always an explicit value, `T` being `boolean` unless given.
  *
  * The `<dialog>` is an unstyled box — no border, padding, background or radius: the element `render`
  * returns draws the frame (`<e-column surface border packed>…`). The dialog adds the backdrop,
  * centering, a shadow, the size limits (`--e-dialog-max-width`, `--e-dialog-max-height`; the content
  * scrolls itself when it can be taller) and the animation.
  */
-export function show_dialog<T>(render: DialogCallback<T>): Deferred<T | typeof sym_closed>
-export function show_dialog<T>(opts: DialogOptions, render: DialogCallback<T>): Deferred<T | typeof sym_closed>
+export function show_dialog<T extends OverlayResult = boolean>(render: DialogCallback<T>): Future<T | undefined>
+export function show_dialog<T extends OverlayResult = boolean>(
+  opts: DialogOptions,
+  render: DialogCallback<T>,
+): Future<T | undefined>
 
-export function show_dialog<T>(opts: DialogOptions | DialogCallback<T>, cbk?: DialogCallback<T>) {
+export function show_dialog<T extends OverlayResult = boolean>(
+  opts: DialogOptions | DialogCallback<T>,
+  cbk?: DialogCallback<T>,
+) {
   // show_dialog(cbk) or show_dialog(opts, cbk)
   const options: DialogOptions = typeof opts === "function" ? {} : opts
   const render = typeof opts === "function" ? opts : cbk
@@ -39,7 +46,7 @@ export function show_dialog<T>(opts: DialogOptions | DialogCallback<T>, cbk?: Di
 
   // Opening and closing are updates of `show`: the dialog plays its $enter / $leave, and goes when the
   // future ends, whatever the outcome.
-  const future = show<T | typeof sym_closed>(document.body, (future) => {
+  const future = show<T | undefined>(document.body, (future) => {
     const content = render(future)
     if (!(content instanceof Element)) throw new Error("show_dialog(): render must return a single element")
 
@@ -52,16 +59,16 @@ export function show_dialog<T>(opts: DialogOptions | DialogCallback<T>, cbk?: Di
           const clickedBackdrop =
             ev.clientX < rect.left || ev.clientX > rect.right || ev.clientY < rect.top || ev.clientY > rect.bottom
 
-          if (clickedBackdrop) future.resolve(sym_closed)
+          if (clickedBackdrop) future.resolve(undefined)
         }),
       // The native `cancel` (Escape) would close the dialog on its own, behind the future's back.
       $on("cancel", (ev) => {
         ev.preventDefault()
-        future.resolve(sym_closed)
+        future.resolve(undefined)
       }),
       // Browsers may refuse to let `cancel` be prevented (a second Escape without user activity in
       // between): the dialog then closes anyway, and the future must still settle.
-      $on("close", () => future.resolve(sym_closed)),
+      $on("close", () => future.resolve(undefined)),
       // Modal once in the page, before $enter runs (connected callbacks come first): the backdrop exists
       // when the enter animation starts.
       $connected((d) => d.showModal()),
@@ -98,11 +105,6 @@ export function show_dialog<T>(opts: DialogOptions | DialogCallback<T>, cbk?: Di
   future.then(settled, settled)
 
   return future
-}
-
-export namespace show_dialog {
-  /** Alias of {@link sym_closed}. */
-  export const closed: typeof sym_closed = sym_closed
 }
 
 /* An unstyled box: the content draws its own frame. The dialog keeps the backdrop, centering, the

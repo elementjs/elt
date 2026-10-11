@@ -8,17 +8,17 @@ order: 80
 
 Small helpers exported by `"elt"`, used by elt itself and handy in app code.
 
-## `Deferred`
+## `Future`
 
 A promise you resolve or reject from outside:
 
 ```ts
-import { Deferred } from "elt"
+import { Future } from "elt"
 
-const d = new Deferred<number>()
+const d = new Future<number>()
 
 d.resolve(1)        // or d.reject(err), from anywhere
-const n = await d   // a Deferred is thenable
+const n = await d   // a Future is thenable
 ```
 
 - `d.promise` is the underlying `Promise`, for an API that requires a real one.

@@ -1,7 +1,7 @@
 import { node_append } from "../dom"
 import type { Renderable } from "../types"
 import { o } from "../observable"
-import { Deferred } from "../utils"
+import { Future } from "../utils"
 import { _logged, Route } from "./route"
 import { Router } from "./router"
 import type { RouterOptions } from "./url-source"
@@ -47,7 +47,7 @@ export interface ActivationUrl {
 }
 
 /** An activation requested while another one runs : it runs once that one is done, unless a newer one replaces it. */
-export class Reactivation extends Deferred<ActivationResult> {
+export class Reactivation extends Future<ActivationResult> {
   constructor(
     public builder: ServiceBuilderConcreteType<any>,
     public params: ServiceParams,

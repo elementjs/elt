@@ -200,7 +200,7 @@ const answer = await show<boolean>(host, (fut) => (
 ))
 ```
 
-- **The future ends the content.** The future is a [`Deferred`](./utilities.md#deferred). Resolved or rejected, the content goes, and a rejection also goes to whoever awaits it.
+- **The future ends the content.** The future is a [`Future`](./utilities.md#future). Resolved or rejected, the content goes, and a rejection also goes to whoever awaits it.
 - **Motion is the content's business.** The content enters and leaves as an update of a verb would ([Motion](./motion.md)): its own `$enter` and `$leave` decide what is animated, and it stays in the page until its `$leave` is done.
 - **The future always ends.** If `parent` leaves the page while the content is shown, the future is rejected with an `AbortError` (a `DOMException`), so that code waiting for an answer is told none will come. Check `e.name !== "AbortError"` to ignore it. Nothing else settles the future for you: close it from the content, or from code that holds it.
 - **`parent` must be in the page.** `show` throws otherwise, and inserts nothing. If `render` throws, nothing is inserted either.

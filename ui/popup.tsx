@@ -5,10 +5,9 @@
  * Some popup handling.
  */
 
-import { $connected, $enter, $leave, css, Deferred, o, show } from "elt"
+import { $connected, $enter, $leave, css, Future, o, show } from "elt"
 import { rise_in, sink_out } from "./motion"
 import { theme } from "./theme"
-import { sym_closed } from "./utils"
 const colors = theme.colors
 
 import {
@@ -25,7 +24,7 @@ import {
 } from "@floating-ui/dom"
 
 const popups = new Set<Element>()
-const popups_futures = new WeakMap<Element, Deferred<any | undefined>>()
+const popups_futures = new WeakMap<Element, Future<any>>()
 /** What had focus when each popup opened, given it back when the popup closes. */
 const popups_return_focus = new WeakMap<Element, HTMLElement>()
 /** The document whose click and keydown listeners are installed: set while at least one popup is open. */
@@ -61,7 +60,7 @@ function _popup_resolve(p: Element) {
   // Popups opened from this one are attached inside it: they close with it.
   for (const child of [...popups]) if (child !== p && p.contains(child)) _popup_resolve(child)
   popups.delete(p)
-  popups_futures.get(p)?.resolve(sym_closed)
+  popups_futures.get(p)?.resolve(undefined)
   popups_futures.delete(p)
   // Give focus back to what had it at opening, unless the user already moved it elsewhere: only when
   // it is inside the closing popup, or lost to the body.
@@ -218,8 +217,16 @@ const popup_transform_origins = new Map<string, string>([
 ])
 
 /**
- * Open a popup next to `anchor` and return a `Deferred` resolved by `fut.resolve(value)` from the
- * content, or with {@link sym_closed} when the user dismisses it (click outside, `Escape`).
+ * What a popup or a dialog can resolve with: any value but `undefined`, which is reserved for "closed
+ * with no result" (dismissed, or cancelled by the content).
+ */
+export type OverlayResult = NonNullable<unknown> | null
+
+/**
+ * Open a popup next to `anchor` and return a `Future` resolved by `fut.resolve(value)` from the
+ * content, or with `undefined` when it closes with no result: the user dismissed it (click outside,
+ * `Escape`), or the content called `fut.resolve(undefined)` (a Cancel button, say). An affirmative answer is
+ * always an explicit value, `T` being `boolean` unless given.
  *
  * The element `render` returns is drawn as given — its own `border`, `surface`, `scroll` and padding;
  * the popup only adds placement, a drop shadow, the animation, dismissal and the arrow, whose colors
@@ -227,9 +234,9 @@ const popup_transform_origins = new Map<string, string>([
  * `--e-popup-max-height` / `--e-popup-max-width`, and the element is capped to it (and to `80vh`):
  * give it `scroll` when its content can be taller.
  */
-export function popup<T>(
+export function popup<T extends OverlayResult = boolean>(
   anchor: PopupAnchor,
-  render: (fut: Deferred<T | typeof sym_closed>) => Node,
+  render: (fut: Future<T | undefined>) => Node,
   opts?: PopupOptions,
 ) {
   const anchor_el = anchor instanceof Element ? anchor : anchor.element
@@ -239,7 +246,7 @@ export function popup<T>(
       ? anchor
       : { getBoundingClientRect: () => new DOMRect(anchor.x, anchor.y, 0, 0), contextElement: anchor_el }
   const doc = anchor_el.ownerDocument
-  const fut = new Deferred<T | typeof sym_closed>()
+  const fut = new Future<T | undefined>()
   const rendered = render(fut)
   // Typed Node because that is what JSX gives; the popup needs one element to cap and color from.
   if (!(rendered instanceof HTMLElement)) throw new Error("popup(): render must return a single HTML element")
@@ -265,7 +272,7 @@ export function popup<T>(
   // Remember who had focus, to give it back on close.
   if (doc.activeElement instanceof HTMLElement) popups_return_focus.set(popup, doc.activeElement)
 
-  // However the future settles — a value from the content, sym_closed from the content (closing it
+  // However the future settles — a value from the content, undefined from the content (closing it
   // from code) or from a dismissal, or a rejection — the popup goes. A dismissal already took it out
   // of `popups`. Handling both outcomes also keeps this derived promise from rejecting unhandled: the
   // rejection is for whoever awaits the future.
@@ -392,7 +399,7 @@ export function popup<T>(
     try {
       // Opening and closing are updates of `show`: the popup plays its $enter / $leave, and goes when its
       // future ends. The content already got `fut`, so the two futures end together.
-      show<T | typeof sym_closed>(opts?.parent ?? find_parent_node(anchor_el), (shown) => {
+      show<T | undefined>(opts?.parent ?? find_parent_node(anchor_el), (shown) => {
         fut.then(shown.resolve, shown.reject)
         shown.then(fut.resolve, fut.reject)
         return popup
@@ -404,11 +411,6 @@ export function popup<T>(
   })
 
   return fut
-}
-
-export namespace popup {
-  /** Alias of {@link sym_closed}. */
-  export const closed: typeof sym_closed = sym_closed
 }
 
 /**

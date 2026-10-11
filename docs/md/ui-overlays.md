@@ -20,11 +20,11 @@ Use the lightest one that gives the interaction enough room and keeps the user's
 ## popup
 
 ```ts
-popup<T>(
+popup<T = boolean>(
   anchor: Element | { x: number; y: number; element: Element },
-  render: (fut: Deferred<T | typeof sym_closed>) => Node,
+  render: (fut: Future<T | undefined>) => Node,
   opts?: { placement?: Placement; parent?: Element | null; arrow?: boolean },
-): Deferred<T | typeof sym_closed>
+): Future<T | undefined>
 ```
 
 - `render` returns **one element, drawn as given**: its own `surface`, `border`, `pad`, `scroll`. The popup adds only what makes it a popup: placement next to the anchor (kept in place while scrolling), a drop shadow, the open/close animation, dismissal, and the arrow.
@@ -33,7 +33,7 @@ popup<T>(
 - **Parent**: the popup is attached inside the nearest open popup or modal dialog around the anchor, or the body; `parent` overrides.
 - **Arrow**: shown by default with an element anchor, not with a point; `arrow` overrides. It takes the content's background and border colors.
 - **Size**: the room left next to the anchor is set as `--e-popup-max-height` / `--e-popup-max-width`, and the content is capped to it and to `80vh`. Give the content `scroll` when it can be taller.
-- Resolving `fut` with a value closes the popup, and so does rejecting it (the rejection goes to whoever awaits the future). A click outside closes every open popup and resolves them with `sym_closed` (also available as `popup.closed`); `Escape` closes only the innermost one (a submenu, not the menu it came from); once no popup is open, `Escape` is left to the rest of the page (a surrounding dialog, a keymap). On close, focus goes back to what had it when the popup opened.
+- Resolving `fut` with a value closes the popup, and so does rejecting it (the rejection goes to whoever awaits the future). A click outside closes every open popup and resolves them with `undefined`, like `fut.resolve(undefined)` from the content does; `Escape` closes only the innermost one (a submenu, not the menu it came from); once no popup is open, `Escape` is left to the rest of the page (a surrounding dialog, a keymap). On close, focus goes back to what had it when the popup opened.
 - A popup opened from inside another popup is attached to it and keeps it open; any other popup closes the open ones first.
 
 ```tsx
@@ -42,13 +42,13 @@ import { popup } from "elt/ui"
 
 <button>
   {$click(async (ev) => {
-    const result = await popup(ev.currentTarget, (fut) => (
+    const result = await popup<string>(ev.currentTarget, (fut) => (
       <e-column surface="background" border seamless packed="widget" align="stretch" role="menu">
         <button role="menuitem">{$click(() => fut.resolve("copy"))}Copy</button>
         <button role="menuitem">{$click(() => fut.resolve("paste"))}Paste</button>
       </e-column>
     ))
-    if (result !== popup.closed) run(result)
+    if (result !== undefined) run(result)
   })}
   Actions
 </button>
@@ -101,12 +101,12 @@ popup(ev.currentTarget, (fut) => {
 ## show_dialog
 
 ```ts
-show_dialog<T>(render: (fut: Deferred<T | typeof sym_closed>) => Node): Deferred<T | typeof sym_closed>
-show_dialog<T>(opts: { clickOutsideToClose?: boolean }, render): Deferred<T | typeof sym_closed>
+show_dialog<T = boolean>(render: (fut: Future<T | undefined>) => Node): Future<T | undefined>
+show_dialog<T = boolean>(opts: { clickOutsideToClose?: boolean }, render): Future<T | undefined>
 ```
 
 - A modal `<dialog>` with a backdrop, centered, animated in and out. The dialog itself is an **unstyled box**: `render` returns one element that draws the frame, like a popup's.
-- Awaiting the result gives the value passed to `fut.resolve`, or `sym_closed` (also `show_dialog.closed`) when the user dismissed it: `Escape`, or a backdrop click when `clickOutsideToClose` is set. On close, focus goes back to what had it when the dialog opened.
+- Awaiting the result gives the value passed to `fut.resolve`, or `undefined` when it closed with no result: the user dismissed it (`Escape`, or a backdrop click when `clickOutsideToClose` is set), or the content called `fut.resolve(undefined)`. On close, focus goes back to what had it when the dialog opened.
 - Size hooks: `--e-dialog-width`, `--e-dialog-max-width` (default `60vw`), `--e-dialog-max-height` (default `80vh`). The content is shrunk to the height limit: give its scrolling part `scroll`.
 
 A dialog with a title, a body and actions is a packed bordered column. Its title row is a `<header>`, a tint-inverted bar, since a dialog wants the user's attention ([elt/ui rules § Recommendations](./elt-ui-rules.md#recommendations)):
@@ -125,12 +125,12 @@ return <button>
         <header><h1 e-ellipsis>Delete the file?</h1></header>
         <e-prose pad="component" scroll>It can't be recovered afterwards.</e-prose>
         <e-row pad="component" justify="end">
-          <button>{$click(() => fut.resolve(show_dialog.closed))}Cancel</button>
+          <button>{$click(() => fut.resolve(undefined))}Cancel</button>
           <button e-variant="inverted">{$click(() => fut.resolve("deleted"))}Delete</button>
         </e-row>
       </e-column>
     ))
-    o_answer.set(res === show_dialog.closed ? "cancelled" : res)
+    o_answer.set(res === undefined ? "cancelled" : res)
   })}
   Delete… {o_answer}
 </button>
@@ -138,10 +138,11 @@ return <button>
 
 ## The future
 
-`popup` and `show_dialog` return, and hand to their content, a [`Deferred<T>`](./utilities.md#deferred): a promise you resolve or reject from outside with `.resolve(v)` and `.reject(e)` (only the first call counts). It is awaitable like any promise, and it ends the popup or the dialog, however it ends.
+`popup` and `show_dialog` return, and hand to their content, a [`Future<T>`](./utilities.md#future): a promise you resolve or reject from outside with `.resolve(v)` and `.reject(e)` (only the first call counts). It is awaitable like any promise, and it ends the popup or the dialog, however it ends.
 
-- **A value:** `fut.resolve(value)` from the content. Awaiting gives the value.
-- **A dismissal:** `sym_closed` (also `popup.closed`, `show_dialog.closed`) when the user dismissed it, with a click outside or `Escape`. This is an expected outcome, not an error.
+- **A value:** `fut.resolve(value)` from the content. Awaiting gives the value. `T` is `boolean` unless you give it (`popup<Item>(…)`): a confirmation is `true` or `false`.
+- **No result:** `undefined`, when the user dismissed it (a click outside, `Escape`) or the content called `fut.resolve(undefined)` (a Cancel button). This is an expected outcome, not an error, and a dismissal and a Cancel are the same outcome. Since `undefined` means "no result", never use it as an answer: an affirmative answer is always an explicit value (`true`, the chosen item), so test `result === undefined` for "no answer", not `!result` (which also catches `false`). `T` cannot include `undefined`.
+- **A popup that goes with its parent:** a popup opened from inside another one closes, and resolves with `undefined`, when the popup around it closes. If the node the outer popup was put in leaves the page, both futures are rejected with an `AbortError` instead (below).
 - **A rejection:** `fut.reject(e)` closes it too, and the rejection goes to whoever awaits the future. It is also what happens when the element the popup or the dialog was put in leaves the page while it is shown: the future is rejected with an `AbortError` (a `DOMException`), so that code waiting for an answer is told that none will come. `try { await … } catch (e) { if (e.name !== "AbortError") throw e }` ignores it.
 
 Both are built on [`show`](./verbs.md#show-content-that-lives-until-a-promise-settles), which you can use for overlays of your own.

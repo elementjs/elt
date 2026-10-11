@@ -4,7 +4,6 @@ import { focus_when_shown, list_nav, type ListNavOptions } from "./list-nav"
 import { popup } from "./popup"
 import { Spinner } from "./spinner"
 import { theme } from "./theme"
-import { sym_closed } from "./utils"
 const colors = theme.colors
 
 /**
@@ -246,7 +245,7 @@ export function Select<T, T2 = T>(at: SelectAttributes<T, T2>) {
       },
       at.completion ? { arrow: false, placement: "bottom-start" } : { arrow: true, placement: "right-start" },
     )
-    close_list = () => fut.resolve(sym_closed)
+    close_list = () => fut.resolve(undefined)
     requestAnimationFrame(() => {
       if (o_active.get() >= 0) reveal(o_active.get())
     })
@@ -254,7 +253,7 @@ export function Select<T, T2 = T>(at: SelectAttributes<T, T2>) {
       close_list = null
       o_open.set(false)
       // Dismissed (Escape, a click outside) while typing: the typing is abandoned too.
-      if (res === sym_closed && at.completion && o_editing.get()) stop_editing(true)
+      if (res === undefined && at.completion && o_editing.get()) stop_editing(true)
     })
   }
 

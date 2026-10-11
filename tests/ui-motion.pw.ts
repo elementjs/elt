@@ -119,7 +119,7 @@ test.describe("dialog", () => {
         c.innerHTML = `<button id="inside">in</button>`
         return c
       }).then((v) => {
-        w.result = v === UI.show_dialog.closed ? "closed" : String(v)
+        w.result = v === undefined ? "closed" : String(v)
       })
     })
     // Two animations on the dialog (itself and its backdrop), both durationSlow. Which one is the

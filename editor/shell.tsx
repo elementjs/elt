@@ -19,7 +19,6 @@ implementation slice. Implements:
 
 import { $connected, $observe, $on, type Attrs, css, type Decorator, o, Repeat, type Renderable } from "elt"
 import { popup } from "elt/ui/popup"
-import { sym_closed } from "elt/ui/utils"
 import { theme } from "elt/ui"
 import { $keymap } from "elt/ui/keymap"
 import { default_settings, type EditorSettings, resolve_settings } from "./composite-toolbar"
@@ -283,7 +282,7 @@ export class ObjectEditorShell {
 
   private mount_popup(column: ColumnDescriptor, idx: number, anchor: Element) {
     const fut = popup(anchor, (fut) => {
-      column.dismiss_popup = () => fut.resolve(sym_closed)
+      column.dismiss_popup = () => fut.resolve(undefined)
 
       // Unpacked, the popup is a floating panel of plain rows: it keeps a frame, and pads its content itself.
       const packed = this.settings_of(column).packed
@@ -305,8 +304,9 @@ export class ObjectEditorShell {
       return panel
     })
 
-    fut.then((result) => {
-      if (result === sym_closed) return
+    // However it ends (the × button, the shell closing it, a dismissal), the column goes with it;
+    // `close_after` is idempotent, so the shell closing it first is harmless.
+    fut.then(() => {
       const cols = this.o_columns.get()
       if (cols[idx] === column) this.close_after(idx - 1)
     })

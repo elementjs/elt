@@ -1,6 +1,6 @@
 import { expect, test } from "./fixture"
 
-type W = Window & { result?: unknown; sentinel?: symbol }
+type W = Window & { result?: unknown }
 
 test.describe("popup (docs/md/ui-overlays.md#popup)", () => {
   test("draws the returned element as given, with an arrow colored like it", async ({ page }) => {
@@ -68,35 +68,28 @@ test.describe("popup (docs/md/ui-overlays.md#popup)", () => {
     expect(r.arrow).toBe(false)
   })
 
-  test("Escape resolves with sym_closed and gives focus back", async ({ page }) => {
+  test("Escape resolves with undefined and gives focus back", async ({ page }) => {
     await page.evaluate(() => {
       const { UI } = window.__ELT__
       document.body.innerHTML = `<button id="anchor">open</button>`
       const anchor = document.getElementById("anchor")!
       anchor.focus()
       const w = window as W
-      w.sentinel = UI.sym_closed
+      w.result = "pending"
       UI.popup(anchor, () => {
         const c = document.createElement("e-column")
         c.innerHTML = `<button id="inside">in</button>`
         return c
       }).then((v) => {
-        w.result = v
+        w.result = v === undefined ? "closed" : v
       })
     })
     await page.waitForSelector("[popover] #inside")
     await page.focus("#inside")
     await page.keyboard.press("Escape")
-    await page.waitForFunction(() => (window as W).result !== undefined)
-    const r = await page.evaluate(() => {
-      const w = window as W
-      return {
-        is_closed: w.result === w.sentinel && w.result === window.__ELT__.UI.popup.closed,
-        focus: document.activeElement?.id,
-      }
-    })
-    expect(r.is_closed).toBe(true)
-    expect(r.focus).toBe("anchor")
+    await page.waitForFunction(() => (window as W).result !== "pending")
+    const r = await page.evaluate(() => ({ result: (window as W).result, focus: document.activeElement?.id }))
+    expect(r).toEqual({ result: "closed", focus: "anchor" })
   })
 
   test("the arrow touches the popup and points at the anchor, on all four sides", async ({ page }) => {
@@ -122,7 +115,7 @@ test.describe("popup (docs/md/ui-overlays.md#popup)", () => {
         const p = content.getBoundingClientRect()
         const outer = content.parentElement!.querySelector("[class*=outer-arrow]")!.getBoundingClientRect()
         const inner = content.parentElement!.querySelector("[class*=arrow-inner]")!.getBoundingClientRect()
-        fut.resolve(UI.sym_closed)
+        fut.resolve(undefined)
         const cx = (inner.left + inner.right) / 2
         const cy = (inner.top + inner.bottom) / 2
         // The arrow box lies against the popup's edge facing the anchor, and the diamond is centered
@@ -167,6 +160,68 @@ test.describe("popup (docs/md/ui-overlays.md#popup)", () => {
     await page.evaluate(() => window.__ELT__.node_remove(document.getElementById("host")!))
     await page.waitForFunction(() => (window as W).result !== "pending")
     expect(await page.evaluate(() => (window as W).result)).toBe("AbortError")
+  })
+
+  test("a popup opened from inside another: closing the parent resolves the child with undefined", async ({ page }) => {
+    const log = await page.evaluate(async () => {
+      const { UI } = window.__ELT__
+      document.body.innerHTML = `<button id="anchor">open</button>`
+      const log: string[] = []
+      let child_anchor!: HTMLElement
+      const parent = UI.popup<string>(document.getElementById("anchor")!, () => {
+        const c = document.createElement("e-column")
+        child_anchor = document.createElement("button")
+        c.append(child_anchor)
+        return c
+      })
+      parent.then((v) => log.push(`parent ${v}`))
+      await new Promise((r) => setTimeout(r, 100))
+      UI.popup(child_anchor, () => document.createElement("e-column")).then((v) => log.push(`child ${v}`))
+      await new Promise((r) => setTimeout(r, 100))
+      parent.resolve("x")
+      await new Promise((r) => setTimeout(r, 300))
+      return log
+    })
+    expect(log.sort()).toEqual(["child undefined", "parent x"])
+  })
+
+  test("a popup opened from inside another: both futures reject with AbortError when the parent's host leaves the page", async ({
+    page,
+  }) => {
+    const log = await page.evaluate(async () => {
+      const { UI, node_append, node_remove } = window.__ELT__
+      document.body.innerHTML = ""
+      const host = document.createElement("div")
+      node_append(document.body, host)
+      const anchor = document.createElement("button")
+      host.append(anchor)
+      const log: string[] = []
+      let child_anchor!: HTMLElement
+      const parent = UI.popup(
+        anchor,
+        () => {
+          const c = document.createElement("e-column")
+          child_anchor = document.createElement("button")
+          c.append(child_anchor)
+          return c
+        },
+        { parent: host },
+      )
+      parent.then(
+        () => log.push("parent resolved"),
+        (e: DOMException) => log.push(`parent ${e.name}`),
+      )
+      await new Promise((r) => setTimeout(r, 100))
+      UI.popup(child_anchor, () => document.createElement("e-column")).then(
+        () => log.push("child resolved"),
+        (e: DOMException) => log.push(`child ${e.name}`),
+      )
+      await new Promise((r) => setTimeout(r, 100))
+      node_remove(host)
+      await new Promise((r) => setTimeout(r, 300))
+      return log
+    })
+    expect(log.sort()).toEqual(["child AbortError", "parent AbortError"])
   })
 
   test("a parent that is not in the page rejects the future instead of throwing later", async ({ page }) => {
@@ -222,7 +277,7 @@ test.describe("popup (docs/md/ui-overlays.md#popup)", () => {
       UI.popup(document.getElementById("anchor")!, (fut) => {
         const c = document.createElement("button")
         c.id = "inside"
-        c.onclick = () => fut.resolve("picked")
+        c.onclick = () => fut.resolve(true)
         return c
       })
     })
@@ -268,23 +323,24 @@ test.describe("show_dialog (docs/md/ui-overlays.md#show_dialog)", () => {
     expect(r).toEqual({ padding: "0px", border: "none", bg: "rgba(0, 0, 0, 0)" })
   })
 
-  test("Escape resolves with sym_closed, removes the dialog and gives focus back", async ({ page }) => {
+  test("Escape resolves with undefined, removes the dialog and gives focus back", async ({ page }) => {
     await page.evaluate(() => {
       const { UI } = window.__ELT__
       document.body.innerHTML = `<button id="opener">open</button>`
       document.getElementById("opener")!.focus()
       const w = window as W
+      w.result = "pending"
       UI.show_dialog(() => {
         const c = document.createElement("e-column")
         c.innerHTML = `<button id="inside">in</button>`
         return c
       }).then((v) => {
-        w.result = v === UI.show_dialog.closed ? "closed" : v
+        w.result = v === undefined ? "closed" : v
       })
     })
     await page.waitForSelector("dialog[open] #inside")
     await page.keyboard.press("Escape")
-    await page.waitForFunction(() => (window as W).result !== undefined)
+    await page.waitForFunction(() => (window as W).result !== "pending")
     await page.waitForFunction(() => document.querySelector("dialog") == null)
     const r = await page.evaluate(() => ({ result: (window as W).result, focus: document.activeElement?.id }))
     expect(r).toEqual({ result: "closed", focus: "opener" })
@@ -301,7 +357,7 @@ test.describe("show_dialog (docs/md/ui-overlays.md#show_dialog)", () => {
         $disconnected(() => {
           w.result = "disconnected"
         })(c)
-        setTimeout(() => fut.resolve(UI.sym_closed))
+        setTimeout(() => fut.resolve(undefined))
         return c
       })
     })
@@ -346,22 +402,23 @@ test.describe("show_dialog (docs/md/ui-overlays.md#show_dialog)", () => {
     expect(await page.evaluate(() => (window as W).result)).toBe("ok")
   })
 
-  test("clickOutsideToClose: a backdrop click resolves with sym_closed", async ({ page }) => {
+  test("clickOutsideToClose: a backdrop click resolves with undefined", async ({ page }) => {
     await page.evaluate(() => {
       const { UI } = window.__ELT__
       const w = window as W
+      w.result = "pending"
       UI.show_dialog({ clickOutsideToClose: true }, () => {
         const c = document.createElement("e-column")
         c.style.width = "100px"
         c.style.height = "100px"
         return c
       }).then((v) => {
-        w.result = v === UI.sym_closed ? "closed" : v
+        w.result = v === undefined ? "closed" : v
       })
     })
     await page.waitForSelector("dialog[open]")
     await page.mouse.click(5, 5)
-    await page.waitForFunction(() => (window as W).result !== undefined)
+    await page.waitForFunction(() => (window as W).result !== "pending")
     expect(await page.evaluate(() => (window as W).result)).toBe("closed")
   })
 })

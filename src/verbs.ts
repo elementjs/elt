@@ -15,7 +15,7 @@ import {
 
 import { sym_insert, sym_leave } from "./symbols"
 import type { Appender, Renderable } from "./types"
-import { Deferred } from "./utils"
+import { Future } from "./utils"
 
 /** Whether the content of a repeat item has a node with a leave hook (see `node_on_leave`). */
 function has_leave_hook(item: CommentHolder): boolean {
@@ -909,13 +909,13 @@ export namespace DisplayPromise {
  */
 export function show<T>(
   parent: Node,
-  render: (fut: Deferred<T>) => Renderable<Node>,
+  render: (fut: Future<T>) => Renderable<Node>,
   before: Node | null = null,
-): Deferred<T> {
+): Future<T> {
   // The document's own `body` is never connected as far as elt goes (nothing inserted it): ask the document.
   if (!parent.isConnected) throw new Error("show(): the parent must be in the page")
 
-  const fut = new Deferred<T>()
+  const fut = new Future<T>()
   const content = render(fut)
 
   const holder = new CommentHolder("show")
