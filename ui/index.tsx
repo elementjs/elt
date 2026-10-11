@@ -19,6 +19,7 @@ export * from "./timepicker"
 export * from "./textarea"
 export * from "./keymap"
 export * from "./list-nav"
+export * from "./resizable"
 
 import { o } from "elt"
 import { theme } from "./theme"

@@ -53,8 +53,6 @@ The `setCustomValidity` + `validationMessage` pair is two lines, used at exactly
 
 The `validity` option landed directly on the existing `$bind.*` functions in `src/decorators.ts` — no new file.
 
-`specs/resizable.tsx` still belongs in `ui/resizable.tsx` (unrelated to this decision, general-purpose decorator with no object-editor dependency, not yet moved).
-
 ## Relationship to the object editor
 
 Pairs with `specs/TODO.md`'s "forward widget options from `elt/ui` almost as-is" item: a scalar factory forwarding native attrs (`min`, `max`, `pattern`, `required`, `step`, …) straight through to its underlying `elt/ui` component gets real validation on those for free once this reads them via `node.validity`. Where a leaf widget's `o_error` renders is a separate, still-open decision — see `specs/ui-object-editor.md` Layer 4 "Contract".

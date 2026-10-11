@@ -98,6 +98,31 @@ const o_fetched = o<Promise<City[]>>(fetch_cities(""))
 
 The text field is edited one part (segment) at a time — day, month, year, hour, minute, second, AM/PM — as in a native date input. Clicking selects the part under the pointer; Left and Right select the previous or next part. Digits typed into a part replace its value and are collected until the part is full (2 digits, 4 for the year), then the next part is selected: typing `15` into the minutes gives `15`. A first digit that no second digit could follow is complete at once: `4` in a day gives `04`, `2` in a month gives `02`. A separator (`/`, `-`, `:`, a space…) ends the part being typed and selects the next one (`1/5/2026` gives January 5 in en-US); typed right after a part that completed on its own, it does nothing, so `2026-10-03` can be typed as written. Moving to another part starts a new value. In the AM/PM part, a letter that starts the localized AM or PM text sets it, in either case, then the next part is selected (`p` gives PM in en-US); where one letter starts both texts (`PG` / `PTG` in ms, `오전` / `오후` in ko), the letters are collected until only one text starts with them (`pt` gives PM). Up and Down step the part (minutes and seconds by `minute_step` / `second_step`), Backspace and Delete empty it. The model receives the date when the field loses focus, if the date is complete and valid; with `clearable`, an empty field sets it to `null`. Phone and tablet on-screen keyboards, which send their characters as text input rather than identifiable key presses, behave the same: each character goes through the rules above, and deleting empties the part as Backspace does. Without an AM/PM part, the field asks these keyboards for a number pad (`inputmode="numeric"`); with one, it keeps the default keyboard, whose letters set AM or PM.
 
+## Resizable
+
+`$resizable(opts?)` lets the user drag one edge of an element to change its size: a column header, a sidebar or a navigation bar in a flex row, a panel. The decorator returns the drag handle, a thin strip along the edge, which elt puts in the element.
+
+```tsx
+import { $resizable } from "elt/ui"
+
+<e-row>
+  <nav>{$resizable({ min: 160, max: 400 })}…links…</nav>
+  <main grow>…</main>
+</e-row>
+```
+
+| Option | Effect |
+| ------ | ------ |
+| `edge` | Where the handle is: `"end"` (default), `"start"`, `"top"` or `"bottom"`. `"start"` and `"end"` follow the writing direction. Dragging the handle away from the element makes it bigger |
+| `min`, `max` | Limits in px (default: at least 48, no maximum) |
+| `on_resize(px)` | Called with each new size while dragging |
+| `write` | Whether the decorator writes the size on the element (`width` for `"start"` and `"end"`, `height` otherwise). Default: yes, unless `on_resize` is given, in which case the caller applies the size itself (a grid puts it in its column template) |
+
+- **The size is locked once the element has been laid out.** Whatever sized it (its content, `auto`, a flex share) is written back as a fixed size, and the element stops shrinking in a flex container (`flex-shrink: 0`). After that it keeps that size until dragged, and no longer follows its content. Give the element no `grow` when it should stay the size the user chose.
+- **Positioning.** The handle is placed against the element, which gets `position: relative` unless it already has a position of its own (a `sticky` header keeps it).
+- **Pointer only.** A touch screen gets a wider handle, and the page is not scrolled by dragging it. There is no keyboard resizing yet.
+- A column header whose width belongs to a layout of its own (a table's columns, a grid template) passes `on_resize` and applies the size where that layout needs it.
+
 ## Other widgets
 
 | Export | Signature / use |
