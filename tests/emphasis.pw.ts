@@ -143,6 +143,39 @@ test.describe("e-ellipsis", () => {
     expect(r.one_line).toBe(true)
   })
 
+  test("in a row that runs out of room: buttons and toggles keep their size, a text input gives way after the title", async ({
+    page,
+  }) => {
+    const r = await page.evaluate(() => {
+      const width = (el: Element) => el.getBoundingClientRect().width
+      const mk = (html: string) => {
+        document.body.insertAdjacentHTML("beforeend", `<div style="width: 300px">${html}</div>`)
+        return document.body.lastElementChild!
+      }
+      const natural = mk(
+        `<e-row style="width: max-content"><button>Share</button><label e-variant="toggle"><input type="checkbox">Aa</label></e-row>`,
+      )
+      const row = mk(
+        `<e-row><span e-ellipsis>${"x".repeat(80)}</span><input type="search"><button>Share</button><label e-variant="toggle"><input type="checkbox">Aa</label></e-row>`,
+      )
+      const input_alone = mk(`<e-row style="width: max-content"><input type="search"></e-row>`).querySelector("input")!
+      const [button, toggle] = [...natural.querySelectorAll("button, label")]
+      return {
+        button: [width(row.querySelector("button")!), width(button)],
+        toggle: [width(row.querySelector("label")!), width(toggle)],
+        input_shrank: width(row.querySelector("input")!) < width(input_alone),
+        // The title gives way proportionally more than the input does.
+        title_lost_more:
+          1 - width(row.querySelector("span")!) / (80 * 8) >
+          1 - width(row.querySelector("input")!) / width(input_alone),
+      }
+    })
+    expect(r.button[0]).toBe(r.button[1])
+    expect(r.toggle[0]).toBe(r.toggle[1])
+    expect(r.input_shrank).toBe(true)
+    expect(r.title_lost_more).toBe(true)
+  })
+
   test("in a <header> (not a layout element): the title is cut and the buttons go to the end", async ({ page }) => {
     const r = await page.evaluate(() => {
       document.body.insertAdjacentHTML(

@@ -23,17 +23,18 @@ css`@layer typography {
      in a row) is one already; an inline element elsewhere is made inline-block. overflow-x: clip cuts
      sideways only: overflow: hidden would also cut the descenders of a tightly set heading, and
      (unlike hidden) clip doesn't turn the other axis into a scroll container. min-width: 0 lets a
-     flex item shrink below its text's width, so the cut happens instead of an overflow. Layout
-     elements let every child shrink, buttons included: the large flex-shrink makes the cut text take
-     (nearly) all of the shrinking, so the bar's buttons keep their size. flex-grow: the cut text is
-     the elastic part of its row, so it also takes the free space, which puts what follows at the end. */
+     flex item shrink below its text's width, so the cut happens instead of an overflow. Buttons and
+     toggles never shrink in a layout element (ui/layout.css.tsx), so the cut text gives way first;
+     flex-shrink: 2 makes it also give way before an elastic text input next to it (shrinking is
+     shared in proportion to flex-shrink times size). flex-grow: the cut text is the elastic part of
+     its row, so it also takes the free space, which puts what follows at the end. */
   [e-ellipsis] {
     overflow-x: clip;
     text-overflow: ellipsis;
     white-space: nowrap;
     min-width: 0;
     flex-grow: 1;
-    flex-shrink: 10000;
+    flex-shrink: 2;
   }
   :where(span, strong, em, a, code, b, i, small)[e-ellipsis] {
     display: inline-block;

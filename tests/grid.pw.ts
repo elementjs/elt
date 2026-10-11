@@ -571,3 +571,58 @@ test.describe("grid align", () => {
     expect(bottoms.small).toBeLessThan(bottoms.big)
   })
 })
+
+test.describe("packed cells read at the size of controls", () => {
+  test("text cells take the controls' font size and line height; prose and headings keep theirs", async ({ page }) => {
+    const r = await page.evaluate(() => {
+      document.body.innerHTML = `<e-grid columns="4" packed border><e-grid-row><span>t</span><input type="text"><e-prose>p</e-prose><h3>h</h3></e-grid-row></e-grid>
+        <e-column packed><span>x</span><button>b</button></e-column><e-column><span id="plain">y</span></e-column>`
+      const size = (el: Element) => {
+        const c = getComputedStyle(el)
+        return [c.fontSize, c.lineHeight]
+      }
+      const q = (sel: string) => document.querySelector(sel)!
+      return {
+        span: size(q("e-grid-row > span")),
+        input: size(q("e-grid-row > input")),
+        prose: size(q("e-prose")),
+        h3: size(q("h3")),
+        column_span: size(q("e-column > span")),
+        plain: size(q("#plain")),
+        body: size(document.body),
+      }
+    })
+    // A text cell matches the field next to it, in a grid and in a column.
+    expect(r.span).toEqual(r.input)
+    expect(r.column_span).toEqual(r.input)
+    expect(r.prose).toEqual(["16px", "24px"])
+    expect(r.h3[0]).not.toBe(r.input[0])
+    // Outside a packed container, text keeps the page's font size.
+    expect(r.plain[0]).toBe(r.body[0])
+    expect(r.plain[0]).not.toBe(r.input[0])
+  })
+})
+
+test.describe("focus ring", () => {
+  test("buttons, textareas and text and number inputs draw it inside, so a scroll area's edge cannot clip it", async ({
+    page,
+  }) => {
+    const r = await page.evaluate(() => {
+      document.body.innerHTML = `<e-column scroll border style="height: 120px"><e-grid columns="2" packed border><e-grid-row><input id="in_scroll"><input></e-grid-row></e-grid></e-column>
+        <input id="text" type="text"><input id="number" type="number"><textarea id="area"></textarea><button id="button">b</button>
+        <input type="checkbox" id="check"><input type="checkbox" id="switch" e-variant="switch"><select id="select"><option>a</option></select>`
+      const ring = (id: string) => {
+        const el = document.getElementById(id) as HTMLInputElement
+        el.focus()
+        return getComputedStyle(el).boxShadow
+      }
+      const ids = ["in_scroll", "text", "number", "area", "button", "check", "switch", "select"]
+      return Object.fromEntries(ids.map((id) => [id, ring(id)]))
+    })
+    for (const id of ["in_scroll", "text", "number", "area", "button"]) expect(r[id], id).toContain("inset")
+    for (const id of ["check", "switch", "select"]) {
+      expect(r[id], id).not.toContain("inset")
+      expect(r[id], id).not.toBe("none")
+    }
+  })
+})

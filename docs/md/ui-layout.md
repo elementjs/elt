@@ -125,6 +125,7 @@ Alignment values: `center`, `start`, `end`, `self-start`, `baseline`, `first bas
 
 - These four space their children with `gap`, at the ambient step, unless they have `pad="none"`, `spacing="none"` or `packed`.
 - Their children get `min-width: 0; min-height: 0`, so they can shrink below their content's size. To stop a child from overflowing on the cross axis, use `align="stretch"` on the container.
+- Buttons, toggles (`label e-variant="toggle"`), checkboxes and radios never shrink in a layout element (`flex-shrink: 0`): their label or box is their content. Text inputs, `select` and `textarea` stay elastic. A `flex-shrink` of your own wins.
 - Attributes specific to `e-prose` (`table-container`) and how a flex element behaves inside a line of text are in [Typography](./ui-typography.md#controls-in-text).
 
 ## Borders and radius
@@ -157,6 +158,8 @@ Alignment values: `center`, `start`, `end`, `self-start`, `baseline`, `first bas
 | `pad="none"` with bare `packed` | No padding |
 
 The container's own `pad` still pads the container itself. `packed` never adds a gap, except the 1px seam below.
+
+**Cells read at the size of controls.** A packed container is a control-sized surface: its cells take the controls' font size (`theme.settings.formFontSize`) and line height (1.2). Text cells then line up with the fields next to them in a stretched row, and a menu or table-like grid looks the same as the controls in it. A control, a heading or an `e-prose` cell keeps the size it sets itself (`e-prose` is a text run again, at the page's font size).
 
 **A packed container's step is the step of what it packs**, not the step above it that a spaced container would take ([elt/ui rules § Choosing a step](./elt-ui-rules.md#choosing-a-step)). The step still matters without a gap: a bare `border` takes its radius from it, so the frame's corners match its children's, and its descendants inherit it.
 
@@ -296,7 +299,7 @@ A bar is a row holding a title and/or controls along the edge of a view, a dialo
 
 **One line.** A bar is a single row: the title, then the actions. Stacking a subtitle under the title or wrapping the actions onto a second row doubles the bar's height for little information, and makes it look different on every screen width. Only a request that explicitly asks for two lines gets them.
 
-**When space runs short**, the title gives way, not the actions. `e-ellipsis` keeps an element's text on one line and ends it with "…" where it is cut. Directly in a row (or a `<header>`/`<footer>`), the cut element is the elastic part: it takes the free space, which puts the actions after it at the end, and (nearly) all the shrinking, so the buttons keep their size; layout elements otherwise let every child shrink, buttons included. Put it directly in the bar: wrapped in another element, that wrapper sets the size and nothing gets cut.
+**When space runs short**, the title gives way, not the actions. `e-ellipsis` keeps an element's text on one line and ends it with "…" where it is cut. Directly in a row (or a `<header>`/`<footer>`), the cut element is the elastic part: it takes the free space, which puts the actions after it at the end, and it gives way first when the row runs out of room: buttons never shrink, and a text input next to it shrinks less than the title does. Put it directly in the bar: wrapped in another element, that wrapper sets the size and nothing gets cut.
 
 ```tsx
 <header>

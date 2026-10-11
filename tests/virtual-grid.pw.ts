@@ -150,7 +150,8 @@ test.describe("padders and scroll area", () => {
     expect(res.border).toBe("0px")
     expect(res.margin).toBe("0px")
     expect(res.inline).toBeGreaterThan(1000)
-    expect(res.height).toBe(res.inline)
+    // Layout snaps to 1/64 px; the inline height is written with two decimals.
+    expect(res.height).toBeCloseTo(res.inline, 1)
   })
 
   // elt reports an exception thrown by a connection callback with console.error rather than
@@ -705,15 +706,18 @@ test.describe("object editor table (array of objects)", () => {
       const head_cells = [...head.children].map((c) => c.textContent)
       const rendered = grid.querySelectorAll("e-grid-row:not([sticky])").length
 
-      // Drag the "name" column's handle 60px to the right.
-      const handle = head.children[1].querySelector("span") as HTMLElement
-      const r = handle.getBoundingClientRect()
-      handle.dispatchEvent(new MouseEvent("mousedown", { clientX: r.left, bubbles: true }))
-      document.dispatchEvent(new MouseEvent("mousemove", { clientX: r.left + 60, bubbles: true }))
-      document.dispatchEvent(new MouseEvent("mouseup", { bubbles: true }))
-      const tpl_after = grid.style.gridTemplateColumns
-      return { tpl_before, tpl_after, head_cells, rendered, sticky: getComputedStyle(head).position }
+      return { tpl_before, head_cells, rendered, sticky: getComputedStyle(head).position }
     })
+    // Drag the "name" column's handle 60px to the right, with a real mouse.
+    const handle = page.locator("e-grid-row[sticky=top] > :nth-child(2) [data-resize-edge]")
+    const box = (await handle.boundingBox())!
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
+    await page.mouse.down()
+    await page.mouse.move(box.x + box.width / 2 + 60, box.y + box.height / 2, { steps: 4 })
+    await page.mouse.up()
+    const tpl_after = await page.evaluate(
+      () => (document.querySelector("e-grid") as HTMLElement).style.gridTemplateColumns,
+    )
     expect(res.head_cells).toEqual(["#", "name", "kind"])
     expect(res.sticky).toBe("sticky")
     expect(res.rendered).toBeGreaterThan(0)
@@ -721,7 +725,7 @@ test.describe("object editor table (array of objects)", () => {
     // "#" | name | kind (fills): every track locked to px.
     const tracks = /^([\d.]+)px ([\d.]+)px minmax\(([\d.]+)px, 1fr\)$/
     const before = res.tpl_before.match(tracks)!.slice(1).map(Number.parseFloat)
-    const after = res.tpl_after.match(tracks)!.slice(1).map(Number.parseFloat)
+    const after = tpl_after.match(tracks)!.slice(1).map(Number.parseFloat)
     expect(after[0]).toBe(before[0])
     expect(after[1]).toBeCloseTo(before[1]! + 60, 0)
     expect(after[2]).toBe(before[2])

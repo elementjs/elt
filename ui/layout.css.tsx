@@ -539,6 +539,15 @@ css`
     min-height: 0;
   }
 
+  /* Controls that are a fixed size by nature (a button's label, a checkbox) never shrink in a layout
+     element: with the \`min-width: 0\` above they would otherwise be squashed below their content
+     when the row runs out of room, their label overflowing. Text inputs, \`select\` and \`textarea\`
+     stay elastic: they have no content to protect. Zero specificity, so a \`flex-shrink\` of your own
+     wins. */
+  ${_layouters} > :where(button, input[type="checkbox"], input[type="radio"], label[e-variant="toggle"]) {
+    flex-shrink: 0;
+  }
+
   ${_all} {
     &[max-width] { max-width: 100%; }
     &[max-height] { max-height: 100%; }
@@ -835,5 +844,20 @@ css`
   }
 
   ${more.join("\n")}
+}
+`
+
+// A packed container is a control-sized surface: its cells (button groups, menus, list boxes,
+// table-like grids) read at the size of the controls they hold. Text cells take the controls' font
+// size and line height (ui/form.css.tsx), so the first lines of a text cell and of a field line up
+// in a row that stretches its cells. Its own layer, below "typography" and "components": a heading
+// or a prose container (`e-prose` goes back to the size of a text run) and the controls set their
+// own size and keep it, whatever the specificity.
+css`
+@layer base {
+  :where(${_cells(`${_packed}[packed]`)}) {
+    font-size: ${theme.settings.formFontSize};
+    line-height: 1.2;
+  }
 }
 `
