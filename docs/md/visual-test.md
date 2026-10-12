@@ -4,11 +4,6 @@ order: 100
 section: UI Recipes
 ---
 
-Leaving it here to not forget
-- border as .mid is when interaction takes place within it. Otherwise, it should be n+2.
-- Rule : inside an e-prose, text MUST be put in a typographic container such as h*, p, pre, ul/li
-- Rule : DO NOT mix typographic contents and controls (button/input/textarea...). Controls go into rows and columns. Controls can go into typographic content if they're in a container.
-
 # Visual Test
 
 This page exercises the visual appearance of elt/ui's components — every example below is live: it runs for real, in this page, using the actual `elt`/`elt/ui` packages.
@@ -22,8 +17,8 @@ import { show_dialog } from "elt/ui"
 
 function showDialog() {
   show_dialog({ clickOutsideToClose: true }, fut =>
-    <e-column surface="background" border packed align="stretch">
-      <e-row pad="component"><h1>Title here</h1>
+    <e-column surface="background" border packed="component" align="stretch">
+      <e-row surface="invert-tint" pad="component"><h1>Title here</h1>
       </e-row>
       <e-prose pad="component" scroll>
         <h3>Testing a little</h3>

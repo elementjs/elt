@@ -65,7 +65,7 @@ Spacing is inherited: a layout element without `pad`/`spacing` spaces its childr
 
 A bar is a boundary that contains widgets, so it stays at `component` even deep inside a view.
 
-A `packed` container is the exception to "the step above its children": its children touch, so its step is the padding they carry, the step of what it packs. A row of buttons spaced apart is at `component`; the same buttons packed into a button group are at `widget`. See [packed](#packed).
+`packed` is a separate step: its children touch, so it has no gap, and the step it takes is the padding its cells carry, the step of what it packs. A row of buttons spaced apart is at `component`; the same buttons packed into a button group are at `widget`. That step is not a spacing, and it does not change the step the descendants are spaced at. See [packed](#packed).
 
 ## Spacing scale
 
@@ -91,11 +91,11 @@ Every attribute accepts a plain value or an observable.
 
 | Attribute | Values | Effect |
 | --------- | ------ | ------ |
-| `pad` | bare, a spacing step, `"none"` | Pads the element and sets the step its children are spaced at. Bare = `component`. `"none"` removes the padding and the spacing between children. |
-| `spacing` | bare, a spacing step, `"none"` | Sets the step children are spaced at, winning over the step `pad` implied. Bare = `component`. `"none"` removes it. |
+| `pad` | bare, a spacing step, `"none"` | Pads the element, and is the step its radius follows. It is also the step its children are spaced at, unless `spacing` says otherwise. Bare = `component`. `"none"` removes the padding and, unless `spacing` is given, the spacing between children. An element without `pad` has no padding: it is never inherited. |
+| `spacing` | bare, a spacing step, `"none"` | Sets the step children are spaced at, and that the layout elements below it that set nothing are spaced at, winning over the step `pad` implied. Bare = `component`. `"none"` removes it. It never pads and never changes a radius. |
 | `surface` | bare, `"tint"`, `"neutral"`, `"tint-N"`/`"neutral-N"` (N 1–6), `"background"`, `"invert-tint"`, `"invert-neutral"` | Background fill and a new surface level — see [Theme § Surfaces and levels](./ui-theme.md#surfaces-and-levels). Does not pad. |
 | `border` | bare, `"none"`, `"tint"`, `"neutral"`, `"tint-surface"`/`"neutral-surface"`, `"tint-separator"`/`"neutral-separator"`, `"tint-N"`/`"neutral-N"` | 1px border — see [Borders and radius](#borders-and-radius). Implies `radius`. `"none"` draws nothing and implies no radius; on a `packed` container it also says that nothing draws the outline of the group ([packed](#packed)). |
-| `radius` | bare, a spacing step, `"none"` | Corner radius. Bare = derived from the element's own padding (or the ambient step). A step forces that step's value. `"none"` opts out, also when `border` is set. |
+| `radius` | bare, a spacing step, `"none"` | Corner radius. Bare = the element's own `pad`, else its own `packed` step, else `widget`. A step forces that step's value, over a `pad` too. `"none"` opts out, also when `border` is set. |
 | `hover` | boolean | Hover fill one level above the ambient surface, in the ambient surface's color family ([Theme § Surfaces and levels](./ui-theme.md#surfaces-and-levels)). |
 | `grow` | boolean | `flex-grow: 1; flex-basis: 0`. |
 | `inline` | boolean | `inline-flex` / `inline-grid` / `inline-block`. |
@@ -124,7 +124,7 @@ Alignment values: `center`, `start`, `end`, `self-start`, `baseline`, `first bas
 
 `e-grid-row` takes only `surface`, `hover`, `align` and `sticky`.
 
-- These four space their children with `gap`, at the ambient step, unless they have `pad="none"`, `spacing="none"` or `packed`.
+- These four space their children with `gap`, at the step of `spacing`, else of `pad`, else the one inherited from the nearest element above that sets one (`component` by default). There is no gap with `pad="none"` and no `spacing`, with `spacing="none"`, or with `packed`.
 - Their children get `min-width: 0; min-height: 0`, so they can shrink below their content's size. To stop a child from overflowing on the cross axis, use `align="stretch"` on the container.
 - Buttons, toggles (`label e-variant="toggle"`), checkboxes and radios never shrink in a layout element (`flex-shrink: 0`): their label or box is their content. Text inputs, `select` and `textarea` stay elastic. A `flex-shrink` of your own wins.
 - Attributes specific to `e-prose` (`table-container`) and how a flex element behaves inside a line of text are in [Typography](./ui-typography.md#controls-in-text).
@@ -141,7 +141,7 @@ Alignment values: `center`, `start`, `end`, `self-start`, `baseline`, `first bas
 
 - A **border** is one element's own edge; a **divider** (`<hr>`, a seam between rows) separates elements. They may resolve to the same color but are separate concepts.
 - Focusable controls do not take their border from the surface levels: it comes from their variant ([Forms § Shared look](./ui-forms.md#shared-look)).
-- **Radius is derived.** An element's radius equals its own padding step, so a bigger padding step gives a bigger radius. An element with `border` but no `pad` of its own uses the ambient step. `radius="component"` (any step) forces a value, for an element that doesn't pad itself. `radius="none"` opts out.
+- **Radius is derived, in this order:** the step of `radius="X"` if there is one; else the element's own `pad` step, so a bigger padding gives a bigger radius; else, for a `packed` container, its own `packed="X"` step, so the frame's corners match its cells'; else `widget`. It does not follow the spacing between children, nor anything set on an ancestor. `radius="none"` opts out.
 - Neither `border` nor `surface` clips overflow. A child that must match its container's rounded corners takes the container's radius instead (`packed` does this for its children; `<pre>` uses `border-radius: inherit`).
 
 ## packed
@@ -154,7 +154,7 @@ Alignment values: `center`, `start`, `end`, `self-start`, `baseline`, `first bas
 
 | Form | Padding of children without their own `pad` |
 | ---- | -------------------------------------------- |
-| `packed` (bare) | Whatever the container's `pad` resolves to (the ambient pad if it has none): `pad="widget" packed` pads both the container and its children at `widget` |
+| `packed` (bare) | The container's own `pad` if it has one (`pad="widget" packed` pads both the container and its children at `widget`); else the step of the packed container around it; else `widget` |
 | `packed="widget"` (a step) | That step, independently of the container's own `pad` |
 | `pad="none"` with bare `packed` | No padding |
 
@@ -162,11 +162,11 @@ The container's own `pad` still pads the container itself. `packed` never adds a
 
 **Cells read at the size of controls.** A packed container is a control-sized surface: its cells take the controls' font size (`theme.settings.formFontSize`) and line height (1.25, the controls' line). Text cells then line up with the fields next to them in a stretched row, and a menu or table-like grid looks the same as the controls in it. A control, a heading or an `e-prose` cell keeps the size it sets itself (`e-prose` is a text run again, at the page's font size).
 
-**A packed container's step is the step of what it packs**, not the step above it that a spaced container would take ([elt/ui rules § Choosing a step](./elt-ui-rules.md#choosing-a-step)). The step still matters without a gap: a bare `border` takes its radius from it, so the frame's corners match its children's, and its descendants inherit it.
+**A packed container's step is the step of what it packs**, not the step above it that a spaced container would take ([elt/ui rules § Choosing a step](./elt-ui-rules.md#choosing-a-step)). It is the padding of its cells, and the radius of a bare `border` that has no `pad` of its own, so the frame's corners match its children's. It is not a spacing: `packed` never sets the gap or the step that the descendants are spaced at.
 
-- `packed="X"` makes X the container's step as well as its children's padding. An explicit `spacing` wins over it. An own `pad` still sets the container's radius, since its padded edge is what is rounded.
-- **The step is inherited by nested packed groups.** A packed group inside `packed="widget"` that is itself bare `packed` pads its own cells at `widget`, not at the ambient step; it takes its step from the container around it, as any element does, and a `packed="X"` or `pad` of its own overrides that. Descendants of `packed="X"` also see X as the step their parent spaces them at (the margins a prose container gives its block children), exactly as with `spacing="X"`.
-- Bare `packed` with `pad="none"` pads nothing, so nothing tells it what it packs: set the step with `spacing`. A column that only frames groups that pad themselves, such as a header row and a grid of `packed="widget"` rows, is `<e-column packed border pad="none" spacing="widget">`. Without `spacing="widget"`, it would inherit `component` and draw 12px corners around 6px ones.
+- `packed="X"` is the padding of its cells and the radius of its `border`. An own `pad` takes the radius over it, since its padded edge is what is rounded, and `radius="Y"` over both. `spacing` does not interact with it.
+- **The cell step is inherited by nested packed groups,** through any element in between. A packed group inside `packed="section"` that is itself bare `packed` pads its own cells at `section`; a `packed="X"` or `pad` of its own overrides that. With no packed container around, the step is `widget`, whatever the spacing and the pad around. It is a variable of its own: padding and spacing never leak into each other.
+- Bare `packed` with `pad="none"` pads nothing. A column that only frames groups that pad themselves, such as a header row and a grid of `packed="widget"` rows, is `<e-column packed="widget" border pad="none">`: the step gives the frame's corners the radius of its cells'.
 
 - **Who draws the outline of the group** (the edges across, the first child's leading edge, the last child's trailing edge) depends on `border` on the container, whatever `seams` is:
   - **no `border`** (the default): the children draw it, with their own borders, variant or state included. The container has no frame; a toolbar of buttons or a date field made of an input and a button just looks like its parts, joined.
@@ -362,7 +362,7 @@ The step is chosen by what a container's children are, not by nesting depth and 
 
 **Golden rule 4 — padding requires a boundary, and a boundary pads its content.** Padding is the distance between content and its own edge. Without a border or a background, there is no edge, and the padding is invisible space that behaves like a margin — with all of rule 3's problems. That is why it is forbidden, not merely discouraged. The edge of the window counts as an edge: the outermost container of a screen pads itself against it, which keeps content off the window's border. The rule also holds the other way around: an edge with content pressed against it reads as content cut off by its frame, the same cramped look rule 1 forbids between two widgets. Rule 1 alone doesn't catch it, since a border or a fill isn't another entity's content. Who provides the padding is free — the boundary itself, or its children when they are `packed` — but some element between the edge and the content has to, and only one: padding supplied twice (a packed group inside a packed container, each padding its children) would inset the content by two steps, while a plain child next to the group sits at one. Padded space that no edge or fill shows is a margin in disguise, which rule 3 forbids.
 
-**Golden rule 5 — multiple children are spaced.** Follows from rule 1 for containers. Layout elements satisfy it by default: they space their children at the ambient step even with no attribute. `pad` implies `spacing` because a padded container is precisely a container whose children must be spaced; `spacing` doesn't imply `pad`, because a container without a boundary may need to space its children without becoming a boundary.
+**Golden rule 5 — multiple children are spaced.** Follows from rule 1 for containers. Layout elements satisfy it by default: they space their children at the step inherited from above even with no attribute. `pad` gives the spacing a default, because a padded container is precisely a container whose children must be spaced, and `spacing` replaces it; `spacing` doesn't imply `pad`, because a container without a boundary may need to space its children without becoming a boundary. Padding and radius are never inherited.
 
 **Golden rule 6 — or they touch, uniformly.** The one alternative to spacing: children flush against each other, separated by lines and their own backgrounds — a button group, a menu, a list box, a dialog's header/body/footer. It only reads as one deliberate shape if the children share the same padding; a child with different padding makes the lines look accidental. Uniform is measured on the content: every cell holding content sits at the same distance from the group's edge, which is why a packed group nested in a packed container is not padded again, its own cells carry the padding. A child that sets its own `pad` inside a `packed` group keeps it, so keeping the group uniform is your call. Whether the group also pads its own edge is a separate choice, possibly at a different step, as long as the group has an edge of its own: a popup's edge inset can be larger than its rows' click-target padding. That is why `packed` takes its own step independently of `pad`.
 

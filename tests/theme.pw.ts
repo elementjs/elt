@@ -569,14 +569,14 @@ test.describe("Theme.css_pad / Theme.css_spacing", () => {
     expect(result).toBe("--e-pad: var(--e-spacing-widget);")
   })
 
-  test("spacing(step) sets --e-spacing and --e-current-spacing from the named step's single spacing variable (docs/md/ui-layout.md)", async ({
+  test("spacing(step) sets --e-spacing from the named step's single spacing variable (docs/md/ui-layout.md)", async ({
     page,
   }) => {
     const result = await page.evaluate(() => {
       const { theme } = window.__ELT__.UI
       return theme.css_spacing("section")
     })
-    expect(result).toBe("--e-spacing: var(--e-spacing-section); --e-current-spacing: var(--e-spacing-section);")
+    expect(result).toBe("--e-spacing: var(--e-spacing-section);")
   })
 
   test("the three raw px nudges use the same single-variable mechanism as every other step", async ({ page }) => {

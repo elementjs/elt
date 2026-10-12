@@ -165,6 +165,7 @@ export function Select<T, T2 = T>(at: SelectAttributes<T, T2>) {
     const list = (
       <e-column
         scroll="y"
+        pad="widget"
         align="stretch"
         id={list_id}
         role="listbox"
@@ -175,15 +176,18 @@ export function Select<T, T2 = T>(at: SelectAttributes<T, T2>) {
       >
         {/* Focus stays where it is (the list, or the completion input): a press on an option must not take it. */}
         {$on("pointerdown", (ev) => ev.preventDefault())}
-        <e-column packed="widget" align="stretch">
+        <e-column spacing="nudge-1" align="stretch" radius="widget">
           {RepeatVirtual(o_visible, (o_option, o_index) => {
             const oo_is_selected = o.expression((get) => {
               const sel = get(oo_selected)
               return sel != null && value_of(sel.opt) === value_of(get(o_option))
             })
             return (
-              <e-flex
+              <e-row
                 class={cls_item}
+                spacing="widget"
+                pad="widget"
+                radius="widget"
                 role="option"
                 id={o_index.tf((i) => `${list_id}-${i}`)}
                 aria-selected={oo_is_selected.tf((selected) => String(selected))}
@@ -195,7 +199,7 @@ export function Select<T, T2 = T>(at: SelectAttributes<T, T2>) {
                 })}
                 <div class="selected-icon">{oo_is_selected.tf((selected) => selected && Check())}</div>
                 {o.expression((get) => label(get(o_option), at.completion ? get(o_query) : ""))}
-              </e-flex>
+              </e-row>
             )
           })}
           {If(
@@ -403,7 +407,6 @@ const cls_item = css`.item {
   cursor: pointer;
   user-select: none;
   font-size: ${theme.settings.formFontSize};
-  ${theme.css_radius("nudge-2")}
 
   & .selected-icon {
     color: ${colors.tint};

@@ -231,14 +231,12 @@ test.describe("[border] implies [radius] (docs/md/ui-layout.md, Borders and radi
 })
 
 test.describe("Theme.css_radius (ui/theme.tsx)", () => {
-  test("no step: derives from the ambient --e-current-spacing, falling back to --e-spacing-widget", async ({
-    page,
-  }) => {
+  test("no step: follows the element's own --e-pad, falling back to --e-spacing-widget", async ({ page }) => {
     const result = await page.evaluate(() => {
       const { theme } = window.__ELT__.UI
       return theme.css_radius()
     })
-    expect(result).toBe("border-radius: var(--e-current-spacing, var(--e-spacing-widget));")
+    expect(result).toBe("border-radius: var(--e-pad, var(--e-spacing-widget));")
   })
 
   test("a named step overrides with that step's own value", async ({ page }) => {

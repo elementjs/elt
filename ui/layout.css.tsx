@@ -58,7 +58,17 @@ export interface CommonAttrs extends Attrs<HTMLElement> {
   relative?: NRO<boolean>
   grow?: NRO<boolean>
 
+  /**
+   * The step the container's children are spaced at (`gap`), inherited by the layout elements below
+   * that set nothing. Without it, `pad` gives the step, and without that the step is inherited.
+   * Bare = `component`. Never pads and never affects the radius.
+   */
   spacing?: NRO<true | SpacingValues | "none">
+  /**
+   * Pads the element itself, and is the step its radius follows and its children are spaced at
+   * (unless `spacing` says otherwise). Bare = `component`. `"none"` removes the padding and, unless
+   * `spacing` is given, the gap. It is not inherited: an element without `pad` has no padding.
+   */
   pad?: NRO<true | SpacingValues | "none">
   /**
    * Raise a new background level, one step off whatever level is already ambient. Bare `surface`
@@ -80,9 +90,9 @@ export interface CommonAttrs extends Attrs<HTMLElement> {
    */
   border?: NRO<boolean | BorderValues | "none">
   /**
-   * Radius follows this element's own padding step by default (including when implied by
-   * `border`); pass a named spacing step to override that (for an element that doesn't pad itself),
-   * or `"none"` to opt out even when a border is present.
+   * Radius: the named step if there is one, else this element's own `pad`, else (a `packed`
+   * container) its own `packed` step, else `widget` — also when implied by `border`. `"none"` opts
+   * out even when a border is present.
    */
   radius?: NRO<boolean | "none" | SpacingValues>
 
@@ -122,13 +132,13 @@ export interface EFlexAttrs extends CommonAttrs {
   /**
    * Rule 6 (docs/md/ui-layout.md, "Why these rules"): a boundary with no gap whose
    * children touch directly, uniformly padded. `pad` always pads the container itself, same as
-   * everywhere else — it never applies to children here. To also pad every child uniformly: bare
-   * `packed` reuses whatever `pad` resolves to (so `pad="X" packed` pads both the container and
-   * its children at X) ; an explicit step (`packed="Y"`) pads children at Y regardless of `pad`,
-   * letting the two differ (e.g. a popup's own edge inset vs. its rows' tighter click-target
-   * padding). `packed="Y"` also makes Y the container's own step: a packed container's step is the
-   * step of what it packs, so its radius and what its descendants inherit follow its children's
-   * padding. An explicit `spacing` still wins.
+   * everywhere else. The children's padding (the cell step) is, in order: the step of `packed="Y"`
+   * (regardless of `pad`, letting the two differ: a popup's own edge inset vs. its rows' tighter
+   * click-target padding); for a bare `packed`, the container's own `pad` (so `pad="X" packed` pads
+   * both at X); else the cell step of the packed container around it; else `widget`. A bare
+   * `packed` with `pad="none"` pads nothing. `packed="Y"` is also the radius of the container's
+   * `border` when it has no `pad` of its own, so the frame's corners match its cells'. It is not a
+   * spacing: `packed` never sets the gap or the step its descendants are spaced at.
    *
    * Who draws the lines between the children, and which of their own borders stay, is `seams`
    * (below); `border` on the `packed` element only draws a frame around the group, which then
@@ -493,21 +503,24 @@ for (const fam of _color_families) {
   _`${_all}[border="${fam}"] { ${theme.css_border(fam)} }`
 }
 
+for (const value of _inverted_surfaces) {
+  _`${_all}[surface="${value}"] { ${theme.css_surface(value)} }`
+}
+
 for (const step of _color_steps) {
   _`${_all}[surface="${step}"] { ${theme.css_surface(step)} }`
   _`${_all}[border="${step}"] { ${theme.css_border(step)} }`
 }
 
-// `border` implies `radius` (any value), unless explicitly opted out with radius="none". Default
-// (no named step): derives from the ambient --e-current-spacing; an element with its own [pad]
-// overrides that with its own --e-pad instead — a second, later rule decides that priority by
-// cascade order, not a var() fallback chain, since --e-pad inherits and is always populated (a
-// var(--e-pad, fallback) chain would never reach its fallback — see docs/md/ui-layout.md). A named
-for (const value of _inverted_surfaces) {
-  _`${_all}[surface="${value}"] { ${theme.css_surface(value)} }`
-}
-
-// step below overrides both, for an element that doesn't pad itself.
+// `border` implies `radius` (any value), unless explicitly opted out with radius="none". The radius
+// is, in priority order: the named step of `radius="X"`; the element's own `pad`; the step of its own
+// `packed="X"`; `widget`. It never follows the spacing between children.
+//
+// The default rule reads `var(--e-pad, widget)`: --e-pad is registered as not inherited and without
+// an initial value (see the @property below), so it is absent unless this very element has a
+// [pad] and the fallback is reached. A packed step then replaces the fallback for a container with
+// no pad of its own, and a named `radius` rules over both, by source order: all these rules have the
+// same specificity.
 //
 // `:where(:not(...))` rather than a bare `:not(...)`: `:not([x="none"])` on its own carries the
 // specificity of [x="none"] (an attribute selector), which would outrank the plain-attribute
@@ -517,7 +530,9 @@ for (const value of _inverted_surfaces) {
 // source order, as intended.
 _`${_all}${_bordered}:where(:not([radius="none"])) { ${theme.css_radius()} }`
 _`${_all}[radius]:where(:not([radius="none"])) { ${theme.css_radius()} }`
-_`${_all}[pad]:where(:not([pad="none"]))${_rounded}:where(:not([radius="none"])) { border-radius: var(--e-pad); }`
+for (const sp of spaces) {
+  _`${_all}[packed="${sp}"]:where(:not([pad]), [pad="none"]):where(${_rounded}):where(:not([radius="none"])) { ${theme.css_radius(sp)} }`
+}
 for (const sp of spaces) {
   _`${_all}[radius="${sp}"] { ${theme.css_radius(sp)} }`
 }
@@ -529,16 +544,16 @@ for (const al of align) {
   _`${_all}[self-align="${al}"] { align-self: ${al}; }`
 }
 
-// `pad` implies `spacing` (spec: "a container with more than one child must set spacing between
-// them" — a padded container is exactly such a container). `spacing` never implies `pad` — the two
-// are one-directional, matching a boundary-less container that still needs to space un-merged
-// children (docs/md/ui-layout.md, "Why these rules", rule 5).
+// The step children are spaced at (--e-spacing) comes from `spacing`; without it, from `pad`;
+// without either, it is inherited from the nearest element above that sets one. `spacing` never
+// pads and never affects the radius. `packed` never sets it (a packed container has no gap, and what
+// it packs is padded through --e-packed-pad, below).
 //
 // Priority, lowest to highest (CSS cascade with equal specificity — later wins):
 // 1. bare [pad] (no value) implies `component` spacing, same as bare [spacing] falling back to it.
 // 2. [pad="X"] implies spacing at the same step X.
-// 3. [spacing]/[spacing="X"] sets the ambient spacing directly — an explicit spacing value always
-//    wins over whatever [pad] implied, since these rules are emitted last.
+// 3. [spacing]/[spacing="X"] sets the spacing directly — an explicit spacing value always wins over
+//    whatever [pad] implied, since these rules are emitted last.
 //
 // Every step → custom-property mapping below reads from `theme.css_pad`/`theme.css_spacing`
 // (ui/theme.tsx) — the single source of truth `theme.class_pad`/`class_spacing` also consume for
@@ -560,19 +575,19 @@ for (const sp of spaces) {
   _`${_all}[pad="${sp}"] { ${theme.css_pad(sp)} ${theme.css_spacing(sp)} }`
 }
 
-// (2b) [packed="X"] is the container's step too: a packed container takes the step of what it
-// packs (its children are padded at X), not the step above it a spaced container would take. It
-// adds no gap (packed never does); it sets the radius a `border` derives from the ambient step,
-// so the frame's corners match the children's, and the step its descendants inherit. Between (2)
-// and (3): wins over the step a [pad] implied, loses to an explicit [spacing]. An own [pad] still
-// sets the radius (the [pad] radius rule above is more specific): the padded edge is what rounds.
-for (const sp of spaces) {
-  _`${_all}[packed="${sp}"] { ${theme.css_spacing(sp)} }`
-}
-
 // (3)
 for (const sp of spaces) {
   _`${_all}[spacing="${sp}"] { ${theme.css_spacing(sp)} }`
+}
+
+// The cell step of a packed container: the padding its cells carry (--e-packed-pad, inherited, so
+// that a bare packed group inside it pads its own cells the same way). A bare `packed` takes its own
+// `pad` (`pad="X" packed` pads the container and its cells at X) and `packed="X"` takes X, after it.
+// Without a pad or a step it is inherited from the packed container around, else `widget` (where the
+// cells read it). This is the packed chain; it is separate from the spacing one on purpose.
+_`${_packed}:where([packed][pad]:not([pad="none"])) { ${theme.css_packed_pad()} }`
+for (const sp of spaces) {
+  _`${_packed}[packed="${sp}"] { ${theme.css_packed_pad(sp)} }`
 }
 
 // --e-parent-spacing: the step an element's *parent* spaces its children at, as seen by those
@@ -586,11 +601,6 @@ _`${_all}[pad]:where(:not([pad="none"])) > * { --e-parent-spacing: var(--e-spaci
 _`${_all}[spacing] > * { --e-parent-spacing: var(--e-spacing-component); }`
 for (const sp of spaces) {
   _`${_all}[pad="${sp}"] > * { --e-parent-spacing: var(--e-spacing-${sp}); }`
-}
-// [packed="X"] sets the container's step like [spacing="X"] does (2b above), so its children see it
-// as their parent's spacing too. Same priority between [pad] and [spacing], mirroring (2b).
-for (const sp of spaces) {
-  _`${_all}[packed="${sp}"] > * { --e-parent-spacing: var(--e-spacing-${sp}); }`
 }
 for (const sp of spaces) {
   _`${_all}[spacing="${sp}"] > * { --e-parent-spacing: var(--e-spacing-${sp}); }`
@@ -606,6 +616,16 @@ _`${_all}:is([pad="none"]:not([spacing]), [spacing="none"]) > * { --e-parent-spa
 //
 // --e-current-surface-mix is the same pattern for the surface's color *family* — see
 // `--e-current-surface-mix` in `Mix.css_as_surface` (ui/theme.tsx) and docs/md/ui-theme.md.
+// --e-pad is this element's own padding step: registered as not inherited and with no initial value
+// (allowed only with the "*" syntax), so it is genuinely absent on an element without a [pad] and
+// `var(--e-pad, fallback)` reaches its fallback there (the radius default). Same pattern as
+// --e-current-surface-level below.
+css`
+@property --e-pad {
+  syntax: "*";
+  inherits: false;
+}
+`
 css`
 @property --e-current-surface-level {
   syntax: "*";
@@ -784,27 +804,13 @@ css`
      than left to the cascade, where it used to depend on which rule came later in the sheet.
      A child that is itself [packed] is a group, not a cell: its own cells carry the padding, so
      padding it too would inset their content twice (golden rule 4: one padding between a boundary
-     and its content). It only keeps a padding it asks for with its own [pad]. */
-  ${_cells(`${_packed}:where([packed]:not([pad="none"]))`, ":where(:not([pad]):not([packed]))")} {
-    padding: var(--e-pad);
-    --e-control-pad: var(--e-pad);
+     and its content). It only keeps a padding it asks for with its own [pad].
+     The step is --e-packed-pad (set above, inherited), widget when no packed container sets one. A
+     bare packed with pad="none" pads nothing: that is the one thing it can say with pad. */
+  ${_cells(`${_packed}:where([packed]:not([pad="none"]), ${spaces.map((sp) => `[packed="${sp}"]`).join(", ")})`, ":where(:not([pad]):not([packed]))")} {
+    --e-control-pad: var(--e-packed-pad, ${theme.settings.spacingWidget});
+    padding: var(--e-control-pad);
   }
-
-  ${spaces
-    .map(
-      (sp) => `
-  /* The step goes to every cell, packed groups included: a group doesn't pad itself, but its own
-     bare [packed] reads --e-pad, so it must inherit the step from here rather than from the
-     container's own --e-pad. */
-  ${_cells(`${_packed}[packed="${sp}"]`, ":where(:not([pad]))")} {
-    ${theme.css_pad(sp)}
-  }
-  ${_cells(`${_packed}[packed="${sp}"]`, ":where(:not([pad]):not([packed]))")} {
-    padding: var(--e-pad);
-    --e-control-pad: var(--e-pad);
-  }`,
-    )
-    .join("\n")}
 
   /* A cell that is a text field or a select keeps its vertical padding as room (ui/form.css.tsx,
      "Control height"): the control's min-height still includes it, through --e-control-pad. The

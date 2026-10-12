@@ -121,7 +121,7 @@ const o_answer = o("")
 return <button>
   {$click(async () => {
     const res = await show_dialog<string>((fut) => (
-      <e-column surface="background" border packed>
+      <e-column surface="background" border packed="component">
         <header><h1 e-ellipsis>Delete the file?</h1></header>
         <e-prose pad="component" scroll>It can't be recovered afterwards.</e-prose>
         <e-row pad="component" justify="end">

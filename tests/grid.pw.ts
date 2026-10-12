@@ -111,13 +111,14 @@ test.describe("packed e-grid", () => {
       page,
       `<e-grid id="g" columns="3" packed><e-grid-row><span id="c1">a</span><span id="c2" pad="none">b</span><span>c</span></e-grid-row><span id="loose">d</span></e-grid>
        <e-grid id="g2" columns="3" packed="section"><span id="s1">a</span></e-grid>
-       <span id="ref_component" style="padding: var(--e-spacing-component)"></span>
+       <span id="ref_widget" style="padding: var(--e-spacing-widget)"></span>
        <span id="ref_section" style="padding: var(--e-spacing-section)"></span>`,
     )
     // No gap: "normal" is 0 in a grid.
     const g = await styles(page, "#g", ["row-gap", "column-gap"])
     expect(g).toEqual({ "row-gap": "normal", "column-gap": "normal" })
-    const comp = (await styles(page, "#ref_component", ["padding-top"]))["padding-top"]
+    // A bare packed pads its cells at widget, whatever the ambient spacing is.
+    const comp = (await styles(page, "#ref_widget", ["padding-top"]))["padding-top"]
     const sect = (await styles(page, "#ref_section", ["padding-top"]))["padding-top"]
     expect(comp).not.toBe("0px")
     expect((await styles(page, "#c1", ["padding-top"]))["padding-top"]).toBe(comp)
@@ -137,11 +138,11 @@ test.describe("packed e-grid", () => {
          <e-column id="step" packed="section"><span id="step_leaf">c</span></e-column>
          <span id="loose">d</span>
        </e-column>
-       <span id="ref_component" style="padding: var(--e-spacing-component)"></span>
+       <span id="ref_widget" style="padding: var(--e-spacing-widget)"></span>
        <span id="ref_section" style="padding: var(--e-spacing-section)"></span>`,
     )
     const pad = async (sel: string) => (await styles(page, sel, ["padding-top"]))["padding-top"]
-    const comp = await pad("#ref_component")
+    const comp = await pad("#ref_widget")
     const sect = await pad("#ref_section")
     expect(comp).not.toBe(sect)
     // The group carries no padding of its own; its cell carries the one.
@@ -173,15 +174,20 @@ test.describe("packed e-grid", () => {
     expect(await pad("#leaf2")).toBe(await pad("#ref_section"))
   })
 
-  test("packed=step is the step children see their parent spacing them at, like spacing=step", async ({ page }) => {
+  test("packed=step is not a spacing: children and descendants are spaced at the ambient step, unlike spacing=step", async ({
+    page,
+  }) => {
     await mount(
       page,
-      `<e-column packed="widget"><span id="c">a</span></e-column>
-       <e-column spacing="widget"><span id="s">a</span></e-column>`,
+      `<e-column packed="widget"><span id="c">a</span><e-row id="inner"><span>x</span><span>y</span></e-row></e-column>
+       <e-column spacing="widget"><span id="s">a</span></e-column>
+       <e-column><span id="plain">a</span></e-column>`,
     )
-    const parent_spacing = async (sel: string) =>
-      (await styles(page, sel, ["--e-parent-spacing"]))["--e-parent-spacing"]
-    expect(await parent_spacing("#c")).toBe(await parent_spacing("#s"))
+    const read = async (sel: string, prop: string) => (await styles(page, sel, [prop]))[prop]
+    expect(await read("#c", "--e-parent-spacing")).toBe(await read("#plain", "--e-parent-spacing"))
+    expect(await read("#c", "--e-parent-spacing")).not.toBe(await read("#s", "--e-parent-spacing"))
+    // A plain row in a cell keeps the ambient gap (component), not the cell step.
+    expect(await read("#inner", "row-gap")).toBe("12px")
   })
 
   test("with border: the grid draws the frame, the lines are the second row's top edge and each later cell's left edge", async ({

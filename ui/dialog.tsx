@@ -18,7 +18,7 @@ export type DialogCallback<T extends OverlayResult> = (fut: Future<T | undefined
  * affirmative answer is always an explicit value, `T` being `boolean` unless given.
  *
  * The `<dialog>` is an unstyled box — no border, padding, background or radius: the element `render`
- * returns draws the frame (`<e-column surface border packed>…`). The dialog adds the backdrop,
+ * returns draws the frame (`<e-column surface border packed="component">…`). The dialog adds the backdrop,
  * centering, a shadow, the size limits (`--e-dialog-max-width`, `--e-dialog-max-height`; the content
  * scrolls itself when it can be taller) and the animation.
  */

@@ -289,7 +289,13 @@ export class ObjectEditorShell {
         // Unpacked, the popup is a floating panel of plain rows: it keeps a frame, and pads its content itself.
         const packed = this.settings_of(column).packed
         const panel = (
-          <e-column align="stretch" surface="background" border pad={packed ? undefined : "component"}>
+          <e-column
+            align="stretch"
+            surface="background"
+            border
+            radius="component"
+            pad={packed ? undefined : "component"}
+          >
             {$connected((el: HTMLElement) => {
               column.host = (el.closest("[popover]") as HTMLElement | null) ?? el
             })}

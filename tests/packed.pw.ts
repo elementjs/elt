@@ -586,7 +586,7 @@ test.describe("[surface]/[border] color-step value type (docs/md/ui-theme.md)", 
   })
 })
 
-test.describe("theme.css_radius own-pad vs ambient priority (docs/md/ui-layout.md)", () => {
+test.describe("theme.css_radius own-pad vs default priority (docs/md/ui-layout.md)", () => {
   test('reads this element\'s own --e-pad when [pad="X"] is set on the same element', async ({ page }) => {
     const result = await page.evaluate(() => {
       const { theme } = window.__ELT__.UI
@@ -602,19 +602,20 @@ test.describe("theme.css_radius own-pad vs ambient priority (docs/md/ui-layout.m
     expect(result.radius).toBe(result.ref)
   })
 
-  test("falls back to the ambient --e-current-spacing when the element has no [pad] of its own but sits inside [spacing]", async ({
+  test("falls back to widget when the element has no [pad] of its own, whatever [spacing] or [pad] sit around it", async ({
     page,
   }) => {
     const result = await page.evaluate(() => {
       const { theme } = window.__ELT__.UI
       const outer = document.createElement("e-row")
       outer.setAttribute("spacing", "section")
+      outer.setAttribute("pad", "section")
       const el = document.createElement("e-prose")
       el.setAttribute("radius", "")
       outer.append(el)
       document.body.appendChild(outer)
       const ref = document.createElement("div")
-      ref.style.borderRadius = theme.settings.spacingSection
+      ref.style.borderRadius = theme.settings.spacingWidget
       document.body.appendChild(ref)
       return { radius: getComputedStyle(el).borderTopLeftRadius, ref: getComputedStyle(ref).borderTopLeftRadius }
     })
@@ -1127,9 +1128,9 @@ test.describe("packed seams (docs/md/ui-layout.md#packed)", () => {
   })
 })
 
-// A packed container's step is the step of what it packs: packed="X" sets the container's own step to
-// X, so a bare border's radius matches its children's padding instead of the inherited step.
-test.describe('packed="X" is the container\'s own step (docs/md/ui-layout.md#packed)', () => {
+// packed="X" is the padding of the container's cells, and so the radius of its bare border (the frame's
+// corners match its cells'). It is not a spacing: it sets no gap and no step for the descendants.
+test.describe('packed="X" is the container\'s cell step (docs/md/ui-layout.md#packed)', () => {
   const run = (page: Page, attrs: Record<string, string>) =>
     page.evaluate((attrs) => {
       const outer = document.createElement("e-column")
@@ -1160,18 +1161,18 @@ test.describe('packed="X" is the container\'s own step (docs/md/ui-layout.md#pac
       }
     }, attrs)
 
-  test("its border radius and the step its descendants inherit are X, not the inherited step; still no gap", async ({
+  test("its border radius is X, not the spacing around; descendants don't inherit it; still no gap", async ({
     page,
   }) => {
-    const r = await run(page, { packed: "widget", border: "" })
-    expect(r.radius).toBe(r.widget)
-    expect(r.inherited).toBe(r.widget)
+    const r = await run(page, { packed: "component", border: "" })
+    expect(r.radius).toBe(r.component)
+    expect(r.inherited).toBe(r.widget) // an unpadded descendant's default radius: nothing leaks down
     expect(r.gap).toBe("normal") // the lines are the children's borders, not a gap
   })
 
-  test("an explicit spacing wins over it", async ({ page }) => {
+  test("a spacing doesn't affect the radius", async ({ page }) => {
     const r = await run(page, { packed: "widget", border: "", spacing: "component" })
-    expect(r.radius).toBe(r.component)
+    expect(r.radius).toBe(r.widget)
   })
 
   test("an own pad still sets the radius", async ({ page }) => {

@@ -104,30 +104,31 @@ export const spacing_steps: SpacingStep[] = [
   "stage-4",
 ]
 
-/** Shared by `Theme.css_pad`/`css_spacing` — the one place that knows how a step maps to its custom
- * property. Every step (nudges included) now resolves to the same single `--e-spacing-<step>`
- * value, applied uniformly to both axes. `"spacing"` also sets `--e-current-spacing`, the same
- * "outer level" value under the name `theme.css_radius()`'s default reads as its ambient
- * fallback (see `radius_css` below) — kept alongside `--e-spacing` rather than replacing it, so
- * `gap: var(--e-spacing)` call sites are untouched. */
-function spacing_css(prop: "pad" | "spacing", step: SpacingStep): string {
-  if (prop === "spacing") {
-    return `--e-spacing: var(--e-spacing-${step}); --e-current-spacing: var(--e-spacing-${step});`
-  }
-  return `--e-pad: var(--e-spacing-${step});`
+/** Shared by `Theme.css_pad`/`css_spacing`/`css_packed_pad` — the one place that knows how a step
+ * maps to its custom property. Every step (nudges included) resolves to the same single
+ * `--e-spacing-<step>` value, applied uniformly to both axes. Three independent variables carry a
+ * step (docs/md/ui-layout.md):
+ * - `--e-pad`: this element's own padding. Registered as not inherited (ui/layout.css.tsx), so it is
+ *   absent on an element without a `pad`, and `var(--e-pad, …)` reaches its fallback there.
+ * - `--e-spacing`: the gap between this element's children; inherited, so that a layout element
+ *   that sets nothing is spaced like its parent.
+ * - `--e-packed-pad`: the padding a packed container gives its cells; inherited by the packed groups
+ *   inside it. Without a step, it takes this element's own `--e-pad`. */
+function spacing_css(prop: "pad" | "spacing" | "packed-pad", step?: SpacingStep): string {
+  const value = step == null ? "var(--e-pad)" : `var(--e-spacing-${step})`
+  return `--e-${prop}: ${value};`
 }
 
 /**
  * Shared by `Theme.css_radius` — the one place that knows how a `radius` value maps
- * to a custom property. No step (the `[border]`/`[radius]` default) derives from the ambient
- * `--e-current-spacing` — `ui/layout.css.tsx` layers a second, more specific rule on top for
- * elements that set their own `[pad]`, reading `--e-pad` instead, so an element's own padding
- * wins over the ambient spacing level. A named step overrides both with that step's own value
- * instead, for elements that don't pad themselves (e.g. the dialog panel — see "Borders and
- * radius" in docs/md/ui-layout.md).
+ * to a custom property. No step (the `[border]`/`[radius]` default) follows this element's own
+ * `--e-pad` when it has a `[pad]` (the property is not inherited, so it is absent otherwise) and
+ * is `widget` when it has none; `ui/layout.css.tsx` replaces the fallback with a packed container's
+ * own step. A named step is a fixed value, for elements that don't pad themselves (e.g. the dialog
+ * panel — see "Borders and radius" in docs/md/ui-layout.md).
  */
 function radius_css(step?: SpacingStep): string {
-  return `border-radius: var(${step == null ? "--e-current-spacing, var(--e-spacing-widget)" : `--e-spacing-${step}`});`
+  return `border-radius: var(${step == null ? "--e-pad, var(--e-spacing-widget)" : `--e-spacing-${step}`});`
 }
 
 /**
@@ -153,11 +154,11 @@ export type ColorStep =
   | `tint-${1 | 2 | 3 | 4 | 5 | 6}`
   | `neutral-${1 | 2 | 3 | 4 | 5 | 6}`
 
-const _re_color_step = /^(tint|neutral)(?:-(\d+|surface|separator))?$/
 /** The values `surface` takes beyond `ColorStep`: `"invert-tint"`/`"invert-neutral"` paint an inverted band of that
  * family, like `Mix.css_as_inverted` (see "Inversion" in docs/md/ui-theme.md). */
 export type InvertedSurface = "invert-tint" | "invert-neutral"
 
+const _re_color_step = /^(tint|neutral)(?:-(\d+|surface|separator))?$/
 
 function parse_color_step(value: string): { family: "tint" | "neutral"; suffix?: number | "surface" | "separator" } {
   const match = _re_color_step.exec(value)
@@ -419,10 +420,10 @@ export class Theme<AllColors extends ColorScheme> {
       // bare :root element. See docs/md/ui-theme.md.
       `--e-current-surface: var(--e-color-bg);`,
       `--e-surface-mix: var(--e-color-neutral);`,
-      // Ambient spacing/pad default (component step) — same reason as above: --e-spacing-* is
-      // defined on this theme class, so a bare :root rule would resolve to an empty value.
+      // Ambient spacing default (component step) — same reason as above: --e-spacing-* is
+      // defined on this theme class, so a bare :root rule would resolve to an empty value. There is
+      // no ambient pad: padding is never inherited.
       this.css_spacing("component"),
-      this.css_pad("component"),
       // Ambient default of the step children see their parent spacing them at — see
       // --e-parent-spacing in ui/layout.css.tsx.
       `--e-parent-spacing: var(--e-spacing-component);`,
@@ -450,9 +451,14 @@ export class Theme<AllColors extends ColorScheme> {
     return spacing_css("spacing", step)
   }
 
-  /** Called with no step: derives from the ambient ("component") spacing; `ui/layout.css.tsx`
-   * overrides it with the element's own `--e-pad` when it has a `[pad]`. Called with a named step:
-   * a fixed override for elements that don't pad themselves. */
+  /** The padding a packed container gives its cells (`--e-packed-pad`, inherited by the packed
+   * groups inside it). Without a step: the element's own `--e-pad`. */
+  css_packed_pad(step?: SpacingStep): string {
+    return spacing_css("packed-pad", step)
+  }
+
+  /** Called with no step: the element's own `--e-pad` when it has a `[pad]`, else `widget`. Called
+   * with a named step: a fixed override. */
   css_radius(step?: SpacingStep): string {
     return radius_css(step)
   }
@@ -474,14 +480,14 @@ export class Theme<AllColors extends ColorScheme> {
   css_surface(value: true | "background" | InvertedSurface | ColorStep): string {
     if (value === true) return this.colors.neutral.css_as_surface("n+1")
     if (value === "background") return this.colors.neutral.css_as_surface("background")
+    if (value === "invert-tint") return this.colors.tint.css_as_inverted
+    if (value === "invert-neutral") return this.colors.neutral.css_as_inverted
     const { family, suffix } = parse_color_step(value)
     if (suffix === "separator") return this.colors[family].css_as_surface("n+2")
     if (suffix == null || suffix === "surface") return this.colors[family].css_as_surface("n+1")
     return this.colors[family].css_as_surface(suffix)
   }
 
-    if (value === "invert-tint") return this.colors.tint.css_as_inverted
-    if (value === "invert-neutral") return this.colors.neutral.css_as_inverted
   /** `[border]`'s value type, as a raw declaration — see `ColorStep`. Bare (`true`)/no value, and a
    * bare family name (`"tint"`/`"neutral"`): the flat "widget" color for that family (`.mid` for
    * `tint`, `.faded` for `neutral`) — a clear, defined boundary, independent of ambient surface
