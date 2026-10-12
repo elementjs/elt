@@ -490,8 +490,9 @@ export class Theme<AllColors extends ColorScheme> {
 
   /** `[seam-color]`'s value type, as a raw declaration: the color of the lines a packed container
    * draws between its children (`--e-seam-color`, ui/layout.css.tsx), in the values of `border`.
-   * Absent, the seams are `neutral-separator`: lighter than the frame, which is `border`'s own. */
-  css_seam_color(value: ColorStep = "neutral-separator"): string {
+   * Absent, the seams are `neutral-separator`: lighter than a frame; a container with a `border`
+   * passes its value (`true` for a bare one) so that its lines match the frame. */
+  css_seam_color(value: true | ColorStep = "neutral-separator"): string {
     return `--e-seam-color: ${this.#border_color(value)};`
   }
 

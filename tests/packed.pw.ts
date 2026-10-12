@@ -738,18 +738,72 @@ test.describe("packed seams (docs/md/ui-layout.md#packed)", () => {
     expect(frame).toBe("solid")
   })
 
-  test("default (no attribute): a line between every two children, the leading edge of the second", async ({
-    page,
-  }) => {
+  test("default: a line between every two children, the leading edge of the second", async ({ page }) => {
     // A div has no border: the line is drawn all the same. Without a frame the buttons draw the outline
     // (top and bottom, the first one's leading edge, the last one's trailing edge) with their own borders.
     const kids = await edges(
       page,
-      `<e-row id="r" packed><button>a</button><div>b</div><button>c</button></e-row>`,
+      `<e-row id="r" packed seams="default"><button>a</button><div>b</div><button>c</button></e-row>`,
       "#r > *",
     )
     expect(kids).toEqual(["snss", "nnns", "ssss"])
     expect(await color(page, "#r > div", "Left")).toBe(await token(page, "var(--e-seam-color)", "#r"))
+  })
+
+  test("without seams: a frame asks for the container's lines, no frame leaves the children their borders", async ({
+    page,
+  }) => {
+    const kids = (border: string) =>
+      edges(page, `<e-row id="r" packed ${border}><button>a</button><div>b</div><button>c</button></e-row>`, "#r > *")
+    // No frame (or border="none"): `children`, the container draws nothing; a shared line is drawn once.
+    expect(await kids("")).toEqual(["snss", "nnnn", "ssss"])
+    expect(await kids('border="none"')).toEqual(["nnnn", "nnnn", "nnns"])
+    // A frame: `default`, a line between every two children, none on the frame's outline.
+    expect(await kids("border")).toEqual(["nnnn", "nnns", "nnns"])
+    // Nested groups follow the outermost container.
+    const nested = (border: string) =>
+      edges(
+        page,
+        `<e-column id="c" packed ${border}><e-row id="g" packed><button>a</button><button>b</button></e-row></e-column>`,
+        "#g > *",
+      )
+    expect(await nested("")).toEqual(["snss", "ssss"])
+    expect(await nested("border")).toEqual(["nnnn", "nnns"])
+  })
+
+  test("without seam-color, the lines are the frame's color; neutral-separator without a frame", async ({ page }) => {
+    const r = await page.evaluate(() => {
+      document.body.innerHTML = `
+        <e-row id="a" packed border><button>x</button></e-row>
+        <e-row id="b" packed border="tint-3"><button>x</button></e-row>
+        <e-row id="c" packed border seam-color="neutral-separator"><button>x</button></e-row>
+        <e-row id="d" packed border="none"><button>x</button></e-row>
+        <e-row id="e" packed><button>x</button></e-row>
+        <e-column id="f" packed border="tint-3"><e-row id="g" packed><button>x</button></e-row></e-column>`
+      const bg = (id: string, expr: string) => {
+        const probe = document.createElement("div")
+        probe.style.backgroundColor = expr
+        document.getElementById(id)!.appendChild(probe)
+        const c = getComputedStyle(probe).backgroundColor
+        probe.remove()
+        return c
+      }
+      const border = (id: string) => getComputedStyle(document.getElementById(id)!).borderTopColor
+      const seam = (id: string) => bg(id, "var(--e-seam-color)")
+      return {
+        bare: [seam("a"), border("a")],
+        tint: [seam("b"), border("b")],
+        separator: [seam("c"), seam("d"), seam("e"), border("a")],
+        nested: [seam("g"), border("f")],
+      }
+    })
+    expect(r.bare[0]).toBe(r.bare[1])
+    expect(r.tint[0]).toBe(r.tint[1])
+    // neutral-separator is the color of border="neutral-separator"-style lines: the same without a frame, and lighter than the frame.
+    expect(r.separator[0]).toBe(r.separator[1])
+    expect(r.separator[0]).toBe(r.separator[2])
+    expect(r.separator[0]).not.toBe(r.separator[3])
+    expect(r.nested[0]).toBe(r.nested[1])
   })
 
   test("default: the seam color is neutral-separator, two levels above the ambient surface", async ({ page }) => {
@@ -780,7 +834,7 @@ test.describe("packed seams (docs/md/ui-layout.md#packed)", () => {
   test("default: a layout element with its own border is important, a packed group is not", async ({ page }) => {
     const kids = await edges(
       page,
-      `<e-column id="c" packed><button>a</button><e-prose border>b</e-prose><button>c</button><e-row packed border><button>d</button></e-row></e-column>`,
+      `<e-column id="c" packed seams="default"><button>a</button><e-prose border>b</e-prose><button>c</button><e-row packed border><button>d</button></e-row></e-column>`,
       "#c > *",
     )
     // b keeps its own edges (it shares top and bottom); c gives up its top; the group is a plain cell: its
@@ -827,7 +881,11 @@ test.describe("packed seams (docs/md/ui-layout.md#packed)", () => {
   })
 
   test("seam-color changes the color of the lines the container draws", async ({ page }) => {
-    await edges(page, `<e-row id="r" packed seam-color="tint-3"><button>a</button><button>b</button></e-row>`, "#r > *")
+    await edges(
+      page,
+      `<e-row id="r" packed seams="default" seam-color="tint-3"><button>a</button><button>b</button></e-row>`,
+      "#r > *",
+    )
     const ref = await page.evaluate(() => {
       const probe = document.createElement("div")
       probe.style.backgroundColor = window.__ELT__.UI.theme.colors.tint.surface(3)
@@ -936,7 +994,7 @@ test.describe("packed seams (docs/md/ui-layout.md#packed)", () => {
 
   test("grid without a frame: the cells on its outline keep their borders", async ({ page }) => {
     const html = `
-      <e-grid id="g" columns="2" packed>
+      <e-grid id="g" columns="2" packed seams="default">
         <e-grid-row id="r1"><button>a</button><button>b</button></e-grid-row>
         <e-grid-row id="r2"><button>c</button><button>d</button></e-grid-row>
       </e-grid>`

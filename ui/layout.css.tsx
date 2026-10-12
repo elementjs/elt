@@ -148,10 +148,11 @@ export interface EFlexAttrs extends CommonAttrs {
    * groups inside it, which can set their own). The lines are children's borders, no gap, so every
    * line is a whole screen pixel wide:
    * - `"none"`: no lines; the children's own borders between them are removed.
-   * - `"children"`: the children's own borders, never doubled (the neighbour of a child gives up
+   * - `"children"` (what no attribute means without a `border`): the children's own borders, never
+   *   doubled (the neighbour of a child gives up
    *   the edge they share); a child whose border carries meaning (`MEANINGFUL_BORDER_SELECTOR`,
    *   or a layout element with `border`) wins the line it shares.
-   * - `"default"` (what no attribute means): the container draws a line in `seam-color` between
+   * - `"default"` (what no attribute means with a `border`): the container draws a line in `seam-color` between
    *   every two children, and removes their own borders between them, except that a child whose
    *   border carries meaning keeps the lines it shares.
    * - `"forced"`: the container draws every line, in `seam-color`, whatever the children carry.
@@ -162,7 +163,7 @@ export interface EFlexAttrs extends CommonAttrs {
    * Nesting is followed through packed containers only.
    */
   seams?: NRO<"none" | "children" | "default" | "forced">
-  /** The color of the lines `seams` draws (default `neutral-separator`), in the values of `border`. */
+  /** The color of the lines `seams` draws, in the values of `border` (default: the container's own `border`, else `neutral-separator`). */
   "seam-color"?: NRO<BorderValues>
 }
 
@@ -834,8 +835,9 @@ css`
      stay (docs/md/ui-layout.md#packed). Three custom properties say how, set on every packed
      container and read by its children with style queries (@container style(...)), so the rules
      below don't need to know how deep a group is nested:
-     - --e-seams: the mode, [seams] (default: "default");
-     - --e-seam-color: the color of the lines drawn by the container, [seam-color];
+     - --e-seams: the mode, [seams] (absent: "default" with a [border], else "children");
+     - --e-seam-color: the color of the lines drawn by the container, [seam-color] (absent: the
+       color of its [border], else neutral-separator);
      - --e-packed-radius: 1 when a packed container above, or this one, has a radius in effect (the
        outermost one owns it, see the corner rules below).
      A packed container resets them (the first rule), except when it is itself a cell of a packed
@@ -843,9 +845,17 @@ css`
      the chain). An attribute out-ranks both, and is emitted after them. */
   ${_packed}[packed] {
     ${theme.css_seam_color()}
-    --e-seams: default;
+    --e-seams: children;
     --e-packed-radius: 0;
   }
+  /* A frame asks for lines between the children, in its own color; without one the children draw
+     what they have (children). A cell that is a packed group inherits both from the container
+     instead (the rule below). An attribute out-ranks these, and is emitted after them. */
+  ${_packed}[packed]${_bordered} {
+    --e-seams: default;
+  }
+  ${_packed}[packed][border]${_not_values("border", [..._border_explicit, "none"])} { ${theme.css_seam_color(true)} }
+  ${[..._color_families, ..._color_steps].map((c) => `${_packed}[packed][border="${c}"] { ${theme.css_seam_color(c)} }`).join("\n  ")}
   ${_cells(`${_packed}[packed]`, "[packed]")} {
     --e-seams: inherit;
     --e-seam-color: inherit;

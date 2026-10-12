@@ -110,7 +110,7 @@ Controls placed side by side are always the same height, whatever they hold (tex
 `packed` turns a row or column of controls into one group: no gap, children flush, lines drawn once ([Layout § packed](./ui-layout.md#packed)).
 
 ```tsx
-<e-row packed seams="children">
+<e-row packed>
   <button>Bold</button>
   <button>Italic</button>
 </e-row>

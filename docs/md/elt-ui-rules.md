@@ -91,7 +91,7 @@ Every layout decision reduces to these six. The layout elements and their attrib
 
 1. **A bar is one line**, unless the request explicitly asks for two: no subtitle under the title, no second row of buttons, no `wrap` ([Layout § Bars](./ui-layout.md#bars)).
 2. **It fits at the app's smallest window width.** The title shrinks and ends with "…" (`e-ellipsis`); the actions keep their size. When the actions don't fit, move the rarely used ones into a "…" menu (`popup` with `menu_nav`), chosen when the bar is designed.
-3. **A button toolbar is not a band**: `<e-row packed="widget" seams="children">` (or a spaced row of such groups), with no background and not inverted. Its buttons keep their own borders, tints and variants.
+3. **A button toolbar is not a band**: `<e-row packed="widget">` (or a spaced row of such groups), with no background and not inverted. Its buttons keep their own borders, tints and variants.
 
 ## Controls
 
