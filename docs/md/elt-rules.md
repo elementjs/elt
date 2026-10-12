@@ -50,6 +50,7 @@ These are conventions: the library does not enforce them, but code using elt fol
 ## Observables
 
 - An observable holding something renderable (a string, a number, a node, …) can be used directly as a JSX child, and the DOM follows it. Use that everywhere. Other values need a `.tf(…)` to something renderable first. See [Components](./components.md#renderable).
+- A `.tf` that returns nodes is for nodes that themselves differ with the value (an icon per status, another widget per kind of value). When only a value inside the same structure changes, build the structure once and bind the value into it. See [Observables](./observables.md#a-tf-that-returns-nodes-rebuilds-them).
 - Do not read a value with `o.get(x)` or `.get()` outside observer logic, unless you really mean "the value at this precise moment". To follow a value, derive from it (`.tf`, `o.expression`) or observe it. See [Observables](./observables.md#creating-and-reading).
 - Prefer `o.expression` over `o.combine` / `o.merge` / `o.join` for new derived values. Keep `o.merge` / `o.join` for when a bundled object or tuple observable is the point. See [Observables](./observables.md#good-patterns-vs-patterns-to-avoid).
 - Prefer `.assign()` / `.mutate()` over chaining `.p()` for deep or ad-hoc writes; `.p()` is for binding one field to one control. See [Observables](./observables.md#updating-assign-and-mutate).

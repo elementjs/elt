@@ -105,6 +105,40 @@ Checking one box sets `o_color` to that color, which un-checks every other box â
 | `tf_entries()` / `tf_map_entries()` | An object's / a `Map`'s `[key, value][]` entries. |
 | `tf_array_has(...values)` / `tf_set_has(...values)` / `tf_map_has(...pairs)` | Boolean "are all these present?". Writing `true` adds the missing ones, writing `false` removes them. |
 
+### A `.tf` that returns nodes rebuilds them
+
+Used as a JSX child, an observable whose value is a node replaces the previous node with the new one each time it changes. With `.tf`, that means the callback runs again and builds **new nodes**; the old ones are thrown away.
+
+That is exactly what you want when the nodes are a function of the value:
+
+```tsx
+// The icon is a different element for each status.
+{o_status.tf((status) => <Icon name={status} />)}
+```
+
+It is wasteful, and often a bug, when the nodes are almost the same every time and only one value inside them changes:
+
+```tsx
+// Bad: each edit of the name builds a new <input> and discards the old one.
+{o_user.tf((user) => <input type="text" value={user.name} />)}
+```
+
+Two things go wrong here:
+
+- **Work is wasted.** An element, its attributes and its listeners are created again to show one different string.
+- **State is lost.** The new element is not the old one. If the user was typing in the old input, it loses focus after the first character, and also its text selection, its undo history and the scroll position of anything inside it. A running animation restarts.
+
+Build the nodes once and let the value flow into them:
+
+```tsx
+// Good: one <input>, bound to the field.
+<input type="text">{$bind.string(o_user.p("name"))}</input>
+```
+
+The same applies to a derived value in an attribute or a text child: `<span class={o_status.tf(status_class)}>{o_user.p("name")}</span>` creates the element once and updates only the attribute and the text.
+
+A test to apply: if you can describe the callback as "the same nodes, with this value put somewhere", it should not be a `.tf` returning nodes. If the honest description is "a different thing for this value", it should.
+
 ## `.p()` and `.key()` â€” binding one field
 
 `.p(key)` returns an observable bound to a single property (or array index) of the source. It's convenient for wiring one field into a form control:
