@@ -5,7 +5,14 @@ import {
   INLINE_ONLY_TEXT_BLOCK_SELECTOR,
   MEANINGFUL_BORDER_SELECTOR,
 } from "./selectors"
-import { ambient_surface_mix, type ColorStep, type SpacingStep, spacing_steps, theme } from "./theme"
+import {
+  ambient_surface_mix,
+  type ColorStep,
+  type InvertedSurface,
+  type SpacingStep,
+  spacing_steps,
+  theme,
+} from "./theme"
 
 declare module "elt" {
   interface ElementMap {
@@ -43,6 +50,7 @@ export type BorderValues = ColorStep
 export type SurfaceValues =
   | boolean // true value — one level up from ambient, `neutral` family
   | "background"
+  | InvertedSurface // an inverted band: the family's color becomes the background (docs/md/ui-theme.md, Inversion)
   | ColorStep
 
 export interface CommonAttrs extends Attrs<HTMLElement> {
@@ -464,7 +472,8 @@ function _not_values(attr: string, values: readonly string[]): string {
   return `:where(${values.map((v) => `:not([${attr}="${v}"])`).join("")})`
 }
 const seam_colors: ColorStep[] = [..._color_families, ..._color_steps]
-const _surface_explicit = ["background", ..._color_families, ..._color_steps]
+const _inverted_surfaces: InvertedSurface[] = ["invert-tint", "invert-neutral"]
+const _surface_explicit = ["background", ..._inverted_surfaces, ..._color_families, ..._color_steps]
 const _border_explicit = [..._color_families, ..._color_steps]
 
 _`
@@ -494,6 +503,10 @@ for (const step of _color_steps) {
 // overrides that with its own --e-pad instead — a second, later rule decides that priority by
 // cascade order, not a var() fallback chain, since --e-pad inherits and is always populated (a
 // var(--e-pad, fallback) chain would never reach its fallback — see docs/md/ui-layout.md). A named
+for (const value of _inverted_surfaces) {
+  _`${_all}[surface="${value}"] { ${theme.css_surface(value)} }`
+}
+
 // step below overrides both, for an element that doesn't pad itself.
 //
 // `:where(:not(...))` rather than a bare `:not(...)`: `:not([x="none"])` on its own carries the

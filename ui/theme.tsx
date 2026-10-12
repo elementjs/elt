@@ -154,6 +154,10 @@ export type ColorStep =
   | `neutral-${1 | 2 | 3 | 4 | 5 | 6}`
 
 const _re_color_step = /^(tint|neutral)(?:-(\d+|surface|separator))?$/
+/** The values `surface` takes beyond `ColorStep`: `"invert-tint"`/`"invert-neutral"` paint an inverted band of that
+ * family, like `Mix.css_as_inverted` (see "Inversion" in docs/md/ui-theme.md). */
+export type InvertedSurface = "invert-tint" | "invert-neutral"
+
 
 function parse_color_step(value: string): { family: "tint" | "neutral"; suffix?: number | "surface" | "separator" } {
   const match = _re_color_step.exec(value)
@@ -464,8 +468,10 @@ export class Theme<AllColors extends ColorScheme> {
    * former. `"background"`: absolute level 0 — any color family resolves to the same value there.
    * `"tint-surface"`/`"neutral-surface"`: that family, one level up from ambient (same as the bare
    * family name — an explicit synonym). `"tint-separator"`/`"neutral-separator"`: that family, two
-   * levels up from ambient. `"tint-N"`/`"neutral-N"`: that family, at the absolute level `N`. */
-  css_surface(value: true | "background" | ColorStep): string {
+   * levels up from ambient. `"tint-N"`/`"neutral-N"`: that family, at the absolute level `N`.
+   * `"invert-tint"`/`"invert-neutral"`: an inverted band of that family (`Mix.css_as_inverted`),
+   * not a level of the stack. */
+  css_surface(value: true | "background" | InvertedSurface | ColorStep): string {
     if (value === true) return this.colors.neutral.css_as_surface("n+1")
     if (value === "background") return this.colors.neutral.css_as_surface("background")
     const { family, suffix } = parse_color_step(value)
@@ -474,6 +480,8 @@ export class Theme<AllColors extends ColorScheme> {
     return this.colors[family].css_as_surface(suffix)
   }
 
+    if (value === "invert-tint") return this.colors.tint.css_as_inverted
+    if (value === "invert-neutral") return this.colors.neutral.css_as_inverted
   /** `[border]`'s value type, as a raw declaration — see `ColorStep`. Bare (`true`)/no value, and a
    * bare family name (`"tint"`/`"neutral"`): the flat "widget" color for that family (`.mid` for
    * `tint`, `.faded` for `neutral`) — a clear, defined boundary, independent of ambient surface
@@ -584,7 +592,7 @@ export class Theme<AllColors extends ColorScheme> {
 
   /** Standalone surface class — see `css_surface`. Fill-only, mirroring the `[surface]` attribute
    * rule (`ui/layout.css.tsx`): does not pad itself. */
-  class_surface(value: true | "background" | ColorStep): string {
+  class_surface(value: true | "background" | InvertedSurface | ColorStep): string {
     const key = String(value)
     return (
       this.#surface_classes.get(key) ??

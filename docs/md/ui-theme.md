@@ -64,6 +64,7 @@ A surface **level** counts how many background fills deep an element is. The pag
 | `"tint"` / `"neutral"` | That family, one level above the ambient level |
 | `"tint-N"` / `"neutral-N"` (N 1–6) | That family at absolute level N. For content rendered outside its visual parent in the DOM, such as a popup or dialog attached to `document.body`. |
 | `"background"` | Absolute level 0 (the page background), reset for children too |
+| `"invert-tint"` / `"invert-neutral"` | An inverted band of that color, same as `class_as_inverted` ([Inversion](#inversion)). It is not a level of the stack |
 
 - `surface` fills; it does not pad. A surface that needs padding says so with `pad` or `packed`.
 - The level and the color family propagate to descendants. `.hover` and `.separator` (and `border="…-surface"`/`"…-separator"`, see [Layout § Borders and radius](./ui-layout.md#borders-and-radius)) read them, so they always mean "one/two levels above wherever this ends up".
@@ -95,7 +96,7 @@ Every band, control and state is placed by answering two questions. The binding 
 
 ## Inversion
 
-Inversion is one mechanism: given a color, the new background is that color and the new `text` and `tint` are the old background (`.class_as_inverted`, `.css_as_inverted`, and the `inverted` button variant). How loud the result is depends only on the color you invert:
+Inversion is one mechanism: given a color, the new background is that color and the new `text` and `tint` are the old background (`.class_as_inverted`, `.css_as_inverted`, `surface="invert-tint"` / `surface="invert-neutral"` on layout elements, and the `inverted` button variant). How loud the result is depends only on the color you invert:
 
 - `tint` — maximum attention: the dominant action (the `inverted` button), the app's top toolbar, a dialog's title row, `<header>`.
 - `neutral` — strong but quieter: furniture that needs attention, such as the header of a table that is the main thing on the screen.
@@ -157,7 +158,7 @@ const brand = new Theme({ light: { bg: "#fff", text: "#1b1b1f", tint: "#5b3cc4" 
 | `css_pad(step)` | `class_pad(step)` | Sets `--e-pad` to the step (the class also applies `padding`) |
 | `css_spacing(step)` | `class_spacing(step)` | Sets the children's spacing step (the class also applies `gap`) |
 | `css_radius(step?)` | `class_radius(step?)` | Radius: derived (no step) or forced to a step |
-| `css_surface(value)` | `class_surface(value)` | Same as the `surface` attribute |
+| `css_surface(value)` | `class_surface(value)` | Same as the `surface` attribute (`"invert-tint"` and `"invert-neutral"` included) |
 | `css_border(value)` | `class_border(value)` | Same as the `border` attribute |
 | `css_current_surface()` | `class_current_surface` | `background:` the ambient surface's color |
 | — | `class_light_scheme`, `class_dark_scheme`, `class_dynamic_scheme` | Puts this theme's colors and settings on a subtree: light, dark, or following `prefers-color-scheme`, with the matching CSS `color-scheme`. `theme.toString()` is `class_dynamic_scheme`. |

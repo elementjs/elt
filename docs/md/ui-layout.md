@@ -93,7 +93,7 @@ Every attribute accepts a plain value or an observable.
 | --------- | ------ | ------ |
 | `pad` | bare, a spacing step, `"none"` | Pads the element and sets the step its children are spaced at. Bare = `component`. `"none"` removes the padding and the spacing between children. |
 | `spacing` | bare, a spacing step, `"none"` | Sets the step children are spaced at, winning over the step `pad` implied. Bare = `component`. `"none"` removes it. |
-| `surface` | bare, `"tint"`, `"neutral"`, `"tint-N"`/`"neutral-N"` (N 1–6), `"background"` | Background fill and a new surface level — see [Theme § Surfaces and levels](./ui-theme.md#surfaces-and-levels). Does not pad. |
+| `surface` | bare, `"tint"`, `"neutral"`, `"tint-N"`/`"neutral-N"` (N 1–6), `"background"`, `"invert-tint"`, `"invert-neutral"` | Background fill and a new surface level — see [Theme § Surfaces and levels](./ui-theme.md#surfaces-and-levels). Does not pad. |
 | `border` | bare, `"none"`, `"tint"`, `"neutral"`, `"tint-surface"`/`"neutral-surface"`, `"tint-separator"`/`"neutral-separator"`, `"tint-N"`/`"neutral-N"` | 1px border — see [Borders and radius](#borders-and-radius). Implies `radius`. `"none"` draws nothing and implies no radius; on a `packed` container it also says that nothing draws the outline of the group ([packed](#packed)). |
 | `radius` | bare, a spacing step, `"none"` | Corner radius. Bare = derived from the element's own padding (or the ambient step). A step forces that step's value. `"none"` opts out, also when `border` is set. |
 | `hover` | boolean | Hover fill one level above the ambient surface, in the ambient surface's color family ([Theme § Surfaces and levels](./ui-theme.md#surfaces-and-levels)). |

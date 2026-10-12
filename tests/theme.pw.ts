@@ -804,3 +804,45 @@ test.describe("Mix.alpha", () => {
     })
   }
 })
+
+test.describe('surface="invert-tint" / "invert-neutral"', () => {
+  test("css_surface and class_surface give the same declarations as css_as_inverted", async ({ page }) => {
+    const r = await page.evaluate(() => {
+      const { theme } = window.__ELT__.UI
+      const first = theme.class_surface("invert-tint")
+      return {
+        tint: theme.css_surface("invert-tint") === theme.colors.tint.css_as_inverted,
+        neutral: theme.css_surface("invert-neutral") === theme.colors.neutral.css_as_inverted,
+        cached: theme.class_surface("invert-tint") === first,
+        distinct: theme.class_surface("invert-tint") !== theme.class_surface("invert-neutral"),
+      }
+    })
+    expect(r).toEqual({ tint: true, neutral: true, cached: true, distinct: true })
+  })
+
+  for (const family of ["tint", "neutral"] as const) {
+    test(`the attribute paints the same as the ${family} inverted class, and no other surface rule wins`, async ({
+      page,
+    }) => {
+      const r = await page.evaluate((family) => {
+        const { theme } = window.__ELT__.UI
+        const attr = document.createElement("e-row")
+        attr.setAttribute("surface", `invert-${family}`)
+        const cls = document.createElement("e-row")
+        cls.className = theme.colors[family].class_as_inverted
+        document.body.append(attr, cls)
+        const pick = (el: Element) => {
+          const cs = getComputedStyle(el)
+          return [cs.backgroundColor, cs.color, cs.borderTopColor, cs.getPropertyValue("--e-color-tint")]
+        }
+        const res = { attr: pick(attr), cls: pick(cls) }
+        attr.remove()
+        cls.remove()
+        return res
+      }, family)
+      expect(r.attr).toEqual(r.cls)
+      // not transparent: the band really has a fill
+      expect(r.attr[0]).not.toBe("rgba(0, 0, 0, 0)")
+    })
+  }
+})
