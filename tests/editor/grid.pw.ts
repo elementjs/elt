@@ -509,63 +509,98 @@ test.describe("focus ring of the first cell", () => {
   })
 })
 
-test.describe("typing into a Set member (regression: the row was rebuilt on each key, losing focus)", () => {
-  for (const virtual of [true, false]) {
-    test(`keeps the focus across keystrokes (${virtual ? "scroll area" : "packed"})`, async ({ page }) => {
-      await page.evaluate((packed) => {
-        const { o, node_append } = window.__ELT__
-        const { ObjectEditorShell, set, string } = window.__ELT__.Editor
-        const o_root = o(new Set(["algorithm", "math"]))
-        ;(window as any).o_root = o_root
-        const shell = new ObjectEditorShell(o_root, { schema: set({ values: string() }), packed })
-        node_append(document.body, shell.node)
-      }, !virtual)
-      await settle(page)
-      const input = page.locator("input[type=text], input:not([type])").first()
-      await input.click()
-      await page.keyboard.press("End")
-      await page.keyboard.type("xyz")
-      const result = await page.evaluate(() => ({
-        members: [...(window as any).o_root.get()],
-        focused: document.activeElement?.tagName === "INPUT" && (document.activeElement as HTMLInputElement).value,
-      }))
-      expect(result.members).toEqual(["algorithmxyz", "math"])
-      expect(result.focused).toBe("algorithmxyz")
-    })
-  }
-})
+// Regression class: a cell's input must survive edits of its own value. A row whose nodes are rebuilt
+// when its item changes (a `.tf` returning the row's content, a row identified by the edited value)
+// loses focus after one keystroke. One case per editable cell of each composite; `index` is the
+// cell's position among the editor's text inputs.
+const typing_cases = [
+  {
+    name: "Object property",
+    value: `{ name: "Ada", city: "London" }`,
+    schema: `object({ properties: [{ name: "name", type: string() }, { name: "city", type: string() }] })`,
+    index: 0,
+    expected: `{ name: "Adaxyz", city: "London" }`,
+  },
+  {
+    name: "Array item",
+    value: `["one", "two"]`,
+    schema: `array({ mode: "list", values: string() })`,
+    index: 0,
+    expected: `["onexyz", "two"]`,
+  },
+  {
+    name: "Table cell",
+    value: `[{ name: "Ada", city: "London" }, { name: "Bob", city: "Paris" }]`,
+    schema: `array({ mode: "table", values: object({ properties: [{ name: "name", type: string() }, { name: "city", type: string() }] }) })`,
+    index: 0,
+    expected: `[{ name: "Adaxyz", city: "London" }, { name: "Bob", city: "Paris" }]`,
+  },
+  {
+    name: "Set member",
+    value: `new Set(["algorithm", "math"])`,
+    schema: `set({ values: string() })`,
+    index: 0,
+    expected: `new Set(["algorithmxyz", "math"])`,
+  },
+  {
+    name: "Map key",
+    value: `new Map([["alpha", "one"], ["beta", "two"]])`,
+    schema: `map({ keys: string(), values: string() })`,
+    index: 0,
+    expected: `new Map([["alphaxyz", "one"], ["beta", "two"]])`,
+  },
+  {
+    name: "Map value",
+    value: `new Map([["alpha", "one"], ["beta", "two"]])`,
+    schema: `map({ keys: string(), values: string() })`,
+    index: 1,
+    expected: `new Map([["alpha", "onexyz"], ["beta", "two"]])`,
+  },
+]
 
-test.describe("typing into a Map key (regression: the row was rebuilt on each key, losing focus)", () => {
-  for (const virtual of [true, false]) {
-    test(`keeps the focus across keystrokes and the entry's place (${virtual ? "scroll area" : "packed"})`, async ({
-      page,
-    }) => {
-      await page.evaluate((packed) => {
-        const { o, node_append } = window.__ELT__
-        const { ObjectEditorShell, map, string } = window.__ELT__.Editor
-        const o_root = o(
-          new Map([
-            ["alpha", "one"],
-            ["beta", "two"],
-          ]),
+test.describe("typing into a cell keeps its focus, and the row its place", () => {
+  for (const c of typing_cases) {
+    for (const packed of [false, true]) {
+      test(`${c.name} (${packed ? "packed" : "scroll area"})`, async ({ page }) => {
+        // The case's source text is evaluated in the page, where the editor's constructors live.
+        await page.evaluate(
+          ({ value, schema, packed }) => {
+            const { o, node_append } = window.__ELT__
+            const { ObjectEditorShell, object, array, set, map, string } = window.__ELT__.Editor
+            const o_root = o<unknown>(new Function("return " + value)())
+            ;(window as any).o_root = o_root
+            const factory = new Function("object", "array", "set", "map", "string", "return " + schema)(
+              object,
+              array,
+              set,
+              map,
+              string,
+            )
+            node_append(document.body, new ObjectEditorShell(o_root as any, { schema: factory, packed }).node)
+          },
+          { value: c.value, schema: c.schema, packed },
         )
-        ;(window as any).o_root = o_root
-        const shell = new ObjectEditorShell(o_root, { schema: map({ keys: string(), values: string() }), packed })
-        node_append(document.body, shell.node)
-      }, !virtual)
-      await settle(page)
-      await page.locator("input[type=text], input:not([type])").first().click()
-      await page.keyboard.press("End")
-      await page.keyboard.type("xyz")
-      const result = await page.evaluate(() => ({
-        entries: [...(window as any).o_root.get()],
-        focused: document.activeElement?.tagName === "INPUT" && (document.activeElement as HTMLInputElement).value,
-      }))
-      expect(result.entries).toEqual([
-        ["alphaxyz", "one"],
-        ["beta", "two"],
-      ])
-      expect(result.focused).toBe("alphaxyz")
-    })
+        await settle(page)
+        await page.locator("e-grid input[type=text], e-grid input:not([type])").nth(c.index).click()
+        await page.keyboard.press("End")
+        // One key at a time: each keystroke is a separate edit, a rebuilt cell fails on the second.
+        for (const key of "xyz") await page.keyboard.press(key)
+        const result = await page.evaluate(
+          ({ expected, index }) => {
+            const inputs = [...document.querySelectorAll<HTMLInputElement>("e-grid input:not([type=checkbox])")]
+            const model = (window as any).o_root.get()
+            const want = new Function("return " + expected)()
+            return {
+              model: JSON.stringify(model, (_k, v) => (v instanceof Map ? [...v] : v instanceof Set ? [...v] : v)),
+              want: JSON.stringify(want, (_k, v) => (v instanceof Map ? [...v] : v instanceof Set ? [...v] : v)),
+              focused_is_the_cell: document.activeElement === inputs[index],
+            }
+          },
+          { expected: c.expected, index: c.index },
+        )
+        expect(result.model).toBe(result.want)
+        expect(result.focused_is_the_cell).toBe(true)
+      })
+    }
   }
 })
