@@ -67,9 +67,10 @@ export interface CommonAttrs extends Attrs<HTMLElement> {
    * keeping that surface's color family. `"tint"`/`"neutral"` forces that family, still `+1` from
    * this element's own/ambient surface level. `"tint-N"`/`"neutral-N"` is that family at an
    * absolute level, ignoring this element's `surface` value. Implies `radius` (see below) unless
-   * `radius="none"`.
+   * `radius="none"`. `"none"` draws nothing (and implies no radius); on a `packed` container it
+   * also says the container has no outline for its children to draw (docs/md/ui-layout.md#packed).
    */
-  border?: NRO<boolean | BorderValues>
+  border?: NRO<boolean | BorderValues | "none">
   /**
    * Radius follows this element's own padding step by default (including when implied by
    * `border`); pass a named spacing step to override that (for an element that doesn't pad itself),
@@ -123,7 +124,8 @@ export interface EFlexAttrs extends CommonAttrs {
    *
    * Who draws the lines between the children, and which of their own borders stay, is `seams`
    * (below); `border` on the `packed` element only draws a frame around the group, which then
-   * owns every edge on its outline: the children's borders facing it are dropped.
+   * owns every edge on its outline: the children's borders facing it are dropped. Without `border`
+   * the children draw the outline with their own borders (`border="none"`: nobody does).
    *
    * Radius ownership: whenever `packed` itself has a radius in effect (its own `border`, which
    * implies radius, or an explicit `radius`), that radius is the group's true outer shape — every
@@ -145,14 +147,16 @@ export interface EFlexAttrs extends CommonAttrs {
    * Who draws the lines between the children of a `packed` container (inherited by the packed
    * groups inside it, which can set their own). The lines are children's borders, no gap, so every
    * line is a whole screen pixel wide:
-   * - `"none"`: no lines; every child's own border is removed.
+   * - `"none"`: no lines; the children's own borders between them are removed.
    * - `"children"`: the children's own borders, never doubled (the neighbour of a child gives up
    *   the edge they share); a child whose border carries meaning (`MEANINGFUL_BORDER_SELECTOR`,
    *   or a layout element with `border`) wins the line it shares.
    * - `"default"` (what no attribute means): the container draws a line in `seam-color` between
-   *   every two children, and removes their own borders, except that a child whose border carries
-   *   meaning keeps the lines it shares.
+   *   every two children, and removes their own borders between them, except that a child whose
+   *   border carries meaning keeps the lines it shares.
    * - `"forced"`: the container draws every line, in `seam-color`, whatever the children carry.
+   * In every mode the children's borders on the outline are kept without `border` on the container,
+   * and dropped with one (`border="none"` included).
    * A packed group nested in a packed container is one of its cells: the line around it is drawn
    * by the container, and its own `border` is ignored (unless the container is `"children"`).
    * Nesting is followed through packed containers only.
@@ -210,6 +214,11 @@ const align: AlignValues[] = [
 const _all = `:where(e-flex,e-grid,e-prose,e-column,e-row,e-grid-row)`
 const _flex = `:where(e-flex,e-column,e-row)`
 const _layouters = `:where(e-flex,e-grid,e-column,e-row,e-grid-row)`
+/** `[border]` that draws something: `border="none"` is the absence of a border. */
+const _bordered = `[border]:where(:not([border="none"]))`
+/** A container with a radius in effect: its own border (which implies one) or an explicit radius. */
+const _rounded = `:is(${_bordered},[radius])`
+const _sides = ["top", "right", "bottom", "left"] as const
 const seam_modes = ["none", "children", "default", "forced"] as const
 /** Containers that take `packed`. */
 const _packed = `:where(e-flex,e-column,e-row,e-grid)`
@@ -263,7 +272,7 @@ function _after(parent: string, child: string, prev: string): string {
  * layout element that sets its own `border` (not a packed group: the container draws the line
  * around a group).
  */
-const _important = `:is(${MEANINGFUL_BORDER_SELECTOR}, :where(e-flex,e-grid,e-prose,e-column,e-row)[border]:not([packed]))`
+const _important = `:is(${MEANINGFUL_BORDER_SELECTOR}, :where(e-flex,e-grid,e-prose,e-column,e-row)${_bordered}:not([packed]))`
 
 /**
  * A direction in which packed children are laid out one after the other: the children of a flex
@@ -331,13 +340,59 @@ const _axes: Axis[] = [
 ]
 
 /**
+ * The outline of the outermost packed container: who draws the edges of the children that face it.
+ * Four custom properties, one per side (`--e-out-top`, `-right`, `-bottom`, `-left`), say whether
+ * the children at that side draw their own border there (1) or not (0). The outermost container
+ * sets them to 1, or to 0 when it has a `border` (a frame, or `border="none"`: nobody draws). A
+ * packed group that is a cell of a packed container inherits them, side by side, except along the
+ * axis of its container, where a side facing a sibling is not on the outline (0): the line between
+ * siblings is the container's (or, in `children`, the following sibling's leading edge: 1).
+ * The rules of each axis read them with style queries on the container, as `--e-seams`.
+ */
+function _outline_edges(a: Axis): [edge: string, only: string][] {
+  return [
+    [a.lead, a.first],
+    [a.trail, a.last],
+    [a.cross[0], ""],
+    [a.cross[1], ""],
+  ]
+}
+
+/**
+ * Drops the children's borders on the sides of the outline that the children don't draw (the
+ * `--e-out-*` of `_outline_edges`): their edges across, the first one's leading edge, the last
+ * one's trailing edge.
+ */
+function _outline_rules(a: Axis): string {
+  const cells = `${a.parent} > ${a.child}`
+  return _outline_edges(a)
+    .map(
+      ([edge, only]) =>
+        `@container style(--e-out-${edge}: 0) { ${cells}${only ? `:where(${only})` : ""} { border-${edge}: none; } }`,
+    )
+    .join("\n")
+}
+
+/**
+ * Along an axis, the packed groups that are cells of the container: their side facing a sibling is
+ * not on the outline (see `_outline_edges`). The group's `--e-out-*` are inherited otherwise.
+ */
+function _group_outline_rules(a: Axis): string {
+  const group = `${a.parent} > ${a.child === "*" ? "[packed]" : a.child}`
+  return `
+  ${group}:where(:not(${a.first})) { --e-out-${a.lead}: 0; }
+  ${group}:where(:not(${a.last})) { --e-out-${a.trail}: 0; }`
+}
+
+/**
  * The lines of a container whose `seams` is `none`, `default` or `forced`, along one axis. The
- * container owns every line: all the children's borders go (`border: none`), then the line between
+ * container owns every line: the children's borders between them go, then the line between
  * two children is the *leading* edge of the second one, in `--e-seam-color`. A leading edge needs
- * no look at the next sibling, and a hidden last child changes nothing for the others.
+ * no look at the next sibling, and a hidden last child changes nothing for the others. The edges
+ * on the outline are the children's own, unless the container's outline is not drawn by them
+ * (`_outline_rules`).
  * `default` lets a child with an important border (`_important`) keep it on the edges it shares
- * with its neighbours: it draws both, the one after it gives up its leading edge (`_after`), and
- * its edges across and on the container's outline stay off (the container's frame wins them).
+ * with its neighbours: it draws both, and the one after it gives up its leading edge (`_after`).
  * A `sticky="top"` child also carries a copy of the line under it: the line is the next child's
  * leading edge, which scrolls away with that child, so once the sticky child is stuck the content
  * passing under it would show in its place. The copy is its own bottom edge, pulled back over the
@@ -350,21 +405,16 @@ function _seam_rules(mode: "none" | "default" | "forced", a: Axis): string {
   const important = mode === "default"
   const not_important = important ? `:where(:not(${_important}))` : ""
   const line = `border-${a.lead}: 1px solid var(--e-seam-color);`
-  let css = `${cells}${not_important} { border: none; }\n`
-  if (mode === "none") return css
-  if (important) {
-    css += `${cells}:where(${_important}) { border-${a.cross[0]}: none; border-${a.cross[1]}: none; }\n`
-  }
-  css += `${cells}:where(:not(${a.first}))${not_important} { ${line} }\n`
-  if (a.vertical) {
+  // A packed group among the cells is one of them: its own border is ignored.
+  let css = `${cells}:where([packed]) { border: none; }\n`
+  css += `${cells}${not_important}:where(:not(${a.first})) { border-${a.lead}: none; }\n`
+  css += `${cells}${not_important}:where(:not(${a.last})) { border-${a.trail}: none; }\n`
+  if (mode !== "none") css += `${cells}:where(:not(${a.first}))${not_important} { ${line} }\n`
+  if (a.vertical && mode !== "none") {
     css += `${cells}:where([sticky="top"]):where(:not(${a.last})) { border-${a.trail}: 1px solid var(--e-seam-color); margin-${a.trail}: -1px; }\n`
   }
-  if (important) {
-    css += `${cells}:where(${_important}${a.first}) { border-${a.lead}: none; }\n`
-    css += `${cells}:where(${_important}${a.last}) { border-${a.trail}: none; }\n`
-  }
   if (important) css += `${_after(a.parent, a.child, _important)} { border-${a.lead}: none; }\n`
-  return css
+  return css + _outline_rules(a)
 }
 
 /**
@@ -373,17 +423,15 @@ function _seam_rules(mode: "none" | "default" | "forced", a: Axis): string {
  * but the last gives up its trailing edge, whether or not it has one, so that neighbours share a
  * line; a child whose border carries meaning keeps it, and the child after it gives up its leading
  * edge instead. The children don't overlap to share a line: at a fractional display scale an
- * overlapped edge is antialiased and blends both colors. With a frame, the edges on its outline go.
+ * overlapped edge is antialiased and blends both colors. The edges on the outline are the
+ * children's own, unless the container's outline is not drawn by them (`_outline_rules`).
  */
 function _children_rules(a: Axis): string {
   const cells = `${a.parent} > ${a.child}`
-  const frame = `${a.parent}[border] > ${a.child}`
   return `
   ${cells}:where(:not(${a.last})):where(:not(${_important})) { border-${a.trail}: none; }
   ${_after(a.parent, a.child, _important)} { border-${a.lead}: none; }
-  ${frame} { border-${a.cross[0]}: none; border-${a.cross[1]}: none; }
-  ${frame}${a.first} { border-${a.lead}: none; }
-  ${frame}${a.last} { border-${a.trail}: none; }`
+  ${_outline_rules(a)}`
 }
 
 function _(strings: TemplateStringsArray, ...values: unknown[]): void {
@@ -422,7 +470,7 @@ _`
   ${_all}[hover]:hover { background-color: ${ambient_surface_mix.surface("n+1")} }
   ${_all}[surface]${_not_values("surface", _surface_explicit)} { ${theme.css_surface(true)} }
   ${_all}[surface="background"] { ${theme.css_surface("background")} }
-  ${_all}[border]${_not_values("border", _border_explicit)} { ${theme.css_border(true)} }
+  ${_all}[border]${_not_values("border", [..._border_explicit, "none"])} { ${theme.css_border(true)} }
 `
 
 // `surface` is fill-only: it does NOT imply padding. A `surface` element that also needs padding
@@ -453,9 +501,9 @@ for (const step of _color_steps) {
 // preventing every named-step override from ever applying. :where() always contributes zero
 // specificity, so these rules and the per-step loop stay equal-specificity and cascade purely by
 // source order, as intended.
-_`${_all}[border]:where(:not([radius="none"])) { ${theme.css_radius()} }`
+_`${_all}${_bordered}:where(:not([radius="none"])) { ${theme.css_radius()} }`
 _`${_all}[radius]:where(:not([radius="none"])) { ${theme.css_radius()} }`
-_`${_all}[pad]:where(:not([pad="none"])):is([border],[radius]):where(:not([radius="none"])) { border-radius: var(--e-pad); }`
+_`${_all}[pad]:where(:not([pad="none"]))${_rounded}:where(:not([radius="none"])) { border-radius: var(--e-pad); }`
 for (const sp of spaces) {
   _`${_all}[radius="${sp}"] { ${theme.css_radius(sp)} }`
 }
@@ -803,7 +851,29 @@ css`
     --e-seam-color: inherit;
     --e-packed-radius: inherit;
   }
-  ${_packed}[packed]:is([border],[radius]):where(:not([radius="none"])) { --e-packed-radius: 1; }
+  ${_packed}[packed]${_rounded}:where(:not([radius="none"])) { --e-packed-radius: 1; }
+
+  /* The outline of the outermost packed container: does it draw it with its children's borders
+     (--e-out-*: 1 per side) or not (0), see _outline_edges. Without [border] the children draw it; any
+     [border] (a frame, or "none") says they don't. A cell that is a packed group inherits the
+     sides, then drops the ones facing a sibling; in a "children" container the side facing the
+     previous sibling stays, since the line between two children is the leading edge of the second. */
+  ${_packed}[packed] {
+    ${_sides.map((e) => `--e-out-${e}: 1;`).join(" ")}
+  }
+  ${_packed}[packed][border] {
+    ${_sides.map((e) => `--e-out-${e}: 0;`).join(" ")}
+  }
+  ${_cells(`${_packed}[packed]`, "[packed]")} {
+    ${_sides.map((e) => `--e-out-${e}: inherit;`).join(" ")}
+  }
+  ${_axes.map(_group_outline_rules).join("")}
+  @container style(--e-seams: children) {
+    ${_axes
+      .slice(0, 2)
+      .map((a) => `${a.parent} > [packed]:where(:not(${a.first})) { --e-out-${a.lead}: 1; }`)
+      .join("\n")}
+  }
   ${_packed}[packed][radius="none"] { --e-packed-radius: 0; }
   ${seam_modes.map((m) => `${_packed}[packed][seams="${m}"] { --e-seams: ${m}; }`).join("\n  ")}
   ${seam_colors.map((c) => `${_packed}[packed][seam-color="${c}"] { ${theme.css_seam_color(c)} }`).join("\n  ")}
@@ -812,13 +882,13 @@ css`
      no fill of its own and an unchecked toggle has one, and they must not differ. A child's own
      explicit background, or the fill of a variant or a state (they set --e-current-surface, form.css.tsx),
      still wins. */
-  ${_cells(`${_packed}[packed][border]`)} {
+  ${_cells(`${_packed}[packed]${_bordered}`)} {
     background-color: var(--e-current-surface);
   }
 
   /* In a framed grid, a hovered row changes the surface its cells read: the cells paint it over the
      row's own hover background. */
-  e-grid[packed][border] > e-grid-row[hover]:hover {
+  e-grid[packed]${_bordered} > e-grid-row[hover]:hover {
     --e-current-surface: ${ambient_surface_mix.surface("n+1")};
   }
 
@@ -861,7 +931,7 @@ css`
 
   /* A packed bordered child of a scroll area drops its outer border and radius: the scroll area
      draws the frame (with its own [border]), and clips the content to its rounded edge. */
-  ${_all}[scroll] > ${_packed}[packed][border] {
+  ${_all}[scroll] > ${_packed}[packed]${_bordered} {
     border-width: 0;
     border-radius: 0;
   }
@@ -904,7 +974,7 @@ css`
   ${_cells("e-grid[packed]")} {
     border-radius: 0;
   }
-  e-grid[packed]:is([border],[radius]):where(:not([radius="none"])) > e-grid-row {
+  e-grid[packed]${_rounded}:where(:not([radius="none"])) > e-grid-row {
     &${_first("e-grid-row")} {
       border-top-left-radius: inherit;
       border-top-right-radius: inherit;

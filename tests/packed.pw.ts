@@ -741,13 +741,14 @@ test.describe("packed seams (docs/md/ui-layout.md#packed)", () => {
   test("default (no attribute): a line between every two children, the leading edge of the second", async ({
     page,
   }) => {
-    // A div has no border: the line is drawn all the same.
+    // A div has no border: the line is drawn all the same. Without a frame the buttons draw the outline
+    // (top and bottom, the first one's leading edge, the last one's trailing edge) with their own borders.
     const kids = await edges(
       page,
       `<e-row id="r" packed><button>a</button><div>b</div><button>c</button></e-row>`,
       "#r > *",
     )
-    expect(kids).toEqual(["nnnn", "nnns", "nnns"])
+    expect(kids).toEqual(["snss", "nnns", "ssss"])
     expect(await color(page, "#r > div", "Left")).toBe(await token(page, "var(--e-seam-color)", "#r"))
   })
 
@@ -771,8 +772,9 @@ test.describe("packed seams (docs/md/ui-layout.md#packed)", () => {
       `<e-row id="r" packed><button>a</button><button e-variant="tint">b</button><button>c</button><button>d</button></e-row>`,
       "#r > *",
     )
-    // b: the edges across go, the shared ones stay; c, right after it, gives up its leading edge.
-    expect(kids).toEqual(["nnnn", "nsns", "nnnn", "nnns"])
+    // b keeps all of its own edges (the shared ones are its to draw); c, right after it, gives up its
+    // leading edge; a and d keep the outline.
+    expect(kids).toEqual(["snss", "ssss", "snsn", "ssss"])
   })
 
   test("default: a layout element with its own border is important, a packed group is not", async ({ page }) => {
@@ -781,8 +783,9 @@ test.describe("packed seams (docs/md/ui-layout.md#packed)", () => {
       `<e-column id="c" packed><button>a</button><e-prose border>b</e-prose><button>c</button><e-row packed border><button>d</button></e-row></e-column>`,
       "#c > *",
     )
-    // b keeps top and bottom (it shares both) and not the sides; c gives up its top; the group is a plain cell.
-    expect(kids).toEqual(["nnnn", "snsn", "nnnn", "snnn"])
+    // b keeps its own edges (it shares top and bottom); c gives up its top; the group is a plain cell: its
+    // own border is ignored, the container draws the line above it.
+    expect(kids).toEqual(["ssns", "ssss", "nsns", "snnn"])
   })
 
   test("default: two important children side by side share one line, the first one's", async ({ page }) => {
@@ -791,8 +794,8 @@ test.describe("packed seams (docs/md/ui-layout.md#packed)", () => {
       `<e-row id="r" packed><button aria-pressed="true">a</button><button e-variant="tint">b</button></e-row>`,
       "#r > *",
     )
-    // a keeps the line it shares (its trailing edge); b, which gives up its leading edge, has nothing left.
-    expect(kids).toEqual(["nsnn", "nnnn"])
+    // a keeps the line it shares (its trailing edge); b gives up its leading edge and keeps the rest.
+    expect(kids).toEqual(["ssss", "sssn"])
   })
 
   test("forced: the container's line everywhere, important children included", async ({ page }) => {
@@ -801,7 +804,7 @@ test.describe("packed seams (docs/md/ui-layout.md#packed)", () => {
       `<e-row id="r" packed seams="forced"><button>a</button><button e-variant="tint">b</button><button aria-invalid="true">c</button></e-row>`,
       "#r > *",
     )
-    expect(kids).toEqual(["nnnn", "nnns", "nnns"])
+    expect(kids).toEqual(["snss", "snss", "ssss"])
   })
 
   test("with a frame, the children's edges on its outline go in every mode, an important child's too", async ({
@@ -841,8 +844,9 @@ test.describe("packed seams (docs/md/ui-layout.md#packed)", () => {
         <e-row id="g2" packed seams="none"><button>c</button><button>d</button></e-row>
       </e-column>`
     // g1 inherits forced: the tint button gets the plain line; g2 draws none between its own children.
-    expect(await edges(page, html, "#g1 > *")).toEqual(["nnnn", "nnns"])
-    expect(await edges(page, html, "#g2 > *")).toEqual(["nnnn", "nnnn"])
+    // The edge between g1 and g2 is the container's, not theirs; the rest is the outline, which they draw.
+    expect(await edges(page, html, "#g1 > *")).toEqual(["snns", "ssns"])
+    expect(await edges(page, html, "#g2 > *")).toEqual(["nnss", "nssn"])
     const tint3 = await page.evaluate(() => {
       const probe = document.createElement("div")
       probe.style.backgroundColor = window.__ELT__.UI.theme.colors.tint.surface(3)
@@ -857,7 +861,24 @@ test.describe("packed seams (docs/md/ui-layout.md#packed)", () => {
       <e-column packed seams="none">
         <div><e-row id="g" packed><button>a</button><button>b</button></e-row></div>
       </e-column>`
-    expect(await edges(page, html, "#g > *")).toEqual(["nnnn", "nnns"])
+    expect(await edges(page, html, "#g > *")).toEqual(["snss", "ssss"])
+  })
+
+  test('without a frame, the children draw the outline in every mode; border="none" has them draw nothing', async ({
+    page,
+  }) => {
+    for (const seams of ["default", "forced", "none", "children"]) {
+      const html = (border: string) =>
+        `<e-row id="r" packed ${border} seams="${seams}"><button>a</button><button>b</button></e-row>`
+      const [a, b] = await edges(page, html(""), "#r > *")
+      // Top and bottom of both, the first one's leading edge, the last one's trailing edge; the edges between them
+      // are the lines' business (`none` draws none).
+      expect([a[0], a[2], a[3], b[0], b[1], b[2]]).toEqual(Array(6).fill("s"))
+      expect(a[1]).toBe("n")
+      expect(b[3]).toBe(seams === "none" ? "n" : "s")
+      // border="none": no frame and no outline, only what is between the children.
+      expect(await edges(page, html('border="none"'), "#r > *")).toEqual(["nnnn", seams === "none" ? "nnnn" : "nnns"])
+    }
   })
 
   test("a group is a cell of its container: the line around it is the container's, its children draw only theirs", async ({
@@ -873,6 +894,54 @@ test.describe("packed seams (docs/md/ui-layout.md#packed)", () => {
     // Their children: nothing across, nothing on the group's outline, one line between them.
     expect(await edges(page, html, "#r1 > *")).toEqual(["nnnn", "nnns"])
     expect(await edges(page, html, "#r2 > *")).toEqual(["nnnn", "nnns"])
+  })
+
+  test("without a frame, a group among the cells draws the outline where it touches it, and only there", async ({
+    page,
+  }) => {
+    const html = (seams: string) => `
+      <e-column id="c" packed seams="${seams}">
+        <e-row id="g1" packed><button>a</button><button>b</button></e-row>
+        <e-row id="g2" packed><button>c</button><button>d</button></e-row>
+      </e-column>`
+    // The line between g1 and g2 is the container's (g2's top edge): g2's buttons don't draw it again.
+    expect(await edges(page, html("default"), "#g1 > *")).toEqual(["snns", "ssns"])
+    expect(await edges(page, html("default"), "#g2 > *")).toEqual(["nnss", "nsss"])
+    // With `children` it is the leading edge of the second group's buttons.
+    expect(await edges(page, html("children"), "#g1 > *")).toEqual(["snns", "ssns"])
+    expect(await edges(page, html("children"), "#g2 > *")).toEqual(["snss", "ssss"])
+  })
+
+  test('border="none" on the container: a group among the cells draws no outline either', async ({ page }) => {
+    const html = `
+      <e-column id="c" packed border="none">
+        <e-row id="g1" packed><button>a</button><button>b</button></e-row>
+      </e-column>`
+    expect(await edges(page, html, "#g1 > *")).toEqual(["nnnn", "nnns"])
+  })
+
+  test('border="none" draws no border and implies no radius', async ({ page }) => {
+    const r = await page.evaluate(() => {
+      document.body.innerHTML = `<e-row id="r" border="none" packed><button>a</button></e-row><e-row id="b" border><span>x</span></e-row>`
+      const st = (id: string) => getComputedStyle(document.getElementById(id)!)
+      return {
+        none: [st("r").borderTopStyle, st("r").borderTopLeftRadius],
+        bare: [st("b").borderTopStyle, st("b").borderTopLeftRadius],
+      }
+    })
+    expect(r.none).toEqual(["none", "0px"])
+    expect(r.bare[0]).toBe("solid")
+    expect(r.bare[1]).not.toBe("0px")
+  })
+
+  test("grid without a frame: the cells on its outline keep their borders", async ({ page }) => {
+    const html = `
+      <e-grid id="g" columns="2" packed>
+        <e-grid-row id="r1"><button>a</button><button>b</button></e-grid-row>
+        <e-grid-row id="r2"><button>c</button><button>d</button></e-grid-row>
+      </e-grid>`
+    expect(await edges(page, html, "#r1 > *")).toEqual(["snns", "ssns"])
+    expect(await edges(page, html, "#r2 > *")).toEqual(["nnss", "nsss"])
   })
 
   test("children: a group inside keeps its own border", async ({ page }) => {

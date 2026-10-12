@@ -202,7 +202,7 @@ export function DateTimePicker(at: DatePickerAttrs) {
   }
 
   return (
-    <e-row packed radius="widget" seams="children">
+    <e-row packed radius="widget">
       {$connected((box: HTMLElement) => {
         o_locale.set(resolve_locale(box))
       })}
