@@ -4,6 +4,7 @@ Open items carried over from specs that were folded into `docs/md/` and deleted.
 
 ## elt/ui
 
+- [x] **Packed lines are children's borders, not a gap.** `seams="none|children|default|forced"` and `seam-color` replace `seamless` and the 1px gap (`row-rule`/`column-rule`, seam-colored background); `border` on a packed container is only the frame. Nested groups are cells of the container; the outermost radius is handed down. Docs: `docs/md/ui-layout.md#lines-between-the-children`. Open: `children` mode doesn't deduplicate across nested groups or in grids; a hidden first/last child of a framed container still doubles the line next to the frame (use `If`).
 - [ ] **Multi-select readability.** Re-check the selected-row treatment (tint surface + 3, docs/md/ui-theme.md#state) once a real multi-select widget exists: "reads fine in principle" isn't guaranteed to survive five selected rows on screen.
 - [ ] **Overflow menu for bars.** A decorator that moves the actions that don't fit in a bar into a "…" menu as the window narrows (measured with a `ResizeObserver`, actions ordered by priority). Today the docs tell apps to choose the menu's actions when designing the bar (docs/md/ui-layout.md#bars).
 - [x] **Buttons shrink below their label in a narrow row.** Buttons, toggles, checkboxes and radios are `flex-shrink: 0` in layout elements; `e-ellipsis` has `flex-shrink: 2` instead of 10000.

@@ -99,10 +99,10 @@ return <e-column align="stretch">
 
 ## Button groups and menus
 
-`packed` turns a row or column of controls into one group: no gap, children flush, seams drawn once ([Layout § packed](./ui-layout.md#packed)).
+`packed` turns a row or column of controls into one group: no gap, children flush, lines drawn once ([Layout § packed](./ui-layout.md#packed)).
 
 ```tsx
-<e-row packed>
+<e-row packed seams="children">
   <button>Bold</button>
   <button>Italic</button>
 </e-row>
@@ -110,4 +110,4 @@ return <e-column align="stretch">
 <e-column packed="widget" border="tint-2" role="listbox">…rows…</e-column>
 ```
 
-A menu in a popup is a `packed border seamless` column of plain buttons (the column removes their borders), with `<hr>` between groups: [Overlays § popup](./ui-overlays.md#popup).
+A menu in a popup is a `packed border seams="none"` column of plain buttons (the column removes their borders), with `<hr>` between groups: [Overlays § popup](./ui-overlays.md#popup).

@@ -1,21 +1,19 @@
 import { expect, test } from "./fixture"
-import { gap_rules_supported } from "./seams"
 
-// How packed bordered containers draw their seams at a fractional display scale (ui/layout.css.tsx,
+// How packed bordered containers draw their lines at a fractional display scale (ui/layout.css.tsx,
 // docs/md/ui-layout.md "packed"). Its own file: a real 125% scale is a browser launch option, and
 // Playwright's emulated `deviceScaleFactor` antialiases every edge in Chromium.
 test.use({ launchOptions: { args: ["--force-device-scale-factor=1.25"] }, viewport: null })
 
-test.describe("packed border seams at a fractional display scale (regression: some seams drew 2 screen pixels wide)", () => {
-  test("with gap decorations, every interior seam of a grid is one screen pixel wide", async ({ page }) => {
-    test.skip(!(await gap_rules_supported(page)), "the gap fallback isn't snapped to screen pixels")
-    // Fractional tracks, row heights and offset: without snapped rules, several seams round to 2.
+test.describe("packed border lines at a fractional display scale (regression: some seams drew 2 screen pixels wide)", () => {
+  test("every interior line of a grid is one screen pixel wide", async ({ page }) => {
+    // Fractional tracks, row heights and offset: a 1px gap rounds some lines to 2; a border is snapped.
     await page.evaluate(
       (html) => {
         document.body.insertAdjacentHTML("beforeend", html)
       },
       `<e-grid id="g" packed border pad="none" inline style="margin: 3.3px 0 0 7.7px; grid-template-columns: repeat(12, 17.3px);
-        --e-current-surface: #fff; --e-current-border-color: #000">
+        --e-current-surface: #fff; --e-seam-color: #000">
         ${Array.from({ length: 12 }, () => `<e-grid-row>${"<span style='height: 13.7px'></span>".repeat(12)}</e-grid-row>`).join("")}
       </e-grid>`,
     )

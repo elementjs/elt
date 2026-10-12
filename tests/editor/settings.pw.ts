@@ -28,8 +28,9 @@ test.describe("packed", () => {
       const { ObjectEditorShell } = window.__ELT__.Editor
       const shell = new ObjectEditorShell(o({ a: "x" }), { packed: true })
       node_append(document.body, shell.node)
-      return ["e-column", "e-row", "e-grid"].map(
-        (tag) => shell.node.querySelectorAll(`${tag}[packed][border]`).length > 0,
+      // The column and the grid are framed; the header line and toolbar are groups inside the column's frame.
+      return ["e-column[packed][border]", "e-row[packed]", "e-grid[packed][border]"].map(
+        (sel) => shell.node.querySelectorAll(sel).length > 0,
       )
     })
     expect(result).toEqual([true, true, true])

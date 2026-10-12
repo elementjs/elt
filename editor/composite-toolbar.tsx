@@ -161,7 +161,6 @@ export function render_composite_chrome(props: CompositeToolbarProps): {
       <e-row
         surface={settings.packed ? "neutral-1" : undefined}
         packed={settings.packed ? "widget" : undefined}
-        border={settings.packed}
         align={settings.packed ? "stretch" : "baseline"}
       >
         {add && (

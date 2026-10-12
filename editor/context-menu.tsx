@@ -1,7 +1,7 @@
 /*
 The editor's menus: a row's context menu (right click, long press, Ctrl+click, the keyboard's Menu key
 or Shift+F10) and a column's header menu (the same, or its `…` button). Both are lists of sections —
-a small header, then items — drawn as one packed, seamless column with `<hr>` between sections. The
+a small header, then items — drawn as one packed column without lines (`seams="none"`) with `<hr>` between sections. The
 destructive item (Delete) is red, with the trash icon.
 */
 
@@ -65,7 +65,7 @@ export function open_menu(anchor: PopupAnchor, sections: MenuSection[], close_pa
 
 function render_menu(sections: MenuSection[], close: () => void): HTMLElement {
   const menu = (
-    <e-column surface="background" border seamless packed="widget" align="stretch" role="menu">
+    <e-column surface="background" border seams="none" packed="widget" align="stretch" role="menu">
       {sections.map((section, i) => (
         <>
           {i > 0 && <hr />}

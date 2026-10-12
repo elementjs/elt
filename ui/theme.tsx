@@ -485,25 +485,23 @@ export class Theme<AllColors extends ColorScheme> {
    * up from ambient — the same offset `.separator` uses. `"tint-N"`/`"neutral-N"`: that family, at
    * the absolute level `N`, ignoring what's ambient. */
   css_border(value: true | ColorStep): string {
-    let color: string
-    if (value === true) {
-      color = this.colors.neutral.faded.toString()
-    } else {
-      const { family, suffix } = parse_color_step(value)
-      if (suffix == null) {
-        color = (family === "tint" ? this.colors.tint.mid : this.colors.neutral.faded).toString()
-      } else if (suffix === "surface") {
-        color = this.colors[family].surface("n+1")
-      } else if (suffix === "separator") {
-        color = this.colors[family].surface("n+2")
-      } else {
-        color = this.colors[family].surface(suffix)
-      }
-    }
-    // --e-current-border-color: not part of the public contract — consumed only by
-    // `packed[border]` (ui/layout.css.tsx) to paint its own background the exact same color as
-    // its own border, without recomputing the color expression a second time.
-    return `border: 1px solid ${color}; --e-current-border-color: ${color};`
+    return `border: 1px solid ${this.#border_color(value)};`
+  }
+
+  /** `[seam-color]`'s value type, as a raw declaration: the color of the lines a packed container
+   * draws between its children (`--e-seam-color`, ui/layout.css.tsx), in the values of `border`.
+   * Absent, the seams are `neutral-separator`: lighter than the frame, which is `border`'s own. */
+  css_seam_color(value: ColorStep = "neutral-separator"): string {
+    return `--e-seam-color: ${this.#border_color(value)};`
+  }
+
+  #border_color(value: true | ColorStep): string {
+    if (value === true) return this.colors.neutral.faded.toString()
+    const { family, suffix } = parse_color_step(value)
+    if (suffix == null) return (family === "tint" ? this.colors.tint.mid : this.colors.neutral.faded).toString()
+    if (suffix === "surface") return this.colors[family].surface("n+1")
+    if (suffix === "separator") return this.colors[family].surface("n+2")
+    return this.colors[family].surface(suffix)
   }
 
   // Per-value caches for the parameterized `class_*` members below.

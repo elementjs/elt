@@ -43,7 +43,7 @@ import { popup } from "elt/ui"
 <button>
   {$click(async (ev) => {
     const result = await popup<string>(ev.currentTarget, (fut) => (
-      <e-column surface="background" border seamless packed="widget" align="stretch" role="menu">
+      <e-column surface="background" border seams="none" packed="widget" align="stretch" role="menu">
         <button role="menuitem">{$click(() => fut.resolve("copy"))}Copy</button>
         <button role="menuitem">{$click(() => fut.resolve("paste"))}Paste</button>
       </e-column>
@@ -76,7 +76,7 @@ A context menu opens at the pointer, from [`$context_menu`](./decorators.md#cont
 ```tsx
 popup(ev.currentTarget, (fut) => {
   const menu = (
-    <e-column surface="background" border seamless packed="widget" align="stretch" role="menu">
+    <e-column surface="background" border seams="none" packed="widget" align="stretch" role="menu">
       <button role="menuitem">{$click(() => fut.resolve("copy"))}Copy</button>
       <button role="menuitem">{$click(() => fut.resolve("paste"))}Paste</button>
     </e-column>

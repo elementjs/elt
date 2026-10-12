@@ -124,7 +124,7 @@ const tint_colors = (Object.keys(theme.colors) as (keyof typeof theme.colors)[])
 
 return <e-column spacing style={oo_style} class={o_color.tf(col => theme.colors[col].class_as_tint)}>
   <e-row spacing>
-    <e-row packed>
+    <e-row packed seams="children">
       {tint_colors.map(color => <label e-variant="toggle" class={theme.colors[color].class_as_tint}>
         <input type="checkbox">{$bind.boolean(o_color.tf(tf_equals(color)))}</input>
         <P.PaintRoller/>
@@ -135,7 +135,7 @@ return <e-column spacing style={oo_style} class={o_color.tf(col => theme.colors[
   </e-row>
 
   <e-row spacing>
-    <e-row packed>
+    <e-row packed seams="children">
       <button>Button</button>
       <button e-variant="tint"><P.CaretDown/></button>
     </e-row>
@@ -157,11 +157,11 @@ return <e-column spacing style={oo_style} class={o_color.tf(col => theme.colors[
   </fieldset>
 
   <e-row spacing align="stretch">
-    <e-row packed align="stretch">
+    <e-row packed seams="children" align="stretch">
       <input type="text" placeholder="Enter your text" />
       <button><P.MagnifyingGlass/></button>
     </e-row>
-    <e-row packed align="stretch">
+    <e-row packed seams="children" align="stretch">
       <input type="number" placeholder="number"/>
     </e-row>
     <button e-variant="inverted">
@@ -178,7 +178,7 @@ return <e-column spacing style={oo_style} class={o_color.tf(col => theme.colors[
   <e-row spacing align="stretch">
     <input type="email" required placeholder="Required email: type, erase, leave" />
     <input aria-invalid="true" value="aria-invalid" />
-    <e-row packed align="stretch">
+    <e-row packed seams="children" align="stretch">
       <input aria-invalid="true" value="invalid, packed" />
       <button><P.MagnifyingGlass/></button>
     </e-row>
@@ -324,7 +324,7 @@ used and go one (hover) or two (separator) steps further — a call site never n
 nesting depth.
 
 `packed[border]` ([Layout § packed](./ui-layout.md#packed)) is the mechanism for a group of rows like this: `packed`
-draws the border itself as a `1px` seam between rows, instead of the previous approach of a plain
+draws the border itself, with a `1px` line between rows (each row's own top edge), instead of the previous approach of a plain
 `surface` container with `border="n+2"` on each row — that older shape painted a square-cornered
 `surface` background behind rows whose own `border`-implied radius carved rounded corners, so the
 surface showed through in the gap between the rounded corner and the container's own square one.
@@ -335,7 +335,7 @@ border of its own, and the *container's* radius (not each row's) is what the who
 //@inline-example
 return <e-column packed border radius align="stretch">
   <e-prose hover><p>Hover me — background is tint.hover (level n+1)</p></e-prose>
-  <e-prose hover><p>The 1px line above is packed[border]'s own border, not a per-row divider</p></e-prose>
+  <e-prose hover><p>The 1px line above is this row's own top edge, drawn by packed[border], not a per-row divider</p></e-prose>
 </e-column>
 ```
 

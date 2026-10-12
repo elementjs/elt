@@ -131,26 +131,15 @@ export function CodeExample(props: CodeExampleProps) {
       LazyResult(props.run!)
     )
   const code_panel = () => (
-    <e-prose border="neutral" pad="none" self-align="stretch">
+    <e-prose pad="none" self-align="stretch">
       <div class={cls_pre_scroll}>{renderCode(props.highlighted)}</div>
     </e-prose>
   )
-  const result_panel = () => (
-    <e-prose border self-align="stretch">
-      {result}
-    </e-prose>
-  )
+  const result_panel = () => <e-prose self-align="stretch">{result}</e-prose>
 
   return (
-    <e-column packed align="stretch" radius="component">
-      <e-row
-        packed="widget"
-        border
-        pad="none"
-        align="stretch"
-        surface="neutral-2"
-        class={theme.colors.neutral.class_as_tint}
-      >
+    <e-column border packed align="stretch" radius="component">
+      <e-row packed="widget" pad="none" align="stretch" surface="neutral-2" class={theme.colors.neutral.class_as_tint}>
         <button e-variant={o_showing_code.tf((v) => (!v ? "inverted" : ""))}>
           {$click(() => o_showing_code.set(false))}
           <ph.TelevisionSimple /> Example
@@ -161,7 +150,7 @@ export function CodeExample(props: CodeExampleProps) {
         </button>
         <e-row grow>&nbsp;</e-row>
       </e-row>
-      {/* The panels are direct children of the packed column, so they join the toolbar. */}
+      {/* The panels are direct children of the packed column, which draws the frame and the line under the toolbar. */}
       {If(o_showing_code, code_panel, result_panel)}
     </e-column>
   )

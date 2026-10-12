@@ -1,8 +1,8 @@
 /*
 Composite grid (Layer 3): every composite (Object, Array, Set, Map, Table) is one `e-grid`, one
 `e-grid-row` per entry, whose cells are the widgets' own elements (Layer 4 "a widget renders one
-element: its cell"). Packed, the grid is bordered and its border draws the seams; cells take no
-border of their own (see "Grids" in docs/md/ui-layout.md). Unpacked, the rows are plain, aligned on the
+element: its cell"). Packed, the grid is bordered and draws the lines between its rows and cells (`seams`, default
+mode); cells take no border of their own (see "Grids" in docs/md/ui-layout.md). Unpacked, the rows are plain, aligned on the
 baseline of their first line, and each widget keeps its own border.
 
 Column widths: the grid first lays out as its content wants (each track's `initial` template), then
@@ -76,7 +76,7 @@ export function render_composite_grid<K>(props: CompositeGridProps<K>): HTMLElem
   const o_transient_ids = o(props.o_transient_ids ?? no_transients)
   const render_transient = props.render_transient ?? (() => null)
 
-  // Grid width beyond its tracks (seams, outer border), measured once at the first lock: with it, the
+  // Grid width beyond its tracks (lines, outer border), measured once at the first lock: with it, the
   // grid's min-width follows resized tracks without measuring again.
   const o_extra = o<number | null>(null)
 
@@ -188,7 +188,7 @@ export const LABEL_TRACK = "fit-content(16em)"
 
 /* Custom CSS: a scroll area needs a bounded height to scroll; no layout attribute gives one. It also
    takes the column's free height, from its content's height up (\`grow\` would start from 0 and
-   collapse it in a column of no set height), so no seam color shows under a short grid. */
+   collapse it in a column of no set height), so no empty space shows under a short grid. */
 const cls_grid_scroll = css`.oe-grid-scroll {
   max-height: 24em;
   flex-grow: 1;

@@ -1,13 +1,13 @@
 import { type Page, expect, test } from "./fixture"
-import { expect_seams } from "./seams"
 
-test.describe("packed seam suppression (docs/md/ui-layout.md, per-element self-detection)", () => {
+test.describe('packed seams="children": the children\'s own borders, never doubled (docs/md/ui-layout.md#packed)', () => {
   test("row: bordered button followed by an unbordered sibling still suppresses its own trailing border", async ({
     page,
   }) => {
     const aRight = await page.evaluate(() => {
       const row = document.createElement("e-row")
       row.setAttribute("packed", "")
+      row.setAttribute("seams", "children")
       const a = document.createElement("button")
       const plain = document.createElement("div")
       row.append(a, plain)
@@ -23,6 +23,7 @@ test.describe("packed seam suppression (docs/md/ui-layout.md, per-element self-d
     const aBottom = await page.evaluate(() => {
       const col = document.createElement("e-column")
       col.setAttribute("packed", "")
+      col.setAttribute("seams", "children")
       const a = document.createElement("button")
       const plain = document.createElement("div")
       col.append(a, plain)
@@ -38,6 +39,7 @@ test.describe("packed seam suppression (docs/md/ui-layout.md, per-element self-d
     const [aRight, bLeft] = await page.evaluate(() => {
       const row = document.createElement("e-row")
       row.setAttribute("packed", "")
+      row.setAttribute("seams", "children")
       const a = document.createElement("button")
       const b = document.createElement("button")
       row.append(a, b)
@@ -56,7 +58,7 @@ test.describe("packed seam suppression (docs/md/ui-layout.md, per-element self-d
     const r = await page.evaluate(() => {
       document.body.insertAdjacentHTML(
         "beforeend",
-        `<e-row id="r" packed><button>a</button><label e-variant="toggle"><input type="checkbox" checked>b</label><button>c</button></e-row>`,
+        `<e-row id="r" packed seams="children"><button>a</button><label e-variant="toggle"><input type="checkbox" checked>b</label><button>c</button></e-row>`,
       )
       const [a, b, c] = [...document.getElementById("r")!.children].map((e) => getComputedStyle(e))
       return {
@@ -78,7 +80,7 @@ test.describe("packed seam suppression (docs/md/ui-layout.md, per-element self-d
     const r = await page.evaluate(() => {
       document.body.insertAdjacentHTML(
         "beforeend",
-        `<e-row id="r" packed><button aria-pressed="true">a</button><button e-variant="tint">b</button></e-row>`,
+        `<e-row id="r" packed seams="children"><button aria-pressed="true">a</button><button e-variant="tint">b</button></e-row>`,
       )
       const [a, b] = [...document.getElementById("r")!.children].map((e) => getComputedStyle(e))
       return { a_right: a.borderRightStyle, b_left: b.borderLeftStyle }
@@ -91,7 +93,7 @@ test.describe("packed seam suppression (docs/md/ui-layout.md, per-element self-d
     const r = await page.evaluate(() => {
       document.body.insertAdjacentHTML(
         "beforeend",
-        `<e-column id="c" packed><button aria-selected="true">a</button><button>b</button></e-column>`,
+        `<e-column id="c" packed seams="children"><button aria-selected="true">a</button><button>b</button></e-column>`,
       )
       const [a, b] = [...document.getElementById("c")!.children].map((e) => getComputedStyle(e))
       return { a_bottom: a.borderBottomStyle, b_top: b.borderTopStyle }
@@ -104,7 +106,7 @@ test.describe("packed seam suppression (docs/md/ui-layout.md, per-element self-d
     const r = await page.evaluate(() => {
       document.body.insertAdjacentHTML(
         "beforeend",
-        `<e-row id="r" packed><button e-variant="tint" disabled>a</button><button>b</button></e-row>`,
+        `<e-row id="r" packed seams="children"><button e-variant="tint" disabled>a</button><button>b</button></e-row>`,
       )
       const [a, b] = [...document.getElementById("r")!.children].map((e) => getComputedStyle(e))
       return { a_right: a.borderRightStyle, b_left: b.borderLeftStyle }
@@ -117,6 +119,7 @@ test.describe("packed seam suppression (docs/md/ui-layout.md, per-element self-d
     const result = await page.evaluate(() => {
       const row = document.createElement("e-row")
       row.setAttribute("packed", "")
+      row.setAttribute("seams", "children")
       const a = document.createElement("button")
       const b = document.createElement("button")
       row.append(a, b)
@@ -131,6 +134,7 @@ test.describe("packed seam suppression (docs/md/ui-layout.md, per-element self-d
     const result = await page.evaluate(() => {
       const col = document.createElement("e-column")
       col.setAttribute("packed", "")
+      col.setAttribute("seams", "children")
       const a = document.createElement("button")
       const b = document.createElement("button")
       col.append(a, b)
@@ -145,6 +149,7 @@ test.describe("packed seam suppression (docs/md/ui-layout.md, per-element self-d
     const [aRight, bLeft] = await page.evaluate(() => {
       const row = document.createElement("e-row")
       row.setAttribute("packed", "")
+      row.setAttribute("seams", "children")
       const a = document.createElement("label")
       a.setAttribute("e-variant", "toggle")
       a.innerHTML = '<input type="checkbox">'
@@ -159,19 +164,23 @@ test.describe("packed seam suppression (docs/md/ui-layout.md, per-element self-d
     expect(bLeft).toBe("solid")
   })
 
-  test("a custom [border] element is suppressed the same as any native control", async ({ page }) => {
-    const aRight = await page.evaluate(() => {
+  test("a layout element with its own [border] is important like a tint button: it keeps its trailing edge", async ({
+    page,
+  }) => {
+    const [aRight, bLeft] = await page.evaluate(() => {
       const row = document.createElement("e-row")
       row.setAttribute("packed", "")
+      row.setAttribute("seams", "children")
       const a = document.createElement("e-prose")
       a.setAttribute("border", "")
       const b = document.createElement("e-prose")
       b.setAttribute("border", "")
       row.append(a, b)
       document.body.appendChild(row)
-      return getComputedStyle(a).borderRightStyle
+      return [getComputedStyle(a).borderRightStyle, getComputedStyle(b).borderLeftStyle]
     })
-    expect(aRight).toBe("none")
+    expect(aRight).toBe("solid")
+    expect(bLeft).toBe("none")
   })
 
   test("interior corner radii are zeroed regardless of border presence, outer corners untouched — unchanged by the border-ownership rework", async ({
@@ -180,6 +189,7 @@ test.describe("packed seam suppression (docs/md/ui-layout.md, per-element self-d
     const result = await page.evaluate(() => {
       const row = document.createElement("e-row")
       row.setAttribute("packed", "")
+      row.setAttribute("seams", "children")
       const a = document.createElement("e-prose")
       const b = document.createElement("e-prose")
       a.setAttribute("border", "")
@@ -214,6 +224,7 @@ test.describe("packed seam suppression (docs/md/ui-layout.md, per-element self-d
     const result = await page.evaluate(() => {
       const row = document.createElement("e-row")
       row.setAttribute("packed", "")
+      row.setAttribute("seams", "children")
       row.setAttribute("radius", "")
       const a = document.createElement("e-prose")
       const b = document.createElement("e-prose")
@@ -238,28 +249,41 @@ test.describe("packed seam suppression (docs/md/ui-layout.md, per-element self-d
 })
 
 test.describe("packed[border] (docs/md/ui-layout.md)", () => {
-  test("packed[border] draws its own border and seams in that border's color", async ({ page }) => {
-    const result = await page.evaluate(() => {
-      const row = document.createElement("e-row")
-      row.id = "packed-border"
-      row.setAttribute("packed", "")
-      row.setAttribute("border", "")
-      document.body.appendChild(row)
-      return getComputedStyle(row).borderTopStyle
+  test("packed[border] draws a frame and no gap: the lines between children are the children's own borders", async ({
+    page,
+  }) => {
+    const r = await page.evaluate(() => {
+      document.body.insertAdjacentHTML(
+        "beforeend",
+        `<e-row id="r" packed border><button>a</button><button>b</button><button>c</button></e-row>`,
+      )
+      const row = document.getElementById("r")!
+      const sty = (e: Element) => getComputedStyle(e)
+      const probe = document.createElement("div")
+      probe.style.backgroundColor = "var(--e-seam-color)"
+      row.appendChild(probe)
+      const seam = sty(probe).backgroundColor
+      probe.remove()
+      const [a, b, c] = [...row.children].map(sty)
+      return {
+        frame: sty(row).borderTopStyle,
+        gap: sty(row).columnGap,
+        seam,
+        a: [a.borderLeftStyle, a.borderRightStyle],
+        b: [b.borderLeftStyle, b.borderRightStyle, b.borderLeftColor, b.borderLeftWidth],
+        c: [c.borderLeftStyle, c.borderRightStyle],
+        across: [a.borderTopStyle, a.borderBottomStyle, b.borderTopStyle, c.borderBottomStyle],
+      }
     })
-    expect(result).toBe("solid")
-    await expect_seams(page, "#packed-border")
-  })
-
-  test("packed[border] gap between children is 1px", async ({ page }) => {
-    const gap = await page.evaluate(() => {
-      const row = document.createElement("e-row")
-      row.setAttribute("packed", "")
-      row.setAttribute("border", "")
-      document.body.appendChild(row)
-      return getComputedStyle(row).columnGap
-    })
-    expect(gap).toBe("1px")
+    expect(r.frame).toBe("solid")
+    expect(r.gap).toBe("normal")
+    // The frame wins the outline; the line between two children is the leading edge of the second.
+    expect(r.a).toEqual(["none", "none"])
+    expect(r.b.slice(0, 2)).toEqual(["solid", "none"])
+    expect(r.b[2]).toBe(r.seam)
+    expect(r.b[3]).toBe("1px")
+    expect(r.c).toEqual(["solid", "none"])
+    expect(r.across).toEqual(["none", "none", "none", "none"])
   })
 
   test("packed[border] children get the current-surface background by default", async ({ page }) => {
@@ -668,90 +692,252 @@ test.describe("packed and a child's own pad", () => {
   }
 })
 
-test.describe("packed border seamless (docs/md/ui-layout.md#packed)", () => {
-  test("keeps the frame, drops the gap, seam color and gap rules", async ({ page }) => {
-    const r = await page.evaluate(() => {
-      document.body.innerHTML = `
-        <e-column id="plain" packed border><button>a</button><button>b</button></e-column>
-        <e-column id="seamless" packed border seamless><button>a</button><button>b</button></e-column>`
-      const plain = document.getElementById("plain")!
-      const seamless = document.getElementById("seamless")!
-      const cs = getComputedStyle(seamless)
-      const [a, b] = seamless.querySelectorAll("button")
-      return {
-        plain_gap: getComputedStyle(plain).rowGap,
-        gap: cs.rowGap,
-        border: cs.borderTopStyle,
-        radius: cs.borderTopLeftRadius,
-        // the buttons touch: no seam between them
-        touching: Math.abs(a.getBoundingClientRect().bottom - b.getBoundingClientRect().top) < 0.01,
-        child_border: getComputedStyle(a).borderBottomStyle,
-        rule: (cs as unknown as { rowRuleStyle?: string }).rowRuleStyle ?? "none",
-      }
-    })
-    expect(r.plain_gap).toBe("1px")
-    expect(r.gap).toBe("0px")
-    expect(r.border).toBe("solid")
-    expect(r.radius).not.toBe("0px")
-    expect(r.touching).toBe(true)
-    expect(r.child_border).toBe("none")
-    expect(r.rule).toBe("none")
-  })
-
-  test("its background is the surface, not the seam color, even nested in a packed bordered parent", async ({
-    page,
-  }) => {
-    const r = await page.evaluate(() => {
-      document.body.innerHTML = `
-        <e-column packed border>
-          <e-column id="inner" packed border seamless><button>a</button><button>b</button></e-column>
-        </e-column>
-        <e-column id="top" packed border seamless><button>a</button></e-column>`
-      const inner = getComputedStyle(document.getElementById("inner")!)
-      const top = getComputedStyle(document.getElementById("top")!)
-      return {
-        inner_bg: inner.backgroundColor,
-        inner_gap: inner.rowGap,
-        top_bg: top.backgroundColor,
-        top_border: top.borderTopColor,
-      }
-    })
-    expect(r.inner_gap).toBe("0px")
-    expect(r.top_bg).not.toBe(r.top_border)
-    expect(r.inner_bg).not.toBe(r.top_border)
-  })
-
-  test("a borderless packed group in a cell of a packed bordered grid loses its children's borders and keeps a 1px seam", async ({
-    page,
-  }) => {
-    const r = await page.evaluate(() => {
-      document.body.innerHTML = `
-        <e-grid columns="2" packed border>
-          <e-grid-row><span>k</span><e-row id="grp" packed><input><button>b</button></e-row></e-grid-row>
-        </e-grid>
-        <e-column packed border><e-row id="direct" packed><button>a</button><button>b</button></e-row></e-column>`
-      const side = (sel: string) => {
-        const kids = [...document.querySelectorAll(`${sel} > *`)] as HTMLElement[]
-        return kids.map((k) => {
-          const st = getComputedStyle(k)
-          return [st.borderTopStyle, st.borderRightStyle, st.borderLeftStyle, st.borderTopLeftRadius].join(" ")
+// `seams`: who draws the lines between the children of a packed container. Each child is reported as
+// its four edges, top right bottom left, "s" for a solid border and "n" for none.
+test.describe("packed seams (docs/md/ui-layout.md#packed)", () => {
+  const edges = (page: Page, html: string, sel: string) =>
+    page.evaluate(
+      ([html, sel]) => {
+        document.body.innerHTML = html
+        return [...document.querySelectorAll(sel)].map((e) => {
+          const st = getComputedStyle(e)
+          return [st.borderTopStyle, st.borderRightStyle, st.borderBottomStyle, st.borderLeftStyle]
+            .map((v) => (v === "none" ? "n" : "s"))
+            .join("")
         })
-      }
-      return {
-        grp: side("#grp"),
-        direct: side("#direct"),
-        gap: getComputedStyle(document.getElementById("grp")!).columnGap,
-      }
+      },
+      [html, sel],
+    )
+  const color = (page: Page, sel: string, side: "Top" | "Left") =>
+    page.evaluate(
+      ([sel, side]) =>
+        (getComputedStyle(document.querySelector(sel)!) as unknown as Record<string, string>)[`border${side}Color`],
+      [sel, side],
+    )
+  const token = (page: Page, expr: string, sel: string) =>
+    page.evaluate(
+      ([expr, sel]) => {
+        const probe = document.createElement("div")
+        probe.style.backgroundColor = expr
+        document.querySelector(sel)!.appendChild(probe)
+        const c = getComputedStyle(probe).backgroundColor
+        probe.remove()
+        return c
+      },
+      [expr, sel],
+    )
+
+  test("none: the frame stays, every child's border goes, nothing is drawn between them", async ({ page }) => {
+    const kids = await edges(
+      page,
+      `<e-column id="c" packed border seams="none"><button>a</button><button>b</button></e-column>`,
+      "#c > button",
+    )
+    expect(kids).toEqual(["nnnn", "nnnn"])
+    const frame = await page.evaluate(() => getComputedStyle(document.getElementById("c")!).borderTopStyle)
+    expect(frame).toBe("solid")
+  })
+
+  test("default (no attribute): a line between every two children, the leading edge of the second", async ({
+    page,
+  }) => {
+    // A div has no border: the line is drawn all the same.
+    const kids = await edges(
+      page,
+      `<e-row id="r" packed><button>a</button><div>b</div><button>c</button></e-row>`,
+      "#r > *",
+    )
+    expect(kids).toEqual(["nnnn", "nnns", "nnns"])
+    expect(await color(page, "#r > div", "Left")).toBe(await token(page, "var(--e-seam-color)", "#r"))
+  })
+
+  test("default: the seam color is neutral-separator, two levels above the ambient surface", async ({ page }) => {
+    await edges(page, `<e-row id="r" packed><button>a</button><button>b</button></e-row>`, "#r > *")
+    expect(await token(page, "var(--e-seam-color)", "#r")).toBe(
+      await page.evaluate(() => {
+        const probe = document.createElement("div")
+        probe.style.backgroundColor = window.__ELT__.UI.theme.colors.neutral.surface("n+2")
+        document.getElementById("r")!.appendChild(probe)
+        return getComputedStyle(probe).backgroundColor
+      }),
+    )
+  })
+
+  test("default: a child whose border carries meaning keeps the edges it shares; the neighbour gives up its own", async ({
+    page,
+  }) => {
+    const kids = await edges(
+      page,
+      `<e-row id="r" packed><button>a</button><button e-variant="tint">b</button><button>c</button><button>d</button></e-row>`,
+      "#r > *",
+    )
+    // b: the edges across go, the shared ones stay; c, right after it, gives up its leading edge.
+    expect(kids).toEqual(["nnnn", "nsns", "nnnn", "nnns"])
+  })
+
+  test("default: a layout element with its own border is important, a packed group is not", async ({ page }) => {
+    const kids = await edges(
+      page,
+      `<e-column id="c" packed><button>a</button><e-prose border>b</e-prose><button>c</button><e-row packed border><button>d</button></e-row></e-column>`,
+      "#c > *",
+    )
+    // b keeps top and bottom (it shares both) and not the sides; c gives up its top; the group is a plain cell.
+    expect(kids).toEqual(["nnnn", "snsn", "nnnn", "snnn"])
+  })
+
+  test("default: two important children side by side share one line, the first one's", async ({ page }) => {
+    const kids = await edges(
+      page,
+      `<e-row id="r" packed><button aria-pressed="true">a</button><button e-variant="tint">b</button></e-row>`,
+      "#r > *",
+    )
+    // a keeps the line it shares (its trailing edge); b, which gives up its leading edge, has nothing left.
+    expect(kids).toEqual(["nsnn", "nnnn"])
+  })
+
+  test("forced: the container's line everywhere, important children included", async ({ page }) => {
+    const kids = await edges(
+      page,
+      `<e-row id="r" packed seams="forced"><button>a</button><button e-variant="tint">b</button><button aria-invalid="true">c</button></e-row>`,
+      "#r > *",
+    )
+    expect(kids).toEqual(["nnnn", "nnns", "nnns"])
+  })
+
+  test("with a frame, the children's edges on its outline go in every mode, an important child's too", async ({
+    page,
+  }) => {
+    for (const seams of ["default", "forced", "none", "children"]) {
+      const kids = await edges(
+        page,
+        `<e-row id="r" packed border seams="${seams}"><button e-variant="tint">a</button><button e-variant="tint">b</button></e-row>`,
+        "#r > *",
+      )
+      // Top, bottom, the first one's leading edge and the last one's trailing edge: never drawn.
+      expect(kids[0][0]).toBe("n")
+      expect(kids[0][2]).toBe("n")
+      expect(kids[0][3]).toBe("n")
+      expect(kids[1][0]).toBe("n")
+      expect(kids[1][1]).toBe("n")
+      expect(kids[1][2]).toBe("n")
+    }
+  })
+
+  test("seam-color changes the color of the lines the container draws", async ({ page }) => {
+    await edges(page, `<e-row id="r" packed seam-color="tint-3"><button>a</button><button>b</button></e-row>`, "#r > *")
+    const ref = await page.evaluate(() => {
+      const probe = document.createElement("div")
+      probe.style.backgroundColor = window.__ELT__.UI.theme.colors.tint.surface(3)
+      document.getElementById("r")!.appendChild(probe)
+      return getComputedStyle(probe).backgroundColor
     })
-    expect(r.grp).toEqual(["none none none 0px", "none none none 0px"])
-    expect(r.direct).toEqual(["none none none 0px", "none none none 0px"])
-    expect(r.gap).toBe("1px")
+    expect(await color(page, "#r > button:nth-child(2)", "Left")).toBe(ref)
+  })
+
+  test("a nested group inherits the mode and the color, and can set its own", async ({ page }) => {
+    const html = `
+      <e-column id="c" packed seams="forced" seam-color="tint-3">
+        <e-row id="g1" packed><button e-variant="tint">a</button><button>b</button></e-row>
+        <e-row id="g2" packed seams="none"><button>c</button><button>d</button></e-row>
+      </e-column>`
+    // g1 inherits forced: the tint button gets the plain line; g2 draws none between its own children.
+    expect(await edges(page, html, "#g1 > *")).toEqual(["nnnn", "nnns"])
+    expect(await edges(page, html, "#g2 > *")).toEqual(["nnnn", "nnnn"])
+    const tint3 = await page.evaluate(() => {
+      const probe = document.createElement("div")
+      probe.style.backgroundColor = window.__ELT__.UI.theme.colors.tint.surface(3)
+      document.body.appendChild(probe)
+      return getComputedStyle(probe).backgroundColor
+    })
+    expect(await color(page, "#g1 > button:nth-child(2)", "Left")).toBe(tint3)
+  })
+
+  test("a non-packed element in between breaks the inheritance", async ({ page }) => {
+    const html = `
+      <e-column packed seams="none">
+        <div><e-row id="g" packed><button>a</button><button>b</button></e-row></div>
+      </e-column>`
+    expect(await edges(page, html, "#g > *")).toEqual(["nnnn", "nnns"])
+  })
+
+  test("a group is a cell of its container: the line around it is the container's, its children draw only theirs", async ({
+    page,
+  }) => {
+    const html = `
+      <e-column id="c" packed border>
+        <e-row id="r1" packed border><button>a</button><button>b</button></e-row>
+        <e-row id="r2" packed><button>c</button><button>d</button></e-row>
+      </e-column>`
+    // The group's own border is ignored (the container's frame is the only one); the second row draws the line above it.
+    expect(await edges(page, html, "#c > *")).toEqual(["nnnn", "snnn"])
+    // Their children: nothing across, nothing on the group's outline, one line between them.
+    expect(await edges(page, html, "#r1 > *")).toEqual(["nnnn", "nnns"])
+    expect(await edges(page, html, "#r2 > *")).toEqual(["nnnn", "nnns"])
+  })
+
+  test("children: a group inside keeps its own border", async ({ page }) => {
+    const kids = await edges(
+      page,
+      `<e-column id="c" packed seams="children"><e-row packed border><button>a</button></e-row><button>b</button></e-column>`,
+      "#c > *",
+    )
+    // The group is a child like another: it gives up its trailing edge to the next one.
+    expect(kids).toEqual(["ssns", "ssss"])
+  })
+
+  test("grid: the second row draws the line above it, a row's cells the line between them", async ({ page }) => {
+    const html = `
+      <e-grid id="g" columns="2" packed border>
+        <e-grid-row id="r1"><button>a</button><button>b</button></e-grid-row>
+        <e-grid-row id="r2"><button>c</button><button>d</button></e-grid-row>
+      </e-grid>`
+    expect(await edges(page, html, "#g > e-grid-row")).toEqual(["nnnn", "snnn"])
+    expect(await edges(page, html, "#r1 > *")).toEqual(["nnnn", "nnns"])
+    expect(await edges(page, html, "#r2 > *")).toEqual(["nnnn", "nnns"])
+  })
+
+  test("grid: the rows are one box each, the lines don't change the column tracks", async ({ page }) => {
+    const r = await page.evaluate(() => {
+      document.body.innerHTML = `
+        <e-grid id="g" columns="2" packed border style="width: 300px">
+          <e-grid-row><span>a</span><span>b</span></e-grid-row>
+          <e-grid-row><span>c</span><span>d</span></e-grid-row>
+        </e-grid>`
+      const x = (e: Element) => Math.round(e.getBoundingClientRect().left)
+      const [a, b, c, d] = [...document.querySelectorAll("#g span")]
+      return { aligned: x(a) === x(c) && x(b) === x(d), widths: [a, b].map((e) => e.getBoundingClientRect().width) }
+    })
+    expect(r.aligned).toBe(true)
+  })
+
+  test("a sticky=top header carries a copy of the line under it, over the next row's top edge", async ({ page }) => {
+    const html = `
+      <e-column id="c" packed border>
+        <e-row sticky="top" packed><b>h</b></e-row>
+        <e-row><span>a</span></e-row>
+      </e-column>`
+    expect(await edges(page, html, "#c > *")).toEqual(["nnsn", "snnn"])
+    const margin = await page.evaluate(() => getComputedStyle(document.querySelector("#c > [sticky]")!).marginBottom)
+    expect(margin).toBe("-1px")
+  })
+
+  test("<hr> is a 1px divider in the color of the container's lines", async ({ page }) => {
+    const r = await page.evaluate(() => {
+      document.body.innerHTML = `<e-column id="c" packed border seams="none"><button>a</button><hr /></e-column>`
+      const probe = document.createElement("div")
+      probe.style.backgroundColor = "var(--e-seam-color)"
+      document.getElementById("c")!.appendChild(probe)
+      const seam = getComputedStyle(probe).backgroundColor
+      probe.remove()
+      return { hr: getComputedStyle(document.querySelector("#c > hr")!).backgroundColor, seam }
+    })
+    expect(r.hr).toBe(r.seam)
   })
 
   test("<hr> in a packed column is an unpadded 1px divider across it", async ({ page }) => {
     const r = await page.evaluate(() => {
       document.body.innerHTML = `
-        <e-column id="col" packed="widget" border seamless align="stretch" style="width: 200px">
+        <e-column id="col" packed="widget" border seams="none" align="stretch" style="width: 200px">
           <button>a</button><hr /><button>b</button>
         </e-column>`
       const col = document.getElementById("col")!
@@ -774,13 +960,37 @@ test.describe("packed border seamless (docs/md/ui-layout.md#packed)", () => {
 
   test("<hr> in a packed row is a 1px divider down it", async ({ page }) => {
     const r = await page.evaluate(() => {
-      document.body.innerHTML = `<e-row id="row" packed border seamless><button>a</button><hr /><button>b</button></e-row>`
+      document.body.innerHTML = `<e-row id="row" packed border seams="none"><button>a</button><hr /><button>b</button></e-row>`
       const row = document.getElementById("row")!
       const hr = row.querySelector("hr")!.getBoundingClientRect()
       return { width: hr.width, height: hr.height, row_inner: row.clientHeight }
     })
     expect(r.width).toBe(1)
     expect(r.height).toBeCloseTo(r.row_inner, 0)
+  })
+
+  test("the radius of the outermost container is handed down through nested groups to the corner cells", async ({
+    page,
+  }) => {
+    const r = await page.evaluate(() => {
+      document.body.innerHTML = `
+        <e-column id="c" packed border radius="section">
+          <e-row packed id="top"><button>a</button><button>b</button></e-row>
+          <e-row packed id="bottom"><button>c</button><button>d</button></e-row>
+        </e-column>`
+      const radius = (e: Element) => {
+        const st = getComputedStyle(e)
+        return [st.borderTopLeftRadius, st.borderTopRightRadius, st.borderBottomRightRadius, st.borderBottomLeftRadius]
+      }
+      const col = getComputedStyle(document.getElementById("c")!).borderTopLeftRadius
+      const [a, b] = [...document.querySelectorAll("#top > *")].map(radius)
+      const [c, d] = [...document.querySelectorAll("#bottom > *")].map(radius)
+      return { col, a, b, c, d }
+    })
+    expect(r.a).toEqual([r.col, "0px", "0px", "0px"])
+    expect(r.b).toEqual(["0px", r.col, "0px", "0px"])
+    expect(r.c).toEqual(["0px", "0px", "0px", r.col])
+    expect(r.d).toEqual(["0px", "0px", r.col, "0px"])
   })
 })
 
@@ -823,7 +1033,7 @@ test.describe('packed="X" is the container\'s own step (docs/md/ui-layout.md#pac
     const r = await run(page, { packed: "widget", border: "" })
     expect(r.radius).toBe(r.widget)
     expect(r.inherited).toBe(r.widget)
-    expect(r.gap).toBe("1px") // the seam drawn by border, not the widget step
+    expect(r.gap).toBe("normal") // the lines are the children's borders, not a gap
   })
 
   test("an explicit spacing wins over it", async ({ page }) => {
@@ -848,7 +1058,9 @@ test.describe("packed and hidden children (docs/md/ui-layout.md#packed)", () => 
       ({ tag, hide, border }) => {
         const c = document.createElement(tag)
         c.setAttribute("packed", "")
+        // With a frame the container draws the lines (leading edges); without, the children's own borders are shared.
         if (border) c.setAttribute("border", "")
+        else c.setAttribute("seams", "children")
         c.setAttribute("radius", "section")
         c.id = "hc"
         for (let i = 0; i < 4; i++) {
@@ -912,8 +1124,15 @@ test.describe("packed and hidden children (docs/md/ui-layout.md#packed)", () => 
         expect(a.lead_r).toEqual([r.radius, r.radius])
         expect(c.trail_r).toEqual([r.radius, r.radius])
         expect([...a.trail_r, ...b.lead_r, ...b.trail_r, ...c.lead_r]).toEqual(Array(8).fill("0px"))
-        expect([a.lead, a.trail, b.lead, b.trail, c.lead, c.trail]).toEqual(Array(6).fill("none"))
-        await expect_seams(page, "#hc")
+        // The frame has the outline; the line before each of the two later visible children is theirs.
+        expect([a.lead, a.trail, b.lead, b.trail, c.lead, c.trail]).toEqual([
+          "none",
+          "none",
+          "solid",
+          "none",
+          "solid",
+          "none",
+        ])
       })
     }
   }

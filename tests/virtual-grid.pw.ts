@@ -417,7 +417,10 @@ test.describe("infinite e-grid with sticky rows", () => {
         const inner_bottom = a.bottom - Number.parseFloat(cs.borderBottomWidth)
         return {
           head: Math.round(area.querySelector(".head")!.getBoundingClientRect().top - inner_top),
-          foot: Math.round(inner_bottom - area.querySelector(".foot")!.getBoundingClientRect().bottom),
+          // Not rounded: the grid's height is fractional (the list's padders are sized from a damped
+          // row-height estimate) while the scroll area's scrollHeight is an integer, so at the very end
+          // of the list the footer may sit a fraction of a pixel off the edge.
+          foot: inner_bottom - area.querySelector(".foot")!.getBoundingClientRect().bottom,
         }
       }
       const out: Record<string, { head: number; foot: number }> = { top: pos() }
@@ -431,12 +434,15 @@ test.describe("infinite e-grid with sticky rows", () => {
       const rendered = area.querySelectorAll(".row").length
       return { out, rendered }
     })
-    for (const k of ["top", "middle", "end", "back"]) expect(res.out[k], k).toEqual({ head: 0, foot: 0 })
+    for (const k of ["top", "middle", "end", "back"]) {
+      expect(res.out[k]!.head, k).toBe(0)
+      expect(Math.abs(res.out[k]!.foot), k).toBeLessThan(1)
+    }
     expect(res.rendered).toBeLessThan(200)
   })
 
-  // The 1px seam under the header is the header's own bottom border, laid over the grid's gap
-  // (ui/layout.css.tsx): row 0 starts where the header's box ends.
+  // The 1px line under the header is the header's own bottom border (ui/layout.css.tsx), laid over
+  // row 0's top edge: row 0 starts one pixel above where the header's box ends.
   test("row 0 sits right under the sticky header's 1px seam, and the grid draws no frame of its own", async ({
     page,
   }) => {
@@ -448,6 +454,7 @@ test.describe("infinite e-grid with sticky rows", () => {
       const grid = getComputedStyle(area.querySelector("e-grid")!)
       return {
         seam: getComputedStyle(area.querySelector(".head")!).borderBottomWidth,
+        row0_top: getComputedStyle(area.querySelector(".row")!).borderTopWidth,
         gap: row0.top - head.bottom,
         label: area.querySelector(".row")!.textContent,
         grid_border: grid.borderTopWidth,
@@ -455,7 +462,10 @@ test.describe("infinite e-grid with sticky rows", () => {
     })
     expect(res.label).toBe("0bc")
     expect(res.seam).toBe("1px")
-    expect(res.gap).toBe(0)
+    // One line between the header and row 0, not two: the header's bottom edge covers row 0's top
+    // edge (-1px margin), so every row keeps the same height, row 0 included.
+    expect(res.row0_top).toBe("1px")
+    expect(res.gap).toBe(-1)
     expect(res.grid_border).toBe("0px")
   })
 

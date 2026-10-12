@@ -19,7 +19,7 @@ section: UI Recipes
 | `model` | `Observable<unknown>` | The edited value (required) |
 | `schema` | a schema (`object(...)`, `array(...)`, `either(...)`, …) | What the value may hold. Without it, the editor works in unknown mode: any JSON-like value, with its type changeable |
 | `prefer_popups` | `boolean` | Open nested values in a popup instead of a new column to the right (a schema can still choose per value) |
-| `packed` | `boolean` (default `false`) | Draw each column as one framed group whose header line, toolbar and rows touch and share seams, Without it, a column has no frame: its rows are spaced by the usual elt/ui spacing. See [Packed or not](#packed-or-not) |
+| `packed` | `boolean` (default `false`) | Draw each column as one framed group whose header line, toolbar and rows touch and share lines. Without it, a column has no frame: its rows are spaced by the usual elt/ui spacing. See [Packed or not](#packed-or-not) |
 | `show_title`, `show_filter`, `show_add`, `show_menu` | `boolean` (default `true`) | Which parts of a column appear. See [Showing and hiding parts](#showing-and-hiding-parts) |
 | `show_undo_redo` | `boolean` (default `true`) | The *Undo*/*Redo* buttons of the root column's header line |
 | `undo` | `{ depth?, import_undo_depth? } \| false` | Size of the *Undo*/*Redo* history. `false` turns the history off: no buttons, no shortcut |
@@ -36,7 +36,7 @@ The editor can be packed. By default it is not: a column has no frame and no bac
 
 `packed` is also an option of every schema node (`object({ packed: true, … })`), and then replaces the attribute for that node. Unlike the other settings, it carries on to what the node opens: the columns and popups opened from a packed node are packed, and those opened from an unpacked one are not, until a node sets it again. A popup is always a framed panel; packed, its content is one group; unpacked, it is rows.
 
-The grid of a table (an array of objects shown with a column per key) is always packed, whatever `packed` says: it is a spreadsheet-like control whose cells need their seams. The frame, header line and toolbar around it follow the setting.
+The grid of a table (an array of objects shown with a column per key) is always packed, whatever `packed` says: it is a spreadsheet-like control whose cells need their lines. The frame, header line and toolbar around it follow the setting.
 
 ## Showing and hiding parts
 

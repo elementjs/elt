@@ -118,7 +118,8 @@ Alignment values: `center`, `start`, `end`, `self-start`, `baseline`, `first bas
 | `reverse` | flex elements | Reverses the direction. |
 | `wrap` | flex elements | `flex-wrap: wrap`. |
 | `packed` | all four | Children touch — see [packed](#packed) and, for grids, [Grids](#grids). Bare, or a spacing step for the children's padding, which is also the container's own step. |
-| `seamless` | all four, with `packed border` | Keeps the frame, draws no seams between the children — see [packed](#packed). |
+| `seams` | all four, with `packed` | Who draws the lines between the children: `none`, `children`, `default` (when absent) or `forced` — see [Lines between the children](#lines-between-the-children). |
+| `seam-color` | all four, with `packed` | The color of the lines the container draws, in the values of `border`; `neutral-separator` when absent. |
 | `columns` | `e-grid` | 1 to 12: that many equal columns — see [Grids](#grids). |
 
 `e-grid-row` takes only `surface`, `hover`, `align` and `sticky`.
@@ -157,7 +158,7 @@ Alignment values: `center`, `start`, `end`, `self-start`, `baseline`, `first bas
 | `packed="widget"` (a step) | That step, independently of the container's own `pad` |
 | `pad="none"` with bare `packed` | No padding |
 
-The container's own `pad` still pads the container itself. `packed` never adds a gap, except the 1px seam below.
+The container's own `pad` still pads the container itself. `packed` never adds a gap.
 
 **Cells read at the size of controls.** A packed container is a control-sized surface: its cells take the controls' font size (`theme.settings.formFontSize`) and line height (1.2). Text cells then line up with the fields next to them in a stretched row, and a menu or table-like grid looks the same as the controls in it. A control, a heading or an `e-prose` cell keeps the size it sets itself (`e-prose` is a text run again, at the page's font size).
 
@@ -167,30 +168,45 @@ The container's own `pad` still pads the container itself. `packed` never adds a
 - **The step is inherited by nested packed groups.** A packed group inside `packed="widget"` that is itself bare `packed` pads its own cells at `widget`, not at the ambient step; it takes its step from the container around it, as any element does, and a `packed="X"` or `pad` of its own overrides that. Descendants of `packed="X"` also see X as the step their parent spaces them at (the margins a prose container gives its block children), exactly as with `spacing="X"`.
 - Bare `packed` with `pad="none"` pads nothing, so nothing tells it what it packs: set the step with `spacing`. A column that only frames groups that pad themselves, such as a header row and a grid of `packed="widget"` rows, is `<e-column packed border pad="none" spacing="widget">`. Without `spacing="widget"`, it would inherit `component` and draw 12px corners around 6px ones.
 
-- **Without `border` on the container**: each child keeps its own border (native controls already have one; `border` gives one to anything else), and every child except the last drops its trailing-edge border (`border-right` in a row, `border-bottom` in a column), so adjacent bordered children share one line. This happens whether or not the child has a border.
-  - **A border that carries meaning wins the shared line.** A child whose border shows a variant or a state keeps its trailing edge, and the child after it drops its leading edge instead, so its color shows on both sides. That covers `tint` and `inverted` buttons, a `tint` input, a checked toggle, and any child with `aria-pressed="true"`, `aria-selected="true"`, `aria-current`, `aria-invalid="true"` or `:user-invalid`. An app's own widgets get the same treatment by setting these ARIA states. A disabled child is not concerned: it is furniture. When two such children are side by side, the first one's border is the shared line.
-  - The children don't overlap to share the line: at a fractional display scale, an overlapped edge is antialiased and blends both colors.
-- **With `border` on the container**: the container draws the border. It gets a 1px gap between children, and the gap shows as a seam of the border's color. Every child gets `border: none` and the ambient surface as background (a background you set on the child yourself still wins). How the seam is drawn depends on the browser:
-  - Where CSS gap decorations are supported (Chromium), a 1px `row-rule`/`column-rule` is drawn in the gap, and the container's background is the surface. A rule's width is rounded to whole screen pixels like a border's, so every seam stays one screen pixel wide at a fractional display scale (125%, 150%).
-  - Elsewhere (Firefox, Safari), the container's background is the border's color and shows through the gap. A gap isn't rounded to screen pixels, so at a fractional display scale some seams are drawn 1 screen pixel wide and others 2.
-- **`seamless`, with `border`**: the container draws its border and radius, but no seams: no gap, and the surface as background. Use it when seams between every child would be noise, as in a menu, and separate groups of children with `<hr>`.
-- **`<hr>`** directly inside a `packed` row or column is a divider, not a padded child: a 1px line from edge to edge (across a column, down a row), with no padding or margin.
-- **Radius**: interior seams are always square. When the container has a radius (its own `border`, or `radius`), the first and last children's outer corners take exactly the container's radius. When it has neither, each child keeps its own radius at every corner.
+- **`border` on the container draws a frame and nothing else.** The container's border and radius. The children's own borders on the frame's outline (their edges across, the first one's leading edge, the last one's trailing edge) are never drawn, whatever their variant or state: the frame owns the outline. Without `border` the group has no frame, and what happens to the outline depends on `seams` below.
+
+### Lines between the children
+
+`seams` says who draws the lines between the children of a `packed` container, and which of their own borders stay. A line is a border: no gap is involved, so every line is one whole screen pixel wide at any display scale. The line between two children is the leading edge (`border-left` in a row, `border-top` in a column) of the second one.
+
+| `seams` | The line between two children | The children's own borders |
+| ------- | ----------------------------- | -------------------------- |
+| `none` | None. | All removed. |
+| `children` | The children's own: each child but the last drops its trailing edge, so neighbours share one line and a border is never doubled. | Kept. |
+| `default` (when the attribute is absent) | Drawn by the container, in `seam-color`, between every two children, even between two that have no border. | Removed, except a child whose border carries meaning (below), which keeps the lines it shares. |
+| `forced` | Drawn by the container, in `seam-color`, whatever the children carry. | All removed. |
+
+`seam-color` takes the values of `border`; `neutral-separator` is the default, two levels above the surface: lighter than a frame, which is `border`'s own color. `seam-color` only has an effect in `default` and `forced`.
+
+- **A border that carries meaning wins the line it shares** (`children` and `default`). A child whose border shows a variant or a state keeps the edges it shares with its neighbours, and the child after it drops its leading edge, so its color shows on both sides. That covers `tint` and `inverted` buttons, a `tint` input, a checked toggle, and any child with `aria-pressed="true"`, `aria-selected="true"`, `aria-current`, `aria-invalid="true"` or `:user-invalid`. An app's own widgets get the same treatment by setting these ARIA states. A layout element that sets its own `border` (an `<e-prose border>` panel) counts too; a packed group does not (see below). A disabled child is not concerned: it is furniture. When two such children are side by side, the first one's border is the shared line. It wins only the lines it shares with a sibling, never the container's outline. A grid row has no border of its own to win with: mark a state on its cells, not on the row (a row with `aria-selected="true"` would make the next row give up its top line, and leave none).
+- **Without `border` on the container**, `default`, `forced` and `none` still remove the children's borders on the outline: the children are then lines and fills with no outline. To get the outline back, add `border`, or use `children`, which leaves the children their own (a button toolbar, `<e-row packed="widget" seams="children">`).
+- **The mode and the color are inherited** by the packed groups inside the container, and a group can set its own. A non-packed element in between ends the inheritance: a group in a `div` in a packed column starts from `default` again.
+- **A packed group inside a packed container is one of its cells.** The line around it belongs to the container (the group's top edge when it comes after another child, say); the group's own children draw only the lines between themselves, and never an edge on the group's outline. The group's own `border` is ignored, except in a `children` container, which leaves its children their borders. This works at any depth, and a grid row is such a group. A meaningful border wins a line only between siblings: a `tint` button that is the last child of a row cannot color the line between that row and the next.
+- A **sticky header** (`sticky="top"`, [Scroll areas and sticky elements](#scroll-areas-and-sticky-elements)) carries a copy of the line under it: that line is the next row's top edge, which scrolls away with that row.
+- **A row or column that doesn't reach the frame needs a filler.** The last child ends where its content ends: if that is short of the container's end, the frame and the last child are not adjacent and no line fills the hole. Put an empty child that grows at the end (`<e-row grow>&nbsp;</e-row>`), or in a grid row an empty cell that spans the remaining columns.
+- A line is a child's border, so a child must fill its area for the line to run its whole length: a row whose `align` doesn't stretch its cells (`start`, `center`, the default `baseline` of a flex row) draws lines as tall as each cell.
+- **`<hr>`** directly inside a `packed` row or column is a divider, not a padded child: a 1px line from edge to edge (across a column, down a row), with no padding or margin, in `seam-color`. It is for `seams="none"`, where it is the only line (a menu): in the other modes it adds to the container's lines.
+- **Radius**: interior lines are always square. When the container has a radius (its own `border`, or `radius`), the first and last children's outer corners take exactly the container's radius, and a packed group among them hands its corners down to its own first and last children: the outermost container with a radius owns it. When no packed container above has a radius, each child keeps its own radius at every corner.
 - A focused child is drawn above its neighbors so its focus ring isn't covered. Sticky elements stay above it ([Scroll areas and sticky elements](#scroll-areas-and-sticky-elements)).
-- **The outermost container draws the frame.** A `packed border` container inside another `packed border` container (a row of buttons in a bordered column, say) loses its own border like any child, but keeps its seams between its own children. The same goes for a borderless `packed` group that is a cell of a `packed border` container (a field made of an input and a button, in a cell of a bordered grid): its children lose their borders and corner radii, and its own seams are 1px rules in the border's color. Inside a scroll area, a `packed border` child drops its outer border and radius too: the scroll area draws the frame, with its own `border` ([Scroll areas and sticky elements](#scroll-areas-and-sticky-elements)).
+- **The outermost container draws the frame.** A `packed border` group inside a packed container loses its own border like any cell ([Lines between the children](#lines-between-the-children)). Inside a scroll area, a `packed border` child drops its outer border and radius too: the scroll area draws the frame, with its own `border` ([Scroll areas and sticky elements](#scroll-areas-and-sticky-elements)).
 - Limitation: when a packed row wraps, its first and last children may end up on different lines, and the outer-corner radius then looks wrong.
 - **Hidden children.** In a packed grid, a hidden row is skipped: when the last row is hidden, the one before it gets the grid's outer corners; the same goes for the cells of a row. Between the children of a packed row or column, a hidden child draws nothing and leaves no double or missing line. But a hidden *first or last* child of a packed row or column still counts as first or last: the visible child next to it does not get the container's outer corners, and keeps no trailing border. Render such a child conditionally (`If`) instead of hiding it. (Skipping it would make every insertion at the end of a long packed row or column restyle all the children before it.) A `hidden="until-found"` child counts as displayed: the browser keeps its box, empty but padded, so that find-in-page can reveal it.
 - Limitation: a child whose border carries meaning, followed by three or more hidden children in a row, does not take the next displayed child's leading edge: both edges show, a 2px line. One or two hidden children in between are handled.
 
 ```tsx
-<e-row packed>
+<e-row packed seams="children">
   <button>Bold</button>
   <button>Italic</button>
 </e-row>
 
 <e-column packed="widget" border="tint-2" role="listbox">…rows…</e-column>
 
-<e-column packed="widget" border seamless align="stretch" role="menu">
+<e-column packed="widget" border seams="none" align="stretch" role="menu">
   <button role="menuitem">Cut</button>
   <button role="menuitem">Copy</button>
   <hr />
@@ -210,9 +226,10 @@ More examples: [Forms § Button groups and menus](./ui-forms.md#button-groups-an
 
 `packed` on a grid works on its **cells**: the grid's children, except that a row isn't a cell — its children are.
 
-- **Without `border`**: no gap; cells are padded like the children of any `packed` container. Their borders are left alone: a grid has no single "trailing edge".
-- **With `border`**: the grid draws the border, and 1px seams of the same color run between all cells, rows included. Cells take the surface as background. A row with its own `surface` colors its cells and still shows its seams; a row with `hover` changes its cells' color when hovered.
-- **Cells must fill their area** in a bordered grid: where the seams are the grid's own background showing through 1px gaps (browsers without gap decorations, see [`packed`](#packed) above), any part of a cell's area the cell doesn't cover shows the seam color. That happens with a control that keeps its own size (a checkbox), a row whose `align` stops its cells from stretching to the row's height (`start`, `center`), and a cell with a transparent background of its own (`e-variant="text"` buttons). Leave rows stretching (the default), and put a fixed-size control in an element that fills the cell, such as a `label` around a checkbox.
+- **Without `border`**: no gap; cells are padded like the children of any `packed` container.
+- **Lines**: `seams` works as on any packed container ([Lines between the children](#lines-between-the-children)), with rows as the grid's children along the column, and a row's cells along the row. The line between two rows is the top edge of the second row; the line between two cells of a row is the left edge of the second. `children` has no lines to share in two directions: the cells keep every border. Place the cells in rows: a cell placed directly in the grid gets no line.
+- **With `border`**: the grid draws the frame, and in `default` and `forced` a line in `seam-color` runs between all cells, rows included. A row with its own `surface` colors its cells and still shows its lines; a row with `hover` changes its cells' color when hovered.
+- **Every row must reach the last column**, as every row or column of a framed container must reach its end: a row with fewer cells ends with an empty cell that spans the remaining columns. Cells must also fill their area for the lines to run their whole length: a row whose `align` stops its cells from stretching to the row's height (`start`, `center`) draws lines as tall as each cell. Leave rows stretching (the default), and put a fixed-size control in an element that fills the cell, such as a `label` around a checkbox.
 - **Radius**: cells are square, except the outer corners of the first and last rows, which take the grid's radius when it has one. This only works with rows: a cell placed directly in the grid can't be told apart from an inner one, so a square corner cell may show past the grid's rounded border. Use rows, or `radius="none"`.
 
 ```tsx
@@ -230,11 +247,11 @@ More examples: [Forms § Button groups and menus](./ui-forms.md#button-groups-an
 - A scroll that reaches the end of a scroll area carries on to the enclosing scroll area or the page, as everywhere on the web; a scroll area that doesn't overflow lets the page scroll under the pointer. An area that must never move what's behind it (a modal's content over a scrolling page, a chat log) sets `overscroll-behavior: contain` itself — note that this also blocks the page while the area has nothing to scroll.
 - The page itself doesn't bounce: the `elt/ui` reset sets `overscroll-behavior: none` on `html` and `body`. On mobile this also turns off pull-to-refresh; a page that wants it back sets `html { overscroll-behavior: auto }`.
 - In a flex scroll area (`e-column scroll`, `e-row scroll="x"`, …), children keep their size along the scrolled axis instead of shrinking to fit — otherwise nothing would overflow, and nothing would scroll. A child that is itself a scroll area is the exception: it shrinks, and scrolls its own content.
-- The scroll area draws the frame: a `packed border` child loses its own outer border and radius, keeps its seams, and is clipped to the scroll area's rounded edge. Put `border` on the scroll area.
+- The scroll area draws the frame: a `packed border` child loses its own outer border and radius, keeps its lines, and is clipped to the scroll area's rounded edge. Put `border` on the scroll area.
 
-`sticky="top"` / `sticky="bottom"` keeps an element on that edge of the nearest scroll area while the content scrolls under it: a table header, a totals row. It gets an opaque background (the current surface, or its own `surface`) and is drawn above the scrolled content, a focused cell included: as in a spreadsheet, a cell scrolled under a stuck header passes beneath it, focus ring and all. A sticky row of a `packed border` grid keeps its seams.
+`sticky="top"` / `sticky="bottom"` keeps an element on that edge of the nearest scroll area while the content scrolls under it: a table header, a totals row. It gets an opaque background (the current surface, or its own `surface`) and is drawn above the scrolled content, a focused cell included: as in a spreadsheet, a cell scrolled under a stuck header passes beneath it, focus ring and all. A sticky row of a `packed border` grid keeps its lines.
 
-- In a `packed border` grid or column (not `seamless`), a sticky element keeps the seam between it and the scrolled content while it is stuck. That seam is normally the container's 1px gap, which scrolls away with the content, so the sticky element draws a copy of it as its own border on that side (bottom for `sticky="top"`, top for `sticky="bottom"`), pulled back over the gap by a -1px margin. Nothing to set: layout is unchanged, and at rest the copy covers the gap exactly. It uses that side's border and margin for this, so don't set them yourself.
+- In a packed column or grid (`default` or `forced`), a `sticky="top"` element keeps the line between it and the scrolled content while it is stuck. That line is normally the next element's top edge, which scrolls away with it, so the sticky element carries a copy as its own bottom border, pulled back over that top edge by a -1px margin. Nothing to set: layout is unchanged, and at rest the copy covers the line exactly. It uses its bottom border and margin for this, so don't set them yourself. A `sticky="bottom"` element's top edge is its own line, like any element that has one above it.
 
 - Don't `pad` a scroll area that contains sticky elements: they stick at its padding edge, not its border, and the scrolled content shows through the padding above (or below) them.
 - A virtual list ([Verbs § RepeatVirtual](./verbs.md#repeatvirtual-a-long-list)) uses the nearest scroll area around it. Don't `pad` that one either, for the same reason.
@@ -313,15 +330,15 @@ A bar is a row holding a title and/or controls along the edge of a view, a dialo
 
 **Too many actions.** The bar must fit at the smallest window width the app supports. Keep the frequent actions in the bar and put the rarely used ones in a "…" menu built with `popup` and `menu_nav` ([Overlays § Keyboard in menus and lists](./ui-overlays.md#keyboard-in-menus-and-lists)). Which actions go in the menu is decided when the bar is designed; nothing moves them there automatically when the window narrows.
 
-**A button toolbar** groups related buttons with no band around them: a `packed="widget"` row, or a spaced row of such groups. Each button keeps its own border and variant, so one of them can be `tint` or `inverted`.
+**A button toolbar** groups related buttons with no band around them: a `packed="widget" seams="children"` row, or a spaced row of such groups. Each button keeps its own border and variant, so one of them can be `tint` or `inverted`.
 
 ```tsx
 <e-row>
-  <e-row packed="widget">
+  <e-row packed="widget" seams="children">
     <button>Bold</button>
     <button>Italic</button>
   </e-row>
-  <e-row packed="widget">
+  <e-row packed="widget" seams="children">
     <button>Link</button>
     <button e-variant="tint">Comment</button>
   </e-row>
@@ -342,13 +359,13 @@ The step is chosen by what a container's children are, not by nesting depth and 
 
 **Golden rule 5 — multiple children are spaced.** Follows from rule 1 for containers. Layout elements satisfy it by default: they space their children at the ambient step even with no attribute. `pad` implies `spacing` because a padded container is precisely a container whose children must be spaced; `spacing` doesn't imply `pad`, because a container without a boundary may need to space its children without becoming a boundary.
 
-**Golden rule 6 — or they touch, uniformly.** The one alternative to spacing: children flush against each other, separated by their own backgrounds or borders — a button group, a menu, a list box, a dialog's header/body/footer. It only reads as one deliberate shape if the children share the same padding; a child with different padding makes the seams look accidental. Uniform is measured on the content: every cell holding content sits at the same distance from the group's edge, which is why a packed group nested in a packed container is not padded again, its own cells carry the padding. A child that sets its own `pad` inside a `packed` group keeps it, so keeping the group uniform is your call. Whether the group also pads its own edge is a separate choice, possibly at a different step, as long as the group has an edge of its own: a popup's edge inset can be larger than its rows' click-target padding. That is why `packed` takes its own step independently of `pad`.
+**Golden rule 6 — or they touch, uniformly.** The one alternative to spacing: children flush against each other, separated by lines and their own backgrounds — a button group, a menu, a list box, a dialog's header/body/footer. It only reads as one deliberate shape if the children share the same padding; a child with different padding makes the lines look accidental. Uniform is measured on the content: every cell holding content sits at the same distance from the group's edge, which is why a packed group nested in a packed container is not padded again, its own cells carry the padding. A child that sets its own `pad` inside a `packed` group keeps it, so keeping the group uniform is your call. Whether the group also pads its own edge is a separate choice, possibly at a different step, as long as the group has an edge of its own: a popup's edge inset can be larger than its rows' click-target padding. That is why `packed` takes its own step independently of `pad`.
 
 **Spacing steps are named by meaning.** Steps say the semantic distance between what they separate — inside one widget, between widgets, between groups, between page regions — not a size. Choosing by meaning rather than by eye is what keeps two screens built by different people consistent.
 
 **Element names.** `e-row`/`e-column` name the shape they produce; `e-flex` remains for direction-agnostic code. `e-grid` has no grid system beyond `columns`: equal columns are common enough to deserve an attribute, but any other template is specific enough to its screen that a small CSS rule says it better than a set of attributes. A grid row is `e-grid-row` rather than a special meaning of `e-row` inside a grid, so that an `e-row` can still be an ordinary cell.
 
-**The outermost container draws the frame.** When containers that each want a border are nested (packed groups, a scroll area around a grid), drawing every border would double the lines and, in a scroll area, scroll the inner frame away with the content. So only the outermost one draws its frame; the inner ones keep only what separates their own children, the seams.
+**The outermost container draws the frame.** When containers that each want a border are nested (packed groups, a scroll area around a grid), drawing every border would double the lines and, in a scroll area, scroll the inner frame away with the content. So only the outermost one draws its frame; the inner ones are cells of it, and draw only the lines between their own children.
 
 **Borders.** A bare `border` is a flat, clearly visible edge, independent of nesting, because most borders (a popup, a list box) want a plain, defined boundary wherever they are. The level-relative variants exist but are explicit (`-surface`, `-separator`), so a border never silently depends on nesting depth. `surface` is level-relative even when bare, because a surface *is* a level by definition — the asymmetry between the two attributes is deliberate.
 

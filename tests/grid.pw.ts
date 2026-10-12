@@ -1,5 +1,4 @@
 import { type Page, expect, test } from "./fixture"
-import { expect_seams } from "./seams"
 
 // e-grid (columns, packed), e-grid-row, frame ownership, sticky and scroll — ui/layout.css.tsx,
 // docs/md/ui-layout.md.
@@ -185,38 +184,47 @@ test.describe("packed e-grid", () => {
     expect(await parent_spacing("#c")).toBe(await parent_spacing("#s"))
   })
 
-  test("with border: 1px seams in the border color, drawn by the grid and its rows, cells on the surface", async ({
+  test("with border: the grid draws the frame, the lines are the second row's top edge and each later cell's left edge", async ({
     page,
   }) => {
     await mount(page, `<e-grid id="g" columns="3" packed border>${row3("r1")}${row3("r2")}</e-grid>`)
-    const g = await styles(page, "#g", ["row-gap", "column-gap", "border-top-color"])
-    expect(g["row-gap"]).toBe("1px")
-    expect(g["column-gap"]).toBe("1px")
-    await expect_seams(page, "#g")
-    await expect_seams(page, "#r1")
+    const g = await styles(page, "#g", ["row-gap", "column-gap", "border-top-style"])
+    expect(g["border-top-style"]).toBe("solid")
+    // No gap: the lines are borders, snapped to whole screen pixels at any display scale.
+    expect(g["row-gap"]).toBe("normal")
+    expect(g["column-gap"]).toBe("normal")
+    const seam = await color(page, "var(--e-seam-color)", "#g")
+    const r1 = await styles(page, "#r1", ["border-top-style"])
+    const r2 = await styles(page, "#r2", ["border-top-style", "border-top-width", "border-top-color"])
+    expect(r1["border-top-style"]).toBe("none")
+    expect(r2).toEqual({ "border-top-style": "solid", "border-top-width": "1px", "border-top-color": seam })
+    const cells = await page.evaluate(() =>
+      [...document.querySelectorAll("#r2 > span")].map((c) => getComputedStyle(c).borderLeftStyle),
+    )
+    expect(cells).toEqual(["none", "solid", "solid"])
     const cell = await styles(page, "#r1 > span", ["background-color", "border-top-style"])
     expect(cell["border-top-style"]).toBe("none")
     expect(cell["background-color"]).toBe(await color(page, "var(--e-current-surface)", "#g"))
-    expect(cell["background-color"]).not.toBe(g["border-top-color"])
-    // The seam between the two rows is 1px.
-    const seam = await page.evaluate(
+    // The rows touch: the line is the second row's own edge.
+    const between = await page.evaluate(
       () =>
         document.getElementById("r2")!.getBoundingClientRect().top -
         document.getElementById("r1")!.getBoundingClientRect().bottom,
     )
-    expect(seam).toBe(1)
+    expect(between).toBe(0)
   })
 
-  test("a row's surface colors its cells while its seams still show", async ({ page }) => {
+  test("a row's surface colors its cells while its lines still show", async ({ page }) => {
     await mount(
       page,
       `<e-grid id="g" columns="3" packed border>${row3("r1", 'surface="tint-3"')}${row3("r2")}</e-grid>`,
     )
     const c1 = await styles(page, "#r1 > span", ["background-color"])
     const c2 = await styles(page, "#r2 > span", ["background-color"])
-    await expect_seams(page, "#r1")
     expect(c1["background-color"]).not.toBe(c2["background-color"])
     expect(c1["background-color"]).toBe(await color(page, "var(--e-current-surface)", "#r1"))
+    expect((await styles(page, "#r2", ["border-top-style"]))["border-top-style"]).toBe("solid")
+    expect((await styles(page, "#r1 > span:nth-child(2)", ["border-left-style"]))["border-left-style"]).toBe("solid")
   })
 
   test("a hovered row changes its cells' color", async ({ page }) => {
@@ -256,19 +264,19 @@ test.describe("frame ownership", () => {
     )
     const inner = await styles(page, "#inner", ["border-top-style"])
     expect(inner["border-top-style"]).toBe("none")
-    await expect_seams(page, "#inner")
+    // Its children still have the line between them; the cells around the group are the column's.
+    expect((await styles(page, "#inner > span:nth-child(2)", ["border-left-style"]))["border-left-style"]).toBe("solid")
   })
 
   test("a packed bordered child of a [scroll] drops its outer border and radius, keeps its seams", async ({ page }) => {
     await mount(
       page,
-      `<e-column scroll border style="height:100px"><e-grid id="g" columns="3" packed border>${row3()}</e-grid></e-column>`,
+      `<e-column scroll border style="height:100px"><e-grid id="g" columns="3" packed border>${row3("r1")}</e-grid></e-column>`,
     )
-    const g = await styles(page, "#g", ["border-top-width", "border-top-left-radius", "column-gap", "background-color"])
+    const g = await styles(page, "#g", ["border-top-width", "border-top-left-radius"])
     expect(g["border-top-width"]).toBe("0px")
     expect(g["border-top-left-radius"]).toBe("0px")
-    expect(g["column-gap"]).toBe("1px")
-    expect(g["background-color"]).not.toBe("rgba(0, 0, 0, 0)")
+    expect((await styles(page, "#r1 > span:nth-child(2)", ["border-left-style"]))["border-left-style"]).toBe("solid")
   })
 
   test("outside a scroll area, the packed bordered grid keeps its border", async ({ page }) => {
@@ -316,7 +324,9 @@ test.describe("sticky", () => {
     const head = await styles(page, "#head", ["position", "background-color"])
     expect(head.position).toBe("sticky")
     expect(head["background-color"]).not.toBe("rgba(0, 0, 0, 0)")
-    await expect_seams(page, "#head")
+    // Its cells keep the lines between them, and the line under it is its own.
+    expect((await styles(page, "#head > span:nth-child(2)", ["border-left-style"]))["border-left-style"]).toBe("solid")
+    expect((await styles(page, "#head", ["border-bottom-style"]))["border-bottom-style"]).toBe("solid")
     const offset = await page.evaluate(() => {
       const sc = document.getElementById("sc")!
       sc.scrollTop = 120
@@ -325,8 +335,10 @@ test.describe("sticky", () => {
     expect(offset).toBe(0)
   })
 
-  // The seam between a stuck row and the content is the container's gap, which scrolls away: the
-  // sticky row must paint it itself, over the gap, without changing the layout.
+  // The line under a stuck row is the next row's top edge, which scrolls away with that row: the
+  // sticky row carries a copy as its own bottom edge, pulled over the next row's top edge by a -1px
+  // margin (at rest it covers it exactly, and every row keeps the same height). A sticky row at the
+  // bottom has its own top edge, like any row that has a row above it.
   for (const [name, container, child] of [
     ["grid", `<e-grid id="g" columns="3" packed border>`, row3],
     [
@@ -342,16 +354,16 @@ test.describe("sticky", () => {
         page,
         scroll_area(`${container}${child("head", 'sticky="top"')}${rows}${child("foot", 'sticky="bottom"')}${close}`),
       )
-      const seam = await color(page, "var(--e-current-border-color)", "#g")
+      const seam = await color(page, "var(--e-seam-color)", "#g")
       const head = await styles(page, "#head", ["border-bottom-width", "border-bottom-color", "margin-bottom"])
       expect(head).toEqual({ "border-bottom-width": "1px", "border-bottom-color": seam, "margin-bottom": "-1px" })
       const foot = await styles(page, "#foot", ["border-top-width", "border-top-color", "margin-top"])
-      expect(foot).toEqual({ "border-top-width": "1px", "border-top-color": seam, "margin-top": "-1px" })
+      expect(foot).toEqual({ "border-top-width": "1px", "border-top-color": seam, "margin-top": "0px" })
 
       const res = await page.evaluate(() => {
         const rect = (id: string) => document.getElementById(id)!.getBoundingClientRect()
         // At rest (the head at the start of the scroll, the foot at its end, where neither is stuck),
-        // the copy covers the gap exactly: the next row starts where the sticky row's border ends.
+        // the copy covers the line exactly: the next row starts where the sticky row's border begins.
         const sc = document.getElementById("sc")!
         const head_at_rest = rect("r0").top - rect("head").bottom
         sc.scrollTop = sc.scrollHeight
@@ -364,7 +376,7 @@ test.describe("sticky", () => {
         const hit = (y: number) => document.elementFromPoint(h.left + 5, y)?.closest("[id]")?.id
         return { at_rest, head: hit(h.bottom - 0.5), foot: hit(f.top + 0.5) }
       })
-      expect(res).toEqual({ at_rest: { head: 0, foot: 0 }, head: "head", foot: "foot" })
+      expect(res).toEqual({ at_rest: { head: -1, foot: 0 }, head: "head", foot: "foot" })
     })
   }
 

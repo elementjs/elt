@@ -375,8 +375,8 @@ export class ObjectEditorShell {
       (get) => !is_root || has_undo_buttons || get(o_label) !== "" || get(o_has_menu) || get(o_header)?.actions != null,
     )
     // Packed: `packed border` -- the column draws its frame; header line, toolbar and rows touch,
-    // separated by seams (the header line and toolbar, `packed border` themselves, keep only their
-    // inner seams). `spacing="widget"`: a packed container's step is the step of what it packs
+    // separated by the column's lines (the header line and toolbar are groups inside it, cells of
+    // the column that draw only the lines between their own children). `spacing="widget"`: a packed container's step is the step of what it packs
     // (docs/md/ui-layout.md#packed), here widget-padded groups. It adds no gap (packed), but gives the
     // frame the widget radius its first/last children's outer corners take, and the widget step to
     // whatever inherits it inside. Unpacked, all of it is plain rows and columns, spaced by the
@@ -396,8 +396,7 @@ export class ObjectEditorShell {
               // Packed: widgets touching, each padded at the widget step, separated by seams.
               <e-row
                 packed={packed ? "widget" : undefined}
-                seamless={packed}
-                border={packed}
+                seams={packed ? "none" : undefined}
                 align={packed ? "center" : "baseline"}
                 class={packed ? theme.colors.tint.class_as_inverted : undefined}
               >

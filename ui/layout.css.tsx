@@ -116,40 +116,47 @@ export interface EFlexAttrs extends CommonAttrs {
    * step of what it packs, so its radius and what its descendants inherit follow its children's
    * padding. An explicit `spacing` still wins.
    *
-   * Without `border` on the `packed` element itself: every non-last child loses its own
-   * trailing-edge border (`border-right` in a row, `border-bottom` in a column), whether or not it
-   * actually has one — harmless on an unbordered child.
+   * Who draws the lines between the children, and which of their own borders stay, is `seams`
+   * (below); `border` on the `packed` element only draws a frame around the group, which then
+   * owns every edge on its outline: the children's borders facing it are dropped.
    *
    * Radius ownership: whenever `packed` itself has a radius in effect (its own `border`, which
    * implies radius, or an explicit `radius`), that radius is the group's true outer shape — every
-   * interior seam loses its corner radii, and the first/last child's outer corners `inherit` the
-   * container's radius exactly, not whatever radius that child would otherwise resolve to on its
-   * own. When `packed` has neither `border` nor `radius`, none of this applies: each child keeps
-   * whatever radius it resolved on its own, at every corner.
+   * interior seam loses its corner radii, and the corners of the group are handed down to the
+   * first/last child (and, through nested packed groups, to theirs) with `inherit`, so the
+   * container's radius is exactly what shows, not whatever radius that child would otherwise
+   * resolve to on its own. When no packed container above has a radius, none of this applies: each
+   * child keeps whatever radius it resolved on its own, at every corner.
    *
-   * With `border` on the `packed` element itself: `packed` draws the border, not its children — a
-   * `1px` gap between children becomes the visible seam: a 1px rule drawn in it where gap
-   * decorations are supported, else the container's own background (the same color as its border)
-   * showing through it. Every child gets `border: none` and
-   * `background: var(--e-current-surface)` (its own explicit background, if any, still wins).
-   * See docs/md/ui-layout.md.
+   * On `e-grid`, these apply to its cells (an `e-grid-row`'s children rather than the row), the
+   * rows being the grid's children along the column axis, and every cell is square except the
+   * outer corners of the first and last rows — see "Grids" in docs/md/ui-layout.md.
    *
-   * On `e-grid`, these apply to its cells (an `e-grid-row`'s children rather than the row), there is
-   * no trailing-edge border removal, and every cell is square except the outer corners of the first
-   * and last rows — see "Grids" in docs/md/ui-layout.md.
-   *
-   * An `<hr>` directly inside a `packed` flex container is a 1px divider, edge to edge, unpadded.
+   * An `<hr>` directly inside a `packed` flex container is a 1px divider, edge to edge, unpadded,
+   * in the seam color. It is for `seams="none"`: in the other modes it adds to the seams.
    */
   packed?: NRO<boolean | SpacingValues>
   /**
-   * With `packed border`: keep the frame (border and radius) but draw no seams between the children —
-   * no 1px gap, no seam color behind them. Separate groups of children with `<hr>` instead (a menu).
-   * No effect without both `packed` and `border`.
+   * Who draws the lines between the children of a `packed` container (inherited by the packed
+   * groups inside it, which can set their own). The lines are children's borders, no gap, so every
+   * line is a whole screen pixel wide:
+   * - `"none"`: no lines; every child's own border is removed.
+   * - `"children"`: the children's own borders, never doubled (the neighbour of a child gives up
+   *   the edge they share); a child whose border carries meaning (`MEANINGFUL_BORDER_SELECTOR`,
+   *   or a layout element with `border`) wins the line it shares.
+   * - `"default"` (what no attribute means): the container draws a line in `seam-color` between
+   *   every two children, and removes their own borders, except that a child whose border carries
+   *   meaning keeps the lines it shares.
+   * - `"forced"`: the container draws every line, in `seam-color`, whatever the children carry.
+   * A packed group nested in a packed container is one of its cells: the line around it is drawn
+   * by the container, and its own `border` is ignored (unless the container is `"children"`).
+   * Nesting is followed through packed containers only.
    */
-  seamless?: NRO<boolean>
+  seams?: NRO<"none" | "children" | "default" | "forced">
+  /** The color of the lines `seams` draws (default `neutral-separator`), in the values of `border`. */
+  "seam-color"?: NRO<BorderValues>
 }
 
-/** `columns` values on `e-grid`. */
 export type GridColumns = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12
 
 export interface EGridAttrs extends EFlexAttrs {
@@ -198,6 +205,7 @@ const align: AlignValues[] = [
 const _all = `:where(e-flex,e-grid,e-prose,e-column,e-row,e-grid-row)`
 const _flex = `:where(e-flex,e-column,e-row)`
 const _layouters = `:where(e-flex,e-grid,e-column,e-row,e-grid-row)`
+const seam_modes = ["none", "children", "default", "forced"] as const
 /** Containers that take `packed`. */
 const _packed = `:where(e-flex,e-column,e-row,e-grid)`
 
@@ -210,9 +218,6 @@ const _packed = `:where(e-flex,e-column,e-row,e-grid)`
 function _cells(container: string, filter = ""): string {
   return `${container} > :where(:not(e-grid-row))${filter}, ${container} > :where(e-grid-row) > *${filter}`
 }
-
-/** The borderless packed groups that are cells of a packed bordered container. */
-const _nested = `:is(${_cells(`${_packed}[packed][border]`, ":where([packed]:not([border]))")})`
 
 /**
  * First and last *displayed* child, for packed grids (rows, and cells within a row): a hidden
@@ -233,19 +238,147 @@ function _last(type = ""): string {
 }
 
 /**
- * The child right after a displayed child whose border carries meaning, in a packed container
- * without its own border: that child gives up its leading edge (see the rule below). Hidden children
- * in between are skipped, one or two of them: CSS has no "previous displayed sibling" (`~` means
- * *some* earlier sibling, not the nearest one, and `:has()` can't look backwards), so the run of
- * hidden children is spelled out. After three or more hidden children in a row, both the
- * meaningful child's trailing edge and the next child's leading edge show (a 2px line). The hidden
- * meaningful child itself is excluded: it draws nothing, so the next child keeps its edge. All in
- * `:where()`, at zero specificity like the original `:where(MEANINGFUL) + *`.
+ * The child right after a displayed child `prev` (`child` is the kind of child that follows, `*`
+ * or `e-grid-row`): it gives up its leading edge, the one the displayed child already draws (the
+ * rules below). Hidden children in between are skipped, one or two of them: CSS has no "previous
+ * displayed sibling" (`~` means *some* earlier sibling, not the nearest one, and `:has()` can't
+ * look backwards), so the run of hidden children is spelled out. After three or more hidden
+ * children in a row, both edges show (a 2px line). The hidden `prev` itself is excluded: it draws
+ * nothing, so the next child keeps its edge. All in `:where()`, at zero specificity.
  */
-function _after_meaningful(container: string): string {
-  const shown_meaningful = `:where(${MEANINGFUL_BORDER_SELECTOR}):where(:not(${HIDDEN_SELECTOR}))`
+function _after(parent: string, child: string, prev: string): string {
+  const shown = `:where(${prev}):where(:not(${HIDDEN_SELECTOR}))`
   const hidden = `:where(${HIDDEN_SELECTOR})`
-  return [0, 1, 2].map((n) => `${container} > ${shown_meaningful} + ${`${hidden} + `.repeat(n)}*`).join(",\n  ")
+  return [0, 1, 2].map((n) => `${parent} > ${shown} + ${`${hidden} + `.repeat(n)}${child}`).join(",\n  ")
+}
+
+/**
+ * Children whose border carries meaning and wins the line they share with a neighbour (`seams`
+ * `"default"` and `"children"`): the variants and states of `MEANINGFUL_BORDER_SELECTOR`, and a
+ * layout element that sets its own `border` (not a packed group: the container draws the line
+ * around a group).
+ */
+const _important = `:is(${MEANINGFUL_BORDER_SELECTOR}, :where(e-flex,e-grid,e-prose,e-column,e-row)[border]:not([packed]))`
+
+/**
+ * A direction in which packed children are laid out one after the other: the children of a flex
+ * row or column, the cells of a grid row, and the rows of a grid. Everything the line rules need
+ * to say about their edges.
+ */
+interface Axis {
+  /** The packed element whose children are laid out along the axis. */
+  parent: string
+  /** Which children, `*` or `e-grid-row`. */
+  child: string
+  /** Pseudo-class of the first and last child, hidden ones skipped for grids. */
+  first: string
+  last: string
+  /** The edge facing the previous child and the one facing the next, then the two across. */
+  lead: "left" | "top"
+  trail: "right" | "bottom"
+  cross: [string, string]
+  /** Whether a `sticky="top"` child carries a copy of the line under it (see `_seam_rules`). */
+  vertical: boolean
+}
+const _row = `:is(e-row, e-flex:not([column]))[packed]`
+const _col = `:is(e-column, e-flex[column])[packed]`
+const _axes: Axis[] = [
+  {
+    parent: _row,
+    child: "*",
+    first: ":first-child",
+    last: ":last-child",
+    lead: "left",
+    trail: "right",
+    cross: ["top", "bottom"],
+    vertical: false,
+  },
+  {
+    parent: _col,
+    child: "*",
+    first: ":first-child",
+    last: ":last-child",
+    lead: "top",
+    trail: "bottom",
+    cross: ["left", "right"],
+    vertical: true,
+  },
+  {
+    parent: "e-grid[packed] > e-grid-row",
+    child: "*",
+    first: _first(),
+    last: _last(),
+    lead: "left",
+    trail: "right",
+    cross: ["top", "bottom"],
+    vertical: false,
+  },
+  {
+    parent: "e-grid[packed]",
+    child: "e-grid-row",
+    first: _first("e-grid-row"),
+    last: _last("e-grid-row"),
+    lead: "top",
+    trail: "bottom",
+    cross: ["left", "right"],
+    vertical: true,
+  },
+]
+
+/**
+ * The lines of a container whose `seams` is `none`, `default` or `forced`, along one axis. The
+ * container owns every line: all the children's borders go (`border: none`), then the line between
+ * two children is the *leading* edge of the second one, in `--e-seam-color`. A leading edge needs
+ * no look at the next sibling, and a hidden last child changes nothing for the others.
+ * `default` lets a child with an important border (`_important`) keep it on the edges it shares
+ * with its neighbours: it draws both, the one after it gives up its leading edge (`_after`), and
+ * its edges across and on the container's outline stay off (the container's frame wins them).
+ * A `sticky="top"` child also carries a copy of the line under it: the line is the next child's
+ * leading edge, which scrolls away with that child, so once the sticky child is stuck the content
+ * passing under it would show in its place. The copy is its own bottom edge, pulled back over the
+ * next child's leading edge by a -1px margin: at rest it covers that edge exactly, in the same color,
+ * and every row keeps the same height (a virtual list sizes its padders from a single row height).
+ * Library internal, so not a golden rule 3 margin: its net effect on layout is zero.
+ */
+function _seam_rules(mode: "none" | "default" | "forced", a: Axis): string {
+  const cells = `${a.parent} > ${a.child}`
+  const important = mode === "default"
+  const not_important = important ? `:where(:not(${_important}))` : ""
+  const line = `border-${a.lead}: 1px solid var(--e-seam-color);`
+  let css = `${cells}${not_important} { border: none; }\n`
+  if (mode === "none") return css
+  if (important) {
+    css += `${cells}:where(${_important}) { border-${a.cross[0]}: none; border-${a.cross[1]}: none; }\n`
+  }
+  css += `${cells}:where(:not(${a.first}))${not_important} { ${line} }\n`
+  if (a.vertical) {
+    css += `${cells}:where([sticky="top"]):where(:not(${a.last})) { border-${a.trail}: 1px solid var(--e-seam-color); margin-${a.trail}: -1px; }\n`
+  }
+  if (important) {
+    css += `${cells}:where(${_important}${a.first}) { border-${a.lead}: none; }\n`
+    css += `${cells}:where(${_important}${a.last}) { border-${a.trail}: none; }\n`
+  }
+  if (important) css += `${_after(a.parent, a.child, _important)} { border-${a.lead}: none; }\n`
+  return css
+}
+
+/**
+ * The lines of a container whose `seams` is `children`, along one axis (the children of a flex row
+ * or column; a grid's cells have no single trailing edge, so they keep every border). Each child
+ * but the last gives up its trailing edge, whether or not it has one, so that neighbours share a
+ * line; a child whose border carries meaning keeps it, and the child after it gives up its leading
+ * edge instead. The children don't overlap to share a line: at a fractional display scale an
+ * overlapped edge is antialiased and blends both colors. With a frame, the edges on its outline go.
+ */
+function _children_rules(a: Axis): string {
+  const cells = `${a.parent} > ${a.child}`
+  const frame = `${a.parent}[border] > ${a.child}`
+  return `
+  ${cells}:where(:not(${a.last})):where(:not(${_important})) { border-${a.trail}: none; }
+  ${_after(a.parent, a.child, _important)} { border-${a.lead}: none; }
+  ${frame} { border-${a.cross[0]}: none; border-${a.cross[1]}: none; }
+  ${frame}${a.first} { border-${a.lead}: none; }
+  ${frame}${a.last} { border-${a.trail}: none; }`
 }
 
 function _(strings: TemplateStringsArray, ...values: unknown[]): void {
@@ -276,6 +409,7 @@ const _color_steps: ColorStep[] = _color_families.flatMap((f) => _color_suffixes
 function _not_values(attr: string, values: readonly string[]): string {
   return `:where(${values.map((v) => `:not([${attr}="${v}"])`).join("")})`
 }
+const seam_colors: ColorStep[] = [..._color_families, ..._color_steps]
 const _surface_explicit = ["background", ..._color_families, ..._color_steps]
 const _border_explicit = [..._color_families, ..._color_steps]
 
@@ -428,8 +562,7 @@ const columns_rules = Array.from(
 
 // sticky: emitted with the attribute rules (after the packed ones), so that it overrides the
 // `position: relative` packed gives its cells. Its background is the current surface, opaque over
-// the scrolled content; an element's own [surface] resolves --e-current-surface to itself, and a
-// row of a packed bordered grid out-ranks this with the seam color. Its z-index sits above the
+// the scrolled content; an element's own [surface] resolves --e-current-surface to itself. Its z-index sits above the
 // cells of a packed container (0, or 1 when focused, so a focus ring shows over the neighbors): a
 // focused cell scrolled under a stuck row passes beneath it, ring included, as in a spreadsheet;
 // content drawn over the header would be worse than a hidden ring. With focus inside, a sticky
@@ -618,159 +751,98 @@ css`
      (the first child's leading edge, the last child's trailing edge) are untouched either way.
      A hidden first or last child still counts here: skipping it (_first/_last) makes adding a child
      at the end of a long packed row or column restyle every earlier sibling (docs/md/ui-layout.md#packed). */
-  :is(e-row, e-flex:not([column]))[packed] > *:not(:last-child) {
+  ${_row} > *:not(:last-child) {
     border-top-right-radius: 0;
     border-bottom-right-radius: 0;
   }
-  :is(e-row, e-flex:not([column]))[packed] > *:not(:first-child) {
+  ${_row} > *:not(:first-child) {
     border-top-left-radius: 0;
     border-bottom-left-radius: 0;
   }
-  :is(e-column, e-flex[column])[packed] > *:not(:last-child) {
+  ${_col} > *:not(:last-child) {
     border-bottom-left-radius: 0;
     border-bottom-right-radius: 0;
   }
-  :is(e-column, e-flex[column])[packed] > *:not(:first-child) {
+  ${_col} > *:not(:first-child) {
     border-top-left-radius: 0;
     border-top-right-radius: 0;
   }
 
-  /* packed WITHOUT its own border: each child suppresses its own trailing-edge border, whether or
-     not it actually has one — a no-op on an unbordered child. No BORDERED_SELECTOR lookup, no
-     :has() lookahead at a sibling: each child only ever looks at its own position and at the ones
-     before it. Exception: a child whose border carries meaning (MEANINGFUL_BORDER_SELECTOR, ui/selectors.ts)
-     keeps its trailing edge, and the child after it gives up its leading edge instead. Overlapping
-     neighbours by 1px would avoid the list, but at a fractional display scale the overlapped edge is
-     antialiased and blends both colors. :where() keeps the list's specificity out. See docs/md/ui-layout.md. */
-  :is(e-row, e-flex:not([column]))[packed]:not([border]) > *:not(:last-child):where(:not(${MEANINGFUL_BORDER_SELECTOR})) {
-    border-right: none;
+  /* The lines between the children of a packed container, and the borders of the children that
+     stay (docs/md/ui-layout.md#packed). Three custom properties say how, set on every packed
+     container and read by its children with style queries (@container style(...)), so the rules
+     below don't need to know how deep a group is nested:
+     - --e-seams: the mode, [seams] (default: "default");
+     - --e-seam-color: the color of the lines drawn by the container, [seam-color];
+     - --e-packed-radius: 1 when a packed container above, or this one, has a radius in effect (the
+       outermost one owns it, see the corner rules below).
+     A packed container resets them (the first rule), except when it is itself a cell of a packed
+     container, whose values it inherits (the second rule: a non-packed element in between breaks
+     the chain). An attribute out-ranks both, and is emitted after them. */
+  ${_packed}[packed] {
+    ${theme.css_seam_color()}
+    --e-seams: default;
+    --e-packed-radius: 0;
   }
-  ${_after_meaningful(":is(e-row, e-flex:not([column]))[packed]:not([border])")} {
-    border-left: none;
+  ${_cells(`${_packed}[packed]`, "[packed]")} {
+    --e-seams: inherit;
+    --e-seam-color: inherit;
+    --e-packed-radius: inherit;
   }
-  :is(e-column, e-flex[column])[packed]:not([border]) > *:not(:last-child):where(:not(${MEANINGFUL_BORDER_SELECTOR})) {
-    border-bottom: none;
-  }
-  ${_after_meaningful(":is(e-column, e-flex[column])[packed]:not([border])")} {
-    border-top: none;
-  }
+  ${_packed}[packed]:is([border],[radius]):where(:not([radius="none"])) { --e-packed-radius: 1; }
+  ${_packed}[packed][radius="none"] { --e-packed-radius: 0; }
+  ${seam_modes.map((m) => `${_packed}[packed][seams="${m}"] { --e-seams: ${m}; }`).join("\n  ")}
+  ${seam_colors.map((c) => `${_packed}[packed][seam-color="${c}"] { ${theme.css_seam_color(c)} }`).join("\n  ")}
 
-  /* packed WITH its own border: packed draws the border, not its children — a 1px gap, filled by
-     the container's own background (the same color as its border, via --e-current-border-color,
-     see theme.css_border in ui/theme.tsx), becomes the visible seam. Every child gives up its own
-     border and takes the current surface's background instead (its own explicit background, if
-     set, still wins — this rule carries no more specificity than any plain author style). */
-  ${_packed}[packed][border] {
-    background-color: var(--e-current-border-color);
-    gap: 1px;
-  }
+  /* In a frame, the children sit on the current surface, like the frame's inside: a text button has
+     no fill of its own and an unchecked toggle has one, and they must not differ. A child's own
+     explicit background, or the fill of a variant or a state (they set --e-current-surface, form.css.tsx),
+     still wins. */
   ${_cells(`${_packed}[packed][border]`)} {
-    border: none;
     background-color: var(--e-current-surface);
   }
 
-  /* In a packed bordered grid, a row paints the seam color too: its cells paint the surface (its
-     own [surface], if set, since that redefines --e-current-surface for them) and the 1px gaps
-     between them keep showing the seams. It also makes the row opaque, which a sticky row needs.
-     Out-ranks [surface]'s own background by specificity. A hovered row changes the surface its
-     cells read: its own background is hidden behind them. */
-  e-grid[packed][border] > e-grid-row {
-    background-color: var(--e-current-border-color);
-  }
+  /* In a framed grid, a hovered row changes the surface its cells read: the cells paint it over the
+     row's own hover background. */
   e-grid[packed][border] > e-grid-row[hover]:hover {
     --e-current-surface: ${ambient_surface_mix.surface("n+1")};
   }
 
-  /* Frame ownership: the outermost owner draws the frame, a nested packed bordered container only
-     its seams. A packed bordered child of a packed bordered parent already lost its border to the
-     cell rule above; it gets its seam color back as background (the cell rule painted it with the
-     surface color, hiding the seams between its own children). */
-  ${_packed}[packed][border] > ${_packed}[packed][border] {
-    background-color: var(--e-current-border-color);
+  /* The lines themselves, mode by mode. The children are those of a flex row or column, the cells
+     of a grid row, and the rows of a grid (ui/layout.css.tsx, _axes). */
+  @container style(--e-seams: none) {
+    ${_axes.map((a) => _seam_rules("none", a)).join("\n")}
   }
-
-  /* A borderless packed group that is a cell of a packed bordered container (a date field's
-     input + button row in a cell of the editor's grid) is under the same ownership: the outermost
-     container draws the frame, so the group's own children give up their borders and radii, and
-     the group draws its seams in a 1px gap like a nested bordered one. Without this, the group
-     would keep the borders of its children inside the cell the container already framed. */
-  ${_nested} {
-    gap: 1px;
-    background-color: var(--e-current-border-color);
+  @container style(--e-seams: default) {
+    ${_axes.map((a) => _seam_rules("default", a)).join("\n")}
   }
-  ${_nested} > * {
-    border: none;
-    border-radius: 0;
-    background-color: var(--e-current-surface);
+  @container style(--e-seams: forced) {
+    ${_axes.map((a) => _seam_rules("forced", a)).join("\n")}
   }
-
-  /* A sticky child of a packed bordered column or grid carries its own copy of the seam on the side
-     facing the scrolled content. The seam there is the container's 1px gap (its background or a gap
-     rule), painted by the container, so it scrolls away with the content and, once the child is
-     stuck, the content passing under it shows in its place. The copy is a border, pixel-snapped like
-     the seams, pulled back over the gap by a -1px margin: the child's track or flex size is
-     unchanged, and at rest it covers the container's seam exactly, in the same color. Library
-     internal, so not a golden rule 3 margin: its net effect on layout is zero. */
-  :is(e-column, e-flex[column], e-grid)[packed][border]:not([seamless]) > [sticky="top"] {
-    border-bottom: 1px solid var(--e-current-border-color);
-    margin-bottom: -1px;
-  }
-  :is(e-column, e-flex[column], e-grid)[packed][border]:not([seamless]) > [sticky="bottom"] {
-    border-top: 1px solid var(--e-current-border-color);
-    margin-top: -1px;
-  }
-
-  /* Where gap decorations are supported (Chromium; not yet Firefox or Safari), the seams are 1px
-     rules drawn in the 1px gaps instead of the seam-colored background showing through them. A gap
-     is never snapped to screen pixels, so at a fractional display scale (125%, 150%) the background
-     technique shows some seams 1 screen pixel wide and others 2; a rule's width is snapped like a
-     border's, so every seam is 1 screen pixel. The containers and rows that painted the seam color
-     above paint the surface instead: the part of a gap the rule leaves uncovered blends with the
-     cells. Rows draw their own column rules, since a row's background hides the grid's (rules are
-     painted under the grid's children). Same selectors as above, to out-rank each of them. */
-  @supports (row-rule: 1px solid) {
-    ${_packed}[packed][border],
-    e-grid[packed][border] > e-grid-row,
-    ${_packed}[packed][border] > ${_packed}[packed][border],
-    ${_nested} {
-      background-color: var(--e-current-surface);
-      column-rule: 1px solid var(--e-current-border-color);
-      row-rule: 1px solid var(--e-current-border-color);
-    }
-  }
-  /* [seamless]: packed bordered, frame kept, no seams — no 1px gap, no seam color behind the
-     children, no gap rules. Every selector above that paints seams is out-ranked here by one more
-     attribute ([seamless]), the nested and grid-row ones included. */
-  ${_packed}[packed][border][seamless],
-  ${_packed}[packed][border] > ${_packed}[packed][border][seamless],
-  e-grid[packed][border][seamless] > e-grid-row {
-    gap: 0;
-    background-color: var(--e-current-surface);
-    column-rule: none;
-    row-rule: none;
+  @container style(--e-seams: children) {
+    ${_axes.slice(0, 2).map(_children_rules).join("\n")}
   }
 
   /* An <hr> directly in a packed flex container is a divider between its children, not a padded
      child: no padding or margin (the packed padding rule above would otherwise thicken it), a 1px
      line edge to edge — across a column, down a row. */
-  :is(e-column, e-flex[column])[packed] > hr {
+  ${_col} > hr {
     padding: 0;
     margin: 0;
     height: 1px;
     width: auto;
     align-self: stretch;
   }
-  :is(e-row, e-flex:not([column]))[packed] > hr {
+  ${_row} > hr {
     padding: 0;
     margin: 0;
     width: 1px;
     height: auto;
     align-self: stretch;
   }
-  /* In a bordered packed container, the children take the surface color (the cell rule above): the
-     divider takes the frame's color instead, so it reads as part of the frame. */
-  :is(e-column, e-flex[column], e-row, e-flex:not([column]))[packed][border] > hr {
-    background-color: var(--e-current-border-color);
+  /* The divider is a line of the group, in the color of its lines. */
+  :is(e-column, e-flex[column], e-row, e-flex:not([column]))[packed] > hr {
+    background-color: var(--e-seam-color);
   }
 
   /* A packed bordered child of a scroll area drops its outer border and radius: the scroll area
@@ -780,33 +852,34 @@ css`
     border-radius: 0;
   }
 
-  /* Whenever packed itself has a radius in effect — its own [border] (which implies radius) or an
-     explicit [radius], whether or not it also draws its own border — that radius is the group's
+  /* Whenever a packed container has a radius in effect — its own [border] (which implies radius) or
+     an explicit [radius], whether or not it also draws its own border — that radius is the group's
      true outer shape: the first/last child's outer corners must inherit it exactly, not whatever
      radius that child would otherwise resolve to on its own (a form control's fixed "widget"
      radius, e.g. — form.css.tsx sets that unconditionally, unrelated to any ambient/container
-     radius; a plain child with none of its own defaults to 0). Not all children go through the
-     theme's radius system the same way, so packed — when it has asked for a radius at all — owns
-     it for the whole group, rather than relying on each child to coordinate its own. When packed
-     has neither [border] nor [radius], this does not apply: each child keeps whatever radius it
-     resolved on its own (matching [border] ownership itself in that case — see above). The
-     inherit keyword on each longhand forces that one declaration to read the parent's computed
-     value, regardless of whether border-radius normally inherits (it doesn't). See docs/md/ui-layout.md. */
-  :is(e-row, e-flex:not([column]))[packed]:is([border],[radius]):where(:not([radius="none"])) > *:first-child {
-    border-top-left-radius: inherit;
-    border-bottom-left-radius: inherit;
-  }
-  :is(e-row, e-flex:not([column]))[packed]:is([border],[radius]):where(:not([radius="none"])) > *:last-child {
-    border-top-right-radius: inherit;
-    border-bottom-right-radius: inherit;
-  }
-  :is(e-column, e-flex[column])[packed]:is([border],[radius]):where(:not([radius="none"])) > *:first-child {
-    border-top-left-radius: inherit;
-    border-top-right-radius: inherit;
-  }
-  :is(e-column, e-flex[column])[packed]:is([border],[radius]):where(:not([radius="none"])) > *:last-child {
-    border-bottom-left-radius: inherit;
-    border-bottom-right-radius: inherit;
+     radius; a plain child with none of its own defaults to 0). A packed group inside it hands the
+     corners further down to its own first/last children, the same way: --e-packed-radius is
+     inherited by nested groups. When no packed container above has a radius, this does not apply:
+     each child keeps whatever radius it resolved on its own. The inherit keyword on each longhand
+     forces that one declaration to read the parent's computed value, regardless of whether
+     border-radius normally inherits (it doesn't). See docs/md/ui-layout.md. */
+  @container style(--e-packed-radius: 1) {
+    ${_row} > *:first-child {
+      border-top-left-radius: inherit;
+      border-bottom-left-radius: inherit;
+    }
+    ${_row} > *:last-child {
+      border-top-right-radius: inherit;
+      border-bottom-right-radius: inherit;
+    }
+    ${_col} > *:first-child {
+      border-top-left-radius: inherit;
+      border-top-right-radius: inherit;
+    }
+    ${_col} > *:last-child {
+      border-bottom-left-radius: inherit;
+      border-bottom-right-radius: inherit;
+    }
   }
 
   /* Grid cells: no "leading"/"trailing" edge in two dimensions, so every cell of a packed grid

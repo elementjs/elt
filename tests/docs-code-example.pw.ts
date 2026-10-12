@@ -88,7 +88,14 @@ test.describe("docs CodeExample: panels in the packed column", () => {
         const panel = () => {
           const p = ex.lastElementChild as HTMLElement
           const s = getComputedStyle(p)
-          return { tag: p.tagName, top_radius: s.borderTopLeftRadius, bottom: s.borderBottomWidth }
+          const frame = getComputedStyle(ex)
+          return {
+            tag: p.tagName,
+            top_radius: s.borderTopLeftRadius,
+            bottom: s.borderBottomWidth,
+            frame: frame.borderBottomWidth,
+            bottom_radius: s.borderBottomLeftRadius === frame.borderBottomLeftRadius,
+          }
         }
         const example = panel()
         ;(ex.querySelectorAll("button")[1] as HTMLButtonElement).click()
@@ -97,7 +104,8 @@ test.describe("docs CodeExample: panels in the packed column", () => {
       }, kind)
       expect(r.example.tag).toBe("E-PROSE")
       expect(r.example.top_radius).toBe("0px")
-      expect(r.code).toEqual({ tag: "E-PROSE", top_radius: "0px", bottom: "1px" })
+      // The column draws the frame; the panel has no border of its own and takes the column's bottom corners.
+      expect(r.code).toEqual({ tag: "E-PROSE", top_radius: "0px", bottom: "0px", frame: "1px", bottom_radius: true })
     })
   }
 })

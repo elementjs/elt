@@ -127,7 +127,9 @@ test.describe("composite grid", () => {
     expect(result).toEqual({ object: true, array: true, set: true, map: true, table: true })
   })
 
-  test("in the packed bordered grid an input cell has no border of its own", async ({ page }) => {
+  test("in the packed bordered grid an input cell has no border of its own, only the line before it", async ({
+    page,
+  }) => {
     const width = await page.evaluate(() => {
       const { o, node_append } = window.__ELT__
       const { ObjectEditorShell } = window.__ELT__.Editor
@@ -136,10 +138,11 @@ test.describe("composite grid", () => {
       const cs = getComputedStyle(shell.node.querySelector("e-grid-row > input")!)
       return [cs.borderTopWidth, cs.borderRightWidth, cs.borderBottomWidth, cs.borderLeftWidth]
     })
-    expect(width).toEqual(["0px", "0px", "0px", "0px"])
+    // top, right, bottom: none; left: the line between the key and the input, drawn by the input.
+    expect(width).toEqual(["0px", "0px", "0px", "1px"])
   })
 
-  test("every cell fills its grid area, a checkbox's included: no seam color shows around it", async ({ page }) => {
+  test("every cell fills its grid area, a checkbox's included: no line breaks around it", async ({ page }) => {
     await page.evaluate(() => {
       const { o, node_append } = window.__ELT__
       const { ObjectEditorShell } = window.__ELT__.Editor
@@ -153,11 +156,14 @@ test.describe("composite grid", () => {
       const tracks = getComputedStyle(grid).gridTemplateColumns.split(" ").map(Number.parseFloat)
       const mismatches: string[] = []
       for (const row of grid.querySelectorAll("e-grid-row")) {
+        // The row's content box: its own line above it (a row after the first draws one) is not a cell's.
         const rr = row.getBoundingClientRect()
+        const top = rr.top + row.clientTop
+        const bottom = top + row.clientHeight
         ;[...row.children].forEach((cell, i) => {
           const r = cell.getBoundingClientRect()
           if (Math.abs(r.width - tracks[i]!) > 0.5) mismatches.push(`${cell.tagName} width ${r.width} != ${tracks[i]}`)
-          if (Math.abs(r.top - rr.top) > 0.5 || Math.abs(r.bottom - rr.bottom) > 0.5)
+          if (Math.abs(r.top - top) > 0.5 || Math.abs(r.bottom - bottom) > 0.5)
             mismatches.push(`${cell.tagName} height`)
         })
       }

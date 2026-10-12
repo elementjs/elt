@@ -30,7 +30,7 @@ How to convert code written against older versions of elt, against elt-shoelace 
 | Old | New |
 | --- | --- |
 | `e-box`, `e-block` | `e-prose` |
-| `<e-button-box>`, `<menu>` button rows | `<e-row packed>` / `<e-column packed>` |
+| `<e-button-box>`, `<menu>` button rows | `<e-row packed seams="children">` / `<e-column packed seams="children">` |
 | `Color` class | `Mix` |
 | `.as_inverted`, `.as_tint` (classes), `.classes.as_*`, `.css.as_*` | `.class_as_inverted`, `.class_as_tint`, `.css_as_inverted`, `.css_as_tint` |
 | `.surface(n)` used as a class, `.classes.as_surface(n)`, `.css.as_surface(n)` | `.class_as_surface(n)`, `.css_as_surface(n)` — `.surface(n)` is now the bare color value |
