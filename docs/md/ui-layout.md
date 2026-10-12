@@ -160,7 +160,7 @@ Alignment values: `center`, `start`, `end`, `self-start`, `baseline`, `first bas
 
 The container's own `pad` still pads the container itself. `packed` never adds a gap.
 
-**Cells read at the size of controls.** A packed container is a control-sized surface: its cells take the controls' font size (`theme.settings.formFontSize`) and line height (1.2). Text cells then line up with the fields next to them in a stretched row, and a menu or table-like grid looks the same as the controls in it. A control, a heading or an `e-prose` cell keeps the size it sets itself (`e-prose` is a text run again, at the page's font size).
+**Cells read at the size of controls.** A packed container is a control-sized surface: its cells take the controls' font size (`theme.settings.formFontSize`) and line height (1.25, the controls' line). Text cells then line up with the fields next to them in a stretched row, and a menu or table-like grid looks the same as the controls in it. A control, a heading or an `e-prose` cell keeps the size it sets itself (`e-prose` is a text run again, at the page's font size).
 
 **A packed container's step is the step of what it packs**, not the step above it that a spaced container would take ([elt/ui rules § Choosing a step](./elt-ui-rules.md#choosing-a-step)). The step still matters without a gap: a bare `border` takes its radius from it, so the frame's corners match its children's, and its descendants inherit it.
 

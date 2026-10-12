@@ -963,10 +963,16 @@ test.describe("packed seams (docs/md/ui-layout.md#packed)", () => {
       document.body.innerHTML = `<e-row id="row" packed border seams="none"><button>a</button><hr /><button>b</button></e-row>`
       const row = document.getElementById("row")!
       const hr = row.querySelector("hr")!.getBoundingClientRect()
-      return { width: hr.width, height: hr.height, row_inner: row.clientHeight }
+      // Not clientHeight: it is rounded to a whole pixel.
+      const st = getComputedStyle(row)
+      const row_inner =
+        row.getBoundingClientRect().height -
+        Number.parseFloat(st.borderTopWidth) -
+        Number.parseFloat(st.borderBottomWidth)
+      return { width: hr.width, height: hr.height, row_inner }
     })
     expect(r.width).toBe(1)
-    expect(r.height).toBeCloseTo(r.row_inner, 0)
+    expect(r.height).toBeCloseTo(r.row_inner, 1)
   })
 
   test("the radius of the outermost container is handed down through nested groups to the corner cells", async ({

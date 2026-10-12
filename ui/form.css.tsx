@@ -1,7 +1,12 @@
 import { css, type NRO } from "elt"
 import { CHECK_POINTS } from "./icons"
 import { Mix, theme } from "./theme"
-import { FORM_CONTROL_SELECTOR, INSET_FOCUS_SELECTOR, INVALID_SELECTOR } from "./selectors"
+import {
+  CENTERED_TEXT_CONTROL_SELECTOR,
+  FORM_CONTROL_SELECTOR,
+  INSET_FOCUS_SELECTOR,
+  INVALID_SELECTOR,
+} from "./selectors"
 
 const colors = theme.colors
 
@@ -78,14 +83,37 @@ button, input[type="checkbox"], input[type="radio"] {
   cursor: pointer;
 }
 
-input, button, select {
-  line-height: 1;
+/* ── Control height ────────────────────────────────────────────────────────────────────────────
+   Controls side by side must be the same height, whatever they hold (text, an icon, a number field, a
+   one-line textarea), loose or packed. So the height is not left to each one's content: every
+   control's content box is at least one line (1.25em), and padding and borders come on top, the same
+   for all. The padding is the control's step: the widget step, or the packed container's, which
+   ui/layout.css.tsx puts in --e-control-pad on its cells (declared on every control here, so a
+   control that merely sits deeper in a packed cell does not inherit it).
+
+   A text field's text is a line in an inner element of the browser's, which scrolls (its scrollbar is
+   hidden). Two things go wrong when the field is taller than that line, or about as tall:
+   - padding around the line is dead: a click there puts the caret at the start or the end of the
+     text, not where the click is;
+   - the line's glyph boxes, or rounding at a fractional zoom, make the inner element overflow by a
+     fraction of a pixel; it is then scrollable, and swallows the first wheel ticks meant for the
+     scroll area around the field.
+   So these fields (CENTERED_TEXT_CONTROL_SELECTOR) have no vertical padding, and their line is as
+   tall as the whole field would be with it: the inner element fills the height, the text is centered
+   in it, and it is taller than the glyph boxes by the padding, so it has nothing to scroll. */
+:where(${FORM_CONTROL_SELECTOR}, fieldset) {
+  --e-control-pad: ${theme.settings.spacingWidget};
 }
 
 ${FORM_CONTROL_SELECTOR} {
 
-  line-height: 1.2;
+  line-height: 1.25;
   display: inline-block;
+  /* The content box is at least one line; the borders and the padding come on top, the same for all.
+     (Not border-box: a border is rounded to whole device pixels, so at a fractional zoom its width is
+     not 1px, and a height that counted it as 1px would be off.) */
+  box-sizing: content-box;
+  min-height: 1.25em;
 
   :where(&, fieldset) {
 
@@ -94,7 +122,7 @@ ${FORM_CONTROL_SELECTOR} {
     background-color: transparent;
     color: ${colors.text};
     border: 1px solid ${colors.neutral};
-    padding: ${theme.settings.spacingWidget};
+    padding: var(--e-control-pad);
     ${theme.css_radius("widget")}
     font-size: ${theme.settings.formFontSize};
 
@@ -123,6 +151,30 @@ ${FORM_CONTROL_SELECTOR} {
   box-shadow: inset 0 0 0 ${theme.settings.focusRingSize} ${colors.tint.mid};
 }
 
+${CENTERED_TEXT_CONTROL_SELECTOR} {
+  padding-block: 0;
+  min-height: calc(1.25em + 2 * var(--e-control-pad));
+  /* The line is the whole height: the browser's inner editor is as tall as the line, so a click
+     anywhere along the field's height lands on it (and puts the caret where the click is), and the
+     text sits in the middle of the line. A shorter line (the font's own, say) would leave the padding
+     room above and below it, where a click goes to the start or end of the text instead. The line is
+     also at least the glyph boxes' height, so the editor has nothing to scroll. */
+  line-height: calc(1.25em + 2 * var(--e-control-pad));
+}
+
+/* A date field is made of small fields of its own with their own padding, around a line of the font's
+   height: it is centered in the minimum height, which alone gives it the height. */
+input[type="date"],
+input[type="time"],
+input[type="datetime-local"] {
+  line-height: normal;
+}
+
+/* A toggle's content is inline: centered along the height it is given by the same token. */
+label[e-variant="toggle"] {
+  align-content: center;
+}
+
 fieldset > legend {
   color: ${colors.text.faded};
   font-size: ${theme.settings.formFontSize};
@@ -139,12 +191,6 @@ fieldset {
   ${theme.css_radius("component")}
 }
 
-
-input[type="date"],
-input[type="time"],
-input[type="datetime-local"] {
-  height: calc(${theme.settings.formFontSize} * 2 + 1px);
-}
 
 ::placeholder {
   color: ${colors.text.mid};
@@ -286,6 +332,7 @@ button, label[e-variant="toggle"] {
 button[e-variant="link"] {
   border: 0;
   padding: 0;
+  min-height: 0;
   color: ${colors.tint};
   background: transparent;
   text-decoration: underline;
@@ -301,6 +348,7 @@ button[e-variant="link"] {
 button[e-variant="text"] {
   border: 0;
   padding: 0;
+  min-height: 0;
   color: ${colors.tint};
   background: transparent;
 }

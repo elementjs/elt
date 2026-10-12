@@ -14,6 +14,14 @@ export const FORM_CONTROL_SELECTOR =
   "textarea, select, " +
   'label[e-variant="toggle"]'
 
+// Controls whose text is a line the browser centers in the room it is given (a text field's inner
+// editor, a native select's value): their vertical padding is room, not padding (ui/form.css.tsx,
+// "Control height"), so a click anywhere along their height reaches the text.
+export const CENTERED_TEXT_CONTROL_SELECTOR =
+  'input:not([type]), input[type="text"], input[type="number"], input[type="password"], ' +
+  'input[type="search"], input[type="email"], input[type="url"], input[type="tel"], ' +
+  'input[type="date"], input[type="time"], input[type="datetime-local"], select'
+
 // Controls whose focus ring is drawn inside their edge (ui/form.css.tsx): buttons, textareas and
 // text, number and search inputs.
 export const INSET_FOCUS_SELECTOR =

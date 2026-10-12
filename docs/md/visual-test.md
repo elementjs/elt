@@ -22,8 +22,9 @@ import { show_dialog } from "elt/ui"
 
 function showDialog() {
   show_dialog({ clickOutsideToClose: true }, fut =>
-    <e-column surface="background" border packed>
-      <e-row pad="component"><h1>Title here</h1></e-row>
+    <e-column surface="background" border packed align="stretch">
+      <e-row pad="component"><h1>Title here</h1>
+      </e-row>
       <e-prose pad="component" scroll>
         <h3>Testing a little</h3>
         <p>Let's see what dialogs have in store !</p>

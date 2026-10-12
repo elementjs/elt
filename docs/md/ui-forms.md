@@ -88,9 +88,17 @@ return <e-column align="stretch">
 
 ## Shared look
 
-- Controls use `theme.settings.formFontSize`, a `widget`-step padding and radius, and a focus ring (`tint.mid`, `theme.settings.focusRingSize`) instead of a fill.
+- Controls use `theme.settings.formFontSize`, a `widget`-step padding and radius, a line height of 1.25 (see [Control height](#control-height)), and a focus ring (`tint.mid`, `theme.settings.focusRingSize`) instead of a fill.
 - A focusable control's border comes from its variant — `neutral` for the default one, `tint` for `tint`, a bevel in the fill color for `inverted` — not from the surface levels it sits on. It expresses the control's own emphasis, not its position.
 - Disabled controls turn `neutral`, whatever their variant, and move their colors halfway toward the background ([Theme § State](./ui-theme.md#state)).
+
+## Control height
+
+Controls placed side by side are always the same height, whatever they hold (text, an icon, a number, a one-line textarea, a date), loose or in a `packed` container, at any zoom: a line (1.25 times the font size) plus the control's padding step (`widget`, or the step of the `packed` container it sits in) above and below, plus its borders. A control whose content is taller than one line (a textarea with several lines, a button with wrapped text) grows.
+
+- **Keep icons inside a button at `1em` high**: a taller icon makes the button taller than its neighbours.
+- **A text field, a number field, a date field and a select have no vertical padding of their own**: the space above and below their text is part of the text's line, so a click anywhere along their height puts the caret where you clicked (a click in padding goes to the start or end of the text), and their text never has anything to scroll. Their horizontal padding is unchanged. This is invisible in use; it matters if you write CSS for them: set the height with `min-height`, not with `padding-block`, which the control resets.
+- **A custom control that sits next to the standard ones** reads its padding step from `--e-control-pad` (set on every control, and by `packed` on its cells) and takes `min-height: calc(1.25em + 2 * var(--e-control-pad))` with `box-sizing: content-box`.
 
 ## Other elements
 

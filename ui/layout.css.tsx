@@ -1,5 +1,10 @@
 import { type Attrs, type NRO, css } from "elt"
-import { HIDDEN_SELECTOR, INLINE_ONLY_TEXT_BLOCK_SELECTOR, MEANINGFUL_BORDER_SELECTOR } from "./selectors"
+import {
+  CENTERED_TEXT_CONTROL_SELECTOR,
+  HIDDEN_SELECTOR,
+  INLINE_ONLY_TEXT_BLOCK_SELECTOR,
+  MEANINGFUL_BORDER_SELECTOR,
+} from "./selectors"
 import { ambient_surface_mix, type ColorStep, type SpacingStep, spacing_steps, theme } from "./theme"
 
 declare module "elt" {
@@ -720,6 +725,7 @@ css`
      and its content). It only keeps a padding it asks for with its own [pad]. */
   ${_cells(`${_packed}:where([packed]:not([pad="none"]))`, ":where(:not([pad]):not([packed]))")} {
     padding: var(--e-pad);
+    --e-control-pad: var(--e-pad);
   }
 
   ${spaces
@@ -733,9 +739,17 @@ css`
   }
   ${_cells(`${_packed}[packed="${sp}"]`, ":where(:not([pad]):not([packed]))")} {
     padding: var(--e-pad);
+    --e-control-pad: var(--e-pad);
   }`,
     )
     .join("\n")}
+
+  /* A cell that is a text field or a select keeps its vertical padding as room (ui/form.css.tsx,
+     "Control height"): the control's min-height still includes it, through --e-control-pad. The
+     :is() out-weighs the padding rules above. */
+  ${_cells(`${_packed}[packed]`, `:where(:not([pad]):not([packed])):is(${CENTERED_TEXT_CONTROL_SELECTOR})`)} {
+    padding-block: 0;
+  }
 
   /* A focused child's ring must draw over its packed neighbor rather than being covered by it. */
   ${_cells(`${_packed}[packed]`)} {
@@ -930,7 +944,7 @@ css`
 @layer base {
   :where(${_cells(`${_packed}[packed]`)}) {
     font-size: ${theme.settings.formFontSize};
-    line-height: 1.2;
+    line-height: 1.25;
   }
 }
 `

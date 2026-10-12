@@ -2,33 +2,36 @@ import { $connected, $disconnected, node_observe, o, type attrs_textarea, type R
 
 export type TextAreaAttrs = attrs_textarea
 
-/** Line height and vertical padding + border of the textarea, from a single computed style read. */
+/** Line height and vertical padding of the textarea, from a single computed style read. */
 function measure_box(ta: HTMLTextAreaElement) {
   const st = getComputedStyle(ta)
   const lh = parseFloat(st.lineHeight)
   return {
     // "normal" line height — approximate from font-size for clamp math.
     line_height: Number.isFinite(lh) ? lh : (parseFloat(st.fontSize) || 16) * 1.2,
-    extra:
-      (parseFloat(st.paddingTop) || 0) +
-      (parseFloat(st.paddingBottom) || 0) +
-      (parseFloat(st.borderTopWidth) || 0) +
-      (parseFloat(st.borderBottomWidth) || 0),
+    padding: (parseFloat(st.paddingTop) || 0) + (parseFloat(st.paddingBottom) || 0),
   }
 }
 
-/** Fit block size to content, clamped to [min_lines, max_lines]. */
+/**
+ * Fit block size to content, clamped to [min_lines, max_lines]. Controls are content-box (their height
+ * is the content's, padding and border come on top: ui/form.css.tsx, "Control height"), so the height
+ * set here is the lines' alone.
+ */
 function resize_to_content(ta: HTMLTextAreaElement, min_lines: number, max_lines: number) {
   const min_l = Math.max(1, min_lines)
   const max_l = Number.isFinite(max_lines) ? max_lines : Number.MAX_SAFE_INTEGER
 
-  const { line_height: lh, extra } = measure_box(ta)
-  const min_h = min_l * lh + extra
-  const max_h = max_l * lh + extra
+  const { line_height: lh, padding } = measure_box(ta)
+  const min_h = min_l * lh
+  const max_h = max_l * lh
 
-  // Collapse before measuring so scrollHeight reflects wrapped content, not the previous height.
+  // Collapse before measuring so scrollHeight reflects wrapped content, not the previous height. The
+  // stylesheet's minimum height would keep a floor under it, which scrollHeight would report.
+  ta.style.minHeight = "0px"
   ta.style.height = "0px"
-  const needed = ta.scrollHeight
+  const needed = ta.scrollHeight - padding
+  ta.style.minHeight = ""
   const height = Math.min(max_h, Math.max(min_h, needed))
 
   ta.style.height = `${height}px`

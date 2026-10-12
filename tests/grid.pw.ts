@@ -587,7 +587,7 @@ test.describe("grid align", () => {
 test.describe("packed cells read at the size of controls", () => {
   test("text cells take the controls' font size and line height; prose and headings keep theirs", async ({ page }) => {
     const r = await page.evaluate(() => {
-      document.body.innerHTML = `<e-grid columns="4" packed border><e-grid-row><span>t</span><input type="text"><e-prose>p</e-prose><h3>h</h3></e-grid-row></e-grid>
+      document.body.innerHTML = `<e-grid columns="4" packed border><e-grid-row><span>t</span><button>b</button><e-prose>p</e-prose><h3>h</h3></e-grid-row></e-grid>
         <e-column packed><span>x</span><button>b</button></e-column><e-column><span id="plain">y</span></e-column>`
       const size = (el: Element) => {
         const c = getComputedStyle(el)
@@ -596,7 +596,7 @@ test.describe("packed cells read at the size of controls", () => {
       const q = (sel: string) => document.querySelector(sel)!
       return {
         span: size(q("e-grid-row > span")),
-        input: size(q("e-grid-row > input")),
+        input: size(q("e-grid-row > button")),
         prose: size(q("e-prose")),
         h3: size(q("h3")),
         column_span: size(q("e-column > span")),
@@ -604,7 +604,7 @@ test.describe("packed cells read at the size of controls", () => {
         body: size(document.body),
       }
     })
-    // A text cell matches the field next to it, in a grid and in a column.
+    // A text cell matches the control next to it (a button: a text field's line is its whole height), in a grid and in a column.
     expect(r.span).toEqual(r.input)
     expect(r.column_span).toEqual(r.input)
     expect(r.prose).toEqual(["16px", "24px"])

@@ -169,7 +169,7 @@ export function Select<T, T2 = T>(at: SelectAttributes<T, T2>) {
         id={list_id}
         role="listbox"
         surface="background"
-        border="tint-2"
+        border
         class={cls_listbox}
         style={{ minWidth: `${anchor.offsetWidth}px` }}
       >
