@@ -1,3 +1,6 @@
+// A label whose control is a checkbox, a radio or a switch, drawn as itself and not as a toggle button.
+export const CHECKABLE_LABEL_SELECTOR = 'label:not([e-widget]):has(> input:is([type="checkbox"], [type="radio"]))'
+
 // Native controls styled by ui/form.css.tsx's shared control-reset ruleset (appearance, padding,
 // border, border-radius, focus ring, transitions). Deliberately includes button[e-emphasis="link"] —
 // it still needs the shared font-size/focus-ring/transition rules from that ruleset, even though a
@@ -7,6 +10,9 @@
 // `e-widget="field"` (an editable element that looks like a text input) is one. Excludes
 // input[type="checkbox"] — it still renders a border, but gets its own custom appearance
 // (ui/form.css.tsx) instead of this shared treatment.
+//
+// A label around a checkbox, a radio or a switch is one too (CHECKABLE_LABEL_SELECTOR): it is clickable
+// and fills when hovered, so it has a boundary, so it pads itself and is as tall as its neighbours.
 export const FORM_CONTROL_SELECTOR =
   "button, " +
   'input:not([type]), input[type="text"], input[type="number"], input[type="password"], ' +
@@ -15,7 +21,8 @@ export const FORM_CONTROL_SELECTOR =
   'input[type="date"], input[type="time"], input[type="datetime-local"], ' +
   "textarea, select, " +
   'a[e-emphasis]:not([e-emphasis="link"]), [e-widget="field"], ' +
-  'label[e-widget="toggle"]'
+  'label[e-widget="toggle"], ' +
+  CHECKABLE_LABEL_SELECTOR
 
 // Controls whose text is a line the browser centers in the room it is given (a text field's inner
 // editor, a native select's value): their vertical padding is room, not padding (ui/form.css.tsx,

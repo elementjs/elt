@@ -261,6 +261,39 @@ test.describe("emphasis", () => {
   })
 })
 
+test.describe("labels around checkboxes", () => {
+  const html = (kind: string) => `<e-row align="start" spacing="widget"><button id="b">Aa</button>
+    <label id="l"><input type="checkbox" ${kind} />Check</label>
+    <label id="r"><input type="radio" name="g" />Radio</label>
+    <label id="t" e-widget="toggle"><input type="checkbox" />Toggle</label></e-row>`
+
+  for (const kind of ["", 'e-widget="switch"']) {
+    test(`a label around a ${kind ? "switch" : "checkbox"} or a radio pads itself like a bare control`, async ({
+      page,
+    }) => {
+      await mount(page, html(kind))
+      const button = await style(page, "#b")
+      for (const id of ["#l", "#r"]) {
+        const label = await style(page, id)
+        expect(label.h, id).toBeCloseTo(button.h, 1)
+        expect(label.border_width, id).toBe(button.border_width)
+        expect(label.border, id).toBe("rgba(0, 0, 0, 0)")
+        expect(label.bg, id).toBe("rgba(0, 0, 0, 0)")
+      }
+    })
+  }
+
+  test("it is filled when hovered, without changing size", async ({ page }) => {
+    await mount(page, html(""))
+    const rest = await style(page, "#l")
+    await page.hover("#l")
+    const hovered = await style(page, "#l", "n+1")
+    expect(hovered.bg).toBe(hovered.ref)
+    expect(hovered.h).toBeCloseTo(rest.h, 1)
+    expect(hovered.w).toBeCloseTo(rest.w, 1)
+  })
+})
+
 test.describe("widgets", () => {
   test("a field widget looks like a text input: its edge, padding and height", async ({ page }) => {
     await mount(

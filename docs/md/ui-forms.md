@@ -88,7 +88,8 @@ What an element is, as opposed to how loud it is, is the `e-widget` attribute.
 
 ## Labels and fieldsets
 
-- A `<label>` around a control is clickable row chrome with a hover fill. Around a disabled control, it uses `text.mid` and loses its hover fill.
+- A `<label>` around a control is clickable and fills when hovered. Around a disabled control, it uses `text.mid` and loses its hover fill.
+- A `<label>` around a checkbox, a radio or a switch (not a toggle button) is padded like a `bare` control, with the same transparent edge and height as the buttons and fields beside it: it has a boundary when hovered, so it has one all the time ([elt/ui rules § Golden rules](./elt-ui-rules.md#golden-rules)). Its box and text sit in a row, centered, 4px apart.
 - `<fieldset>`/`<legend>` group fields.
 
 ## Shared look

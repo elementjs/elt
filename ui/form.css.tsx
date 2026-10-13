@@ -1,7 +1,12 @@
 import { css, type NRO } from "elt"
 import { CHECK_POINTS } from "./icons"
 import { type Emphasis, theme } from "./theme"
-import { CENTERED_TEXT_CONTROL_SELECTOR, FORM_CONTROL_SELECTOR, INSET_FOCUS_SELECTOR } from "./selectors"
+import {
+  CENTERED_TEXT_CONTROL_SELECTOR,
+  CHECKABLE_LABEL_SELECTOR,
+  FORM_CONTROL_SELECTOR,
+  INSET_FOCUS_SELECTOR,
+} from "./selectors"
 
 const colors = theme.colors
 
@@ -70,9 +75,10 @@ label {
     cursor: not-allowed;
   }
 
-  /* label wraps a widget-scale control (checkbox/toggle) but doesn't pad itself, so its radius
-     can't derive from its own padding — "widget" is a deliberate override matching its sibling
-     controls below (see "Borders and radius" in docs/md/ui-layout.md). */
+  /* A label's radius can't derive from its own padding (a plain label has none) — "widget" is a
+     deliberate override matching its sibling controls below (see "Borders and radius" in
+     docs/md/ui-layout.md). A label around a checkbox, radio or switch pads itself like a bare control
+     (FORM_CONTROL_SELECTOR), since it fills when hovered. */
   ${theme.css_radius("widget")}
   gap: ${theme.settings.spacingNudge4};
   cursor: pointer;
@@ -181,6 +187,18 @@ input[type="datetime-local"] {
   line-height: normal;
 }
 
+/* A label around a checkbox, a radio or a switch lays the box and its text out in a row, centered: the
+   box (1em, nudged down by the line it sits in everywhere else) would otherwise raise the line it
+   shares with the text, and the label would be taller than its neighbours. The gap is the room between
+   the box and the text. */
+${CHECKABLE_LABEL_SELECTOR} {
+  display: inline-flex;
+  align-items: center;
+  > input {
+    top: 0;
+  }
+}
+
 /* A toggle's content is inline: centered along the height it is given by the same token. */
 label[e-widget="toggle"] {
   align-content: center;
@@ -264,7 +282,7 @@ input[type="checkbox"][e-widget="switch"] {
   border-radius: 9999px;
   border: 1px solid;
   border-color: var(--e-border-color, ${colors.neutral.faded});
-  background-color: ${colors.neutral.faded};
+  background-color: ${colors.neutral.surface(1)};
   transition:
     background-color ${theme.settings.durationFast} ease-out,
     border-color ${theme.settings.durationFast} ease-out,
@@ -322,7 +340,6 @@ hr {
   background-color: ${colors.neutral.surface("n+3")};
 }
 
-
 /* An unselected toggle is outlined in tint, a choice not yet made (the selected state fills it:
    ui/states.css.tsx). */
 label[e-widget="toggle"]:where(:has(> input:not(:checked))) {
@@ -340,7 +357,8 @@ label[e-widget="toggle"]:where(:has(> input:not(:checked))) {
   ${theme.css_emphasis("link")}
 }
 
-:is(button, a, label, input)[e-emphasis="bare"] {
+:is(button, a, label, input)[e-emphasis="bare"],
+:where(${CHECKABLE_LABEL_SELECTOR}) {
   ${theme.css_emphasis("bare")}
 }
 
