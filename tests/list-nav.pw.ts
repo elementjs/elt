@@ -32,34 +32,37 @@ async function mount_menu(page: Page, labels: (string | null)[]) {
     // node_append, not append: elt's lifecycle (connected callbacks, observers) runs through it.
     node_append(document.body, menu)
   }, labels)
-  // menu_nav focuses the menu on the next frame.
-  await page.waitForFunction(() => document.activeElement?.id === "menu")
+  // menu_nav focuses the first item on the next frame.
+  await page.waitForFunction(() => document.activeElement?.getAttribute("role") === "menuitem")
 }
 
+/** The active item of a menu is the focused one (roving focus), and only that one is in the tab order. */
 async function active(page: Page) {
   return page.evaluate(() => {
     const menu = document.getElementById("menu")!
-    const id = menu.getAttribute("aria-activedescendant")
-    const marked = [...menu.querySelectorAll("[data-active]")].map((e) => e.textContent)
-    return { by_aria: id ? document.getElementById(id)?.textContent : null, marked }
+    const focused = menu.contains(document.activeElement) ? document.activeElement!.textContent : null
+    const tab_stops = [...menu.querySelectorAll("[role=menuitem]:not([disabled])")].filter(
+      (e) => (e as HTMLElement).tabIndex >= 0,
+    ).length
+    return { focused, tab_stops, aria: menu.hasAttribute("aria-activedescendant") }
   })
 }
 
 test.describe("menu_nav / list_nav", () => {
   test("arrows skip headers, separators and disabled items; Home/End jump", async ({ page }) => {
     await mount_menu(page, ["#Key", "Copy", null, "#Value", "-Paste", "Cut", "Delete"])
-    expect(await active(page)).toEqual({ by_aria: "Copy", marked: ["Copy"] })
+    expect(await active(page)).toEqual({ focused: "Copy", tab_stops: 0, aria: false })
     await page.keyboard.press("ArrowDown")
-    expect((await active(page)).by_aria).toBe("Cut")
+    expect((await active(page)).focused).toBe("Cut")
     await page.keyboard.press("ArrowDown")
     await page.keyboard.press("ArrowDown") // clamps at the end
-    expect(await active(page)).toEqual({ by_aria: "Delete", marked: ["Delete"] })
+    expect((await active(page)).focused).toBe("Delete")
     await page.keyboard.press("Home")
-    expect((await active(page)).by_aria).toBe("Copy")
+    expect((await active(page)).focused).toBe("Copy")
     await page.keyboard.press("End")
-    expect((await active(page)).by_aria).toBe("Delete")
+    expect((await active(page)).focused).toBe("Delete")
     await page.keyboard.press("ArrowUp")
-    expect((await active(page)).by_aria).toBe("Cut")
+    expect((await active(page)).focused).toBe("Cut")
   })
 
   test("Enter and Space activate the active item", async ({ page }) => {
@@ -73,12 +76,12 @@ test.describe("menu_nav / list_nav", () => {
   test("typing letters jumps to the matching item", async ({ page }) => {
     await mount_menu(page, ["Apple", "Banana", "Apricot", "Blueberry"])
     await page.keyboard.press("b")
-    expect((await active(page)).by_aria).toBe("Banana")
+    expect((await active(page)).focused).toBe("Banana")
     await page.keyboard.press("b") // the same letter again: the next one
-    expect((await active(page)).by_aria).toBe("Blueberry")
+    expect((await active(page)).focused).toBe("Blueberry")
     await page.keyboard.press("Home")
     await page.keyboard.type("apr")
-    expect((await active(page)).by_aria).toBe("Apricot")
+    expect((await active(page)).focused).toBe("Apricot")
   })
 
   test("a key press looks the items up once, and sees items added since the last one", async ({ page }) => {
@@ -94,10 +97,11 @@ test.describe("menu_nav / list_nav", () => {
       }) as typeof menu.querySelectorAll
     })
     const lookups = () => page.evaluate(() => (window as unknown as W & { lookups: number }).lookups)
-    // A typed letter reads every item's text: one lookup for all of them, not one per item.
+    // A typed letter reads every item's text: one lookup for all of them, not one per item (five here),
+    // and one more to give the item found its focus.
     await page.keyboard.press("c")
-    expect((await active(page)).by_aria).toBe("Cherry")
-    expect(await lookups()).toBe(1)
+    expect((await active(page)).focused).toBe("Cherry")
+    expect(await lookups()).toBe(2)
     await page.evaluate(() => {
       const b = document.createElement("button")
       b.setAttribute("role", "menuitem")
@@ -105,15 +109,15 @@ test.describe("menu_nav / list_nav", () => {
       document.getElementById("menu")!.append(b)
     })
     await page.keyboard.press("End")
-    expect((await active(page)).by_aria).toBe("Date")
+    expect((await active(page)).focused).toBe("Date")
   })
 
   test("hovering an item makes it active", async ({ page }) => {
     await mount_menu(page, ["One", "Two", "Three"])
     await page.hover("#menu button:nth-of-type(3)")
-    expect((await active(page)).by_aria).toBe("Three")
+    expect((await active(page)).focused).toBe("Three")
     await page.keyboard.press("ArrowUp")
-    expect((await active(page)).by_aria).toBe("Two")
+    expect((await active(page)).focused).toBe("Two")
   })
 
   test("in a popup: focus starts in the menu and returns to the opener on Escape", async ({ page }) => {
@@ -131,9 +135,9 @@ test.describe("menu_nav / list_nav", () => {
         return menu
       })
     })
-    await page.waitForFunction(() => document.activeElement?.id === "menu")
+    await page.waitForFunction(() => document.activeElement?.getAttribute("role") === "menuitem")
     await page.keyboard.press("ArrowDown")
-    expect((await active(page)).by_aria).toBe("Two")
+    expect((await active(page)).focused).toBe("Two")
     await page.keyboard.press("Escape")
     await page.waitForFunction(() => document.activeElement?.id === "opener")
   })

@@ -232,6 +232,10 @@ const _re_setting = /[A-Z]|[0-9]+/g
 const ERROR_HUE = 25
 const ERROR_MIN_CHROMA = 0.15
 
+/** How loud a control is, from `link` (plain inline text) to `inverted` (the one dominant action):
+ * the values of the `e-emphasis` attribute. `default` is what a control is without the attribute. */
+export type Emphasis = "link" | "bare" | "default" | "tint" | "inverted"
+
 export class Theme<AllColors extends ColorScheme> {
   /**
    * Every named palette color, plus `neutral` — auto-derived (see below), always present
@@ -486,6 +490,77 @@ export class Theme<AllColors extends ColorScheme> {
     if (suffix === "separator") return this.colors[family].css_as_surface("n+2")
     if (suffix == null || suffix === "surface") return this.colors[family].css_as_surface("n+1")
     return this.colors[family].css_as_surface(suffix)
+  }
+
+  /** The light palette's `bg` at 20% opacity: the highlight above a raised control (the inverted
+   * button, the switch). The light palette in both schemes, so the light comes from the same side in
+   * both and an inverted control, which redefines `--e-color-bg` locally, keeps it. */
+  @memoize
+  get bevel_raise() {
+    return new Mix(this.colors.bg.light_frozen_expr).alpha(0.2)
+  }
+
+  /** The light palette's `text` at 20% opacity: the shadow below a raised control. */
+  @memoize
+  get bevel_drop() {
+    return new Mix(this.colors.text.light_frozen_expr).alpha(0.2)
+  }
+
+  /**
+   * An emphasis level at rest, as raw declarations (docs/md/ui-states.md): the single definition the
+   * `e-emphasis` attribute rules read, so the levels and the helper cannot drift apart. Hover and
+   * press fills are not here: the interaction layer (ui/states.css.tsx) gives every interactive
+   * element the same ones, and a level that wants others (a link has none) sets `--e-hover-fill` /
+   * `--e-press-fill`, registered as not inherited so a button inside a clickable card keeps its own.
+   *
+   * - `default`: a neutral outline, which the controls' shared look already is.
+   * - `tint`: a tint outline and label.
+   * - `inverted`: a fill of the tint color with a beveled edge (`Mix.css_as_inverted`'s mechanism).
+   * - `bare`: no fill and no visible edge, yet the same size as the others: padding stays and the
+   *   border is transparent, so a state that paints a boundary (the selected one) changes colors and
+   *   never the size.
+   * - `link`: plain inline text, underlined: no padding, no border, no minimum height.
+   */
+  css_emphasis(level: Emphasis): string {
+    const c = this.colors
+    switch (level) {
+      case "default":
+        return ""
+      case "tint":
+        return `border-color: ${c.tint}; color: ${c.tint};`
+      case "bare":
+        return `border-color: transparent; background: transparent; color: ${c.text};`
+      case "link":
+        return `border: 0; padding: 0; min-height: 0; display: inline; background: transparent; color: ${c.tint};
+          text-decoration: underline; --e-hover-fill: transparent; --e-press-fill: transparent;`
+      case "inverted":
+        return `--e-color-bg: var(--e-light-color-tint);
+          --e-current-surface: var(--e-color-bg);
+          --e-color-text: var(--e-light-color-bg);
+          --e-color-tint: var(--e-light-color-bg);
+          color: var(--e-color-text);
+          background-color: var(--e-color-bg);
+          border-color: ${this.bevel_raise} ${this.bevel_drop} ${this.bevel_drop} ${this.bevel_raise};`
+    }
+  }
+
+  /**
+   * The selected state's fill (docs/md/ui-states.md): the ambient surface three levels up, four when
+   * `hover` (hovered or keyboard-active, so it doesn't fall back to a hover fill). A selection is a
+   * choice, not an action: a tint surface jump, never an inversion. Sets `--e-current-surface` too,
+   * the color packed containers and the sticky elements paint with. The border color is the state
+   * rule's (`ui/states.css.tsx`): a row has none.
+   *
+   * Not `Mix.css_as_surface`: that one also raises the level its children read, by redeclaring the
+   * relay variable a parent's `& > *` rule reads on this very element, which makes the level a cycle
+   * (and the fill transparent) when the parent is itself a `[surface]`. A selected control's children
+   * read the ambient level, as they always did for a checked toggle.
+   */
+  css_selected(hover = false): string {
+    const fill = hover ? this.colors.tint.selected_hover : this.colors.tint.selected
+    return `--e-current-surface: ${fill};
+    background-color: var(--e-current-surface);
+    color: var(--e-color-text);`
   }
 
   /** `[border]`'s value type, as a raw declaration — see `ColorStep`. Bare (`true`)/no value, and a

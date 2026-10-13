@@ -34,7 +34,7 @@ test.describe("schema scalar option forwarding", () => {
       const widget = boolean().render(o_val as any)
       node_append(document.body, widget.render() as HTMLElement)
       const input = document.querySelector("input[type=checkbox]") as HTMLInputElement
-      return input.getAttribute("e-variant")
+      return input.getAttribute("e-widget")
     })
     expect(result).toBe("switch")
   })

@@ -17,8 +17,8 @@ const CONTROLS = `
   <textarea rows="1">one line</textarea>
   <button>Text</button>
   <button id="icon-button"></button>
-  <button e-variant="tint">Tint</button>
-  <label e-variant="toggle"><input type="checkbox" />Toggle</label>`
+  <button e-emphasis="tint">Tint</button>
+  <label e-widget="toggle"><input type="checkbox" />Toggle</label>`
 
 const CONTEXTS: Record<string, string> = {
   loose: `<e-row align="start" spacing="widget">${CONTROLS}</e-row>`,

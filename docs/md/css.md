@@ -33,6 +33,7 @@ const cls_row = css`.row {
 - Delete classes nobody uses: a `cls_*` variable that is never read is easy to spot, which is why the naming matters.
 - Use standard CSS. Avoid vendor prefixes unless a browser you support still needs one.
 - For large sheets, group rules in a named layer (`@layer application { … }`) so their priority against other layers is explicit.
+- With `elt/ui`, the layers are declared in this order: `reset, base, theme, typography, components, interaction, state, utilities, overrides`. The look of the controls is in `components`; hover, press and focus are in `interaction`, and the selected, invalid and disabled states in `state`, both above it. A rule of yours that is not in a layer beats all of them. A layer of yours that is declared after these (the first time its name appears) beats all of them too, so a state rule of yours there overrides the state layer; one declared before them loses to them. See [States § Layers](./ui-states.md#layers).
 
 ## See also
 

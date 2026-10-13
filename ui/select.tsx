@@ -191,7 +191,8 @@ export function Select<T, T2 = T>(at: SelectAttributes<T, T2>) {
                 role="option"
                 id={o_index.tf((i) => `${list_id}-${i}`)}
                 aria-selected={oo_is_selected.tf((selected) => String(selected))}
-                data-active={o.expression((get) => get(o_active) === get(o_index))}
+                e-interactive
+                e-active={o.expression((get) => get(o_active) === get(o_index))}
               >
                 {$click(() => pick(o_option.get()))}
                 {$on("pointermove", () => {
@@ -404,7 +405,6 @@ const cls_indicator = css`.indicator {
 }`
 
 const cls_item = css`.item {
-  cursor: pointer;
   user-select: none;
   font-size: ${theme.settings.formFontSize};
 
@@ -415,12 +415,8 @@ const cls_item = css`.item {
     width: 16px;
   }
 
-  /* The selected fill (tint + 3, + 4 hovered or active) is list_nav's, shared by every option. */
-  @media (hover: hover) and (pointer: fine) {
-    &:where(:not([aria-selected="true"])):hover {
-      background-color: ${colors.tint.hover};
-    }
-  }
+  /* Hover, the keyboard cursor and the selected fill (tint + 3, + 4 hovered or active) are the
+     interaction and state layers' (ui/states.css.tsx): an option is \`e-interactive\` and \`aria-selected\`. */
 }`
 
 /* Loading, error and empty rows: not options, so not selectable or navigable. */

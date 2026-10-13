@@ -19,7 +19,7 @@ interface MountOpts {
   am_pm?: boolean | "live"
   /** `"live"`: an observable, initially 1, exposed as `window.o_step`. */
   minute_step?: number | "live"
-  variant?: "inverted" | "full" | "tint"
+  emphasis?: "inverted" | "tint"
 }
 
 type W = Window & {
@@ -50,7 +50,7 @@ async function mount(page: Page, opts: MountOpts) {
       show_time: opts.show_time,
       am_pm: opts.am_pm === "live" ? o_am_pm : opts.am_pm,
       minute_step: opts.minute_step === "live" ? o_step : opts.minute_step,
-      variant: opts.variant,
+      emphasis: opts.emphasis,
     }
     const picker =
       opts.clearable === "live"
@@ -314,17 +314,16 @@ test("ScrollColumn shows its label above the values", async ({ page }) => {
   expect(r.texts).toEqual(["Min", "6", "5", "4"])
 })
 
-// "full" is the deprecated former name of "inverted".
-for (const variant of ["inverted", "full"] as const) {
-  test(`variant="${variant}" draws the buttons as the inverted (filled) button`, async ({ page }) => {
-    await mount(page, { lang: "en-GB", model: [2026, 9, 3, 0, 0, 0], variant })
+for (const emphasis of ["inverted"] as const) {
+  test(`emphasis="${emphasis}" draws the buttons as the inverted (filled) button`, async ({ page }) => {
+    await mount(page, { lang: "en-GB", model: [2026, 9, 3, 0, 0, 0], emphasis })
     const r = await page.evaluate(() => {
       const btn = document.querySelector('#holder button[title="Date"]') as HTMLElement
       const ref = document.createElement("button")
-      ref.setAttribute("e-variant", "inverted")
+      ref.setAttribute("e-emphasis", "inverted")
       btn.parentElement!.parentElement!.appendChild(ref)
       const out = {
-        attr: btn.getAttribute("e-variant"),
+        attr: btn.getAttribute("e-emphasis"),
         bg: getComputedStyle(btn).backgroundColor,
         ref: getComputedStyle(ref).backgroundColor,
       }

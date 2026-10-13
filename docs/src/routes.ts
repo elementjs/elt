@@ -27,6 +27,7 @@ import md_ui_hard_dont_text from "../md/ui-hard-dont.md" with { type: "text" }
 import md_ui_keymap_text from "../md/ui-keymap.md" with { type: "text" }
 import md_ui_layout_text from "../md/ui-layout.md" with { type: "text" }
 import md_ui_overlays_text from "../md/ui-overlays.md" with { type: "text" }
+import md_ui_states_text from "../md/ui-states.md" with { type: "text" }
 import md_ui_theme_text from "../md/ui-theme.md" with { type: "text" }
 import md_ui_typography_text from "../md/ui-typography.md" with { type: "text" }
 import md_ui_widgets_text from "../md/ui-widgets.md" with { type: "text" }
@@ -54,6 +55,7 @@ void md_ui_hard_dont_text
 void md_ui_keymap_text
 void md_ui_layout_text
 void md_ui_overlays_text
+void md_ui_states_text
 void md_ui_theme_text
 void md_ui_typography_text
 void md_ui_widgets_text

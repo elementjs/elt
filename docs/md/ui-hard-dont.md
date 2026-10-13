@@ -11,6 +11,7 @@ order: 5
 ## Never
 
 1. **Give an element a margin of its own.** Spacing between elements is the parent's job: `spacing` on a layout element, or a prose container's own margins. There is no exception. See [elt/ui rules § Golden rules](./elt-ui-rules.md#golden-rules) (rule 3).
+2. **Style a state with a class or a `data-*` attribute.** A selected, pressed, current, invalid or disabled element is marked with its ARIA attribute (`aria-selected`, `aria-pressed`, `aria-current`, `aria-checked`, `aria-invalid`, `aria-disabled`), never with `.selected`, `.active` or `data-active`, and never with an emphasis value. The look follows the attribute, in elt/ui's own layers, and what assistive technology announces cannot differ from what is drawn. See [elt/ui rules § Building app-specific widgets](./elt-ui-rules.md#building-app-specific-widgets) (rule 4).
 
 ## Check before you write
 

@@ -29,7 +29,7 @@ A palette supplies `bg`, `text` and `tint`; the default theme adds semantic hues
 | Need | Use |
 | ---- | --- |
 | The color itself | `theme.colors.tint` (renders as `var(--e-color-tint)`) |
-| A `:hover` fill | `.hover` — one surface level above the ambient one. The `hover` attribute does this for layout elements. |
+| A `:hover` fill | `.hover` — one surface level above the ambient one. The `hover` attribute does this for layout elements: a hover fill only, with no press look, cursor or focus ring (`e-interactive` adds those, [States § Interaction](./ui-states.md#interaction)). |
 | A container's edge, a divider | `.separator` — two levels above the ambient one |
 | A focus ring, a moderate accent, disabled text | `.mid` |
 | Muted text on a known surface | `.faded` — opaque, computed from the page palette |
@@ -40,7 +40,7 @@ A palette supplies `bg`, `text` and `tint`; the default theme adds semantic hues
 | A one-off mix no named helper covers | `.from_bg("20%")`, `.from_text("20%")`, `.from(other, "20%")`; `.alpha(0.5)` for the color at an opacity |
 | Make another color the subtree's accent | `theme.colors.orange.class_as_tint` (class) |
 | Inverted band (top toolbar, dialog title row; `neutral` for a main table's header) | `theme.colors.tint.class_as_inverted` (class) or `.css_as_inverted` (declarations) |
-| A selected item's fill | `theme.colors.tint.selected` (surface n+3), `.selected_hover` when hovered ([State](#state)) |
+| A selected item's fill | Set the ARIA attribute and let elt/ui draw it ([States § Selected state](./ui-states.md#selected-state)); in your own CSS, `theme.colors.tint.selected` (surface n+3) and `.selected_hover` when hovered ([State](#state)) |
 
 ```ts
 import { css } from "elt"
@@ -74,7 +74,7 @@ A surface **level** counts how many background fills deep an element is. The pag
 
 ## Emphasis
 
-Every band, control and state is placed by answering two questions. The binding rules are in [elt/ui rules § Emphasis](./elt-ui-rules.md#emphasis), the default placements in [§ Recommendations](./elt-ui-rules.md#recommendations).
+Every band, control and state is placed by answering two questions. ("Emphasis" here is this placement. The `e-emphasis` attribute is how one kind of element, a control, picks its strength in it: [States § Emphasis](./ui-states.md#emphasis).) The binding rules are in [elt/ui rules § Emphasis](./elt-ui-rules.md#emphasis), the default placements in [§ Recommendations](./elt-ui-rules.md#recommendations).
 
 **Family: what is it?**
 
@@ -86,22 +86,22 @@ Every band, control and state is placed by answering two questions. The binding 
 
 | Strength | How | Example |
 | -------- | --- | ------- |
-| None | No border, no fill | `text`/`link` buttons, a button toolbar |
+| None | No visible border, no fill | `bare` and `link` buttons, a button toolbar |
 | Outline | A border only | the default and `tint` buttons, inputs |
 | Surface | One level up (`surface`, `.hover`) | a status bar, a code example, a hovered item |
-| Surface jump | Two levels up or more | a selected item (+3), a pressed control (+2) |
+| Surface jump | Two levels up or more | a selected item or a pressed toggle (+3), a pressed control (+2) |
 | Inverted | The color becomes the background ([Inversion](#inversion)) | the dominant action, the top toolbar, a dialog's title row |
 
 **Jumps between levels carry meaning.** One level up means "one step deeper" (a nested panel) or "passing" (hover). Two levels up or more means "a state that lasts and stands out from its siblings", however deep it sits. Lasting fills stop at level 4; hover and pressed may go two levels past ([Why](#why)).
 
 ## Inversion
 
-Inversion is one mechanism: given a color, the new background is that color and the new `text` and `tint` are the old background (`.class_as_inverted`, `.css_as_inverted`, `surface="invert-tint"` / `surface="invert-neutral"` on layout elements, and the `inverted` button variant). How loud the result is depends only on the color you invert:
+Inversion is one mechanism: given a color, the new background is that color and the new `text` and `tint` are the old background (`.class_as_inverted`, `.css_as_inverted`, `surface="invert-tint"` / `surface="invert-neutral"` on layout elements, and the `inverted` emphasis of a button). How loud the result is depends only on the color you invert:
 
 - `tint` — maximum attention: the dominant action (the `inverted` button), the app's top toolbar, a dialog's title row, `<header>`.
 - `neutral` — strong but quieter: furniture that needs attention, such as the header of a table that is the main thing on the screen.
 
-Selection is not an inversion: it is a tint surface jump ([State](#state)). Text colors (`text.faded`, …) are never inverted or used as backgrounds; a grey band is `neutral`.
+Selection is not an inversion: it is a tint surface jump ([State](#state)), and marking an element selected never inverts it. An item selected inside an inverted band is drawn relative to the band, like anything else in it. Text colors (`text.faded`, …) are never inverted or used as backgrounds; a grey band is `neutral`.
 
 The new text and tint are frozen to the *light* theme's background, so an inverted band looks identical in light and dark mode. Inverting the same color again inside an inverted band inverts it again rather than returning to normal; to nest something visible inside an inverted band, invert a different color, or change the subtree's tint first with `as_tint`.
 
@@ -111,11 +111,13 @@ An inverted container (a top toolbar, a title row, an important region) creates 
 
 ## State
 
-- **Hover**: one level above the current surface, in the current surface's color family, so it matches whatever it is drawn on.
-- **Selected**: a tint surface three levels above where the item sits (`tint.selected`, surface n+3), four when hovered or keyboard-active (`tint.selected_hover`); the text keeps its color. The same goes for a checked toggle (with a full `tint` border) and the current tab. Any `role="option"` with `aria-selected="true"` is drawn this way (Select's options included), and so is the date picker's selected day.
+How the states look. How an element gets one (the ARIA attributes and the rules) is in [States](./ui-states.md).
+
+- **Hover**: one level above the current surface, in the current surface's color family, so it matches whatever it is drawn on. Only where hovering exists (a mouse), not on a touch screen.
+- **Selected**: a tint surface three levels above where the item sits (`tint.selected`, surface n+3), four when hovered or keyboard-active (`tint.selected_hover`), with a full `tint` border; the text keeps its color. It is drawn from the ARIA attributes that say "this is chosen, pressed or current": `aria-pressed="true"`, `aria-selected="true"`, `aria-current` (any value but `"false"`), `aria-checked="true"`, and a toggle's checked checkbox. A button of any emphasis, an option, a row, a navigation item, a tab and the date picker's selected day get the look the same way ([States § Selected state](./ui-states.md#selected-state)).
 - **Pressed**: one level past hover.
-- **Focus**: a ring (`tint.mid`, `theme.settings.focusRingSize` wide), never a fill or a replaced border. Buttons, textareas and text, number and search inputs draw it inside their edge, so nothing can cut it (a scroll area clips what is outside its padding box, even when nothing overflows) and cells that touch don't cover it; the other controls draw it around themselves.
-- **Disabled**: a disabled control is furniture, whatever its variant: it turns `neutral`, and its full-strength colors move halfway toward its background (`.mid`). Its label becomes `text.mid` and its border `neutral.mid`, including for `tint`, `text` and `link` buttons. An `inverted` control's fill becomes the halfway mix of `neutral` while its label keeps its color. A checked toggle's fill becomes `neutral` three levels up; checkboxes and switches use `neutral` for their check mark and track. A `<label>` around a disabled control uses `text.mid`. No opacity is involved.
+- **Focus**: a ring (`tint.mid`, `theme.settings.focusRingSize` wide), never a fill or a replaced border. Buttons, textareas, text, number and search inputs and `e-interactive` elements draw it inside their edge, so nothing can cut it (a scroll area clips what is outside its padding box, even when nothing overflows) and cells that touch don't cover it; checkboxes and switches, which cannot have a reasonable inset, draw it around themselves.
+- **Disabled**: a disabled control is furniture, whatever its emphasis: it turns `neutral`, and its full-strength colors move halfway toward its background (`.mid`). Its label becomes `text.mid` and its border `neutral.mid`, including for `tint`, `bare` and `link` buttons. An `inverted` control's fill becomes the halfway mix of `neutral` while its label keeps its color. A selected disabled control keeps the jump, in `neutral` three levels up; checkboxes and switches use `neutral` for their check mark and track. A `<label>` around a disabled control uses `text.mid`. No opacity is involved.
 
 ## Custom theme
 
@@ -209,7 +211,7 @@ const cls_toolbar = css`.toolbar {
 
 ## Why
 
-**Emphasis.** Every band, control and state gets a family and a strength ([Emphasis](#emphasis)). Separating the two keeps one vocabulary for everything: a status bar and a hovered row are both "neutral, one level up", for the same reason. For buttons, the five variants map onto it, from quietest to loudest: `link`, `text`, default, `tint`, `inverted` ([Forms § Buttons and variants](./ui-forms.md#buttons-and-variants)). `inverted` draws the eye, so it is reserved for the one action in an area that needs outsized attention — typically a heavy, hard-to-reverse one. Two inverted buttons side by side compete and cancel each other out. The name "inverted" was chosen over a Material-style "elevation": elevation implies depth and shadow, which this has none of. "Inverted" names only the mechanism — the button variant and the `Mix` helper are the same thing.
+**Emphasis.** Every band, control and state gets a family and a strength ([Emphasis](#emphasis)). Separating the two keeps one vocabulary for everything: a status bar and a hovered row are both "neutral, one level up", for the same reason. For controls, the five levels of `e-emphasis` map onto it, from quietest to loudest: `link`, `bare`, default, `tint`, `inverted` ([States § Emphasis](./ui-states.md#emphasis)). `inverted` draws the eye, so it is reserved for the one action in an area that needs outsized attention — typically a heavy, hard-to-reverse one. Two inverted buttons side by side compete and cancel each other out. The name "inverted" was chosen over a Material-style "elevation": elevation implies depth and shadow, which this has none of. "Inverted" names only the mechanism — the button emphasis and the `Mix` helper are the same thing.
 
 **Color theory.** There is no fixed palette: an app brings `bg` (what we draw on), `text`, and `tint` (the color with a hue). Every other color is a mix along an axis from `bg` to `text`, with the tint in between: the `bg` side separates space (fills, borders, dividers), the `text` side gives textual alternatives (stronger, weaker text). Transparency is never used for this, outside shadows, deliberate effects such as the selection highlight, and `.alpha` where following what's behind is the point: muted text that must stay readable on an inverted band (typography's `h6`, `blockquote`, `dd`, `figcaption`) and light fills that must stay distinct from any surface level (inline `code`, `mark`). Elsewhere a transparent color changes depending on what's behind it, which breaks the surface levels. Each named color mixes with `bg` and with `text` independently; there is no single continuum routed through `tint` except for `tint` itself.
 
@@ -219,7 +221,7 @@ const cls_toolbar = css`.toolbar {
 
 **Relative surfaces.** Surfaces stack relative to where they sit, not to the page: a panel inside a panel is one level further from the background than its parent, whatever the parent's own depth. Any component therefore renders correctly wherever it is placed, without knowing its ancestors. Hover (n+1) and separators (n+2) use the same relative stack, so a hover fill or a divider always contrasts with whatever it is drawn on; they are one level apart so that both stay distinguishable on the same row. Absolute levels exist for content whose position in the DOM doesn't match where it appears: a popup attached to `document.body` doesn't inherit the level of the button that opened it.
 
-**State.** A selection is a choice, not "the next action to take", so it is a tint surface jump rather than an inversion: several selected items side by side stay quiet, and none competes with the dominant action. Three levels is a clear jump from hover (one level), and from a popup (level 0) it lands at level 3, or 4 when hovered. A press may coincide with a border color at that level; it is too brief for that to matter. On a tint surface, a pressed item and a selected one can look the same for the same reason.
+**State.** A selection is a choice, not "the next action to take", so it is a tint surface jump rather than an inversion: several selected items side by side stay quiet, and none competes with the dominant action. Three levels is a clear jump from hover (one level), and from a popup (level 0) it lands at level 3, or 4 when hovered. A press may coincide with a border color at that level; it is too brief for that to matter. On a tint surface, a pressed item and a selected one can look the same for the same reason. The look is drawn from ARIA attributes, not a class, so it is the same for every widget that sets them and cannot disagree with what assistive technology announces ([States § Why](./ui-states.md#why)).
 
 **How deep surfaces go.** Each level mixes 10% more of its color into the background, so text loses contrast as fills get deeper. With the default palette, measured in the browser:
 

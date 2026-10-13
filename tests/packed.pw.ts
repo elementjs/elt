@@ -58,7 +58,7 @@ test.describe('packed seams="children": the children\'s own borders, never doubl
     const r = await page.evaluate(() => {
       document.body.insertAdjacentHTML(
         "beforeend",
-        `<e-row id="r" packed seams="children"><button>a</button><label e-variant="toggle"><input type="checkbox" checked>b</label><button>c</button></e-row>`,
+        `<e-row id="r" packed seams="children"><button>a</button><label e-widget="toggle"><input type="checkbox" checked>b</label><button>c</button></e-row>`,
       )
       const [a, b, c] = [...document.getElementById("r")!.children].map((e) => getComputedStyle(e))
       return {
@@ -80,7 +80,7 @@ test.describe('packed seams="children": the children\'s own borders, never doubl
     const r = await page.evaluate(() => {
       document.body.insertAdjacentHTML(
         "beforeend",
-        `<e-row id="r" packed seams="children"><button aria-pressed="true">a</button><button e-variant="tint">b</button></e-row>`,
+        `<e-row id="r" packed seams="children"><button aria-pressed="true">a</button><button e-emphasis="tint">b</button></e-row>`,
       )
       const [a, b] = [...document.getElementById("r")!.children].map((e) => getComputedStyle(e))
       return { a_right: a.borderRightStyle, b_left: b.borderLeftStyle }
@@ -106,7 +106,7 @@ test.describe('packed seams="children": the children\'s own borders, never doubl
     const r = await page.evaluate(() => {
       document.body.insertAdjacentHTML(
         "beforeend",
-        `<e-row id="r" packed seams="children"><button e-variant="tint" disabled>a</button><button>b</button></e-row>`,
+        `<e-row id="r" packed seams="children"><button e-emphasis="tint" disabled>a</button><button>b</button></e-row>`,
       )
       const [a, b] = [...document.getElementById("r")!.children].map((e) => getComputedStyle(e))
       return { a_right: a.borderRightStyle, b_left: b.borderLeftStyle }
@@ -151,10 +151,10 @@ test.describe('packed seams="children": the children\'s own borders, never doubl
       row.setAttribute("packed", "")
       row.setAttribute("seams", "children")
       const a = document.createElement("label")
-      a.setAttribute("e-variant", "toggle")
+      a.setAttribute("e-widget", "toggle")
       a.innerHTML = '<input type="checkbox">'
       const b = document.createElement("label")
-      b.setAttribute("e-variant", "toggle")
+      b.setAttribute("e-widget", "toggle")
       b.innerHTML = '<input type="checkbox">'
       row.append(a, b)
       document.body.appendChild(row)
@@ -308,7 +308,7 @@ test.describe("packed[border] (docs/md/ui-layout.md)", () => {
   }) => {
     const result = await page.evaluate(() => {
       const toggle = (checked: boolean) =>
-        `<label e-variant="toggle"><input type="checkbox"${checked ? " checked" : ""}>Aa</label>`
+        `<label e-widget="toggle"><input type="checkbox"${checked ? " checked" : ""}>Aa</label>`
       document.body.insertAdjacentHTML(
         "beforeend",
         `<e-row id="packed" surface="neutral-1" packed border><button>b</button>${toggle(false)}${toggle(true)}</e-row>
@@ -824,7 +824,7 @@ test.describe("packed seams (docs/md/ui-layout.md#packed)", () => {
   }) => {
     const kids = await edges(
       page,
-      `<e-row id="r" packed><button>a</button><button e-variant="tint">b</button><button>c</button><button>d</button></e-row>`,
+      `<e-row id="r" packed><button>a</button><button e-emphasis="tint">b</button><button>c</button><button>d</button></e-row>`,
       "#r > *",
     )
     // b keeps all of its own edges (the shared ones are its to draw); c, right after it, gives up its
@@ -846,7 +846,7 @@ test.describe("packed seams (docs/md/ui-layout.md#packed)", () => {
   test("default: two important children side by side share one line, the first one's", async ({ page }) => {
     const kids = await edges(
       page,
-      `<e-row id="r" packed><button aria-pressed="true">a</button><button e-variant="tint">b</button></e-row>`,
+      `<e-row id="r" packed><button aria-pressed="true">a</button><button e-emphasis="tint">b</button></e-row>`,
       "#r > *",
     )
     // a keeps the line it shares (its trailing edge); b gives up its leading edge and keeps the rest.
@@ -856,7 +856,7 @@ test.describe("packed seams (docs/md/ui-layout.md#packed)", () => {
   test("forced: the container's line everywhere, important children included", async ({ page }) => {
     const kids = await edges(
       page,
-      `<e-row id="r" packed seams="forced"><button>a</button><button e-variant="tint">b</button><button aria-invalid="true">c</button></e-row>`,
+      `<e-row id="r" packed seams="forced"><button>a</button><button e-emphasis="tint">b</button><button aria-invalid="true">c</button></e-row>`,
       "#r > *",
     )
     expect(kids).toEqual(["snss", "snss", "ssss"])
@@ -868,7 +868,7 @@ test.describe("packed seams (docs/md/ui-layout.md#packed)", () => {
     for (const seams of ["default", "forced", "none", "children"]) {
       const kids = await edges(
         page,
-        `<e-row id="r" packed border seams="${seams}"><button e-variant="tint">a</button><button e-variant="tint">b</button></e-row>`,
+        `<e-row id="r" packed border seams="${seams}"><button e-emphasis="tint">a</button><button e-emphasis="tint">b</button></e-row>`,
         "#r > *",
       )
       // Top, bottom, the first one's leading edge and the last one's trailing edge: never drawn.
@@ -899,7 +899,7 @@ test.describe("packed seams (docs/md/ui-layout.md#packed)", () => {
   test("a nested group inherits the mode and the color, and can set its own", async ({ page }) => {
     const html = `
       <e-column id="c" packed seams="forced" seam-color="tint-3">
-        <e-row id="g1" packed><button e-variant="tint">a</button><button>b</button></e-row>
+        <e-row id="g1" packed><button e-emphasis="tint">a</button><button>b</button></e-row>
         <e-row id="g2" packed seams="none"><button>c</button><button>d</button></e-row>
       </e-column>`
     // g1 inherits forced: the tint button gets the plain line; g2 draws none between its own children.
@@ -1283,7 +1283,7 @@ test.describe("packed and hidden children (docs/md/ui-layout.md#packed)", () => 
   test("a hidden meaningful child does not take the next child's leading edge", async ({ page }) => {
     // Before the fix, the hidden tint button made `c` drop its leading edge while `a` dropped its
     // trailing one: no line at all between the two visible buttons.
-    const [a, c] = await edges(page, `<button>a</button><button e-variant="tint" hidden>b</button><button>c</button>`)
+    const [a, c] = await edges(page, `<button>a</button><button e-emphasis="tint" hidden>b</button><button>c</button>`)
     expect(a[1]).toBe("none")
     expect(c[0]).toBe("solid")
   })

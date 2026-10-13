@@ -98,13 +98,13 @@ export function ScrollColumn(opts: ScrollColumnOpts) {
         drag_accum = 0
       })}
       {opts.label != null && <span class={cls_label}>{opts.label}</span>}
-      <button type="button" e-variant="text" class={cls_step}>
+      <button type="button" e-emphasis="bare" class={cls_step}>
         {$click(() => step(-1))}▲
       </button>
       <span class={cls_adj}>{format_at(1)}</span>
       <span class={cls_val}>{o.tf(opts.value, opts.format)}</span>
       <span class={cls_adj}>{format_at(-1)}</span>
-      <button type="button" e-variant="text" class={cls_step}>
+      <button type="button" e-emphasis="bare" class={cls_step}>
         {$click(() => step(1))}▼
       </button>
     </e-column>
@@ -202,6 +202,10 @@ const cls_label = css`.scroll-label {
 }`
 
 const cls_step = css`.scroll-step {
+  /* A small arrow in a tight column: none of a control's room (a bare button's padding and edge). */
+  padding: 0;
+  border: 0;
+  min-height: 0;
   font-size: 0.65em;
   line-height: 2;
   min-width: 24px;

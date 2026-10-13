@@ -32,7 +32,7 @@ test.describe("disabled controls", () => {
 
   // A disabled control is furniture, whatever its variant: it loses its tint for neutral.
   test("a disabled tint button uses text.mid, like the default one", async ({ page }) => {
-    const r = await probe(page, `<button e-variant="tint" disabled>b</button>`, "button", "text.mid")
+    const r = await probe(page, `<button e-emphasis="tint" disabled>b</button>`, "button", "text.mid")
     expect(r.opacity).toBe("1")
     expect(r.color).toBe(r.ref)
   })
@@ -40,7 +40,7 @@ test.describe("disabled controls", () => {
   test("a disabled tint button's border is neutral.mid", async ({ page }) => {
     const r = await page.evaluate(() => {
       const { theme } = window.__ELT__.UI
-      document.body.insertAdjacentHTML("beforeend", `<div id="h"><button e-variant="tint" disabled>b</button></div>`)
+      document.body.insertAdjacentHTML("beforeend", `<div id="h"><button e-emphasis="tint" disabled>b</button></div>`)
       const ref = document.createElement("span")
       ref.style.borderColor = theme.colors.neutral.mid.toString()
       document.getElementById("h")!.appendChild(ref)
@@ -56,7 +56,7 @@ test.describe("disabled controls", () => {
     const r = await page.evaluate(() => {
       document.body.insertAdjacentHTML(
         "beforeend",
-        `<button id="d" e-variant="inverted" disabled>b</button>
+        `<button id="d" e-emphasis="inverted" disabled>b</button>
          <div id="n" style="background: color-mix(in oklab, var(--e-light-color-bg) 50%, var(--e-light-color-neutral) 50%)"></div>`,
       )
       const bg = (id: string) => getComputedStyle(document.getElementById(id)!).backgroundColor
@@ -70,7 +70,7 @@ test.describe("disabled controls", () => {
       const { theme } = window.__ELT__.UI
       document.body.insertAdjacentHTML(
         "beforeend",
-        `<e-row id="r"><label e-variant="toggle"><input type="checkbox" disabled>a</label><label e-variant="toggle"><input type="checkbox" checked disabled>b</label></e-row>`,
+        `<e-row id="r"><label e-widget="toggle"><input type="checkbox" disabled>a</label><label e-widget="toggle"><input type="checkbox" checked disabled>b</label></e-row>`,
       )
       const row = document.getElementById("r")!
       const ref = document.createElement("div")
@@ -183,7 +183,7 @@ test.describe("invalid fields", () => {
 
   test("whatever the variant: a tint input turns error too", async ({ page }) => {
     await page.evaluate(() =>
-      document.body.insertAdjacentHTML("beforeend", `<input id="f" e-variant="tint" aria-invalid="true">`),
+      document.body.insertAdjacentHTML("beforeend", `<input id="f" e-emphasis="tint" aria-invalid="true">`),
     )
     const r = await look(page, "#f")
     expect(r.border).toBe(r.error)

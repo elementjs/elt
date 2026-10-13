@@ -19,14 +19,11 @@ import { theme } from "./theme"
 
 const colors = theme.colors
 
-/** @deprecated `"full"` is the former name of `"inverted"`; it still draws the inverted buttons. */
-export type DeprecatedFullVariant = "full"
-
 export interface DateTimePickerAttributesBase extends Attrs<HTMLElement> {
   week_starts_on?: o.RO<"monday" | "tuesday" | "wednesday" | "thursday" | "friday" | "saturday" | "sunday">
 
-  /** The look of the buttons next to the text field: `"inverted"` filled with the tint color (like `e-variant="inverted"`), `"tint"` outlined (default). */
-  variant?: o.RO<"inverted" | "tint" | DeprecatedFullVariant>
+  /** The emphasis of the buttons next to the text field (`e-emphasis`): `"inverted"` filled with the tint color, `"tint"` outlined (default). */
+  emphasis?: o.RO<"inverted" | "tint">
 
   /** if true, show the date selector. Default is true. */
   show_date?: o.RO<boolean>
@@ -84,8 +81,7 @@ export function DateTimePicker(at: DatePickerAttrs) {
   const o_locale = o("")
   let input_ctrl: DateInputController | null = null
 
-  // "full" is the former name of "inverted" (filled with the tint color), kept as an alias.
-  const oo_variant = o.tf(at.variant, (v) => (v === "inverted" || v === "full" ? "inverted" : "tint"))
+  const oo_emphasis = o.tf(at.emphasis, (v) => (v === "inverted" ? "inverted" : "tint"))
 
   const oo_layout = o.expression((get) => {
     const locale = get(o_locale)
@@ -155,12 +151,12 @@ export function DateTimePicker(at: DatePickerAttrs) {
       () => (
         <e-column pad="component" surface="background" border>
           <e-flex spacing="widget" align="center">
-            <button type="button" e-variant="text">
+            <button type="button" e-emphasis="bare">
               {$click(() => year_delta(-1))}
               {CaretLeft()}
             </button>
             <span class={cls_year}>{o_view.tf((v) => String(v.getFullYear()))}</span>
-            <button type="button" e-variant="text">
+            <button type="button" e-emphasis="bare">
               {$click(() => year_delta(1))}
               {CaretRight()}
             </button>
@@ -181,8 +177,9 @@ export function DateTimePicker(at: DatePickerAttrs) {
               return (
                 <button
                   type="button"
-                  e-variant="text"
-                  class={[cls_day, oo_in_month.tf((v) => !v && "outside"), oo_selected_day.tf((s) => s && "selected")]}
+                  e-emphasis="bare"
+                  class={[cls_day, oo_in_month.tf((v) => !v && "outside")]}
+                  aria-pressed={oo_selected_day.tf((s) => String(s))}
                 >
                   {$click(() => {
                     const cell = o_cell.get().date
@@ -227,7 +224,7 @@ export function DateTimePicker(at: DatePickerAttrs) {
         at.clearable,
         (c) =>
           c && (
-            <button type="button" e-variant={oo_variant} title="Clear">
+            <button type="button" e-emphasis={oo_emphasis} title="Clear">
               {$click(() => set_model(null))}
               <X />
             </button>
@@ -237,7 +234,7 @@ export function DateTimePicker(at: DatePickerAttrs) {
         opts.show_time,
         (v) =>
           v && (
-            <button type="button" e-variant={oo_variant} title="Time">
+            <button type="button" e-emphasis={oo_emphasis} title="Time">
               {$click(async (ev) => {
                 const locale = o_locale.get()
                 if (!locale) return
@@ -268,7 +265,7 @@ export function DateTimePicker(at: DatePickerAttrs) {
         opts.show_date,
         (v) =>
           v && (
-            <button type="button" e-variant={oo_variant} title="Date">
+            <button type="button" e-emphasis={oo_emphasis} title="Date">
               {$click((ev) => {
                 void open_calendar(ev.currentTarget)
               })}
@@ -304,6 +301,7 @@ const cls_dow = css`.date-dow {
 
 const cls_day = css`.date-day {
   border: none;
+  padding: 0;
   height: 28px;
   line-height: 28px;
   ${theme.css_radius("nudge-4")}
@@ -313,18 +311,7 @@ const cls_day = css`.date-day {
   &.outside {
     color: ${colors.tint.faded};
   }
-  /* Selected: a tint surface jump (+3), one level further when hovered (docs/md/ui-theme.md, Emphasis). */
-  &.selected {
-    background: ${colors.tint.selected};
-  }
-  @media (hover: hover) and (pointer: fine) {
-    &:hover {
-      background: ${colors.tint.hover};
-    }
-    &.selected:hover {
-      background: ${colors.tint.selected_hover};
-    }
-  }
+  /* Hover and the selected day (\`aria-selected\`) are the interaction and state layers' (ui/states.css.tsx). */
 }`
 
 const cls_date_input = css`.date-input {

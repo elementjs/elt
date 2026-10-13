@@ -59,7 +59,7 @@ test.describe("ObjectEditorShell", () => {
 
       const name_input = shell.node.querySelector('input[type="text"]') as HTMLInputElement
       const age_input = shell.node.querySelector('input[type="number"]') as HTMLInputElement
-      const active_input = shell.node.querySelector('input[e-variant="switch"]') as HTMLInputElement
+      const active_input = shell.node.querySelector('input[e-widget="switch"]') as HTMLInputElement
       return {
         name: name_input.value,
         age: age_input.value,

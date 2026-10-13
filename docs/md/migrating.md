@@ -42,6 +42,24 @@ How to convert code written against older versions of elt, against elt-shoelace 
 | `--e-pad-vertical` / `--e-pad-horizontal`, `--e-spacing-vertical` / `--e-spacing-horizontal` | `--e-pad`, `--e-spacing` |
 | `surface="1"`…`"6"`, `border="n+1"`…`"n+6"` | `surface="tint-1"`…, `border="tint-1"`… (or the `neutral-` forms) |
 
+### Variants, state classes and activity markers
+
+`e-variant` was split by what it said: how loud a control is (`e-emphasis`), which widget an element is (`e-widget`), and what state it is in (ARIA attributes). Terms: [States and interaction § Terms](./ui-states.md#terms).
+
+| Old | New |
+| --- | --- |
+| `e-variant="text"` | `e-emphasis="bare"` (it now has the padding and a transparent 1px border of other controls; `e-emphasis="link"` is the unpadded, inline one) |
+| `e-variant="tint"`, `"inverted"`, `"link"` | `e-emphasis="tint"`, `"inverted"`, `"link"` |
+| `e-variant="switch"` on a checkbox | `e-widget="switch"` |
+| `e-variant="toggle"` on a label | `e-widget="toggle"` (a checked toggle is in the selected state; it takes an `e-emphasis`) |
+| An `inverted` button used to show the current choice (tabs) | Buttons of one emphasis with `aria-pressed="true"` on the chosen one |
+| A class such as `.selected` or `.active` styled by the app for a chosen item | The matching ARIA attribute |
+| `data-active` on the item the keys are on | A menu from `menu_nav`: nothing, the item is focused. A `list_nav` list: `e-active` |
+| `variant` prop of `DateTimePicker` (`"full"` included) | `emphasis` (`"inverted"` or `"tint"`); `"full"` is removed |
+| A clickable `div`/`e-row` with only `$click` | `{$interactive}` next to the `$click`, so it has a role, a tab stop, Enter and Space, and the hover and press looks ([Interaction](./ui-states.md#interaction)) |
+
+The `hover` layout attribute is unchanged (a visual hover fill only).
+
 ### `.light` and `.ultra_light`
 
 They were **removed, not renamed**: they named a lightness, and the replacement depends on the role the color played. Pick by role:
@@ -51,5 +69,5 @@ They were **removed, not renamed**: they named a lightness, and the replacement 
 | `:hover` background | `.hover` |
 | A container's edge or a divider, on a non-focusable element | `.separator` |
 | Table header, toolbar or title-row band | Depends on how much attention it needs ([Theme § Emphasis](./ui-theme.md#emphasis)): `surface` (neutral, one level up) for a status bar or a table header, `neutral.class_as_inverted` for an important one, `tint.class_as_inverted` (or `<header>`) for the app's top toolbar or a dialog's title row; a row of buttons gets no band (`<e-row packed="widget">`). Never `text.faded` |
-| A focusable control's border | The control's own variant color (usually bare `neutral`, as `ui/form.css.tsx` does) |
+| A focusable control's border | The control's own emphasis color (usually bare `neutral`, as `ui/form.css.tsx` does) |
 | A static fill that is not a surface background, or anything with no semantic role (shadow, scrollbar track) | An explicit `.from_bg("10%")` / `.from_bg("20%")` |

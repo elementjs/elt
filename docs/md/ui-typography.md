@@ -18,7 +18,7 @@ Readable content goes in a prose container — usually `<e-prose>`, but `article
   <p>Body text with <a href="...">links</a>, lists, code, tables, …</p>
   <e-row>
     <button>Retry</button>
-    <button e-variant="text">Dismiss</button>
+    <button e-emphasis="bare">Dismiss</button>
   </e-row>
   <p>More text.</p>
 </e-prose>
@@ -74,7 +74,7 @@ With `spacing="widget"` (6px) instead, both gaps around the row would be the par
 
 ## Controls in text
 
-A text block that only accepts inline content (`h1`–`h6`, `p`, `pre`, `summary`, `legend`) holds a line of text, and only inline controls belong there: `<a>`, `<button e-variant="link">`, `<button e-variant="text">`, `<kbd>`, inline icons ([elt/ui rules § Text blocks](./elt-ui-rules.md#text-blocks)). Anything with a boundary goes in its own `e-row`/`e-column` next to the text.
+A text block that only accepts inline content (`h1`–`h6`, `p`, `pre`, `summary`, `legend`) holds a line of text, and only inline controls belong there: `<a>`, `<button e-emphasis="link">`, `<kbd>`, inline icons ([elt/ui rules § Text blocks](./elt-ui-rules.md#text-blocks)). Anything with a boundary goes in its own `e-row`/`e-column` next to the text.
 
 A flex element placed directly inside one of those elements becomes `inline-flex` automatically, since it can only be part of that text (an icon and its label inside a paragraph, for instance). Elements that also accept blocks (`li`, `dd`, `td`, `th`, `blockquote`, …) are not affected: set `inline` there when the flex element sits in a line of text.
 

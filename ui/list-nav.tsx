@@ -3,16 +3,17 @@
  * list-like popup of elt/ui.
  *
  * It works on item **indexes**, not on DOM elements, so it also drives virtual lists whose items
- * are mostly not rendered. Focus doesn't move between items: it stays on one element (the menu
+ * are mostly not rendered. Focus doesn't move between items: it stays on one element (the list
  * itself, or a combobox's input), whose `aria-activedescendant` names the active item — the model a
- * text input needs, since focus must stay in it while the arrows move through the options.
+ * text input needs, since focus must stay in it while the arrows move through the options, and a
+ * virtual list needs, since most of its items have no element to focus. A menu whose items are all
+ * in the DOM moves focus itself instead ({@link menu_nav}).
  */
 
 import { css, node_add_event_listener, node_is_connected, node_observe, node_on_connected, o } from "elt"
-import { theme } from "./theme"
 
 export interface ListNavOptions {
-  /** The active item's index, -1 for none. Owned by the caller: bind `data-active` on items from it. */
+  /** The active item's index, -1 for none. Owned by the caller: bind `e-active` on items from it, or move focus to them. */
   o_active: o.Observable<number>
   /** How many items there are now. */
   count: () => number
@@ -142,16 +143,21 @@ export function focus_when_shown(el: HTMLElement) {
   )
 }
 
-let menu_ids = 0
-
 /**
  * {@link list_nav} for a menu built as plain DOM: its items are the `[role=menuitem]` elements
- * inside `menu` that aren't disabled (headers and `<hr>` are skipped). `menu` gets focus (it is made
- * focusable) and `aria-activedescendant`; items get an `id` if they have none, `data-active` when
- * active, and become active on hover. Activating an item clicks it.
+ * inside `menu` that aren't disabled (headers and `<hr>` are skipped).
  *
- * Call it once the items are in `menu`; the first item starts active, and `menu` takes focus once
- * shown (so in a popup, focus is in the menu from the start and keys work right away).
+ * Focus moves between the items themselves (roving focus): the active item is the focused one, the
+ * others are out of the tab order (`tabindex="-1"`), and the browser's `:focus-visible` draws the
+ * keyboard cursor, so a menu needs no marker of its own. That is the right model for a menu, whose
+ * items are all in the DOM; a list that may not render all its items, or whose focus must stay in a
+ * text field (the Select), keeps focus elsewhere and names the active item with
+ * `aria-activedescendant` ({@link list_nav} alone). The pointer makes the item under it the active one,
+ * so keys continue from where the mouse is. Activating an item clicks it.
+ *
+ * Call it once the items are in `menu`; the first item starts active, and takes focus once shown (so in
+ * a popup, focus is in the menu from the start and keys work right away). `menu` is the target of the
+ * keys and takes the focus itself when it has no item.
  */
 export function menu_nav(menu: HTMLElement) {
   // The items, looked up once per key press or pointer move rather than on each call list_nav makes
@@ -161,6 +167,7 @@ export function menu_nav(menu: HTMLElement) {
   const items = () => {
     if (cached == null) {
       cached = [...menu.querySelectorAll<HTMLElement>('[role="menuitem"]:not([disabled])')]
+      for (const item of cached) item.tabIndex = -1
       queueMicrotask(() => {
         cached = null
       })
@@ -175,50 +182,36 @@ export function menu_nav(menu: HTMLElement) {
     count: () => items().length,
     activate: (i) => items()[i]?.click(),
     reveal: (i) => items()[i]?.scrollIntoView({ block: "nearest" }),
-    id_of: (i) => {
-      const item = items()[i]
-      if (item == null) return null
-      if (!item.id) item.id = `e-menu-item-${++menu_ids}`
-      return item.id
-    },
     text_of: (i) => items()[i]?.textContent ?? "",
   })
 
+  // The active item has the focus. Not before the menu is shown: a popup shows its content a moment
+  // after attaching it, and focus can only land on a shown element (focus_when_shown).
   node_observe(menu, o_active, (index) => {
-    items().forEach((item, i) => {
-      item.toggleAttribute("data-active", i === index)
-    })
+    if (index >= 0 && menu.contains(document.activeElement)) items()[index]?.focus({ preventScroll: true })
   })
+  node_on_connected(menu, () =>
+    requestAnimationFrame(() => {
+      if (node_is_connected(menu)) (items()[o_active.get()] ?? menu).focus({ preventScroll: true })
+    }),
+  )
 
-  focus_when_shown(menu)
-
-  // The pointer makes the item under it active, so keys continue from where the mouse is.
+  // The pointer makes the item under it active (and focused, through the observer above).
   node_add_event_listener(menu, "pointermove", (ev) => {
     const item = (ev.target as Element).closest?.('[role="menuitem"]')
     const index = item ? items().indexOf(item as HTMLElement) : -1
     if (index >= 0 && index !== o_active.get()) o_active.set(index)
   })
+  // Focus moved by other means (a click, Tab, a script) is the new active item.
+  node_add_event_listener(menu, "focusin", (ev) => {
+    const index = items().indexOf((ev.target as Element).closest?.('[role="menuitem"]') as HTMLElement)
+    if (index >= 0 && index !== o_active.get()) o_active.set(index)
+  })
 }
 
-/* The active item of a list (a menu item, an option with `data-active`): the same color as a hovered
-   one, which it stands in for on the keyboard. The list itself keeps focus, so no focus ring on it. */
-css`:is([role="menuitem"], [role="option"])[data-active] {
-  background-color: ${theme.colors.tint.hover};
-}`
-/* A selected option is a choice: a tint surface jump (+ 3), not an inversion; active or hovered, one
-   level further, so it doesn't fall back to the hover fill (docs/md/ui-theme.md, Emphasis). Options
-   only: aria-selected isn't valid on a menuitem. */
-css`[role="option"][aria-selected="true"] {
-  background-color: ${theme.colors.tint.selected};
-  &[data-active] {
-    background-color: ${theme.colors.tint.selected_hover};
-  }
-  @media (hover: hover) and (pointer: fine) {
-    &:hover {
-      background-color: ${theme.colors.tint.selected_hover};
-    }
-  }
-}`
+/* The keyboard cursor of a list that keeps its focus elsewhere (\`e-active\`) looks like a hovered item,
+   which it stands in for on the keyboard, and a selected option is the selected state's
+   (ui/states.css.tsx). A menu's cursor is the focused item itself. */
 css`:is([role="menu"], [role="listbox"]):focus-visible {
   outline: none;
 }`

@@ -138,7 +138,7 @@ Routes, path and hash modes, params and services are covered in [App](./app.md#s
 
 `elt/ui` is elt's optional UI layer, imported once as `"elt/ui"` at the app's entry point. It is not a large component library: it is a **visual language** — a theme, a handful of layout elements, global styling for native HTML — plus a few widgets that native HTML can't provide (`Select`, date/time pickers, popup, dialog, keyboard shortcuts). Its aim is that building a new screen requires almost no layout or style decisions of your own.
 
-**Native HTML, styled.** A `<button>`, `<input>` or `<dialog>` is already a themed control. Variants are attributes (`<button e-variant="inverted">`), not wrapper components.
+**Native HTML, styled.** A `<button>`, `<input>` or `<dialog>` is already a themed control. How loud a control is, is an attribute (`<button e-emphasis="inverted">`), not a wrapper component.
 
 **Five layout elements do the layout.** `<e-row>`, `<e-column>`, `<e-flex>` and `<e-grid>` arrange things (with `<e-grid-row>` for the rows of a grid); `<e-prose>` holds text you read. Their attributes (`pad`, `spacing`, `border`, `surface`, `packed`, …) replace most of the CSS you would otherwise write. Spacing is a parent's job: containers space their children, children never set margins.
 
@@ -156,8 +156,8 @@ node_append(document.body, <e-column pad="component" border>
     <p>Body copy.</p>
   </e-prose>
   <e-row>
-    <button e-variant="inverted">Save</button>
-    <button e-variant="text">Cancel</button>
+    <button e-emphasis="inverted">Save</button>
+    <button e-emphasis="bare">Cancel</button>
   </e-row>
 </e-column>)
 ```

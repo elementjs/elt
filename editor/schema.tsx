@@ -697,7 +697,7 @@ export class BooleanFactory extends Factory<BooleanOptions> {
   render(o_value: o.Observable<unknown>): RenderableWidget {
     const o_bool = o_value as o.Observable<boolean>
     const attrs: Record<string, unknown> = { ...this.options }
-    if (attrs["e-variant"] == null) attrs["e-variant"] = "switch"
+    if (attrs["e-widget"] == null) attrs["e-widget"] = "switch"
     const forwarded = $forward_attrs(attrs, skip_keys())
     return {
       // A checkbox keeps its own size, so it can't be its cell: the label is, which also makes the

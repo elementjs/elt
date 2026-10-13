@@ -140,11 +140,11 @@ export function CodeExample(props: CodeExampleProps) {
   return (
     <e-column border="neutral-separator" packed align="stretch" radius="component">
       <e-row packed="widget" pad="none" align="stretch" surface="neutral-1" class={theme.colors.neutral.class_as_tint}>
-        <button e-variant={o_showing_code.tf((v) => (!v ? "inverted" : ""))}>
+        <button aria-pressed={o_showing_code.tf((v) => String(!v))}>
           {$click(() => o_showing_code.set(false))}
           <ph.TelevisionSimple /> Example
         </button>
-        <button e-variant={o_showing_code.tf((v) => v && "inverted")}>
+        <button aria-pressed={o_showing_code.tf((v) => String(v))}>
           {$click(() => o_showing_code.set(true))}
           Code <ph.Code />
         </button>

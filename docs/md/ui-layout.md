@@ -27,7 +27,7 @@ A panel or card is just a layout element with `border` and/or `surface` — `elt
 <e-column pad="component" border align="stretch">
   <e-row justify="space-between">
     <span>Title</span>
-    <button e-variant="text">Close</button>
+    <button e-emphasis="bare">Close</button>
   </e-row>
   <e-prose>...</e-prose>
 </e-column>
@@ -96,7 +96,7 @@ Every attribute accepts a plain value or an observable.
 | `surface` | bare, `"tint"`, `"neutral"`, `"tint-N"`/`"neutral-N"` (N 1–6), `"background"`, `"invert-tint"`, `"invert-neutral"` | Background fill and a new surface level — see [Theme § Surfaces and levels](./ui-theme.md#surfaces-and-levels). Does not pad. |
 | `border` | bare, `"none"`, `"tint"`, `"neutral"`, `"tint-surface"`/`"neutral-surface"`, `"tint-separator"`/`"neutral-separator"`, `"tint-N"`/`"neutral-N"` | 1px border — see [Borders and radius](#borders-and-radius). Implies `radius`. `"none"` draws nothing and implies no radius; on a `packed` container it also says that nothing draws the outline of the group ([packed](#packed)). |
 | `radius` | bare, a spacing step, `"none"` | Corner radius. Bare = the element's own `pad`, else its own `packed` step, else `widget`. A step forces that step's value, over a `pad` too. `"none"` opts out, also when `border` is set. |
-| `hover` | boolean | Hover fill one level above the ambient surface, in the ambient surface's color family ([Theme § Surfaces and levels](./ui-theme.md#surfaces-and-levels)). |
+| `hover` | boolean | Hover fill one level above the ambient surface, in the ambient surface's color family ([Theme § Surfaces and levels](./ui-theme.md#surfaces-and-levels)). A visual hover only: it highlights what is under the pointer (a row you are reading) without making it a control. For an element that can be activated, add `e-interactive` ([States and interaction § Interaction](./ui-states.md#interaction)): the same fill, plus a pointer cursor, a press look and a focus ring. |
 | `grow` | boolean | `flex-grow: 1; flex-basis: 0`. |
 | `inline` | boolean | `inline-flex` / `inline-grid` / `inline-block`. |
 | `relative` | boolean | `position: relative`. |
@@ -122,11 +122,11 @@ Alignment values: `center`, `start`, `end`, `self-start`, `baseline`, `first bas
 | `seam-color` | all four, with `packed` | The color of the lines the container draws, in the values of `border`; the container's own `border` color when it has one, `neutral-separator` otherwise. |
 | `columns` | `e-grid` | 1 to 12: that many equal columns — see [Grids](#grids). |
 
-`e-grid-row` takes only `surface`, `hover`, `align` and `sticky`.
+`e-grid-row` takes only `surface`, `hover`, `align` and `sticky`. Like any element, it can also be in the selected state or be `e-interactive`: those are not layout attributes ([States and interaction](./ui-states.md)).
 
 - These four space their children with `gap`, at the step of `spacing`, else of `pad`, else the one inherited from the nearest element above that sets one (`component` by default). There is no gap with `pad="none"` and no `spacing`, with `spacing="none"`, or with `packed`.
 - Their children get `min-width: 0; min-height: 0`, so they can shrink below their content's size. To stop a child from overflowing on the cross axis, use `align="stretch"` on the container.
-- Buttons, toggles (`label e-variant="toggle"`), checkboxes and radios never shrink in a layout element (`flex-shrink: 0`): their label or box is their content. Text inputs, `select` and `textarea` stay elastic. A `flex-shrink` of your own wins.
+- Buttons, toggles (`label e-widget="toggle"`), checkboxes and radios never shrink in a layout element (`flex-shrink: 0`): their label or box is their content. Text inputs, `select` and `textarea` stay elastic. A `flex-shrink` of your own wins.
 - Attributes specific to `e-prose` (`table-container`) and how a flex element behaves inside a line of text are in [Typography](./ui-typography.md#controls-in-text).
 
 ## Borders and radius
@@ -140,7 +140,7 @@ Alignment values: `center`, `start`, `end`, `self-start`, `baseline`, `first bas
 | `"tint-N"` / `"neutral-N"` (N 1–6) | Absolute level N |
 
 - A **border** is one element's own edge; a **divider** (`<hr>`, a seam between rows) separates elements. They may resolve to the same color but are separate concepts.
-- Focusable controls do not take their border from the surface levels: it comes from their variant ([Forms § Shared look](./ui-forms.md#shared-look)).
+- Focusable controls do not take their border from the surface levels: it comes from their emphasis ([Forms § Shared look](./ui-forms.md#shared-look)).
 - **Radius is derived, in this order:** the step of `radius="X"` if there is one; else the element's own `pad` step, so a bigger padding gives a bigger radius; else, for a `packed` container, its own `packed="X"` step, so the frame's corners match its cells'; else `widget`. It does not follow the spacing between children, nor anything set on an ancestor. `radius="none"` opts out.
 - Neither `border` nor `surface` clips overflow. A child that must match its container's rounded corners takes the container's radius instead (`packed` does this for its children; `<pre>` uses `border-radius: inherit`).
 
@@ -169,8 +169,8 @@ The container's own `pad` still pads the container itself. `packed` never adds a
 - Bare `packed` with `pad="none"` pads nothing. A column that only frames groups that pad themselves, such as a header row and a grid of `packed="widget"` rows, is `<e-column packed="widget" border pad="none">`: the step gives the frame's corners the radius of its cells'.
 
 - **Who draws the outline of the group** (the edges across, the first child's leading edge, the last child's trailing edge) depends on `border` on the container, whatever `seams` is:
-  - **no `border`** (the default): the children draw it, with their own borders, variant or state included. The container has no frame; a toolbar of buttons or a date field made of an input and a button just looks like its parts, joined.
-  - **`border`** draws a frame and nothing else: the container's border and radius. The children's borders on the outline are never drawn, whatever their variant or state: the frame owns the outline.
+  - **no `border`** (the default): the children draw it, with their own borders, emphasis or state included. The container has no frame; a toolbar of buttons or a date field made of an input and a button just looks like its parts, joined.
+  - **`border`** draws a frame and nothing else: the container's border and radius. The children's borders on the outline are never drawn, whatever their emphasis or state: the frame owns the outline.
   - **`border="none"`** draws no frame, and the children draw nothing on the outline either: the children are then lines and fills with no outline (a menu, a list of links on a page's background).
 
 ### Lines between the children
@@ -188,7 +188,7 @@ The container's own `pad` still pads the container itself. `packed` never adds a
 
 `seam-color` takes the values of `border`. Absent, the lines are the color of the container's own `border`, so a frame and its lines match; with no `border` (or `border="none"`) they are `neutral-separator`, two levels above the surface, lighter than a frame. `seam-color="neutral-separator"` gets the lighter lines back inside a frame. `seam-color` only has an effect in `default` and `forced`.
 
-- **A border that carries meaning wins the line it shares** (`children` and `default`). A child whose border shows a variant or a state keeps the edges it shares with its neighbours, and the child after it drops its leading edge, so its color shows on both sides. That covers `tint` and `inverted` buttons, a `tint` input, a checked toggle, and any child with `aria-pressed="true"`, `aria-selected="true"`, `aria-current`, `aria-invalid="true"` or `:user-invalid`. An app's own widgets get the same treatment by setting these ARIA states. A layout element that sets its own `border` (an `<e-prose border>` panel) counts too; a packed group does not (see below). A disabled child is not concerned: it is furniture. When two such children are side by side, the first one's border is the shared line. It wins only the lines it shares with a sibling, never the container's outline. A grid row has no border of its own to win with: mark a state on its cells, not on the row (a row with `aria-selected="true"` would make the next row give up its top line, and leave none).
+- **A border that carries meaning wins the line it shares** (`children` and `default`). A child whose border shows an emphasis or a state keeps the edges it shares with its neighbours, and the child after it drops its leading edge, so its color shows on both sides. That covers controls of `tint` or `inverted` emphasis (an input of `tint` emphasis too), any child in the selected state (a checked toggle, `aria-pressed="true"`, `aria-selected="true"`, `aria-checked="true"`, `aria-current`), and any invalid child (`aria-invalid="true"` or `:user-invalid`). An app's own widgets get the same treatment by setting these ARIA states ([States and interaction § Selected state](./ui-states.md#selected-state)). A layout element that sets its own `border` (an `<e-prose border>` panel) counts too; a packed group does not (see below). A disabled child is not concerned: it is furniture. When two such children are side by side, the first one's border is the shared line. It wins only the lines it shares with a sibling, never the container's outline. A grid row has no border of its own to win with: a row in the selected state is filled but its border color is not changed, so the lines between rows stay as they are.
 - **`seams` never decides the outline**, only the lines between the children: with no `border` on the container, `none`, `default` and `forced` leave the children their borders on the outline too. `children`, what an absent `seams` means without a `border`, keeps all of a child's own borders (a button toolbar, `<e-row packed="widget">`).
 - **The mode and the color are inherited** by the packed groups inside the container, and a group can set its own. A non-packed element in between ends the inheritance: a group in a `div` in a packed column starts from `default` again.
 - **A packed group inside a packed container is one of its cells.** The line around it belongs to the container (the group's top edge when it comes after another child, say); the group's own children draw only the lines between themselves, and an edge on the group's outline only where that edge is also on the outline of the outermost container, and the outermost container lets its children draw it (no `border`). In a column of rows with no `border`, the buttons of the first row draw the column's top edge, those of the last row its bottom edge, every row's first and last buttons the sides, and the line between two rows is the container's (in `children`, the leading edge of the second row's buttons). Only the outermost container's `border` counts: the group's own `border` is ignored (it draws no frame), except in a `children` container, which leaves a group its border. This works at any depth, and a grid row is such a group. A meaningful border wins a line only between siblings: a `tint` button that is the last child of a row cannot color the line between that row and the next.
@@ -227,13 +227,13 @@ More examples: [Forms § Button groups and menus](./ui-forms.md#button-groups-an
 
 `<e-grid-row>` is a row of a grid: it spans every column, and its children sit on the grid's own columns (a CSS subgrid), so cells line up from one row to the next. It takes `surface`, `hover`, `align` and `sticky`, nothing else: its spacing comes from the grid. It only makes sense as a direct child of an `e-grid`, and rows don't nest. An `e-row` inside a grid stays an ordinary flex row in one cell.
 
-**A table-like grid is `packed`.** As soon as its rows or cells are boundaries — a row with `surface` or `hover`, a `sticky` row (which gets an opaque background), or `border` on the grid — the cells need padding against those edges ([golden rule 4](./elt-ui-rules.md#golden-rules)), and cells padded alike with no gap between them is what `packed` does. An unpacked grid, spaced with a gap and with unpadded cells, arranges things that pad themselves (a grid of cards), or plain content inside a container that pads itself (labels and fields in a card).
+**A table-like grid is `packed`.** As soon as its rows or cells are boundaries — a row with `surface`, `hover` or the selected state, a `sticky` row (which gets an opaque background), or `border` on the grid — the cells need padding against those edges ([golden rule 4](./elt-ui-rules.md#golden-rules)), and cells padded alike with no gap between them is what `packed` does. An unpacked grid, spaced with a gap and with unpadded cells, arranges things that pad themselves (a grid of cards), or plain content inside a container that pads itself (labels and fields in a card).
 
 `packed` on a grid works on its **cells**: the grid's children, except that a row isn't a cell — its children are.
 
 - **Without `border`**: no gap; cells are padded like the children of any `packed` container, and the cells on the grid's outline draw it with their own borders (`border="none"`: nothing does).
 - **Lines**: `seams` works as on any packed container ([Lines between the children](#lines-between-the-children)), with rows as the grid's children along the column, and a row's cells along the row. The line between two rows is the top edge of the second row; the line between two cells of a row is the left edge of the second. `children` has no lines to share in two directions: the cells keep every border. Place the cells in rows: a cell placed directly in the grid gets no line.
-- **With `border`**: the grid draws the frame, and in `default` (what an absent `seams` means with a `border`) and `forced` a line in `seam-color` runs between all cells, rows included. A row with its own `surface` colors its cells and still shows its lines; a row with `hover` changes its cells' color when hovered.
+- **With `border`**: the grid draws the frame, and in `default` (what an absent `seams` means with a `border`) and `forced` a line in `seam-color` runs between all cells, rows included. A row with its own `surface` colors its cells and still shows its lines; a row with `hover` (or `e-interactive`) changes its cells' color when hovered; a row in the selected state fills its cells the same way, without touching the lines.
 - **Every row must reach the last column**, as every row or column of a framed container must reach its end: a row with fewer cells ends with an empty cell that spans the remaining columns. Cells must also fill their area for the lines to run their whole length: a row whose `align` stops its cells from stretching to the row's height (`start`, `center`) draws lines as tall as each cell. Leave rows stretching (the default), and put a fixed-size control in an element that fills the cell, such as a `label` around a checkbox.
 - **Radius**: cells are square, except the outer corners of the first and last rows, which take the grid's radius when it has one. This only works with rows: a cell placed directly in the grid can't be told apart from an inner one, so a square corner cell may show past the grid's rounded border. Use rows, or `radius="none"`.
 
@@ -335,7 +335,7 @@ A bar is a row holding a title and/or controls along the edge of a view, a dialo
 
 **Too many actions.** The bar must fit at the smallest window width the app supports. Keep the frequent actions in the bar and put the rarely used ones in a "…" menu built with `popup` and `menu_nav` ([Overlays § Keyboard in menus and lists](./ui-overlays.md#keyboard-in-menus-and-lists)). Which actions go in the menu is decided when the bar is designed; nothing moves them there automatically when the window narrows.
 
-**A button toolbar** groups related buttons with no band around them: a `packed="widget"` row without a `border`, or a spaced row of such groups. Each button keeps its own border and variant, so one of them can be `tint` or `inverted`.
+**A button toolbar** groups related buttons with no band around them: a `packed="widget"` row without a `border`, or a spaced row of such groups. Each button keeps its own border and emphasis, so one of them can be `tint` or `inverted`.
 
 ```tsx
 <e-row>
@@ -345,7 +345,7 @@ A bar is a row holding a title and/or controls along the edge of a view, a dialo
   </e-row>
   <e-row packed="widget">
     <button>Link</button>
-    <button e-variant="tint">Comment</button>
+    <button e-emphasis="tint">Comment</button>
   </e-row>
 </e-row>
 ```

@@ -6,30 +6,32 @@ order: 4
 
 # Forms and controls
 
-Native controls are styled globally; their variants are the `e-variant` attribute. Use them before building controls of your own ([elt/ui rules § Controls](./elt-ui-rules.md#controls)). Binding a control to an observable is core elt: [Decorators § Binding form controls](./decorators.md#binding-form-controls-bind).
+Native controls are styled globally. How loud a control is, is the `e-emphasis` attribute; which widget an element is (a switch, a toggle button, an editable field) is `e-widget`; what it is doing (selected, invalid, disabled) comes from ARIA and the browser's own states ([States and interaction § Terms](./ui-states.md#terms)). Use them before building controls of your own ([elt/ui rules § Controls](./elt-ui-rules.md#controls)). Binding a control to an observable is core elt: [Decorators § Binding form controls](./decorators.md#binding-form-controls-bind).
 
-## Buttons and variants
+## Buttons and emphasis
+
+The emphasis of a control is how loud it is, from `link` (quietest) to `inverted` (loudest). It is the `e-emphasis` attribute; a control without it has the default emphasis.
 
 ```tsx
 <button>Default</button>
-<button e-variant="tint">Accent outline</button>
-<button e-variant="inverted">Filled accent — the one dominant action</button>
-<button e-variant="text">Text</button>
-<button e-variant="link">Link-styled</button>
+<button e-emphasis="tint">Accent outline</button>
+<button e-emphasis="inverted">Filled accent — the one dominant action</button>
+<button e-emphasis="bare">Bare</button>
+<button e-emphasis="link">Link-styled</button>
 ```
 
-| Element | `e-variant` | Result |
-| ------- | ----------- | ------ |
-| `button` | *(none)* | Bordered, neutral |
-| `button` | `"tint"` | Bordered, tint-colored, not filled |
-| `button` | `"inverted"` | Filled with tint, beveled edge — the one dominant action in an area |
-| `button` | `"text"` | No border, no background, no padding; tint text |
-| `button` | `"link"` | Like `text`, underlined — reads as a hyperlink |
-| `input` | `"tint"` | Tint-colored border (and placeholder) |
-| `input[type=checkbox]` | *(none)* / `"switch"` | Square checkbox / pill switch |
-| `label` | `"toggle"` | Wrapping a checkbox: the checkbox is hidden, the label becomes a toggle button. Checked, it is drawn like a selected item: a tint fill three levels up and a full `tint` border, not the `inverted` fill of the dominant action |
+| Element | `e-emphasis` | Result |
+| ------- | ------------ | ------ |
+| `button`, `label` (toggle), `a` | *(none)* | Bordered, neutral. (An `<a>` without it is plain link text, see [Other elements](#other-elements)) |
+| `button`, `label` (toggle), `a` | `"tint"` | Bordered, tint-colored, not filled |
+| `button`, `label` (toggle), `a` | `"inverted"` | Filled with tint, beveled edge — the one dominant action in an area |
+| `button`, `label` (toggle), `a` | `"bare"` | No fill and no visible edge at rest, but the same size and padding as the others, so a state that paints a boundary (hover, selected) never moves anything |
+| `button`, `label` (toggle), `a` | `"link"` | Plain inline text, underlined — reads as a hyperlink. No padding, no border, no minimum height |
+| `input` | `"tint"` | Tint-colored border (and placeholder). The only emphasis an input takes |
 
-From quietest to loudest, the five emphasis levels are `link`, `text`, default, `tint`, `inverted`. `link` and `text` have no border, hence no padding — the same boundary rule as everything else ([golden rule 4](./elt-ui-rules.md#golden-rules)), with no exception for controls. Use `inverted` for at most one action per area ([Theme § Why](./ui-theme.md#why)).
+From quietest to loudest, the five emphasis levels are `link`, `bare`, default, `tint`, `inverted`. `link` is the one level that is plain text, hence unpadded; the others are controls, and a control that can acquire a boundary (a hover fill, the selected fill) has its padding and a border all the time, a transparent one for `bare`, so it keeps its size in every state ([golden rule 4](./elt-ui-rules.md#golden-rules)). Use `inverted` for at most one action per area ([Theme § Why](./ui-theme.md#why)). The levels in detail: [States and interaction § Emphasis](./ui-states.md#emphasis).
+
+A button that is a choice or the place you are (a toggle button, a current page in a menu) is not a different emphasis: it takes the selected state from ARIA, whatever its emphasis, so a selected `bare` button is a filled item ([States and interaction § Selected state](./ui-states.md#selected-state)).
 
 ## Inputs
 
@@ -37,7 +39,7 @@ Text inputs, `textarea` and native `select` share the same border, focus ring an
 
 ## Invalid fields
 
-A field whose value is wrong gets the `error` color on its border and focus ring, whatever its variant; nothing else changes, so put the explanation in a message next to it. Two triggers, styled the same:
+A field whose value is wrong gets the `error` color on its border and focus ring, whatever its emphasis; nothing else changes, so put the explanation in a message next to it. Two triggers, styled the same:
 
 - **The browser's own checks** (`required`, `type="email"`, `min`/`max`, `pattern`, a `$bind` `extra_check`): the field matches `:user-invalid` once the user has edited it and left it, or tried to submit the form. An untouched empty field is not flagged.
 - **Your app's checks**: set `aria-invalid="true"` on the field. Screen readers announce it as invalid too. On a widget whose root wraps its control, such as the [`Select`](./ui-widgets.md#select), set it on the widget: a control directly inside an element marked `aria-invalid` is flagged.
@@ -74,11 +76,14 @@ return <e-column align="stretch">
 </e-column>
 ```
 
-## Checkboxes, switches and toggles
+## Checkboxes, switches, toggles and fields
+
+What an element is, as opposed to how loud it is, is the `e-widget` attribute.
 
 - `<input type="checkbox">` is a square checkbox with an animated check mark.
-- `<input type="checkbox" e-variant="switch">` is a pill switch.
-- A segmented toggle is `<label e-variant="toggle"><input type="checkbox"/>Label</label>`: the input is hidden and the label is styled as a button.
+- `<input type="checkbox" e-widget="switch">` is a pill switch.
+- A toggle button is `<label e-widget="toggle"><input type="checkbox"/>Label</label>`: the input is hidden and the label is styled as a button. It takes an emphasis like a button (`e-emphasis="bare"` for a borderless one). Checked, it is in the selected state ([States and interaction § Selected state](./ui-states.md#selected-state)): a tint fill three levels up and a full `tint` border, not the `inverted` fill of the dominant action.
+- `e-widget="field"` on any editable element (a `contenteditable` element, a custom field) gives it a text input's look: its border, padding, radius, height and focus ring. Nothing else is automatic: an editable element has no chrome unless it asks for this one ([States and interaction § Widgets](./ui-states.md#widgets)).
 - Radio buttons (`input[type=radio]`) keep the browser's look; only their cursor is set.
 
 ## Labels and fieldsets
@@ -89,8 +94,8 @@ return <e-column align="stretch">
 ## Shared look
 
 - Controls use `theme.settings.formFontSize`, a `widget`-step padding and radius, a line height of 1.25 (see [Control height](#control-height)), and a focus ring (`tint.mid`, `theme.settings.focusRingSize`) instead of a fill.
-- A focusable control's border comes from its variant — `neutral` for the default one, `tint` for `tint`, a bevel in the fill color for `inverted` — not from the surface levels it sits on. It expresses the control's own emphasis, not its position.
-- Disabled controls turn `neutral`, whatever their variant, and move their colors halfway toward the background ([Theme § State](./ui-theme.md#state)).
+- A focusable control's border comes from its emphasis — `neutral` for the default one, `tint` for `tint`, a bevel in the fill color for `inverted`, transparent for `bare` — not from the surface levels it sits on. It expresses the control's own emphasis, not its position.
+- Disabled controls turn `neutral`, whatever their emphasis, and move their colors halfway toward the background ([Theme § State](./ui-theme.md#state)).
 
 ## Control height
 
@@ -102,7 +107,7 @@ Controls placed side by side are always the same height, whatever they hold (tex
 
 ## Other elements
 
-- `a` is tint-colored, underlined with dots, with a hover fill.
+- `a` without `e-emphasis` is plain link text: tint-colored, underlined when hovered, with a hover fill, and a fainter color once visited. With an `e-emphasis` (`bare` for a navigation item, `tint` or `inverted` for a link that looks like a button) it is a control: padded and bordered like a button, with no underline and no visited color, since a visited color tells browsing history, which is wrong for a menu item. `e-emphasis="link"` is the button-style link of the table above: underlined at rest.
 - `hr` is a 1px neutral divider.
 
 ## Button groups and menus

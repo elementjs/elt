@@ -628,7 +628,7 @@ test.describe("focus ring", () => {
     const r = await page.evaluate(() => {
       document.body.innerHTML = `<e-column scroll border style="height: 120px"><e-grid columns="2" packed border><e-grid-row><input id="in_scroll"><input></e-grid-row></e-grid></e-column>
         <input id="text" type="text"><input id="number" type="number"><input id="search" type="search"><textarea id="area"></textarea><button id="button">b</button>
-        <input type="checkbox" id="check"><input type="checkbox" id="switch" e-variant="switch"><select id="select"><option>a</option></select>`
+        <input type="checkbox" id="check"><input type="checkbox" id="switch" e-widget="switch"><select id="select"><option>a</option></select>`
       const ring = (id: string) => {
         const el = document.getElementById(id) as HTMLInputElement
         el.focus()

@@ -7,6 +7,8 @@ import { expect, type Page, test } from "./fixture"
 
 /** The background of `selector`, and of a probe painted with `tint.surface(level)` in the same place. */
 async function fill(page: Page, selector: string, level: `n+${number}`) {
+  // Hover, press and the selected fill fade in (the interaction layer's transition): read the end.
+  await page.evaluate(() => Promise.all(document.getAnimations().map((a) => a.finished.catch(() => {}))))
   return page.evaluate(
     ({ selector, level }) => {
       const { theme } = window.__ELT__.UI
@@ -55,7 +57,7 @@ test.describe("selected", () => {
   test("a selected option that is also keyboard-active goes one level further (+ 4)", async ({ page }) => {
     await open_select(page)
     await page.mouse.move(0, 0)
-    const r = await fill(page, '[role="option"][aria-selected="true"][data-active]', "n+4")
+    const r = await fill(page, '[role="option"][aria-selected="true"][e-active]', "n+4")
     expect(r.bg).toBe(r.ref)
   })
 
@@ -75,9 +77,9 @@ test.describe("selected", () => {
       node_append(holder, UI.DateTimePicker({ model: o<Date | null>(new Date(2026, 9, 3)) }))
     })
     await page.click("#holder button")
-    await page.waitForSelector(".selected")
+    await page.waitForSelector('button[aria-pressed="true"]')
     await page.mouse.move(0, 0)
-    const r = await fill(page, ".selected", "n+3")
+    const r = await fill(page, '#holder button[aria-pressed="true"], body button[aria-pressed="true"]', "n+3")
     expect(r.bg).toBe(r.ref)
   })
 })
@@ -88,7 +90,7 @@ test.describe("checked toggle", () => {
       const { theme } = window.__ELT__.UI
       document.body.insertAdjacentHTML(
         "beforeend",
-        `<e-row id="row"><label e-variant="toggle"><input type="checkbox" checked>Aa</label><button e-variant="inverted">Go</button></e-row>`,
+        `<e-row id="row"><label e-widget="toggle"><input type="checkbox" checked>Aa</label><button e-emphasis="inverted">Go</button></e-row>`,
       )
       const label = document.querySelector("#row > label")!
       const ref = document.createElement("div")
@@ -153,10 +155,10 @@ test.describe("e-ellipsis", () => {
         return document.body.lastElementChild!
       }
       const natural = mk(
-        `<e-row style="width: max-content"><button>Share</button><label e-variant="toggle"><input type="checkbox">Aa</label></e-row>`,
+        `<e-row style="width: max-content"><button>Share</button><label e-widget="toggle"><input type="checkbox">Aa</label></e-row>`,
       )
       const row = mk(
-        `<e-row><span e-ellipsis>${"x".repeat(80)}</span><input type="search"><button>Share</button><label e-variant="toggle"><input type="checkbox">Aa</label></e-row>`,
+        `<e-row><span e-ellipsis>${"x".repeat(80)}</span><input type="search"><button>Share</button><label e-widget="toggle"><input type="checkbox">Aa</label></e-row>`,
       )
       const input_alone = mk(`<e-row style="width: max-content"><input type="search"></e-row>`).querySelector("input")!
       const [button, toggle] = [...natural.querySelectorAll("button, label")]

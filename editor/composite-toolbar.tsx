@@ -173,7 +173,7 @@ export function render_composite_chrome(props: CompositeToolbarProps): {
             <input type="search" class={cls_text_fill} placeholder="Filter rows…">
               {$bind.string(filter.o_query)}
             </input>
-            <label e-variant="toggle" title="Match case">
+            <label e-widget="toggle" title="Match case">
               <input type="checkbox">{$bind.boolean(filter.o_case_sensitive)}</input>
               Aa
             </label>

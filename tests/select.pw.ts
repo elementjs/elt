@@ -52,7 +52,7 @@ async function mount(page: Page, opts: { completion?: boolean; initial?: string 
 
 const options = (page: Page) =>
   page.evaluate(() => [...document.querySelectorAll('[role="listbox"] [role="option"]')].map((e) => e.textContent))
-const active = (page: Page) => page.evaluate(() => document.querySelector('[role="option"][data-active]')?.textContent)
+const active = (page: Page) => page.evaluate(() => document.querySelector('[role="option"][e-active]')?.textContent)
 const model = (page: Page) => page.evaluate(() => (window as unknown as W).o_model.get())
 
 test.describe("Select", () => {

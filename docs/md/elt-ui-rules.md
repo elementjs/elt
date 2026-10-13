@@ -44,7 +44,7 @@ Every layout decision reduces to these six. The layout elements and their attrib
 
 ## Text blocks
 
-1. **No element with a boundary inside a line of text.** Bordered or filled controls, inputs, selects, and layout elements holding widgets never go inside a text block that only accepts inline content: `h1`–`h6`, `p`, `pre`, `summary`, `legend`. Inline controls are fine there: `<a>`, `<button e-variant="link">`, `<button e-variant="text">`, `<kbd>`, inline icons ([Typography § Controls in text](./ui-typography.md#controls-in-text)).
+1. **No element with a boundary inside a line of text.** Bordered or filled controls, inputs, selects, and layout elements holding widgets never go inside a text block that only accepts inline content: `h1`–`h6`, `p`, `pre`, `summary`, `legend`. Inline controls are fine there: `<a>`, `<button e-emphasis="link">`, `<kbd>`, inline icons ([Typography § Controls in text](./ui-typography.md#controls-in-text)).
 2. **Text blocks only get typographic margins as direct children of a prose container.** Anywhere else — directly in a row, column or grid — a text block gets no margin, and its parent's `spacing` applies, like for any other child ([Typography § Prose containers and text blocks](./ui-typography.md#prose-containers-and-text-blocks)).
 3. **Do not hand-style text blocks.** Heading sizes, list markers, `blockquote`, `pre`/`code`, table cells and link colors are styled everywhere already ([Typography](./ui-typography.md#prose-containers-and-text-blocks)).
 
@@ -82,8 +82,8 @@ Every layout decision reduces to these six. The layout elements and their attrib
    - *What is it?* `neutral` for furniture: the structure and chrome around the content. `tint` for what the user should notice, or a choice they made. A status hue (`error`, or `yellow`, `green`… for warning or success), applied with `as_tint`, for a meaning.
    - *How much attention does it need?* From quietest to loudest: none, outline (a border only), surface (one level up), surface jump (two levels up or more), inverted.
 2. **At most one tint-inverted action per area**: the heavy, hard-to-reverse one that needs attention ([Theme § Why](./ui-theme.md#why)). Bands don't count: a dialog's inverted title row and its inverted "Delete" button can sit together.
-3. **A disabled control is furniture**: `neutral`, whatever its variant ([Theme § State](./ui-theme.md#state)).
-4. **A selected item is a choice, not an action**: a tint surface three levels above where it sits, four when hovered or keyboard-active, never an inversion. The same goes for a checked toggle and the current tab ([Theme § State](./ui-theme.md#state)).
+3. **A disabled control is furniture**: `neutral`, whatever its emphasis ([Theme § State](./ui-theme.md#state), [States § Disabled and invalid](./ui-states.md#disabled-and-invalid)).
+4. **A selected item is a choice, not an action**: a tint surface three levels above where it sits, four when hovered or keyboard-active, never an inversion. Marking an element selected never inverts it, and never shows the choice with the `inverted` emphasis. A pressed toggle, a checked toggle, a chosen option and the current page or tab are all drawn this way, from their ARIA attribute ([States § Selected state](./ui-states.md#selected-state)).
 5. **Text colors are never backgrounds.** A grey fill or band is `neutral` (a surface, or `neutral` inverted), not `text.faded` or another mix of `text`.
 6. **An inverted container is a boundary and pads itself** (golden rule 4) ([Theme § Inversion](./ui-theme.md#inversion)).
 
@@ -91,11 +91,11 @@ Every layout decision reduces to these six. The layout elements and their attrib
 
 1. **A bar is one line**, unless the request explicitly asks for two: no subtitle under the title, no second row of buttons, no `wrap` ([Layout § Bars](./ui-layout.md#bars)).
 2. **It fits at the app's smallest window width.** The title shrinks and ends with "…" (`e-ellipsis`); the actions keep their size. When the actions don't fit, move the rarely used ones into a "…" menu (`popup` with `menu_nav`), chosen when the bar is designed.
-3. **A button toolbar is not a band**: `<e-row packed="widget">` (or a spaced row of such groups), with no background and not inverted. Its buttons keep their own borders, tints and variants.
+3. **A button toolbar is not a band**: `<e-row packed="widget">` (or a spaced row of such groups), with no background and not inverted. Its buttons keep their own borders, tints and emphasis.
 
 ## Controls
 
-1. **Native controls first.** `button`, `input`, `textarea`, `label`, checkboxes and radios are styled globally. (A `<dialog>` is not: `show_dialog` gives an unstyled box, and its content draws the frame — [Overlays § show_dialog](./ui-overlays.md#show_dialog).) Use them with their `e-variant` attribute before building widget chrome of your own ([Forms](./ui-forms.md#buttons-and-variants)). Prefer the `Select` widget over a native `<select>` ([Widgets § Select](./ui-widgets.md#select)).
+1. **Native controls first.** `button`, `input`, `textarea`, `label`, checkboxes and radios are styled globally. (A `<dialog>` is not: `show_dialog` gives an unstyled box, and its content draws the frame — [Overlays § show_dialog](./ui-overlays.md#show_dialog).) Use them with their `e-emphasis` (how loud) and `e-widget` (what it is) attributes before building widget chrome of your own ([States § Emphasis](./ui-states.md#emphasis), [Forms](./ui-forms.md#buttons-and-emphasis)). Prefer the `Select` widget over a native `<select>` ([Widgets § Select](./ui-widgets.md#select)).
 2. **Two font weights in UI chrome**: regular and bold. Prose hierarchy comes from the headings themselves.
 3. **Form control size.** Controls use `theme.settings.formFontSize`, slightly smaller than body text. Do not bump a control's font size to match a heading.
 4. **Focus is a ring** (`tint.mid`), never a fill or a replaced border ([Theme § State](./ui-theme.md#state)).
@@ -105,6 +105,7 @@ Every layout decision reduces to these six. The layout elements and their attrib
 1. Start from native HTML, layout elements and theme colors. When the same styling repeats, make a component in your app ([Widgets § Building app-specific widgets](./ui-widgets.md#building-app-specific-widgets)).
 2. Match the existing controls' sizing: `formFontSize`, `widget`-step padding, radius from `theme.css_radius("widget")`.
 3. Reactive props take `o.RO<T>` or `o.Observable<T>`; bind native fields inside with `$bind`.
+4. **A state is expressed with ARIA, never with a class, a `data-*` attribute or an emphasis value.** A widget of your own sets the ARIA attribute that says what it is (`aria-pressed` on a toggle button, `aria-selected` on an option, tab or row, `aria-current` on the place you are, `aria-checked`, `aria-invalid`, `aria-disabled`) and gets the styling; one that can be pressed also carries `e-interactive`, set by `$interactive` ([States § Selected state](./ui-states.md#selected-state), [§ Interaction](./ui-states.md#interaction)). No `.selected` or `.active` class, no per-widget hover and selected CSS.
 
 ## Overlays
 
@@ -130,10 +131,10 @@ Defaults, not rules: deviate when the app has a reason. Apps stay free to look t
 
    | Strength | `neutral` (furniture) | `tint` (to notice, or a choice) | Status hue (`error`, … via `as_tint`) |
    | -------- | --------------------- | ------------------------------- | ---------------------- |
-   | None | button toolbar (only groups its controls) | `text` and `link` buttons | an error message |
+   | None | button toolbar (only groups its controls) | `bare` and `link` buttons | an error message |
    | Outline | default button, inputs | `tint` button, `tint` input | an invalid field's border (automatic) |
    | Surface (+1) | status bar, footer, title row of a secondary card, header of a table inside a widget; hover, keyboard-active item | code examples, callouts | a warning callout |
-   | Surface jump (+2 or more) | pressed | selected item, checked toggle, current tab (+3) | |
+   | Surface jump (+2 or more) | pressed | selected item, pressed or checked toggle, current page or tab (+3) | |
    | Inverted | header of a table that is the main thing on the screen | the app's top toolbar, a dialog's title row, the title row of the card the screen is about, the dominant action | the dominant destructive action |
 
 2. **`<header>` is the tint-inverted bar**: use it for the app's top toolbar, a dialog's title row and the title row of the card the screen is about. A quieter title row is an `<e-row surface pad="component">`. `<footer>` is already a neutral surface ([Layout § Layout elements](./ui-layout.md#layout-elements)).

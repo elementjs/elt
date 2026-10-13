@@ -70,7 +70,7 @@ A context menu opens at the pointer, from [`$context_menu`](./decorators.md#cont
 `menu_nav(menu)` gives a menu built as plain elements the usual keyboard behavior: call it on the menu element once its items are in it, typically inside a popup's `render`.
 
 - The items are the `[role="menuitem"]` elements that aren't disabled; headers and `<hr>` are skipped.
-- Focus goes to the menu once it's shown, and stays there: the active item is named by the menu's `aria-activedescendant` and marked `data-active` (drawn like a hovered item). Hovering an item makes it active.
+- Focus moves between the items themselves (roving focus): the first item takes it once the menu is shown, the arrow keys move it, and the focused item is the keyboard cursor, drawn by the browser's `:focus-visible` ring like any focused control. Only the focused item is in the tab order (the others have `tabindex="-1"`). Hovering an item focuses it, so there is one highlighted item and the keys continue from where the pointer is. A menu with no item takes the focus itself.
 - Up/Down move, Home/End jump to the first/last item, PageUp/PageDown move by 10. Enter or Space clicks the active item. Typing letters jumps to the next item starting with them; the same letter repeated cycles through the items starting with it. `Escape` is the popup's: it closes the innermost menu, and focus goes back to what opened it.
 
 ```tsx
@@ -86,11 +86,11 @@ popup(ev.currentTarget, (fut) => {
 })
 ```
 
-`list_nav(node, opts)` is the same behavior for any list, working on item **indexes** rather than elements, so it also drives a virtual list whose items are mostly not rendered (`Select` uses it). `node` is the element that keeps focus — the list, or a text input filtering it; in a text input, Home, End, Space and letters are left to the input.
+`list_nav(node, opts)` is the same keys for any list, working on item **indexes** rather than elements, so it also drives a virtual list whose items are mostly not rendered (`Select` uses it). Focus does not move between the items here: it stays on `node` — the list, or a text input filtering it (a combobox) — and `node`'s `aria-activedescendant` names the active item, which is the model a text field needs and a virtual list must use, since most of its items have no element to focus. Mark the active item with the `e-active` attribute: it is drawn like a hovered one ([States and interaction § The keyboard cursor](./ui-states.md#the-keyboard-cursor)). In a text input, Home, End, Space and letters are left to the input.
 
 | Option | Role |
 | ------ | ---- |
-| `o_active` | The active index (-1 for none). Yours: mark the active item from it (`data-active`) |
+| `o_active` | The active index (-1 for none). Yours: mark the active item from it (`e-active`) |
 | `count()` | How many items there are now |
 | `activate(i)` | Run item `i` |
 | `reveal(i)` | Bring item `i` into view |
@@ -126,7 +126,7 @@ return <button>
         <e-prose pad="component" scroll>It can't be recovered afterwards.</e-prose>
         <e-row pad="component" justify="end">
           <button>{$click(() => fut.resolve(undefined))}Cancel</button>
-          <button e-variant="inverted">{$click(() => fut.resolve("deleted"))}Delete</button>
+          <button e-emphasis="inverted">{$click(() => fut.resolve("deleted"))}Delete</button>
         </e-row>
       </e-column>
     ))

@@ -3,8 +3,11 @@ import { HIDDEN_SELECTOR } from "./selectors"
 import { theme } from "./theme"
 
 // The layer order. typography sits below components: it styles text elements at zero specificity,
-// and a component's (or a control's) own rule must win over it (docs/md/ui-typography.md).
-css`@layer reset, base, theme, typography, components, utilities, overrides;`
+// and a component's (or a control's) own rule must win over it (docs/md/ui-typography.md). interaction
+// (hover, press, focus) and state (selected, invalid, disabled) sit above components, in that order,
+// so a state wins over a hover and both win over a control's look at rest, whatever their specificity
+// (ui/states.css.tsx, docs/md/ui-states.md).
+css`@layer reset, base, theme, typography, components, interaction, state, utilities, overrides;`
 
 css`@layer reset {
   * {

@@ -29,7 +29,7 @@ function showDialog() {
           {$click(() => fut.resolve(undefined))}
           Cancel
         </button>
-        <button e-variant="inverted">{$click(() => fut.resolve(true))}OK</button>
+        <button e-emphasis="inverted">{$click(() => fut.resolve(true))}OK</button>
       </e-row>
     </e-column>
   )
@@ -121,7 +121,7 @@ const tint_colors = (Object.keys(theme.colors) as (keyof typeof theme.colors)[])
 return <e-column spacing style={oo_style} class={o_color.tf(col => theme.colors[col].class_as_tint)}>
   <e-row spacing>
     <e-row packed seams="children">
-      {tint_colors.map(color => <label e-variant="toggle" class={theme.colors[color].class_as_tint}>
+      {tint_colors.map(color => <label e-widget="toggle" class={theme.colors[color].class_as_tint}>
         <input type="checkbox">{$bind.boolean(o_color.tf(tf_equals(color)))}</input>
         <P.PaintRoller/>
       </label>)}
@@ -133,22 +133,32 @@ return <e-column spacing style={oo_style} class={o_color.tf(col => theme.colors[
   <e-row spacing>
     <e-row packed seams="children">
       <button>Button</button>
-      <button e-variant="tint"><P.CaretDown/></button>
+      <button e-emphasis="tint"><P.CaretDown/></button>
     </e-row>
-    <button e-variant="link">link <P.Heart/></button>
-    <button e-variant="text">text <P.Heart/></button>
-    <button e-variant="tint">tint <P.Heart/></button>
-    <button e-variant="inverted">full <P.Heart/></button>
+    <button e-emphasis="link">link <P.Heart/></button>
+    <button e-emphasis="bare">bare <P.Heart/></button>
+    <button e-emphasis="tint">tint <P.Heart/></button>
+    <button e-emphasis="inverted">inverted <P.Heart/></button>
+  </e-row>
+
+  <e-row spacing>
+    <button aria-pressed="true">default, selected</button>
+    <button e-emphasis="bare" aria-pressed="true">bare, selected</button>
+    <button e-emphasis="tint" aria-pressed="true">tint, selected</button>
+    <button e-emphasis="inverted" aria-pressed="true">inverted, selected</button>
+    <p>A <button e-emphasis="link" aria-current="page">selected link</button> in a line of text, next to an <button e-emphasis="link">ordinary one</button>.</p>
   </e-row>
 
   <fieldset disabled={o_disabled}>
     <legend><label><input type="checkbox">{$bind.boolean(o_disabled)}</input> Disabled</label></legend>
     <e-row spacing>
       <button>Button</button>
-      <button e-variant="link">link</button>
-      <button e-variant="text">text</button>
-      <button e-variant="tint">tint</button>
-      <button e-variant="inverted">full</button>
+      <button e-emphasis="link">link</button>
+      <button e-emphasis="bare">bare</button>
+      <button e-emphasis="tint">tint</button>
+      <button e-emphasis="inverted">inverted</button>
+      <button aria-pressed="true">selected</button>
+      <button e-emphasis="bare" aria-pressed="true">bare, selected</button>
     </e-row>
   </fieldset>
 
@@ -160,7 +170,7 @@ return <e-column spacing style={oo_style} class={o_color.tf(col => theme.colors[
     <e-row packed seams="children" align="stretch">
       <input type="number" placeholder="number"/>
     </e-row>
-    <button e-variant="inverted">
+    <button e-emphasis="inverted">
       Not the same height !
     </button>
   </e-row>
@@ -182,9 +192,9 @@ return <e-column spacing style={oo_style} class={o_color.tf(col => theme.colors[
   </e-row>
 
   <e-row spacing>
-    <label><input type="checkbox" e-variant="switch"/> Switch</label>
-    <label><input type="checkbox" e-variant="switch" checked/> Switch checked</label>
-    <label><input type="checkbox" e-variant="switch" disabled/> Switch disabled</label>
+    <label><input type="checkbox" e-widget="switch"/> Switch</label>
+    <label><input type="checkbox" e-widget="switch" checked/> Switch checked</label>
+    <label><input type="checkbox" e-widget="switch" disabled/> Switch disabled</label>
   </e-row>
 
   <e-row spacing>
@@ -194,10 +204,87 @@ return <e-column spacing style={oo_style} class={o_color.tf(col => theme.colors[
   </e-row>
 
   <e-row spacing>
-    <label e-variant="toggle"><input type="checkbox"/> Toggle</label>
-    <label e-variant="toggle"><input type="checkbox" checked/> Toggle checked</label>
-    <label e-variant="toggle"><input type="checkbox" disabled/> Toggle disabled</label>
+    <label e-widget="toggle"><input type="checkbox"/> Toggle</label>
+    <label e-widget="toggle"><input type="checkbox" checked/> Toggle checked</label>
+    <label e-widget="toggle"><input type="checkbox" disabled/> Toggle disabled</label>
   </e-row>
+</e-column>
+```
+
+## States
+
+The selected state, hover and press, drawn the same way whatever the element: native controls and elements of your own. Selected comes from the ARIA attributes `aria-pressed`, `aria-selected`, `aria-current` and `aria-checked`, and from a checked toggle; hover and press come from `$interactive` (or from being a native button or link). See [States](./ui-states.md).
+
+```tsx
+//@inline-example
+import { $click, o } from "elt"
+import * as P from "elt-phosphor"
+import { $interactive, menu_nav } from "elt/ui"
+
+const o_clicks = o(0)
+
+// A menu drives its keyboard cursor with real focus: press an arrow key after clicking in it.
+function Menu() {
+  const menu = (
+    <e-column surface="background" border seams="none" packed="widget" align="stretch" role="menu">
+      <button type="button" role="menuitem">Cut</button>
+      <button type="button" role="menuitem">Copy</button>
+      <button type="button" role="menuitem">Paste</button>
+    </e-column>
+  ) as HTMLElement
+  menu_nav(menu)
+  return menu
+}
+
+return <e-column spacing>
+  <e-row spacing align="start">
+    <button aria-pressed="true">aria-pressed</button>
+    <e-row pad border role="gridcell" aria-selected="true">aria-selected</e-row>
+    <button aria-current="page">aria-current</button>
+    <button aria-checked="true">aria-checked</button>
+    <label e-widget="toggle"><input type="checkbox" checked/> checked toggle</label>
+    <label e-widget="toggle"><input type="checkbox"/> unchecked toggle</label>
+  </e-row>
+
+  <e-row spacing align="start">
+    <e-row surface pad="component" spacing>
+      <button>on a surface</button>
+      <button e-emphasis="bare" aria-pressed="true">selected, bare</button>
+      <button aria-pressed="true">selected</button>
+    </e-row>
+    <e-row surface="invert-tint" pad="component" spacing>
+      <button e-emphasis="bare">in an inverted band</button>
+      <button e-emphasis="bare" aria-pressed="true">selected, bare</button>
+      <button aria-pressed="true">selected</button>
+      <button>default</button>
+    </e-row>
+  </e-row>
+
+  <e-row spacing align="start">
+    <button e-emphasis="inverted" aria-pressed="true">inverted, selected</button>
+    <button aria-pressed="true" disabled>selected, disabled</button>
+    <button aria-pressed="true" aria-invalid="true">selected, invalid</button>
+    <label e-widget="toggle"><input type="checkbox" checked disabled/> checked, disabled</label>
+  </e-row>
+
+  <e-row spacing align="start">
+    <e-row pad border>
+      {$interactive}
+      {$click(() => o_clicks.set(o_clicks.get() + 1))}
+      <P.HandPointing/> Hover, press and Tab to me, then Enter or Space: {o_clicks} clicks
+    </e-row>
+    <e-row pad border aria-disabled="true">
+      {$interactive}
+      {$click(() => o_clicks.set(o_clicks.get() + 1))}
+      Disabled: no hover, no keys
+    </e-row>
+    <e-row pad border e-active>
+      {$interactive}
+      The keyboard cursor (e-active) looks hovered
+    </e-row>
+  </e-row>
+
+  <Menu/>
 </e-column>
 ```
 

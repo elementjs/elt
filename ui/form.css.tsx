@@ -1,12 +1,7 @@
 import { css, type NRO } from "elt"
 import { CHECK_POINTS } from "./icons"
-import { Mix, theme } from "./theme"
-import {
-  CENTERED_TEXT_CONTROL_SELECTOR,
-  FORM_CONTROL_SELECTOR,
-  INSET_FOCUS_SELECTOR,
-  INVALID_SELECTOR,
-} from "./selectors"
+import { type Emphasis, theme } from "./theme"
+import { CENTERED_TEXT_CONTROL_SELECTOR, FORM_CONTROL_SELECTOR, INSET_FOCUS_SELECTOR } from "./selectors"
 
 const colors = theme.colors
 
@@ -16,42 +11,57 @@ const CHECKBOX_CHECK_MASK = encodeURIComponent(
   `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256"><polyline points="${CHECK_POINTS}" fill="none" stroke="white" stroke-linecap="round" stroke-linejoin="round" stroke-width="32"/></svg>`,
 )
 
-/** The bevel of raised controls (the switch, the inverted button): a highlight above, a shadow below.
- * The light palette's `bg` and `text` at 20% opacity, so the light comes from the same side in both
- * schemes, and an inverted button, which redefines --e-color-bg locally, keeps it. */
-const light_bg = new Mix(colors.bg.light_frozen_expr)
-const light_text = new Mix(colors.text.light_frozen_expr)
-const bevel_raise = light_bg.alpha(0.2)
-const bevel_drop = light_text.alpha(0.2)
-
 declare module "elt" {
   interface attrs_button {
-    "e-variant"?: NRO<"link" | "text" | "tint" | "inverted">
+    /** How loud the button is (docs/md/ui-states.md#emphasis). Absent: `default`. */
+    "e-emphasis"?: NRO<Emphasis>
+  }
+
+  interface attrs_a {
+    /** Absent: plain link text. Any other emphasis styles the link as a control (a nav item, a button-like link). */
+    "e-emphasis"?: NRO<Emphasis>
   }
 
   interface attrs_input {
-    "e-variant"?: NRO<"tint" | "switch">
+    "e-emphasis"?: NRO<"default" | "tint">
+    "e-widget"?: NRO<"switch">
   }
 
   interface attrs_label {
-    "e-variant"?: NRO<"toggle">
+    /** A toggle takes an emphasis like a button. */
+    "e-emphasis"?: NRO<Emphasis>
+    "e-widget"?: NRO<"toggle">
+  }
+
+  interface Attrs<N extends Node = HTMLElement> {
+    /**
+     * An editable element (a `contenteditable`, a custom field) that looks like a text input: its border,
+     * padding, radius, height and focus ring (docs/md/ui-states.md#widgets).
+     */
+    "e-widget"?: NRO<"field">
   }
 }
 
 css`
 @layer components {
 
-a {
-  cursor: pointer;
+/* Plain link text: tinted, underlined when hovered. Not an \`<a>\` that asks for a control's look with
+   an emphasis other than \`link\` (a nav item): no underline, and a visited color would tell browsing
+   history, which is wrong for it. \`:where\`: zero specificity, so an emphasis always wins. The hover
+   fill and the pointer cursor are the interaction layer's (ui/states.css.tsx). */
+a:where(:not([e-emphasis])) {
   color: ${colors.tint};
-  /* (0,1,1): wins over the plain \`a\` color above. */
   &:visited {
     color: ${colors.tint.faded};
   }
   &:hover {
     text-decoration: underline;
-    background-color: ${colors.tint.hover};
   }
+}
+
+/* A link that asks for a control's look is no longer text with a destination: no underline. */
+a[e-emphasis]:not([e-emphasis="link"]) {
+  text-decoration: none;
 }
 
 label {
@@ -75,7 +85,7 @@ label {
   }
 }
 
-label[e-variant="toggle"] > input[type="checkbox"] {
+label[e-widget="toggle"] > input[type="checkbox"] {
   display: none;
 }
 
@@ -171,7 +181,7 @@ input[type="datetime-local"] {
 }
 
 /* A toggle's content is inline: centered along the height it is given by the same token. */
-label[e-variant="toggle"] {
+label[e-widget="toggle"] {
   align-content: center;
 }
 
@@ -240,8 +250,8 @@ input[type="checkbox"]:checked::after {
   opacity: 1;
 }
 
-/* Toggle switch (checkbox + e-variant="switch") */
-input[type="checkbox"][e-variant="switch"] {
+/* Toggle switch (checkbox + e-widget="switch") */
+input[type="checkbox"][e-widget="switch"] {
   --e-switch-width: 1.5em;
   --e-switch-height: .75em;
   --e-switch-thumb: var(--e-switch-height);
@@ -257,11 +267,11 @@ input[type="checkbox"][e-variant="switch"] {
     border-color ${theme.settings.durationFast} ease-out,
   ;
   box-shadow:
-    inset 0 -1px 2px ${bevel_raise},
-    inset 0 1px 2px ${bevel_drop};
+    inset 0 -1px 2px ${theme.bevel_raise},
+    inset 0 1px 2px ${theme.bevel_drop};
 }
 
-input[type="checkbox"][e-variant="switch"]:checked {
+input[type="checkbox"][e-widget="switch"]:checked {
   border-color: ${colors.tint};
   background-color: ${colors.tint.mid};
 }
@@ -270,7 +280,7 @@ input[type="checkbox"]:focus-visible {
   box-shadow: 0 0 0 ${theme.settings.focusRingSize} ${colors.tint.mid};
 }
 
-input[type="checkbox"][e-variant="switch"]::after {
+input[type="checkbox"][e-widget="switch"]::after {
   top: 0;
   left: 0;
   width: calc(var(--e-switch-height) - 2px);
@@ -286,11 +296,11 @@ input[type="checkbox"][e-variant="switch"]::after {
     transform ${theme.settings.durationFast} cubic-bezier(0.2, 0.85, 0.25, 1),
     background-color ${theme.settings.durationFast} ease;
   box-shadow:
-    0 -1px 2px ${bevel_raise},
-    0 1px 2px ${bevel_drop};
+    0 -1px 2px ${theme.bevel_raise},
+    0 1px 2px ${theme.bevel_drop};
 }
 
-input[type="checkbox"][e-variant="switch"]:checked::after {
+input[type="checkbox"][e-widget="switch"]:checked::after {
   background-color: ${colors.tint};
   transform:
     translateY(1px)
@@ -309,97 +319,43 @@ hr {
   background-color: ${colors.neutral.surface("n+3")};
 }
 
-button, label[e-variant="toggle"] {
-  transition: transform 5ms ease, background ${theme.settings.durationFast} ease, box-shadow ${theme.settings.durationFast} ease;
-  transform-origin: bottom;
 
-  @media (hover: hover) and (pointer: fine) {
-    &:hover:not(:disabled) {
-      background: ${colors.tint.hover};
-    }
-  }
-
-  &:active:not(:disabled) {
-    background: ${colors.tint.separator};
-    transform: translateY(0.5px);
-  }
-
-  &:disabled {
-    cursor: not-allowed;
-  }
+/* An unselected toggle is outlined in tint, a choice not yet made (the selected state fills it:
+   ui/states.css.tsx). */
+label[e-widget="toggle"]:where(:has(> input:not(:checked))) {
+  border: 1px solid ${colors.tint.mid};
+  background-color: ${colors.bg};
+  color: ${colors.tint.mid};
 }
 
-button[e-variant="link"] {
-  border: 0;
-  padding: 0;
-  min-height: 0;
-  color: ${colors.tint};
-  background: transparent;
-  text-decoration: underline;
-
-  @media (hover: hover) and (pointer: fine) {
-    &:hover {
-      background: transparent;
-    }
-  }
+/* ── Emphasis ──────────────────────────────────────────────────────────────────────────────────
+   How loud a control is: \`e-emphasis\` (docs/md/ui-states.md#emphasis). The levels are
+   \`theme.css_emphasis\`'s; this is only where they apply. After the widgets' own rules above, at the
+   same specificity, so a toggle asked to be \`bare\` is. */
+:is(button, a, label, input)[e-emphasis="link"] {
+  ${theme.css_emphasis("link")}
 }
 
-/* Bare: no border, no background, tinted, no underline — same padding rule as everything else: none, since it has no boundary. */
-button[e-variant="text"] {
-  border: 0;
-  padding: 0;
-  min-height: 0;
-  color: ${colors.tint};
-  background: transparent;
+:is(button, a, label, input)[e-emphasis="bare"] {
+  ${theme.css_emphasis("bare")}
 }
 
-button[e-variant="tint"], input[e-variant="tint"] {
-  border-color: ${colors.tint};
+:is(button, a, label, input)[e-emphasis="tint"] {
+  ${theme.css_emphasis("tint")}
+}
+
+/* A tint input is outlined, its text is still text. */
+input[e-emphasis="tint"] {
+  color: ${colors.text};
   &::placeholder {
     color: ${colors.tint.mid};
   }
 }
 
-button[e-variant="tint"] {
-  color: ${colors.tint};
+:is(button, a, label, input)[e-emphasis="inverted"] {
+  ${theme.css_emphasis("inverted")}
 }
 
-/* A toggle's state is read with :has() wrapped in :where(): :has() alone counts its argument's
-   specificity, which out-ranked the packed container rules (ui/layout.css.tsx) and kept the
-   toggle's own border and background inside a \`packed border\` group. Wrapped, each state rule
-   weighs the same as the other variant rules (\`button[e-variant="inverted"]\`). The checked fill
-   survives packing like the inverted button's: both set --e-current-surface, the color packed
-   paints its children with. */
-button[e-variant="inverted"] {
-  --e-color-bg: var(--e-light-color-tint);
-  --e-current-surface: var(--e-color-bg);
-  --e-color-text: var(--e-light-color-bg);
-  --e-color-tint: var(--e-light-color-bg);
-  color: var(--e-color-text);
-  background-color: var(--e-color-bg);
-  border-color: ${bevel_raise} ${bevel_drop} ${bevel_drop} ${bevel_raise};
-}
-
-/* A checked toggle is a choice, not an action: a tint surface jump (+3) with a full tint border, like a
-   selected item, never the inverted fill of the dominant action (docs/md/ui-theme.md, Emphasis). */
-label[e-variant="toggle"]:where(:has(> input:checked)) {
-  --e-current-surface: ${colors.tint.selected};
-  border-color: ${colors.tint};
-  background-color: var(--e-current-surface);
-  color: ${colors.text};
-
-  @media (hover: hover) and (pointer: fine) {
-    &:hover:not(:disabled) {
-      background: ${colors.tint.selected_hover};
-    }
-  }
-}
-
-label[e-variant="toggle"]:where(:has(> input:not(:checked))) {
-  border: 1px solid ${colors.tint.mid};
-  background-color: ${colors.bg};
-  color: ${colors.tint.mid};
-}
 
 input[type="color"] {
   /* Size */
@@ -432,78 +388,6 @@ input[type="color"]::-webkit-color-swatch {
     border: none;
     border-radius: 0;
   }
-}
-
-/* ── Invalid ───────────────────────────────────────────────────────────────────────────────────
-   A field whose value is wrong (INVALID_SELECTOR, ui/selectors.ts): its border and focus ring take
-   the error color, whatever its variant; nothing else changes, the app's message under the field
-   explains. A disabled field is furniture and stays neutral: it can't be fixed while disabled. */
-:is(${FORM_CONTROL_SELECTOR}, input[type="checkbox"]):where(${INVALID_SELECTOR}):not(:disabled) {
-  border-color: ${colors.error};
-  &:focus-visible {
-    box-shadow: 0 0 0 ${theme.settings.focusRingSize} ${colors.error.mid};
-  }
-  &:is(${INSET_FOCUS_SELECTOR}):focus-visible {
-    box-shadow: inset 0 0 0 ${theme.settings.focusRingSize} ${colors.error.mid};
-  }
-}
-
-/* ── Disabled ──────────────────────────────────────────────────────────────────────────────────
-   A disabled control is furniture, whatever its variant: it loses its tint for neutral, and moves
-   each of its full-strength colors halfway toward the background (.mid) instead of fading with
-   opacity: a transparent control would let whatever is behind it show through. Colors that are
-   already faded stay as they are. Emitted last so these win over the variant rules above at equal
-   specificity (docs/md/ui-theme.md, State). */
-:is(button, input, select, textarea):disabled {
-  color: ${colors.text.mid};
-  border-color: ${colors.neutral.mid};
-  cursor: not-allowed;
-}
-
-button:is([e-variant="tint"], [e-variant="text"], [e-variant="link"]):disabled,
-input[e-variant="tint"]:disabled {
-  color: ${colors.text.mid};
-  border-color: ${colors.neutral.mid};
-  &::placeholder {
-    color: ${colors.text.mid};
-  }
-}
-
-/* Inverted controls redefine --e-color-bg/--e-color-text locally (the tint fill becomes their
-   background), so their fill is mixed from the light palette directly, like the variant itself:
-   halfway between the background and neutral. */
-button[e-variant="inverted"]:disabled {
-  --e-disabled-fill: color-mix(in oklab, var(--e-light-color-bg) calc(100% - ${theme.settings.intensityMid}), var(--e-light-color-neutral) ${theme.settings.intensityMid});
-  background-color: var(--e-disabled-fill);
-  border-color: var(--e-disabled-fill);
-  /* The label keeps its full color: its own background is the fill, which already moved halfway, so
-     moving the label halfway too would make it the same color as the fill. */
-  color: var(--e-color-text);
-}
-
-/* A disabled toggle: neutral border and label; checked, its fill becomes the neutral jump (+ 3). */
-label[e-variant="toggle"]:has(> input:disabled) {
-  border-color: ${colors.neutral.mid};
-  color: ${colors.text.mid};
-}
-label[e-variant="toggle"]:has(> input:checked:disabled) {
-  --e-current-surface: ${colors.neutral.selected};
-  background-color: var(--e-current-surface);
-}
-
-input[type="checkbox"]:checked:disabled,
-input[type="checkbox"][e-variant="switch"]:checked:disabled {
-  border-color: ${colors.neutral.mid};
-}
-input[type="checkbox"]:disabled::after,
-input[type="checkbox"][e-variant="switch"]:checked:disabled::after {
-  background-color: ${colors.neutral.mid};
-}
-input[type="checkbox"][e-variant="switch"]:checked:disabled {
-  background-color: ${colors.neutral.faded};
-}
-input[type="checkbox"][e-variant="switch"]:not(:checked):disabled::after {
-  background-color: ${colors.neutral.faded};
 }
 
 }`

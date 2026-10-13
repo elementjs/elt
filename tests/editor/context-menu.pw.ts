@@ -176,7 +176,8 @@ test.describe("row menu", () => {
   test("the keyboard drives the menu: arrows, Enter", async ({ page }) => {
     await mount(page, `({ name: "Ada", other: 1 })`)
     await row(page, "name").locator("> :first-child").click({ button: "right" })
-    await page.waitForFunction(() => document.activeElement?.getAttribute("role") === "menu")
+    // Focus is on the first item (roving focus).
+    await page.waitForFunction(() => document.activeElement?.getAttribute("role") === "menuitem")
     await page.keyboard.press("ArrowDown") // Change type… → Delete
     await page.keyboard.press("Enter")
     expect(await root(page)).toEqual({ other: 1 })

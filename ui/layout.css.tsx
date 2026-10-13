@@ -764,7 +764,7 @@ css`
      when the row runs out of room, their label overflowing. Text inputs, \`select\` and \`textarea\`
      stay elastic: they have no content to protect. Zero specificity, so a \`flex-shrink\` of your own
      wins. */
-  ${_layouters} > :where(button, input[type="checkbox"], input[type="radio"], label[e-variant="toggle"]) {
+  ${_layouters} > :where(button, input[type="checkbox"], input[type="radio"], label[e-widget="toggle"]) {
     flex-shrink: 0;
   }
 
