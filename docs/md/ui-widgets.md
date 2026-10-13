@@ -116,7 +116,7 @@ import { $resizable } from "elt/ui"
 | Option | Effect |
 | ------ | ------ |
 | `edge` | Where the handle is: `"end"` (default), `"start"`, `"top"` or `"bottom"`. `"start"` and `"end"` follow the writing direction. Dragging the handle away from the element makes it bigger |
-| `min`, `max` | Limits in px (default: at least 48, no maximum) |
+| `min`, `max` | Limits: a number is px, a string is a CSS length (`"4ch"`, `"calc(4ch + 2 * var(--e-control-pad))"`). A length is set as the element's own `min-width` / `max-width` (`min-height` / `max-height` for `"top"` and `"bottom"`), so it holds from the start and not only while dragging, and it is resolved in the element's font and custom properties: the way to say "four digits wide" without knowing the font. Default: at least 48 px, no maximum |
 | `on_resize(px)` | Called with each new size while dragging |
 | `write` | Whether the decorator writes the size on the element (`width` for `"start"` and `"end"`, `height` otherwise). Default: yes, unless `on_resize` is given, in which case the caller applies the size itself (a grid puts it in its column template) |
 

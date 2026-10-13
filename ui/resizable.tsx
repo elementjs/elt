@@ -7,10 +7,14 @@ export type ResizeEdge = "start" | "end" | "top" | "bottom"
 export interface ResizableOptions {
   /** Side of the element the handle is on. Default `"end"`. Dragging it away from the element grows it. */
   edge?: ResizeEdge
-  /** Smallest size in px. Default 48. */
-  min?: number
-  /** Largest size in px. Default: none. */
-  max?: number
+  /**
+   * Smallest size. A number is px. A string is a CSS length (`"4ch"`, `"calc(4ch + 2 * var(--pad))"`),
+   * set as the element's `min-width` (`min-height` for the vertical edges): it holds from the start,
+   * not only while dragging, and is resolved in the element's own font and custom properties. Default 48 (px).
+   */
+  min?: number | string
+  /** Largest size, a number of px or a CSS length like `min`. Default: none. */
+  max?: number | string
   /** Called with each new size in px while dragging. */
   on_resize?: (px: number) => void
   /**
@@ -64,10 +68,30 @@ export function $resizable(opts: ResizableOptions = {}): Decorator<HTMLElement> 
   const min = opts.min ?? DEFAULT_MIN
   const max = opts.max ?? Number.POSITIVE_INFINITY
   const write = opts.write ?? opts.on_resize == null
+  const min_prop = horizontal ? "minWidth" : "minHeight"
+  const max_prop = horizontal ? "maxWidth" : "maxHeight"
 
   return (host) => {
+    // A limit given as a CSS length is the element's own min-/max- size, so the browser holds it. Both
+    // limits as px, read once per drag: a length depends on the element's font and variables, which
+    // the browser resolves for the computed style, and a number is already one.
+    if (typeof min === "string") host.style[min_prop] = min
+    if (typeof max === "string") host.style[max_prop] = max
+    // (`auto` or `none`, what an invalid length leaves, is no limit: `fallback`.)
+    const limit = (
+      value: number | string,
+      prop: "minWidth" | "minHeight" | "maxWidth" | "maxHeight",
+      fallback: number,
+    ) => {
+      if (typeof value === "number") return value
+      const px = Number.parseFloat(getComputedStyle(host)[prop])
+      return Number.isFinite(px) ? px : fallback
+    }
+    // The limits of the drag in progress; outside a drag, none.
+    let lo = 0
+    let hi = Number.POSITIVE_INFINITY
     const set_size = (px: number) => {
-      const size = Math.min(max, Math.max(min, px))
+      const size = Math.min(hi, Math.max(lo, px))
       if (write) host.style[prop] = `${size}px`
       opts.on_resize?.(size)
     }
@@ -110,6 +134,8 @@ export function $resizable(opts: ResizableOptions = {}): Decorator<HTMLElement> 
           }
           const toward_end = edge === "end" || edge === "bottom"
           const rtl = horizontal && getComputedStyle(host).direction === "rtl"
+          lo = limit(min, min_prop, 0)
+          hi = limit(max, max_prop, Number.POSITIVE_INFINITY)
           drag = { from: axis(ev), size: size_now(), sign: toward_end !== rtl ? 1 : -1 }
           handle.toggleAttribute("data-resizing", true)
         })}

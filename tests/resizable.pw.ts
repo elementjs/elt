@@ -68,6 +68,38 @@ test.describe("$resizable", () => {
     expect(await width(page)).toBe(100)
   })
 
+  test("min and max can be CSS lengths, resolved in the element's own font and variables", async ({ page }) => {
+    // 10ch of a 20px monospace "0" is 120px or so, whatever it is: the test reads it from the element.
+    await mount(page, `<div id="host" style="width: 300px; height: 50px; font: 20px monospace; --step: 10px"></div>`, {
+      min: "calc(4ch + var(--step))",
+      max: "calc(10ch + var(--step))",
+    })
+    const limits = await page.evaluate(() => {
+      const cs = getComputedStyle(document.getElementById("host")!)
+      return { min: Number.parseFloat(cs.minWidth), max: Number.parseFloat(cs.maxWidth) }
+    })
+    // A length is the element's own min-width and max-width, so the browser holds it from the start.
+    expect(limits.min).toBeGreaterThan(50)
+    expect(limits.max).toBeGreaterThan(limits.min)
+    await drag(page, -1000)
+    expect(await width(page)).toBeCloseTo(limits.min, 1)
+    await drag(page, 2000)
+    expect(await width(page)).toBeCloseTo(limits.max, 1)
+  })
+
+  test("a min given as a length holds before any drag, and on_resize never gets less than it", async ({ page }) => {
+    await mount(page, `<div id="host" style="width: 10px; height: 50px; font: 20px monospace"></div>`, {
+      min: "5ch",
+      record: true,
+    })
+    const min = await page.evaluate(() =>
+      Number.parseFloat(getComputedStyle(document.getElementById("host")!).minWidth),
+    )
+    expect(await width(page)).toBeGreaterThanOrEqual(min - 0.1)
+    await drag(page, -1000)
+    expect(Math.min(...(await page.evaluate(() => window.__sizes)))).toBeGreaterThanOrEqual(min - 0.1)
+  })
+
   test("the start edge grows when dragged away from the element; RTL mirrors start and end", async ({ page }) => {
     await mount(page, `<div id="host" style="width: 200px; height: 50px; margin-left: 300px"></div>`, { edge: "start" })
     await drag(page, -50)
