@@ -7,7 +7,7 @@
 import { css, type NRO } from "elt"
 import { theme } from "./theme"
 import "./layout.css.tsx"
-import { PROSE_CONTAINER_SELECTOR, PROSE_SPACED_SELECTOR, TEXT_BLOCK_SELECTOR } from "./selectors"
+import { INLINE_TEXT_SELECTOR, PROSE_CONTAINER_SELECTOR, PROSE_SPACED_SELECTOR, TEXT_BLOCK_SELECTOR } from "./selectors"
 
 const text = theme.colors.text
 
@@ -36,7 +36,7 @@ css`@layer typography {
     flex-grow: 1;
     flex-shrink: 2;
   }
-  :where(span, strong, em, a, code, b, i, small)[e-ellipsis] {
+  :where(${INLINE_TEXT_SELECTOR})[e-ellipsis] {
     display: inline-block;
     max-width: 100%;
     vertical-align: bottom;

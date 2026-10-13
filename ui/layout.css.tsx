@@ -3,7 +3,10 @@ import {
   CENTERED_TEXT_CONTROL_SELECTOR,
   HIDDEN_SELECTOR,
   INLINE_ONLY_TEXT_BLOCK_SELECTOR,
+  INLINE_TEXT_SELECTOR,
   MEANINGFUL_BORDER_SELECTOR,
+  PACKED_CONTAINER_SELECTOR as _packed,
+  packed_cells as _cells,
 } from "./selectors"
 import {
   ambient_surface_mix,
@@ -245,19 +248,6 @@ const _bordered = `[border]:where(:not([border="none"]))`
 const _rounded = `:is(${_bordered},[radius])`
 const _sides = ["top", "right", "bottom", "left"] as const
 const seam_modes = ["none", "children", "default", "forced"] as const
-/** Containers that take `packed`. */
-const _packed = `:where(e-flex,e-column,e-row,e-grid)`
-
-/**
- * The cells of a packed container, with an optional extra `filter` on each. A container's cells
- * are its children, except that an `e-grid-row` is not a cell: its own children are (they sit on
- * the grid's columns). Only grids have rows, so for flex containers this is just their children.
- * `:where()` keeps both forms at the specificity of `container > *`.
- */
-function _cells(container: string, filter = ""): string {
-  return `${container} > :where(:not(e-grid-row))${filter}, ${container} > :where(e-grid-row) > *${filter}`
-}
-
 /**
  * First and last *displayed* child, for packed grids (rows, and cells within a row): a hidden
  * child (`display: none`, HIDDEN_SELECTOR) is skipped, so when the last row is hidden, the one before
@@ -1051,7 +1041,12 @@ css`
 // A packed container is a control-sized surface: its cells (button groups, menus, list boxes,
 // table-like grids) read at the size of the controls they hold. Text cells take the controls' font
 // size and line height (ui/form.css.tsx), so the first lines of a text cell and of a field line up
-// in a row that stretches its cells. Its own layer, below "typography" and "components": a heading
+// in a row that stretches its cells. A text cell is also centered in its height, as a button's text and
+// a field's line are: a stretched row takes the height of its tallest control, and a text cell would
+// otherwise start at the top of it. `align-content` is the block container's way to do that (a flex
+// container would cut the text's ellipsis, a nested grid or flex cell would move its own tracks, so it
+// is only for the elements that hold text); `safe` keeps the start edge when the text overflows, and
+// the cell's own box, border and fill don't move. Its own layer, below "typography" and "components": a heading
 // or a prose container (`e-prose` goes back to the size of a text run) and the controls set their
 // own size and keep it, whatever the specificity.
 css`
@@ -1059,6 +1054,9 @@ css`
   :where(${_cells(`${_packed}[packed]`)}) {
     font-size: ${theme.settings.formFontSize};
     line-height: 1.25;
+  }
+  :where(${_cells(`${_packed}[packed]`)}):where(${INLINE_TEXT_SELECTOR}) {
+    align-content: safe center;
   }
 }
 `

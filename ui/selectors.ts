@@ -62,6 +62,23 @@ export const PROSE_SPACED_SELECTOR =
 // blockquote, …) are excluded: a flex element there may be block content.
 export const INLINE_ONLY_TEXT_BLOCK_SELECTOR = "p, h1, h2, h3, h4, h5, h6, pre, summary, legend"
 
+// Elements that hold a run of text and nothing else: as the direct child of a layout element they are
+// a text cell. (An `<a>` with an emphasis is a control as well: it is padded and centered like one.)
+export const INLINE_TEXT_SELECTOR = "span, strong, em, a, code, b, i, small"
+
+/** Containers that take `packed`. */
+export const PACKED_CONTAINER_SELECTOR = `:where(e-flex,e-column,e-row,e-grid)`
+
+/**
+ * The cells of a packed container, with an optional extra `filter` on each. A container's cells
+ * are its children, except that an `e-grid-row` is not a cell: its own children are (they sit on
+ * the grid's columns). Only grids have rows, so for flex containers this is just their children.
+ * `:where()` keeps both forms at the specificity of `container > *`.
+ */
+export function packed_cells(container: string, filter = ""): string {
+  return `${container} > :where(:not(e-grid-row))${filter}, ${container} > :where(e-grid-row) > *${filter}`
+}
+
 // A field whose value is wrong (docs/md/ui-forms.md#invalid-fields): the browser's own checks
 // (:user-invalid — required, type, min/max, pattern, setCustomValidity — once the user has edited the
 // field and left it, or tried to submit), or the app's (aria-invalid="true"). A control directly
