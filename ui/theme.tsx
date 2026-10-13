@@ -1034,7 +1034,7 @@ export const ambient_surface_mix = new Mix(
 
 export const theme = new Theme({
   light: {
-    text: "#1c1c1b",
+    text: "#0c0c0b",
     bg: "#ffffff",
     tint: "#005FCC",
     red: "#D11C3B",
