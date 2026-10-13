@@ -108,7 +108,7 @@ export class ObjectEditorShell {
       show_menu: this.options.show_menu ?? default_settings.show_menu,
     }
 
-    // The strip of columns: separate components, spaced at the component step (the default), each
+    // The strip of columns: separate components, spaced at the section step, each
     // with its own frame, in a scroll area for when they're wider than the editor. The columns sit in
     // an inner row rather than directly in the scroll area: a scroll area draws the frame of a
     // `packed border` child itself, and would take each column's own frame away.
@@ -138,7 +138,7 @@ export class ObjectEditorShell {
           const { o_value, title, factory, open_as, on_delete } = ev.detail
           this.open(o_value, title, ev.target as Node, factory, open_as, on_delete)
         })}
-        <e-row align="start">
+        <e-row align="start" spacing={this.defaults.packed ? undefined : "section"}>
           {Repeat(this.o_columns, (o_col, o_idx) => {
             if (o_col.get().presentation === "popup") {
               return document.createComment("oe-popup") as unknown as Renderable<Node>
@@ -385,14 +385,14 @@ export class ObjectEditorShell {
     // the column that draw only the lines between their own children). `spacing="widget"`: a packed container's step is the step of what it packs
     // (docs/md/ui-layout.md#packed), here widget-padded groups. It adds no gap (packed), but gives the
     // frame the widget radius its first/last children's outer corners take, and the widget step to
-    // whatever inherits it inside. Unpacked, all of it is plain rows and columns, spaced by the
-    // ambient step and with no frame.
+    // whatever inherits it inside. Unpacked, all of it is plain rows and columns with no frame, spaced at
+    // `component` (header line, toolbar and rows are widgets; the strip around spaces the columns at `section`).
     return (
       <e-column
         packed={packed}
         border={packed}
         pad={packed ? "none" : undefined}
-        spacing={packed ? "widget" : undefined}
+        spacing={packed ? "widget" : "component"}
         align="stretch"
       >
         {watch}

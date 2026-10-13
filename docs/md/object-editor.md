@@ -30,7 +30,7 @@ section: UI Recipes
 
 ## Packed or not
 
-The editor can be packed. By default it is not: a column has no frame and no background, and its header line, toolbar and rows are plain elt/ui rows and columns, spaced by the usual spacing step, each widget keeping its own border. A row's key and its input are aligned on the baseline of their first line. This is the form look: use it to edit the fields of a record.
+The editor can be packed. By default it is not: a column has no frame and no background, and its header line, toolbar and rows are plain elt/ui rows and columns, each widget keeping its own border. The fields, the header line and the toolbar of a column are spaced as widgets are (`component` step), and the columns are spaced from one another as components are (`section` step). A row's key and its input are aligned on the baseline of their first line. This is the form look: use it to edit the fields of a record.
 
 `packed` gives each column a frame in which the header line, the toolbar and the rows touch and are separated by thin lines. This is the look of the examples below, unless they say otherwise.
 

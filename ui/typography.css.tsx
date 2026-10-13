@@ -290,7 +290,7 @@ css`@layer typography {
       container's ambient spacing, padded or not. Applied as margins on both sides so that, through
       margin collapsing, the gap next to a text block is the larger of the two — a text run keeps
       its typographic rhythm, and two rows get exactly the spacing between them. */
-    &  > :where(${PROSE_SPACED_SELECTOR}) {
+    &  > :where(${PROSE_SPACED_SELECTOR}):not([inline]) {
       /* The container's step, not the child's own: see --e-parent-spacing in ui/layout.css.tsx. */
       margin-block: var(--e-parent-spacing);
     }

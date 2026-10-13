@@ -23,6 +23,28 @@ test.describe("ObjectEditor component", () => {
 })
 
 test.describe("ObjectEditorShell", () => {
+  test("unpacked, columns are spaced at the section step and a column's content at the component step", async ({
+    page,
+  }) => {
+    const result = await page.evaluate(() => {
+      const { o, node_append } = window.__ELT__
+      const { ObjectEditorShell } = window.__ELT__.Editor
+      const gaps = (packed: boolean) => {
+        document.body.innerHTML = ""
+        const shell = new ObjectEditorShell(o({ name: "Ada" }), { packed })
+        node_append(document.body, shell.node)
+        const strip = shell.node.querySelector(":scope > e-row") as HTMLElement
+        const column = strip.querySelector(":scope > e-column") as HTMLElement
+        return { strip: getComputedStyle(strip).rowGap, column: getComputedStyle(column).rowGap }
+      }
+      const step = (name: string) => getComputedStyle(document.body).getPropertyValue(`--e-spacing-${name}`).trim()
+      return { unpacked: gaps(false), packed: gaps(true), section: step("section"), component: step("component") }
+    })
+    expect(result.unpacked).toEqual({ strip: result.section, column: result.component })
+    // Packed columns keep the default step between frames, and add no gap inside.
+    expect(result.packed).toEqual({ strip: result.component, column: "normal" })
+  })
+
   test("a column's frame takes the widget radius, the step of what it packs", async ({ page }) => {
     // Regression: the column has `pad="none"`, so its `border` radius came from the inherited
     // `component` step (12px) while the widgets it packs take the widget step's corners (6px).
