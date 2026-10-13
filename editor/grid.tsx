@@ -149,6 +149,7 @@ export function render_composite_grid<K>(props: CompositeGridProps<K>): HTMLElem
       packed={props.packed ? "nudge-4" : undefined}
       border={props.packed}
       align={props.packed ? "stretch" : "baseline"}
+      seam-color="neutral-separator"
       style={{ gridTemplateColumns: o_template, minWidth: o_min_width, contain: o_contain }}
     >
       {$connected((grid: HTMLElement) => {

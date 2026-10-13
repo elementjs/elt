@@ -1300,7 +1300,7 @@ export class ArrayFactory extends Factory<ArrayOptions> {
           o_widths,
           o_keys: o_visible_indices,
           head: (
-            <e-grid-row sticky="top" surface="tint-2">
+            <e-grid-row sticky="top" surface="tint-2" seam-color="tint-separator">
               {render_label_cell("#")}
               {Repeat(o_columns, (o_col) => (
                 <strong e-ellipsis>

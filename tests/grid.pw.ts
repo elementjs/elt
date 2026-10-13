@@ -341,6 +341,33 @@ test.describe("sticky", () => {
     expect(offset).toBe(0)
   })
 
+  // A row's seam-color is the color of the lines it draws: its top edge, its cell separators and, when
+  // sticky, the copy of the line under it, which covers the next row's own (differently colored) edge.
+  test("seam-color on a row colors its own lines; a sticky row's bottom copy wins over the next row's", async ({
+    page,
+  }) => {
+    await mount(
+      page,
+      scroll_area(
+        `<e-grid id="g" columns="3" packed border>${row3("head", 'sticky="top" seam-color="tint-5"')}${row3("r1")}${row3("r2", 'seam-color="neutral-5"')}${row3("r3")}</e-grid>`,
+      ),
+    )
+    const grid = await color(page, "var(--e-seam-color)", "#g")
+    const edge = (sel: string, side: string) =>
+      styles(page, sel, [`border-${side}-color`]).then((r) => r[`border-${side}-color`])
+    // The sticky head: its bottom copy is its own color, its cells' separators too.
+    const head_bottom = await edge("#head", "bottom")
+    expect(head_bottom).not.toBe(grid)
+    expect(await edge("#head > span:nth-child(2)", "left")).toBe(head_bottom)
+    // r1 keeps the grid's color for its own top edge (the copy only covers it visually).
+    expect(await edge("#r1", "top")).toBe(grid)
+    // r2 colors its top edge and its separators, not the line under it (r3's, in the grid's color).
+    const r2_top = await edge("#r2", "top")
+    expect(r2_top).not.toBe(grid)
+    expect(await edge("#r2 > span:nth-child(3)", "left")).toBe(r2_top)
+    expect(await edge("#r3", "top")).toBe(grid)
+  })
+
   // The line under a stuck row is the next row's top edge, which scrolls away with that row: the
   // sticky row carries a copy as its own bottom edge, pulled over the next row's top edge by a -1px
   // margin (at rest it covers it exactly, and every row keeps the same height). A sticky row at the

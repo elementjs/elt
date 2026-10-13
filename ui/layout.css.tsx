@@ -207,6 +207,12 @@ export interface EGridRowAttrs extends Attrs<HTMLElement> {
   hover?: CommonAttrs["hover"]
   align?: NRO<AlignValues>
   sticky?: CommonAttrs["sticky"]
+  /**
+   * The color of the lines the row draws: the one above it, those between its cells, and, when it is
+   * `sticky="top"`, the copy of the line under it (which then wins over the next row's own line).
+   * The line under a row that is not sticky is the next row's. In the values of `border`.
+   */
+  "seam-color"?: NRO<BorderValues>
 }
 
 const more: string[] = []
@@ -914,7 +920,7 @@ css`
   }
   ${_packed}[packed][radius="none"] { --e-packed-radius: 0; }
   ${seam_modes.map((m) => `${_packed}[packed][seams="${m}"] { --e-seams: ${m}; }`).join("\n  ")}
-  ${seam_colors.map((c) => `${_packed}[packed][seam-color="${c}"] { ${theme.css_seam_color(c)} }`).join("\n  ")}
+  ${seam_colors.map((c) => `${_packed}[packed][seam-color="${c}"], e-grid[packed] > e-grid-row[seam-color="${c}"] { ${theme.css_seam_color(c)} }`).join("\n  ")}
 
   /* In a frame, the children sit on the current surface, like the frame's inside: a text button has
      no fill of its own and an unchecked toggle has one, and they must not differ. A child's own

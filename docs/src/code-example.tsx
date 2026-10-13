@@ -138,7 +138,7 @@ export function CodeExample(props: CodeExampleProps) {
   const result_panel = () => <e-prose self-align="stretch">{result}</e-prose>
 
   return (
-    <e-column border="neutral-separator" packed align="stretch" radius="component">
+    <e-column border="neutral-separator" packed align="stretch" radius="component" seams="forced">
       <e-row packed="widget" pad="none" align="stretch" surface="neutral-1" class={theme.colors.neutral.class_as_tint}>
         <button aria-pressed={o_showing_code.tf((v) => String(!v))}>
           {$click(() => o_showing_code.set(false))}
