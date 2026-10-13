@@ -90,6 +90,11 @@ export const INTERACTIVE_SELECTOR =
 // is one), so the selected state cannot paint it (docs/md/ui-states.md).
 export const LINK_EMPHASIS_SELECTOR = ':is([e-emphasis="link"], a:not([e-emphasis]))'
 
+// An emphasis with no visible edge to color: a bare control keeps its transparent one in every state,
+// a link has none. Their state is a fill (or nothing), so it never owns a line shared with a
+// neighbour (below).
+export const BORDERLESS_EMPHASIS_SELECTOR = `:is([e-emphasis="bare"], ${LINK_EMPHASIS_SELECTOR})`
+
 // Children whose border carries meaning: an emphasis's color or a state (docs/md/ui-layout.md#packed).
 // In a packed row or column without its own border, such a child keeps the border it shares with
 // the next child, which gives up its own there: a selected toggle's tint edge shows on both sides
@@ -98,7 +103,7 @@ export const LINK_EMPHASIS_SELECTOR = ':is([e-emphasis="link"], a:not([e-emphasi
 // their state. Disabled children are excluded: a disabled control is furniture.
 export const MEANINGFUL_BORDER_SELECTOR =
   ':is([e-emphasis="tint"], [e-emphasis="inverted"], ' +
-  `${SELECTED_SELECTOR}, ${INVALID_SELECTOR}):not(${DISABLED_SELECTOR})`
+  `${SELECTED_SELECTOR}:not(${BORDERLESS_EMPHASIS_SELECTOR}), ${INVALID_SELECTOR}):not(${DISABLED_SELECTOR})`
 
 // Elements the reset hides (`display: none`, ui/reset.css.tsx). hidden="until-found" is left out:
 // the browser keeps its box (content-visibility: hidden) so that find-in-page can reveal it, so it

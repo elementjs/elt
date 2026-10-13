@@ -82,7 +82,7 @@ What an element is, as opposed to how loud it is, is the `e-widget` attribute.
 
 - `<input type="checkbox">` is a square checkbox with an animated check mark.
 - `<input type="checkbox" e-widget="switch">` is a pill switch.
-- A toggle button is `<label e-widget="toggle"><input type="checkbox"/>Label</label>`: the input is hidden and the label is styled as a button. It takes an emphasis like a button (`e-emphasis="bare"` for a borderless one). Checked, it is in the selected state ([States and interaction § Selected state](./ui-states.md#selected-state)): a tint fill three levels up and a full `tint` border, not the `inverted` fill of the dominant action.
+- A toggle button is `<label e-widget="toggle"><input type="checkbox"/>Label</label>`: the input is hidden and the label is styled as a button. It takes an emphasis like a button (`e-emphasis="bare"` for a borderless one). Checked, it is in the selected state ([States and interaction § Selected state](./ui-states.md#selected-state)): a tint fill three levels up and a `tint` border (none for a `bare` toggle), not the `inverted` fill of the dominant action.
 - `e-widget="field"` on any editable element (a `contenteditable` element, a custom field) gives it a text input's look: its border, padding, radius, height and focus ring. Nothing else is automatic: an editable element has no chrome unless it asks for this one ([States and interaction § Widgets](./ui-states.md#widgets)).
 - Radio buttons (`input[type=radio]`) keep the browser's look; only their cursor is set.
 

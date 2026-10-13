@@ -104,16 +104,16 @@ css`
 @layer state {
   /* ── Selected ────────────────────────────────────────────────────────────────────────────────
      A choice, a pressed toggle, the place you are (SELECTED_SELECTOR): a tint surface jump, four
-     levels when hovered or keyboard-active so it does not fall back to a hover fill, and a full tint
-     border. It sets only the fill and the border color, so it composes with every emphasis (a
-     \`bare\` button that is selected has a fill and an edge, without changing size). A link has no
-     boundary to paint: it just stops looking like a destination. A row has no border of its own
-     (its cells have, see docs/md/ui-layout.md#grids): fill only. */
+     levels when hovered or keyboard-active so it does not fall back to a hover fill, and a tint
+     border. The border is a variable, \`--e-border-color\`, which every border of the library reads
+     (controls, \`border\` attributes): setting it recolors the ones that exist and nothing else. So a
+     row, which draws no border of its own, is only filled; a \`bare\` control, whose transparent edge
+     is a literal, keeps it; and no rule has to out-rank another to win the color. The state composes
+     with every emphasis and never changes a size. A link has no boundary to paint: it just stops
+     looking like a destination. */
   :where(${SELECTED_SELECTOR}:not(${LINK_EMPHASIS_SELECTOR})) {
     ${theme.css_selected()}
-  }
-  :where(${SELECTED_SELECTOR}:not(${LINK_EMPHASIS_SELECTOR}, e-grid-row)) {
-    border-color: ${colors.tint};
+    --e-border-color: ${colors.tint};
   }
   @media (hover: hover) and (pointer: fine) {
     :where(${SELECTED_SELECTOR}:not(${LINK_EMPHASIS_SELECTOR}):hover${_enabled}) {
@@ -134,7 +134,7 @@ css`
      the error color, whatever its emphasis; nothing else changes, the app's message under the field
      explains. A disabled field is furniture and stays neutral: it can't be fixed while disabled. */
   :where(:is(${FORM_CONTROL_SELECTOR}, input[type="checkbox"])${INVALID_SELECTOR}:not(:disabled)) {
-    border-color: ${colors.error};
+    --e-border-color: ${colors.error};
     &:focus-visible {
       box-shadow: 0 0 0 ${theme.settings.focusRingSize} ${colors.error.mid};
     }
@@ -151,7 +151,7 @@ css`
      (docs/md/ui-theme.md, State). */
   :where(:is(button, input, select, textarea):disabled, [aria-disabled="true"]) {
     color: ${colors.text.mid};
-    border-color: ${colors.neutral.mid};
+    --e-border-color: ${colors.neutral.mid};
     cursor: not-allowed;
   }
 
@@ -163,9 +163,10 @@ css`
 
   /* Selected and disabled: the same jump, in neutral. */
   :where(${SELECTED_SELECTOR}${DISABLED_SELECTOR}:not(${LINK_EMPHASIS_SELECTOR})) {
-    ${colors.neutral.css_as_surface("n+3")}
+    --e-current-surface: ${colors.neutral.selected};
+    background-color: var(--e-current-surface);
     color: ${colors.text.mid};
-    border-color: ${colors.neutral.mid};
+    --e-border-color: ${colors.neutral.mid};
   }
 
   /* Inverted controls redefine --e-color-bg/--e-color-text locally (the tint fill becomes their
@@ -174,7 +175,7 @@ css`
   :where([e-emphasis="inverted"]${DISABLED_SELECTOR}) {
     --e-disabled-fill: color-mix(in oklab, var(--e-light-color-bg) calc(100% - ${theme.settings.intensityMid}), var(--e-light-color-neutral) ${theme.settings.intensityMid});
     background-color: var(--e-disabled-fill);
-    border-color: var(--e-disabled-fill);
+    --e-border-color: var(--e-disabled-fill);
     /* The label keeps its full color: its own background is the fill, which already moved halfway, so
        moving the label halfway too would make it the same color as the fill. */
     color: var(--e-color-text);
@@ -182,12 +183,12 @@ css`
 
   /* A disabled toggle: a neutral border and label, around a disabled checkbox. */
   :where(label[e-widget="toggle"]${DISABLED_SELECTOR}) {
-    border-color: ${colors.neutral.mid};
+    --e-border-color: ${colors.neutral.mid};
     color: ${colors.text.mid};
   }
 
   :where(input[type="checkbox"]:checked:disabled, input[type="checkbox"][e-widget="switch"]:checked:disabled) {
-    border-color: ${colors.neutral.mid};
+    --e-border-color: ${colors.neutral.mid};
   }
   :where(input[type="checkbox"]:disabled, input[type="checkbox"][e-widget="switch"]:checked:disabled)::after {
     background-color: ${colors.neutral.mid};

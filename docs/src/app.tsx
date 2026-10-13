@@ -32,18 +32,14 @@ function widget_nav() {
         <e-column spacing="nudge-1" align="stretch" border="none" seams="none">
           {group.section != null ? <e-prose class={cls_section}>{group.section}</e-prose> : null}
           {group.items.map((item) => (
-            <button
-              type="button"
-              class={cls_nav_a}
+            <a
+              href={item.url}
               e-emphasis="bare"
               aria-current={o_current_name.tf((name) => (name === item.name ? "page" : undefined))}
             >
-              {$on("click", () => {
-                o_nav_open.set(false)
-                routes[item.name].activate()
-              })}
+              {$on("click", () => o_nav_open.set(false))}
               {item.title}
-            </button>
+            </a>
           ))}
         </e-column>
       ))}
@@ -51,14 +47,8 @@ function widget_nav() {
   )
 }
 
-// Name of the route being displayed, so each button can tell whether it is the current page.
+// Name of the route being displayed, so each link can tell whether it is the current page.
 const o_current_name = app.o_current_route.tf((rt) => rt?.name)
-
-// Buttons center their label by default; a menu reads better left-aligned.
-const cls_nav_a = css`.nav-a {
-  justify-content: flex-start;
-  text-align: left;
-}`
 
 function content_column() {
   return (

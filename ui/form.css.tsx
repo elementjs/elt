@@ -131,7 +131,8 @@ ${FORM_CONTROL_SELECTOR} {
     -webkit-appearance: none;
     background-color: transparent;
     color: ${colors.text};
-    border: 1px solid ${colors.neutral};
+    border: 1px solid;
+    border-color: var(--e-border-color, ${colors.neutral});
     padding: var(--e-control-pad);
     ${theme.css_radius("widget")}
     font-size: ${theme.settings.formFontSize};
@@ -210,7 +211,8 @@ input[type="checkbox"] {
   appearance: none;
   width: 1em;
   height: 1em;
-  border: 1px solid ${colors.neutral.faded};
+  border: 1px solid;
+  border-color: var(--e-border-color, ${colors.neutral.faded});
   ${theme.css_radius("nudge-4")}
   cursor: pointer;
   position: relative;
@@ -242,7 +244,7 @@ input[type="checkbox"]::after {
 
 /* Checked state */
 input[type="checkbox"]:checked {
-  border-color: ${colors.tint};
+  --e-border-color: ${colors.tint};
 }
 
 input[type="checkbox"]:checked::after {
@@ -260,7 +262,8 @@ input[type="checkbox"][e-widget="switch"] {
   width: var(--e-switch-width);
   height: calc(var(--e-switch-height) + 2px);
   border-radius: 9999px;
-  border: 1px solid ${colors.neutral.faded};
+  border: 1px solid;
+  border-color: var(--e-border-color, ${colors.neutral.faded});
   background-color: ${colors.neutral.faded};
   transition:
     background-color ${theme.settings.durationFast} ease-out,
@@ -272,7 +275,7 @@ input[type="checkbox"][e-widget="switch"] {
 }
 
 input[type="checkbox"][e-widget="switch"]:checked {
-  border-color: ${colors.tint};
+  --e-border-color: ${colors.tint};
   background-color: ${colors.tint.mid};
 }
 
@@ -323,7 +326,8 @@ hr {
 /* An unselected toggle is outlined in tint, a choice not yet made (the selected state fills it:
    ui/states.css.tsx). */
 label[e-widget="toggle"]:where(:has(> input:not(:checked))) {
-  border: 1px solid ${colors.tint.mid};
+  border: 1px solid;
+  border-color: var(--e-border-color, ${colors.tint.mid});
   background-color: ${colors.bg};
   color: ${colors.tint.mid};
 }

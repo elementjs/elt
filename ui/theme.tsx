@@ -527,8 +527,10 @@ export class Theme<AllColors extends ColorScheme> {
       case "default":
         return ""
       case "tint":
-        return `border-color: ${c.tint}; color: ${c.tint};`
+        return `--e-border-color: ${c.tint}; color: ${c.tint};`
       case "bare":
+        // A literal, not \`--e-border-color\`: the states recolor the borders that read it, and a bare
+        // control has none to recolor.
         return `border-color: transparent; background: transparent; color: ${c.text};`
       case "link":
         return `border: 0; padding: 0; min-height: 0; display: inline; background: transparent; color: ${c.tint};
@@ -540,7 +542,7 @@ export class Theme<AllColors extends ColorScheme> {
           --e-color-tint: var(--e-light-color-bg);
           color: var(--e-color-text);
           background-color: var(--e-color-bg);
-          border-color: ${this.bevel_raise} ${this.bevel_drop} ${this.bevel_drop} ${this.bevel_raise};`
+          --e-border-color: ${this.bevel_raise} ${this.bevel_drop} ${this.bevel_drop} ${this.bevel_raise};`
     }
   }
 
@@ -574,7 +576,9 @@ export class Theme<AllColors extends ColorScheme> {
    * up from ambient — the same offset `.separator` uses. `"tint-N"`/`"neutral-N"`: that family, at
    * the absolute level `N`, ignoring what's ambient. */
   css_border(value: true | ColorStep): string {
-    return `border: 1px solid ${this.#border_color(value)};`
+    // The color is the element's default: a state (selected, invalid, disabled) or an emphasis recolors
+    // every border that reads \`--e-border-color\` by setting it (ui/states.css.tsx).
+    return `border: 1px solid; border-color: var(--e-border-color, ${this.#border_color(value)});`
   }
 
   /** `[seam-color]`'s value type, as a raw declaration: the color of the lines a packed container

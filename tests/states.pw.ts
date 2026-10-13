@@ -95,17 +95,53 @@ test.describe("selected state", () => {
   }
 
   for (const emphasis of ["default", "bare", "tint"]) {
-    test(`composes with ${emphasis}: a fill and an edge, the same size`, async ({ page }) => {
+    test(`composes with ${emphasis}: a fill, the same size, and an edge unless it is bare`, async ({ page }) => {
       const attr = emphasis === "default" ? "" : `e-emphasis="${emphasis}"`
       await mount(page, `<button id="off" ${attr}>Aa</button><button id="on" ${attr} aria-pressed="true">Aa</button>`)
       const on = await style(page, "#on", "n+3")
       const off = await style(page, "#off")
       expect(on.bg).toBe(on.ref)
-      expect(on.border).toBe(await tint(page))
+      // A bare control has no edge to color: the state leaves it transparent.
+      expect(on.border).toBe(emphasis === "bare" ? "rgba(0, 0, 0, 0)" : await tint(page))
       expect(on.h).toBeCloseTo(off.h, 1)
       expect(on.w).toBeCloseTo(off.w, 1)
     })
   }
+
+  test("it recolors the border of a layout element too, and only if it has one", async ({ page }) => {
+    await mount(
+      page,
+      `<e-row id="a" border pad aria-selected="true">Aa</e-row><e-row id="b" pad aria-selected="true">Bb</e-row>`,
+    )
+    const a = await style(page, "#a", "n+3")
+    const b = await style(page, "#b", "n+3")
+    expect(a.bg).toBe(a.ref)
+    expect(a.border).toBe(await tint(page))
+    expect(b.bg).toBe(b.ref)
+    expect(b.border_width).toBe("0px")
+  })
+
+  test("the border color is not inherited: a control inside a selected card keeps its own", async ({ page }) => {
+    await mount(page, `<e-row border pad aria-selected="true"><button id="in">Aa</button></e-row>`)
+    const inner = await style(page, "#in")
+    expect(inner.border).not.toBe(await tint(page))
+  })
+
+  test("a selected bare control in a packed row leaves its neighbours' lines alone", async ({ page }) => {
+    await mount(
+      page,
+      `<e-row id="r" packed><button id="a">a</button><button id="b" e-emphasis="bare" aria-pressed="true">b</button><button id="c">c</button></e-row>`,
+    )
+    const edges = (id: string) =>
+      page.evaluate((id) => {
+        const cs = getComputedStyle(document.getElementById(id)!)
+        return [cs.borderLeftStyle, cs.borderRightStyle]
+      }, id)
+    // The bare item does not own the lines it shares: the neighbours keep theirs as in a row without a selection.
+    const with_selection = [await edges("a"), await edges("c")]
+    await page.evaluate(() => document.getElementById("b")!.removeAttribute("aria-pressed"))
+    expect([await edges("a"), await edges("c")]).toEqual(with_selection)
+  })
 
   test("a selected link stops looking like a destination, and has no fill", async ({ page }) => {
     await mount(page, `<p><button id="x" e-emphasis="link" aria-current="page">Here</button></p>`)

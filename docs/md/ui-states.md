@@ -88,19 +88,21 @@ The selected state marks an element that stands for a choice (an option, a row, 
 
 `"false"` is never selected, and neither is `"mixed"` (undecided) for `aria-pressed` and `aria-checked`. The native checkbox, radio and switch draw their state themselves and are not part of this.
 
-The look is the same for all of them, because they all mean the same thing visually: a tint surface three levels above where the item sits (four when it is hovered or the keyboard cursor is on it), a full `tint` border, and the text keeps its color. It is a choice, never an inversion ([Theme § State](./ui-theme.md#state)). It composes with every emphasis, because it sets only the fill and the border color: `bare` + selected is a filled item with an edge, and the same size as when it is not selected.
+The look is the same for all of them, because they all mean the same thing visually: a tint surface three levels above where the item sits (four when it is hovered or the keyboard cursor is on it), a `tint` border where the element has one, and the text keeps its color. It is a choice, never an inversion ([Theme § State](./ui-theme.md#state)). It composes with every emphasis, because it sets only the fill and the border color, never a size: a selected `bare` button is a filled item with no visible edge, and the same size as when it is not selected.
 
 ```tsx
 <button e-emphasis="bare" aria-pressed="true">Example</button>
 <e-row role="option" aria-selected="true" e-interactive pad="widget">Banana</e-row>
 ```
 
-Three cases look different:
+The border is a variable, `--e-border-color`, which every border of the library reads: the controls' and the `border` attribute's. The state, an emphasis (`tint`, `inverted`), an invalid field and a disabled control each set it, and the border takes the color of the last one that applies (the order is in [Disabled and invalid](#disabled-and-invalid)). The variable is not inherited, so a control inside a selected card keeps its own border. Setting it recolors the borders that exist and creates none. So:
 - A selected `link` has no boundary to paint. It loses its underline and takes the text color: it no longer looks like a destination.
-- A selected `<e-grid-row>` gets the fill only, not the border color. A row has no border of its own, and a border on it would confuse the lines between rows ([Layout § Grids](./ui-layout.md#grids)).
-- Selected beats a layout element's own `surface` or `border` color: the state is something that happens to the element, and shows over its static look.
+- A selected `bare` control keeps its transparent edge, which is a literal that does not read the variable. It is filled and nothing more.
+- A selected `<e-grid-row>` is filled only. A row has no border of its own, and a border on it would confuse the lines between rows ([Layout § Grids](./ui-layout.md#grids)).
+- A selected layout element with a `border` (a card) gets the tint border, and one without gets none.
+- Selected beats a layout element's own `surface` color: the state is something that happens to the element, and shows over its static look.
 
-In a packed row, a selected child keeps the border it shares with its neighbor, like a `tint` or `inverted` button does ([Layout § packed](./ui-layout.md#packed)).
+In a packed row, a selected child with a visible border keeps the border it shares with its neighbor, like a `tint` or `inverted` button does ([Layout § packed](./ui-layout.md#packed)). A selected `bare` child does not: it has no line to keep.
 
 **An app's own widget** gets all of this by setting the state, and `e-interactive` when it can be pressed. It writes no CSS for it:
 
@@ -195,7 +197,7 @@ How this meets your own CSS:
 
 **One enum could not hold three questions.** The old `e-variant` was one value that mixed how loud a control is, which widget it is, and which state it is in. Every combination needed a new value (a selected bare button, a selected link, a selected inverted button…). Splitting them lets a state combine with any emphasis, and gives widgets (`switch`, `toggle`, `field`) a name that is not an appearance.
 
-**The selected state sets the fill and the border color only.** It never sets the size, the padding or the border width, so it applies to any emphasis, and `bare` keeps a transparent border to have the same size selected or not. The rule behind it: an element that can show a boundary in some state has it in all of them (golden rule 4 in [elt/ui rules](./elt-ui-rules.md#golden-rules)).
+**The selected state sets the fill and one variable only.** It never sets the size, the padding or the border width, so it applies to any emphasis, and `bare` keeps a transparent border to have the same size selected or not. The border color is a variable that borders read, and not a `border-color` the state writes, so no rule has to out-rank another to win it (packed containers and the emphasis rules also write borders), and an emphasis that has no edge to color simply does not read it. The rule behind it: an element that can show a boundary in some state has it in all of them (golden rule 4 in [elt/ui rules](./elt-ui-rules.md#golden-rules)).
 
 **Why `aria-pressed` for a day or a view switch.** `aria-selected` is valid only on the roles that are items of a set (an option, a tab, a row, a cell), not on a plain button. A button that shows a choice is `aria-pressed`. A true tab strip (`role="tablist"` and `role="tab"` with `aria-selected`) also needs arrow-key navigation among its tabs, which is why a pair of view-switch buttons is `aria-pressed`.
 

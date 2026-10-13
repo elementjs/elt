@@ -626,6 +626,15 @@ css`
   inherits: false;
 }
 `
+// --e-border-color recolors every border of the library that reads it (controls, the \`border\`
+// attribute): an emphasis or a state sets it (ui/states.css.tsx), the border falls back to its own
+// color without it. Not inherited, so a control inside a selected card keeps its own.
+css`
+@property --e-border-color {
+  syntax: "*";
+  inherits: false;
+}
+`
 css`
 @property --e-current-surface-level {
   syntax: "*";
