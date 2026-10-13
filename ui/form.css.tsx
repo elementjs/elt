@@ -354,16 +354,18 @@ label[e-widget="toggle"]:where(:has(> input:not(:checked))) {
 
 /* ── Label ─────────────────────────────────────────────────────────────────────────────────────
    Text that names what is next to it (a form field's name, the key of an object, an index): static
-   (no hover, no focus ring: it is not a control), set apart from the values by a fainter color, at the
-   controls' size so it reads level with them. It has no box of its own: loose, nothing is a boundary,
-   so nothing pads it (golden rule 4) and it is aligned on the baseline of its neighbors. In a packed
-   container its cell is padded by the container and it is filled, like the row and column headers of
-   a spreadsheet: one level above the ambient surface, in the neutral family (the sticky header of a
-   table is \`tint-2\`, another family). The fill is the cell's own background, so it wins over the
-   one a framed container paints on its cells, and the lines between cells are not covered. */
+   (no hover, no focus ring: it is not a control), at the controls' size so it reads level with them.
+   It has no box of its own: loose, nothing is a boundary, so nothing pads it (golden rule 4), it is
+   aligned on the baseline of its neighbors, and nothing but its text says it is a name: bold and
+   fainter than the values. In a packed container its cell is padded by the container and it is
+   filled, like the row and column headers of a spreadsheet: one level above the ambient surface, in
+   the neutral family (the sticky header of a table is \`tint-2\`, another family). The fill says it, so
+   the text is not bold there. The fill is the cell's own background, so it wins over the one a framed
+   container paints on its cells, and the lines between cells are not covered. */
 [e-widget="label"] {
   color: ${colors.text.faded};
   font-size: ${theme.settings.formFontSize};
+  font-weight: 600;
   line-height: 1.25;
 }
 
@@ -375,6 +377,7 @@ label[e-widget="label"] {
 
 ${packed_cells(`${PACKED_CONTAINER_SELECTOR}[packed]`, '[e-widget="label"]')} {
   background-color: ${colors.neutral.surface("n+1")};
+  font-weight: normal;
 }
 
 /* ── Emphasis ──────────────────────────────────────────────────────────────────────────────────

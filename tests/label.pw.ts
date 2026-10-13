@@ -22,14 +22,15 @@ const style = (page: Page, sel: string, props: string[]) =>
   )
 
 test.describe("loose", () => {
-  test("is fainter than the text around, at the controls' size, with no box", async ({ page }) => {
+  test("is bold and fainter than the text around, at the controls' size, with no box", async ({ page }) => {
     await mount(page, `<e-row><span id="l" e-widget="label">Name</span><span id="t">Value</span><input id="i"></e-row>`)
     const [l, t, i] = await Promise.all(
       ["#l", "#t", "#i"].map((sel) =>
-        style(page, sel, ["color", "font-size", "padding-top", "background-color", "border-top-width"]),
+        style(page, sel, ["color", "font-size", "font-weight", "padding-top", "background-color", "border-top-width"]),
       ),
     )
     expect(l!.color).not.toBe(t!.color)
+    expect(Number(l!["font-weight"])).toBeGreaterThan(Number(t!["font-weight"]))
     expect(l!["font-size"]).toBe(i!["font-size"])
     expect(l!["padding-top"]).toBe("0px")
     expect(l!["border-top-width"]).toBe("0px")
@@ -97,6 +98,12 @@ test.describe("packed", () => {
       expect(l!["background-color"]).not.toBe(b!["background-color"])
     })
   }
+
+  test("the fill marks it, so its text is not bold", async ({ page }) => {
+    await mount(page, `<e-row packed><span id="l" e-widget="label">Key</span><input></e-row><span id="t">Value</span>`)
+    const [l, t] = await Promise.all(["#l", "#t"].map((sel) => style(page, sel, ["font-weight"])))
+    expect(l!["font-weight"]).toBe(t!["font-weight"])
+  })
 
   test("the fill is one level above the ambient surface, in the neutral family", async ({ page }) => {
     await mount(

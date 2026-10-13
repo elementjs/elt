@@ -67,7 +67,9 @@ A toggle takes an emphasis like a button: `<label e-widget="toggle" e-emphasis="
 | `switch` | `<input type="checkbox">` | A pill switch |
 | `toggle` | `<label>` around a checkbox | The checkbox is hidden and the label is a button. It is outlined in `tint` while unchecked, and checked it is drawn in the [selected state](#selected-state). It takes an [emphasis](#emphasis) |
 | `field` | Any element that is editable (a `contenteditable`, a custom field) | The look of a text input: its edge, padding, radius, height and focus ring, and the [invalid look](#disabled-and-invalid) |
-| `label` | Any element | Text that names what is next to it, not a control: fainter than the text around it, at the controls' size, and filled in a `packed` container ([Forms § Labels](./ui-forms.md#labels-and-fieldsets)) |
+| `label` | Any element | Text that names what is next to it, not a control: bold and fainter than the text around it, at the controls' size, and filled (not bold) in a `packed` container ([Forms § Labels](./ui-forms.md#labels-and-fieldsets)) |
+| `tab` | `<button>` | A button that stands for a view, with a line along its bottom edge ([Tabs](#tabs)) |
+| `tab-close` | `<button>` right after a `tab` | The button that closes that tab, drawn under the same line ([Tabs](#tabs)) |
 
 Nothing gives an editable element the look of a field on its own: a rich-text editor wants its own look, so the field look is asked for.
 

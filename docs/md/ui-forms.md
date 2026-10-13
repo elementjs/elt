@@ -91,8 +91,8 @@ What an element is, as opposed to how loud it is, is the `e-widget` attribute.
 
 `e-widget="label"` is text that names what is next to it: a form field's name, the key of an object, a row's index. Any element can carry it (a `span`, a `label`, a `div`); it is not tied to the `<label>` element, which is the right element when the text names one control (`<label for>`). It is static: no hover, no focus ring, no pointer cursor, even on a `<label>`.
 
-- **Loose** (a row or column that is not packed): fainter than the text around it (`text.faded`), at the controls' size, with no padding, border or fill. Nothing there is a boundary, so nothing pads it ([elt/ui rules § Golden rules](./elt-ui-rules.md#golden-rules), rule 4), and in a row or an unpacked grid it is aligned on the baseline of the fields beside it.
-- **In a `packed` container:** its cell is padded by the container like the others and filled with a neutral surface one level above the ambient one, as the row and column headers of a spreadsheet are. The fill is a different family from the `tint-2` of a sticky table header, so the two read apart. Its text is centered in the cell's height, level with the controls ([Layout § packed](./ui-layout.md#packed)).
+- **Loose** (a row or column that is not packed): bold and fainter than the text around it (`text.faded`), at the controls' size, with no padding, border or fill. Nothing else marks it as a name there. Nothing there is a boundary, so nothing pads it ([elt/ui rules § Golden rules](./elt-ui-rules.md#golden-rules), rule 4), and in a row or an unpacked grid it is aligned on the baseline of the fields beside it.
+- **In a `packed` container:** its cell is padded by the container like the others and filled with a neutral surface one level above the ambient one, as the row and column headers of a spreadsheet are. The fill marks it, so its text is not bold. The fill is a different family from the `tint-2` of a sticky table header, so the two read apart. Its text is centered in the cell's height, level with the controls ([Layout § packed](./ui-layout.md#packed)).
 
 ```tsx
 //@inline-example
