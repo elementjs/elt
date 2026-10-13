@@ -217,7 +217,7 @@ return <e-column spacing style={oo_style} class={o_color.tf(col => theme.colors[
 
 ```tsx
 //@inline-example
-return <e-column spacing="component" align="stretch">
+return <e-column spacing="component">
   <e-grid align="baseline" spacing="widget" style={{ gridTemplateColumns: "max-content 14em" }}>
     <e-grid-row><label e-widget="label" for="vt-name">name</label><input id="vt-name" type="text" value="Ada" /></e-grid-row>
     <e-grid-row><span e-widget="label">date_of_birth</span><input type="date" /></e-grid-row>
@@ -312,6 +312,66 @@ return <e-column spacing>
   </e-row>
 
   <Menu/>
+</e-column>
+```
+
+## Tabs
+
+`e-widget="tab"` and `e-widget="tab-close"`: a line along the bottom edge, dim on the tabs that are not showing and full color on the selected one (which also has the selected fill). The tabs below are live (click one), and use `aria-pressed` until the tab roles and keys exist. Rows: each emphasis; a closable tab strip (each tab and its close button in a row of their own, without a seam between them, and a radius on the strip so the joins stay square; the close button is selected and draws the line like its tab, and a tab right after a selected tab does not); a disabled selected tab; the emphases that draw no line (`link`, `inverted`); a strip in a band, as the code example has it. Tab into one to see the focus ring drawn under the line. See [States § Tabs](./ui-states.md#tabs).
+
+```tsx
+//@inline-example
+import { $click, o } from "elt"
+import * as P from "elt-phosphor"
+import { theme } from "elt/ui"
+
+const names = ["Report", "Notes", "Data"]
+const emphases = [undefined, "bare", "tint"] as const
+
+// One strip per emphasis: the selected tab is the one clicked last in that strip.
+function Strip(props: { emphasis?: "bare" | "tint"; closable?: boolean }) {
+  const o_sel = o(0)
+  const tab = (name: string, i: number) => (
+    <button e-widget="tab" e-emphasis={props.emphasis} aria-pressed={o_sel.tf((v) => String(v === i))}>
+      {$click(() => o_sel.set(i))}
+      {name}
+    </button>
+  )
+  // A closable tab is its own packed row without seams, so no line shows between the label and the close button.
+  const closable_tab = (name: string, i: number) => (
+    <e-row packed seams="none">
+      {tab(name, i)}
+      <button e-widget="tab-close" e-emphasis={props.emphasis} aria-label={`Close ${name}`}><P.X/></button>
+    </e-row>
+  )
+  return <e-row packed radius="widget">{names.map(props.closable ? closable_tab : tab)}</e-row>
+}
+
+return <e-column spacing="component" align="start">
+  <e-row spacing="component" align="start">
+    {emphases.map((emphasis) => <Strip emphasis={emphasis}/>)}
+  </e-row>
+
+  <e-column spacing align="start">
+    {emphases.map((emphasis) => <Strip emphasis={emphasis} closable/>)}
+  </e-column>
+
+  <e-row spacing="component" align="start">
+    <e-row packed>
+      <button e-widget="tab" aria-pressed="true" disabled>Selected, disabled</button>
+      <button e-widget="tab-close" aria-label="Close" disabled><P.X/></button>
+      <button e-widget="tab" disabled>Disabled</button>
+    </e-row>
+    <e-row packed>
+      <button e-widget="tab" e-emphasis="link" aria-pressed="true">link</button>
+      <button e-widget="tab" e-emphasis="inverted" aria-pressed="true">inverted</button>
+    </e-row>
+  </e-row>
+
+  <e-row packed="widget" pad="none" surface="neutral-1" class={theme.colors.neutral.class_as_tint}>
+    <button e-widget="tab" aria-pressed="true"><P.TelevisionSimple/> Example</button>
+    <button e-widget="tab" aria-pressed="false">Code <P.Code/></button>
+  </e-row>
 </e-column>
 ```
 

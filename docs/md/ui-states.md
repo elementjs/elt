@@ -119,6 +119,28 @@ In a packed row, a selected child with a visible border keeps the border it shar
 
 A state is never a class (`.selected`, `.active`), a `data-*` attribute or an `e-emphasis` value: the rule is [elt/ui rules § Building app-specific widgets](./elt-ui-rules.md#building-app-specific-widgets).
 
+## Tabs
+
+A tab is a button that stands for one view among several, and says which one is showing with a line along its bottom edge. `e-widget="tab"` draws the line on every tab: dim on the tabs that are not showing, and in full `tint` on the one that is, which is also in the [selected state](#selected-state), so it keeps the selected fill. A `tint` emphasis draws its dim line in the `tint` family, the other emphases in `neutral`. A `link` tab (it has no boundary to paint) and an `inverted` tab (a choice is never an inversion) draw no line.
+
+A closable tab is a `tab` followed by a `tab-close` button, together in a `packed` row of their own with `seams="none"`, so that no line shows between the two, and that row is one of the tabs of the strip. The close button is in the selected state when its tab is (the same fill and border) and draws the line of the tab before it, so the two read as one tab; a `tab` right after another `tab` is not mistaken for a close button.
+
+```tsx
+<e-row packed radius="widget">
+  <e-row packed seams="none">
+    <button e-widget="tab" aria-pressed={o_showing.tf((v) => String(v === "a"))}>Report.md</button>
+    <button e-widget="tab-close" aria-label="Close Report.md"><ph.X /></button>
+  </e-row>
+  <button e-widget="tab" aria-pressed={o_showing.tf((v) => String(v === "b"))}>Notes.md</button>
+</e-row>
+```
+
+The strip has a `radius` because a row of tabs of its own is one cell of the strip: without a radius on the strip, each such cell keeps its own rounded corners, and the joins between tabs show as bumps ([Layout § Packed](./ui-layout.md#packed)).
+
+The line is an inset shadow and not a border: it keeps the button the same size whether it is selected or not, and a `packed` container cannot hide it like a border shared with a neighbor. A focused tab draws its focus ring under the line, so the line stays visible all along the bottom edge.
+
+This is the look only. The elements do not yet have the roles and the keys of a tab strip: today the tab sets the same ARIA attribute a toggle button does (`aria-pressed`), because `aria-selected` is valid only on an element with the role `tab`, and the arrow keys do not move between the tabs. Once those exist, a tab is `role="tab"` with `aria-selected`, in a `role="tablist"` (the row around a closable tab is `role="none"`), with its view as a `role="tabpanel"`, and `tab-close` carries `aria-controls`, pointing at its tab; the look does not change. Do not copy the `aria-pressed` form as the finished pattern.
+
 ## Interaction
 
 Interactive elements are `button`, `a[href]`, `input` buttons, a toggle `label` and anything with `e-interactive`. They share:
