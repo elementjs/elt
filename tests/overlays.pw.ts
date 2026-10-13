@@ -130,6 +130,49 @@ test.describe("popup (docs/md/ui-overlays.md#popup)", () => {
     }
   })
 
+  test("the arrow prolongs the frame: the border width and color of the edge it sits on, clear of rounded corners", async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 800, height: 300 })
+    // Only the bottom edge has a border (3px, red): a popup above its anchor puts the arrow there; one
+    // below its anchor puts it on the borderless top edge.
+    const cases = [
+      { anchor: "left: 380px; top: 260px", side: "bottom", width: "3px", color: "rgb(255, 0, 0)" },
+      { anchor: "left: 380px; top: 10px", side: "top", width: "0px", color: "rgba(0, 0, 0, 0)" },
+    ] as const
+    for (const c of cases) {
+      const r = await page.evaluate(async (c) => {
+        const { UI } = window.__ELT__
+        document.body.innerHTML = `<button id="anchor" style="position: absolute; ${c.anchor}">a</button>`
+        const content = document.createElement("e-column")
+        content.style.cssText =
+          "width: 200px; height: 40px; border: 0 solid red; border-bottom-width: 3px; border-radius: 20px"
+        const fut = UI.popup(document.getElementById("anchor")!, () => content)
+        await new Promise((r) => setTimeout(r, 100))
+        const outer = content.parentElement!.querySelector<HTMLElement>("[class*=outer-arrow]")!
+        const inner = outer.querySelector<HTMLElement>("[class*=arrow-inner]")!
+        const ics = getComputedStyle(inner)
+        const p = content.getBoundingClientRect()
+        const i = inner.getBoundingClientRect()
+        const res = {
+          width: ics.borderTopWidth,
+          color: ics.borderTopColor,
+          // Distance from the arrow's center to the nearest end of the edge.
+          to_end: Math.min((i.left + i.right) / 2 - p.left, p.right - (i.left + i.right) / 2),
+          // The part of the arrow clipped away is on the content's side only: the base is covered.
+          clip: getComputedStyle(outer).clipPath,
+        }
+        fut.resolve(undefined)
+        return res
+      }, c)
+      expect(r.width, `${c.side}: stroke width`).toBe(c.width)
+      expect(r.color, `${c.side}: stroke color`).toBe(c.color)
+      // The 20px corner radius plus half the arrow's base (6px).
+      expect(r.to_end, `${c.side}: clear of the corner`).toBeGreaterThanOrEqual(26 - 1)
+      expect(r.clip, `${c.side}: base covered`).toContain("inset(")
+    }
+  })
+
   test("exact_placement opens on the requested side, or the opposite one, never above or below the anchor", async ({
     page,
   }) => {

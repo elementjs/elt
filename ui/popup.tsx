@@ -329,7 +329,7 @@ export function popup<T extends OverlayResult = boolean>(
     popup.showPopover()
     popup.classList.add("open")
     // Read once per open, now that the content is connected: not on each repositioning.
-    if (arro) arrow_colors_from(content, arro)
+    const frame = arro ? read_frame(content) : null
 
     // Expose the room left next to the anchor; the content is capped to it (cls_popup_content).
     const size_middleware = size({
@@ -367,7 +367,7 @@ export function popup<T extends OverlayResult = boolean>(
           ...placement_middleware,
           size_middleware,
           hide(),
-          ...(arro ? [arrow({ element: arro, padding: 8 })] : []),
+          ...(arro && frame ? [arrow({ element: arro, padding: frame.arrow_padding })] : []),
         ],
       })
       x = Math.round(x)
@@ -385,8 +385,9 @@ export function popup<T extends OverlayResult = boolean>(
       popup.style.left = `${x}px`
       popup.style.top = `${y}px`
 
-      if (arro && middlewareData.arrow) {
+      if (arro && frame && middlewareData.arrow) {
         const side = popup_placement_to_arrow_placement(placement)
+        apply_frame(arro, frame, side)
         const _arr = `round(var(--arrow-size, 12px) / 2.8284, 1px)`
         if (side === "bottom") {
           popup.style.top = `calc(${y}px - ${_arr})`
@@ -436,16 +437,56 @@ export function popup<T extends OverlayResult = boolean>(
   return fut
 }
 
+/** What the arrow takes from the content's frame: see `read_frame`. */
+interface Frame {
+  fill: string
+  /** Per popup edge: width and color of the content's border there (the edge the arrow sits on). */
+  borders: Record<ArrowPlacement, { width: string; color: string }>
+  /** Least distance between the arrow and the content's ends, so it never sits on a rounded corner. */
+  arrow_padding: number
+}
+
+const frame_edges: ArrowPlacement[] = ["top", "bottom", "left", "right"]
+
 /**
- * The arrow takes the content's background and border colors, so it reads as part of it whatever
- * surface and border the content chose. A transparent content (no `surface`) gets the page
- * background; a borderless one, a borderless arrow.
+ * The arrow prolongs the content's frame: it takes the background, and the border width and color
+ * of the edge it sits on, so it reads as part of the content whatever surface and border the
+ * content chose. A transparent content (no `surface`) gets the page background; an edge with no
+ * border, an arrow with no stroke. The arrow keeps away from the ends of the edge by the largest
+ * corner radius, so its base never lands on a curved corner.
  */
-function arrow_colors_from(content: HTMLElement, arro: HTMLElement) {
+function read_frame(content: HTMLElement): Frame {
   const cs = getComputedStyle(content)
   const transparent = cs.backgroundColor === "transparent" || cs.backgroundColor === "rgba(0, 0, 0, 0)"
-  arro.style.setProperty("--e-arrow-fill", transparent ? "var(--e-color-bg)" : cs.backgroundColor)
-  arro.style.setProperty("--e-arrow-border", cs.borderTopWidth === "0px" ? "transparent" : cs.borderTopColor)
+  const borders = {} as Frame["borders"]
+  for (const side of frame_edges) {
+    const width = cs.getPropertyValue(`border-${side}-width`)
+    const none = width === "0px" || cs.getPropertyValue(`border-${side}-style`) === "none"
+    borders[side] = {
+      width: none ? "0px" : width,
+      color: none ? "transparent" : cs.getPropertyValue(`border-${side}-color`),
+    }
+  }
+  const radius = Math.max(
+    ...["top-left", "top-right", "bottom-left", "bottom-right"].map(
+      (c) => parseFloat(cs.getPropertyValue(`border-${c}-radius`)) || 0,
+    ),
+  )
+  // Half the arrow's base is `arrow-size / 2` (12px by default); read it where the arrow lives.
+  const arrow_size = parseFloat(cs.getPropertyValue("--e-arrow-size")) || 12
+  return {
+    fill: transparent ? "var(--e-color-bg)" : cs.backgroundColor,
+    borders,
+    arrow_padding: Math.max(8, radius + arrow_size / 2),
+  }
+}
+
+/** Dress the arrow like the edge of the frame it sits on (`side`). */
+function apply_frame(arro: HTMLElement, frame: Frame, side: ArrowPlacement) {
+  const b = frame.borders[side]
+  arro.style.setProperty("--e-arrow-fill", frame.fill)
+  arro.style.setProperty("--e-arrow-border", b.color)
+  arro.style.setProperty("--e-arrow-border-width", b.width)
 }
 
 const cls_popup = css`.popup {
@@ -467,7 +508,7 @@ const cls_popup_content = css`.popup-content {
 
 const cls_arrow_inner = css`.arrow-inner {
   position: absolute;
-  border: 1px solid var(--e-arrow-border, ${colors.neutral.faded});
+  border: var(--e-arrow-border-width, 1px) solid var(--e-arrow-border, ${colors.neutral.faded});
   transform: rotate(45deg);
   top: calc(-1 * round(var(--arrow-size, 12px) / 2.8284, 1px));
   left: calc(-1 * round(var(--arrow-size, 12px) / 2.8284, 1px));
@@ -485,22 +526,22 @@ const cls_arrow_placer = css`.arrow-placer {
   &[data-placement="top"] {
     transform:
       translateX(calc(var(--arrow-size, 12px) / 2))
-      translateY(calc(var(--arrow-size, 12px) / 2 + 1px));
+      translateY(calc(var(--arrow-size, 12px) / 2 + var(--e-arrow-border-width, 1px)));
   }
   &[data-placement="bottom"] {
     transform:
       translateX(calc(var(--arrow-size, 12px) / 2))
-      translateY(-1px)
+      translateY(calc(-1 * var(--e-arrow-border-width, 1px)))
       ;
   }
   &[data-placement="left"] {
     transform:
-      translateX(calc(var(--arrow-size, 12px) / 2 + 1px))
+      translateX(calc(var(--arrow-size, 12px) / 2 + var(--e-arrow-border-width, 1px)))
       translateY(calc(var(--arrow-size, 12px) / 2));
   }
   &[data-placement="right"] {
     transform:
-      translateX(-1px)
+      translateX(calc(-1 * var(--e-arrow-border-width, 1px)))
       translateY(calc(var(--arrow-size, 12px) / 2));
   }
 }`
@@ -509,10 +550,17 @@ const cls_outer_arrow = css`.outer-arrow {
   --arrow-size: var(--e-arrow-size, 12px);
   position: absolute;
   pointer-events: none;
-  overflow: hidden;
+  /* Clips the diamond to its outer half, plus the width of the frame's border on the content's side:
+     there the arrow's fill covers the frame's border, which is how the border runs into the arrow's
+     two slanted edges with no line across its base. */
+  --e-arrow-bleed: var(--e-arrow-border-width, 1px);
   width: var(--arrow-size);
   height: calc(var(--arrow-size) * 0.5);
   background-color: transparent;
+  &.top { clip-path: inset(0 0 calc(-1 * var(--e-arrow-bleed)) 0); }
+  &.bottom { clip-path: inset(calc(-1 * var(--e-arrow-bleed)) 0 0 0); }
+  &.left { clip-path: inset(0 calc(-1 * var(--e-arrow-bleed)) 0 0); }
+  &.right { clip-path: inset(0 0 0 calc(-1 * var(--e-arrow-bleed))); }
 
   &.right, &.left {
     width: calc(var(--arrow-size) * 0.5);
