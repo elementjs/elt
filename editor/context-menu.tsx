@@ -1,32 +1,36 @@
 /*
 The editor's menus: a row's context menu (right click, long press, Ctrl+click, the keyboard's Menu key
 or Shift+F10) and a column's header menu (the same, or its `…` button). Both are lists of sections —
-a small header, then items — drawn as one packed column without lines (`seams="none"`) with `<hr>` between sections. The
-destructive item (Delete) is red, with the trash icon.
+a small header, then items — drawn as one packed grid without lines (`seams="none"`) with `<hr>` between sections.
+Its three columns are an icon, the text and what follows it (a submenu's caret); an empty column has no width, so
+a menu without icons starts its text at the left edge. The destructive item (Delete) is red, with the trash icon.
 */
 
 import { $click, $context_menu, $on, css, type Decorator, type o, type Renderable } from "elt"
 import { theme } from "elt/ui/theme"
-import { Trash } from "elt/ui/icons"
+import { ArrowsClockwise, CaretRight, Trash } from "elt/ui/icons"
 import { menu_nav } from "elt/ui/list-nav"
 import { type PopupAnchor, popup } from "elt/ui/popup"
-import { cls_start_text } from "./grid"
 import type { CommonNodeOptions, Factory } from "./schema"
 import { apply_type_change, type_change_actions } from "./type-change"
 
-/** An item that runs something, then closes the menu. */
-export interface MenuAction {
+/** What every item has: its label, and an icon for the slot left of it (the others' text lines up with it). */
+interface MenuItemBase {
   label: string
+  icon?: () => Renderable
+}
+
+/** An item that runs something, then closes the menu. */
+export interface MenuAction extends MenuItemBase {
   run: () => void
-  /** Destructive (Delete): drawn red, with the trash icon. */
+  /** Destructive (Delete): drawn red. */
   danger?: boolean
   /** Shown but not available (an add-on slot not wired yet). */
   disabled?: boolean
 }
 
 /** An item opening a second menu next to it ("Change type…"). */
-export interface MenuSubmenu {
-  label: string
+export interface MenuSubmenu extends MenuItemBase {
   sections: () => MenuSection[]
 }
 
@@ -58,32 +62,41 @@ export function open_menu(anchor: PopupAnchor, sections: MenuSection[], close_pa
       }
       return render_menu(sections, () => close())
     },
-    // A submenu opens beside its item, like native ones.
-    anchor instanceof Element ? { placement: "right-start", arrow: false } : undefined,
+    // With an arrow, as every popup. A submenu opens exactly beside its item, like native ones: above or
+    // below it, it would cover the menu it came from.
+    { arrow: true, ...(anchor instanceof Element && { placement: "right-start", exact_placement: true }) },
   )
   return fut
 }
 
 function render_menu(sections: MenuSection[], close: () => void): HTMLElement {
+  // A grid of three columns shared by every item (a subgrid each): the icon, the text, what comes
+  // after it (the submenu's caret). A column no item fills has no width, so a menu without icons
+  // starts its text at the left edge, and one with icons lines all its text up on the same column.
   const menu = (
-    <e-column surface="background" border seams="none" packed="widget" align="stretch" role="menu">
+    <e-grid surface="background" border seams="none" packed="widget" align="stretch" role="menu" class={cls_menu}>
       {sections.map((section, i) => (
         <>
           {i > 0 && <hr />}
-          {section.title && <h3 class={cls_menu_header}>{section.title}</h3>}
+          {section.title && (
+            <span e-widget="label" class={cls_menu_wide}>
+              {section.title}
+            </span>
+          )}
           {section.items.map((item) => render_item(item, close))}
         </>
       ))}
-    </e-column>
+    </e-grid>
   ) as HTMLElement
   menu_nav(menu)
   return menu
 }
 
 function render_item(item: MenuItem, close: () => void): Renderable {
+  const icon = item.icon?.()
   if ("sections" in item) {
     return (
-      <button type="button" role="menuitem" aria-haspopup="menu" class={cls_start_text}>
+      <button type="button" role="menuitem" aria-haspopup="menu" e-emphasis="bare" class={cls_menu_item}>
         {$click((ev) => {
           const sub = non_empty(item.sections())
           if (sub.length > 0) open_menu(ev.currentTarget, sub, close)
@@ -92,7 +105,9 @@ function render_item(item: MenuItem, close: () => void): Renderable {
         {$on("keydown", (ev) => {
           if (ev.key === "ArrowRight") (ev.currentTarget as HTMLElement).click()
         })}
-        {item.label}
+        {icon && <span class={cls_menu_icon}>{icon}</span>}
+        <span class={cls_menu_text}>{item.label}</span>
+        <span class={cls_menu_after}>{CaretRight()}</span>
       </button>
     )
   }
@@ -101,14 +116,15 @@ function render_item(item: MenuItem, close: () => void): Renderable {
       type="button"
       role="menuitem"
       disabled={item.disabled}
-      class={[cls_start_text, item.danger && [theme.colors.red.class_as_tint, cls_menu_danger]]}
+      e-emphasis="bare"
+      class={[cls_menu_item, item.danger && [theme.colors.red.class_as_tint, cls_menu_danger]]}
     >
       {$click(() => {
         close()
         item.run()
       })}
-      {item.danger && Trash()}
-      {item.label}
+      {icon && <span class={cls_menu_icon}>{icon}</span>}
+      <span class={cls_menu_text}>{item.label}</span>
     </button>
   )
 }
@@ -132,6 +148,7 @@ export function type_change_item(
     items: [
       {
         label: "Change type…",
+        icon: ArrowsClockwise,
         sections: () => [
           {
             title: `${title} type`,
@@ -148,7 +165,7 @@ export function type_change_item(
 
 /** The Delete section: one red item, no header. */
 export function delete_section(run: (() => void) | null | undefined): MenuSection | null {
-  return run ? { items: [{ label: "Delete", run, danger: true }] } : null
+  return run ? { items: [{ label: "Delete", run, danger: true, icon: Trash }] } : null
 }
 
 /** The text field (`input`, `textarea`) the event came from, if any. */
@@ -268,12 +285,49 @@ export function open_menu_from_button(button: HTMLElement, sections: () => (Menu
 
 export { non_empty as menu_sections }
 
-/* A section's header: small, quiet, not a menu item (menu_nav skips it). */
-const cls_menu_header = css`.oe-menu-header {
-  font-size: ${theme.settings.formFontSize};
-  font-weight: 600;
-  color: ${theme.colors.text.faded};
-  user-select: none;
+/* The menu's three columns. `grid-template-*` of a grid that is not equal columns is the documented
+   case for a rule of one's own (docs/md/ui-layout.md#grids); a minimum width keeps a menu of short
+   labels from looking like a tooltip, and a long label still widens it. In ch, the width of a digit in
+   the menu's own font. */
+const cls_menu = css`.oe-menu {
+  grid-template-columns: auto 1fr auto;
+  min-width: 20ch;
+  /* The items are cells placed straight in the packed grid, which leaves them square (rows get the
+     grid's radius, cells don't): the first and last take the menu's own radius back. */
+  & > :first-child {
+    border-top-left-radius: inherit;
+    border-top-right-radius: inherit;
+  }
+  & > :last-child {
+    border-bottom-left-radius: inherit;
+    border-bottom-right-radius: inherit;
+  }
+}`
+
+/* Checked what elt/ui offers: `e-grid-row` is a subgrid too, but not a button (no native disabled and
+   keys), so an item is a button that lays its three slots on the menu's columns itself. The slots'
+   own padding, not a gap: a gap would stay on the empty first column. */
+const cls_menu_item = css`.oe-menu-item {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: subgrid;
+  align-items: center;
+  text-align: start;
+}`
+/* A section's header spans the whole menu. */
+const cls_menu_wide = css`.oe-menu-wide {
+  grid-column: 1 / -1;
+}`
+const cls_menu_icon = css`.oe-menu-icon {
+  grid-column: 1;
+  padding-inline-end: 0.5em;
+}`
+const cls_menu_text = css`.oe-menu-text {
+  grid-column: 2;
+}`
+const cls_menu_after = css`.oe-menu-after {
+  grid-column: 3;
+  padding-inline-start: 1em;
 }`
 
 /* Delete: red text, and (red as the tint) a red hover. */

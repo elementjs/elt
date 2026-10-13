@@ -71,9 +71,11 @@ A menu lists what applies to where it was opened, in sections separated by a lin
 | *Edit* | A menu opened from a text field | Cut, Copy, Paste, Select all — standing in for the browser's own menu, which the editor's replaces there |
 | *Key* | Map rows (unless the schema sets `allow_key_type_change: false`) | *Change type…* for the key |
 | *Value* (a Table: the column's name) | Every row, and a column's header | *Change type…* for the value. In a Table, the value of the cell the menu was opened from |
-| (none) | Rows and columns that can be removed | *Delete*, in red. From a column's header, it removes the value from its parent and closes the column |
+| (none) | Rows and columns that can be removed | *Delete*, in red, with a trash icon. From a column's header, it removes the value from its parent and closes the column |
 
-*Change type…* opens a second menu listing the types the value may take: the ones its schema declares for it (the branches of an `either()`; a single declared type offers none), or, in unknown mode, null, string, number, boolean, object, array — plus Set and Map for an array, and so on. A type the value converts to is listed by name (`number`); one it can't is listed as a reset to that type's empty value (`number (reset)`). Changes that may lose structure ask first. Deleting doesn't: *Undo* brings the value back.
+A section's title is a label, not an item: the arrow keys skip it. Items have room for an icon on the left (*Change type…* has two arrows chasing each other, *Delete* the trash) and, on items that open a second menu, a caret on the right. The text of all the items lines up, whichever of them has an icon; a menu where none has one starts its text at the left edge. A menu is at least 20 characters wide, and a long label widens it. Every menu has an arrow pointing at where it opened from. A second menu opens beside the item it came from (on its left when there is no room on the right), never over the first.
+
+*Change type…* opens a second menu listing the types the value may take: the ones its schema declares for it (the branches of an `either()`; a single declared type offers none), or, in unknown mode, null, string, number, boolean, object, array — plus Set and Map for an array, and so on. The value's current type is not listed. A type the value converts to is listed by name (`number`); one it can't is listed as a reset to that type's empty value (`number (reset)`). Changes that may lose structure ask first. Deleting doesn't: *Undo* brings the value back.
 
 When there is nothing to offer (a declared key, outside a text field), the browser's own menu shows.
 

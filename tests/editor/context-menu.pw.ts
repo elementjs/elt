@@ -35,7 +35,11 @@ function menus(page: Page) {
   return page.evaluate(() =>
     [...document.querySelectorAll('[popover].open [role="menu"]')].map((menu) =>
       [...menu.children].map((c) =>
-        c.tagName === "HR" ? "---" : c.tagName === "H3" ? `# ${c.textContent}` : (c.textContent ?? "").trim(),
+        c.tagName === "HR"
+          ? "---"
+          : c.getAttribute("e-widget") === "label"
+            ? `# ${c.textContent}`
+            : (c.textContent ?? "").trim(),
       ),
     ),
   )
@@ -260,5 +264,111 @@ test.describe("header menu", () => {
     expect(await root(page)).toEqual({ b: 1 })
     await expect(city_label).toHaveCount(0)
     expect(await columns.count()).toBeGreaterThan(0)
+  })
+})
+
+test.describe("menu look", () => {
+  const open_row_menu = async (page: Page) => {
+    await mount(page, `({ name: "Ada", age: 36 })`)
+    await row(page, "name").locator("> :first-child").click({ button: "right" })
+    await expect.poll(async () => (await menus(page)).length).toBe(1)
+  }
+  const item = (page: Page, label: string) => page.locator('[popover].open [role="menuitem"]', { hasText: label })
+
+  test("a menu is at least 20ch wide, a submenu too", async ({ page }) => {
+    await open_row_menu(page)
+    await item(page, "Change type…").click()
+    await expect.poll(async () => (await menus(page)).length).toBe(2)
+    const r = await page.evaluate(() =>
+      [...document.querySelectorAll('[popover].open [role="menu"]')].map((menu) => {
+        // 20ch in the menu's own font, measured with a probe.
+        const probe = document.createElement("div")
+        probe.style.cssText = "position: absolute; visibility: hidden; width: 20ch"
+        menu.appendChild(probe)
+        const min = probe.getBoundingClientRect().width
+        probe.remove()
+        return { width: menu.getBoundingClientRect().width, min }
+      }),
+    )
+    for (const m of r) expect(m.width).toBeGreaterThanOrEqual(m.min - 0.5)
+  })
+
+  test("icons share one column: the text of every item starts at the same x", async ({ page }) => {
+    await open_row_menu(page)
+    const xs = await page.evaluate(() =>
+      [...document.querySelectorAll('[popover].open [role="menuitem"] > :nth-child(2)')].map(
+        (el) => el.getBoundingClientRect().left,
+      ),
+    )
+    // Change type… and Delete, each with an icon.
+    expect(xs.length).toBe(2)
+    expect(xs[0]).toBe(xs[1])
+    // The icon is left of the text, the caret (submenu items only) right of it.
+    expect(await item(page, "Change type…").locator("svg").count()).toBe(2)
+    expect(await item(page, "Delete").locator("svg").count()).toBe(1)
+  })
+
+  test("a menu with no icon starts its text at the left edge", async ({ page }) => {
+    await open_row_menu(page)
+    await item(page, "Change type…").click()
+    await expect.poll(async () => (await menus(page)).length).toBe(2)
+    // The submenu's items hold only a text, which is their first child: no empty icon column before it.
+    const before_text = await page.evaluate(() => {
+      const sub = document.querySelectorAll('[popover].open [role="menu"]')[1]
+      const text = sub.querySelector('[role="menuitem"] > :first-child')!.getBoundingClientRect()
+      return text.left - sub.querySelector('[role="menuitem"]')!.getBoundingClientRect().left
+    })
+    // Only the item's own padding precedes the text.
+    expect(before_text).toBeLessThan(16)
+  })
+
+  test("the first and last items take the menu's rounded corners", async ({ page }) => {
+    await open_row_menu(page)
+    const r = await page.evaluate(() => {
+      const menu = document.querySelector('[popover].open [role="menu"]')!
+      const radius = (el: Element, corner: string) => getComputedStyle(el).getPropertyValue(`border-${corner}-radius`)
+      return {
+        menu: radius(menu, "top-left"),
+        first: [radius(menu.firstElementChild!, "top-left"), radius(menu.firstElementChild!, "top-right")],
+        last: [radius(menu.lastElementChild!, "bottom-left"), radius(menu.lastElementChild!, "bottom-right")],
+      }
+    })
+    expect(r.menu).not.toBe("0px")
+    expect(r.first).toEqual([r.menu, r.menu])
+    expect(r.last).toEqual([r.menu, r.menu])
+  })
+
+  test("a menu and its submenu each have an arrow", async ({ page }) => {
+    await open_row_menu(page)
+    await expect(page.locator("[popover].open [class*=arrow-inner]")).toHaveCount(1)
+    await item(page, "Change type…").click()
+    await expect.poll(async () => (await menus(page)).length).toBe(2)
+    await expect(page.locator("[popover].open [class*=arrow-inner]")).toHaveCount(2)
+  })
+
+  test("a submenu opens beside its item, never over the menu it came from", async ({ page }) => {
+    // A wide viewport (room on the right) and a narrow one (the submenu flips to the left).
+    for (const width of [900, 430]) {
+      await page.evaluate(() => {
+        document.body.innerHTML = ""
+      })
+      await mount(page, `({ name: "Ada" })`)
+      await page.setViewportSize({ width, height: 500 })
+      await row(page, "name").locator("> :first-child").click({ button: "right" })
+      await item(page, "Change type…").click()
+      await expect.poll(async () => (await menus(page)).length).toBe(2)
+      const overlap = await page.evaluate(() => {
+        const [a, b] = [...document.querySelectorAll('[popover].open [role="menu"]')].map((m) =>
+          m.getBoundingClientRect(),
+        )
+        // The two share a 1px border at most.
+        const w = Math.min(a.right, b.right) - Math.max(a.left, b.left)
+        const h = Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top)
+        return w > 1.5 && h > 1.5
+      })
+      expect(overlap, `viewport ${width}px wide`).toBe(false)
+      await page.keyboard.press("Escape")
+      await page.keyboard.press("Escape")
+    }
   })
 })
