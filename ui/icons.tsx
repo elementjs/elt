@@ -97,4 +97,13 @@ export const Trash = /** @__PURE__ */ () =>
     s(p, d, "M168,56V40a16,16,0,0,0-16-16H104A16,16,0,0,0,88,40V56"),
   )
 
+/** Two arrows chasing each other: a conversion (Phosphor's ArrowsClockwise). */
+export const ArrowsClockwise = /** @__PURE__ */ () =>
+  _(
+    s(py, ps, "176 104 224 104 224 56"),
+    s(p, d, "M65.8,65.8a87.9,87.9,0,0,1,124.4,0L224,104"),
+    s(py, ps, "80 152 32 152 32 200"),
+    s(p, d, "M190.2,190.2a87.9,87.9,0,0,1-124.4,0L32,152"),
+  )
+
 export const Check = /** @__PURE__ */ () => _(s(py, ps, CHECK_POINTS))

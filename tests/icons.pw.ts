@@ -1,6 +1,17 @@
 import { expect, test } from "./fixture"
 
-const ICONS = ["CaretDown", "CaretLeft", "CaretRight", "Calendar", "Clock", "MagnifyingGlass", "X", "Trash", "Check"]
+const ICONS = [
+  "CaretDown",
+  "CaretLeft",
+  "CaretRight",
+  "Calendar",
+  "Clock",
+  "MagnifyingGlass",
+  "X",
+  "Trash",
+  "ArrowsClockwise",
+  "Check",
+]
 
 // Every shape of every icon gets the shared stroke attributes from the icon builder (ui/icons.tsx),
 // and the icon is 1em square, set by its 256×256 view box — phosphor's invisible 256×256 bounding
