@@ -6,7 +6,7 @@ order: 4
 
 # Forms and controls
 
-Native controls are styled globally. How loud a control is, is the `e-emphasis` attribute; which widget an element is (a switch, a toggle button, an editable field) is `e-widget`; what it is doing (selected, invalid, disabled) comes from ARIA and the browser's own states ([States and interaction § Terms](./ui-states.md#terms)). Use them before building controls of your own ([elt/ui rules § Controls](./elt-ui-rules.md#controls)). Binding a control to an observable is core elt: [Decorators § Binding form controls](./decorators.md#binding-form-controls-bind).
+Native controls are styled globally. How loud a control is, is the `e-emphasis` attribute; which widget an element is (a switch, a toggle button, an editable field, a label) is `e-widget`; what it is doing (selected, invalid, disabled) comes from ARIA and the browser's own states ([States and interaction § Terms](./ui-states.md#terms)). Use them before building controls of your own ([elt/ui rules § Controls](./elt-ui-rules.md#controls)). Binding a control to an observable is core elt: [Decorators § Binding form controls](./decorators.md#binding-form-controls-bind).
 
 ## Buttons and emphasis
 
@@ -63,12 +63,12 @@ const o_mismatch = o.expression((get) => get(o_confirm) !== "" && get(o_confirm)
 
 return <e-column align="stretch">
   <e-column spacing="widget" align="stretch">
-    <label>Email</label>
-    <input type="email" required placeholder="name@example.com">{$bind.string(o_email, { o_error: o_email_error })}</input>
+    <label e-widget="label" for="email">Email</label>
+    <input id="email" type="email" required placeholder="name@example.com">{$bind.string(o_email, { o_error: o_email_error })}</input>
     {o_email_error.tf((e) => e && <small class={cls_error}>{e}</small>)}
   </e-column>
   <e-column spacing="widget" align="stretch">
-    <label>Password, twice</label>
+    <span e-widget="label">Password, twice</span>
     <input type="password">{$bind.string(o_password)}</input>
     <input type="password" aria-invalid={o_mismatch.tf(String)}>{$bind.string(o_confirm)}</input>
     {o_mismatch.tf((m) => m && <small class={cls_error}>The passwords don't match</small>)}
@@ -84,9 +84,41 @@ What an element is, as opposed to how loud it is, is the `e-widget` attribute.
 - `<input type="checkbox" e-widget="switch">` is a pill switch.
 - A toggle button is `<label e-widget="toggle"><input type="checkbox"/>Label</label>`: the input is hidden and the label is styled as a button. It takes an emphasis like a button (`e-emphasis="bare"` for a borderless one). Checked, it is in the selected state ([States and interaction § Selected state](./ui-states.md#selected-state)): a tint fill three levels up and a `tint` border (none for a `bare` toggle), not the `inverted` fill of the dominant action.
 - `e-widget="field"` on any editable element (a `contenteditable` element, a custom field) gives it a text input's look: its border, padding, radius, height and focus ring. Nothing else is automatic: an editable element has no chrome unless it asks for this one ([States and interaction § Widgets](./ui-states.md#widgets)).
+- `e-widget="label"` on any element is text that names what is next to it ([Labels](#labels-and-fieldsets)).
 - Radio buttons (`input[type=radio]`) keep the browser's look; only their cursor is set.
 
 ## Labels and fieldsets
+
+`e-widget="label"` is text that names what is next to it: a form field's name, the key of an object, a row's index. Any element can carry it (a `span`, a `label`, a `div`); it is not tied to the `<label>` element, which is the right element when the text names one control (`<label for>`). It is static: no hover, no focus ring, no pointer cursor, even on a `<label>`.
+
+- **Loose** (a row or column that is not packed): fainter than the text around it (`text.faded`), at the controls' size, with no padding, border or fill. Nothing there is a boundary, so nothing pads it ([elt/ui rules § Golden rules](./elt-ui-rules.md#golden-rules), rule 4), and in a row or an unpacked grid it is aligned on the baseline of the fields beside it.
+- **In a `packed` container:** its cell is padded by the container like the others and filled with a neutral surface one level above the ambient one, as the row and column headers of a spreadsheet are. The fill is a different family from the `tint-2` of a sticky table header, so the two read apart. Its text is centered in the cell's height, level with the controls ([Layout § packed](./ui-layout.md#packed)).
+
+```tsx
+//@inline-example
+return <e-column spacing="component" align="stretch">
+  <e-grid align="baseline" spacing="widget" style={{ gridTemplateColumns: "max-content 1fr" }}>
+    <e-grid-row>
+      <label e-widget="label" for="label-name">Name</label>
+      <input id="label-name" type="text" value="Ada" />
+    </e-grid-row>
+    <e-grid-row>
+      <span e-widget="label">Born</span>
+      <input type="text" value="1815" />
+    </e-grid-row>
+  </e-grid>
+  <e-grid packed="nudge-4" border style={{ gridTemplateColumns: "max-content 1fr" }}>
+    <e-grid-row>
+      <span e-widget="label">Name</span>
+      <input type="text" value="Ada" />
+    </e-grid-row>
+    <e-grid-row>
+      <span e-widget="label">Born</span>
+      <input type="text" value="1815" />
+    </e-grid-row>
+  </e-grid>
+</e-column>
+```
 
 - A `<label>` around a control is clickable and fills when hovered. Around a disabled control, it uses `text.mid` and loses its hover fill.
 - A `<label>` around a checkbox, a radio or a switch (not a toggle button) is padded like a `bare` control, with the same transparent edge and height as the buttons and fields beside it: it has a boundary when hovered, so it has one all the time ([elt/ui rules § Golden rules](./elt-ui-rules.md#golden-rules)). Its box and text sit in a row, centered, 4px apart.

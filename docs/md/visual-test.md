@@ -211,6 +211,33 @@ return <e-column spacing style={oo_style} class={o_color.tf(col => theme.colors[
 </e-column>
 ```
 
+## Labels
+
+`e-widget="label"` next to every kind of control, loose (fainter text, no box, on the controls' baseline) and in a packed grid (a filled cell, text centered level with the controls). The small step (`nudge-4`) is the object editor's: its cells are padded less than the controls', which is where a text cell used to sit too high. See [Forms § Labels](./ui-forms.md#labels-and-fieldsets).
+
+```tsx
+//@inline-example
+return <e-column spacing="component" align="stretch">
+  <e-grid align="baseline" spacing="widget" style={{ gridTemplateColumns: "max-content 14em" }}>
+    <e-grid-row><label e-widget="label" for="vt-name">name</label><input id="vt-name" type="text" value="Ada" /></e-grid-row>
+    <e-grid-row><span e-widget="label">date_of_birth</span><input type="date" /></e-grid-row>
+    <e-grid-row><span e-widget="label">address</span><button>{"{ 3 } Open"}</button></e-grid-row>
+    <e-grid-row><span e-widget="label">active</span><label><input type="checkbox" e-widget="switch" /></label></e-grid-row>
+  </e-grid>
+  <e-grid packed="nudge-4" border style={{ gridTemplateColumns: "fit-content(8em) 14em" }}>
+    <e-grid-row><span e-widget="label">name</span><input type="text" value="Ada" /></e-grid-row>
+    <e-grid-row><span e-widget="label" e-ellipsis>a key too long for its column to show in full</span><input type="number" value="42" /></e-grid-row>
+    <e-grid-row><span e-widget="label">address</span><button>{"{ 3 } Open"}</button></e-grid-row>
+    <e-grid-row><span e-widget="label">active</span><label><input type="checkbox" e-widget="switch" /></label></e-grid-row>
+  </e-grid>
+  <e-row packed border>
+    <span e-widget="label">Email</span>
+    <input type="text" value="ada@example.com" />
+    <button>Send</button>
+  </e-row>
+</e-column>
+```
+
 ## States
 
 The selected state, hover and press, drawn the same way whatever the element: native controls and elements of your own. Selected comes from the ARIA attributes `aria-pressed`, `aria-selected`, `aria-current` and `aria-checked`, and from a checked toggle; hover and press come from `$interactive` (or from being a native button or link). See [States](./ui-states.md).

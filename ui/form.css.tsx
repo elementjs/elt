@@ -6,6 +6,8 @@ import {
   CHECKABLE_LABEL_SELECTOR,
   FORM_CONTROL_SELECTOR,
   INSET_FOCUS_SELECTOR,
+  PACKED_CONTAINER_SELECTOR,
+  packed_cells,
 } from "./selectors"
 
 const colors = theme.colors
@@ -35,15 +37,16 @@ declare module "elt" {
   interface attrs_label {
     /** A toggle takes an emphasis like a button. */
     "e-emphasis"?: NRO<Emphasis>
-    "e-widget"?: NRO<"toggle">
+    "e-widget"?: NRO<"toggle" | "label">
   }
 
   interface Attrs<N extends Node = HTMLElement> {
     /**
-     * An editable element (a `contenteditable`, a custom field) that looks like a text input: its border,
-     * padding, radius, height and focus ring (docs/md/ui-states.md#widgets).
+     * `field`: an editable element (a `contenteditable`, a custom field) that looks like a text input: its
+     * border, padding, radius, height and focus ring. `label`: text that names what is next to it, set
+     * apart from the values (docs/md/ui-states.md#widgets).
      */
-    "e-widget"?: NRO<"field">
+    "e-widget"?: NRO<"field" | "label">
   }
 }
 
@@ -85,7 +88,7 @@ label {
   font-size: ${theme.settings.formFontSize};
 
   @media (hover: hover) and (pointer: fine) {
-    &:hover:not(:has(:disabled)) {
+    &:hover:not(:has(:disabled), [e-widget="label"]) {
       background-color: ${colors.tint.hover};
     }
   }
@@ -347,6 +350,31 @@ label[e-widget="toggle"]:where(:has(> input:not(:checked))) {
   border-color: var(--e-border-color, ${colors.tint.mid});
   background-color: ${colors.bg};
   color: ${colors.tint.mid};
+}
+
+/* ── Label ─────────────────────────────────────────────────────────────────────────────────────
+   Text that names what is next to it (a form field's name, the key of an object, an index): static
+   (no hover, no focus ring: it is not a control), set apart from the values by a fainter color, at the
+   controls' size so it reads level with them. It has no box of its own: loose, nothing is a boundary,
+   so nothing pads it (golden rule 4) and it is aligned on the baseline of its neighbors. In a packed
+   container its cell is padded by the container and it is filled, like the row and column headers of
+   a spreadsheet: one level above the ambient surface, in the neutral family (the sticky header of a
+   table is \`tint-2\`, another family). The fill is the cell's own background, so it wins over the
+   one a framed container paints on its cells, and the lines between cells are not covered. */
+[e-widget="label"] {
+  color: ${colors.text.faded};
+  font-size: ${theme.settings.formFontSize};
+  line-height: 1.25;
+}
+
+/* A \`<label>\` is clickable and fills when hovered (above), as it holds a control: this one only names
+   one, so it neither fills nor shows a pointer. */
+label[e-widget="label"] {
+  cursor: auto;
+}
+
+${packed_cells(`${PACKED_CONTAINER_SELECTOR}[packed]`, '[e-widget="label"]')} {
+  background-color: ${colors.neutral.surface("n+1")};
 }
 
 /* ── Emphasis ──────────────────────────────────────────────────────────────────────────────────

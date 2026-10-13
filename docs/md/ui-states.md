@@ -21,7 +21,7 @@ The pieces are independent, and each answers one question:
 | Question | Where | Values |
 | -------- | ----- | ------ |
 | Where is it and how big? | The layout attributes (`pad`, `spacing`, `surface`, `border`, `radius`, `hover`) | [Layout](./ui-layout.md#layout-attributes) |
-| What is it? | `e-widget` | `switch`, `toggle`, `field` ([Widgets](#widgets)) |
+| What is it? | `e-widget` | `switch`, `toggle`, `field`, `label` ([Widgets](#widgets)) |
 | How loud is it? | `e-emphasis` | `link`, `bare`, *(none, the default)*, `tint`, `inverted` ([Emphasis](#emphasis)) |
 | Does it react to the pointer and keys? | `e-interactive` | on or off ([Interaction](#interaction)) |
 | What is it doing? | ARIA attributes | selected, invalid, disabled ([Selected state](#selected-state), [Disabled and invalid](#disabled-and-invalid)) |
@@ -67,6 +67,7 @@ A toggle takes an emphasis like a button: `<label e-widget="toggle" e-emphasis="
 | `switch` | `<input type="checkbox">` | A pill switch |
 | `toggle` | `<label>` around a checkbox | The checkbox is hidden and the label is a button. It is outlined in `tint` while unchecked, and checked it is drawn in the [selected state](#selected-state). It takes an [emphasis](#emphasis) |
 | `field` | Any element that is editable (a `contenteditable`, a custom field) | The look of a text input: its edge, padding, radius, height and focus ring, and the [invalid look](#disabled-and-invalid) |
+| `label` | Any element | Text that names what is next to it, not a control: fainter than the text around it, at the controls' size, and filled in a `packed` container ([Forms § Labels](./ui-forms.md#labels-and-fieldsets)) |
 
 Nothing gives an editable element the look of a field on its own: a rich-text editor wants its own look, so the field look is asked for.
 
