@@ -143,6 +143,12 @@ export interface PopupOptions {
    * side with the most room wins. With a point anchor, where the popup opens (default `"bottom-start"`).
    */
   placement?: Placement
+  /**
+   * With an element anchor and a `placement`: open on exactly that side (flipped to the opposite side
+   * when it has no room, and slid along the anchor's edge to stay on screen) instead of the side with
+   * the most room. A submenu needs it: above or below its item, it would cover the menu it came from.
+   */
+  exact_placement?: boolean
   /** Where to attach the popup; by default the nearest open popup or dialog around the anchor, or the body. */
   parent?: Element | null
   /** Draw the arrow pointing at the anchor. Default: `true` with an element anchor, `false` with a point. */
@@ -337,7 +343,7 @@ export function popup<T extends OverlayResult = boolean>(
     // vertical ones. A point (a context menu) opens below-right of it, like native menus, flipping
     // and shifting to stay on screen.
     const placement_middleware: Middleware[] =
-      anchor instanceof Element
+      anchor instanceof Element && !opts?.exact_placement
         ? [
             autoPlacement({
               allowedPlacements: [

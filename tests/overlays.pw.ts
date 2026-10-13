@@ -130,6 +130,42 @@ test.describe("popup (docs/md/ui-overlays.md#popup)", () => {
     }
   })
 
+  test("exact_placement opens on the requested side, or the opposite one, never above or below the anchor", async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 800, height: 600 })
+    // Room on the right: beside it. Little room on the right but much below: flipped to the left, not moved below.
+    const cases = [
+      { anchor: "left: 20px; top: 100px", side: "right" },
+      { anchor: "left: 700px; top: 100px", side: "left" },
+    ] as const
+    for (const c of cases) {
+      const r = await page.evaluate(async (c) => {
+        const { UI } = window.__ELT__
+        document.body.innerHTML = `<button id="anchor" style="position: absolute; ${c.anchor}">anchor</button>`
+        const content = document.createElement("e-column")
+        content.setAttribute("border", "")
+        content.style.cssText = "width: 150px; height: 80px"
+        const fut = UI.popup(document.getElementById("anchor")!, () => content, {
+          placement: "right-start",
+          exact_placement: true,
+          arrow: false,
+        })
+        await new Promise((r) => setTimeout(r, 100))
+        const p = content.getBoundingClientRect()
+        const a = document.getElementById("anchor")!.getBoundingClientRect()
+        fut.resolve(undefined)
+        return {
+          beside: p.left >= a.right - 1 ? "right" : p.right <= a.left + 1 ? "left" : "overlap",
+          top: p.top - a.top,
+        }
+      }, c)
+      expect(r.beside, c.anchor).toBe(c.side)
+      // "-start": the popup's top edge is the anchor's.
+      expect(Math.abs(r.top), c.anchor).toBeLessThan(1)
+    }
+  })
+
   test("the future is rejected with an AbortError when the popup's parent leaves the page", async ({ page }) => {
     await page.evaluate(() => {
       const { UI, node_append } = window.__ELT__

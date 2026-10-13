@@ -23,13 +23,13 @@ Use the lightest one that gives the interaction enough room and keeps the user's
 popup<T = boolean>(
   anchor: Element | { x: number; y: number; element: Element },
   render: (fut: Future<T | undefined>) => Node,
-  opts?: { placement?: Placement; parent?: Element | null; arrow?: boolean },
+  opts?: { placement?: Placement; exact_placement?: boolean; parent?: Element | null; arrow?: boolean },
 ): Future<T | undefined>
 ```
 
 - `render` returns **one element, drawn as given**: its own `surface`, `border`, `pad`, `scroll`. The popup adds only what makes it a popup: placement next to the anchor (kept in place while scrolling), a drop shadow, the open/close animation, dismissal, and the arrow.
 - **Anchor**: an element, or a point. A point (`{ x, y, element }`) opens the popup below-right of it, like a native context menu, moved to stay on screen; `element` is the element the point belongs to (usually the event's `currentTarget`), which tells whether the popup opens from inside another one.
-- **Placement**: with an element anchor, the popup opens above or below it, on the side with the most room; `placement` (a Floating UI `Placement`: `"left-start"`, `"right"`, …) adds one more side to choose from, as a submenu opening beside its item does. With a point anchor, `placement` is where the popup opens (default `"bottom-start"`).
+- **Placement**: with an element anchor, the popup opens above or below it, on the side with the most room; `placement` (a Floating UI `Placement`: `"left-start"`, `"right"`, …) adds one more side to choose from, as a tall list opening beside its anchor does. With `exact_placement`, the popup opens on exactly that side instead, flipped to the opposite side when it has no room and slid along the anchor's edge to stay on screen: a submenu uses it (`placement: "right-start"`), since opened above or below its item it would cover the menu it came from. With a point anchor, `placement` is where the popup opens (default `"bottom-start"`).
 - **Parent**: the popup is attached inside the nearest open popup or modal dialog around the anchor, or the body; `parent` overrides.
 - **Arrow**: shown by default with an element anchor, not with a point; `arrow` overrides. It takes the content's background and border colors.
 - **Size**: the content is at least `popupMinWidth` wide (default `0px`) and at most `popupMaxWidth` wide (`100vw`) and `popupMaxHeight` tall (`80vh`), and within the room left next to the anchor, which the popup sets as `--e-popup-room-width` / `--e-popup-room-height`. Those three are [theme settings](./ui-theme.md#settings), so a theme or a subtree can change them (`--e-popup-min-width`, `--e-popup-max-width`, `--e-popup-max-height`). `min_width`, `max_width` and `max_height` options (a number is px, a string any CSS length) set them for one popup. Give the content `scroll` when it can be taller.
