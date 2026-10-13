@@ -6,7 +6,6 @@ import/export, Delete) is the shell's: it knows the column's slot and parent.
 */
 
 import { $bind, $click, o, type Renderable } from "elt"
-import { cls_text_fill } from "./grid"
 import type { CommonNodeOptions, Factory, WidgetHeader } from "./schema"
 
 /** Per-mount row filter state — lives in the composite render() closure. */
@@ -170,7 +169,7 @@ export function render_composite_chrome(props: CompositeToolbarProps): {
         )}
         {settings.show_filter && (
           <>
-            <input type="search" class={cls_text_fill} placeholder="Filter rows…">
+            <input type="search" e-ellipsis placeholder="Filter rows…">
               {$bind.string(filter.o_query)}
             </input>
             <label e-widget="toggle" title="Match case">

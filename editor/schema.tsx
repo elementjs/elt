@@ -56,7 +56,7 @@ import {
 } from "./composite-toolbar"
 import { $editor_menu_when, delete_section, type MenuSection, type_change_item } from "./context-menu"
 import {
-  cls_text_fill,
+  cls_start_text,
   type GridTrack,
   type GridWidths,
   LABEL_TRACK,
@@ -185,7 +185,9 @@ function render_composite_preview(
         })
       })}
       <e-row spacing="widget" full-width>
-        <span class={cls_text_fill}>{o_value.tf(value_preview_text)}</span>
+        <span e-ellipsis class={cls_start_text}>
+          {o_value.tf(value_preview_text)}
+        </span>
         <span aria-hidden="true">›</span>
       </e-row>
     </button>
@@ -1301,7 +1303,15 @@ export class ArrayFactory extends Factory<ArrayOptions> {
           o_keys: o_visible_indices,
           head: (
             <e-grid-row sticky="top" surface="tint-2" seam-color="tint-separator">
-              {render_label_cell("#")}
+              {/* The index column: at least four digits wide (a `ch` is the width of a "0" in the heading's own
+                  font) plus the cell's padding, and resizable like the others. */}
+              <strong>
+                {$resizable({
+                  min: "calc(4ch + 2 * var(--e-control-pad))",
+                  on_resize: (px) => o_widths.set({ ...o_widths.get(), "#": px }),
+                })}
+                #
+              </strong>
               {Repeat(o_columns, (o_col) => (
                 <strong e-ellipsis>
                   {$resizable({ on_resize: (px) => o_widths.set({ ...o_widths.get(), [`col:${o_col.get()}`]: px }) })}

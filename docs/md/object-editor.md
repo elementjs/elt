@@ -58,7 +58,7 @@ The editor is a row of columns (each in its own frame when [packed](#packed-or-n
 - **Header line.** Every column and popup starts with one line (unless `show_title` and the others leave it empty): the key it was opened from and the value's type (`address · Object {3}`), then its `…` button opening the column's menu (see [Menus](#menus)), then *Undo*/*Redo* on the root column or × on the others.
 - **Rows are a grid.** Each entry is a row of cells: the key (or index) and the value's widget, each in its own column, aligned from one row to the next. A nested object or array is a cell showing a preview of its content; click it to open it. Removing a row or changing a value's type goes through the row's menu.
 - **Toolbar.** Right under the header line, on a neutral background: the *+ Add …* button, and a filter that keeps the rows whose key or value contains the text (*Aa* makes it case-sensitive). It stays in place while the filter shortens the rows.
-- **Column widths** come from the first rows shown, then stay put while you scroll; a longer key further down is truncated with `…`. Table columns can then be resized by dragging a header's right edge.
+- **Column widths** come from the first rows shown, then stay put while you scroll; a longer key further down is truncated with `…`. Table columns, the index column (`#`) included, can then be resized by dragging a header's right edge; the index column is never narrower than four digits.
 
 ### Menus
 

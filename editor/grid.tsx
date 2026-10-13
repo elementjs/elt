@@ -175,10 +175,14 @@ export function render_composite_grid<K>(props: CompositeGridProps<K>): HTMLElem
     : grid
 }
 
-/** The text cell of a grid's label column (a key, an index): ellipsis when it's wider than the column. */
+/**
+ * The cell of a grid's label column (an object's key, an index): a label (filled when the grid is
+ * packed), with ellipsis when it's wider than the column. Not editable: a Map's keys, which are, are
+ * ordinary cells.
+ */
 export function render_label_cell(text: o.RO<string>): Renderable<HTMLElement> {
   return (
-    <span class={cls_text_fill} title={text}>
+    <span e-widget="label" e-ellipsis title={text}>
       {text}
     </span>
   ) as HTMLElement
@@ -195,17 +199,9 @@ const cls_grid_scroll = css`.oe-grid-scroll {
   flex-grow: 1;
 }`
 
-/**
- * Custom CSS, shared by the editor: text that takes the free space of its line and truncates with `…`, for
- * what `e-ellipsis` (elt/ui) does not fit: the filter field, which is not a layout element's child text,
- * and the preview inside a button, whose own text is centered and must start the line.
- */
-export const cls_text_fill = css`.oe-text-fill {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  /* Start-aligned even inside a button, whose own text is centered. */
+/* Custom CSS, shared by the editor: text that starts its line even inside a button, whose own text is
+   centered (the preview of a value, a menu item). elt/ui has no attribute for the text alignment of a
+   button's content. Cutting a long text with "…" is `e-ellipsis`, not this. */
+export const cls_start_text = css`.oe-start-text {
   text-align: start;
 }`

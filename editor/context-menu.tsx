@@ -10,6 +10,7 @@ import { theme } from "elt/ui/theme"
 import { Trash } from "elt/ui/icons"
 import { menu_nav } from "elt/ui/list-nav"
 import { type PopupAnchor, popup } from "elt/ui/popup"
+import { cls_start_text } from "./grid"
 import type { CommonNodeOptions, Factory } from "./schema"
 import { apply_type_change, type_change_actions } from "./type-change"
 
@@ -82,7 +83,7 @@ function render_menu(sections: MenuSection[], close: () => void): HTMLElement {
 function render_item(item: MenuItem, close: () => void): Renderable {
   if ("sections" in item) {
     return (
-      <button type="button" role="menuitem" aria-haspopup="menu" class={cls_menu_item}>
+      <button type="button" role="menuitem" aria-haspopup="menu" class={cls_start_text}>
         {$click((ev) => {
           const sub = non_empty(item.sections())
           if (sub.length > 0) open_menu(ev.currentTarget, sub, close)
@@ -100,7 +101,7 @@ function render_item(item: MenuItem, close: () => void): Renderable {
       type="button"
       role="menuitem"
       disabled={item.disabled}
-      class={[cls_menu_item, item.danger && [theme.colors.red.class_as_tint, cls_menu_danger]]}
+      class={[cls_start_text, item.danger && [theme.colors.red.class_as_tint, cls_menu_danger]]}
     >
       {$click(() => {
         close()
@@ -269,18 +270,10 @@ export { non_empty as menu_sections }
 
 /* A section's header: small, quiet, not a menu item (menu_nav skips it). */
 const cls_menu_header = css`.oe-menu-header {
-  margin: 0;
   font-size: ${theme.settings.formFontSize};
   font-weight: 600;
   color: ${theme.colors.text.faded};
   user-select: none;
-}`
-
-/* Items start-aligned (a button centers its text), the icon and the label spaced. */
-const cls_menu_item = css`.oe-menu-item {
-  justify-content: flex-start;
-  text-align: start;
-  gap: ${theme.settings.spacingNudge4};
 }`
 
 /* Delete: red text, and (red as the tint) a red hover. */
