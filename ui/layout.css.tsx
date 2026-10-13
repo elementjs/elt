@@ -160,8 +160,8 @@ export interface EFlexAttrs extends CommonAttrs {
    * rows being the grid's children along the column axis, and every cell is square except the
    * outer corners of the first and last rows — see "Grids" in docs/md/ui-layout.md.
    *
-   * An `<hr>` directly inside a `packed` flex container is a 1px divider, edge to edge, unpadded,
-   * in the seam color. It is for `seams="none"`: in the other modes it adds to the seams.
+   * An `<hr>` directly inside a `packed` flex container or grid is a 1px divider, edge to edge (a grid's
+   * across all its columns), unpadded, in the seam color. It is for `seams="none"`: in the other modes it adds to the seams.
    */
   packed?: NRO<boolean | SpacingValues>
   /**
@@ -958,8 +958,17 @@ css`
     height: auto;
     align-self: stretch;
   }
+  /* In a packed grid it is the same line, across every column. */
+  e-grid[packed] > hr {
+    grid-column: 1 / -1;
+    padding: 0;
+    margin: 0;
+    height: 1px;
+    width: auto;
+    align-self: stretch;
+  }
   /* The divider is a line of the group, in the color of its lines. */
-  :is(e-column, e-flex[column], e-row, e-flex:not([column]))[packed] > hr {
+  :is(e-column, e-flex[column], e-row, e-flex:not([column]), e-grid)[packed] > hr {
     background-color: var(--e-seam-color);
   }
 

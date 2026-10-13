@@ -1086,6 +1086,40 @@ test.describe("packed seams (docs/md/ui-layout.md#packed)", () => {
     expect(r.margin).toBe("0px")
   })
 
+  test("<hr> in a packed grid is an unpadded 1px divider across all its columns, in the seam color", async ({
+    page,
+  }) => {
+    const r = await page.evaluate(() => {
+      document.body.innerHTML = `
+        <e-grid id="g" packed="widget" border seams="none" style="width: 300px; grid-template-columns: auto 1fr auto">
+          <button style="grid-column: 1 / -1">a</button><hr /><button style="grid-column: 1 / -1">b</button>
+        </e-grid>`
+      const grid = document.getElementById("g")!
+      const hr = grid.querySelector("hr")!
+      const box = hr.getBoundingClientRect()
+      const cs = getComputedStyle(hr)
+      const probe = document.createElement("div")
+      probe.style.backgroundColor = "var(--e-seam-color)"
+      grid.appendChild(probe)
+      const seam = getComputedStyle(probe).backgroundColor
+      probe.remove()
+      return {
+        height: box.height,
+        width: box.width,
+        grid_inner: grid.clientWidth,
+        pad: cs.paddingTop,
+        margin: cs.marginTop,
+        color: cs.backgroundColor,
+        seam,
+      }
+    })
+    expect(r.height).toBe(1)
+    expect(r.width).toBe(r.grid_inner)
+    expect(r.pad).toBe("0px")
+    expect(r.margin).toBe("0px")
+    expect(r.color).toBe(r.seam)
+  })
+
   test("<hr> in a packed row is a 1px divider down it", async ({ page }) => {
     const r = await page.evaluate(() => {
       document.body.innerHTML = `<e-row id="row" packed border seams="none"><button>a</button><hr /><button>b</button></e-row>`
