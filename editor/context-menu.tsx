@@ -78,10 +78,12 @@ function render_menu(sections: MenuSection[], close: () => void): HTMLElement {
       {sections.map((section, i) => (
         <>
           {i > 0 && <hr />}
-          {section.title && (
+          {section.title && (<>
             <span e-widget="label" class={cls_menu_wide}>
               {section.title}
             </span>
+            <hr/>
+            </>
           )}
           {section.items.map((item) => render_item(item, close))}
         </>
@@ -207,7 +209,7 @@ function edit_section(field: HTMLInputElement | HTMLTextAreaElement): MenuSectio
   }
 
   return {
-    title: "Edit",
+    //title: "Edit",
     items: [
       {
         label: "Cut",

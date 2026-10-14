@@ -383,7 +383,6 @@ label[e-widget="label"] {
 
 ${packed_cells(`${PACKED_CONTAINER_SELECTOR}[packed]`, '[e-widget="label"]')} {
   background-color: ${colors.neutral.surface("n+1")};
-  font-weight: normal;
 }
 
 /* ── Emphasis ──────────────────────────────────────────────────────────────────────────────────
