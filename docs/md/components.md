@@ -97,7 +97,7 @@ return <Chip label="x" id="c1" aria-pressed="true" data-x="1" />
 
 ## Reactive attributes
 
-An attribute that should follow changes is typed `o.RO<T>`: either a plain `T` or a read-only observable of it. Use it as is in JSX, or derive from it with `o.tf(attr, fn)` / `o.expression`; read it with `o.get(attr)` only when you need its value at one precise moment (in an event handler, for instance), since that read doesn't follow later changes.
+An attribute that should follow changes is typed `o.RO<T>`: either a plain `T` or a read-only observable of it. Use it as is in JSX, or derive from it with `o.tf(attr, fn)` / `o.expression`; pass it down as it is rather than bundling several attributes into one `o.expression`: `o.tf` on a plain value returns a plain value, so no observable exists unless the caller passed one. Read it with `o.get(attr)` only when you need its value at one precise moment (in an event handler, for instance), since that read doesn't follow later changes.
 
 ```tsx
 import { type Attrs, o } from "elt"

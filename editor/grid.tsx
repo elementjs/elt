@@ -46,7 +46,7 @@ export interface CompositeGridProps<K> {
    */
   virtual?: boolean
   /** Cells touching in one bordered group with seams, or plain rows spaced by elt/ui (the form look). */
-  packed: boolean
+  packed: o.RO<boolean>
   o_tracks: o.RO<GridTrack[]>
   o_keys: o.RO<K[]>
   o_transient_ids?: o.RO<string[]>
@@ -146,9 +146,9 @@ export function render_composite_grid<K>(props: CompositeGridProps<K>): HTMLElem
 
   const grid = (
     <e-grid
-      packed={props.packed ? "nudge-4" : undefined}
+      packed={o.tf(props.packed, (packed) => (packed ? "nudge-4" : undefined))}
       border={props.packed}
-      align={props.packed ? "stretch" : "baseline"}
+      align={o.tf(props.packed, (packed) => (packed ? "stretch" : "baseline"))}
       seam-color="tint-separator"
       style={{ gridTemplateColumns: o_template, minWidth: o_min_width, contain: o_contain }}
     >

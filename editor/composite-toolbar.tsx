@@ -120,18 +120,19 @@ function default_type_name(value: unknown, kind: string): string {
 /**
  * The presentation settings of a composite, resolved. `packed` draws the column frame, the header line,
  * the toolbar and the rows as one touching group with seams; unpacked, they are plain
- * rows. The `show_*` flags choose which parts of the chrome appear.
+ * rows. The `show_*` flags choose which parts of the chrome appear. Each is a value or an observable of
+ * one (`o.RO`): the editor follows it, and a plain value costs no observable.
  */
 export interface EditorSettings {
-  packed: boolean
+  packed: o.RO<boolean>
   /** The label on the header line (the key it was opened from and the type). */
-  show_title: boolean
+  show_title: o.RO<boolean>
   /** The row filter of the toolbar. */
-  show_filter: boolean
-  /** The "+ Add …" button of the toolbar. */
-  show_add: boolean
+  show_filter: o.RO<boolean>
+  /** The "Add" button of the header line. */
+  show_add: o.RO<boolean>
   /** The `…` button and menus: change type, import/export, delete. */
-  show_menu: boolean
+  show_menu: o.RO<boolean>
 }
 
 /** The editor-wide defaults, before any attribute or node option. */
@@ -193,40 +194,47 @@ export function render_composite_chrome(props: CompositeToolbarProps): {
     return hint ? `${name} ${hint}` : name
   })
 
-  const add = settings.show_add ? props.add : null
+  const add = props.add
   // The "Add" button is the last thing on the header line (the shell places it); its full name is its tooltip.
-  const add_button = add && (
-    <button type="button" title={add.label} aria-label={add.label}>
-      {$click(add.on_add)}
-      {Plus()} Add
-    </button>
-  )
+  // Built once, shown while `show_add` holds.
+  const add_button =
+    add &&
+    o.tf(settings.show_add, (show) =>
+      show ? (
+        <button type="button" title={add.label} aria-label={add.label}>
+          {$click(add.on_add)}
+          {Plus()} Add
+        </button>
+      ) : null,
+    )
   // Packed: a band of touching widgets in the column's frame. Unpacked: a plain row of spaced widgets.
-  const toolbar = settings.show_filter ? (
-    <e-row
-      surface={settings.packed ? "neutral-1" : undefined}
-      packed={settings.packed ? "widget" : undefined}
-      align={settings.packed ? "stretch" : "baseline"}
-    >
-      <input
-        type="search"
-        e-ellipsis
-        placeholder="Filter rows…"
-        aria-invalid={filter.o_invalid.tf((v) => (v ? "true" : undefined))}
+  const toolbar = o.tf(settings.show_filter, (show) =>
+    show ? (
+      <e-row
+        surface={o.tf(settings.packed, (packed) => (packed ? "neutral-1" : undefined))}
+        packed={o.tf(settings.packed, (packed) => (packed ? "widget" : undefined))}
+        align={o.tf(settings.packed, (packed) => (packed ? "stretch" : "baseline"))}
       >
-        {$bind.string(filter.o_query)}
-      </input>
-      {/* The options are not about the type: neutral, like the input, whatever the column's color. */}
-      <label e-widget="toggle" title="Match case" class={neutral_tint}>
-        <input type="checkbox">{$bind.boolean(filter.o_case_sensitive)}</input>
-        Aa
-      </label>
-      <label e-widget="toggle" title="Regular expression" class={neutral_tint}>
-        <input type="checkbox">{$bind.boolean(filter.o_regex)}</input>
-        .*
-      </label>
-    </e-row>
-  ) : null
+        <input
+          type="search"
+          e-ellipsis
+          placeholder="Filter rows…"
+          aria-invalid={filter.o_invalid.tf((v) => (v ? "true" : undefined))}
+        >
+          {$bind.string(filter.o_query)}
+        </input>
+        {/* The options are not about the type: neutral, like the input, whatever the column's color. */}
+        <label e-widget="toggle" title="Match case" class={neutral_tint}>
+          <input type="checkbox">{$bind.boolean(filter.o_case_sensitive)}</input>
+          Aa
+        </label>
+        <label e-widget="toggle" title="Regular expression" class={neutral_tint}>
+          <input type="checkbox">{$bind.boolean(filter.o_regex)}</input>
+          .*
+        </label>
+      </e-row>
+    ) : null,
+  )
 
   return {
     header: {

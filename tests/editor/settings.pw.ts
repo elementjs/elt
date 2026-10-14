@@ -47,6 +47,85 @@ test.describe("packed", () => {
     expect(packed).toBe(true)
   })
 
+  // Regression: the settings were read once at construction, so an observable `packed` (or any `show_*`) was ignored.
+  test("an observable packed re-styles the open editor, columns included", async ({ page }) => {
+    const result = await page.evaluate(() => {
+      const { o, node_append } = window.__ELT__
+      const { ObjectEditorShell, dispatch_object_editor_open } = window.__ELT__.Editor
+      const o_packed = o(false)
+      const o_root = o({ a: "x", sub: { b: "y" } })
+      const shell = new ObjectEditorShell(o_root, { packed: o_packed })
+      node_append(document.body, shell.node)
+      dispatch_object_editor_open(shell.node.querySelector("e-grid-row")!, {
+        o_value: o_root.p("sub") as any,
+        title: "sub",
+      })
+      const state = () => ({
+        columns: shell.node.querySelectorAll("e-column[packed][border]").length,
+        grids: shell.node.querySelectorAll("e-grid[packed][border]").length,
+      })
+      const before = state()
+      o_packed.set(true)
+      const packed = state()
+      o_packed.set(false)
+      return { before, packed, after: state() }
+    })
+    expect(result.before).toEqual({ columns: 0, grids: 0 })
+    expect(result.packed.columns).toBe(2)
+    expect(result.packed.grids).toBeGreaterThan(0)
+    expect(result.after).toEqual({ columns: 0, grids: 0 })
+  })
+
+  test("observable show_filter, show_add, show_title and show_menu follow", async ({ page }) => {
+    const result = await page.evaluate(() => {
+      const { o, node_append } = window.__ELT__
+      const { ObjectEditorShell } = window.__ELT__.Editor
+      const flags = { show_filter: o(true), show_add: o(true), show_title: o(true), show_menu: o(true) }
+      const shell = new ObjectEditorShell(o({ a: "x" }), flags)
+      node_append(document.body, shell.node)
+      const q = (sel: string) => shell.node.querySelector(sel) != null
+      const seen = () => ({
+        filter: q('input[type="search"]'),
+        add: q('button[aria-label="Add key"]'),
+        title: q("strong"),
+        menu: q('button[aria-label="More actions"]'),
+      })
+      const on = seen()
+      for (const f of Object.values(flags)) f.set(false)
+      const off = seen()
+      for (const f of Object.values(flags)) f.set(true)
+      return { on, off, back: seen() }
+    })
+    expect(result.on).toEqual({ filter: true, add: true, title: true, menu: true })
+    expect(result.off).toEqual({ filter: false, add: false, title: false, menu: false })
+    expect(result.back).toEqual(result.on)
+  })
+
+  test("observable prefer_popups applies to what opens next", async ({ page }) => {
+    const as_column = await page.evaluate(() => {
+      const { o, node_append } = window.__ELT__
+      const { ObjectEditorShell, dispatch_object_editor_open } = window.__ELT__.Editor
+      const o_popups = o(false)
+      const o_root = o({ sub: { b: "y" }, other: { c: "z" } })
+      const shell = new ObjectEditorShell(o_root, { prefer_popups: o_popups })
+      shell.node.id = "shell"
+      node_append(document.body, shell.node)
+      const open = (key: "sub" | "other") =>
+        dispatch_object_editor_open(shell.node.querySelector("e-grid-row")!, {
+          o_value: o_root.p(key) as any,
+          title: key,
+        })
+      open("sub")
+      const columns = shell.node.querySelectorAll(":scope > e-row > e-column").length
+      o_popups.set(true)
+      open("other")
+      return columns
+    })
+    expect(as_column).toBe(2)
+    // The second one opened as a popup, outside the strip.
+    await expect(page.locator("[popover]")).toHaveCount(1)
+  })
+
   test("a row's cells share a baseline when unpacked: the key and its input line up", async ({ page }) => {
     await page.evaluate(() => {
       const { o, node_append } = window.__ELT__

@@ -41,6 +41,7 @@ These are conventions: the library does not enforce them, but code using elt fol
 - In a two-argument component, place children with **either** a bare `{ref}` **or** `ref.IfChildren(…)`, never both. See [Components](./components.md#refchild-placing-children-explicitly).
 - Don't give `attrs` a default value on a two-argument component: it silently turns it into a one-argument component. See [Components](./components.md#one-arg-vs-two-arg).
 - Component attributes that should react to changes are typed `o.RO<T>` (a value or an observable of it). See [Components](./components.md#reactive-attributes).
+- Pass each `o.RO` attribute down as it is and derive from it where it is used with `o.tf(attr, fn)`, which returns a plain value for a plain attribute. Don't gather several attributes into one `o.expression` or one object only to pass them around: that creates an observable and its subscriptions even when every attribute was a plain value. See [Components](./components.md#reactive-attributes).
 - Put decorators (`$click`, `$bind`, …) among the JSX **children**, never as attributes. See [Decorators](./decorators.md#anatomy-of-a-decorator).
 - Use a real element, not a fragment `<>…</>`, as the root that observes: a fragment never gets connected, so lifecycle-bound decorators placed on it don't stay tied to anything. See [Components](./components.md#fragments).
 - In `$bind` options, give at most one of `debounce_*` / `throttle_*` per direction. See [Decorators](./decorators.md#binding-form-controls-bind).

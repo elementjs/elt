@@ -122,7 +122,7 @@ export interface WidgetHeader {
   o_label: o.ReadonlyObservable<string | null>
   actions: Renderable
   /** The "Add" button, the last thing on the header line. */
-  add?: Renderable | null
+  add?: o.RO<Renderable | null>
   import_export?: { id: string; label: string }[]
 }
 
@@ -1100,7 +1100,7 @@ function element_menu_section(title: string, o_child: o.Observable<unknown>, slo
 }
 
 /** A row not committed yet: its menu only discards it. */
-function transient_menu<T>(enabled: boolean, rows: Map<string, T>, o_ids: o.Observable<string[]>, id: string) {
+function transient_menu<T>(enabled: o.RO<boolean>, rows: Map<string, T>, o_ids: o.Observable<string[]>, id: string) {
   return $editor_menu_when(enabled, () => [delete_section(() => discard_transient(rows, o_ids, id))])
 }
 

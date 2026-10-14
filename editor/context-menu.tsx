@@ -6,7 +6,7 @@ Its three columns are an icon, the text and what follows it (a submenu's caret);
 a menu without icons starts its text at the left edge. The destructive item (Delete) is red, with the trash icon.
 */
 
-import { $click, $context_menu, $on, css, type Decorator, type o, type Renderable } from "elt"
+import { $click, $context_menu, $on, css, type Decorator, o, type Renderable } from "elt"
 import { theme } from "elt/ui/theme"
 import { ArrowsClockwise, CaretRight, ClipboardText, Copy, Scissors, SelectionAll, Trash } from "elt/ui/icons"
 import { menu_nav } from "elt/ui/list-nav"
@@ -262,8 +262,13 @@ function edit_section(field: HTMLInputElement | HTMLTextAreaElement): MenuSectio
  * fields — and starts with an Edit section (Cut, Copy, Paste, Select all). The keyboard (Menu key,
  * Shift+F10) opens it as well, under the focused element.
  */
-export function $editor_menu(sections: (target: Element | null) => (MenuSection | null)[]): Decorator<HTMLElement> {
+export function $editor_menu(
+  sections: (target: Element | null) => (MenuSection | null)[],
+  enabled: o.RO<boolean> = true,
+): Decorator<HTMLElement> {
   const all_sections = (target: EventTarget | null) => {
+    // Read when the menu is asked for, which is when its value matters: nothing to subscribe to.
+    if (!o.get(enabled)) return []
     const field = text_field_of(target)
     return non_empty([field && edit_section(field), ...sections(target as Element | null)])
   }
@@ -292,8 +297,8 @@ export function $editor_menu(sections: (target: Element | null) => (MenuSection 
 }
 
 /** `$editor_menu(sections)`, or nothing (the browser's own menu shows) when the node hides its menus. */
-export function $editor_menu_when(enabled: boolean, sections: Parameters<typeof $editor_menu>[0]) {
-  return enabled ? $editor_menu(sections) : null
+export function $editor_menu_when(enabled: o.RO<boolean>, sections: Parameters<typeof $editor_menu>[0]) {
+  return enabled === false ? null : $editor_menu(sections, enabled)
 }
 
 /** Under the bottom-left corner of `target`: where a menu opened without a pointer goes. */

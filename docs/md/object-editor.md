@@ -18,13 +18,15 @@ section: UI Recipes
 | --------- | ---- | ---- |
 | `model` | `Observable<unknown>` | The edited value (required) |
 | `schema` | a schema (`object(...)`, `array(...)`, `either(...)`, …) | What the value may hold. Without it, the editor works in unknown mode: any JSON-like value, with its type changeable |
-| `prefer_popups` | `boolean` | Open nested values in a popup instead of a new column to the right (a schema can still choose per value) |
-| `packed` | `boolean` (default `false`) | Draw each column as one framed group whose header line, toolbar and rows touch and share lines. Without it, a column has no frame: its rows are spaced by the usual elt/ui spacing. See [Packed or not](#packed-or-not) |
-| `show_title`, `show_filter`, `show_add`, `show_menu` | `boolean` (default `true`) | Which parts of a column appear. See [Showing and hiding parts](#showing-and-hiding-parts) |
-| `show_undo_redo` | `boolean` (default `true`) | The *Undo*/*Redo* buttons of the root column's header line (icons, shown only when there is something to undo or redo) |
+| `prefer_popups` | `o.RO<boolean>` | Open nested values in a popup instead of a new column to the right (a schema can still choose per value) |
+| `packed` | `o.RO<boolean>` (default `false`) | Draw each column as one framed group whose header line, toolbar and rows touch and share lines. Without it, a column has no frame: its rows are spaced by the usual elt/ui spacing. See [Packed or not](#packed-or-not) |
+| `show_title`, `show_filter`, `show_add`, `show_menu` | `o.RO<boolean>` (default `true`) | Which parts of a column appear. See [Showing and hiding parts](#showing-and-hiding-parts) |
+| `show_undo_redo` | `o.RO<boolean>` (default `true`) | The *Undo*/*Redo* buttons of the root column's header line (icons, shown only when there is something to undo or redo) |
 | `undo` | `{ depth?, import_undo_depth? } \| false` | Size of the *Undo*/*Redo* history. `false` turns the history off: no buttons, no shortcut |
 
 `class` and `style` apply to the editor's outer row, like on any element.
+
+The attributes typed `o.RO<boolean>` take a boolean or an observable of one, and the editor follows the observable: flipping `packed` re-styles the open columns, flipping a `show_*` shows or hides the part. `prefer_popups` is read each time a value opens, so a change applies to the next one. `schema` and `undo` are read once, when the editor is built. The same options on a schema node (`object({ packed: true })`) are plain booleans.
 
 *Undo* and *Redo* are also on Ctrl+Z and Ctrl+Shift+Z (Cmd on macOS) while focus is inside the editor, whether or not their buttons are shown. In a text field, the keys are left to the browser, which undoes the typing in that field.
 
@@ -101,9 +103,10 @@ A `schema` describes known properties up front: scalars, a multiline string, a b
 
 ```tsx
 //@inline-example
-import { o } from "elt"
+import { o, $bind } from "elt"
 import { ObjectEditor, array, boolean, date, number, object, string } from "elt/editor"
 
+const o_packed = o(false)
 const profile_schema = object({
   chrome_label: "Author profile",
   properties: [
@@ -137,7 +140,7 @@ const o_profile = o({
   tags: ["analytical-engine", "algorithm", "notes"],
   address: { street: "12 Analytical Engine Ave", city: "London", country: "UK" },
 })
-return <ObjectEditor model={o_profile} schema={profile_schema} />
+return <><label><input type="checkbox">{$bind.boolean(o_packed)}</input> Packed</label><ObjectEditor packed={o_packed} model={o_profile} schema={profile_schema} /></>
 ```
 
 ## Table — auto-detect
