@@ -138,7 +138,7 @@ test.describe("nested values", () => {
   }) => {
     await mount(page, `({ n: null, x: 3, s: "hi", b: true })`)
     const row = (key: string) => page.locator("#shell e-grid-row", { hasText: key }).first()
-    const literal = row("n").locator("span", { hasText: /^null$/ })
+    const literal = row("n").locator("button", { hasText: /^null$/ })
     await expect(literal).toHaveCount(1)
     expect(await style_of(literal, "color")).toBe(await resolve(page, "tint.ink", "magenta"))
     const number = row("x").locator("input[type=number]")

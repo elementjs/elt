@@ -27,6 +27,8 @@ import { default_settings, type EditorSettings } from "./composite-toolbar"
 import {
   $editor_menu_when,
   delete_section,
+  type Removal,
+  removal,
   type MenuSection,
   menu_sections,
   open_menu_from_button,
@@ -71,7 +73,7 @@ interface ColumnDescriptor {
   o_factory: o.Observable<Factory<unknown>>
   title: string | undefined
   /** Removes the value from its parent (the header menu's Delete); absent on the root and when the parent doesn't allow it. */
-  on_delete?: () => void
+  on_delete?: Removal
   presentation: "column" | "popup"
   /** The settings this column starts from: the editor's attributes, with `packed` taken from the value that opened it. */
   inherited: EditorSettings
@@ -186,7 +188,7 @@ export class ObjectEditorShell {
     factory: Factory<unknown>,
     presentation: "column" | "popup",
     inherited: EditorSettings,
-    on_delete?: () => void,
+    on_delete?: Removal,
   ): ColumnDescriptor {
     // The slot's factory for the value, or unknown mode's when the slot can't handle it.
     const o_factory = o(resolve_in_slot(factory, o_value.get()))
@@ -234,7 +236,7 @@ export class ObjectEditorShell {
     source: Node,
     factory?: Factory<unknown>,
     open_as?: "column" | "popup",
-    on_delete?: () => void,
+    on_delete?: Removal,
   ) {
     const resolved = this.resolve_open_factory(factory, o_value)
     const presentation = this.resolve_presentation(resolved, open_as)
@@ -371,8 +373,8 @@ export class ObjectEditorShell {
       },
       delete_section(
         column.on_delete &&
-          (() => {
-            column.on_delete?.()
+          removal(column.on_delete.label, () => {
+            column.on_delete?.run()
             close()
           }),
       ),

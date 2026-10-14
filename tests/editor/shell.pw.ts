@@ -562,7 +562,7 @@ test.describe("ObjectEditorShell", () => {
       const preview = shell.node.querySelector('button[title="Open meta"]')
       return preview?.textContent?.trim()
     })
-    expect(text).toBe("{revision: 1}›")
+    expect(text).toBe("revision: 1›")
   })
 
   test("anything (unknown mode) resolves a bare scalar root without a schema", async ({ page }) => {

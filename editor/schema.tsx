@@ -52,9 +52,20 @@ import {
   type FilterState,
   render_composite_chrome,
   resolve_settings,
+  composite_preview_inner,
   value_preview_text,
 } from "./composite-toolbar"
-import { $editor_menu_when, delete_section, type MenuSection, type_change_item } from "./context-menu"
+import {
+  $editor_menu_when,
+  delete_section,
+  type MenuSection,
+  REMOVE,
+  type Removal,
+  removal,
+  open_menu_from_button,
+  type_change_item,
+  type_change_sections,
+} from "./context-menu"
 import {
   cls_start_text,
   type GridTrack,
@@ -139,8 +150,8 @@ export interface ObjectEditorOpenDetail {
   // the value's type changes, and offers the slot's types in the column's type-change menu. Layer
   // 5 "Resolution" step 3's constructor registry (schema.tsx) fills in when this is omitted.
   factory?: Factory<unknown>
-  /** Removes the value from its parent: the column's Delete. Absent when the parent doesn't allow it. */
-  on_delete?: () => void
+  /** Removes the value from its parent: the column's Remove item. Absent when the parent doesn't allow it. */
+  on_delete?: Removal
   /** Per-node column vs popup; wins over shell `prefer_popups` when set. */
   open_as?: "column" | "popup"
 }
@@ -172,7 +183,7 @@ function render_composite_preview(
   title: string,
   factory: Factory<unknown>,
   slot: Factory<unknown>,
-  on_delete: (() => void) | undefined,
+  on_delete: Removal | undefined,
 ): Renderable {
   let btn!: HTMLButtonElement
   btn =
@@ -193,8 +204,10 @@ function render_composite_preview(
           })
         })}
         <e-row spacing="widget" full-width>
+          {/* The type's icon, then what the type's delimiters ([…], {…}) used to enclose. */}
+          <span aria-hidden="true">{o_value.tf((value) => type_style_of_value(value).icon())}</span>
           <span e-ellipsis class={cls_start_text}>
-            {o_value.tf(value_preview_text)}
+            {o_value.tf((value) => composite_preview_inner(value as object) || "empty")}
           </span>
           <span aria-hidden="true">›</span>
         </e-row>
@@ -291,14 +304,42 @@ function render_child_cell(
   title: string,
   slot: Factory<unknown>,
   resolve: (value: unknown) => Factory<unknown>,
-  on_delete?: () => void,
+  on_delete?: Removal,
 ): Renderable {
   return o_sticky_factory(o_child, resolve).tf((factory) => {
     if (factory == null) return null
-    return COMPOSITE_KINDS.has(factory.kind)
-      ? render_composite_preview(o_child, title, factory, slot, on_delete)
-      : factory.render(o_child).render()
+    if (COMPOSITE_KINDS.has(factory.kind)) return render_composite_preview(o_child, title, factory, slot, on_delete)
+    if (NULLISH_KINDS.has(factory.kind)) return render_nullish_cell(o_child, title, factory, slot)
+    return factory.render(o_child).render()
   })
+}
+
+const NULLISH_KINDS = new Set(["null", "undefined"])
+
+/**
+ * A null or undefined cell: its literal as a button opening the type list straight away (the same list
+ * as menu > "Change type…"), so the way out of "nothing" is visible. When the slot offers no other
+ * type, there is nothing to open: the plain literal, as the factory renders it.
+ */
+function render_nullish_cell(
+  o_child: o.Observable<unknown>,
+  title: string,
+  factory: Factory<unknown>,
+  slot: Factory<unknown>,
+): Renderable {
+  const sections = type_change_sections(title, o_child, factory, slot_type_targets(slot, factory.type_change_extra()))
+  if (!sections) return factory.render(o_child).render()
+  return (
+    <button
+      type="button"
+      aria-haspopup="menu"
+      aria-label={`${factory.kind}, change type`}
+      class={ink_classes(type_style_of_kind(factory.kind))}
+    >
+      {$on("click", (ev) => open_menu_from_button(ev.currentTarget as HTMLElement, () => sections))}
+      {factory.kind}
+    </button>
+  )
 }
 
 /** An element's cell (array/set element, map key or value, table cell) in `slot`. */
@@ -306,7 +347,7 @@ function render_element_or_preview(
   o_child: o.Observable<unknown>,
   title: string,
   slot: Factory<unknown>,
-  on_delete?: () => void,
+  on_delete?: Removal,
 ): Renderable {
   return render_child_cell(o_child, title, slot, (value) => resolve_in_slot(slot, value), on_delete)
 }
@@ -995,8 +1036,8 @@ export class ObjectFactory extends Factory<ObjectOptions> {
 
     // A key's row can be deleted when free keys are allowed and the schema doesn't declare it.
     const delete_key = (key: string) =>
-      can_add && !declared_keys.has(key) ? () => remove_object_key(o_value, key) : undefined
-    const render_value = (key: string, o_child: o.Observable<unknown>, on_delete?: () => void) =>
+      removal(REMOVE.key, can_add && !declared_keys.has(key) && (() => remove_object_key(o_value, key)))
+    const render_value = (key: string, o_child: o.Observable<unknown>, on_delete?: Removal) =>
       render_child_cell(
         o_child,
         key,
@@ -1059,7 +1100,7 @@ export class ObjectFactory extends Factory<ObjectOptions> {
             const { o_key, o_value: o_child } = row
             return (
               <e-grid-row>
-                {transient_menu(settings.show_menu, transient_rows, o_transient_ids, id)}
+                {transient_menu(settings.show_menu, REMOVE.key, transient_rows, o_transient_ids, id)}
                 <input type="text" placeholder="key">
                   {$bind.string(o_key)}
                   {$on("change", () => try_commit_transient(id))}
@@ -1100,8 +1141,14 @@ function element_menu_section(title: string, o_child: o.Observable<unknown>, slo
 }
 
 /** A row not committed yet: its menu only discards it. */
-function transient_menu<T>(enabled: o.RO<boolean>, rows: Map<string, T>, o_ids: o.Observable<string[]>, id: string) {
-  return $editor_menu_when(enabled, () => [delete_section(() => discard_transient(rows, o_ids, id))])
+function transient_menu<T>(
+  enabled: o.RO<boolean>,
+  label: string,
+  rows: Map<string, T>,
+  o_ids: o.Observable<string[]>,
+  id: string,
+) {
+  return $editor_menu_when(enabled, () => [delete_section(removal(label, () => discard_transient(rows, o_ids, id)))])
 }
 
 /**
@@ -1199,7 +1246,7 @@ export class ArrayFactory extends Factory<ArrayOptions> {
     }
 
     const can_delete = allows_delete(this.options)
-    const delete_at = (i: number) => (can_delete ? () => remove_array_at(o_value, i) : undefined)
+    const delete_at = (i: number) => removal(REMOVE.row, can_delete && (() => remove_array_at(o_value, i)))
     // Columns: label (index) | value. Removing and retyping go through the row's menu.
     const tracks: GridTrack[] = [
       { id: "label", initial: LABEL_TRACK },
@@ -1238,7 +1285,7 @@ export class ArrayFactory extends Factory<ArrayOptions> {
             if (!row) return null
             return (
               <e-grid-row>
-                {transient_menu(settings.show_menu, transient_rows, o_transient_ids, id)}
+                {transient_menu(settings.show_menu, REMOVE.row, transient_rows, o_transient_ids, id)}
                 {$commit_on_edit(() => try_commit_transient(id), row)}
                 {render_label_cell("+")}
                 {render_element_or_preview(row, "new", values_factory)}
@@ -1283,7 +1330,8 @@ export class ArrayFactory extends Factory<ArrayOptions> {
       if (Array.isArray(arr)) insert_array_at(o_value, arr.length, resolve_item_default(this.options.item_default))
     }
 
-    const delete_at = (i: number) => (allows_delete(this.options) ? () => remove_array_at(o_value, i) : undefined)
+    const delete_at = (i: number) =>
+      removal(REMOVE.row, allows_delete(this.options) && (() => remove_array_at(o_value, i)))
     // A column's slot: the type the rows' schema declares for it, unknown mode otherwise.
     const column_slot = (col: string) => {
       const row_factory = unforward(values_factory)
@@ -1455,7 +1503,8 @@ export class SetFactory extends Factory<SetOptions> {
     }
 
     const can_delete = allows_delete(this.options)
-    const delete_member = (member: unknown) => (can_delete ? () => remove_set_member(o_value, member) : undefined)
+    const delete_member = (member: unknown) =>
+      removal(REMOVE.row, can_delete && (() => remove_set_member(o_value, member)))
     // One column: the value. A Set has no key or index to label its rows with.
     const tracks: GridTrack[] = [{ id: "value", initial: "auto", fill: true }]
 
@@ -1485,7 +1534,7 @@ export class SetFactory extends Factory<SetOptions> {
                 safe_set_member(o_value, o_member),
                 value_preview_text(o_member.get()),
                 values_factory,
-                can_delete ? () => remove_set_member(o_value, o_member.get()) : undefined,
+                delete_member(o_member.get()),
               )}
             </e-grid-row>
           ),
@@ -1494,7 +1543,7 @@ export class SetFactory extends Factory<SetOptions> {
             if (!row) return null
             return (
               <e-grid-row>
-                {transient_menu(settings.show_menu, transient_rows, o_transient_ids, id)}
+                {transient_menu(settings.show_menu, REMOVE.row, transient_rows, o_transient_ids, id)}
                 {$commit_on_edit(() => try_commit_transient(id), row)}
                 {render_element_or_preview(row, "new", values_factory)}
               </e-grid-row>
@@ -1572,7 +1621,7 @@ export class MapFactory extends Factory<MapOptions> {
     }
 
     const can_delete = allows_delete(this.options)
-    const delete_entry = (key: unknown) => (can_delete ? () => remove_map_entry(o_value, key) : undefined)
+    const delete_entry = (key: unknown) => removal(REMOVE.pair, can_delete && (() => remove_map_entry(o_value, key)))
     const key_type_change = this.options.allow_key_type_change !== false
     // Columns: key (a widget) | value. Removing and retyping (key or value) go through the row's menu.
     const tracks: GridTrack[] = [
@@ -1608,7 +1657,7 @@ export class MapFactory extends Factory<MapOptions> {
                 safe_map_value(o_value, o_key),
                 value_preview_text(o_key.get()),
                 values_factory,
-                can_delete ? () => remove_map_entry(o_value, o_key.get()) : undefined,
+                delete_entry(o_key.get()),
               )}
             </e-grid-row>
           ),
@@ -1617,7 +1666,7 @@ export class MapFactory extends Factory<MapOptions> {
             if (!row) return null
             return (
               <e-grid-row>
-                {transient_menu(settings.show_menu, transient_rows, o_transient_ids, id)}
+                {transient_menu(settings.show_menu, REMOVE.pair, transient_rows, o_transient_ids, id)}
                 {$commit_on_edit(() => try_commit_transient(id), row.o_key, row.o_val)}
                 {render_element_or_preview(row.o_key, "new key", keys_factory)}
                 {render_element_or_preview(row.o_val, "new", values_factory)}

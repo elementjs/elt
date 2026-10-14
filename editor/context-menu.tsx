@@ -3,7 +3,7 @@ The editor's menus: a row's context menu (right click, long press, Ctrl+click, t
 or Shift+F10) and a column's header menu (the same, or its `…` button). Both are lists of sections —
 a small header, then items — drawn as one packed grid without lines (`seams="none"`) with `<hr>` between sections.
 Its three columns are an icon, the text and what follows it (a submenu's caret); an empty column has no width, so
-a menu without icons starts its text at the left edge. The destructive item (Delete) is red, with the trash icon.
+a menu without icons starts its text at the left edge. The destructive item (Remove row, Remove key, Remove pair) is red, with the trash icon.
 */
 
 import { $click, $context_menu, $on, css, type Decorator, o, type Renderable } from "elt"
@@ -143,47 +143,64 @@ function render_item(item: MenuItem, close: () => void): Renderable {
 }
 
 /**
- * The "Change type…" item for a value: a submenu listing the types its slot accepts (`targets`),
- * or `null` when there are none. `current` is the factory rendering the value now.
+ * The sections of the type list for a value (what "Change type…" opens): one entry per type its slot
+ * accepts (`targets`), or `null` when there are none. `current` is the factory rendering the value now.
  */
+export function type_change_sections(
+  title: string,
+  o_value: o.Observable<unknown>,
+  current: Factory<unknown>,
+  targets: Factory<unknown>[],
+): MenuSection[] | null {
+  const options = (current.options ?? {}) as CommonNodeOptions
+  if (options.show_menu === false) return null
+  const actions = type_change_actions(current, o_value.get(), options, targets)
+  if (actions.length === 0) return null
+  return [
+    {
+      title: `${title} type`,
+      items: actions.map((action) => {
+        const style = type_style_of_kind(action.target.kind)
+        return {
+          label: action.label,
+          icon: style.icon,
+          tint: tint_class(style),
+          run: () => apply_type_change(o_value, current, action),
+        }
+      }),
+    },
+  ]
+}
+
+/** The "Change type…" item for a value: a submenu listing `type_change_sections`, or `null` when there are none. */
 export function type_change_item(
   title: string,
   o_value: o.Observable<unknown>,
   current: Factory<unknown>,
   targets: Factory<unknown>[],
 ): MenuSection | null {
-  const options = (current.options ?? {}) as CommonNodeOptions
-  if (options.show_menu === false) return null
-  const actions = type_change_actions(current, o_value.get(), options, targets)
-  if (actions.length === 0) return null
-  return {
-    title,
-    items: [
-      {
-        label: "Change type…",
-        icon: ArrowsClockwise,
-        sections: () => [
-          {
-            title: `${title} type`,
-            items: actions.map((action) => {
-              const style = type_style_of_kind(action.target.kind)
-              return {
-                label: action.label,
-                icon: style.icon,
-                tint: tint_class(style),
-                run: () => apply_type_change(o_value, current, action),
-              }
-            }),
-          },
-        ],
-      },
-    ],
-  }
+  const sections = type_change_sections(title, o_value, current, targets)
+  if (!sections) return null
+  return { title, items: [{ label: "Change type…", icon: ArrowsClockwise, sections: () => sections }] }
 }
 
-/** The Delete section: one red item, no header. */
-export function delete_section(run: (() => void) | null | undefined): MenuSection | null {
-  return run ? { items: [{ label: "Delete", run, danger: true, icon: Trash }] } : null
+/** How a value leaves its parent: the menu item's label names what goes ("Remove row"), `run` removes it. */
+export interface Removal {
+  label: string
+  run: () => void
+}
+
+/** The labels of `Removal`s, by what the parent holds. */
+export const REMOVE = { row: "Remove row", key: "Remove key", pair: "Remove pair" } as const
+
+/** The removal section: one red item, no header; none when there is nothing to remove. */
+export function delete_section(removal: Removal | null | undefined): MenuSection | null {
+  return removal ? { items: [{ label: removal.label, run: removal.run, danger: true, icon: Trash }] } : null
+}
+
+/** A `Removal` running `run`, or none when `run` is none (the parent doesn't allow removing). */
+export function removal(label: string, run: (() => void) | false | null | undefined): Removal | undefined {
+  return run ? { label, run } : undefined
 }
 
 /** The text field (`input`, `textarea`) the event came from, if any. */
@@ -225,7 +242,6 @@ function edit_section(field: HTMLInputElement | HTMLTextAreaElement): MenuSectio
   }
 
   return {
-    //title: "Edit",
     items: [
       {
         label: "Cut",

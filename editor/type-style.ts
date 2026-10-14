@@ -17,8 +17,8 @@ import {
   CaretUpDown,
   Cube,
   Hash,
+  Empty,
   Palette,
-  Prohibit,
   Question,
   Quotes,
   Selection,
@@ -39,7 +39,7 @@ const colors = theme.colors
 const TYPE_STYLES: Record<string, TypeStyle> = Object.fromEntries(
   (
     [
-      ["null", colors.magenta, Prohibit],
+      ["null", colors.magenta, Empty],
       ["undefined", colors.magenta, Question],
       ["boolean", colors.magenta, ToggleLeft],
       ["number", colors.purple, Hash],

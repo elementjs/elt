@@ -49,13 +49,13 @@ const row = (page: Page, label: string) => page.locator("#shell e-grid-row", { h
 const root = (page: Page) => page.evaluate(() => (window as unknown as W).o_root.get())
 
 test.describe("row menu", () => {
-  test("unknown mode: Value type change and a red Delete with the trash icon; Delete removes, Undo restores", async ({
+  test("unknown mode: Value type change and a red Remove key with the trash icon; Remove key removes, Undo restores", async ({
     page,
   }) => {
     await mount(page, `({ name: "Ada", age: 36 })`)
     await row(page, "name").locator("> :first-child").click({ button: "right" })
-    await expect.poll(() => menus(page)).toEqual([["# Value", "Change type…", "---", "Delete"]])
-    const del = page.locator('[popover].open [role="menuitem"]', { hasText: "Delete" })
+    await expect.poll(() => menus(page)).toEqual([["# Value", "Change type…", "---", "Remove key"]])
+    const del = page.locator('[popover].open [role="menuitem"]', { hasText: "Remove key" })
     expect(await del.locator("svg").count()).toBe(1)
     // Red-tinted: its color differs from the other items'.
     const other = page.locator('[popover].open [role="menuitem"]', { hasText: "Change type…" })
@@ -124,7 +124,7 @@ test.describe("row menu", () => {
     await input.click({ button: "right" })
     await expect
       .poll(() => menus(page))
-      .toEqual([["# Edit", "Cut", "Copy", "Paste", "Select all", "---", "# Value", "Change type…", "---", "Delete"]])
+      .toEqual([["Cut", "Copy", "Paste", "Select all", "---", "# Value", "Change type…", "---", "Remove key"]])
     expect(await page.evaluate(() => (window as unknown as W).prevented)).toEqual([true])
   })
 
@@ -182,7 +182,7 @@ test.describe("row menu", () => {
     await row(page, "name").locator("> :first-child").click({ button: "right" })
     // Focus is on the first item (roving focus).
     await page.waitForFunction(() => document.activeElement?.getAttribute("role") === "menuitem")
-    await page.keyboard.press("ArrowDown") // Change type… → Delete
+    await page.keyboard.press("ArrowDown") // Change type… → Remove key
     await page.keyboard.press("Enter")
     expect(await root(page)).toEqual({ other: 1 })
   })
@@ -195,7 +195,6 @@ test.describe("row menu", () => {
       .poll(() => menus(page))
       .toEqual([
         [
-          "# Edit",
           "Cut",
           "Copy",
           "Paste",
@@ -207,12 +206,12 @@ test.describe("row menu", () => {
           "# Value",
           "Change type…",
           "---",
-          "Delete",
+          "Remove pair",
         ],
       ])
   })
 
-  test("Table rows: the right-clicked cell's column, then Delete; the index cell gives Delete only", async ({
+  test("Table rows: the right-clicked cell's column, then Remove row; the index cell gives Remove row only", async ({
     page,
   }) => {
     await mount(page, `[{ a: 1, b: "x" }, { a: 2, b: "y" }]`)
@@ -220,28 +219,100 @@ test.describe("row menu", () => {
     await first.locator("> :nth-child(3)").click({ button: "right", position: { x: 2, y: 2 } })
     await expect
       .poll(() => menus(page))
-      .toEqual([["# Edit", "Cut", "Copy", "Paste", "Select all", "---", "# b", "Change type…", "---", "Delete"]])
+      .toEqual([["Cut", "Copy", "Paste", "Select all", "---", "# b", "Change type…", "---", "Remove row"]])
     await page.keyboard.press("Escape")
     await first.locator("> :first-child").click({ button: "right" })
-    await expect.poll(() => menus(page)).toEqual([["Delete"]])
-    await page.locator('[popover].open [role="menuitem"]', { hasText: "Delete" }).click()
+    await expect.poll(() => menus(page)).toEqual([["Remove row"]])
+    await page.locator('[popover].open [role="menuitem"]', { hasText: "Remove row" }).click()
     expect(await root(page)).toEqual([{ a: 2, b: "y" }])
   })
 
-  test("a row not committed yet: Delete discards it", async ({ page }) => {
+  test("a row not committed yet: Remove row discards it", async ({ page }) => {
     await mount(page, `[1]`)
     await page.locator('#shell button[aria-label="Add item"]').click()
     await expect(page.locator("#shell e-grid-row")).toHaveCount(2)
     await page.locator("#shell e-grid-row").nth(1).locator("> :first-child").click({ button: "right" })
-    await expect.poll(() => menus(page)).toEqual([["Delete"]])
-    await page.locator('[popover].open [role="menuitem"]', { hasText: "Delete" }).click()
+    await expect.poll(() => menus(page)).toEqual([["Remove row"]])
+    await page.locator('[popover].open [role="menuitem"]', { hasText: "Remove row" }).click()
     await expect(page.locator("#shell e-grid-row")).toHaveCount(1)
     expect(await root(page)).toEqual([1])
   })
 })
 
+// A null or undefined value is a button opening the type list directly (docs/md/object-editor.md).
+test.describe("null and undefined buttons", () => {
+  const cell = (page: Page, key: string, text: string) =>
+    row(page, key).locator("button", { hasText: new RegExp(`^${text}$`) })
+
+  test("null opens the type list directly; picking a type changes the value and closes the menu", async ({ page }) => {
+    await mount(page, `({ n: null })`)
+    const button = cell(page, "n", "null")
+    await expect(button).toHaveAttribute("aria-label", "null, change type")
+    await button.click()
+    // Straight to the list: no first-level menu with "Change type…".
+    await expect.poll(async () => (await menus(page)).length).toBe(1)
+    const [list] = await menus(page)
+    expect(list![0]).toBe("# n type")
+    expect(list).toContain("string (reset)")
+    expect(list).not.toContain("null")
+    await page.locator('[popover].open [role="menuitem"]', { hasText: "string (reset)" }).click()
+    expect(await root(page)).toEqual({ n: "" })
+    await expect(page.locator("[popover]")).toHaveCount(0)
+  })
+
+  test("undefined is a button too", async ({ page }) => {
+    // Unknown mode shows an undefined value as unsupported: a declared slot gives it its widget.
+    await mount(
+      page,
+      `({ u: undefined })`,
+      `E.object({ properties: [{ name: "u", type: E.either(E.undef(), E.string()) }], free_keys: false })`,
+    )
+    await cell(page, "u", "undefined").click()
+    await expect.poll(async () => (await menus(page))[0]?.[0]).toBe("# u type")
+    expect((await menus(page))[0]).not.toContain("undefined")
+  })
+
+  test("the keyboard opens it, and Escape closes it, focus back on the button", async ({ page }) => {
+    await mount(page, `({ n: null })`)
+    const button = cell(page, "n", "null")
+    await button.focus()
+    await page.keyboard.press("Enter")
+    await expect.poll(async () => (await menus(page)).length).toBe(1)
+    await page.keyboard.press("Escape")
+    await expect(page.locator("[popover]")).toHaveCount(0)
+    await expect(button).toBeFocused()
+  })
+
+  test("an array element is a button as well", async ({ page }) => {
+    await mount(page, `({ list: [null] })`)
+    await row(page, "list").locator("button[title^='Open']").click()
+    await page.locator("#shell e-grid-row button", { hasText: /^null$/ }).click()
+    await expect.poll(async () => (await menus(page))[0]?.[0]).toBe("# 0 type")
+  })
+
+  test("a slot accepting nothing else keeps the plain literal", async ({ page }) => {
+    await mount(
+      page,
+      `({ n: null })`,
+      `E.object({ properties: [{ name: "n", type: E.null_factory }], free_keys: false })`,
+    )
+    await expect(row(page, "n").locator("span", { hasText: /^null$/ })).toHaveCount(1)
+    await expect(row(page, "n").locator("button")).toHaveCount(0)
+  })
+
+  test("a declared either() slot lists only its other branches", async ({ page }) => {
+    await mount(
+      page,
+      `({ v: null })`,
+      `E.object({ properties: [{ name: "v", type: E.either(E.null_factory, E.string()) }], free_keys: false })`,
+    )
+    await cell(page, "v", "null").click()
+    await expect.poll(async () => (await menus(page))[0]).toEqual(["# v type", "string (reset)"])
+  })
+})
+
 test.describe("header menu", () => {
-  test("root: the … button and a right click give the type change, no Delete", async ({ page }) => {
+  test("root: the … button and a right click give the type change, no Remove item", async ({ page }) => {
     await mount(page, `({ a: 1 })`)
     const header = page.locator("#shell e-column[packed] > e-row").first()
     await header.locator('button[aria-label="More actions"]').click()
@@ -251,7 +322,7 @@ test.describe("header menu", () => {
     await expect.poll(() => menus(page)).toEqual([["# Value", "Change type…"]])
   })
 
-  test("an opened column's Delete removes the value from its parent and closes the column", async ({ page }) => {
+  test("an opened column's Remove key removes the value from its parent and closes the column", async ({ page }) => {
     await mount(page, `({ address: { city: "London" }, b: 1 })`)
     await page.locator('#shell button[title="Open address"]').click()
     const columns = page.locator("#shell e-column[packed][border]:not(e-column e-column)")
@@ -259,8 +330,8 @@ test.describe("header menu", () => {
     await expect(city_label).toHaveCount(1)
     const header = page.locator("#shell e-row > e-column > e-row", { hasText: "address" })
     await header.locator('button[aria-label="More actions"]').click()
-    await expect.poll(() => menus(page)).toEqual([["# Value", "Change type…", "---", "Delete"]])
-    await page.locator('[popover].open [role="menuitem"]', { hasText: "Delete" }).click()
+    await expect.poll(() => menus(page)).toEqual([["# Value", "Change type…", "---", "Remove key"]])
+    await page.locator('[popover].open [role="menuitem"]', { hasText: "Remove key" }).click()
     expect(await root(page)).toEqual({ b: 1 })
     await expect(city_label).toHaveCount(0)
     expect(await columns.count()).toBeGreaterThan(0)
@@ -300,12 +371,12 @@ test.describe("menu look", () => {
         (el) => el.getBoundingClientRect().left,
       ),
     )
-    // Change type… and Delete, each with an icon.
+    // Change type… and Remove key, each with an icon.
     expect(xs.length).toBe(2)
     expect(xs[0]).toBe(xs[1])
     // The icon is left of the text, the caret (submenu items only) right of it.
     expect(await item(page, "Change type…").locator("svg").count()).toBe(2)
-    expect(await item(page, "Delete").locator("svg").count()).toBe(1)
+    expect(await item(page, "Remove key").locator("svg").count()).toBe(1)
   })
 
   test("a menu with no icon starts its text at the left edge", async ({ page }) => {

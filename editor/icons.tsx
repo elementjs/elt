@@ -18,11 +18,8 @@ export const Plus = /** @__PURE__ */ () =>
     s("line", "x1", "128", "y1", "40", "x2", "128", "y2", "216"),
   )
 
-export const Prohibit = /** @__PURE__ */ () =>
-  icon(
-    s("line", "x1", "195.88", "y1", "195.88", "x2", "60.12", "y2", "60.12"),
-    s("circle", "cx", "128", "cy", "128", "r", "96"),
-  )
+export const Empty = /** @__PURE__ */ () =>
+  icon(s("line", "x1", "208", "y1", "40", "x2", "48", "y2", "216"), s("circle", "cx", "128", "cy", "128", "r", "88"))
 
 export const Question = /** @__PURE__ */ () =>
   icon(

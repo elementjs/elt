@@ -73,3 +73,6 @@ These are the highest priority — the spec already promises the behavior, nothi
 - [x] **`show_title` / `show_filter` / `show_add` / `show_menu`** as editor attributes (defaults) and node options (replace for that node), replacing `toolbar: { search, menu, type_change, import_export }`; node-only `show_import_export`. `show_undo_redo` and `undo: false` on the editor; Ctrl/Cmd+Z and +Shift+Z shortcut outside text fields (`tests/editor/settings.pw.ts`).
 - [ ] Loose styling (borders/background between columns, a stacked label-above-input variant for narrow screens) is left to the host page for now.
 - [ ] A type change that lands on a node with another `packed` keeps the column's frame (read when the column is created); only the grid follows.
+- [x] **Null and undefined cells are buttons** opening the type list directly (`render_nullish_cell`, `type_change_sections`); plain text when the slot offers no other type. Null's icon is phosphor's `empty`.
+- [x] **Composite previews** start with the type's icon, then the first members without `[…]`/`{…}` (`composite_preview_inner`); `empty` when there are none.
+- [x] **Removal items are named by what they remove**: *Remove key* (object), *Remove pair* (map), *Remove row* (array, set, table); `Removal` carries the label with the action.

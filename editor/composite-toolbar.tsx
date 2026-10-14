@@ -67,32 +67,32 @@ export function row_matches_search(query: string, case_sensitive: boolean, parts
   return compile_filter(query, case_sensitive, regex).matcher?.(parts) ?? true
 }
 
+/**
+ * What a composite's preview shows between its delimiters: its first two members, then `…` when there
+ * are more; `(n)` for a Map or Set; empty for an empty one. The drill-in button shows it after the
+ * type's icon (the icon says what the delimiters would); `value_preview_text` wraps it in them.
+ */
+export function composite_preview_inner(value: object): string {
+  if (value instanceof Map || value instanceof Set) return `(${value.size})`
+  // Only the members shown are turned to text.
+  const entries = Array.isArray(value) ? value : Object.entries(value)
+  const shown = entries
+    .slice(0, 2)
+    .map((m) => (Array.isArray(value) ? value_preview_text(m) : `${m[0]}: ${value_preview_text(m[1])}`))
+  return entries.length > 2 ? `${shown.join(", ")}, …` : shown.join(", ")
+}
+
 /** Shallow preview text for search / display (not the drill-in preview button). */
 export function value_preview_text(value: unknown): string {
   if (value === null) return "null"
   if (value === undefined) return "undefined"
   if (typeof value === "string") return value
   if (typeof value === "number" || typeof value === "boolean") return String(value)
-  if (value instanceof Date) return value.toISOString()
-  if (Array.isArray(value)) {
-    if (value.length === 0) return "[]"
-    const head = value
-      .slice(0, 2)
-      .map((v) => value_preview_text(v))
-      .join(", ")
-    return value.length > 2 ? `[${head}, …]` : `[${head}]`
-  }
+  if (Array.isArray(value)) return `[${composite_preview_inner(value)}]`
   if (value instanceof Map) return `Map {${value.size}}`
   if (value instanceof Set) return `Set {${value.size}}`
-  if (typeof value === "object") {
-    const entries = Object.entries(value as object)
-    if (entries.length === 0) return "{}"
-    const head = entries
-      .slice(0, 2)
-      .map(([k, v]) => `${k}: ${value_preview_text(v)}`)
-      .join(", ")
-    return entries.length > 2 ? `{${head}, …}` : `{${head}}`
-  }
+  if (value instanceof Date) return value.toISOString()
+  if (typeof value === "object") return `{${composite_preview_inner(value)}}`
   return String(value)
 }
 

@@ -245,11 +245,14 @@ test.describe("composite grid", () => {
       const cell = shell.node.querySelector<HTMLButtonElement>('button[title="Open address"]')!
       const is_cell = cell.parentElement?.tagName === "E-GRID-ROW"
       const text = cell.textContent
+      const icons = cell.querySelectorAll("svg").length
       cell.click()
-      return { is_cell, text, breadcrumb: shell.o_breadcrumb.get() }
+      return { is_cell, text, icons, breadcrumb: shell.o_breadcrumb.get() }
     })
     expect(result.is_cell).toBe(true)
-    expect(result.text).toBe("{city: London}›")
+    // The type's icon, then the members: no braces around them.
+    expect(result.text).toBe("city: London›")
+    expect(result.icons).toBe(1)
     expect(result.breadcrumb).toEqual(["address"])
   })
 
