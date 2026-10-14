@@ -943,33 +943,41 @@ css`
 
   /* An <hr> directly in a packed flex container is a divider between its children, not a padded
      child: no padding or margin (the packed padding rule above would otherwise thicken it), a 1px
-     line edge to edge — across a column, down a row. */
+     line edge to edge — across a column, down a row. The line is the hr's own border on a
+     zero-size box (the global hr rule sets a background and a size that would otherwise win). */
   ${_col} > hr {
     padding: 0;
     margin: 0;
-    height: 1px;
+    height: 0;
     width: auto;
     align-self: stretch;
+    border: 0 solid;
+    border-top-width: 1px;
   }
   ${_row} > hr {
     padding: 0;
     margin: 0;
-    width: 1px;
+    width: 0;
     height: auto;
     align-self: stretch;
+    border: 0 solid;
+    border-left-width: 1px;
   }
   /* In a packed grid it is the same line, across every column. */
   e-grid[packed] > hr {
     grid-column: 1 / -1;
     padding: 0;
     margin: 0;
-    height: 1px;
+    height: 0;
     width: auto;
     align-self: stretch;
+    border: 0 solid;
+    border-top-width: 1px;
   }
   /* The divider is a line of the group, in the color of its lines. */
   :is(e-column, e-flex[column], e-row, e-flex:not([column]), e-grid)[packed] > hr {
-    background-color: var(--e-seam-color);
+    border-color: var(--e-seam-color);
+    background-color: transparent;
   }
 
   /* A packed bordered child of a scroll area drops its outer border and radius: the scroll area
