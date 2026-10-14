@@ -36,7 +36,7 @@ A palette supplies `bg`, `text` and `tint`; the default theme adds semantic hues
 | Muted text that must follow an inverted band, a light fill that lets the surface show through | `.alpha(0.7)` — the color at an opacity, read from the live colors (typography's `h6`, `blockquote`, `dd`, `figcaption`, inline `code`, `mark`) |
 | Grey structural border, divider or fill | `theme.colors.neutral` and its helpers, not `text` |
 | An invalid field, an error message | `theme.colors.error` (fields are styled already, [Forms § Invalid fields](./ui-forms.md#invalid-fields)) |
-| Strong emphasis | `.strong`, `.very_strong` (mixed toward text) |
+| Coloured text that must stay readable, close to the text color | `.ink` (the color mixed into text) |
 | A one-off mix no named helper covers | `.from_bg("20%")`, `.from_text("20%")`, `.from(other, "20%")`; `.alpha(0.5)` for the color at an opacity |
 | Make another color the subtree's accent | `theme.colors.orange.class_as_tint` (class) |
 | Inverted band (top toolbar, dialog title row; `neutral` for a main table's header) | `theme.colors.tint.class_as_inverted` (class) or `.css_as_inverted` (declarations) |
@@ -69,6 +69,7 @@ A surface **level** counts how many background fills deep an element is. The pag
 - `surface` fills; it does not pad. A surface that needs padding says so with `pad` or `packed`.
 - The level and the color family propagate to descendants. `.hover` and `.separator` (and `border="…-surface"`/`"…-separator"`, see [Layout § Borders and radius](./ui-layout.md#borders-and-radius)) read them, so they always mean "one/two levels above wherever this ends up".
 - The `hover` attribute uses the ambient family too: a hover fill on a neutral surface is neutral, on a tint surface it is tint.
+- A surface of the `tint` family follows a tint change inside it: under `surface="tint"`, an element with `theme.colors.orange.class_as_tint` and its descendants get an orange surface (the fill that `sticky` and framed cells paint, the `hover` fill) at the same level, not the outer tint's. Limits: an element with its own `surface` attribute keeps its own surface; a tint-family surface made from a computed mix (`tint.mid.class_as_surface(1)`) and a state that repainted the surface (selected, a hovered grid row) are not repainted.
 - Outside layout elements, use the class or declaration forms: `theme.colors.tint.class_as_surface(2)`, `.css_as_surface(2)`. They accept any level, a relative `"n+K"`, or `"background"`.
 - `theme.colors.tint.surface(2)` is just the color value of that level (for a one-off declaration); it does not set a level for children.
 
@@ -159,7 +160,7 @@ const brand = new Theme({ light: { bg: "#fff", text: "#1b1b1f", tint: "#5b3cc4" 
 | `shadowLightX`, `shadowLightY` | `1`, `2` — where the light comes from, for [overlay shadows](#elevation): numbers, not lengths |
 | `popupMinWidth`, `popupMaxWidth`, `popupMaxHeight` | `0px`, `100vw`, `80vh` — the size limits of a [popup](./ui-overlays.md#popup)'s content |
 | `borderRadius` | `8px` — fixed fallback for the rare element that can't derive its radius; prefer `[radius]`/`css_radius` |
-| `intensityMid`, `intensityFaded`, `intensityStrong`, `intensityVeryStrong` | `50%`, `80%`, `10%`, `50%` — the mix percentages behind `.mid`, `.faded`, `.strong`, `.very_strong` |
+| `intensityMid`, `intensityFaded`, `intensityInk` | `50%`, `80%`, `50%` — the mix percentages behind `.mid`, `.faded`, `.ink` |
 | `spacingNudge1`, `spacingNudge2`, `spacingNudge4`, `spacingWidget`, `spacingComponent`, `spacingSection`, `spacingStage1`…`spacingStage4` | The [spacing scale](./ui-layout.md#spacing-scale), also exposed as `--e-spacing-<step>` |
 | `durationFast`, `durationMedium`, `durationSlow`, `easingEnter`, `easingLeave` | `100`, `150`, `250` (ms), `cubic-bezier(0.22, 1, 0.36, 1)`, `cubic-bezier(0.4, 0, 1, 1)` — the [motion tokens](./ui-overlays.md#motion). Given as numbers to `new Theme({ settings })`; `theme.motion` holds the values for JS, `theme.settings.durationFast` gives `var(--e-duration-fast, 100ms)` for CSS transitions |
 
@@ -186,7 +187,7 @@ Every `theme.colors.<name>` is a `Mix`. Its string value is a CSS color expressi
 | *(itself)* | The color: `var(--e-color-<name>)` |
 | `.mid` | Halfway between `bg` and the color (`intensityMid`) — focus rings, moderate accents, disabled text |
 | `.faded` | The color softened toward `bg` (`intensityFaded`) — opaque muted text on a known surface |
-| `.strong`, `.very_strong` | Mixed toward `text` |
+| `.ink` | The color mixed into `text` (`intensityInk` of the color) — coloured text that stays close to the text color. Mixing toward `text` lowers the saturation, so it is a duller color than the full one |
 | `.hover` | Surface level n+1 relative to the ambient level |
 | `.separator` | Surface level n+2 — container edges, dividers |
 | `.selected`, `.selected_hover` | Surface level n+3, n+4 — a selected item, and the same item hovered or keyboard-active |
@@ -194,7 +195,7 @@ Every `theme.colors.<name>` is a `Mix`. Its string value is a CSS color expressi
 | `.from_bg(pct, alpha?)`, `.from_text(pct, alpha?)`, `.from(other, pct, alpha?)` | Explicit mix, for needs no named member covers |
 | `.alpha(a)` | The color at opacity `a` (0–1): `oklch(from <color> l c h / a)`. Translucent, so the surface underneath shows through, and read from the live colors, so inside an inverted band it fades the band's own text — muted text that must follow inverted bands, light fills |
 | `.css_as_surface(level)`, `.class_as_surface(level)` | Become a surface at that level, propagating it to children |
-| `.css_as_tint`, `.class_as_tint` | Make this color the subtree's `tint` |
+| `.css_as_tint`, `.class_as_tint` | Make this color the subtree's `tint`; under a `tint`-family [surface](#surfaces-and-levels), the surface follows it |
 | `.css_as_inverted`, `.class_as_inverted` | Invert: background = this color, `text` and `tint` = the light theme's `bg` ([Inversion](#inversion)) |
 
 ## Custom CSS

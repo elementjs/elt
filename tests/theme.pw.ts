@@ -93,7 +93,7 @@ test.describe("Color/Mix merge", () => {
       return {
         same_mix: same(() => tint.faded) && same(() => tint.from_bg("37%")),
         inverted: same(() => tint.faded.class_as_inverted),
-        tint: same(() => tint.strong.class_as_tint),
+        tint: same(() => tint.ink.class_as_tint),
         surface: same(() => tint.mid.class_as_surface(2)),
         distinct: tint.faded !== tint.mid,
       }

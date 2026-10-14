@@ -22,7 +22,7 @@ How to convert code written against older versions of elt, against elt-shoelace 
   - `theme.colors.tint` ≈ the old "600" accent
   - `.hover` / `.separator` ≈ the very muted fills and dividers (old 50–100), relative to the surface they sit on
   - `.faded` / `.mid` ≈ borders and muted chrome
-  - `.strong` / `.very_strong` ≈ near-text emphasis
+  - `.ink` ≈ near-text emphasis
 - Replace fixed steps with these roles, or with an explicit `.from_bg(...)` / `.from_text(...)` when no role fits. The roles are described in [Theme and colors](./ui-theme.md#colors).
 
 ## Earlier elt/ui names

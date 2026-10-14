@@ -27,8 +27,7 @@ export interface ThemeSettings {
   intensityMid: string
   intensityFaded: string
 
-  intensityStrong: string
-  intensityVeryStrong: string
+  intensityInk: string
 
   spacingNudge1: string
   spacingNudge2: string
@@ -342,8 +341,7 @@ export class Theme<AllColors extends ColorScheme> {
     this._set(theme.settings ?? {}, "borderRadius", "8px")
     this._set(theme.settings ?? {}, "intensityMid", "50%")
     this._set(theme.settings ?? {}, "intensityFaded", "80%")
-    this._set(theme.settings ?? {}, "intensityStrong", "10%")
-    this._set(theme.settings ?? {}, "intensityVeryStrong", "50%")
+    this._set(theme.settings ?? {}, "intensityInk", "50%")
     this._set(theme.settings ?? {}, "monospaceFontFamily", "'IBM Plex Mono', 'Cascadia Code', 'Fira Code', monospace")
     this._set(theme.settings ?? {}, "fontFamily", `"IBM Plex Sans",  system-ui, sans-serif`)
     this._set(theme.settings ?? {}, "fontSize", "16px")
@@ -846,7 +844,18 @@ export class Mix {
   get css_as_tint() {
     return `--e-color-tint: ${this.expr};
     --e-light-color-tint: ${this.light_frozen_expr};
-    --e-dark-color-tint: ${this.dark_frozen_expr};`
+    --e-dark-color-tint: ${this.dark_frozen_expr};
+    /* Under a surface of the tint family, the surface variables hold the OUTER tint's colors (a custom
+       property is resolved where it is declared): redeclare them with this tint, at the ambient level.
+       The query looks at the parent's --e-surface-is-tint (see Mix.css_as_surface). The ambient mix
+       (hover fills) has to beat the "& > *" relay rule of the parent surface, hence the doubled "&".
+       The surface color is not redeclared on an element with a [surface] of its own: it keeps its own
+       (it would win over the attribute's layered rule). A surface state that repainted it (selected,
+       hovered row) is not restored, and neither is one set by class_as_surface. */
+    @container style(--e-surface-is-tint: 1) {
+      && { --e-surface-mix: ${TINT_EXPR}; }
+      &:not([surface]) { --e-current-surface: ${theme.colors.tint.surface("n+0")}; }
+    }`
   }
 
   /** Class-name form of `css_as_tint`. */
@@ -950,12 +959,13 @@ export class Mix {
     return this.from_bg(theme.settings.intensityFaded)
   }
 
-  get strong() {
-    return this.from_text(theme.settings.intensityStrong)
-  }
-
-  get very_strong() {
-    return this.from_text(theme.settings.intensityVeryStrong)
+  /**
+   * The color mixed into `text` (`intensityInk` of the color, the rest text): coloured text that
+   * stays close to the text color, so it reads well on any surface. Mixing toward `text` lowers the
+   * saturation (text is grey), so this is a duller color than the full one, not a stronger one.
+   */
+  get ink() {
+    return this.from_text(theme.settings.intensityInk)
   }
 
   /**
@@ -1050,6 +1060,10 @@ export class Mix {
        [surface] is offset from its own new family, not the one it was nested in. */
     --e-current-surface-mix: ${this.expr};
     --e-surface-mix-relay: var(--e-current-surface-mix);
+    /* Whether this surface is of the \`tint\` family: --e-current-surface and --e-surface-mix are resolved
+       colors, so a descendant that changes the tint (css_as_tint) can't tell, from them, which surfaces
+       to repaint with its own tint. Inherited like --e-current-surface; absent above any surface. */
+    --e-surface-is-tint: ${this.expr === TINT_EXPR ? 1 : 0};
     background-color: ${own_background};
     /* --e-current-surface is the resolved color itself (not the level/family that produced it),
        an ordinary inheriting property so descendants — packed[border] children in particular —
@@ -1077,6 +1091,9 @@ export class Mix {
     )
   }
 }
+
+/** The `tint` family's expression: what `Mix.css_as_surface` and `css_as_tint` compare and redeclare. */
+const TINT_EXPR = "var(--e-color-tint)"
 
 /** A `Mix` whose identity color is whichever family is ambient (this element's own `[surface]`,
  * if it set one, else the nearest ancestor's) — used by `[hover]:hover` (`ui/layout.css.tsx`) so
