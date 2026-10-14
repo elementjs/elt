@@ -39,10 +39,11 @@ test.describe("composite chrome", () => {
     expect(lines).toHaveLength(2)
     expect(lines[0]!.text).toBe("Object (2)")
     expect(lines[0]!.one_line).toBe(true)
-    expect(lines[0]!.buttons).toEqual(["…", "Undo", "Redo"])
+    // Nothing to undo yet: no Undo/Redo.
+    expect(lines[0]!.buttons).toEqual(["…", "Add"])
     expect(lines[1]!.text).toBe("address · Object (2)")
     expect(lines[1]!.one_line).toBe(true)
-    expect(lines[1]!.buttons).toEqual(["…", "×"])
+    expect(lines[1]!.buttons).toEqual(["…", "×", "Add"])
   })
 
   test("a popup gets the same single header line, with ×", async ({ page }) => {
@@ -71,7 +72,7 @@ test.describe("composite chrome", () => {
     })
     expect(result.text).toBe("nested · Object (1)")
     // No `…`: the declared single-type slot offers no type change, and a declared key can't be deleted.
-    expect(result.buttons).toEqual(["×"])
+    expect(result.buttons).toEqual(["×", "Add"])
     expect(result.has_footer).toBe(true)
   })
 
@@ -89,12 +90,13 @@ test.describe("composite chrome", () => {
       const footer_of = (node: HTMLElement) => node.querySelector('e-row[surface="neutral-1"]')
       const free_footer = footer_of(free.node)
       return {
-        free_add: free_footer?.querySelector("button")?.textContent?.trim(),
+        // The Add button is on the header line, named in full by its tooltip.
+        free_add: free.node.querySelector('button[title="Add key"]')?.textContent?.trim(),
         free_search: free_footer?.querySelector('input[type="search"]') != null,
         closed_footer: footer_of(closed.node) !== null,
       }
     })
-    expect(result.free_add).toBe("+ Add key")
+    expect(result.free_add).toBe("Add")
     expect(result.free_search).toBe(true)
     expect(result.closed_footer).toBe(false)
   })

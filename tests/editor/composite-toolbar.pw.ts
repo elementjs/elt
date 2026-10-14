@@ -75,3 +75,74 @@ test.describe("type change actions", () => {
     expect(result).toBe(true)
   })
 })
+
+test.describe("filter options", () => {
+  test("regular expression: matched on the texts, case follows Aa, an invalid pattern filters nothing", async ({
+    page,
+  }) => {
+    const r = await page.evaluate(() => {
+      const { row_matches_search } = window.__ELT__.Editor
+      return {
+        match: row_matches_search("^Ad.$", false, ["name", "Ada"], true),
+        anchored_miss: row_matches_search("^da", false, ["name", "Ada"], true),
+        case_insensitive: row_matches_search("ADA", false, ["Ada"], true),
+        case_sensitive: row_matches_search("ADA", true, ["Ada"], true),
+        invalid: row_matches_search("(a", false, ["Ada"], true),
+        // The same text is a plain substring without the option: the parenthesis is a character.
+        literal: row_matches_search("a.", false, ["Ada"], false),
+      }
+    })
+    expect(r).toEqual({
+      match: true,
+      anchored_miss: false,
+      case_insensitive: true,
+      case_sensitive: false,
+      invalid: true,
+      literal: false,
+    })
+  })
+
+  test("the two option toggles are neutral, whatever the column's color, and filter the rows", async ({ page }) => {
+    await page.evaluate(() => {
+      const { o, node_append } = window.__ELT__
+      const shell = new window.__ELT__.Editor.ObjectEditorShell(o<unknown>(["ada", "bob", "Adam"]), { packed: true })
+      shell.node.id = "shell"
+      node_append(document.body, shell.node)
+    })
+    const color_of = (selector: string) =>
+      page.locator(selector).evaluate((el) => {
+        const probe = document.createElement("div")
+        probe.style.color = "var(--e-color-tint)"
+        el.append(probe)
+        const c = getComputedStyle(probe).color
+        probe.remove()
+        return c
+      })
+    const neutral = await page.evaluate(() => {
+      const probe = document.createElement("div")
+      probe.style.color = window.__ELT__.UI.theme.colors.neutral.toString()
+      document.body.append(probe)
+      const c = getComputedStyle(probe).color
+      probe.remove()
+      return c
+    })
+    expect(await color_of('#shell label[title="Match case"]')).toBe(neutral)
+    expect(await color_of('#shell label[title="Regular expression"]')).toBe(neutral)
+    // The column keeps its type color.
+    expect(await color_of("#shell e-column[packed]")).not.toBe(neutral)
+
+    const rows = () => page.locator("#shell e-grid-row").count()
+    expect(await rows()).toBe(3)
+    const search = page.locator('#shell input[type="search"]')
+    await search.fill("^a")
+    // Not a regular expression yet: "^a" is a substring that no text contains.
+    await expect.poll(rows).toBe(0)
+    await page.locator('#shell label[title="Regular expression"]').click()
+    await expect.poll(rows).toBe(2)
+    await page.locator('#shell label[title="Match case"]').click()
+    await expect.poll(rows).toBe(1)
+    await search.fill("(a")
+    await expect(search).toHaveAttribute("aria-invalid", "true")
+    await expect.poll(rows).toBe(3)
+  })
+})

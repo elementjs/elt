@@ -20,6 +20,7 @@ implementation slice. Implements:
 import { $connected, $observe, $on, css, type Attrs, type Decorator, o, Repeat, type Renderable } from "elt"
 import { theme } from "elt/ui"
 import { DownloadSimple } from "elt/ui/icons"
+import { ArrowClockwise, ArrowCounterClockwise } from "./icons"
 import { popup } from "elt/ui/popup"
 import { $keymap } from "elt/ui/keymap"
 import { default_settings, type EditorSettings, resolve_settings } from "./composite-toolbar"
@@ -399,9 +400,16 @@ export class ObjectEditorShell {
       return [column.title, type_label].filter((part) => part != null && part !== "").join(" · ")
     })
     const has_undo_buttons = is_root && this.options.undo !== false && this.options.show_undo_redo !== false
-    // The root's header line goes away when nothing is left on it. Any other column keeps it for its ×.
+    // The root's header line goes away when nothing is left on it (no label, menu, action, Add button, or
+    // Undo/Redo to offer). Any other column keeps it for its ×.
     const o_has_header = o.expression(
-      (get) => !is_root || has_undo_buttons || get(o_label) !== "" || get(o_has_menu) || get(o_header)?.actions != null,
+      (get) =>
+        !is_root ||
+        (has_undo_buttons && (get(this.undo.o_can_undo) || get(this.undo.o_can_redo))) ||
+        get(o_label) !== "" ||
+        get(o_has_menu) ||
+        get(o_header)?.actions != null ||
+        get(o_header)?.add != null,
     )
     // Packed: `packed border` -- the column draws its frame; header line, toolbar and rows touch,
     // separated by the column's lines (the header line and toolbar are groups inside it, cells of
@@ -431,13 +439,16 @@ export class ObjectEditorShell {
                 class={cls_header}
               >
                 {$editor_menu_when(settings.show_menu, menu)}
-                <strong e-ellipsis title={o_label}>
-                  {/* The icon of the column's type, before the title (none when the title is hidden). */}
-                  {o.expression((get) =>
-                    get(o_label) === "" ? null : <span class={cls_header_icon}>{get(o_style).icon()}</span>,
-                  )}
-                  {o_label}
-                </strong>
+                {/* The title: the icon of the column's type, then the label; none when the title is hidden. */}
+                {o_label.tf(
+                  (label) =>
+                    label !== "" && (
+                      <strong e-ellipsis title={label}>
+                        <span class={cls_header_icon}>{o_style.tf((style) => style.icon())}</span>
+                        {label}
+                      </strong>
+                    ),
+                )}
                 {o_header.tf((header) => header?.actions ?? null)}
                 {o_has_menu.tf(
                   (has) =>
@@ -447,24 +458,42 @@ export class ObjectEditorShell {
                       </button>
                     ),
                 )}
-                {has_undo_buttons ? (
-                  <>
-                    <button type="button" disabled={this.undo.o_can_undo.tf((v) => !v)}>
-                      {$on("click", () => this.undo.undo())}
-                      Undo
-                    </button>
-                    <button type="button" disabled={this.undo.o_can_redo.tf((v) => !v)}>
-                      {$on("click", () => this.undo.redo())}
-                      Redo
-                    </button>
-                  </>
-                ) : (
-                  !is_root && (
-                    <button type="button" aria-label="Close">
-                      {$on("click", close)}×
-                    </button>
-                  )
+                {/* Undo and Redo, packed together, only when there is something to undo or redo. */}
+                {has_undo_buttons &&
+                  o
+                    .expression((get) => get(this.undo.o_can_undo) || get(this.undo.o_can_redo))
+                    .tf(
+                      (any) =>
+                        any && (
+                          <e-row packed="widget">
+                            {this.undo.o_can_undo.tf(
+                              (can) =>
+                                can && (
+                                  <button type="button" title="Undo" aria-label="Undo">
+                                    {$on("click", () => this.undo.undo())}
+                                    {ArrowCounterClockwise()}
+                                  </button>
+                                ),
+                            )}
+                            {this.undo.o_can_redo.tf(
+                              (can) =>
+                                can && (
+                                  <button type="button" title="Redo" aria-label="Redo">
+                                    {$on("click", () => this.undo.redo())}
+                                    {ArrowClockwise()}
+                                  </button>
+                                ),
+                            )}
+                          </e-row>
+                        ),
+                    )}
+                {!has_undo_buttons && !is_root && (
+                  <button type="button" aria-label="Close">
+                    {$on("click", close)}×
+                  </button>
                 )}
+                {/* The "Add" button of a composite, at the very end. */}
+                {o_header.tf((header) => header?.add ?? null)}
               </e-row>
             ),
         )}

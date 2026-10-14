@@ -6,25 +6,65 @@ import/export, Delete) is the shell's: it knows the column's slot and parent.
 */
 
 import { $bind, $click, o, type Renderable } from "elt"
+import { theme } from "elt/ui/theme"
+import { Plus } from "./icons"
 import type { CommonNodeOptions, Factory, WidgetHeader } from "./schema"
+
+const neutral_tint = theme.colors.neutral.class_as_tint
 
 /** Per-mount row filter state — lives in the composite render() closure. */
 export interface FilterState {
   o_query: o.Observable<string>
   o_case_sensitive: o.Observable<boolean>
+  /** The query is a regular expression. */
+  o_regex: o.Observable<boolean>
+  /** Whether a row (its key and value texts) passes the filter; `null`: no filtering (empty or invalid query). Compiled once per change of the query or its options, not once per row. */
+  o_matcher: o.ReadonlyObservable<RowMatcher | null>
+  /** The query is a regular expression that doesn't compile. */
+  o_invalid: o.ReadonlyObservable<boolean>
+}
+
+export type RowMatcher = (parts: string[]) => boolean
+
+/** Compile the search field: a substring or a regular expression test of the rows' texts. */
+function compile_filter(
+  query: string,
+  case_sensitive: boolean,
+  regex: boolean,
+): { matcher: RowMatcher | null; invalid: boolean } {
+  const trimmed = query.trim()
+  if (!trimmed) return { matcher: null, invalid: false }
+  if (regex) {
+    try {
+      const re = new RegExp(trimmed, case_sensitive ? "" : "i")
+      return { matcher: (parts) => parts.some((part) => re.test(part)), invalid: false }
+    } catch {
+      // Typing a pattern passes through invalid ones ("(a"): keep every row until it compiles.
+      return { matcher: null, invalid: true }
+    }
+  }
+  const norm = (s: string) => (case_sensitive ? s : s.toLowerCase())
+  const q = norm(trimmed)
+  return { matcher: (parts) => parts.some((part) => norm(part).includes(q)), invalid: false }
 }
 
 export function create_filter_state(): FilterState {
-  return { o_query: o(""), o_case_sensitive: o(false) }
+  const o_query = o("")
+  const o_case_sensitive = o(false)
+  const o_regex = o(false)
+  const o_compiled = o.expression((get) => compile_filter(get(o_query), get(o_case_sensitive), get(o_regex)))
+  return {
+    o_query,
+    o_case_sensitive,
+    o_regex,
+    o_matcher: o_compiled.tf((c) => c.matcher),
+    o_invalid: o_compiled.tf((c) => c.invalid),
+  }
 }
 
 /** Match a row against the search field (keys + value previews, Layer 2). */
-export function row_matches_search(query: string, case_sensitive: boolean, parts: string[]): boolean {
-  const trimmed = query.trim()
-  if (!trimmed) return true
-  const norm = (s: string) => (case_sensitive ? s : s.toLowerCase())
-  const q = norm(trimmed)
-  return parts.some((part) => norm(part).includes(q))
+export function row_matches_search(query: string, case_sensitive: boolean, parts: string[], regex = false): boolean {
+  return compile_filter(query, case_sensitive, regex).matcher?.(parts) ?? true
 }
 
 /** Shallow preview text for search / display (not the drill-in preview button). */
@@ -154,37 +194,45 @@ export function render_composite_chrome(props: CompositeToolbarProps): {
   })
 
   const add = settings.show_add ? props.add : null
+  // The "Add" button is the last thing on the header line (the shell places it); its full name is its tooltip.
+  const add_button = add && (
+    <button type="button" title={add.label} aria-label={add.label}>
+      {$click(add.on_add)}
+      {Plus()} Add
+    </button>
+  )
   // Packed: a band of touching widgets in the column's frame. Unpacked: a plain row of spaced widgets.
-  const toolbar =
-    settings.show_filter || add ? (
-      <e-row
-        surface={settings.packed ? "neutral-1" : undefined}
-        packed={settings.packed ? "widget" : undefined}
-        align={settings.packed ? "stretch" : "baseline"}
+  const toolbar = settings.show_filter ? (
+    <e-row
+      surface={settings.packed ? "neutral-1" : undefined}
+      packed={settings.packed ? "widget" : undefined}
+      align={settings.packed ? "stretch" : "baseline"}
+    >
+      <input
+        type="search"
+        e-ellipsis
+        placeholder="Filter rows…"
+        aria-invalid={filter.o_invalid.tf((v) => (v ? "true" : undefined))}
       >
-        {add && (
-          <button type="button">
-            {$click(add.on_add)}+ {add.label}
-          </button>
-        )}
-        {settings.show_filter && (
-          <>
-            <input type="search" e-ellipsis placeholder="Filter rows…">
-              {$bind.string(filter.o_query)}
-            </input>
-            <label e-widget="toggle" title="Match case">
-              <input type="checkbox">{$bind.boolean(filter.o_case_sensitive)}</input>
-              Aa
-            </label>
-          </>
-        )}
-      </e-row>
-    ) : null
+        {$bind.string(filter.o_query)}
+      </input>
+      {/* The options are not about the type: neutral, like the input, whatever the column's color. */}
+      <label e-widget="toggle" title="Match case" class={neutral_tint}>
+        <input type="checkbox">{$bind.boolean(filter.o_case_sensitive)}</input>
+        Aa
+      </label>
+      <label e-widget="toggle" title="Regular expression" class={neutral_tint}>
+        <input type="checkbox">{$bind.boolean(filter.o_regex)}</input>
+        .*
+      </label>
+    </e-row>
+  ) : null
 
   return {
     header: {
       o_label,
       actions: props.warning ?? null,
+      add: add_button,
       import_export: factory.options.show_import_export === false ? [] : import_export_addons,
     },
     toolbar,

@@ -166,7 +166,7 @@ test.describe("show_* flags", () => {
         const shell = new ObjectEditorShell(o({ a: "x" }), options)
         node_append(document.body, shell.node)
         return {
-          add: [...shell.node.querySelectorAll("button")].some((b) => b.textContent?.includes("Add key")),
+          add: shell.node.querySelector('button[aria-label="Add key"]') != null,
           filter: shell.node.querySelector('input[type="search"]') != null,
         }
       }
@@ -200,7 +200,9 @@ test.describe("show_* flags", () => {
     expect(result).toEqual([false, true, false])
   })
 
-  test("show_title hides the label only; the header line goes when nothing else is on it", async ({ page }) => {
+  test("show_title hides the label only; the header line goes when nothing else is on it (the Add button is something)", async ({
+    page,
+  }) => {
     const result = await page.evaluate(() => {
       const { o, node_append } = window.__ELT__
       const { ObjectEditorShell } = window.__ELT__.Editor
@@ -210,7 +212,9 @@ test.describe("show_* flags", () => {
         const header = shell.node.querySelector("strong")
         return {
           label: header?.textContent ?? null,
-          buttons: [...shell.node.querySelectorAll("button")].map((b) => b.textContent?.trim()),
+          buttons: [...shell.node.querySelectorAll("button")].map(
+            (b) => b.textContent?.trim() || b.getAttribute("aria-label"),
+          ),
         }
       }
       return {
@@ -218,11 +222,10 @@ test.describe("show_* flags", () => {
         bare: mk({ show_title: false, show_menu: false, show_undo_redo: false }),
       }
     })
-    expect(result.title_off.label).toBe("")
-    expect(result.title_off.buttons).toEqual(["…", "Undo", "Redo", "+ Add key"])
-    // No header line at all: no label element, none of its buttons.
+    expect(result.title_off.label).toBeNull()
+    expect(result.title_off.buttons).toEqual(["…", "Add"])
     expect(result.bare.label).toBeNull()
-    expect(result.bare.buttons).toEqual(["+ Add key"])
+    expect(result.bare.buttons).toEqual(["Add"])
   })
 
   test("show_menu: false removes the … button and the right-click menus", async ({ page }) => {
@@ -260,10 +263,10 @@ test.describe("undo", () => {
 
   test("show_undo_redo: false hides the buttons; Mod+z still undoes outside a text field", async ({ page }) => {
     await mount(page, "{ show_undo_redo: false }")
-    expect(await page.locator("#shell button", { hasText: /^(Undo|Redo)$/ }).count()).toBe(0)
+    expect(await page.locator('#shell button[aria-label="Undo"], #shell button[aria-label="Redo"]').count()).toBe(0)
     await page.evaluate(() => (window as any).o_root.set({ a: "y" }))
     // Focus on the editor's header/menu button: not a text field.
-    await page.locator("#shell button", { hasText: "+ Add key" }).focus()
+    await page.locator('#shell button[aria-label="Add key"]').focus()
     await page.keyboard.press("ControlOrMeta+z")
     expect(await page.evaluate(() => (window as any).o_root.get())).toEqual({ a: "x" })
     await page.keyboard.press("ControlOrMeta+Shift+z")
@@ -280,9 +283,9 @@ test.describe("undo", () => {
 
   test("undo: false has no buttons, no history and no shortcut", async ({ page }) => {
     await mount(page, "{ undo: false }")
-    expect(await page.locator("#shell button", { hasText: /^(Undo|Redo)$/ }).count()).toBe(0)
+    expect(await page.locator('#shell button[aria-label="Undo"], #shell button[aria-label="Redo"]').count()).toBe(0)
     await page.evaluate(() => (window as any).o_root.set({ a: "y" }))
-    await page.locator("#shell button", { hasText: "+ Add key" }).focus()
+    await page.locator('#shell button[aria-label="Add key"]').focus()
     await page.keyboard.press("ControlOrMeta+z")
     expect(await page.evaluate(() => (window as any).o_root.get())).toEqual({ a: "y" })
   })

@@ -164,7 +164,7 @@ test.describe("ObjectFactory keys", () => {
       const widget = schema.render(o_root as any)
       node_append(document.body, widget.render() as HTMLElement)
       return {
-        hasAddKey: [...document.querySelectorAll("button")].some((b) => b.textContent?.includes("Add key")),
+        hasAddKey: [...document.querySelectorAll("button")].some((b) => b.getAttribute("aria-label") === "Add key"),
         textInputCount: document.querySelectorAll("input[type=text]").length,
       }
     })
@@ -193,8 +193,9 @@ test.describe("ObjectFactory keys", () => {
       const widget = array({ values: string(), item_default: "" }).render(o_tags as any)
       node_append(document.body, widget.render() as HTMLElement)
       node_append(document.body, widget.toolbar!)
+      node_append(document.body, widget.header!.add as HTMLElement)
 
-      const add = [...document.querySelectorAll("button")].find((b) => b.textContent?.includes("Add item"))
+      const add = [...document.querySelectorAll("button")].find((b) => b.getAttribute("aria-label") === "Add item")
       const addDefined = add !== undefined
       add?.click()
 
@@ -219,8 +220,9 @@ test.describe("ObjectFactory keys", () => {
       const widget = set({ values: string(), item_default: "" }).render(o_tags as any)
       node_append(document.body, widget.render() as HTMLElement)
       node_append(document.body, widget.toolbar!)
+      node_append(document.body, widget.header!.add as HTMLElement)
 
-      const add = [...document.querySelectorAll("button")].find((b) => b.textContent?.includes("Add member"))
+      const add = [...document.querySelectorAll("button")].find((b) => b.getAttribute("aria-label") === "Add member")
       add?.click()
       // Adding the row is not an edit: nothing is committed yet.
       const after_add = [...o_tags.get()]
@@ -244,8 +246,9 @@ test.describe("ObjectFactory keys", () => {
       const widget = map({ keys: string(), values: string() }).render(o_dict as any)
       node_append(document.body, widget.render() as HTMLElement)
       node_append(document.body, widget.toolbar!)
+      node_append(document.body, widget.header!.add as HTMLElement)
 
-      const add = [...document.querySelectorAll("button")].find((b) => b.textContent?.includes("Add entry"))
+      const add = [...document.querySelectorAll("button")].find((b) => b.getAttribute("aria-label") === "Add entry")
       add?.click()
       const after_add = [...o_dict.get().entries()]
 

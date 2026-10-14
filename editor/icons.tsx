@@ -6,6 +6,18 @@ those of elt/ui (ui/icons.tsx, which also holds the helpers drawing them). A typ
 
 import { dot, icon, stroked as s } from "elt/ui/icons"
 
+export const ArrowCounterClockwise = /** @__PURE__ */ () =>
+  icon(s("polyline", "points", "24 56 24 104 72 104"), s("path", "d", "M67.59,192A88,88,0,1,0,65.77,65.77L24,104"))
+
+export const ArrowClockwise = /** @__PURE__ */ () =>
+  icon(s("polyline", "points", "184 104 232 104 232 56"), s("path", "d", "M188.4,192a88,88,0,1,1,1.83-126.23L232,104"))
+
+export const Plus = /** @__PURE__ */ () =>
+  icon(
+    s("line", "x1", "40", "y1", "128", "x2", "216", "y2", "128"),
+    s("line", "x1", "128", "y1", "40", "x2", "128", "y2", "216"),
+  )
+
 export const Prohibit = /** @__PURE__ */ () =>
   icon(
     s("line", "x1", "195.88", "y1", "195.88", "x2", "60.12", "y2", "60.12"),

@@ -52,7 +52,6 @@ import {
   type FilterState,
   render_composite_chrome,
   resolve_settings,
-  row_matches_search,
   value_preview_text,
 } from "./composite-toolbar"
 import { $editor_menu_when, delete_section, type MenuSection, type_change_item } from "./context-menu"
@@ -122,6 +121,8 @@ export interface RenderableWidget {
 export interface WidgetHeader {
   o_label: o.ReadonlyObservable<string | null>
   actions: Renderable
+  /** The "Add" button, the last thing on the header line. */
+  add?: Renderable | null
   import_export?: { id: string; label: string }[]
 }
 
@@ -962,11 +963,10 @@ export class ObjectFactory extends Factory<ObjectOptions> {
     const o_visible_keys = o.expression((get) => {
       const keys = get(o_row_keys)
       const root = get(o_value)
-      const query = get(filter.o_query)
-      const case_sensitive = get(filter.o_case_sensitive)
+      const matches = get(filter.o_matcher)
       if (typeof root !== "object" || root === null || Array.isArray(root)) return keys
       const obj = root as Record<string, unknown>
-      return keys.filter((key) => row_matches_search(query, case_sensitive, [key, value_preview_text(obj[key])]))
+      return matches ? keys.filter((key) => matches([key, value_preview_text(obj[key])])) : keys
     })
 
     // Transient rows live outside the observable until the key commits (Layer 1).
@@ -1383,14 +1383,13 @@ function visible_array_indices(
 ) {
   return o.expression((get) => {
     const arr = get(o_value)
-    const query = get(filter.o_query)
-    const case_sensitive = get(filter.o_case_sensitive)
+    const matches = get(filter.o_matcher)
     if (!Array.isArray(arr)) return [] as number[]
     // No filter: skip building every row's preview text.
-    if (!query.trim()) return arr.map((_, i) => i)
+    if (!matches) return arr.map((_, i) => i)
     const res: number[] = []
     for (let i = 0; i < arr.length; i++) {
-      if (row_matches_search(query, case_sensitive, [String(i), ...parts(arr[i])])) res.push(i)
+      if (matches([String(i), ...parts(arr[i])])) res.push(i)
     }
     return res
   })
@@ -1431,9 +1430,8 @@ export class SetFactory extends Factory<SetOptions> {
     const o_members = o_value.tf((v) => (v instanceof Set ? [...v] : []))
     const o_visible_members = o.expression((get) => {
       const members = get(o_members)
-      const query = get(filter.o_query)
-      const case_sensitive = get(filter.o_case_sensitive)
-      return members.filter((m) => row_matches_search(query, case_sensitive, [value_preview_text(m)]))
+      const matches = get(filter.o_matcher)
+      return matches ? members.filter((m) => matches([value_preview_text(m)])) : members
     })
 
     const transient_rows = new Map<string, o.Observable<unknown>>()
@@ -1546,12 +1544,9 @@ export class MapFactory extends Factory<MapOptions> {
     const o_visible_keys = o.expression((get) => {
       const keys = get(o_entry_keys)
       const m = get(o_value)
-      const query = get(filter.o_query)
-      const case_sensitive = get(filter.o_case_sensitive)
+      const matches = get(filter.o_matcher)
       if (!(m instanceof Map)) return keys
-      return keys.filter((k) =>
-        row_matches_search(query, case_sensitive, [value_preview_text(k), value_preview_text(m.get(k))]),
-      )
+      return matches ? keys.filter((k) => matches([value_preview_text(k), value_preview_text(m.get(k))])) : keys
     })
 
     const transient_rows = new Map<string, { o_key: o.Observable<unknown>; o_val: o.Observable<unknown> }>()

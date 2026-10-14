@@ -65,7 +65,7 @@ test.describe("row menu", () => {
     await del.click()
     expect(await root(page)).toEqual({ age: 36 })
     await expect(page.locator("[popover]")).toHaveCount(0)
-    await page.locator("#shell button", { hasText: "Undo" }).click()
+    await page.locator('#shell button[aria-label="Undo"]').click()
     expect(await root(page)).toEqual({ name: "Ada", age: 36 })
   })
 
@@ -230,7 +230,7 @@ test.describe("row menu", () => {
 
   test("a row not committed yet: Delete discards it", async ({ page }) => {
     await mount(page, `[1]`)
-    await page.locator("#shell button", { hasText: "Add item" }).click()
+    await page.locator('#shell button[aria-label="Add item"]').click()
     await expect(page.locator("#shell e-grid-row")).toHaveCount(2)
     await page.locator("#shell e-grid-row").nth(1).locator("> :first-child").click({ button: "right" })
     await expect.poll(() => menus(page)).toEqual([["Delete"]])
