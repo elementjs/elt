@@ -12,6 +12,10 @@ export interface ThemeSettings {
   formFontSize: string
   focusRingSize: string
 
+  /** Where the light comes from, as a pair of unitless numbers: a shadow falls `shadowLightX` to the right for every `shadowLightY` down (1 and 2: the light is above and a little to the left, and every shadow of the page agrees on it). Used by `Theme.overlay_shadow_layers`. */
+  shadowLightX: string
+  shadowLightY: string
+
   /** Size of a popup's content: at least `popupMinWidth` wide, at most `popupMaxWidth` wide and `popupMaxHeight` tall (and within the room next to its anchor). */
   popupMinWidth: string
   popupMaxWidth: string
@@ -71,6 +75,22 @@ const DEFAULT_MOTION: MotionTokens = {
   easingEnter: "cubic-bezier(0.22, 1, 0.36, 1)",
   easingLeave: "cubic-bezier(0.4, 0, 1, 1)",
 }
+
+/**
+ * How dark overlay shadows are, per scheme (a multiplier of the shadow opacity, `--e-shadow-strength`).
+ * A shadow can only darken, and on a dark surface that is barely visible: the dark scheme makes up
+ * for it with opacity. Set with the scheme's colors, so the three scheme classes (light, dark,
+ * dynamic) all get it.
+ */
+const SHADOW_STRENGTH_LIGHT = "--e-shadow-strength: 1;"
+const SHADOW_STRENGTH_DARK = "--e-shadow-strength: 1.8;"
+
+/**
+ * The elevation of the overlays: how far, in px, the farthest layer of the shadow falls down, and how
+ * many layers it has. A popup floats just above what it was opened from, a dialog well above the page.
+ * See `Theme.overlay_shadow_layers`.
+ */
+const OVERLAY_SHADOW = { popup: { elevation: 3, layers: 3 }, dialog: { elevation: 16, layers: 5 } } as const
 
 /** What `new Theme({ settings })` takes: CSS values, and motion tokens as numbers / easings. */
 export type ThemeSettingsInput = Partial<Omit<ThemeSettings, keyof MotionTokens>> & Partial<MotionTokens>
@@ -332,6 +352,8 @@ export class Theme<AllColors extends ColorScheme> {
     this._set(theme.settings ?? {}, "formFontSize", "14px")
 
     this._set(theme.settings ?? {}, "focusRingSize", "2px")
+    this._set(theme.settings ?? {}, "shadowLightX", "1")
+    this._set(theme.settings ?? {}, "shadowLightY", "2")
 
     this._set(theme.settings ?? {}, "popupMinWidth", "0px")
     this._set(theme.settings ?? {}, "popupMaxWidth", "100vw")
@@ -390,20 +412,24 @@ export class Theme<AllColors extends ColorScheme> {
 
   @memoize
   get css_dark_colors() {
-    return Object.keys(this.colors)
-      .map((name) => {
-        return `--e-color-${name}: var(--e-dark-color-${name});`
-      })
-      .join("")
+    return (
+      Object.keys(this.colors)
+        .map((name) => {
+          return `--e-color-${name}: var(--e-dark-color-${name});`
+        })
+        .join("") + SHADOW_STRENGTH_DARK
+    )
   }
 
   @memoize
   get css_light_colors() {
-    return Object.keys(this.colors)
-      .map((name) => {
-        return `--e-color-${name}: var(--e-light-color-${name});`
-      })
-      .join("")
+    return (
+      Object.keys(this.colors)
+        .map((name) => {
+          return `--e-color-${name}: var(--e-light-color-${name});`
+        })
+        .join("") + SHADOW_STRENGTH_LIGHT
+    )
   }
 
   @memoize
@@ -504,6 +530,37 @@ export class Theme<AllColors extends ColorScheme> {
   @memoize
   get bevel_drop() {
     return new Mix(this.colors.text.light_frozen_expr).alpha(0.2)
+  }
+
+  /**
+   * The declaration an overlay (a popup, a dialog) sets on itself for its shadow's color
+   * (`--e-shadow-base`): the surface the overlay falls on, darkened. On a tinted band the shadow is
+   * tinted too, like a real one. Its opacity is set per layer by `overlay_shadow_layers`.
+   */
+  get css_overlay_shadow_color() {
+    return "--e-shadow-base: color-mix(in oklab, var(--e-current-surface) 30%, black);"
+  }
+
+  /**
+   * The layers of an overlay's shadow, as `[x, y, blur, color]` CSS values (the color is read from
+   * `--e-shadow-base`, see `css_overlay_shadow_color`). Each layer is twice the one before, up to the
+   * level's elevation, so the shadow is sharp near the element and soft far away like a real one. The
+   * blur is twice the distance, and the sideways distance follows the page's light (`shadowLightX` and
+   * `shadowLightY`), the same for all layers. The opacity of the layers adds up to a fixed total, scaled
+   * by the scheme (`--e-shadow-strength`).
+   *
+   * `drop-shadow()` (a popup, so that the arrow casts its own) and `box-shadow` (a dialog) take the same
+   * four values, in the same order.
+   */
+  overlay_shadow_layers(level: keyof typeof OVERLAY_SHADOW): [x: string, y: string, blur: string, color: string][] {
+    const { elevation, layers } = OVERLAY_SHADOW[level]
+    const total_opacity = 0.36
+    const color = `oklch(from var(--e-shadow-base) l c h / calc(var(--e-shadow-strength, 1) * ${(total_opacity / layers).toFixed(3)}))`
+    return Array.from({ length: layers }, (_, i) => {
+      const y = elevation * 2 ** (i - (layers - 1))
+      const x = `calc(${y}px * ${this.settings.shadowLightX} / ${this.settings.shadowLightY})`
+      return [x, `${y}px`, `${y * 2}px`, color]
+    })
   }
 
   /**

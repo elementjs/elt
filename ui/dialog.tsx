@@ -125,6 +125,7 @@ dialog {
   max-height: var(--e-dialog-max-height, 80vh);
 
   transform-origin: center top;
+  ${theme.css_overlay_shadow_color}
 
   &[open] {
     display: flex;
@@ -135,7 +136,10 @@ dialog {
   & > * {
     flex: 1 1 auto;
     min-height: 0;
-    box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+    box-shadow: ${theme
+      .overlay_shadow_layers("dialog")
+      .map((l) => l.join(" "))
+      .join(", ")};
   }
 
   &::backdrop {

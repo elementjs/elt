@@ -119,6 +119,17 @@ How the states look. How an element gets one (the ARIA attributes and the rules)
 - **Focus**: a ring (`tint.mid`, `theme.settings.focusRingSize` wide), never a fill or a replaced border. Buttons, textareas, text, number and search inputs and `e-interactive` elements draw it inside their edge, so nothing can cut it (a scroll area clips what is outside its padding box, even when nothing overflows) and cells that touch don't cover it; checkboxes and switches, which cannot have a reasonable inset, draw it around themselves.
 - **Disabled**: a disabled control is furniture, whatever its emphasis: it turns `neutral`, and its full-strength colors move halfway toward its background (`.mid`). Its label becomes `text.mid` and its border `neutral.mid`, including for `tint`, `bare` and `link` buttons. An `inverted` control's fill becomes the halfway mix of `neutral` while its label keeps its color. A selected disabled control keeps the jump, in `neutral` three levels up; checkboxes and switches use `neutral` for their check mark and track. A `<label>` around a disabled control uses `text.mid`. No opacity is involved.
 
+## Elevation
+
+Popups and dialogs float above what is under them and cast a shadow. How high one floats is its **elevation**, in px: how far the farthest layer of its shadow falls down. A popup floats close, at 3px, since it only sits next to the element it came from; a dialog floats well above the page, at 16px. Every popup has the same elevation, whatever opened it. Controls and the page itself do not have one: their [bevels](#state) and borders are not shadows of this kind.
+
+- **Layers**: the shadow is several layers, each twice as far and twice as blurred as the one before (a popup has 3, a dialog 5), so it is sharp next to the element and soft far from it, like a real one. The opacities of the layers add up to a fixed total.
+- **One light**: every shadow falls the same way. `shadowLightX` and `shadowLightY` (a pair of numbers, `1` and `2` by default: the light is above and a little to the left) say how far it falls to the right for each distance down, for all the layers of all the shadows.
+- **Color**: the shadow takes the color of the surface it falls on, darkened, so on a tinted band it is tinted too, and not a gray. This is a shadow, so it is one of the places a color is made with transparency ([Why](#why)).
+- **Dark scheme**: a shadow can only darken, and on a dark surface that is hard to see, so the dark scheme multiplies the opacity by 1.8 (`--e-shadow-strength`, set by the scheme class, `1` in the light one). The geometry is the same in both.
+
+The pieces are `theme.css_overlay_shadow_color` (the declaration an overlay sets on itself for the color) and `theme.overlay_shadow_layers(level)` (the layers, as `[x, y, blur, color]`, for a `filter: drop-shadow()` or a `box-shadow`). `popup` and `show_dialog` use them; an app has no reason to, unless it draws its own floating element.
+
 ## Custom theme
 
 ```tsx
@@ -145,6 +156,7 @@ const brand = new Theme({ light: { bg: "#fff", text: "#1b1b1f", tint: "#5b3cc4" 
 | `fontSize`, `lineHeight` | `16px`, `1.5` — body text |
 | `formFontSize` | `14px` — controls |
 | `focusRingSize` | `2px` |
+| `shadowLightX`, `shadowLightY` | `1`, `2` — where the light comes from, for [overlay shadows](#elevation): numbers, not lengths |
 | `popupMinWidth`, `popupMaxWidth`, `popupMaxHeight` | `0px`, `100vw`, `80vh` — the size limits of a [popup](./ui-overlays.md#popup)'s content |
 | `borderRadius` | `8px` — fixed fallback for the rare element that can't derive its radius; prefer `[radius]`/`css_radius` |
 | `intensityMid`, `intensityFaded`, `intensityStrong`, `intensityVeryStrong` | `50%`, `80%`, `10%`, `50%` — the mix percentages behind `.mid`, `.faded`, `.strong`, `.very_strong` |
@@ -211,7 +223,7 @@ const cls_toolbar = css`.toolbar {
 
 ## Why
 
-**Emphasis.** Every band, control and state gets a family and a strength ([Emphasis](#emphasis)). Separating the two keeps one vocabulary for everything: a status bar and a hovered row are both "neutral, one level up", for the same reason. For controls, the five levels of `e-emphasis` map onto it, from quietest to loudest: `link`, `bare`, default, `tint`, `inverted` ([States § Emphasis](./ui-states.md#emphasis)). `inverted` draws the eye, so it is reserved for the one action in an area that needs outsized attention — typically a heavy, hard-to-reverse one. Two inverted buttons side by side compete and cancel each other out. The name "inverted" was chosen over a Material-style "elevation": elevation implies depth and shadow, which this has none of. "Inverted" names only the mechanism — the button emphasis and the `Mix` helper are the same thing.
+**Emphasis.** Every band, control and state gets a family and a strength ([Emphasis](#emphasis)). Separating the two keeps one vocabulary for everything: a status bar and a hovered row are both "neutral, one level up", for the same reason. For controls, the five levels of `e-emphasis` map onto it, from quietest to loudest: `link`, `bare`, default, `tint`, `inverted` ([States § Emphasis](./ui-states.md#emphasis)). `inverted` draws the eye, so it is reserved for the one action in an area that needs outsized attention — typically a heavy, hard-to-reverse one. Two inverted buttons side by side compete and cancel each other out. The name "inverted" was chosen over "elevation" because elevation implies depth and shadow, which an emphasis has none of: emphasis is about attention, and [elevation](#elevation) is about stacking, which only popups and dialogs have. "Inverted" names only the mechanism — the button emphasis and the `Mix` helper are the same thing.
 
 **Color theory.** There is no fixed palette: an app brings `bg` (what we draw on), `text`, and `tint` (the color with a hue). Every other color is a mix along an axis from `bg` to `text`, with the tint in between: the `bg` side separates space (fills, borders, dividers), the `text` side gives textual alternatives (stronger, weaker text). Transparency is never used for this, outside shadows, deliberate effects such as the selection highlight, and `.alpha` where following what's behind is the point: muted text that must stay readable on an inverted band (typography's `h6`, `blockquote`, `dd`, `figcaption`) and light fills that must stay distinct from any surface level (inline `code`, `mark`). Elsewhere a transparent color changes depending on what's behind it, which breaks the surface levels. Each named color mixes with `bg` and with `text` independently; there is no single continuum routed through `tint` except for `tint` itself.
 

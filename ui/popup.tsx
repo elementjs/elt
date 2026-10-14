@@ -493,10 +493,13 @@ const cls_popup = css`.popup {
   position: absolute;
   overflow: visible;
   background: transparent;
-  /* 30% neutral instead of 20% text — neutral needs a larger mix fraction to read at the same
-     visual weight (its own luminance sits closer to bg than text's does). */
-  filter: drop-shadow(
-    0px 0px 4px ${colors.neutral.from_bg("30%")});
+  ${theme.css_overlay_shadow_color}
+  /* A filter and not a box-shadow so that the arrow casts its own: the shadow follows the outline of the
+     body and the arrow together. */
+  filter: ${theme
+    .overlay_shadow_layers("popup")
+    .map((l) => `drop-shadow(${l.join(" ")})`)
+    .join(" ")};
 }`
 /* The content's size: the theme's limits (or the popup's own, set on the element), within the room
    left next to the anchor (set by the size middleware on the popup). */
