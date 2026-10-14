@@ -44,6 +44,7 @@ import { DateTimePicker, type DateTimePickerAttributesBase } from "elt/ui/date"
 import { $auto_grow } from "elt/ui/textarea"
 import type { SelectAttributes } from "elt/ui/select"
 import { $forward_attrs, skip_keys } from "./forward-attrs"
+import { ink_classes, type_style_of_kind, type_style_of_value } from "./type-style"
 import {
   create_filter_state,
   default_settings,
@@ -173,25 +174,31 @@ function render_composite_preview(
   on_delete: (() => void) | undefined,
 ): Renderable {
   let btn!: HTMLButtonElement
-  btn = (
-    <button type="button" title={`Open ${title}`}>
-      {$on("click", () => {
-        dispatch_object_editor_open(btn, {
-          o_value,
-          title,
-          factory: slot,
-          on_delete,
-          open_as: (factory.options as CommonNodeOptions | undefined)?.open_as,
-        })
-      })}
-      <e-row spacing="widget" full-width>
-        <span e-ellipsis class={cls_start_text}>
-          {o_value.tf(value_preview_text)}
-        </span>
-        <span aria-hidden="true">›</span>
-      </e-row>
-    </button>
-  ) as HTMLButtonElement
+  btn =
+    // The button is of its value's type color, as every composite's chrome is.
+    (
+      <button
+        type="button"
+        title={`Open ${title}`}
+        class={o_value.tf((value) => ink_classes(type_style_of_value(value)))}
+      >
+        {$on("click", () => {
+          dispatch_object_editor_open(btn, {
+            o_value,
+            title,
+            factory: slot,
+            on_delete,
+            open_as: (factory.options as CommonNodeOptions | undefined)?.open_as,
+          })
+        })}
+        <e-row spacing="widget" full-width>
+          <span e-ellipsis class={cls_start_text}>
+            {o_value.tf(value_preview_text)}
+          </span>
+          <span aria-hidden="true">›</span>
+        </e-row>
+      </button>
+    ) as HTMLButtonElement
   return btn
 }
 
@@ -552,7 +559,7 @@ export class NullFactory extends Factory<NoOptions> {
 
   render(): RenderableWidget {
     return {
-      render: () => <span>NULL</span>,
+      render: () => <span class={ink_classes(type_style_of_kind(this.kind))}>null</span>,
       o_error: no_error,
     }
   }
@@ -573,7 +580,7 @@ export class UndefinedFactory extends Factory<UndefinedOptions> {
 
   render(): RenderableWidget {
     return {
-      render: () => <span>UNDEFINED</span>,
+      render: () => <span class={ink_classes(type_style_of_kind(this.kind))}>undefined</span>,
       o_error: no_error,
     }
   }
@@ -659,7 +666,7 @@ export class NumberFactory extends Factory<NumberOptions> {
     const forwarded = $forward_attrs(this.options as Record<string, unknown>, skip)
     return {
       render: () => (
-        <input type="number">
+        <input type="number" class={ink_classes(type_style_of_kind(this.kind))}>
           {forwarded}
           {$bind.number(o_num, {
             o_error,
@@ -703,7 +710,7 @@ export class BooleanFactory extends Factory<BooleanOptions> {
     const forwarded = $forward_attrs(attrs, skip_keys())
     return {
       // A checkbox keeps its own size, so it can't be its cell: the label is, which also makes the
-      // whole cell toggle it.
+      // whole cell toggle it. It writes no text, so it has no ink to color: it follows the column's tint.
       render: () => (
         <label>
           <input type="checkbox">
@@ -830,6 +837,7 @@ export class DateFactory extends Factory<DatetimeOptions> {
           ? DateTimePicker({
               ...picker_rest,
               model: o_date,
+              class: ink_classes(type_style_of_kind(this.kind)),
               clearable: true,
               show_date,
               show_time,
@@ -837,6 +845,7 @@ export class DateFactory extends Factory<DatetimeOptions> {
           : DateTimePicker({
               ...picker_rest,
               model: o_date as o.IObservable<Date | null, Date>,
+              class: ink_classes(type_style_of_kind(this.kind)),
               clearable: false,
               show_date,
               show_time,

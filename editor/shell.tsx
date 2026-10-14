@@ -17,9 +17,10 @@ implementation slice. Implements:
 - constructor registry fallback when drill-in omits `factory` (Layer 5)
 */
 
-import { $connected, $observe, $on, type Attrs, type Decorator, o, Repeat, type Renderable } from "elt"
-import { popup } from "elt/ui/popup"
+import { $connected, $observe, $on, css, type Attrs, type Decorator, o, Repeat, type Renderable } from "elt"
 import { theme } from "elt/ui"
+import { DownloadSimple } from "elt/ui/icons"
+import { popup } from "elt/ui/popup"
 import { $keymap } from "elt/ui/keymap"
 import { default_settings, type EditorSettings, resolve_settings } from "./composite-toolbar"
 import {
@@ -44,7 +45,20 @@ import {
   slot_type_targets,
   type WidgetHeader,
 } from "./schema"
+import { tint_class, type_style_of_value } from "./type-style"
 import { RootUndoRing } from "./undo"
+
+/* The header line's text, the title and the buttons, in the column type's ink color (the tint is the column's). */
+const cls_header = css`.oe-header {
+  & > strong,
+  & > button {
+    color: ${theme.colors.tint.ink};
+  }
+}`
+
+const cls_header_icon = css`.oe-header-icon {
+  margin-inline-end: 0.4em;
+}`
 
 export { dispatch_object_editor_open, type ObjectEditorOpenDetail }
 
@@ -320,7 +334,7 @@ export class ObjectEditorShell {
   /**
    * A column's or popup's content (Layer 2): one header line, the widget's toolbar if it has one, then
    * the widget. The header line holds the column title merged with the composite's type label
-   * (`address · Object {3}`), the composite's actions (warning, `…` menu), then Undo/Redo on the
+   * (`address · Object (3)`), the composite's actions (warning, `…` menu), then Undo/Redo on the
    * root or × elsewhere. The toolbar sits under the header, not under the rows: filtering shortens
    * the rows, and a toolbar below them would move. A composite's grid sits flush against the frame;
    * a scalar root is padded.
@@ -343,7 +357,12 @@ export class ObjectEditorShell {
       ),
       {
         title: "Import / export",
-        items: (header?.import_export ?? []).map((addon) => ({ label: addon.label, run: () => {}, disabled: true })),
+        items: (header?.import_export ?? []).map((addon) => ({
+          label: addon.label,
+          icon: DownloadSimple,
+          run: () => {},
+          disabled: true,
+        })),
       },
       delete_section(
         column.on_delete &&
@@ -364,6 +383,10 @@ export class ObjectEditorShell {
     const settings = this.settings_of(column)
     const { packed } = settings
     // The widget gets the column's starting settings: it resolves its own node options over them.
+    // The column's type decides its color: it is the tint of the whole column (frame, header line, toolbar,
+    // seams, a table's header), as the theme's `class_as_tint` does. Observed from the value, so a type
+    // change recolors it; the same type is the same style, which observers skip.
+    const o_style = column.o_value.tf(type_style_of_value)
     const o_widget = column.o_factory.tf((factory) => factory.render(column.o_value, column.inherited))
     const o_header = o_widget.tf((widget) => widget.header ?? null)
     const menu = () => this.header_menu(column, o_header.get(), close)
@@ -390,7 +413,8 @@ export class ObjectEditorShell {
     return (
       <e-column
         packed={packed}
-        border={packed}
+        border={packed ? o_style.tf((style) => (style.color ? "tint" : true)) : undefined}
+        class={o_style.tf(tint_class)}
         pad={packed ? "none" : undefined}
         spacing={packed ? "widget" : "component"}
         align="stretch"
@@ -404,10 +428,14 @@ export class ObjectEditorShell {
                 packed={packed ? "widget" : undefined}
                 seams={packed ? "none" : undefined}
                 align={packed ? "center" : "baseline"}
-                class={packed ? theme.colors.tint.class_as_inverted : undefined}
+                class={cls_header}
               >
                 {$editor_menu_when(settings.show_menu, menu)}
                 <strong e-ellipsis title={o_label}>
+                  {/* The icon of the column's type, before the title (none when the title is hidden). */}
+                  {o.expression((get) =>
+                    get(o_label) === "" ? null : <span class={cls_header_icon}>{get(o_style).icon()}</span>,
+                  )}
                   {o_label}
                 </strong>
                 {o_header.tf((header) => header?.actions ?? null)}

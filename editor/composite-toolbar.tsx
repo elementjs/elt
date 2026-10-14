@@ -57,10 +57,10 @@ export function value_preview_text(value: unknown): string {
 }
 
 function cardinality_hint(value: unknown): string | null {
-  if (Array.isArray(value)) return `[${value.length}]`
-  if (value instanceof Map || value instanceof Set) return `{${value.size}}`
+  if (Array.isArray(value)) return `(${value.length})`
+  if (value instanceof Map || value instanceof Set) return `(${value.size})`
   if (typeof value === "object" && value !== null && !(value instanceof Date)) {
-    return `{${Object.keys(value).length}}`
+    return `(${Object.keys(value).length})`
   }
   return null
 }

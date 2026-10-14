@@ -8,16 +8,19 @@ a menu without icons starts its text at the left edge. The destructive item (Del
 
 import { $click, $context_menu, $on, css, type Decorator, type o, type Renderable } from "elt"
 import { theme } from "elt/ui/theme"
-import { ArrowsClockwise, CaretRight, Trash } from "elt/ui/icons"
+import { ArrowsClockwise, CaretRight, ClipboardText, Copy, Scissors, SelectionAll, Trash } from "elt/ui/icons"
 import { menu_nav } from "elt/ui/list-nav"
 import { type PopupAnchor, popup } from "elt/ui/popup"
 import type { CommonNodeOptions, Factory } from "./schema"
 import { apply_type_change, type_change_actions } from "./type-change"
+import { tint_class, type_style_of_kind } from "./type-style"
 
 /** What every item has: its label, and an icon for the slot left of it (the others' text lines up with it). */
 interface MenuItemBase {
   label: string
   icon?: () => Renderable
+  /** A class making a color the item's tint (`tint_class` of a type): the icon takes it, the text a duller mix with the text color. */
+  tint?: string
 }
 
 /** An item that runs something, then closes the menu. */
@@ -78,12 +81,10 @@ function render_menu(sections: MenuSection[], close: () => void): HTMLElement {
       {sections.map((section, i) => (
         <>
           {i > 0 && <hr />}
-          {section.title && (<>
+          {section.title && (
             <span e-widget="label" class={cls_menu_wide}>
               {section.title}
             </span>
-            <hr/>
-            </>
           )}
           {section.items.map((item) => render_item(item, close))}
         </>
@@ -98,7 +99,13 @@ function render_item(item: MenuItem, close: () => void): Renderable {
   const icon = item.icon?.()
   if ("sections" in item) {
     return (
-      <button type="button" role="menuitem" aria-haspopup="menu" e-emphasis="bare" class={cls_menu_item}>
+      <button
+        type="button"
+        role="menuitem"
+        aria-haspopup="menu"
+        e-emphasis="bare"
+        class={[cls_menu_item, item.tint && [item.tint, cls_menu_typed]]}
+      >
         {$click((ev) => {
           const sub = non_empty(item.sections())
           if (sub.length > 0) open_menu(ev.currentTarget, sub, close)
@@ -107,7 +114,7 @@ function render_item(item: MenuItem, close: () => void): Renderable {
         {$on("keydown", (ev) => {
           if (ev.key === "ArrowRight") (ev.currentTarget as HTMLElement).click()
         })}
-        {icon && <span class={cls_menu_icon}>{icon}</span>}
+        {icon && <span class={[cls_menu_icon, item.tint && cls_menu_icon_typed]}>{icon}</span>}
         <span class={cls_menu_text}>{item.label}</span>
         <span class={cls_menu_after}>{CaretRight()}</span>
       </button>
@@ -119,13 +126,17 @@ function render_item(item: MenuItem, close: () => void): Renderable {
       role="menuitem"
       disabled={item.disabled}
       e-emphasis="bare"
-      class={[cls_menu_item, item.danger && [theme.colors.red.class_as_tint, cls_menu_danger]]}
+      class={[
+        cls_menu_item,
+        item.tint && [item.tint, cls_menu_typed],
+        item.danger && [theme.colors.red.class_as_tint, cls_menu_danger],
+      ]}
     >
       {$click(() => {
         close()
         item.run()
       })}
-      {icon && <span class={cls_menu_icon}>{icon}</span>}
+      {icon && <span class={[cls_menu_icon, item.tint && cls_menu_icon_typed]}>{icon}</span>}
       <span class={cls_menu_text}>{item.label}</span>
     </button>
   )
@@ -154,10 +165,15 @@ export function type_change_item(
         sections: () => [
           {
             title: `${title} type`,
-            items: actions.map((action) => ({
-              label: action.label,
-              run: () => apply_type_change(o_value, current, action),
-            })),
+            items: actions.map((action) => {
+              const style = type_style_of_kind(action.target.kind)
+              return {
+                label: action.label,
+                icon: style.icon,
+                tint: tint_class(style),
+                run: () => apply_type_change(o_value, current, action),
+              }
+            }),
           },
         ],
       },
@@ -213,14 +229,21 @@ function edit_section(field: HTMLInputElement | HTMLTextAreaElement): MenuSectio
     items: [
       {
         label: "Cut",
+        icon: Scissors,
         disabled: !writable || selected === "",
         run: () => navigator.clipboard.writeText(selected).then(() => replace("")),
       },
-      { label: "Copy", disabled: selected === "", run: () => navigator.clipboard.writeText(selected) },
+      { label: "Copy", icon: Copy, disabled: selected === "", run: () => navigator.clipboard.writeText(selected) },
       // Reading the clipboard may ask the user first, or be refused: nothing happens then.
-      { label: "Paste", disabled: !writable, run: () => navigator.clipboard.readText().then(replace, () => {}) },
+      {
+        label: "Paste",
+        icon: ClipboardText,
+        disabled: !writable,
+        run: () => navigator.clipboard.readText().then(replace, () => {}),
+      },
       {
         label: "Select all",
+        icon: SelectionAll,
         run: () => {
           field.focus()
           field.select()
@@ -330,6 +353,14 @@ const cls_menu_text = css`.oe-menu-text {
 const cls_menu_after = css`.oe-menu-after {
   grid-column: 3;
   padding-inline-start: 1em;
+}`
+
+/* An item of a colored type (Change type): the icon in the color, the text in the color mixed into the text color. */
+const cls_menu_typed = css`.oe-menu-typed {
+  color: ${theme.colors.tint.ink};
+}`
+const cls_menu_icon_typed = css`.oe-menu-icon-typed {
+  color: ${theme.colors.tint};
 }`
 
 /* Delete: red text, and (red as the tint) a red hover. */

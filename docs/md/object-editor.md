@@ -44,18 +44,34 @@ Each of these is an attribute of `<ObjectEditor>`, which sets it for every colum
 
 | Setting | Shows |
 | ------- | ----- |
-| `show_title` | The label of the header line: the key the column was opened from and the type (`address · Object {3}`). *Undo*/*Redo*, × and `…` stay |
+| `show_title` | The label of the header line: the key the column was opened from and the type (`address · Object (3)`). *Undo*/*Redo*, × and `…` stay |
 | `show_filter` | The filter of the toolbar |
 | `show_add` | The *+ Add …* button of the toolbar |
 | `show_menu` | The `…` button and the right-click menus: change type, import/export, delete. Without them, the browser's own menu shows |
 
 A part that would be empty goes away: the toolbar with neither filter nor *+ Add*, and the root's header line with no label, `…` or *Undo*/*Redo*. A schema node also has `show_import_export`, for the import/export entries of its `…` menu only.
 
+## Type colors and icons
+
+Each value type has a color and an icon. A column takes the color of the type it shows: its frame, the lines inside it, the text of its header line, a table's header and the buttons of its toolbar. A nested value's button and the simple values that write text (`null`, numbers, dates) have their text in the same color; a boolean's switch follows the column's color, mixed into the text color so it stays readable. Strings (and the colors and selects, which hold strings) keep the plain text color.
+
+| Type | Color |
+| ---- | ----- |
+| `null`, `undefined`, booleans | magenta (a boolean's switch itself keeps the column's color) |
+| numbers | purple |
+| objects | cyan |
+| maps | cyan green |
+| arrays | green |
+| sets | yellow green |
+| class instances (any object that is not a plain one), dates | orange |
+
+The icon of a type shows before the title of a column's header line and in the *Change type…* menu, where each item has the color of the type it turns the value into. The right-click menus also have an icon on each of their items.
+
 ## Layout
 
 The editor is a row of columns (each in its own frame when [packed](#packed-or-not)): the root value, then one column per value opened from it (a click on a nested object or array opens it to the right; a schema can open it in a popup instead).
 
-- **Header line.** Every column and popup starts with one line (unless `show_title` and the others leave it empty): the key it was opened from and the value's type (`address · Object {3}`), then its `…` button opening the column's menu (see [Menus](#menus)), then *Undo*/*Redo* on the root column or × on the others.
+- **Header line.** Every column and popup starts with one line (unless `show_title` and the others leave it empty): the icon of the value's type, the key it was opened from and the value's type with its number of entries in parentheses (`address · Object (3)`), then its `…` button opening the column's menu (see [Menus](#menus)), then *Undo*/*Redo* on the root column or × on the others.
 - **Rows are a grid.** Each entry is a row of cells: the key (or index) and the value's widget, each in its own column, aligned from one row to the next. A nested object or array is a cell showing a preview of its content; click it to open it. Removing a row or changing a value's type goes through the row's menu.
 - **Toolbar.** Right under the header line, on a neutral background: the *+ Add …* button, and a filter that keeps the rows whose key or value contains the text (*Aa* makes it case-sensitive). It stays in place while the filter shortens the rows.
 - **Column widths** come from the first rows shown, then stay put while you scroll; a longer key further down is truncated with `…`. Table columns, the index column (`#`) included, can then be resized by dragging a header's right edge; the index column is never narrower than four digits.

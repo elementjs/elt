@@ -37,10 +37,10 @@ test.describe("composite chrome", () => {
       })
     })
     expect(lines).toHaveLength(2)
-    expect(lines[0]!.text).toBe("Object {2}")
+    expect(lines[0]!.text).toBe("Object (2)")
     expect(lines[0]!.one_line).toBe(true)
     expect(lines[0]!.buttons).toEqual(["…", "Undo", "Redo"])
-    expect(lines[1]!.text).toBe("address · Object {2}")
+    expect(lines[1]!.text).toBe("address · Object (2)")
     expect(lines[1]!.one_line).toBe(true)
     expect(lines[1]!.buttons).toEqual(["…", "×"])
   })
@@ -69,7 +69,7 @@ test.describe("composite chrome", () => {
       await new Promise((r) => setTimeout(r, 0))
       return res
     })
-    expect(result.text).toBe("nested · Object {1}")
+    expect(result.text).toBe("nested · Object (1)")
     // No `…`: the declared single-type slot offers no type change, and a declared key can't be deleted.
     expect(result.buttons).toEqual(["×"])
     expect(result.has_footer).toBe(true)
@@ -331,7 +331,7 @@ test.describe("unknown mode resolution", () => {
         instance: concrete_factory(anything, new (class Point {})()).kind,
       }
     })
-    expect(result).toEqual({ map: "Map {1}", set: "Set {1}", date: "date", instance: "object" })
+    expect(result).toEqual({ map: "Map (1)", set: "Set (1)", date: "date", instance: "object" })
   })
 })
 
