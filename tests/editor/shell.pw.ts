@@ -599,6 +599,34 @@ test.describe("ObjectEditorShell", () => {
     expect(results.text_content).toContain("a")
   })
 
+  test("open_as popup is flush with the cell's edge on the side of the page the cell is on", async ({ page }) => {
+    for (const side of ["left", "right"] as const) {
+      await page.evaluate((side) => {
+        const { o, node_append } = window.__ELT__
+        const { ObjectEditorShell, object, number } = window.__ELT__.Editor
+        const nested = object({ properties: [{ name: "x", type: number() }], open_as: "popup" })
+        const shell = new ObjectEditorShell(o({ nested: { x: 1 } }), {
+          schema: object({ properties: [{ name: "nested", type: nested }] }),
+        })
+        shell.node.id = "shell"
+        // A narrow shell on one side of the page, with room around it for a centered panel.
+        Object.assign(shell.node.style, { position: "fixed", top: "100px", width: "200px", [side]: "300px" })
+        node_append(document.body, shell.node)
+      }, side)
+      const cell = page.locator('#shell button[title="Open nested"]')
+      await cell.click()
+      const popup = page.locator("[popover].open")
+      await expect(popup).toHaveCount(1)
+      const [c, p] = await Promise.all([cell.boundingBox(), popup.boundingBox()])
+      // The panel's edge on the cell's side lines up with the cell's (the arrow sits at that end).
+      const [from, to] = side === "left" ? [c!.x, p!.x] : [c!.x + c!.width, p!.x + p!.width]
+      expect(Math.abs(from - to), side).toBeLessThanOrEqual(2)
+      await page.keyboard.press("Escape")
+      await page.evaluate(() => document.getElementById("shell")!.remove())
+      await expect(popup).toHaveCount(0)
+    }
+  })
+
   test("open_as popup adds a breadcrumb segment for the opened value", async ({ page }) => {
     const breadcrumb = await page.evaluate(async () => {
       const { o, node_append } = window.__ELT__

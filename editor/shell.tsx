@@ -327,8 +327,18 @@ export class ObjectEditorShell {
 
         return panel
       },
-      // A column's width is more than a menu's: room for a label and a field, but not the whole page.
-      { min_width: 260, max_width: "min(90vw, 480px)" },
+      {
+        // A column's width is more than a menu's: room for a label and a field, but not the whole page.
+        min_width: 260,
+        max_width: "min(90vw, 480px)",
+        // Flush with the cell's edge nearest the page's side it is on, not centered on it: a wide panel
+        // then grows towards the room there is (above or below, whichever has it).
+        placement:
+          anchor.getBoundingClientRect().left + anchor.clientWidth / 2 > window.innerWidth / 2
+            ? "bottom-end"
+            : "bottom-start",
+        exact_placement: true,
+      },
     )
 
     // However it ends (the × button, the shell closing it, a dismissal), the column goes with it;
