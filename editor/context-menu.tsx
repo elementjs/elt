@@ -10,7 +10,7 @@ import { $click, $context_menu, $on, css, type Decorator, o, type Renderable } f
 import { theme } from "elt/ui/theme"
 import { ArrowsClockwise, CaretRight, ClipboardText, Copy, Scissors, SelectionAll, Trash } from "elt/ui/icons"
 import { menu_nav } from "elt/ui/list-nav"
-import { type PopupAnchor, popup } from "elt/ui/popup"
+import { type PopupAnchor, type PopupOptions, popup } from "elt/ui/popup"
 import type { CommonNodeOptions, Factory } from "./schema"
 import { apply_type_change, type_change_actions } from "./type-change"
 import { tint_class, type_style_of_kind } from "./type-style"
@@ -51,10 +51,16 @@ function non_empty(sections: (MenuSection | null)[]): MenuSection[] {
 }
 
 /**
- * Open a menu at `anchor`. `close_parent` closes the menu this one was opened from, so running an
- * item of a submenu closes the whole chain.
+ * Open a menu from `anchor` (a button or a cell, a pointer inside a cell). `close_parent` closes the
+ * menu this one was opened from, so running an item of a submenu closes the whole chain; `options`
+ * place it (a submenu opens beside its item).
  */
-export function open_menu(anchor: PopupAnchor, sections: MenuSection[], close_parent?: () => void) {
+export function open_menu(
+  anchor: PopupAnchor,
+  sections: MenuSection[],
+  close_parent?: () => void,
+  options?: PopupOptions,
+) {
   let close = () => {}
   const fut = popup(
     anchor,
@@ -65,9 +71,8 @@ export function open_menu(anchor: PopupAnchor, sections: MenuSection[], close_pa
       }
       return render_menu(sections, () => close())
     },
-    // With an arrow, as every popup. A submenu opens exactly beside its item, like native ones: above or
-    // below it, it would cover the menu it came from.
-    { arrow: true, ...(anchor instanceof Element && { placement: "right-start", exact_placement: true }) },
+    // With an arrow, as every popup.
+    { arrow: true, ...options },
   )
   return fut
 }
@@ -108,7 +113,9 @@ function render_item(item: MenuItem, close: () => void): Renderable {
       >
         {$click((ev) => {
           const sub = non_empty(item.sections())
-          if (sub.length > 0) open_menu(ev.currentTarget, sub, close)
+          // Exactly beside its item, like native menus: above or below it, it would cover the menu it came from.
+          if (sub.length > 0)
+            open_menu(ev.currentTarget, sub, close, { placement: "right-start", exact_placement: true })
         })}
         {/* ArrowRight opens the submenu, as in native menus. */}
         {$on("keydown", (ev) => {
@@ -276,7 +283,8 @@ function edit_section(field: HTMLInputElement | HTMLTextAreaElement): MenuSectio
  *
  * In a text field, the menu replaces the browser's too — Map rows and Table cells are nothing but
  * fields — and starts with an Edit section (Cut, Copy, Paste, Select all). The keyboard (Menu key,
- * Shift+F10) opens it as well, under the focused element.
+ * Shift+F10) opens it as well. From the keyboard, it opens from the focused cell. With a pointer, it opens against the
+ * border of the cell nearest to it, not over the cell (`PointerInElement` of elt/ui/popup).
  */
 export function $editor_menu(
   sections: (target: Element | null) => (MenuSection | null)[],
@@ -295,8 +303,9 @@ export function $editor_menu(
         const list = all_sections(ev.target)
         if (list.length === 0) return
         ev.preventDefault()
-        const at = ev.clientX === 0 && ev.clientY === 0 ? point_below(ev.target) : { x: ev.clientX, y: ev.clientY }
-        open_menu({ ...at, element: node }, list)
+        const cell = cell_of(ev.target, node)
+        // (0, 0): not from a pointer (a context menu key the page did not catch).
+        open_menu(ev.clientX === 0 && ev.clientY === 0 ? cell : { within: cell, x: ev.clientX, y: ev.clientY }, list)
         // On iOS, a long press in a text field opens this menu too: Map rows and Table cells have nothing else.
       },
       { text_fields: true },
@@ -307,7 +316,7 @@ export function $editor_menu(
       if (list.length === 0) return
       // Prevented here, the browser fires no contextmenu event of its own.
       ev.preventDefault()
-      open_menu({ ...point_below(ev.target), element: node }, list)
+      open_menu(cell_of(ev.target, node), list)
     })(node)
   }
 }
@@ -317,16 +326,15 @@ export function $editor_menu_when(enabled: o.RO<boolean>, sections: Parameters<t
   return enabled === false ? null : $editor_menu(sections, enabled)
 }
 
-/** Under the bottom-left corner of `target`: where a menu opened without a pointer goes. */
-function point_below(target: EventTarget | null) {
-  const rect = (target instanceof Element ? target : document.body).getBoundingClientRect()
-  return { x: rect.left, y: rect.bottom }
+/** The cell of a row `target` is in (the target itself outside a row, in a header line): what a menu opens from. */
+function cell_of(target: EventTarget | null, fallback: Element) {
+  return target instanceof Element ? (target.closest("e-grid-row > *") ?? target) : fallback
 }
 
-/** Open `sections` from a button (the header's `…`): below it, from the keyboard as from the mouse. */
+/** Open `sections` from a button (the header's `…`, a null value): above or below it, from the keyboard as from the mouse. */
 export function open_menu_from_button(button: HTMLElement, sections: () => (MenuSection | null)[]) {
   const list = non_empty(sections())
-  if (list.length > 0) open_menu({ ...point_below(button), element: button }, list)
+  if (list.length > 0) open_menu(button, list)
 }
 
 export { non_empty as menu_sections }

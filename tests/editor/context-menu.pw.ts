@@ -69,6 +69,25 @@ test.describe("row menu", () => {
     expect(await root(page)).toEqual({ name: "Ada", age: 36 })
   })
 
+  test("a right click opens the menu against the cell's border and marks the cell until the menu closes", async ({
+    page,
+  }) => {
+    await mount(page, `({ name: "Ada" })`)
+    const cell = row(page, "name").locator("> :last-child")
+    const box = (await cell.boundingBox())!
+    // In the cell's lower half, 30px from its left edge.
+    await cell.click({ button: "right", position: { x: 30, y: box.height - 4 } })
+    await expect(cell).toHaveAttribute("e-source", "")
+    const menu = page.locator("[popover].open")
+    await expect(menu).toHaveCount(1)
+    const m = (await menu.boundingBox())!
+    // Below the cell, not over it.
+    expect(m.y).toBeGreaterThanOrEqual(box.y + box.height - 1)
+    await page.keyboard.press("Escape")
+    await expect(page.locator("[popover]")).toHaveCount(0)
+    await expect(cell).not.toHaveAttribute("e-source", "")
+  })
+
   test("Change type… opens the types of the slot; picking one changes the value and closes both menus", async ({
     page,
   }) => {

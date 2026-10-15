@@ -192,6 +192,10 @@ The cursor is whatever the arrow keys are on in a list or a menu. There are two 
 <e-row role="option" e-interactive e-active={o_active_index.tf((i) => i === index)}>…</e-row>
 ```
 
+## Source of a popup
+
+An element that has opened a popup (a button, a table cell right-clicked for its menu) is drawn one surface level above the ambient one for as long as the popup is open, in any element, interactive or not. The popup sets it (`e-source`; [Overlays § popup](./ui-overlays.md#popup)), so it needs nothing from the app. It is not the focus ring, which follows the keyboard and moves into the popup, and not the selected state, which says an item is chosen.
+
 ## Disabled and invalid
 
 - **Disabled** is `disabled` on a native control, or `aria-disabled="true"` on an element that cannot be disabled (a `$interactive` row). A `<label>` around a disabled checkbox is disabled too. A disabled control is furniture, whatever its emphasis: its colors turn `neutral` and move halfway toward its background ([Theme § State](./ui-theme.md#state)), it has no hover or pressed fill, and its cursor is `not-allowed`. A disabled selected control keeps the jump, in `neutral`.

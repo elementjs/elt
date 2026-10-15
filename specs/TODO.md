@@ -75,4 +75,8 @@ These are the highest priority — the spec already promises the behavior, nothi
 - [ ] A type change that lands on a node with another `packed` keeps the column's frame (read when the column is created); only the grid follows.
 - [x] **Null and undefined cells are buttons** opening the type list directly (`render_nullish_cell`, `type_change_sections`); plain text when the slot offers no other type. Null's icon is phosphor's `empty`.
 - [x] **Composite previews** start with the type's icon, then the first members without `[…]`/`{…}` (`composite_preview_inner`); `empty` when there are none.
+- [x] **Popups opened from a cell** are flush with the cell's edge on the page side it is on (`bottom-start` / `bottom-end`), not centered.
 - [x] **Removal items are named by what they remove**: *Remove key* (object), *Remove pair* (map), *Remove row* (array, set, table); `Removal` carries the label with the action.
+- [x] **Menus against the cell's border** — `ui/popup` anchor `{ within, x, y }` (pointer inside an element: nearest border first, flips to the other, arrow at the pointer's x) and the `e-source` mark (any popup's source element is drawn one level above while open). Context menus from a pointer use it; keyboard and button menus use the plain element anchor.
+- [ ] Popup from a pointer inside an element, with no room above or below (a cell taller than the room): fall back to beside the cell (right, then left). Today it slides to stay on screen and may cover part of the cell.
+- [ ] Highlight the row too while the current menu item acts on the row (Remove key/pair/row): needs a way for `ui` to mark another element than the popup's source (a menu item naming the element to highlight), with the editor passing the row.

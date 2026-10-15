@@ -14,7 +14,7 @@
  */
 
 import { css, type NRO } from "elt"
-import { theme } from "./theme"
+import { ambient_surface_mix, theme } from "./theme"
 import {
   DISABLED_SELECTOR,
   FORM_CONTROL_SELECTOR,
@@ -133,6 +133,15 @@ css`
     color: ${colors.text};
     text-decoration: none;
     background: transparent;
+  }
+
+  /* ── Source of a popup ───────────────────────────────────────────────────────────────────────
+     The element an open popup comes from (ui/popup.tsx sets \`e-source\`): one surface level above the
+     ambient one, as a hover does, and it stays when the pointer moves into the popup. Any element, not
+     only the interactive ones; \`--e-current-surface\` is what the cells of a framed grid paint. */
+  :where([e-source]) {
+    --e-current-surface: ${ambient_surface_mix.surface("n+1")};
+    background-color: var(--e-current-surface);
   }
 
   /* ── Invalid ─────────────────────────────────────────────────────────────────────────────────

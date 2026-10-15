@@ -36,7 +36,7 @@ The editor can be packed. By default it is not: a column has no frame and no bac
 
 `packed` gives each column a frame in which the header line, the toolbar and the rows touch and are separated by thin lines. This is the look of the examples below, unless they say otherwise.
 
-`packed` is also an option of every schema node (`object({ packed: true, … })`), and then replaces the attribute for that node. Unlike the other settings, it carries on to what the node opens: the columns and popups opened from a packed node are packed, and those opened from an unpacked one are not, until a node sets it again. A popup is always a framed panel; packed, its content is one group; unpacked, it is rows.
+`packed` is also an option of every schema node (`object({ packed: true, … })`), and then replaces the attribute for that node. Unlike the other settings, it carries on to what the node opens: the columns and popups opened from a packed node are packed, and those opened from an unpacked one are not, until a node sets it again. A popup is always a framed panel; packed, its content is one group; unpacked, it is rows. It opens below the cell (above when there is no room), flush with the cell's left edge when the cell is in the left half of the page and with its right edge otherwise, so it grows towards the room there is.
 
 The grid of a table (an array of objects shown with a column per key) is always packed, whatever `packed` says: it is a spreadsheet-like control whose cells need their lines. The frame, header line and toolbar around it follow the setting.
 
@@ -80,7 +80,7 @@ The editor is a row of columns (each in its own frame when [packed](#packed-or-n
 
 ### Menus
 
-Actions on a value are in menus rather than buttons on every row. A row's menu opens with a right click anywhere in the row, a long press on a touch screen, Ctrl+click on macOS, or the keyboard's Menu key or Shift+F10 from inside the row. A column's menu opens the same way on its header line, or with its `…` button.
+Actions on a value are in menus rather than buttons on every row. A row's menu opens with a right click anywhere in the row, a long press on a touch screen, Ctrl+click on macOS, or the keyboard's Menu key or Shift+F10 from inside the row. A column's menu opens the same way on its header line, or with its `…` button. Opened with the pointer, a menu sits against the border of the cell that was clicked, on the side the pointer is nearest to (above or below), with its arrow under the pointer, and the cell is drawn one surface level above while the menu is open. From the keyboard or from a button, it opens above or below the focused cell or button, with its arrow at the middle.
 
 A menu lists what applies to where it was opened, in sections separated by a line:
 

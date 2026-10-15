@@ -68,6 +68,104 @@ test.describe("popup (docs/md/ui-overlays.md#popup)", () => {
     expect(r.arrow).toBe(false)
   })
 
+  test("a pointer inside an element opens against its border, nearest first, at the pointer's x", async ({ page }) => {
+    // A wide cell in the middle of the page: room above and below.
+    await page.evaluate(() => {
+      document.body.innerHTML = `<div id="cell" style="position: absolute; left: 100px; top: 300px; width: 400px; height: 40px"></div>`
+    })
+    const open = (x: number, y: number) =>
+      page.evaluate(
+        async ({ x, y }) => {
+          const { UI } = window.__ELT__
+          const content = document.createElement("e-column")
+          content.setAttribute("border", "")
+          content.style.width = "120px"
+          content.textContent = "menu"
+          UI.popup({ within: document.getElementById("cell")!, x, y }, () => content)
+          await new Promise((r) => setTimeout(r, 100))
+        },
+        { x, y },
+      )
+    const rect = () =>
+      page.evaluate(() => {
+        const r = document.querySelector("[popover] e-column")!.getBoundingClientRect()
+        return { left: r.left, top: r.top, bottom: r.bottom }
+      })
+    // The lower half: below the cell (top 300 + 40), starting at the pointer.
+    await open(250, 330)
+    let r = await rect()
+    // The arrow is at the pointer's x, kept off the popup's rounded corner: the popup starts a little before it.
+    expect(r.left).toBeLessThanOrEqual(250)
+    expect(r.left).toBeGreaterThan(250 - 40)
+    expect(r.top).toBeGreaterThanOrEqual(340)
+    await page.keyboard.press("Escape")
+    await expect(page.locator("[popover]")).toHaveCount(0)
+    // The upper half: above the cell.
+    await open(250, 305)
+    r = await rect()
+    // The arrow is at the pointer's x, kept off the popup's rounded corner: the popup starts a little before it.
+    expect(r.left).toBeLessThanOrEqual(250)
+    expect(r.left).toBeGreaterThan(250 - 40)
+    expect(r.bottom).toBeLessThanOrEqual(300)
+    await page.keyboard.press("Escape")
+    await expect(page.locator("[popover]")).toHaveCount(0)
+  })
+
+  test("with no room on the nearest side, it opens on the other side of the cell, not over it", async ({ page }) => {
+    // A cell at the bottom of the page: the pointer is in its lower half, but nothing fits below it.
+    await page.evaluate(async () => {
+      const { UI } = window.__ELT__
+      const h = window.innerHeight
+      document.body.innerHTML = `<div id="cell" style="position: fixed; left: 100px; top: ${h - 40}px; width: 400px; height: 40px"></div>`
+      const content = document.createElement("e-column")
+      content.setAttribute("border", "")
+      content.style.height = "100px"
+      content.textContent = "menu"
+      UI.popup({ within: document.getElementById("cell")!, x: 250, y: h - 5 }, () => content)
+      await new Promise((r) => setTimeout(r, 100))
+    })
+    const r = await page.evaluate(() => {
+      const c = document.querySelector("[popover] e-column")!.getBoundingClientRect()
+      return { bottom: c.bottom, cell_top: document.getElementById("cell")!.getBoundingClientRect().top }
+    })
+    expect(r.bottom).toBeLessThanOrEqual(r.cell_top)
+  })
+
+  test("the element a popup comes from is marked while it is open, and the mark stays until the last popup closes", async ({
+    page,
+  }) => {
+    await page.evaluate(() => {
+      document.body.innerHTML = `<button id="a">a</button><div id="cell" style="width: 200px; height: 30px"></div>`
+    })
+    const marked = (id: string) => page.evaluate((id) => document.getElementById(id)!.hasAttribute("e-source"), id)
+    const open = (anchor: "a" | "cell") =>
+      page.evaluate((anchor) => {
+        const { UI } = window.__ELT__
+        const el = document.getElementById(anchor)!
+        const content = document.createElement("e-column")
+        content.className = `menu-${anchor}`
+        content.textContent = "menu"
+        const a = anchor === "a" ? el : { within: el, x: 10, y: 10 }
+        return UI.popup(a, () => content)
+      }, anchor)
+    void open("a")
+    await expect.poll(() => marked("a")).toBe(true)
+    // A cell is drawn one surface level above, as a hover does.
+    await page.keyboard.press("Escape")
+    await expect.poll(() => marked("a")).toBe(false)
+    void open("cell")
+    await expect.poll(() => marked("cell")).toBe(true)
+    const [plain, source] = await page.evaluate(() => {
+      const el = document.getElementById("cell")!
+      const with_mark = getComputedStyle(el).backgroundColor
+      el.removeAttribute("e-source")
+      return [getComputedStyle(el).backgroundColor, with_mark]
+    })
+    expect(source).not.toBe(plain)
+    await page.keyboard.press("Escape")
+    await expect.poll(() => marked("cell")).toBe(false)
+  })
+
   test("Escape resolves with undefined and gives focus back", async ({ page }) => {
     await page.evaluate(() => {
       const { UI } = window.__ELT__

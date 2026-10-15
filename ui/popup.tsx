@@ -135,7 +135,18 @@ function _eval_popup_click(ev: MouseEvent) {
  * popup opens from inside another popup, which then stays open, and where it attaches in the top
  * layer (an open modal dialog's subtree, for instance).
  */
-export type PopupAnchor = Element | { x: number; y: number; element: Element }
+export type PopupAnchor = Element | { x: number; y: number; element: Element } | PointerInElement
+
+/**
+ * A pointer inside an element (a right click on a table cell): the popup opens against the element's
+ * border, the nearest to `y` first (above for the upper half, below for the lower), with its start and
+ * its arrow at `x`; and flips to the other border when that one has no room.
+ */
+export interface PointerInElement {
+  within: Element
+  x: number
+  y: number
+}
 
 export interface PopupOptions {
   /**
@@ -254,12 +265,29 @@ export function popup<T extends OverlayResult = boolean>(
   render: (fut: Future<T | undefined>) => Node,
   opts?: PopupOptions,
 ) {
-  const anchor_el = anchor instanceof Element ? anchor : anchor.element
-  // A point becomes a Floating UI "virtual element": a zero-size rect at the point.
+  const within = anchor instanceof Element || !("within" in anchor) ? null : anchor
+  const anchor_el = anchor instanceof Element ? anchor : "within" in anchor ? anchor.within : anchor.element
+  // Read once: where the pointer is in the element when the popup opens.
+  const within_box = within?.within.getBoundingClientRect()
+  // A point becomes a Floating UI "virtual element": a zero-size rect at the point. A pointer inside an
+  // element, one as tall as the element at the pointer's x (kept at the same distance from the element's
+  // left edge as it moves): the popup goes above or below the element, not over it.
   const reference =
-    anchor instanceof Element
-      ? anchor
-      : { getBoundingClientRect: () => new DOMRect(anchor.x, anchor.y, 0, 0), contextElement: anchor_el }
+    within && within_box
+      ? {
+          getBoundingClientRect: () => {
+            const r = within.within.getBoundingClientRect()
+            return new DOMRect(r.left + within.x - within_box.left, r.top, 0, r.height)
+          },
+          contextElement: anchor_el,
+        }
+      : anchor instanceof Element
+        ? anchor
+        : { getBoundingClientRect: () => new DOMRect(anchor.x, anchor.y, 0, 0), contextElement: anchor_el }
+  // Where a point or a pointer opens: below-right of a point, like a native menu; on the side of the
+  // element nearest to the pointer first.
+  const point_placement: Placement =
+    within && within_box && within.y < within_box.top + within_box.height / 2 ? "top-start" : "bottom-start"
   const doc = anchor_el.ownerDocument
   const fut = new Future<T | undefined>()
   const rendered = render(fut)
@@ -277,7 +305,7 @@ export function popup<T extends OverlayResult = boolean>(
   }
 
   const o_arrow_state = o<ArrowState>({ side: "bottom", ax: null, ay: null, visible: true })
-  const with_arrow = opts?.arrow ?? anchor instanceof Element
+  const with_arrow = opts?.arrow ?? (anchor instanceof Element || within != null)
   const arro = with_arrow ? popup_arrow(o_arrow_state) : null
 
   const popup = (
@@ -358,11 +386,13 @@ export function popup<T extends OverlayResult = boolean>(
             }),
             flip(),
           ]
-        : [flip(), shift({ padding: 4 })]
+        : [flip(), shift({ padding: 4, crossAxis: within != null })]
 
     async function updatePosition() {
       let { x, y, middlewareData, placement } = await computePosition(reference, popup, {
-        placement: opts?.placement ?? (anchor instanceof Element ? undefined : "bottom-start"),
+        placement: within
+          ? point_placement
+          : (opts?.placement ?? (anchor instanceof Element ? undefined : point_placement)),
         middleware: [
           ...placement_middleware,
           size_middleware,
@@ -409,6 +439,13 @@ export function popup<T extends OverlayResult = boolean>(
       }
     }
 
+    // The element the popup comes from stays marked while it is open (a point has none).
+    const source = anchor instanceof Element ? anchor : (within?.within ?? null)
+    if (source) {
+      const unmark = mark_source(source)
+      fut.then(unmark, unmark)
+    }
+
     _listen(doc)
     popups.add(popup)
     popups_futures.set(popup, fut)
@@ -435,6 +472,23 @@ export function popup<T extends OverlayResult = boolean>(
   })
 
   return fut
+}
+
+// How many open popups come from each element: the `e-source` mark stays until the last one closes.
+const sources = new WeakMap<Element, number>()
+
+/** Marks `el` as the source of an open popup (`e-source`, drawn in ui/states.css.tsx); returns what unmarks it. */
+function mark_source(el: Element) {
+  sources.set(el, (sources.get(el) ?? 0) + 1)
+  el.setAttribute("e-source", "")
+  let done = false
+  return () => {
+    if (done) return
+    done = true
+    const n = (sources.get(el) ?? 1) - 1
+    sources.set(el, n)
+    if (n === 0) el.removeAttribute("e-source")
+  }
 }
 
 /** What the arrow takes from the content's frame: see `read_frame`. */
