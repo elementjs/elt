@@ -213,21 +213,48 @@ test.describe("invalid fields", () => {
   })
 })
 
-// The checkbox's check mark is the Check icon's polyline (ui/icons.tsx), not a copy of it.
-test("the checkbox mark is drawn with the Check icon's points", async ({ page }) => {
-  const r = await page.evaluate(() => {
-    const { CHECK_POINTS, Check } = window.__ELT__.UI
+// The checkbox's check mark is clipped to the Check icon's polyline (ui/icons.tsx). It is a clip-path,
+// not a data-URI mask: a Content-Security-Policy without `data:` for images would block the mask.
+test("the checkbox mark is a clip-path following the Check icon's points, with no image load", async ({ page }) => {
+  const r = await page.evaluate(async () => {
     const box = document.createElement("input")
     box.type = "checkbox"
+    box.checked = true
     document.body.appendChild(box)
-    return {
-      mask: decodeURIComponent(getComputedStyle(box, "::after").maskImage),
-      icon: Check().querySelector("polyline")!.getAttribute("points"),
-      points: CHECK_POINTS,
-    }
+    await window.__ELT__.frames(30)
+    const after = getComputedStyle(box, "::after")
+    return { clip: after.clipPath, mask: after.maskImage, opacity: after.opacity }
   })
-  expect(r.icon).toBe(r.points)
-  expect(r.mask).toContain(`points="${r.points}"`)
+  // The outline of a stroked 3-point polyline has 6 corners.
+  expect(r.clip).toMatch(/^polygon\(/)
+  expect(r.clip.split(",")).toHaveLength(6)
+  expect(r.mask).toBe("none")
+  expect(r.opacity).toBe("1")
+})
+
+test("the checkbox mark is drawn under a Content-Security-Policy that blocks data: images", async ({ page }) => {
+  await page.route("**/tests/browser/harness.html", async (route) => {
+    const resp = await route.fetch()
+    await route.fulfill({
+      response: resp,
+      headers: { ...resp.headers(), "content-security-policy": "default-src 'self' 'unsafe-inline'" },
+    })
+  })
+  const violations: string[] = []
+  page.on("console", (m) => {
+    if (/Content Security Policy/.test(m.text())) violations.push(m.text())
+  })
+  await page.goto("/tests/browser/harness.html")
+  await page.evaluate(async () => {
+    document.body.insertAdjacentHTML("beforeend", `<input id="cb" type="checkbox" checked>`)
+    await window.__ELT__.frames(30)
+  })
+  expect(violations).toEqual([])
+  // The mark is painted: the checked box looks different from the same box with the mark taken away.
+  const checked = await page.locator("#cb").screenshot()
+  await page.addStyleTag({ content: "#cb::after { display: none }" })
+  const bare = await page.locator("#cb").screenshot()
+  expect(checked.equals(bare)).toBe(false)
 })
 
 test.describe("$auto_grow without a window resize listener", () => {

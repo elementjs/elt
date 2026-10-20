@@ -12,11 +12,44 @@ import {
 
 const colors = theme.colors
 
-/** The checkbox's check mark: the `Check` icon's polyline as a mask (its opaque stroke is what shows
- * the tint behind it), twice the icon's stroke width so it reads at checkbox size. */
-const CHECKBOX_CHECK_MASK = encodeURIComponent(
-  `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256"><polyline points="${CHECK_POINTS}" fill="none" stroke="white" stroke-linecap="round" stroke-linejoin="round" stroke-width="32"/></svg>`,
-)
+/**
+ * The outline of a polyline drawn with a flat-ended stroke of the given width, as a CSS `polygon()`
+ * in percentages of the `size` x `size` square the points live in. Joins are mitered.
+ */
+function stroke_polygon(points: string, width: number, size: number): string {
+  const p = points.split(" ").map(Number)
+  const [x0, y0, x1, y1, x2, y2] = p
+  const half = width / 2
+  // Unit normal of each segment, scaled to half the stroke width.
+  const normal = (dx: number, dy: number) => {
+    const len = Math.hypot(dx, dy)
+    return [(-dy / len) * half, (dx / len) * half]
+  }
+  const [ax, ay] = normal(x1 - x0, y1 - y0)
+  const [bx, by] = normal(x2 - x1, y2 - y1)
+  // Miter vector at the middle point: where the two offset lines meet.
+  const k = 1 + (ax * bx + ay * by) / (half * half)
+  const mx = (ax + bx) / k
+  const my = (ay + by) / k
+  const pts = [
+    [x0 + ax, y0 + ay],
+    [x1 + mx, y1 + my],
+    [x2 + bx, y2 + by],
+    [x2 - bx, y2 - by],
+    [x1 - mx, y1 - my],
+    [x0 - ax, y0 - ay],
+  ]
+  const pct = (v: number) => `${+((v / size) * 100).toFixed(2)}%`
+  return `polygon(${pts.map(([x, y]) => `${pct(x)} ${pct(y)}`).join(", ")})`
+}
+
+/**
+ * The checkbox's check mark: the `Check` icon's polyline as a clip-path, twice the icon's stroke width
+ * so it reads at checkbox size (its opaque area is what shows the tint behind it). A clip-path rather
+ * than a `mask-image: url("data:…")`: a data URI is an image load, which a Content-Security-Policy
+ * without `data:` in `img-src` (or `default-src`) blocks, leaving the mark invisible.
+ */
+const CHECKBOX_CHECK_CLIP = stroke_polygon(CHECK_POINTS, 32, 256)
 
 declare module "elt" {
   interface attrs_button {
@@ -247,16 +280,13 @@ input[type="checkbox"] {
   top: 0.1em;
 }
 
-/* Animated check: SVG polyline as mask, tight viewBox so it fills the control */
+/* Animated check: the Check polyline as a clip-path over a tint fill that fills the control */
 input[type="checkbox"]::after {
   content: "";
   position: absolute;
   inset: 5%;
   background-color: ${colors.tint};
-  -webkit-mask-image: url("data:image/svg+xml,${CHECKBOX_CHECK_MASK}");
-  mask-image: url("data:image/svg+xml,${CHECKBOX_CHECK_MASK}");
-  -webkit-mask-repeat: no-repeat;
-  mask-repeat: no-repeat;
+  clip-path: ${CHECKBOX_CHECK_CLIP};
 
   transform-origin: bottom left;
   transform: scale(0) rotate(-20deg);
@@ -265,8 +295,7 @@ input[type="checkbox"]::after {
 
   transition:
     transform ${theme.settings.durationFast} cubic-bezier(.2, .7, .3, 1),
-    opacity ${theme.settings.durationFast} ease-out,
-    mask-position ${theme.settings.durationFast} ease-out;
+    opacity ${theme.settings.durationFast} ease-out;
 }
 
 /* Checked state */
@@ -316,8 +345,7 @@ input[type="checkbox"][e-widget="switch"]::after {
   width: calc(var(--e-switch-height) - 2px);
   height: calc(var(--e-switch-height) - 2px);
   border-radius: 50%;
-  -webkit-mask-image: none;
-  mask-image: none;
+  clip-path: none;
   transform-origin: center;
   transform: translateX(2px) translateY(1px);
   opacity: 1;
