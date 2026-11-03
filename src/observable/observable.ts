@@ -66,6 +66,25 @@ export namespace o {
    */
   export type O<A, A2 extends A = A> = IObservable<A2, A> | A
   export type RO<A> = IReadonlyObservable<A> | A
+
+  /**
+   * `Out` is what a component declares for a value it reports to its caller: the component can
+   * `set` it and never reads it. The caller creates the observable (`o<string[]>([])`), passes it
+   * as the attribute and reads it, since the caller outlives the component. A component never
+   * hands out an observable it created.
+   *
+   * `set` is a property, not a method, so that `Out` is contravariant: an `Observable<string>` is
+   * an `Out<"a" | "b">`, not the other way round.
+   *
+   * ```tsx
+   * function Picker(at: { picked?: o.Out<string> }) {
+   *   return <button>{$click(() => at.picked?.set("x"))}</button>
+   * }
+   * ```
+   *
+   * @group Observable
+   */
+  export type Out<A> = { set: (value: A) => void }
   export type UnRO<A> = A extends IObservable<any, infer C> ? C : A extends IReadonlyObservable<infer B> ? B : A
 
   export type UnROArray<A extends any[]> = { [K in keyof A]: UnRO<A[K]> }

@@ -60,3 +60,18 @@ declare var __: any
 
   void [tp1, tp2, tp3, tp4, tp5, tp6, tp7, tp8, tprop1, tprop2, tprop3, tprop4]
 }
+
+// An Out is writable, never readable: any observable accepting that value is one, but not the other way round.
+{
+  const out1: o.Out<string> = o("")
+  const out2: o.Out<"a" | "b"> = o("")
+  const out3: o.Out<string> = o("").tf(
+    (s) => s,
+    (s) => s,
+  )
+  // @ts-expect-error a narrower observable can't take every value an Out<string> may receive
+  const out4: o.Out<string> = o<"a" | "b">("a")
+  // @ts-expect-error an Out has no get(): it is not readable
+  const out5: o.RO<string> = null as unknown as o.Out<string>
+  void [out1, out2, out3, out4, out5]
+}

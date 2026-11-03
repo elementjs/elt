@@ -98,6 +98,11 @@ export interface ShellOptions extends Partial<EditorSettings> {
   undo?: { depth?: number; import_undo_depth?: number } | false
   /** The Undo/Redo buttons of the root's header line; the shortcut stays. Default true. */
   show_undo_redo?: o.RO<boolean>
+  /**
+   * Written with the titles of the opened columns after the root (`[]` when only the root is open),
+   * when the editor is built, then on every change while it is on screen. Read once, when the editor is built.
+   */
+  breadcrumb?: o.Out<string[]>
 }
 
 function root_is_scalar(value: unknown): boolean {
@@ -145,6 +150,8 @@ export class ObjectEditorShell {
             },
             { immediate: true },
           )}
+        {this.options.breadcrumb &&
+          $observe(this.o_breadcrumb, (titles) => this.options.breadcrumb?.set(titles), { immediate: true })}
         {this.options.undo !== false &&
           $keymap({
             // Not in a text field: there, the browser undoes the typing, which is what the user means.

@@ -22,6 +22,45 @@ test.describe("ObjectEditor component", () => {
   })
 })
 
+test.describe("ObjectEditor breadcrumb", () => {
+  test("writes the opened columns' titles into the Out the caller passed, when built and on each change", async ({
+    page,
+  }) => {
+    const result = await page.evaluate(() => {
+      const { o, e, node_append } = window.__ELT__
+      const { ObjectEditor, dispatch_object_editor_open } = window.__ELT__.Editor
+      const o_breadcrumb = o<string[]>(["not written yet"])
+      const node = e(ObjectEditor as any, { model: o({ name: "Ada" }), breadcrumb: o_breadcrumb }) as HTMLElement
+      const built = o_breadcrumb.get()
+      node_append(document.body, node)
+      const on_mount = o_breadcrumb.get()
+      dispatch_object_editor_open(node, { o_value: o({ x: 1 }), title: "other" })
+      return { built, on_mount, after_open: o_breadcrumb.get() }
+    })
+    expect(result).toEqual({ built: [], on_mount: [], after_open: ["other"] })
+  })
+
+  test("two editors can write to the same Out: the last write is the value", async ({ page }) => {
+    const result = await page.evaluate(() => {
+      const { o, e, node_append } = window.__ELT__
+      const { ObjectEditor, dispatch_object_editor_open } = window.__ELT__.Editor
+      const o_shared = o<string[]>([])
+      const make = () => {
+        const node = e(ObjectEditor as any, { model: o({}), breadcrumb: o_shared }) as HTMLElement
+        node_append(document.body, node)
+        return node
+      }
+      const a = make()
+      const b = make()
+      dispatch_object_editor_open(a, { o_value: o({}), title: "from a" })
+      const after_a = o_shared.get()
+      dispatch_object_editor_open(b, { o_value: o({}), title: "from b" })
+      return { after_a, after_b: o_shared.get() }
+    })
+    expect(result).toEqual({ after_a: ["from a"], after_b: ["from b"] })
+  })
+})
+
 test.describe("ObjectEditorShell", () => {
   test("unpacked, columns are spaced at the section step and a column's content at the component step", async ({
     page,

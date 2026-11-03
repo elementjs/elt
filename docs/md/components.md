@@ -107,6 +107,30 @@ function Badge(attrs: Attrs<HTMLSpanElement> & { count: o.RO<number> }) {
 }
 ```
 
+A component also sometimes has a value to report to its caller (the column titles an editor has open, the item a picker chose). Such an attribute is typed `o.Out<T>`, which is just `{ set(value: T): void }`: the component writes it and never reads it. The caller creates the observable, passes it in and reads it, because the caller outlives the component. A component never hands out an observable it created: observers added from outside its lifecycle would outlive it, and a new instance would create a new observable the caller does not hold.
+
+| Role of the attribute | Type | The component |
+| --------------------- | ---- | ------------- |
+| Input | `o.RO<T>` | reads it |
+| Output | `o.Out<T>` | writes it |
+| Both | `o.Observable<T>` | reads and writes it (`model`) |
+
+```tsx
+import { $click, type Attrs, o } from "elt"
+
+function Picker(attrs: Attrs<HTMLButtonElement> & { picked?: o.Out<string> }) {
+  return <button>{$click(() => attrs.picked?.set("x"))}</button> as HTMLButtonElement
+}
+
+const o_picked = o("")
+return <Picker picked={o_picked} />
+```
+
+- An `Out` is read once, when the component is built, like `model`.
+- Several components may share one `Out` (radio buttons all writing the selection). The caller sees the last write: writes made in one flush are coalesced into a single notification.
+- A component that needs the value itself (a query it clears, a field it reads back) takes an `o.Observable<T>`, not an `Out`. With an `Out` it keeps its own state and writes it out.
+- Each component documents when it writes: on change, when built, on removal.
+
 ## Typing JSX
 
 TypeScript types every JSX expression as `Element`, whatever the tag. Cast when you need the concrete type: `(<div/> as HTMLDivElement)`.
