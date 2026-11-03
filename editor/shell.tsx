@@ -50,6 +50,7 @@ import {
 } from "./schema"
 import { tint_class, type_style_of_value } from "./type-style"
 import { RootUndoRing } from "./undo"
+import { untyped_root } from "./untyped-root"
 
 /* The header line's text, the title and the buttons, in the column type's ink color (the tint is the column's). */
 const cls_header = css`.oe-header {
@@ -112,7 +113,8 @@ function root_is_scalar(value: unknown): boolean {
   return false
 }
 
-export class ObjectEditorShell {
+/** `T` is the type of the edited value, inferred from the model; the editor itself handles it as `unknown`. */
+export class ObjectEditorShell<T = unknown> {
   readonly node: HTMLElement
   private readonly o_columns = o<ColumnDescriptor[]>([])
   readonly o_breadcrumb: o.ReadonlyObservable<string[]>
@@ -120,10 +122,13 @@ export class ObjectEditorShell {
   /** The settings of the root column, and the defaults of every node (`packed` aside, see `ColumnDescriptor.inherited`). */
   private readonly defaults: EditorSettings
 
+  private readonly o_root: o.Observable<unknown>
+
   constructor(
-    private readonly o_root: o.Observable<unknown>,
+    o_model: o.Observable<T>,
     private readonly options: ShellOptions = {},
   ) {
+    this.o_root = untyped_root(o_model, options.schema ?? anything)
     this.o_breadcrumb = this.o_columns.tf((cols) => cols.slice(1).map((c) => c.title ?? ""))
     this.undo = new RootUndoRing(this.o_root, this.options.undo || {})
     this.defaults = {
@@ -557,9 +562,9 @@ export class ObjectEditorShell {
 }
 
 /** Attributes of the `<ObjectEditor>` component; the options are those of `ShellOptions`. */
-export interface ObjectEditorAttrs extends ShellOptions, Attrs<HTMLElement> {
+export interface ObjectEditorAttrs<T = unknown> extends ShellOptions, Attrs<HTMLElement> {
   /** The edited value. Edits write back into it, and external writes to it show up in the editor. */
-  model: o.Observable<unknown>
+  model: o.Observable<T>
 }
 
 /**
@@ -567,7 +572,7 @@ export interface ObjectEditorAttrs extends ShellOptions, Attrs<HTMLElement> {
  * (see `ObjectEditorShell`, which does the work and is not needed to use the editor). `class` and
  * `style` apply to the strip.
  */
-export function ObjectEditor(attrs: ObjectEditorAttrs): HTMLElement {
+export function ObjectEditor<T>(attrs: ObjectEditorAttrs<T>): HTMLElement {
   const { model, ...options } = attrs
   return new ObjectEditorShell(model, options).node
 }

@@ -5,6 +5,7 @@ This file tests some typing contracts. It should never have errors
 import type { Renderable } from "../src"
 import { o } from "../src/observable"
 import type { ServiceHelper, ServiceHelperBase } from "../src/app/service"
+import type { ObjectEditorShell } from "../editor/shell"
 
 var _: any
 
@@ -123,4 +124,13 @@ declare var __: any
   // @ts-expect-error a service that declares a number param is not one that declares a string param
   const other: ServiceHelper<{ page: string }> = typed
   void [erased, o_page, other]
+}
+
+// The editor takes the caller's typed model as it is; it handles it as unknown inside.
+{
+  type Model = ConstructorParameters<typeof ObjectEditorShell<{ name: string }>>[0]
+  const typed: Model = o({ name: "Ada" })
+  // @ts-expect-error a model of another type
+  const other: Model = o("Ada")
+  void [typed, other]
 }

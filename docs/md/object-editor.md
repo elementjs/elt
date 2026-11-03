@@ -16,7 +16,7 @@ section: UI Recipes
 
 | Attribute | Type | Does |
 | --------- | ---- | ---- |
-| `model` | `Observable<unknown>` | The edited value (required) |
+| `model` | `Observable<T>` | The edited value (required). Any observable works, whatever the type of its value: the editor handles it as `unknown`, and before a value is written back into the model the schema's `canHandle` must accept it (otherwise the write throws). Declare the model `o<unknown>(…)` when its value can change to something its type doesn't describe |
 | `schema` | a schema (`object(...)`, `array(...)`, `either(...)`, …) | What the value may hold. Without it, the editor works in unknown mode: any JSON-like value, with its type changeable |
 | `prefer_popups` | `o.RO<boolean>` | Open nested values in a popup instead of a new column to the right (a schema can still choose per value) |
 | `packed` | `o.RO<boolean>` (default `false`) | Draw each column as one framed group whose header line, toolbar and rows touch and share lines. Without it, a column has no frame: its rows are spaced by the usual elt/ui spacing. See [Packed or not](#packed-or-not) |

@@ -78,7 +78,7 @@ function FontChooser() {
     <P.TextAa/> {o_font_style.tf(ft => ft.fontFamily)} <P.CaretDown/>
     {$click(ev => {
       const btn = (font: keyof typeof fonts) => {
-        const tfed = o_font_style.tf(tf_equals(fonts[font]))
+        const tfed = o_font_style.tf(tf_equals<FontStyle>(fonts[font]))
         return <label><input type="checkbox">{$bind.boolean(tfed)}</input> {fonts[font].fontFamily}</label>
       }
       popup(ev.currentTarget, () =>

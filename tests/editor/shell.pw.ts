@@ -22,6 +22,42 @@ test.describe("ObjectEditor component", () => {
   })
 })
 
+test.describe("ObjectEditor model type", () => {
+  test("a typed model is edited as is, and a value the schema doesn't accept is refused before it reaches the model", async ({
+    page,
+  }) => {
+    const result = await page.evaluate(() => {
+      const { o } = window.__ELT__
+      const { untyped_root, object, string } = window.__ELT__.Editor
+      const o_model = o({ name: "Ada" })
+      const schema = object({ properties: [{ name: "name", type: string() }] })
+      const o_root = untyped_root(o_model, schema)
+      // The model's value is read as it is, and its changes are followed.
+      const read = o_root.get()
+      o_model.set({ name: "Grace" })
+      const followed = o_root.get()
+      // An accepted value is written to the model.
+      o_root.set({ name: "Linus" })
+      const written = o_model.get()
+      // A refused one throws, and the model keeps its value.
+      let error = "no error"
+      try {
+        o_root.set(42)
+      } catch (e) {
+        error = (e as Error).message
+      }
+      return { read, followed, written, error, kept: o_model.get() }
+    })
+    expect(result).toEqual({
+      read: { name: "Ada" },
+      followed: { name: "Grace" },
+      written: { name: "Linus" },
+      error: "object editor: the schema does not accept this value",
+      kept: { name: "Linus" },
+    })
+  })
+})
+
 test.describe("ObjectEditor breadcrumb", () => {
   test("writes the opened columns' titles into the Out the caller passed, when built and on each change", async ({
     page,
@@ -34,7 +70,7 @@ test.describe("ObjectEditor breadcrumb", () => {
       const built = o_breadcrumb.get()
       node_append(document.body, node)
       const on_mount = o_breadcrumb.get()
-      dispatch_object_editor_open(node, { o_value: o({ x: 1 }), title: "other" })
+      dispatch_object_editor_open(node, { o_value: o<unknown>({ x: 1 }), title: "other" })
       return { built, on_mount, after_open: o_breadcrumb.get() }
     })
     expect(result).toEqual({ built: [], on_mount: [], after_open: ["other"] })
@@ -52,9 +88,9 @@ test.describe("ObjectEditor breadcrumb", () => {
       }
       const a = make()
       const b = make()
-      dispatch_object_editor_open(a, { o_value: o({}), title: "from a" })
+      dispatch_object_editor_open(a, { o_value: o<unknown>({}), title: "from a" })
       const after_a = o_shared.get()
-      dispatch_object_editor_open(b, { o_value: o({}), title: "from b" })
+      dispatch_object_editor_open(b, { o_value: o<unknown>({}), title: "from b" })
       return { after_a, after_b: o_shared.get() }
     })
     expect(result).toEqual({ after_a: ["from a"], after_b: ["from b"] })
@@ -172,7 +208,7 @@ test.describe("ObjectEditorShell", () => {
       })
 
       const o_root = o({ name: "Ada", age: 36, active: true })
-      const o_other = o({ name: "Linus", age: 54, active: false })
+      const o_other = o<unknown>({ name: "Linus", age: 54, active: false })
       const shell = new ObjectEditorShell(o_root, { schema: profile_schema })
       node_append(document.body, shell.node)
 
@@ -205,7 +241,7 @@ test.describe("ObjectEditorShell", () => {
       })
 
       const o_root = o({ name: "Ada", age: 36, active: true })
-      const o_other = o({ name: "Linus", age: 54, active: false })
+      const o_other = o<unknown>({ name: "Linus", age: 54, active: false })
       const shell = new ObjectEditorShell(o_root, { schema: profile_schema })
       node_append(document.body, shell.node)
 
@@ -234,7 +270,7 @@ test.describe("ObjectEditorShell", () => {
       })
 
       const o_root = o({ name: "Ada", age: 36, active: true })
-      const o_other = o({ name: "Linus", age: 54, active: false })
+      const o_other = o<unknown>({ name: "Linus", age: 54, active: false })
       const shell = new ObjectEditorShell(o_root, { schema: profile_schema })
       node_append(document.body, shell.node)
 
@@ -629,7 +665,7 @@ test.describe("ObjectEditorShell", () => {
       const shell = new ObjectEditorShell(o_root as any, { schema: object({ properties: [] }) })
       node_append(document.body, shell.node)
 
-      const o_bag = o((o_root.get() as { bag: Map<string, number> }).bag)
+      const o_bag = o<unknown>((o_root.get() as { bag: Map<string, number> }).bag)
       dispatch_object_editor_open(shell.node, { o_value: o_bag, title: "bag" })
 
       return { breadcrumb: shell.o_breadcrumb.get(), text_content: shell.node.textContent }

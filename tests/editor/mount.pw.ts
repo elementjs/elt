@@ -8,7 +8,7 @@ test.describe("mount safe-child", () => {
     const results = await page.evaluate(() => {
       const { o } = window.__ELT__
       const { INVALID_MOUNT, is_valid_mount, safe_object_child } = window.__ELT__.Editor
-      const o_obj = o({ a: 1, b: 2 })
+      const o_obj = o<unknown>({ a: 1, b: 2 })
       const o_child = safe_object_child(o_obj, "a")
       const initialIsOne = o_child.get() === 1
       o_obj.set({ b: 2 } as any)
@@ -26,7 +26,7 @@ test.describe("mount safe-child", () => {
     const results = await page.evaluate(() => {
       const { o } = window.__ELT__
       const { INVALID_MOUNT, safe_array_index } = window.__ELT__.Editor
-      const o_arr = o([10, 20, 30])
+      const o_arr = o<unknown>([10, 20, 30])
       const o_row = safe_array_index(o_arr, 2)
       const initialIsThirty = o_row.get() === 30
       o_arr.set([10, 20])
@@ -43,26 +43,28 @@ test.describe("mount safe-child", () => {
     const result = await page.evaluate(() => {
       const { o } = window.__ELT__
       const { safe_object_child } = window.__ELT__.Editor
-      const o_obj = o({ name: "Ada" })
+      const o_obj = o<unknown>({ name: "Ada" })
       const o_name = safe_object_child(o_obj, "name")
       o_name.set("Grace")
-      return o_obj.get().name
+      return o_obj.get()
     })
-    expect(result).toBe("Grace")
+    expect(result).toEqual({ name: "Grace" })
   })
 
   test("safe_map_key renames the entry when the key value changes", async ({ page }) => {
     const results = await page.evaluate(() => {
       const { o } = window.__ELT__
       const { safe_map_key } = window.__ELT__.Editor
-      const o_map = o(new Map<string, number>([["a", 1]]))
+      const o_map = o<unknown>(new Map<string, number>([["a", 1]]))
       const o_key = safe_map_key(o_map, o("a"))
       const initial = o_key.get()
       o_key.set("b")
+      const map = o_map.get()
+      if (!(map instanceof Map)) throw new Error("the map was replaced by something else")
       return [
         { name: "initial key is a", actual: initial, expected: "a" },
-        { name: "old key gone", actual: o_map.get().has("a"), expected: false },
-        { name: "new key has value", actual: o_map.get().get("b"), expected: 1 },
+        { name: "old key gone", actual: map.has("a"), expected: false },
+        { name: "new key has value", actual: map.get("b"), expected: 1 },
       ]
     })
     for (const r of results) expect(r.actual, r.name).toBe(r.expected)
@@ -72,7 +74,7 @@ test.describe("mount safe-child", () => {
     const result = await page.evaluate(() => {
       const { o } = window.__ELT__
       const { INVALID_MOUNT, safe_map_key } = window.__ELT__.Editor
-      const o_map = o(new Map([["x", 1]]))
+      const o_map = o<unknown>(new Map([["x", 1]]))
       const o_key = safe_map_key(o_map, o("x"))
       o_map.set(new Map())
       return o_key.get() === INVALID_MOUNT

@@ -1048,7 +1048,7 @@ export class ObjectFactory extends Factory<ObjectOptions> {
 
     const add_transient = () => {
       const id = `__new_${Date.now()}`
-      transient_rows.set(id, { o_key: o(""), o_value: o(null) })
+      transient_rows.set(id, { o_key: o(""), o_value: o<unknown>(null) })
       o_transient_ids.set([...o_transient_ids.get(), id])
     }
 
@@ -1094,7 +1094,7 @@ export class ObjectFactory extends Factory<ObjectOptions> {
           render_transient: (id) => {
             let row = transient_rows.get(id)
             if (!row) {
-              row = { o_key: o(""), o_value: o(null) }
+              row = { o_key: o(""), o_value: o<unknown>(null) }
               transient_rows.set(id, row)
             }
             const { o_key, o_value: o_child } = row
