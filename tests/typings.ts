@@ -75,3 +75,24 @@ declare var __: any
   const out5: o.RO<string> = null as unknown as o.Out<string>
   void [out1, out2, out3, out4, out5]
 }
+
+// The write type of an IObservable<Get, Set> is contravariant; the read type of any readonly observable is covariant.
+{
+  const wide_set = _ as o.IObservable<string, string>
+  const narrow_set = _ as o.IObservable<string, "a" | "b">
+  const s1: o.IObservable<string, "a" | "b"> = wide_set
+  // @ts-expect-error narrow_set only accepts "a" | "b", but an IObservable<string, string> promises any string
+  const s2: o.IObservable<string, string> = narrow_set
+  const ro_narrow = _ as o.IReadonlyObservable<"a">
+  const r1: o.IReadonlyObservable<string> = ro_narrow
+  // @ts-expect-error reading a string where "a" is promised
+  const r2: o.IReadonlyObservable<"a"> = null as unknown as o.IReadonlyObservable<string>
+  // tf with a revert is a writable observable of the *transformed* type, and a readonly source keeps its covariance
+  const ro_num = _ as o.IReadonlyObservable<number>
+  const w1: o.IObservable<string, string> = ro_num.tf(
+    (n) => String(n),
+    (s) => Number(s),
+  )
+  const r3: o.IReadonlyObservable<number | string> = ro_num
+  void [s1, s2, r1, r2, w1, r3]
+}

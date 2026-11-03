@@ -44,11 +44,11 @@ export namespace o {
     addObserver(fn: ObserverCallback<Get>): Observer<Get>
     addObserver(fn: Observer<Get>): Observer<Get>
     tf<B>(fn: TransfomFn<Get, B>): IReadonlyObservable<B>
-    tf<B>(fn: TransfomFn<Get, B>, revert: RevertFn<Get, B>): IObservable<B, Get>
+    tf<B>(fn: TransfomFn<Get, B>, revert: RevertFn<Get, B>): IObservable<B, B>
   }
 
   export interface IObservable<Get, Set> extends IReadonlyObservable<Get> {
-    set(value: Set): void
+    set: (value: Set) => void
   }
 
   /**
