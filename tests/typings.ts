@@ -44,7 +44,9 @@ declare var __: any
 
   const tp1: o.Observable<number> = obj.p("a")
   const tp2: o.Observable<string> = obj.p((x) => x.b.c)
-  const tp3: o.Observable<number | { c: string }> = obj.p(o<"a">("a"))
+  const tp3: o.Observable<number> = obj.p(o<"a">("a"))
+  // @ts-expect-error the property observable of "a" is invariant: it holds numbers only, not also the objects of "b"
+  const tp3_wide: o.Observable<number | { c: string }> = obj.p(o<"a">("a"))
   const tp4: o.Observable<number | { c: string }> = obj.p(o<"a" | "b">("a"))
 
   // path arrays are runtime-only; type as unknown
@@ -58,17 +60,14 @@ declare var __: any
   const tprop3: o.Observable<unknown> = o.prop(obj, ["b", "c"])
   const tprop4: o.Observable<unknown> = o.prop(obj, o(["b", "c"]))
 
-  void [tp1, tp2, tp3, tp4, tp5, tp6, tp7, tp8, tprop1, tprop2, tprop3, tprop4]
+  void [tp1, tp2, tp3, tp3_wide, tp4, tp5, tp6, tp7, tp8, tprop1, tprop2, tprop3, tprop4]
 }
 
 // An Out is writable, never readable: any observable accepting that value is one, but not the other way round.
 {
   const out1: o.Out<string> = o("")
   const out2: o.Out<"a" | "b"> = o("")
-  const out3: o.Out<string> = o("").tf(
-    (s) => s,
-    (s) => s,
-  )
+  const out3: o.Out<string> = o("").tf({ transform: (s) => s, revert: (s) => s })
   // @ts-expect-error a narrower observable can't take every value an Out<string> may receive
   const out4: o.Out<string> = o<"a" | "b">("a")
   // @ts-expect-error an Out has no get(): it is not readable
@@ -87,12 +86,28 @@ declare var __: any
   const r1: o.IReadonlyObservable<string> = ro_narrow
   // @ts-expect-error reading a string where "a" is promised
   const r2: o.IReadonlyObservable<"a"> = null as unknown as o.IReadonlyObservable<string>
-  // tf with a revert is a writable observable of the *transformed* type, and a readonly source keeps its covariance
+  // Only a writable observable can be given a Converter: from a read-only one, tf is read-only.
   const ro_num = _ as o.IReadonlyObservable<number>
-  const w1: o.IObservable<string, string> = ro_num.tf(
-    (n) => String(n),
-    (s) => Number(s),
-  )
+  const conv = { transform: (n: number) => String(n), revert: (s: string) => Number(s) }
+  const w2: o.Observable<string> = o(0).tf(conv)
+  const w3: o.ReadonlyObservable<string> = (_ as o.ReadonlyObservable<number>).tf(conv)
+  // @ts-expect-error a ReadonlyObservable has no Converter overload that would return a writable observable
+  const w4: o.Observable<string> = (_ as o.ReadonlyObservable<number>).tf(conv)
   const r3: o.IReadonlyObservable<number | string> = ro_num
-  void [s1, s2, r1, r2, w1, r3]
+  void [s1, s2, r1, r2, w2, w3, w4, r3]
+}
+
+// An Observable<A> is invariant in A (it is read and written); a ReadonlyObservable<A> is covariant.
+{
+  const narrow = _ as o.Observable<"a" | "b">
+  const wide = _ as o.Observable<string>
+  // @ts-expect-error someone could set any string through the wider type
+  const v1: o.Observable<string> = narrow
+  // @ts-expect-error reading a string where "a" | "b" is promised
+  const v2: o.Observable<"a" | "b"> = wide
+  const v3: o.ReadonlyObservable<string | null> = wide
+  const v4: o.ReadonlyObservable<unknown> = narrow
+  // @ts-expect-error a ReadonlyObservable<unknown> cannot be written, and an Observable<unknown> can
+  const v5: o.Observable<unknown> = _ as o.ReadonlyObservable<unknown>
+  void [v1, v2, v3, v4, v5]
 }

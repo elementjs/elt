@@ -10,6 +10,17 @@ An `Observable` is a wrapper around a value that notifies whoever's watching whe
 
 This page covers the `o()` data type itself. Rendering *dynamic structure* (lists, conditional blocks) from an observable is the job of Verbs (`If`, `Repeat`, `Switch`) — see the [Verbs](./verbs.md) page. Everything below reads as complete documentation on its own; the "Try it" panels that follow some examples run the code for real, in this page, but they're a bonus on top of the prose and code, not a replacement for it.
 
+## What each type accepts
+
+| Type | Reads | Writes | Accepted where |
+| ---- | ----- | ------ | -------------- |
+| `o.Observable<T>` | yes | yes | only another `Observable<T>`: it is *invariant*. An `Observable<"a" \| "b">` is not an `Observable<string>` (someone could set any string through it), and an `Observable<string>` is not an `Observable<"a" \| "b">` (it could hold other strings) |
+| `o.ReadonlyObservable<T>` | yes | no | any `Observable<U>` or `ReadonlyObservable<U>` with `U` assignable to `T` (it is *covariant*): a `ReadonlyObservable<string \| null>` accepts an `Observable<string>` |
+| `o.IObservable<Get, Set>` | `Get` | `Set` | reads covariantly and writes contravariantly: an `IObservable<Date \| null, Date>` accepts an `Observable<Date \| null>`, and the writer may only write dates |
+| `o.Out<T>` | no | yes | anything that accepts `T` (see [Components](./components.md#reactive-attributes)) |
+
+Code that must handle an observable of any type reads it as a `ReadonlyObservable<unknown>` and narrows the value before using it. An `Observable<unknown>` is not "an observable of anything": it promises that *any* value may be written to it, which a typed `Observable<{ name: string }>` does not.
+
 ## Creating and reading
 
 `o(value)` wraps any value in an `Observable`; given an observable, it returns that same observable. `.get()` reads the current value; `.set(value)` replaces it and notifies every observer synchronously, before `.set()` returns.
@@ -70,7 +81,7 @@ const oo_doubled = o_count.tf((n) => n * 2)
 return <p>{o_count} doubled is {oo_doubled}</p>
 ```
 
-`.tf()` also accepts a `Converter` — an object with `transform`/`revert` — to build a *writable* derived observable, where writes to the derived value get translated back and pushed into the source. `tf_equals`, from `src/observable/transformers.ts`, is a common one: it turns "is this observable equal to X?" into a writable boolean, useful for radio-button-style toggle groups where each option is its own checkbox bound to the same underlying value:
+`.tf()` of a *writable* observable also accepts a `Converter` — an object with `transform`/`revert` — to build a *writable* derived observable, where writes to the derived value get translated back and pushed into the source. A read-only observable cannot be given one: whatever is derived from it stays read-only. `tf_equals`, from `src/observable/transformers.ts`, is a common one: it turns "is this observable equal to X?" into a writable boolean, useful for radio-button-style toggle groups where each option is its own checkbox bound to the same underlying value:
 
 ```tsx
 //@inline-example

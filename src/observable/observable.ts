@@ -44,7 +44,6 @@ export namespace o {
     addObserver(fn: ObserverCallback<Get>): Observer<Get>
     addObserver(fn: Observer<Get>): Observer<Get>
     tf<B>(fn: TransfomFn<Get, B>): IReadonlyObservable<B>
-    tf<B>(fn: TransfomFn<Get, B>, revert: RevertFn<Get, B>): IObservable<B, B>
   }
 
   export interface IObservable<Get, Set> extends IReadonlyObservable<Get> {
@@ -393,7 +392,7 @@ export namespace o {
    *
    * @group Observable
    */
-  export class ReadonlyObservable<A> implements Indexable {
+  export class ReadonlyObservable<out A> implements Indexable {
     [sym_display_node]?: string;
     [sym_display_attrs]?: { [name: string]: string | null | false | number };
 
@@ -552,91 +551,46 @@ export namespace o {
     // eslint-disable-next-line @typescript-eslint/no-empty-function
     watched() {}
 
-    apply<K extends keyof A, Args extends A[K] extends (...args: infer A) => any ? A : never>(
+    // `this` is typed instead of using `A` directly, so that `A` stays out of these signatures (`keyof A` is
+    // contravariant) and the class can be covariant in `A`.
+    apply<T, K extends keyof T, Args extends T[K] extends (...args: infer A) => any ? A : never>(
+      this: ReadonlyObservable<T>,
       method: K,
       args: { [K2 in keyof Args]: o.RO<Args[K2]> },
-    ): ReadonlyObservable<A[K] extends (...args: any[]) => infer B ? B : never> {
+    ): ReadonlyObservable<T[K] extends (...args: any[]) => infer B ? B : never> {
       return o.apply(this, method, args as any) as any
     }
 
-    call<K extends keyof A, Args extends A[K] extends (...args: infer A) => any ? A : never>(
+    call<T, K extends keyof T, Args extends T[K] extends (...args: infer A) => any ? A : never>(
+      this: ReadonlyObservable<T>,
       method: K,
       ...args: { [K2 in keyof Args]: o.RO<Args[K2]> }
-    ): ReadonlyObservable<A[K] extends (...args: any[]) => infer B ? B : never> {
+    ): ReadonlyObservable<T[K] extends (...args: any[]) => infer B ? B : never> {
       return o.apply(this, method, args as any) as any
     }
 
     /**
-     * Transform this Observable into another using a transform function or a Converter.
+     * Transform this Observable into another using a transform function.
      *
-     * If there is only one transform function provided then the result is a ReadonlyObservable since
-     * there is no way of converting the result back.
-     *
-     * A Converter providing both `get` and `set` operations will create a two-way observable that is settable.
+     * The result is read-only, there being no way of converting it back. Only a writable
+     * {@link o.Observable} can be given a `Converter`, to get a two-way observable.
      *
      * ```tsx
-     * const o_n = o(2)
      * const o_dbl = o_n.tf(n => n * 2) // read-only
-     * const o_pair = o_n.tf({ transform: n => [n, n * 2], revert: ([n]) => n })
      * ```
-     *
      */
-    tf<B, A2 extends A = A>(transform: RO<Converter<A2, B>>): Observable<B>
-    tf<B, A2 extends A = A>(tf: o.RO<TransfomFn<A2, B>>, rev: o.RO<RevertFn<A2, B>>): Observable<B>
-    tf<B, A2 extends A = A>(transform: RO<TransfomFn<A2, B> | ReadonlyConverter<A2, B>>): ReadonlyObservable<B>
-    tf<B, A2 extends A = A>(
-      transform: RO<Converter<A2, B>> | RO<TransfomFn<A2, B> | ReadonlyConverter<A2, B>>,
-      rev?: RO<RevertFn<A2, B>>,
-    ): Observable<B> {
-      let old: A2 | NoValue = NoValue
-      let old_val: B | NoValue = NoValue
-      return combine(
-        [this as unknown as IReadonlyObservable<A2>, transform, rev] as const,
-        ([v, fnget]) => {
-          const curval = typeof fnget === "function" ? fnget(v, old, old_val) : fnget.transform(v, old, old_val)
-          const arg_nb = typeof fnget === "function" ? fnget.length : fnget.transform.length
-          if (arg_nb > 1) {
-            old = v
-            if (arg_nb > 2) {
-              old_val = curval
-            }
-          }
-          return curval
-        },
-        (newv, old, [curr, conv, rev]) => {
-          if (typeof rev === "function") return [rev(newv, old as B, curr), NoValue, NoValue] as const
-          // A transform function with no revert function is read-only, as a `combine` with no setter
-          if (typeof conv === "function")
-            throw new Error("tf: this observable is read-only, no revert function was given")
-          const new_orig = (conv as Converter<A2, B>).revert(newv, old as B, curr)
-          return [new_orig, NoValue, NoValue] as const
-        },
-      )
+    tf<B>(transform: RO<TransfomFn<A, B> | ReadonlyConverter<A, B>>): ReadonlyObservable<B>
+    tf<B>(transform: RO<Converter<A, B> | TransfomFn<A, B> | ReadonlyConverter<A, B>>): unknown {
+      return tf_impl(this, transform)
     }
 
     /**
-     * Create an observable that will hold the value of the property specified with `key`.
-     * The resulting observable is completely bi-directional.
-     *
-     * The `key` can itself be an observable, in which case the resulting observable will
-     * change whenever either `key` or the original observable change.
-     *
-     * `key` may also be a path array (e.g. `["a", "b", "c"]`) including as an observable,
-     * to reach nested properties without a getter function. Path arrays are typed as
-     * `unknown`; use a getter `(obj) => obj.a.b` when a precise type is needed.
-     *
-     * ```tsx
-     * const obj = o({ a: 1, b: { c: 2 } })
-     * const o_a = obj.p("a") // bind one field — prefer obj.assign() for ad-hoc deep writes
-     * o_a.set(3)
-     * ```
+     * Create an observable that will hold the value of the property specified with `key`, which is
+     * writable if this observable is (see {@link o.Observable.p}).
      */
-    p<R>(this: Observable<A>, key: RO<(obj: A) => R>): Observable<R>
-    p<R>(this: IReadonlyObservable<A>, key: RO<(obj: A) => R>): ReadonlyObservable<R>
-    p<K extends keyof A>(this: Observable<A>, key: RO<K>): Observable<A[K]>
-    p<K extends keyof A>(this: IReadonlyObservable<A>, key: RO<K>): ReadonlyObservable<A[K]>
-    p(this: Observable<A>, key: RO<readonly PropertyKey[] | PropertyKey>): Observable<unknown>
-    p(this: IReadonlyObservable<A>, key: RO<readonly PropertyKey[] | PropertyKey>): ReadonlyObservable<unknown>
+    p<R>(key: RO<(obj: A) => R>): ReadonlyObservable<R>
+    p<K extends keyof A>(key: RO<K>): ReadonlyObservable<A[K]>
+    p(key: RO<readonly PropertyKey[] | PropertyKey>): ReadonlyObservable<unknown>
     p(key: any): any {
       return prop(this, key)
     }
@@ -649,38 +603,76 @@ export namespace o {
       key: RO<A>,
       def?: undefined,
       delete_on_undefined?: RO<boolean | undefined>,
-    ): this extends Observable<Map<A, B>> ? Observable<B | undefined> : ReadonlyObservable<B | undefined>
+    ): ReadonlyObservable<B | undefined>
     key<A, B>(
       this: IReadonlyObservable<Map<A, B>>,
       key: RO<A>,
       def: RO<(key: A, map: Map<A, B>) => B>,
-    ): this extends Observable<Map<A, B>> ? Observable<B> : ReadonlyObservable<B>
+    ): ReadonlyObservable<B>
     key<A, B>(
       this: IReadonlyObservable<Map<A, B>>,
       key: RO<A>,
       def?: RO<(key: A, map: Map<A, B>) => B>,
       delete_on_undefined = true as RO<boolean | undefined>,
-    ): ReadonlyObservable<B | undefined> {
-      return combine(
-        [this, key, def, delete_on_undefined] as const,
-        ([map, key, def]) => {
-          let res = map.get(key)
-          if (res === undefined && def) {
-            res = def(key, map)
-          }
-          return res
-        },
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        (ret, _, [omap, okey, _2, delete_on_undefined]) => {
-          const result = new Map(omap) //.set(okey, ret)
-          // Is this correct ? should I **delete** when I encounter undefined ?
-          // biome-ignore lint/style/noNonNullAssertion: with delete_on_undefined off, storing `undefined` in the Map<A, B> is what the caller asked for
-          if (ret !== undefined || !delete_on_undefined) result.set(okey, ret!)
-          else result.delete(okey)
-          return [result, NoValue, NoValue, NoValue] as const
-        },
-      )
+    ): unknown {
+      return key_impl(this, key, def, delete_on_undefined)
     }
+  }
+
+  /** The implementation of `tf`, shared by {@link ReadonlyObservable.tf} and {@link Observable.tf}. */
+  function tf_impl<A, B>(
+    src: IReadonlyObservable<A>,
+    transform: RO<Converter<A, B> | TransfomFn<A, B> | ReadonlyConverter<A, B>>,
+  ): ReadonlyObservable<B> {
+    let old: A | NoValue = NoValue
+    let old_val: B | NoValue = NoValue
+    return combine(
+      [src, transform] as const,
+      ([v, fnget]) => {
+        const curval = typeof fnget === "function" ? fnget(v, old, old_val) : fnget.transform(v, old, old_val)
+        const arg_nb = typeof fnget === "function" ? fnget.length : fnget.transform.length
+        if (arg_nb > 1) {
+          old = v
+          if (arg_nb > 2) {
+            old_val = curval
+          }
+        }
+        return curval
+      },
+      (newv, old, [curr, conv]) => {
+        // A transform function, or a converter with no revert, is read-only, as a `combine` with no setter
+        if (typeof conv === "function" || !("revert" in conv))
+          throw new Error("tf: this observable is read-only, it was not given a Converter")
+        return [(conv as Converter<A, B>).revert(newv, old as B, curr), NoValue] as const
+      },
+    )
+  }
+
+  /** The implementation of `key`, shared by {@link ReadonlyObservable.key} and {@link Observable.key}. */
+  function key_impl<A, B>(
+    src: IReadonlyObservable<Map<A, B>>,
+    key: RO<A>,
+    def: RO<(key: A, map: Map<A, B>) => B> | undefined,
+    delete_on_undefined: RO<boolean | undefined>,
+  ): ReadonlyObservable<B | undefined> {
+    return combine(
+      [src, key, def, delete_on_undefined] as const,
+      ([map, key, def]) => {
+        let res = map.get(key)
+        if (res === undefined && def) {
+          res = def(key, map)
+        }
+        return res
+      },
+      (ret, _, [omap, okey, _2, delete_on_undefined]) => {
+        const result = new Map(omap) //.set(okey, ret)
+        // Is this correct ? should I **delete** when I encounter undefined ?
+        // biome-ignore lint/style/noNonNullAssertion: with delete_on_undefined off, storing `undefined` in the Map<A, B> is what the caller asked for
+        if (ret !== undefined || !delete_on_undefined) result.set(okey, ret!)
+        else result.delete(okey)
+        return [result, NoValue, NoValue, NoValue] as const
+      },
+    )
   }
 
   /** Mark of the current `Queue.schedule` walk; an observable whose `_visit` equals it was already visited. */
@@ -832,12 +824,13 @@ export namespace o {
   }
 
   /** @internal */
-  export class ChildObservableLink<A extends unknown[] = unknown[], T = unknown> implements Indexable {
+  export class ChildObservableLink implements Indexable {
     idx = null
 
     constructor(
-      public parent: Observable<unknown>,
-      public child: CombinedObservable<A, T>,
+      public parent: ReadonlyObservable<unknown>,
+      /** The observable depending on `parent`, with the values it keeps of its parents: seen here without its types. */
+      public child: ReadonlyObservable<unknown> & { _parents_values: unknown[] },
       public child_idx: number,
     ) {}
 
@@ -853,10 +846,75 @@ export namespace o {
    *
    * @group Observable
    */
-  export class Observable<A> extends ReadonlyObservable<A> {
+  export class Observable<in out A> extends ReadonlyObservable<A> {
     declare _value: A
     /** set to `true` on the prototype, see {@link o.is_observable} */
     declare [sym_is_observable]?: boolean
+
+    /**
+     * Transform this Observable into another using a transform function or a Converter.
+     *
+     * If there is only one transform function provided then the result is a ReadonlyObservable since
+     * there is no way of converting the result back.
+     *
+     * A Converter providing both `transform` and `revert` operations will create a two-way observable
+     * that is settable: writes to it are translated back and written to this observable. A read-only
+     * observable cannot be given a Converter.
+     *
+     * ```tsx
+     * const o_n = o(2)
+     * const o_dbl = o_n.tf(n => n * 2) // read-only
+     * const o_pair = o_n.tf({ transform: n => [n, n * 2], revert: ([n]) => n })
+     * ```
+     */
+    override tf<B>(transform: RO<Converter<A, B>>): Observable<B>
+    override tf<B>(transform: RO<TransfomFn<A, B> | ReadonlyConverter<A, B>>): ReadonlyObservable<B>
+    override tf<B>(transform: RO<Converter<A, B> | TransfomFn<A, B> | ReadonlyConverter<A, B>>): unknown {
+      return tf_impl(this, transform)
+    }
+
+    /**
+     * Create an observable that will hold the value of the property specified with `key`.
+     * The resulting observable is completely bi-directional.
+     *
+     * The `key` can itself be an observable, in which case the resulting observable will
+     * change whenever either `key` or the original observable change.
+     *
+     * `key` may also be a path array (e.g. `["a", "b", "c"]`) including as an observable,
+     * to reach nested properties without a getter function. Path arrays are typed as
+     * `unknown`; use a getter `(obj) => obj.a.b` when a precise type is needed.
+     *
+     * ```tsx
+     * const obj = o({ a: 1, b: { c: 2 } })
+     * const o_a = obj.p("a") // bind one field — prefer obj.assign() for ad-hoc deep writes
+     * o_a.set(3)
+     * ```
+     */
+    override p<R>(key: RO<(obj: A) => R>): Observable<R>
+    override p<K extends keyof A>(key: RO<K>): Observable<A[K]>
+    override p(key: RO<readonly PropertyKey[] | PropertyKey>): Observable<unknown>
+    override p(key: any): any {
+      return prop(this, key)
+    }
+
+    /**
+     * Like {@link o.Observable.p}, but with `Map` objects.
+     */
+    override key<A, B>(
+      this: Observable<Map<A, B>>,
+      key: RO<A>,
+      def?: undefined,
+      delete_on_undefined?: RO<boolean | undefined>,
+    ): Observable<B | undefined>
+    override key<A, B>(this: Observable<Map<A, B>>, key: RO<A>, def: RO<(key: A, map: Map<A, B>) => B>): Observable<B>
+    override key<A, B>(
+      this: Observable<Map<A, B>>,
+      key: RO<A>,
+      def?: RO<(key: A, map: Map<A, B>) => B>,
+      delete_on_undefined = true as RO<boolean | undefined>,
+    ): unknown {
+      return key_impl(this, key, def, delete_on_undefined)
+    }
 
     /**
      * Set the value of the observable and notify the observers listening
@@ -915,8 +973,9 @@ export namespace o {
       return values.slice() as any as T
     }
 
-    setter(nval: T, _oval: T | NoValue, _last: A): { [K in keyof A]: A[K] | NoValue } {
-      return nval as any as A // by default, just forward the type
+    /** Translates a value written to this observable into values for its parents. By default there is none: it is read-only. */
+    setter(_nval: T, _oval: T | NoValue, _last: A): { [K in keyof A]: A[K] | NoValue } {
+      throw new Error("this observable is read-only, it was given no setter")
     }
 
     override watched() {
@@ -982,6 +1041,8 @@ export namespace o {
         const link = l[i]
         const newval = res[link.child_idx]
         if (newval !== NoValue && newval !== link.parent._value) {
+          // Only an Observable can be written to: a parent that is not one is read-only.
+          if (!(link.parent instanceof Observable)) throw new Error("this observable depends on a read-only observable")
           link.parent.set(newval)
         }
       }
@@ -1426,10 +1487,10 @@ export namespace o {
     })
   }
 
-  export function is_observable<T>(arg: RO<T>): arg is Observable<T>
-  export function is_observable(arg: any): arg is Observable<any>
-  export function is_observable(arg: any): arg is Observable<any> {
-    return !!(arg as any)?.[sym_is_observable]
+  export function is_observable<T>(arg: RO<T>): arg is ReadonlyObservable<T>
+  export function is_observable(arg: unknown): arg is ReadonlyObservable<unknown>
+  export function is_observable(arg: unknown): arg is ReadonlyObservable<unknown> {
+    return !!(arg as { [sym_is_observable]?: boolean } | null | undefined)?.[sym_is_observable]
   }
 
   /**
@@ -1507,7 +1568,10 @@ export namespace o {
   ): A[number] extends o.Observable<any>
     ? Observable<{ [K in keyof A]: o.ObservedType<A[K]> }>
     : o.ReadonlyObservable<{ [K in keyof A]: o.ObservedType<A[K]> }> {
-    return new CombinedObservable(deps) as any
+    const joined = new CombinedObservable<A, { [K in keyof A]: o.ObservedType<A[K]> }>(deps)
+    // Writing the tuple writes each of its items to the observable at the same position.
+    joined.setter = (tuple) => tuple as unknown as A
+    return joined as any
   }
 
   /**

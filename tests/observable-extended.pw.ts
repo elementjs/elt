@@ -317,7 +317,55 @@ test.describe("Observable extended", () => {
         return (e as Error).message
       }
     })
-    expect(result).toBe("tf: this observable is read-only, no revert function was given")
+    expect(result).toBe("tf: this observable is read-only, it was not given a Converter")
+  })
+
+  test("writing to a read-only o.expression throws instead of writing into its sources (regression: the default setter forwarded the value)", async ({
+    page,
+  }) => {
+    const result = await page.evaluate(() => {
+      const { o } = window.__ELT__
+      const o_a = o(1)
+      const o_b = o(2)
+      const oo_sum = o.expression((get) => get(o_a) + get(o_b)) as unknown as { set(v: number): void }
+      let error = "no error"
+      try {
+        oo_sum.set(10)
+      } catch (e) {
+        error = (e as Error).message
+      }
+      return { error, a: o_a.get(), b: o_b.get() }
+    })
+    expect(result).toEqual({ error: "this observable is read-only, it was given no setter", a: 1, b: 2 })
+  })
+
+  test("o.join of writable observables is writable, and writes each item to its observable", async ({ page }) => {
+    const result = await page.evaluate(() => {
+      const { o } = window.__ELT__
+      const o_a = o(1)
+      const o_b = o("x")
+      const joined = o.join(o_a, o_b)
+      joined.set([2, "y"])
+      return { a: o_a.get(), b: o_b.get(), joined: joined.get() }
+    })
+    expect(result).toEqual({ a: 2, b: "y", joined: [2, "y"] })
+  })
+
+  test("o.join with a read-only part throws when written, and writes nothing", async ({ page }) => {
+    const result = await page.evaluate(() => {
+      const { o } = window.__ELT__
+      const o_a = o(1)
+      const oo_double = o_a.tf((n) => n * 2)
+      const joined = o.join(o_a, oo_double) as unknown as { set(v: [number, number]): void }
+      let error = "no error"
+      try {
+        joined.set([5, 100])
+      } catch (e) {
+        error = (e as Error).message
+      }
+      return { error }
+    })
+    expect(result.error).toBe("tf: this observable is read-only, it was not given a Converter")
   })
 
   test.describe("mutate()", () => {
