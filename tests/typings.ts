@@ -4,6 +4,7 @@ This file tests some typing contracts. It should never have errors
 
 import type { Renderable } from "../src"
 import { o } from "../src/observable"
+import type { ServiceHelper, ServiceHelperBase } from "../src/app/service"
 
 var _: any
 
@@ -110,4 +111,16 @@ declare var __: any
   // @ts-expect-error a ReadonlyObservable<unknown> cannot be written, and an Observable<unknown> can
   const v5: o.Observable<unknown> = _ as o.ReadonlyObservable<unknown>
   void [v1, v2, v3, v4, v5]
+}
+
+// A service seen through its declared params is the same object as the erased one the app state keeps, not the other way round.
+{
+  const typed = _ as ServiceHelper<{ page: number }>
+  const erased: ServiceHelperBase = typed
+  const o_page: o.Observable<number> = typed.param_soft("page")
+  // @ts-expect-error the erased helper does not know the params of its service
+  erased.param_soft("page")
+  // @ts-expect-error a service that declares a number param is not one that declares a string param
+  const other: ServiceHelper<{ page: string }> = typed
+  void [erased, o_page, other]
 }

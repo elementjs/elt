@@ -156,7 +156,7 @@ Two ways to read a param a service depends on, from inside that service:
 | `srv.param("key", default?)`       | Updates the URL on activation (unless `silent`) | **Hard** dependency — a change re-activates (rebuilds) this service |
 | `srv.param_soft("key", default?)`  | Same                                                    | **Soft** dependency — returns a live observable; a change updates it in place, no re-activation |
 
-Both read from (and, if given a default and nothing's set yet, write into) `app.o_params`. Any default but `undefined` counts, `0`, `false` and `""` included. Use `param` when a changed value genuinely means "this is now a different screen" (e.g. a `:id` segment); use `param_soft` when it's closer to a filter or view option that shouldn't tear down and rebuild the service just because it changed.
+Both read from (and, if given a default and nothing's set yet, write into) `app.o_params`. The type of a param (`T[K]`) is what the service *declares* it expects: the URL decides what it holds, and nothing checks that the two agree. Any default but `undefined` counts, `0`, `false` and `""` included. Use `param` when a changed value genuinely means "this is now a different screen" (e.g. a `:id` segment); use `param_soft` when it's closer to a filter or view option that shouldn't tear down and rebuild the service just because it changed.
 
 ## Activation
 

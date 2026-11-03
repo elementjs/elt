@@ -2,6 +2,7 @@ import { o } from "../observable"
 import type { ServiceParams } from "./params"
 import {
   ServiceHelper,
+  type ServiceHelperBase,
   _get_builder,
   _service_class_init,
   type ServiceBuilder,
@@ -20,8 +21,8 @@ export class State {
   }
 
   previous_state: State | null = null
-  services = new Map<ServiceBuilderConcreteType<any>, ServiceHelper>()
-  active!: ServiceHelper
+  services = new Map<ServiceBuilderConcreteType<any>, ServiceHelperBase>()
+  active!: ServiceHelperBase
   views: Views = new Map()
   params = o.proxy(o({} as ServiceParams))
 
@@ -61,7 +62,7 @@ export class State {
     return srv
   }
 
-  async require<S>(_builder: ServiceBuilder<S>, by?: ServiceHelper): Promise<S> {
+  async require<S>(_builder: ServiceBuilder<S>, by?: ServiceHelperBase): Promise<S> {
     const srv = await this.getService(_builder)
 
     if (by) {
@@ -75,7 +76,7 @@ export class State {
     return srv.result
   }
 
-  private addServiceDep(srv: ServiceHelper) {
+  private addServiceDep(srv: ServiceHelperBase) {
     if (!this.services.has(srv.builder)) {
       this.services.set(srv.builder, srv)
       for (const req of srv.requirements) {
@@ -85,7 +86,7 @@ export class State {
   }
 
   /** @internal build `this.views` */
-  private collectViews(srv: ServiceHelper, seen = new Set<ServiceHelper>()) {
+  private collectViews(srv: ServiceHelperBase, seen = new Set<ServiceHelperBase>()) {
     if (seen.has(srv)) {
       return
     }
@@ -123,7 +124,7 @@ export class State {
   }
 
   /** Set by `deactivate` : deinits `srv` unless the state that replaces this one uses it */
-  private __drop?: (srv: ServiceHelper) => void
+  private __drop?: (srv: ServiceHelperBase) => void
 
   /**
    * Deinit the services of this state that `other_state` (the live one, null if there is none) does not use.
@@ -144,7 +145,7 @@ export class State {
   async activate(builder: ServiceBuilder<any>, params: ServiceParams = {}) {
     this.params.set(params)
 
-    const persistents = new Set<ServiceHelper>()
+    const persistents = new Set<ServiceHelperBase>()
 
     for (const srv of this.previous_state?.services.values() ?? []) {
       if (srv.is_persistent && !srv.areParamsInvalidating(params)) {

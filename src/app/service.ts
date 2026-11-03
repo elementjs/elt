@@ -148,9 +148,20 @@ export class ServiceResult<T extends ServiceParams = {}> {
 }
 
 /**
- * A single service.
+ * The params of the app, as the service declares them. The URL decides what a param holds and `T` is what the
+ * service says it expects of it: nothing checks that the two agree, so this is the one place where the
+ * declaration is believed.
  */
-export class ServiceHelper<T extends ServiceParams = {}> extends o.ObserverHolder {
+function declared_params<T extends ServiceParams>(state: State): o.Observable<T> {
+  return state.params as unknown as o.Observable<T>
+}
+
+/**
+ * What a service is, whatever the params it declares: this is what the app state keeps and passes around.
+ * A `ServiceHelper<T>` is the same object seen through the params `T` its service declares, which only
+ * the param accessors and the requirement checks need to know about.
+ */
+export class ServiceHelperBase extends o.ObserverHolder {
   constructor(
     public state: State,
     public builder: ServiceBuilderConcreteType<any>,
@@ -180,14 +191,66 @@ export class ServiceHelper<T extends ServiceParams = {}> extends o.ObserverHolde
     }
   }
 
-  require<S, TP extends ServiceParams, TC extends TP>(this: ServiceHelper<TC>, fn: ServiceBuilder<S, TP>): Promise<S> {
-    return this.state.require(fn as any, this)
-  }
-
   /** true if this service is the currently activated one */
   @memoize
   get oo_is_active() {
     return this.state.app.o_active_service.tf((ac) => ac === this)
+  }
+
+  /**
+   * Return true if the provided params would cause this service to be invalid
+   * @internal
+   */
+  areParamsInvalidating(params: ServiceParams) {
+    if (this.params_deps.size > 0) {
+      for (const [k, v] of this.params_deps.entries()) {
+        const actual = params[k as keyof ServiceParams]
+        if (v !== sym_soft_param_dep && v !== actual) {
+          return true
+        }
+      }
+    }
+    return false
+  }
+
+  DisplayView(view_name: string, cbk?: (view: () => Renderable) => Renderable) {
+    return this.state.app.DisplayView(view_name, cbk)
+  }
+
+  /**
+   * Set this property to true to make this service persistent : it is kept across activations that do not
+   * require it, as long as its hard params (`param()`) still hold, and deinit-ed once they change.
+   */
+  is_persistent = false
+
+  onDeinit(fn: () => any) {
+    this._on_deinit.push(fn)
+  }
+
+  result: any
+  result_promise: Promise<any> | null = null
+
+  views = new Map<string, () => Renderable>()
+
+  /** the services needed by this one to function */
+  requirements = new Set<ServiceHelperBase>()
+
+  /** */
+  params_deps = new Map<string, string | number | boolean | null | typeof sym_soft_param_dep>()
+
+  /** Shortcut function to set a view */
+  view(name: string, view: () => Renderable) {
+    this.views.set(name, view)
+    return this
+  }
+}
+
+/**
+ * A single service, seen through the params `T` its service declares.
+ */
+export class ServiceHelper<T extends ServiceParams = {}> extends ServiceHelperBase {
+  require<S, TP extends ServiceParams, TC extends TP>(this: ServiceHelper<TC>, fn: ServiceBuilder<S, TP>): Promise<S> {
+    return this.state.require(fn as any, this)
   }
 
   /**
@@ -206,22 +269,6 @@ export class ServiceHelper<T extends ServiceParams = {}> extends o.ObserverHolde
   ): Promise<void> {
     const params: any = Object.assign({}, this.state.params.get(), args[0])
     return rt.activate(params as any)
-  }
-
-  /**
-   * Return true if the provided params would cause this service to be invalid
-   * @internal
-   */
-  areParamsInvalidating(params: ServiceParams) {
-    if (this.params_deps.size > 0) {
-      for (const [k, v] of this.params_deps.entries()) {
-        const actual = params[k as keyof ServiceParams]
-        if (v !== sym_soft_param_dep && v !== actual) {
-          return true
-        }
-      }
-    }
-    return false
   }
 
   /** Overrides a hard parameter in this service. This service will not be invalidated by the change ; other services that did, however, will. */
@@ -250,40 +297,9 @@ export class ServiceHelper<T extends ServiceParams = {}> extends o.ObserverHolde
   /** Gets an observable parameter value and do not lock it ; should the param change, it will be updated in the hash and the params observable, but this will not trigger an invalidation of this service. */
   param_soft<K extends keyof T>(name: K): o.Observable<T[K]>
   param_soft<K extends keyof T>(name: K, default_value: T[K]): o.Observable<NonNullable<T[K]>>
-  param_soft<K extends keyof T>(name: K, default_value?: T[K]): o.Observable<T[K]> {
+  param_soft<K extends keyof T>(name: K, default_value?: T[K]): o.Observable<T[K]> | o.Observable<NonNullable<T[K]>> {
     this.__paramOrDefault(name as string, default_value as ServiceParams[string])
     this.params_deps.set(name as string, sym_soft_param_dep)
-    return this.state.params.p(name as string) as o.Observable<T[K]>
-  }
-
-  DisplayView(view_name: string, cbk?: (view: () => Renderable) => Renderable) {
-    return this.state.app.DisplayView(view_name, cbk)
-  }
-
-  /**
-   * Set this property to true to make this service persistent : it is kept across activations that do not
-   * require it, as long as its hard params (`param()`) still hold, and deinit-ed once they change.
-   */
-  is_persistent = false
-
-  onDeinit(fn: () => any) {
-    this._on_deinit.push(fn)
-  }
-
-  result: any
-  result_promise: Promise<any> | null = null
-
-  views = new Map<string, () => Renderable>()
-
-  /** the services needed by this one to function */
-  requirements = new Set<ServiceHelper>()
-
-  /** */
-  params_deps = new Map<string, string | number | boolean | null | typeof sym_soft_param_dep>()
-
-  /** Shortcut function to set a view */
-  view(name: string, view: () => Renderable) {
-    this.views.set(name, view)
-    return this
+    return declared_params<T>(this.state).p(name)
   }
 }
