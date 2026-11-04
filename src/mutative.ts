@@ -1,5 +1,5 @@
 import { o } from "./observable"
-import { create } from "mutative"
+import { create, rawReturn } from "mutative"
 
 declare module "./observable" {
   namespace o {
@@ -19,8 +19,13 @@ declare module "./observable" {
 }
 
 o.Observable.prototype.mutate = function <A>(mutator: (value: A) => any) {
-  // `create` returns what `mutator` returns, if anything: `o.NoValue` cancels the write
-  const new_value = create(this._value, mutator)
+  // `create` returns what `mutator` returns, if anything: `o.NoValue` cancels the write. A returned value is wrapped
+  // with `rawReturn`, which tells mutative it is meant: it warns about any returned object that holds no draft.
+  const new_value = create(this._value, (draft) => {
+    const returned = mutator(draft)
+    // only an object needs it, and `rawReturn` warns about any other value (`o.NoValue`, a primitive)
+    return typeof returned === "object" && returned !== null ? rawReturn(returned) : returned
+  })
   if (new_value !== o.NoValue) {
     this.set(new_value)
   }
