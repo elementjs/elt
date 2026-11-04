@@ -280,7 +280,7 @@ o.transaction(() => {
 })
 ```
 
-Keep the callback small and synchronous, and **never let it throw**: it only sets observables. A throw leaves the transaction open, and no observer runs again until the page reloads. Compute or validate anything that can fail before `o.transaction`, and an `await` inside the callback does not extend the transaction.
+Keep the callback small and synchronous: it only sets observables. Compute or validate anything that can fail before `o.transaction`; an `await` inside the callback does not extend the transaction. If the callback throws anyway, the error propagates to the caller, after the writes made so far have been notified.
 
 ## `o.exclusive_lock` — breaking feedback loops
 

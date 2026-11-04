@@ -741,13 +741,19 @@ export namespace o {
       }
     }
 
-    /** `fn` must not throw, see {@link o.transaction}. */
+    /**
+     * Run `fn` with the notifications deferred, then flush. A throw from `fn` propagates to the caller, after the
+     * transaction is closed and the writes made so far are notified: nothing is caught here.
+     */
     transaction(fn: () => void) {
       this.transaction_count++
-      fn()
-      this.transaction_count--
-      if (this.transaction_count === 0) {
-        this.flush()
+      try {
+        fn()
+      } finally {
+        // Nothing to flush when `fn` wrote nothing: skip the call
+        if (--this.transaction_count === 0 && this.real_size > 0) {
+          this.flush()
+        }
       }
     }
 
@@ -807,8 +813,9 @@ export namespace o {
    * Use it when you know you will modify two or more observables that trigger the same transforms
    * to avoid calling the observers each time one of the observable is modified.
    *
-   * `fn` must be small, synchronous, and must never throw: a throw leaves the transaction open and
-   * no observer runs again. Compute anything that can fail before calling `o.transaction`.
+   * `fn` must be small and synchronous, and should not throw: it only sets observables, and what can fail
+   * is better computed before calling `o.transaction`. If it throws anyway, the error propagates to the caller
+   * after the writes made so far have been notified.
    *
    * ```tsx
    * o.transaction(() => {

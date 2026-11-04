@@ -861,6 +861,66 @@ test.describe("Observable extended", () => {
     })
   })
 
+  test.describe("o.transaction()", () => {
+    // A throw inside the callback propagates to the caller, and leaves the observables usable: the writes already made
+    // are notified, and later writes notify as usual (regression: the transaction stayed open, no observer ran again)
+    test("a throw inside the callback propagates, notifies the writes already made and leaves observers working", async ({
+      page,
+    }) => {
+      const result = await page.evaluate(() => {
+        const { o } = window.__ELT__
+        const o_a = o(0)
+        const o_b = o(0)
+        const seen: string[] = []
+        o_a.addObserver((v: number) => {
+          seen.push(`a=${v}`)
+        })
+        o_b.addObserver((v: number) => {
+          seen.push(`b=${v}`)
+        })
+        seen.length = 0
+
+        let message = "no error"
+        try {
+          o.transaction(() => {
+            o_a.set(1)
+            throw new Error("boom")
+          })
+        } catch (e) {
+          message = (e as Error).message
+        }
+        const after_throw = seen.slice()
+        o_b.set(2)
+        return { message, after_throw, after_later_write: seen.slice() }
+      })
+      expect(result).toEqual({
+        message: "boom",
+        after_throw: ["a=1"],
+        after_later_write: ["a=1", "b=2"],
+      })
+    })
+
+    test("transactions nest: observers run when the outermost one ends", async ({ page }) => {
+      const result = await page.evaluate(() => {
+        const { o } = window.__ELT__
+        const o_a = o(0)
+        const seen: number[] = []
+        o_a.addObserver((v: number) => {
+          seen.push(v)
+        })
+        seen.length = 0
+        const inside: number[][] = []
+        o.transaction(() => {
+          o.transaction(() => o_a.set(1))
+          inside.push(seen.slice())
+          o_a.set(2)
+        })
+        return { inside, seen }
+      })
+      expect(result).toEqual({ inside: [[]], seen: [2] })
+    })
+  })
+
   test.describe("o.exclusive_lock()", () => {
     test("nested calls are ignored while lock is held", async ({ page }) => {
       const results = await page.evaluate(() => {
