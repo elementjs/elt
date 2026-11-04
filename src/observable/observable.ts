@@ -1241,13 +1241,18 @@ export namespace o {
    * the proxy stops watching the old branch and watches the new one. Replacing the
    * root is done with {@link changeTarget}.
    *
+   * An observable cannot be wrapped in another with `o()`, which returns an observable as it is: here the
+   * outer one is the field of an object.
+   *
+   * Linking that would make the chain depend on itself throws an `observable cycle` error.
+   *
    * @example
    * const inner = o(5)
-   * const outer = o(inner)
-   * const p = o.proxy(outer)
+   * const outer = o({ field: inner })
+   * const p = o.proxy(outer.p("field"))
    * p.get() // 5 — not `inner`
    * inner.set(6) // p observers fire
-   * outer.set(o(10)) // p follows the new inner observable
+   * outer.p("field").set(o(10)) // p follows the new inner observable
    */
   export function proxy<T>(ob: T) {
     return new ProxyObservable(ob as ReadonlyObservable<unknown>) as unknown as ProxyFinalObservable<T> &

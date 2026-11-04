@@ -181,6 +181,30 @@ Do:
 o_user.assign({ address: { city: "Paris" } })
 ```
 
+## `o.proxy` — following an observable that holds another observable
+
+Sometimes an observable's *value* is itself an observable: an object with a field holding one (`o({ current: o_a })`), or a selection holding the observable of the selected item. `.get()` then returns the inner observable, not the value inside it, and when the field is replaced by another observable, whoever observed the first one is left behind. `o.proxy(root)` follows the chain for you: it reads `root`'s value, and while that value is an observable, reads that one's value in turn. The last observable of the chain, the one that holds a plain value, is the *terminal*. The proxy behaves as the terminal: `.get()`, `.set()` and observers all use it.
+
+```ts
+const o_a = o(1)
+const o_b = o(10)
+const o_model = o({ current: o_a }) // an object that holds an observable
+const o_current = o.proxy(o_model.p("current"))
+
+o_current.get() // 1: the value inside o_a, not o_a itself
+o_current.set(2) // writes o_a
+
+o_model.p("current").set(o_b) // the field now holds o_b
+o_current.get() // 10: the proxy follows, its observers are called, and o_a is no longer watched
+```
+
+- **Writing** goes to the terminal. If the terminal is read-only (a `.tf()` without a converter, say), `.set()` throws, as it would on the terminal itself.
+- **Following** happens whenever a link of the chain becomes a *different* observable: the proxy stops watching the old chain, so it doesn't keep it alive, and watches the new one.
+- **`.changeTarget(obs)`** replaces the root, for a proxy that has to point somewhere else: `o_current.changeTarget(o_c)`, after which the proxy follows `o_c`, and what it followed before is released.
+- **A cycle throws.** A chain that holds itself (`o_x.set(o_x)`, then `o.proxy(o_x)`), or a new root that depends on the proxy, throws an `observable cycle` error, and the proxy stays as it was.
+
+`o(x)` returns `x` itself when `x` is already an observable, so an observable cannot be wrapped in another with `o()`. The usual way to have one hold another is a field of an object, as above.
+
 ## Updating: `.assign()` and `.mutate()`
 
 `.assign(partial)` does a recursive merge and produces a new value only where something actually changed — unchanged branches keep their original reference, so nothing downstream re-renders for no reason.
