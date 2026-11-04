@@ -24,9 +24,18 @@ test.describe("Observable queue ordering", () => {
       const a = o(1)
       const s = o(10)
       let computes = 0
-      const b = o.combine([a, s] as const, ([x, y]) => (computes++, x + y))
-      const c = o.combine([a] as const, ([x]) => (computes++, x * 2))
-      const d = o.combine([b, c] as const, ([x, y]) => (computes++, x + y))
+      const b = o.combine([a, s] as const, ([x, y]) => {
+        computes++
+        return x + y
+      })
+      const c = o.combine([a] as const, ([x]) => {
+        computes++
+        return x * 2
+      })
+      const d = o.combine([b, c] as const, ([x, y]) => {
+        computes++
+        return x + y
+      })
       const seen: number[] = []
       d.addObserver((v: number) => {
         seen.push(v)
@@ -51,9 +60,18 @@ test.describe("Observable queue ordering", () => {
       const a = o(1)
       const s = o(10)
       let computes = 0
-      const b = o.combine([a, s] as const, ([x, y]) => (computes++, x + y))
-      const c = o.combine([a] as const, ([x]) => (computes++, x * 2))
-      const d = o.combine([b, c] as const, ([x, y]) => (computes++, x + y))
+      const b = o.combine([a, s] as const, ([x, y]) => {
+        computes++
+        return x + y
+      })
+      const c = o.combine([a] as const, ([x]) => {
+        computes++
+        return x * 2
+      })
+      const d = o.combine([b, c] as const, ([x, y]) => {
+        computes++
+        return x + y
+      })
       const seen: number[] = []
       d.addObserver((v: number) => {
         seen.push(v)
