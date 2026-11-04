@@ -1,4 +1,4 @@
-import { expect, test } from "./fixture"
+import { expect, expects_errors, test } from "./fixture"
 // Type-only import: brings in the `o` namespace (for `o.ReadonlyObservable<T>` etc.) used to type
 // the local `spy()` helpers below. The actual runtime `o` used inside `page.evaluate` always comes
 // from `window.__ELT__`, never from this import.
@@ -627,11 +627,16 @@ test.describe("Observable extended", () => {
 
   test.describe("observer lifecycle extended", () => {
     test("an observer that throws does not stop the other observers of the same observable", async ({ page }) => {
+      expects_errors(/^uncaught error: boom/)
       const result = await page.evaluate(() => {
         const { o } = window.__ELT__
+        // The error is reported as an uncaught one (window.onerror): record it, and keep it off the console
         const errors: unknown[] = []
-        const console_error = console.error
-        console.error = (e: unknown) => errors.push(e)
+        const on_error = (ev: ErrorEvent) => {
+          errors.push(ev.error)
+          ev.preventDefault()
+        }
+        window.addEventListener("error", on_error)
         try {
           const o_n = o(1)
           const seen: number[] = []
@@ -644,7 +649,7 @@ test.describe("Observable extended", () => {
           o_n.set(2)
           return { seen, errors: errors.length }
         } finally {
-          console.error = console_error
+          window.removeEventListener("error", on_error)
         }
       })
       expect(result).toEqual({ seen: [1, 2], errors: 1 })
@@ -734,11 +739,16 @@ test.describe("Observable extended", () => {
     test("an observable whose computation threw once leaves the queue usable after it is unwatched (regression: its stale queue index made later flushes never run)", async ({
       page,
     }) => {
+      expects_errors(/^uncaught error: boom/)
       const result = await page.evaluate(() => {
         const { o } = window.__ELT__
+        // The error is reported as an uncaught one (window.onerror): record it, and keep it off the console
         const errors: unknown[] = []
-        const console_error = console.error
-        console.error = (e: unknown) => errors.push(e)
+        const on_error = (ev: ErrorEvent) => {
+          errors.push(ev.error)
+          ev.preventDefault()
+        }
+        window.addEventListener("error", on_error)
         try {
           const o_src = o(1)
           const oo_bad = o_src.tf((v) => {
@@ -757,7 +767,7 @@ test.describe("Observable extended", () => {
           o_other.set("b")
           return { seen, errors: errors.length }
         } finally {
-          console.error = console_error
+          window.removeEventListener("error", on_error)
         }
       })
       expect(result).toEqual({ seen: ["a", "b"], errors: 1 })
@@ -980,6 +990,33 @@ test.describe("Observable extended", () => {
       })
       expect(result).toEqual({ through_view: 0, bypassing: -9 })
     })
+  })
+
+  // An observer that throws is a bug. The other observers still run, and the error is reported like one nobody caught:
+  // it reaches `window.onerror` (error trackers, the test fixture), where `console.error` would stay unnoticed.
+  test("an observer that throws is reported as an uncaught error, and the others still run", async ({ page }) => {
+    expects_errors(/^uncaught error: boom/)
+    const uncaught = page.waitForEvent("pageerror")
+    const result = await page.evaluate(() => {
+      const { o } = window.__ELT__
+      const o_a = o(0)
+      const seen: string[] = []
+      o_a.addObserver((v: number) => {
+        seen.push(`before=${v}`)
+      })
+      o_a.addObserver((v: number) => {
+        if (v === 1) throw new Error("boom")
+      })
+      o_a.addObserver((v: number) => {
+        seen.push(`after=${v}`)
+      })
+      seen.length = 0
+      o_a.set(1)
+      o_a.set(2)
+      return seen
+    })
+    expect(result).toEqual(["before=1", "after=1", "before=2", "after=2"])
+    expect((await uncaught).message).toBe("boom")
   })
 
   test.describe("o.transaction()", () => {

@@ -699,6 +699,15 @@ export namespace o {
     }
   }
 
+  /**
+   * Report an error that was caught so that the other observers can run. It is reported as an uncaught error, which
+   * reaches `window.onerror` (error trackers, tests), where `console.error` would pass unnoticed.
+   */
+  function report_error(e: unknown) {
+    if (typeof reportError === "function") reportError(e)
+    else console.error(e)
+  }
+
   /** @internal */
   export class Queue extends IndexableArray<ReadonlyObservable<any>> {
     transaction_count = 0
@@ -780,14 +789,14 @@ export namespace o {
             try {
               or.refresh()
             } catch (e) {
-              console.error(e)
+              report_error(e)
             }
           }
           this.notifying = null
 
           obs._observers.actualize()
         } catch (e) {
-          console.error(e)
+          report_error(e)
           this.notifying = null
           // The queue is emptied below: an index left on `obs` would point into it, and a later `queue.delete(obs)`
           // (when `obs` gets unwatched) would make `real_size` negative, so that no flush would ever run again.

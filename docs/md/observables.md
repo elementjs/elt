@@ -349,7 +349,9 @@ $observe(o_draft, (draft) => { save_later(draft) }, { changes_only: true })
 $observe(o_items, (items) => { total = sum(items) }, { immediate: true })
 ```
 
-Keep the callback body a block when it only has side effects: an expression body returns its value, which is written back (see above).
+What the callback returns is ignored: an observer observes, and writes nothing to the observable it watches (see [`.intercept()`](#intercept-shaping-what-is-written) to shape what is written).
+
+An observer that throws does not stop the others: the error is reported as an uncaught error (`window.onerror`, where error trackers listen), and the observers after it still run. It is a bug to fix, not a case to handle.
 
 **Where to observe.** Observe from a decorator on the node whose time on screen the observation should follow, or, in a service or a custom element, with its own `.observe`. An object that has neither (a model, an undo history) does not observe: the code that does tells it what changed, from a decorator, with `$observe(o_root, (value) => history.record(value), { changes_only: true })`.
 
