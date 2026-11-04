@@ -406,6 +406,15 @@ test.describe("typing digits into the text field", () => {
     expect(await type_into_empty(page, time_24h, 3, "15")).toEqual({ value: "--:15", error: "Incomplete date" })
   })
 
+  test("a write to the model while the user types leaves the text alone", async ({ page }) => {
+    const typed = await type_into_empty(page, { lang: "en-GB" }, 0, "03")
+    await page.evaluate(() =>
+      (window as unknown as { o_model: { set(d: Date): void } }).o_model.set(new Date(2030, 0, 1)),
+    )
+    // The field has the focus: the text being typed is not replaced by the model's
+    expect(await input_state(page)).toEqual(typed)
+  })
+
   test("24-hour time: digits fill each segment in turn, then the model", async ({ page }) => {
     expect(await type_into_empty(page, time_24h, 0, "2359")).toEqual({ value: "23:59", error: "" })
     await blur(page)

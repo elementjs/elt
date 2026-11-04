@@ -96,8 +96,6 @@ export function DateTimePicker(at: DatePickerAttrs) {
 
   const default_popup_date = () => o.get(at.date_popup_default_date) ?? new Date()
 
-  const lock = o.exclusive_lock()
-
   const set_model = (d: Date | null) => {
     if (d != null) at.model.set(d)
     // `at.clearable` is only truthy in DatePickerNullable, so `at` narrows to it and set(null) type-checks
@@ -114,7 +112,6 @@ export function DateTimePicker(at: DatePickerAttrs) {
     get clearable() {
       return o.get(clearable)
     },
-    lock,
     get minute_step() {
       return o.get(opts.minute_step)
     },
@@ -207,17 +204,17 @@ export function DateTimePicker(at: DatePickerAttrs) {
         {(input: HTMLInputElement) => {
           const ctrl = new DateInputController(input, input_ctx)
           input_ctrl = ctrl
-          lock(() => ctrl.apply_model(at.model.get()))
+          ctrl.apply_model(at.model.get())
         }}
         {$observe(at.model, (val) => {
-          lock(() => input_ctrl?.apply_model(val))
+          input_ctrl?.apply_model(val)
         })}
         {$observe(oo_layout, (layout, _, input: HTMLInputElement) => {
           // Phones show a number pad for `inputmode="numeric"`; a layout with an AM/PM part keeps the
           // default keyboard, since its letters set AM or PM. No attribute before the locale is known.
           if (layout && !layout.segments.some((s) => s.kind === "dayPeriod")) input.setAttribute("inputmode", "numeric")
           else input.removeAttribute("inputmode")
-          lock(() => input_ctrl?.apply_model(at.model.get()))
+          input_ctrl?.apply_model(at.model.get())
         })}
       </input>
       {o.tf(

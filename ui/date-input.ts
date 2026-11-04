@@ -25,7 +25,6 @@ export interface DateInputControllerCtx {
   /** The date a time-only input puts its time on: the model, or the picker's default date when it is empty. */
   get_base: () => Date
   readonly clearable: boolean
-  lock: (fn: () => void) => void
   readonly minute_step?: number
   readonly second_step?: number
 }
@@ -108,17 +107,15 @@ export class DateInputController {
     const layout = this.ctx.get_layout()
     if (!layout) return
     const text = this.input.value
-    this.ctx.lock(() => {
-      if (this.ctx.clearable && is_empty(layout, text)) {
-        this.ctx.set_model(null)
-        this.#refresh_validity(text)
-        return
-      }
-      const vals = parse_segments(layout, text)
-      const d = values_to_date(layout, vals, this.ctx.get_base())
-      if (d != null) this.ctx.set_model(d)
-      this.#write_text(rebuild_from_segments(layout, vals))
-    })
+    if (this.ctx.clearable && is_empty(layout, text)) {
+      this.ctx.set_model(null)
+      this.#refresh_validity(text)
+      return
+    }
+    const vals = parse_segments(layout, text)
+    const d = values_to_date(layout, vals, this.ctx.get_base())
+    if (d != null) this.ctx.set_model(d)
+    this.#write_text(rebuild_from_segments(layout, vals))
   }
 
   #refresh_validity(text: string) {
