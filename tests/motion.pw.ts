@@ -1,4 +1,4 @@
-import { type Page, test, expect } from "./fixture"
+import { type Page, test, expect, expects_errors } from "./fixture"
 
 // Motion, scoped to verbs (docs/md/motion.md): nodes enter and leave with a verb's updates (or an
 // insertion / removal with `motion`), never on a verb's first render, and only up to the content of
@@ -102,6 +102,8 @@ test.describe("leaving: the removed node", () => {
   })
 
   test("a rejected promise removes the node ; a throwing hook removes it at once", async ({ page }) => {
+    // The hook that throws is reported
+    expects_errors(/^console\.error: leave hooks should not throw/)
     const r = await page.evaluate(async () => {
       const { node_remove, node_on_leave } = window.__ELT__
       const c = window.__motion__.mount(["a", "b"])
@@ -998,6 +1000,8 @@ test.describe("$enter / $leave", () => {
   })
 
   test("an exit that would never end plays nothing: the node goes at once", async ({ page }) => {
+    // The exit that cannot end is reported
+    expects_errors(/^console\.warning: an exit motion must end/)
     const r = await page.evaluate(() => {
       const { $leave, node_remove } = window.__ELT__
       const c = window.__motion__.mount(["a"])

@@ -1,6 +1,14 @@
-import { expect, test } from "./fixture"
+import { expect, expects_errors, test } from "./fixture"
 
 test.describe("App", () => {
+  // These tests make activations fail on purpose, and most run without a route for the empty URL
+  test.beforeEach(() => {
+    expects_errors(
+      /^console\.error: Error: (boom|bad|no item 2|error route failed)/,
+      /^console\.warning: route not found/,
+    )
+  })
+
   test.afterEach(async ({ page }) => {
     await page.evaluate(() => {
       window.location.hash = ""
@@ -197,6 +205,14 @@ test.describe("App", () => {
 
 // See docs/md/app.md, "Activation" and "Lifecycle"
 test.describe("App: the activation that commits, and service lifetimes", () => {
+  // These tests make activations fail on purpose, and most run without a route for the empty URL
+  test.beforeEach(() => {
+    expects_errors(
+      /^console\.error: Error: (boom|bad|no item 2|error route failed)/,
+      /^console\.warning: route not found/,
+    )
+  })
+
   test.beforeEach(async ({ page }) => {
     // `track(srv, name)` registers a deinit counter on a new service instance, named `name#n`;
     // `deinits()` gives, for every instance built so far, how many times it was deinit-ed.
@@ -530,6 +546,14 @@ test.describe("App: the activation that commits, and service lifetimes", () => {
 })
 
 test.describe("App: navigations that overlap, and failures nobody waits for", () => {
+  // These tests make activations fail on purpose, and most run without a route for the empty URL
+  test.beforeEach(() => {
+    expects_errors(
+      /^console\.error: Error: (boom|bad|no item 2|error route failed)/,
+      /^console\.warning: route not found/,
+    )
+  })
+
   test.beforeEach(async ({ page }) => {
     // Same kit as above, plus : `unhandled` lists the unhandled promise rejections, `errors` counts console.error calls,
     // `hashchange()` resolves once the router has handled the next hashchange (its listener was added first).
@@ -1168,6 +1192,8 @@ test.describe("Router", () => {
   })
 
   test("path mode: base prefix, landing route, outside base", async ({ page }) => {
+    // An address outside the base is refused with a warning
+    expects_errors(/^console\.warning: url is outside the router base/)
     const result = await page.evaluate(async () => {
       const { App } = window.__ELT__
       const srv = () => async () => {}
