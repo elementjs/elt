@@ -25,7 +25,6 @@ export interface AttrOptions<T> {
 export interface InternalAttrOptions<T> extends AttrOptions<T> {
   prop: string
   observable: symbol
-  lock: (fn: () => void) => void
   symbol: symbol
 }
 
@@ -53,10 +52,8 @@ export function attr<T>(opts: any, key?: string | symbol, props?: TypedPropertyD
       mp.set(_opts.name, _opts)
     }
 
-    const lock = o.exclusive_lock()
     const obs = Symbol()
     const sym = Symbol()
-    _opts.lock = lock
     _opts.observable = obs
     _opts.symbol = sym
 
@@ -67,22 +64,23 @@ export function attr<T>(opts: any, key?: string | symbol, props?: TypedPropertyD
     getter ??= function (this: any) {
       return this[sym]
     }
+    // No re-entrancy guard is needed: `this[sym]` is written before the observable, so when the observable's observer
+    // writes the property back (or the attribute write comes back through `setAttribute`), the `old_value === v`
+    // check stops it.
     setter = function (this: any, v: any) {
-      lock(() => {
-        const old_value = this[sym]
-        if (old_value === v) {
-          return
-        }
-        old?.call(this, v)
-        this[sym] = v
-        this[obs].set(v)
+      const old_value = this[sym]
+      if (old_value === v) {
+        return
+      }
+      old?.call(this, v)
+      this[sym] = v
+      this[obs].set(v)
 
-        if (_opts.revert) {
-          const r = typeof _opts.revert === "function" ? _opts.revert(v) : v
-          // console.log(attr.name, attr, r)
-          this._setAttributeOnNode(_opts.name, r as string)
-        }
-      })
+      if (_opts.revert) {
+        const r = typeof _opts.revert === "function" ? _opts.revert(v) : v
+        // console.log(attr.name, attr, r)
+        this._setAttributeOnNode(_opts.name, r as string)
+      }
     }
 
     const new_desc = {
@@ -202,9 +200,7 @@ export class EltCustomElement extends HTMLElement {
       const obs = o((this as any)[at.prop])
       ;(this as any)[at.observable as any] = obs
       node_observe(this, obs, (value) => {
-        at.lock(() => {
-          ;(this as any)[at.prop] = value
-        })
+        ;(this as any)[at.prop] = value
       })
     }
     this.init()
