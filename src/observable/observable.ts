@@ -881,6 +881,31 @@ export namespace o {
     }
 
     /**
+     * A view of this observable that shapes what is written to it. `fn(new_value, current_value)` returns the value to
+     * store, or {@link o.NoValue} to refuse the write. Reading is untouched: the view holds this observable's value.
+     *
+     * It is what to use to keep a rule where the write happens (clamp, trim, refuse), so that no observer ever sees
+     * the value the rule rejected. An observer is not the place for it: it observes and writes nothing.
+     *
+     * ```tsx
+     * const o_age = o_model.p("age").intercept((v) => Math.max(0, v))
+     * o_age.set(-4) // o_model's age is 0
+     * ```
+     *
+     * Only writes made through the view are intercepted: `o_model.set(...)` is not. Keep the view, and not the
+     * observable it was made from, where the rule must hold: `o(0).intercept(fn)` leaves no other way to write it.
+     * Like {@link tf}, it returns a new observable and leaves this one as it is.
+     */
+    intercept(fn: (new_value: A, current_value: A) => A | NoValue): Observable<A> {
+      const src: Observable<A> = this
+      return combine(
+        [src],
+        ([v]) => v,
+        (v, _old, [current]) => [fn(v, current)],
+      )
+    }
+
+    /**
      * Create an observable that will hold the value of the property specified with `key`.
      * The resulting observable is completely bi-directional.
      *

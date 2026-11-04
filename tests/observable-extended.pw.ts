@@ -895,6 +895,93 @@ test.describe("Observable extended", () => {
     })
   })
 
+  // `intercept(fn)` shapes what is written to an observable: `fn(new_value, current_value)` returns the value to store,
+  // or `o.NoValue` to refuse the write. It returns a view; the observable it was called on is left as it is.
+  test.describe("intercept()", () => {
+    test("stores what fn returns, and reads through", async ({ page }) => {
+      const result = await page.evaluate(() => {
+        const { o } = window.__ELT__
+        const o_source = o(5)
+        const o_clamped = o_source.intercept((v: number) => Math.min(v, 100))
+        const source_seen: number[] = []
+        const view_seen: number[] = []
+        o_source.addObserver((v: number) => {
+          source_seen.push(v)
+        })
+        o_clamped.addObserver((v: number) => {
+          view_seen.push(v)
+        })
+        source_seen.length = 0
+        view_seen.length = 0
+
+        o_clamped.set(150)
+        const after_write = { source: o_source.get(), view: o_clamped.get() }
+        o_source.set(7)
+        return { after_write, view_after_source_write: o_clamped.get(), source_seen, view_seen }
+      })
+      expect(result).toEqual({
+        after_write: { source: 100, view: 100 },
+        view_after_source_write: 7,
+        source_seen: [100, 7],
+        view_seen: [100, 7],
+      })
+    })
+
+    test("o.NoValue refuses the write, and fn gets the current value", async ({ page }) => {
+      const result = await page.evaluate(() => {
+        const { o } = window.__ELT__
+        const o_source = o(1)
+        const calls: [number, number][] = []
+        // Only accepts a value above the current one
+        const o_up_only = o_source.intercept((v: number, current: number) => {
+          calls.push([v, current])
+          return v > current ? v : o.NoValue
+        })
+        o_up_only.addObserver(() => {})
+        o_up_only.set(5)
+        o_up_only.set(3)
+        o_up_only.set(9)
+        return { source: o_source.get(), calls }
+      })
+      expect(result).toEqual({
+        source: 9,
+        calls: [
+          [5, 1],
+          [3, 5],
+          [9, 5],
+        ],
+      })
+    })
+
+    test("applies to writes that come through the view's own derived observables", async ({ page }) => {
+      const result = await page.evaluate(() => {
+        const { o } = window.__ELT__
+        const o_source = o(5)
+        const o_clamped = o_source.intercept((v: number) => Math.min(v, 100))
+        // Writing 500 to the doubled view writes 250 to the clamped one
+        const o_doubled = o_clamped.tf({ transform: (v: number) => v * 2, revert: (v: number) => v / 2 })
+        o_doubled.addObserver(() => {})
+        o_doubled.set(500)
+        return { source: o_source.get(), doubled: o_doubled.get() }
+      })
+      expect(result).toEqual({ source: 100, doubled: 200 })
+    })
+
+    test("works on a field of an object observable, and leaves writes that bypass the view alone", async ({ page }) => {
+      const result = await page.evaluate(() => {
+        const { o } = window.__ELT__
+        const o_model = o({ age: 30 })
+        const o_age = o_model.p("age").intercept((v: number) => Math.max(0, v))
+        o_age.addObserver(() => {})
+        o_age.set(-4)
+        const through_view = o_model.get().age
+        o_model.set({ age: -9 }) // not through the view: nothing intercepts it
+        return { through_view, bypassing: o_model.get().age }
+      })
+      expect(result).toEqual({ through_view: 0, bypassing: -9 })
+    })
+  })
+
   test.describe("o.transaction()", () => {
     // A throw inside the callback propagates to the caller, and leaves the observables usable: the writes already made
     // are notified, and later writes notify as usual (regression: the transaction stayed open, no observer ran again)

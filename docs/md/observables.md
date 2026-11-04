@@ -150,6 +150,20 @@ The same applies to a derived value in an attribute or a text child: `<span clas
 
 A test to apply: if you can describe the callback as "the same nodes, with this value put somewhere", it should not be a `.tf` returning nodes. If the honest description is "a different thing for this value", it should.
 
+## `.intercept()` — shaping what is written
+
+`.tf()` shapes a derived value; `.intercept(fn)` shapes what gets written to an observable, and leaves what is read alone. `fn(new_value, current_value)` returns the value to store, or `o.NoValue` to refuse the write. Use it to keep a rule where the write happens (clamp, trim, refuse), so that no observer ever sees a value the rule rejected. An observer is not the place for it: it observes, and writes nothing ([elt rules](./elt-rules.md#hard-rules)).
+
+```ts
+const o_model = o({ age: 30 })
+const o_age = o_model.p("age").intercept((v) => Math.max(0, v))
+
+o_age.set(-4) // the model's age is 0
+o_age.set(12) // 12
+```
+
+Like `.tf()`, it returns a **new** observable and leaves the one it was called on as it is. Only writes made through the new observable are intercepted, including those made through observables derived from it (`o_age.tf(...)`): a write to `o_model` itself is not. To make the rule hold for everyone, keep only the intercepted observable where others can reach it: `const o_count = o(0).intercept(fn)` leaves no other way to write the number.
+
 ## `.p()` and `.key()` — binding one field
 
 `.p(key)` returns an observable bound to a single property (or array index) of the source. It's convenient for wiring one field into a form control:
