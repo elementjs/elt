@@ -1167,24 +1167,6 @@ test.describe("Router", () => {
     expect(result.error).toContain(":id")
   })
 
-  test("o.exclusive_lock is released when its callback throws", async ({ page }) => {
-    const ran = await page.evaluate(() => {
-      const { o } = window.__ELT__
-      const lock = o.exclusive_lock()
-      try {
-        lock(() => {
-          throw new Error("boom")
-        })
-      } catch {}
-      let ran = false
-      lock(() => {
-        ran = true
-      })
-      return ran
-    })
-    expect(ran).toBe(true)
-  })
-
   test("path mode: base prefix, landing route, outside base", async ({ page }) => {
     const result = await page.evaluate(async () => {
       const { App } = window.__ELT__

@@ -31,7 +31,7 @@ el.setCustomValidity(message ?? "")
 validity.o_error?.set(el.validationMessage || null)
 ```
 
-No new event wiring, no `o.exclusive_lock()` needed (this path only reads `o_model`, never writes it), no separate lifecycle to manage — both triggers, and their automatic cleanup on node disconnect, already existed as part of `setup_bind`.
+No new event wiring (this path only reads `o_model`, never writes it), no separate lifecycle to manage — both triggers, and their automatic cleanup on node disconnect, already existed as part of `setup_bind`.
 
 > Why the model hook matters, not just the native event: `setup_bind`'s external→DOM sync is a plain `node.value = ...` assignment, and programmatic `.value =` never fires `input`/`change`. Without the `node_observe` hook, validity would silently go stale on exactly those cases.
 

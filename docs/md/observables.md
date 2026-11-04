@@ -282,17 +282,6 @@ o.transaction(() => {
 
 Keep the callback small and synchronous: it only sets observables. Compute or validate anything that can fail before `o.transaction`; an `await` inside the callback does not extend the transaction. If the callback throws anyway, the error propagates to the caller, after the writes made so far have been notified.
 
-## `o.exclusive_lock` — breaking feedback loops
-
-Two observables that set each other from their own observers can loop forever. `o.exclusive_lock()` returns a function that runs its callback normally the first time, but is a no-op on any call made *while* the first one is still running — it is not reentrant, so nested calls don't queue up, they just get skipped entirely:
-
-```ts
-const lock = o.exclusive_lock()
-
-$observe(o_a, (v) => lock(() => o_b.set(transform(v))))
-$observe(o_b, (v) => lock(() => o_a.set(untransform(v))))
-```
-
 ## An observer's return value
 
 An observer callback (`$observe`, `node_observe`, `.observe`, `addObserver`) that returns something other than `undefined` writes that value back to the observable it watches; a returned promise is awaited, then its value is written. This is a trigger: the observer reacts to a value and replaces it in the same step.

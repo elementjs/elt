@@ -2111,45 +2111,6 @@ export namespace o {
   }
 
   /**
-   * Returns a function that accepts a callback. While this callback is running, all subsequent
-   * calls to the created lock become no-op.
-   *
-   * This helper is to be used when have observables which set each other's value in observers,
-   * which could end up in an infinite loop, or when dealing with DOM Events.
-   *
-   * @returns a function that accepts a callback
-   * @group Observable
-   */
-  export function exclusive_lock() {
-    // A plain flag: nothing observes it, and this runs on every DOM event of `$bind` and verbs.
-    let locked = false
-    function exclusive_lock(fn: () => any) {
-      if (locked) return
-
-      locked = true
-      let r: any
-      try {
-        r = fn()
-      } catch (e) {
-        // a synchronous throw must not leave the lock held forever
-        unlock()
-        throw e
-      }
-      if (typeof r?.then === "function") {
-        r.then(unlock, unlock)
-      } else {
-        unlock()
-      }
-    }
-
-    function unlock() {
-      locked = false
-    }
-
-    return exclusive_lock
-  }
-
-  /**
    * A helper class that manages a group of observers with a few handy methods
    * to all start or stop them from observing.
    *

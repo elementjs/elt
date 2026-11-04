@@ -2,8 +2,8 @@ import { expect, test } from "./fixture"
 
 // A `$bind` writes the node's value into its observable when the user edits it. The observable then tells the bind
 // about that very change, and the bind must not write it back into the node: that rewrites what the user is typing
-// (text, caret) for nothing. Today `setup_bind` (src/decorators.ts) prevents it with an `o.exclusive_lock`, which
-// only works when the observable's observers run synchronously inside the event handler.
+// (text, caret) for nothing. `setup_bind` (src/decorators.ts) skips a value that equals what the node shows or what
+// the observable held right after its own write, whether the observers ran inside the event handler or after it.
 //
 // These tests count the writes made to `input.value` by the bind (the user's own edit is made before counting
 // starts). They describe the wanted behaviour whatever mechanism provides it.

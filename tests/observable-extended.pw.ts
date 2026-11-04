@@ -921,30 +921,6 @@ test.describe("Observable extended", () => {
     })
   })
 
-  test.describe("o.exclusive_lock()", () => {
-    test("nested calls are ignored while lock is held", async ({ page }) => {
-      const results = await page.evaluate(() => {
-        const { o } = window.__ELT__
-        const out: { name: string; actual: unknown; expected: unknown }[] = []
-        const lock = o.exclusive_lock()
-        let outer = 0
-        let inner = 0
-
-        lock(() => {
-          outer++
-          lock(() => {
-            inner++
-          })
-        })
-
-        out.push({ name: "outer", actual: outer, expected: 1 })
-        out.push({ name: "inner", actual: inner, expected: 0 })
-        return out
-      })
-      for (const r of results) expect(r.actual, r.name).toBe(r.expected)
-    })
-  })
-
   test.describe("assign on arrays", () => {
     test("assign() updates array indexes on observable", async ({ page }) => {
       const results = await page.evaluate(() => {
