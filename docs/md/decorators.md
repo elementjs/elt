@@ -162,6 +162,8 @@ Every `$bind.*` variant also accepts `BindDebounceOptions`, independent of valid
 
 Provide at most one of the two options in either pair — combining `debounce_event` and `throttle_event` for the same direction is a caller error, not a supported combination.
 
+When the observable stores another value than the one the control holds, because it trims, clamps or parses what it is given (a `.tf` converter whose `revert` does that), the control is brought in line with the stored value, with one exception: **a text control is not rewritten while the user types in it**. Rewriting it on each keystroke would make a trailing space, or a `1.` on the way to `1.5`, impossible to type. The control is brought in line when the edit is committed (the `change` event, or the control losing the focus). A checkbox, a `select` or any control that is not edited key by key is brought in line at once. A write that comes from elsewhere while the user types still reaches the control.
+
 To bind one field of an object observable, bind `o_user.p("name")` (see [Observables § `.p()`](./observables.md#p-and-key-binding-one-field)). When the stored type differs from the control's (a number stored as a string, a date as a timestamp), bind a two-way `.tf` with a converter (an object with `transform` and `revert`) instead of converting by hand in event handlers.
 
 ## Lifecycle: `$connected` / `$disconnected`

@@ -70,7 +70,17 @@ function setup_bind<T, N extends Element>(
   opts?: BindOptions<T, N>,
 ) {
   return (node: N) => {
-    const lock = o.exclusive_lock()
+    // The model value the node currently reflects: a value the observable tells back that equals it is our own write
+    // coming back, and the node already shows it.
+    let shown: unknown = o.NoValue
+    // The model value right after our own last write to `obs`. It may differ from what the node holds, for a good
+    // reason: the observable trimmed, clamped or parsed it.
+    let mine: unknown = o.NoValue
+    // Text controls are edited key by key. While the user types in one, a value that differs from the text for the
+    // reason above is not written back (it would rewrite what is being typed: a trailing space, "1."); the node is
+    // brought in line when the edit is committed (change, blur). Other controls (checkbox, select) commit at once.
+    const text_control = event === "input" && !(node instanceof HTMLSelectElement)
+    const is_typing = () => text_control && node.matches(":focus")
     // True from the first local event since the last flush, until that write
     // actually lands in `obs` -- lets a pending debounced/throttled local
     // edit take priority over an external observable write that arrives
@@ -99,9 +109,10 @@ function setup_bind<T, N extends Element>(
     /// When the observable changes, update the node
     let render = (value: T | null | undefined) => {
       if (prioritize_local && pending_local) return // a local edit is in flight -- don't let this overwrite it
-      lock(() => {
+      if (value !== shown && !(value === mine && is_typing())) {
+        shown = value
         node_set(node, value)
-      })
+      }
       recheck_validity()
     }
     if (opts?.debounce_observable) render = o.debounce(render, opts.debounce_observable)
@@ -110,22 +121,25 @@ function setup_bind<T, N extends Element>(
       render(value)
     })
 
-    let flush = () => {
-      lock(() => {
-        const new_value = node_get(node)
-        obs.set(new_value)
-        const is_still_watched = (obs as unknown as o.ReadonlyObservable<any>).is_watched
+    /// Bring the node in line with what `obs` holds, if it is not already
+    const reconcile = () => {
+      // `set()` may have removed this node, when `obs` depends on a Repeat whose items disappeared: make sure `obs`
+      // is still watched before touching the node.
+      if (!(obs as unknown as o.ReadonlyObservable<any>).is_watched) return
+      const val = obs.get()
+      if (val !== shown) {
+        shown = val
+        node_set(node, val)
+      }
+    }
 
-        if (is_still_watched) {
-          // since obs could be a transformed observable, using set() may end up setting it
-          // to a *different* value. Here we make sure we keep the node *correctly* in sync
-          // with its observable. We make absolutely sure however that it is still being watched because the .set might also have triggered the removal of the node watching the change, because the observable is dependant for instance of a Repeat node with elements having disappeared
-          const val = obs.get()
-          if (val !== new_value) {
-            node_set(node, val)
-          }
-        }
-      })
+    let flush = () => {
+      const new_value = node_get(node)
+      shown = new_value
+      obs.set(new_value)
+      // `set()` may store another value than `new_value`, since `obs` could be a transformed observable
+      mine = obs.get()
+      if (!is_typing()) reconcile()
       pending_local = false
       recheck_validity()
     }
@@ -136,6 +150,18 @@ function setup_bind<T, N extends Element>(
       pending_local = true
       flush()
     })
+
+    if (text_control) {
+      // The edit is committed: show what the observable holds. A debounced or throttled local edit still in flight
+      // does it itself when it flushes.
+      const commit = () => {
+        if (pending_local) return
+        reconcile()
+        recheck_validity()
+      }
+      node_add_event_listener(node, "change", commit)
+      node_add_event_listener(node, "blur", commit)
+    }
   }
 }
 
