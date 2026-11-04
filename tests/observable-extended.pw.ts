@@ -921,6 +921,78 @@ test.describe("Observable extended", () => {
     })
   })
 
+  // A dependency cycle (an observable that depends on itself, directly or through others) can only be made by linking
+  // after construction. It used to hang the page: the queue walk and the proxy path resolution looped forever. Linking
+  // such a cycle now throws, and leaves the observables as they were.
+  test.describe("dependency cycles", () => {
+    test("a proxy over an observable that holds itself throws", async ({ page }) => {
+      const message = await page.evaluate(() => {
+        const { o } = window.__ELT__
+        const o_self: any = o(0)
+        o_self.set(o_self)
+        try {
+          o.proxy(o_self)
+          return "no error"
+        } catch (e) {
+          return (e as Error).message
+        }
+      })
+      expect(message).toContain("cycle")
+    })
+
+    test("addDependency throws when it would close a loop, and the graph keeps working", async ({ page }) => {
+      const result = await page.evaluate(() => {
+        const { o } = window.__ELT__
+        const o_x = o(1)
+        const a: any = o.combine([o_x] as const, ([v]) => v + 1)
+        const b: any = o.combine([a] as const, ([v]) => v * 2)
+        const seen: number[] = []
+        b.addObserver((v: number) => {
+          seen.push(v)
+        })
+        const attempt = (fn: () => void) => {
+          try {
+            fn()
+            return "no error"
+          } catch (e) {
+            return (e as Error).message
+          }
+        }
+        const onto_itself = attempt(() => a.addDependency(a))
+        const through_a_child = attempt(() => a.addDependency(b))
+        o_x.set(2)
+        return { onto_itself, through_a_child, b: b.get(), seen }
+      })
+      expect(result.onto_itself).toContain("cycle")
+      expect(result.through_a_child).toContain("cycle")
+      expect(result.b).toBe(6)
+      expect(result.seen).toEqual([4, 6])
+    })
+
+    test("changeTarget throws when the new target depends on the proxy, and the proxy keeps its target", async ({
+      page,
+    }) => {
+      const result = await page.evaluate(() => {
+        const { o } = window.__ELT__
+        const o_source = o(10)
+        const o_proxy: any = o.proxy(o(o_source))
+        const o_derived = o_proxy.tf((v: number) => v + 1)
+        o_derived.addObserver(() => {})
+        let message = "no error"
+        try {
+          o_proxy.changeTarget(o_derived)
+        } catch (e) {
+          message = (e as Error).message
+        }
+        o_source.set(20)
+        return { message, proxy: o_proxy.get(), derived: o_derived.get() }
+      })
+      expect(result.message).toContain("cycle")
+      expect(result.proxy).toBe(20)
+      expect(result.derived).toBe(21)
+    })
+  })
+
   test.describe("assign on arrays", () => {
     test("assign() updates array indexes on observable", async ({ page }) => {
       const results = await page.evaluate(() => {

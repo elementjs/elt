@@ -699,6 +699,33 @@ export namespace o {
     post_order.push(obs)
   }
 
+  /** Whether `from` is `target`, or depends on it, directly or not. Marks what it visits with `mark`, like {@link collect_post_order}. */
+  function depends_on(from: ReadonlyObservable<any>, target: ReadonlyObservable<any>, mark: number): boolean {
+    if (from === target) return true
+    if (from._visit === mark) return false
+    from._visit = mark
+    if (from instanceof CombinedObservable) {
+      for (let i = 0, links = from._links; i < links.length; i++) {
+        if (depends_on(links[i].parent, target, mark)) return true
+      }
+    }
+    return false
+  }
+
+  /**
+   * Throw if making `obs` depend on any of `parents` would close a loop. A loop in the dependencies would make the
+   * queue walk (`Queue.schedule`) and the proxy path resolution run forever, so it is refused when it is made.
+   */
+  function assert_no_cycle(obs: ReadonlyObservable<any>, parents: readonly unknown[]) {
+    for (const p of parents) {
+      if (o.is_observable(p) && depends_on(p, obs, ++visit_mark)) {
+        throw new Error(
+          "observable cycle: an observable cannot depend on itself, directly or through other observables",
+        )
+      }
+    }
+  }
+
   /** @internal */
   export class Queue extends IndexableArray<ReadonlyObservable<any>> {
     transaction_count = 0
@@ -1055,7 +1082,18 @@ export namespace o {
       }
     }
 
+    /** Make this observable depend on `obs` too. Throws if that would close a loop. */
     addDependency(obs: RO<any>, refresh = false) {
+      assert_no_cycle(this, [obs])
+      this.link_dependency(obs, refresh)
+    }
+
+    /**
+     * {@link addDependency} without the loop check: for an observable that is being built, which nothing depends on
+     * yet, so that building one stays cheap.
+     * @internal
+     */
+    link_dependency(obs: RO<any>, refresh = false) {
       const lp = this._parents_values.length
 
       if (o.is_observable(obs)) {
@@ -1075,7 +1113,7 @@ export namespace o {
       this._links = []
 
       for (const o of obs) {
-        this.addDependency(o)
+        this.link_dependency(o)
       }
 
       return this
@@ -1087,6 +1125,8 @@ export namespace o {
     const path: ReadonlyObservable<unknown>[] = [root]
     let v: unknown = root.get()
     while (o.is_observable(v)) {
+      if (path.includes(v))
+        throw new Error("observable cycle: an observable holds itself, directly or through other observables")
       path.push(v)
       v = v.get()
     }
@@ -1113,6 +1153,8 @@ export namespace o {
     }
 
     private relink(newPath: ReadonlyObservable<unknown>[], schedule = true) {
+      // Before changing anything: a refused target leaves the proxy as it was
+      assert_no_cycle(this, newPath)
       const watched = this.is_watched
       if (watched) {
         this.unwatched()
@@ -1671,7 +1713,7 @@ export namespace o {
       if (idx == null) {
         idx = i++
         mp.set(m, idx)
-        cmb.addDependency(m, true)
+        cmb.link_dependency(m, true)
       }
       return idx
     }
