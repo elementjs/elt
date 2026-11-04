@@ -14,6 +14,8 @@ import { expect, test } from "./fixture"
 //      a write made from inside an observer starts a second wave).
 //   3. Convergence: at the end, every observable holds the value recomputed from scratch, and its observers
 //      saw that value last.
+//   4. Fresh reads: an observer that reads another observable with `.get()` gets the value recomputed from scratch,
+//      even when that observable is queued and not processed yet.
 
 test.describe("Observable queue ordering", () => {
   test("a diamond with a late source is recomputed once, after all its sources", async ({ page }) => {
@@ -88,6 +90,60 @@ test.describe("Observable queue ordering", () => {
     })
     // (5 + 100) + 10: `d` never shows the intermediate (5 + 10) + 10
     expect(r).toEqual({ computes: 3, seen: [115] })
+  })
+
+  test("a derived observable watched from inside an observer is computed once, from its parent's fresh value", async ({
+    page,
+  }) => {
+    const r = await page.evaluate(() => {
+      const { o } = window.__ELT__
+      const a = o(1)
+      let parent_computes = 0
+      let child_computes = 0
+      const parent = o.combine([a] as const, ([x]) => {
+        parent_computes++
+        return x * 2
+      })
+      parent.addObserver(() => {})
+      const child = o.combine([parent] as const, ([x]) => {
+        child_computes++
+        return x + 1
+      })
+      const seen: number[] = []
+      // `a`'s observer runs before `parent` is processed: `parent` is queued, and stale, when `child` starts to watch it
+      a.addObserver((v: number) => {
+        if (v === 2) {
+          child.addObserver((w: number) => {
+            seen.push(w)
+          })
+        }
+      })
+      parent_computes = 0
+      child_computes = 0
+
+      a.set(2)
+      return { parent_computes, child_computes, seen }
+    })
+    expect(r).toEqual({ parent_computes: 1, child_computes: 1, seen: [5] })
+  })
+
+  test("reading a queued derived observable from an observer gives its fresh value, not the stale one", async ({
+    page,
+  }) => {
+    const r = await page.evaluate(() => {
+      const { o } = window.__ELT__
+      const a = o(1)
+      const d = o.combine([a] as const, ([x]) => x * 10)
+      d.addObserver(() => {})
+      let read: number | null = null
+      // `a`'s observer runs before `d` is processed: `d` is queued, and has not been recomputed yet
+      a.addObserver((v: number) => {
+        if (v === 2) read = d.get()
+      })
+      a.set(2)
+      return { read }
+    })
+    expect(r).toEqual({ read: 20 })
   })
 
   test("random dependency graphs: no glitch, one computation per wave, convergence", async ({ page }) => {
@@ -169,6 +225,12 @@ test.describe("Observable queue ordering", () => {
               seen[i] = v
               if (v !== expected(i))
                 failures.push(`${where}: node ${i} observed ${v}, from scratch it is ${expected(i)}`)
+              const other = (i * 7 + seed) % nodes.length
+              if (nodes[other].get() !== expected(other)) {
+                failures.push(
+                  `${where}: node ${i}'s observer read node ${other} as ${nodes[other].get()}, from scratch it is ${expected(other)}`,
+                )
+              }
               if (scenario === "write from an observer" && !fired && i === trigger) {
                 fired = true
                 nodes[second_target].set(fresh())

@@ -1028,7 +1028,9 @@ export namespace o {
     }
 
     override get() {
-      if (!this.is_watched || queue.transaction_count > 0) {
+      // Queued (`idx != null`) means a parent changed and this value has not been recomputed yet: reading `_value`
+      // as it is would return the previous one.
+      if (!this.is_watched || this.idx != null || queue.transaction_count > 0) {
         this.ensureRefreshed()
       }
       return this._value
