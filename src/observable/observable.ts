@@ -18,7 +18,6 @@ import { IndexableArray, type Indexable } from "./indexable"
 import { sym_insert, sym_is_observable } from "../symbols"
 import type { Renderable } from "../types"
 import { CommentHolder, node_append, node_observe } from "../dom"
-import { is_promise_like } from "../utils"
 ;(window as any).DEBUG ??= false
 declare const DEBUG: boolean
 
@@ -256,7 +255,6 @@ export namespace o {
     fn: ObserverCallback<any>
 
     observable: any
-    private _promise: any
 
     /**
      * Build an observer that will call `fn` whenever the value contained by
@@ -267,27 +265,13 @@ export namespace o {
       this.observable = observable
     }
 
-    evalNewalue(new_value: A) {
+    evalNewValue(new_value: A) {
       // Always stored, even when `fn` ignores `old`: `refresh` compares it to the current value to skip unchanged
       // values, as the queue refreshes the observers of an observable even when its value did not change.
       const old = this.old_value
       this.old_value = new_value
-      const res = (this.fn as ObserverCallback<A>)(new_value, old)
-      // A returned value is written back to the observable (a "trigger", see docs/md/observables.md, an observer's
-      // return value); it is also stored as the last seen value, so that this observer is not re-triggered by it
-      if (res !== undefined) {
-        if (is_promise_like(res)) {
-          const pro = Promise.resolve(res).then((res) => {
-            if (res === undefined || pro !== this._promise) {
-              return
-            }
-            this.setObservableValue(res)
-          })
-          this._promise = pro
-        } else {
-          this.setObservableValue(res)
-        }
-      }
+      // What `fn` returns is ignored: an observer observes (docs/md/observables.md)
+      this.fn(new_value, old)
     }
 
     /**
@@ -312,16 +296,8 @@ export namespace o {
       const new_value = (this.observable as any)._value
 
       if (old !== new_value) {
-        this.evalNewalue(new_value)
+        this.evalNewValue(new_value)
       }
-    }
-
-    private setObservableValue(val: A | o.NoValue) {
-      // synchronous sets win over promises
-      this._promise = undefined
-      const value = (val === o.NoValue ? undefined : val) as A
-      this.old_value = value
-      this.observable.set(value)
     }
 
     /**
@@ -362,12 +338,12 @@ export namespace o {
   }
 
   export class SilentObserver<A> extends Observer<A> {
-    override evalNewalue(new_value: A) {
+    override evalNewValue(new_value: A) {
       if (this.old_value === o.NoValue) {
         this.old_value = new_value
         return
       }
-      super.evalNewalue(new_value)
+      super.evalNewValue(new_value)
     }
   }
 
@@ -378,10 +354,7 @@ export namespace o {
    * is the previous value or {@link o.NoValue} if this is the first time the callback
    * is called.
    */
-  export type ObserverCallback<T> = (
-    newval: T,
-    old_value: T | NoValue,
-  ) => void | T | NoValue | Promise<T | NoValue | void>
+  export type ObserverCallback<T> = (newval: T, old_value: T | NoValue) => void
 
   export const sym_display_node = Symbol("display-node")
   export const sym_display_attrs = Symbol("display-attrs")

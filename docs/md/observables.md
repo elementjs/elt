@@ -306,21 +306,6 @@ o.transaction(() => {
 
 Keep the callback small and synchronous: it only sets observables. Compute or validate anything that can fail before `o.transaction`; an `await` inside the callback does not extend the transaction. If the callback throws anyway, the error propagates to the caller, after the writes made so far have been notified.
 
-## An observer's return value
-
-An observer callback (`$observe`, `node_observe`, `.observe`, `addObserver`) that returns something other than `undefined` writes that value back to the observable it watches; a returned promise is awaited, then its value is written. This is a trigger: the observer reacts to a value and replaces it in the same step.
-
-```ts
-// a one-shot flag: whoever sets it to true gets it reset once the list reloaded
-node_observe(list_node, o_refresh_requested, (requested) => {
-  if (!requested) return
-  reload()
-  return false
-})
-```
-
-The flip side: an arrow function with an expression body returns its value without anyone meaning it. `(v) => (node.title = v + "!")` writes the new title back to the observable. On a read-only observable (a `.tf()`, an `o.expression` without a write-back), that write throws. Write side-effect observers with a block body: `(v) => { node.title = v + "!" }`.
-
 ## Observing: `$observe`, `node_observe`, `.observe`
 
 An observer is a callback `(value, old) => …` that runs when an observable's value changes. Three entry points create one (`node_observe` is what a decorator of your own calls), and all three accept the same options and follow the same timing:

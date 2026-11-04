@@ -861,6 +861,40 @@ test.describe("Observable extended", () => {
     })
   })
 
+  // An observer observes: what its callback returns is ignored. It used to be written back to the observable it
+  // watched, which made any expression-bodied callback (`(v) => (node.title = v)`, `(v) => fetch(u).then(...)`) write
+  // something nobody meant, and threw on a read-only observable.
+  test.describe("an observer's return value", () => {
+    test("is ignored, whether it is a value or a promise", async ({ page }) => {
+      const result = await page.evaluate(async () => {
+        const { o } = window.__ELT__
+        const o_sync = o(1)
+        const o_async = o(1)
+        o_sync.addObserver(((v: number) => v + 100) as any)
+        o_async.addObserver((async (v: number) => v + 100) as any)
+        o_sync.set(2)
+        o_async.set(2)
+        await new Promise((resolve) => setTimeout(resolve, 10))
+        return { sync: o_sync.get(), async: o_async.get() }
+      })
+      expect(result).toEqual({ sync: 2, async: 2 })
+    })
+
+    test("a read-only observable's observer returning a value does not throw", async ({ page }) => {
+      const result = await page.evaluate(() => {
+        const { o } = window.__ELT__
+        const o_a = o(1)
+        const oo_double = o_a.tf((v: number) => v * 2)
+        const seen: number[] = []
+        // An expression body returns the pushed length: nobody meant it as a write
+        oo_double.addObserver(((v: number) => seen.push(v)) as any)
+        o_a.set(2)
+        return { seen, double: oo_double.get() }
+      })
+      expect(result).toEqual({ seen: [2, 4], double: 4 })
+    })
+  })
+
   test.describe("o.transaction()", () => {
     // A throw inside the callback propagates to the caller, and leaves the observables usable: the writes already made
     // are notified, and later writes notify as usual (regression: the transaction stayed open, no observer ran again)
