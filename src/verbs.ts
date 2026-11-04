@@ -411,7 +411,6 @@ export namespace Repeat {
     protected o_view_start: o.Observable<number> | null = null
     protected o_view_end: o.Observable<number> | null = null
     protected keyfn: ((item: ItemType<Obs>, index: number) => any) | null = null
-    update_lock = o.exclusive_lock()
 
     constructor(
       public obs: Obs,
@@ -449,7 +448,7 @@ export namespace Repeat {
         this.__list,
         this.obs,
         (lst, old_lst) => {
-          this.update_lock(() => {
+          this.update_in_transaction(() => {
             this.updateChildrenPre(
               (lst as unknown as NonNullable<o.ObservedType<Obs>>) ?? [],
               (old_lst as unknown as NonNullable<o.ObservedType<Obs>>) ?? [],
@@ -504,8 +503,8 @@ export namespace Repeat {
       return this
     }
 
-    /** Reconcile the current list against an explicit index window. */
-    reconcileView(start: number, end: number) {
+    /** Reconcile the current list against an explicit index window. For subclasses: the window is normally given to {@link ForView}. */
+    protected reconcileView(start: number, end: number) {
       this.reconcile({ start, end })
       return this
     }
@@ -516,12 +515,21 @@ export namespace Repeat {
     }
 
     /**
+     * Run `fn`, which updates the DOM from the list, with the observers notified after it, not during it: it works from
+     * a snapshot of the DOM, and a row's observer writing the list or the window while rows are made would reconcile
+     * again in the middle of it. Inside an observer this changes nothing, writes are already deferred there; it matters
+     * when a reconcile is requested from outside one.
+     */
+    protected update_in_transaction(fn: () => void) {
+      o.transaction(fn)
+    }
+
+    /**
      * Reconcile the current list against `override`, or against the view window when there is
-     * none. Does nothing while another reconcile runs (`update_lock`). Rows come and go with the
-     * window, not with the data: no motion.
+     * none. Rows come and go with the window, not with the data: no motion.
      */
     protected reconcile(override?: View) {
-      this.update_lock(() => {
+      this.update_in_transaction(() => {
         this.before_reconcile(override)
         const lst = (o.get(this.obs) as unknown as NonNullable<o.ObservedType<Obs>>) ?? []
         without_motion(() => this.updateChildren(lst, override))

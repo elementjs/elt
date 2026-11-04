@@ -661,10 +661,8 @@ export namespace RepeatVirtual {
      * the window so the observer-driven {@link reconcile_view} that fires from the
      * same `o_pos_*` write skips the identical second reconciliation.
      *
-     * `_last_view_*` is written *inside* `update_lock` so it is only recorded when
-     * the reconcile actually ran — `o.exclusive_lock` is non-reentrant, so a call
-     * made while the lock is already held is a no-op and must not poison the cache. */
-    override reconcileView(start: number, end: number) {
+     * `_last_view_*` is written by {@link before_reconcile}, right before the reconcile runs. */
+    protected override reconcileView(start: number, end: number) {
       if (start === this._last_view_start && end === this._last_view_end) {
         return this
       }

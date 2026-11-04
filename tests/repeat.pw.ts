@@ -1314,7 +1314,9 @@ test.describe("Repeat", () => {
       expect(result.new_node).toBe(true)
     })
 
-    test("reconcileView updates an explicit window imperatively", async ({ page }) => {
+    test("an explicit window can be applied imperatively (internal reconcileView, used by RepeatVirtual)", async ({
+      page,
+    }) => {
       const results = await page.evaluate(() => {
         const { o } = window.__ELT__
         const { mount_view_repeat, item_texts, tear_down } = window.__repeat_helpers__
@@ -1324,7 +1326,8 @@ test.describe("Repeat", () => {
         const out: unknown[][] = []
         out.push(item_texts(container))
 
-        repeater.reconcileView(2, 4)
+        // Internal (protected): RepeatVirtual calls it to apply an explicit window
+        ;(repeater as any).reconcileView(2, 4)
         out.push(item_texts(container))
 
         tear_down(container)
