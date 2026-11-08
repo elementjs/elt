@@ -511,6 +511,45 @@ test.describe("o.merge() and o.join()", () => {
   })
 })
 
+test.describe("o.tee()", () => {
+  test("o.tee() sets every target in order and skips undefined", async ({ page }) => {
+    const results = await page.evaluate(() => {
+      const { o } = window.__ELT__
+      const out: { name: string; actual: unknown; expected: unknown }[] = []
+      const a = o(0)
+      const b = o(0)
+      const order: string[] = []
+      a.addObserver(() => order.push("a"))
+      b.addObserver(() => order.push("b"))
+      // addObserver calls its callback once when it is added : start counting after that.
+      order.length = 0
+
+      const both = o.tee(a, undefined, b)
+      both.set(3)
+      out.push({ name: "a after tee.set(3)", actual: a.get(), expected: 3 })
+      out.push({ name: "b after tee.set(3)", actual: b.get(), expected: 3 })
+      out.push({
+        name: "observers ran once each, in the order of the targets",
+        actual: order.slice(),
+        expected: ["a", "b"],
+      })
+
+      // No target at all is a valid, silent Out.
+      o.tee<number>().set(1)
+      o.tee<number>(undefined).set(1)
+      out.push({ name: "a untouched by empty tees", actual: a.get(), expected: 3 })
+
+      // A tee is an Out like any other, so it can be nested.
+      const c = o(0)
+      o.tee(o.tee(a), c).set(7)
+      out.push({ name: "nested tee reaches a", actual: a.get(), expected: 7 })
+      out.push({ name: "nested tee reaches c", actual: c.get(), expected: 7 })
+      return out
+    })
+    assertAll(results)
+  })
+})
+
 test.describe("o.p(fn)", () => {
   test("o.p(function) works as getter with simple expression", async ({ page }) => {
     const results = await page.evaluate(() => {

@@ -75,6 +75,12 @@ declare var __: any
   // @ts-expect-error an Out has no get(): it is not readable
   const out5: o.RO<string> = null as unknown as o.Out<string>
   void [out1, out2, out3, out4, out5]
+
+  // o.tee gives an Out of the type that every target accepts, and skips undefined targets.
+  const tee1: o.Out<"a"> = o.tee(o<"a" | "b">("a"), o("a"), undefined)
+  // @ts-expect-error a narrower observable can't take every value of a wider Out
+  const tee2: o.Out<string> = o.tee<string>(o<"a" | "b">("a"))
+  void [tee1, tee2]
 }
 
 // The write type of an IObservable<Get, Set> is contravariant; the read type of any readonly observable is covariant.

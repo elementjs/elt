@@ -107,7 +107,7 @@ function Badge(attrs: Attrs<HTMLSpanElement> & { count: o.RO<number> }) {
 }
 ```
 
-A component also sometimes has a value to report to its caller (the column titles an editor has open, the item a picker chose). Such an attribute is typed `o.Out<T>`, which is just `{ set(value: T): void }`: the component writes it and never reads it. The caller creates the observable, passes it in and reads it, because the caller outlives the component. A component never hands out an observable it created: observers added from outside its lifecycle would outlive it, and a new instance would create a new observable the caller does not hold.
+A component also sometimes has a value to report to its caller (the column titles an editor has open, the item a picker chose). Such an attribute is typed `o.Out<T>`, which is just `{ set(value: T): void }`: the component writes it and never reads it. Its name always starts with `out_`. The caller creates the observable, passes it in and reads it, because the caller outlives the component. A component never hands out an observable it created: observers added from outside its lifecycle would outlive it, and a new instance would create a new observable the caller does not hold.
 
 | Role of the attribute | Type | The component |
 | --------------------- | ---- | ------------- |
@@ -118,16 +118,17 @@ A component also sometimes has a value to report to its caller (the column title
 ```tsx
 import { $click, type Attrs, o } from "elt"
 
-function Picker(attrs: Attrs<HTMLButtonElement> & { picked?: o.Out<string> }) {
-  return <button>{$click(() => attrs.picked?.set("x"))}</button> as HTMLButtonElement
+function Picker(attrs: Attrs<HTMLButtonElement> & { out_picked?: o.Out<string> }) {
+  return <button>{$click(() => attrs.out_picked?.set("x"))}</button> as HTMLButtonElement
 }
 
 const o_picked = o("")
-return <Picker picked={o_picked} />
+return <Picker out_picked={o_picked} />
 ```
 
 - An `Out` is read once, when the component is built, like `model`.
 - Several components may share one `Out` (radio buttons all writing the selection). The caller sees the last write: writes made in one flush are coalesced into a single notification.
+- To send one output to several observables, pass `o.tee(o_a, o_b)`: its `set` sets each of them, in order, and it skips `undefined` entries.
 - A component that needs the value itself (a query it clears, a field it reads back) takes an `o.Observable<T>`, not an `Out`. With an `Out` it keeps its own state and writes it out.
 - Each component documents when it writes: on change, when built, on removal.
 

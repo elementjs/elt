@@ -75,8 +75,8 @@ export namespace o {
    * an `Out<"a" | "b">`, not the other way round.
    *
    * ```tsx
-   * function Picker(at: { picked?: o.Out<string> }) {
-   *   return <button>{$click(() => at.picked?.set("x"))}</button>
+   * function Picker(at: { out_picked?: o.Out<string> }) {
+   *   return <button>{$click(() => at.out_picked?.set("x"))}</button>
    * }
    * ```
    *
@@ -1371,6 +1371,26 @@ export namespace o {
       },
       (back) => keys.map((k) => (back as any)[k as any]),
     )
+  }
+
+  /**
+   * Gathers several {@link Out}s into one: setting the result sets each of them, in the order given.
+   * `undefined` entries are skipped, so an optional output can be passed as is (`o.tee(a, at.out_x)`).
+   * Every target must accept `T`, so an `Observable<"a" | "b">` is refused for a `T` of `string`.
+   *
+   * ```tsx
+   * <Picker out_picked={o.tee(o_for_the_url, o_for_the_panel)} />
+   * ```
+   *
+   * @group Observable
+   */
+  export function tee<T>(...outs: (Out<T> | undefined)[]): Out<T> {
+    const targets = outs.filter((out): out is Out<T> => out !== undefined)
+    return {
+      set: (value) => {
+        for (const out of targets) out.set(value)
+      },
+    }
   }
 
   /**
