@@ -528,6 +528,54 @@ test.describe("Theme.colors.error", () => {
   })
 })
 
+test.describe("Theme palette reading", () => {
+  test("a hue the browser writes as `none` reads as 0, not NaN (regression: Chromium 157+ writes the hue of white, black and greys as `none`, which made the theme's bg and text invalid)", async ({
+    page,
+  }) => {
+    const all_colors = await page.evaluate(() => {
+      const { Theme } = window.__ELT__.UI
+      // Chromium 156 and below write a number for that hue: write `none` as 157 does, for colors with
+      // (almost) no chroma
+      const real = window.getComputedStyle
+      window.getComputedStyle = (el, pseudo) => {
+        const cs = real(el, pseudo)
+        const color = cs.color.replace(/^oklch\(([^ ]+) ([^ ]+) [^)]+\)$/, (all, l, c) =>
+          parseFloat(c) < 0.001 ? `oklch(${l} ${c} none)` : all,
+        )
+        return new Proxy(cs, {
+          get: (t, k) => {
+            if (k === "color") return color
+            const v = Reflect.get(t, k)
+            return typeof v === "function" ? v.bind(t) : v
+          },
+        })
+      }
+      try {
+        return new Theme({ light: { bg: "#ffffff", text: "#1c1c1c", tint: "#005FCC" } }).all_colors
+      } finally {
+        window.getComputedStyle = real
+      }
+    })
+    expect(all_colors).not.toContain("NaN")
+    expect(parse_ok_lch(all_colors, "light", "bg").h).toBe(0)
+    expect(parse_ok_lch(all_colors, "light", "text").h).toBe(0)
+  })
+
+  test("under forced colors, the theme still reads the palette's own colors (regression: it threw on the first one, read as a system color)", async ({
+    page,
+  }) => {
+    await page.emulateMedia({ forcedColors: "active" })
+    const all_colors = await page.evaluate(() => {
+      const { Theme } = window.__ELT__.UI
+      return new Theme({ light: { bg: "#ffffff", text: "#1c1c1b", tint: "#005FCC" } }).all_colors
+    })
+    // the tint's own blue, not a system color
+    const tint = parse_ok_lch(all_colors, "light", "tint")
+    expect(tint.h).toBeGreaterThan(250)
+    expect(tint.h).toBeLessThan(270)
+  })
+})
+
 test.describe("Spacing scale (regression: no separate vertical/horizontal values — one value per step, both axes)", () => {
   test("a named step has a single value", async ({ page }) => {
     const result = await page.evaluate(() => {

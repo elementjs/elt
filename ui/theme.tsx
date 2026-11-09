@@ -209,6 +209,14 @@ class OkLch {
   }
 }
 
+/** A component of a computed oklch color. `none` is a missing component, which reads as 0: Chromium
+ * 157+ writes the hue of a color without chroma (white, black, greys) as `none`, and `parseFloat`
+ * would turn it into NaN, which makes every color built from it invalid. With no chroma, any hue
+ * gives the same color. */
+function oklch_component(s: string | undefined): number {
+  return s == null || s === "none" ? 0 : parseFloat(s)
+}
+
 /** Each color of `colors` as oklch, as the browser computes it. Throws, naming the key, on a value the
  * browser can't read as a color (or when it lacks relative color syntax, `oklch(from …)`): a missing
  * color would otherwise surface later as an unrelated TypeError. */
@@ -216,6 +224,9 @@ function getOkLch<T extends ColorScheme>(colors: T): { [key in keyof T]: OkLch }
   // A temporary element, so the browser normalizes each color for us
   const el = document.createElement("div")
   el.style.visibility = "hidden"
+  // Under forced colors (a contrast theme), the browser computes every color as a system color: the
+  // probe opts out, so that it reads the palette's own colors rather than throwing on the first one.
+  el.style.setProperty("forced-color-adjust", "none")
   // biome-ignore lint/plugin: a measuring probe that elt never renders, removed below
   document.body.appendChild(el)
 
@@ -232,9 +243,9 @@ function getOkLch<T extends ColorScheme>(colors: T): { [key in keyof T]: OkLch }
         throw new Error(`Theme color "${key}": cannot read "${value}" as a color (computed as "${cs}")`)
       }
       res[key as keyof T] = new OkLch(
-        parseFloat(match.groups?.l ?? "0"),
-        parseFloat(match.groups?.c ?? "0"),
-        parseFloat(match.groups?.h ?? "0"),
+        oklch_component(match.groups?.l),
+        oklch_component(match.groups?.c),
+        oklch_component(match.groups?.h),
       )
     }
   } finally {
