@@ -507,7 +507,7 @@ function _renders(node: Element): boolean {
       if (_renders(c as Element)) return true
     } else if (c.nodeType === Node.TEXT_NODE) {
       // A text node has no getClientRects of its own ; a range over it gives its line boxes (none
-      // for collapsed whitespace). `_range` is free: node_remove_range sets it again after this.
+      // for collapsed whitespace).
       _range ??= document.createRange()
       _range.selectNodeContents(c)
       if (_range.getClientRects().length > 0) return true
@@ -529,7 +529,7 @@ function _leave_done(node: Element) {
  * here (`node_remove`, `node_clear`, verbs, comment holders).
  *
  * The nodes are disconnected first, so their `disconnected` callbacks still see them in place, then
- * detached : a single node with `removeChild`, a run of several with one Range call.
+ * detached, one `removeChild` each.
  *
  * With `motion`, the removal is an update (docs/md/motion.md): a removed node with a leave hook stays
  * while its hooks and its descendants' run, up to the content of other verbs (whose markers may be in
@@ -589,19 +589,15 @@ export function node_remove_range(first: Node, last: Node, motion = false): void
   if (run_first != null && run_last != null) _detach_run(parent, run_first, run_last)
 }
 
-/**
- * Detach the siblings `first` to `last` (inclusive) of `parent`, already disconnected: a single node
- * with `removeChild`, several with one Range call (cheaper than one `removeChild` each).
- */
+/** Detach the siblings `first` to `last` (inclusive) of `parent`, already disconnected. One `removeChild`
+ * each: a Range call over the run measured no faster. */
 function _detach_run(parent: Node, first: Node, last: Node) {
-  if (first === last) {
-    parent.removeChild(first)
-    return
+  for (let n: Node = first; ; ) {
+    const next = n.nextSibling as Node
+    parent.removeChild(n)
+    if (n === last) return
+    n = next
   }
-  _range ??= document.createRange()
-  _range.setStartBefore(first)
-  _range.setEndAfter(last)
-  _range.deleteContents()
 }
 
 /**

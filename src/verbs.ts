@@ -33,7 +33,7 @@ function clamp_view(length: number, start: number, end: number): Repeat.View {
 }
 
 /**
- * Removes scattered items with as few DOM calls as possible: the items given to {@link add}, in
+ * Removes scattered items with as few removal calls as possible: the items given to {@link add}, in
  * document order, are grouped into runs of adjacent siblings, each removed with one
  * `node_remove_range` call once the run is complete. Call {@link flush} after the last one.
  */
@@ -552,7 +552,7 @@ export namespace Repeat {
      * memory stays proportional to the window ; they are rendered again if they come back into view.
      */
     protected evict_outside_view(view_start: number, view_end: number) {
-      // Consecutive evicted items are removed together, with one Range call per run.
+      // Consecutive evicted items are removed together, with one node_remove_range call per run.
       const runs = new RunRemover(false)
       // Out of the window, not out of the list: no exit motion, not even `always` ones
       without_motion(() => {
@@ -618,7 +618,7 @@ export namespace Repeat {
      * - the items forming the longest increasing subsequence of old positions stay where they are,
      *   only the others move, with `moveBefore` so they keep focus,
      * - new items are grouped in one fragment per run of consecutive slots and inserted in one go,
-     * - unused items are removed at the end, one Range call per run of consecutive items.
+     * - unused items are removed at the end, one node_remove_range call per run of consecutive items.
      *
      * With `motion` (an update of the list), new items enter and removed ones leave.
      */
