@@ -407,7 +407,6 @@ export namespace Repeat {
     protected __suffix = new CommentHolder("repeat-suffix")
     protected __list = new CommentHolder("repeat-list")
 
-    protected lst: ItemType<Obs>[] = []
     protected o_view_start: o.Observable<number> | null = null
     protected o_view_end: o.Observable<number> | null = null
     protected keyfn: ((item: ItemType<Obs>, index: number) => any) | null = null
@@ -424,8 +423,7 @@ export namespace Repeat {
       if (this.renderfn == null) {
         throw new Error("Repeater needs a Render function")
       }
-
-      // this.node = document.createComment("e-repeat")
+      this.renew_markers()
 
       node_append(parent, this.__prefix, refchild)
       node_append(parent, this.__empty, refchild)
@@ -437,6 +435,22 @@ export namespace Repeat {
       this.__list.updateRenderable(null)
 
       this.start_observing()
+    }
+
+    /**
+     * A Repeat shows in one place at a time, like an element. Inserted again, its previous rendering goes,
+     * wherever it is (inside a removed ancestor too, which may be put back), and it renders anew between new
+     * markers: its observers and callbacks live on the old ones, and stop with them.
+     */
+    protected renew_markers() {
+      if (this.__list.end == null) return // first insertion
+      const prefix = this.__prefix
+      const suffix = this.__suffix
+      if (prefix.parentNode != null && suffix.parentNode === prefix.parentNode) node_remove_range(prefix, suffix.last)
+      this.__prefix = new CommentHolder("repeat-prefix")
+      this.__empty = new CommentHolder("repeat-empty")
+      this.__suffix = new CommentHolder("repeat-suffix")
+      this.__list = new CommentHolder("repeat-list")
     }
 
     /**

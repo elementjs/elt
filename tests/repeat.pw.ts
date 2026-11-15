@@ -524,6 +524,45 @@ test.describe("Repeat", () => {
     })
   })
 
+  test.describe("inserted again", () => {
+    test("a Repeat inserted again renders anew where it is inserted, prefix included, and follows its list there; its previous rendering goes (regression: it rendered nothing)", async ({
+      page,
+    }) => {
+      const result = await page.evaluate(() => {
+        const { o, node_append, node_remove } = window.__ELT__
+        const { mount_repeat, item_texts, query_one, tear_down } = window.__repeat_helpers__
+        const o_lst = o(["a", "b"])
+        const { container, repeater } = mount_repeat(o_lst, { prefix: true })
+        o_lst.set(["a", "b", "c"])
+        const other = document.createElement("div")
+        node_append(document.body, other)
+        node_append(other, repeater)
+        const state = () => ({
+          // `item_texts` also walks the siblings after its root, which `other` is
+          first: container.querySelectorAll(".repeat-item").length,
+          other: item_texts(other),
+          prefix: query_one(other, "repeat-prefix")?.textContent ?? null,
+        })
+        const moved = state()
+        o_lst.set(["d"])
+        const updated = state()
+        // Inserted again from a detached place: the docs' case, where its rendering sat in a removed element
+        node_remove(other)
+        const third = document.createElement("div")
+        node_append(document.body, third)
+        node_append(third, repeater)
+        o_lst.set(["e", "f"])
+        const third_items = item_texts(third)
+        tear_down(container)
+        tear_down(third)
+        return { moved, updated, third_items }
+      })
+      expect(result.moved).toEqual({ first: 0, other: ["a", "b", "c"], prefix: "(3)" })
+      expect(result.updated).toEqual({ first: 0, other: ["d"], prefix: "(1)" })
+      expect(result.third_items).toEqual(["e", "f"])
+    })
+  })
+
   test.describe("update sequences", () => {
     // Regression: with one slot per key, an old duplicate whose key also matched the common head
     // was neither placed nor removed, and stayed in the DOM showing list[its stale index].

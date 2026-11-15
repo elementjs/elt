@@ -755,11 +755,20 @@ export namespace RepeatVirtual {
       this.scroll_last_top = st
     }
 
+    /** The window of the previous rendering, if any, says nothing of the new one. */
+    protected override renew_markers() {
+      super.renew_markers()
+      this._last_view_start = -1
+      this._last_view_end = -1
+      this.scroll_last_top = -1
+    }
+
     /** Insert the list. Nothing is rendered until it is connected and has found its scroll area. */
     override [sym_insert](parent: Node, refchild: Node | null): void {
       if (this.renderfn == null) {
         throw new Error("RepeatVirtual needs a Render function")
       }
+      this.renew_markers()
 
       node_on_disconnected(this.__list, () => {
         this._observer.disconnect()
@@ -797,13 +806,10 @@ export namespace RepeatVirtual {
       })
 
       // [prefix][top padder][rows…][bottom padder][suffix]: the rows go between the list's marker and
-      // its end marker, created right after it by updateRenderable.
-      node_append(parent, this.__prefix, refchild)
-      node_append(parent, this.padder_top, refchild)
-      node_append(parent, this.__empty, refchild)
-      node_append(parent, this.__list, refchild)
-      node_append(parent, this.padder_bottom, refchild)
-      node_append(parent, this.__suffix, refchild)
+      // its end marker, created right after it by updateRenderable. Put together in a fragment, inserted last:
+      // a parent already in the page connects the list at once, and its connection needs all of it in place.
+      const frag = document.createDocumentFragment()
+      frag.append(this.__prefix, this.padder_top, this.__empty, this.__list, this.padder_bottom, this.__suffix)
       this.__list.updateRenderable(null)
 
       // Written synchronously, so that preserveScrollAnchor's read right after a view change sees
@@ -850,6 +856,7 @@ export namespace RepeatVirtual {
       }
 
       this.start_observing()
+      node_append(parent, frag, refchild)
     }
   }
 }

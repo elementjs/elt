@@ -179,6 +179,36 @@ describe("RepeatVirtual", () => {
     expect(result).toEqual({ connected: 1, after_tear_down: 0 })
   })
 
+  test("inserted again in another scroll area, it renders its rows there and leaves the first one (regression: it rendered nothing)", async ({
+    page,
+  }) => {
+    const result = await page.evaluate(async () => {
+      const { node_append } = window.__ELT__
+      const m = window.__mountVirtual(window.__labelsFromCount(50))
+      await window.__ELT__.frames(8)
+      const scroller = document.createElement("div")
+      scroller.style.height = "200px"
+      scroller.style.overflow = "auto"
+      const content = document.createElement("div")
+      node_append(scroller, content)
+      node_append(document.body, scroller)
+      node_append(content, m.instance as unknown as import("elt").Renderable<HTMLDivElement>)
+      await window.__ELT__.frames(8)
+      const rows = (root: HTMLElement) => root.querySelectorAll(".virtual-row").length
+      const r = {
+        first: rows(m.content),
+        second_first_label: content.querySelector(".virtual-row")?.textContent,
+        second: rows(content),
+      }
+      m.tear_down()
+      scroller.remove()
+      return r
+    })
+    expect(result.first).toBe(0)
+    expect(result.second_first_label).toBe("item-0")
+    expect(result.second).toBeGreaterThan(0)
+  })
+
   describe("virtual rendering", () => {
     test("renders only a window of rows after scrolling down", async ({ page }) => {
       const result = await page.evaluate(async () => {
