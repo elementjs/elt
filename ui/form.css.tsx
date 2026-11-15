@@ -393,8 +393,8 @@ label[e-widget="toggle"]:where(:has(> input:not(:checked))) {
    aligned on the baseline of its neighbors, and nothing but its text says it is a name: bold and
    fainter than the values. In a packed container its cell is padded by the container and it is
    filled, like the row and column headers of a spreadsheet: one level above the ambient surface, in
-   the neutral family (the sticky header of a table is \`tint-2\`, another family). The fill says it, so
-   the text is not bold there. The fill is the cell's own background, so it wins over the one a framed
+   the neutral family (the sticky header of a table is \`tint-2\`, another family). Its text stays bold.
+   The fill is the cell's own background, so it wins over the one a framed
    container paints on its cells, and the lines between cells are not covered. */
 [e-widget="label"] {
   color: ${colors.text.faded};
