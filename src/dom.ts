@@ -856,7 +856,7 @@ export function _node_append<N extends Node>(
         const source = frag[sym_fragment_source]
         if (source === true)
           console.warn(
-            "a fragment can be inserted once: this one gave its nodes away at a previous insertion (keep [...frag.childNodes], or use an element)",
+            "a fragment can be inserted once: this one gave its nodes away at a previous insertion (build it with <>, or use an element)",
             frag,
           )
         if (source == null || source === true) return

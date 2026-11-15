@@ -166,7 +166,7 @@ A `DocumentFragment` gives its nodes away when it is inserted: it is empty after
 - its verbs (`If`, `Repeat`, …) and observables are inserted again, like a verb inserted a second time: they render their current value anew, so the state of the nodes they had rendered is lost. Put a verb in an element, or keep its state in an observable, to keep it,
 - its decorators run again, on the fragment.
 
-A fragment not created by `<>` (`Fragment()`, `document.createDocumentFragment()`) can be inserted once: inserting it again once empty inserts nothing and logs a warning. Keep its nodes (`[...frag.childNodes]`) before inserting it, or use an element.
+A fragment not created by `<>` (`Fragment()`, `document.createDocumentFragment()`) can be inserted once: inserting it again once empty inserts nothing and logs a warning. Build it with `<>`, or use an element.
 
 ## No class components, no ref forwarding
 
