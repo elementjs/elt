@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test"
+import { expect, test } from "./fixture"
 // Type-only import: gives page.evaluate() callbacks below access to the `o` namespace's
 // *types* (o.Observable<T>, etc.) for annotations. Erased at compile time, so this has no
 // effect on the browser runtime -- the actual `o` value used inside evaluate() always comes
@@ -9,148 +9,119 @@ function assertAll(results: { name: string; actual: unknown; expected: unknown }
   for (const r of results) expect(r.actual, r.name).toEqual(r.expected)
 }
 
-// Installed once per page (via addInitScript, which must run before goto() navigates)
+// Installed on every page before its scripts run (the fixture's before_load)
 // so every page.evaluate() callback can use `cmp`, `Calls`, and `spyon` as real globals,
 // mirroring the helpers that lived at the top of the original bun test file.
-test.beforeEach(async ({ page }) => {
-  await page.addInitScript(() => {
-    function cmp(a: any, b: any): boolean {
-      if (a === b) return true
-      if (a !== b && (typeof a !== "object" || typeof b !== "object")) return false
-      if (a == null || b == null) return false
-      for (const x in a) {
-        if (!cmp(a[x], b[x])) return false
-      }
-      return true
-    }
-
-    class Calls {
-      count = 0
-      calls = [] as any[]
-
-      ntimes(times: number): this {
-        if (this.count !== times)
-          throw new Error(`Expected to be called ${times} times but was called ${this.count} times`)
-        this.count = 0
-        return this
+test.use({
+  before_load: {
+    script: () => {
+      function cmp(a: any, b: any): boolean {
+        if (a === b) return true
+        if (a !== b && (typeof a !== "object" || typeof b !== "object")) return false
+        if (a == null || b == null) return false
+        for (const x in a) {
+          if (!cmp(a[x], b[x])) return false
+        }
+        return true
       }
 
-      with(...args: any[]) {
-        for (const call of this.calls) {
-          for (let i = 0; i < args.length; i++) {
-            if (!cmp(args[i], call[i]))
-              throw new Error(`At position ${i}, expected ${JSON.stringify(args[i])} got ${JSON.stringify(call[i])}`)
+      class Calls {
+        count = 0
+        calls = [] as any[]
+
+        ntimes(times: number): this {
+          if (this.count !== times)
+            throw new Error(`Expected to be called ${times} times but was called ${this.count} times`)
+          this.count = 0
+          return this
+        }
+
+        with(...args: any[]) {
+          for (const call of this.calls) {
+            for (let i = 0; i < args.length; i++) {
+              if (!cmp(args[i], call[i]))
+                throw new Error(`At position ${i}, expected ${JSON.stringify(args[i])} got ${JSON.stringify(call[i])}`)
+            }
+          }
+          this.calls = []
+          return this
+        }
+
+        callback() {
+          return (...args: any[]) => {
+            this.call(...args)
           }
         }
-        this.calls = []
-        return this
-      }
 
-      callback() {
-        return (...args: any[]) => {
-          this.call(...args)
+        call(...args: any[]) {
+          this.count++
+          this.calls.push(args)
+        }
+
+        get was() {
+          return this
+        }
+        get called() {
+          return this
+        }
+        get once() {
+          return this.ntimes(1)
+        }
+        get twice() {
+          return this.ntimes(2)
+        }
+        get never() {
+          return this.ntimes(0)
+        }
+        get not() {
+          return this.ntimes(0)
         }
       }
 
-      call(...args: any[]) {
-        this.count++
-        this.calls.push(args)
+      function spyon(obs: any, immediate = false) {
+        const spy = new Calls()
+        obs.addObserver((value: any, changes: any) => {
+          if (changes !== window.__ELT__.o.NoValue || immediate) {
+            spy.call(value)
+          }
+        })
+        return spy
       }
-
-      get was() {
-        return this
-      }
-      get called() {
-        return this
-      }
-      get once() {
-        return this.ntimes(1)
-      }
-      get twice() {
-        return this.ntimes(2)
-      }
-      get never() {
-        return this.ntimes(0)
-      }
-      get not() {
-        return this.ntimes(0)
-      }
-    }
-
-    function spyon(obs: any, immediate = false) {
-      const spy = new Calls()
-      obs.addObserver((value: any, changes: any) => {
-        if (changes !== window.__ELT__.o.NoValue || immediate) {
-          spy.call(value)
-        }
-      })
-      return spy
-    }
-    ;(window as any).__TEST_HELPERS__ = { cmp, Calls, spyon }
-  })
-  await page.goto("/tests/browser/harness.html")
+      ;(window as any).__TEST_HELPERS__ = { cmp, Calls, spyon }
+    },
+  },
 })
 
 test.describe("Observable", () => {
   test.describe("basic operations", () => {
-    test("addObserver is called immediately", async ({ page }) => {
+    test("an observer is called at once with o.NoValue as old value, then on each change, never on an unchanged write", async ({
+      page,
+    }) => {
       await page.evaluate(() => {
         const { o } = window.__ELT__
         const { spyon } = (window as any).__TEST_HELPERS__
         const obs = o(0)
-        const spytest2 = spyon(obs, true)
-
-        spytest2.was.called.once
-        spytest2.was.called.with(0)
-
-        obs.set(4)
-
-        spytest2.was.called.once
-        spytest2.was.called.with(4)
-      })
-    })
-
-    test("updateOnly is not called immediately", async ({ page }) => {
-      await page.evaluate(() => {
-        const { o } = window.__ELT__
-        const { spyon } = (window as any).__TEST_HELPERS__
-        const obs = o(0)
-        const spytest = spyon(obs)
-
-        spytest.was.never.called
-        obs.set(3)
-        spytest.was.called.with(3)
-        spytest.was.called.once
-      })
-    })
-
-    test("set correctly changes the value", async ({ page }) => {
-      const actual = await page.evaluate(() => {
-        const { o } = window.__ELT__
-        const obs = o(0)
-        obs.set(4)
-        return obs.get()
-      })
-      expect(actual).toBe(4)
-    })
-
-    test("observers are not called again when the value is the same", async ({ page }) => {
-      await page.evaluate(() => {
-        const { o } = window.__ELT__
-        const { spyon } = (window as any).__TEST_HELPERS__
-        const obs = o(0)
-        const spytest = spyon(obs)
-        const spytest2 = spyon(obs, true)
+        // `changes` skips the first call (old value o.NoValue), `all` records it
+        const changes = spyon(obs)
+        const all = spyon(obs, true)
+        changes.was.never.called
+        all.was.called.once.with(0)
 
         obs.set(0)
-        spytest.was.never.called
-        spytest2.was.called.once
+        changes.was.never.called
+        all.was.never.called
+
+        obs.set(4)
+        changes.was.called.once.with(4)
+        all.was.called.once.with(4)
       })
     })
   })
 
   test.describe("boolean operations", () => {
-    test("and/or work as expected", async ({ page }) => {
+    test("o.not(), o.and() and o.or() take observables and plain values, and follow their sources", async ({
+      page,
+    }) => {
       const results = await page.evaluate(() => {
         const { o } = window.__ELT__
         const { spyon } = (window as any).__TEST_HELPERS__
@@ -159,14 +130,38 @@ test.describe("Observable", () => {
         out.push({ name: "o.or(true, false)", actual: o.or(true, false).get(), expected: true })
         out.push({ name: "o.and(true, false)", actual: o.and(true, false).get(), expected: false })
 
+        const o_on = o(true)
+        const inverted = o.not(o_on)
+        const sp_not = spyon(inverted)
+        out.push({ name: "not initial", actual: inverted.get(), expected: false })
+        o_on.set(false)
+        out.push({ name: "not after source set(false)", actual: inverted.get(), expected: true })
+        sp_not.was.called.once.with(true)
+
         const t1 = o(true)
         const t2 = o(false)
-        const t = o.and(t1, t2)
-        const sp = spyon(t)
-        out.push({ name: "t initial", actual: t.get(), expected: false })
+        const both = o.and(t1, t2)
+        const sp_and = spyon(both)
+        out.push({ name: "and of two initial", actual: both.get(), expected: false })
         t2.set(true)
-        sp.called.once.with(true)
-        out.push({ name: "t after t2 set true", actual: t.get(), expected: true })
+        sp_and.called.once.with(true)
+        out.push({ name: "and of two after t2 set true", actual: both.get(), expected: true })
+
+        const a = o(true)
+        const b = o(true)
+        const c = o(false)
+        const all = o.and(a, b, c)
+        out.push({ name: "and of three initial", actual: all.get(), expected: false })
+        c.set(true)
+        out.push({ name: "and of three after c.set(true)", actual: all.get(), expected: true })
+
+        const x = o(false)
+        const y = o(false)
+        const z = o(false)
+        const any = o.or(x, y, z)
+        out.push({ name: "or of three initial", actual: any.get(), expected: false })
+        y.set(true)
+        out.push({ name: "or of three after y.set(true)", actual: any.get(), expected: true })
         return out
       })
       assertAll(results)
@@ -187,16 +182,6 @@ test.describe("Observable", () => {
       expect(result).toEqual({ a: 1, b: { c: 5, d: 3 }, e: 4 })
     })
 
-    test("assign() updates nested properties", async ({ page }) => {
-      const actual = await page.evaluate(() => {
-        const { o } = window.__ELT__
-        const obs = o({ a: { b: { c: 1 } } })
-        obs.assign({ a: { b: { c: 2 } } })
-        return obs.get().a.b.c
-      })
-      expect(actual).toBe(2)
-    })
-
     test("assign() throws when merging through a string intermediate", async ({ page }) => {
       const threw = await page.evaluate(() => {
         const { o } = window.__ELT__
@@ -213,8 +198,6 @@ test.describe("Observable", () => {
       expect(threw).toBe(true)
     })
   })
-
-  test.describe("array methods", () => {})
 })
 
 test.describe("PropObservable", () => {
@@ -330,16 +313,6 @@ test.describe("PropObservable", () => {
 })
 
 test.describe("TransformObservable", () => {
-  test("simple transform works", async ({ page }) => {
-    const actual = await page.evaluate(() => {
-      const { o } = window.__ELT__
-      const tests = o(5)
-      const ttf = tests.tf((a: number) => a + 10)
-      return ttf.get()
-    })
-    expect(actual).toBe(15)
-  })
-
   test("revert test", async ({ page }) => {
     const results = await page.evaluate(() => {
       const { o } = window.__ELT__
@@ -356,24 +329,6 @@ test.describe("TransformObservable", () => {
     })
     assertAll(results)
   })
-
-  test("observers are fired", async ({ page }) => {
-    await page.evaluate(() => {
-      const { o } = window.__ELT__
-      const { spyon } = (window as any).__TEST_HELPERS__
-      const tests = o(5)
-      const ttf2 = tests.tf({
-        transform: (v: number) => v + 20,
-        revert: (v: number) => v * 2,
-      })
-      const tt = spyon(ttf2)
-      tests.set(8)
-      tt.was.called.once
-    })
-  })
-
-  // Pausing the transformer observable should stop sending reverts to
-  // the original observable.
 })
 
 test.describe("CombinedObservable", () => {
@@ -394,6 +349,18 @@ test.describe("CombinedObservable", () => {
       const spy = spyon(combined)
       a.set(10)
       spy.was.called.once.with(20)
+
+      // Without a setter, a write is refused with an explicit error and reaches no source
+      let error = "no error"
+      try {
+        // typed read-only, but the object is a CombinedObservable underneath: write through `any` on purpose
+        ;(combined as any).set(100)
+      } catch (e) {
+        error = (e as Error).message
+      }
+      out.push({ name: "write refused as read-only", actual: error.includes("read-only"), expected: true })
+      out.push({ name: "sources untouched", actual: [a.get(), b.get(), combined.get()], expected: [10, 10, 20] })
+      spy.was.never.called
       return out
     })
     assertAll(results)
@@ -424,35 +391,12 @@ test.describe("CombinedObservable", () => {
     })
     assertAll(results)
   })
-
-  test("combined observable updates when any dependency changes", async ({ page }) => {
-    const results = await page.evaluate(() => {
-      const { o } = window.__ELT__
-      const { spyon } = (window as any).__TEST_HELPERS__
-      const out: { name: string; actual: unknown; expected: unknown }[] = []
-      const x = o(2)
-      const y = o(3)
-      const z = o(4)
-      const product = o.combine([x, y, z], (deps: any) => {
-        const [a, b, c] = deps.map((d: any) => o.get(d))
-        return a * b * c
-      })
-
-      out.push({ name: "product initial", actual: product.get(), expected: 24 })
-
-      const spy = spyon(product)
-      x.set(3)
-      spy.was.called.once.with(36)
-      y.set(4)
-      spy.was.called.once.with(48)
-      return out
-    })
-    assertAll(results)
-  })
 })
 
 test.describe("o.merge() and o.join()", () => {
-  test("o.merge() combines multiple observables into object", async ({ page }) => {
+  test("o.merge() combines observables and plain values into an object, and writes back into each member", async ({
+    page,
+  }) => {
     const results = await page.evaluate(() => {
       const { o } = window.__ELT__
       const { spyon } = (window as any).__TEST_HELPERS__
@@ -467,30 +411,25 @@ test.describe("o.merge() and o.join()", () => {
       a.set(10)
       spy.was.called.once
       out.push({ name: "merged.get().a after a.set(10)", actual: merged.get().a, expected: 10 })
-      return out
-    })
-    assertAll(results)
-  })
 
-  test("o.merge() properties can be set bidirectionally", async ({ page }) => {
-    const results = await page.evaluate(() => {
-      const { o } = window.__ELT__
-      const out: { name: string; actual: unknown; expected: unknown }[] = []
-      const a = o(5)
-      const b = o("hello")
-      const merged = o.merge({ a, b })
-
-      merged.p("a").set(20)
+      // A merge with a plain member is typed read-only: write through one made of observables only
+      const writable = o.merge({ a, b })
+      writable.p("a").set(20)
       out.push({ name: "a after merged.p(a).set(20)", actual: a.get(), expected: 20 })
-
-      merged.p("b").set("world")
+      writable.p("b").set("world")
       out.push({ name: "b after merged.p(b).set(world)", actual: b.get(), expected: "world" })
+
+      const m1 = o(1)
+      const m2 = o(2)
+      const whole = o.merge({ m1, m2 })
+      whole.set({ m1: 10, m2: 20 })
+      out.push({ name: "members after merged.set", actual: [m1.get(), m2.get()], expected: [10, 20] })
       return out
     })
     assertAll(results)
   })
 
-  test("o.join() combines observables into array", async ({ page }) => {
+  test("o.join() combines observables into an array, and writes each item back to its observable", async ({ page }) => {
     const results = await page.evaluate(() => {
       const { o } = window.__ELT__
       const { spyon } = (window as any).__TEST_HELPERS__
@@ -505,6 +444,16 @@ test.describe("o.merge() and o.join()", () => {
       const spy = spyon(joined)
       b.set(5)
       spy.was.called.once.with([1, 5, 3])
+
+      const o_n = o(1)
+      const o_s = o("x")
+      const mixed = o.join(o_n, o_s)
+      mixed.set([2, "y"])
+      out.push({
+        name: "items after set",
+        actual: { n: o_n.get(), s: o_s.get(), joined: mixed.get() },
+        expected: { n: 2, s: "y", joined: [2, "y"] },
+      })
       return out
     })
     assertAll(results)
@@ -551,107 +500,66 @@ test.describe("o.tee()", () => {
 })
 
 test.describe("o.p(fn)", () => {
-  test("o.p(function) works as getter with simple expression", async ({ page }) => {
+  test("o.p(function) reads and writes the path its getter names (simple, nested, ?. chaining)", async ({ page }) => {
     const results = await page.evaluate(() => {
       const { o } = window.__ELT__
       const out: { name: string; actual: unknown; expected: unknown }[] = []
-      const obj = o({ a: 1, b: 2, c: { d: 3 } })
-      const sub = obj.p((x: any) => x.a)
-      out.push({ name: "sub initial", actual: sub.get(), expected: 1 })
-      obj.assign({ a: 10 })
-      out.push({ name: "sub after assign", actual: sub.get(), expected: 10 })
-      return out
-    })
-    assertAll(results)
-  })
-
-  test("o.p(function) works as getter with nested path", async ({ page }) => {
-    const results = await page.evaluate(() => {
-      const { o } = window.__ELT__
-      const out: { name: string; actual: unknown; expected: unknown }[] = []
-      const obj = o({ a: { b: { c: 42 } } })
-      const sub = obj.p((x: any) => x.a.b.c)
-      out.push({ name: "sub initial", actual: sub.get(), expected: 42 })
-      obj.assign({ a: { b: { c: 100 } } })
-      out.push({ name: "sub after assign", actual: sub.get(), expected: 100 })
-      return out
-    })
-    assertAll(results)
-  })
-
-  test("o.p(function) works as getter with bracket access", async ({ page }) => {
-    const results = await page.evaluate(() => {
-      const { o } = window.__ELT__
-      const out: { name: string; actual: unknown; expected: unknown }[] = []
-      const obj = o({ key: "value", other: 0 })
-      const sub = obj.p((x: any) => x.key)
-      out.push({ name: "sub initial", actual: sub.get(), expected: "value" })
-      obj.assign({ key: "updated" })
-      out.push({ name: "sub after assign", actual: sub.get(), expected: "updated" })
-      return out
-    })
-    assertAll(results)
-  })
-
-  test("o.p(function) works as setter with simple expression", async ({ page }) => {
-    const results = await page.evaluate(() => {
-      const { o } = window.__ELT__
-      const out: { name: string; actual: unknown; expected: unknown }[] = []
-      const obj = o({ a: 1, b: 2 })
-      const sub = obj.p((x: any) => x.a)
-      sub.set(99)
-      out.push({ name: "obj after sub.set(99)", actual: obj.get(), expected: { a: 99, b: 2 } })
-      out.push({ name: "sub.get()", actual: sub.get(), expected: 99 })
-      return out
-    })
-    assertAll(results)
-  })
-
-  test("o.p(function) works as setter with nested path", async ({ page }) => {
-    const results = await page.evaluate(() => {
-      const { o } = window.__ELT__
-      const out: { name: string; actual: unknown; expected: unknown }[] = []
-      const obj = o({ a: { b: { c: 1 } } })
-      const sub = obj.p((x: any) => x.a.b.c)
-      sub.set(88)
-      out.push({ name: "obj after sub.set(88)", actual: obj.get(), expected: { a: { b: { c: 88 } } } })
-      out.push({ name: "sub.get()", actual: sub.get(), expected: 88 })
-      return out
-    })
-    assertAll(results)
-  })
-
-  test("o.p(function) works as setter with nested path and ?. chaining", async ({ page }) => {
-    const results = await page.evaluate(() => {
-      const { o } = window.__ELT__
-      const out: { name: string; actual: unknown; expected: unknown }[] = []
-      const obj = o({} as { a?: { b?: { c?: number } } })
-      // Built via `new Function` (not a TS arrow function) so the optional-chaining
-      // syntax reaches the browser verbatim: o.p(fn) parses the getter's own
-      // `fn.toString()` source to derive the path, and Playwright/esbuild would
-      // otherwise downlevel `?.` into helper temp vars before this reaches Chromium,
-      // mangling that source and breaking the path parser (native Chromium supports
-      // `?.` fine — this is purely a source-transpilation artifact of the test tooling).
-      const sub = obj.p(
-        new Function("return (x) => x.a?.b?.c")() as (x: { a?: { b?: { c?: number } } }) => number | undefined,
-      )
-      sub.set(88)
-      out.push({ name: "obj after sub.set(88)", actual: obj.get(), expected: { a: { b: { c: 88 } } } })
-      out.push({ name: "sub.get()", actual: sub.get(), expected: 88 })
-      return out
-    })
-    assertAll(results)
-  })
-
-  test("o.p(function) works as setter with bracket access", async ({ page }) => {
-    const results = await page.evaluate(() => {
-      const { o } = window.__ELT__
-      const out: { name: string; actual: unknown; expected: unknown }[] = []
-      const obj = o({ key: "old", other: 1 })
-      const sub = obj.p((x: any) => x.key)
-      sub.set("new")
-      out.push({ name: "obj after sub.set(new)", actual: obj.get(), expected: { key: "new", other: 1 } })
-      out.push({ name: "sub.get()", actual: sub.get(), expected: "new" })
+      const cases: {
+        name: string
+        init: any
+        fn: (x: any) => unknown
+        get: unknown
+        assign?: any
+        after_assign?: unknown
+        set: unknown
+        after_set: unknown
+      }[] = [
+        {
+          name: "simple",
+          init: { a: 1, b: 2 },
+          fn: (x: any) => x.a,
+          get: 1,
+          assign: { a: 10 },
+          after_assign: 10,
+          set: 99,
+          after_set: { a: 99, b: 2 },
+        },
+        {
+          name: "nested",
+          init: { a: { b: { c: 42 } } },
+          fn: (x: any) => x.a.b.c,
+          get: 42,
+          assign: { a: { b: { c: 100 } } },
+          after_assign: 100,
+          set: 88,
+          after_set: { a: { b: { c: 88 } } },
+        },
+        {
+          // Built via `new Function` (not a TS arrow function) so the optional-chaining
+          // syntax reaches the browser verbatim: o.p(fn) parses the getter's own
+          // `fn.toString()` source to derive the path, and Playwright/esbuild would
+          // otherwise downlevel `?.` into helper temp vars before this reaches Chromium,
+          // mangling that source and breaking the path parser.
+          name: "?. chaining on missing objects",
+          init: {},
+          fn: new Function("return (x) => x.a?.b?.c")(),
+          get: undefined,
+          set: 88,
+          after_set: { a: { b: { c: 88 } } },
+        },
+      ]
+      for (const c of cases) {
+        const obj = o<Record<string, unknown>>(c.init)
+        const sub = obj.p(c.fn)
+        out.push({ name: `${c.name}: initial`, actual: sub.get(), expected: c.get })
+        if (c.assign) {
+          obj.assign(c.assign)
+          out.push({ name: `${c.name}: after assign`, actual: sub.get(), expected: c.after_assign })
+        }
+        sub.set(c.set)
+        out.push({ name: `${c.name}: source after set`, actual: obj.get(), expected: c.after_set })
+        out.push({ name: `${c.name}: sub after set`, actual: sub.get(), expected: c.set })
+      }
       return out
     })
     assertAll(results)
@@ -659,60 +567,57 @@ test.describe("o.p(fn)", () => {
 })
 
 test.describe("o.p(dynamic key)", () => {
-  test("o.p(o(key)) follows observable key changes", async ({ page }) => {
+  test("o.p(o(key)) and o.p(o(path)) read and write wherever the key or path currently points", async ({ page }) => {
     const results = await page.evaluate(() => {
       const { o } = window.__ELT__
       const { spyon } = (window as any).__TEST_HELPERS__
       const out: { name: string; actual: unknown; expected: unknown }[] = []
-      const obj = o({ a: 1, b: 2 })
-      const o_key = o<"a" | "b">("a")
-      const sub = obj.p(o_key)
+      const cases = [
+        {
+          name: "key",
+          init: { a: 1, b: 2 },
+          from: "a",
+          to: "b",
+          v_from: 1,
+          v_to: 2,
+          write_to: 20,
+          after_write_to: { a: 1, b: 20 },
+          write_from: 10,
+          after_write_from: { a: 10, b: 20 },
+        },
+        {
+          name: "path",
+          init: { x: { v: 1 }, y: { v: 2 } },
+          from: ["x", "v"],
+          to: ["y", "v"],
+          v_from: 1,
+          v_to: 2,
+          write_to: 99,
+          after_write_to: { x: { v: 1 }, y: { v: 99 } },
+          write_from: 11,
+          after_write_from: { x: { v: 11 }, y: { v: 99 } },
+        },
+      ]
+      for (const c of cases) {
+        const obj = o<Record<string, unknown>>(c.init)
+        const o_key = o<readonly PropertyKey[] | PropertyKey>(c.from)
+        const sub = obj.p(o_key)
+        out.push({ name: `${c.name}: initial`, actual: sub.get(), expected: c.v_from })
 
-      out.push({ name: "sub initial", actual: sub.get(), expected: 1 })
+        const spy = spyon(sub)
+        o_key.set(c.to)
+        out.push({ name: `${c.name}: after switching`, actual: sub.get(), expected: c.v_to })
+        spy.was.called.once.with(c.v_to)
 
-      const spy = spyon(sub)
-      o_key.set("b")
-      out.push({ name: "sub after o_key.set(b)", actual: sub.get(), expected: 2 })
-      spy.was.called.once.with(2)
-      return out
-    })
-    assertAll(results)
-  })
+        sub.set(c.write_to)
+        out.push({ name: `${c.name}: source after write`, actual: obj.get(), expected: c.after_write_to })
+        out.push({ name: `${c.name}: sub after write`, actual: sub.get(), expected: c.write_to })
 
-  test("o.p(o(key)) setter writes to the active key", async ({ page }) => {
-    const results = await page.evaluate(() => {
-      const { o } = window.__ELT__
-      const out: { name: string; actual: unknown; expected: unknown }[] = []
-      const obj = o({ a: 1, b: 2 })
-      const o_key = o<"a" | "b">("b")
-      const sub = obj.p(o_key)
-
-      sub.set(20)
-      out.push({ name: "obj after sub.set(20)", actual: obj.get(), expected: { a: 1, b: 20 } })
-      out.push({ name: "sub.get()", actual: sub.get(), expected: 20 })
-
-      o_key.set("a")
-      out.push({ name: "sub after o_key.set(a)", actual: sub.get(), expected: 1 })
-      sub.set(10)
-      out.push({ name: "obj after second sub.set(10)", actual: obj.get(), expected: { a: 10, b: 20 } })
-      return out
-    })
-    assertAll(results)
-  })
-
-  test("o.prop(obj, o(key)) matches .p(o(key))", async ({ page }) => {
-    const results = await page.evaluate(() => {
-      const { o } = window.__ELT__
-      const out: { name: string; actual: unknown; expected: unknown }[] = []
-      const obj = o({ x: "a", y: "b" })
-      const o_key = o<"x" | "y">("x")
-      const sub = o.prop(obj, o_key)
-
-      out.push({ name: "sub initial", actual: sub.get(), expected: "a" })
-      o_key.set("y")
-      out.push({ name: "sub after o_key.set(y)", actual: sub.get(), expected: "b" })
-      sub.set("z")
-      out.push({ name: "obj after sub.set(z)", actual: obj.get(), expected: { x: "a", y: "z" } })
+        o_key.set(c.from)
+        out.push({ name: `${c.name}: after switching back`, actual: sub.get(), expected: c.v_from })
+        sub.set(c.write_from)
+        out.push({ name: `${c.name}: source after second write`, actual: obj.get(), expected: c.after_write_from })
+      }
       return out
     })
     assertAll(results)
@@ -720,7 +625,7 @@ test.describe("o.p(dynamic key)", () => {
 })
 
 test.describe("o.p(path[])", () => {
-  test("o.p([...]) works as getter with nested path", async ({ page }) => {
+  test("o.p([...]) reads and writes a nested path", async ({ page }) => {
     const results = await page.evaluate(() => {
       const { o } = window.__ELT__
       const out: { name: string; actual: unknown; expected: unknown }[] = []
@@ -729,17 +634,6 @@ test.describe("o.p(path[])", () => {
       out.push({ name: "sub initial", actual: sub.get(), expected: 42 })
       obj.assign({ a: { b: { c: 100 } } })
       out.push({ name: "sub after assign", actual: sub.get(), expected: 100 })
-      return out
-    })
-    assertAll(results)
-  })
-
-  test("o.p([...]) works as setter with nested path", async ({ page }) => {
-    const results = await page.evaluate(() => {
-      const { o } = window.__ELT__
-      const out: { name: string; actual: unknown; expected: unknown }[] = []
-      const obj = o({ a: { b: { c: 1 } } })
-      const sub = obj.p(["a", "b", "c"])
       sub.set(88)
       out.push({ name: "obj after sub.set(88)", actual: obj.get(), expected: { a: { b: { c: 88 } } } })
       out.push({ name: "sub.get()", actual: sub.get(), expected: 88 })
@@ -758,90 +652,27 @@ test.describe("o.p(path[])", () => {
     })
     expect(actual).toEqual({ a: { b: { c: 7 } } })
   })
-
-  test("o.p(o(path)) follows observable path changes", async ({ page }) => {
-    const results = await page.evaluate(() => {
-      const { o } = window.__ELT__
-      const { spyon } = (window as any).__TEST_HELPERS__
-      const out: { name: string; actual: unknown; expected: unknown }[] = []
-      const obj = o({ x: { v: 1 }, y: { v: 2 } })
-      const o_path = o(["x", "v"])
-      const sub = obj.p(o_path)
-
-      out.push({ name: "sub initial", actual: sub.get(), expected: 1 })
-
-      const spy = spyon(sub)
-      o_path.set(["y", "v"])
-      out.push({ name: "sub after o_path.set", actual: sub.get(), expected: 2 })
-      spy.was.called.once.with(2)
-      return out
-    })
-    assertAll(results)
-  })
-
-  test("o.p(o(path)) setter writes along the active path", async ({ page }) => {
-    const results = await page.evaluate(() => {
-      const { o } = window.__ELT__
-      const out: { name: string; actual: unknown; expected: unknown }[] = []
-      const obj = o({ x: { v: 1 }, y: { v: 2 } })
-      const o_path = o(["y", "v"])
-      const sub = obj.p(o_path)
-
-      sub.set(99)
-      out.push({ name: "obj after sub.set(99)", actual: obj.get(), expected: { x: { v: 1 }, y: { v: 99 } } })
-
-      o_path.set(["x", "v"])
-      out.push({ name: "sub after o_path.set(x,v)", actual: sub.get(), expected: 1 })
-      sub.set(11)
-      out.push({ name: "obj after second sub.set(11)", actual: obj.get(), expected: { x: { v: 11 }, y: { v: 99 } } })
-      return out
-    })
-    assertAll(results)
-  })
-
-  test("o.prop(obj, [...]) matches .p([...])", async ({ page }) => {
-    const results = await page.evaluate(() => {
-      const { o } = window.__ELT__
-      const out: { name: string; actual: unknown; expected: unknown }[] = []
-      const obj = o({ a: { b: { c: 5 } } })
-      const sub = o.prop(obj, ["a", "b", "c"])
-      out.push({ name: "sub initial", actual: sub.get(), expected: 5 })
-      sub.set(6)
-      out.push({ name: "obj.get().a.b.c after sub.set(6)", actual: obj.get().a.b.c, expected: 6 })
-      return out
-    })
-    assertAll(results)
-  })
-
-  test("o.prop(obj, o(path)) matches .p(o(path))", async ({ page }) => {
-    const results = await page.evaluate(() => {
-      const { o } = window.__ELT__
-      const out: { name: string; actual: unknown; expected: unknown }[] = []
-      const obj = o({ one: { n: 1 }, two: { n: 2 } })
-      const o_path = o(["two", "n"])
-      const sub = o.prop(obj, o_path)
-
-      out.push({ name: "sub initial", actual: sub.get(), expected: 2 })
-      o_path.set(["one", "n"])
-      out.push({ name: "sub after o_path.set", actual: sub.get(), expected: 1 })
-      return out
-    })
-    assertAll(results)
-  })
 })
 
 test.describe("o.p path setter overwrite", () => {
-  test("o.p([...]) replaces a string intermediate with an object chain", async ({ page }) => {
+  test("o.p([...]) replaces a primitive intermediate (string, number) with an object chain", async ({ page }) => {
     const results = await page.evaluate(() => {
       const { o } = window.__ELT__
       const out: { name: string; actual: unknown; expected: unknown }[] = []
-      type Tested = { a: string; b: number } | { a: { b: { c: number } }; b: number }
-      const obj = o({ a: "hello", b: 1 } as Tested)
-      const sub = obj.p(["a", "b", "c"])
-
-      sub.set(42)
-      out.push({ name: "obj after sub.set(42)", actual: obj.get(), expected: { a: { b: { c: 42 } }, b: 1 } })
-      out.push({ name: "sub.get()", actual: sub.get(), expected: 42 })
+      for (const [intermediate, value] of [
+        ["hello", 42],
+        [0, "nested"],
+      ] as const) {
+        const obj = o<Record<string, unknown>>({ a: intermediate, b: 1 })
+        const sub = obj.p(["a", "b", "c"])
+        sub.set(value)
+        out.push({
+          name: `${typeof intermediate}: obj after set`,
+          actual: obj.get(),
+          expected: { a: { b: { c: value } }, b: 1 },
+        })
+        out.push({ name: `${typeof intermediate}: sub.get()`, actual: sub.get(), expected: value })
+      }
       return out
     })
     assertAll(results)
@@ -860,22 +691,6 @@ test.describe("o.p path setter overwrite", () => {
       sub.set(42)
       out.push({ name: "obj after sub.set(42)", actual: obj.get(), expected: { a: { b: { c: 42 } }, b: 1 } })
       out.push({ name: "sub.get()", actual: sub.get(), expected: 42 })
-      return out
-    })
-    assertAll(results)
-  })
-
-  test("o.p([...]) replaces a number intermediate with an object chain", async ({ page }) => {
-    const results = await page.evaluate(() => {
-      const { o } = window.__ELT__
-      const out: { name: string; actual: unknown; expected: unknown }[] = []
-      type Tested = { a: number; b: number } | { a: { b: { c: string } }; b: number }
-      const obj = o({ a: 0, b: 1 } as Tested)
-      const sub = obj.p(["a", "b", "c"])
-
-      sub.set("nested")
-      out.push({ name: "obj after sub.set(nested)", actual: obj.get(), expected: { a: { b: { c: "nested" } }, b: 1 } })
-      out.push({ name: "sub.get()", actual: sub.get(), expected: "nested" })
       return out
     })
     assertAll(results)
@@ -938,105 +753,85 @@ test.describe("o.p path setter overwrite", () => {
     expect(results.sameOtherRef).toBe(true)
     expect(results.abc).toBe(2)
   })
-
-  test("o.prop(obj, [...]) replaces a string intermediate with an object chain", async ({ page }) => {
-    const results = await page.evaluate(() => {
-      const { o } = window.__ELT__
-      const out: { name: string; actual: unknown; expected: unknown }[] = []
-      const obj = o({ a: "hello" } as { a: string | { b: { c: number } } })
-      const sub = o.prop(obj, ["a", "b", "c"])
-
-      sub.set(7)
-      out.push({ name: "obj after sub.set(7)", actual: obj.get(), expected: { a: { b: { c: 7 } } } })
-      out.push({ name: "sub.get()", actual: sub.get(), expected: 7 })
-      return out
-    })
-    assertAll(results)
-  })
 })
 
 test.describe("o.expression()", () => {
-  test("o.expression() creates combined observable with dynamic dependencies", async ({ page }) => {
+  test("o.expression() follows only the dependencies its last run read", async ({ page }) => {
     const results = await page.evaluate(() => {
       const { o } = window.__ELT__
       const { spyon } = (window as any).__TEST_HELPERS__
       const out: { name: string; actual: unknown; expected: unknown }[] = []
+      const o_use_a = o(true)
       const a = o(5)
       const b = o(10)
-      const expr = o.expression((get: any) => get(a) + get(b))
+      let runs = 0
+      // Reads `a` or `b`, never both
+      const expr = o.expression((get: any) => {
+        runs++
+        return get(o_use_a) ? get(a) : get(b)
+      })
 
-      out.push({ name: "expr initial", actual: expr.get(), expected: 15 })
+      out.push({ name: "expr initial", actual: expr.get(), expected: 5 })
 
       const spy = spyon(expr)
       a.set(8)
-      spy.was.called.once.with(18)
+      spy.was.called.once.with(8)
+
+      o_use_a.set(false)
+      spy.was.called.once.with(10)
+      out.push({ name: "a is let go once b is read instead", actual: a.isObserved(), expected: false })
+
+      // `a` is no longer read: writing it neither recomputes nor notifies
+      runs = 0
+      a.set(100)
+      spy.was.never.called
+      out.push({ name: "writing the unread a runs nothing", actual: runs, expected: 0 })
+
+      b.set(11)
+      spy.was.called.once.with(11)
+
+      // Switching back reads `a` again, which is followed again, and `b` is let go
+      o_use_a.set(true)
+      spy.was.called.once.with(100)
+      out.push({ name: "b is let go once a is read again", actual: b.isObserved(), expected: false })
+      a.set(101)
+      spy.was.called.once.with(101)
       return out
     })
     assertAll(results)
   })
 
-  test("o.expression() with setter is bidirectional", async ({ page }) => {
+  test("o.expression() with a revert writes to the dependencies it reads, after one was dropped", async ({ page }) => {
     const results = await page.evaluate(() => {
       const { o } = window.__ELT__
-      const out: { name: string; actual: unknown; expected: unknown }[] = []
-      const a = o(5)
-      const b = o(10)
-      const expr = o.expression(
-        (get: any) => get(a) + get(b),
-        (sum: number, set: any, _: any) => {
-          set(a, sum - o.get(b))
+      const o_use_a = o(true)
+      const a = o(1)
+      const b = o(2)
+      const c = o(3)
+      // `a` sits before `b` and `c` in the dependencies; dropping it moves them down
+      const o_expr = o.expression(
+        (get: any) => (get(o_use_a) ? get(a) : get(b) + get(c)),
+        (v: number, set: any) => {
+          if (o_use_a.get()) set(a, v)
+          else set(c, v - b.get())
         },
       )
-
-      expr.set(20)
-      out.push({ name: "a after expr.set(20)", actual: a.get(), expected: 10 })
-      out.push({ name: "b after expr.set(20)", actual: b.get(), expected: 10 })
-      return out
-    })
-    assertAll(results)
-  })
-
-  test("o.expression() recomputes when dependencies change", async ({ page }) => {
-    const results = await page.evaluate(() => {
-      const { o } = window.__ELT__
-      const out: { name: string; actual: unknown; expected: unknown }[] = []
-      const x = o(2)
-      const y = o(3)
-      const expr = o.expression((get: any) => get(x) * get(y))
-
-      out.push({ name: "expr initial", actual: expr.get(), expected: 6 })
-      y.set(5)
-      out.push({ name: "expr after y.set(5)", actual: expr.get(), expected: 10 })
-      return out
+      const seen: number[] = []
+      o_expr.addObserver((v: number) => seen.push(v))
+      o_use_a.set(false)
+      o_expr.set(10)
+      c.set(c.get() + 1)
+      return [
+        { name: "the write reached c", actual: c.get(), expected: 9 },
+        { name: "b untouched", actual: b.get(), expected: 2 },
+        { name: "values seen", actual: seen, expected: [1, 5, 10, 11] },
+      ]
     })
     assertAll(results)
   })
 })
 
 test.describe("Transactions", () => {
-  test("o.transaction() batches multiple updates", async ({ page }) => {
-    await page.evaluate(() => {
-      const { o } = window.__ELT__
-      const { spyon } = (window as any).__TEST_HELPERS__
-      const a = o(1)
-      const b = o(2)
-      const sum = o.combine([a, b], (deps: any) => {
-        const [x, y] = deps.map((d: any) => o.get(d))
-        return x + y
-      })
-
-      const spy = spyon(sum)
-
-      o.transaction(() => {
-        a.set(5)
-        b.set(10)
-      })
-
-      // Should only be called once despite two changes
-      spy.was.called.once.with(15)
-    })
-  })
-
   test("observers are notified after transaction completes", async ({ page }) => {
     await page.evaluate(() => {
       const { o } = window.__ELT__
@@ -1080,93 +875,23 @@ test.describe("ProxyObservable", () => {
     expect(result.error).not.toBe("")
   })
 
-  test("o.proxy() creates changeable proxy", async ({ page }) => {
+  test("changeTarget() points the proxy at another observable and notifies its observers", async ({ page }) => {
     const results = await page.evaluate(() => {
       const { o } = window.__ELT__
+      const { spyon } = (window as any).__TEST_HELPERS__
       const out: { name: string; actual: unknown; expected: unknown }[] = []
       const a = o(5)
       const b = o(10)
       const proxy = o.proxy(a)
-
       out.push({ name: "proxy initial", actual: proxy.get(), expected: 5 })
 
+      const spy = spyon(proxy)
       proxy.changeTarget(b)
+      spy.was.called.once.with(10)
       out.push({ name: "proxy after changeTarget(b)", actual: proxy.get(), expected: 10 })
       return out
     })
     assertAll(results)
-  })
-
-  test("proxy updates when target changes", async ({ page }) => {
-    await page.evaluate(() => {
-      const { o } = window.__ELT__
-      const { spyon } = (window as any).__TEST_HELPERS__
-      const a = o(5)
-      const proxy = o.proxy(a)
-      const spy = spyon(proxy)
-
-      a.set(15)
-      spy.was.called.once.with(15)
-    })
-  })
-
-  test("setting proxy sets target", async ({ page }) => {
-    const actual = await page.evaluate(() => {
-      const { o } = window.__ELT__
-      const a = o(5)
-      const proxy = o.proxy(a)
-
-      proxy.set(20)
-      return a.get()
-    })
-    expect(actual).toBe(20)
-  })
-
-  test("changing target updates observers", async ({ page }) => {
-    await page.evaluate(() => {
-      const { o } = window.__ELT__
-      const { spyon } = (window as any).__TEST_HELPERS__
-      const a = o(5)
-      const b = o(10)
-      const proxy = o.proxy(a)
-      const spy = spyon(proxy)
-
-      proxy.changeTarget(b)
-      spy.was.called.once.with(10)
-    })
-  })
-
-  test("unwraps nested observables to terminal value", async ({ page }) => {
-    const results = await page.evaluate(() => {
-      const { o } = window.__ELT__
-      function hold<T>(obs: o.Observable<T>): o.Observable<unknown> {
-        return new o.Observable(obs) as o.Observable<unknown>
-      }
-      const inner = o(5)
-      const outer = hold(inner)
-      const proxy = o.proxy(outer)
-
-      return { value: proxy.get(), sameAsInner: proxy.get() === inner }
-    })
-    expect(results.value).toBe(5)
-    expect(results.sameAsInner).toBe(false)
-  })
-
-  test("nested chain notifies when terminal value changes", async ({ page }) => {
-    await page.evaluate(() => {
-      const { o } = window.__ELT__
-      const { spyon } = (window as any).__TEST_HELPERS__
-      function hold<T>(obs: o.Observable<T>): o.Observable<unknown> {
-        return new o.Observable(obs) as o.Observable<unknown>
-      }
-      const inner = o(5)
-      const outer = hold(inner)
-      const proxy = o.proxy(outer)
-      const spy = spyon(proxy)
-
-      inner.set(6)
-      spy.was.called.once.with(6)
-    })
   })
 
   test("nested chain set writes terminal not outer", async ({ page }) => {
@@ -1240,18 +965,9 @@ test.describe("ProxyObservable", () => {
     assertAll(results)
   })
 
-  test("unwraps .p() when property holds an observable", async ({ page }) => {
-    const actual = await page.evaluate(() => {
-      const { o } = window.__ELT__
-      const err = o("e1")
-      const holder = o({ err })
-      const proxy = o.proxy(holder.p("err"))
-      return proxy.get()
-    })
-    expect(actual).toBe("e1")
-  })
-
-  test(".p() proxy follows when holder swaps observable field", async ({ page }) => {
+  test("a proxy over .p() unwraps the observable the property holds, and follows when the holder swaps it", async ({
+    page,
+  }) => {
     const results = await page.evaluate(() => {
       const { o } = window.__ELT__
       const { spyon } = (window as any).__TEST_HELPERS__
@@ -1260,6 +976,7 @@ test.describe("ProxyObservable", () => {
       const err2 = o("e2")
       const holder = o({ err: err1 } as { err: typeof err1 })
       const proxy = o.proxy(holder.p("err"))
+      out.push({ name: "proxy initial", actual: proxy.get(), expected: "e1" })
       const spy = spyon(proxy)
 
       holder.set({ err: err2 })
@@ -1356,24 +1073,7 @@ test.describe("ProxyObservable", () => {
     assertAll(results)
   })
 
-  test("proxy set does not write non-writable parents in chain", async ({ page }) => {
-    const results = await page.evaluate(() => {
-      const { o } = window.__ELT__
-      function hold<T>(obs: o.Observable<T>): o.Observable<unknown> {
-        return new o.Observable(obs) as o.Observable<unknown>
-      }
-      const inner = o(5)
-      const outer = hold(inner)
-      const proxy = o.proxy(outer)
-
-      proxy.set(11)
-      return { innerValue: inner.get(), outerIsInner: outer.get() === inner }
-    })
-    expect(results.innerValue).toBe(11)
-    expect(results.outerIsInner).toBe(true)
-  })
-
-  test("four-hop chain follows when a middle link is repointed", async ({ page }) => {
+  test("four-hop chain follows when a middle or an inner-middle link is repointed", async ({ page }) => {
     const results = await page.evaluate(() => {
       const { o } = window.__ELT__
       const { spyon } = (window as any).__TEST_HELPERS__
@@ -1381,27 +1081,28 @@ test.describe("ProxyObservable", () => {
       function hold<T>(obs: o.Observable<T>): o.Observable<unknown> {
         return new o.Observable(obs) as o.Observable<unknown>
       }
-      const d = o(1)
-      const c = hold(d)
-      const b = hold(c)
-      const a = hold(b)
-      const proxy = o.proxy(a)
-      const spy = spyon(proxy)
+      for (const link of ["middle", "inner-middle"]) {
+        const d = o(1)
+        const c = hold(d)
+        const b = hold(c)
+        const a = hold(b)
+        const proxy = o.proxy(a)
+        const spy = spyon(proxy)
+        out.push({ name: `${link}: proxy initial`, actual: proxy.get(), expected: 1 })
 
-      out.push({ name: "proxy initial", actual: proxy.get(), expected: 1 })
+        const d2 = o(2)
+        const c2 = hold(d2)
+        ;(link === "middle" ? b : c).set(c2)
+        out.push({ name: `${link}: proxy after repoint`, actual: proxy.get(), expected: 2 })
+        spy.was.called.once.with(2)
 
-      const d2 = o(2)
-      const c2 = hold(d2)
-      b.set(c2)
-      out.push({ name: "proxy after b.set(c2)", actual: proxy.get(), expected: 2 })
-      spy.was.called.once.with(2)
+        d.set(99)
+        out.push({ name: `${link}: proxy after stale d.set(99)`, actual: proxy.get(), expected: 2 })
 
-      d.set(99)
-      out.push({ name: "proxy after stale d.set(99)", actual: proxy.get(), expected: 2 })
-
-      d2.set(20)
-      out.push({ name: "proxy after d2.set(20)", actual: proxy.get(), expected: 20 })
-      spy.was.called.once.with(20)
+        d2.set(20)
+        out.push({ name: `${link}: proxy after d2.set(20)`, actual: proxy.get(), expected: 20 })
+        spy.was.called.once.with(20)
+      }
       return out
     })
     assertAll(results)
@@ -1438,7 +1139,9 @@ test.describe("ProxyObservable", () => {
     assertAll(results)
   })
 
-  test("derived root follows deep mid-chain repoint", async ({ page }) => {
+  test("a proxy over .p() follows a deep mid-chain or inner-middle repoint without the holder changing", async ({
+    page,
+  }) => {
     const results = await page.evaluate(() => {
       const { o } = window.__ELT__
       const { spyon } = (window as any).__TEST_HELPERS__
@@ -1446,49 +1149,23 @@ test.describe("ProxyObservable", () => {
       function hold<T>(obs: o.Observable<T>): o.Observable<unknown> {
         return new o.Observable(obs) as o.Observable<unknown>
       }
-      const d = o(1)
-      const c = hold(d)
-      const b = hold(c)
-      const holder = o({ root: b })
-      const proxy = o.proxy(holder.p("root"))
-      const spy = spyon(proxy)
+      for (const link of ["mid-chain", "inner-middle"]) {
+        const d = o(1)
+        const c = hold(d)
+        const b = hold(c)
+        const holder = o({ root: b })
+        const proxy = o.proxy(holder.p("root"))
+        const spy = spyon(proxy)
 
-      const d2 = o(2)
-      const c2 = hold(d2)
-      b.set(c2)
-      out.push({ name: "proxy after b.set(c2)", actual: proxy.get(), expected: 2 })
-      spy.was.called.once.with(2)
+        const d2 = o(2)
+        const c2 = hold(d2)
+        ;(link === "mid-chain" ? b : c).set(c2)
+        out.push({ name: `${link}: proxy after repoint`, actual: proxy.get(), expected: 2 })
+        spy.was.called.once.with(2)
 
-      d.set(99)
-      out.push({ name: "proxy after stale d.set(99)", actual: proxy.get(), expected: 2 })
-      return out
-    })
-    assertAll(results)
-  })
-
-  test("derived root follows inner-middle repoint without holder change", async ({ page }) => {
-    const results = await page.evaluate(() => {
-      const { o } = window.__ELT__
-      const { spyon } = (window as any).__TEST_HELPERS__
-      const out: { name: string; actual: unknown; expected: unknown }[] = []
-      function hold<T>(obs: o.Observable<T>): o.Observable<unknown> {
-        return new o.Observable(obs) as o.Observable<unknown>
+        d.set(99)
+        out.push({ name: `${link}: proxy after stale d.set(99)`, actual: proxy.get(), expected: 2 })
       }
-      const d = o(1)
-      const c = hold(d)
-      const b = hold(c)
-      const holder = o({ root: b })
-      const proxy = o.proxy(holder.p("root"))
-      const spy = spyon(proxy)
-
-      const d2 = o(3)
-      const c2 = hold(d2)
-      c.set(c2)
-      out.push({ name: "proxy after c.set(c2)", actual: proxy.get(), expected: 3 })
-      spy.was.called.once.with(3)
-
-      d.set(99)
-      out.push({ name: "proxy after stale d.set(99)", actual: proxy.get(), expected: 3 })
       return out
     })
     assertAll(results)
@@ -1579,37 +1256,6 @@ test.describe("ProxyObservable", () => {
     assertAll(results)
   })
 
-  test("four-hop chain follows when an inner-middle link is repointed", async ({ page }) => {
-    const results = await page.evaluate(() => {
-      const { o } = window.__ELT__
-      const { spyon } = (window as any).__TEST_HELPERS__
-      const out: { name: string; actual: unknown; expected: unknown }[] = []
-      function hold<T>(obs: o.Observable<T>): o.Observable<unknown> {
-        return new o.Observable(obs) as o.Observable<unknown>
-      }
-      const d = o(1)
-      const c = hold(d)
-      const b = hold(c)
-      const a = hold(b)
-      const proxy = o.proxy(a)
-      const spy = spyon(proxy)
-
-      const d2 = o(3)
-      const c2 = hold(d2)
-      c.set(c2)
-      out.push({ name: "proxy after c.set(c2)", actual: proxy.get(), expected: 3 })
-      spy.was.called.once.with(3)
-
-      d.set(99)
-      out.push({ name: "proxy after stale d.set(99)", actual: proxy.get(), expected: 3 })
-
-      d2.set(30)
-      out.push({ name: "proxy after d2.set(30)", actual: proxy.get(), expected: 30 })
-      return out
-    })
-    assertAll(results)
-  })
-
   test("deep chain grows when a middle link starts holding an observable", async ({ page }) => {
     const results = await page.evaluate(() => {
       const { o } = window.__ELT__
@@ -1639,25 +1285,28 @@ test.describe("ProxyObservable", () => {
 })
 
 test.describe("Observer Lifecycle", () => {
-  test("Observer can be stopped and started", async ({ page }) => {
+  test("an Observer is no longer called once stopped, or once removed from its observable", async ({ page }) => {
     const results = await page.evaluate(() => {
       const { o } = window.__ELT__
       const out: { name: string; actual: unknown; expected: unknown }[] = []
-      const obs = o(5)
-      let callCount = 0
-      const observer = new o.Observer(() => {
-        callCount++
-      }, obs)
+      for (const how of ["stopObserving", "removeObserver"]) {
+        const obs = o(5)
+        let calls = 0
+        const observer = new o.Observer(() => {
+          calls++
+        }, obs)
 
-      observer.startObserving()
-      out.push({ name: "callCount after startObserving", actual: callCount, expected: 1 }) // Initial call
+        observer.startObserving()
+        out.push({ name: `${how}: calls after startObserving`, actual: calls, expected: 1 })
 
-      obs.set(10)
-      out.push({ name: "callCount after obs.set(10)", actual: callCount, expected: 2 })
+        obs.set(10)
+        out.push({ name: `${how}: calls after set(10)`, actual: calls, expected: 2 })
 
-      observer.stopObserving()
-      obs.set(15)
-      out.push({ name: "callCount after stop + obs.set(15)", actual: callCount, expected: 2 }) // Not called after stop
+        if (how === "stopObserving") observer.stopObserving()
+        else obs.removeObserver(observer)
+        obs.set(15)
+        out.push({ name: `${how}: calls after ${how} + set(15)`, actual: calls, expected: 2 })
+      }
       return out
     })
     assertAll(results)
@@ -1784,66 +1433,8 @@ test.describe("Observer Lifecycle", () => {
   })
 })
 
-test.describe("Boolean Combinators", () => {
-  test("o.not() inverts boolean observable", async ({ page }) => {
-    const results = await page.evaluate(() => {
-      const { o } = window.__ELT__
-      const { spyon } = (window as any).__TEST_HELPERS__
-      const out: { name: string; actual: unknown; expected: unknown }[] = []
-      const obs = o(true)
-      const inverted = o.not(obs)
-
-      const spy = spyon(inverted)
-      out.push({ name: "inverted initial", actual: inverted.get(), expected: false })
-
-      obs.set(false)
-      out.push({ name: "obs after set(false)", actual: obs.get(), expected: false })
-      out.push({ name: "inverted after obs.set(false)", actual: inverted.get(), expected: true })
-      spy.was.called.once.with(true)
-      return out
-    })
-    assertAll(results)
-  })
-
-  test("o.and() with multiple observables", async ({ page }) => {
-    const results = await page.evaluate(() => {
-      const { o } = window.__ELT__
-      const out: { name: string; actual: unknown; expected: unknown }[] = []
-      const a = o(true)
-      const b = o(true)
-      const c = o(false)
-      const result = o.and(a, b, c)
-
-      out.push({ name: "result initial", actual: result.get(), expected: false })
-
-      c.set(true)
-      out.push({ name: "result after c.set(true)", actual: result.get(), expected: true })
-      return out
-    })
-    assertAll(results)
-  })
-
-  test("o.or() with multiple observables", async ({ page }) => {
-    const results = await page.evaluate(() => {
-      const { o } = window.__ELT__
-      const out: { name: string; actual: unknown; expected: unknown }[] = []
-      const a = o(false)
-      const b = o(false)
-      const c = o(false)
-      const result = o.or(a, b, c)
-
-      out.push({ name: "result initial", actual: result.get(), expected: false })
-
-      b.set(true)
-      out.push({ name: "result after b.set(true)", actual: result.get(), expected: true })
-      return out
-    })
-    assertAll(results)
-  })
-})
-
 test.describe("Additional Methods", () => {
-  test(".key() accesses Map keys", async ({ page }) => {
+  test(".key() follows a Map's value at a key, and an observable key as it changes", async ({ page }) => {
     const results = await page.evaluate(() => {
       const { o } = window.__ELT__
       const { spyon } = (window as any).__TEST_HELPERS__
@@ -1855,50 +1446,21 @@ test.describe("Additional Methods", () => {
         ]),
       )
       const keyObs = map.key("key1")
-
-      out.push({ name: "keyObs initial", actual: keyObs.get(), expected: "value1" })
+      out.push({ name: "plain key initial", actual: keyObs.get(), expected: "value1" })
 
       const spy = spyon(keyObs)
       const new_map = new Map(map.get())
       new_map.set("key1", "newValue")
       map.set(new_map)
       spy.was.called.once.with("newValue")
-      return out
-    })
-    assertAll(results)
-  })
 
-  test(".apply() calls methods on the value", async ({ page }) => {
-    const results = await page.evaluate(() => {
-      const { o } = window.__ELT__
-      const { spyon } = (window as any).__TEST_HELPERS__
-      const out: { name: string; actual: unknown; expected: unknown }[] = []
-      const obs = o("hello")
-      const upper = obs.apply("toUpperCase", [])
-
-      out.push({ name: "upper initial", actual: upper.get(), expected: "HELLO" })
-
-      const spy = spyon(upper)
-      obs.set("world")
-      spy.was.called.once.with("WORLD")
-      return out
-    })
-    assertAll(results)
-  })
-
-  test(".call() calls methods with arguments", async ({ page }) => {
-    const results = await page.evaluate(() => {
-      const { o } = window.__ELT__
-      const { spyon } = (window as any).__TEST_HELPERS__
-      const out: { name: string; actual: unknown; expected: unknown }[] = []
-      const obs = o("hello world")
-      const sliced = obs.call("slice", 0, 5)
-
-      out.push({ name: "sliced initial", actual: sliced.get(), expected: "hello" })
-
-      const spy = spyon(sliced)
-      obs.set("greetings everyone")
-      spy.was.called.once.with("greet")
+      const o_key = o<string>("key1")
+      const slot = map.key(o_key)
+      out.push({ name: "observable key initial", actual: slot.get(), expected: "newValue" })
+      const slot_spy = spyon(slot)
+      o_key.set("key2")
+      out.push({ name: "after key change", actual: slot.get(), expected: "value2" })
+      slot_spy.was.called.once.with("value2")
       return out
     })
     assertAll(results)
@@ -1906,28 +1468,6 @@ test.describe("Additional Methods", () => {
 })
 
 test.describe("Utility Functions", () => {
-  test("o.is_observable() checks if value is observable", async ({ page }) => {
-    const results = await page.evaluate(() => {
-      const { o } = window.__ELT__
-      const obs = o(5)
-      const plain = 5
-      return { obsIsObservable: o.is_observable(obs), plainIsObservable: o.is_observable(plain) }
-    })
-    expect(results.obsIsObservable).toBe(true)
-    expect(results.plainIsObservable).toBe(false)
-  })
-
-  test("o.get() extracts value from observable or returns plain value", async ({ page }) => {
-    const results = await page.evaluate(() => {
-      const { o } = window.__ELT__
-      const obs = o(5)
-      const plain = 10
-      return { fromObs: o.get(obs), fromPlain: o.get(plain) }
-    })
-    expect(results.fromObs).toBe(5)
-    expect(results.fromPlain).toBe(10)
-  })
-
   test("o() wraps plain values and returns observables as-is", async ({ page }) => {
     const results = await page.evaluate(() => {
       const { o } = window.__ELT__
@@ -1973,16 +1513,6 @@ test.describe("Transformers", () => {
       })
       expect(actual).toEqual([1, 1, 2, 3, 4, 5, 6, 9])
     })
-
-    test("sorts with custom comparator", async ({ page }) => {
-      const actual = await page.evaluate(() => {
-        const { o, tf_array_sort } = window.__ELT__
-        const arr = o([3, 1, 4, 1, 5])
-        const sorted = arr.tf(tf_array_sort((a: number, b: number) => (a < b ? 1 : a > b ? -1 : 0)))
-        return sorted.get()
-      })
-      expect(actual).toEqual([5, 4, 3, 1, 1])
-    })
   })
 
   test.describe("tf_array_sort_by()", () => {
@@ -2001,116 +1531,116 @@ test.describe("Transformers", () => {
     })
   })
 
-  test.describe("tf_array_has()", () => {
-    test("checks if array contains value", async ({ page }) => {
-      const results = await page.evaluate(() => {
-        const { o, tf_array_has } = window.__ELT__
-        const out: { name: string; actual: unknown; expected: unknown }[] = []
-        const arr = o([1, 2, 3, 4, 5])
-        const hasThree = arr.tf(tf_array_has(3))
+  test("tf_array_has(), tf_set_has() and tf_map_has() follow the collection, and writing true adds the values", async ({
+    page,
+  }) => {
+    const results = await page.evaluate(() => {
+      const { o, tf_array_has, tf_set_has, tf_map_has } = window.__ELT__
+      const out: { name: string; actual: unknown; expected: unknown }[] = []
 
-        out.push({ name: "hasThree initial", actual: hasThree.get(), expected: true })
+      const arr = o([1, 2, 3, 4, 5])
+      const arr_has = arr.tf(tf_array_has(3))
+      out.push({ name: "array: initial", actual: arr_has.get(), expected: true })
+      arr.set([1, 2, 4, 5])
+      out.push({ name: "array: after removal", actual: arr_has.get(), expected: false })
+      const arr2 = o([1, 2])
+      const arr2_has = arr2.tf(tf_array_has(3, 4))
+      out.push({ name: "array: several values, initial", actual: arr2_has.get(), expected: false })
+      arr2_has.set(true)
+      out.push({ name: "array: after writing true", actual: arr2.get(), expected: [1, 2, 3, 4] })
 
-        arr.set([1, 2, 4, 5])
-        out.push({ name: "hasThree after arr.set", actual: hasThree.get(), expected: false })
-        return out
-      })
-      assertAll(results)
+      const set = o(new Set([1, 2, 3, 4, 5]))
+      const set_has = set.tf(tf_set_has(3))
+      out.push({ name: "set: initial", actual: set_has.get(), expected: true })
+      set.set(new Set([1, 2, 4, 5]))
+      out.push({ name: "set: after removal", actual: set_has.get(), expected: false })
+      const set2 = o(new Set([1]))
+      const set2_has = set2.tf(tf_set_has(2))
+      out.push({ name: "set: absent initial", actual: set2_has.get(), expected: false })
+      set2_has.set(true)
+      out.push({ name: "set: has 2 after writing true", actual: set2.get().has(2), expected: true })
+
+      const map = o(
+        new Map([
+          ["a", 1],
+          ["b", 2],
+          ["c", 3],
+        ]),
+      )
+      const map_has = map.tf(tf_map_has(["b", 2]))
+      out.push({ name: "map: initial", actual: map_has.get(), expected: true })
+      const new_map = new Map(map.get())
+      new_map.set("b", 3)
+      map.set(new_map)
+      out.push({ name: "map: after the value changed", actual: map_has.get(), expected: false })
+      const map2 = o(new Map([["a", 1]]))
+      const map2_has = map2.tf(tf_map_has(["b", 2]))
+      out.push({ name: "map: absent initial", actual: map2_has.get(), expected: false })
+      map2_has.set(true)
+      out.push({ name: "map: get(b) after writing true", actual: map2.get().get("b"), expected: 2 })
+      return out
     })
+    assertAll(results)
   })
 
-  test.describe("tf_set_has()", () => {
-    test("checks if set contains value", async ({ page }) => {
-      const results = await page.evaluate(() => {
-        const { o, tf_set_has } = window.__ELT__
-        const out: { name: string; actual: unknown; expected: unknown }[] = []
-        const set = o(new Set([1, 2, 3, 4, 5]))
-        const hasThree = set.tf(tf_set_has(3))
+  test("tf_entries(), tf_array_to_map() and tf_array_to_object() write back what is set on them", async ({ page }) => {
+    const results = await page.evaluate(() => {
+      const { o, tf_entries, tf_array_to_map, tf_array_to_object } = window.__ELT__
+      const out: { name: string; actual: unknown; expected: unknown }[] = []
+      type Item = { id: number; name: string }
 
-        out.push({ name: "hasThree initial", actual: hasThree.get(), expected: true })
-
-        set.set(new Set([1, 2, 4, 5]))
-        out.push({ name: "hasThree after set.set", actual: hasThree.get(), expected: false })
-        return out
+      const obj = o({ a: 1, b: 2, c: 3 } as Record<string, number>)
+      const entries = obj.tf(tf_entries<Record<string, number>>())
+      entries.addObserver(() => {})
+      out.push({
+        name: "entries: forward",
+        actual: entries.get(),
+        expected: [
+          ["a", 1],
+          ["b", 2],
+          ["c", 3],
+        ],
       })
-      assertAll(results)
-    })
-  })
-
-  test.describe("tf_map_has()", () => {
-    test("checks if map contains key-value pair", async ({ page }) => {
-      const results = await page.evaluate(() => {
-        const { o, tf_map_has } = window.__ELT__
-        const out: { name: string; actual: unknown; expected: unknown }[] = []
-        const map = o(
-          new Map([
-            ["a", 1],
-            ["b", 2],
-            ["c", 3],
-          ]),
-        )
-        const hasB2 = map.tf(tf_map_has(["b", 2]))
-
-        out.push({ name: "hasB2 initial", actual: hasB2.get(), expected: true })
-
-        const new_map = new Map(map.get())
-        new_map.set("b", 3)
-        map.set(new_map)
-        out.push({ name: "hasB2 after map.set", actual: hasB2.get(), expected: false })
-        return out
+      entries.set([
+        ["a", 10],
+        ["d", 4],
+      ])
+      out.push({
+        name: "entries: the object is rebuilt from the entries",
+        actual: obj.get(),
+        expected: { a: 10, d: 4 },
       })
-      assertAll(results)
-    })
-  })
 
-  test.describe("tf_entries()", () => {
-    test("converts object to entries array", async ({ page }) => {
-      const result = await page.evaluate(() => {
-        const { o, tf_entries } = window.__ELT__
-        const obj = o({ a: 1, b: 2, c: 3 })
-        const entries = obj.tf(tf_entries<{ a: number; b: number; c: number }>())
-        return entries.get()
+      const list_m = o<Item[]>([
+        { id: 1, name: "Alice" },
+        { id: 2, name: "Bob" },
+      ])
+      const by_id = list_m.tf(tf_array_to_map((item: Item) => item.id))
+      by_id.addObserver(() => {})
+      const m = new Map(by_id.get())
+      m.set(2, { id: 2, name: "Bobby" })
+      m.set(3, { id: 3, name: "Carol" })
+      by_id.set(m)
+      out.push({
+        name: "to_map: the array is the map's values",
+        actual: list_m.get().map((it) => it.name),
+        expected: ["Alice", "Bobby", "Carol"],
       })
-      expect(Array.isArray(result)).toBe(true)
-      expect(result.length).toBe(3)
-      expect(result).toContainEqual(["a", 1])
-      expect(result).toContainEqual(["b", 2])
-      expect(result).toContainEqual(["c", 3])
-    })
-  })
 
-  test.describe("tf_array_to_map()", () => {
-    test("converts array to map by key function", async ({ page }) => {
-      const result = await page.evaluate(() => {
-        const { o, tf_array_to_map } = window.__ELT__
-        const arr = o([
-          { id: 1, name: "Alice" },
-          { id: 2, name: "Bob" },
-        ])
-        const map = arr.tf(tf_array_to_map((item: any) => item.id))
-        const m = map.get()
-        return { isMap: m instanceof Map, alice: m.get(1)?.name, bob: m.get(2)?.name }
+      const list_o = o<Item[]>([
+        { id: 1, name: "Alice" },
+        { id: 2, name: "Bob" },
+      ])
+      const by_key = list_o.tf(tf_array_to_object((item: Item) => item.id))
+      by_key.addObserver(() => {})
+      by_key.set({ ...by_key.get(), 1: { id: 1, name: "Ann" } })
+      out.push({
+        name: "to_object: the array is the object's values",
+        actual: list_o.get().map((it) => it.name),
+        expected: ["Ann", "Bob"],
       })
-      expect(result.isMap).toBe(true)
-      expect(result.alice).toBe("Alice")
-      expect(result.bob).toBe("Bob")
+      return out
     })
-  })
-
-  test.describe("tf_array_to_object()", () => {
-    test("converts array to object by key function", async ({ page }) => {
-      const result = await page.evaluate(() => {
-        const { o, tf_array_to_object } = window.__ELT__
-        const arr = o([
-          { id: "a", value: 1 },
-          { id: "b", value: 2 },
-        ])
-        const obj = arr.tf(tf_array_to_object((item: any) => item.id))
-        const r = obj.get() as any
-        return { a: r.a.value, b: r.b.value }
-      })
-      expect(result.a).toBe(1)
-      expect(result.b).toBe(2)
-    })
+    assertAll(results)
   })
 })

@@ -281,6 +281,8 @@ The callback actually receives four arguments: `(get, old, updated, prev)`.
 | `updated(obs)` | `obs`'s value only if *that* dependency is what changed this run, else `o.NoValue` |
 | `prev`         | The expression's own previous result (or `o.NoValue`, the first time)  |
 
+When the callback takes only `get`, its dependencies are the observables its last run read. One that a run didn't read is dropped: in `get(o_c) ? get(o_a) : get(o_b)`, once `o_c` is false, writing `o_a` no longer runs the expression, and the expression no longer keeps `o_a` observed. Read again, it is followed again. The write-back callback (see below) can then only write to an observable the last run read. A callback that also declares `old`, `updated` or `prev` keeps every observable it has ever read, since it may skip reading them on purpose (return `prev` when nothing it cares about changed).
+
 `old`/`updated`/`prev` let an expensive expression skip recomputation when the thing that changed isn't actually relevant to it — return `prev` unchanged instead of redoing the work.
 
 To save memory, the previous values are kept only when the callback declares the parameter that needs them (it reads the function's `length`): `old` and `updated` need at least two declared parameters, `prev` needs four. A rest parameter (`...args`) or a parameter with a default value is not counted in `length`, so the arguments after it stay `o.NoValue`.

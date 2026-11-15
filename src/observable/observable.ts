@@ -1700,6 +1700,10 @@ export namespace o {
    * `updated` need at least 2 declared parameters, `prev` needs 4. A rest parameter or a parameter with a default
    * value is not counted in `fn.length`, so the arguments after it stay NoValue.
    *
+   * With only `get` declared, the expression follows the observables its last run read and drops the others. With
+   * `old`, `updated` or `prev` declared, it keeps following every observable it has read, since it may skip reads on
+   * purpose.
+   *
    * To make the resultant observable writable, you can provide a `fn_revert` function that will be called when set with the following arguments:
    *
    * - `value`: the value that is being set
@@ -1741,6 +1745,19 @@ export namespace o {
 
     let i = 0
 
+    // Dependencies the last run did not read are dropped, so that a branch no longer taken (`get(c) ? get(a) :
+    // get(b)`, after `c` turned false) stops recomputing the expression and stops holding on to it. Each run has
+    // a number; reading a dependency stamps it with that number and counts it once. After the run, as many
+    // dependencies read as linked means none is stale: a comparison, no walk. Only when the set changed are the
+    // stale ones unlinked (see `prune`).
+    // A callback that declares `old`, `updated` or `prev` (`fn.length > 1`) may skip reading on purpose, returning
+    // `prev` when nothing it cares about changed: it keeps every dependency it ever read, or it would miss the
+    // next change of one it skipped.
+    const prunes = fn.length < 2
+    let run = 0
+    let read_count = 0
+    const read_in_run = [] as number[]
+
     /** Index of `m` in `cmb`'s dependencies, registering it on first sight so the index always matches its link. */
     function _index(m: o.ReadonlyObservable<any>) {
       let idx = mp.get(m)
@@ -1749,7 +1766,39 @@ export namespace o {
         mp.set(m, idx)
         cmb.link_dependency(m, true)
       }
+      if (prunes && read_in_run[idx] !== run) {
+        read_in_run[idx] = run
+        read_count++
+      }
       return idx
+    }
+
+    /**
+     * Unlink the dependencies the run did not read, and move the others down so that index `k` is still the `k`th
+     * link and value (the parents' order has no meaning). A dropped dependency read again later is linked again,
+     * as a new one.
+     */
+    function prune() {
+      const links = cmb._links
+      const values = cmb._parents_values as unknown[]
+      let kept = 0
+      for (let k = 0; k < links.length; k++) {
+        const link = links[k]
+        if (read_in_run[k] !== run) {
+          mp.delete(link.parent)
+          if (cmb.is_watched) link.parent.removeChild(link)
+          continue
+        }
+        if (kept !== k) {
+          link.child_idx = kept
+          links[kept] = link
+          values[kept] = values[k]
+          read_in_run[kept] = run
+          mp.set(link.parent, kept)
+        }
+        kept++
+      }
+      links.length = values.length = read_in_run.length = i = kept
     }
 
     function _get(m: o.RO<any>) {
@@ -1785,7 +1834,10 @@ export namespace o {
     }
 
     cmb.getter = (() => {
+      run++
+      read_count = 0
       const res = fn(_get, _old, _updated, prev) as T
+      if (prunes && read_count !== cmb._links.length) prune()
 
       // The following two ifs are to avoid storing unnecessary references to the parent values and the previous value if the function does not need them, as this can hold a lot of memory for nothing if the values are big.
       if (fn.length > 1) {
