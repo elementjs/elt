@@ -50,6 +50,34 @@ test.describe("docs CodeExample: lazily run inline examples", () => {
     expect(r).toEqual({ runs: 1, same: true })
   })
 
+  // Regression: a fragment empties itself when inserted, so the result came back blank after the code toggle
+  test("an example that returns a fragment shows it again after the code toggle", async ({ page }) => {
+    await page.evaluate(() => {
+      const { node_append } = window.__ELT__
+      const { CodeExample } = window.__ELT__.Docs
+      node_append(
+        document.body,
+        CodeExample({
+          highlighted: () => "<>…</>",
+          run: () => {
+            const frag = document.createDocumentFragment()
+            for (const id of ["first", "second"]) {
+              const el = document.createElement("div")
+              el.id = id
+              frag.append(el)
+            }
+            return frag
+          },
+        }) as Node,
+      )
+    })
+    await expect(page.locator("#first, #second")).toHaveCount(2)
+    await page.getByRole("button", { name: "Code" }).click()
+    await expect(page.locator("#first, #second")).toHaveCount(0)
+    await page.getByRole("button", { name: "Example" }).click()
+    await expect(page.locator("#first, #second")).toHaveCount(2)
+  })
+
   test("an example that throws shows its error in place of the result", async ({ page }) => {
     await page.evaluate(() => {
       const { node_append } = window.__ELT__

@@ -12,7 +12,7 @@ export type CodeExampleProps = {
   highlighted: () => Renderable
   /** `@inline-example` only — the block's body, as a closure the generated page passes uncalled.
    * It runs once, when the result area first comes near the viewport (see `LazyResult`). */
-  run?: () => Node
+  run?: () => Renderable
   /** `@full-example` only — same-origin route URL this block runs at, embedded in an isolated iframe. */
   fullExampleUrl?: string
 }
@@ -25,8 +25,8 @@ const LAZY_MARGIN = "50% 0px"
  * many examples (some building large editors) doesn't render them all up front. The example runs
  * once and its node is kept, also when the reader switches to the code and back, and when it scrolls
  * away again. A throw is shown in place of the result, so one bad example doesn't break the page. */
-function LazyResult(run: () => Node) {
-  const o_result = o<{ node: Node } | { error: string } | null>(null)
+function LazyResult(run: () => Renderable) {
+  const o_result = o<{ node: Renderable } | { error: string } | null>(null)
   let observer: IntersectionObserver | null = null
   const stop = () => {
     observer?.disconnect()
@@ -44,7 +44,10 @@ function LazyResult(run: () => Node) {
                 if (!entries.some((en) => en.isIntersecting)) return
                 stop()
                 try {
-                  o_result.set({ node: run() })
+                  const node = run()
+                  // A fragment (`<>…</>`) empties itself when it is inserted: put back after the reader looked
+                  // at the code, it would show nothing. Its children are kept instead, and are moved back.
+                  o_result.set({ node: node instanceof DocumentFragment ? [...node.childNodes] : node })
                 } catch (e: any) {
                   o_result.set({ error: String(e?.stack ?? e) })
                 }
