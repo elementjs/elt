@@ -9,6 +9,7 @@ import {
   sym_attrs,
   sym_leave,
   sym_enter,
+  sym_fragment_source,
 } from "./symbols"
 
 const NODE_IS_CONNECTED = 0b00001
@@ -69,6 +70,9 @@ declare global {
     [sym_disconnected]?: LifecycleCallback[]
     [sym_leave]?: LeaveHook[]
     [sym_enter]?: EnterCallback<any>[]
+  }
+  interface DocumentFragment {
+    [sym_fragment_source]?: unknown[] | true
   }
 }
 
@@ -820,11 +824,25 @@ export function _node_append<N extends Node>(
   } else if (renderable instanceof Node) {
     // A node being added
     if (renderable.nodeType === Node.DOCUMENT_FRAGMENT_NODE) {
-      // DocumentFragment
-      const start = renderable.firstChild
+      // DocumentFragment: inserting it moves its nodes out, so it is empty once inserted.
+      const frag = renderable as unknown as DocumentFragment
+      if (frag.firstChild == null) {
+        const source = frag[sym_fragment_source]
+        if (source === true)
+          console.warn(
+            "a fragment can be inserted once: this one gave its nodes away at a previous insertion (keep [...frag.childNodes], or use an element)",
+            frag,
+          )
+        if (source == null || source === true) return
+        // A `<>` inserted again: rebuilt from its children, into itself as at its creation (see `e()`)
+        for (let i = 0, l = source.length; i < l; i++)
+          _node_append(frag, source[i] as Renderable<Node>, null, false, false)
+      }
+      const start = frag.firstChild
       if (start == null) return // there are no children to append, nothing more to do
+      frag[sym_fragment_source] ??= true
 
-      insert_before(node, renderable, refchild)
+      insert_before(node, frag, refchild)
 
       // `start` was the fragment's first child, now moved into `node` : connect until the insertion point
       if (node.isConnected) _connect_siblings(start, refchild, motion)

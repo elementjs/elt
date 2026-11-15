@@ -44,10 +44,8 @@ function LazyResult(run: () => Renderable) {
                 if (!entries.some((en) => en.isIntersecting)) return
                 stop()
                 try {
-                  const node = run()
-                  // A fragment (`<>…</>`) empties itself when it is inserted: put back after the reader looked
-                  // at the code, it would show nothing. Its children are kept instead, and are moved back.
-                  o_result.set({ node: node instanceof DocumentFragment ? [...node.childNodes] : node })
+                  // A `<>` is rebuilt from its children when put back after the reader looked at the code (see `Fragment`)
+                  o_result.set({ node: run() })
                 } catch (e: any) {
                   o_result.set({ error: String(e?.stack ?? e) })
                 }

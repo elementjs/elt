@@ -1,5 +1,5 @@
 import { _node_append, node_append } from "./dom"
-import { sym_elt_init } from "./symbols"
+import { sym_elt_init, sym_fragment_source } from "./symbols"
 
 import type { Attrs, ElementMap, EmptyAttributes, Renderable } from "./types"
 
@@ -184,6 +184,8 @@ export function e<N extends Node>(
       }
     }
     is_basic_node = false
+    // `<>`: keeps what it is built from, to be rebuilt when inserted again (see `_node_append`)
+    if (elt === Fragment) (node as unknown as DocumentFragment)[sym_fragment_source] = children
   } else {
     node = elt as N
   }
@@ -205,9 +207,15 @@ export function e<N extends Node>(
  *
  * The JSX namespace points `JSX.Fragment` to this function.
  *
- * > **Note**: Its signature says it expects `Insertable`, but since a document fragment itself never
- * > ends up being added to `Node`, no observable will ever run on it, no life cycle callback will
- * > ever be called on it.
+ * Inserting a fragment moves its nodes out of it, so it is empty afterwards. A `<>…</>` keeps the
+ * children it was built from: inserted again once empty, it is rebuilt from them, into itself as at its
+ * creation. Its elements are moved back (the same nodes, with their state), its verbs and observables
+ * are inserted again and show their current value, and its decorators run again on the fragment. A
+ * fragment created otherwise (`Fragment()`, `document.createDocumentFragment()`) can be inserted once:
+ * inserting it again once empty only logs a warning.
+ *
+ * A fragment itself is never attached to the document, so lifecycle decorators placed directly in it
+ * (`$observe`, `$connected`, `$disconnected`) are not tied to anything:
  *
  * ```tsx
  * <>{$observe(o_x, x => { ... })}<span>{o_x}</span></>

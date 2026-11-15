@@ -55,3 +55,10 @@ export const sym_leave = Symbol("--elt-node-leave-hooks--")
  * @internal
  */
 export const sym_enter = Symbol("--elt-node-enter-hooks--")
+
+/**
+ * A symbol property on `DocumentFragment`: the children a `<>` was built from, to rebuild it when it is
+ * inserted again once empty ; `true` on any other fragment once it gave its nodes away (see `_node_append`).
+ * @internal
+ */
+export const sym_fragment_source = Symbol("--elt-fragment-source--")

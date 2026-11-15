@@ -53,21 +53,13 @@ test.describe("docs CodeExample: lazily run inline examples", () => {
   // Regression: a fragment empties itself when inserted, so the result came back blank after the code toggle
   test("an example that returns a fragment shows it again after the code toggle", async ({ page }) => {
     await page.evaluate(() => {
-      const { node_append } = window.__ELT__
+      const { e, node_append } = window.__ELT__
       const { CodeExample } = window.__ELT__.Docs
       node_append(
         document.body,
         CodeExample({
           highlighted: () => "<>…</>",
-          run: () => {
-            const frag = document.createDocumentFragment()
-            for (const id of ["first", "second"]) {
-              const el = document.createElement("div")
-              el.id = id
-              frag.append(el)
-            }
-            return frag
-          },
+          run: () => e(e.Fragment, {}, e("div", { id: "first" }), e("div", { id: "second" })),
         }) as Node,
       )
     })

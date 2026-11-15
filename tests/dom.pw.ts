@@ -244,3 +244,65 @@ test.describe("unrecognized children", () => {
     expect(result).toEqual([[3 /* Node.TEXT_NODE */, "[object Promise]"]])
   })
 })
+
+test.describe("fragments", () => {
+  test("a <> inserted again once empty is rebuilt from its children: same elements, verbs showing their current value, nested <> included (regression: it showed nothing)", async ({
+    page,
+  }) => {
+    const result = await page.evaluate(() => {
+      const { e, o, If, node_append, node_clear } = window.__ELT__
+      const o_x = o(true)
+      const span = e("span")
+      const frag = e(
+        e.Fragment,
+        {},
+        If(
+          o_x,
+          () => e("i", {}, "a"),
+          () => e("i", {}, "b"),
+        ),
+        span,
+        e(e.Fragment, {}, "nested"),
+      )
+      const first = e("div")
+      const second = e("div")
+      document.body.append(first, second)
+      node_append(first, frag)
+      // Changed while shown: the If's current value is b, which a copy of the first nodes would miss
+      o_x.set(false)
+      node_clear(first)
+      node_append(second, frag)
+      const back = second.textContent
+      const same_span = second.querySelector("span") === span
+      o_x.set(true)
+      const live = second.textContent
+      first.remove()
+      second.remove()
+      return { back, same_span, live }
+    })
+    expect(result).toEqual({ back: "bnested", same_span: true, live: "anested" })
+  })
+
+  test("a raw fragment inserted again once empty warns; an empty <> or a never filled fragment does not", async ({
+    page,
+  }) => {
+    const warnings = await page.evaluate(() => {
+      const { e, node_append } = window.__ELT__
+      const warnings: string[] = []
+      const warn = console.warn
+      console.warn = (msg: string) => warnings.push(msg)
+      const div = e("div")
+      const raw = document.createDocumentFragment()
+      raw.append(e("span"))
+      node_append(div, raw)
+      node_append(div, raw)
+      const empty_jsx = e(e.Fragment, {}, false)
+      node_append(div, empty_jsx)
+      node_append(div, empty_jsx)
+      node_append(div, document.createDocumentFragment())
+      console.warn = warn
+      return warnings
+    })
+    expect(warnings).toEqual([expect.stringMatching(/^a fragment can be inserted once/)])
+  })
+})

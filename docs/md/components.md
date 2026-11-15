@@ -160,6 +160,14 @@ SVG is native: `<svg>…</svg>` and its children are created with the SVG namesp
 
 `<>...</>` is a `DocumentFragment`. It never itself becomes attached to a `Node`, so `$observe` / `$connected` / `$disconnected` placed directly on a fragment root do not get lifecycle semantics tied to it: decorators still run when the fragment is created, but nothing stops or restarts them with the document. Use a real element as the observing root when you need connect/disconnect behavior.
 
+A `DocumentFragment` gives its nodes away when it is inserted: it is empty afterwards. A `<>...</>` can still be inserted again, for example when a component keeps the content it rendered and shows it again later. It keeps the children it was built from, and once empty, it is rebuilt from them:
+
+- its elements are moved back: they are the same nodes, so what they hold (typed text, scroll position) is kept,
+- its verbs (`If`, `Repeat`, …) and observables are inserted again, like a verb inserted a second time: they render their current value anew, so the state of the nodes they had rendered is lost. Put a verb in an element, or keep its state in an observable, to keep it,
+- its decorators run again, on the fragment.
+
+A fragment not created by `<>` (`Fragment()`, `document.createDocumentFragment()`) can be inserted once: inserting it again once empty inserts nothing and logs a warning. Keep its nodes (`[...frag.childNodes]`) before inserting it, or use an element.
+
 ## No class components, no ref forwarding
 
 - There are no class-based JSX components — only functions.
