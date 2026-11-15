@@ -246,12 +246,13 @@ test.describe("unrecognized children", () => {
 })
 
 test.describe("fragments", () => {
-  test("a <> inserted again once empty is rebuilt from its children: same elements, verbs showing their current value, nested <> included (regression: it showed nothing)", async ({
+  test("a <> inserted again once empty is rebuilt from its children: same elements, verbs showing their current value (If, Repeat), nested <> included (regression: it showed nothing)", async ({
     page,
   }) => {
     const result = await page.evaluate(() => {
-      const { e, o, If, node_append, node_clear } = window.__ELT__
+      const { e, o, If, Repeat, node_append, node_clear } = window.__ELT__
       const o_x = o(true)
+      const o_list = o(["1"])
       const span = e("span")
       const frag = e(
         e.Fragment,
@@ -262,6 +263,7 @@ test.describe("fragments", () => {
           () => e("i", {}, "b"),
         ),
         span,
+        Repeat(o_list, (o_item) => e("u", {}, o_item)),
         e(e.Fragment, {}, "nested"),
       )
       const first = e("div")
@@ -270,17 +272,19 @@ test.describe("fragments", () => {
       node_append(first, frag)
       // Changed while shown: the If's current value is b, which a copy of the first nodes would miss
       o_x.set(false)
+      o_list.set(["1", "2"])
       node_clear(first)
       node_append(second, frag)
       const back = second.textContent
       const same_span = second.querySelector("span") === span
       o_x.set(true)
+      o_list.set(["3"])
       const live = second.textContent
       first.remove()
       second.remove()
       return { back, same_span, live }
     })
-    expect(result).toEqual({ back: "bnested", same_span: true, live: "anested" })
+    expect(result).toEqual({ back: "b12nested", same_span: true, live: "a3nested" })
   })
 
   test("a raw fragment inserted again once empty warns; an empty <> or a never filled fragment does not", async ({
