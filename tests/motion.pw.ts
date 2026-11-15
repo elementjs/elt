@@ -510,13 +510,15 @@ test.describe("condemned leaving nodes", () => {
     expect(r).toEqual({ b_gone: true, b_observing: false, ids: ["a"] })
   })
 
-  test("a leaving node inserted again stops its exit: it stays, with its attributes and inline style from before, and the end of its hooks leaves it in place", async ({
+  test("a leaving node inserted again stops its exit: it stays, with its attributes and inline style from before, the end of its hooks leaves it in place, and without `motion` it does not enter", async ({
     page,
   }) => {
     const r = await page.evaluate(async () => {
-      const { node_append, node_remove, node_on_leave } = window.__ELT__
+      const { node_append, node_remove, node_on_leave, node_on_enter } = window.__ELT__
       const c = window.__motion__.mount(["a", "b"])
       const a = c.querySelector("#a") as HTMLElement
+      let entered = 0
+      node_on_enter(a, () => entered++)
       a.style.color = "red"
       const before = { style: a.getAttribute("style"), attrs: a.getAttributeNames() }
       const d = window.__ELT__.deferred()
@@ -532,21 +534,24 @@ test.describe("condemned leaving nodes", () => {
         style: a.getAttribute("style"),
         attrs: a.getAttributeNames(),
         in_place: a.parentNode === c,
+        entered,
       }
     })
     expect(r.leaving).toBe(true)
-    expect(r).toMatchObject({ style: r.before.style, attrs: r.before.attrs, in_place: true })
+    expect(r).toMatchObject({ style: r.before.style, attrs: r.before.attrs, in_place: true, entered: 0 })
   })
 
   for (const when of ["while it plays its exit", "once its exit ended"] as const) {
-    test(`a node an If renders again ${when} comes back as it was (regression: it stayed floating and inert)`, async ({
+    test(`a node an If renders again ${when} comes back as it was and enters, like any node an update inserts (regression: it stayed floating and inert)`, async ({
       page,
     }) => {
       const r = await page.evaluate(async (when) => {
-        const { o, If, node_append, node_on_leave } = window.__ELT__
+        const { o, If, node_append, node_on_leave, node_on_enter } = window.__ELT__
         const c = window.__motion__.mount([])
         const kept = window.__motion__.el("b", "kept")
         const before = kept.getAttributeNames()
+        let entered = 0
+        node_on_enter(kept, () => entered++)
         const d = window.__ELT__.deferred()
         node_on_leave(kept, () => d.promise)
         const o_open = o(true)
@@ -562,10 +567,11 @@ test.describe("condemned leaving nodes", () => {
         o_open.set(true)
         d.resolve()
         await window.__motion__.tick()
-        return { before, attrs: kept.getAttributeNames(), shown: kept.parentNode === c }
+        return { before, attrs: kept.getAttributeNames(), shown: kept.parentNode === c, entered }
       }, when)
       expect(r.attrs).toEqual(r.before)
-      expect(r.shown).toBe(true)
+      // The first render does not enter; coming back with the If's update does
+      expect(r).toMatchObject({ shown: true, entered: 1 })
     })
   }
 
