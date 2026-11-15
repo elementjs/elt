@@ -1,6 +1,6 @@
 # elt
 
-elt is a [TypeScript](https://typescriptlang.org) library for building web applications. It is an alternative to React, Angular and the like, but it does **not** use a virtual DOM: JSX returns real DOM nodes, and the parts of the page that change are driven by observables, with observing tied to whether a node is in the document.
+elt is a [TypeScript](https://typescriptlang.org) library for building web applications. It is an alternative to React, Angular and the like. It does **not** use a virtual DOM: JSX returns real DOM nodes, and the parts of the page that change are driven by observables, with observing tied to whether a node is in the document.
 
 ## Documentation
 
@@ -19,7 +19,3 @@ npm install elt
 ```
 
 The package ships TypeScript sources and is meant to be bundled. Setup (`tsconfig.json`) and a first example: [Introduction](./docs/md/introduction.md#setup).
-
-## Community
-
-Join the [discord](https://discord.gg/A8tKA7q) for questions, or go to the [repository](https://github.com/elementjs/elt) to file issues.
