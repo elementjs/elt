@@ -18,17 +18,7 @@ UI code also follows [Never do these with elt/ui](./ui-hard-dont.md).
 
 ## Enforcing with Biome
 
-The package ships Biome plugins for the first two rules and for the DOM methods of the third. Add them to your `biome.json`:
-
-```json
-{
-  "plugins": [
-    "./node_modules/elt/lint/no-add-observer.grit",
-    "./node_modules/elt/lint/no-node-mutation.grit",
-    "./node_modules/elt/lint/no-raw-dom-insertion.grit"
-  ]
-}
-```
+The package ships Biome plugins for the first two rules and for the DOM methods of the third. Add the files in `lint/` to your `biome.json`'s `plugins`.
 
 A report is an error. Where an exception applies, disable the rule on the line, with the reason:
 
