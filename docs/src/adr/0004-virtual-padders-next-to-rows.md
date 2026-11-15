@@ -9,6 +9,7 @@
 **Rules from the page.** The reason for the shadow root was that no rule written for the user's elements (a packed container's padding on its children, for instance) could reach the padders. Their layout properties (`display`, `height`, `padding`, `margin`, `border`, `flex`, `grid-column`) are inline styles instead, which no rule out-ranks short of `!important`. What can still apply (a background, `:nth-child` counts) is harmless; a packed bordered grid paints them with its surface color, which is what a scroll ahead of the list shows.
 
 **Rejected alternatives.**
+
 - A header slot before the top padder in the scroll area's shadow root: works, but the header becomes a separate grid that has to share the body grid's columns.
 - The top padding as a `margin-top` on the first rendered row: no gap of its own, but a row is a range of nodes (`If`, `display: contents` wrappers), with no guaranteed single element to hold a margin, and the element watched by the observer would change with every window change.
 - One `scrollTop` write when the window reaches row 0: cancels the user's scroll momentum.
