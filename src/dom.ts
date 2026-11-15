@@ -10,6 +10,7 @@ import {
   sym_leave,
   sym_enter,
   sym_fragment_source,
+  sym_leave_style,
 } from "./symbols"
 
 const NODE_IS_CONNECTED = 0b00001
@@ -70,6 +71,7 @@ declare global {
     [sym_disconnected]?: LifecycleCallback[]
     [sym_leave]?: LeaveHook[]
     [sym_enter]?: EnterCallback<any>[]
+    [sym_leave_style]?: string | null
   }
   interface DocumentFragment {
     [sym_fragment_source]?: unknown[] | true
@@ -520,10 +522,31 @@ function _renders(node: Element): boolean {
   return false
 }
 
+/**
+ * Stop the exit of a leaving node that elt removes again or inserts again: it gets back the attributes and the
+ * inline style it had before, and is no longer leaving, so the end of its hooks does nothing. Its hooks' own
+ * animations are theirs to stop.
+ */
+function _leave_stop(node: Node) {
+  const el = node as HTMLElement
+  el.removeAttribute("e-leaving")
+  el.removeAttribute("inert")
+  const style = el[sym_leave_style]
+  // An empty saved style: it had no style attribute before. Written as an attribute first: a removal right
+  // after the floating's writes through `style` would otherwise come back as `style=""` (Chromium).
+  if (style != null) {
+    el.setAttribute("style", style)
+    if (style === "") el.removeAttribute("style")
+  }
+  el[sym_leave_style] = undefined
+  el[sym_connected_status] &= ~NODE_IS_LEAVING
+}
+
 /** Remove a leaving node once its hooks are done, unless something already did. */
 function _leave_done(node: Element) {
   if (node[sym_connected_status] & NODE_IS_LEAVING) {
     node[sym_connected_status] = 0
+    node[sym_leave_style] = undefined
     node.parentNode?.removeChild(node)
   }
 }
@@ -548,7 +571,7 @@ export function node_remove_range(first: Node, last: Node, motion = false): void
   let verb_end: Node | null = null
   for (let n: Node | null = first; n != null; n = n.nextSibling) {
     // Already leaving : removed again, it goes now with the rest (its final removal will do nothing).
-    n[sym_connected_status] &= ~NODE_IS_LEAVING
+    if (n[sym_connected_status] & NODE_IS_LEAVING) _leave_stop(n)
     if (motion && verb_end == null && n[sym_connected_status] & NODE_IS_VERB) verb_end = (n as CommentHolder).end
     const plain = motion && verb_end == null
     if (may_leave && n[sym_connected_status] & NODE_IS_CONNECTED && _has_leave(n, plain)) {
@@ -640,6 +663,7 @@ function start_leaving(candidates: Leaving[]): boolean {
     }
     any = true
     node[sym_connected_status] = NODE_IS_LEAVING | (node[sym_connected_status] & NODE_IS_VERB)
+    node[sym_leave_style] = l.style
     node.setAttribute("e-leaving", "")
     node.setAttribute("inert", "")
     const done = () => _leave_done(node)
@@ -847,6 +871,8 @@ export function _node_append<N extends Node>(
       // `start` was the fragment's first child, now moved into `node` : connect until the insertion point
       if (node.isConnected) _connect_siblings(start, refchild, motion)
     } else {
+      // Inserted again while it plays its exit: the exit stops, it comes back as it was
+      if (renderable[sym_connected_status] & NODE_IS_LEAVING) _leave_stop(renderable)
       insert_before(node, renderable, refchild)
       if (node.isConnected) {
         // Already connected, this is a move: it returns at once, nothing enters.

@@ -51,6 +51,13 @@ export const sym_disconnected = Symbol("--elt-node-disconnected-callbacks--")
 export const sym_leave = Symbol("--elt-node-leave-hooks--")
 
 /**
+ * A symbol property on a leaving `Element` to its inline style from before it was taken out of the layout, to put
+ * back if its exit is stopped (see `node_on_leave`).
+ * @internal
+ */
+export const sym_leave_style = Symbol("--elt-node-leave-style--")
+
+/**
  * A symbol property on `Node` to the enter hooks of the node (see `node_on_enter`).
  * @internal
  */

@@ -142,7 +142,7 @@ Everything else removed by the same call goes at once, synchronously, as without
 
 A floating node is positioned against its containing block (the nearest positioned ancestor). When that ancestor is outside the node's scroll container, the leaving node neither scrolls nor clips with it: a fading row may show outside its scroll area. elt doesn't change your ancestors' positioning to avoid it; give the scroll container `position: relative` if it matters. A floating node is drawn above its non-positioned siblings, and below positioned ones.
 
-**A leaving node is condemned.** It never comes back: removing it again (an `If` flipping twice quickly), moving it, or putting it back in the page (its ancestor re-inserted) removes it at once. Its data may already be gone (an item removed from its list), so it is never reconnected to it.
+**A leaving node is condemned.** Removing it again (an `If` flipping twice quickly), moving it, or putting it back in the page (its ancestor re-inserted) removes it at once. Its data may already be gone (an item removed from its list), so it is never reconnected to it. Only inserting that very node again stops its exit: a render function returning a node it kept, a `<>` rebuilt (see [Fragments](./components.md#fragments)), a `node_append` of it. It comes back as it was before its exit, attributes and inline style included; an animation its leave hook started is the hook's to stop.
 
 **Exits must end.** A keyframes or spec exit that would never end (an infinite `duration`) plays nothing, with a warning, and the node goes at once. A function exit's promise must settle: the node stays until it does (in development builds, a warning names a node still waiting after 5 seconds).
 

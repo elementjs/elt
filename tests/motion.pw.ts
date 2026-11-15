@@ -510,19 +510,57 @@ test.describe("condemned leaving nodes", () => {
     expect(r).toEqual({ b_gone: true, b_observing: false, ids: ["a"] })
   })
 
-  test("a leaving node put back with node_append is removed and does not enter", async ({ page }) => {
-    const r = await page.evaluate(() => {
-      const { node_append, node_remove, node_on_enter, node_on_leave } = window.__ELT__
-      const c = window.__motion__.mount(["a"])
+  test("a leaving node inserted again stops its exit: it stays, with its attributes and inline style from before, and the end of its hooks leaves it in place", async ({
+    page,
+  }) => {
+    const r = await page.evaluate(async () => {
+      const { node_append, node_remove, node_on_leave } = window.__ELT__
+      const c = window.__motion__.mount(["a", "b"])
       const a = c.querySelector("#a") as HTMLElement
-      let entered = 0
-      node_on_enter(a, () => entered++)
-      node_on_leave(a, () => new Promise(() => {}))
+      a.style.color = "red"
+      const before = { style: a.getAttribute("style"), attrs: a.getAttributeNames() }
+      const d = window.__ELT__.deferred()
+      node_on_leave(a, () => d.promise)
       node_remove(a, true)
-      node_append(c, a, null, true)
-      return { entered, gone: a.parentNode == null }
+      const leaving = a.hasAttribute("e-leaving")
+      node_append(c, a)
+      d.resolve()
+      await window.__motion__.tick()
+      return {
+        leaving,
+        before,
+        style: a.getAttribute("style"),
+        attrs: a.getAttributeNames(),
+        in_place: a.parentNode === c,
+      }
     })
-    expect(r).toEqual({ entered: 0, gone: true })
+    expect(r.leaving).toBe(true)
+    expect(r).toMatchObject({ style: r.before.style, attrs: r.before.attrs, in_place: true })
+  })
+
+  test("a node an If renders again while it plays its exit comes back as it was (regression: it stayed floating and inert)", async ({
+    page,
+  }) => {
+    const r = await page.evaluate(async () => {
+      const { o, If, node_append, node_on_leave } = window.__ELT__
+      const c = window.__motion__.mount([])
+      const kept = window.__motion__.el("b", "kept")
+      const before = kept.getAttributeNames()
+      const d = window.__ELT__.deferred()
+      node_on_leave(kept, () => d.promise)
+      const o_open = o(true)
+      node_append(
+        c,
+        If(o_open, () => kept),
+      )
+      o_open.set(false)
+      o_open.set(true)
+      d.resolve()
+      await window.__motion__.tick()
+      return { before, attrs: kept.getAttributeNames(), shown: kept.parentNode === c }
+    })
+    expect(r.attrs).toEqual(r.before)
+    expect(r.shown).toBe(true)
   })
 
   test("a comment holder whose content is only leaving nodes has no content", async ({ page }) => {
