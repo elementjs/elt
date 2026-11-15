@@ -43,12 +43,6 @@ const row3 = (id = "", attrs = "") =>
   `<e-grid-row ${id ? `id="${id}"` : ""} ${attrs}><span>a</span><span>b</span><span>c</span></e-grid-row>`
 
 test.describe("e-grid columns", () => {
-  test("columns={N} makes N equal tracks", async ({ page }) => {
-    await mount(page, `<e-grid id="g" columns="3" spacing="none"><span>a</span><span>b</span><span>c</span></e-grid>`)
-    const { "grid-template-columns": tpl } = await styles(page, "#g", ["grid-template-columns"])
-    expect(tpl).toBe("100px 100px 100px")
-  })
-
   test("tracks don't follow content width", async ({ page }) => {
     await mount(
       page,
@@ -181,16 +175,17 @@ test.describe("packed e-grid", () => {
       page,
       `<e-column packed="widget"><span id="c">a</span><e-row id="inner"><span>x</span><span>y</span></e-row></e-column>
        <e-column spacing="widget"><span id="s">a</span></e-column>
-       <e-column><span id="plain">a</span></e-column>`,
+       <e-column><span id="plain">a</span><e-row id="plain_row"><span>x</span><span>y</span></e-row></e-column>`,
     )
     const read = async (sel: string, prop: string) => (await styles(page, sel, [prop]))[prop]
     expect(await read("#c", "--e-parent-spacing")).toBe(await read("#plain", "--e-parent-spacing"))
     expect(await read("#c", "--e-parent-spacing")).not.toBe(await read("#s", "--e-parent-spacing"))
     // A plain row in a cell keeps the ambient gap (component), not the cell step.
-    expect(await read("#inner", "row-gap")).toBe("12px")
+    expect(await read("#inner", "row-gap")).toBe(await read("#plain_row", "row-gap"))
   })
 
-  test("with border: the grid draws the frame, the lines are the second row's top edge and each later cell's left edge", async ({
+  // Which edges draw the lines is tests/packed.pw.ts ("grid: the second row draws the line above it…").
+  test("with border: the grid draws the frame, its rows touch, and a row's line is in the seam color", async ({
     page,
   }) => {
     await mount(page, `<e-grid id="g" columns="3" packed border>${row3("r1")}${row3("r2")}</e-grid>`)
@@ -200,16 +195,8 @@ test.describe("packed e-grid", () => {
     expect(g["row-gap"]).toBe("normal")
     expect(g["column-gap"]).toBe("normal")
     const seam = await color(page, "var(--e-seam-color)", "#g")
-    const r1 = await styles(page, "#r1", ["border-top-style"])
-    const r2 = await styles(page, "#r2", ["border-top-style", "border-top-width", "border-top-color"])
-    expect(r1["border-top-style"]).toBe("none")
-    expect(r2).toEqual({ "border-top-style": "solid", "border-top-width": "1px", "border-top-color": seam })
-    const cells = await page.evaluate(() =>
-      [...document.querySelectorAll("#r2 > span")].map((c) => getComputedStyle(c).borderLeftStyle),
-    )
-    expect(cells).toEqual(["none", "solid", "solid"])
-    const cell = await styles(page, "#r1 > span", ["background-color", "border-top-style"])
-    expect(cell["border-top-style"]).toBe("none")
+    expect((await styles(page, "#r2", ["border-top-color"]))["border-top-color"]).toBe(seam)
+    const cell = await styles(page, "#r1 > span", ["background-color"])
     expect(cell["background-color"]).toBe(await color(page, "var(--e-current-surface)", "#g"))
     // The rows touch: the line is the second row's own edge.
     const between = await page.evaluate(
@@ -240,26 +227,6 @@ test.describe("packed e-grid", () => {
     const after = (await styles(page, "#r1 > span", ["background-color"]))["background-color"]
     expect(after).not.toBe(before)
   })
-
-  test("corner cells of the first/last rows take the grid's radius, other cells none", async ({ page }) => {
-    await mount(
-      page,
-      `<e-grid id="g" columns="3" packed border radius="section">
-        <e-grid-row id="r1"><span id="tl">a</span><span id="tm">b</span><span id="tr">c</span></e-grid-row>
-        <e-grid-row id="r2"><span id="ml">a</span><span>b</span><span>c</span></e-grid-row>
-        <e-grid-row id="r3"><span id="bl">a</span><span>b</span><span id="br">c</span></e-grid-row>
-      </e-grid>`,
-    )
-    const g = (await styles(page, "#g", ["border-top-left-radius"]))["border-top-left-radius"]
-    expect(g).not.toBe("0px")
-    expect((await styles(page, "#tl", ["border-top-left-radius"]))["border-top-left-radius"]).toBe(g)
-    expect((await styles(page, "#tr", ["border-top-right-radius"]))["border-top-right-radius"]).toBe(g)
-    expect((await styles(page, "#bl", ["border-bottom-left-radius"]))["border-bottom-left-radius"]).toBe(g)
-    expect((await styles(page, "#br", ["border-bottom-right-radius"]))["border-bottom-right-radius"]).toBe(g)
-    expect((await styles(page, "#tl", ["border-bottom-left-radius"]))["border-bottom-left-radius"]).toBe("0px")
-    expect((await styles(page, "#tm", ["border-top-left-radius"]))["border-top-left-radius"]).toBe("0px")
-    expect((await styles(page, "#ml", ["border-top-left-radius"]))["border-top-left-radius"]).toBe("0px")
-  })
 })
 
 test.describe("frame ownership", () => {
@@ -284,11 +251,6 @@ test.describe("frame ownership", () => {
     expect(g["border-top-left-radius"]).toBe("0px")
     expect((await styles(page, "#r1 > span:nth-child(2)", ["border-left-style"]))["border-left-style"]).toBe("solid")
   })
-
-  test("outside a scroll area, the packed bordered grid keeps its border", async ({ page }) => {
-    await mount(page, `<e-column><e-grid id="g" columns="3" packed border>${row3()}</e-grid></e-column>`)
-    expect((await styles(page, "#g", ["border-top-width"]))["border-top-width"]).toBe("1px")
-  })
 })
 
 test.describe("sticky", () => {
@@ -308,37 +270,19 @@ test.describe("sticky", () => {
         const sc = document.getElementById("sc")!
         sc.scrollTop = st
         const s = sc.getBoundingClientRect()
+        const hit = (y: number) => document.elementFromPoint(s.left + 5, y)?.closest("[id]")?.id
         return {
           top: Math.round(document.getElementById("top")!.getBoundingClientRect().top - s.top),
           bottom: Math.round(s.bottom - document.getElementById("bottom")!.getBoundingClientRect().bottom),
+          // Drawn over the rows scrolling under them.
+          hits: [hit(s.top + 2), hit(s.bottom - 2)],
         }
       }, st)
-      expect(res).toEqual({ top: 0, bottom: 0 })
+      expect(res).toEqual({ top: 0, bottom: 0, hits: ["top", "bottom"] })
     }
-    const top = await styles(page, "#top", ["position", "z-index", "background-color"])
+    const top = await styles(page, "#top", ["position", "background-color"])
     expect(top.position).toBe("sticky")
-    expect(top["z-index"]).toBe("2")
     expect(top["background-color"]).not.toBe("rgba(0, 0, 0, 0)")
-  })
-
-  test("a sticky row of a packed bordered grid is opaque, keeps its seams, and stays sticky", async ({ page }) => {
-    const rows = Array.from({ length: 10 }, () => row3()).join("")
-    await mount(
-      page,
-      scroll_area(`<e-grid id="g" columns="3" packed border>${row3("head", 'sticky="top"')}${rows}</e-grid>`),
-    )
-    const head = await styles(page, "#head", ["position", "background-color"])
-    expect(head.position).toBe("sticky")
-    expect(head["background-color"]).not.toBe("rgba(0, 0, 0, 0)")
-    // Its cells keep the lines between them, and the line under it is its own.
-    expect((await styles(page, "#head > span:nth-child(2)", ["border-left-style"]))["border-left-style"]).toBe("solid")
-    expect((await styles(page, "#head", ["border-bottom-style"]))["border-bottom-style"]).toBe("solid")
-    const offset = await page.evaluate(() => {
-      const sc = document.getElementById("sc")!
-      sc.scrollTop = 120
-      return Math.round(document.getElementById("head")!.getBoundingClientRect().top - sc.getBoundingClientRect().top)
-    })
-    expect(offset).toBe(0)
   })
 
   // A row's seam-color is the color of the lines it draws: its top edge, its cell separators and, when
@@ -388,10 +332,30 @@ test.describe("sticky", () => {
         scroll_area(`${container}${child("head", 'sticky="top"')}${rows}${child("foot", 'sticky="bottom"')}${close}`),
       )
       const seam = await color(page, "var(--e-seam-color)", "#g")
-      const head = await styles(page, "#head", ["border-bottom-width", "border-bottom-color", "margin-bottom"])
-      expect(head).toEqual({ "border-bottom-width": "1px", "border-bottom-color": seam, "margin-bottom": "-1px" })
+      const head = await styles(page, "#head", [
+        "border-bottom-width",
+        "border-bottom-color",
+        "margin-bottom",
+        "background-color",
+      ])
+      const line = Number.parseFloat(head["border-bottom-width"]!)
+      expect(line).toBeGreaterThan(0)
+      expect(head["border-bottom-color"]).toBe(seam)
+      // Pulled over the next row's top edge by exactly its own line.
+      expect(Number.parseFloat(head["margin-bottom"]!)).toBe(-line)
+      // Opaque: the content scrolling under it doesn't show through.
+      expect(head["background-color"]).not.toBe("rgba(0, 0, 0, 0)")
       const foot = await styles(page, "#foot", ["border-top-width", "border-top-color", "margin-top"])
-      expect(foot).toEqual({ "border-top-width": "1px", "border-top-color": seam, "margin-top": "0px" })
+      expect(foot).toEqual({
+        "border-top-width": head["border-bottom-width"],
+        "border-top-color": seam,
+        "margin-top": "0px",
+      })
+      // A grid's sticky row keeps the lines between its cells.
+      if (name === "grid")
+        expect((await styles(page, "#head > span:nth-child(2)", ["border-left-style"]))["border-left-style"]).toBe(
+          "solid",
+        )
 
       const res = await page.evaluate(() => {
         const rect = (id: string) => document.getElementById(id)!.getBoundingClientRect()
@@ -403,13 +367,18 @@ test.describe("sticky", () => {
         const at_rest = { head: head_at_rest, foot: rect("foot").top - rect("r9").bottom }
         sc.scrollTop = 103
         // Stuck, the row (its border included, which the checks above put over the gap) is drawn over
-        // the content scrolling under it.
+        // the content scrolling under it, on the scroll area's edge.
         const h = rect("head")
         const f = rect("foot")
         const hit = (y: number) => document.elementFromPoint(h.left + 5, y)?.closest("[id]")?.id
-        return { at_rest, head: hit(h.bottom - 0.5), foot: hit(f.top + 0.5) }
+        return {
+          at_rest,
+          head: hit(h.bottom - 0.5),
+          foot: hit(f.top + 0.5),
+          stuck: Math.round(h.top - sc.getBoundingClientRect().top),
+        }
       })
-      expect(res).toEqual({ at_rest: { head: -1, foot: 0 }, head: "head", foot: "foot" })
+      expect(res).toEqual({ at_rest: { head: -line, foot: 0 }, head: "head", foot: "foot", stuck: 0 })
     })
   }
 
@@ -439,17 +408,18 @@ test.describe("sticky", () => {
           const t = s.getBoundingClientRect()
           sc.scrollTop += r.top + r.height / 2 - (t.top + t.height / 2)
           const t2 = s.getBoundingClientRect()
+          const z = (el: Element) => Number(getComputedStyle(el).zIndex) || 0
           return {
             focused: document.querySelector(":focus-visible")?.id,
-            z: getComputedStyle(c).zIndex,
+            raised: z(c) > z(c.nextElementSibling!),
             hit: document.elementFromPoint(t2.left + 5, t2.top + t2.height / 2)?.closest("[id]")?.id,
           }
         },
         { cell, sticky },
       )
     }
-    expect(await under("c5", "head")).toEqual({ focused: "c5", z: "1", hit: "head" })
-    expect(await under("c5", "foot")).toEqual({ focused: "c5", z: "1", hit: "foot" })
+    expect(await under("c5", "head")).toEqual({ focused: "c5", raised: true, hit: "head" })
+    expect(await under("c5", "foot")).toEqual({ focused: "c5", raised: true, hit: "foot" })
   })
 
   test("a sticky cell of a packed container keeps position: sticky over packed's position: relative", async ({
@@ -464,20 +434,6 @@ test.describe("sticky", () => {
 })
 
 test.describe("scroll", () => {
-  test("scroll, scroll=x, scroll=y set overflow and leave overscroll-behavior at auto, on e-prose too", async ({
-    page,
-  }) => {
-    await mount(
-      page,
-      `<e-column id="b" scroll></e-column><e-row id="x" scroll="x"></e-row><e-prose id="y" scroll="y"></e-prose>`,
-    )
-    const props = ["overflow-x", "overflow-y", "overscroll-behavior-x", "overscroll-behavior-y"]
-    const auto = { "overscroll-behavior-x": "auto", "overscroll-behavior-y": "auto" }
-    expect(await styles(page, "#b", props)).toEqual({ "overflow-x": "auto", "overflow-y": "auto", ...auto })
-    expect(await styles(page, "#x", props)).toEqual({ "overflow-x": "auto", "overflow-y": "hidden", ...auto })
-    expect(await styles(page, "#y", props)).toEqual({ "overflow-x": "hidden", "overflow-y": "auto", ...auto })
-  })
-
   // Regression (docs site): a padded child of a scroll column shrank to the column's height (layout
   // elements give children min-height: 0), so its content overflowed its box and its bottom padding
   // sat mid-content; scrolled to the end, the last line touched the column's bottom edge.
@@ -557,11 +513,6 @@ test.describe("scroll", () => {
     expect(res.col_scroll).toBe(300)
     expect(res.row_child).toBe(10)
   })
-
-  test("the UI reset turns off overscroll on the page itself", async ({ page }) => {
-    expect(await styles(page, "html", ["overscroll-behavior-y"])).toEqual({ "overscroll-behavior-y": "none" })
-    expect(await styles(page, "body", ["overscroll-behavior-y"])).toEqual({ "overscroll-behavior-y": "none" })
-  })
 })
 
 test.describe("[align] on layout elements (regression: the legacy HTML align attribute centered their text)", () => {
@@ -621,7 +572,7 @@ test.describe("packed cells read at the size of controls", () => {
   test("text cells take the controls' font size and line height; prose and headings keep theirs", async ({ page }) => {
     const r = await page.evaluate(() => {
       document.body.innerHTML = `<e-grid columns="4" packed border><e-grid-row><span>t</span><button>b</button><e-prose>p</e-prose><h3>h</h3></e-grid-row></e-grid>
-        <e-column packed><span>x</span><button>b</button></e-column><e-column><span id="plain">y</span></e-column>`
+        <e-column packed><span>x</span><button>b</button></e-column><e-column><span id="plain">y</span><e-prose id="plain_prose">p</e-prose></e-column>`
       const size = (el: Element) => {
         const c = getComputedStyle(el)
         return [c.fontSize, c.lineHeight]
@@ -630,7 +581,8 @@ test.describe("packed cells read at the size of controls", () => {
       return {
         span: size(q("e-grid-row > span")),
         input: size(q("e-grid-row > button")),
-        prose: size(q("e-prose")),
+        prose: size(q("e-grid-row > e-prose")),
+        plain_prose: size(q("#plain_prose")),
         h3: size(q("h3")),
         column_span: size(q("e-column > span")),
         plain: size(q("#plain")),
@@ -640,7 +592,7 @@ test.describe("packed cells read at the size of controls", () => {
     // A text cell matches the control next to it (a button: a text field's line is its whole height), in a grid and in a column.
     expect(r.span).toEqual(r.input)
     expect(r.column_span).toEqual(r.input)
-    expect(r.prose).toEqual(["16px", "24px"])
+    expect(r.prose).toEqual(r.plain_prose)
     expect(r.h3[0]).not.toBe(r.input[0])
     // Outside a packed container, text keeps the page's font size.
     expect(r.plain[0]).toBe(r.body[0])

@@ -1,36 +1,6 @@
 import { expect, test } from "../fixture"
 
 test.describe("composite toolbar search", () => {
-  test("empty query shows all rows", async ({ page }) => {
-    const result = await page.evaluate(() => {
-      const { row_matches_search } = window.__ELT__.Editor
-      return row_matches_search("", false, ["name", "Ada"])
-    })
-    expect(result).toBe(true)
-  })
-
-  test("case-insensitive match on key or value", async ({ page }) => {
-    const results = await page.evaluate(() => {
-      const { row_matches_search } = window.__ELT__.Editor
-      return [
-        { actual: row_matches_search("ada", false, ["name", "Ada Lovelace"]), expected: true },
-        { actual: row_matches_search("bio", false, ["name", "Ada"]), expected: false },
-      ]
-    })
-    for (const r of results) expect(r.actual).toBe(r.expected)
-  })
-
-  test("case-sensitive mode", async ({ page }) => {
-    const results = await page.evaluate(() => {
-      const { row_matches_search } = window.__ELT__.Editor
-      return [
-        { actual: row_matches_search("Ada", true, ["name", "ada"]), expected: false },
-        { actual: row_matches_search("Ada", true, ["name", "Ada"]), expected: true },
-      ]
-    })
-    for (const r of results) expect(r.actual).toBe(r.expected)
-  })
-
   test("value_preview_text stringifies nested data shallowly", async ({ page }) => {
     const result = await page.evaluate(() => {
       const { value_preview_text } = window.__ELT__.Editor
@@ -77,12 +47,17 @@ test.describe("type change actions", () => {
 })
 
 test.describe("filter options", () => {
-  test("regular expression: matched on the texts, case follows Aa, an invalid pattern filters nothing", async ({
+  test("search: an empty query keeps every row, a plain query is a substring of the key or value, case follows Aa; a regular expression is matched on the texts, an invalid one filters nothing", async ({
     page,
   }) => {
     const r = await page.evaluate(() => {
       const { row_matches_search } = window.__ELT__.Editor
       return {
+        empty: row_matches_search("", false, ["name", "Ada"]),
+        substring: row_matches_search("ada", false, ["name", "Ada Lovelace"]),
+        substring_miss: row_matches_search("bio", false, ["name", "Ada"]),
+        plain_case_miss: row_matches_search("Ada", true, ["name", "ada"]),
+        plain_case_hit: row_matches_search("Ada", true, ["name", "Ada"]),
         match: row_matches_search("^Ad.$", false, ["name", "Ada"], true),
         anchored_miss: row_matches_search("^da", false, ["name", "Ada"], true),
         case_insensitive: row_matches_search("ADA", false, ["Ada"], true),
@@ -93,6 +68,11 @@ test.describe("filter options", () => {
       }
     })
     expect(r).toEqual({
+      empty: true,
+      substring: true,
+      substring_miss: false,
+      plain_case_miss: false,
+      plain_case_hit: true,
       match: true,
       anchored_miss: false,
       case_insensitive: true,

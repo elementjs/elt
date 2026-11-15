@@ -115,6 +115,28 @@ const cases: Case[] = [
         })
     },
   },
+  {
+    // The usual case: the same dependencies on every run
+    name: "expression of 5 sources, set one",
+    ops: 100000,
+    setup: () => {
+      const xs = [0, 1, 2, 3, 4].map(() => o(0))
+      o.expression((get) => get(xs[0]) + get(xs[1]) + get(xs[2]) + get(xs[3]) + get(xs[4])).addObserver(() => {})
+      return setter(xs[0])
+    },
+  },
+  {
+    // The worst case: each set flips the branch, so one dependency is dropped and the other linked again
+    name: "expression whose branch flips on each set",
+    ops: 100000,
+    setup: () => {
+      const c = o(0)
+      const a = o(1)
+      const b = o(2)
+      o.expression((get) => (get(c) % 2 ? get(a) : get(b))).addObserver(() => {})
+      return setter(c)
+    },
+  },
   { name: "set after 100k observer churn on a derived", ops: 20000, setup: () => setter(churned(100000).a) },
   {
     name: "observer add+remove on a derived",

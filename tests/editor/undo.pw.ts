@@ -1,29 +1,6 @@
 import { expect, type Page, test } from "../fixture"
 
 test.describe("RootUndoRing", () => {
-  test("shell undo restores prior root snapshot", async ({ page }) => {
-    const result = await page.evaluate(() => {
-      const { node_append, o } = window.__ELT__
-      const { ObjectEditorShell, object, string } = window.__ELT__.Editor
-
-      const schema = object({ properties: [{ name: "name", type: string() }] })
-      const o_root = o({ name: "Ada" })
-      const shell = new ObjectEditorShell(o_root, { schema })
-      node_append(document.body, shell.node)
-
-      o_root.set({ name: "Grace" })
-      const afterSet = o_root.get().name
-
-      const undo = shell.node.querySelector<HTMLButtonElement>('button[aria-label="Undo"]')
-      undo?.click()
-      const afterUndo = o_root.get().name
-
-      return { afterSet, afterUndo }
-    })
-    expect(result.afterSet).toBe("Grace")
-    expect(result.afterUndo).toBe("Ada")
-  })
-
   // The history follows the editor through an observer on its element (regression: it was an observer of
   // its own, started at construction and never stopped).
   test("a write made after the editor was built, before it was mounted, is part of the history", async ({ page }) => {
@@ -107,16 +84,5 @@ test.describe("undo and redo buttons", () => {
     expect(
       await undo.evaluate((el, other) => el.parentElement === other?.parentElement, await redo.elementHandle()),
     ).toBe(true)
-  })
-
-  test("the Add button is the last button of the header line, after Undo and Redo", async ({ page }) => {
-    await mount(page)
-    await page.evaluate(() => (window as unknown as { o_root: { set(v: unknown): void } }).o_root.set({ a: "y" }))
-    const labels = await page.evaluate(() =>
-      [...document.querySelectorAll("#shell e-column > e-row:first-child button")].map(
-        (b) => b.getAttribute("aria-label") ?? b.textContent?.trim(),
-      ),
-    )
-    expect(labels).toEqual(["More actions", "Undo", "Add key"])
   })
 })

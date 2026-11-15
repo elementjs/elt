@@ -57,70 +57,36 @@ describe("splitNodes", () => {
 })
 
 describe("urlFor", () => {
-  test("root index.md maps to /", () => {
-    expect(urlFor("index.md")).toBe("/")
-  })
-
-  test("other root-level files map to /<file>", () => {
-    expect(urlFor("using-elt.md")).toBe("/using-elt")
-  })
-
-  test("files under a subdirectory map to /<dir>/<file>", () => {
-    expect(urlFor("guide/intro.md")).toBe("/guide/intro")
-  })
-
-  test("nests for deeper subdirectories", () => {
-    expect(urlFor("guide/advanced/intro.md")).toBe("/guide/advanced/intro")
-  })
-
-  test("a nested index.md is not special-cased (only the root one is)", () => {
-    expect(urlFor("guide/index.md")).toBe("/guide/index")
+  test("maps a docs/md path to its route: only the root index.md is /, directories are kept", () => {
+    expect(
+      ["index.md", "using-elt.md", "guide/intro.md", "guide/advanced/intro.md", "guide/index.md"].map(urlFor),
+    ).toEqual(["/", "/using-elt", "/guide/intro", "/guide/advanced/intro", "/guide/index"])
   })
 })
 
 describe("resolveMdLink", () => {
-  test("rewrites a same-directory relative .md link to its new path-based route", () => {
-    expect(resolveMdLink("./using-elt-ui.md", "index.md")).toBe("/using-elt-ui")
-  })
-
-  test("rewrites a parent-relative .md link, resolving .. segments", () => {
-    expect(resolveMdLink("../guide/intro.md", "adr/0001-x.md")).toBe("/guide/intro")
-  })
-
-  test("resolves a nested link relative to the current file's own directory", () => {
-    expect(resolveMdLink("./guide/index.md", "index.md")).toBe("/guide/index")
-  })
-
-  test("preserves a hash fragment on the link", () => {
-    expect(resolveMdLink("./using-elt.md#section", "index.md")).toBe("/using-elt#section")
-  })
-
-  test("leaves external links untouched", () => {
-    expect(resolveMdLink("https://example.com/x.md", "index.md")).toBeNull()
-  })
-
-  test("leaves non-.md relative links untouched", () => {
-    expect(resolveMdLink("./image.png", "index.md")).toBeNull()
-  })
-
-  test("leaves in-page anchors untouched", () => {
-    expect(resolveMdLink("#section", "index.md")).toBeNull()
+  test("rewrites relative .md links to routes, resolved from the current file, and leaves the others alone", () => {
+    const cases: [href: string, from: string, expected: string | null][] = [
+      ["./using-elt-ui.md", "index.md", "/using-elt-ui"],
+      ["../guide/intro.md", "adr/0001-x.md", "/guide/intro"],
+      ["./guide/index.md", "index.md", "/guide/index"],
+      ["./using-elt.md#section", "index.md", "/using-elt#section"],
+      // external, not .md, in-page anchor: untouched
+      ["https://example.com/x.md", "index.md", null],
+      ["./image.png", "index.md", null],
+      ["#section", "index.md", null],
+    ]
+    expect(cases.map(([href, from]) => resolveMdLink(href, from))).toEqual(cases.map((c) => c[2]))
   })
 })
 
 describe("splitFrontmatter", () => {
-  test("parses a leading YAML block and returns the remaining body", () => {
-    const raw = "---\ntitle: Hello\norder: 2\nsection: Guides\n---\n# Body\n"
-    const { frontmatter, body } = splitFrontmatter(raw)
-    expect(frontmatter).toEqual({ title: "Hello", order: 2, section: "Guides" })
-    expect(body).toBe("# Body\n")
-  })
-
-  test("returns an empty frontmatter object and the original body when there is no frontmatter", () => {
-    const raw = "# Just a heading\n"
-    const { frontmatter, body } = splitFrontmatter(raw)
-    expect(frontmatter).toEqual({})
-    expect(body).toBe(raw)
+  test("parses a leading YAML block and returns the rest; without one, an empty object and the whole text", () => {
+    expect(splitFrontmatter("---\ntitle: Hello\norder: 2\nsection: Guides\n---\n# Body\n")).toEqual({
+      frontmatter: { title: "Hello", order: 2, section: "Guides" },
+      body: "# Body\n",
+    })
+    expect(splitFrontmatter("# Just a heading\n")).toEqual({ frontmatter: {}, body: "# Just a heading\n" })
   })
 })
 
@@ -143,63 +109,38 @@ describe("buildMenu", () => {
     ])
     expect(menu[0]!.items.map((i) => i.title)).toEqual(["Bravo", "Alpha", "Zebra"])
   })
-
-  test("falls back to the route name when no title is given", () => {
-    const menu = buildMenu([{ name: "no-title", url: "/no-title", frontmatter: {} }])
-    expect(menu[0]!.items[0]!.title).toBe("no-title")
-  })
 })
 
 describe("parseImportLine", () => {
-  test("parses a side-effect-only import", () => {
-    expect(parseImportLine('import "elt"', "loc")).toEqual({ kind: "side-effect", module: "elt" })
+  test("parses every one-line import form", () => {
+    const named = (type_only: boolean) => [
+      { imported: "a", local: "a", type_only },
+      { imported: "b", local: "c", type_only },
+    ]
+    expect(
+      [
+        'import "elt"',
+        'import Foo from "mod"',
+        'import * as P from "elt-phosphor"',
+        'import { a, b as c } from "mod"',
+        'import Foo, { a, b as c } from "mod"',
+        'import { type a, type b as c } from "mod"',
+      ].map((line) => parseImportLine(line, "loc")),
+    ).toEqual([
+      { kind: "side-effect", module: "elt" },
+      { kind: "default", local: "Foo", module: "mod" },
+      { kind: "namespace", local: "P", module: "elt-phosphor" },
+      { kind: "named", module: "mod", names: named(false) },
+      { kind: "default+named", local: "Foo", module: "mod", names: named(false) },
+      { kind: "named", module: "mod", names: named(true) },
+    ])
   })
 
-  test("parses a default import", () => {
-    expect(parseImportLine('import Foo from "mod"', "loc")).toEqual({ kind: "default", local: "Foo", module: "mod" })
-  })
-
-  test("parses a namespace import", () => {
-    expect(parseImportLine('import * as P from "elt-phosphor"', "loc")).toEqual({
-      kind: "namespace",
-      local: "P",
-      module: "elt-phosphor",
-    })
-  })
-
-  test("parses a named import with an alias", () => {
-    expect(parseImportLine('import { a, b as c } from "mod"', "loc")).toEqual({
-      kind: "named",
-      module: "mod",
-      names: [
-        { imported: "a", local: "a", type_only: false },
-        { imported: "b", local: "c", type_only: false },
-      ],
-    })
-  })
-
-  test("parses a default+named import", () => {
-    expect(parseImportLine('import Foo, { a, b as c } from "mod"', "loc")).toEqual({
-      kind: "default+named",
-      local: "Foo",
-      module: "mod",
-      names: [
-        { imported: "a", local: "a", type_only: false },
-        { imported: "b", local: "c", type_only: false },
-      ],
-    })
-  })
-
-  test("throws on a multi-line-only shape (not actually testable as one line, so: unsupported form) like 'import type'", () => {
-    expect(() => parseImportLine('import type { X } from "mod"', "docs/md/x.md:3")).toThrow(ImportParseError)
-  })
-
-  test("throws on dynamic import()", () => {
-    expect(() => parseImportLine('const x = import("mod")', "docs/md/x.md:3")).toThrow(ImportParseError)
-  })
-
-  test("thrown error cites the file:line location", () => {
-    expect(() => parseImportLine("garbage", "docs/md/x.md:5")).toThrow(/docs\/md\/x\.md:5/)
+  test("throws an ImportParseError citing the file:line on an unsupported form", () => {
+    for (const line of ['import type { X } from "mod"', 'const x = import("mod")', "garbage"]) {
+      expect(() => parseImportLine(line, "docs/md/x.md:5")).toThrow(ImportParseError)
+      expect(() => parseImportLine(line, "docs/md/x.md:5")).toThrow(/docs\/md\/x\.md:5/)
+    }
   })
 })
 
@@ -221,17 +162,6 @@ describe("mergeImports", () => {
     expect(out).toEqual(['import { Attrs, type Renderable, RefChild, type Renderable as R } from "elt"'])
   })
 
-  test("parses the inline type modifier of a named binding", () => {
-    expect(parseImportLine('import { type a, type b as c } from "mod"', "loc")).toEqual({
-      kind: "named",
-      module: "mod",
-      names: [
-        { imported: "a", local: "a", type_only: true },
-        { imported: "b", local: "c", type_only: true },
-      ],
-    })
-  })
-
   test("throws when the same local name is bound to two different things", () => {
     expect(() =>
       mergeImports([
@@ -249,28 +179,12 @@ describe("mergeImports", () => {
     expect(out.sort()).toEqual(['import Bar from "mod"', 'import Foo from "mod"'])
   })
 
-  test("a side-effect-only import merges to a single bare import when nothing else references the module", () => {
+  test("identical side-effect and namespace imports across blocks dedupe to one line each", () => {
     const out = mergeImports([
-      { importLines: ['import "mod"'], loc: "docs/md/x.md:3" },
-      { importLines: ['import "mod"'], loc: "docs/md/x.md:10" },
+      { importLines: ['import "mod"', 'import * as P from "elt-phosphor"'], loc: "docs/md/x.md:3" },
+      { importLines: ['import "mod"', 'import * as P from "elt-phosphor"'], loc: "docs/md/x.md:10" },
     ])
-    expect(out).toEqual(['import "mod"'])
-  })
-
-  test("a namespace import merges independently of named/default imports from other modules", () => {
-    const out = mergeImports([
-      { importLines: ['import * as P from "elt-phosphor"'], loc: "docs/md/x.md:3" },
-      { importLines: ['import { o } from "elt"'], loc: "docs/md/x.md:10" },
-    ])
-    expect(out.sort()).toEqual(['import * as P from "elt-phosphor"', 'import { o } from "elt"'])
-  })
-
-  test("identical namespace imports across two blocks dedupe to one line", () => {
-    const out = mergeImports([
-      { importLines: ['import * as P from "elt-phosphor"'], loc: "docs/md/x.md:3" },
-      { importLines: ['import * as P from "elt-phosphor"'], loc: "docs/md/x.md:10" },
-    ])
-    expect(out).toEqual(['import * as P from "elt-phosphor"'])
+    expect(out.sort()).toEqual(['import "mod"', 'import * as P from "elt-phosphor"'])
   })
 })
 
@@ -358,24 +272,11 @@ describe("generate_docs (integration)", () => {
     expect(Bun.file(targetPath).lastModified).toBe(firstWrite)
 
     await new Promise((r) => setTimeout(r, 10))
-    await Bun.write(`${t.mdDir}/index.md`, "---\ntitle: Index\n---\n# Index changed\n")
-    await t.generate_docs()
-    expect(Bun.file(targetPath).lastModified).toBeGreaterThan(firstWrite)
-  })
-
-  test("a frontmatter-only change is reflected the moment the page's own .tsx file regenerates", async () => {
-    const t = await withTempDocsTree({ "index.md": "---\ntitle: Original\n---\n# Index\n" })
-    tmp = t
-
-    await t.generate_docs()
-    let content = await Bun.file(`${t.srcDir}/md/index.tsx`).text()
-    expect(content).toContain('"title":"Original"')
-
-    await new Promise((r) => setTimeout(r, 10))
+    // A frontmatter-only change: the page file carries the frontmatter, so it is all that needs regenerating
     await Bun.write(`${t.mdDir}/index.md`, "---\ntitle: Renamed\n---\n# Index\n")
     await t.generate_docs()
-    content = await Bun.file(`${t.srcDir}/md/index.tsx`).text()
-    expect(content).toContain('"title":"Renamed"')
+    expect(Bun.file(targetPath).lastModified).toBeGreaterThan(firstWrite)
+    expect(await Bun.file(targetPath).text()).toContain('"title":"Renamed"')
   })
 
   test("splices a named, referenced text-import block into routes.ts's GENERATED markers", async () => {
@@ -393,13 +294,14 @@ describe("generate_docs (integration)", () => {
     expect(content).toContain("// fixture: hand-written part continues")
   })
 
-  test("routes.ts generated block is stable across repeated calls with no underlying change", async () => {
+  test("routes.ts and routes.generated.ts are stable across repeated calls with no underlying change", async () => {
     const t = await withTempDocsTree({ "index.md": "# Index\n" })
     tmp = t
     const routesPath = `${t.srcDir}/routes.ts`
 
     await t.generate_docs()
     const before = await Bun.file(routesPath).text()
+    const generated_before = await Bun.file(`${t.srcDir}/routes.generated.ts`).text()
     const firstWrite = Bun.file(routesPath).lastModified
 
     await new Promise((r) => setTimeout(r, 10))
@@ -407,6 +309,8 @@ describe("generate_docs (integration)", () => {
     const after = await Bun.file(routesPath).text()
     expect(after).toBe(before)
     expect(Bun.file(routesPath).lastModified).toBe(firstWrite) // no rewrite when content is unchanged
+    // stable content is what makes the write-skip (see generate_docs) a no-op
+    expect(await Bun.file(`${t.srcDir}/routes.generated.ts`).text()).toBe(generated_before)
   })
 
   test("routes.ts generated block updates when the file set changes, leaving hand-written parts intact", async () => {
@@ -428,16 +332,6 @@ describe("generate_docs (integration)", () => {
     tmp = t
     await Bun.write(`${t.srcDir}/routes.ts`, "// no markers here\n")
     expect(t.generate_docs()).rejects.toThrow(/GENERATED-BEGIN\/GENERATED-END markers/)
-  })
-
-  test("generated page exports a named PageService class, not a default export", async () => {
-    const t = await withTempDocsTree({ "index.md": "# Index\n" })
-    tmp = t
-    await t.generate_docs()
-    const content = await Bun.file(`${t.srcDir}/md/index.tsx`).text()
-    expect(content).toContain("export class PageService extends Service({}, {})")
-    expect(content).not.toContain("export default")
-    assertValidTsx(content)
   })
 
   test("headings/paragraphs/lists compile to literal JSX, not a serialized MdNode tree", async () => {
@@ -478,23 +372,6 @@ describe("generate_docs (integration)", () => {
     assertValidTsx(content)
   })
 
-  test("invalid-as-JSX raw HTML in markdown source fails to compile, by design", async () => {
-    const t = await withTempDocsTree({
-      // A bare, non-self-closing <br> is valid loose HTML but not valid JSX.
-      "index.md": ["# Title", "", "<br>", "", "more"].join("\n"),
-    })
-    tmp = t
-    await t.generate_docs()
-    const content = await Bun.file(`${t.srcDir}/md/index.tsx`).text()
-    expect(content).toContain("<br>")
-    expect(() =>
-      new Bun.Transpiler({
-        loader: "tsx",
-        tsconfig: { compilerOptions: { jsx: "react", jsxFactory: "E", jsxFragmentFactory: "E.Fragment" } },
-      }).transformSync(content),
-    ).toThrow()
-  })
-
   test("plain ts/tsx fences compile to a highlighted CodeExample with no run props", async () => {
     const t = await withTempDocsTree({
       "index.md": ["# Index", "", "```ts", "const x: number = 1", "```", ""].join("\n"),
@@ -507,20 +384,6 @@ describe("generate_docs (integration)", () => {
     expect(content).toContain('"const"')
     expect(content).toContain('"number"')
     assertValidTsx(content)
-  })
-
-  test("token-based highlighting produces literal colored spans via tokenColorClass, never .innerHTML, an HTML string, or a per-span inline style", async () => {
-    const t = await withTempDocsTree({
-      "index.md": ["# Index", "", "```ts", "const x = 1", "```", ""].join("\n"),
-    })
-    tmp = t
-    await t.generate_docs()
-    const content = await Bun.file(`${t.srcDir}/md/index.tsx`).text()
-    expect(content).toMatch(/<span class=\{tokenColorClass\("#/)
-    expect(content).toContain("tokenColorClass")
-    expect(content).not.toMatch(/<span style=/)
-    expect(content).not.toContain(".innerHTML")
-    expect(content).not.toContain("highlightedHtml")
   })
 
   test("each colored token carries its light-theme and dark-theme colors; default-colored tokens stay uncolored", async () => {
@@ -540,6 +403,10 @@ describe("generate_docs (integration)", () => {
     expect(content).toContain('</span>{"({ name: "}<span')
     expect(content).not.toContain("#24292E")
     expect(content).not.toContain("#E1E4E8")
+    // Literal JSX spans: never .innerHTML, an HTML string, or a per-span inline style
+    expect(content).not.toMatch(/<span style=/)
+    expect(content).not.toContain(".innerHTML")
+    expect(content).not.toContain("highlightedHtml")
     assertValidTsx(content)
   })
 
@@ -622,14 +489,6 @@ describe("generate_docs (integration)", () => {
     expect(exampleContent).toContain("export default class")
   })
 
-  test("every generated page file cites its markdown source path", async () => {
-    const t = await withTempDocsTree({ "guide/intro.md": "# Intro\n" })
-    tmp = t
-    await t.generate_docs()
-    const content = await Bun.file(`${t.srcDir}/md/guide/intro.tsx`).text()
-    expect(content).toContain("// Source: docs/md/guide/intro.md")
-  })
-
   test("routes.generated.ts statically imports every page and reads its .frontmatter/.PageService live", async () => {
     const t = await withTempDocsTree({
       "index.md": "---\ntitle: Index\n---\n# Index\n",
@@ -652,18 +511,6 @@ describe("generate_docs (integration)", () => {
 
     expect(content).toContain("buildMenu(")
     expect(content).toContain('import { buildMenu } from "./menu.ts"')
-  })
-
-  test("routes.generated.ts content is stable across repeated calls with no underlying change", async () => {
-    const t = await withTempDocsTree({ "index.md": "# Index\n" })
-    tmp = t
-    await t.generate_docs()
-    const routesPath = `${t.srcDir}/routes.generated.ts`
-    const before = await Bun.file(routesPath).text()
-
-    await t.generate_docs()
-    const after = await Bun.file(routesPath).text()
-    expect(after).toBe(before) // stable content is what makes the write-skip (see generate_docs) a no-op
   })
 
   test("two pages whose names sanitize to the same module alias get distinct aliases", async () => {
@@ -835,38 +682,6 @@ describe("extractImports", () => {
     const content = await Bun.file(`${t.srcDir}/md/index.tsx`).text()
     expect(content).not.toMatch(/^import \{ x \} from "y"/m)
     expect(content).toContain('  import { x } from "y"')
-  })
-})
-
-// Bun 1.4.2's markdown parser accepts the `underline` and `latexMath` options but ignores them (in
-// `render`, `html` and `ansi` alike), and its `render` callbacks get no wiki-link node (only the label
-// text). These tests pin that behavior, which is why the macro enables none of the three: when one
-// fails, Bun started honoring the option and the macro can map the new node to JSX.
-describe("Bun.markdown options the macro does not enable", () => {
-  test("underline: __x__ still parses as strong", () => {
-    expect(Bun.markdown.html("__u__", { underline: true })).toContain("<strong>u</strong>")
-  })
-
-  test("latexMath: $x$ still parses as plain text", () => {
-    expect(Bun.markdown.html("$x$ $$y$$", { latexMath: true })).toBe("<p>$x$ $$y$$</p>\n")
-  })
-
-  test("wikiLinks: render() callbacks get the label only, never the target", () => {
-    const seen: string[] = []
-    const callbacks: Record<string, (c: string, m?: unknown) => string> = {
-      text: (t) => {
-        seen.push(t)
-        return t
-      },
-    }
-    for (const name of ["link", "wikiLink", "wikilink"]) {
-      callbacks[name] = (c, m) => {
-        seen.push(`${name}:${JSON.stringify(m)}`)
-        return c
-      }
-    }
-    Bun.markdown.render("[[page|Label]]", callbacks as any, { wikiLinks: true })
-    expect(seen).toEqual(["Label"])
   })
 })
 

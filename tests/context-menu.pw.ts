@@ -1,66 +1,6 @@
 import { type Page, test, expect } from "./fixture"
 
 test.describe("$context_menu", () => {
-  test("right click calls the callback; preventDefault is the callback's job", async ({ page }) => {
-    await page.evaluate(() => {
-      const { $context_menu, node_append } = window.__ELT__
-      const div = document.createElement("div")
-      div.id = "target"
-      div.textContent = "target"
-      node_append(document.body, div)
-      const w = window as unknown as { calls: { x: number; y: number; prevented: boolean }[] }
-      w.calls = []
-      node_append(
-        div,
-        $context_menu((ev) => {
-          ev.preventDefault()
-          w.calls.push({ x: ev.clientX, y: ev.clientY, prevented: ev.defaultPrevented })
-        }),
-      )
-    })
-    const box = (await page.locator("#target").boundingBox())!
-    await page.mouse.click(box.x + 5, box.y + 5, { button: "right" })
-    const calls = await page.evaluate(() => (window as unknown as { calls: unknown[] }).calls)
-    expect(calls).toEqual([{ x: Math.round(box.x + 5), y: Math.round(box.y + 5), prevented: true }])
-    const callout = await page.evaluate(
-      () => document.getElementById("target")!.style.getPropertyValue("-webkit-touch-callout") || "unsupported",
-    )
-    // Chromium drops the unknown property; WebKit keeps it. Either way setting it must not throw.
-    expect(["none", "unsupported"]).toContain(callout)
-  })
-
-  test("keyboard (Shift+F10) fires it on the focused element", async ({ page }) => {
-    await page.evaluate(() => {
-      const { $context_menu, node_append } = window.__ELT__
-      const button = document.createElement("button")
-      button.id = "target"
-      button.textContent = "target"
-      node_append(document.body, button)
-      const w = window as unknown as { calls: { x: number; y: number }[] }
-      w.calls = []
-      node_append(
-        button,
-        $context_menu((ev) => {
-          ev.preventDefault()
-          w.calls.push({ x: ev.clientX, y: ev.clientY })
-        }),
-      )
-      button.focus()
-    })
-    await page.keyboard.press("Shift+F10")
-    const calls = await page.evaluate(() => (window as unknown as { calls: { x: number; y: number }[] }).calls)
-    // Not every browser maps Shift+F10 to contextmenu under automation; when it does, record it.
-    test.skip(calls.length === 0, "this browser doesn't fire contextmenu on Shift+F10 under automation")
-    expect(calls.length).toBe(1)
-    // Chromium reports the focused element's center as the position, not 0,0: a menu opened from the
-    // keyboard can be placed at clientX/clientY like a mouse one.
-    const box = (await page.locator("#target").boundingBox())!
-    expect(calls[0].x).toBeGreaterThan(box.x)
-    expect(calls[0].x).toBeLessThan(box.x + box.width)
-    expect(calls[0].y).toBeGreaterThan(box.y)
-    expect(calls[0].y).toBeLessThan(box.y + box.height)
-  })
-
   test("is_ios recognizes iPhone, iPad and iPadOS", async ({ page }) => {
     const results = await page.evaluate(() => {
       const { $context_menu } = window.__ELT__

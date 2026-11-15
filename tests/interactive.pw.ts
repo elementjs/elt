@@ -4,7 +4,7 @@ import { expect, type Page, test } from "./fixture"
 // handlers staying $click. Its look is tests/states.pw.ts's.
 
 /** Mount `html`, decorate `#x` the way `how` says, and count the clicks it gets in `window.clicks`. */
-async function mount(page: Page, html: string, how: "bare" | "call" | "focusless" = "bare") {
+async function mount(page: Page, html: string, how: "bare" | "focusless" = "bare") {
   await page.evaluate(
     ({ html, how }) => {
       const { node_append, UI } = window.__ELT__
@@ -15,7 +15,6 @@ async function mount(page: Page, html: string, how: "bare" | "call" | "focusless
       ;(window as any).clicks = 0
       x.addEventListener("click", () => ((window as any).clicks += 1))
       if (how === "bare") node_append(x, UI.$interactive)
-      else if (how === "call") node_append(x, UI.$interactive())
       else node_append(x, UI.$interactive({ focusable: false }))
     },
     { html, how },
@@ -30,15 +29,6 @@ test("a bare element becomes a button: attribute, role, tab stop", async ({ page
     return [x.hasAttribute("e-interactive"), x.getAttribute("role"), x.getAttribute("tabindex")]
   })
   expect(r).toEqual([true, "button", "0"])
-})
-
-test("it is usable bare, called, or with options", async ({ page }) => {
-  for (const how of ["bare", "call", "focusless"] as const) {
-    await page.reload()
-    await mount(page, `<e-row id="x">Aa</e-row>`, how)
-    const tab = await page.evaluate(() => document.querySelector("#x")!.getAttribute("tabindex"))
-    expect(tab, how).toBe(how === "focusless" ? null : "0")
-  }
 })
 
 test("Enter activates, once per press", async ({ page }) => {

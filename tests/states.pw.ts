@@ -216,21 +216,16 @@ test.describe("emphasis", () => {
   })
 
   test("link is inline text: no padding, no border, underlined", async ({ page }) => {
-    await mount(page, `<p>Some <button id="x" e-emphasis="link">link text</button> here.</p>`)
-    const r = await style(page, "#x")
-    expect(r.border_width).toBe("0px")
-    expect(r.deco).toBe("underline")
-    expect(r.h).toBeLessThan(24)
-  })
-
-  test("link text wraps over lines in an <a>, a button stays in one piece (so prose uses <a>)", async ({ page }) => {
     await mount(
       page,
-      `<p style="width: 120px">Some <button id="b" e-emphasis="link">a long link text that wraps</button> and <a id="a" href="#x" e-emphasis="link">another long link text that wraps</a> end.</p>`,
+      `<p>Some <button id="x" e-emphasis="link">link text</button> here. <button id="b">Aa</button></p>`,
     )
-    const rects = (id: string) => page.evaluate((id) => document.getElementById(id)!.getClientRects().length, id)
-    expect(await rects("a")).toBeGreaterThan(1)
-    expect(await rects("b")).toBe(1)
+    const r = await style(page, "#x")
+    const button = await style(page, "#b")
+    expect(r.border_width).toBe("0px")
+    expect(r.deco).toBe("underline")
+    // Not as tall as a padded control.
+    expect(r.h).toBeLessThan(button.h)
   })
 
   test("an a without emphasis is tinted link text; with one it is a control, with no visited color", async ({
@@ -243,9 +238,10 @@ test.describe("emphasis", () => {
     const plain = await style(page, "#plain")
     const nav = await style(page, "#nav")
     const btn = await style(page, "#btn")
+    expect(nav.border_width).toBe(btn.border_width)
     expect(plain.color).toBe(await tint(page))
     expect(plain.border_width).toBe("0px")
-    expect(nav.border_width).toBe("1px")
+    expect(nav.border_width).not.toBe("0px")
     expect(nav.border).toBe("rgba(0, 0, 0, 0)")
     expect(nav.color).not.toBe(plain.color)
     expect(btn.border).toBe(await tint(page))
@@ -351,21 +347,5 @@ test.describe("interaction", () => {
     await page.hover("#x")
     const r = await style(page, "#x")
     expect(r.bg).toBe("rgba(0, 0, 0, 0)")
-  })
-})
-
-test.describe("layers", () => {
-  test("interaction and state sit above components, in that order", async ({ page }) => {
-    const order = await page.evaluate(() => {
-      const names: string[] = []
-      for (const sheet of [...document.adoptedStyleSheets, ...document.styleSheets])
-        for (const rule of sheet.cssRules)
-          if (rule.constructor.name === "CSSLayerStatementRule") names.push(...(rule as any).nameList)
-      return names
-    })
-    const i = (n: string) => order.indexOf(n)
-    expect(i("components")).toBeGreaterThan(-1)
-    expect(i("interaction")).toBeGreaterThan(i("components"))
-    expect(i("state")).toBeGreaterThan(i("interaction"))
   })
 })

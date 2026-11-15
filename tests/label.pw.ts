@@ -99,12 +99,6 @@ test.describe("packed", () => {
     })
   }
 
-  test("the fill marks it, so its text is not bold", async ({ page }) => {
-    await mount(page, `<e-row packed><span id="l" e-widget="label">Key</span><input></e-row><span id="t">Value</span>`)
-    const [l, t] = await Promise.all(["#l", "#t"].map((sel) => style(page, sel, ["font-weight"])))
-    expect(l!["font-weight"]).toBe(t!["font-weight"])
-  })
-
   test("the fill is one level above the ambient surface, in the neutral family", async ({ page }) => {
     await mount(
       page,
@@ -112,19 +106,46 @@ test.describe("packed", () => {
        <e-column surface="neutral-2"><e-row packed><span id="l2" e-widget="label">a</span></e-row></e-column>
        <e-column surface="tint-2"><e-row packed><span id="l3" e-widget="label">a</span></e-row></e-column>`,
     )
-    const [a, b, c] = await Promise.all(["#l1", "#l2", "#l3"].map((sel) => style(page, sel, ["background-color"])))
+    // Each label against a probe beside it painted with the neutral family one level above the ambient one.
+    const r = await page.evaluate(() =>
+      ["#l1", "#l2", "#l3"].map((sel) => {
+        const label = document.querySelector(sel)!
+        const probe = document.createElement("div")
+        probe.style.backgroundColor = window.__ELT__.UI.theme.colors.neutral.surface("n+1")
+        label.after(probe)
+        const out = { fill: getComputedStyle(label).backgroundColor, ref: getComputedStyle(probe).backgroundColor }
+        probe.remove()
+        return out
+      }),
+    )
+    for (const { fill, ref } of r) expect(fill).toBe(ref)
     // Higher up the stack, a different fill; a tinted ambient surface does not tint the label's.
-    expect(a!["background-color"]).not.toBe(b!["background-color"])
-    expect(b!["background-color"]).not.toBe("rgba(0, 0, 0, 0)")
-    expect(c!["background-color"]).not.toBe("rgba(0, 0, 0, 0)")
+    expect(r[0]!.fill).not.toBe(r[1]!.fill)
+    expect(r[2]!.fill).toBe(r[1]!.fill)
   })
 
   test("the label's text is centered like a plain text cell's", async ({ page }) => {
     await mount(
       page,
-      `<e-grid packed="nudge-4" border><e-grid-row><span id="l" e-widget="label">Key</span><button id="b">Edit</button></e-grid-row></e-grid>`,
+      `<e-grid columns="3" packed="nudge-4" border><e-grid-row><span id="l" e-widget="label">Key</span><span id="t">Value</span><button id="b">Edit<br />Edit</button></e-grid-row></e-grid>`,
     )
-    const r = await style(page, "#l", ["align-content"])
-    expect(r["align-content"]).toBe("safe center")
+    // The middle of each cell's text against the middle of its cell; the button's two lines make the row taller.
+    const r = await page.evaluate(() =>
+      ["#l", "#t"].map((sel) => {
+        const cell = document.querySelector(sel)!
+        const range = document.createRange()
+        range.selectNodeContents(cell)
+        const text = range.getBoundingClientRect()
+        const box = cell.getBoundingClientRect()
+        return {
+          offset: (text.top + text.bottom) / 2 - (box.top + box.bottom) / 2,
+          taller: box.height > 1.5 * text.height,
+        }
+      }),
+    )
+    const [label, plain] = r
+    expect(label!.taller).toBe(true)
+    expect(Math.abs(label!.offset)).toBeLessThan(1)
+    expect(label!.offset).toBeCloseTo(plain!.offset, 1)
   })
 })

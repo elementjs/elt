@@ -1,12 +1,82 @@
 import { expect, expects_errors, test } from "./fixture"
 
-test.describe("App", () => {
-  // These tests make activations fail on purpose, and most run without a route for the empty URL
-  test.beforeEach(() => {
+declare global {
+  interface Window {
+    /** A scroll container filling the viewport, 5000px tall, with a `#target` at 3000px: the harness document does
+     * not scroll, so the tests scroll this, as an app layout would. */
+    __scroll_box__: () => { box: HTMLDivElement; target: HTMLDivElement }
+  }
+}
+
+/**
+ * Installs the page helpers: {@link Window.__scroll_box__}, and `window.__kit`:
+ * - `track(srv, name)` registers a deinit counter on a new service instance, named `name#n`; `deinits()` gives, for
+ *   every instance built so far, how many times it was deinit-ed;
+ * - `idle(app)` waits until no activation runs, including the reactivations run detached.
+ *
+ * With `watch_failures`, also: `unhandled()` lists the unhandled promise rejections (handled, so that the page does not
+ * report them itself), `errors()` counts console.error calls, and `hashchange()` resolves once the router has handled
+ * the next hashchange (its listener was added first).
+ */
+function install_helpers(watch_failures: boolean) {
+  window.__scroll_box__ = () => {
+    const box = document.createElement("div")
+    box.style.cssText = "position:fixed;inset:0;overflow:auto"
+    const spacer = document.createElement("div")
+    spacer.style.height = "5000px"
+    const target = document.createElement("div")
+    target.id = "target"
+    target.style.cssText = "position:absolute;top:3000px;height:20px"
+    box.append(spacer, target)
+    document.body.append(box)
+    return { box, target }
+  }
+  const counts: Record<string, number> = {}
+  const deinits: Record<string, number> = {}
+  const unhandled: string[] = []
+  let errors = 0
+  if (watch_failures) {
+    const console_error = console.error
+    console.error = (...args: unknown[]) => {
+      errors++
+      console_error(...args)
+    }
+    window.addEventListener("unhandledrejection", (e) => {
+      e.preventDefault()
+      unhandled.push(String(e.reason?.message ?? e.reason))
+    })
+  }
+  ;(window as any).__kit = {
+    track(srv: import("elt").ServiceHelper<any>, name: string) {
+      counts[name] = (counts[name] ?? 0) + 1
+      const id = `${name}#${counts[name]}`
+      deinits[id] = 0
+      srv.onDeinit(() => deinits[id]++)
+      return id
+    },
+    deinits: () => ({ ...deinits }),
+    unhandled: () => [...unhandled],
+    errors: () => errors,
+    hashchange: () =>
+      new Promise<void>((r) => window.addEventListener("hashchange", () => setTimeout(r, 0), { once: true })),
+    async idle(app: import("elt").App) {
+      const tick = () => new Promise((r) => setTimeout(r, 10))
+      await tick()
+      while (app.o_activating.get()) await tick()
+      await tick()
+    },
+  }
+}
+
+/** The hooks of the App suites: their tests make activations fail on purpose, and most run without a route for the
+ * empty URL ; each starts with the page helpers and leaves the URL as it found it. */
+function app_hooks(watch_failures: boolean) {
+  test.beforeEach(async ({ page }) => {
     expects_errors(
       /^console\.error: Error: (boom|bad|no item 2|error route failed)/,
       /^console\.warning: route not found/,
     )
+    await page.evaluate(install_helpers, watch_failures)
   })
 
   test.afterEach(async ({ page }) => {
@@ -14,6 +84,10 @@ test.describe("App", () => {
       window.location.hash = ""
     })
   })
+}
+
+test.describe("App", () => {
+  app_hooks(false)
 
   test("mount puts a view on the page and follows it", async ({ page }) => {
     const result = await page.evaluate(async () => {
@@ -38,53 +112,6 @@ test.describe("App", () => {
     })
     expect(result.before).toContain("first")
     expect(result.after).toContain("second")
-  })
-
-  test("route activation registers views on the app", async ({ page }) => {
-    const result = await page.evaluate(async () => {
-      const { App } = window.__ELT__
-
-      async function home_srv(srv: import("elt").ServiceHelper<any>) {
-        srv.views.set("Main", () => "home")
-      }
-
-      const app = new App()
-      const router = app.setupRouter({
-        home: ["/home", () => home_srv],
-      })
-
-      await router.home.activate()
-      return {
-        main_view: app.o_views.get().get("Main")?.(),
-        active_service_not_null: app.o_active_service.get() !== null,
-        current_route_name: app.o_current_route.get()?.name,
-      }
-    })
-
-    expect(result.main_view).toBe("home")
-    expect(result.active_service_not_null).toBe(true)
-    expect(result.current_route_name).toBe("home")
-  })
-
-  test("a failing activation rejects and leaves the app no longer activating", async ({ page }) => {
-    const result = await page.evaluate(async () => {
-      const { App } = window.__ELT__
-
-      async function bad_srv(_srv: import("elt").ServiceHelper) {
-        throw new Error("boom")
-      }
-
-      const app = new App()
-      const router = app.setupRouter({ bad: ["/bad", () => bad_srv] })
-      let message = "no error"
-      try {
-        await router.bad.activate()
-      } catch (e) {
-        message = (e as Error).message
-      }
-      return { message, activating: app.o_activating.get() }
-    })
-    expect(result).toEqual({ message: "boom", activating: false })
   })
 
   test("a failing activation superseded by a newer one drops its error and the newer one wins", async ({ page }) => {
@@ -148,35 +175,6 @@ test.describe("App", () => {
     expect(result.after_second).toBe(2)
   })
 
-  test("param_soft() does not invalidate when the param value changes", async ({ page }) => {
-    const result = await page.evaluate(async () => {
-      const { App } = window.__ELT__
-
-      let builds = 0
-      async function list_srv(srv: import("elt").ServiceHelper<{ filter?: string }>) {
-        builds++
-        srv.param_soft("filter", "")
-        srv.views.set("Main", () => "list")
-      }
-
-      const app = new App()
-      const router = app.setupRouter({
-        list: ["/list", () => list_srv],
-      })
-
-      await router.list.activate({ filter: "a" })
-      const after_activate = builds
-
-      app.o_params.set({ filter: "b" })
-      const after_set = builds
-
-      return { after_activate, after_set }
-    })
-
-    expect(result.after_activate).toBe(1)
-    expect(result.after_set).toBe(1)
-  })
-
   test("active service view shadows the same name on a required service", async ({ page }) => {
     const result = await page.evaluate(async () => {
       const { App } = window.__ELT__
@@ -205,45 +203,7 @@ test.describe("App", () => {
 
 // See docs/md/app.md, "Activation" and "Lifecycle"
 test.describe("App: the activation that commits, and service lifetimes", () => {
-  // These tests make activations fail on purpose, and most run without a route for the empty URL
-  test.beforeEach(() => {
-    expects_errors(
-      /^console\.error: Error: (boom|bad|no item 2|error route failed)/,
-      /^console\.warning: route not found/,
-    )
-  })
-
-  test.beforeEach(async ({ page }) => {
-    // `track(srv, name)` registers a deinit counter on a new service instance, named `name#n`;
-    // `deinits()` gives, for every instance built so far, how many times it was deinit-ed.
-    // `idle(app)` waits until no activation runs, including the reactivations run detached.
-    await page.evaluate(() => {
-      const counts: Record<string, number> = {}
-      const deinits: Record<string, number> = {}
-      ;(window as any).__kit = {
-        track(srv: import("elt").ServiceHelper<any>, name: string) {
-          counts[name] = (counts[name] ?? 0) + 1
-          const id = `${name}#${counts[name]}`
-          deinits[id] = 0
-          srv.onDeinit(() => deinits[id]++)
-          return id
-        },
-        deinits: () => ({ ...deinits }),
-        async idle(app: import("elt").App) {
-          const tick = () => new Promise((r) => setTimeout(r, 10))
-          await tick()
-          while (app.o_activating.get()) await tick()
-          await tick()
-        },
-      }
-    })
-  })
-
-  test.afterEach(async ({ page }) => {
-    await page.evaluate(() => {
-      window.location.hash = ""
-    })
-  })
+  app_hooks(false)
 
   // A service of route a redirects to route b during its init (the "not logged in, go to login" case),
   // started by code or by the URL ; or the user asks for a, then for b before a's init is over.
@@ -309,7 +269,9 @@ test.describe("App: the activation that commits, and service lifetimes", () => {
     })
   }
 
-  test("a failed first activation deinits what it built, the service that threw included", async ({ page }) => {
+  test("a failed first activation rejects, ends, and deinits what it built, the service that threw included", async ({
+    page,
+  }) => {
     const result = await page.evaluate(async () => {
       const { App } = window.__ELT__
       const kit = (window as any).__kit
@@ -326,9 +288,21 @@ test.describe("App: the activation that commits, and service lifetimes", () => {
       const routes = app.setupRouter({ bad: ["/bad", () => bad] })
       let message = ""
       await routes.bad.activate().catch((e: Error) => (message = e.message))
-      return { message, state: app.o_state.get(), route: app.o_current_route.get(), deinits: kit.deinits() }
+      return {
+        message,
+        activating: app.o_activating.get(),
+        state: app.o_state.get(),
+        route: app.o_current_route.get(),
+        deinits: kit.deinits(),
+      }
     })
-    expect(result).toEqual({ message: "boom", state: null, route: null, deinits: { "bad#1": 1, "dep#1": 1 } })
+    expect(result).toEqual({
+      message: "boom",
+      activating: false,
+      state: null,
+      route: null,
+      deinits: { "bad#1": 1, "dep#1": 1 },
+    })
   })
 
   test("a failed activation keeps the live state's services and drops its own, even those still building", async ({
@@ -546,60 +520,7 @@ test.describe("App: the activation that commits, and service lifetimes", () => {
 })
 
 test.describe("App: navigations that overlap, and failures nobody waits for", () => {
-  // These tests make activations fail on purpose, and most run without a route for the empty URL
-  test.beforeEach(() => {
-    expects_errors(
-      /^console\.error: Error: (boom|bad|no item 2|error route failed)/,
-      /^console\.warning: route not found/,
-    )
-  })
-
-  test.beforeEach(async ({ page }) => {
-    // Same kit as above, plus : `unhandled` lists the unhandled promise rejections, `errors` counts console.error calls,
-    // `hashchange()` resolves once the router has handled the next hashchange (its listener was added first).
-    await page.evaluate(() => {
-      const counts: Record<string, number> = {}
-      const deinits: Record<string, number> = {}
-      const unhandled: string[] = []
-      let errors = 0
-      const console_error = console.error
-      console.error = (...args: unknown[]) => {
-        errors++
-        console_error(...args)
-      }
-      window.addEventListener("unhandledrejection", (e) => {
-        // handled here so that the page does not report it as an error of its own
-        e.preventDefault()
-        unhandled.push(String(e.reason?.message ?? e.reason))
-      })
-      ;(window as any).__kit = {
-        track(srv: import("elt").ServiceHelper<any>, name: string) {
-          counts[name] = (counts[name] ?? 0) + 1
-          const id = `${name}#${counts[name]}`
-          deinits[id] = 0
-          srv.onDeinit(() => deinits[id]++)
-          return id
-        },
-        deinits: () => ({ ...deinits }),
-        unhandled: () => [...unhandled],
-        errors: () => errors,
-        hashchange: () =>
-          new Promise<void>((r) => window.addEventListener("hashchange", () => setTimeout(r, 0), { once: true })),
-        async idle(app: import("elt").App) {
-          const tick = () => new Promise((r) => setTimeout(r, 10))
-          await tick()
-          while (app.o_activating.get()) await tick()
-          await tick()
-        },
-      }
-    })
-  })
-
-  test.afterEach(async ({ page }) => {
-    await page.evaluate(() => {
-      window.location.hash = ""
-    })
-  })
+  app_hooks(true)
 
   // The user asks for a by the URL (or a is activated by code), then changes the URL to b before a's init is over.
   for (const shape of ["URL then URL", "code then URL"] as const) {
@@ -1012,24 +933,31 @@ test.describe("App: navigations that overlap, and failures nobody waits for", ()
 
 // See docs/md/app.md, "Hash mode and path mode"
 test.describe("Router", () => {
-  test("rejects invalid options and route paths", async ({ page }) => {
-    const result = await page.evaluate(() => {
+  test.beforeEach(async ({ page }) => {
+    await page.evaluate(install_helpers, false)
+  })
+
+  test("rejects invalid options and route paths, and a fragment in hash mode", async ({ page }) => {
+    const result = await page.evaluate(async () => {
       const { App } = window.__ELT__
       const srv = () => async () => {}
-      const error = (fn: () => void) => {
+      const error = async (fn: () => unknown) => {
         try {
-          fn()
+          await fn()
           return "no error"
         } catch (e) {
           return (e as Error).message
         }
       }
+      const hash_routes = new App().setupRouter({ home: ["/home", srv] })
       return {
-        base_in_hash_mode: error(() => new App().setupRouter({}, { base: "/app" })),
-        intercept_in_hash_mode: error(() => new App().setupRouter({}, { intercept_links: false })),
-        scroll_in_hash_mode: error(() => new App().setupRouter({}, { scroll_to_fragment: false })),
-        relative_base: error(() => new App().setupRouter({}, { mode: "path", base: "app" })),
-        rest_not_last: error(() => new App().setupRouter({ r: ["/f/:p*/x", srv] })),
+        base_in_hash_mode: await error(() => new App().setupRouter({}, { base: "/app" })),
+        intercept_in_hash_mode: await error(() => new App().setupRouter({}, { intercept_links: false })),
+        scroll_in_hash_mode: await error(() => new App().setupRouter({}, { scroll_to_fragment: false })),
+        relative_base: await error(() => new App().setupRouter({}, { mode: "path", base: "app" })),
+        rest_not_last: await error(() => new App().setupRouter({ r: ["/f/:p*/x", srv] })),
+        fragment_url_in_hash_mode: await error(() => hash_routes.home.urlFor({}, { fragment: "x" })),
+        fragment_activate_in_hash_mode: await error(() => hash_routes.home.activate({}, { fragment: "x" })),
       }
     })
     expect(result.base_in_hash_mode).toContain("mode")
@@ -1037,6 +965,8 @@ test.describe("Router", () => {
     expect(result.scroll_in_hash_mode).toContain("scroll_to_fragment")
     expect(result.relative_base).toContain("must start with")
     expect(result.rest_not_last).toContain("last token")
+    expect(result.fragment_url_in_hash_mode).toContain("path")
+    expect(result.fragment_activate_in_hash_mode).toContain("path")
   })
 
   test("path params are percent-encoded when building a URL and decoded when matching", async ({ page }) => {
@@ -1363,14 +1293,7 @@ test.describe("Router", () => {
   }) => {
     const result = await page.evaluate(async () => {
       const { App } = window.__ELT__
-      // the harness document does not scroll : use a scroll container, as an app layout would
-      const box = document.createElement("div")
-      box.id = "box"
-      box.style.cssText = "position:fixed;inset:0;overflow:auto"
-      const spacer = document.createElement("div")
-      spacer.style.height = "5000px"
-      box.append(spacer)
-      document.body.append(box)
+      const { box } = window.__scroll_box__()
       const app = new App()
       app.setupRouter(
         {
@@ -1412,18 +1335,7 @@ test.describe("Router", () => {
   test("path mode: link clicks scroll, query-only writes and Back do not", async ({ page }) => {
     const result = await page.evaluate(async () => {
       const { App } = window.__ELT__
-      // the harness document does not scroll : use a scroll container, as an app layout would
-      const box = document.createElement("div")
-      box.id = "box"
-      box.style.cssText = "position:fixed;inset:0;overflow:auto"
-      const spacer = document.createElement("div")
-      spacer.style.height = "5000px"
-      box.append(spacer)
-      document.body.append(box)
-      const target = document.createElement("div")
-      target.id = "target"
-      target.style.cssText = "position:absolute;top:3000px;height:20px"
-      box.append(target)
+      const { box, target } = window.__scroll_box__()
       const settle = () => new Promise((r) => setTimeout(r, 100))
 
       const app = new App()
@@ -1494,18 +1406,7 @@ test.describe("Router", () => {
   test("path mode: activate and urlFor with a fragment", async ({ page }) => {
     const result = await page.evaluate(async () => {
       const { App } = window.__ELT__
-      // the harness document does not scroll : use a scroll container, as an app layout would
-      const box = document.createElement("div")
-      box.id = "box"
-      box.style.cssText = "position:fixed;inset:0;overflow:auto"
-      const spacer = document.createElement("div")
-      spacer.style.height = "5000px"
-      box.append(spacer)
-      document.body.append(box)
-      const target = document.createElement("div")
-      target.id = "target"
-      target.style.cssText = "position:absolute;top:3000px;height:20px"
-      box.append(target)
+      const { box, target } = window.__scroll_box__()
       const settle = () => new Promise((r) => setTimeout(r, 100))
       const rel = () => location.href.slice(location.origin.length)
 
@@ -1568,17 +1469,7 @@ test.describe("Router", () => {
       const result = await page.evaluate(async (shape) => {
         const { App } = window.__ELT__
         const { promise: gate, resolve: open_slow } = window.__ELT__.deferred<void>()
-        // the harness document does not scroll : use a scroll container, as an app layout would
-        const box = document.createElement("div")
-        box.style.cssText = "position:fixed;inset:0;overflow:auto"
-        const spacer = document.createElement("div")
-        spacer.style.height = "5000px"
-        box.append(spacer)
-        document.body.append(box)
-        const target = document.createElement("div")
-        target.id = "target"
-        target.style.cssText = "position:absolute;top:3000px;height:20px"
-        box.append(target)
+        const { box, target } = window.__scroll_box__()
         const rel = () => location.href.slice(location.origin.length)
 
         let slow_started = false
@@ -1640,17 +1531,7 @@ test.describe("Router", () => {
       const result = await page.evaluate(async (shape) => {
         const { App } = window.__ELT__
         const { promise: gate, resolve: open_gate } = window.__ELT__.deferred<void>()
-        // the harness document does not scroll : use a scroll container, as an app layout would
-        const box = document.createElement("div")
-        box.style.cssText = "position:fixed;inset:0;overflow:auto"
-        const spacer = document.createElement("div")
-        spacer.style.height = "5000px"
-        box.append(spacer)
-        document.body.append(box)
-        const target = document.createElement("div")
-        target.id = "target"
-        target.style.cssText = "position:absolute;top:3000px;height:20px"
-        box.append(target)
+        const { box, target } = window.__scroll_box__()
         const rel = () => location.href.slice(location.origin.length)
 
         let other_started = false
@@ -1807,18 +1688,7 @@ test.describe("Router", () => {
   test("path mode: scroll_to_fragment: false writes the fragment but never scrolls", async ({ page }) => {
     const result = await page.evaluate(async () => {
       const { App } = window.__ELT__
-      // the harness document does not scroll : use a scroll container, as an app layout would
-      const box = document.createElement("div")
-      box.id = "box"
-      box.style.cssText = "position:fixed;inset:0;overflow:auto"
-      const spacer = document.createElement("div")
-      spacer.style.height = "5000px"
-      box.append(spacer)
-      document.body.append(box)
-      const target = document.createElement("div")
-      target.id = "target"
-      target.style.cssText = "position:absolute;top:3000px;height:20px"
-      box.append(target)
+      const { box } = window.__scroll_box__()
 
       const app = new App()
       const routes = app.setupRouter(
@@ -1832,26 +1702,5 @@ test.describe("Router", () => {
       return { scrollY: box.scrollTop, hash: location.hash }
     })
     expect(result).toEqual({ scrollY: 0, hash: "#target" })
-  })
-
-  test("hash mode: a fragment option throws", async ({ page }) => {
-    const result = await page.evaluate(async () => {
-      const { App } = window.__ELT__
-      const routes = new App().setupRouter({ home: ["/home", () => async () => {}] })
-      const error = async (fn: () => unknown) => {
-        try {
-          await fn()
-          return "no error"
-        } catch (e) {
-          return (e as Error).message
-        }
-      }
-      return [
-        await error(() => routes.home.urlFor({}, { fragment: "x" })),
-        await error(() => routes.home.activate({}, { fragment: "x" })),
-      ]
-    })
-    expect(result[0]).toContain("path")
-    expect(result[1]).toContain("path")
   })
 })

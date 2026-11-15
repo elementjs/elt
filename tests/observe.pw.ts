@@ -1,7 +1,9 @@
 import { test, expect } from "./fixture"
 
 test.describe("$observe", () => {
-  test("starts observing when appended and stops after node_remove", async ({ page }) => {
+  test("starts observing when appended, stops after node_remove, and restarts when appended again", async ({
+    page,
+  }) => {
     const results = await page.evaluate(() => {
       const { o, $observe, node_append, node_remove, node_is_observing, node_is_connected } = window.__ELT__
       const out: { name: string; actual: unknown; expected: unknown }[] = []
@@ -30,6 +32,15 @@ test.describe("$observe", () => {
 
       obs.set(30)
       out.push({ name: "count unchanged after remove+set", actual: count, expected: 2 })
+
+      // Re-appending restarts observation, with the value missed while detached
+      node_append(document.body, el)
+      out.push({ name: "count after re-append", actual: count, expected: 3 })
+      out.push({ name: "observing after re-append", actual: node_is_observing(el), expected: true })
+
+      obs.set(40)
+      out.push({ name: "count after set post re-append", actual: count, expected: 4 })
+      node_remove(el)
 
       return out
     })
@@ -68,24 +79,6 @@ test.describe("$observe", () => {
       return out
     })
     for (const r of results) expect(r.actual, r.name).toBe(r.expected)
-  })
-
-  test("passes the decorated node as the third callback argument", async ({ page }) => {
-    const result = await page.evaluate(() => {
-      const { o, $observe, node_append, node_remove } = window.__ELT__
-      const obs = o("value")
-      let received: Node | null = null
-      const el = document.createElement("div")
-      $observe(obs, (_: unknown, __: unknown, node: Node) => {
-        received = node
-      })(el)
-
-      node_append(document.body, el)
-      const matches = received === el
-      node_remove(el)
-      return matches
-    })
-    expect(result).toBe(true)
   })
 
   test("nested observed descendants stop when an ancestor is removed", async ({ page }) => {
@@ -150,38 +143,6 @@ test.describe("$observe", () => {
 
       obs.set(2)
       out.push({ name: "count unchanged after set", actual: count, expected: 1 })
-
-      return out
-    })
-    for (const r of results) expect(r.actual, r.name).toBe(r.expected)
-  })
-
-  test("re-appending restarts observation", async ({ page }) => {
-    const results = await page.evaluate(() => {
-      const { o, $observe, node_append, node_remove, node_is_observing } = window.__ELT__
-      const out: { name: string; actual: unknown; expected: unknown }[] = []
-
-      const obs = o(1)
-      let count = 0
-      const el = document.createElement("div")
-      $observe(obs, () => {
-        count++
-      })(el)
-
-      node_append(document.body, el)
-      out.push({ name: "count after first append", actual: count, expected: 1 })
-
-      node_remove(el)
-      obs.set(2)
-      out.push({ name: "count unchanged after remove+set", actual: count, expected: 1 })
-
-      node_append(document.body, el)
-      out.push({ name: "count after re-append", actual: count, expected: 2 })
-      out.push({ name: "observing after re-append", actual: node_is_observing(el), expected: true })
-
-      obs.set(3)
-      out.push({ name: "count after set post re-append", actual: count, expected: 3 })
-      node_remove(el)
 
       return out
     })

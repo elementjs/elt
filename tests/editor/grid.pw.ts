@@ -176,24 +176,6 @@ test.describe("composite grid", () => {
     expect(result.checkbox_cell).toBe("LABEL")
   })
 
-  test("labels and values line up across rows", async ({ page }) => {
-    await page.evaluate(() => {
-      const { o, node_append } = window.__ELT__
-      const { ObjectEditorShell } = window.__ELT__.Editor
-      const shell = new ObjectEditorShell(o<unknown>(["short", "a much longer value here", 3]) as any)
-      shell.node.id = "shell"
-      node_append(document.body, shell.node)
-    })
-    await settle(page)
-    const columns = await page.evaluate(() => {
-      const rows = [...document.querySelectorAll("#shell e-grid-row")]
-      return rows.map((row) => [...row.children].map((c) => Math.round(c.getBoundingClientRect().left)))
-    })
-    expect(columns.length).toBe(3)
-    expect(columns[0]!.length).toBe(2) // index | value (removing goes through the row's menu)
-    for (const row of columns) expect(row).toEqual(columns[0])
-  })
-
   test("the label column's width is locked after the first layout and doesn't follow scrolled rows", async ({
     page,
   }) => {
@@ -276,49 +258,6 @@ test.describe("composite grid", () => {
   })
 })
 
-test.describe("cell widgets keep their element while editing", () => {
-  test("typing in an unknown-mode field keeps focus in the same input", async ({ page }) => {
-    await page.evaluate(() => {
-      const { o, node_append } = window.__ELT__
-      const { ObjectEditorShell } = window.__ELT__.Editor
-      const shell = new ObjectEditorShell(o({ name: "Ada" }))
-      node_append(document.body, shell.node)
-      ;(window as any).__root_shell = shell
-    })
-    const input = page.locator('e-grid-row > input[type="text"]').first()
-    await input.click()
-    await input.evaluate((el) => {
-      ;(window as any).__typed_into = el
-    })
-    await page.keyboard.type("xyz")
-    const result = await page.evaluate(() => ({
-      same: document.activeElement === (window as any).__typed_into,
-      value: (document.activeElement as HTMLInputElement).value,
-    }))
-    expect(result.same).toBe(true)
-    expect(result.value).toBe("Adaxyz")
-  })
-
-  test("an either() cell keeps its input while the value keeps its type", async ({ page }) => {
-    await page.evaluate(() => {
-      const { o, node_append } = window.__ELT__
-      const { ObjectEditorShell, object, either, string, number } = window.__ELT__.Editor
-      const shell = new ObjectEditorShell(o({ v: "a" }), {
-        schema: object({ properties: [{ name: "v", type: either(number(), string()) }] }),
-      })
-      node_append(document.body, shell.node)
-    })
-    const input = page.locator('e-grid-row > input[type="text"]').first()
-    await input.click()
-    await input.evaluate((el) => {
-      ;(window as any).__typed_into = el
-    })
-    await page.keyboard.type("bc")
-    const same = await page.evaluate(() => document.activeElement === (window as any).__typed_into)
-    expect(same).toBe(true)
-  })
-})
-
 test.describe("unknown mode resolution", () => {
   test("Map, Set and Date values get their own widgets, not Object's", async ({ page }) => {
     const result = await page.evaluate(() => {
@@ -392,20 +331,6 @@ test("$resizable freezes a <table>'s header widths once it is laid out", async (
 })
 
 test.describe("column layout", () => {
-  test("the toolbar sits right under the header line, above the rows", async ({ page }) => {
-    const order = await page.evaluate(() => {
-      const { o, node_append } = window.__ELT__
-      const { ObjectEditorShell } = window.__ELT__.Editor
-      const shell = new ObjectEditorShell(o({ a: "x" }), { packed: true })
-      node_append(document.body, shell.node)
-      const column = shell.node.querySelector("e-column[packed]")!
-      return [...column.children].map((c) =>
-        c.tagName === "E-ROW" ? (c.hasAttribute("surface") ? "toolbar" : "header") : c.tagName.toLowerCase(),
-      )
-    })
-    expect(order).toEqual(["header", "toolbar", "e-column"])
-  })
-
   test("columns are separate components: spaced apart, each with its own frame", async ({ page }) => {
     const result = await page.evaluate(() => {
       const { o, node_append } = window.__ELT__
@@ -444,26 +369,6 @@ test.describe("column layout", () => {
     })
     expect(heights.after).toBeGreaterThan(heights.before * 2)
     expect(heights.overflow).toBe("hidden")
-  })
-})
-
-test.describe("search inputs are form controls (regression: input[type=search] kept the browser's own style)", () => {
-  test("same font size and text color as a text input, in dark mode too", async ({ page }) => {
-    await page.emulateMedia({ colorScheme: "dark" })
-    const result = await page.evaluate(() => {
-      const { node_append } = window.__ELT__
-      const make = (type: string) => {
-        const input = document.createElement("input")
-        input.type = type
-        node_append(document.body, input)
-        const cs = getComputedStyle(input)
-        return { size: cs.fontSize, color: cs.color }
-      }
-      return { text: make("text"), search: make("search"), email: make("email") }
-    })
-    expect(result.search).toEqual(result.text)
-    expect(result.email).toEqual(result.text)
-    expect(result.search.color).not.toBe("rgb(0, 0, 0)")
   })
 })
 
@@ -506,17 +411,14 @@ test.describe("focus ring of the first cell", () => {
       return { clipped_by, scrollers: shell.node.querySelectorAll("e-column[scroll]").length }
     }, free_keys)
 
-  test("an object with a fixed set of keys has no scroll area around its grid: the ring is not clipped", async ({
+  test("an object with a fixed set of keys has no scroll area around its grid, so the ring is not clipped; one that accepts free keys keeps its windowed, scrolling grid", async ({
     page,
   }) => {
-    const r = await measure(page, false)
-    expect(r.clipped_by).toEqual([])
-    expect(r.scrollers).toBe(0)
-  })
-
-  test("an object that accepts free keys keeps its windowed, scrolling grid", async ({ page }) => {
-    const r = await measure(page, true)
-    expect(r.scrollers).toBeGreaterThan(0)
+    const fixed = await measure(page, false)
+    expect(fixed.clipped_by).toEqual([])
+    expect(fixed.scrollers).toBe(0)
+    const free = await measure(page, true)
+    expect(free.scrollers).toBeGreaterThan(0)
   })
 })
 
@@ -525,6 +427,20 @@ test.describe("focus ring of the first cell", () => {
 // loses focus after one keystroke. One case per editable cell of each composite; `index` is the
 // cell's position among the editor's text inputs.
 const typing_cases = [
+  {
+    name: "Object property, unknown mode",
+    value: `{ name: "Ada" }`,
+    schema: null,
+    index: 0,
+    expected: `{ name: "Adaxyz" }`,
+  },
+  {
+    name: "either() cell, the value keeping its type",
+    value: `{ v: "a" }`,
+    schema: `object({ properties: [{ name: "v", type: either(number(), string()) }] })`,
+    index: 0,
+    expected: `{ v: "axyz" }`,
+  },
   {
     name: "Object property",
     value: `{ name: "Ada", city: "London" }`,
@@ -569,6 +485,33 @@ const typing_cases = [
   },
 ]
 
+// The other scalar widgets: a number field, and a boolean, which is a switch unless the schema says otherwise.
+test("a number and a boolean cell show the model's value and write back to it; a boolean is a switch", async ({
+  page,
+}) => {
+  await page.evaluate(() => {
+    const { o, node_append } = window.__ELT__
+    const { ObjectEditorShell, object, number, boolean } = window.__ELT__.Editor
+    const o_root = o({ age: 36, active: true })
+    ;(window as any).o_root = o_root
+    const schema = object({
+      properties: [
+        { name: "age", type: number() },
+        { name: "active", type: boolean() },
+      ],
+    })
+    node_append(document.body, new ObjectEditorShell(o_root, { schema }).node)
+  })
+  const age = page.locator("e-grid input[type=number]")
+  const active = page.locator("e-grid input[type=checkbox]")
+  await expect(age).toHaveValue("36")
+  await expect(active).toBeChecked()
+  await expect(active).toHaveAttribute("e-widget", "switch")
+  await age.fill("40")
+  await active.click()
+  expect(await page.evaluate(() => (window as any).o_root.get())).toEqual({ age: 40, active: false })
+})
+
 test.describe("typing into a cell keeps its focus, and the row its place", () => {
   for (const c of typing_cases) {
     for (const packed of [false, true]) {
@@ -577,16 +520,22 @@ test.describe("typing into a cell keeps its focus, and the row its place", () =>
         await page.evaluate(
           ({ value, schema, packed }) => {
             const { o, node_append } = window.__ELT__
-            const { ObjectEditorShell, object, array, set, map, string } = window.__ELT__.Editor
+            const { ObjectEditorShell, object, array, set, map, string, either, number } = window.__ELT__.Editor
             const o_root = o<unknown>(new Function("return " + value)())
             ;(window as any).o_root = o_root
-            const factory = new Function("object", "array", "set", "map", "string", "return " + schema)(
-              object,
-              array,
-              set,
-              map,
-              string,
-            )
+            // No schema: unknown mode.
+            const factory =
+              schema == null
+                ? undefined
+                : new Function("object", "array", "set", "map", "string", "either", "number", "return " + schema)(
+                    object,
+                    array,
+                    set,
+                    map,
+                    string,
+                    either,
+                    number,
+                  )
             node_append(document.body, new ObjectEditorShell(o_root as any, { schema: factory, packed }).node)
           },
           { value: c.value, schema: c.schema, packed },

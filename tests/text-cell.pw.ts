@@ -59,14 +59,46 @@ test("packed row of a stretched flex container: the same", async ({ page }) => {
 })
 
 test("only text elements are centered: a nested grid cell and an unpacked span are left alone", async ({ page }) => {
+  // Each row has a tall cell beside the one checked, which is stretched to its height. The gaps above and
+  // below the checked content tell where it sits: equal when centered, none above when left at the top.
   const r = await page.evaluate(() => {
     const host = document.createElement("div")
+    const tall = `<div style="height: 80px"></div>`
     host.innerHTML = `
-      <e-grid packed border><e-grid-row><e-grid id="nested"></e-grid><span id="in-packed">x</span></e-grid-row></e-grid>
-      <e-grid><e-grid-row><span id="loose">x</span></e-grid-row></e-grid>`
+      <e-grid packed border style="grid-template-columns: repeat(3, max-content)"><e-grid-row><e-grid id="nested"><span id="in-nested">x</span></e-grid><span id="in-packed">x</span>${tall}</e-grid-row></e-grid>
+      <e-grid style="grid-template-columns: repeat(2, max-content)"><e-grid-row><span id="loose">x</span>${tall}</e-grid-row></e-grid>`
     document.body.append(host)
-    const ac = (sel: string) => getComputedStyle(host.querySelector(sel)!).alignContent
-    return { nested: ac("#nested"), packed: ac("#in-packed"), loose: ac("#loose") }
+    // The text's line box, found by a zero-width inline-block as tall as the line, put in front of it
+    const text_box = (el: Element) => {
+      const probe = document.createElement("span")
+      probe.style.cssText = "display: inline-block; width: 0; height: 1lh; vertical-align: top"
+      el.insertBefore(probe, el.firstChild)
+      const b = probe.getBoundingClientRect()
+      probe.remove()
+      return b
+    }
+    const gaps = (cell: string, content: DOMRect) => {
+      const c = host.querySelector(cell)!
+      const cs = getComputedStyle(c)
+      const b = c.getBoundingClientRect()
+      return {
+        stretched: b.height > 60,
+        above: Math.round(
+          content.top - b.top - Number.parseFloat(cs.paddingTop) - Number.parseFloat(cs.borderTopWidth),
+        ),
+        below: Math.round(
+          b.bottom - content.bottom - Number.parseFloat(cs.paddingBottom) - Number.parseFloat(cs.borderBottomWidth),
+        ),
+      }
+    }
+    return {
+      packed: gaps("#in-packed", text_box(host.querySelector("#in-packed")!)),
+      nested: gaps("#nested", host.querySelector("#in-nested")!.getBoundingClientRect()),
+      loose: gaps("#loose", text_box(host.querySelector("#loose")!)),
+    }
   })
-  expect(r).toEqual({ nested: "normal", packed: "safe center", loose: "normal" })
+  expect(r.packed.stretched).toBe(true)
+  expect(Math.abs(r.packed.above - r.packed.below)).toBeLessThanOrEqual(1)
+  expect(r.nested).toMatchObject({ stretched: true, above: 0 })
+  expect(r.loose).toMatchObject({ stretched: true, above: 0 })
 })

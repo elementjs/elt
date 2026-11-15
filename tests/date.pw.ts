@@ -231,11 +231,6 @@ test.describe("time picker popup", () => {
     })
   }
 
-  test("shows the current value and its neighbours", async ({ page }) => {
-    await open(page)
-    expect(await hours(page)).toEqual({ same: true, texts: ["09", "08", "07"] })
-  })
-
   test("step buttons change the value without rebuilding the column", async ({ page }) => {
     await open(page)
     await page.click(`${PANEL} > e-column[data-mark="hours"] > button >> nth=0`)
@@ -291,48 +286,6 @@ test.describe("time picker popup", () => {
     expect(await model(page)).toEqual([2026, 9, 3, 23, 30, 0])
   })
 })
-
-test("ScrollColumn shows its label above the values", async ({ page }) => {
-  const r = await page.evaluate(() => {
-    const { o, node_append, UI } = window.__ELT__
-    const o_v = o(5)
-    const col = UI.ScrollColumn({
-      label: "Min",
-      min: 0,
-      max: 59,
-      value: o_v,
-      format: (n) => String(n),
-      on_change: (n) => o_v.set(n),
-    })
-    node_append(document.body, col)
-    return {
-      first: col.firstElementChild?.textContent,
-      texts: [...col.querySelectorAll("span")].map((s) => s.textContent),
-    }
-  })
-  expect(r.first).toBe("Min")
-  expect(r.texts).toEqual(["Min", "6", "5", "4"])
-})
-
-for (const emphasis of ["inverted"] as const) {
-  test(`emphasis="${emphasis}" draws the buttons as the inverted (filled) button`, async ({ page }) => {
-    await mount(page, { lang: "en-GB", model: [2026, 9, 3, 0, 0, 0], emphasis })
-    const r = await page.evaluate(() => {
-      const btn = document.querySelector('#holder button[title="Date"]') as HTMLElement
-      const ref = document.createElement("button")
-      ref.setAttribute("e-emphasis", "inverted")
-      btn.parentElement!.parentElement!.appendChild(ref)
-      const out = {
-        attr: btn.getAttribute("e-emphasis"),
-        bg: getComputedStyle(btn).backgroundColor,
-        ref: getComputedStyle(ref).backgroundColor,
-      }
-      ref.remove()
-      return out
-    })
-    expect(r).toEqual({ attr: "inverted", bg: r.ref, ref: r.ref })
-  })
-}
 
 test.describe("faded text uses theme colors, not opacity", () => {
   /**
@@ -402,10 +355,6 @@ test.describe("typing digits into the text field", () => {
   const time_24h = { lang: "en-GB", show_date: false, show_time: true }
   const time_12h = { lang: "en-US", show_date: false, show_time: true, am_pm: true }
 
-  test("24-hour time: two digits fill the minutes of an empty field", async ({ page }) => {
-    expect(await type_into_empty(page, time_24h, 3, "15")).toEqual({ value: "--:15", error: "Incomplete date" })
-  })
-
   test("a write to the model while the user types leaves the text alone", async ({ page }) => {
     const typed = await type_into_empty(page, { lang: "en-GB" }, 0, "03")
     await page.evaluate(() =>
@@ -413,13 +362,6 @@ test.describe("typing digits into the text field", () => {
     )
     // The field has the focus: the text being typed is not replaced by the model's
     expect(await input_state(page)).toEqual(typed)
-  })
-
-  test("24-hour time: digits fill each segment in turn, then the model", async ({ page }) => {
-    expect(await type_into_empty(page, time_24h, 0, "2359")).toEqual({ value: "23:59", error: "" })
-    await blur(page)
-    const today = new Date()
-    expect(await model(page)).toEqual([today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 0])
   })
 
   test("a digit that no second digit could follow completes the segment at once", async ({ page }) => {
@@ -521,8 +463,10 @@ test.describe("typing digits into the text field", () => {
     expect((await input_state(page)).value).toBe("--:15")
   })
 
-  test("the last segment stays selected; a further digit starts it over", async ({ page }) => {
-    await type_into_empty(page, time_24h, 3, "45")
+  test("two digits fill the minutes of an empty field, which stay selected; a further digit starts them over", async ({
+    page,
+  }) => {
+    expect(await type_into_empty(page, time_24h, 3, "45")).toEqual({ value: "--:45", error: "Incomplete date" })
     expect(await selected(page)).toEqual([3, 5])
     await page.keyboard.type("7")
     expect((await input_state(page)).value).toBe("--:07")
@@ -701,17 +645,19 @@ test.describe("inputmode: a number pad on phones when there is no AM/PM part", (
     return page.evaluate(() => document.querySelector("#holder input")!.getAttribute("inputmode"))
   }
 
-  test("a date with a 24-hour time is numeric", async ({ page }) => {
+  test("numeric without an AM/PM part, the default keyboard with one, following am_pm changed after mounting", async ({
+    page,
+  }) => {
+    // A date with a 24-hour time
     await mount(page, { lang: "en-GB", model: [2026, 9, 3, 8, 0, 0], show_time: true })
     expect(await inputmode(page)).toBe("numeric")
-  })
-
-  test("a 12-hour time keeps the default keyboard (its letters set AM or PM)", async ({ page }) => {
+    const unmount = () => page.evaluate(() => window.__ELT__.node_remove(document.getElementById("holder")!))
+    await unmount()
+    // A 12-hour time: its letters set AM or PM
     await mount(page, { lang: "en-US", model: [2026, 9, 3, 8, 0, 0], show_date: false, show_time: true, am_pm: true })
     expect(await inputmode(page)).toBe(null)
-  })
-
-  test("follows am_pm changed after mounting", async ({ page }) => {
+    await unmount()
+    // A time whose AM/PM part comes and goes
     await mount(page, { lang: "en-US", model: [2026, 9, 3, 8, 0, 0], show_date: false, show_time: true, am_pm: "live" })
     expect(await inputmode(page)).toBe("numeric")
     await page.evaluate(() => (window as unknown as W).o_am_pm.set(true))

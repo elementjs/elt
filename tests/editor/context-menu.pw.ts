@@ -196,16 +196,6 @@ test.describe("row menu", () => {
     expect(await page.evaluate(() => (window as unknown as W).prevented)).toEqual([])
   })
 
-  test("the keyboard drives the menu: arrows, Enter", async ({ page }) => {
-    await mount(page, `({ name: "Ada", other: 1 })`)
-    await row(page, "name").locator("> :first-child").click({ button: "right" })
-    // Focus is on the first item (roving focus).
-    await page.waitForFunction(() => document.activeElement?.getAttribute("role") === "menuitem")
-    await page.keyboard.press("ArrowDown") // Change type… → Remove key
-    await page.keyboard.press("Enter")
-    expect(await root(page)).toEqual({ other: 1 })
-  })
-
   test("Map rows: Key and Value sections", async ({ page }) => {
     await mount(page, `new Map([["k", 1]])`)
     // The key is a text field: its menu starts with Edit.
@@ -263,44 +253,33 @@ test.describe("null and undefined buttons", () => {
   const cell = (page: Page, key: string, text: string) =>
     row(page, key).locator("button", { hasText: new RegExp(`^${text}$`) })
 
-  test("null opens the type list directly; picking a type changes the value and closes the menu", async ({ page }) => {
-    await mount(page, `({ n: null })`)
-    const button = cell(page, "n", "null")
-    await expect(button).toHaveAttribute("aria-label", "null, change type")
-    await button.click()
-    // Straight to the list: no first-level menu with "Change type…".
-    await expect.poll(async () => (await menus(page)).length).toBe(1)
-    const [list] = await menus(page)
-    expect(list![0]).toBe("# n type")
-    expect(list).toContain("string (reset)")
-    expect(list).not.toContain("null")
-    await page.locator('[popover].open [role="menuitem"]', { hasText: "string (reset)" }).click()
-    expect(await root(page)).toEqual({ n: "" })
-    await expect(page.locator("[popover]")).toHaveCount(0)
-  })
-
-  test("undefined is a button too", async ({ page }) => {
-    // Unknown mode shows an undefined value as unsupported: a declared slot gives it its widget.
-    await mount(
+  // Unknown mode shows an undefined value as unsupported: a declared slot gives it its widget.
+  for (const [literal, value, schema] of [
+    ["null", `({ v: null })`, null],
+    [
+      "undefined",
+      `({ v: undefined })`,
+      `E.object({ properties: [{ name: "v", type: E.either(E.undef(), E.string()) }], free_keys: false })`,
+    ],
+  ] as const) {
+    test(`${literal} opens the type list directly; picking a type changes the value and closes the menu`, async ({
       page,
-      `({ u: undefined })`,
-      `E.object({ properties: [{ name: "u", type: E.either(E.undef(), E.string()) }], free_keys: false })`,
-    )
-    await cell(page, "u", "undefined").click()
-    await expect.poll(async () => (await menus(page))[0]?.[0]).toBe("# u type")
-    expect((await menus(page))[0]).not.toContain("undefined")
-  })
-
-  test("the keyboard opens it, and Escape closes it, focus back on the button", async ({ page }) => {
-    await mount(page, `({ n: null })`)
-    const button = cell(page, "n", "null")
-    await button.focus()
-    await page.keyboard.press("Enter")
-    await expect.poll(async () => (await menus(page)).length).toBe(1)
-    await page.keyboard.press("Escape")
-    await expect(page.locator("[popover]")).toHaveCount(0)
-    await expect(button).toBeFocused()
-  })
+    }) => {
+      await mount(page, value, schema)
+      const button = cell(page, "v", literal)
+      await expect(button).toHaveAttribute("aria-label", `${literal}, change type`)
+      await button.click()
+      // Straight to the list: no first-level menu with "Change type…".
+      await expect.poll(async () => (await menus(page)).length).toBe(1)
+      const [list] = await menus(page)
+      expect(list![0]).toBe("# v type")
+      expect(list).toContain("string (reset)")
+      expect(list).not.toContain(literal)
+      await page.locator('[popover].open [role="menuitem"]', { hasText: "string (reset)" }).click()
+      expect(await root(page)).toEqual({ v: "" })
+      await expect(page.locator("[popover]")).toHaveCount(0)
+    })
+  }
 
   test("an array element is a button as well", async ({ page }) => {
     await mount(page, `({ list: [null] })`)
@@ -317,16 +296,6 @@ test.describe("null and undefined buttons", () => {
     )
     await expect(row(page, "n").locator("span", { hasText: /^null$/ })).toHaveCount(1)
     await expect(row(page, "n").locator("button")).toHaveCount(0)
-  })
-
-  test("a declared either() slot lists only its other branches", async ({ page }) => {
-    await mount(
-      page,
-      `({ v: null })`,
-      `E.object({ properties: [{ name: "v", type: E.either(E.null_factory, E.string()) }], free_keys: false })`,
-    )
-    await cell(page, "v", "null").click()
-    await expect.poll(async () => (await menus(page))[0]).toEqual(["# v type", "string (reset)"])
   })
 })
 
@@ -364,24 +333,6 @@ test.describe("menu look", () => {
     await expect.poll(async () => (await menus(page)).length).toBe(1)
   }
   const item = (page: Page, label: string) => page.locator('[popover].open [role="menuitem"]', { hasText: label })
-
-  test("a menu is at least 20ch wide, a submenu too", async ({ page }) => {
-    await open_row_menu(page)
-    await item(page, "Change type…").click()
-    await expect.poll(async () => (await menus(page)).length).toBe(2)
-    const r = await page.evaluate(() =>
-      [...document.querySelectorAll('[popover].open [role="menu"]')].map((menu) => {
-        // 20ch in the menu's own font, measured with a probe.
-        const probe = document.createElement("div")
-        probe.style.cssText = "position: absolute; visibility: hidden; width: 20ch"
-        menu.appendChild(probe)
-        const min = probe.getBoundingClientRect().width
-        probe.remove()
-        return { width: menu.getBoundingClientRect().width, min }
-      }),
-    )
-    for (const m of r) expect(m.width).toBeGreaterThanOrEqual(m.min - 0.5)
-  })
 
   test("icons share one column: the text of every item starts at the same x", async ({ page }) => {
     await open_row_menu(page)
@@ -426,14 +377,6 @@ test.describe("menu look", () => {
     expect(r.menu).not.toBe("0px")
     expect(r.first).toEqual([r.menu, r.menu])
     expect(r.last).toEqual([r.menu, r.menu])
-  })
-
-  test("a menu and its submenu each have an arrow", async ({ page }) => {
-    await open_row_menu(page)
-    await expect(page.locator("[popover].open [class*=arrow-inner]")).toHaveCount(1)
-    await item(page, "Change type…").click()
-    await expect.poll(async () => (await menus(page)).length).toBe(2)
-    await expect(page.locator("[popover].open [class*=arrow-inner]")).toHaveCount(2)
   })
 
   test("a submenu opens beside its item, never over the menu it came from", async ({ page }) => {

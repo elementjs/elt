@@ -52,18 +52,18 @@ const tint_of = (loc: ReturnType<typeof header>) =>
     return color
   })
 
-/** The type colors: a root value's column is tinted with it, framed with it, and its title is at its ink. */
+/**
+ * The type colors: a root value's column is tinted with it, framed with it, and its title and header buttons
+ * are at its ink. Two types show the mechanism; which color each type gets is editor/type-style.ts's table.
+ */
 const COLUMNS: [string, string, string][] = [
   ["a plain object", `({ a: 1 })`, "cyan"],
   ["an array", `[1, 2]`, "green"],
-  ["a set", `new Set([1])`, "yellow_green"],
-  ["a map", `new Map([["k", 1]])`, "cyan_green"],
-  ["a class instance", `new (class Foo { a = 1 })()`, "orange"],
 ]
 
 test.describe("columns", () => {
   for (const [name, value, color] of COLUMNS) {
-    test(`${name}: the column is tinted ${color}, framed in ${color}.mid, its title is ${color} ink`, async ({
+    test(`${name}: the column is tinted ${color}, framed in ${color}.mid, its title and header buttons are ${color} ink`, async ({
       page,
     }) => {
       await mount(page, value)
@@ -71,21 +71,12 @@ test.describe("columns", () => {
       expect(await tint_of(column)).toBe(await resolve(page, color))
       expect(await style_of(column, "borderTopColor")).toBe(await resolve(page, `${color}.mid`))
       expect(await style_of(header(page).locator("> strong"), "color")).toBe(await resolve(page, "tint.ink", color))
+      const more = page.locator("#shell button[aria-label='More actions']")
+      expect(await style_of(more, "color")).toBe(await resolve(page, "tint.ink", color))
       // Not an inverted band any more: the header keeps the surface of the column.
       expect(await style_of(header(page), "backgroundColor")).not.toBe(await resolve(page, color))
     })
   }
-
-  test("the header line has the type's icon before the title and the number of entries in parentheses", async ({
-    page,
-  }) => {
-    await mount(page, `({ a: 1, b: 2, c: 3 })`)
-    const title = header(page).locator("> strong")
-    expect(await title.locator("svg").count()).toBe(1)
-    expect(((await title.textContent()) ?? "").trim()).toBe("Object (3)")
-    // The icon comes before the text.
-    expect(await title.evaluate((el) => el.firstElementChild?.tagName.toLowerCase() === "span")).toBe(true)
-  })
 
   test("changing the type recolors the column (a plain object becomes an array)", async ({ page }) => {
     await mount(page, `({ a: 1 })`)
@@ -98,12 +89,6 @@ test.describe("columns", () => {
     await mount(page, `[{ a: 1 }, { a: 2 }]`)
     const head = page.locator("#shell e-grid-row[sticky='top']").first()
     expect(await tint_of(head)).toBe(await resolve(page, "green"))
-  })
-
-  test("the buttons of the header line have the type's ink color", async ({ page }) => {
-    await mount(page, `[1]`)
-    const more = page.locator("#shell button[aria-label='More actions']")
-    expect(await style_of(more, "color")).toBe(await resolve(page, "tint.ink", "green"))
   })
 
   test("an unpacked column is tinted too", async ({ page }) => {
@@ -181,21 +166,5 @@ test.describe("menus", () => {
     // A string has no color of its own: the plain text color, still with its icon.
     const string_item = items.filter({ hasText: /^string/ })
     if ((await string_item.count()) > 0) expect(await string_item.locator("svg").count()).toBe(1)
-  })
-
-  test("the Edit section of a text field has an icon on each item", async ({ page }) => {
-    await mount(page, `new Map([["k", "v"]])`)
-    await page.locator("#shell e-grid-row").first().locator("input").first().click({ button: "right" })
-    const items = page.locator('[popover].open [role="menuitem"]')
-    await expect(items.first()).toBeVisible()
-    for (const label of ["Cut", "Copy", "Paste", "Select all"]) {
-      expect(
-        await items
-          .filter({ hasText: new RegExp(`^${label}$`) })
-          .locator("svg")
-          .count(),
-        label,
-      ).toBe(1)
-    }
   })
 })

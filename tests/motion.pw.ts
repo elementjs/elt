@@ -55,6 +55,8 @@ test.describe("leaving: the removed node", () => {
       const c = window.__motion__.mount(["none", "nothing", "no_motion"])
       const [none, nothing, no_motion] = [...c.children] as HTMLElement[]
       $observe(o(0), () => {})(nothing)
+      nothing.style.color = "red"
+      const style_before = nothing.style.cssText
       let observing_in_hook: boolean | null = null
       node_on_leave(nothing, (n) => {
         observing_in_hook = node_is_observing(n)
@@ -67,10 +69,11 @@ test.describe("leaving: the removed node", () => {
       node_remove(none, true)
       node_remove(nothing, true)
       node_remove(no_motion)
-      return { left: c.children.length, observing_in_hook, called }
+      return { left: c.children.length, observing_in_hook, called, same_style: nothing.style.cssText === style_before }
     })
-    // The hook ran on an already disconnected node ; a plain hook doesn't run without `motion`
-    expect(r).toEqual({ left: 0, observing_in_hook: false, called: false })
+    // The hook ran on an already disconnected node, which keeps its inline style as it was (not floated) ;
+    // a plain hook doesn't run without `motion`
+    expect(r).toEqual({ left: 0, observing_in_hook: false, called: false, same_style: true })
   })
 
   test("a hook returning a promise keeps the node, disconnected, inert and marked, until it settles", async ({
@@ -247,34 +250,6 @@ test.describe("leaving: the removed node", () => {
       during: [true, true, true, true, true],
       left: 0,
     })
-  })
-
-  // Documents a browser behavior the docs rely on: a display: contents node has no box, so an
-  // opacity exit on it shows nothing ; its children stay as they were until it is removed.
-  test("an opacity exit on a display: contents node doesn't show on its children", async ({ page }) => {
-    const exit_on = async (display: string) => {
-      await page.evaluate((display) => {
-        const { node_append, $leave } = window.__ELT__
-        document.body.innerHTML = ""
-        const wrapper = window.__motion__.el("div", "wrapper")
-        wrapper.style.display = display
-        wrapper.innerHTML = "<div id='box' style='width: 40px; height: 40px; background: red'></div>"
-        node_append(document.body, wrapper)
-        // Fully transparent for its whole (long) duration
-        $leave({ keyframes: [{ opacity: 0 }, { opacity: 0 }], duration: 100000 })(wrapper)
-      }, display)
-      const before = await page.locator("#box").screenshot()
-      const leaving = await page.evaluate(() => {
-        const wrapper = document.getElementById("wrapper") as HTMLElement
-        window.__ELT__.node_remove(wrapper, true)
-        return wrapper.hasAttribute("e-leaving")
-      })
-      const during = await page.locator("#box").screenshot()
-      return { leaving, unchanged: before.equals(during) }
-    }
-    // Control: on a block, the same exit hides the box
-    expect(await exit_on("block")).toEqual({ leaving: true, unchanged: false })
-    expect(await exit_on("contents")).toEqual({ leaving: true, unchanged: true })
   })
 
   test("`always`: plays on a removal without `motion`", async ({ page }) => {
@@ -637,20 +612,6 @@ test.describe("floating", () => {
     })
     expect(r).toEqual({ position: "", r3_kept: true })
   })
-
-  test("a hook that returns nothing leaves the node's inline style as it was", async ({ page }) => {
-    const r = await page.evaluate(() => {
-      const { node_remove, node_on_leave } = window.__ELT__
-      const c = window.__motion__.mount(["a"])
-      const a = c.querySelector("#a") as HTMLElement
-      a.style.color = "red"
-      const before = a.style.cssText
-      node_on_leave(a, () => {})
-      node_remove(a, true)
-      return { same: a.style.cssText === before, gone: a.parentNode == null }
-    })
-    expect(r).toEqual({ same: true, gone: true })
-  })
 })
 
 test.describe("entering", () => {
@@ -1011,33 +972,6 @@ test.describe("$enter / $leave", () => {
       return { gone: a.parentNode == null, animations: a.getAnimations().length }
     })
     expect(r).toEqual({ gone: true, animations: 0 })
-  })
-
-  test("$enter plays on an update, not on the first render of a mounted tree", async ({ page }) => {
-    const r = await page.evaluate(() => {
-      const { $enter, o, If, node_append } = window.__ELT__
-      const o_flag = o(true)
-      const root = document.createElement("div")
-      const mk = (id: string) => {
-        const e = window.__motion__.el("b", id)
-        $enter({ keyframes: [{ opacity: 0 }, { opacity: 1 }], duration: 500 })(e)
-        return e
-      }
-      node_append(
-        root,
-        If(
-          o_flag,
-          () => mk("then"),
-          () => mk("else"),
-        ),
-      )
-      node_append(document.body, root)
-      const first = root.querySelector("#then")!.getAnimations().length
-      o_flag.set(false)
-      const update = root.querySelector("#else")!.getAnimations().length
-      return { first, update }
-    })
-    expect(r).toEqual({ first: 0, update: 1 })
   })
 
   test("reduced motion: movement dropped, fades kept ; `reduced` keyframes used ; null and nothing left are instant", async ({

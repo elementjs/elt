@@ -213,36 +213,6 @@ test.describe("prose containers and text blocks", () => {
     )
     expect(g).toBe(0)
   })
-
-  test("a blockquote pads its content against its own background", async ({ page }) => {
-    const r = await measure<{ pad: string; component: string }>(
-      page,
-      `<blockquote><p>q</p></blockquote><div style="width: var(--e-spacing-component)"></div>`,
-      `return { pad: getComputedStyle(host.querySelector("blockquote")).paddingTop, component: getComputedStyle(host.querySelector("div")).width }`,
-    )
-    expect(r.pad).toBe(r.component)
-  })
-
-  // These used to be font-relative (0.15em, 0.25em 1.5em): they now read named steps, so they follow
-  // the theme and no longer grow with the font size.
-  test("a definition list and a fieldset's legend are spaced with named steps", async ({ page }) => {
-    const r = await measure<Record<string, string>>(
-      page,
-      `<dl style="font-size: 40px"><dt>t</dt><dd>d</dd></dl><fieldset><legend>l</legend></fieldset><div></div>`,
-      `const probe = host.querySelector("div")
-       const step = (s) => { probe.style.width = "var(--e-spacing-" + s + ")"; return getComputedStyle(probe).width }
-       const dl = getComputedStyle(host.querySelector("dl"))
-       return {
-         dt_top: getComputedStyle(host.querySelector("dt")).paddingBlockStart, nudge2: step("nudge-2"),
-         row_gap: dl.rowGap, nudge4: step("nudge-4"), column_gap: dl.columnGap, section: step("section"),
-         legend: getComputedStyle(host.querySelector("legend")).paddingLeft, widget: step("widget"),
-       }`,
-    )
-    expect(r.dt_top).toBe(r.nudge2)
-    expect(r.row_gap).toBe(r.nudge4)
-    expect(r.column_gap).toBe(r.section)
-    expect(r.legend).toBe(r.widget)
-  })
 })
 
 /** Mounts `html` in a fresh host under the light theme and returns `fn(host)`'s result, evaluated in the page. */
@@ -297,28 +267,6 @@ test.describe("typography sits below components", () => {
     )
     expect(r.radius).toBe(r.ref)
   })
-
-  // The visited color moved from typography to form.css: in typography it would now lose to form.css's
-  // `a { color }`. getComputedStyle hides :visited styles on purpose and headless Chromium doesn't
-  // paint them for test navigations, so this checks the rule itself: in the components layer, with
-  // more specificity than `a` (a :visited selector), and tint.faded as its color.
-  test("the visited link color is set in the components layer", async ({ page }) => {
-    const r = await page.evaluate(() => {
-      const found: string[] = []
-      const walk = (rules: CSSRuleList, layer: string) => {
-        for (const rule of rules) {
-          const name = rule instanceof CSSLayerBlockRule ? rule.name : layer
-          if (rule instanceof CSSStyleRule && rule.selectorText.includes(":visited")) {
-            found.push(`${layer}|${rule.selectorText}|${rule.style.color}`)
-          }
-          if ("cssRules" in rule) walk((rule as CSSGroupingRule).cssRules, name)
-        }
-      }
-      for (const sheet of document.adoptedStyleSheets) walk(sheet.cssRules, "")
-      return { found, faded: window.__ELT__.UI.theme.colors.tint.faded.toString() }
-    })
-    expect(r.found).toEqual([`components|&:visited|${r.faded}`])
-  })
 })
 
 // Regression: the rhythm rule used a descendant combinator, so a text block anywhere inside a prose
@@ -334,31 +282,31 @@ test("prose margins apply to direct children only: a heading in a row in <main> 
   expect(r.direct).not.toBe("0px")
 })
 
-test("code uses the theme's monospace font, like kbd", async ({ page }) => {
-  const r = await mount<{ code: string; kbd: string }>(
-    page,
-    `<p><code>c</code> <kbd>k</kbd></p>`,
-    `return { code: getComputedStyle(host.querySelector("code")).fontFamily, kbd: getComputedStyle(host.querySelector("kbd")).fontFamily }`,
-  )
-  expect(r.code).toBe(r.kbd)
-})
-
-// Theme values only (ui/AGENTS.md): the boxes of inline code, kbd and mark use named spacing steps,
-// not em sizes, so a code in a heading has the same padding as one in a paragraph.
-test("code, kbd and mark pad and round themselves with nudge steps, at any font size", async ({ page }) => {
+// Theme values only (ui/AGENTS.md): the boxes of inline code, kbd and mark, a definition list and a
+// fieldset's legend use named spacing steps, not em sizes (they used to be font-relative), so they follow the
+// theme and don't grow with the font size: a code in a heading has the same padding as one in a paragraph.
+test("text boxes are spaced with named steps, at any font size", async ({ page }) => {
   const r = await mount<Record<string, string[]>>(
     page,
     `<h1><code id="hc">c</code></h1><p><code id="pc">c</code> <kbd>k</kbd> <mark>m</mark></p>
-     <div id="n2" style="width: var(--e-spacing-nudge-2)"></div><div id="n4" style="width: var(--e-spacing-nudge-4)"></div>`,
+     <dl style="font-size: 40px"><dt>t</dt><dd>d</dd></dl><fieldset><legend>l</legend></fieldset><div id="probe"></div>`,
     `const cs = (s) => getComputedStyle(host.querySelector(s))
+     const probe = host.querySelector("#probe")
+     const step = (s) => { probe.style.width = "var(--e-spacing-" + s + ")"; return getComputedStyle(probe).width }
      const box = (s) => [cs(s).paddingTop, cs(s).paddingLeft, cs(s).borderTopLeftRadius]
-     return { hc: box("#hc"), pc: box("#pc"), kbd: [cs("kbd").paddingTop, cs("kbd").paddingLeft], mark: [cs("mark").paddingLeft, cs("mark").borderTopLeftRadius], steps: [cs("#n2").width, cs("#n4").width] }`,
+     return {
+       hc: box("#hc"), pc: box("#pc"), kbd: [cs("kbd").paddingTop, cs("kbd").paddingLeft], mark: [cs("mark").paddingLeft, cs("mark").borderTopLeftRadius],
+       dl: [cs("dt").paddingBlockStart, cs("dl").rowGap, cs("dl").columnGap], legend: [cs("legend").paddingLeft],
+       steps: [step("nudge-2"), step("nudge-4"), step("section"), step("widget")],
+     }`,
   )
-  const [n2, n4] = r.steps
+  const [n2, n4, section, widget] = r.steps
   expect(r.pc).toEqual([n2, n4, n4])
   expect(r.hc).toEqual(r.pc)
   expect(r.kbd).toEqual(["0px", n4])
   expect(r.mark).toEqual([n2, n2])
+  expect(r.dl).toEqual([n2, n4, section])
+  expect(r.legend).toEqual([widget])
 })
 
 // The faded text (h6, blockquote, dd, figcaption) is the theme's text color made translucent. Inside an

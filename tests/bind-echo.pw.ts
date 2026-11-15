@@ -213,14 +213,15 @@ test.describe("$bind does not echo the user's edit back into the node", () => {
       const input = document.createElement("input")
       node_append(document.body, input)
       node_append(input, $bind.string(o_text))
+      const initial = input.value
       const spy = window.__spy_value_writes__(input)
 
       spy.reset()
       o_text.set("world")
-      const res = { text: input.value, writes: spy.writes() }
+      const res = { initial, text: input.value, writes: spy.writes() }
       input.remove()
       return res
     })
-    expect(r).toEqual({ text: "world", writes: 1 })
+    expect(r).toEqual({ initial: "hello", text: "world", writes: 1 })
   })
 })

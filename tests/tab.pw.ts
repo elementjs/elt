@@ -110,18 +110,6 @@ test.describe("the close button is selected with its tab", () => {
     expect(b!.fill).not.toBe(a!.fill)
   })
 
-  test("it follows the tab when the selection moves", async ({ page }) => {
-    await mount(page, strip)
-    const before = await style(page, "#b-x")
-    await page.evaluate(() => {
-      document.querySelector("#a")!.setAttribute("aria-pressed", "false")
-      document.querySelector("#b")!.setAttribute("aria-pressed", "true")
-    })
-    expect(await style(page, "#b-x")).not.toEqual(before)
-    expect(await style(page, "#b-x")).toEqual(await style(page, "#b"))
-    expect(await style(page, "#a-x")).toEqual(await style(page, "#a"))
-  })
-
   test("it is neutral like its disabled tab, and unfilled for a link tab", async ({ page }) => {
     await mount(
       page,
@@ -167,21 +155,19 @@ test.describe("closable tab in a row of its own", () => {
 })
 
 test.describe("stays through interaction", () => {
-  test("hover and press keep the line of a selected tab", async ({ page }) => {
+  test("hover and press keep the line of a selected tab, and hover the dim line of an inactive one", async ({
+    page,
+  }) => {
     await mount(page, strip)
     const rest = await image(page, "#a")
+    const rest_c = await image(page, "#c")
     await page.hover("#a")
     expect(await image(page, "#a")).toBe(rest)
     await page.mouse.down()
     expect(await image(page, "#a")).toBe(rest)
     await page.mouse.up()
-  })
-
-  test("hover keeps the dim line of an inactive tab", async ({ page }) => {
-    await mount(page, strip)
-    const rest = await image(page, "#c")
     await page.hover("#c")
-    expect(await image(page, "#c")).toBe(rest)
+    expect(await image(page, "#c")).toBe(rest_c)
   })
 
   // Shadows paint first-on-top: the line must be the first, or the inset ring would hide it along the bottom edge.

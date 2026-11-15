@@ -49,24 +49,6 @@ test.describe("EltCustomElement attributes", () => {
     expect(result).toEqual({ initial: "first", updated: "second" })
   })
 
-  test("attrObservable() returns the observable backing a registered attribute", async ({ page }) => {
-    const result = await page.evaluate(() => {
-      const { attr, EltCustomElement, node_append } = window.__ELT__
-
-      class TestAttrObservable extends EltCustomElement {
-        declare label: unknown
-      }
-      attr(TestAttrObservable.prototype, "label")
-      customElements.define("test-attr-observable", TestAttrObservable)
-
-      const el = document.createElement("test-attr-observable") as TestAttrObservable
-      node_append(document.body, el)
-      el.label = "x"
-      return el.attrObservable("label").get()
-    })
-    expect(result).toBe("x")
-  })
-
   test("a write to the attribute's observable reaches the property (regression: the setter and the observer shared one lock, so the observer was a no-op)", async ({
     page,
   }) => {

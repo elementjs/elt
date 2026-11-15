@@ -51,16 +51,11 @@ test("with one-digit indices, the column is still four digits wide (plus the cel
   expect(m.width).toBeGreaterThanOrEqual(m.four + m.pad - 0.5)
 })
 
-test("dragging the heading's edge resizes the column", async ({ page }) => {
+test("dragging the heading's edge resizes the column, but can't take it under four digits", async ({ page }) => {
   await mount(page, 3)
   const before = (await measure(page)).width
-  await drag_handle(page, 40)
-  expect((await measure(page)).width).toBeCloseTo(before + 40, 0)
-})
-
-test("a drag can't take the column under four digits", async ({ page }) => {
-  await mount(page, 3)
   await drag_handle(page, 60)
+  expect((await measure(page)).width).toBeCloseTo(before + 60, 0)
   await drag_handle(page, -400)
   const m = await measure(page)
   expect(m.width).toBeGreaterThanOrEqual(m.four + m.pad - 0.5)

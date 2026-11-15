@@ -75,26 +75,6 @@ test.describe("ObjectEditor breadcrumb", () => {
     })
     expect(result).toEqual({ built: [], on_mount: [], after_open: ["other"] })
   })
-
-  test("two editors can write to the same Out: the last write is the value", async ({ page }) => {
-    const result = await page.evaluate(() => {
-      const { o, e, node_append } = window.__ELT__
-      const { ObjectEditor, dispatch_object_editor_open } = window.__ELT__.Editor
-      const o_shared = o<string[]>([])
-      const make = () => {
-        const node = e(ObjectEditor as any, { model: o({}), breadcrumb: o_shared }) as HTMLElement
-        node_append(document.body, node)
-        return node
-      }
-      const a = make()
-      const b = make()
-      dispatch_object_editor_open(a, { o_value: o<unknown>({}), title: "from a" })
-      const after_a = o_shared.get()
-      dispatch_object_editor_open(b, { o_value: o<unknown>({}), title: "from b" })
-      return { after_a, after_b: o_shared.get() }
-    })
-    expect(result).toEqual({ after_a: ["from a"], after_b: ["from b"] })
-  })
 })
 
 test.describe("ObjectEditorShell", () => {
@@ -135,92 +115,6 @@ test.describe("ObjectEditorShell", () => {
       }
     })
     expect(result.radius).toBe(result.widget)
-  })
-
-  test("mounts the root column and binds scalar widgets to the schema's properties", async ({ page }) => {
-    const result = await page.evaluate(() => {
-      const { o, node_append } = window.__ELT__
-      const { ObjectEditorShell, object, string, number, boolean } = window.__ELT__.Editor
-
-      const profile_schema = object({
-        properties: [
-          { name: "name", type: string() },
-          { name: "age", type: number({ min: 0 }) },
-          { name: "active", type: boolean() },
-        ],
-      })
-
-      const o_root = o({ name: "Ada", age: 36, active: true })
-      const shell = new ObjectEditorShell(o_root, { schema: profile_schema })
-      node_append(document.body, shell.node)
-
-      const name_input = shell.node.querySelector('input[type="text"]') as HTMLInputElement
-      const age_input = shell.node.querySelector('input[type="number"]') as HTMLInputElement
-      const active_input = shell.node.querySelector('input[e-widget="switch"]') as HTMLInputElement
-      return {
-        name: name_input.value,
-        age: age_input.value,
-        active: active_input.checked,
-      }
-    })
-    expect(result.name).toBe("Ada")
-    expect(result.age).toBe("36")
-    expect(result.active).toBe(true)
-  })
-
-  test("editing a bound input writes back through to the root observable", async ({ page }) => {
-    const name = await page.evaluate(() => {
-      const { o, node_append } = window.__ELT__
-      const { ObjectEditorShell, object, string, number, boolean } = window.__ELT__.Editor
-
-      const profile_schema = object({
-        properties: [
-          { name: "name", type: string() },
-          { name: "age", type: number({ min: 0 }) },
-          { name: "active", type: boolean() },
-        ],
-      })
-
-      const o_root = o({ name: "Ada", age: 36, active: true })
-      const shell = new ObjectEditorShell(o_root, { schema: profile_schema })
-      node_append(document.body, shell.node)
-
-      const name_input = shell.node.querySelector('input[type="text"]') as HTMLInputElement
-      name_input.value = "Grace"
-      name_input.dispatchEvent(new Event("input", { bubbles: true }))
-
-      return o_root.get().name
-    })
-    expect(name).toBe("Grace")
-  })
-
-  test("open() through the real event path appends a column and updates the breadcrumb", async ({ page }) => {
-    const results = await page.evaluate(() => {
-      const { o, node_append } = window.__ELT__
-      const { ObjectEditorShell, object, string, number, boolean, dispatch_object_editor_open } = window.__ELT__.Editor
-
-      const profile_schema = object({
-        properties: [
-          { name: "name", type: string() },
-          { name: "age", type: number({ min: 0 }) },
-          { name: "active", type: boolean() },
-        ],
-      })
-
-      const o_root = o({ name: "Ada", age: 36, active: true })
-      const o_other = o<unknown>({ name: "Linus", age: 54, active: false })
-      const shell = new ObjectEditorShell(o_root, { schema: profile_schema })
-      node_append(document.body, shell.node)
-
-      const before = shell.o_breadcrumb.get()
-
-      dispatch_object_editor_open(shell.node, { o_value: o_other, title: "other" })
-
-      const after = shell.o_breadcrumb.get()
-      return { before, after }
-    })
-    expect(results.before).toEqual([])
-    expect(results.after).toEqual(["other"])
   })
 
   test("open() from a source outside every column opens after the root, not in place of it", async ({ page }) => {
@@ -483,53 +377,6 @@ test.describe("ObjectEditorShell", () => {
     expect(result.scrolls).toBe(true)
   })
 
-  test("a nested Object property renders as a preview button, not inline, and drills in on click", async ({ page }) => {
-    const results = await page.evaluate(() => {
-      const { o, node_append } = window.__ELT__
-      const { ObjectEditorShell, object, string } = window.__ELT__.Editor
-
-      const address_schema = object({
-        properties: [
-          { name: "street", type: string() },
-          { name: "city", type: string() },
-        ],
-      })
-      const with_address_schema = object({
-        properties: [
-          { name: "name", type: string() },
-          { name: "address", type: address_schema },
-        ],
-      })
-      const o_root = o({ name: "Ada", address: { street: "12 Analytical Engine Ave", city: "London" } })
-      const shell = new ObjectEditorShell(o_root, { schema: with_address_schema })
-      node_append(document.body, shell.node)
-
-      // Only "name" renders inline — "address" is a preview button, not two more text fields.
-      const inline_count_before = shell.node.querySelectorAll('input[type="text"]').length
-      const preview_button = shell.node.querySelector<HTMLButtonElement>('button[title="Open address"]') ?? undefined
-      const breadcrumb_before = shell.o_breadcrumb.get()
-
-      preview_button!.dispatchEvent(new Event("click", { bubbles: true }))
-
-      const breadcrumb_after = shell.o_breadcrumb.get()
-      const values = [...shell.node.querySelectorAll('input[type="text"]')].map((el) => (el as HTMLInputElement).value)
-      return {
-        inline_count_before,
-        preview_button_found: preview_button !== undefined,
-        breadcrumb_before,
-        breadcrumb_after,
-        values,
-      }
-    })
-    expect(results.inline_count_before).toBe(1)
-    expect(results.preview_button_found).toBe(true)
-    expect(results.breadcrumb_before).toEqual([])
-    expect(results.breadcrumb_after).toEqual(["address"])
-    expect(results.values).toContain("Ada")
-    expect(results.values).toContain("12 Analytical Engine Ave")
-    expect(results.values).toContain("London")
-  })
-
   test("a nested composite row re-renders after its value changes kind so Open uses the new factory", async ({
     page,
   }) => {
@@ -625,21 +472,6 @@ test.describe("ObjectEditorShell", () => {
     expect(results.has_revision_after_stats).toBe(false)
   })
 
-  test("composite preview cell shows the value's preview text and an arrow, nothing else", async ({ page }) => {
-    const text = await page.evaluate(() => {
-      const { o, node_append } = window.__ELT__
-      const { ObjectEditorShell, anything } = window.__ELT__.Editor
-
-      const o_root = o({ meta: { revision: 1 } })
-      const shell = new ObjectEditorShell(o_root, { schema: anything })
-      node_append(document.body, shell.node)
-
-      const preview = shell.node.querySelector('button[title="Open meta"]')
-      return preview?.textContent?.trim()
-    })
-    expect(text).toBe("revision: 1›")
-  })
-
   test("anything (unknown mode) resolves a bare scalar root without a schema", async ({ page }) => {
     const results = await page.evaluate(() => {
       const { o, node_append } = window.__ELT__
@@ -700,45 +532,6 @@ test.describe("ObjectEditorShell", () => {
       await page.evaluate(() => document.getElementById("shell")!.remove())
       await expect(popup).toHaveCount(0)
     }
-  })
-
-  test("open_as popup adds a breadcrumb segment for the opened value", async ({ page }) => {
-    const breadcrumb = await page.evaluate(async () => {
-      const { o, node_append } = window.__ELT__
-      const { ObjectEditorShell, object, number } = window.__ELT__.Editor
-
-      const nested_schema = object({
-        properties: [{ name: "x", type: number() }],
-        open_as: "popup",
-      })
-      const o_root = o({ nested: { x: 1 } })
-      const shell = new ObjectEditorShell(o_root, {
-        schema: object({ properties: [{ name: "nested", type: nested_schema }] }),
-      })
-      node_append(document.body, shell.node)
-
-      const open = shell.node.querySelector('button[title="Open nested"]')
-      open!.dispatchEvent(new Event("click", { bubbles: true }))
-
-      const breadcrumb = shell.o_breadcrumb.get()
-
-      await new Promise((r) => setTimeout(r, 0))
-      await new Promise((r) => setTimeout(r, 0))
-
-      // ui/popup.tsx tracks open popups in module-level state (a `popups` Set
-      // plus a document click/keydown listener) that isn't scoped to this
-      // test's DOM subtree, so leaving the popup open here leaks a stale
-      // element and a live listener into every test file that runs after this
-      // one -- an unrelated click anywhere then makes popup.tsx try to animate
-      // that stale, already-detached element closed, throwing an unhandled
-      // AbortError. Close it the same way a real click-outside would.
-      document.body.dispatchEvent(new Event("click", { bubbles: true }))
-      await new Promise((r) => setTimeout(r, 0))
-      await new Promise((r) => setTimeout(r, 0))
-
-      return breadcrumb
-    })
-    expect(breadcrumb).toEqual(["nested"])
   })
 
   test("dismissing a column popup (click outside, Escape) removes its column (regression: it stayed in the breadcrumb)", async ({

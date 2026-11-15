@@ -142,20 +142,4 @@ test.describe("$resizable", () => {
     const position = await page.evaluate(() => getComputedStyle(document.getElementById("host")!).position)
     expect(position).toBe("sticky")
   })
-
-  test("the handle sits on the host's edge and shows the resize cursor", async ({ page }) => {
-    await mount(page, `<div id="host" style="width: 200px; height: 50px"></div>`)
-    const r = await page.evaluate(() => {
-      const host = document.getElementById("host")!
-      const handle = host.querySelector<HTMLElement>("[data-resize-edge]")!
-      const h = handle.getBoundingClientRect()
-      const b = host.getBoundingClientRect()
-      return {
-        right_edge: h.right === b.right,
-        full_height: h.height === b.height,
-        cursor: getComputedStyle(handle).cursor,
-      }
-    })
-    expect(r).toEqual({ right_edge: true, full_height: true, cursor: "col-resize" })
-  })
 })

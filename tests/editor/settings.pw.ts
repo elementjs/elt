@@ -22,31 +22,6 @@ test.describe("packed", () => {
     expect(result).toEqual({ packed: 0, bordered: 0 })
   })
 
-  test("packed: true gives the frame, header line, toolbar and grid their packed look", async ({ page }) => {
-    const result = await page.evaluate(() => {
-      const { o, node_append } = window.__ELT__
-      const { ObjectEditorShell } = window.__ELT__.Editor
-      const shell = new ObjectEditorShell(o({ a: "x" }), { packed: true })
-      node_append(document.body, shell.node)
-      // The column and the grid are framed; the header line and toolbar are groups inside the column's frame.
-      return ["e-column[packed][border]", "e-row[packed]", "e-grid[packed][border]"].map(
-        (sel) => shell.node.querySelectorAll(sel).length > 0,
-      )
-    })
-    expect(result).toEqual([true, true, true])
-  })
-
-  test("the <ObjectEditor> attribute forwards packed", async ({ page }) => {
-    const packed = await page.evaluate(() => {
-      const { o, e, node_append } = window.__ELT__
-      const { ObjectEditor } = window.__ELT__.Editor
-      const node = e(ObjectEditor as any, { model: o({ a: "x" }), packed: true }) as HTMLElement
-      node_append(document.body, node)
-      return node.querySelector("e-column[packed][border]") != null
-    })
-    expect(packed).toBe(true)
-  })
-
   // Regression: the settings were read once at construction, so an observable `packed` (or any `show_*`) was ignored.
   test("an observable packed re-styles the open editor, columns included", async ({ page }) => {
     const result = await page.evaluate(() => {

@@ -1,31 +1,6 @@
 import { test, expect } from "./fixture"
 
 test.describe("$bind", () => {
-  test("string binds DOM <-> observable", async ({ page }) => {
-    const results = await page.evaluate(() => {
-      const { o, $bind, node_append } = window.__ELT__
-      const out: { name: string; actual: unknown; expected: unknown }[] = []
-
-      const o_text = o("hello")
-      const input = document.createElement("input")
-      node_append(document.body, input)
-      node_append(input, $bind.string(o_text))
-
-      out.push({ name: "initial value painted", actual: input.value, expected: "hello" })
-
-      o_text.set("world")
-      out.push({ name: "value updates from observable", actual: input.value, expected: "world" })
-
-      input.value = "typed"
-      input.dispatchEvent(new Event("input"))
-      out.push({ name: "observable updates from input event", actual: o_text.get(), expected: "typed" })
-
-      input.remove()
-      return out
-    })
-    for (const r of results) expect(r.actual, r.name).toBe(r.expected)
-  })
-
   test("boolean binds via the change event, not input", async ({ page }) => {
     const results = await page.evaluate(() => {
       const { o, $bind, node_append } = window.__ELT__
@@ -77,7 +52,7 @@ test.describe("$bind", () => {
       for (const r of results) expect(r.actual, r.name).toBe(r.expected)
     })
 
-    test("extra_check sets and clears a custom validity message", async ({ page }) => {
+    test("extra_check sets and clears a custom validity message, with or without o_error", async ({ page }) => {
       const results = await page.evaluate(() => {
         const { o, $bind, node_append } = window.__ELT__
         const out: { name: string; actual: unknown; expected: unknown }[] = []
@@ -97,42 +72,35 @@ test.describe("$bind", () => {
         input.value = "hi"
         input.dispatchEvent(new Event("input"))
         out.push({ name: "o_error set for short value", actual: o_error.get(), expected: "too short" })
-
-        input.value = "hello"
-        input.dispatchEvent(new Event("input"))
-        out.push({ name: "o_error cleared for long enough value", actual: o_error.get(), expected: null })
-
-        input.remove()
-        return out
-      })
-      for (const r of results) expect(r.actual, r.name).toBe(r.expected)
-    })
-
-    test("o_error is optional -- extra_check still drives native validity without it", async ({ page }) => {
-      const results = await page.evaluate(() => {
-        const { o, $bind, node_append } = window.__ELT__
-        const out: { name: string; actual: unknown; expected: unknown }[] = []
-
-        const o_text = o("ok")
-        const input = document.createElement("input")
-        node_append(document.body, input)
-        node_append(
-          input,
-          $bind.string(o_text, {
-            extra_check: (value: string) => (value.length < 3 ? "too short" : null),
-          }),
-        )
-
-        input.value = "hi"
-        input.dispatchEvent(new Event("input"))
         out.push({ name: "native validity invalid", actual: input.validity.valid, expected: false })
         out.push({ name: "native validation message", actual: input.validationMessage, expected: "too short" })
 
         input.value = "hello"
         input.dispatchEvent(new Event("input"))
+        out.push({ name: "o_error cleared for long enough value", actual: o_error.get(), expected: null })
         out.push({ name: "native validity valid again", actual: input.validity.valid, expected: true })
 
+        // o_error is optional: without it, extra_check still drives the native validity
+        const bare = document.createElement("input")
+        node_append(document.body, bare)
+        node_append(
+          bare,
+          $bind.string(o("ok"), { extra_check: (value: string) => (value.length < 3 ? "too short" : null) }),
+        )
+        bare.value = "hi"
+        bare.dispatchEvent(new Event("input"))
+        out.push({ name: "without o_error: native validity invalid", actual: bare.validity.valid, expected: false })
+        out.push({
+          name: "without o_error: native validation message",
+          actual: bare.validationMessage,
+          expected: "too short",
+        })
+        bare.value = "hello"
+        bare.dispatchEvent(new Event("input"))
+        out.push({ name: "without o_error: valid again", actual: bare.validity.valid, expected: true })
+
         input.remove()
+        bare.remove()
         return out
       })
       for (const r of results) expect(r.actual, r.name).toBe(r.expected)

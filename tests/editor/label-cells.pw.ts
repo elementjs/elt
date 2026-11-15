@@ -30,9 +30,7 @@ test.describe("label cells", () => {
     await mount(page, { name: "Ada" }, true)
     expect(await page.locator('#shell e-grid-row > [e-widget="label"]').count()).toBe(1)
     expect(await fill(page, '#shell [e-widget="label"]')).not.toBe("rgba(0, 0, 0, 0)")
-  })
-
-  test("unpacked, a key has no fill", async ({ page }) => {
+    await page.evaluate(() => document.getElementById("shell")!.remove())
     await mount(page, { name: "Ada" }, false)
     expect(await fill(page, '#shell [e-widget="label"]')).toBe("rgba(0, 0, 0, 0)")
   })

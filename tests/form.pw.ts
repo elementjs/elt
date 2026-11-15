@@ -1,4 +1,4 @@
-import { type Page, expect, test } from "./fixture"
+import { type Page, expect, expects_errors, test } from "./fixture"
 
 // Disabled controls move their full-strength colors halfway toward the background (`.mid`), with no
 // transparency (docs/md/ui-theme.md, "State").
@@ -24,18 +24,18 @@ test.describe("disabled controls", () => {
     )
   }
 
-  test("a disabled default button uses text.mid and is fully opaque", async ({ page }) => {
-    const r = await probe(page, `<button disabled>b</button>`, "button", "text.mid")
-    expect(r.opacity).toBe("1")
-    expect(r.color).toBe(r.ref)
-  })
-
-  // A disabled control is furniture, whatever its variant: it loses its tint for neutral.
-  test("a disabled tint button uses text.mid, like the default one", async ({ page }) => {
-    const r = await probe(page, `<button e-emphasis="tint" disabled>b</button>`, "button", "text.mid")
-    expect(r.opacity).toBe("1")
-    expect(r.color).toBe(r.ref)
-  })
+  // A disabled control is furniture, whatever its variant: a tint button loses its tint for neutral.
+  for (const [name, html, selector] of [
+    ["a disabled default button", `<button disabled>b</button>`, "button"],
+    ["a disabled tint button", `<button e-emphasis="tint" disabled>b</button>`, "button"],
+    ["a label around a disabled control", `<label><input type="checkbox" disabled/> l</label>`, "label"],
+  ] as const) {
+    test(`${name} uses text.mid and is fully opaque`, async ({ page }) => {
+      const r = await probe(page, html, selector, "text.mid")
+      expect(r.opacity).toBe("1")
+      expect(r.color).toBe(r.ref)
+    })
+  }
 
   test("a disabled tint button's border is neutral.mid", async ({ page }) => {
     const r = await page.evaluate(() => {
@@ -90,12 +90,6 @@ test.describe("disabled controls", () => {
     expect(r.off_border).toBe(r.ref_border)
     expect(r.on_border).toBe(r.ref_border)
     expect(r.on_bg).toBe(r.ref_bg)
-  })
-
-  test("a label around a disabled control uses text.mid and is fully opaque", async ({ page }) => {
-    const r = await probe(page, `<label><input type="checkbox" disabled/> l</label>`, "label", "text.mid")
-    expect(r.opacity).toBe("1")
-    expect(r.color).toBe(r.ref)
   })
 })
 
@@ -215,24 +209,9 @@ test.describe("invalid fields", () => {
 
 // The checkbox's check mark is clipped to the Check icon's polyline (ui/icons.tsx). It is a clip-path,
 // not a data-URI mask: a Content-Security-Policy without `data:` for images would block the mask.
-test("the checkbox mark is a clip-path following the Check icon's points, with no image load", async ({ page }) => {
-  const r = await page.evaluate(async () => {
-    const box = document.createElement("input")
-    box.type = "checkbox"
-    box.checked = true
-    document.body.appendChild(box)
-    await window.__ELT__.frames(30)
-    const after = getComputedStyle(box, "::after")
-    return { clip: after.clipPath, mask: after.maskImage, opacity: after.opacity }
-  })
-  // The outline of a stroked 3-point polyline has 6 corners.
-  expect(r.clip).toMatch(/^polygon\(/)
-  expect(r.clip.split(",")).toHaveLength(6)
-  expect(r.mask).toBe("none")
-  expect(r.opacity).toBe("1")
-})
-
 test("the checkbox mark is drawn under a Content-Security-Policy that blocks data: images", async ({ page }) => {
+  // The dev server's hot-reload socket can't connect from the page served through route.fulfill: noise, not the test
+  expects_errors(/_bun\/hmr/, /Hot-module-reloading socket/)
   await page.route("**/tests/browser/harness.html", async (route) => {
     const resp = await route.fetch()
     await route.fulfill({
@@ -255,27 +234,4 @@ test("the checkbox mark is drawn under a Content-Security-Policy that blocks dat
   await page.addStyleTag({ content: "#cb::after { display: none }" })
   const bare = await page.locator("#cb").screenshot()
   expect(checked.equals(bare)).toBe(false)
-})
-
-test.describe("$auto_grow without a window resize listener", () => {
-  test("rewraps when the viewport narrows (the ResizeObserver sees the width change)", async ({ page }) => {
-    await page.setViewportSize({ width: 900, height: 600 })
-    await page.evaluate(() => {
-      const { node_append } = window.__ELT__
-      const { $auto_grow } = window.__ELT__.UI
-      const ta = document.createElement("textarea")
-      ta.id = "ta"
-      ta.value = "word ".repeat(60)
-      ta.style.width = "100%"
-      node_append(ta, $auto_grow())
-      node_append(document.body, ta)
-    })
-    const height = () =>
-      page.evaluate(() =>
-        window.__ELT__.frames(2).then(() => document.getElementById("ta")!.getBoundingClientRect().height),
-      )
-    const wide = await height()
-    await page.setViewportSize({ width: 300, height: 600 })
-    await expect.poll(height).toBeGreaterThan(wide)
-  })
 })

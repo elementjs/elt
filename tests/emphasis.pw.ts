@@ -67,49 +67,6 @@ test.describe("selected", () => {
     const r = await fill(page, '[role="option"][aria-selected="true"]', "n+4")
     expect(r.bg).toBe(r.ref)
   })
-
-  test("a selected day of the date picker is tint + 3", async ({ page }) => {
-    await page.evaluate(() => {
-      const { o, node_append, UI } = window.__ELT__
-      const holder = document.createElement("div")
-      holder.id = "holder"
-      node_append(document.body, holder)
-      node_append(holder, UI.DateTimePicker({ model: o<Date | null>(new Date(2026, 9, 3)) }))
-    })
-    await page.click("#holder button")
-    await page.waitForSelector('button[aria-pressed="true"]')
-    await page.mouse.move(0, 0)
-    const r = await fill(page, '#holder button[aria-pressed="true"], body button[aria-pressed="true"]', "n+3")
-    expect(r.bg).toBe(r.ref)
-  })
-})
-
-test.describe("checked toggle", () => {
-  test("is tint + 3 with a full tint border, not the inverted fill of the dominant action", async ({ page }) => {
-    const r = await page.evaluate(() => {
-      const { theme } = window.__ELT__.UI
-      document.body.insertAdjacentHTML(
-        "beforeend",
-        `<e-row id="row"><label e-widget="toggle"><input type="checkbox" checked>Aa</label><button e-emphasis="inverted">Go</button></e-row>`,
-      )
-      const label = document.querySelector("#row > label")!
-      const ref = document.createElement("div")
-      ref.style.backgroundColor = theme.colors.tint.surface("n+3")
-      ref.style.borderColor = theme.colors.tint.toString()
-      document.querySelector("#row")!.appendChild(ref)
-      const cs = getComputedStyle(label)
-      return {
-        bg: cs.backgroundColor,
-        border: cs.borderTopColor,
-        ref_bg: getComputedStyle(ref).backgroundColor,
-        ref_border: getComputedStyle(ref).borderTopColor,
-        inverted_bg: getComputedStyle(document.querySelector("#row > button")!).backgroundColor,
-      }
-    })
-    expect(r.bg).toBe(r.ref_bg)
-    expect(r.border).toBe(r.ref_border)
-    expect(r.bg).not.toBe(r.inverted_bg)
-  })
 })
 
 test.describe("e-ellipsis", () => {

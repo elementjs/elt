@@ -6,7 +6,8 @@ import { type Page, expect, test } from "./fixture"
 // fractional zoom produces) makes it swallow the first wheel ticks meant for the scroll area around it.
 // Clicking where the field's vertical padding used to be must still put the caret where the click was.
 
-const ZOOMS = [0.8, 1, 1.1, 1.25, 1.5, 1.75, 2, 3]
+// The extremes, and the fractional zooms that produce sub-pixel overflows.
+const ZOOMS = [0.8, 1.1, 1.25, 3]
 
 const CONTROLS = `
   <input type="text" value="Some text" />

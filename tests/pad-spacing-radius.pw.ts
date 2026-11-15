@@ -8,7 +8,20 @@ import { type Page, expect, test } from "./fixture"
 //   packed container around it, else `widget`;
 // - radius: `radius="X"`, else its own `pad`, else its own `packed="X"`, else `widget`.
 
-const STEP_PX = { widget: "6px", component: "12px", section: "24px" }
+/** The px value of each named step, resolved by the browser on a probe element. */
+async function steps(page: Page) {
+  return page.evaluate(() => {
+    const probe = document.createElement("div")
+    document.body.appendChild(probe)
+    const px = (step: string) => {
+      probe.style.width = `var(--e-spacing-${step})`
+      return getComputedStyle(probe).width
+    }
+    const out = { widget: px("widget"), component: px("component"), section: px("section") }
+    probe.remove()
+    return out
+  })
+}
 
 /** Mounts `html` in a host and returns the computed values of each `#id`'s listed properties. */
 async function measure(page: Page, html: string, wanted: Record<string, string[]>) {
@@ -29,17 +42,9 @@ async function measure(page: Page, html: string, wanted: Record<string, string[]
   )
 }
 
-test.describe("the step values are what the tests below assume", () => {
-  test("widget 6px, component 12px, section 24px", async ({ page }) => {
-    const r = await measure(page, `<e-column id="a" pad="widget" spacing="component"><i>x</i><i>y</i></e-column>`, {
-      a: ["padding-top", "row-gap"],
-    })
-    expect(r.a).toEqual({ "padding-top": STEP_PX.widget, "row-gap": STEP_PX.component })
-  })
-})
-
 test.describe("pad", () => {
   test("pads the element, spaces its children at the same step, and is not inherited", async ({ page }) => {
+    const STEP_PX = await steps(page)
     const r = await measure(
       page,
       `<e-column id="a" pad="section"><i>x</i><e-row id="inner"><i>y</i><i>z</i></e-row><e-row id="b" packed><i id="cell">w</i></e-row></e-column>`,
@@ -53,6 +58,7 @@ test.describe("pad", () => {
   })
 
   test("an explicit spacing sets the gap, the padding stays", async ({ page }) => {
+    const STEP_PX = await steps(page)
     const r = await measure(page, `<e-column id="a" pad="section" spacing="widget"><i>x</i><i>y</i></e-column>`, {
       a: ["padding-top", "row-gap"],
     })
@@ -60,6 +66,7 @@ test.describe("pad", () => {
   })
 
   test('pad="none" pads nothing and spaces nothing, unless spacing is given', async ({ page }) => {
+    const STEP_PX = await steps(page)
     const r = await measure(
       page,
       `<e-column id="a" pad="none"><i>x</i><i>y</i></e-column><e-column id="b" pad="none" spacing="widget"><i>x</i><i>y</i></e-column>`,
@@ -72,6 +79,7 @@ test.describe("pad", () => {
 
 test.describe("spacing", () => {
   test("only spaces: no padding, no change of the radius, inherited by plain layout descendants", async ({ page }) => {
+    const STEP_PX = await steps(page)
     const r = await measure(
       page,
       `<e-column id="a" spacing="section" border><i>x</i><e-row id="inner"><i>y</i><i>z</i></e-row></e-column>`,
@@ -82,6 +90,7 @@ test.describe("spacing", () => {
   })
 
   test("a packed container's children are not spaced, and spacing on it still passes down", async ({ page }) => {
+    const STEP_PX = await steps(page)
     const r = await measure(
       page,
       `<e-column id="a" packed spacing="section"><e-row id="inner"><i>y</i><i>z</i></e-row></e-column>`,
@@ -98,20 +107,22 @@ test.describe("radius", () => {
       "border-top-left-radius"
     ]
 
-  test("a bare border rounds at widget", async ({ page }) => {
-    expect(await radius(page, "")).toBe(STEP_PX.widget)
-  })
-
-  test("its own pad is next", async ({ page }) => {
-    expect(await radius(page, 'pad="section"')).toBe(STEP_PX.section)
-  })
-
-  test("a packed container's own step is after the pad and before widget", async ({ page }) => {
-    expect(await radius(page, 'packed="component"')).toBe(STEP_PX.component)
-    expect(await radius(page, 'packed="component" pad="section"')).toBe(STEP_PX.section)
+  test("the radius comes from radius=X, else the own pad, else the own packed=X, else widget", async ({ page }) => {
+    const STEP_PX = await steps(page)
+    const cases: [string, string][] = [
+      ["", STEP_PX.widget],
+      ['pad="section"', STEP_PX.section],
+      ['packed="component"', STEP_PX.component],
+      ['packed="component" pad="section"', STEP_PX.section],
+      ['radius="component" pad="section"', STEP_PX.component],
+      ['radius="component" packed="section"', STEP_PX.component],
+      ['radius="component" spacing="section"', STEP_PX.component],
+    ]
+    for (const [attrs, want] of cases) expect(await radius(page, attrs), attrs || "a bare border").toBe(want)
   })
 
   test("a bare packed doesn't take the radius from the packed container around it", async ({ page }) => {
+    const STEP_PX = await steps(page)
     const r = await measure(
       page,
       `<e-column packed="section"><e-column id="a" packed border><i>x</i></e-column></e-column>`,
@@ -122,13 +133,8 @@ test.describe("radius", () => {
     expect(r.a["border-top-left-radius"]).toBe(STEP_PX.widget)
   })
 
-  test("the radius attribute rules over everything", async ({ page }) => {
-    expect(await radius(page, 'radius="component" pad="section"')).toBe(STEP_PX.component)
-    expect(await radius(page, 'radius="component" packed="section"')).toBe(STEP_PX.component)
-    expect(await radius(page, 'radius="component" spacing="section"')).toBe(STEP_PX.component)
-  })
-
   test("a bare radius follows pad like a border does; pad=none falls back to widget", async ({ page }) => {
+    const STEP_PX = await steps(page)
     const r = await measure(
       page,
       `<e-column id="a" radius pad="section"><i>x</i></e-column><e-column id="b" radius pad="none"><i>x</i></e-column>`,
@@ -144,6 +150,7 @@ test.describe("packed cells", () => {
     (await measure(page, html, { c: ["padding-top"] })).c["padding-top"]
 
   test("a bare packed pads its cells at widget, whatever the spacing and the pad around it", async ({ page }) => {
+    const STEP_PX = await steps(page)
     expect(await cell_pad(page, `<e-column packed><i id="c">x</i></e-column>`)).toBe(STEP_PX.widget)
     expect(
       await cell_pad(
@@ -154,11 +161,13 @@ test.describe("packed cells", () => {
   })
 
   test("a bare packed with its own pad pads its cells at that pad; with pad=none, at nothing", async ({ page }) => {
+    const STEP_PX = await steps(page)
     expect(await cell_pad(page, `<e-column packed pad="section"><i id="c">x</i></e-column>`)).toBe(STEP_PX.section)
     expect(await cell_pad(page, `<e-column packed pad="none"><i id="c">x</i></e-column>`)).toBe("0px")
   })
 
   test("packed=X pads its cells at X, whatever its pad", async ({ page }) => {
+    const STEP_PX = await steps(page)
     expect(await cell_pad(page, `<e-column packed="component"><i id="c">x</i></e-column>`)).toBe(STEP_PX.component)
     expect(await cell_pad(page, `<e-column packed="component" pad="section"><i id="c">x</i></e-column>`)).toBe(
       STEP_PX.component,
@@ -171,6 +180,7 @@ test.describe("packed cells", () => {
   test("a nested bare packed group inherits the step of the packed container around it, through other elements", async ({
     page,
   }) => {
+    const STEP_PX = await steps(page)
     expect(
       await cell_pad(page, `<e-column packed="section"><e-column packed><i id="c">x</i></e-column></e-column>`),
     ).toBe(STEP_PX.section)
@@ -183,12 +193,6 @@ test.describe("packed cells", () => {
         page,
         `<e-column packed="section"><e-column packed="component"><e-row packed><i id="c">x</i></e-row></e-column></e-column>`,
       ),
-    ).toBe(STEP_PX.component)
-  })
-
-  test("a cell with its own pad keeps it", async ({ page }) => {
-    expect(
-      await cell_pad(page, `<e-column packed="section"><e-row id="c" pad="component"><i>x</i></e-row></e-column>`),
     ).toBe(STEP_PX.component)
   })
 })

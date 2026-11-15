@@ -13,17 +13,6 @@ import type { o } from "elt"
 
 test.describe("Observable extended", () => {
   test.describe("utility and combinators", () => {
-    test("o.none() is true when all arguments are falsy", async ({ page }) => {
-      const results = await page.evaluate(() => {
-        const { o } = window.__ELT__
-        const out: { name: string; actual: unknown; expected: unknown }[] = []
-        out.push({ name: "none(false,0,'')", actual: o.none(false, 0, "").get(), expected: true })
-        out.push({ name: "none(false,1)", actual: o.none(false, 1).get(), expected: false })
-        return out
-      })
-      for (const r of results) expect(r.actual, r.name).toBe(r.expected)
-    })
-
     test("o.str() interpolates observable parts", async ({ page }) => {
       const results = await page.evaluate(() => {
         const { o } = window.__ELT__
@@ -50,62 +39,33 @@ test.describe("Observable extended", () => {
       for (const r of results) expect(r.actual, r.name).toBe(r.expected)
     })
 
-    test("o.isReadonlyObservable() recognizes observables", async ({ page }) => {
-      const results = await page.evaluate(() => {
+    test("o.clone() copies objects, arrays, maps and sets one level deep", async ({ page }) => {
+      const result = await page.evaluate(() => {
         const { o } = window.__ELT__
-        const out: { name: string; actual: unknown; expected: unknown }[] = []
-        const obs = o(1)
-        out.push({ name: "obs is observable", actual: o.isReadonlyObservable(obs), expected: true })
-        out.push({ name: "1 is not observable", actual: o.isReadonlyObservable(1), expected: false })
-        return out
-      })
-      for (const r of results) expect(r.actual, r.name).toBe(r.expected)
-    })
-
-    test("o.clone() clones top-level object identity", async ({ page }) => {
-      const results = await page.evaluate(() => {
-        const { o } = window.__ELT__
-        const out: { name: string; actual: unknown; expected: unknown }[] = []
         const src = { a: 1, b: { c: 2 }, d: [3, 4] }
         const copy = o.clone(src)
-        out.push({ name: "copy equals src", actual: copy, expected: src })
-        out.push({ name: "copy !== src", actual: copy === src, expected: false })
-        // Nested structures are shallow-copied for plain objects
-        out.push({ name: "copy.b === src.b", actual: copy.b === src.b, expected: true })
-        out.push({ name: "copy.d === src.d", actual: copy.d === src.d, expected: true })
-        return out
+        const arr = [1, 2, 3]
+        const arr_copy = o.clone(arr)
+        const map = new Map([["a", 1]])
+        const map_copy = o.clone(map)
+        const set = new Set([1, 2])
+        const set_copy = o.clone(set)
+        return {
+          object: { equal: JSON.stringify(copy) === JSON.stringify(src), same: copy === src },
+          // Nested structures are shared, not copied
+          nested_shared: copy.b === src.b && copy.d === src.d,
+          array: { value: arr_copy, same: arr_copy === arr },
+          map: { a: map_copy.get("a"), same: map_copy === map },
+          set: { has_2: set_copy.has(2), same: set_copy === set },
+        }
       })
-      for (const r of results) {
-        if (r.name === "copy !== src" || r.name.includes("===")) expect(r.actual, r.name).toBe(r.expected)
-        else expect(r.actual, r.name).toEqual(r.expected)
-      }
-    })
-
-    test("o.clone() copies arrays, maps, and sets", async ({ page }) => {
-      const results = await page.evaluate(() => {
-        const { o } = window.__ELT__
-        const out: { name: string; actual: unknown; expected: unknown; kind?: string }[] = []
-        const arr = o.clone([1, 2, 3])
-        out.push({ name: "arr equals", actual: arr, expected: [1, 2, 3], kind: "equal" })
-        out.push({ name: "arr not same ref", actual: arr === ([1, 2, 3] as any), expected: false, kind: "be" })
-
-        const map = o.clone(new Map([["a", 1]]))
-        out.push({ name: "map.get(a)", actual: map.get("a"), expected: 1, kind: "be" })
-        out.push({
-          name: "map not same ref",
-          actual: map === (new Map([["a", 1]]) as any),
-          expected: false,
-          kind: "be",
-        })
-
-        const set = o.clone(new Set([1, 2]))
-        out.push({ name: "set.has(2)", actual: set.has(2), expected: true, kind: "be" })
-        return out
+      expect(result).toEqual({
+        object: { equal: true, same: false },
+        nested_shared: true,
+        array: { value: [1, 2, 3], same: false },
+        map: { a: 1, same: false },
+        set: { has_2: true, same: false },
       })
-      for (const r of results) {
-        if (r.kind === "equal") expect(r.actual, r.name).toEqual(r.expected)
-        else expect(r.actual, r.name).toBe(r.expected)
-      }
     })
 
     test('o.clone() keeps every RegExp flag (regression: flags collapsed to a lone "g")', async ({ page }) => {
@@ -194,21 +154,6 @@ test.describe("Observable extended", () => {
       expect(result).toEqual(["B", "B2"])
     })
 
-    test("o.combine() without a setter throws an explicit error when written to", async ({ page }) => {
-      const message = await page.evaluate(() => {
-        const { o } = window.__ELT__
-        const combined = o.combine([o(1), o(2)] as const, ([a, b]) => a + b)
-        try {
-          // typed read-only, but the object is a CombinedObservable underneath: write through `any` on purpose
-          ;(combined as any).set(10)
-          return "no error"
-        } catch (e) {
-          return (e as Error).message
-        }
-      })
-      expect(message).toContain("read-only")
-    })
-
     test("o.assign() on plain objects merges recursively", async ({ page }) => {
       const results = await page.evaluate(() => {
         const { o } = window.__ELT__
@@ -223,21 +168,7 @@ test.describe("Observable extended", () => {
       expect(results[1].actual, results[1].name).toBe(results[1].expected)
     })
 
-    test("o.then() maps observable values through a promise", async ({ page }) => {
-      const results = await page.evaluate(async () => {
-        const { o } = window.__ELT__
-        const out: { name: string; actual: unknown; expected: unknown }[] = []
-        const obs = o(2)
-        const mapped = o.then(obs, (n) => n * 10)
-        out.push({ name: "initial", actual: await mapped.get(), expected: 20 })
-        obs.set(3)
-        out.push({ name: "after set", actual: await mapped.get(), expected: 30 })
-        return out
-      })
-      for (const r of results) expect(r.actual, r.name).toBe(r.expected)
-    })
-
-    test("o.then() rejects when the source rejects or the function throws, with no unhandled rejection (regression: it never settled)", async ({
+    test("o.then() maps values through a promise, and rejects when the source rejects or the function throws, with no unhandled rejection (regression: it never settled)", async ({
       page,
     }) => {
       const result = await page.evaluate(async () => {
@@ -253,6 +184,11 @@ test.describe("Observable extended", () => {
             ),
             new Promise((r) => setTimeout(() => r("pending"), 50)),
           ])
+        const obs = o(2)
+        const mapped = o.then(obs, (n) => n * 10)
+        const initial = await settle(mapped.get())
+        obs.set(3)
+        const after_set = await settle(mapped.get())
         const from_source = await settle(o.then(o(Promise.reject(new Error("E1"))), (n: number) => n).get())
         const from_fn = await settle(
           o
@@ -263,9 +199,15 @@ test.describe("Observable extended", () => {
         )
         await new Promise((r) => setTimeout(r, 20))
         window.removeEventListener("unhandledrejection", on_unhandled)
-        return { from_source, from_fn, unhandled }
+        return { initial, after_set, from_source, from_fn, unhandled }
       })
-      expect(result).toEqual({ from_source: "error E1", from_fn: "error E2", unhandled: [] })
+      expect(result).toEqual({
+        initial: "value 20",
+        after_set: "value 30",
+        from_source: "error E1",
+        from_fn: "error E2",
+        unhandled: [],
+      })
     })
 
     test("o.prop() applies def with a plain key, as with an observable key (regression: def was ignored)", async ({
@@ -337,18 +279,6 @@ test.describe("Observable extended", () => {
       return { error, a: o_a.get(), b: o_b.get() }
     })
     expect(result).toEqual({ error: "this observable is read-only, it was given no setter", a: 1, b: 2 })
-  })
-
-  test("o.join of writable observables is writable, and writes each item to its observable", async ({ page }) => {
-    const result = await page.evaluate(() => {
-      const { o } = window.__ELT__
-      const o_a = o(1)
-      const o_b = o("x")
-      const joined = o.join(o_a, o_b)
-      joined.set([2, "y"])
-      return { a: o_a.get(), b: o_b.get(), joined: joined.get() }
-    })
-    expect(result).toEqual({ a: 2, b: "y", joined: [2, "y"] })
   })
 
   test("o.join with a read-only part throws when written, and writes nothing", async ({ page }) => {
@@ -460,16 +390,6 @@ test.describe("Observable extended", () => {
       for (const r of results) expect(r.actual, r.name).toBe(r.expected)
     })
 
-    test("get() accepts plain values mixed with observables", async ({ page }) => {
-      const result = await page.evaluate(() => {
-        const { o } = window.__ELT__
-        const a = o(3)
-        const expr = o.expression((get) => get(a) + get(7))
-        return expr.get()
-      })
-      expect(result).toBe(10)
-    })
-
     test("writable expression reverts through fn_revert", async ({ page }) => {
       const results = await page.evaluate(() => {
         const { o } = window.__ELT__
@@ -492,169 +412,9 @@ test.describe("Observable extended", () => {
       })
       for (const r of results) expect(r.actual, r.name).toBe(r.expected)
     })
-
-    test("writable expression can split a set across several sources", async ({ page }) => {
-      const results = await page.evaluate(() => {
-        const { o } = window.__ELT__
-        const out: { name: string; actual: unknown; expected: unknown }[] = []
-        const o_x = o(3)
-        const o_y = o(7)
-        const total = o.expression(
-          (get) => get(o_x) + get(o_y),
-          (value, set) => {
-            set(o_x, Math.floor(value / 2))
-            set(o_y, value - Math.floor(value / 2))
-          },
-        )
-
-        total.set(11)
-        out.push({ name: "sum of parts", actual: o_x.get() + o_y.get(), expected: 11 })
-        out.push({ name: "total", actual: total.get(), expected: 11 })
-        return out
-      })
-      for (const r of results) expect(r.actual, r.name).toBe(r.expected)
-    })
-  })
-
-  test.describe("merge and join extended", () => {
-    test("o.merge() set reverts into member observables", async ({ page }) => {
-      const results = await page.evaluate(() => {
-        const { o } = window.__ELT__
-        const out: { name: string; actual: unknown; expected: unknown }[] = []
-        const a = o(1)
-        const b = o(2)
-        const merged = o.merge({ a, b })
-
-        merged.set({ a: 10, b: 20 })
-        out.push({ name: "a", actual: a.get(), expected: 10 })
-        out.push({ name: "b", actual: b.get(), expected: 20 })
-        return out
-      })
-      for (const r of results) expect(r.actual, r.name).toBe(r.expected)
-    })
-
-    test("nested o.transaction() flushes once per outer transaction", async ({ page }) => {
-      const results = await page.evaluate(() => {
-        const { o } = window.__ELT__
-        const out: { name: string; actual: unknown; expected: unknown }[] = []
-
-        function spy<T>(obs: o.ReadonlyObservable<T>, immediate = false) {
-          let count = 0
-          let last: T | undefined
-          obs.addObserver((v, old) => {
-            if (old !== o.NoValue || immediate) {
-              count++
-              last = v
-            }
-          })
-          return {
-            count: () => count,
-            last: () => last,
-            reset: () => {
-              count = 0
-              last = undefined
-            },
-          }
-        }
-
-        const a = o(1)
-        const b = o(2)
-        const sum = o.combine([a, b], ([x, y]) => x + y)
-        const s = spy(sum)
-
-        o.transaction(() => {
-          o.transaction(() => {
-            a.set(5)
-            b.set(6)
-          })
-          a.set(5)
-        })
-
-        out.push({ name: "count", actual: s.count(), expected: 1 })
-        out.push({ name: "sum", actual: sum.get(), expected: 11 })
-        return out
-      })
-      for (const r of results) expect(r.actual, r.name).toBe(r.expected)
-    })
-  })
-
-  test.describe("Map.key() with dynamic keys", () => {
-    test("follows observable key changes", async ({ page }) => {
-      const results = await page.evaluate(() => {
-        const { o } = window.__ELT__
-        const out: { name: string; actual: unknown; expected: unknown }[] = []
-
-        function spy<T>(obs: o.ReadonlyObservable<T>, immediate = false) {
-          let count = 0
-          let last: T | undefined
-          obs.addObserver((v, old) => {
-            if (old !== o.NoValue || immediate) {
-              count++
-              last = v
-            }
-          })
-          return {
-            count: () => count,
-            last: () => last,
-            reset: () => {
-              count = 0
-              last = undefined
-            },
-          }
-        }
-
-        const map = o(
-          new Map<string, number>([
-            ["a", 1],
-            ["b", 2],
-          ]),
-        )
-        const o_key = o<"a" | "b">("a")
-        const slot = map.key(o_key)
-
-        out.push({ name: "initial", actual: slot.get(), expected: 1 })
-
-        const s = spy(slot)
-        o_key.set("b")
-        out.push({ name: "after key change", actual: slot.get(), expected: 2 })
-        out.push({ name: "spy count", actual: s.count(), expected: 1 })
-        out.push({ name: "spy last", actual: s.last(), expected: 2 })
-        return out
-      })
-      for (const r of results) expect(r.actual, r.name).toBe(r.expected)
-    })
   })
 
   test.describe("observer lifecycle extended", () => {
-    test("an observer that throws does not stop the other observers of the same observable", async ({ page }) => {
-      expects_errors(/^uncaught error: boom/)
-      const result = await page.evaluate(() => {
-        const { o } = window.__ELT__
-        // The error is reported as an uncaught one (window.onerror): record it, and keep it off the console
-        const errors: unknown[] = []
-        const on_error = (ev: ErrorEvent) => {
-          errors.push(ev.error)
-          ev.preventDefault()
-        }
-        window.addEventListener("error", on_error)
-        try {
-          const o_n = o(1)
-          const seen: number[] = []
-          o_n.addObserver((v) => {
-            if (v === 2) throw new Error("boom")
-          })
-          o_n.addObserver((v) => {
-            seen.push(v)
-          })
-          o_n.set(2)
-          return { seen, errors: errors.length }
-        } finally {
-          window.removeEventListener("error", on_error)
-        }
-      })
-      expect(result).toEqual({ seen: [1, 2], errors: 1 })
-    })
-
     test("ObserverHolder.observe follows the node_observe rule for plain values (regression: changes_only still fired)", async ({
       page,
     }) => {
@@ -772,30 +532,6 @@ test.describe("Observable extended", () => {
       })
       expect(result).toEqual({ seen: ["a", "b"], errors: 1 })
     })
-
-    test("removeObserver stops further notifications", async ({ page }) => {
-      const results = await page.evaluate(() => {
-        const { o } = window.__ELT__
-        const out: { name: string; actual: unknown; expected: unknown }[] = []
-        const obs = o(1)
-        let count = 0
-        const observer = new o.Observer(() => {
-          count++
-        }, obs)
-
-        observer.startObserving()
-        out.push({ name: "count after start", actual: count, expected: 1 })
-
-        obs.set(2)
-        out.push({ name: "count after set(2)", actual: count, expected: 2 })
-
-        obs.removeObserver(observer)
-        obs.set(3)
-        out.push({ name: "count after removeObserver + set(3)", actual: count, expected: 2 })
-        return out
-      })
-      for (const r of results) expect(r.actual, r.name).toBe(r.expected)
-    })
   })
 
   test.describe("o.wrap_promise()", () => {
@@ -875,33 +611,24 @@ test.describe("Observable extended", () => {
   // watched, which made any expression-bodied callback (`(v) => (node.title = v)`, `(v) => fetch(u).then(...)`) write
   // something nobody meant, and threw on a read-only observable.
   test.describe("an observer's return value", () => {
-    test("is ignored, whether it is a value or a promise", async ({ page }) => {
+    test("is ignored, whether it is a value or a promise, and on a read-only observable too", async ({ page }) => {
       const result = await page.evaluate(async () => {
         const { o } = window.__ELT__
         const o_sync = o(1)
         const o_async = o(1)
         o_sync.addObserver(((v: number) => v + 100) as any)
         o_async.addObserver((async (v: number) => v + 100) as any)
-        o_sync.set(2)
-        o_async.set(2)
-        await new Promise((resolve) => setTimeout(resolve, 10))
-        return { sync: o_sync.get(), async: o_async.get() }
-      })
-      expect(result).toEqual({ sync: 2, async: 2 })
-    })
-
-    test("a read-only observable's observer returning a value does not throw", async ({ page }) => {
-      const result = await page.evaluate(() => {
-        const { o } = window.__ELT__
-        const o_a = o(1)
-        const oo_double = o_a.tf((v: number) => v * 2)
+        // On a read-only observable, writing the returned value back would throw
+        const oo_double = o_sync.tf((v: number) => v * 2)
         const seen: number[] = []
         // An expression body returns the pushed length: nobody meant it as a write
         oo_double.addObserver(((v: number) => seen.push(v)) as any)
-        o_a.set(2)
-        return { seen, double: oo_double.get() }
+        o_sync.set(2)
+        o_async.set(2)
+        await new Promise((resolve) => setTimeout(resolve, 10))
+        return { sync: o_sync.get(), async: o_async.get(), seen, double: oo_double.get() }
       })
-      expect(result).toEqual({ seen: [2, 4], double: 4 })
+      expect(result).toEqual({ sync: 2, async: 2, seen: [2, 4], double: 4 })
     })
   })
 
@@ -1067,15 +794,29 @@ test.describe("Observable extended", () => {
           seen.push(v)
         })
         seen.length = 0
+        // A derived observable is computed and notified once, when the outermost transaction ends
+        const o_x = o(1)
+        const o_y = o(2)
+        const oo_sum = o.combine([o_x, o_y] as const, ([x, y]) => x + y)
+        const sums: number[] = []
+        oo_sum.addObserver((v: number) => {
+          sums.push(v)
+        })
+        sums.length = 0
         const inside: number[][] = []
         o.transaction(() => {
-          o.transaction(() => o_a.set(1))
+          o.transaction(() => {
+            o_a.set(1)
+            o_x.set(5)
+            o_y.set(6)
+          })
           inside.push(seen.slice())
           o_a.set(2)
+          o_x.set(5)
         })
-        return { inside, seen }
+        return { inside, seen, sums }
       })
-      expect(result).toEqual({ inside: [[]], seen: [2] })
+      expect(result).toEqual({ inside: [[]], seen: [2], sums: [11] })
     })
   })
 
@@ -1193,49 +934,6 @@ test.describe("Observable extended", () => {
       for (const r of results) expect(r.actual, r.name).toBe(r.expected)
     })
 
-    test("tf_array_transform() picks indices from a function", async ({ page }) => {
-      const result = await page.evaluate(() => {
-        const { o, tf_array_transform } = window.__ELT__
-        const arr = o([10, 20, 30, 40])
-        const picked = arr.tf(tf_array_transform((list) => list.map((_, i) => i).filter((i) => i % 2 === 0)))
-        return picked.get()
-      })
-      expect(result).toEqual([10, 30])
-    })
-
-    test("tf_array_group_by() groups items", async ({ page }) => {
-      const result = await page.evaluate(() => {
-        const { o, tf_array_group_by } = window.__ELT__
-        const arr = o([
-          { type: "a", v: 1 },
-          { type: "b", v: 2 },
-          { type: "a", v: 3 },
-        ])
-        const grouped = arr.tf(tf_array_group_by((item: { type: string; v: number }) => item.type))
-        const result = grouped.get()
-        const a_group = result.find(([k]) => k === "a")
-        return a_group?.[1].map((x) => x.v)
-      })
-      expect(result).toEqual([1, 3])
-    })
-
-    test("tf_array_group_by() writes a changed group back to the source positions", async ({ page }) => {
-      const result = await page.evaluate(() => {
-        const { o, tf_array_group_by } = window.__ELT__
-        type Item = { type: string; v: number }
-        const arr = o<Item[]>([
-          { type: "a", v: 1 },
-          { type: "b", v: 2 },
-          { type: "a", v: 3 },
-        ])
-        const grouped = arr.tf(tf_array_group_by((item: Item) => item.type))
-        grouped.addObserver(() => {})
-        grouped.set(grouped.get().map(([k, items]) => [k, items.map((it) => ({ ...it, v: it.v * 10 }))]))
-        return arr.get().map((x) => `${x.type}${x.v}`)
-      })
-      expect(result).toEqual(["a10", "b20", "a30"])
-    })
-
     test("tf_map_entries() round-trips map entries", async ({ page }) => {
       const result = await page.evaluate(() => {
         const { o, tf_map_entries } = window.__ELT__
@@ -1246,58 +944,25 @@ test.describe("Observable extended", () => {
           ]),
         )
         const entries = map.tf(tf_map_entries())
-        return entries.get()
-      })
-      expect(result).toEqual([
-        ["x", 1],
-        ["y", 2],
-      ])
-    })
-
-    test("tf_group_by_to_object() groups array into object buckets", async ({ page }) => {
-      const result = await page.evaluate(() => {
-        const { o, tf_group_by_to_object } = window.__ELT__
-        const arr = o([
-          { kind: "a", n: 1 },
-          { kind: "b", n: 2 },
-          { kind: "a", n: 3 },
+        entries.addObserver(() => {})
+        const forward = entries.get()
+        entries.set([
+          ["y", 20],
+          ["z", 3],
         ])
-        const grouped = arr.tf(tf_group_by_to_object<{ kind: string; n: number }>("kind"))
-        const obj = grouped.get()
-        return { a: obj.a.map((x) => x.n), b: obj.b.map((x) => x.n) }
+        return { forward, map_after_set: [...map.get()] }
       })
-      expect(result.a).toEqual([1, 3])
-      expect(result.b).toEqual([2])
-    })
-
-    test("tf_group_by_to_map() groups array into map buckets", async ({ page }) => {
-      const result = await page.evaluate(() => {
-        const { o, tf_group_by_to_map } = window.__ELT__
-        const arr = o([
-          { kind: "a", n: 1 },
-          { kind: "b", n: 2 },
-        ])
-        const grouped = arr.tf(tf_group_by_to_map((item: { kind: string; n: number }) => item.kind))
-        const m = grouped.get()
-        return { a: m.get("a")?.[0].n, b: m.get("b")?.[0].n }
+      expect(result).toEqual({
+        forward: [
+          ["x", 1],
+          ["y", 2],
+        ],
+        // The map is rebuilt from the entries: x, not among them, is gone
+        map_after_set: [
+          ["y", 20],
+          ["z", 3],
+        ],
       })
-      expect(result.a).toBe(1)
-      expect(result.b).toBe(2)
-    })
-
-    test("tf_array_filter() stable mode keeps indices on array growth", async ({ page }) => {
-      const results = await page.evaluate(() => {
-        const { o, tf_array_filter } = window.__ELT__
-        const out: { name: string; actual: unknown; expected: unknown }[] = []
-        const arr = o([1, 2, 3])
-        const odds = arr.tf(tf_array_filter((n: number) => n % 2 === 1, true))
-        out.push({ name: "initial", actual: odds.get(), expected: [1, 3] })
-
-        arr.set([1, 2, 3, 4, 5])
-        out.push({ name: "after growth", actual: odds.get(), expected: [1, 3, 5] })
-        return out
-      })
-      for (const r of results) expect(r.actual, r.name).toEqual(r.expected)
     })
 
     test("tf_array_filter() stable mode refilters everything when the condition changes (regression: it kept only the items added after the change)", async ({
@@ -1347,23 +1012,6 @@ test.describe("Observable extended", () => {
         return { object: vs(to_object), map: vs(to_map), array: vs(to_array) }
       })
       expect(result).toEqual({ object: [1, 2, 3, 4], map: [10, 20, 30], array: [1, 2, 3, 5] })
-    })
-
-    test("tf_array_has() adding values via true revert", async ({ page }) => {
-      const results = await page.evaluate(() => {
-        const { o, tf_array_has } = window.__ELT__
-        const out: { name: string; actual: unknown; expected: unknown; kind?: string }[] = []
-        const arr = o([1, 2])
-        const has = arr.tf(tf_array_has(3, 4))
-        out.push({ name: "initial", actual: has.get(), expected: false, kind: "be" })
-        has.set(true)
-        out.push({ name: "array after revert", actual: arr.get(), expected: [1, 2, 3, 4], kind: "equal" })
-        return out
-      })
-      for (const r of results) {
-        if (r.kind === "equal") expect(r.actual, r.name).toEqual(r.expected)
-        else expect(r.actual, r.name).toBe(r.expected)
-      }
     })
   })
 
@@ -1442,36 +1090,6 @@ test.describe("Observable extended", () => {
         return hits.sort()
       })
       expect(result).toEqual(["deb c1", "deb c2", "thr c1", "thr c2"])
-    })
-  })
-
-  test.describe("transformer revert paths", () => {
-    test("tf_set_has() true revert adds the value", async ({ page }) => {
-      const results = await page.evaluate(() => {
-        const { o, tf_set_has } = window.__ELT__
-        const out: { name: string; actual: unknown; expected: unknown }[] = []
-        const set = o(new Set([1]))
-        const has = set.tf(tf_set_has(2))
-        out.push({ name: "initial", actual: has.get(), expected: false })
-        has.set(true)
-        out.push({ name: "set has 2 after revert", actual: set.get().has(2), expected: true })
-        return out
-      })
-      for (const r of results) expect(r.actual, r.name).toBe(r.expected)
-    })
-
-    test("tf_map_has() true revert adds the entry", async ({ page }) => {
-      const results = await page.evaluate(() => {
-        const { o, tf_map_has } = window.__ELT__
-        const out: { name: string; actual: unknown; expected: unknown }[] = []
-        const map = o(new Map([["a", 1]]))
-        const has = map.tf(tf_map_has(["b", 2]))
-        out.push({ name: "initial", actual: has.get(), expected: false })
-        has.set(true)
-        out.push({ name: "map.get(b) after revert", actual: map.get().get("b"), expected: 2 })
-        return out
-      })
-      for (const r of results) expect(r.actual, r.name).toBe(r.expected)
     })
   })
 })

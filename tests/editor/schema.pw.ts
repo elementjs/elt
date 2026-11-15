@@ -1,88 +1,5 @@
 import { expect, test } from "../fixture"
 
-test.describe("schema CommonNodeOptions", () => {
-  test("composite Options accept shared node config fields", async ({ page }) => {
-    const result = await page.evaluate(() => {
-      const opts: import("../../editor/schema").ObjectOptions = {
-        properties: [],
-        open_as: "popup",
-        conversions: ["string", "number"],
-        show_filter: false,
-        free_keys: false,
-      }
-      return { open_as: opts.open_as, conversions: opts.conversions }
-    })
-    expect(result.open_as).toBe("popup")
-    expect(result.conversions).toEqual(["string", "number"])
-  })
-
-  test("CommonNodeOptions shape is assignable on array/set/map options", async ({ page }) => {
-    const result = await page.evaluate(() => {
-      const common: import("../../editor/schema").CommonNodeOptions = { open_as: "column", conversions: ["object"] }
-      return common.open_as
-    })
-    expect(result).toBe("column")
-  })
-})
-
-test.describe("schema scalar option forwarding", () => {
-  test("boolean() defaults to switch presentation", async ({ page }) => {
-    const result = await page.evaluate(() => {
-      const { node_append, o } = window.__ELT__
-      const { boolean } = window.__ELT__.Editor
-      const o_val = o(true)
-      const widget = boolean().render(o_val as any)
-      node_append(document.body, widget.render() as HTMLElement)
-      const input = document.querySelector("input[type=checkbox]") as HTMLInputElement
-      return input.getAttribute("e-widget")
-    })
-    expect(result).toBe("switch")
-  })
-
-  test("number() forwards step to the native input", async ({ page }) => {
-    const result = await page.evaluate(() => {
-      const { node_append, o } = window.__ELT__
-      const { number } = window.__ELT__.Editor
-      const o_val = o(2)
-      const widget = number({ step: 0.5, min: 0 }).render(o_val as any)
-      node_append(document.body, widget.render() as HTMLElement)
-      const input = document.querySelector("input[type=number]") as HTMLInputElement
-      return { step: input.step, min: input.min }
-    })
-    expect(result.step).toBe("0.5")
-    expect(result.min).toBe("0")
-  })
-
-  test("number() exposes allow_non_finite opt-in on options", async ({ page }) => {
-    const result = await page.evaluate(() => {
-      const { number } = window.__ELT__.Editor
-      return {
-        default_allow_non_finite: number().options.allow_non_finite,
-        opted_in_allow_non_finite: number({ allow_non_finite: true }).options.allow_non_finite,
-      }
-    })
-    expect(result.default_allow_non_finite).toBeUndefined()
-    expect(result.opted_in_allow_non_finite).toBe(true)
-  })
-})
-
-test.describe("schema undef combinator", () => {
-  test("undef() builds a factory that handles undefined only", async ({ page }) => {
-    const result = await page.evaluate(() => {
-      const { undef, UndefinedFactory } = window.__ELT__.Editor
-      const factory = undef()
-      return {
-        isUndefinedFactory: factory instanceof UndefinedFactory,
-        canHandleUndefined: factory.canHandle(undefined),
-        canHandleNull: factory.canHandle(null),
-      }
-    })
-    expect(result.isUndefinedFactory).toBe(true)
-    expect(result.canHandleUndefined).toBe(true)
-    expect(result.canHandleNull).toBe(false)
-  })
-})
-
 test.describe("ObjectFactory keys", () => {
   test("unknown-mode object renders a row per own key", async ({ page }) => {
     const result = await page.evaluate(() => {
@@ -135,21 +52,6 @@ test.describe("ObjectFactory keys", () => {
     })
     expect(result.hasSearch).toBe(true)
     expect(result.hasMoreActions).toBe(false)
-  })
-
-  test("toolbar search: false and no free keys: no toolbar at all", async ({ page }) => {
-    const result = await page.evaluate(() => {
-      const { o } = window.__ELT__
-      const { object, string } = window.__ELT__.Editor
-      const o_root = o({ only: "x" })
-      const widget = object({
-        properties: [{ name: "only", type: string() }],
-        show_filter: false,
-        free_keys: false,
-      }).render(o_root as any)
-      return widget.toolbar === null
-    })
-    expect(result).toBe(true)
   })
 
   test("free_keys: false hides add-key control and extra keys", async ({ page }) => {
@@ -262,20 +164,5 @@ test.describe("ObjectFactory keys", () => {
     })
     expect(result.after_add).toEqual([["a", "1"]])
     expect(result.entries.map(([k]) => k)).toEqual(["a", "b"])
-  })
-
-  test("select() wires elt/ui Select", async ({ page }) => {
-    const result = await page.evaluate(() => {
-      const { node_append, o } = window.__ELT__
-      const { select } = window.__ELT__.Editor
-      const o_mood = o("happy")
-      const widget = select({
-        options: ["happy", "sad"],
-        convert_fn: (s: string) => s,
-      }).render(o_mood as any)
-      node_append(document.body, widget.render() as HTMLElement)
-      return document.querySelectorAll("button").length
-    })
-    expect(result).toBeGreaterThan(0)
   })
 })

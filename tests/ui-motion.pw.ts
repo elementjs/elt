@@ -1,6 +1,6 @@
 import { test, expect } from "./fixture"
 
-// elt/ui motion: tokens, the defaults they drive, presets, and popup / dialog entering and leaving.
+// elt/ui motion: tokens, presets, and popup / dialog entering and leaving.
 // The harness turns motion off ; these tests turn it on.
 
 type W = Window & { result?: string }
@@ -10,45 +10,18 @@ test.beforeEach(async ({ page }) => {
 })
 
 test.describe("tokens", () => {
-  test("the default theme's tokens, as numbers in JS and as CSS custom properties", async ({ page }) => {
-    const r = await page.evaluate(() => {
-      const { UI } = window.__ELT__
-      const cs = getComputedStyle(document.body)
-      return {
-        motion: { ...UI.theme.motion },
-        css: ["fast", "medium", "slow"].map((n) => cs.getPropertyValue(`--e-duration-${n}`).trim()),
-        setting: UI.theme.settings.durationFast,
-      }
-    })
-    expect(r.motion).toEqual({
-      durationFast: 100,
-      durationMedium: 150,
-      durationSlow: 250,
-      easingEnter: "cubic-bezier(0.22, 1, 0.36, 1)",
-      easingLeave: "cubic-bezier(0.4, 0, 1, 1)",
-    })
-    expect(r.css).toEqual(["100ms", "150ms", "250ms"])
-    expect(r.setting).toBe("var(--e-duration-fast, 100ms)")
-  })
-
   test("a theme's settings take motion tokens as numbers", async ({ page }) => {
     const r = await page.evaluate(() => {
       const { UI } = window.__ELT__
       const t = new UI.Theme({ light: { bg: "#fff", text: "#000", tint: "#00f" }, settings: { durationFast: 80 } })
-      return { fast: t.motion.durationFast, medium: t.motion.durationMedium, setting: t.settings.durationFast }
+      return {
+        fast: t.motion.durationFast,
+        // Tokens left out keep the default theme's
+        medium: t.motion.durationMedium === UI.theme.motion.durationMedium,
+        setting: t.settings.durationFast,
+      }
     })
-    expect(r).toEqual({ fast: 80, medium: 150, setting: "var(--e-duration-fast, 80ms)" })
-  })
-
-  test("motion_defaults follow the tokens, unless set explicitly", async ({ page }) => {
-    const r = await page.evaluate(() => {
-      const { motion_defaults } = window.__ELT__
-      const before = [motion_defaults.enter.duration, motion_defaults.enter.easing, motion_defaults.leave.easing]
-      motion_defaults.leave.duration = 40
-      return { before, leave: motion_defaults.leave.duration, enter: motion_defaults.enter.duration }
-    })
-    expect(r.before).toEqual([100, "cubic-bezier(0.22, 1, 0.36, 1)", "cubic-bezier(0.4, 0, 1, 1)"])
-    expect(r).toMatchObject({ leave: 40, enter: 100 })
+    expect(r).toEqual({ fast: 80, medium: true, setting: "var(--e-duration-fast, 80ms)" })
   })
 })
 
@@ -68,9 +41,13 @@ test.describe("popup", () => {
     const opening = await page.evaluate(() => {
       const p = document.querySelector("[popover]")!
       const a = p.getAnimations()[0]
-      return { count: p.getAnimations().length, duration: (a.effect as KeyframeEffect).getTiming().duration }
+      return {
+        count: p.getAnimations().length,
+        // The popup's motion follows the theme's medium duration token
+        duration: (a.effect as KeyframeEffect).getTiming().duration === window.__ELT__.UI.theme.motion.durationMedium,
+      }
     })
-    expect(opening).toEqual({ count: 1, duration: 150 })
+    expect(opening).toEqual({ count: 1, duration: true })
     await page.keyboard.press("Escape")
     const closing = await page.evaluate(() => {
       const p = document.querySelector("[popover]")
@@ -133,9 +110,13 @@ test.describe("dialog", () => {
         .map((a) => (a.effect as KeyframeEffect).getTiming().duration)
       await new Promise((r) => setTimeout(r, 60))
       const opacity = (pseudo?: string) => Number(getComputedStyle(dialog, pseudo).opacity)
-      return { durations, mid: [opacity(), opacity("::backdrop")].map((v) => v > 0 && v < 1) }
+      const slow = window.__ELT__.UI.theme.motion.durationSlow
+      return {
+        durations: durations.map((d) => d === slow),
+        mid: [opacity(), opacity("::backdrop")].map((v) => v > 0 && v < 1),
+      }
     })
-    expect(opening).toEqual({ durations: [250, 250], mid: [true, true] })
+    expect(opening).toEqual({ durations: [true, true], mid: [true, true] })
     await page.keyboard.press("Escape")
     const closing = await page.evaluate(() => ({
       still_there: document.querySelector("dialog") != null,

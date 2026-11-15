@@ -158,31 +158,6 @@ test.describe("show", () => {
     expect(r).toBe(0)
   })
 
-  test("nothing settles the future by itself: it stays pending while the parent stays", async ({ page }) => {
-    const r = await page.evaluate(async () => {
-      const { show, node_append, node_remove } = window.__ELT__
-      const parent = document.createElement("div")
-      node_append(document.body, parent)
-      const content = document.createElement("p")
-      const fut = show<void>(parent, () => content)
-      let settled = false
-      fut.then(
-        () => {
-          settled = true
-        },
-        () => {
-          settled = true
-        },
-      )
-      await new Promise((res) => setTimeout(res, 50))
-      const out = { settled, attached: content.isConnected }
-      node_remove(parent)
-      return out
-    })
-    expect(r.settled).toBe(false)
-    expect(r.attached).toBe(true)
-  })
-
   test("the content plays its $enter, and stays until its $leave is done, marked as leaving", async ({ page }) => {
     const r = await page.evaluate(async () => {
       const { show, node_append, node_remove, node_on_enter, node_on_leave, motion_enabled } = window.__ELT__

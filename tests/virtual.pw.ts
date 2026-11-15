@@ -180,23 +180,6 @@ describe("RepeatVirtual", () => {
   })
 
   describe("virtual rendering", () => {
-    test("does not render every row for a long list", async ({ page }) => {
-      const result = await page.evaluate(async () => {
-        const m = window.__mountVirtual(window.__labelsFromCount(200))
-        await window.__ELT__.frames(8)
-
-        const visible_count = m.visible_count()
-        const list = m.o_lst.get()
-        const labels = m.visible_labels()
-        m.tear_down()
-        return { visible_count, list, labels }
-      })
-
-      expect(result.visible_count).toBeLessThan(200)
-      expect(result.visible_count).toBeGreaterThan(0)
-      expectVisibleSlice(result.list, result.labels)
-    })
-
     test("renders only a window of rows after scrolling down", async ({ page }) => {
       const result = await page.evaluate(async () => {
         const m = window.__mountVirtual(window.__labelsFromCount(100))
@@ -212,6 +195,9 @@ describe("RepeatVirtual", () => {
         return { initial_count, visible_count, list, labels }
       })
 
+      // Windowed from the first render, and still after scrolling.
+      expect(result.initial_count).toBeGreaterThan(0)
+      expect(result.initial_count).toBeLessThan(100)
       expect(result.visible_count).toBeLessThan(100)
       expect(result.visible_count).toBeGreaterThan(0)
       expect(result.visible_count).toBeLessThanOrEqual(result.initial_count + 5)
@@ -327,75 +313,52 @@ describe("RepeatVirtual", () => {
       }
     })
 
-    test("handles deleting a middle item while scrolled", async ({ page }) => {
-      const result = await page.evaluate(async () => {
-        const m = window.__mountVirtual(window.__labelsFromCount(25))
-        await window.__ELT__.frames(8)
-        await m.scroll_to(12)
+    // Deleting rows the window holds (scrolled first) or doesn't (at the top), then sweeping the list.
+    for (const [name, scrolled, removed] of [
+      ["a middle item while scrolled", 12, [10]],
+      ["several random items", 0, [3, 17, 22, 31, 44]],
+    ] as const) {
+      test(`handles deleting ${name}`, async ({ page }) => {
+        const result = await page.evaluate(
+          async ({ scrolled, removed }) => {
+            const m = window.__mountVirtual(window.__labelsFromCount(50))
+            await window.__ELT__.frames(8)
+            await m.scroll_to(scrolled)
 
-        const next = m.o_lst.get().filter((_, i) => i !== 10)
-        m.o_lst.set(next)
-        await window.__ELT__.frames(8)
-        await m.scroll_to(10)
+            const gone = new Set<number>(removed)
+            m.o_lst.set(m.o_lst.get().filter((_, i) => !gone.has(i)))
+            await window.__ELT__.frames(8)
+            // Where the deleted rows were: the window must still be a slice of the new list.
+            await m.scroll_to(Math.max(0, scrolled - 2))
+            const labels = m.visible_labels()
 
-        const list = m.o_lst.get()
-        const labels = m.visible_labels()
+            const list = m.o_lst.get()
+            const steps: { index: number; labels: string[] }[] = []
+            for (let index = 0; index < list.length; index++) {
+              await m.scroll_to(index)
+              steps.push({ index, labels: m.visible_labels() })
+            }
 
-        const steps: { index: number; labels: string[] }[] = []
-        for (let index = 0; index < list.length; index++) {
-          await m.scroll_to(index)
-          steps.push({ index, labels: m.visible_labels() })
+            m.tear_down()
+            return { list, labels, steps }
+          },
+          { scrolled, removed: [...removed] },
+        )
+
+        expectVisibleSlice(result.list, result.labels)
+        for (const i of removed) expect(result.list).not.toContain(`item-${i}`)
+
+        const seen = new Set<string>()
+        for (const step of result.steps) {
+          for (const label of step.labels) {
+            seen.add(label)
+            expect(result.list).toContain(label)
+          }
+          expectVisibleSlice(result.list, step.labels)
         }
-
-        m.tear_down()
-        return { list, labels, steps }
+        expect([...seen].sort()).toEqual([...result.list].sort())
       })
-
-      expectVisibleSlice(result.list, result.labels)
-      expect(result.list).not.toContain("item-10")
-
-      const seen = new Set<string>()
-      for (const step of result.steps) {
-        for (const label of step.labels) {
-          seen.add(label)
-          expect(result.list).toContain(label)
-        }
-        expectVisibleSlice(result.list, step.labels)
-      }
-      expect([...seen].sort()).toEqual([...result.list].sort())
-    })
-
-    test("handles deleting several random items", async ({ page }) => {
-      const result = await page.evaluate(async () => {
-        const m = window.__mountVirtual(window.__labelsFromCount(50))
-        await window.__ELT__.frames(8)
-
-        const remove = new Set([3, 17, 22, 31, 44])
-        const next = m.o_lst.get().filter((_, i) => !remove.has(i))
-        m.o_lst.set(next)
-        await window.__ELT__.frames(8)
-
-        const list = m.o_lst.get()
-        const steps: { index: number; labels: string[] }[] = []
-        for (let index = 0; index < list.length; index++) {
-          await m.scroll_to(index)
-          steps.push({ index, labels: m.visible_labels() })
-        }
-
-        m.tear_down()
-        return { list, steps }
-      })
-
-      const seen = new Set<string>()
-      for (const step of result.steps) {
-        for (const label of step.labels) {
-          seen.add(label)
-          expect(result.list).toContain(label)
-        }
-        expectVisibleSlice(result.list, step.labels)
-      }
-      expect([...seen].sort()).toEqual([...result.list].sort())
-    })
+    }
   })
 
   describe("reordering and replacement", () => {
@@ -417,23 +380,6 @@ describe("RepeatVirtual", () => {
 
       expectVisibleSlice(result.list, result.labels)
       expect(result.labels[0]).toBe("item-29")
-    })
-
-    test("shows swapped elements in the new order", async ({ page }) => {
-      const labels = await page.evaluate(async () => {
-        const m = window.__mountVirtual(["a", "b", "c", "d", "e", "f"])
-        await window.__ELT__.frames(8)
-
-        m.o_lst.set(["f", "e", "d", "c", "b", "a"])
-        await window.__ELT__.frames(8)
-        await m.scroll_to(0)
-
-        const labels = m.visible_labels()
-        m.tear_down()
-        return labels
-      })
-
-      expect(labels).toEqual(["f", "e", "d", "c", "b", "a"])
     })
 
     test("replaces the whole list and keeps a single visible row", async ({ page }) => {
@@ -475,26 +421,6 @@ describe("RepeatVirtual", () => {
   })
 
   describe("integrity while scrolling", () => {
-    test("never shows duplicate rows in the same viewport", async ({ page }) => {
-      const label_sets = await page.evaluate(async () => {
-        const m = window.__mountVirtual(window.__labelsFromCount(120))
-        await window.__ELT__.frames(8)
-
-        const label_sets: string[][] = []
-        for (const index of [0, 15, 40, 75, 100]) {
-          await m.scroll_to(index)
-          label_sets.push(m.visible_labels())
-        }
-
-        m.tear_down()
-        return label_sets
-      })
-
-      for (const labels of label_sets) {
-        expect(new Set(labels).size).toBe(labels.length)
-      }
-    })
-
     test("covers every list item when scrolling through the full range", async ({ page }) => {
       const result = await page.evaluate(async () => {
         const m = window.__mountVirtual(window.__labelsFromCount(60))

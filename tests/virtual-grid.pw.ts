@@ -461,11 +461,12 @@ test.describe("infinite e-grid with sticky rows", () => {
       }
     })
     expect(res.label).toBe("0bc")
-    expect(res.seam).toBe("1px")
+    const seam = Number.parseFloat(res.seam)
+    expect(seam).toBeGreaterThan(0)
     // One line between the header and row 0, not two: the header's bottom edge covers row 0's top
-    // edge (-1px margin), so every row keeps the same height, row 0 included.
-    expect(res.row0_top).toBe("1px")
-    expect(res.gap).toBe(-1)
+    // edge (a negative margin of one line), so every row keeps the same height, row 0 included.
+    expect(res.row0_top).toBe(res.seam)
+    expect(res.gap).toBe(-seam)
     expect(res.grid_border).toBe("0px")
   })
 

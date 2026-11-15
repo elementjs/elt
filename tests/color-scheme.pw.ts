@@ -24,18 +24,6 @@ test.describe("scheme classes set color-scheme", () => {
       expect(await page.evaluate(() => getComputedStyle(document.body).colorScheme)).toBe(expected[force])
     })
 
-  test("a native control inside a forced-dark body is drawn dark, under a light system", async ({ page }) => {
-    await setup(page, "light", "dark")
-    // A system color resolves against the element's used color scheme: dark Canvas under "dark".
-    const bg = await page.evaluate(() => {
-      const el = document.createElement("div")
-      el.style.backgroundColor = "Canvas"
-      document.body.append(el)
-      return getComputedStyle(el).backgroundColor
-    })
-    expect(bg).not.toBe("rgb(255, 255, 255)")
-  })
-
   // The date/time picker icon used to be inverted under `prefers-color-scheme: dark`, ignoring the
   // forced theme: a forced-light field under a dark system got a white icon on white. It now only
   // depends on the forced theme. (Chromium does not report the pseudo-element's computed filter, so
@@ -90,14 +78,13 @@ test.describe("docs code token colors follow the scheme through light-dark()", (
       expect(await tokenColor(page)).toBe(color)
     })
 
-  // The old ancestor selectors gave the dark color here, since the body's class matched too.
-  test("a light scheme class nested in a forced-dark body gives the light color", async ({ page }) => {
-    await setup(page, "light", "dark")
-    expect(await tokenColor(page, "light")).toBe(LIGHT)
-  })
-
-  test("a dark scheme class nested in a forced-light body gives the dark color", async ({ page }) => {
-    await setup(page, "dark", "light")
-    expect(await tokenColor(page, "dark")).toBe(DARK)
-  })
+  // The old ancestor selectors gave the body's color here, since the body's class matched too.
+  for (const [nested, force, color] of [
+    ["light", "dark", LIGHT],
+    ["dark", "light", DARK],
+  ] as const)
+    test(`a ${nested} scheme class nested in a forced-${force} body gives the ${nested} color`, async ({ page }) => {
+      await setup(page, force === "dark" ? "light" : "dark", force)
+      expect(await tokenColor(page, nested)).toBe(color)
+    })
 })

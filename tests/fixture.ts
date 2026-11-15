@@ -4,22 +4,26 @@ export { expect, type Page } from "@playwright/test"
 
 /**
  * Playwright's `test`, where every test starts on the harness page (tests/browser/harness.html), which exposes
- * the library as `window.__ELT__`. A test that must act before the page loads (`page.addInitScript`) uses
- * `@playwright/test` and navigates itself.
+ * the library as `window.__ELT__`. A file that must run code before the page's own scripts (to install helpers
+ * on `window`, say) passes it with `test.use({ before_load: { script: () => { … } } })`: it runs in the page, through
+ * `page.addInitScript`, so it can't see the test file's variables. (It is wrapped in an object because
+ * Playwright takes a function given to `test.use` for a fixture definition.)
  *
  * A test fails when the page reports an uncaught error, or logs with `console.error` or `console.warn`: code that
  * observables run must never crash, and a caught error that is only logged would otherwise pass unnoticed. A test
  * that makes something fail on purpose declares it with {@link expects_errors}.
  */
-export const test = base.extend<{ harness: void }>({
+export const test = base.extend<{ before_load: { script: () => void } | undefined; harness: void }>({
+  before_load: [undefined, { option: true }],
   harness: [
-    async ({ page }, use, testInfo) => {
+    async ({ page, before_load }, use, testInfo) => {
       const reported: string[] = []
       page.on("pageerror", (e) => reported.push(`uncaught error: ${e.message.split("\n")[0]}`))
       page.on("console", (m) => {
         if (m.type() === "error" || m.type() === "warning")
           reported.push(`console.${m.type()}: ${m.text().split("\n")[0]}`)
       })
+      if (before_load) await page.addInitScript(before_load.script)
       await page.goto("/tests/browser/harness.html")
       await use()
       const declared = testInfo.annotations.filter((a) => a.type === expects_errors_annotation)
