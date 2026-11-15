@@ -15,7 +15,7 @@ import {
 
 const NODE_IS_CONNECTED = 0b00001
 const NODE_IS_OBSERVING = 0b00010
-/** Removed, but kept in the page while its leave hooks run. Condemned: it never comes back. */
+/** Removed, but kept in the page while its leave hooks run. Condemned: only inserting it again by elt brings it back (see `_leave_stop`). */
 const NODE_IS_LEAVING = 0b00100
 /** The start marker of a verb's content (a CommentHolder): what lies up to its `end` is that verb's. */
 const NODE_IS_VERB = 0b01000
@@ -355,8 +355,9 @@ export function without_motion<T>(fn: () => T): T {
  * the `e-leaving` attribute and `inert`, and out of the layout unless `opts.flow` is set ; elt then
  * removes it. If it returns nothing, nothing waits for it.
  *
- * A leaving node is condemned : removing it again, moving it, or putting it back in the page removes it
- * at once.
+ * A leaving node is condemned : removing it again, moving it, or putting it back in the page (its ancestor
+ * re-inserted) removes it at once. Only inserting it again (`node_append`, a verb rendering it again) stops
+ * its exit: it comes back as it was before.
  *
  * @group Motion
  */
@@ -542,12 +543,13 @@ function _leave_stop(node: Node) {
   el[sym_connected_status] &= ~NODE_IS_LEAVING
 }
 
-/** Remove a leaving node once its hooks are done, unless something already did. */
+/** Remove a leaving node once its hooks are done, unless something already did. Detached, it gets back what
+ * its exit changed, as it may be inserted again. */
 function _leave_done(node: Element) {
   if (node[sym_connected_status] & NODE_IS_LEAVING) {
-    node[sym_connected_status] = 0
-    node[sym_leave_style] = undefined
     node.parentNode?.removeChild(node)
+    _leave_stop(node)
+    node[sym_connected_status] = 0
   }
 }
 

@@ -538,30 +538,36 @@ test.describe("condemned leaving nodes", () => {
     expect(r).toMatchObject({ style: r.before.style, attrs: r.before.attrs, in_place: true })
   })
 
-  test("a node an If renders again while it plays its exit comes back as it was (regression: it stayed floating and inert)", async ({
-    page,
-  }) => {
-    const r = await page.evaluate(async () => {
-      const { o, If, node_append, node_on_leave } = window.__ELT__
-      const c = window.__motion__.mount([])
-      const kept = window.__motion__.el("b", "kept")
-      const before = kept.getAttributeNames()
-      const d = window.__ELT__.deferred()
-      node_on_leave(kept, () => d.promise)
-      const o_open = o(true)
-      node_append(
-        c,
-        If(o_open, () => kept),
-      )
-      o_open.set(false)
-      o_open.set(true)
-      d.resolve()
-      await window.__motion__.tick()
-      return { before, attrs: kept.getAttributeNames(), shown: kept.parentNode === c }
+  for (const when of ["while it plays its exit", "once its exit ended"] as const) {
+    test(`a node an If renders again ${when} comes back as it was (regression: it stayed floating and inert)`, async ({
+      page,
+    }) => {
+      const r = await page.evaluate(async (when) => {
+        const { o, If, node_append, node_on_leave } = window.__ELT__
+        const c = window.__motion__.mount([])
+        const kept = window.__motion__.el("b", "kept")
+        const before = kept.getAttributeNames()
+        const d = window.__ELT__.deferred()
+        node_on_leave(kept, () => d.promise)
+        const o_open = o(true)
+        node_append(
+          c,
+          If(o_open, () => kept),
+        )
+        o_open.set(false)
+        if (when === "once its exit ended") {
+          d.resolve()
+          await window.__motion__.tick()
+        }
+        o_open.set(true)
+        d.resolve()
+        await window.__motion__.tick()
+        return { before, attrs: kept.getAttributeNames(), shown: kept.parentNode === c }
+      }, when)
+      expect(r.attrs).toEqual(r.before)
+      expect(r.shown).toBe(true)
     })
-    expect(r.attrs).toEqual(r.before)
-    expect(r.shown).toBe(true)
-  })
+  }
 
   test("a comment holder whose content is only leaving nodes has no content", async ({ page }) => {
     const r = await page.evaluate(() => {
