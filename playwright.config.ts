@@ -16,4 +16,12 @@ export default defineConfig({
   use: {
     baseURL: `http://localhost:${port}`,
   },
+  // The three engines elt supports, with Playwright's default viewport and scale (no device preset: a test
+  // that sets its own scale, seams-scale.pw.ts, can't have a preset's deviceScaleFactor). `just test` runs chromium, `just test-all` the three (WebKit through
+  // Docker on hosts whose system libraries Playwright's WebKit lacks, `just test-webkit`); CI runs the three.
+  projects: [
+    { name: "chromium", use: { browserName: "chromium" } },
+    { name: "firefox", use: { browserName: "firefox" } },
+    { name: "webkit", use: { browserName: "webkit" } },
+  ],
 })

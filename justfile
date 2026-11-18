@@ -37,12 +37,17 @@ check-compile: docs-generate
     bun build ./docs/index.html --outdir="$out"
     (cd docs && tsc --noEmit) | wtsc
 
-# run every test suite: bun unit tests, then the Playwright browser tests
+# run every test suite: bun unit tests, then the Playwright browser tests in Chromium
 test: test-bun test-pw
 
-# Playwright browser tests (tests/**/*.pw.ts); extra arguments go to playwright, e.g. `just test-pw tests/grid.pw.ts`
+# every test suite in the three browsers elt supports: Chromium and Firefox here, WebKit through Docker (test-webkit)
+test-all: test-bun
+    playwright test --project=chromium --project=firefox
+    just test-webkit tests/
+
+# Playwright browser tests (tests/**/*.pw.ts) in Chromium; arguments go to playwright (`tests/grid.pw.ts`, `--project=firefox`)
 test-pw *args:
-    playwright test {{args}}
+    playwright test {{ if args =~ "--project" { "" } else { "--project=chromium" } }} {{args}}
 
 # Playwright tests in WebKit, inside Playwright's Docker image (its WebKit build needs system libraries some hosts
 # lack): the motion tests by default, or the given arguments. Uses the harness already served on port 5391, or serves it.
