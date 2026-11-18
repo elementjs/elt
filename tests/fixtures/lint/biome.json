@@ -2,7 +2,8 @@
   "plugins": [
     "../../../lint/no-add-observer.grit",
     "../../../lint/no-node-mutation.grit",
-    "../../../lint/no-raw-dom-insertion.grit"
+    "../../../lint/no-raw-dom-insertion.grit",
+    "../../../lint/icon-button-name.grit"
   ],
   "linter": {
     "enabled": true,

@@ -1,4 +1,4 @@
-import { expect, test } from "./fixture"
+import { expect, expects_errors, test } from "./fixture"
 
 type W = Window & { result?: unknown }
 
@@ -447,11 +447,154 @@ test.describe("popup (docs/md/ui-overlays.md#popup)", () => {
   })
 })
 
+test.describe("popup for keyboard and assistive technology (docs/md/ui-overlays.md#popup)", () => {
+  /** Opens a popup from #anchor with `html` as its content's inside and `opts`, and waits for it to be shown. */
+  async function open(page: import("@playwright/test").Page, html: string, opts: Record<string, unknown> = {}) {
+    await page.evaluate(
+      ({ html, opts }) => {
+        const { UI } = window.__ELT__
+        // Built once: a second call opens another popup from the same anchor, which closes the first.
+        if (!document.getElementById("anchor"))
+          document.body.innerHTML = `<button id="anchor">Pick a date</button><button id="after">after</button>`
+        const anchor = document.getElementById("anchor")!
+        anchor.focus()
+        const w = window as W
+        w.result = "pending"
+        UI.popup(
+          anchor,
+          () => {
+            const c = document.createElement("e-column")
+            c.id = "content"
+            c.innerHTML = html
+            return c
+          },
+          opts,
+        ).then((v) => {
+          w.result = v === undefined ? "closed" : v
+        })
+      },
+      { html, opts },
+    )
+    // The previous popup, if any, is gone: one popover is left.
+    await page.waitForFunction(() => document.querySelectorAll("[popover] #content").length === 1)
+  }
+  const focused = (page: import("@playwright/test").Page) => page.evaluate(() => document.activeElement?.id ?? "")
+
+  test("focus moves to the first element Tab reaches in it, or to the content itself", async ({ page }) => {
+    await open(page, `<span>text</span><button id="first">a</button><button>b</button>`)
+    await page.waitForFunction(() => document.activeElement?.id === "first")
+    await open(page, `<span>nothing to tab to</span>`)
+    await page.waitForFunction(() => document.activeElement?.id === "content")
+    // A hidden element is not a Tab stop: focus skips it.
+    await open(page, `<input hidden><button id="shown">a</button>`)
+    await page.waitForFunction(() => document.activeElement?.id === "shown")
+  })
+
+  test("with focus: false, focus stays where it was", async ({ page }) => {
+    await open(page, `<button id="first">a</button>`, { focus: false })
+    await page.evaluate(() => window.__ELT__.frames(3))
+    expect(await focused(page)).toBe("anchor")
+  })
+
+  test("Tab out of it closes it; focus moved by the pointer doesn't", async ({ page }) => {
+    await open(page, `<button id="first">a</button>`)
+    await page.waitForFunction(() => document.activeElement?.id === "first")
+    // Focus moved to the page by a script (as menu_nav does under the pointer): still open.
+    await page.evaluate(() => document.getElementById("after")!.focus())
+    await page.evaluate(() => window.__ELT__.frames(2))
+    expect(await page.evaluate(() => (window as W).result)).toBe("pending")
+    await page.focus("#first")
+    await page.keyboard.press("Tab")
+    await page.waitForFunction(() => (window as W).result === "closed")
+    // Tab went on from the opener, as if the popup sat right after it.
+    expect(await focused(page)).toBe("after")
+  })
+
+  test("Tab inside it keeps it open; out of a popup opened from it, Tab goes on from that popup's opener", async ({
+    page,
+  }) => {
+    await open(page, `<button id="first">a</button><button id="second">b</button>`)
+    await page.waitForFunction(() => document.activeElement?.id === "first")
+    await page.keyboard.press("Tab")
+    expect(await focused(page)).toBe("second")
+    const open_inner = (from: string) =>
+      page.evaluate((from) => {
+        const el = document.getElementById(from)!
+        // Opened from the element that has focus, as a click on it does: focus goes back to it.
+        el.focus()
+        window.__ELT__.UI.popup(el, () => {
+          const c = document.createElement("e-column")
+          c.innerHTML = `<button id="inner">i</button>`
+          return c
+        })
+      }, from)
+    // From the first element: Tab out of the inner popup goes on to the second one, still in the outer popup.
+    await open_inner("first")
+    await page.waitForFunction(() => document.activeElement?.id === "inner")
+    await page.keyboard.press("Tab")
+    await page.waitForFunction(() => document.activeElement?.id === "second")
+    expect(await page.evaluate(() => [document.querySelectorAll("[popover]").length, (window as W).result])).toEqual([
+      1,
+      "pending",
+    ])
+    // From the last one: past the inner popup is past the outer one too.
+    await open_inner("second")
+    await page.waitForFunction(() => document.activeElement?.id === "inner")
+    await page.keyboard.press("Tab")
+    await page.waitForFunction(() => (window as W).result === "closed")
+  })
+
+  test("the opener says what it opens and whether it is open", async ({ page }) => {
+    await open(page, `<div role="menu"><button role="menuitem">a</button></div>`)
+    const attrs = () =>
+      page.evaluate(() => {
+        const a = document.getElementById("anchor")!
+        return [a.getAttribute("aria-haspopup"), a.getAttribute("aria-expanded")]
+      })
+    expect(await attrs()).toEqual(["menu", "true"])
+    await page.keyboard.press("Escape")
+    await page.waitForFunction(() => (window as W).result === "closed")
+    expect(await attrs()).toEqual(["menu", "false"])
+  })
+
+  test("content that isn't a menu or a list is a dialog, named by its heading, else by its opener, else by label", async ({
+    page,
+  }) => {
+    const named = () =>
+      page.evaluate(() => {
+        const pop = document.querySelector("[popover]")!
+        const by = pop.getAttribute("aria-labelledby")
+        return {
+          role: pop.getAttribute("role"),
+          name: pop.getAttribute("aria-label") ?? (by ? document.getElementById(by)?.textContent : null),
+          haspopup: document.getElementById("anchor")!.getAttribute("aria-haspopup"),
+        }
+      })
+    await open(page, `<h3>March 2026</h3><button>1</button>`)
+    expect(await named()).toEqual({ role: "dialog", name: "March 2026", haspopup: "dialog" })
+    await open(page, `<button>1</button>`)
+    expect(await named()).toEqual({ role: "dialog", name: "Pick a date", haspopup: "dialog" })
+    await open(page, `<h3>March 2026</h3>`, { label: "Calendar" })
+    expect(await named()).toEqual({ role: "dialog", name: "Calendar", haspopup: "dialog" })
+  })
+
+  test("menu_nav makes its element a menu", async ({ page }) => {
+    const role = await page.evaluate(() => {
+      const { UI } = window.__ELT__
+      const menu = document.createElement("e-column")
+      menu.innerHTML = `<button role="menuitem">a</button>`
+      UI.menu_nav(menu)
+      return menu.getAttribute("role")
+    })
+    expect(role).toBe("menu")
+  })
+})
+
 test.describe("show_dialog (docs/md/ui-overlays.md#show_dialog)", () => {
   test("is an unstyled box around the returned element", async ({ page }) => {
     await page.evaluate(() => {
       const { UI } = window.__ELT__
-      UI.show_dialog(() => {
+      UI.show_dialog({ label: "Test" }, () => {
         const c = document.createElement("e-column")
         c.id = "content"
         c.setAttribute("surface", "background")
@@ -474,7 +617,7 @@ test.describe("show_dialog (docs/md/ui-overlays.md#show_dialog)", () => {
     await page.evaluate(() => {
       const { UI, $disconnected } = window.__ELT__
       const w = window as W
-      UI.show_dialog((fut) => {
+      UI.show_dialog({ label: "Test" }, (fut) => {
         const c = document.createElement("e-column")
         $disconnected(() => {
           w.result = "disconnected"
@@ -493,7 +636,7 @@ test.describe("show_dialog (docs/md/ui-overlays.md#show_dialog)", () => {
       const w = window as W
       w.result = []
       window.addEventListener("unhandledrejection", (ev) => (w.result as unknown[]).push(String(ev.reason)))
-      const fut = UI.show_dialog(() => document.createElement("e-column"))
+      const fut = UI.show_dialog({ label: "Test" }, () => document.createElement("e-column"))
       fut.catch(() => {})
       ;(window as W & { fut?: typeof fut }).fut = fut
     })
@@ -504,12 +647,39 @@ test.describe("show_dialog (docs/md/ui-overlays.md#show_dialog)", () => {
     expect(await page.evaluate(() => (window as W).result)).toEqual([])
   })
 
+  test("named by label, else by the first heading of its content; with neither, it warns", async ({ page }) => {
+    expects_errors(/show_dialog: the dialog has no name/)
+    const names = await page.evaluate(async () => {
+      const { UI, frames } = window.__ELT__
+      const name_of = async (opts: { label?: string }, html: string) => {
+        const fut = UI.show_dialog(opts, () => {
+          const c = document.createElement("e-column")
+          c.innerHTML = html
+          return c
+        })
+        await frames(1)
+        const d = document.querySelector("dialog")!
+        const by = d.getAttribute("aria-labelledby")
+        const name = d.getAttribute("aria-label") ?? (by ? document.getElementById(by)?.textContent : null)
+        fut.resolve(undefined)
+        await frames(1)
+        return name
+      }
+      return [
+        await name_of({}, `<header><h1>Delete the file?</h1></header><p>Sure?</p>`),
+        await name_of({ label: "Settings" }, `<h1>Ignored</h1>`),
+        await name_of({}, `<p>No name</p>`),
+      ]
+    })
+    expect(names).toEqual(["Delete the file?", "Settings", null])
+  })
+
   test("clickOutsideToClose: a backdrop click resolves with undefined", async ({ page }) => {
     await page.evaluate(() => {
       const { UI } = window.__ELT__
       const w = window as W
       w.result = "pending"
-      UI.show_dialog({ clickOutsideToClose: true }, () => {
+      UI.show_dialog({ clickOutsideToClose: true, label: "Test" }, () => {
         const c = document.createElement("e-column")
         c.style.width = "100px"
         c.style.height = "100px"

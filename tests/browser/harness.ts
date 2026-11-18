@@ -9,6 +9,8 @@ import * as Elt from "elt"
 import "elt/mutative"
 import * as Editor from "elt/editor"
 import * as UI from "elt/ui"
+// elt/ui's helpers shared between its modules, not exported by the package.
+import * as UIInternal from "../../ui/internal"
 
 // Editor-internal modules not re-exported by elt/editor's own public index, but needed directly by
 // tests that predate this harness and reached for them via a relative import.
@@ -41,7 +43,7 @@ declare global {
   interface Window {
     __ELT__: typeof Elt &
       typeof helpers & {
-        UI: typeof UI
+        UI: typeof UI & typeof UIInternal
         Editor: typeof Editor &
           typeof EditorCompositeToolbar &
           typeof EditorMount &
@@ -55,7 +57,7 @@ declare global {
 window.__ELT__ = {
   ...Elt,
   ...helpers,
-  UI,
+  UI: { ...UI, ...UIInternal },
   Editor: { ...Editor, ...EditorCompositeToolbar, ...EditorMount, ...EditorTypeChange, ...EditorUntypedRoot },
   Docs,
 }

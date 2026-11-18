@@ -23,7 +23,8 @@ Every binding rule for building UI with `elt/ui`, and nothing else: no explanati
 
 ## Setup
 
-1. **Import once.** `import "elt/ui"` once, at the app's entry. It loads the theme, reset, layout, form and typography styles and applies the theme class to `<body>` ([Theme § Setup](./ui-theme.md#setup)).
+1. **Install `@floating-ui/dom` next to elt** (`npm install elt @floating-ui/dom`): `elt/ui` needs it, and it is an optional peer dependency of elt, so it is not installed for you.
+2. **Import once.** `import "elt/ui"` once, at the app's entry. It loads the theme, reset, layout, form and typography styles and applies the theme class to `<body>` ([Theme § Setup](./ui-theme.md#setup)).
 
 ## Which container
 
@@ -95,10 +96,12 @@ Every layout decision reduces to these six. The layout elements and their attrib
 
 ## Controls
 
-1. **Native controls first.** `button`, `input`, `textarea`, `label`, checkboxes and radios are styled globally. (A `<dialog>` is not: `show_dialog` gives an unstyled box, and its content draws the frame — [Overlays § show_dialog](./ui-overlays.md#show_dialog).) Use them with their `e-emphasis` (how loud) and `e-widget` (what it is) attributes before building widget chrome of your own ([States § Emphasis](./ui-states.md#emphasis), [Forms](./ui-forms.md#buttons-and-emphasis)). Prefer the `Select` widget over a native `<select>` ([Widgets § Select](./ui-widgets.md#select)).
+1. **Native controls first.** `button`, `input`, `textarea`, `label`, checkboxes and radios are styled globally. (A `<dialog>` is not: `show_dialog` gives an unstyled box, and its content draws the frame — [Overlays § show_dialog](./ui-overlays.md#show_dialog).) Use them with their `e-emphasis` (how loud) and `e-widget` (what it is) attributes, or the ARIA role that gives a look (`role="switch"` on a checkbox), before building widget chrome of your own ([States § Emphasis](./ui-states.md#emphasis), [Forms](./ui-forms.md#buttons-and-emphasis)). Prefer the `Select` widget over a native `<select>` ([Widgets § Select](./ui-widgets.md#select)).
 2. **Two font weights in UI chrome**: regular and bold. Prose hierarchy comes from the headings themselves.
 3. **Form control size.** Controls use `theme.settings.formFontSize`, slightly smaller than body text. Do not bump a control's font size to match a heading.
 4. **Focus is a ring** (`tint.mid`), never a fill or a replaced border ([Theme § State](./ui-theme.md#state)).
+5. **An ARIA role carries a look only when the role and the look can't differ**: a checkbox drawn as a switch must be announced as one (`role="switch"`), and the other way round. Where the look can vary for one role (a menu item: plain, a title, a dangerous action), the look comes from `e-widget` or `e-emphasis`, never from the role ([States § Widgets](./ui-states.md#widgets)).
+6. **A button with only an icon has a name**: `aria-label`, `aria-labelledby` or `title`. Icons are hidden from assistive technology, so without one the button is announced as just "button". The Biome plugin `lint/icon-button-name.grit` reports it ([Never do these § Enforcing with Biome](./hard-dont.md#enforcing-with-biome)). The library's own icon buttons take their names from `o_ui_labels` ([Widgets § Texts of the widgets](./ui-widgets.md#texts-of-the-widgets)).
 
 ## Building app-specific widgets
 
@@ -121,7 +124,7 @@ Every layout decision reduces to these six. The layout elements and their attrib
 
 1. **Custom CSS is the last resort.** Before writing layout CSS, do the check in [Never do these with elt/ui § Check before you write](./ui-hard-dont.md#check-before-you-write). If you still need CSS, keep it local, build it from theme helpers, and say in a comment which attribute or helper you tried and why it was not enough ([Theme § Custom CSS](./ui-theme.md#custom-css)).
 2. Equal grid columns are `columns={N}` on an `<e-grid>`; any other grid template (`grid-template-*`) goes in a small `css` rule on it. Rows of a table-like grid are `<e-grid-row>`s ([Layout § Grids](./ui-layout.md#grids)).
-3. A scroll area is a layout element with `scroll` (a long list's too), not `overflow` in CSS nor the deprecated `$scrollable`. It draws the frame (`border`) of what it scrolls, and isn't padded when it holds `sticky` elements ([Layout § Scroll areas and sticky elements](./ui-layout.md#scroll-areas-and-sticky-elements)).
+3. A scroll area is a layout element with `scroll` (a long list's too), not `overflow` in CSS. It draws the frame (`border`) of what it scrolls, and isn't padded when it holds `sticky` elements ([Layout § Scroll areas and sticky elements](./ui-layout.md#scroll-areas-and-sticky-elements)).
 
 ## Recommendations
 

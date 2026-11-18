@@ -188,6 +188,41 @@ test.describe("menu_nav / list_nav", () => {
       activated: [10],
     })
   })
+
+  test("submenus: ArrowRight on an item that opens one opens it, ArrowLeft closes it and gives focus back to the item", async ({
+    page,
+  }) => {
+    await page.evaluate(() => {
+      const { UI, node_append } = window.__ELT__
+      document.body.innerHTML = ""
+      const menu_of = (labels: string[]) => {
+        const m = document.createElement("e-column")
+        for (const label of labels) {
+          const b = document.createElement("button")
+          b.setAttribute("role", "menuitem")
+          b.id = label
+          b.textContent = label
+          m.append(b)
+        }
+        UI.menu_nav(m)
+        return m
+      }
+      const root = menu_of(["Copy", "More"])
+      const more = root.querySelector<HTMLElement>("#More")!
+      more.setAttribute("aria-haspopup", "menu")
+      more.onclick = () => UI.popup(more, () => menu_of(["Inner"]), { placement: "right-start", exact_placement: true })
+      node_append(document.body, root)
+    })
+    await page.waitForFunction(() => document.activeElement?.id === "Copy")
+    await page.keyboard.press("ArrowRight") // Copy opens nothing
+    expect(await page.evaluate(() => document.querySelector("[popover]"))).toBeNull()
+    await page.keyboard.press("ArrowDown")
+    await page.keyboard.press("ArrowRight")
+    await page.waitForFunction(() => document.activeElement?.id === "Inner")
+    await page.keyboard.press("ArrowLeft")
+    await page.waitForFunction(() => document.querySelector("[popover]") == null)
+    expect(await page.evaluate(() => document.activeElement?.id)).toBe("More")
+  })
 })
 
 test.describe("focus_when_shown", () => {
@@ -195,14 +230,14 @@ test.describe("focus_when_shown", () => {
   // the delayed focus must not land in it, or focus drops to the body once it is removed.
   test("does not focus an element disconnected before the next frame (regression)", async ({ page }) => {
     const focused_ghost = await page.evaluate(async () => {
-      const { UI, node_append, node_do_disconnect, node_remove } = window.__ELT__
+      const { UI, node_append, _node_do_disconnect, node_remove } = window.__ELT__
       document.body.innerHTML = `<button id="before">before</button>`
       const before = document.getElementById("before")!
       before.focus()
       const el = document.createElement("button")
       UI.focus_when_shown(el)
       node_append(document.body, el)
-      node_do_disconnect(el)
+      _node_do_disconnect(el)
       await window.__ELT__.frames(2)
       const result = document.activeElement === el
       node_remove(el)

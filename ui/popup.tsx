@@ -5,7 +5,8 @@
  * Some popup handling.
  */
 
-import { $connected, $enter, $leave, css, Future, o, show } from "elt"
+import { $connected, $enter, $leave, $on, css, Future, node_is_connected, o, show } from "elt"
+import { name_overlay, open_popups, tab_stops } from "./internal"
 import { rise_in, sink_out } from "./motion"
 import { theme } from "./theme"
 const colors = theme.colors
@@ -172,6 +173,34 @@ export interface PopupOptions {
   min_width?: number | string
   max_width?: number | string
   max_height?: number | string
+  /**
+   * Move focus into the popup once it is shown (to its first element Tab reaches, else the content
+   * itself), unless something in it already took it. Default `true`; `false` for a popup that must
+   * leave focus where it is (a list completing a text field, a tooltip).
+   */
+  focus?: boolean
+  /**
+   * The name assistive technology reads for a popup that is not a menu or a list (a `dialog`). Without
+   * it, the first heading of the content names it, else the anchor element's text.
+   */
+  label?: o.RO<string>
+  /**
+   * The control announced as opening the popup: it gets `aria-expanded` while the popup is open, and
+   * `aria-haspopup` saying what it opens unless it has one. Default: the anchor, when it is an element;
+   * `null` for none (a combobox, whose input says it itself).
+   */
+  opener?: Element | null
+}
+
+/** Roles of a popup's content that `aria-haspopup` names; any other content is a `dialog`. */
+const POPUP_CONTENT_ROLES = ["menu", "listbox", "tree", "grid"]
+const POPUP_CONTENT_SELECTOR = POPUP_CONTENT_ROLES.map((r) => `[role="${r}"]`).join(", ")
+
+/** What kind of popup this is, for `aria-haspopup`: the role of the content, or of the first menu, list,
+ * tree or grid in it; `dialog` for anything else. */
+function popup_kind(content: HTMLElement): string {
+  const el = content.matches(POPUP_CONTENT_SELECTOR) ? content : content.querySelector(POPUP_CONTENT_SELECTOR)
+  return el?.getAttribute("role") ?? "dialog"
 }
 
 type ArrowPlacement = "top" | "bottom" | "left" | "right"
@@ -317,6 +346,21 @@ export function popup<T extends OverlayResult = boolean>(
           content, so above it. */}
       {arro}
       {$connected(open)}
+      {/* Tab past the popup's last element (Shift+Tab before its first, or any Tab when nothing in it is a
+          Tab stop, as in a menu) closes it: focus goes back to what had it, and the browser's Tab goes on
+          from there, as if the popup sat right after its opener. Deciding before the browser moves focus
+          works everywhere: past the end of the page, some browsers don't move it at all. A focus moved by
+          the pointer doesn't close it: menu_nav focuses the item under the pointer, and crossing the
+          parent menu on the way to a submenu would close the submenu. */}
+      {$on("keydown", (ev) => {
+        // Where focus is now: a popup opened from this one (attached next to the content) handled the key
+        // first, and when it closed it gave focus back to its opener, here. That Tab then goes on from
+        // there, so this popup decides too: past a submenu, past the whole menu.
+        if (ev.key !== "Tab" || !popups.has(popup) || !content.contains(doc.activeElement)) return
+        const stops = tab_stops(content)
+        const edge = ev.shiftKey ? stops[0] : stops[stops.length - 1]
+        if (edge == null || edge === doc.activeElement) _popup_resolve(popup)
+      })}
     </div>
   ) as HTMLElement
 
@@ -446,9 +490,36 @@ export function popup<T extends OverlayResult = boolean>(
       fut.then(unmark, unmark)
     }
 
+    // What assistive technology is told (docs/md/ui-overlays.md#popup). The content is in the page by
+    // now, so a menu_nav called after render has set its role. An element anchor opens it: a button
+    // says what it opens and whether it is open. A point or a pointer in an element (a context menu)
+    // is not a control that opens it.
+    const kind = popup_kind(content)
+    const opener = opts?.opener !== undefined ? opts.opener : anchor instanceof Element ? anchor : null
+    if (kind === "dialog") {
+      popup.setAttribute("role", "dialog")
+      name_overlay(popup, content, opts?.label, opener)
+    }
+    if (opener) {
+      if (!opener.hasAttribute("aria-haspopup")) opener.setAttribute("aria-haspopup", kind)
+      opener.setAttribute("aria-expanded", "true")
+      const collapse = () => opener.setAttribute("aria-expanded", "false")
+      fut.then(collapse, collapse)
+    }
+
+    // Focus goes in once it is shown, unless the content already put it there (menu_nav, a Select's list).
+    if (opts?.focus !== false)
+      requestAnimationFrame(() => {
+        if (!node_is_connected(popup) || popup.contains(doc.activeElement)) return
+        const target = tab_stops(content)[0] ?? content
+        if (target === content && !content.hasAttribute("tabindex")) content.tabIndex = -1
+        target.focus({ preventScroll: true })
+      })
+
     _listen(doc)
     popups.add(popup)
     popups_futures.set(popup, fut)
+    open_popups.set(popup, { close: () => fut.resolve(undefined), opener })
     const cleanup = autoUpdate(reference, popup, updatePosition)
     // Both outcomes: `finally` would make a promise that rejects unhandled when the future is rejected.
     fut.then(cleanup, cleanup)

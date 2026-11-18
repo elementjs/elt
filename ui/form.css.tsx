@@ -1,5 +1,5 @@
 import { css, type NRO } from "elt"
-import { CHECK_POINTS } from "./icons"
+import { CHECK_POINTS } from "./internal"
 import { type Emphasis, theme } from "./theme"
 import {
   CENTERED_TEXT_CONTROL_SELECTOR,
@@ -70,7 +70,6 @@ declare module "elt" {
 
   interface attrs_input {
     "e-emphasis"?: NRO<"default" | "tint">
-    "e-widget"?: NRO<"switch">
   }
 
   interface attrs_label {
@@ -308,8 +307,9 @@ input[type="checkbox"]:checked::after {
   opacity: 1;
 }
 
-/* Toggle switch (checkbox + e-widget="switch") */
-input[type="checkbox"][e-widget="switch"] {
+/* Toggle switch: a checkbox with role="switch". Styled on the role, since a checkbox that looks like a
+   switch must be announced as one, and the other way round (docs/md/elt-ui-rules.md#controls). */
+input[type="checkbox"][role="switch"] {
   --e-switch-width: 1.5em;
   --e-switch-height: .75em;
   --e-switch-thumb: var(--e-switch-height);
@@ -330,7 +330,7 @@ input[type="checkbox"][e-widget="switch"] {
     inset 0 1px 2px ${theme.bevel_drop};
 }
 
-input[type="checkbox"][e-widget="switch"]:checked {
+input[type="checkbox"][role="switch"]:checked {
   --e-border-color: ${colors.tint};
   background-color: ${colors.tint.mid};
 }
@@ -339,7 +339,7 @@ input[type="checkbox"]:focus-visible {
   box-shadow: 0 0 0 ${theme.settings.focusRingSize} ${colors.tint.mid};
 }
 
-input[type="checkbox"][e-widget="switch"]::after {
+input[type="checkbox"][role="switch"]::after {
   top: 0;
   left: 0;
   width: calc(var(--e-switch-height) - 2px);
@@ -358,7 +358,7 @@ input[type="checkbox"][e-widget="switch"]::after {
     0 1px 2px ${theme.bevel_drop};
 }
 
-input[type="checkbox"][e-widget="switch"]:checked::after {
+input[type="checkbox"][role="switch"]:checked::after {
   background-color: ${colors.tint};
   transform:
     translateY(1px)

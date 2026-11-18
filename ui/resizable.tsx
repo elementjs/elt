@@ -1,4 +1,6 @@
 import { $on, css, type Decorator, node_on_connected, node_on_disconnected } from "elt"
+import { observe_layout } from "./internal"
+import { o_ui_labels } from "./labels"
 import { theme } from "./theme"
 
 /** The side of the element that carries the drag handle. `"start"`/`"end"` follow the writing direction. */
@@ -26,31 +28,8 @@ export interface ResizableOptions {
 }
 
 const DEFAULT_MIN = 48
-
-/**
- * Calls `fn` on the frame after each layout where `el` has a size: the moment a laid-out width can
- * be read and locked. A ResizeObserver tells when that layout happened, which also catches an
- * element laid out late (a popup not shown yet). `fn` runs on the next animation frame rather than
- * in the observer: what it writes changes sizes the browser already measured this frame (the
- * element's ancestors), whose own observers couldn't be notified until the next one, reported as a
- * "ResizeObserver loop completed with undelivered notifications" error. The frame's delay doesn't
- * show: a lock writes back the sizes the elements already have. Returns a function that stops
- * watching.
- */
-export function observe_layout(el: HTMLElement, fn: () => void): () => void {
-  let frame = 0
-  const observer = new ResizeObserver(() => {
-    cancelAnimationFrame(frame)
-    frame = requestAnimationFrame(() => {
-      if (el.offsetWidth > 0) fn()
-    })
-  })
-  observer.observe(el)
-  return () => {
-    observer.disconnect()
-    cancelAnimationFrame(frame)
-  }
-}
+/** How far one arrow key press moves the edge, in px; with Shift, five times that. */
+const KEY_STEP = 10
 
 /**
  * Makes an element resizable by dragging one of its edges: a column header, a sidebar or a
@@ -59,7 +38,8 @@ export function observe_layout(el: HTMLElement, fn: () => void): () => void {
  *
  * Once the element has been laid out, its size is written on it (a size set by the content, `auto`
  * or a flex share becomes a fixed one) and it stops shrinking in a flex container; after that it
- * keeps that size until dragged. Only the pointer drives it: there is no keyboard resizing yet.
+ * keeps that size until dragged. The handle is also a focusable separator: the arrow keys move the
+ * edge, Home and End take it to the limits.
  */
 export function $resizable(opts: ResizableOptions = {}): Decorator<HTMLElement> {
   const edge = opts.edge ?? "end"
@@ -118,9 +98,49 @@ export function $resizable(opts: ResizableOptions = {}): Decorator<HTMLElement> 
     // A drag moves the pointer along the axis; the element grows when it moves away from it.
     let drag: { from: number; size: number; sign: number } | null = null
     const axis = (ev: PointerEvent) => (horizontal ? ev.clientX : ev.clientY)
+    // Reads the limits, and returns whether moving the edge right (down for "top"/"bottom") grows the element.
+    const start = () => {
+      lo = limit(min, min_prop, 0)
+      hi = limit(max, max_prop, Number.POSITIVE_INFINITY)
+      const toward_end = edge === "end" || edge === "bottom"
+      const rtl = horizontal && getComputedStyle(host).direction === "rtl"
+      return toward_end !== rtl ? 1 : -1
+    }
+
+    // What assistive technology reads of the separator: the size in px, between the limits.
+    const describe = (handle: HTMLElement) => {
+      handle.setAttribute("aria-valuenow", String(Math.round(size_now())))
+      handle.setAttribute("aria-valuemin", String(Math.round(lo)))
+      if (Number.isFinite(hi)) handle.setAttribute("aria-valuemax", String(Math.round(hi)))
+      else handle.removeAttribute("aria-valuemax")
+    }
 
     return (
-      <span aria-hidden="true" data-resize-edge={edge} class={cls_handle}>
+      // biome-ignore lint/a11y/useSemanticElements: an <hr> is a divider elt/ui styles in prose and packed containers, not a handle
+      <span
+        role="separator"
+        tabindex="0"
+        // The line between the element and what is next to it: vertical for a left or right edge.
+        aria-orientation={horizontal ? "vertical" : "horizontal"}
+        aria-label={o_ui_labels.p("resize")}
+        data-resize-edge={edge}
+        class={cls_handle}
+      >
+        {$on("focus", (ev) => {
+          start()
+          describe(ev.currentTarget as HTMLElement)
+        })}
+        {$on("keydown", (ev) => {
+          const sign = start()
+          const step = ev.shiftKey ? KEY_STEP * 5 : KEY_STEP
+          const [back, forward] = horizontal ? ["ArrowLeft", "ArrowRight"] : ["ArrowUp", "ArrowDown"]
+          if (ev.key === forward || ev.key === back) set_size(size_now() + sign * (ev.key === forward ? step : -step))
+          else if (ev.key === "Home") set_size(lo)
+          else if (ev.key === "End" && Number.isFinite(hi)) set_size(hi)
+          else return
+          ev.preventDefault()
+          describe(ev.currentTarget as HTMLElement)
+        })}
         {$on("pointerdown", (ev) => {
           ev.preventDefault()
           ev.stopPropagation()
@@ -132,11 +152,7 @@ export function $resizable(opts: ResizableOptions = {}): Decorator<HTMLElement> 
           } catch {
             // synthetic event: nothing to capture
           }
-          const toward_end = edge === "end" || edge === "bottom"
-          const rtl = horizontal && getComputedStyle(host).direction === "rtl"
-          lo = limit(min, min_prop, 0)
-          hi = limit(max, max_prop, Number.POSITIVE_INFINITY)
-          drag = { from: axis(ev), size: size_now(), sign: toward_end !== rtl ? 1 : -1 }
+          drag = { from: axis(ev), size: size_now(), sign: start() }
           handle.toggleAttribute("data-resizing", true)
         })}
         {$on("pointermove", (ev) => {
@@ -184,4 +200,9 @@ const cls_handle = css`.resize-handle {
   &[data-resize-edge="top"] { top: 0; }
   &[data-resize-edge="bottom"] { bottom: 0; }
   &:hover, &[data-resizing] { background: ${theme.colors.tint.mid}; }
+  /* Focused from the keyboard: the focus ring, inset, since the handle sits on the element's edge. */
+  &:focus-visible {
+    outline: none;
+    box-shadow: inset 0 0 0 ${theme.settings.focusRingSize} ${theme.colors.tint.mid};
+  }
 }`

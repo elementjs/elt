@@ -192,9 +192,9 @@ return <e-column spacing style={oo_style} class={o_color.tf(col => theme.colors[
   </e-row>
 
   <e-row spacing>
-    <label><input type="checkbox" e-widget="switch"/> Switch</label>
-    <label><input type="checkbox" e-widget="switch" checked/> Switch checked</label>
-    <label><input type="checkbox" e-widget="switch" disabled/> Switch disabled</label>
+    <label><input type="checkbox" role="switch"/> Switch</label>
+    <label><input type="checkbox" role="switch" checked/> Switch checked</label>
+    <label><input type="checkbox" role="switch" disabled/> Switch disabled</label>
   </e-row>
 
   <e-row spacing>
@@ -222,13 +222,13 @@ return <e-column spacing="component">
     <e-grid-row><label e-widget="label" for="vt-name">name</label><input id="vt-name" type="text" value="Ada" /></e-grid-row>
     <e-grid-row><span e-widget="label">date_of_birth</span><input type="date" /></e-grid-row>
     <e-grid-row><span e-widget="label">address</span><button>{"{ 3 } Open"}</button></e-grid-row>
-    <e-grid-row><span e-widget="label">active</span><label><input type="checkbox" e-widget="switch" /></label></e-grid-row>
+    <e-grid-row><span e-widget="label">active</span><label><input type="checkbox" role="switch" /></label></e-grid-row>
   </e-grid>
   <e-grid packed="nudge-4" border style={{ gridTemplateColumns: "fit-content(8em) 14em" }}>
     <e-grid-row><span e-widget="label">name</span><input type="text" value="Ada" /></e-grid-row>
     <e-grid-row><span e-widget="label" e-ellipsis>a key too long for its column to show in full</span><input type="number" value="42" /></e-grid-row>
     <e-grid-row><span e-widget="label">address</span><button>{"{ 3 } Open"}</button></e-grid-row>
-    <e-grid-row><span e-widget="label">active</span><label><input type="checkbox" e-widget="switch" /></label></e-grid-row>
+    <e-grid-row><span e-widget="label">active</span><label><input type="checkbox" role="switch" /></label></e-grid-row>
   </e-grid>
   <e-row packed border>
     <span e-widget="label">Email</span>

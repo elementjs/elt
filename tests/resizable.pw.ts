@@ -142,4 +142,42 @@ test.describe("$resizable", () => {
     const position = await page.evaluate(() => getComputedStyle(document.getElementById("host")!).position)
     expect(position).toBe("sticky")
   })
+
+  test("from the keyboard: the arrows move the edge the way they point, Shift by more, Home and End to the limits", async ({
+    page,
+  }) => {
+    await mount(page, `<div id="host" style="width: 200px; height: 50px; margin-left: 300px"></div>`, {
+      edge: "start",
+      min: 100,
+      max: 260,
+    })
+    await page.locator("#host [data-resize-edge]").focus()
+    // The start edge is the left one: moving it left grows the element.
+    await page.keyboard.press("ArrowLeft")
+    expect(await width(page)).toBeCloseTo(210, 0)
+    await page.keyboard.press("Shift+ArrowRight")
+    expect(await width(page)).toBeCloseTo(160, 0)
+    await page.keyboard.press("End")
+    expect(await width(page)).toBe(260)
+    await page.keyboard.press("Home")
+    expect(await width(page)).toBe(100)
+    // The separator says where it is between the limits.
+    const values = await page.evaluate(() => {
+      const h = document.querySelector("#host [data-resize-edge]")!
+      return ["role", "aria-orientation", "aria-valuenow", "aria-valuemin", "aria-valuemax"].map((a) =>
+        h.getAttribute(a),
+      )
+    })
+    expect(values).toEqual(["separator", "vertical", "100", "100", "260"])
+  })
+
+  test("its name comes from o_ui_labels and follows it", async ({ page }) => {
+    await mount(page, `<div id="host" style="width: 200px; height: 50px"></div>`)
+    const name = () =>
+      page.evaluate(() => document.querySelector("#host [data-resize-edge]")!.getAttribute("aria-label"))
+    expect(await name()).toBe("Resize")
+    await page.evaluate(() => window.__ELT__.UI.o_ui_labels.assign({ resize: "Redimensionner" }))
+    expect(await name()).toBe("Redimensionner")
+    await page.evaluate(() => window.__ELT__.UI.o_ui_labels.assign({ resize: "Resize" }))
+  })
 })

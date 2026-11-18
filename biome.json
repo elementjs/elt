@@ -49,7 +49,12 @@
   "overrides": [
     {
       "includes": ["ui/**", "editor/**", "docs/src/**"],
-      "plugins": ["./lint/no-add-observer.grit", "./lint/no-node-mutation.grit", "./lint/no-raw-dom-insertion.grit"]
+      "plugins": [
+        "./lint/no-add-observer.grit",
+        "./lint/no-node-mutation.grit",
+        "./lint/no-raw-dom-insertion.grit",
+        "./lint/icon-button-name.grit"
+      ]
     },
     {
       "includes": ["tests/**", "docs/src/**"],

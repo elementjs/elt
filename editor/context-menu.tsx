@@ -117,10 +117,6 @@ function render_item(item: MenuItem, close: () => void): Renderable {
           if (sub.length > 0)
             open_menu(ev.currentTarget, sub, close, { placement: "right-start", exact_placement: true })
         })}
-        {/* ArrowRight opens the submenu, as in native menus. */}
-        {$on("keydown", (ev) => {
-          if (ev.key === "ArrowRight") (ev.currentTarget as HTMLElement).click()
-        })}
         {icon && <span class={[cls_menu_icon, item.tint && cls_menu_icon_typed]}>{icon}</span>}
         <span class={cls_menu_text}>{item.label}</span>
         <span class={cls_menu_after}>{CaretRight()}</span>

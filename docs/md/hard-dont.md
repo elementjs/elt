@@ -18,7 +18,7 @@ UI code also follows [Never do these with elt/ui](./ui-hard-dont.md).
 
 ## Enforcing with Biome
 
-The package ships Biome plugins for the first two rules and for the DOM methods of the third. Add the files in `lint/` to your `biome.json`'s `plugins`.
+The package ships Biome plugins for the first two rules and for the DOM methods of the third, and one for an elt/ui rule: a button with only an icon needs a name (`icon-button-name.grit`, [elt/ui rules § Controls](./elt-ui-rules.md#controls)). Add the files in `lint/` to your `biome.json`'s `plugins`.
 
 A report is an error. Where an exception applies, disable the rule on the line, with the reason:
 

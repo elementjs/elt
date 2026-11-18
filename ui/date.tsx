@@ -12,6 +12,7 @@ import {
 } from "./date-format"
 import { DateInputController } from "./date-input"
 import { Calendar, CaretLeft, CaretRight, Clock, X } from "./icons"
+import { o_ui_labels } from "./labels"
 import { popup } from "./popup"
 import { Select } from "./select"
 import { TimePickerPanel } from "./timepicker"
@@ -46,9 +47,6 @@ export interface DateTimePickerAttributesBase extends Attrs<HTMLElement> {
   /** the date at which the popup will be set at when model still has no value. Defaults to now. */
   date_popup_default_date?: o.RO<Date>
 }
-
-/** @deprecated use DateTimePickerAttributesBase (the former name had a typo). */
-export type DateTimePickerAttributesBAse = DateTimePickerAttributesBase
 
 /** The model accepts `null` : the picker may be cleared, always (`true`) or only while the observable is `true`. */
 export interface DatePickerNullable extends DateTimePickerAttributesBase {
@@ -136,6 +134,9 @@ export function DateTimePicker(at: DatePickerAttrs) {
       },
     )
     const oo_cells = o.expression((get) => calendar_month_cells(get(o_view), week_start))
+    // A day button shows its number; assistive technology reads the whole date.
+    const full_date = new Intl.DateTimeFormat(locale, { dateStyle: "full" })
+    const today = new Date()
 
     const year_delta = (delta: number) => {
       const d = new Date(o_view.get())
@@ -148,12 +149,12 @@ export function DateTimePicker(at: DatePickerAttrs) {
       () => (
         <e-column pad="component" surface="background" border>
           <e-flex spacing="widget" align="center">
-            <button type="button" e-emphasis="bare">
+            <button type="button" e-emphasis="bare" title={o_ui_labels.p("previous_year")}>
               {$click(() => year_delta(-1))}
               {CaretLeft()}
             </button>
             <span class={cls_year}>{o_view.tf((v) => String(v.getFullYear()))}</span>
-            <button type="button" e-emphasis="bare">
+            <button type="button" e-emphasis="bare" title={o_ui_labels.p("next_year")}>
               {$click(() => year_delta(1))}
               {CaretRight()}
             </button>
@@ -177,6 +178,8 @@ export function DateTimePicker(at: DatePickerAttrs) {
                   e-emphasis="bare"
                   class={[cls_day, oo_in_month.tf((v) => !v && "outside")]}
                   aria-pressed={oo_selected_day.tf((s) => String(s))}
+                  aria-label={o_cell.tf((c) => full_date.format(c.date))}
+                  aria-current={o_cell.tf((c) => same_day(c.date, today) && "date")}
                 >
                   {$click(() => {
                     const cell = o_cell.get().date
@@ -200,7 +203,13 @@ export function DateTimePicker(at: DatePickerAttrs) {
       {$connected((box: HTMLElement) => {
         o_locale.set(resolve_locale(box))
       })}
-      <input type="text" autocomplete="off" spellcheck={false} class={cls_date_input}>
+      <input
+        type="text"
+        autocomplete="off"
+        spellcheck={false}
+        class={cls_date_input}
+        aria-description={o_ui_labels.p("date_input_keys")}
+      >
         {(input: HTMLInputElement) => {
           const ctrl = new DateInputController(input, input_ctx)
           input_ctrl = ctrl
@@ -221,7 +230,7 @@ export function DateTimePicker(at: DatePickerAttrs) {
         at.clearable,
         (c) =>
           c && (
-            <button type="button" e-emphasis={oo_emphasis} title="Clear">
+            <button type="button" e-emphasis={oo_emphasis} title={o_ui_labels.p("clear")}>
               {$click(() => set_model(null))}
               <X />
             </button>
@@ -231,7 +240,7 @@ export function DateTimePicker(at: DatePickerAttrs) {
         opts.show_time,
         (v) =>
           v && (
-            <button type="button" e-emphasis={oo_emphasis} title="Time">
+            <button type="button" e-emphasis={oo_emphasis} title={o_ui_labels.p("pick_time")}>
               {$click(async (ev) => {
                 const locale = o_locale.get()
                 if (!locale) return
@@ -262,7 +271,7 @@ export function DateTimePicker(at: DatePickerAttrs) {
         opts.show_date,
         (v) =>
           v && (
-            <button type="button" e-emphasis={oo_emphasis} title="Date">
+            <button type="button" e-emphasis={oo_emphasis} title={o_ui_labels.p("pick_date")}>
               {$click((ev) => {
                 void open_calendar(ev.currentTarget)
               })}

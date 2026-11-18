@@ -14,7 +14,6 @@ The few widgets native HTML can't provide, and how to build your own. Import fro
 | [`DateTimePicker`](#datetimepicker) | `elt/ui/date` | Date, time or date-time, optionally clearable |
 | [`TimePickerPanel`, `ScrollColumn`](#other-widgets) | `elt/ui/timepicker` | Building your own time picking UI |
 | [`$auto_grow`](#other-widgets) | `elt/ui/textarea` | A `<textarea>` that grows with its content |
-| [`Search`](#other-widgets) | `elt/ui/search` | A text field with a search button |
 | [`Spinner`](#other-widgets) | `elt/ui/spinner` | Loading indicator |
 | [Icons](#icons) | `elt/ui/icons` | Small SVG icons |
 | `popup`, `show_dialog` | `elt/ui/popup`, `elt/ui/dialog` | Overlays — see [Overlays](./ui-overlays.md#choosing-an-overlay) |
@@ -47,13 +46,15 @@ const o_choice = o("a")
 
 `Select` also takes every `button` attribute.
 
+**Name**: wrap it in a `<label>` (`<label>Fruit <Select …/></label>`), or give it `aria-label` / `aria-labelledby`. The list, and the completion input, take the same name. While the list is open, the button's `aria-controls` names it.
+
 **Options** are `role="option"` rows: the selected one has `aria-selected="true"` (drawn in the selected state, [States and interaction § Selected state](./ui-states.md#selected-state)), and all are `e-interactive` (hover and press looks). Focus stays on the list or the input and the active option is named by `aria-activedescendant` and marked `e-active` ([States and interaction § The keyboard cursor](./ui-states.md#the-keyboard-cursor)).
 
-**Keyboard**: ArrowDown or ArrowUp on the Select opens the list, with the selected option active. In the list, Up/Down, Home/End and PageUp/PageDown move, Enter or Space picks, typing letters jumps to the next option starting with them, `Escape` closes it ([Overlays § Keyboard in menus and lists](./ui-overlays.md#keyboard-in-menus-and-lists)).
+**Keyboard**: ArrowDown or ArrowUp on the Select opens the list, with the selected option active. In the list, Up/Down, Home/End and PageUp/PageDown move, Enter or Space picks, typing letters jumps to the next option starting with them, `Escape` closes it ([Overlays § Keyboard in menus and lists](./ui-overlays.md#keyboard-in-menus-and-lists)). Tab out of the list closes it.
 
 ### Completion
 
-With `completion`, a click (or ArrowDown) turns the Select into a text input holding the current option's text, all selected, with the whole list open. Typing replaces the text and keeps the options whose `text_fn` contains it, ignoring case and accents; the first match becomes active, so Enter picks it. Up/Down move through the options while focus stays in the input. `Escape`, or leaving the input, drops what was typed and shows the selected option again; the model only changes when an option is picked.
+With `completion`, a click (or ArrowDown) turns the Select into a text input holding the current option's text, all selected, with the whole list open. Typing replaces the text and keeps the options whose `text_fn` contains it, ignoring case and accents; the first match becomes active, so Enter picks it. Up/Down move through the options while focus stays in the input. `Escape`, or leaving the input, drops what was typed and shows the selected option again; the model only changes when an option is picked. Alt+ArrowUp closes the list and keeps the typing.
 
 Options that are objects need a `text_fn`: with completion and no `text_fn`, `Select` throws when it's created.
 
@@ -100,6 +101,8 @@ const o_fetched = o<Promise<City[]>>(fetch_cities(""))
 
 The text field is edited one part (segment) at a time — day, month, year, hour, minute, second, AM/PM — as in a native date input. Clicking selects the part under the pointer; Left and Right select the previous or next part. Digits typed into a part replace its value and are collected until the part is full (2 digits, 4 for the year), then the next part is selected: typing `15` into the minutes gives `15`. A first digit that no second digit could follow is complete at once: `4` in a day gives `04`, `2` in a month gives `02`. A separator (`/`, `-`, `:`, a space…) ends the part being typed and selects the next one (`1/5/2026` gives January 5 in en-US); typed right after a part that completed on its own, it does nothing, so `2026-10-03` can be typed as written. Moving to another part starts a new value. In the AM/PM part, a letter that starts the localized AM or PM text sets it, in either case, then the next part is selected (`p` gives PM in en-US); where one letter starts both texts (`PG` / `PTG` in ms, `오전` / `오후` in ko), the letters are collected until only one text starts with them (`pt` gives PM). Up and Down step the part (minutes and seconds by `minute_step` / `second_step`), Backspace and Delete empty it. The model receives the date when the field loses focus, if the date is complete and valid; with `clearable`, an empty field sets it to `null`. Phone and tablet on-screen keyboards, which send their characters as text input rather than identifiable key presses, behave the same: each character goes through the rules above, and deleting empties the part as Backspace does. Without an AM/PM part, the field asks these keyboards for a number pad (`inputmode="numeric"`); with one, it keeps the default keyboard, whose letters set AM or PM.
 
+**Name and popups**: wrap the picker in a `<label>` to name its text field; the field's description says how its keys work (`o_ui_labels.date_input_keys`). The buttons next to it are named from `o_ui_labels`. The calendar and the time popup are dialogs named by their button; focus moves into them when they open. Each day is read as its full date, and today is marked `aria-current="date"`. The time popup's columns are spinbuttons (`ScrollColumn`, below).
+
 ## Resizable
 
 `$resizable(opts?)` lets the user drag one edge of an element to change its size: a column header, a sidebar or a navigation bar in a flex row, a panel. The decorator returns the drag handle, a thin strip along the edge, which elt puts in the element.
@@ -122,7 +125,7 @@ import { $resizable } from "elt/ui"
 
 - **The size is locked once the element has been laid out.** Whatever sized it (its content, `auto`, a flex share) is written back as a fixed size, and the element stops shrinking in a flex container (`flex-shrink: 0`). After that it keeps that size until dragged, and no longer follows its content. Give the element no `grow` when it should stay the size the user chose.
 - **Positioning.** The handle is placed against the element, which gets `position: relative` unless it already has a position of its own (a `sticky` header keeps it).
-- **Pointer only.** A touch screen gets a wider handle, and the page is not scrolled by dragging it. There is no keyboard resizing yet.
+- **Pointer and keyboard.** A touch screen gets a wider handle, and the page is not scrolled by dragging it. The handle is also a focusable `separator`, named by `o_ui_labels`' `resize`: the arrow keys move the edge the way they point (10px, 50px with Shift), Home and End take the size to `min` and `max`. It tells assistive technology the size in px, and the limits.
 - A column header whose width belongs to a layout of its own (a table's columns, a grid template) passes `on_resize` and applies the size where that layout needs it.
 
 ## Other widgets
@@ -130,14 +133,47 @@ import { $resizable } from "elt/ui"
 | Export | Signature / use |
 | ------ | --------------- |
 | `TimePickerPanel(opts)` | Time selection panel: `{ locale, o_date, am_pm, seconds, minute_step?, second_step?, on_change }` |
-| `ScrollColumn(opts)` | One numeric column stepped by its buttons, the wheel or a touch drag: `{ label?, min, max, loop?, step_size?, format, value, on_change }`. `value` is an `o.RO<number>` the column shows; `on_change` receives the next value; `label` is shown above the column |
+| `ScrollColumn(opts)` | One numeric column stepped by its buttons, the wheel or a touch drag: `{ label?, name?, min, max, loop?, step_size?, format, value, on_change }`. `value` is an `o.RO<number>` the column shows; `on_change` receives the next value; `label` is shown above the column | For the keyboard and assistive technology it is a `spinbutton`, one Tab stop named by `name` (`o.RO<string>`): Up/Down step it, PageUp/PageDown by 5 steps, Home/End go to `min` and to the last value of the step before `max`. Its buttons have no Tab stop. `TimePickerPanel` names its columns from `o_ui_labels`.
 | `$auto_grow(opts?)` | Decorator for `<textarea>`: grows with its content between `min` and `max` lines (`o.RO<number>`) |
-| `Search()` | A packed row: a text input and a search button. Takes no props. |
 | `Spinner(attrs)` | SVG loading indicator |
+
+## Texts of the widgets
+
+The texts elt/ui's widgets give assistive technology (the names of icon-only buttons and of handles) come from `o_ui_labels`, an observable holding English defaults. An app in another language sets them, all at once or some, and the widgets on screen follow:
+
+```ts
+import { o_ui_labels } from "elt/ui"
+
+o_ui_labels.assign({ resize: "Redimensionner", clear: "Effacer" })
+```
+
+| Key | Named |
+| --- | ----- |
+| `resize` | The handle of `$resizable` |
+| `hours`, `minutes`, `seconds`, `am_pm` | The columns of the time picker |
+| `increase`, `decrease` | The buttons that step a time picker column |
+| `pick_date`, `pick_time`, `clear` | The buttons of `DateTimePicker` |
+| `previous_year`, `next_year` | The year buttons of the calendar |
+| `date_input_keys` | The description of the date field: how its keys work |
 
 ## Icons
 
-`CaretDown`, `CaretLeft`, `CaretRight`, `Calendar`, `Clock`, `MagnifyingGlass`, `X`, `Check` — SVG icons sharing the class `cls_icon`.
+`CaretDown`, `CaretLeft`, `CaretRight`, `Calendar`, `Clock`, `MagnifyingGlass`, `X`, `Trash`, `ArrowsClockwise`, `Check`, `Scissors`, `Copy`, `ClipboardText`, `SelectionAll`, `DownloadSimple`: functions returning a new icon each time, a `<span>` with the class `cls_icon` around an `<svg>`. They are drawn with `currentColor`, so they take the text color.
+
+Icons of your own drawn the same way (phosphor's "regular" weight, a 256×256 view box, a stroke of 16) are built with three functions:
+
+| Export | Use |
+| ------ | --- |
+| `icon(...shapes)` | The icon: the `<span class="icon">` around a 256×256 `<svg>` holding `shapes` |
+| `stroked(tag, ...attrs)` | One stroked shape: an SVG element `tag` with its attributes as name, value, name, value…, plus the shared stroke |
+| `dot(cx, cy, r)` | A filled circle (the dot of a question mark) |
+
+```tsx
+import { icon, stroked } from "elt/ui/icons"
+
+export const Plus = () =>
+  icon(stroked("line", "x1", "40", "y1", "128", "x2", "216", "y2", "128"), stroked("line", "x1", "128", "y1", "40", "x2", "128", "y2", "216"))
+```
 
 ## Building app-specific widgets
 

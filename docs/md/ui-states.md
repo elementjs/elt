@@ -11,7 +11,7 @@ How a control says how loud it is (`e-emphasis`), which widget it is (`e-widget`
 ## Terms
 
 - **Emphasis**: how loud a control is, from `link` (plain inline text) to `inverted` (the one dominant action). It is how a control picks its strength in the model of [Theme § Emphasis](./ui-theme.md#emphasis), and the attribute is `e-emphasis`.
-- **Widget**: what an element is (a switch, a toggle button, a text field), as opposed to how loud it is. The attribute is `e-widget`.
+- **Widget**: what an element is (a toggle button, a text field), as opposed to how loud it is. The attribute is `e-widget`, or the ARIA `role` when the role and the look can't differ (a switch).
 - **Interactive**: an element that reacts to the pointer and the keyboard as a control does: a hover fill, a pressed fill, a pointer cursor and a focus ring. Native `button` and `a[href]` are. Any other element is when it has the `e-interactive` attribute, which [`$interactive`](#interaction) sets.
 - **Selected state**: an element that stands for a choice, a pressed toggle, or the place you are. It is set with ARIA attributes, never with a class ([Selected state](#selected-state)).
 - **Keyboard cursor**: in a list or a menu, the item the arrow keys are on.
@@ -21,7 +21,7 @@ The pieces are independent, and each answers one question:
 | Question | Where | Values |
 | -------- | ----- | ------ |
 | Where is it and how big? | The layout attributes (`pad`, `spacing`, `surface`, `border`, `radius`, `hover`) | [Layout](./ui-layout.md#layout-attributes) |
-| What is it? | `e-widget` | `switch`, `toggle`, `field`, `label` ([Widgets](#widgets)) |
+| What is it? | `e-widget`, or `role` | `toggle`, `field`, `label`; `role="switch"` ([Widgets](#widgets)) |
 | How loud is it? | `e-emphasis` | `link`, `bare`, *(none, the default)*, `tint`, `inverted` ([Emphasis](#emphasis)) |
 | Does it react to the pointer and keys? | `e-interactive` | on or off ([Interaction](#interaction)) |
 | What is it doing? | ARIA attributes | selected, invalid, disabled ([Selected state](#selected-state), [Disabled and invalid](#disabled-and-invalid)) |
@@ -60,11 +60,10 @@ A toggle takes an emphasis like a button: `<label e-widget="toggle" e-emphasis="
 
 ## Widgets
 
-`e-widget` says what an element is, as opposed to how loud it is.
+`e-widget` says what an element is, as opposed to how loud it is. Where an ARIA role says it already and the look can't differ from it, the role carries the look instead: `<input type="checkbox" role="switch">` is a pill switch, since a checkbox drawn as a switch must be announced as one, and the other way round.
 
 | `e-widget` | On | Result |
 | ---------- | -- | ------ |
-| `switch` | `<input type="checkbox">` | A pill switch |
 | `toggle` | `<label>` around a checkbox | The checkbox is hidden and the label is a button. It is outlined in `tint` while unchecked, and checked it is drawn in the [selected state](#selected-state). It takes an [emphasis](#emphasis) |
 | `field` | Any element that is editable (a `contenteditable`, a custom field) | The look of a text input: its edge, padding, radius, height and focus ring, and the [invalid look](#disabled-and-invalid) |
 | `label` | Any element | Text that names what is next to it, not a control: bold and fainter than the text around it, at the controls' size, and also filled in a `packed` container ([Forms § Labels](./ui-forms.md#labels-and-fieldsets)) |

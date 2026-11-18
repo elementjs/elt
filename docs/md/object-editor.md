@@ -8,7 +8,7 @@ section: UI Recipes
 
 `<ObjectEditor model={o_value} />` (`elt/editor`) renders a generic tree/table editor over an `Observable` holding any JSON-like value: objects, arrays (list or table layout), `Set`s, `Map`s, and free-form "unknown mode" documents. Every example below is live, using the actual `elt/editor` package.
 
-**Unstable:** `elt/editor` is under active development and its API may change without notice. Do not build on it in code that must keep working across elt upgrades.
+**Unstable:** `elt/editor` is under active development and its API may change without notice: it does not follow semantic versioning, and a minor release of elt can break it. Do not build on it in code that must keep working across elt upgrades.
 
 ## Using the component
 
@@ -22,7 +22,7 @@ section: UI Recipes
 | `packed` | `o.RO<boolean>` (default `false`) | Draw each column as one framed group whose header line, toolbar and rows touch and share lines. Without it, a column has no frame: its rows are spaced by the usual elt/ui spacing. See [Packed or not](#packed-or-not) |
 | `show_title`, `show_filter`, `show_add`, `show_menu` | `o.RO<boolean>` (default `true`) | Which parts of a column appear. See [Showing and hiding parts](#showing-and-hiding-parts) |
 | `show_undo_redo` | `o.RO<boolean>` (default `true`) | The *Undo*/*Redo* buttons of the root column's header line (icons, shown only when there is something to undo or redo) |
-| `breadcrumb` | `o.Out<string[]>` | Written with the titles of the opened columns after the root (`[]` when only the root is open), when the editor is built, then on every change while it is on screen. You create the observable and read it; the editor only writes it. See [Components § Reactive attributes](./components.md#reactive-attributes) |
+| `out_breadcrumb` | `o.Out<string[]>` | Written with the titles of the opened columns after the root (`[]` when only the root is open), when the editor is built, then on every change while it is on screen. You create the observable and read it; the editor only writes it. See [Components § Reactive attributes](./components.md#reactive-attributes) |
 | `undo` | `{ depth?, import_undo_depth? } \| false` | Size of the *Undo*/*Redo* history. `false` turns the history off: no buttons, no shortcut |
 
 `class` and `style` apply to the editor's outer row, like on any element.

@@ -1,4 +1,5 @@
-import { $connected, $enter, $leave, $on, animate, css, type Future, show } from "elt"
+import { $connected, $enter, $leave, $on, animate, css, type Future, type o, show } from "elt"
+import { name_overlay } from "./internal"
 import type { OverlayResult } from "./popup"
 import { theme } from "./theme"
 import { fade_in, fade_out, zoom_in, zoom_out } from "./motion"
@@ -6,6 +7,8 @@ import { fade_in, fade_out, zoom_in, zoom_out } from "./motion"
 export interface DialogOptions {
   /** A click on the backdrop dismisses the dialog (resolves it with `undefined`). */
   clickOutsideToClose?: boolean
+  /** The name assistive technology reads for the dialog. Without it, the first heading of the content names it. */
+  label?: o.RO<string>
 }
 
 /** Returns the dialog's content: one element, drawing its own frame. Typed `Node` because that is what JSX gives. */
@@ -94,6 +97,9 @@ export function show_dialog<T extends OverlayResult = boolean>(
         { flow: true },
       ),
     )
+    // Looked up once, the content being complete: a dialog with no name is announced as just "dialog".
+    if (!name_overlay(dialog, content, options.label))
+      console.warn("show_dialog: the dialog has no name: give it a heading, or the `label` option", content)
     return dialog
   })
 

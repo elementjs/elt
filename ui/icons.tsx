@@ -1,6 +1,7 @@
 /** Some default icons taken from phosphor icons (thank you !), but copied here to avoid dependencies */
 
 import { css } from "elt"
+import { CHECK_POINTS } from "./internal"
 
 export const cls_icon = css`.icon {
   & > svg {
@@ -47,6 +48,8 @@ const STROKE: [string, string][] = [
 export function icon(...shapes: SVGElement[]) {
   const sp = document.createElement("span")
   sp.classList.add(cls_icon)
+  // Decoration: what names a control is its text or its label (an icon-only button needs one, lint/icon-button-name.grit).
+  sp.setAttribute("aria-hidden", "true")
   const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg")
   svg.setAttribute("viewBox", "0 0 256 256")
   // biome-ignore lint/plugin: building a detached svg, before elt ever sees it
@@ -73,9 +76,6 @@ export function dot(cx: string, cy: string, r: string) {
   e.setAttribute("fill", "currentColor")
   return e
 }
-
-/** The `Check` polyline, also the checkbox's check mark (ui/form.css.tsx). */
-export const CHECK_POINTS = "40 144 96 200 224 72"
 
 export const CaretDown = /** @__PURE__ */ () => _(s(py, ps, "208 96 128 176 48 96"))
 

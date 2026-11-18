@@ -506,7 +506,7 @@ test("a number and a boolean cell show the model's value and write back to it; a
   const active = page.locator("e-grid input[type=checkbox]")
   await expect(age).toHaveValue("36")
   await expect(active).toBeChecked()
-  await expect(active).toHaveAttribute("e-widget", "switch")
+  await expect(active).toHaveAttribute("role", "switch")
   await age.fill("40")
   await active.click()
   expect(await page.evaluate(() => (window as any).o_root.get())).toEqual({ age: 40, active: false })

@@ -14,7 +14,8 @@
  */
 
 import { css, type NRO } from "elt"
-import { ambient_surface_mix, theme } from "./theme"
+import { ambient_surface_mix } from "./layout.css"
+import { theme } from "./theme"
 import {
   DISABLED_SELECTOR,
   FORM_CONTROL_SELECTOR,
@@ -250,16 +251,16 @@ css`
     color: ${colors.text.mid};
   }
 
-  :where(input[type="checkbox"]:checked:disabled, input[type="checkbox"][e-widget="switch"]:checked:disabled) {
+  :where(input[type="checkbox"]:checked:disabled, input[type="checkbox"][role="switch"]:checked:disabled) {
     --e-border-color: ${colors.neutral.mid};
   }
-  :where(input[type="checkbox"]:disabled, input[type="checkbox"][e-widget="switch"]:checked:disabled)::after {
+  :where(input[type="checkbox"]:disabled, input[type="checkbox"][role="switch"]:checked:disabled)::after {
     background-color: ${colors.neutral.mid};
   }
-  :where(input[type="checkbox"][e-widget="switch"]:checked:disabled) {
+  :where(input[type="checkbox"][role="switch"]:checked:disabled) {
     background-color: ${colors.neutral.faded};
   }
-  :where(input[type="checkbox"][e-widget="switch"]:not(:checked):disabled)::after {
+  :where(input[type="checkbox"][role="switch"]:not(:checked):disabled)::after {
     background-color: ${colors.neutral.faded};
   }
 }`

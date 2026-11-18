@@ -11,6 +11,7 @@
  */
 
 import { css, node_add_event_listener, node_is_connected, node_observe, node_on_connected, o } from "elt"
+import { enclosing_popup } from "./internal"
 
 export interface ListNavOptions {
   /** The active item's index, -1 for none. Owned by the caller: bind `e-active` on items from it, or move focus to them. */
@@ -128,22 +129,6 @@ function find_by_prefix(text_of: (index: number) => string, count: number, prefi
 }
 
 /**
- * Focus `el` once it's connected and shown. A popup shows its content a moment after attaching it,
- * and focus can only land on a shown element.
- *
- * Nothing happens if `el` was disconnected in the meantime: a popup closed within that frame is
- * still in the document while it fades out, and focusing it would drop focus to the body once it is
- * removed.
- */
-export function focus_when_shown(el: HTMLElement) {
-  node_on_connected(el, () =>
-    requestAnimationFrame(() => {
-      if (node_is_connected(el)) el.focus({ preventScroll: true })
-    }),
-  )
-}
-
-/**
  * {@link list_nav} for a menu built as plain DOM: its items are the `[role=menuitem]` elements
  * inside `menu` that aren't disabled (headers and `<hr>` are skipped).
  *
@@ -176,6 +161,7 @@ export function menu_nav(menu: HTMLElement) {
   }
   const o_active = o(items().length > 0 ? 0 : -1)
   menu.tabIndex = -1
+  if (!menu.hasAttribute("role")) menu.setAttribute("role", "menu")
 
   list_nav(menu, {
     o_active,
@@ -195,6 +181,22 @@ export function menu_nav(menu: HTMLElement) {
       if (node_is_connected(menu)) (items()[o_active.get()] ?? menu).focus({ preventScroll: true })
     }),
   )
+
+  // Submenus, as in native menus: ArrowRight on an item that opens one opens it (a click), ArrowLeft in a
+  // menu that a menu item opened closes it, and focus goes back to that item (the popup gives it back).
+  node_add_event_listener(menu, "keydown", (ev) => {
+    if (ev.key === "ArrowRight") {
+      const item = items()[o_active.get()]
+      if (item == null || !item.hasAttribute("aria-haspopup") || item.getAttribute("aria-haspopup") === "false") return
+      ev.preventDefault()
+      item.click()
+    } else if (ev.key === "ArrowLeft") {
+      const popup = enclosing_popup(menu)
+      if (!popup?.opener?.matches('[role="menuitem"]')) return
+      ev.preventDefault()
+      popup.close()
+    }
+  })
 
   // The pointer makes the item under it active (and focused, through the observer above).
   node_add_event_listener(menu, "pointermove", (ev) => {

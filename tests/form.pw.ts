@@ -207,7 +207,7 @@ test.describe("invalid fields", () => {
   })
 })
 
-// The checkbox's check mark is clipped to the Check icon's polyline (ui/icons.tsx). It is a clip-path,
+// The checkbox's check mark is clipped to the Check icon's polyline (CHECK_POINTS, ui/internal.ts). It is a clip-path,
 // not a data-URI mask: a Content-Security-Policy without `data:` for images would block the mask.
 test("the checkbox mark is drawn under a Content-Security-Policy that blocks data: images", async ({ page }) => {
   // The dev server's hot-reload socket can't connect from the page served through route.fulfill: noise, not the test

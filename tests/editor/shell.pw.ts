@@ -66,7 +66,7 @@ test.describe("ObjectEditor breadcrumb", () => {
       const { o, e, node_append } = window.__ELT__
       const { ObjectEditor, dispatch_object_editor_open } = window.__ELT__.Editor
       const o_breadcrumb = o<string[]>(["not written yet"])
-      const node = e(ObjectEditor as any, { model: o({ name: "Ada" }), breadcrumb: o_breadcrumb }) as HTMLElement
+      const node = e(ObjectEditor as any, { model: o({ name: "Ada" }), out_breadcrumb: o_breadcrumb }) as HTMLElement
       const built = o_breadcrumb.get()
       node_append(document.body, node)
       const on_mount = o_breadcrumb.get()

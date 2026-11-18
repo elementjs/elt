@@ -23,7 +23,7 @@ Use the lightest one that gives the interaction enough room and keeps the user's
 popup<T = boolean>(
   anchor: Element | { x: number; y: number; element: Element } | { within: Element; x: number; y: number },
   render: (fut: Future<T | undefined>) => Node,
-  opts?: { placement?: Placement; exact_placement?: boolean; parent?: Element | null; arrow?: boolean },
+  opts?: { placement?: Placement; exact_placement?: boolean; parent?: Element | null; arrow?: boolean; focus?: boolean; label?: o.RO<string>; opener?: Element | null; min_width?; max_width?; max_height? },
 ): Future<T | undefined>
 ```
 
@@ -37,6 +37,8 @@ popup<T = boolean>(
 - **Size**: the content is at least `popupMinWidth` wide (default `0px`) and at most `popupMaxWidth` wide (`100vw`) and `popupMaxHeight` tall (`80vh`), and within the room left next to the anchor, which the popup sets as `--e-popup-room-width` / `--e-popup-room-height`. Those three are [theme settings](./ui-theme.md#settings), so a theme or a subtree can change them (`--e-popup-min-width`, `--e-popup-max-width`, `--e-popup-max-height`). `min_width`, `max_width` and `max_height` options (a number is px, a string any CSS length) set them for one popup. Give the content `scroll` when it can be taller.
 - Resolving `fut` with a value closes the popup, and so does rejecting it (the rejection goes to whoever awaits the future). A click outside closes every open popup and resolves them with `undefined`, like `fut.resolve(undefined)` from the content does; `Escape` closes only the innermost one (a submenu, not the menu it came from); once no popup is open, `Escape` is left to the rest of the page (a surrounding dialog, a keymap). On close, focus goes back to what had it when the popup opened.
 - A popup opened from inside another popup is attached to it and keeps it open; any other popup closes the open ones first.
+- **Keyboard**: once shown, focus moves into the popup, to the first element Tab reaches in it, else to the content itself, unless the content already took it (a menu from `menu_nav` focuses its first item). `focus: false` leaves focus where it is (a list completing a text field, a tooltip). Tab on the last element of the popup (Shift+Tab on the first, or any Tab when nothing in it is a Tab stop, as in a menu) closes it, and Tab goes on from its opener, as if the popup sat right after it. Focus moved by the pointer doesn't close it, so the pointer can cross a menu on its way to a submenu. When it closes, focus goes back to what had it before, unless the user put it elsewhere.
+- **Assistive technology**: the popup says what it is from its content. A content that is, or holds, a `role="menu"`, `"listbox"`, `"tree"` or `"grid"` makes a popup of that kind; any other content makes it a `dialog`, named by `label`, else by the first heading of the content, else by the text of the anchor element. The **opener**, the anchor element by default, gets `aria-expanded` (`"true"` while the popup is open, `"false"` after) and, unless it has one, `aria-haspopup` with that kind. `opener` names another element, or `null` for none: a combobox's input says it opens its list itself. A point or a pointer inside an element (a context menu) has no opener.
 
 ```tsx
 import { $click } from "elt"
@@ -74,6 +76,8 @@ A context menu opens at the pointer, from [`$context_menu`](./decorators.md#cont
 - The items are the `[role="menuitem"]` elements that aren't disabled; headers and `<hr>` are skipped.
 - Focus moves between the items themselves (roving focus): the first item takes it once the menu is shown, the arrow keys move it, and the focused item is the keyboard cursor, drawn by the browser's `:focus-visible` ring like any focused control. Only the focused item is in the tab order (the others have `tabindex="-1"`). Hovering an item focuses it, so there is one highlighted item and the keys continue from where the pointer is. A menu with no item takes the focus itself.
 - Up/Down move, Home/End jump to the first/last item, PageUp/PageDown move by 10. Enter or Space clicks the active item. Typing letters jumps to the next item starting with them; the same letter repeated cycles through the items starting with it. `Escape` is the popup's: it closes the innermost menu, and focus goes back to what opened it.
+- **Submenus**: an item that opens one has `aria-haspopup="menu"` and opens it on click, in a `popup` anchored on the item (with `placement: "right-start", exact_placement: true`, so it opens beside it). ArrowRight on that item clicks it. ArrowLeft in a menu that a menu item opened closes it, and focus goes back to that item. Tab out of a menu closes it, as for any popup.
+- The element gets `role="menu"` when it has no role.
 
 ```tsx
 popup(ev.currentTarget, (fut) => {
@@ -104,11 +108,12 @@ popup(ev.currentTarget, (fut) => {
 
 ```ts
 show_dialog<T = boolean>(render: (fut: Future<T | undefined>) => Node): Future<T | undefined>
-show_dialog<T = boolean>(opts: { clickOutsideToClose?: boolean }, render): Future<T | undefined>
+show_dialog<T = boolean>(opts: { clickOutsideToClose?: boolean; label?: o.RO<string> }, render): Future<T | undefined>
 ```
 
 - A modal `<dialog>` with a backdrop, centered, animated in and out. The dialog itself is an **unstyled box**: `render` returns one element that draws the frame, like a popup's.
 - Awaiting the result gives the value passed to `fut.resolve`, or `undefined` when it closed with no result: the user dismissed it (`Escape`, or a backdrop click when `clickOutsideToClose` is set), or the content called `fut.resolve(undefined)`. On close, focus goes back to what had it when the dialog opened.
+- **Name**: assistive technology announces a dialog by its name: `label`, else the first heading of the content (a dialog's `<header><h1>`), looked up once, when it opens. A dialog with neither is announced as just "dialog", and `show_dialog` warns in the console.
 - Size hooks: `--e-dialog-width`, `--e-dialog-max-width` (default `60vw`), `--e-dialog-max-height` (default `80vh`). The content is shrunk to the height limit: give its scrolling part `scroll`.
 
 A dialog with a title, a body and actions is a packed bordered column. Its title row is a `<header>`, a tint-inverted bar, since a dialog wants the user's attention ([elt/ui rules § Recommendations](./elt-ui-rules.md#recommendations)):

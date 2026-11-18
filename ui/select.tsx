@@ -1,6 +1,7 @@
 import { $click, $observe, $on, type Attrs, css, If, is_promise_like, o, type Renderable, RepeatVirtual } from "elt"
 import { CaretDown, Check } from "./icons"
-import { focus_when_shown, list_nav, type ListNavOptions } from "./list-nav"
+import { focus_when_shown } from "./internal"
+import { list_nav, type ListNavOptions } from "./list-nav"
 import { popup } from "./popup"
 import { Spinner } from "./spinner"
 import { theme } from "./theme"
@@ -84,6 +85,8 @@ export function Select<T, T2 = T>(at: SelectAttributes<T, T2>) {
   const o_open = o(false)
   const o_editing = o(false)
   let close_list: (() => void) | null = null
+  /** The list is being closed by Alt+ArrowUp, which keeps the completion input open. */
+  let keep_editing = false
 
   // The options as last known. A promise replaces them when it resolves, unless a newer one came
   // in the meantime (`current`).
@@ -227,6 +230,24 @@ export function Select<T, T2 = T>(at: SelectAttributes<T, T2>) {
     return list
   }
 
+  /**
+   * Gives `el` (the list, or the completion input) the Select's name: the `<label>` around or for it,
+   * else the `aria-label` / `aria-labelledby` given to the Select, which land on its root.
+   */
+  function name_like_select(el: HTMLElement) {
+    const label = button.labels[0]
+    if (label) {
+      label.id ||= `${list_id}-label`
+      el.setAttribute("aria-labelledby", label.id)
+      return
+    }
+    for (const attr of ["aria-labelledby", "aria-label"]) {
+      // Without completion the button is the root; `root` is only assigned with completion.
+      const value = (at.completion ? root : button).getAttribute(attr)
+      if (value) return el.setAttribute(attr, value)
+    }
+  }
+
   /** Open the option list under `anchor`, the selected option active. */
   function open_list(anchor: HTMLElement) {
     if (close_list || o.get(at.disabled)) return
@@ -240,6 +261,7 @@ export function Select<T, T2 = T>(at: SelectAttributes<T, T2>) {
       anchor,
       () => {
         const list = render_list(anchor)
+        name_like_select(list)
         // Without completion, the list itself takes focus and the keys; with it, the input keeps both.
         if (!at.completion) {
           list.tabIndex = -1
@@ -248,7 +270,10 @@ export function Select<T, T2 = T>(at: SelectAttributes<T, T2>) {
         }
         return list
       },
-      at.completion ? { arrow: false, placement: "bottom-start" } : { arrow: true, placement: "right-start" },
+      // With completion, focus stays in the input, which says itself that it opens the list (role="combobox").
+      at.completion
+        ? { arrow: false, placement: "bottom-start", focus: false, opener: null }
+        : { arrow: true, placement: "right-start" },
     )
     close_list = () => fut.resolve(undefined)
     requestAnimationFrame(() => {
@@ -257,8 +282,10 @@ export function Select<T, T2 = T>(at: SelectAttributes<T, T2>) {
     fut.then((res) => {
       close_list = null
       o_open.set(false)
-      // Dismissed (Escape, a click outside) while typing: the typing is abandoned too.
-      if (res === undefined && at.completion && o_editing.get()) stop_editing(true)
+      // Dismissed (Escape, a click outside) while typing: the typing is abandoned too. Not when Alt+ArrowUp
+      // closed it.
+      if (res === undefined && at.completion && o_editing.get() && !keep_editing) stop_editing(true)
+      keep_editing = false
     })
   }
 
@@ -269,7 +296,7 @@ export function Select<T, T2 = T>(at: SelectAttributes<T, T2>) {
       class={cls_select_button}
       disabled={at.disabled}
       aria-haspopup="listbox"
-      aria-expanded={o_open.tf((v) => String(v))}
+      aria-controls={o_open.tf((open) => open && list_id)}
     >
       {$observe(at.options, on_options)}
       {"‌"}
@@ -315,6 +342,12 @@ export function Select<T, T2 = T>(at: SelectAttributes<T, T2>) {
           ev.preventDefault()
           ev.stopImmediatePropagation()
           open_list(root)
+        } else if (ev.key === "ArrowUp" && ev.altKey && close_list) {
+          // Alt+ArrowUp closes the list and keeps the typing, as a native combobox does.
+          ev.preventDefault()
+          ev.stopImmediatePropagation()
+          keep_editing = true
+          close_list()
         } else if (ev.key === "Escape") {
           // Usually the open popup takes Escape first (and its closing stops the editing); this is
           // the list closed, or not shown yet.
@@ -340,6 +373,7 @@ export function Select<T, T2 = T>(at: SelectAttributes<T, T2>) {
     o_query.set("")
     const sel = oo_selected.get()
     input.value = sel ? text_of(sel.opt) : ""
+    name_like_select(input)
     o_editing.set(true)
     input.focus()
     input.select()

@@ -11,7 +11,10 @@ type W = Window & {
 const FRUITS = ["Apple", "Banana", "Cherry", "Crème brûlée", "Date", "Elderberry"]
 
 /** Mount a Select on `model`'s initial value; `completion` turns completion on. */
-async function mount(page: Page, opts: { completion?: boolean; initial?: string | null; remote?: boolean }) {
+async function mount(
+  page: Page,
+  opts: { completion?: boolean; initial?: string | null; remote?: boolean; label?: boolean },
+) {
   await page.evaluate(
     ({ FRUITS, opts }) => {
       const { o, node_append, UI } = window.__ELT__
@@ -41,8 +44,10 @@ async function mount(page: Page, opts: { completion?: boolean; initial?: string 
         placeholder: "Pick…",
         label_fn: (opt, query) => (query ? `${opt} [${query}]` : opt),
       })
-      const holder = document.createElement("div")
+      // With `label`, the Select is in a <label> that names it.
+      const holder = document.createElement(opts.label ? "label" : "div")
       holder.id = "holder"
+      if (opts.label) holder.textContent = "Fruit "
       node_append(document.body, holder)
       node_append(holder, select)
     },
@@ -224,5 +229,47 @@ test.describe("Select with promise options", () => {
   test("the selected value shows before the options load (the value is the option)", async ({ page }) => {
     await mount(page, { remote: true, initial: "Preset" })
     await expect(page.locator("#holder button")).toHaveText("\u200cPreset")
+  })
+
+  test("the list is named like the Select (its <label>), and the button says which list it controls while open", async ({
+    page,
+  }) => {
+    await mount(page, { initial: "Banana", label: true })
+    await page.click("#holder button")
+    await page.waitForSelector('[role="listbox"]')
+    const r = await page.evaluate(() => {
+      const list = document.querySelector('[role="listbox"]')!
+      const button = document.querySelector("#holder button")!
+      return {
+        name: document.getElementById(list.getAttribute("aria-labelledby")!)?.textContent?.trim().startsWith("Fruit"),
+        controls: button.getAttribute("aria-controls") === list.id,
+      }
+    })
+    expect(r).toEqual({ name: true, controls: true })
+  })
+
+  test("Tab out of the open list closes it", async ({ page }) => {
+    await mount(page, { initial: "Banana" })
+    await page.click("#holder button")
+    await page.waitForFunction(() => document.activeElement?.getAttribute("role") === "listbox")
+    await page.keyboard.press("Tab")
+    await page.waitForFunction(() => document.querySelector('[role="listbox"]') == null)
+    expect(
+      await page.evaluate(() => document.querySelector("#holder button")!.getAttribute("aria-controls")),
+    ).toBeNull()
+  })
+
+  test("completion: Alt+ArrowUp closes the list and keeps the typing", async ({ page }) => {
+    await mount(page, { completion: true, initial: "Banana" })
+    await page.click("#holder button")
+    await page.waitForSelector('[role="listbox"]')
+    await page.keyboard.type("ch")
+    await page.keyboard.press("Alt+ArrowUp")
+    await page.waitForFunction(() => document.querySelector('[role="listbox"]') == null)
+    const r = await page.evaluate(() => ({
+      value: (document.activeElement as HTMLInputElement).value,
+      role: document.activeElement?.getAttribute("role"),
+    }))
+    expect(r).toEqual({ value: "ch", role: "combobox" })
   })
 })

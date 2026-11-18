@@ -263,7 +263,7 @@ test.describe("labels around checkboxes", () => {
     <label id="r"><input type="radio" name="g" />Radio</label>
     <label id="t" e-widget="toggle"><input type="checkbox" />Toggle</label></e-row>`
 
-  for (const kind of ["", 'e-widget="switch"']) {
+  for (const kind of ["", 'role="switch"']) {
     test(`a label around a ${kind ? "switch" : "checkbox"} or a radio pads itself like a bare control`, async ({
       page,
     }) => {

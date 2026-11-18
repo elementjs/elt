@@ -7,13 +7,13 @@ baseline of their first line, and each widget keeps its own border.
 
 Column widths: the grid first lays out as its content wants (each track's `initial` template), then
 each track is locked to the width it got, as soon as the grid has a body row and a size
-(`observe_layout` of elt/ui, also used by `$resizable`). Rows come
+(`observe_layout`, shared with elt/ui's `$resizable`). Rows come
 and go as the list scrolls (RepeatVirtual); a locked width never follows them. A track that appears
 later (a new table column) is locked the same way on the next layout.
 */
 
 import { $connected, $disconnected, css, If, o, Repeat, RepeatVirtual, type Renderable } from "elt"
-import { observe_layout } from "elt/ui"
+import { observe_layout } from "../ui/internal"
 
 export interface GridTrack {
   /** Stable id of the track ("label", "value", a table column's key…): widths are kept by id. */

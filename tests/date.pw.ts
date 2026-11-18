@@ -242,6 +242,44 @@ test.describe("time picker popup", () => {
     expect(await model(page)).toEqual([2026, 9, 3, 9, 30, 0])
   })
 
+  test("each column is a spinbutton: one Tab stop, named, stepped by the keys", async ({ page }) => {
+    await open(page)
+    const col = `${PANEL} > e-column[data-mark="hours"]`
+    await page.focus(col)
+    const state = () =>
+      page.evaluate((sel) => {
+        const c = document.querySelector(sel)!
+        return ["role", "aria-label", "aria-valuenow", "aria-valuetext"].map((a) => c.getAttribute(a))
+      }, col)
+    expect(await state()).toEqual(["spinbutton", "Hours", "8", "08"])
+    await page.keyboard.press("ArrowUp")
+    expect(await model(page)).toEqual([2026, 9, 3, 9, 30, 0])
+    await page.keyboard.press("PageDown")
+    expect(await model(page)).toEqual([2026, 9, 3, 4, 30, 0])
+    await page.keyboard.press("End")
+    expect(await state()).toEqual(["spinbutton", "Hours", "23", "23"])
+    await page.keyboard.press("Home")
+    expect(await model(page)).toEqual([2026, 9, 3, 0, 30, 0])
+    // The step buttons are not Tab stops: Tab goes from one column to the next.
+    await page.keyboard.press("Tab")
+    expect(await page.evaluate(() => document.activeElement?.getAttribute("aria-label"))).toBe("Minutes")
+  })
+
+  test("End on a column with a step goes to the last value of the step, not to the maximum", async ({ page }) => {
+    await mount(page, {
+      lang: "en-GB",
+      model: [2026, 9, 3, 8, 30, 0],
+      show_date: false,
+      show_time: true,
+      minute_step: 15,
+    })
+    await page.click('#holder button[title="Time"]')
+    await page.waitForSelector(PANEL)
+    await page.focus(`${PANEL} > e-column >> nth=1`)
+    await page.keyboard.press("End")
+    expect(await model(page)).toEqual([2026, 9, 3, 8, 45, 0])
+  })
+
   test("the wheel steps the value and is not scrolled by the page", async ({ page }) => {
     await open(page)
     const prevented = await page.evaluate(() => {
@@ -284,6 +322,31 @@ test.describe("time picker popup", () => {
     for (let i = 0; i < 9; i++) await page.click(`${PANEL} > e-column[data-mark="hours"] > button >> nth=0`)
     expect(await hours(page)).toEqual({ same: true, texts: ["00", "23", "22"] })
     expect(await model(page)).toEqual([2026, 9, 3, 23, 30, 0])
+  })
+})
+
+test.describe("calendar popup for keyboard and assistive technology", () => {
+  test("it is a dialog named by its button, focus goes in, and each day reads as its full date, today marked", async ({
+    page,
+  }) => {
+    const now = new Date()
+    await mount(page, { lang: "en-GB", model: [now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0] })
+    await page.click('#holder button[title="Date"]')
+    await page.waitForSelector('[class^="date-day-"]')
+    await page.waitForFunction(() => document.querySelector("[popover]")?.contains(document.activeElement))
+    const r = await page.evaluate(() => {
+      const pop = document.querySelector("[popover]")!
+      const by = document.getElementById(pop.getAttribute("aria-labelledby")!)!
+      const today = [...pop.querySelectorAll("[aria-current]")]
+      const expected = new Intl.DateTimeFormat("en-GB", { dateStyle: "full" }).format(new Date())
+      return {
+        role: pop.getAttribute("role"),
+        name: by.getAttribute("title"),
+        focused: document.activeElement!.getAttribute("title"),
+        today: today.map((d) => [d.getAttribute("aria-current"), d.getAttribute("aria-label") === expected]),
+      }
+    })
+    expect(r).toEqual({ role: "dialog", name: "Date", focused: "Previous year", today: [["date", true]] })
   })
 })
 

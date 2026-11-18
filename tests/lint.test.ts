@@ -22,14 +22,17 @@ async function reported_lines(file: string): Promise<number[]> {
   )
 }
 
-test("every marked line of the bad fixture is reported, and only those", async () => {
-  const marked = readFileSync(join(dir, "bad.ts"), "utf8")
-    .split("\n")
-    .flatMap((line, i) => (line.includes("// error") ? [i + 1] : []))
-  expect(marked.length).toBeGreaterThan(10)
-  expect((await reported_lines("bad.ts")).sort((a, b) => a - b)).toEqual(marked)
-})
+// .ts for the DOM and observer rules, .tsx for the JSX ones.
+for (const ext of ["ts", "tsx"]) {
+  test(`every marked line of the bad fixture is reported, and only those (.${ext})`, async () => {
+    const marked = readFileSync(join(dir, `bad.${ext}`), "utf8")
+      .split("\n")
+      .flatMap((line, i) => (line.includes("// error") ? [i + 1] : []))
+    expect(marked.length).toBeGreaterThan(2)
+    expect((await reported_lines(`bad.${ext}`)).sort((a, b) => a - b)).toEqual(marked)
+  })
 
-test("the good fixture is not reported", async () => {
-  expect(await reported_lines("good.ts")).toEqual([])
-})
+  test(`the good fixture is not reported (.${ext})`, async () => {
+    expect(await reported_lines(`good.${ext}`)).toEqual([])
+  })
+}

@@ -1,0 +1,31 @@
+language js
+
+// A button whose only content is an icon has no name for assistive technology: give it aria-label, aria-labelledby
+// or title (docs/md/elt-ui-rules.md#controls). An icon is a capitalized call or element (`{X()}`, `<X />`); the
+// button may also hold decorators (`{$click(…)}`) and blank text, and nothing else.
+
+pattern icon_child() {
+  or {
+    JsxExpressionChild(expression = $e) where { $e <: `$f()`, $f <: r"[A-Z]\w*" },
+    `<$g />` where { $g <: r"[A-Z]\w*" }
+  }
+}
+
+pattern decorator_child() {
+  JsxExpressionChild(expression = $e) where { $e <: or { `$d($_)`, `$d()` }, $d <: r"\$\w+" }
+}
+
+pattern blank_text() {
+  JsxText() as $t where { $t <: not r"(?s).*\S.*" }
+}
+
+`<button $attrs>$children</button>` as $el where {
+  $el <: not r"(?s).*(?:aria-label|aria-labelledby|title)=.*",
+  $children <: some icon_child(),
+  $children <: every or { icon_child(), decorator_child(), blank_text() },
+  register_diagnostic(
+    span = $el,
+    message = "A button with only an icon needs a name: aria-label, aria-labelledby or title (docs/md/elt-ui-rules.md#controls).",
+    severity = "error"
+  )
+}

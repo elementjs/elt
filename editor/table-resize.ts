@@ -4,7 +4,8 @@ here (freezing the columns at their first laid-out widths, and where the dragged
 */
 
 import { node_on_connected } from "elt"
-import { $resizable as $ui_resizable, observe_layout } from "elt/ui"
+import { $resizable as $ui_resizable } from "elt/ui"
+import { observe_layout } from "../ui/internal"
 
 export interface TableResizeOptions {
   /** Smallest column width in px. */

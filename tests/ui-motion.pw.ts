@@ -91,7 +91,7 @@ test.describe("dialog", () => {
       document.body.innerHTML = `<button id="opener">open</button>`
       document.getElementById("opener")!.focus()
       const w = window as W
-      UI.show_dialog(() => {
+      UI.show_dialog({ label: "Test" }, () => {
         const c = document.createElement("e-column")
         c.innerHTML = `<button id="inside">in</button>`
         return c
