@@ -110,19 +110,6 @@ export type SpacingStep =
   | "stage-3"
   | "stage-4"
 
-export const spacing_steps: SpacingStep[] = [
-  "nudge-1",
-  "nudge-2",
-  "nudge-4",
-  "widget",
-  "component",
-  "section",
-  "stage-1",
-  "stage-2",
-  "stage-3",
-  "stage-4",
-]
-
 /** Shared by `Theme.css_pad`/`css_spacing`/`css_packed_pad` — the one place that knows how a step
  * maps to its custom property. Every step (nudges included) resolves to the same single
  * `--e-spacing-<step>` value, applied uniformly to both axes. Three independent variables carry a
@@ -796,6 +783,22 @@ function surface_level_expr(level: number | `n+${number}` | "background", base =
   return `(${match[1]} + ${base})`
 }
 
+/** Highest parent level a surface reads (PARENT_SURFACE_LEVEL_QUERIES). Lasting fills stop at 4 and
+ * hover/pressed go two past it (docs/md/ui-theme.md); above this, a surface counts from 0. */
+const MAX_PARENT_SURFACE_LEVEL = 10
+
+/**
+ * Sets `--e-parent-surface-level` on a surface element to its parent's `--e-surface-level`. A style
+ * query reads the parent's computed value, which the element itself can't do with `var()`: it
+ * redefines `--e-surface-level`, so `var()` would read its own. One query per level, since a query
+ * tests one value; only surface elements carry them. Both properties are registered `<number>`s
+ * (ui/layout.css.tsx), so the query compares computed numbers.
+ */
+const PARENT_SURFACE_LEVEL_QUERIES = Array.from(
+  { length: MAX_PARENT_SURFACE_LEVEL + 1 },
+  (_, n) => `@container style(--e-surface-level: ${n}) { & { --e-parent-surface-level: ${n}; } }`,
+).join("\n    ")
+
 let _mix_id = 0
 
 /** Every `Mix` produced by `Mix.from` and `Mix.alpha`, keyed by its CSS expression — see `Mix.#computed`. Grows with the number
@@ -1031,16 +1034,11 @@ export class Mix {
    *   — `hover`/`separator` above are just this at fixed `"n+1"`/`"n+2"` offsets.
    * - `"background"` is absolute level 0 — "the background color" is level 0's own definition.
    *
-   * Reads `--e-current-surface-level` (this element's own level, if it is itself a `[surface]`)
-   * ahead of the ambient `--e-surface-level` — so a border/hover/separator drawn on the same
-   * element that also raises a surface is offset from that surface's own new level, not the level
-   * it was nested in before raising it. `--e-current-surface-level` is registered `inherits: false`
-   * (see the `@property` rule in ui/layout.css.tsx), so this fallback only engages on the actual
-   * `[surface]` element itself, never leaks into its descendants.
+   * On an element that is itself a surface, `--e-surface-level` is that surface's own new level, so a
+   * border/hover/separator drawn on it is offset from it, not from the level it is nested in.
    */
   surface(level: number | `n+${number}` | "background"): string {
-    const base = "var(--e-current-surface-level, var(--e-surface-level, 0))"
-    return this.from_bg(`calc(${surface_level_expr(level, base)} * var(--e-surface-step, 10%))`).toString()
+    return this.from_bg(`calc(${surface_level_expr(level)} * var(--e-surface-step, 10%))`).toString()
   }
 
   /**
@@ -1050,22 +1048,18 @@ export class Mix {
    * propagates the level to children.
    */
   css_as_surface(level: number | `n+${number}` | "background"): string {
-    // Own new level, always computed off the ambient `--e-surface-level` — never off
-    // `--e-current-surface-level` itself, which would be a same-property self-reference (a cycle,
-    // invalid at computed-value time) rather than a read of the level we're nested in.
-    const new_level = surface_level_expr(level)
-    const own_background = this.from_bg("calc(var(--e-current-surface-level) * var(--e-surface-step, 10%))")
+    // Own new level, computed off the parent's level (--e-parent-surface-level, read by the style
+    // queries of PARENT_SURFACE_LEVEL_QUERIES), never off --e-surface-level, which this element redefines:
+    // a read of it here would be a cycle, and the cycle would empty the level of this element and of
+    // every descendant.
+    const new_level = surface_level_expr(level, "var(--e-parent-surface-level)")
+    const own_background = this.from_bg("calc(var(--e-surface-level) * var(--e-surface-step, 10%))")
     return `
     color: var(--e-color-text);
-    --e-current-surface-level: ${new_level};
-    /* --e-current-surface-level is non-inherited (see ui/layout.css.tsx), so it can't be read
-       directly from the "& > *" rule below (that targets a different element). This relay variable
-       is an ordinary inheriting property whose only job is to carry this element's own just-computed
-       level past that non-inheritance boundary, down into the children's ambient --e-surface-level. */
-    --e-surface-level-relay: var(--e-current-surface-level);
+    --e-surface-level: calc(${new_level});
+    ${typeof level === "string" && level !== "background" ? PARENT_SURFACE_LEVEL_QUERIES : "/* an absolute level: the parent's isn't read */"}
     /* --e-current-surface-mix carries this surface's own color family (the identity color this
-       Mix wraps, e.g. var(--e-color-tint)) the same way --e-current-surface-level carries its
-       level — registered non-inherited (ui/layout.css.tsx), relayed past that boundary for
+       Mix wraps, e.g. var(--e-color-tint)) — registered non-inherited (ui/layout.css.tsx), relayed for
        descendants' ambient --e-surface-mix, and read by [border]'s bare/family-name values
        (docs/md/ui-theme.md) ahead of --e-surface-mix so a bordered element that is also itself a
        [surface] is offset from its own new family, not the one it was nested in. */
@@ -1080,7 +1074,7 @@ export class Mix {
        an ordinary inheriting property so descendants — packed[border] children in particular —
        can read it directly (see theme.css_current_surface) without re-deriving level*family. */
     --e-current-surface: ${own_background};
-    & > * { --e-surface-level: var(--e-surface-level-relay); --e-surface-mix: var(--e-surface-mix-relay); }
+    & > * { --e-surface-mix: var(--e-surface-mix-relay); }
     `
   }
 
@@ -1105,17 +1099,6 @@ export class Mix {
 
 /** The `tint` family's expression: what `Mix.css_as_surface` and `css_as_tint` compare and redeclare. */
 const TINT_EXPR = "var(--e-color-tint)"
-
-/** A `Mix` whose identity color is whichever family is ambient (this element's own `[surface]`,
- * if it set one, else the nearest ancestor's) — used by `[hover]:hover` (`ui/layout.css.tsx`) so
- * a hover fill matches whichever family the surface it's drawn on actually used, instead of
- * hardcoding `tint` regardless (docs/md/ui-theme.md — found once `surface`'s default family became
- * `neutral`: a `tint`-colored hover on a `neutral` surface read as a mismatch). See
- * `--e-current-surface-mix` in `Mix.css_as_surface`. */
-export const ambient_surface_mix = new Mix(
-  "var(--e-current-surface-mix, var(--e-surface-mix, var(--e-color-neutral)))",
-  "ambient",
-)
 
 export const theme = new Theme({
   light: {

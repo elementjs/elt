@@ -68,6 +68,7 @@ A surface **level** counts how many background fills deep an element is. The pag
 
 - `surface` fills; it does not pad. A surface that needs padding says so with `pad` or `packed`.
 - The level and the color family propagate to descendants. `.hover` and `.separator` (and `border="…-surface"`/`"…-separator"`, see [Layout § Borders and radius](./ui-layout.md#borders-and-radius)) read them, so they always mean "one/two levels above wherever this ends up".
+- A surface reads the level of the element it sits in, up to level 10; inside an element above level 10, a relative surface counts from 0 again. Lasting fills stop well before that ([elt/ui rules § Recommendations](./elt-ui-rules.md#recommendations), rule 3).
 - The `hover` attribute uses the ambient family too: a hover fill on a neutral surface is neutral, on a tint surface it is tint.
 - A surface of the `tint` family follows a tint change inside it: under `surface="tint"`, an element with `theme.colors.orange.class_as_tint` and its descendants get an orange surface (the fill that `sticky` and framed cells paint, the `hover` fill) at the same level, not the outer tint's. Limits: an element with its own `surface` attribute keeps its own surface; a tint-family surface made from a computed mix (`tint.mid.class_as_surface(1)`) and a state that repainted the surface (selected, a hovered grid row) are not repainted.
 - Outside layout elements, use the class or declaration forms: `theme.colors.tint.class_as_surface(2)`, `.css_as_surface(2)`. They accept any level, a relative `"n+K"`, or `"background"`.

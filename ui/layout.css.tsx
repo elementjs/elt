@@ -8,14 +8,32 @@ import {
   PACKED_CONTAINER_SELECTOR as _packed,
   packed_cells as _cells,
 } from "./selectors"
-import {
-  ambient_surface_mix,
-  type ColorStep,
-  type InvertedSurface,
-  type SpacingStep,
-  spacing_steps,
-  theme,
-} from "./theme"
+import { type ColorStep, type InvertedSurface, Mix, type SpacingStep, theme } from "./theme"
+
+/** The spacing steps, smallest first: the values of `pad`, `spacing` and `packed`. */
+const spacing_steps: SpacingStep[] = [
+  "nudge-1",
+  "nudge-2",
+  "nudge-4",
+  "widget",
+  "component",
+  "section",
+  "stage-1",
+  "stage-2",
+  "stage-3",
+  "stage-4",
+]
+
+/** A `Mix` whose identity color is whichever family is ambient (this element's own `[surface]`,
+ * if it set one, else the nearest ancestor's) — used by `[hover]:hover` (below) and the selected state (`ui/states.css.tsx`) so
+ * a hover fill matches whichever family the surface it's drawn on actually used, instead of
+ * hardcoding `tint` regardless (docs/md/ui-theme.md — found once `surface`'s default family became
+ * `neutral`: a `tint`-colored hover on a `neutral` surface read as a mismatch). See
+ * `--e-current-surface-mix` in `Mix.css_as_surface`. */
+export const ambient_surface_mix = new Mix(
+  "var(--e-current-surface-mix, var(--e-surface-mix, var(--e-color-neutral)))",
+  "ambient",
+)
 
 declare module "elt" {
   interface ElementMap {
@@ -122,7 +140,6 @@ export interface CommonAttrs extends Attrs<HTMLElement> {
 }
 
 export interface EProseAttrs extends CommonAttrs {
-  variant?: NRO<"vertical">
   "table-container"?: NRO<boolean>
 }
 
@@ -604,18 +621,18 @@ for (const sp of spaces) {
 // [pad="none"] (without an explicit spacing) and [spacing="none"] space nothing.
 _`${_all}:is([pad="none"]:not([spacing]), [spacing="none"]) > * { --e-parent-spacing: 0px; }`
 
-// --e-current-surface-level holds a [surface] element's own (just-raised) level — registered
-// non-inherited so a descendant that isn't itself a [surface] never reads a stale ancestor value
-// off it; `Mix.surface()` (ui/theme.tsx) falls back to the ambient --e-surface-level in that case.
-// No `initial-value` (allowed only with the universal `"*"` syntax) — that's what makes this
-// property genuinely absent (not merely 0) on non-[surface] elements, so `var(--e-current-surface-level, fallback)` reaches its fallback there.
+// --e-surface-level is the surface level here: on a surface element its own level, elsewhere the one
+// of the nearest surface around it (inherited), 0 above any. --e-parent-surface-level is set only on a
+// surface element, to its parent's level, by style queries (`Mix.css_as_surface`, ui/theme.tsx). Both are
+// <number>s, so that a style query compares computed numbers, not the text of a calc().
 //
-// --e-current-surface-mix is the same pattern for the surface's color *family* — see
+// --e-current-surface-mix holds a surface's own color *family*, registered non-inherited with no
+// initial value (allowed only with the "*" syntax) so that it is absent off a surface element — see
 // `--e-current-surface-mix` in `Mix.css_as_surface` (ui/theme.tsx) and docs/md/ui-theme.md.
 // --e-pad is this element's own padding step: registered as not inherited and with no initial value
 // (allowed only with the "*" syntax), so it is genuinely absent on an element without a [pad] and
 // `var(--e-pad, fallback)` reaches its fallback there (the radius default). Same pattern as
-// --e-current-surface-level below.
+// --e-current-surface-mix below.
 css`
 @property --e-pad {
   syntax: "*";
@@ -632,9 +649,17 @@ css`
 }
 `
 css`
-@property --e-current-surface-level {
-  syntax: "*";
+@property --e-surface-level {
+  syntax: "<number>";
+  inherits: true;
+  initial-value: 0;
+}
+`
+css`
+@property --e-parent-surface-level {
+  syntax: "<number>";
   inherits: false;
+  initial-value: 0;
 }
 `
 css`
@@ -691,7 +716,6 @@ css`
      here: they read --e-spacing-*, which only the theme class defines, so on :root they would
      resolve to nothing and that empty value is what every descendant would inherit. */
   :root {
-    --e-surface-level: 0;
     --e-surface-step: 10%;
   }
 

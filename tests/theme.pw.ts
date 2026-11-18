@@ -106,6 +106,41 @@ test.describe("Mix.surface offsets", () => {
   })
 })
 
+test.describe("nested surfaces (docs/md/ui-theme.md#surfaces-and-levels)", () => {
+  test("each surface is one level above the one it sits in, a direct child too (regression: it painted nothing, and its descendants lost their level)", async ({
+    page,
+  }) => {
+    const bg = await page.evaluate(() => {
+      const { theme, node_append } = { ...window.__ELT__, ...window.__ELT__.UI }
+      const host = document.createElement("div")
+      host.innerHTML = `
+        <e-row surface id="one"><e-row surface id="direct"><e-row surface id="grand"></e-row><span id="inside"></span></e-row></e-row>
+        <e-row surface><div><e-row surface id="indirect"></e-row></div></e-row>
+        <e-row surface="neutral-2" id="abs2"></e-row><e-row surface="neutral-3" id="abs3"></e-row>`
+      node_append(document.body, host)
+      // A color one level above the ambient one, drawn inside the direct child: what a hover fill there gets.
+      const probe = document.createElement("div")
+      probe.style.background = theme.colors.neutral.surface("n+1")
+      host.querySelector("#inside")!.append(probe)
+      const of = (id: string) => getComputedStyle(host.querySelector(`#${id}`)!).backgroundColor
+      return {
+        one: of("one"),
+        direct: of("direct"),
+        indirect: of("indirect"),
+        grand: of("grand"),
+        abs2: of("abs2"),
+        abs3: of("abs3"),
+        above_direct: getComputedStyle(probe).backgroundColor,
+      }
+    })
+    expect(bg.direct).toBe(bg.indirect)
+    expect(bg.direct).toBe(bg.abs2)
+    expect(bg.grand).toBe(bg.abs3)
+    expect(bg.above_direct).toBe(bg.abs3)
+    expect(bg.direct).not.toBe(bg.one)
+  })
+})
+
 // Parses the "--e-<mode>-color-<name>: oklch(l c h);" entries `Theme.all_colors` emits, so tests
 // assert against whatever tint/text actually resolved to (including auto-derived dark values)
 // instead of hardcoding expected numbers.
