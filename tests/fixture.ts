@@ -17,11 +17,21 @@ export const test = base.extend<{ before_load: { script: () => void } | undefine
   before_load: [undefined, { option: true }],
   harness: [
     async ({ page, before_load }, use, testInfo) => {
-      const reported: string[] = []
-      page.on("pageerror", (e) => reported.push(`uncaught error: ${e.message.split("\n")[0]}`))
+      const reported: Promise<string>[] = []
+      page.on("pageerror", (e) => reported.push(Promise.resolve(`uncaught error: ${e.message.split("\n")[0]}`)))
       page.on("console", (m) => {
-        if (m.type() === "error" || m.type() === "warning")
-          reported.push(`console.${m.type()}: ${m.text().split("\n")[0]}`)
+        if (m.type() !== "error" && m.type() !== "warning") return
+        // Firefox's hint to any page that moves content on scroll (RepeatVirtual does, by design): not the page's.
+        if (m.text().includes("scroll-linked positioning effect")) return
+        // The text is rebuilt from the logged values: Firefox gives a logged Error's text as just "Error",
+        // Chromium as "Error: <message>". A value that can't be read any more (the page went) keeps m.text().
+        const text = Promise.all(
+          m.args().map((arg) => arg.evaluate((v) => (v instanceof Error ? `${v.name}: ${v.message}` : String(v)))),
+        ).then(
+          (parts) => parts.join(" ") || m.text(),
+          () => m.text(),
+        )
+        reported.push(text.then((t) => `console.${m.type()}: ${t.split("\n")[0]}`))
       })
       if (before_load) await page.addInitScript(before_load.script)
       await page.goto("/tests/browser/harness.html")
@@ -32,7 +42,9 @@ export const test = base.extend<{ before_load: { script: () => void } | undefine
       const patterns = declared.flatMap((a) => (a.description == null ? [] : (JSON.parse(a.description) as string[])))
       const unexpected = accepts_all
         ? []
-        : reported.filter((message) => !patterns.some((source) => new RegExp(source).test(message)))
+        : (await Promise.all(reported)).filter(
+            (message) => !patterns.some((source) => new RegExp(source).test(message)),
+          )
       if (unexpected.length > 0) {
         throw new Error(
           `the page reported errors or warnings the test did not declare (declare them with expects_errors(/pattern/) if they are the point of the test):\n  ${unexpected.join("\n  ")}`,

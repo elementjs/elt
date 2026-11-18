@@ -465,13 +465,14 @@ test.describe("scroll", () => {
   test("the wheel scrolls the enclosing area over a scroll area that doesn't overflow, or has reached its end", async ({
     page,
   }) => {
-    const rows = Array.from({ length: 10 }, () => `<div style="height:30px"></div>`).join("")
+    // Rows with a width: Firefox doesn't scroll over boxes with no area (see the test below).
+    const rows = Array.from({ length: 10 }, () => `<div style="height:30px; width:10px"></div>`).join("")
     await mount(
       page,
       `<e-column id="outer" scroll spacing="none" style="height:400px">
          <e-column id="short" scroll style="height:100px; flex: none"><div>short</div></e-column>
          <e-column id="long" scroll spacing="none" style="height:100px; flex: none">${rows}</e-column>
-         <div style="height:3000px"></div>
+         <div style="height:3000px; width:10px"></div>
        </e-column>`,
     )
     // flex: none: scroll areas inside a scroll column otherwise shrink to fit it (here, to nothing).
@@ -497,11 +498,13 @@ test.describe("scroll", () => {
   test("a flex scroll area's children keep their size along the scrolled axis instead of shrinking", async ({
     page,
   }) => {
-    const rows = Array.from({ length: 10 }, () => `<div class="r" style="height:30px"></div>`).join("")
+    // Empty rows with a size on both axes: Firefox leaves a box with no area (a 0px wide empty div, which a
+    // column aligned on the baseline doesn't stretch) out of what a scroll area can scroll.
+    const rows = (size: string) => Array.from({ length: 10 }, () => `<div class="r" style="${size}"></div>`).join("")
     await mount(
       page,
-      `<e-column id="col" scroll spacing="none" style="height:100px">${rows}</e-column>
-       <e-row id="row" scroll="y" spacing="none" style="width:100px; height:50px">${rows.replaceAll("height:30px", "width:30px")}</e-row>`,
+      `<e-column id="col" scroll spacing="none" style="height:100px">${rows("height:30px; width:10px")}</e-column>
+       <e-row id="row" scroll="y" spacing="none" style="width:100px; height:50px">${rows("width:30px; height:10px")}</e-row>`,
     )
     const res = await page.evaluate(() => ({
       col_child: document.querySelector("#col > .r")!.getBoundingClientRect().height,

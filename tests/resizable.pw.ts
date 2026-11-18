@@ -78,12 +78,13 @@ test.describe("$resizable", () => {
       const cs = getComputedStyle(document.getElementById("host")!)
       return { min: Number.parseFloat(cs.minWidth), max: Number.parseFloat(cs.maxWidth) }
     })
-    // A length is the element's own min-width and max-width, so the browser holds it from the start.
-    expect(limits.min).toBeGreaterThan(50)
+    // A length is the element's own min-width and max-width, so the browser holds it from the start. Resolved:
+    // more than --step alone (how much more depends on the monospace font).
+    expect(limits.min).toBeGreaterThan(10)
     expect(limits.max).toBeGreaterThan(limits.min)
     await drag(page, -1000)
     expect(await width(page)).toBeCloseTo(limits.min, 1)
-    await drag(page, 2000)
+    await drag(page, 500) // far enough, inside the window: a pointer moved far outside it is not one a user can make, and Firefox mishandles it
     expect(await width(page)).toBeCloseTo(limits.max, 1)
   })
 

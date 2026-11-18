@@ -4,6 +4,7 @@ import { expect, test } from "./fixture"
 // docs/md/ui-layout.md "packed"). Its own file: a real 125% scale is a browser launch option, and
 // Playwright's emulated `deviceScaleFactor` antialiases every edge in Chromium.
 test.use({ launchOptions: { args: ["--force-device-scale-factor=1.25"] }, viewport: null })
+test.skip(({ browserName }) => browserName !== "chromium", "the display scale is a Chromium launch flag")
 
 test.describe("packed border lines at a fractional display scale (regression: some seams drew 2 screen pixels wide)", () => {
   test("every interior line of a grid is one screen pixel wide", async ({ page }) => {

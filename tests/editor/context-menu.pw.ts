@@ -147,8 +147,21 @@ test.describe("row menu", () => {
     expect(await page.evaluate(() => (window as unknown as W).prevented)).toEqual([true])
   })
 
-  test("Edit: Copy, Cut and Paste act on the field's selection and reach the model", async ({ page, context }) => {
-    await context.grantPermissions(["clipboard-read", "clipboard-write"])
+  test("Edit: Copy, Cut and Paste act on the field's selection and reach the model", async ({ page }) => {
+    // A clipboard of the page's own: what is tested is the editor's use of it, not the browser's (whose
+    // permissions differ between browsers: Firefox has no clipboard-read to grant).
+    await page.evaluate(() => {
+      let held = ""
+      Object.defineProperty(navigator, "clipboard", {
+        configurable: true,
+        value: {
+          writeText: async (t: string) => {
+            held = t
+          },
+          readText: async () => held,
+        },
+      })
+    })
     await mount(page, `({ name: "Ada Lovelace" })`)
     const input = row(page, "name").locator("input")
     const item = (label: string) => page.locator('[popover].open [role="menuitem"]', { hasText: label })

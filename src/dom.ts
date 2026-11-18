@@ -78,7 +78,7 @@ declare global {
   }
 }
 
-/** Safari does not ship `moveBefore` yet ; there, moves fall back to remove + insert and lose focus. */
+/** Safari does not ship `moveBefore` yet ; there, moves fall back to remove + insert, and node_move_range gives focus back. */
 const HAS_MOVE_BEFORE = typeof Element !== "undefined" && "moveBefore" in Element.prototype
 
 /**
@@ -693,14 +693,36 @@ export function node_move_range(first: Node, last: Node, parent: Node, refchild:
   // Live to live: an atomic move keeps focus, selection, iframes and running animations. The nodes
   // never leave the document, so no connected/disconnected callback has to run.
   const atomic = HAS_MOVE_BEFORE && first.isConnected && parent.isConnected
+  // Without moveBefore (Safari), a node taken out and put back loses focus: the focused element, if it
+  // is in what moves, gets it back afterwards, with a text field's caret.
+  const active = !atomic && first.isConnected ? first.ownerDocument?.activeElement : null
+  const caret = active ? caret_of(active) : null
+  let moved_focus = false
   let node: Node | null = first
   while (node != null) {
     const next: Node | null = node.nextSibling
     if (node[sym_connected_status] & NODE_IS_LEAVING) node.parentNode?.removeChild(node)
     else if (atomic) (parent as ParentNode).moveBefore(node, refchild)
-    else node_append(parent, node, refchild)
+    else {
+      if (active != null && !moved_focus && node.contains(active)) moved_focus = true
+      node_append(parent, node, refchild)
+    }
     if (node === last) break
     node = next
+  }
+  if (moved_focus && active instanceof HTMLElement && active.isConnected) {
+    active.focus({ preventScroll: true })
+    if (caret) (active as HTMLInputElement).setSelectionRange(caret[0], caret[1])
+  }
+}
+
+/** The caret (selection) of a text field, or null: not a field, or a type of input with none (a checkbox). */
+function caret_of(el: Element): [number, number] | null {
+  if (!(el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement)) return null
+  try {
+    return el.selectionStart == null || el.selectionEnd == null ? null : [el.selectionStart, el.selectionEnd]
+  } catch {
+    return null
   }
 }
 

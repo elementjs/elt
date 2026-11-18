@@ -13,6 +13,13 @@ export interface TableResizeOptions {
 }
 
 const last_frozen_count = new WeakMap<HTMLTableElement, number>()
+
+/** Columns sized by their header cells' widths. The table is as wide as its columns (max-content): with an
+ * `auto` width, Firefox stretches a fixed-layout table to its container's width, and the columns with it. */
+function fix_layout(table: HTMLTableElement) {
+  table.style.tableLayout = "fixed"
+  table.style.width = "max-content"
+}
 const pending_freeze = new WeakSet<HTMLTableElement>()
 
 function freeze_table_layout(table: HTMLTableElement) {
@@ -28,7 +35,7 @@ function freeze_table_layout(table: HTMLTableElement) {
       cell.style.width = `${cell.getBoundingClientRect().width}px`
     }
   }
-  table.style.tableLayout = "fixed"
+  fix_layout(table)
   last_frozen_count.set(table, count)
 }
 
@@ -44,7 +51,7 @@ function schedule_freeze(table: HTMLTableElement) {
 }
 
 function set_column_width(table: HTMLTableElement, index: number, px: number) {
-  table.style.tableLayout = "fixed"
+  fix_layout(table)
   const header = table.tHead?.rows[0]?.cells[index]
   if (header) header.style.width = `${px}px`
 }

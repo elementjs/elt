@@ -295,26 +295,33 @@ test.describe("time picker popup", () => {
     expect(await hours(page)).toEqual({ same: true, texts: ["10", "09", "08"] })
   })
 
-  test("a touch drag steps once per 22px, across several moves", async ({ page }) => {
-    await open(page)
-    await page.evaluate(() => {
-      const col = document.querySelector(`[class^="time-panel-"] > e-column`) as HTMLElement
-      const touch = (y: number) => new Touch({ identifier: 7, target: col, clientY: y })
-      const fire = (type: string, y: number) =>
-        col.dispatchEvent(
-          new TouchEvent(type, { changedTouches: [touch(y)], touches: [touch(y)], cancelable: true, bubbles: true }),
-        )
-      // Dragging up 44px: two steps up (later hours), split over moves that each are less than a step.
-      fire("touchstart", 200)
-      fire("touchmove", 185)
-      fire("touchmove", 170)
-      fire("touchmove", 156)
-      fire("touchend", 156)
-      // A move after the touch ended does nothing.
-      fire("touchmove", 100)
+  test.describe("on a touch screen", () => {
+    // Touch events exist in every browser of a touch screen; desktop Firefox has them only with one, and
+    // desktop WebKit can't create a Touch at all.
+    test.use({ hasTouch: true })
+    test.skip(({ browserName }) => browserName === "webkit", "desktop WebKit has no Touch constructor")
+
+    test("a touch drag steps once per 22px, across several moves", async ({ page }) => {
+      await open(page)
+      await page.evaluate(() => {
+        const col = document.querySelector(`[class^="time-panel-"] > e-column`) as HTMLElement
+        const touch = (y: number) => new Touch({ identifier: 7, target: col, clientY: y })
+        const fire = (type: string, y: number) =>
+          col.dispatchEvent(
+            new TouchEvent(type, { changedTouches: [touch(y)], touches: [touch(y)], cancelable: true, bubbles: true }),
+          )
+        // Dragging up 44px: two steps up (later hours), split over moves that each are less than a step.
+        fire("touchstart", 200)
+        fire("touchmove", 185)
+        fire("touchmove", 170)
+        fire("touchmove", 156)
+        fire("touchend", 156)
+        // A move after the touch ended does nothing.
+        fire("touchmove", 100)
+      })
+      expect(await hours(page)).toEqual({ same: true, texts: ["11", "10", "09"] })
+      expect(await model(page)).toEqual([2026, 9, 3, 10, 30, 0])
     })
-    expect(await hours(page)).toEqual({ same: true, texts: ["11", "10", "09"] })
-    expect(await model(page)).toEqual([2026, 9, 3, 10, 30, 0])
   })
 
   test("the hour column wraps around", async ({ page }) => {

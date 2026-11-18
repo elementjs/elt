@@ -47,7 +47,7 @@ function LazyResult(run: () => Renderable) {
                   // A `<>` is rebuilt from its children when put back after the reader looked at the code (see `Fragment`)
                   o_result.set({ node: run() })
                 } catch (e: any) {
-                  o_result.set({ error: String(e?.stack ?? e) })
+                  o_result.set({ error: error_text(e) })
                 }
               },
               { rootMargin: LAZY_MARGIN },
@@ -155,6 +155,14 @@ export function CodeExample(props: CodeExampleProps) {
       {If(o_showing_code, code_panel, result_panel)}
     </e-column>
   )
+}
+
+/** An error as shown in place of a result: its message, then where it was thrown. Firefox's stack doesn't
+ * start with the message, as Chromium's does. */
+function error_text(e: unknown): string {
+  if (!(e instanceof Error)) return String(e)
+  const head = String(e)
+  return e.stack == null ? head : e.stack.startsWith(head) ? e.stack : `${head}\n${e.stack}`
 }
 
 const cls_error = css`.error {

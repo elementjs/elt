@@ -706,6 +706,7 @@ test.describe("Repeat", () => {
       expect(r.focused).toBe(true)
     })
 
+    // With moveBefore it is kept; without (WebKit), it is given back after the move.
     test("a focused item that has to move keeps its focus", async ({ page }) => {
       const r = await run_update(page, ["a", "b", "c"], ["b", "c", "a"], "a")
       expect(r.values).toEqual(["b", "c", "a"])
