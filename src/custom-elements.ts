@@ -1,6 +1,6 @@
 import { o } from "./observable"
 
-import { node_observe, node_attach_shadow, node_do_connected, node_do_disconnect, node_unobserve } from "./dom"
+import { node_observe, _node_attach_shadow, _node_do_connected, _node_do_disconnect, node_unobserve } from "./dom"
 
 import { sym_attrs, sym_elt_init } from "./symbols"
 import type { Attrs } from "./types"
@@ -124,11 +124,11 @@ export function register(name: string): (kls: any) => any {
 export class EltWrapper extends HTMLElement {
   connectedCallback() {
     this.style.display = "contents"
-    node_do_connected(this)
+    _node_do_connected(this)
   }
 
   disconnectedCallback() {
-    node_do_disconnect(this)
+    _node_do_disconnect(this)
   }
 }
 
@@ -147,7 +147,7 @@ export class EltCustomElement extends HTMLElement {
     if (sh != null) {
       const con = this.constructor as typeof EltCustomElement
       const init = { ...con.shadow_init, css: con.css as CSSStyleSheet[] }
-      node_attach_shadow(this, sh, init, false)
+      _node_attach_shadow(this, sh, init, false)
     }
   }
 
@@ -249,7 +249,7 @@ export class EltCustomElement extends HTMLElement {
     }
 
     if (this.shadowRoot) {
-      node_do_connected(this.shadowRoot)
+      _node_do_connected(this.shadowRoot)
     }
 
     this.connected()
@@ -257,7 +257,7 @@ export class EltCustomElement extends HTMLElement {
 
   disconnectedCallback() {
     if (this.shadowRoot) {
-      node_do_disconnect(this.shadowRoot)
+      _node_do_disconnect(this.shadowRoot)
     }
 
     this.disconnected()

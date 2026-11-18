@@ -16,6 +16,10 @@ elt is a [TypeScript](https://typescriptlang.org) library for building web appli
 
 ```bash
 npm install elt
+# with elt/ui:
+npm install elt @floating-ui/dom
+# with elt/mutative (obs.mutate()):
+npm install elt mutative
 ```
 
 The package ships TypeScript sources and is meant to be bundled. Setup (`tsconfig.json`) and a first example: [Introduction](./docs/md/introduction.md#setup).

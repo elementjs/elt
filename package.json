@@ -2,7 +2,7 @@
   "name": "elt",
   "version": "4.0.0-rc.0",
   "repository": "https://github.com/elementjs/elt",
-  "description": "",
+  "description": "A TypeScript library for building web applications without a virtual DOM: JSX returns real DOM nodes, kept up to date by observables.",
   "license": "MIT",
   "workspaces": ["docs"],
   "main": "./src/index.ts",
@@ -10,12 +10,25 @@
   "sideEffects": ["./src/css.ts", "./src/mutative.ts", "./src/elt.ts", "./src/index.ts", "./ui/index.tsx", "./ui/theme.tsx", "./ui/*.css.tsx"],
   "exports": {
     ".": "./src/index.ts",
+    "./mutative": "./src/mutative.ts",
     "./ui": "./ui/index.tsx",
-    "./ui/*": "./ui/*.tsx",
-    "./editor": "./editor/index.tsx",
-    "./editor/*": "./editor/*.tsx",
-    "./*": "./src/*.ts"
+    "./ui/date": "./ui/date.tsx",
+    "./ui/dialog": "./ui/dialog.tsx",
+    "./ui/icons": "./ui/icons.tsx",
+    "./ui/interactive": "./ui/interactive.ts",
+    "./ui/keymap": "./ui/keymap.tsx",
+    "./ui/list-nav": "./ui/list-nav.tsx",
+    "./ui/motion": "./ui/motion.tsx",
+    "./ui/popup": "./ui/popup.tsx",
+    "./ui/resizable": "./ui/resizable.tsx",
+    "./ui/select": "./ui/select.tsx",
+    "./ui/spinner": "./ui/spinner.tsx",
+    "./ui/textarea": "./ui/textarea.tsx",
+    "./ui/theme": "./ui/theme.tsx",
+    "./ui/timepicker": "./ui/timepicker.tsx",
+    "./editor": "./editor/index.tsx"
   },
+
   "type": "module",
   "devDependencies": {
     "@biomejs/biome": "^2.5.8",
@@ -30,5 +43,9 @@
   "peerDependencies": {
     "mutative": "1.x",
     "@floating-ui/dom": "^1.7.6"
+  },
+  "peerDependenciesMeta": {
+    "mutative": { "optional": true },
+    "@floating-ui/dom": { "optional": true }
   }
 }

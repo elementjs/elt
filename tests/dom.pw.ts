@@ -156,33 +156,26 @@ test.describe("decorators", () => {
     expect(result).toEqual({ id: "x", title: "tip" })
   })
 
-  test("$scrollable and setup_mutation_observer register their document listener once (regression: once per call)", async ({
-    page,
-  }) => {
+  test("setup_mutation_observer registers its document listener once (regression: once per call)", async ({ page }) => {
     const result = await page.evaluate(() => {
-      const { e, $scrollable, setup_mutation_observer } = window.__ELT__
-      const count = new Map<string, number>()
+      const { setup_mutation_observer } = window.__ELT__
+      let count = 0
       const add = EventTarget.prototype.addEventListener
       EventTarget.prototype.addEventListener = function (this: EventTarget, type: string, ...rest: any[]) {
-        if (type === "touchmove" && this === document.body) count.set(type, (count.get(type) ?? 0) + 1)
-        if (type === "unload" && this === window) count.set(type, (count.get(type) ?? 0) + 1)
+        if (type === "unload" && this === window) count++
         return add.call(this, type, ...(rest as [any]))
       }
       try {
-        // the first call of each may already have run before this test: count the calls after it
-        e("div", {}, $scrollable)
+        // the first call may already have run before this test: count the calls after it
         setup_mutation_observer(document.body).disconnect()
-        count.clear()
-        for (let i = 0; i < 3; i++) {
-          e("div", {}, $scrollable)
-          setup_mutation_observer(document.body).disconnect()
-        }
-        return { touchmove: count.get("touchmove") ?? 0, unload: count.get("unload") ?? 0 }
+        count = 0
+        for (let i = 0; i < 3; i++) setup_mutation_observer(document.body).disconnect()
+        return count
       } finally {
         EventTarget.prototype.addEventListener = add
       }
     })
-    expect(result).toEqual({ touchmove: 0, unload: 0 })
+    expect(result).toBe(0)
   })
 })
 

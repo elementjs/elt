@@ -14,7 +14,7 @@ Most app code never needs a custom element: a [component](./components.md) (a fu
 
 elt starts and stops observers when a node is connected or disconnected **through `node_append` / `node_remove`**. A node inserted another way (a third-party library calling `appendChild`, for instance) never gets those callbacks, so `$observe`, `$connected`, etc. inside it never run.
 
-`<e-wrap>` fixes that for its subtree: it is `display: contents` (it adds no box to the layout), and when the browser connects or disconnects it, it runs elt's connect/disconnect callbacks on everything inside it.
+`<e-wrap>` (its class is `EltWrapper`) fixes that for its subtree: it is `display: contents` (it adds no box to the layout), and when the browser connects or disconnects it, it runs elt's connect/disconnect callbacks on everything inside it.
 
 ```tsx
 const widget = <e-wrap>

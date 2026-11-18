@@ -193,8 +193,6 @@ return <e-column>
 </e-column>
 ```
 
-`$inserted` is a deprecated alias for `$connected` — use `$connected`.
-
 To animate a node as it enters or leaves the page, use `$enter` / `$leave` instead: they play with a verb's updates (not its first render), and keep a removed node on screen until its exit is done. See [Motion](./motion.md).
 
 ## Shadow DOM: `$shadow`
@@ -212,19 +210,6 @@ return <div>
     <slot />
   </>)}
   <p>Light DOM: passed in as a JSX child, projected through &lt;slot/&gt;.</p>
-</div>
-```
-
-## Touch scrolling: `$scrollable` (deprecated)
-
-**Deprecated.** Use the `scroll` attribute of the `elt/ui` layout elements instead (`<e-column scroll>`, see [Layout § Scroll areas and sticky elements](./ui-layout.md#scroll-areas-and-sticky-elements)), or, without `elt/ui`, `overflow: auto` on the scroll area and `overscroll-behavior: none` on `html, body` (add `overscroll-behavior: contain` on an area whose scroll must never carry on to the page). The one thing CSS doesn't do that `$scrollable` did: block touch gestures (pinch-zoom, …) on everything that doesn't scroll.
-
-Sets up a scrollable container on mobile so `touchstart`/`touchmove` don't trigger the browser's overscroll/rubber-banding effect on ancestors that aren't meant to scroll. This one is a plain decorator function, not a factory — pass it directly, with no call:
-
-```tsx
-<div class="scrollport">
-  {$scrollable}
-  {/* long content */}
 </div>
 ```
 
@@ -247,6 +232,24 @@ const o_tag = o("check the console")
 
 return <div>{$logLifecycle("demo-node")}{o_tag}</div>
 ```
+
+The helpers, all from `"elt"`. Each ties what it sets up to the node: it runs while the node is in the page and stops when it leaves.
+
+| Helper | Does |
+| ------ | ---- |
+| `node_on_connected(node, fn)` / `node_on_disconnected(node, fn)` | Runs `fn(node)` each time the node enters / leaves the document |
+| `node_off_connected(node, fn)` / `node_off_disconnected(node, fn)` | Unregisters a callback given to the two above |
+| `node_is_connected(node)` | Whether elt considers the node in the page (a node playing its exit is not, though still in the document) |
+| `node_add_event_listener(node, events, listener, use_capture?)` | Listens on the node, for as long as it lives. `node_add_event_listener(node, target, events, listener, use_capture?)` listens on another target (`window`, `document`) only while the node is in the page |
+| `node_observe(node, obs, fn, options?)` | Calls `fn` with the value of `obs` while the node is in the page (what `$observe` does) |
+| `node_add_observer(node, observer)` | The same with an `o.Observer` built beforehand |
+| `node_unobserve(node, x)` | Stops what the node observes for `x`: an observable, an observer or an observer function. Returns how many observers stopped |
+| `node_is_observing(node)` | Whether the node's observers are running (it is in the page) |
+| `node_observe_attribute(node, name, value)` | Sets an attribute from an `o.RO` value and follows it: `true` sets it empty, `false` or nullish removes it. A value that is not a string, number or boolean sets the property of that name instead |
+| `node_observe_class(node, classes)` / `node_observe_style(node, style)` | What the `class` and `style` attributes of JSX do, on an existing node: strings, arrays, `{ name: o_bool }` maps, observables of them |
+| `node_apply_class(node, classes)` / `node_remove_class(node, classes)` | Adds / removes classes given as a space-separated string or an array; `false`, `null` and `undefined` entries are skipped |
+
+Inserting and removing nodes yourself (`node_append`, `node_remove`, `node_clear`) is for writing a verb of your own: see [Verbs](./verbs.md). Entering and leaving motion (`node_on_enter`, `node_on_leave`) is in [Motion](./motion.md).
 
 ## Good patterns vs. patterns to avoid
 

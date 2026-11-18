@@ -35,6 +35,8 @@ Every binding rule for application code that uses elt, on one page. Read it in f
 
 These are conventions: the library does not enforce them, but code using elt follows them.
 
+Names that `elt` exports starting with `_` or `sym_` (`_node_append`, `sym_connected`) are internal to elt: they are not part of its API and can change in any release. Don't use them.
+
 ## Components
 
 - Use JSX rather than calling `e()` / `E()` directly: it reads better. `e()` / `E()` are for the rare place a precise return type matters more. See [Components](./components.md#typing-jsx).

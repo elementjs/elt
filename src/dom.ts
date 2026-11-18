@@ -230,7 +230,7 @@ function _apply_connected(node: Node) {
  *
  * @internal
  */
-export function node_do_connected(node: Node, entering = false) {
+export function _node_do_connected(node: Node, entering = false) {
   const st = node[sym_connected_status]
   if (st & NODE_IS_CONNECTED) return
   // A leaving node put back in the page (its detached ancestor re-inserted, a late mutation record)
@@ -257,7 +257,7 @@ function _connect_siblings(first: Node, stop: Node | null, entering: boolean) {
     const next: Node | null = iter.nextSibling
     if (entering && verb_end == null && iter[sym_connected_status] & NODE_IS_VERB)
       verb_end = (iter as CommentHolder).end
-    node_do_connected(iter, entering && verb_end == null)
+    _node_do_connected(iter, entering && verb_end == null)
     if (iter === verb_end) verb_end = null
     // Connecting may change what follows: a verb catching up replaces its content. Unless `iter` was
     // removed itself (a leaving node), its current next sibling is where to go on.
@@ -290,10 +290,10 @@ function _apply_disconnected(node: Node) {
  *
  * @internal
  */
-export function node_do_disconnect(node: Node) {
+export function _node_do_disconnect(node: Node) {
   let iter = node.firstChild
   while (iter) {
-    node_do_disconnect(iter)
+    _node_do_disconnect(iter)
     iter = iter.nextSibling
   }
 
@@ -583,7 +583,7 @@ export function node_remove_range(first: Node, last: Node, motion = false): void
       candidates ??= []
       candidates.push({ node: n as Element, hooks, style: null, flow: false })
     } else {
-      node_do_disconnect(n)
+      _node_do_disconnect(n)
     }
     if (n === verb_end) verb_end = null
     if (n === last) break
@@ -756,12 +756,12 @@ export function setup_mutation_observer(node: Node) {
       for (let removed = record.removedNodes, j = 0, lj = removed.length; j < lj; j++) {
         const removed_node = removed[j]
         if (!removed_node.isConnected) {
-          node_do_disconnect(removed_node)
+          _node_do_disconnect(removed_node)
         }
       }
       for (let added = record.addedNodes, j = 0, lj = added.length; j < lj; j++) {
         const added_node = added[j]
-        node_do_connected(added_node)
+        _node_do_connected(added_node)
       }
     }
   })
@@ -774,7 +774,7 @@ export function setup_mutation_observer(node: Node) {
     target_document.defaultView?.addEventListener("unload", () => {
       // Calls a `removed` on all the nodes in the closing window.
       const root = target_document.firstChild
-      if (root != null) node_do_disconnect(root)
+      if (root != null) _node_do_disconnect(root)
       obs.disconnect()
     })
   }
@@ -785,7 +785,7 @@ export function setup_mutation_observer(node: Node) {
     subtree: true,
   })
 
-  node_do_connected(node)
+  _node_do_connected(node)
 
   return obs
 }
@@ -878,9 +878,9 @@ export function _node_append<N extends Node>(
       insert_before(node, renderable, refchild)
       if (node.isConnected) {
         // Already connected, this is a move: it returns at once, nothing enters.
-        node_do_connected(renderable, motion)
+        _node_do_connected(renderable, motion)
       } else if (node_is_connected(renderable)) {
-        node_do_disconnect(renderable)
+        _node_do_disconnect(renderable)
       }
     }
   } else if (renderable instanceof Function) {
@@ -936,7 +936,7 @@ export interface $ShadowOptions extends Partial<ShadowRootInit> {
  * @param opts Options for the creation of the shadow root
  * @param add_callbacks Whether to add inserted/removed callbacks (when not using EltCustomElement for instance)
  */
-export function node_attach_shadow(node: HTMLElement, child: Node, opts: $ShadowOptions, add_callbacks: boolean) {
+export function _node_attach_shadow(node: HTMLElement, child: Node, opts: $ShadowOptions, add_callbacks: boolean) {
   // Every ShadowRootInit option is passed on (`clonable`, `serializable`, …), with elt's defaults
   const { css: _css, ...init } = opts
   const shadow = node.attachShadow({ mode: "open", delegatesFocus: true, slotAssignment: "named", ...init })
@@ -960,11 +960,11 @@ export function node_attach_shadow(node: HTMLElement, child: Node, opts: $Shadow
 
   if (add_callbacks) {
     node_on_connected(node, () => {
-      node_do_connected(shadow)
+      _node_do_connected(shadow)
     })
 
     node_on_disconnected(node, () => {
-      node_do_disconnect(shadow)
+      _node_do_disconnect(shadow)
     })
   }
 

@@ -50,7 +50,7 @@ node_append(document.body, ui)
 - **You like the observer pattern but not its leaks.** Observing is tied to a node's presence in the document, so there's nothing to unregister by hand.
 - **You like manipulating the DOM directly.** Every JSX expression is a real element you can use with plain DOM APIs. The library sticks to web standards wherever it can.
 - **You like explicit code.** Observables and verbs show at a glance which parts of the app can change, and every symbol is reachable with "go to definition" — no HTML string templates.
-- **You don't want a dependency tree.** The core has no runtime dependencies. `elt/mutative` needs the `mutative` package for `.mutate()`, and `elt/ui`'s popups need `@floating-ui/dom`; both are optional peer dependencies.
+- **You don't want a dependency tree.** The core has no runtime dependencies. `elt/mutative` needs the `mutative` package for `.mutate()`, and `elt/ui` needs `@floating-ui/dom` (its popups, which most of its widgets use); both are optional peer dependencies, installed only by the apps that use them.
 
 ## Setup
 

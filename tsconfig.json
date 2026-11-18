@@ -31,10 +31,9 @@
     "paths": {
       "elt": ["./src/index.ts"],
       "elt/ui": ["./ui/index.tsx"],
-      "elt/ui/*": ["./ui/*.tsx"],
+      "elt/ui/*": ["./ui/*.tsx", "./ui/*.ts"],
       "elt/editor": ["./editor/index.tsx"],
-      "elt/editor/*": ["./editor/*.tsx"],
-      "elt/*": ["./src/*.ts"]
+      "elt/mutative": ["./src/mutative.ts"]
     }
   },
   "include": [

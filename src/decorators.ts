@@ -11,7 +11,7 @@ import {
   type EventsForKeys,
   type $ShadowOptions,
   type ValidatableElement,
-  node_attach_shadow,
+  _node_attach_shadow,
 } from "./dom"
 
 import type { ClassDefinition, Decorator, Listener, StyleDefinition } from "./types"
@@ -689,12 +689,6 @@ export function $connected<N extends Node>(fn: (node: N) => any) {
 }
 
 /**
- * Alias for {@link $connected}
- * @deprecated
- */
-export const $inserted = $connected
-
-/**
  * Run a callback with the node when it is removed from its holding document.
  *
  * See {@link $init} for examples.
@@ -725,90 +719,9 @@ export function $shadow(opts: $ShadowOptions, child: Node): Decorator<HTMLElemen
 export function $shadow(opts?: Node | $ShadowOptions, child?: Node) {
   return (node: HTMLElement) => {
     if (child != null) {
-      node_attach_shadow(node, child as Node, opts as $ShadowOptions, true)
+      _node_attach_shadow(node, child as Node, opts as $ShadowOptions, true)
     } else {
-      node_attach_shadow(node, opts as Node, {}, true)
+      _node_attach_shadow(node, opts as Node, {}, true)
     }
-  }
-}
-
-/**
- * Setup scroll so that touchstart and touchmove events don't
- * trigger the ugly scroll band on mobile devices.
- *
- * Calling this functions makes anything not marked scrollable as non-scrollable.
- *
- * ```tsx
- * <div class="scrollport">{$scrollable}<Repeat(o_items, ...)/></div>
- * ```
- *
- * @deprecated Use the `scroll` attribute of the `elt/ui` layout elements (`<e-column scroll>`), or,
- * without `elt/ui`, `overflow: auto` in CSS (plus `overscroll-behavior: none` on `html, body`,
- * which the `elt/ui` reset already sets). Unlike
- * `$scrollable`, CSS doesn't block touch gestures (pinch-zoom, …) on the areas that don't scroll.
- *
- * @group Decorators
- */
-export function $scrollable(node: HTMLElement): void {
-  const owner = node.ownerDocument
-  if (owner == null) throw new Error("can only setup scroll on a Node in a document")
-  $scrollable.setUpNoscroll(owner)
-
-  const style = node.style
-  style.overflowY = "auto"
-  style.overflowX = "auto"
-
-  // seems like typescript doesn't have this property yet
-  ;(style as any).webkitOverflowScrolling = "touch"
-
-  node_add_event_listener(
-    node,
-    "touchstart",
-    (ev) => {
-      if (ev.currentTarget.scrollTop === 0) {
-        node.scrollTop = 1
-      } else if (node.scrollTop + node.offsetHeight >= node.scrollHeight - 1) node.scrollTop -= 1
-    },
-    true,
-  )
-
-  node_add_event_listener(
-    node,
-    "touchmove",
-    (ev) => {
-      if (ev.currentTarget.offsetHeight < ev.currentTarget.scrollHeight)
-        (ev as $scrollable.ScrollableEvent)[$scrollable.sym_letscroll] = true
-    },
-    true,
-  )
-}
-
-export namespace $scrollable {
-  /** @internal */
-  const documents_ws = new WeakSet<Document>()
-
-  /** @internal */
-  export const sym_letscroll = Symbol("elt-scrollstop")
-
-  /** @internal */
-  export type ScrollableEvent = Event & { [sym_letscroll]?: true }
-
-  /**
-   * Used by the `scrollable()` decorator
-   * @internal
-   */
-  export function setUpNoscroll(dc: Document) {
-    if (documents_ws.has(dc)) return
-    documents_ws.add(dc)
-
-    dc.body.addEventListener(
-      "touchmove",
-      function event(ev) {
-        // If no handler has "marked" the event as being allowed to scroll, then
-        // just stop the scroll.
-        if (!(ev as ScrollableEvent)[sym_letscroll]) ev.preventDefault()
-      },
-      false,
-    )
   }
 }

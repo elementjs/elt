@@ -50,6 +50,8 @@ A route definition is one of:
 
 By default routes live in the URL fragment (`https://host/page#/users/1?tab=2`). Path mode puts them in the URL path under a fixed prefix, the **base**, and leaves the fragment to the page: once a route has activated, the router scrolls to the element the fragment names (see "Scrolling to a fragment" below):
 
+`app.setupRouter` creates the app's `Router` (`app.router`): the link between the URL and the app, which reads the URL, writes it after each activation and handles links.
+
 ```ts
 export const routes = app.setupRouter(defs, { mode: "path", base: "/admin" })
 // https://host/admin/users/1?tab=2#section  → route "/users/:id", params { id: 1, tab: 2 }
@@ -125,6 +127,7 @@ The object passed to `Service({...})` declares dependencies by name; each one is
 - An instance is created once per activation and reused across activations only when it's `is_persistent` (see "Lifecycle") or its params haven't changed in a way that invalidates it (see "Params").
 - `ServiceFactory`/manual `requirements` exist for cases `Service({...})` doesn't cover, but are the exception, not the default.
 - A tiny screen doesn't need a class at all: `async (srv) => { srv.views.set("Content", () => <div>hi</div>) }`, wrapped the same way as any other builder (`[path, () => my_builder]`).
+- The types: `srv` above is a `ServiceHelper<T>`, `T` being the params the service declares (`ServiceHelperBase` is the same object when its params don't matter). A class from `Service({...})` or `ServiceFactory` extends `ServiceResult`, and its `this.srv` is that helper.
 
 ## Views
 

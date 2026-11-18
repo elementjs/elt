@@ -25,6 +25,7 @@ const cls_row = css`.row {
 - Each call inserts **one rule** into a stylesheet elt adopts into the document. To write several rules at once, put them in an `@layer` block: `` css`@layer application { .a { … } .b { … } }` ``.
 - When the rule starts with `.class-name`, that class name is made unique (`row-12`, say) and the call returns it; the variable holding it is named `cls_*`. Any other rule (`` css`div > p { … }` ``, an `@layer` block) returns an empty string.
 - Interpolated values are inserted as text. An interpolated array becomes `:is(a, b, …)`. Interpolate a `cls_*` variable to target an existing class: `` css`div > .${cls_row} { … }` ``.
+- `css` writes into one stylesheet shared by the whole page, which doesn't reach inside a shadow root. For rules a shadow root needs too, make a stylesheet of their own: `const styles = new CSSBuilder()`, write them with `styles.css`, which works like `css` and applies to the page as well, and call `styles.adopt(shadow_root)` for each shadow root (calling it again for the same root does nothing).
 - `class={…}` accepts a string, an array of classes, and `{ name: o_bool }` maps whose entries follow observables (see [Components § Global attrs](./components.md#global-attrs-on-comp-id-class-style)).
 
 ## Organizing styles
