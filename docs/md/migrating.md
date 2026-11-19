@@ -60,7 +60,8 @@ How to convert code written against older versions of elt, against elt-shoelace 
 | `e-variant="tint"`, `"inverted"`, `"link"` | `e-emphasis="tint"`, `"inverted"`, `"link"` |
 | `e-variant="switch"`, then `e-widget="switch"` (until 4.0), on a checkbox | `role="switch"` |
 | `e-variant="toggle"` on a label | `e-widget="toggle"` (a checked toggle is in the selected state; it takes an `e-emphasis`) |
-| An `inverted` button used to show the current choice (tabs) | Buttons of one emphasis with `aria-pressed="true"` on the chosen one |
+| An `inverted` button used to show the current choice | Buttons of one emphasis with `aria-pressed="true"` on the chosen one; for tabs, `tab_strip` (below) |
+| `e-widget="tab"` (until 4.0), with `aria-pressed` | `tab_strip(o_selected)` (`elt/ui/tabs`): its `tab(value)` decorator sets `role="tab"`, which carries the look, and `aria-selected` ([States § Tabs](./ui-states.md#tabs)) |
 | A class such as `.selected` or `.active` styled by the app for a chosen item | The matching ARIA attribute |
 | `data-active` on the item the keys are on | A menu from `menu_nav`: nothing, the item is focused. A `list_nav` list: `e-active` |
 | `variant` prop of `DateTimePicker` (`"full"` included) | `emphasis` (`"inverted"` or `"tint"`); `"full"` is removed |
@@ -82,11 +83,12 @@ They were **removed, not renamed**: they named a lightness, and the replacement 
 
 ## elt/ui 4.0: entry points and behavior
 
-- **Entry points.** `elt/ui` and its widget modules (`elt/ui/select`, `/date`, `/timepicker`, `/textarea`, `/spinner`, `/icons`, `/popup`, `/dialog`, `/keymap`, `/theme`, `/list-nav`, `/resizable`, `/interactive`, `/motion`) are the only paths. The stylesheets, `selectors`, `date-format`, `date-input` and `search` no longer resolve. `CHECK_POINTS`, `ambient_surface_mix`, `spacing_steps`, `focus_when_shown` and `observe_layout` are no longer exported.
+- **Entry points.** `elt/ui` and its widget modules (`elt/ui/select`, `/date`, `/timepicker`, `/textarea`, `/spinner`, `/tabs`, `/icons`, `/popup`, `/dialog`, `/keymap`, `/theme`, `/list-nav`, `/resizable`, `/interactive`, `/motion`) are the only paths. The stylesheets, `selectors`, `date-format`, `date-input` and `search` no longer resolve. `CHECK_POINTS`, `ambient_surface_mix`, `spacing_steps`, `focus_when_shown` and `observe_layout` are no longer exported.
 - **Popups take focus.** A popup moves focus into itself once shown, and Tab on its last element closes it ([Overlays § popup](./ui-overlays.md#popup)). A popup that must leave focus where it is (a list completing your own text field, a tooltip) passes `focus: false`.
 - **Popups say what they are.** The anchor element gets `aria-expanded`, and `aria-haspopup` unless it has one; a content that isn't a menu, a list, a tree or a grid makes the popup a `dialog` named by its first heading, else by the anchor's text, else by the `label` option. Pass `opener: null` when the anchor isn't the control that opens it (a combobox's input says it itself). `menu_nav` gives its element `role="menu"` when it has none.
 - **Dialogs need a name.** `show_dialog` names the dialog by its first heading, or the `label` option, and warns in the console when it has neither.
 - **Icons are hidden from assistive technology.** A button with only an icon needs `aria-label`, `aria-labelledby` or `title`; the Biome plugin `lint/icon-button-name.grit` finds them.
+- **Tabs have their roles and keys.** `tab_strip` gives a strip of the app's own buttons `role="tablist"`/`"tab"`/`"tabpanel"`, `aria-selected`, one Tab stop and the arrow keys; `e-widget="tab"` is gone ([States § Tabs](./ui-states.md#tabs)).
 - **Resize handles are Tab stops.** Each `$resizable` handle is a focusable separator, moved by the arrow keys.
 - **Texts.** The names elt/ui gives its own buttons and handles come from `o_ui_labels` (English by default): set them for another language ([Widgets § Texts of the widgets](./ui-widgets.md#texts-of-the-widgets)).
 

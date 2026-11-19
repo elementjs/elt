@@ -21,6 +21,7 @@ export * from "./keymap"
 export * from "./list-nav"
 export * from "./interactive"
 export * from "./resizable"
+export * from "./tabs"
 export * from "./labels"
 
 import { o } from "elt"

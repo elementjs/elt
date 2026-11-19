@@ -23,6 +23,7 @@
     "./ui/resizable": "./ui/resizable.tsx",
     "./ui/select": "./ui/select.tsx",
     "./ui/spinner": "./ui/spinner.tsx",
+    "./ui/tabs": "./ui/tabs.tsx",
     "./ui/textarea": "./ui/textarea.tsx",
     "./ui/theme": "./ui/theme.tsx",
     "./ui/timepicker": "./ui/timepicker.tsx",

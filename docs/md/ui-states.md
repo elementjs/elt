@@ -60,15 +60,14 @@ A toggle takes an emphasis like a button: `<label e-widget="toggle" e-emphasis="
 
 ## Widgets
 
-`e-widget` says what an element is, as opposed to how loud it is. Where an ARIA role says it already and the look can't differ from it, the role carries the look instead: `<input type="checkbox" role="switch">` is a pill switch, since a checkbox drawn as a switch must be announced as one, and the other way round.
+`e-widget` says what an element is, as opposed to how loud it is. Where an ARIA role says it already and the look can't differ from it, the role carries the look instead: `<input type="checkbox" role="switch">` is a pill switch, since a checkbox drawn as a switch must be announced as one, and the other way round, and `role="tab"` is a [tab](#tabs).
 
 | `e-widget` | On | Result |
 | ---------- | -- | ------ |
 | `toggle` | `<label>` around a checkbox | The checkbox is hidden and the label is a button. It is outlined in `tint` while unchecked, and checked it is drawn in the [selected state](#selected-state). It takes an [emphasis](#emphasis) |
 | `field` | Any element that is editable (a `contenteditable`, a custom field) | The look of a text input: its edge, padding, radius, height and focus ring, and the [invalid look](#disabled-and-invalid) |
 | `label` | Any element | Text that names what is next to it, not a control: bold and fainter than the text around it, at the controls' size, and also filled in a `packed` container ([Forms § Labels](./ui-forms.md#labels-and-fieldsets)) |
-| `tab` | `<button>` | A button that stands for a view, with a line along its bottom edge ([Tabs](#tabs)) |
-| `tab-close` | `<button>` right after a `tab` | The button that closes that tab, drawn under the same line ([Tabs](#tabs)) |
+| `tab-close` | `<button>` right after a `role="tab"` | The button that closes that tab, drawn under the same line ([Tabs](#tabs)) |
 
 Nothing gives an editable element the look of a field on its own: a rich-text editor wants its own look, so the field look is asked for.
 
@@ -120,25 +119,61 @@ A state is never a class (`.selected`, `.active`), a `data-*` attribute or an `e
 
 ## Tabs
 
-A tab is a button that stands for one view among several, and says which one is showing with a line along its bottom edge. `e-widget="tab"` draws the line on every tab: dim on the tabs that are not showing, and in full `tint` on the one that is, which is also in the [selected state](#selected-state), so it keeps the selected fill. A `tint` emphasis draws its dim line in the `tint` family, the other emphases in `neutral`. A `link` tab (it has no boundary to paint) and an `inverted` tab (a choice is never an inversion) draw no line.
-
-A closable tab is a `tab` followed by a `tab-close` button, together in a `packed` row of their own with `seams="none"`, so that no line shows between the two, and that row is one of the tabs of the strip. The close button is in the selected state when its tab is (the same fill and border) and draws the line of the tab before it, so the two read as one tab; a `tab` right after another `tab` is not mistaken for a close button.
+A tab is a button that stands for one view among several, and says which one is showing with a line along its bottom edge. `tab_strip` (`elt/ui/tabs`) gives an app's own markup the roles and keys of a tab strip; the look follows the roles.
 
 ```tsx
-<e-row packed radius="widget">
-  <e-row packed seams="none">
-    <button e-widget="tab" aria-pressed={o_showing.tf((v) => String(v === "a"))}>Report.md</button>
-    <button e-widget="tab-close" aria-label="Close Report.md"><ph.X /></button>
+import { $click, If, o } from "elt"
+import { tab_strip } from "elt/ui/tabs"
+import * as ph from "elt-phosphor"
+
+const o_showing = o<"report" | "notes">("report")
+const tabs = tab_strip(o_showing)
+
+<e-column>
+  <e-row packed radius="widget">
+    {tabs.strip}
+    <e-row packed seams="none">
+      <button>{tabs.tab("report")}Report.md</button>
+      <button e-widget="tab-close" aria-label="Close Report.md">{$click(() => close("report"))}<ph.X /></button>
+    </e-row>
+    <button>{tabs.tab("notes")}Notes.md</button>
   </e-row>
-  <button e-widget="tab" aria-pressed={o_showing.tf((v) => String(v === "b"))}>Notes.md</button>
-</e-row>
+  <e-column>
+    {tabs.panel}
+    {If(o_showing.tf((v) => v === "report"), () => <Report />, () => <Notes />)}
+  </e-column>
+</e-column>
 ```
+
+`tab_strip(o_selected)` returns three decorators:
+
+| Decorator | On | Does |
+| --------- | -- | ---- |
+| `strip` | The element around the tabs | `role="tablist"`, and the keys below |
+| `tab(value)` | Each tab, with the value of `o_selected` it shows | `role="tab"`, an `id` if it has none, `aria-selected` from `o_selected`, a click sets `o_selected` to `value` |
+| `panel` | The element that shows the selected view | `role="tabpanel"`, an `id` if it has none, `aria-labelledby` the selected tab, `tabindex="0"` unless it has a `tabindex` |
+
+Each tab gets `aria-controls` pointing at the panel. The panel is a Tab stop so the keyboard reaches a view with nothing focusable in it, as the ARIA authoring guide asks; give it `tabindex="-1"` when the view always starts with a focusable element. Tabs can be added and removed at any time (a `Repeat` of open files): they are found again once the current change is over. One `tab_strip` call is one strip and one panel; an app with two strips calls it twice.
+
+Keys, with focus on a tab:
+
+| Key | Does |
+| --- | ---- |
+| Tab | Leaves the strip. Only the selected tab is a Tab stop, or the first enabled tab when none is selected |
+| ArrowRight / ArrowLeft | The next / previous tab, wrapping around, swapped when the strip is right-to-left. Up and Down instead when the strip has `aria-orientation="vertical"` |
+| Home / End | The first / last tab |
+| Enter, Space | Native to a `<button>`: a click, which selects it |
+| Delete | Clicks the tab's close button, then moves focus to the tab that is the Tab stop once the app has closed it |
+
+The arrows, Home and End move focus and select the tab they land on at once (the authoring guide's "automatic activation", right when the view shows without delay); they skip disabled tabs.
+
+`e-widget="tab-close"` is the button right after a tab that closes it. A closable tab is a tab followed by its close button, together in a `packed` row of their own with `seams="none"`, so that no line shows between the two, and that row is one of the tabs of the strip. `tab` gives that row `role="none"` (unless it has a role), so the tab is still announced as one of the strip's, and gives the close button `aria-controls` pointing at its tab and `tabindex="-1"`: the keyboard closes a tab with Delete, so the strip stays one Tab stop. Closing is the app's: the close button's own click handler removes the tab and selects another.
+
+The line is drawn on every `role="tab"`: dim on the tabs that are not showing, and in full `tint` on the selected one (`aria-selected="true"`), which is also in the [selected state](#selected-state), so it keeps the selected fill. A `tint` emphasis draws its dim line in the `tint` family, the other emphases in `neutral`. A `link` tab (it has no boundary to paint) and an `inverted` tab (a choice is never an inversion) draw no line. The close button is in the selected state when its tab is (the same fill and border) and draws the line of the tab before it, so the two read as one tab; a tab right after another tab is not mistaken for a close button.
 
 The strip has a `radius` because a row of tabs of its own is one cell of the strip: without a radius on the strip, each such cell keeps its own rounded corners, and the joins between tabs show as bumps ([Layout § Packed](./ui-layout.md#packed)).
 
 The line is an inset shadow and not a border: it keeps the button the same size whether it is selected or not, and a `packed` container cannot hide it like a border shared with a neighbor. A focused tab draws its focus ring under the line, so the line stays visible all along the bottom edge.
-
-This is the look only. The elements do not yet have the roles and the keys of a tab strip: today the tab sets the same ARIA attribute a toggle button does (`aria-pressed`), because `aria-selected` is valid only on an element with the role `tab`, and the arrow keys do not move between the tabs. Once those exist, a tab is `role="tab"` with `aria-selected`, in a `role="tablist"` (the row around a closable tab is `role="none"`), with its view as a `role="tabpanel"`, and `tab-close` carries `aria-controls`, pointing at its tab; the look does not change. Do not copy the `aria-pressed` form as the finished pattern.
 
 ## Interaction
 
@@ -227,7 +262,7 @@ How this meets your own CSS:
 
 **The selected state sets the fill and one variable only.** It never sets the size, the padding or the border width, so it applies to any emphasis, and `bare` keeps a transparent border to have the same size selected or not. The border color is a variable that borders read, and not a `border-color` the state writes, so no rule has to out-rank another to win it (packed containers and the emphasis rules also write borders), and an emphasis that has no edge to color simply does not read it. The rule behind it: an element that can show a boundary in some state has it in all of them (golden rule 4 in [elt/ui rules](./elt-ui-rules.md#golden-rules)).
 
-**Why `aria-pressed` for a day or a view switch.** `aria-selected` is valid only on the roles that are items of a set (an option, a tab, a row, a cell), not on a plain button. A button that shows a choice is `aria-pressed`. A true tab strip (`role="tablist"` and `role="tab"` with `aria-selected`) also needs arrow-key navigation among its tabs, which is why a pair of view-switch buttons is `aria-pressed`.
+**Why `aria-pressed` for a day or a view switch.** `aria-selected` is valid only on the roles that are items of a set (an option, a tab, a row, a cell), not on a plain button. A button that shows a choice is `aria-pressed`. Buttons that switch the view shown under them are tabs instead (`tab_strip`): `role="tab"` with `aria-selected`, and the arrow keys between them.
 
 **Why menus move focus and the Select does not.** Real focus on the items lets the browser draw the cursor and gives assistive technology the right focused element, but it requires every item to be in the document and focus to leave whatever held it. A Select's options are virtual and its search field has to keep the focus while the arrows move through the options, so it names the active item with `aria-activedescendant`, which has no CSS selector for the item it points to: that is the one case that needs `e-active`.
 

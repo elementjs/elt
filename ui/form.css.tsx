@@ -56,11 +56,10 @@ declare module "elt" {
     /** How loud the button is (docs/md/ui-states.md#emphasis). Absent: `default`. */
     "e-emphasis"?: NRO<Emphasis>
     /**
-     * `tab`: a button that stands for a view, with a line along its bottom edge: dim, and full color when
-     * it is in the selected state. `tab-close`: the button that closes the tab right before it, drawn
-     * under the same line (docs/md/ui-states.md#tabs).
+     * `tab-close`: the button that closes the `role="tab"` right before it, drawn under the same line
+     * (docs/md/ui-states.md#tabs).
      */
-    "e-widget"?: NRO<"tab" | "tab-close">
+    "e-widget"?: NRO<"tab-close">
   }
 
   interface attrs_a {

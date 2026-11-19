@@ -100,7 +100,7 @@ Every layout decision reduces to these six. The layout elements and their attrib
 2. **Two font weights in UI chrome**: regular and bold. Prose hierarchy comes from the headings themselves.
 3. **Form control size.** Controls use `theme.settings.formFontSize`, slightly smaller than body text. Do not bump a control's font size to match a heading.
 4. **Focus is a ring** (`tint.mid`), never a fill or a replaced border ([Theme § State](./ui-theme.md#state)).
-5. **An ARIA role carries a look only when the role and the look can't differ**: a checkbox drawn as a switch must be announced as one (`role="switch"`), and the other way round. Where the look can vary for one role (a menu item: plain, a title, a dangerous action), the look comes from `e-widget` or `e-emphasis`, never from the role ([States § Widgets](./ui-states.md#widgets)).
+5. **An ARIA role carries a look only when the role and the look can't differ**: a checkbox drawn as a switch must be announced as one (`role="switch"`), and the other way round; a tab (`role="tab"`) likewise. Where the look can vary for one role (a menu item: plain, a title, a dangerous action), the look comes from `e-widget` or `e-emphasis`, never from the role ([States § Widgets](./ui-states.md#widgets)).
 6. **A button with only an icon has a name**: `aria-label`, `aria-labelledby` or `title`. Icons are hidden from assistive technology, so without one the button is announced as just "button". The Biome plugin `lint/icon-button-name.grit` reports it ([Never do these § Enforcing with Biome](./hard-dont.md#enforcing-with-biome)). The library's own icon buttons take their names from `o_ui_labels` ([Widgets § Texts of the widgets](./ui-widgets.md#texts-of-the-widgets)).
 
 ## Building app-specific widgets

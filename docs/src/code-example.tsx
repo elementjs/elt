@@ -1,5 +1,5 @@
-import { css, o, If, $click, $connected, $disconnected, type Renderable } from "elt"
-import { theme } from "elt/ui"
+import { css, o, If, $connected, $disconnected, type Renderable } from "elt"
+import { tab_strip, theme } from "elt/ui"
 import * as ph from "elt-phosphor"
 
 export type CodeExampleProps = {
@@ -121,6 +121,7 @@ export function CodeExample(props: CodeExampleProps) {
   }
 
   const o_showing_code = o(false)
+  const tabs = tab_strip(o_showing_code)
 
   // Built once: an inline example keeps its node and state when the reader switches to the code and back.
   // An iframe reloads its page each time it is put back into the document (accepted: a full example
@@ -133,20 +134,27 @@ export function CodeExample(props: CodeExampleProps) {
     )
   const code_panel = () => (
     <e-prose pad="none" self-align="stretch">
+      {tabs.panel}
       <div class={cls_pre_scroll}>{renderCode(props.highlighted)}</div>
     </e-prose>
   )
-  const result_panel = () => <e-prose self-align="stretch">{result}</e-prose>
+  const result_panel = () => (
+    <e-prose self-align="stretch">
+      {tabs.panel}
+      {result}
+    </e-prose>
+  )
 
   return (
     <e-column border="neutral-separator" packed align="stretch" radius="component" seams="forced">
       <e-row packed="widget" pad="none" align="stretch" surface="neutral-1" class={theme.colors.neutral.class_as_tint}>
-        <button e-widget="tab" aria-pressed={o_showing_code.tf((v) => String(!v))}>
-          {$click(() => o_showing_code.set(false))}
+        {tabs.strip}
+        <button>
+          {tabs.tab(false)}
           <ph.TelevisionSimple /> Example
         </button>
-        <button e-widget="tab" aria-pressed={o_showing_code.tf((v) => String(v))}>
-          {$click(() => o_showing_code.set(true))}
+        <button>
+          {tabs.tab(true)}
           Code <ph.Code />
         </button>
         <e-row grow>&nbsp;</e-row>

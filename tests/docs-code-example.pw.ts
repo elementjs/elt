@@ -39,9 +39,9 @@ test.describe("docs CodeExample: lazily run inline examples", () => {
     })
 
     // Switch to the code and back: same node, not re-run.
-    await page.getByRole("button", { name: "Code" }).click()
+    await page.getByRole("tab", { name: "Code" }).click()
     await expect(page.locator("#result")).toBeHidden()
-    await page.getByRole("button", { name: "Example" }).click()
+    await page.getByRole("tab", { name: "Example" }).click()
     await expect(page.locator("#result")).toHaveText("ran")
     const r = await page.evaluate(() => ({
       runs: (window as any).__runs,
@@ -64,10 +64,23 @@ test.describe("docs CodeExample: lazily run inline examples", () => {
       )
     })
     await expect(page.locator("#first, #second")).toHaveCount(2)
-    await page.getByRole("button", { name: "Code" }).click()
+    await page.getByRole("tab", { name: "Code" }).click()
     await expect(page.locator("#first, #second")).toHaveCount(0)
-    await page.getByRole("button", { name: "Example" }).click()
+    await page.getByRole("tab", { name: "Example" }).click()
     await expect(page.locator("#first, #second")).toHaveCount(2)
+    // Each view is the panel in turn: the tabs point at the one shown, which is named by the selected tab.
+    const links = await page.evaluate(() => {
+      const panel = document.querySelector('[role="tabpanel"]')!
+      const tab = document.querySelector('[role="tab"][aria-selected="true"]')!
+      return {
+        controls: tab.getAttribute("aria-controls"),
+        panel: panel.id,
+        named_by: panel.getAttribute("aria-labelledby"),
+        tab: tab.id,
+      }
+    })
+    expect(links.controls).toBe(links.panel)
+    expect(links.named_by).toBe(links.tab)
   })
 
   test("an example that throws shows its error in place of the result", async ({ page }) => {

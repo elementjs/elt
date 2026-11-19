@@ -1,6 +1,6 @@
 import { type Page, expect, test } from "./fixture"
 
-// `e-widget="tab"` and `e-widget="tab-close"` (docs/md/ui-states.md#tabs): a line along the bottom edge,
+// The tab look, `role="tab"` and `e-widget="tab-close"` (docs/md/ui-states.md#tabs): a line along the bottom edge,
 // dim at rest and full color in the selected state, drawn as an inset shadow so the box never changes
 // size; a focused tab has its focus ring under the line.
 
@@ -18,11 +18,11 @@ const image = (page: Page, sel: string) =>
 
 const strip = `
   <e-row packed>
-    <button id="a" e-widget="tab" aria-pressed="true">A</button>
+    <button id="a" role="tab" aria-selected="true">A</button>
     <button id="a-x" e-widget="tab-close" aria-label="Close A">x</button>
-    <button id="b" e-widget="tab" aria-pressed="false">B</button>
+    <button id="b" role="tab" aria-selected="false">B</button>
     <button id="b-x" e-widget="tab-close" aria-label="Close B">x</button>
-    <button id="c" e-widget="tab" aria-pressed="false">C</button>
+    <button id="c" role="tab" aria-selected="false">C</button>
   </e-row>`
 
 test.describe("line", () => {
@@ -60,7 +60,7 @@ test.describe("line", () => {
   test("a tab right after the selected tab is not drawn as its close button", async ({ page }) => {
     await mount(
       page,
-      `<e-row packed><button id="a" e-widget="tab" aria-pressed="true">A</button><button id="b" e-widget="tab" aria-pressed="false">B</button></e-row>`,
+      `<e-row packed><button id="a" role="tab" aria-selected="true">A</button><button id="b" role="tab" aria-selected="false">B</button></e-row>`,
     )
     expect(await image(page, "#b")).not.toBe(await image(page, "#a"))
   })
@@ -68,7 +68,7 @@ test.describe("line", () => {
   test("the tint emphasis draws its dim line in the tint family", async ({ page }) => {
     await mount(
       page,
-      `<e-row><button id="n" e-widget="tab">N</button><button id="t" e-widget="tab" e-emphasis="tint">T</button></e-row>`,
+      `<e-row><button id="n" role="tab">N</button><button id="t" role="tab" e-emphasis="tint">T</button></e-row>`,
     )
     expect(await image(page, "#n")).not.toBe(await image(page, "#t"))
   })
@@ -76,7 +76,7 @@ test.describe("line", () => {
   test("link and inverted tabs draw no line", async ({ page }) => {
     await mount(
       page,
-      `<e-row><button id="l" e-widget="tab" e-emphasis="link" aria-pressed="true">L</button><button id="i" e-widget="tab" e-emphasis="inverted" aria-pressed="true">I</button></e-row>`,
+      `<e-row><button id="l" role="tab" e-emphasis="link" aria-selected="true">L</button><button id="i" role="tab" e-emphasis="inverted" aria-selected="true">I</button></e-row>`,
     )
     expect(await image(page, "#l")).toBe("none")
     expect(await image(page, "#i")).toBe("none")
@@ -85,8 +85,8 @@ test.describe("line", () => {
   test("a bare tab draws it too, and a selected disabled tab's close button is neutral like it", async ({ page }) => {
     await mount(
       page,
-      `<e-row><button id="b" e-widget="tab" e-emphasis="bare" aria-pressed="true">B</button>
-       <button id="d" e-widget="tab" aria-pressed="true" disabled>D</button><button id="d-x" e-widget="tab-close" aria-label="x">x</button></e-row>`,
+      `<e-row><button id="b" role="tab" e-emphasis="bare" aria-selected="true">B</button>
+       <button id="d" role="tab" aria-selected="true" disabled>D</button><button id="d-x" e-widget="tab-close" aria-label="x">x</button></e-row>`,
     )
     expect(await image(page, "#b")).not.toBe("none")
     expect(await image(page, "#d-x")).toBe(await image(page, "#d"))
@@ -113,8 +113,8 @@ test.describe("the close button is selected with its tab", () => {
   test("it is neutral like its disabled tab, and unfilled for a link tab", async ({ page }) => {
     await mount(
       page,
-      `<e-row><button id="d" e-widget="tab" aria-pressed="true" disabled>D</button><button id="d-x" e-widget="tab-close" aria-label="x">x</button>
-       <button id="l" e-widget="tab" e-emphasis="link" aria-pressed="true">L</button><button id="l-x" e-widget="tab-close" aria-label="x">x</button>
+      `<e-row><button id="d" role="tab" aria-selected="true" disabled>D</button><button id="d-x" e-widget="tab-close" aria-label="x">x</button>
+       <button id="l" role="tab" e-emphasis="link" aria-selected="true">L</button><button id="l-x" e-widget="tab-close" aria-label="x">x</button>
        <button id="o" e-widget="tab-close" aria-label="x">x</button></e-row>`,
     )
     expect(await style(page, "#d-x")).toEqual(await style(page, "#d"))
@@ -125,8 +125,8 @@ test.describe("the close button is selected with its tab", () => {
 test.describe("closable tab in a row of its own", () => {
   const pairs = `
     <e-row packed>
-      <e-row packed seams="none"><button id="a" e-widget="tab" aria-pressed="true">A</button><button id="a-x" e-widget="tab-close" aria-label="x">x</button></e-row>
-      <e-row packed seams="none"><button id="b" e-widget="tab" aria-pressed="false">B</button><button id="b-x" e-widget="tab-close" aria-label="x">x</button></e-row>
+      <e-row packed seams="none"><button id="a" role="tab" aria-selected="true">A</button><button id="a-x" e-widget="tab-close" aria-label="x">x</button></e-row>
+      <e-row packed seams="none"><button id="b" role="tab" aria-selected="false">B</button><button id="b-x" e-widget="tab-close" aria-label="x">x</button></e-row>
     </e-row>`
 
   test("no line shows between a tab and its close button, selected or not", async ({ page }) => {
@@ -203,16 +203,8 @@ test("selecting a tab does not change the row's size or its tabs' height", async
     })
   const before = await sizes()
   await page.evaluate(() => {
-    document.querySelector("#a")!.setAttribute("aria-pressed", "false")
-    document.querySelector("#b")!.setAttribute("aria-pressed", "true")
+    document.querySelector("#a")!.setAttribute("aria-selected", "false")
+    document.querySelector("#b")!.setAttribute("aria-selected", "true")
   })
   expect(await sizes()).toEqual(before)
-})
-
-test("the tab is also selected through aria-selected", async ({ page }) => {
-  await mount(
-    page,
-    `<e-row><button id="a" e-widget="tab" aria-selected="true">A</button><button id="b" e-widget="tab" aria-selected="false">B</button></e-row>`,
-  )
-  expect(await image(page, "#a")).not.toBe(await image(page, "#b"))
 })

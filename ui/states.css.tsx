@@ -46,9 +46,9 @@ declare module "elt" {
 const colors = theme.colors
 
 // The controls that draw the tab line (below): not a \`link\` or an \`inverted\` one.
-const TAB = ':is([e-widget="tab"], [e-widget="tab-close"]):not([e-emphasis="link"], [e-emphasis="inverted"])'
+const TAB = ':is([role="tab"], [e-widget="tab-close"]):not([e-emphasis="link"], [e-emphasis="inverted"])'
 // The close button of a selected tab (a link has no boundary to fill).
-const TAB_CLOSE_OF_SELECTED = `[e-widget="tab"]${SELECTED_SELECTOR}:not(${LINK_EMPHASIS_SELECTOR}) + [e-widget="tab-close"]:not(${LINK_EMPHASIS_SELECTOR})`
+const TAB_CLOSE_OF_SELECTED = `[role="tab"]${SELECTED_SELECTOR}:not(${LINK_EMPHASIS_SELECTOR}) + [e-widget="tab-close"]:not(${LINK_EMPHASIS_SELECTOR})`
 const TAB_LINE = `inset 0 calc(-1 * ${theme.settings.focusRingSize}) 0 0 var(--e-tab-line)`
 
 // Hover and press fills, set by the emphasis that wants others than the default (a link has none).
@@ -160,7 +160,7 @@ css`
   }
 
   /* ── Tab ─────────────────────────────────────────────────────────────────────────────────────
-     A tab (\`e-widget="tab"\`) and its close button (\`e-widget="tab-close"\`, the next sibling) draw a
+     A tab (\`role="tab"\`) and its close button (\`e-widget="tab-close"\`, the next sibling) draw a
      line along their bottom edge: dim at rest (the separator of the control's color family, tint for
      the \`tint\` emphasis), full \`--e-border-color\` when the tab is selected. The close button takes the
      tab's line through the sibling selector, so a closable tab reads as one. It is an inset shadow,
@@ -176,16 +176,16 @@ css`
   :where(${TAB}:focus-visible) {
     box-shadow: ${TAB_LINE}, inset 0 0 0 ${theme.settings.focusRingSize} ${colors.tint.mid};
   }
-  :where(:is([e-widget="tab"], [e-widget="tab-close"])[e-emphasis="tint"]) {
+  :where(:is([role="tab"], [e-widget="tab-close"])[e-emphasis="tint"]) {
     --e-tab-line: ${colors.tint.separator};
   }
-  :where([e-widget="tab"]${SELECTED_SELECTOR}) {
+  :where([role="tab"]${SELECTED_SELECTOR}) {
     --e-tab-line: var(--e-border-color);
   }
-  :where([e-widget="tab"]${SELECTED_SELECTOR} + [e-widget="tab-close"]) {
+  :where([role="tab"]${SELECTED_SELECTOR} + [e-widget="tab-close"]) {
     --e-tab-line: ${colors.tint};
   }
-  :where([e-widget="tab"]${SELECTED_SELECTOR}${DISABLED_SELECTOR} + [e-widget="tab-close"]) {
+  :where([role="tab"]${SELECTED_SELECTOR}${DISABLED_SELECTOR} + [e-widget="tab-close"]) {
     --e-tab-line: ${colors.neutral.mid};
   }
 
@@ -200,7 +200,7 @@ css`
       ${theme.css_selected(true)}
     }
   }
-  :where([e-widget="tab"]${SELECTED_SELECTOR}${DISABLED_SELECTOR}:not(${LINK_EMPHASIS_SELECTOR}) + [e-widget="tab-close"]:not(${LINK_EMPHASIS_SELECTOR})) {
+  :where([role="tab"]${SELECTED_SELECTOR}${DISABLED_SELECTOR}:not(${LINK_EMPHASIS_SELECTOR}) + [e-widget="tab-close"]:not(${LINK_EMPHASIS_SELECTOR})) {
     --e-current-surface: ${colors.neutral.selected};
     background-color: var(--e-current-surface);
     color: ${colors.text.mid};

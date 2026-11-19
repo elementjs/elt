@@ -15,6 +15,7 @@ The few widgets native HTML can't provide, and how to build your own. Import fro
 | [`TimePickerPanel`, `ScrollColumn`](#other-widgets) | `elt/ui/timepicker` | Building your own time picking UI |
 | [`$auto_grow`](#other-widgets) | `elt/ui/textarea` | A `<textarea>` that grows with its content |
 | [`Spinner`](#other-widgets) | `elt/ui/spinner` | Loading indicator |
+| `tab_strip` | `elt/ui/tabs` | Tabs over a view, on your own buttons — see [States § Tabs](./ui-states.md#tabs) |
 | [Icons](#icons) | `elt/ui/icons` | Small SVG icons |
 | `popup`, `show_dialog` | `elt/ui/popup`, `elt/ui/dialog` | Overlays — see [Overlays](./ui-overlays.md#choosing-an-overlay) |
 | `$keymap`, `keymap_used` | `elt/ui/keymap` | Keyboard shortcuts and key sequences, scoped to an element or to `document` — see [Keymap](./ui-keymap.md#api) |
