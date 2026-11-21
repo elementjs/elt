@@ -51,7 +51,7 @@ The library sets the ARIA; apps don't have to know it.
 
 - [x] `playwright.config.ts`: Chromium, Firefox and WebKit projects. `just test` runs Chromium; `just test-all` runs all three (WebKit through Docker on this machine, as `just test-webkit` does).
 - [x] One full run in the three browsers before rc.1; fix what fails. Done 2026-11-18: Chromium and Firefox 1811 pass, WebKit 902 pass (skips: browser-specific tests). Fixed in elt: a frozen editor table stretched to its container in Firefox (`width: max-content`), a docs example's error showed no message in Firefox, a focused node moved by a verb lost its focus in WebKit (no `moveBefore`: focus and caret given back). Fixed in the tests: console text rebuilt from the logged values, Firefox's scroll-linked hint ignored, a clipboard of the page's own, touch screen (`hasTouch`; skipped on WebKit), drags kept inside the window, rows given an area, the display-scale test Chromium-only, a font-independent length check.
-- [ ] GitHub Actions: `just check` and `just test` (three browsers) on pushes and pull requests.
+- [x] GitHub Actions (`.github/workflows/ci.yml`: `just check` and `bun test`, then one job per engine): `just check` and `just test` (three browsers) on pushes and pull requests.
 
 ## 6. Before 4.0.0
 
@@ -59,8 +59,8 @@ The library sets the ARIA; apps don't have to know it.
 
 ## 7. Release
 
-- [ ] `CHANGELOG.md`, shipped in the package (`files`): starts at 4.0, sums up what changed since 3.x, points to `docs/md/migrating.md`.
-- [ ] Docs site on GitHub Pages at `elementjs.github.io/elt/`:
+- [x] `CHANGELOG.md` (also: the core breaks missing from `migrating.md` were added: observer return value, `exclusive_lock`, variance, cycles, `reportError`, the `App` namespace), shipped in the package (`files`): starts at 4.0, sums up what changed since 3.x, points to `docs/md/migrating.md`.
+- [x] Docs site on GitHub Pages at `elementjs.github.io/elt/` (done; differences: route copies are `<route>.html`, since GitHub Pages redirects `/elt/app` to `/elt/app/` when `app/index.html` exists, which no route matches; links between pages go through `docs_href()` (`docs/src/base.ts`) at runtime, so the generated pages, cached by date, don't depend on the base; checked by serving the build like GitHub Pages does):
   - `DOCS_BASE` (default `/`) picks the base path: `bun build --public-path`, the router's `base` (through a macro returning `process.env.DOCS_BASE ?? "/"`), the links `urlFor()` writes in `docs/src/macro.ts`.
   - `docs/build.ts`: `Bun.build` with `publicPath`, then one copy of `index.html` per route (`<route>/index.html`, from the route list the macro writes), `404.html`, `.nojekyll`. `just build-docs` runs it with `DOCS_BASE=/elt/`; `check-compile` uses it without.
   - A workflow deploys it with `actions/deploy-pages` on `v*` tags, plus a manual trigger.
@@ -68,9 +68,9 @@ The library sets the ARIA; apps don't have to know it.
 
 ## 8. Housekeeping
 
-- [ ] Merge `specs/audit-2026-10-results.md` into the audit spec and delete the audit specs.
-- [ ] `specs/ui-validity.md`: check nothing is missing from `decorators.md`, delete.
-- [ ] `specs/changes.md`: the `out_*` lint rule; delete once done.
-- [ ] `TODO.md`: drop the stale entries (the `packed`/`label` failures pass now; `ui/animation.tsx`, `menu.tsx`, `specs/object-editor.tsx` no longer exist), the ones this spec covers, and run the stale-name audit.
-- [ ] `typedoc.json` removed (typedoc isn't installed).
-- [ ] `docs/md/components.md` unwrapped.
+- [x] Merge `specs/audit-2026-10-results.md` into the audit spec and delete the audit specs (done: both deleted, their two open date field questions moved to `TODO.md`; `audit-2026-10-editor.md` stays, its 14 editor questions are unanswered).
+- [x] `specs/ui-validity.md`: check nothing is missing from `decorators.md`, delete (its open steps, the date field's `o_error` and the editor's forwarding, are in `TODO.md`).
+- [x] `specs/changes.md`: the `out_*` lint rule (`lint/out-prefix.grit`, also on `src/`); delete once done.
+- [x] `TODO.md`: drop the stale entries (the `packed`/`label` failures pass now; `ui/animation.tsx`, `menu.tsx`, `specs/object-editor.tsx` no longer exist), the ones this spec covers, and run the stale-name audit.
+- [x] `typedoc.json` removed (typedoc isn't installed).
+- [x] `docs/md/components.md` unwrapped (it already was).

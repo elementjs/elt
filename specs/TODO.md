@@ -32,7 +32,7 @@ These are the highest priority — the spec already promises the behavior, nothi
 ## Open design questions (in discussion, not yet decided)
 
 - [x] **Forward widget options from `elt/ui` almost as-is.** Landed for scalar factories via ADR 0001. **`select` wired**; **`color` still stubbed** (see `specs/ui-color-picker.md`).
-- [x] **Form validity, feeding `o_error` from the DOM Constraint Validation API.** Landed on `$bind.*` — see `specs/ui-validity.md`.
+- [x] **Form validity, feeding `o_error` from the DOM Constraint Validation API.** Landed on `$bind.*` (`BindOptions`, docs/md/decorators.md).
 - [ ] **Focus ring clipped at the edge of a non-packed grid (e.g. docs "Schema-mode object").** Partly fixed: a composite whose key set is bounded (an object with `free_keys: false`) no longer sits in a scroll area (`render_composite_grid`'s `virtual: false`; regression test in `tests/editor/grid.pw.ts`). Still open: (1) objects with free keys (the default), arrays, sets, maps and tables keep the windowed grid in a scroll area, which clips the ring of a cell at its edge; (2) in the unpacked look, a composite's grid is flush against the editor's strip (`e-row scroll="x"`, `editor/shell.tsx`), which clips it too -- the scalar root is padded for that reason, a composite is not. Options for (1): the inset ring inside scroll areas in elt/ui (decided: do it, as the generic fix), or render everything when there are few rows. Option for (2): pad the unpacked composite like a scalar root (changes the unpacked look by one step of padding).
 
 ## Done

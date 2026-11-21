@@ -1,6 +1,6 @@
 # Code audit — October 2026: object editor (`editor/`)
 
-The problems that the audit of 2026-10-03 found in `editor/`, split from [audit-2026-10.md](./audit-2026-10.md) (same evidence tags; the rest of the audit is there). Each problem has an id, a location, a description and a question with possible solutions.
+The problems that the audit of 2026-10-03 found in `editor/`, split from the rest of the audit, which is done and deleted. Evidence tags: **[reproduced]** a throwaway test showed the problem at runtime, **[checked]** a second reading confirmed it, **[read]** one reading found it (verify before the fix). Each problem has an id, a location, a description and a question with possible solutions.
 
 Evidence tags:
 - **[reproduced]**: a throwaway test or script showed the problem at runtime.
