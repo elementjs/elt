@@ -52,13 +52,13 @@ export function create_filter_state(): FilterState {
   const o_query = o("")
   const o_case_sensitive = o(false)
   const o_regex = o(false)
-  const o_compiled = o.expression((get) => compile_filter(get(o_query), get(o_case_sensitive), get(o_regex)))
+  const oo_compiled = o.expression((get) => compile_filter(get(o_query), get(o_case_sensitive), get(o_regex)))
   return {
     o_query,
     o_case_sensitive,
     o_regex,
-    o_matcher: o_compiled.tf((c) => c.matcher),
-    o_invalid: o_compiled.tf((c) => c.invalid),
+    o_matcher: oo_compiled.tf((c) => c.matcher),
+    o_invalid: oo_compiled.tf((c) => c.invalid),
   }
 }
 
@@ -185,7 +185,7 @@ export function render_composite_chrome(props: CompositeToolbarProps): {
 } {
   const { factory, o_value, filter, kind, import_export_addons = [] } = props
   const settings = resolve_settings(factory.options, props.settings)
-  const o_label = o_value.tf((value) => {
+  const oo_label = o_value.tf((value) => {
     const label = factory.options.chrome_label
     if (label === false) return null
     if (typeof label === "string") return label
@@ -238,7 +238,7 @@ export function render_composite_chrome(props: CompositeToolbarProps): {
 
   return {
     header: {
-      o_label,
+      o_label: oo_label,
       actions: props.warning ?? null,
       add: add_button,
       import_export: factory.options.show_import_export === false ? [] : import_export_addons,

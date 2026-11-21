@@ -13,3 +13,10 @@ const c = (
     {X()}
   </button>
 )
+declare function $observe(...a: unknown[]): unknown
+const d = <>{$observe(go)}<div /></> // error
+declare const o: { get(v: unknown): unknown; tf(v: unknown, f: unknown): unknown }
+declare const attrs: { out_picked: { set(v: string): void } }
+const e = o.get(attrs.out_picked) // error
+const f = $observe(attrs.out_picked, go) // error
+const g = <div>{attrs.out_picked}</div> // error

@@ -1,0 +1,13 @@
+language js
+
+// A css call inserts a rule each time it runs: calls stay at the top level of a module, not in a function or a
+// class field (run for each instance) (docs/md/css.md).
+JsTemplateExpression(tag = $tag) as $css where {
+  $tag <: `css`,
+  $css <: within or { JsFunctionBody(), JsArrowFunctionExpression(), JsPropertyClassMember() },
+  register_diagnostic(
+    span = $css,
+    message = "Call css at the top level of a module: inside a function it inserts a new rule on every call (docs/md/css.md#organizing-styles).",
+    severity = "error"
+  )
+}

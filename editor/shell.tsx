@@ -60,6 +60,7 @@ const cls_header = css`.oe-header {
   }
 }`
 
+// biome-ignore lint/plugin/no-margin: elt/ui has no spacing for an icon in a line of text (TODO.md, editor CSS that elt/ui could provide)
 const cls_header_icon = css`.oe-header-icon {
   margin-inline-end: 0.4em;
 }`
@@ -415,16 +416,16 @@ export class ObjectEditorShell<T = unknown> {
     // seams, a table's header), as the theme's `class_as_tint` does. Observed from the value, so a type
     // change recolors it; the same type is the same style, which observers skip.
     const o_style = column.o_value.tf(type_style_of_value)
-    const o_widget = column.o_factory.tf((factory) => factory.render(column.o_value, column.inherited))
-    const o_header = o_widget.tf((widget) => widget.header ?? null)
-    const menu = () => this.header_menu(column, o_header.get(), close)
+    const oo_widget = column.o_factory.tf((factory) => factory.render(column.o_value, column.inherited))
+    const oo_header = oo_widget.tf((widget) => widget.header ?? null)
+    const menu = () => this.header_menu(column, oo_header.get(), close)
     // The `…` button shows when the menu has something; re-checked when the value's kind changes.
-    const o_has_menu = o.expression(
-      (get) => get(show_menu) && this.header_menu(column, get(o_header), close).length > 0,
+    const oo_has_menu = o.expression(
+      (get) => get(show_menu) && this.header_menu(column, get(oo_header), close).length > 0,
     )
-    const o_label = o.expression((get) => {
+    const oo_label = o.expression((get) => {
       if (!get(show_title)) return ""
-      const header = get(o_header)
+      const header = get(oo_header)
       const type_label = header ? get(header.o_label) : null
       return [column.title, type_label].filter((part) => part != null && part !== "").join(" · ")
     })
@@ -434,14 +435,14 @@ export class ObjectEditorShell<T = unknown> {
     )
     // The root's header line goes away when nothing is left on it (no label, menu, action, Add button, or
     // Undo/Redo to offer). Any other column keeps it for its ×.
-    const o_has_header = o.expression(
+    const oo_has_header = o.expression(
       (get) =>
         !is_root ||
         (get(o_undo_buttons) && (get(this.undo.o_can_undo) || get(this.undo.o_can_redo))) ||
-        get(o_label) !== "" ||
-        get(o_has_menu) ||
-        get(o_header)?.actions != null ||
-        get(get(o_header)?.add ?? null) != null,
+        get(oo_label) !== "" ||
+        get(oo_has_menu) ||
+        get(oo_header)?.actions != null ||
+        get(get(oo_header)?.add ?? null) != null,
     )
     // Packed: `packed border` -- the column draws its frame; header line, toolbar and rows touch,
     // separated by the column's lines (the header line and toolbar are groups inside it, cells of
@@ -460,7 +461,7 @@ export class ObjectEditorShell<T = unknown> {
         align="stretch"
       >
         {watch}
-        {o_has_header.tf(
+        {oo_has_header.tf(
           (has_header) =>
             has_header && (
               // Packed: widgets touching, each padded at the widget step, separated by seams.
@@ -472,7 +473,7 @@ export class ObjectEditorShell<T = unknown> {
               >
                 {$editor_menu_when(show_menu, menu)}
                 {/* The title: the icon of the column's type, then the label; none when the title is hidden. */}
-                {o_label.tf(
+                {oo_label.tf(
                   (label) =>
                     label !== "" && (
                       <strong e-ellipsis title={label}>
@@ -481,8 +482,8 @@ export class ObjectEditorShell<T = unknown> {
                       </strong>
                     ),
                 )}
-                {o_header.tf((header) => header?.actions ?? null)}
-                {o_has_menu.tf(
+                {oo_header.tf((header) => header?.actions ?? null)}
+                {oo_has_menu.tf(
                   (has) =>
                     has && (
                       <button type="button" aria-label="More actions" aria-haspopup="menu">
@@ -529,12 +530,12 @@ export class ObjectEditorShell<T = unknown> {
                     ),
                 )}
                 {/* The "Add" button of a composite, at the very end. */}
-                {o_header.tf((header) => header?.add ?? null)}
+                {oo_header.tf((header) => header?.add ?? null)}
               </e-row>
             ),
         )}
-        {o_widget.tf((widget) => widget.toolbar ?? null)}
-        {o_widget.tf((widget) =>
+        {oo_widget.tf((widget) => widget.toolbar ?? null)}
+        {oo_widget.tf((widget) =>
           widget.header ? widget.render() : <e-column pad="component">{widget.render()}</e-column>,
         )}
       </e-column>

@@ -1,0 +1,15 @@
+language js
+
+// A class name returned by css is named cls_<name> (docs/md/elt-rules.md#naming).
+or {
+  JsVariableDeclarator(id = $name, initializer = JsInitializerClause(expression = JsTemplateExpression(tag = $tag))),
+  JsPropertyClassMember(name = $name, value = JsInitializerClause(expression = JsTemplateExpression(tag = $tag)))
+} where {
+  $tag <: `css`,
+  $name <: not r"cls_\w+",
+  register_diagnostic(
+    span = $name,
+    message = "A class name returned by css is named cls_<name> (docs/md/elt-rules.md#naming).",
+    severity = "error"
+  )
+}

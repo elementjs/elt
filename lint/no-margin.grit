@@ -1,0 +1,14 @@
+language js
+
+// Spacing between elements is the parent's job: `spacing` on a layout element, or a prose container's own margins
+// (docs/md/ui-hard-dont.md). `margin: 0` (any zero length, on any side) resets a default and is allowed.
+// No look-around in the regex engine: a value is reported when, after any leading zeros, it has something else.
+JsTemplateExpression(tag = $tag) as $css where {
+  $tag <: `css`,
+  $css <: r"(?s).*(?:^|[^\w-])margin(?:-[a-z-]+)?\s*:\s*(?:0[a-z%]*\s+)*(?:[^0\s;}!]|0[.\d]).*",
+  register_diagnostic(
+    span = $css,
+    message = "Never set an element's own margin: spacing between elements is the parent's (spacing on a layout element, or a prose container's margins). Only margin: 0 is allowed (docs/md/ui-hard-dont.md).",
+    severity = "error"
+  )
+}

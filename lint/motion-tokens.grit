@@ -1,0 +1,17 @@
+language js
+
+// Durations and easings come from the theme's motion tokens (docs/md/elt-ui-rules.md#overlays): a duration written
+// in CSS (`200ms`, `0.2s`) or an easing function (`cubic-bezier(…)`, `steps(…)`, `linear(…)`). The keyword easings
+// (`ease`, `ease-out`, `linear`) are allowed: the theme has easings for entering and leaving, not for a hover.
+JsTemplateExpression(tag = $tag) as $css where {
+  $tag <: `css`,
+  $css <: or {
+    r"(?s).*(?:^|[^\w.$-])\d*\.?\d+m?s\b.*",
+    r"(?s).*(?:^|[^\w-])(?:cubic-bezier|steps|linear)\(.*"
+  },
+  register_diagnostic(
+    span = $css,
+    message = "Durations come from theme.settings.durationFast / durationMedium / durationSlow, easing functions from easingEnter / easingLeave, or use a motion preset (docs/md/elt-ui-rules.md#overlays).",
+    severity = "error"
+  )
+}

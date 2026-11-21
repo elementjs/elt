@@ -1,3 +1,4 @@
+// biome-ignore-all lint/plugin/css-top-level: each class is built once per theme and value, then cached (@memoize or a Map), so a call inserts one rule per value, not one per use
 import { css, memoize, motion_defaults } from "elt"
 
 export interface ThemeSettings {

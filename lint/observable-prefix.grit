@@ -1,0 +1,37 @@
+language js
+
+// An observable is named o_<name> when it can be written, oo_<name> when it is read-only (docs/md/elt-rules.md#naming).
+// Without types, the kind is read from the call: `.tf(fn)` and a one-argument `o.expression` are read-only, a
+// two-argument `o.expression` and `.intercept` are writable, `o(…)` is either (it returns an observable it is given
+// as it is), and `.p` / `.key` / `.tf(converter)` are what they are made from, when that is named.
+
+pattern call($callee, $args) { JsCallExpression(callee = $callee, arguments = JsCallArguments(args = $args)) }
+
+or {
+  JsVariableDeclarator(id = $name, initializer = JsInitializerClause(expression = $init)),
+  JsPropertyClassMember(name = $name, value = JsInitializerClause(expression = $init))
+} where {
+  or {
+    and { $init <: call(`o`, [$_]), $name <: not r"oo?_\w+" },
+    and {
+      $init <: or {
+        call(`$r.tf`, [or { JsArrowFunctionExpression(), JsFunctionExpression() }]) where { $r <: not `o` },
+        call(`o.expression`, [$_])
+      },
+      $name <: not r"oo_\w+"
+    },
+    and { $init <: or { call(`o.expression`, [$_, $_]), call(`$r.intercept`, [$_]) }, $name <: not r"o_\w+" },
+    and {
+      $init <: or { call(`$r.p`, $_), call(`$r.key`, $_), call(`$r.tf`, [JsObjectExpression()]) },
+      or {
+        and { $r <: r"(?s)(?:.*[^\w])?o_\w+", $name <: not r"o_\w+" },
+        and { $r <: r"(?s)(?:.*[^\w])?oo_\w+", $name <: not r"oo_\w+" }
+      }
+    }
+  },
+  register_diagnostic(
+    span = $name,
+    message = "An observable is named o_<name> when it can be written, oo_<name> when it is read-only (docs/md/elt-rules.md#naming).",
+    severity = "error"
+  )
+}

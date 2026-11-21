@@ -59,7 +59,7 @@ export interface CompositeGridProps<K> {
   o_widths?: o.Observable<GridWidths>
 }
 
-const no_transients = o<string[]>([])
+const o_no_transients = o<string[]>([])
 
 /**
  * The scroll area and grid of a composite (the grid alone when `virtual` is false). Entries then
@@ -73,14 +73,14 @@ export function render_composite_grid<K>(props: CompositeGridProps<K>): HTMLElem
   const o_tracks = o(props.o_tracks)
   const o_widths = props.o_widths ?? o<GridWidths>({})
   const o_keys = o(props.o_keys)
-  const o_transient_ids = o(props.o_transient_ids ?? no_transients)
+  const o_transient_ids = o(props.o_transient_ids ?? o_no_transients)
   const render_transient = props.render_transient ?? (() => null)
 
   // Grid width beyond its tracks (lines, outer border), measured once at the first lock: with it, the
   // grid's min-width follows resized tracks without measuring again.
   const o_extra = o<number | null>(null)
 
-  const o_template = o.expression((get) => {
+  const oo_template = o.expression((get) => {
     const widths = get(o_widths)
     return get(o_tracks)
       .map((t) => {
@@ -94,7 +94,7 @@ export function render_composite_grid<K>(props: CompositeGridProps<K>): HTMLElem
   // Once locked, the grid's own width no longer comes from its cells (`contain: inline-size`), only
   // from the locked tracks (`min-width`). Without it, the fill track's content would still widen the
   // column it sits in whenever a wider row scrolls in.
-  const o_min_width = o.expression((get) => {
+  const oo_min_width = o.expression((get) => {
     const extra = get(o_extra)
     if (extra == null) return ""
     const widths = get(o_widths)
@@ -102,7 +102,7 @@ export function render_composite_grid<K>(props: CompositeGridProps<K>): HTMLElem
     for (const t of get(o_tracks)) sum += widths[t.id] ?? 0
     return `${sum}px`
   })
-  const o_contain = o_extra.tf((extra) => (extra == null ? "" : "inline-size"))
+  const oo_contain = o_extra.tf((extra) => (extra == null ? "" : "inline-size"))
 
   const lock = (grid: HTMLElement) => {
     const tracks = o_tracks.get()
@@ -128,7 +128,7 @@ export function render_composite_grid<K>(props: CompositeGridProps<K>): HTMLElem
   // appearing in an empty grid or a new table column both change its size.
   let stop_observing: (() => void) | null = null
 
-  const o_rows = o.expression((get): GridRow<K>[] => [
+  const oo_rows = o.expression((get): GridRow<K>[] => [
     ...get(o_keys).map((entry) => ({ entry })),
     ...get(o_transient_ids).map((transient) => ({ transient })),
   ])
@@ -150,7 +150,7 @@ export function render_composite_grid<K>(props: CompositeGridProps<K>): HTMLElem
       border={props.packed}
       align={o.tf(props.packed, (packed) => (packed ? "stretch" : "baseline"))}
       seam-color="tint-separator"
-      style={{ gridTemplateColumns: o_template, minWidth: o_min_width, contain: o_contain }}
+      style={{ gridTemplateColumns: oo_template, minWidth: oo_min_width, contain: oo_contain }}
     >
       {$connected((grid: HTMLElement) => {
         stop_observing ??= observe_layout(grid, () => lock(grid))
@@ -161,8 +161,8 @@ export function render_composite_grid<K>(props: CompositeGridProps<K>): HTMLElem
       })}
       {props.head}
       {virtual
-        ? RepeatVirtual(o_rows, render_row).withKeyFunction(key_of)
-        : Repeat(o_rows, render_row).withKeyFunction(key_of)}
+        ? RepeatVirtual(oo_rows, render_row).withKeyFunction(key_of)
+        : Repeat(oo_rows, render_row).withKeyFunction(key_of)}
     </e-grid>
   ) as HTMLElement
 
@@ -191,7 +191,7 @@ export function render_label_cell(text: o.RO<string>): Renderable<HTMLElement> {
 /** Template of the label column before it locks: its content, capped (long keys get `…`). */
 export const LABEL_TRACK = "fit-content(16em)"
 
-/* Custom CSS: a scroll area needs a bounded height to scroll; no layout attribute gives one. It also
+/* biome-ignore lint/plugin/layout-css: a scroll area needs a bounded height to scroll; no layout attribute gives one. It also
    takes the column's free height, from its content's height up (\`grow\` would start from 0 and
    collapse it in a column of no set height), so no empty space shows under a short grid. */
 const cls_grid_scroll = css`.oe-grid-scroll {

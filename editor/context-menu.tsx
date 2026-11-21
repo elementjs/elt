@@ -354,7 +354,7 @@ const cls_menu = css`.oe-menu {
   }
 }`
 
-/* Checked what elt/ui offers: `e-grid-row` is a subgrid too, but not a button (no native disabled and
+/* biome-ignore lint/plugin/layout-css: checked what elt/ui offers: `e-grid-row` is a subgrid too, but not a button (no native disabled and
    keys), so an item is a button that lays its three slots on the menu's columns itself. The slots'
    own padding, not a gap: a gap would stay on the empty first column. */
 const cls_menu_item = css`.oe-menu-item {
@@ -368,6 +368,7 @@ const cls_menu_item = css`.oe-menu-item {
 const cls_menu_wide = css`.oe-menu-wide {
   grid-column: 1 / -1;
 }`
+// biome-ignore lint/plugin/layout-css: a slot's own padding, not a gap: see cls_menu_item
 const cls_menu_icon = css`.oe-menu-icon {
   grid-column: 1;
   padding-inline-end: 0.5em;
@@ -375,6 +376,7 @@ const cls_menu_icon = css`.oe-menu-icon {
 const cls_menu_text = css`.oe-menu-text {
   grid-column: 2;
 }`
+// biome-ignore lint/plugin/layout-css: a slot's own padding, not a gap: see cls_menu_item
 const cls_menu_after = css`.oe-menu-after {
   grid-column: 3;
   padding-inline-start: 1em;

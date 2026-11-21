@@ -354,13 +354,13 @@ function render_element_or_preview(
 
 // Shared, immutable sentinel -- widgets with nothing to report reuse this
 // instead of each allocating their own always-null observable.
-const no_error: RenderableWidget["o_error"] = o(null as string | null)
+const o_no_error: RenderableWidget["o_error"] = o(null as string | null)
 
 // Placeholder widget used before an EitherFactory has resolved a branch, and
 // by factories with nothing to render.
 const null_widget: RenderableWidget = {
   render: () => null,
-  o_error: no_error,
+  o_error: o_no_error,
 }
 
 export abstract class Factory<Options> {
@@ -450,7 +450,7 @@ export class UnrepresentableFactory extends Factory<NoOptions> {
       // still force a kind via canConvert/convert or defaultValue() --
       // this widget itself must never write to o_value on its own.
       render: () => <em title="Use the … menu on a parent composite to change type">Unsupported value here</em>,
-      o_error: no_error,
+      o_error: o_no_error,
     }
   }
 }
@@ -602,7 +602,7 @@ export class NullFactory extends Factory<NoOptions> {
   render(): RenderableWidget {
     return {
       render: () => <span class={ink_classes(type_style_of_kind(this.kind))}>null</span>,
-      o_error: no_error,
+      o_error: o_no_error,
     }
   }
 }
@@ -623,7 +623,7 @@ export class UndefinedFactory extends Factory<UndefinedOptions> {
   render(): RenderableWidget {
     return {
       render: () => <span class={ink_classes(type_style_of_kind(this.kind))}>undefined</span>,
-      o_error: no_error,
+      o_error: o_no_error,
     }
   }
 }
@@ -761,7 +761,7 @@ export class BooleanFactory extends Factory<BooleanOptions> {
           </input>
         </label>
       ),
-      o_error: no_error,
+      o_error: o_no_error,
     }
   }
 }
@@ -788,7 +788,7 @@ export class ColorFactory extends Factory<ColorOptions> {
       // settles (component shape/name still under discussion there) --
       // $bind.string(o_value) into it, commit on change.
       render: () => <span>{/* elt/ui color control goes here */}</span>,
-      o_error: no_error,
+      o_error: o_no_error,
     }
   }
 }
@@ -828,7 +828,7 @@ export class SelectFactory<T, T2 = T> extends Factory<SelectOptions<T, T2>> {
           convert_fn,
           label_fn,
         }),
-      o_error: no_error,
+      o_error: o_no_error,
     }
   }
 }
@@ -892,7 +892,7 @@ export class DateFactory extends Factory<DatetimeOptions> {
               show_date,
               show_time,
             }),
-      o_error: no_error,
+      o_error: o_no_error,
     }
   }
 }
@@ -997,12 +997,12 @@ export class ObjectFactory extends Factory<ObjectOptions> {
         .filter((p): p is PropertyOption & { name: string } => typeof p.name === "string")
         .map((p) => p.name),
     )
-    const o_row_keys = o_value.tf((value) => {
+    const oo_row_keys = o_value.tf((value) => {
       if (typeof value !== "object" || value === null || Array.isArray(value)) return [] as string[]
       return object_row_keys(value as Record<string, unknown>, this.options)
     })
-    const o_visible_keys = o.expression((get) => {
-      const keys = get(o_row_keys)
+    const oo_visible_keys = o.expression((get) => {
+      const keys = get(oo_row_keys)
       const root = get(o_value)
       const matches = get(filter.o_matcher)
       if (typeof root !== "object" || root === null || Array.isArray(root)) return keys
@@ -1073,7 +1073,7 @@ export class ObjectFactory extends Factory<ObjectOptions> {
           // Only free keys make the list unbounded.
           virtual: can_add,
           o_tracks: tracks,
-          o_keys: o_visible_keys,
+          o_keys: oo_visible_keys,
           o_transient_ids,
           render_entry: (o_key) => (
             <e-grid-row>
@@ -1110,7 +1110,7 @@ export class ObjectFactory extends Factory<ObjectOptions> {
             )
           },
         }),
-      o_error: no_error,
+      o_error: o_no_error,
     }
   }
 
@@ -1240,8 +1240,8 @@ export class ArrayFactory extends Factory<ArrayOptions> {
 
     const add_transient = () => {
       const id = `t-${Date.now()}-${Math.random()}`
-      const row = o(resolve_item_default(this.options.item_default))
-      transient_rows.set(id, row)
+      const o_row = o(resolve_item_default(this.options.item_default))
+      transient_rows.set(id, o_row)
       o_transient_ids.set([...o_transient_ids.get(), id])
     }
 
@@ -1293,7 +1293,7 @@ export class ArrayFactory extends Factory<ArrayOptions> {
             )
           },
         }),
-      o_error: no_error,
+      o_error: o_no_error,
     }
   }
 
@@ -1304,22 +1304,22 @@ export class ArrayFactory extends Factory<ArrayOptions> {
     defaults: EditorSettings,
   ): RenderableWidget {
     const settings = resolve_settings(this.options, defaults)
-    const o_columns = o_value.tf((value) =>
+    const oo_columns = o_value.tf((value) =>
       Array.isArray(value) ? table_column_keys(value, this.options.columns) : [],
     )
-    const o_has_extra = o_value.tf((value) =>
+    const oo_has_extra = o_value.tf((value) =>
       Array.isArray(value) ? table_has_extra_keys(value, table_column_keys(value, this.options.columns)) : false,
     )
     // Rows match on any of their cells (the columns shown), not on a two-key preview of the row.
     const o_visible_indices = visible_array_indices(o_value, filter, (item) => {
       const row = (item ?? {}) as Record<string, unknown>
-      return o_columns.get().map((col) => value_preview_text(row[col]))
+      return oo_columns.get().map((col) => value_preview_text(row[col]))
     })
     // Locked widths (first layout, see editor/grid.tsx), then the widths set by dragging a header's
     // edge. Data tracks are keyed by column name; "#" can't collide with one, the index track is not
     // a data key. The last data column fills what's left of the column.
     const o_widths = o<GridWidths>({})
-    const o_tracks = o_columns.tf((cols): GridTrack[] => [
+    const oo_tracks = oo_columns.tf((cols): GridTrack[] => [
       { id: "#", initial: "max-content" },
       ...cols.map((col, i) => ({ id: `col:${col}`, initial: LABEL_TRACK, fill: i === cols.length - 1 })),
     ])
@@ -1345,7 +1345,7 @@ export class ArrayFactory extends Factory<ArrayOptions> {
         o_value,
         filter,
         kind: "array",
-        warning: o_has_extra.tf((has) =>
+        warning: oo_has_extra.tf((has) =>
           has ? <span title="Some rows have keys not shown as columns">⚠</span> : null,
         ),
         add: allows_insert(this.options) ? { label: "Add item", on_add: add_row } : null,
@@ -1355,7 +1355,7 @@ export class ArrayFactory extends Factory<ArrayOptions> {
           // A table is a spreadsheet-like control: its cells always touch and share seams, whatever
           // the `packed` setting says about the frame, header line and toolbar around it.
           packed: true,
-          o_tracks,
+          o_tracks: oo_tracks,
           o_widths,
           o_keys: o_visible_indices,
           head: (
@@ -1369,7 +1369,7 @@ export class ArrayFactory extends Factory<ArrayOptions> {
                 })}
                 #
               </strong>
-              {Repeat(o_columns, (o_col) => (
+              {Repeat(oo_columns, (o_col) => (
                 <strong e-ellipsis>
                   {$resizable({ on_resize: (px) => o_widths.set({ ...o_widths.get(), [`col:${o_col.get()}`]: px }) })}
                   {o_col}
@@ -1384,14 +1384,14 @@ export class ArrayFactory extends Factory<ArrayOptions> {
                 // The cell is the row's child holding the target; after the index cell, one per column.
                 const row = target?.closest("e-grid-row")
                 const cell = row && [...row.children].find((c) => c.contains(target))
-                const col = cell ? o_columns.get()[[...row.children].indexOf(cell) - 1] : undefined
+                const col = cell ? oo_columns.get()[[...row.children].indexOf(cell) - 1] : undefined
                 return [
                   col == null ? null : element_menu_section(col, safe_table_cell(o_value, i, col), column_slot(col)),
                   delete_section(delete_at(i)),
                 ]
               })}
               {render_label_cell(o_i.tf((i) => String(i)))}
-              {Repeat(o_columns, (o_col) =>
+              {Repeat(oo_columns, (o_col) =>
                 o_i.tf((i) =>
                   o_col.tf((col) =>
                     render_element_or_preview(safe_table_cell(o_value, i, col), `${i}:${col}`, values_factory),
@@ -1401,7 +1401,7 @@ export class ArrayFactory extends Factory<ArrayOptions> {
             </e-grid-row>
           ),
         }),
-      o_error: no_error,
+      o_error: o_no_error,
     }
   }
 
@@ -1475,9 +1475,9 @@ export class SetFactory extends Factory<SetOptions> {
     const settings = resolve_settings(this.options, defaults)
     const filter = create_filter_state()
     const values_factory = this.options.values
-    const o_members = o_value.tf((v) => (v instanceof Set ? [...v] : []))
-    const o_visible_members = o.expression((get) => {
-      const members = get(o_members)
+    const oo_members = o_value.tf((v) => (v instanceof Set ? [...v] : []))
+    const oo_visible_members = o.expression((get) => {
+      const members = get(oo_members)
       const matches = get(filter.o_matcher)
       return matches ? members.filter((m) => matches([value_preview_text(m)])) : members
     })
@@ -1497,8 +1497,8 @@ export class SetFactory extends Factory<SetOptions> {
 
     const add_transient = () => {
       const id = `t-${Date.now()}-${Math.random()}`
-      const row = o(resolve_item_default(this.options.item_default))
-      transient_rows.set(id, row)
+      const o_row = o(resolve_item_default(this.options.item_default))
+      transient_rows.set(id, o_row)
       o_transient_ids.set([...o_transient_ids.get(), id])
     }
 
@@ -1521,7 +1521,7 @@ export class SetFactory extends Factory<SetOptions> {
         render_composite_grid({
           packed: settings.packed,
           o_tracks: tracks,
-          o_keys: o_visible_members,
+          o_keys: oo_visible_members,
           o_transient_ids,
           render_entry: (o_member) => (
             <e-grid-row>
@@ -1550,7 +1550,7 @@ export class SetFactory extends Factory<SetOptions> {
             )
           },
         }),
-      o_error: no_error,
+      o_error: o_no_error,
     }
   }
 }
@@ -1589,9 +1589,9 @@ export class MapFactory extends Factory<MapOptions> {
     const filter = create_filter_state()
     const keys_factory = this.options.keys
     const values_factory = this.options.values
-    const o_entry_keys = o_value.tf((v) => (v instanceof Map ? [...v.keys()] : []))
-    const o_visible_keys = o.expression((get) => {
-      const keys = get(o_entry_keys)
+    const oo_entry_keys = o_value.tf((v) => (v instanceof Map ? [...v.keys()] : []))
+    const oo_visible_keys = o.expression((get) => {
+      const keys = get(oo_entry_keys)
       const m = get(o_value)
       const matches = get(filter.o_matcher)
       if (!(m instanceof Map)) return keys
@@ -1642,7 +1642,7 @@ export class MapFactory extends Factory<MapOptions> {
         render_composite_grid({
           packed: settings.packed,
           o_tracks: tracks,
-          o_keys: o_visible_keys,
+          o_keys: oo_visible_keys,
           o_transient_ids,
           render_entry: (o_key) => (
             <e-grid-row>
@@ -1674,7 +1674,7 @@ export class MapFactory extends Factory<MapOptions> {
             )
           },
         }),
-      o_error: no_error,
+      o_error: o_no_error,
     }
   }
 }
@@ -1721,18 +1721,18 @@ export class EitherFactory extends Factory<EitherOptions> {
     // the control under the user's cursor. Per-mount, in this closure: this
     // EitherFactory instance is shared across every cell/row that resolves to
     // a union (e.g. every element of an `array({ values: anything })`).
-    const o_current_widget = o_sticky_factory(o_value, (value) => concrete_factory(this, value)).tf(
+    const oo_current_widget = o_sticky_factory(o_value, (value) => concrete_factory(this, value)).tf(
       (branch) => branch?.render(o_value, defaults) ?? null_widget,
     )
 
     return {
       // No wrapper element: the branch's own element is the cell (Layer 4).
-      render: () => o_current_widget.tf((w) => w.render()),
+      render: () => oo_current_widget.tf((w) => w.render()),
       // Follows the current branch's own o_error through the swap above --
       // `.p("o_error")` derives the (observable) o_error field of whatever
       // widget is currently set, and `o.proxy` then follows THAT observable,
       // so this stays correct across branch changes without extra wiring.
-      o_error: o.proxy(o_current_widget.p("o_error")) as o.ReadonlyObservable<string | null>,
+      o_error: o.proxy(oo_current_widget.p("o_error")) as o.ReadonlyObservable<string | null>,
     }
   }
 }

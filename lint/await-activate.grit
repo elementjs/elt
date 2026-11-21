@@ -1,0 +1,13 @@
+language js
+
+// An activation can be interrupted by a redirect, and a failure nobody awaits is an unhandled rejection
+// (docs/md/app.md#activation). Only a route's activation is checked (`<router>.<route>.activate()`, a call on a
+// property), not a function named activate; `void` marks one deliberately not awaited.
+JsExpressionStatement(expression = $call) where {
+  $call <: `$routes.$route.activate($args)`,
+  register_diagnostic(
+    span = $call,
+    message = "Await an activation: await router.<route>.activate() (docs/md/app.md#activation).",
+    severity = "error"
+  )
+}

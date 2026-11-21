@@ -1,0 +1,21 @@
+language js
+
+// A component writes its o.Out attributes and never reads them (docs/md/elt-rules.md#components). Its type has only
+// `set`, so `out_x.get()` is a type error already; what types let through is checked here: passing it where a value
+// is read (`o.get`, `o.tf`, `$observe`, `node_observe`, `.observe`, an expression's `get`), or rendering it.
+
+pattern out_name() { r"(?s)(?:.*\.)?out_\w+" }
+
+or {
+  JsCallExpression(callee = $callee, arguments = JsCallArguments(args = $args)) where {
+    $callee <: or { `o.get`, `o.tf`, `$observe`, `node_observe`, `$_.observe`, `get` },
+    $args <: some $read where { $read <: out_name() }
+  },
+  JsxExpressionChild(expression = $read) where { $read <: out_name() }
+} where {
+  register_diagnostic(
+    span = $read,
+    message = "A component only writes its o.Out attributes (out_*), it never reads or renders them (docs/md/elt-rules.md#components).",
+    severity = "error"
+  )
+}

@@ -1,0 +1,16 @@
+language js
+
+// Layout CSS (docs/md/ui-hard-dont.md#check-before-you-write) is written only once no layout attribute or theme
+// helper does the same; the reason goes in the comment that disables this rule on the call.
+JsTemplateExpression(tag = $tag) as $css where {
+  $tag <: `css`,
+  $css <: or {
+    r"(?s).*(?:^|[^\w-])(?:display\s*:\s*(?:inline-)?(?:flex|grid)\b|flex(?:-[a-z]+)?\s*:|(?:row-|column-)?gap\s*:|padding(?:-[a-z-]+)?\s*:|overflow(?:-[a-z]+)?\s*:|text-overflow\s*:|white-space\s*:).*",
+    r"(?s).*(?:^|[^\w.$-])(?:0*[1-9]\d*(?:\.\d+)?|0*\.\d*[1-9]\d*)px\b.*"
+  },
+  register_diagnostic(
+    span = $css,
+    message = "Layout CSS: first look for the layout attribute or theme helper that does it (pad, spacing, packed, scroll, columns, e-ellipsis, theme.css_pad / css_spacing). If none fits, keep the rule and say why: // biome-ignore lint/plugin/layout-css: <what you checked and why it fell short> (docs/md/ui-hard-dont.md).",
+    severity = "error"
+  )
+}

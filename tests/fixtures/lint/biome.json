@@ -3,7 +3,21 @@
     "../../../lint/no-add-observer.grit",
     "../../../lint/no-node-mutation.grit",
     "../../../lint/no-raw-dom-insertion.grit",
-    "../../../lint/icon-button-name.grit"
+    "../../../lint/icon-button-name.grit",
+    "../../../lint/out-prefix.grit",
+    "../../../lint/out-no-read.grit",
+    "../../../lint/no-event-listener.grit",
+    "../../../lint/attr-declare.grit",
+    "../../../lint/await-activate.grit",
+    "../../../lint/fragment-decorator.grit",
+    "../../../lint/observable-prefix.grit",
+    "../../../lint/css-top-level.grit",
+    "../../../lint/css-class-prefix.grit",
+    "../../../lint/css-one-rule.grit",
+    "../../../lint/no-margin.grit",
+    "../../../lint/theme-colors.grit",
+    "../../../lint/motion-tokens.grit",
+    "../../../lint/layout-css.grit"
   ],
   "linter": {
     "enabled": true,

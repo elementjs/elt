@@ -1,3 +1,4 @@
+import { node_add_event_listener } from "elt"
 import {
   type DateFormatLayout,
   type DateFormatSegment,
@@ -156,26 +157,26 @@ export class DateInputController {
   }
 
   #attach_listeners() {
-    this.input.addEventListener("focus", () => {
+    node_add_event_listener(this.input, "focus", () => {
       this.#editing = true
       this.#end_typing()
     })
-    this.input.addEventListener("blur", () => {
+    node_add_event_listener(this.input, "blur", () => {
       this.#editing = false
       this.#end_typing()
       this.commit_to_model()
     })
 
-    this.input.addEventListener("click", () => {
+    node_add_event_listener(this.input, "click", () => {
       const layout = this.ctx.get_layout()
       if (!layout) return
       this.#end_typing()
       requestAnimationFrame(() => this.#select_segment(segment_at_caret(layout, this.input.selectionStart ?? 0)))
     })
 
-    this.input.addEventListener("keydown", (ev) => this.#on_keydown(ev))
-    this.input.addEventListener("beforeinput", (ev) => this.#on_beforeinput(ev as InputEvent))
-    this.input.addEventListener("input", () => this.#on_input())
+    node_add_event_listener(this.input, "keydown", (ev) => this.#on_keydown(ev))
+    node_add_event_listener(this.input, "beforeinput", (ev) => this.#on_beforeinput(ev as InputEvent))
+    node_add_event_listener(this.input, "input", () => this.#on_input())
   }
 
   #on_keydown(ev: KeyboardEvent) {

@@ -6,6 +6,7 @@
       "editor/**",
       "tests/**",
       "docs/src/**",
+      "docs/build.ts",
       "!docs/src/md",
       "!docs/src/routes.generated.ts",
       "!tests/fixtures/lint",
@@ -48,12 +49,35 @@
   },
   "overrides": [
     {
+      "includes": ["src/**"],
+      "plugins": ["./lint/out-prefix.grit"]
+    },
+    {
       "includes": ["ui/**", "editor/**", "docs/src/**"],
       "plugins": [
         "./lint/no-add-observer.grit",
         "./lint/no-node-mutation.grit",
         "./lint/no-raw-dom-insertion.grit",
-        "./lint/icon-button-name.grit"
+        "./lint/icon-button-name.grit",
+        "./lint/out-prefix.grit",
+        "./lint/out-no-read.grit",
+        "./lint/no-event-listener.grit",
+        "./lint/attr-declare.grit",
+        "./lint/await-activate.grit",
+        "./lint/fragment-decorator.grit",
+        "./lint/observable-prefix.grit",
+        "./lint/css-top-level.grit",
+        "./lint/css-class-prefix.grit",
+        "./lint/css-one-rule.grit"
+      ]
+    },
+    {
+      "includes": ["editor/**", "docs/src/**"],
+      "plugins": [
+        "./lint/no-margin.grit",
+        "./lint/theme-colors.grit",
+        "./lint/motion-tokens.grit",
+        "./lint/layout-css.grit"
       ]
     },
     {

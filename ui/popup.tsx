@@ -98,14 +98,18 @@ function _close_popups() {
 function _listen(doc: Document) {
   if (listening_doc != null) return
   listening_doc = doc
+  // biome-ignore lint/plugin/no-event-listener: one pair of document listeners shared by every open popup, removed with the last one; no node owns them
   doc.addEventListener("click", _eval_popup_click, { capture: true })
+  // biome-ignore lint/plugin/no-event-listener: as above
   doc.addEventListener("keydown", _close_popups_keydown, { capture: true })
 }
 
 /** Called each time a popup goes: the last one gone, the listeners go too (from the document they were added on). */
 function _stop_listening_if_none() {
   if (popups.size > 0 || listening_doc == null) return
+  // biome-ignore lint/plugin/no-event-listener: one pair of document listeners shared by every open popup, removed with the last one; no node owns them
   listening_doc.removeEventListener("click", _eval_popup_click, { capture: true })
+  // biome-ignore lint/plugin/no-event-listener: as above
   listening_doc.removeEventListener("keydown", _close_popups_keydown, { capture: true })
   listening_doc = null
 }

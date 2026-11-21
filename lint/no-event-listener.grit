@@ -1,0 +1,10 @@
+language js
+
+// A listener added by hand outlives its node unless it is removed by hand. See docs/md/elt-rules.md#components.
+or { `$target.addEventListener($args)`, `$target.removeEventListener($args)` } as $call where {
+  register_diagnostic(
+    span = $call,
+    message = "Listen with node_add_event_listener (or a decorator: $click, $on…): it removes the listener with the node (docs/md/elt-rules.md#components).",
+    severity = "error"
+  )
+}

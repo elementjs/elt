@@ -18,12 +18,35 @@ UI code also follows [Never do these with elt/ui](./ui-hard-dont.md).
 
 ## Enforcing with Biome
 
-The package ships Biome plugins for the first two rules and for the DOM methods of the third, and one for an elt/ui rule: a button with only an icon needs a name (`icon-button-name.grit`, [elt/ui rules § Controls](./elt-ui-rules.md#controls)). Add the files in `lint/` to your `biome.json`'s `plugins`.
+The package ships Biome plugins in `lint/`, for the rules above and for others of [elt rules](./elt-rules.md) and [elt/ui rules](./elt-ui-rules.md) that the shape of the code shows. Add the files to your `biome.json`'s `plugins`. Each report says what to do instead and where the rule is explained.
 
-A report is an error. Where an exception applies, disable the rule on the line, with the reason:
+| Plugin | Checks |
+| --- | --- |
+| `no-add-observer.grit` | No `addObserver` / `removeObserver` (rule 1) |
+| `no-node-mutation.grit` | No `node_append`, `node_remove`, `node_clear` (rule 2) |
+| `no-raw-dom-insertion.grit` | No DOM insertion or removal methods, but `append` and `remove` (rule 3) |
+| `no-event-listener.grit` | No `addEventListener` / `removeEventListener`: `node_add_event_listener` or a decorator ([Decorators](./decorators.md#writing-your-own-decorator)) |
+| `observable-prefix.grit` | `o_` for a writable observable, `oo_` for a read-only one, read from the call that makes it ([elt rules § Naming](./elt-rules.md#naming)) |
+| `out-prefix.grit` | An attribute typed `o.Out<T>` is named `out_<name>` ([Components](./components.md#reactive-attributes)) |
+| `out-no-read.grit` | A component never reads or renders an `out_` attribute (`out_x.get()` is already a type error) |
+| `fragment-decorator.grit` | No decorator directly in a fragment `<>…</>` ([Components § Fragments](./components.md#fragments)) |
+| `attr-declare.grit` | An `@attr` property is `declare`d, with no initializer ([Custom elements](./custom-elements.md#registertag-and-attr)) |
+| `await-activate.grit` | A route's activation is awaited, as a statement `router.<route>.activate()` is not ([App](./app.md#activation)) |
+| `css-top-level.grit` | `css` is called at the top level of a module ([CSS](./css.md#organizing-styles)) |
+| `css-class-prefix.grit` | A class returned by `css` is named `cls_<name>` |
+| `css-one-rule.grit` | One rule per `css` call, nested rules included, or an `@layer` block ([CSS](./css.md#the-css-tagged-template)) |
+| `icon-button-name.grit` | A button with only an icon has a name ([elt/ui rules § Controls](./elt-ui-rules.md#controls)) |
+| `no-margin.grit` | No margin but `0` in a `css` call ([Never do these with elt/ui](./ui-hard-dont.md), rule 1) |
+| `theme-colors.grit` | No hex, `rgb()`, `hsl()` or `oklch()` color in a `css` call ([Theme](./ui-theme.md#colors)) |
+| `motion-tokens.grit` | No duration or easing function written in a `css` call: the theme's tokens ([Overlays § Motion](./ui-overlays.md#motion)) |
+| `layout-css.grit` | Layout CSS carries its reason ([Never do these with elt/ui § Check before you write](./ui-hard-dont.md#check-before-you-write)) |
+
+The last four are for code that uses elt/ui, not for elt/ui itself, which implements the layout and the theme. The CSS checks read the text of a `` css`…` `` call: what an interpolation `${…}` holds isn't seen, and named colors (`red`) aren't checked. `observable-prefix.grit` has no types: it doesn't check an observable whose kind the call doesn't show (a function's result, a destructured one).
+
+A report is an error. Where an exception applies, disable the rule on the line, naming the plugin, with the reason:
 
 ```ts
-// biome-ignore lint/plugin: a third-party widget inserts this node itself
+// biome-ignore lint/plugin/no-raw-dom-insertion: a third-party widget inserts this node itself
 ```
 
-An app that does not use an `App` mounts its root with `node_append`, and disables the rule at that one line the same way.
+An app that does not use an `App` mounts its root with `node_append`, and disables the rule at that one line the same way. A file that calls `css` in functions whose results are cached may disable `css-top-level` for the whole file, with `// biome-ignore-all lint/plugin/css-top-level: <reason>` on its first line.

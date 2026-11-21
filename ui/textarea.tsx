@@ -1,4 +1,12 @@
-import { $connected, $disconnected, node_observe, o, type attrs_textarea, type Renderable } from "elt"
+import {
+  $connected,
+  $disconnected,
+  node_add_event_listener,
+  node_observe,
+  o,
+  type attrs_textarea,
+  type Renderable,
+} from "elt"
 
 export type TextAreaAttrs = attrs_textarea
 
@@ -39,7 +47,8 @@ function resize_to_content(ta: HTMLTextAreaElement, min_lines: number, max_lines
   ta.style.overflowY = Number.isFinite(max_lines) && needed > max_h + 0.5 ? "auto" : "hidden"
 }
 
-/** Wire listeners; returns teardown. `resize` is invoked on every path that can change line count. */
+/** Wire the value setter and the width observer; returns teardown. `resize` is invoked on every path that can
+ * change line count but typing, whose listener ($auto_grow's) lives as long as the textarea. */
 function setup_auto_grow(ta: HTMLTextAreaElement, resize: () => void) {
   // $bind and other code assign .value without firing "input".
   const native_value = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")
@@ -53,8 +62,6 @@ function setup_auto_grow(ta: HTMLTextAreaElement, resize: () => void) {
       resize()
     },
   })
-
-  ta.addEventListener("input", resize)
 
   // Reflow when the control's width changes (wrapping changes with it). Its height changes are our
   // own resizes: nothing to do. The reflow waits for the next frame: resizing inside the observer
@@ -75,7 +82,6 @@ function setup_auto_grow(ta: HTMLTextAreaElement, resize: () => void) {
   resize()
 
   return () => {
-    ta.removeEventListener("input", resize)
     ro.disconnect()
     cancelAnimationFrame(frame)
     delete (ta as { value?: string }).value
@@ -95,6 +101,7 @@ export function $auto_grow(opts?: { max?: o.RO<number>; min?: o.RO<number> }): R
       resize_to_content(ta, min, max)
     }
 
+    node_add_event_listener(ta, "input", resize)
     // New bounds: resize, once the textarea is wired (before that, setup_auto_grow sizes it).
     node_observe(ta, o.join(oo_min_lines, oo_max_lines), () => {
       if (teardown != null) resize()

@@ -114,7 +114,7 @@ export function Select<T, T2 = T>(at: SelectAttributes<T, T2>) {
   const oo_texts = o_state.tf((s) => (s.remote ? null : s.items.map((item) => normalize(text_of(item)))))
 
   /** The options shown: all of them, or in completion mode those matching the query. */
-  const o_visible = o.expression((get) => {
+  const oo_visible = o.expression((get) => {
     const s = get(o_state)
     if (!at.completion || s.remote) return s.items
     const q = normalize(get(o_query).trim())
@@ -156,12 +156,12 @@ export function Select<T, T2 = T>(at: SelectAttributes<T, T2>) {
 
   const nav: ListNavOptions = {
     o_active,
-    count: () => o_visible.get().length,
-    activate: (i) => pick(o_visible.get()[i]),
+    count: () => oo_visible.get().length,
+    activate: (i) => pick(oo_visible.get()[i]),
     reveal,
     id_of: (i) => `${list_id}-${i}`,
     // Typing jumps by first letters only outside completion, where typing filters instead.
-    text_of: at.completion ? undefined : (i) => text_of(o_visible.get()[i]),
+    text_of: at.completion ? undefined : (i) => text_of(oo_visible.get()[i]),
   }
 
   function render_list(anchor: HTMLElement) {
@@ -180,7 +180,7 @@ export function Select<T, T2 = T>(at: SelectAttributes<T, T2>) {
         {/* Focus stays where it is (the list, or the completion input): a press on an option must not take it. */}
         {$on("pointerdown", (ev) => ev.preventDefault())}
         <e-column spacing="nudge-1" align="stretch" radius="widget">
-          {RepeatVirtual(o_visible, (o_option, o_index) => {
+          {RepeatVirtual(oo_visible, (o_option, o_index) => {
             const oo_is_selected = o.expression((get) => {
               const sel = get(oo_selected)
               return sel != null && value_of(sel.opt) === value_of(get(o_option))
@@ -219,7 +219,7 @@ export function Select<T, T2 = T>(at: SelectAttributes<T, T2>) {
                 () => <e-flex class={[cls_status, "error"]}>Couldn't load the options</e-flex>,
                 () =>
                   If(
-                    o_visible.tf((v) => v.length === 0),
+                    oo_visible.tf((v) => v.length === 0),
                     () => <e-flex class={cls_status}>No options</e-flex>,
                   ),
               ),
@@ -251,7 +251,7 @@ export function Select<T, T2 = T>(at: SelectAttributes<T, T2>) {
   /** Open the option list under `anchor`, the selected option active. */
   function open_list(anchor: HTMLElement) {
     if (close_list || o.get(at.disabled)) return
-    const visible = o_visible.get()
+    const visible = oo_visible.get()
     const sel = oo_selected.get()
     const idx = sel ? visible.findIndex((opt) => value_of(opt) === value_of(sel.opt)) : -1
     o_active.set(idx >= 0 ? idx : visible.length > 0 ? 0 : -1)
@@ -358,7 +358,7 @@ export function Select<T, T2 = T>(at: SelectAttributes<T, T2>) {
       {$on("input", () => {
         o_query.set(input.value)
         open_list(root)
-        o_active.set(o_visible.get().length > 0 ? 0 : -1)
+        o_active.set(oo_visible.get().length > 0 ? 0 : -1)
       })}
       {$on("blur", () => {
         if (o_editing.get()) stop_editing(false)

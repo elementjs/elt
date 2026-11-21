@@ -1,0 +1,16 @@
+language js
+
+// Colors come from theme.colors (docs/md/elt-ui-rules.md#theme-and-colors). A hex color counts only in a value (it
+// reaches a `;` or `}` before any `{`), so an id selector like `#add {` isn't one. Named colors (`red`) aren't checked.
+JsTemplateExpression(tag = $tag) as $css where {
+  $tag <: `css`,
+  $css <: or {
+    r"(?s).*(?:^|[^\w&])#[0-9a-fA-F]{3,8}\b[^{;}]*[;}].*",
+    r"(?s).*(?:^|[^\w-])(?:rgba?|hsla?|hwb|lab|lch|oklab|oklch|color)\(.*"
+  },
+  register_diagnostic(
+    span = $css,
+    message = "Colors come from theme.colors and their mixes, not hex, rgb(), hsl() or oklch() values (docs/md/elt-ui-rules.md#theme-and-colors).",
+    severity = "error"
+  )
+}

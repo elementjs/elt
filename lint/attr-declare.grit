@@ -1,0 +1,13 @@
+language js
+
+// An @attr property is `declare`d with no initializer: with ES2022 class fields, an initializer (or a field that
+// isn't `declare`d) replaces the decorated property and the attribute is never read (docs/md/custom-elements.md).
+JsPropertyClassMember(modifiers = $modifiers) as $member where {
+  $modifiers <: some JsDecorator() as $d where { $d <: r"@attr\b(?s).*" },
+  or { $member <: not r"(?s).*\bdeclare\b.*", $member <: JsPropertyClassMember(value = JsInitializerClause()) },
+  register_diagnostic(
+    span = $member,
+    message = "Declare an @attr property with declare and no initializer; set its default in init() (docs/md/custom-elements.md#registertag-and-attr).",
+    severity = "error"
+  )
+}

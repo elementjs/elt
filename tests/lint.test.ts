@@ -9,7 +9,7 @@ const dir = join(import.meta.dir, "fixtures/lint")
 
 /** The lines of `file` that Biome reports as plugin diagnostics, with the fixture's own biome.json. */
 async function reported_lines(file: string): Promise<number[]> {
-  const proc = Bun.spawn(["bunx", "biome", "lint", "--config-path=.", file], {
+  const proc = Bun.spawn(["bunx", "biome", "lint", "--config-path=.", "--max-diagnostics=none", file], {
     cwd: dir,
     stdout: "pipe",
     stderr: "pipe",

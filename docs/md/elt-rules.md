@@ -33,7 +33,7 @@ Every binding rule for application code that uses elt, on one page. Read it in f
 | `<Name>Service` | A class extending `Service`; the default export of its file |
 | `<Name>Screen` | A `Service` meant as a route target, registering views with `@view`; the default export of its file |
 
-These are conventions: the library does not enforce them, but code using elt follows them.
+These are conventions: the library does not enforce them, but code using elt follows them. `lint/observable-prefix.grit` and `lint/css-class-prefix.grit` check `o_`, `oo_` and `cls_` ([Enforcing with Biome](./hard-dont.md#enforcing-with-biome)).
 
 Names that `elt` exports starting with `_` or `sym_` (`_node_append`, `sym_connected`) are internal to elt: they are not part of its API and can change in any release. Don't use them.
 
@@ -43,13 +43,13 @@ Names that `elt` exports starting with `_` or `sym_` (`_node_append`, `sym_conne
 - In a two-argument component, place children with **either** a bare `{ref}` **or** `ref.IfChildren(…)`, never both. See [Components](./components.md#refchild-placing-children-explicitly).
 - Don't give `attrs` a default value on a two-argument component: it silently turns it into a one-argument component. See [Components](./components.md#one-arg-vs-two-arg).
 - Component attributes that should react to changes are typed `o.RO<T>` (a value or an observable of it). See [Components](./components.md#reactive-attributes).
-- A value the component reports to its caller is an attribute typed `o.Out<T>`: the component only writes it and never reads it. A component never exposes an observable it created. The name of such an attribute always starts with `out_` (`out_picked`, `out_viewport`), so a reader sees the direction of the value at the call site, and a typo is still caught by TypeScript (a hyphenated JSX attribute name is not checked). See [Components](./components.md#reactive-attributes).
+- A value the component reports to its caller is an attribute typed `o.Out<T>` and named `out_<name>`: the component only writes it and never reads it. A component never exposes an observable it created. Checked by `lint/out-prefix.grit` and `lint/out-no-read.grit`. See [Components](./components.md#reactive-attributes).
 - Pass each `o.RO` attribute down as it is and derive from it where it is used with `o.tf(attr, fn)`, which returns a plain value for a plain attribute. Don't gather several attributes into one `o.expression` or one object only to pass them around: that creates an observable and its subscriptions even when every attribute was a plain value. See [Components](./components.md#reactive-attributes).
 - Put decorators (`$click`, `$bind`, …) among the JSX **children**, never as attributes. See [Decorators](./decorators.md#anatomy-of-a-decorator).
-- Use a real element, not a fragment `<>…</>`, as the root that observes: a fragment never gets connected, so lifecycle-bound decorators placed on it don't stay tied to anything. See [Components](./components.md#fragments).
+- Use a real element, not a fragment `<>…</>`, as the root that observes: a fragment never gets connected, so lifecycle-bound decorators placed on it don't stay tied to anything. Checked by `lint/fragment-decorator.grit`. See [Components](./components.md#fragments).
 - In `$bind` options, give at most one of `debounce_*` / `throttle_*` per direction. See [Decorators](./decorators.md#binding-form-controls-bind).
-- Build your own decorators from elt's node-lifecycle helpers (`node_add_event_listener`, `node_observe`, `node_on_connected`, `node_on_disconnected`), not from raw DOM calls with hand-tracked cleanup. See [Decorators](./decorators.md#writing-your-own-decorator).
-- In a custom element, declare an `@attr` property with `declare` and no initializer; set defaults in `init()`. See [Custom elements](./custom-elements.md#registertag-and-attr).
+- Build your own decorators from elt's node-lifecycle helpers (`node_add_event_listener`, `node_observe`, `node_on_connected`, `node_on_disconnected`), not from raw DOM calls with hand-tracked cleanup. `lint/no-event-listener.grit` reports `addEventListener`. See [Decorators](./decorators.md#writing-your-own-decorator).
+- In a custom element, declare an `@attr` property with `declare` and no initializer; set defaults in `init()`. Checked by `lint/attr-declare.grit`. See [Custom elements](./custom-elements.md#registertag-and-attr).
 
 ## Observables
 
@@ -72,7 +72,7 @@ Names that `elt` exports starting with `_` or `sym_` (`_node_append`, `sym_conne
 
 ## App
 
-- **Always `await` an activation** (`await routes.home.activate()`): it can be interrupted by a redirect, a redirect not awaited inside a service's init shows the redirecting route before its target replaces it, and a failure nobody awaits is an unhandled rejection. See [App](./app.md#activation).
+- **Always `await` an activation** (`await routes.home.activate()`). Checked by `lint/await-activate.grit`. See [App](./app.md#activation).
 - Activate through `router.<route>.activate()`. `App._activate` is internal. See [App](./app.md#activation).
 - Route builders are functions that **return** a service builder; prefer a lazy `() => import("./file")`. See [App](./app.md#setting-up-routes).
 - The usual screen shape: dependencies declared in `Service({ … })`, state in `o_*` fields, derived values in `oo_*` fields, named views as `@view` methods. See [App](./app.md#services).
@@ -80,8 +80,8 @@ Names that `elt` exports starting with `_` or `sym_` (`_node_append`, `sym_conne
 
 ## CSS
 
-- One rule per `` css`…` `` call. To write several rules at once, put them in an `@layer` block. See [CSS](./css.md#the-css-tagged-template).
-- Keep `css` calls at the top level of a module; export a class only when another module uses it. Delete unused classes. See [CSS](./css.md#organizing-styles).
+- One rule per `` css`…` `` call. To write several rules at once, put them in an `@layer` block. Checked by `lint/css-one-rule.grit`. See [CSS](./css.md#the-css-tagged-template).
+- Keep `css` calls at the top level of a module; export a class only when another module uses it. Delete unused classes. `lint/css-top-level.grit` checks the first. See [CSS](./css.md#organizing-styles).
 - Prefer standard CSS; avoid vendor prefixes unless a supported browser still requires one.
 - In apps that use `elt/ui`, layout comes from layout elements and theme tokens, not hand-written flex/gap rules: see the [elt/ui rules](./elt-ui-rules.md).
 

@@ -1,0 +1,13 @@
+language js
+
+// One rule per css call, nested rules included, or an @layer block around several (docs/md/css.md). The braces are
+// counted up to five levels deep (an interpolation `${…}` is one), which real rules don't exceed.
+JsTemplateExpression(tag = $tag) as $css where {
+  $tag <: `css`,
+  $css <: not r"(?s)css`\s*(?:@layer\b.*|(?:[^{}]|\$\{[^{}]*\})*\{(?:[^{}]|\{(?:[^{}]|\{(?:[^{}]|\{(?:[^{}]|\{[^{}]*\})*\})*\})*\})*\})\s*`",
+  register_diagnostic(
+    span = $css,
+    message = "One rule per css call (nested rules are part of it). For several, call css once each, or put them in an @layer block (docs/md/css.md#the-css-tagged-template).",
+    severity = "error"
+  )
+}
