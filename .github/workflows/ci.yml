@@ -1,0 +1,41 @@
+# Type-checks, lints and builds (`just check`), then runs the Bun tests and the browser tests in the three
+# engines elt supports, one job per engine so they run side by side.
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - uses: extractions/setup-just@v2
+      - run: bun install
+      - run: just check
+      - run: bun test
+
+  browsers:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        project: [chromium, firefox, webkit]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install
+      # The engine and the system libraries it needs (Ubuntu has them all, unlike some desktop hosts).
+      - run: bunx playwright install --with-deps ${{ matrix.project }}
+      - run: bunx playwright test --project=${{ matrix.project }}
+        env:
+          CI: "true"
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          # What a failed test leaves: its error context, screenshots and traces.
+          name: test-results-${{ matrix.project }}
+          path: test-results/
+          retention-days: 7
