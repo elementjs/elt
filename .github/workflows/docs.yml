@@ -1,0 +1,43 @@
+# Publishes the docs site to GitHub Pages (elementjs.github.io/elt/) for each release tag, or by hand.
+# The repository's Pages source must be "GitHub Actions" (Settings > Pages), and the `github-pages` environment
+# must allow the release tags (Settings > Environments > github-pages > Deployment branches and tags: add `v*`):
+# by default it only deploys from the default branch, and a tag's deployment is rejected.
+name: Docs
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# One deployment at a time; a newer one doesn't cancel one in progress.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - uses: extractions/setup-just@v2
+      - run: bun install
+      - run: just build-docs
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs/dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

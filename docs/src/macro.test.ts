@@ -2,6 +2,7 @@ import { afterEach, describe, expect, test } from "bun:test"
 import { mkdtemp, rm, utimes } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import {
+  docs_base,
   generate_docs,
   ImportParseError,
   mergeImports,
@@ -61,6 +62,24 @@ describe("urlFor", () => {
     expect(
       ["index.md", "using-elt.md", "guide/intro.md", "guide/advanced/intro.md", "guide/index.md"].map(urlFor),
     ).toEqual(["/", "/using-elt", "/guide/intro", "/guide/advanced/intro", "/guide/index"])
+  })
+})
+
+describe("docs_base", () => {
+  test("reads DOCS_BASE without its trailing slash, the root as an empty string, and rejects a relative path", () => {
+    const saved = process.env.DOCS_BASE
+    try {
+      const of = (v: string | undefined) => {
+        if (v === undefined) delete process.env.DOCS_BASE
+        else process.env.DOCS_BASE = v
+        return docs_base()
+      }
+      expect([of(undefined), of("/"), of("/elt/"), of("/elt")]).toEqual(["", "", "/elt", "/elt"])
+      expect(() => of("elt/")).toThrow()
+    } finally {
+      if (saved === undefined) delete process.env.DOCS_BASE
+      else process.env.DOCS_BASE = saved
+    }
   })
 })
 
@@ -410,6 +429,23 @@ describe("generate_docs (integration)", () => {
     assertValidTsx(content)
   })
 
+  test("links to other pages go under the site's base at runtime (docs_href), others stay as written", async () => {
+    const t = await withTempDocsTree({
+      "index.md": "# Index\n\n[App](./app.md#setup), [[app]] and [elsewhere](https://example.com)\n",
+      "app.md": "# App\n\n[out](https://example.com)\n",
+    })
+    tmp = t
+    await t.generate_docs()
+    const index = await Bun.file(`${t.srcDir}/md/index.tsx`).text()
+    expect(index).toContain('import { docs_href } from "../base.ts"')
+    expect(index).toContain('href={docs_href("/app#setup")}')
+    expect(index).toContain('href={docs_href("/app")}')
+    expect(index).toContain('href={"https://example.com"}')
+    assertValidTsx(index)
+    // A page without a link to another page doesn't import it (an unused import fails the type-check).
+    expect(await Bun.file(`${t.srcDir}/md/app.tsx`).text()).not.toContain("docs_href")
+  })
+
   test("tokenColorClass is only imported when some token is colored", async () => {
     const t = await withTempDocsTree({
       "index.md": ["# Index", "", "```text", "hello", "```", ""].join("\n"),
@@ -701,9 +737,9 @@ describe("wiki links", () => {
     tmp = t
     await t.generate_docs()
     const content = await Bun.file(`${t.srcDir}/md/guide/intro.tsx`).text()
-    expect(content).toContain('<a href={"/guide/other"}>{"other"}</a>')
-    expect(content).toContain('<a href={"/guide/other#part"}>{"other#part"}</a>')
-    expect(content).toContain('<a href={"/"}>{"home"}</a>')
+    expect(content).toContain('<a href={docs_href("/guide/other")}>{"other"}</a>')
+    expect(content).toContain('<a href={docs_href("/guide/other#part")}>{"other#part"}</a>')
+    expect(content).toContain('<a href={docs_href("/")}>{"home"}</a>')
     expect(content).toContain('<a href={"#here"}>{"above"}</a>')
     expect(content).toContain("[[not a link]]")
     assertValidTsx(content)

@@ -11,6 +11,10 @@ This page is for anyone writing or editing the `.md` files under `docs/md/`. It 
 
 `just watch-docs` (in the elt repository) serves the docs site locally and rebuilds a page when you save its `.md` file. A `.md` file added while that server runs does not show up until you edit an existing page or restart the server: the build only re-runs when a file it already uses changes, and a new file is not one of them yet.
 
+## The published site
+
+The site at [elementjs.github.io/elt](https://elementjs.github.io/elt/) is built from these pages for each release (`just build-docs`, run by the repository's Docs workflow). It is served under `/elt/`, so a link to another page must be a relative `.md` link or a wiki link, which the build writes under that path: a link written as an absolute path (`/app`) works locally and breaks there.
+
 ## Code blocks: three kinds
 
 A fenced code block (` ```tsx ... ``` `) can behave in one of three ways, depending on its first line:

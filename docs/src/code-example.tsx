@@ -1,6 +1,7 @@
 import { css, o, If, $connected, $disconnected, type Renderable } from "elt"
 import { tab_strip, theme } from "elt/ui"
 import * as ph from "elt-phosphor"
+import { docs_href } from "./base"
 
 export type CodeExampleProps = {
   /** Builds the per-line, per-token colored spans, compiled to a literal JSX-producing closure by
@@ -60,7 +61,7 @@ function LazyResult(run: () => Renderable) {
     }
     if ("error" in result)
       return (
-        <e-prose class={cls_error}>
+        <e-prose class={cls_error} pad="widget">
           <pre>{result.error}</pre>
         </e-prose>
       )
@@ -82,6 +83,7 @@ export function tokenColorClass(light: string, dark: string): string {
   const key = `${light} ${dark}`
   let cls = tokenColorClasses.get(key)
   if (cls == null) {
+    // biome-ignore lint/plugin/css-top-level: one rule per color pair, cached in tokenColorClasses
     cls = css`.tok { color: light-dark(${light}, ${dark}); }`
     tokenColorClasses.set(key, cls)
   }
@@ -105,6 +107,7 @@ function renderCode(highlighted: () => Renderable) {
  * element reintroduces the phantom-scrollbar measurement quirk `overflow-y: clip` on `<pre>` exists
  * to avoid (ui/typography.css.tsx) — confirmed empirically to be specific to `<pre>`'s own box, not
  * a general side effect of scroll containers, so it does not reappear here on this plain wrapper. */
+// biome-ignore lint/plugin/layout-css: a scroll area capped at half the viewport (scroll gives no cap), see above
 const cls_pre_scroll = css`.pre-scroll {
   max-height: 50vh;
   overflow-y: auto;
@@ -128,7 +131,7 @@ export function CodeExample(props: CodeExampleProps) {
   // restarts after the code was shown).
   const result =
     props.fullExampleUrl != null ? (
-      <iframe class={cls_iframe} src={props.fullExampleUrl} loading="lazy" title="Example"></iframe>
+      <iframe class={cls_iframe} src={docs_href(props.fullExampleUrl)} loading="lazy" title="Example"></iframe>
     ) : (
       LazyResult(props.run!)
     )
@@ -173,9 +176,9 @@ function error_text(e: unknown): string {
   return e.stack == null ? head : e.stack.startsWith(head) ? e.stack : `${head}\n${e.stack}`
 }
 
+// biome-ignore lint/plugin/layout-css: a stack trace wraps to the panel's width, where pre keeps its lines; no text attribute wraps a pre
 const cls_error = css`.error {
   ${theme.colors.red.css_as_surface(1)}
-  padding: ${theme.settings.spacingWidget};
 
   & pre { margin: 0; white-space: pre-wrap; }
 }`

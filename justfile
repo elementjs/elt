@@ -27,15 +27,20 @@ watch-docs: docs-generate
 
 # A bash script with pipefail, so a tsc failure fails the recipe even though wtsc, at the end of its
 # pipe, succeeds. The docs build also regenerates the out-of-date pages under docs/src/md.
-# type-check src/, ui/, editor/ and docs/, and build the docs into a temporary directory, deleted afterwards
+# type-check src/, ui/, editor/ and docs/, and build the docs site into a temporary directory, deleted afterwards
 check-compile: docs-generate
     #!/usr/bin/env bash
     set -euo pipefail
     tsc --noEmit | wtsc
     out=$(mktemp -d)
     trap 'rm -rf "$out"' EXIT
-    bun build ./docs/index.html --outdir="$out"
+    bun docs/build.ts "$out"
     (cd docs && tsc --noEmit) | wtsc
+
+# build the docs site as static files for GitHub Pages (elementjs.github.io/elt/) into docs/dist, or the given
+# directory; the Pages workflow (.github/workflows/docs.yml) runs it. `DOCS_BASE` is the path it is served under.
+build-docs out="docs/dist":
+    DOCS_BASE=/elt/ bun docs/build.ts {{out}}
 
 # run every test suite: bun unit tests, then the Playwright browser tests in Chromium
 test: test-bun test-pw
