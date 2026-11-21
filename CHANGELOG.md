@@ -27,6 +27,7 @@ Breaking; all in [Migrating](./docs/md/migrating.md):
 - The package exports its entry points only: `elt`, `elt/mutative`, `elt/ui` and its modules, `elt/editor`. Names starting with `_` or `sym_` are internal.
 - `mutative` and `@floating-ui/dom` are optional peer dependencies, installed by the app that uses them.
 - An observer's return value is ignored; read-only observables stay read-only (variance, no writable derivation); a dependency cycle throws; an observer that throws is reported as an uncaught error.
+- `tf_equals`, `tf_array_has`, `tf_set_has` and `tf_map_has` take their value type from the observable they are passed to: `o_action.tf(tf_equals("merge"))` needs no `as const`, a value the observable can't hold no longer compiles, and one built apart from `.tf()` needs its type written out.
 - `App` is rewritten: the namespace is flattened into top-level exports, services are classes built with `Service(…)`.
 - `VirtualScroll` is `RepeatVirtual`; styles are written with the `css` tagged template.
 - Removed: `$scrollable`, `$inserted`, `o.exclusive_lock`.

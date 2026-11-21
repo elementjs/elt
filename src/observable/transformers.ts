@@ -6,10 +6,13 @@ export interface IndexConverter<T> extends o.Converter<T[], T[]> {
 
 /**
  * Transform a value to a boolean based on whether it is equal to the given value, setting it when assigned true. Does nothing when assigned false.
+ *
+ * `T` is the type of the observable it is given to, not of `value`: `o_action.tf(tf_equals("merge"))` compiles on an
+ * `Observable<"merge" | "replace">`, and `tf_equals("mrege")` does not. Called on its own, it needs `T` written out.
  * @param value The value to compare to
  * @returns A converter that transforms a value to a boolean based on whether it is equal to the given value
  */
-export function tf_equals<T>(value: T): o.Converter<T, boolean> {
+export function tf_equals<T>(value: NoInfer<T>): o.Converter<T, boolean> {
   return {
     transform(val: T) {
       return val === value
@@ -266,9 +269,11 @@ export function tf_map_entries<K, V>(): o.Converter<Map<K, V>, [K, V][]> {
 
 /**
  * Make a boolean observable out of the presence of given values in the array that is to be observed. If the observable is writable, then setting the tranformed to true will put all the `values` that were not in the array into it.
+ *
+ * As for {@link tf_equals}, the value types come from the observable it is given to ; the same goes for {@link tf_set_has} and {@link tf_map_has}.
  * @group Transformer
  */
-export function tf_array_has<T>(...values: o.RO<T>[]): o.RO<o.Converter<T[], boolean>> {
+export function tf_array_has<T>(...values: o.RO<NoInfer<T>>[]): o.RO<o.Converter<T[], boolean>> {
   return o.combine(values, (values) => ({
     transform(arr) {
       for (let i = 0; i < values.length; i++) {
@@ -300,7 +305,7 @@ export function tf_array_has<T>(...values: o.RO<T>[]): o.RO<o.Converter<T[], boo
  * Make a boolean observable from the presence of given values in a `Set`. If the observable can be written to, then setting the transformed to `true` will put all the values to the `Set`, and setting it to `false` will remove all of them.
  * @group Transformer
  */
-export function tf_set_has<T>(...values: o.RO<T>[]): o.RO<o.Converter<Set<T>, boolean>> {
+export function tf_set_has<T>(...values: o.RO<NoInfer<T>>[]): o.RO<o.Converter<Set<T>, boolean>> {
   return o.combine(values, (values) => {
     return {
       transform(set) {
@@ -330,7 +335,7 @@ export function tf_set_has<T>(...values: o.RO<T>[]): o.RO<o.Converter<Set<T>, bo
  *
  * @group Transformer
  */
-export function tf_map_has<K, V>(...values: o.RO<[K, V]>[]): o.RO<o.Converter<Map<K, V>, boolean>> {
+export function tf_map_has<K, V>(...values: o.RO<[NoInfer<K>, NoInfer<V>]>[]): o.RO<o.Converter<Map<K, V>, boolean>> {
   return o.combine(values, (values) => {
     return {
       transform(map) {

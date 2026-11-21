@@ -4,6 +4,7 @@ This file tests some typing contracts. It should never have errors
 
 import type { Renderable } from "../src"
 import { o } from "../src/observable"
+import { tf_array_has, tf_equals, tf_map_has, tf_set_has } from "../src/observable/transformers"
 import type { ServiceHelper, ServiceHelperBase } from "../src/app/service"
 import type { ObjectEditorShell } from "../editor/shell"
 
@@ -139,4 +140,29 @@ declare var __: any
   // @ts-expect-error a model of another type
   const other: Model = o("Ada")
   void [typed, other]
+}
+
+// The transformers take their value type from the observable they are given to, so a literal needs no
+// `as const` or type argument, and a value the observable can't hold is refused.
+export function transformers_follow_the_observable(
+  o_action: o.Observable<"merge" | "replace">,
+  o_actions: o.Observable<("merge" | "replace")[]>,
+  o_set: o.Observable<Set<"merge" | "replace">>,
+  o_map: o.Observable<Map<"merge" | "replace", number>>,
+) {
+  const writable: o.Observable<boolean>[] = [
+    o_action.tf(tf_equals("merge")),
+    o_actions.tf(tf_array_has("merge", "replace")),
+    o_set.tf(tf_set_has("merge")),
+    o_map.tf(tf_map_has(["merge", 1])),
+  ]
+  // @ts-expect-error not one of the observable's values
+  o_action.tf(tf_equals("mrege"))
+  // @ts-expect-error not one of the array's values
+  o_actions.tf(tf_array_has("mrege"))
+  // @ts-expect-error not one of the set's values
+  o_set.tf(tf_set_has("mrege"))
+  // @ts-expect-error the map holds numbers
+  o_map.tf(tf_map_has(["merge", "1"]))
+  void writable
 }

@@ -116,6 +116,8 @@ Checking one box sets `o_color` to that color, which un-checks every other box â
 | `tf_entries()` / `tf_map_entries()` | An object's / a `Map`'s `[key, value][]` entries. |
 | `tf_array_has(...values)` / `tf_set_has(...values)` / `tf_map_has(...pairs)` | Boolean "are all these present?". Writing `true` adds the missing ones, writing `false` removes them. |
 
+`tf_equals`, `tf_array_has`, `tf_set_has` and `tf_map_has` take their value type from the observable they are passed to, not from their arguments: on an `Observable<"merge" | "replace">`, `tf_equals("merge")` needs no `as const`, and `tf_equals("mrege")` does not compile. Built apart from `.tf()`, they need the type written out: `tf_equals<Action>("merge")`.
+
 ### A `.tf` that returns nodes rebuilds them
 
 Used as a JSX child, an observable whose value is a node replaces the previous node with the new one each time it changes. With `.tf`, that means the callback runs again and builds **new nodes**; the old ones are thrown away.
