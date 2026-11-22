@@ -230,12 +230,14 @@ input[type="datetime-local"] {
 /* A label around a checkbox, a radio or a switch lays the box and its text out in a row, centered: the
    box (1em, nudged down by the line it sits in everywhere else) would otherwise raise the line it
    shares with the text, and the label would be taller than its neighbours. The gap is the room between
-   the box and the text. */
+   the box and the text. The box never shrinks: drawn with appearance: none, it has no content to hold
+   its width, and long text beside it would squash it. */
 ${CHECKABLE_LABEL_SELECTOR} {
   display: inline-flex;
   align-items: center;
   > input {
     top: 0;
+    flex-shrink: 0;
   }
 }
 

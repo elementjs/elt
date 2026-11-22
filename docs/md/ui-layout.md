@@ -126,7 +126,7 @@ Alignment values: `center`, `start`, `end`, `self-start`, `baseline`, `first bas
 
 - These four space their children with `gap`, at the step of `spacing`, else of `pad`, else the one inherited from the nearest element above that sets one (`component` by default). There is no gap with `pad="none"` and no `spacing`, with `spacing="none"`, or with `packed`.
 - Their children get `min-width: 0; min-height: 0`, so they can shrink below their content's size. To stop a child from overflowing on the cross axis, use `align="stretch"` on the container.
-- Buttons, toggles (`label e-widget="toggle"`), checkboxes and radios never shrink in a layout element (`flex-shrink: 0`): their label or box is their content. Text inputs, `select` and `textarea` stay elastic. A `flex-shrink` of your own wins.
+- Buttons, toggles (`label e-widget="toggle"`), checkboxes and radios never shrink in a layout element (`flex-shrink: 0`): their label or box is their content. Text inputs, `select` and `textarea` stay elastic. A `flex-shrink` of your own wins. Inside a label around it, a checkbox, radio or switch box never shrinks either, however long the text beside it.
 - Attributes specific to `e-prose` (`table-container`) and how a flex element behaves inside a line of text are in [Typography](./ui-typography.md#controls-in-text).
 
 ## Borders and radius

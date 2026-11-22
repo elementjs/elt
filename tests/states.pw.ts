@@ -279,6 +279,17 @@ test.describe("labels around checkboxes", () => {
     })
   }
 
+  test("its box keeps its size when the text beside it runs out of room", async ({ page }) => {
+    await mount(
+      page,
+      `<e-column align="stretch" style="width: 120px"><label id="l"><input id="c" type="checkbox" /><span e-ellipsis>${"a long column list, ".repeat(10)}</span></label>
+      <label><input id="ref" type="checkbox" />a</label></e-column>`,
+    )
+    const box = await style(page, "#c")
+    const ref = await style(page, "#ref")
+    expect(box.w).toBeCloseTo(ref.w, 1)
+  })
+
   test("it is filled when hovered, without changing size", async ({ page }) => {
     await mount(page, html(""))
     const rest = await style(page, "#l")
