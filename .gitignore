@@ -8,6 +8,7 @@ testsjs
 lib
 .vscode
 *.lock
+!bun.lock
 .aider*
 test-results
 playwright-report

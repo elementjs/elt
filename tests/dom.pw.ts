@@ -162,7 +162,7 @@ test.describe("decorators", () => {
       let count = 0
       const add = EventTarget.prototype.addEventListener
       EventTarget.prototype.addEventListener = function (this: EventTarget, type: string, ...rest: any[]) {
-        if (type === "unload" && this === window) count++
+        if (type === "pagehide" && this === window) count++
         return add.call(this, type, ...(rest as [any]))
       }
       try {
@@ -176,6 +176,25 @@ test.describe("decorators", () => {
       }
     })
     expect(result).toBe(0)
+  })
+
+  test("closing the page disconnects its nodes, a page kept in the back/forward cache keeps them", async ({ page }) => {
+    const result = await page.evaluate(() => {
+      const { $disconnected, node_append, node_is_connected, setup_mutation_observer } = window.__ELT__
+      setup_mutation_observer(document.body).disconnect()
+      const el = document.createElement("div")
+      let disconnected = 0
+      $disconnected(() => disconnected++)(el)
+      node_append(document.body, el)
+      window.dispatchEvent(new PageTransitionEvent("pagehide", { persisted: true }))
+      const kept = { disconnected, connected: node_is_connected(el) }
+      window.dispatchEvent(new PageTransitionEvent("pagehide", { persisted: false }))
+      return { kept, closed: { disconnected, connected: node_is_connected(el) } }
+    })
+    expect(result).toEqual({
+      kept: { disconnected: 0, connected: true },
+      closed: { disconnected: 1, connected: false },
+    })
   })
 })
 

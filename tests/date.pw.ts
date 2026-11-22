@@ -691,20 +691,21 @@ test.describe("on-screen keyboards (text sent as beforeinput)", () => {
     expect(await model(page)).toEqual([2026, 9, 3, 20, 0, 0])
   })
 
-  test("ko (오전 / 오후, AM/PM part first): letters collected until one text is left, then the hour", async ({
+  // ja, not ko: ICU 78 (Ubuntu 26.04, whose ICU Linux WebKit uses) gives ko "AM" / "PM" instead of 오전 / 오후.
+  test("ja (午前 / 午後, AM/PM part first): letters collected until one text is left, then the hour", async ({
     page,
   }) => {
-    await mount(page, { ...time_12h, lang: "ko" })
-    expect((await input_state(page)).value).toBe("오전 08:00")
+    await mount(page, { ...time_12h, lang: "ja" })
+    expect((await input_state(page)).value).toBe("午前08:00")
     await caret(page, 0)
-    expect(await soft_type(page, "오후")).toEqual([true, true])
-    expect((await input_state(page)).value).toBe("오후 08:00")
+    expect(await soft_type(page, "午後")).toEqual([true, true])
+    expect((await input_state(page)).value).toBe("午後08:00")
     // The next part, the hour, is selected.
     const sel = await page.evaluate(() => {
       const input = document.querySelector("#holder input") as HTMLInputElement
       return [input.selectionStart, input.selectionEnd]
     })
-    expect(sel).toEqual([3, 5])
+    expect(sel).toEqual([2, 4])
     await blur(page)
     expect(await model(page)).toEqual([2026, 9, 3, 20, 0, 0])
   })

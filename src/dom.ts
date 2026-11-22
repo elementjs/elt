@@ -793,9 +793,13 @@ export function setup_mutation_observer(node: Node) {
 
   if (!_registered_documents.has(target_document)) {
     _registered_documents.add(target_document)
-    target_document.defaultView?.addEventListener("unload", () => {
+    // `pagehide`, not `unload`: Chrome blocks `unload` listeners, and they keep the page out of the back/forward cache.
+    target_document.defaultView?.addEventListener("pagehide", (ev) => {
+      // A page put in the back/forward cache can be shown again with its nodes as they were: keep them connected.
+      if (ev.persisted) return
       // Calls a `removed` on all the nodes in the closing window.
-      const root = target_document.firstChild
+      // documentElement, not firstChild: with a doctype, the first child is the doctype node.
+      const root = target_document.documentElement
       if (root != null) _node_do_disconnect(root)
       obs.disconnect()
     })

@@ -31,3 +31,7 @@ Breaking; all in [Migrating](./docs/md/migrating.md):
 - `App` is rewritten: the namespace is flattened into top-level exports, services are classes built with `Service(…)`.
 - `VirtualScroll` is `RepeatVirtual`; styles are written with the `css` tagged template.
 - Removed: `$scrollable`, `$inserted`, `o.exclusive_lock`.
+
+### Fixed
+
+- `setup_mutation_observer` disconnects a page's nodes when the page closes: on `pagehide` (Chrome blocks `unload`, and an `unload` listener kept the page out of the back/forward cache), not when the page goes into that cache, and from `<html>`, where it used to start from the doctype and disconnect nothing.

@@ -84,6 +84,19 @@ bench:
     @echo "== Chromium"
     bun tests/bench/chromium.ts
 
+# update bun.lock, the lockfile CI installs from (`bun install --frozen-lockfile`), after a change to package.json or
+# docs/package.json. Run apart from the checkout: in a parent bun workspace, `bun install` writes the parent's lockfile.
+lock:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    tmp=$(mktemp -d)
+    trap 'rm -rf "$tmp"' EXIT
+    mkdir "$tmp/docs"
+    cp package.json "$tmp/" && cp docs/package.json "$tmp/docs/"
+    [ -f bun.lock ] && cp bun.lock "$tmp/"
+    (cd "$tmp" && bun install --lockfile-only)
+    cp "$tmp/bun.lock" bun.lock
+
 # check typings and coding style
 check:
     biome check && just check-compile

@@ -151,7 +151,7 @@ export function day_period_text(locale: string, am: boolean): string {
 
 /**
  * The AM and PM texts of `locale` (in that order), trimmed and lower-cased for that locale: what typed
- * letters are compared with. Their first characters can be the same: `오전` / `오후` (ko), `午前` / `午後` (ja),
+ * letters are compared with. Their first characters can be the same: `午前` / `午後` (ja),
  * `ÖÖ` / `ÖS` (tr), and one text can start the other: `PG` / `PTG` (ms).
  */
 export function day_period_texts(locale: string): [string, string] {
@@ -163,7 +163,7 @@ export function day_period_texts(locale: string): [string, string] {
 
 /**
  * The AM/PM part of the input text (`slice`, `digits` wide) as 0 (AM) or 1 (PM). The texts the mask writes
- * (cut to the segment width) are recognized whole, so that two texts starting alike (`오전` / `오후`) are told
+ * (cut to the segment width) are recognized whole, so that two texts starting alike (`午前` / `午後`) are told
  * apart; any other text (pasted, or the `--` of an empty part) is PM when it starts like the PM text, else AM.
  */
 function parse_day_period(locale: string, slice: string, digits: number): number {
