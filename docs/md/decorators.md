@@ -101,6 +101,82 @@ return <e-column>
 </e-column>
 ```
 
+## Drag and drop: `$dropzone`, `$draggable`
+
+`$dropzone` makes a node a place things can be dropped on: files from the desktop, text or links from another application, or what a `$draggable` carries. `$draggable` makes a node something the user can drag, inside the page or out of the browser. Both use the browser's own drag and drop.
+
+**What a zone accepts.** While a drag is under way, the browser only tells what *kinds* of data it carries: `dt.types` (`"Files"` for files, `"text/plain"`, or a custom type a `$draggable` set), and for each item its kind and MIME type (`dt.items`). A file's name and content, and the text itself, are readable only once dropped. So `accept(dt)` decides from the kinds, and returns the effect the drop will have, or `false` to refuse:
+
+| Effect | Means | Cursor |
+| --- | --- | --- |
+| `"copy"` | The zone makes its own copy; the source keeps its data | a "+" |
+| `"move"` | The data leaves the source: the source's `end` callback removes it | an arrow |
+| `"link"` | The zone keeps a reference to the source | a link arrow |
+
+Two refusals differ. `false` means the drag is none of this zone's business: a zone around it may take it. `"none"` means the zone takes the drag but refuses the drop: the cursor shows it can't be dropped, `out_hover` is still written (with `effect: "none"`), so the zone can say why (unsaved changes, say), and the zones around do not take it.
+
+`accept` is asked once per drag, the first time it enters the zone (what is carried does not change during a drag). Files from the desktop allow every effect. `$dropzone.has_files(dt)` tells whether files are carried.
+
+**Nested zones.** When zones are nested, the innermost one that takes the drag has it; outer zones behave as if nothing were over them. An inner zone whose `accept` returns `false` lets the next one out take it.
+
+**What hovers.** `out_hover` is written, while a drag the zone took is over it, with `{ types, items, effect, x, y }` (`x` and `y` are the pointer, relative to the zone's top-left corner), and `null` once the drag leaves, is dropped or is cancelled. Moving over the zone's own children doesn't make it blink to `null`. The zone draws nothing itself: show an overlay with an `If`, or a class, from that observable.
+
+**Files dropped next to a zone.** A browser opens, or downloads, a file dropped where no one handles it, leaving the page. The first `$dropzone` of a document makes every file dropped outside of a zone refused instead (the cursor shows it). A native `<input type="file">` still takes the files dropped on it, and so does a `dragover` handler that calls `preventDefault()` itself (a third-party widget).
+
+```tsx
+//@inline-example
+import { $dropzone, If, o, type DropHover } from "elt"
+
+const o_hover = o<DropHover | null>(null)
+const o_dropped = o("Drop files or text from another window")
+
+return <e-column pad="section" border style={{ position: "relative" }}>
+  {$dropzone({
+    accept: (dt) => ($dropzone.has_files(dt) || dt.types.includes("text/plain")) && "copy",
+    drop: (dt) => o_dropped.set(dt.files.length > 0 ? Array.from(dt.files, (f) => f.name).join(", ") : dt.getData("text/plain")),
+    out_hover: o_hover,
+  })}
+  {o_dropped}
+  {If(o_hover, (o_h) => <e-column style={{ position: "absolute", inset: "0" }} align="center" surface>
+    Drop {o_h.tf((h) => h.items.length)} item(s)
+  </e-column>)}
+</e-column>
+```
+
+**Dragging.** `$draggable(data, options?)` calls `data` when the drag starts, for the data carried by type. `"text/plain"`, `"text/uri-list"` (links, one per line) and `"text/html"` can be dropped in other applications too; a custom type (`"application/x-my-app-card"`) is for zones of the app, which look for it in `accept`. The options:
+
+- `effect`: the effects a zone may choose (`"copy"`, `"move"`, `"copyMove"`, `"all"`, …). The browser refuses a drop whose effect isn't allowed. Any, by default.
+- `end(effect)`: called when the drag ends, with the effect the zone chose, or `"none"` when the drop was refused or cancelled. A `"move"` is carried out here, by the source.
+- `image`: the picture following the pointer, `{ node, x, y }`, instead of the browser's picture of the node.
+- `file`: `{ name, mime, url }`, a file to give when the node is dropped on the desktop or in a file manager. **Chromium only**: other browsers ignore it, and still give the other data. A relative URL is resolved against the page; a `blob:` URL works, but must stay valid after the drag ends, since the browser downloads it after the drop. Tests can't drop on the real desktop: check it by hand in Chromium, by dragging the node onto the desktop and opening the file.
+
+```tsx
+//@inline-example
+import { $draggable, $dropzone, o } from "elt"
+
+const o_cards = o(["one", "two", "three"])
+const o_moved = o<string[]>([])
+
+return <e-row spacing="section" align="start">
+  <e-column spacing="widget">{o_cards.tf((cards) => cards.map((c) => <span>
+    {$draggable(() => ({ "application/x-card": c, "text/plain": c }), {
+      effect: "move",
+      end: (effect) => effect === "move" && o_cards.set(o_cards.get().filter((x) => x !== c)),
+    })}
+    {c}
+  </span>))}</e-column>
+  <e-column pad="section" border>
+    {$dropzone({
+      accept: (dt) => dt.types.includes("application/x-card") && "move",
+      drop: (dt) => o_moved.set([...o_moved.get(), dt.getData("application/x-card")]),
+    })}
+    Moved: {o_moved.tf((m) => m.join(", "))}
+  </e-column>
+</e-row>
+```
+
+Reordering a list by dragging is not what these are for: the browser's drag shows a still picture of the node and can't move the other items aside as it goes, and touch screens support it unevenly.
+
 ## Reflecting values: `$observe`, `$class`, `$style`, `$id`, `$title`
 
 These tie a plain side effect, a set of classes, inline styles, an `id`, or a `title` to an observable, re-running whenever it changes. `class={}` and `style={}` attributes on any element are shorthand for `$class`/`$style` — reach for the decorator form only when composing several class/style definitions on the same node, or when the target isn't the node the attribute would land on.
@@ -248,6 +324,8 @@ The helpers, all from `"elt"`. Each ties what it sets up to the node: it runs wh
 | `node_observe_attribute(node, name, value)` | Sets an attribute from an `o.RO` value and follows it: `true` sets it empty, `false` or nullish removes it. A value that is not a string, number or boolean sets the property of that name instead |
 | `node_observe_class(node, classes)` / `node_observe_style(node, style)` | What the `class` and `style` attributes of JSX do, on an existing node: strings, arrays, `{ name: o_bool }` maps, observables of them |
 | `node_apply_class(node, classes)` / `node_remove_class(node, classes)` | Adds / removes classes given as a space-separated string or an array; `false`, `null` and `undefined` entries are skipped |
+
+A decorator reporting a value back to its caller takes an `o.Out<T>` option named `out_<name>`, like a component attribute ([elt rules § Naming](./elt-rules.md#naming)): the caller creates the observable and reads it, the decorator only writes it.
 
 Inserting and removing nodes yourself (`node_append`, `node_remove`, `node_clear`) is for writing a verb of your own: see [Verbs](./verbs.md). Entering and leaving motion (`node_on_enter`, `node_on_leave`) is in [Motion](./motion.md).
 
