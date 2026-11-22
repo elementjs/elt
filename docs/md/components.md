@@ -107,7 +107,7 @@ function Badge(attrs: Attrs<HTMLSpanElement> & { count: o.RO<number> }) {
 }
 ```
 
-A component also sometimes has a value to report to its caller (the column titles an editor has open, the item a picker chose). Such an attribute is typed `o.Out<T>`, which is just `{ set(value: T): void }`: the component writes it and never reads it. Its name always starts with `out_`. The caller creates the observable, passes it in and reads it, because the caller outlives the component. A component never hands out an observable it created: observers added from outside its lifecycle would outlive it, and a new instance would create a new observable the caller does not hold.
+A component also sometimes has a value to report to its caller (the column titles an editor has open, the item a picker chose). Such an attribute is typed `o.Out<T>`, which is just `{ set(value: T): void }`: the component writes it and never reads it. Its name always starts with `out_`, like anything typed `o.Out<T>` ([elt rules § Naming](./elt-rules.md#naming)). The caller creates the observable, passes it in and reads it, because the caller outlives the component. A component never hands out an observable it created: observers added from outside its lifecycle would outlive it, and a new instance would create a new observable the caller does not hold.
 
 | Role of the attribute | Type | The component |
 | --------------------- | ---- | ------------- |

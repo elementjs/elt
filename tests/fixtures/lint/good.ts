@@ -20,6 +20,9 @@ interface PickerAttrs {
   picked?: string
 }
 export type { PickerAttrs }
+export function report(out_seen: o.Out<number>, count: number) {
+  out_seen.set(count)
+}
 declare const css: (s: TemplateStringsArray, ...a: unknown[]) => string
 declare const theme: any
 declare const router: any

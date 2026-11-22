@@ -29,11 +29,12 @@ Every binding rule for application code that uses elt, on one page. Read it in f
 | --- | --- |
 | `o_<name>` | Source state, or any **writable** observable (including a writable `o.expression` or `o.merge`) |
 | `oo_<name>` | A **read-only** derived observable (`.tf`, `o.expression` without a write-back, …) |
+| `out_<name>` | Anything typed `o.Out<T>`, the way a value is reported back to the caller: a component attribute, a decorator option (`$dropzone`'s `out_hover`), a function parameter. The caller creates the observable and reads it; the receiver only writes it |
 | `cls_<name>` | A class name returned by [`css`](./css.md#the-css-tagged-template): `` const cls_bold = css`.bold { font-weight: bold }` `` |
 | `<Name>Service` | A class extending `Service`; the default export of its file |
 | `<Name>Screen` | A `Service` meant as a route target, registering views with `@view`; the default export of its file |
 
-These are conventions: the library does not enforce them, but code using elt follows them. `lint/observable-prefix.grit` and `lint/css-class-prefix.grit` check `o_`, `oo_` and `cls_` ([Enforcing with Biome](./hard-dont.md#enforcing-with-biome)).
+These are conventions: the library does not enforce them, but code using elt follows them. `lint/observable-prefix.grit`, `lint/out-prefix.grit` and `lint/css-class-prefix.grit` check `o_`, `oo_`, `out_` and `cls_` ([Enforcing with Biome](./hard-dont.md#enforcing-with-biome)).
 
 Names that `elt` exports starting with `_` or `sym_` (`_node_append`, `sym_connected`) are internal to elt: they are not part of its API and can change in any release. Don't use them.
 
@@ -43,7 +44,7 @@ Names that `elt` exports starting with `_` or `sym_` (`_node_append`, `sym_conne
 - In a two-argument component, place children with **either** a bare `{ref}` **or** `ref.IfChildren(…)`, never both. See [Components](./components.md#refchild-placing-children-explicitly).
 - Don't give `attrs` a default value on a two-argument component: it silently turns it into a one-argument component. See [Components](./components.md#one-arg-vs-two-arg).
 - Component attributes that should react to changes are typed `o.RO<T>` (a value or an observable of it). See [Components](./components.md#reactive-attributes).
-- A value the component reports to its caller is an attribute typed `o.Out<T>` and named `out_<name>`: the component only writes it and never reads it. A component never exposes an observable it created. Checked by `lint/out-prefix.grit` and `lint/out-no-read.grit`. See [Components](./components.md#reactive-attributes).
+- A value the component reports to its caller is an attribute typed `o.Out<T>` (named `out_<name>`, see [Naming](#naming)): the component only writes it and never reads it. A component never exposes an observable it created. Checked by `lint/out-no-read.grit`. See [Components](./components.md#reactive-attributes).
 - Pass each `o.RO` attribute down as it is and derive from it where it is used with `o.tf(attr, fn)`, which returns a plain value for a plain attribute. Don't gather several attributes into one `o.expression` or one object only to pass them around: that creates an observable and its subscriptions even when every attribute was a plain value. See [Components](./components.md#reactive-attributes).
 - Put decorators (`$click`, `$bind`, …) among the JSX **children**, never as attributes. See [Decorators](./decorators.md#anatomy-of-a-decorator).
 - Use a real element, not a fragment `<>…</>`, as the root that observes: a fragment never gets connected, so lifecycle-bound decorators placed on it don't stay tied to anything. Checked by `lint/fragment-decorator.grit`. See [Components](./components.md#fragments).

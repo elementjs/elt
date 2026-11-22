@@ -1,16 +1,18 @@
 language js
 
-// An attribute a component writes for its caller (typed `o.Out<T>`) is named `out_<name>`, so the direction
-// shows at the call site (docs/md/elt-rules.md, Components). In an interface, a type literal or a class.
+// Anything typed `o.Out<T>` (a component attribute, a decorator option, a function parameter) is named
+// `out_<name>`, so the direction shows where it is passed (docs/md/elt-rules.md, Naming). In an interface, a type
+// literal, a class or a parameter list.
 or {
   TsPropertySignatureTypeMember(name = $name, type_annotation = $type),
-  JsPropertyClassMember(name = $name, property_annotation = $type)
+  JsPropertyClassMember(name = $name, property_annotation = $type),
+  JsFormalParameter(binding = $name, type_annotation = $type)
 } where {
   $type <: contains or { `o.Out<$_>`, `Out<$_>` },
   $name <: not r"out_\w+",
   register_diagnostic(
     span = $name,
-    message = "An attribute typed o.Out<T> is named out_<name> (docs/md/elt-rules.md, Components).",
+    message = "Anything typed o.Out<T> is named out_<name> (docs/md/elt-rules.md, Naming).",
     severity = "error"
   )
 }

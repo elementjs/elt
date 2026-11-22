@@ -31,6 +31,12 @@ type Props = { chosen: o.Out<string> } // error
 class Holder {
   value?: o.Out<string> // error
 }
+export function report(seen: o.Out<number>) { // error
+  seen.set(1)
+}
+export function report_ok(out_seen: o.Out<number>) {
+  out_seen.set(1)
+}
 export type { PickerAttrs, Props, Holder }
 declare const css: (s: TemplateStringsArray, ...a: unknown[]) => string
 declare const theme: any

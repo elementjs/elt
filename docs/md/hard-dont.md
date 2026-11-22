@@ -27,7 +27,7 @@ The package ships Biome plugins in `lint/`, for the rules above and for others o
 | `no-raw-dom-insertion.grit` | No DOM insertion or removal methods, but `append` and `remove` (rule 3) |
 | `no-event-listener.grit` | No `addEventListener` / `removeEventListener`: `node_add_event_listener` or a decorator ([Decorators](./decorators.md#writing-your-own-decorator)) |
 | `observable-prefix.grit` | `o_` for a writable observable, `oo_` for a read-only one, read from the call that makes it ([elt rules § Naming](./elt-rules.md#naming)) |
-| `out-prefix.grit` | An attribute typed `o.Out<T>` is named `out_<name>` ([Components](./components.md#reactive-attributes)) |
+| `out-prefix.grit` | Anything typed `o.Out<T>` (an attribute, an option, a parameter) is named `out_<name>` ([elt rules § Naming](./elt-rules.md#naming)) |
 | `out-no-read.grit` | A component never reads or renders an `out_` attribute (`out_x.get()` is already a type error) |
 | `fragment-decorator.grit` | No decorator directly in a fragment `<>…</>` ([Components § Fragments](./components.md#fragments)) |
 | `attr-declare.grit` | An `@attr` property is `declare`d, with no initializer ([Custom elements](./custom-elements.md#registertag-and-attr)) |
