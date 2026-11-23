@@ -1,5 +1,5 @@
 import { $click, $observe, $on, type Attrs, css, If, is_promise_like, o, type Renderable, RepeatVirtual } from "elt"
-import { CaretDown, Check } from "./icons"
+import { CaretDown, Check, X } from "./icons"
 import { focus_when_shown } from "./internal"
 import { list_nav, type ListNavOptions } from "./list-nav"
 import { popup } from "./popup"
@@ -11,8 +11,7 @@ const colors = theme.colors
  * A select component that does not use the native select element for custom rendering of options.
  */
 
-export interface SelectAttributes<T, T2 = T> extends Attrs<HTMLButtonElement> {
-  model?: o.Observable<T>
+interface SelectCommonAttributes<T, T2> extends Attrs<HTMLButtonElement> {
   /**
    * The options, or a promise of them (fetched from a server, typically from `query`). While a
    * promise is pending, the last options stay shown with a loading row; a promise replaced by a newer
@@ -36,6 +35,71 @@ export interface SelectAttributes<T, T2 = T> extends Attrs<HTMLButtonElement> {
   query?: o.Observable<string>
   disabled?: o.RO<boolean>
   placeholder?: o.RO<Renderable>
+}
+
+export interface SelectSingleAttributes<T, T2 = T> extends SelectCommonAttributes<T, T2> {
+  multiple?: false
+  model?: o.Observable<T>
+}
+
+/**
+ * Several values, in the order they were picked. A pick toggles its value and keeps the list open. The model is
+ * never null : a new array or Set, of the type it holds, replaces it on every change.
+ */
+export interface SelectMultipleAttributes<T, T2 = T> extends SelectCommonAttributes<T, T2> {
+  multiple: true
+  model?: o.Observable<T[]> | o.Observable<Set<T>>
+}
+
+export type SelectAttributes<T, T2 = T> = SelectSingleAttributes<T, T2> | SelectMultipleAttributes<T, T2>
+
+/** How the model holds the selected values, so that the rest of Select reads and writes it the same way in both modes. */
+interface Selection<T> {
+  oo_values: o.ReadonlyObservable<readonly T[]>
+  /** Puts `value` in the model (single), or adds or removes it (multiple). */
+  pick(value: T): void
+  remove(value: T): void
+}
+
+function single_selection<T>(model: o.Observable<T> | undefined): Selection<T> {
+  return {
+    oo_values: model ? model.tf((v) => (v === undefined || v === null ? [] : [v])) : o<readonly T[]>([]),
+    pick: (v) => model?.set(v),
+    remove: () => {},
+  }
+}
+
+// The model's current value tells its container : it is never null.
+const holds_set = <T,>(m: o.Observable<T[]> | o.Observable<Set<T>>): m is o.Observable<Set<T>> => m.get() instanceof Set
+
+function multiple_selection<T>(model: o.Observable<T[]> | o.Observable<Set<T>> | undefined): Selection<T> {
+  if (model == null) return single_selection<T>(undefined)
+  if (holds_set(model)) {
+    const toggle = (v: T, add: boolean) => {
+      const cur = model.get()
+      if (cur.has(v) === add) return
+      const next = new Set(cur)
+      if (add) next.add(v)
+      else next.delete(v)
+      model.set(next)
+    }
+    return {
+      oo_values: model.tf((s) => [...s]),
+      pick: (v) => toggle(v, !model.get().has(v)),
+      remove: (v) => toggle(v, false),
+    }
+  }
+  return {
+    oo_values: model,
+    pick: (v) => {
+      const cur = model.get()
+      model.set(cur.includes(v) ? cur.filter((x) => x !== v) : [...cur, v])
+    },
+    remove: (v) => {
+      const cur = model.get()
+      if (cur.includes(v)) model.set(cur.filter((x) => x !== v))
+    },
+  }
 }
 
 /** Lowercase, accents stripped: what completion compares. */
@@ -123,22 +187,33 @@ export function Select<T, T2 = T>(at: SelectAttributes<T, T2>) {
     return s.items.filter((_, i) => texts[i].includes(q))
   })
 
-  // The selected option. With convert_fn, looked up among the options (a Map per options change);
-  // without, the model's value is the option itself, even before options load.
+  const selection = at.multiple ? multiple_selection(at.model) : single_selection(at.model)
+  const oo_selected_values = selection.oo_values.tf((v) => new Set(v))
+
+  // The selected options, in the model's order. With convert_fn, looked up among the options (a Map per options
+  // change), values not among them left out; without, a value is its own option, even before options load.
   const oo_values_map = o_state.tf((s) => (convert_fn ? new Map(s.items.map((opt) => [convert_fn(opt), opt])) : null))
-  const oo_selected = o.expression((get): { opt: T2 } | null => {
-    const val = get(at.model)
-    if (val === undefined || val === null) return null
+  const oo_selected = o.expression((get): T2[] => {
+    const values = get(selection.oo_values)
     const map = get(oo_values_map)
-    if (map == null) return { opt: val as unknown as T2 }
-    return map.has(val) ? { opt: map.get(val) as T2 } : null
+    if (map == null) return values as unknown as T2[]
+    const opts: T2[] = []
+    for (const v of values) if (map.has(v)) opts.push(map.get(v) as T2)
+    return opts
   })
 
   function pick(opt: T2 | undefined) {
     if (opt === undefined) return
-    at.model?.set(value_of(opt))
-    close_list?.()
-    if (at.completion) stop_editing(true)
+    selection.pick(value_of(opt))
+    if (!at.multiple) {
+      close_list?.()
+      if (at.completion) stop_editing(true)
+    } else if (at.completion && o_query.get() !== "") {
+      // The list stays open for the next pick, unfiltered.
+      input.value = ""
+      o_query.set("")
+      o_active.set(oo_visible.get().indexOf(opt))
+    }
   }
 
   /** Bring option `i` into view; when the virtual list hasn't rendered it, jump near it first. */
@@ -172,6 +247,7 @@ export function Select<T, T2 = T>(at: SelectAttributes<T, T2>) {
         align="stretch"
         id={list_id}
         role="listbox"
+        aria-multiselectable={at.multiple ? "true" : undefined}
         surface="background"
         border
         class={cls_listbox}
@@ -181,10 +257,7 @@ export function Select<T, T2 = T>(at: SelectAttributes<T, T2>) {
         {$on("pointerdown", (ev) => ev.preventDefault())}
         <e-column spacing="nudge-1" align="stretch" radius="widget">
           {RepeatVirtual(oo_visible, (o_option, o_index) => {
-            const oo_is_selected = o.expression((get) => {
-              const sel = get(oo_selected)
-              return sel != null && value_of(sel.opt) === value_of(get(o_option))
-            })
+            const oo_is_selected = o.expression((get) => get(oo_selected_values).has(value_of(get(o_option))))
             return (
               <e-row
                 class={cls_item}
@@ -252,8 +325,8 @@ export function Select<T, T2 = T>(at: SelectAttributes<T, T2>) {
   function open_list(anchor: HTMLElement) {
     if (close_list || o.get(at.disabled)) return
     const visible = oo_visible.get()
-    const sel = oo_selected.get()
-    const idx = sel ? visible.findIndex((opt) => value_of(opt) === value_of(sel.opt)) : -1
+    const selected = oo_selected_values.get()
+    const idx = selected.size > 0 ? visible.findIndex((opt) => selected.has(value_of(opt))) : -1
     o_active.set(idx >= 0 ? idx : visible.length > 0 ? 0 : -1)
     o_open.set(true)
 
@@ -293,7 +366,7 @@ export function Select<T, T2 = T>(at: SelectAttributes<T, T2>) {
 
   const button = (
     <button
-      class={cls_select_button}
+      class={[cls_select_button, at.multiple && "multiple"]}
       disabled={at.disabled}
       aria-haspopup="listbox"
       aria-controls={o_open.tf((open) => open && list_id)}
@@ -303,8 +376,21 @@ export function Select<T, T2 = T>(at: SelectAttributes<T, T2>) {
       {/* The current value, drawn by label_fn */}
       {o.expression((get) => {
         const sel = get(oo_selected)
-        if (sel == null) return <span class={cls_placeholder}>{get(at.placeholder)}</span>
-        return label(sel.opt, "")
+        if (sel.length === 0) return <span class={cls_placeholder}>{get(at.placeholder)}</span>
+        if (!at.multiple) return label(sel[0], "")
+        return sel.map((opt) => (
+          <span class={cls_tag}>
+            {label(opt, "")}
+            {/* Not a button: it sits inside one. The keyboard removes a value from the list, or with Backspace. */}
+            <span class="remove" aria-hidden="true">
+              {$click((ev) => {
+                ev.stopPropagation()
+                selection.remove(value_of(opt))
+              })}
+              {X()}
+            </span>
+          </span>
+        ))
       })}
       {$click((ev) => {
         if (at.completion) start_editing()
@@ -348,6 +434,9 @@ export function Select<T, T2 = T>(at: SelectAttributes<T, T2>) {
           ev.stopImmediatePropagation()
           keep_editing = true
           close_list()
+        } else if (at.multiple && ev.key === "Backspace" && input.value === "") {
+          const values = selection.oo_values.get()
+          if (values.length > 0) selection.remove(values[values.length - 1])
         } else if (ev.key === "Escape") {
           // Usually the open popup takes Escape first (and its closing stops the editing); this is
           // the list closed, or not shown yet.
@@ -372,7 +461,8 @@ export function Select<T, T2 = T>(at: SelectAttributes<T, T2>) {
     // The query stays "" until the text is edited: the whole list shows, the current option active.
     o_query.set("")
     const sel = oo_selected.get()
-    input.value = sel ? text_of(sel.opt) : ""
+    // Multiple: the input starts empty, to type the next value.
+    input.value = !at.multiple && sel.length > 0 ? text_of(sel[0]) : ""
     name_like_select(input)
     o_editing.set(true)
     input.focus()
@@ -389,7 +479,7 @@ export function Select<T, T2 = T>(at: SelectAttributes<T, T2>) {
   }
 
   root = (
-    <span class={cls_combo}>
+    <span class={[cls_combo, at.multiple && "multiple"]}>
       {button}
       {input}
     </span>
@@ -403,6 +493,26 @@ const cls_placeholder = css`.placeholder {
 
 const cls_select_button = css`.select-button {
   align-items: baseline;
+  &.multiple {
+    flex-wrap: wrap;
+    gap: ${theme.settings.spacingNudge4};
+  }
+}`
+
+const cls_tag = css`.select-tag {
+  display: inline-flex;
+  align-items: baseline;
+  gap: ${theme.settings.spacingNudge2};
+  padding: 0 ${theme.settings.spacingNudge4};
+  ${theme.css_radius("nudge-4")}
+  background-color: ${colors.tint.hover};
+  & > .remove {
+    color: ${colors.tint.mid};
+    cursor: pointer;
+  }
+  & > .remove:hover {
+    color: ${colors.tint};
+  }
 }`
 
 /* The completion input lies over the button, at its size. */
@@ -413,6 +523,20 @@ const cls_combo = css`.select-combo {
   }
   &:has(> input:not([hidden])) > button {
     visibility: hidden;
+  }
+  /* Multiple: the input comes after the tags, which stay visible while typing. */
+  &.multiple {
+    display: inline-flex;
+    gap: ${theme.settings.spacingNudge4};
+    & > * {
+      grid-area: auto;
+    }
+    &:has(> input:not([hidden])) > button {
+      visibility: visible;
+    }
+    & > input {
+      width: 10ch;
+    }
   }
 }`
 

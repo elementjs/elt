@@ -11,6 +11,7 @@ import { theme } from "elt/ui/theme"
 import { ArrowsClockwise, CaretRight, ClipboardText, Copy, Scissors, SelectionAll, Trash } from "elt/ui/icons"
 import { menu_nav } from "elt/ui/list-nav"
 import { type PopupAnchor, type PopupOptions, popup } from "elt/ui/popup"
+import type { EditorSettings } from "./composite-toolbar"
 import type { CommonNodeOptions, Factory } from "./schema"
 import { apply_type_change, type_change_actions } from "./type-change"
 import { tint_class, type_style_of_kind } from "./type-style"
@@ -281,16 +282,19 @@ function edit_section(field: HTMLInputElement | HTMLTextAreaElement): MenuSectio
  * fields — and starts with an Edit section (Cut, Copy, Paste, Select all). The keyboard (Menu key,
  * Shift+F10) opens it as well. From the keyboard, it opens from the focused cell. With a pointer, it opens against the
  * border of the cell nearest to it, not over the cell (`PointerInElement` of elt/ui/popup).
+ *
+ * Read-only, only the Edit section is left (Cut and Paste disabled, the field being read-only).
  */
 export function $editor_menu(
   sections: (target: Element | null) => (MenuSection | null)[],
-  enabled: o.RO<boolean> = true,
+  settings: MenuSettings = { show_menu: true, readonly: false },
 ): Decorator<HTMLElement> {
   const all_sections = (target: EventTarget | null) => {
     // Read when the menu is asked for, which is when its value matters: nothing to subscribe to.
-    if (!o.get(enabled)) return []
+    if (!o.get(settings.show_menu)) return []
     const field = text_field_of(target)
-    return non_empty([field && edit_section(field), ...sections(target as Element | null)])
+    const own = o.get(settings.readonly) ? [] : sections(target as Element | null)
+    return non_empty([field && edit_section(field), ...own])
   }
   return (node: HTMLElement) => {
     $context_menu(
@@ -317,9 +321,12 @@ export function $editor_menu(
   }
 }
 
+/** The settings a menu follows. */
+export type MenuSettings = Pick<EditorSettings, "show_menu" | "readonly">
+
 /** `$editor_menu(sections)`, or nothing (the browser's own menu shows) when the node hides its menus. */
-export function $editor_menu_when(enabled: o.RO<boolean>, sections: Parameters<typeof $editor_menu>[0]) {
-  return enabled === false ? null : $editor_menu(sections, enabled)
+export function $editor_menu_when(settings: MenuSettings, sections: Parameters<typeof $editor_menu>[0]) {
+  return settings.show_menu === false ? null : $editor_menu(sections, settings)
 }
 
 /** The cell of a row `target` is in (the target itself outside a row, in a header line): what a menu opens from. */

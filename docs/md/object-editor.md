@@ -21,15 +21,16 @@ section: UI Recipes
 | `prefer_popups` | `o.RO<boolean>` | Open nested values in a popup instead of a new column to the right (a schema can still choose per value) |
 | `packed` | `o.RO<boolean>` (default `false`) | Draw each column as one framed group whose header line, toolbar and rows touch and share lines. Without it, a column has no frame: its rows are spaced by the usual elt/ui spacing. See [Packed or not](#packed-or-not) |
 | `show_title`, `show_filter`, `show_add`, `show_menu` | `o.RO<boolean>` (default `true`) | Which parts of a column appear. See [Showing and hiding parts](#showing-and-hiding-parts) |
+| `readonly` | `o.RO<boolean>` (default `false`) | Show the value without letting the editor change it. See [Read-only](#read-only) |
 | `show_undo_redo` | `o.RO<boolean>` (default `true`) | The *Undo*/*Redo* buttons of the root column's header line (icons, shown only when there is something to undo or redo) |
 | `out_breadcrumb` | `o.Out<string[]>` | Written with the titles of the opened columns after the root (`[]` when only the root is open), when the editor is built, then on every change while it is on screen. You create the observable and read it; the editor only writes it. See [Components § Reactive attributes](./components.md#reactive-attributes) |
 | `undo` | `{ depth?, import_undo_depth? } \| false` | Size of the *Undo*/*Redo* history. `false` turns the history off: no buttons, no shortcut |
 
 `class` and `style` apply to the editor's outer row, like on any element.
 
-The attributes typed `o.RO<boolean>` take a boolean or an observable of one, and the editor follows the observable: flipping `packed` re-styles the open columns, flipping a `show_*` shows or hides the part. `prefer_popups` is read each time a value opens, so a change applies to the next one. `schema`, `undo` and `breadcrumb` are read once, when the editor is built. The same options on a schema node (`object({ packed: true })`) are plain booleans.
+The attributes typed `o.RO<boolean>` take a boolean or an observable of one, and the editor follows the observable: flipping `packed` re-styles the open columns, flipping a `show_*` shows or hides the part, flipping `readonly` locks or unlocks the open columns. `prefer_popups` is read each time a value opens, so a change applies to the next one. `schema`, `undo` and `breadcrumb` are read once, when the editor is built. The same options on a schema node (`object({ packed: true })`) are plain booleans.
 
-*Undo* and *Redo* are also on Ctrl+Z and Ctrl+Shift+Z (Cmd on macOS) while focus is inside the editor, whether or not their buttons are shown. In a text field, the keys are left to the browser, which undoes the typing in that field.
+*Undo* and *Redo* are also on Ctrl+Z and Ctrl+Shift+Z (Cmd on macOS) while focus is inside the editor, whether or not their buttons are shown, unless it is [read-only](#read-only). In a text field, the keys are left to the browser, which undoes the typing in that field.
 
 ## Packed or not
 
@@ -53,6 +54,22 @@ Each of these is an attribute of `<ObjectEditor>`, which sets it for every colum
 | `show_menu` | The `…` button and the right-click menus: change type, import/export, remove. Without them, the browser's own menu shows |
 
 A part that would be empty goes away: the toolbar without its filter, and the root's header line with no label, `…`, *Add*, or *Undo*/*Redo* to offer. A schema node also has `show_import_export`, for the import/export entries of its `…` menu only.
+
+## Read-only
+
+`readonly` shows the value without letting the editor change it; writes made to the model elsewhere still show up. While it holds:
+
+- The fields can't be edited: text and number fields are read-only (their text can still be selected and copied), switches and selects are disabled, a date field is read-only and loses its buttons.
+- There is no *Add* button, no *Undo*/*Redo* button and no Ctrl+Z, and a `null` or `undefined` value is plain text instead of a button opening the type list.
+- The menus have nothing left to offer, so the browser's own menu shows and the `…` button goes away. In a text field, the menu keeps its Edit section, where only Copy and Select all are available.
+- Opening a nested value (in a column or a popup), the filter, scrolling and resizing table columns work as usual. What opens is read-only too.
+- As a last guard, the `readonly` attribute makes the editor refuse any write to the model, so a custom widget that ignores the setting changes nothing either (its control may still show what was typed). The schema option below has no such guard.
+
+`readonly` is also an option of every composite schema node (`object({ readonly: true, … })`). Unlike the other options, it only adds: a node with `readonly: true` and everything it opens are read-only, and `readonly: false` doesn't make a node editable in a read-only editor, or under a read-only node. The value's parent can still remove it or change its type through its row's menu.
+
+Switches and selects take the disabled look. Text, number and date fields keep their usual look: elt/ui draws no read-only state, so they look editable.
+
+The *Undo* history still records the writes made to the model elsewhere. For a viewer whose value is large and often replaced, also set `undo={false}`.
 
 ## Type colors and icons
 
@@ -323,3 +340,5 @@ A schema node is a `Factory`: its `render(o_value)` returns a `RenderableWidget`
 - **A control that can't fill a cell wraps itself in one element that does.** A cell that doesn't fill its row's height and its column's width lets the grid's line color show around it ([Layout § Grids](./ui-layout.md#grids)). A checkbox keeps its own size, so the built-in `boolean()` returns `<label><input type="checkbox"></label>`: the label fills the cell, and clicking anywhere in it toggles the checkbox.
 
 The editor only re-renders a value's widget when the value's JavaScript type changes, not on each edit: your control keeps its element (and focus) while the user types.
+
+`render(o_value, settings)` gets the settings in force where the widget is shown as its second argument. A widget that can change its value follows `settings.readonly` (`o.RO<boolean>`), for its control not to edit while it holds ([Read-only](#read-only)).

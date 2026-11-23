@@ -46,6 +46,9 @@ export interface DateTimePickerAttributesBase extends Attrs<HTMLElement> {
 
   /** the date at which the popup will be set at when model still has no value. Defaults to now. */
   date_popup_default_date?: o.RO<Date>
+
+  /** If true, the date can be read and copied but not changed: the text field is read-only and its buttons go. */
+  readonly?: o.RO<boolean>
 }
 
 /** The model accepts `null` : the picker may be cleared, always (`true`) or only while the observable is `true`. */
@@ -80,6 +83,14 @@ export function DateTimePicker(at: DatePickerAttrs) {
   let input_ctrl: DateInputController | null = null
 
   const oo_emphasis = o.tf(at.emphasis, (v) => (v === "inverted" ? "inverted" : "tint"))
+  // Read-only, none of the buttons: each would change the model. An observable only when an input is one.
+  const unless_readonly = (show: o.RO<boolean | undefined>) =>
+    o.is_observable(show) || o.is_observable(at.readonly)
+      ? o.expression((get) => !!get(show) && !get(at.readonly))
+      : !!show && !at.readonly
+  const oo_clear_button = unless_readonly(at.clearable)
+  const oo_time_button = unless_readonly(opts.show_time)
+  const oo_date_button = unless_readonly(opts.show_date)
 
   const oo_layout = o.expression((get) => {
     const locale = get(o_locale)
@@ -95,6 +106,7 @@ export function DateTimePicker(at: DatePickerAttrs) {
   const default_popup_date = () => o.get(at.date_popup_default_date) ?? new Date()
 
   const set_model = (d: Date | null) => {
+    if (o.get(at.readonly)) return
     if (d != null) at.model.set(d)
     // `at.clearable` is only truthy in DatePickerNullable, so `at` narrows to it and set(null) type-checks
     else if (at.clearable && o.get(clearable)) at.model.set(null)
@@ -208,6 +220,7 @@ export function DateTimePicker(at: DatePickerAttrs) {
         autocomplete="off"
         spellcheck={false}
         class={cls_date_input}
+        readonly={o.tf(at.readonly, (ro) => ro || undefined)}
         aria-description={o_ui_labels.p("date_input_keys")}
       >
         {(input: HTMLInputElement) => {
@@ -227,7 +240,7 @@ export function DateTimePicker(at: DatePickerAttrs) {
         })}
       </input>
       {o.tf(
-        at.clearable,
+        oo_clear_button,
         (c) =>
           c && (
             <button type="button" e-emphasis={oo_emphasis} title={o_ui_labels.p("clear")}>
@@ -237,7 +250,7 @@ export function DateTimePicker(at: DatePickerAttrs) {
           ),
       )}
       {o.tf(
-        opts.show_time,
+        oo_time_button,
         (v) =>
           v && (
             <button type="button" e-emphasis={oo_emphasis} title={o_ui_labels.p("pick_time")}>
@@ -268,7 +281,7 @@ export function DateTimePicker(at: DatePickerAttrs) {
           ),
       )}
       {o.tf(
-        opts.show_date,
+        oo_date_button,
         (v) =>
           v && (
             <button type="button" e-emphasis={oo_emphasis} title={o_ui_labels.p("pick_date")}>

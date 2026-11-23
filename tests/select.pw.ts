@@ -273,3 +273,96 @@ test.describe("Select with promise options", () => {
     expect(r).toEqual({ value: "ch", role: "combobox" })
   })
 })
+
+/** Mount a multiple Select over FRUITS, its model an array or a Set holding `initial`. */
+async function mountMultiple(page: Page, opts: { set?: boolean; completion?: boolean; initial?: string[] }) {
+  await page.evaluate((opts) => {
+    const { o, node_append, UI } = window.__ELT__
+    const w = window as unknown as W
+    document.body.innerHTML = ""
+    const initial = opts.initial ?? []
+    const o_model = opts.set ? o(new Set(initial)) : o(initial)
+    w.o_model = o_model as unknown as W["o_model"]
+    const select = UI.Select<string>({
+      multiple: true,
+      model: o_model,
+      options: ["Apple", "Banana", "Cherry", "Date"],
+      completion: opts.completion,
+      placeholder: "Pick…",
+    })
+    const holder = document.createElement("div")
+    holder.id = "holder"
+    node_append(document.body, holder)
+    node_append(holder, select)
+  }, opts)
+}
+
+const tags = (page: Page) =>
+  page.evaluate(() => [...document.querySelectorAll("#holder [class*=select-tag]")].map((e) => e.textContent))
+const modelList = (page: Page) =>
+  page.evaluate(() => {
+    const v = (window as unknown as W).o_model.get() as string[] | Set<string>
+    return { set: v instanceof Set, values: [...v] }
+  })
+
+test.describe("Select multiple", () => {
+  test("a click toggles its value and keeps the list open; values keep the order they were picked in", async ({
+    page,
+  }) => {
+    await mountMultiple(page, { initial: ["Cherry"] })
+    await page.click("#holder button [class*=indicator]")
+    await page.click('[role="option"]:has-text("Apple")')
+    await page.click('[role="option"]:has-text("Cherry")')
+    await page.click('[role="option"]:has-text("Banana")')
+    expect(await modelList(page)).toEqual({ set: false, values: ["Apple", "Banana"] })
+    expect(await page.locator('[role="listbox"]').getAttribute("aria-multiselectable")).toBe("true")
+    expect(
+      await page.evaluate(() =>
+        [...document.querySelectorAll('[role="option"][aria-selected="true"]')].map((e) => e.textContent),
+      ),
+    ).toEqual(["Apple", "Banana"])
+    expect(await tags(page)).toEqual(["Apple", "Banana"])
+  })
+
+  test("a Set model stays a Set, replaced on every change", async ({ page }) => {
+    await mountMultiple(page, { set: true, initial: ["Date"] })
+    const before = await page.evaluate(() => {
+      const w = window as unknown as W & { first: unknown }
+      w.first = w.o_model.get()
+      return true
+    })
+    expect(before).toBe(true)
+    await page.click("#holder button [class*=indicator]")
+    await page.click('[role="option"]:has-text("Apple")')
+    expect(await modelList(page)).toEqual({ set: true, values: ["Date", "Apple"] })
+    expect(
+      await page.evaluate(
+        () => (window as unknown as W & { first: unknown }).first === (window as unknown as W).o_model.get(),
+      ),
+    ).toBe(false)
+  })
+
+  test("the × of a tag removes its value without opening the list", async ({ page }) => {
+    await mountMultiple(page, { initial: ["Apple", "Banana"] })
+    await page.click('#holder [class*=select-tag]:has-text("Apple") .remove')
+    expect(await modelList(page)).toEqual({ set: false, values: ["Banana"] })
+    expect(await page.locator('[role="listbox"]').count()).toBe(0)
+  })
+
+  test("completion: a pick clears the typing and keeps the input open; Backspace in an empty input removes the last value", async ({
+    page,
+  }) => {
+    await mountMultiple(page, { completion: true, initial: ["Date"] })
+    await page.click("#holder button [class*=indicator]")
+    const input = page.locator('#holder input[role="combobox"]')
+    expect(await input.inputValue()).toBe("")
+    await page.keyboard.type("ban")
+    await page.keyboard.press("Enter")
+    expect(await modelList(page)).toEqual({ set: false, values: ["Date", "Banana"] })
+    await expect(input).toBeFocused()
+    expect(await input.inputValue()).toBe("")
+    await expect.poll(() => options(page)).toEqual(["Apple", "Banana", "Cherry", "Date"])
+    await page.keyboard.press("Backspace")
+    expect(await modelList(page)).toEqual({ set: false, values: ["Date"] })
+  })
+})

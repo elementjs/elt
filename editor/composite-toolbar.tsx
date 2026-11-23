@@ -133,6 +133,8 @@ export interface EditorSettings {
   show_add: o.RO<boolean>
   /** The `…` button and menus: change type, import/export, delete. */
   show_menu: o.RO<boolean>
+  /** Nothing can change the value: controls don't edit, no Add, Undo/Redo, type change or remove. */
+  readonly: o.RO<boolean>
 }
 
 /** The editor-wide defaults, before any attribute or node option. */
@@ -142,11 +144,32 @@ export const default_settings: EditorSettings = {
   show_filter: true,
   show_add: true,
   show_menu: true,
+  readonly: false,
+}
+
+/**
+ * True when `own` (a node's or a control's own option) or `readonly` is: a node can make itself read-only,
+ * never undo the editor's read-only. An observable only when one of them is.
+ */
+export function or_readonly(own: o.RO<unknown>, readonly: o.RO<boolean>): o.RO<boolean> {
+  if (!o.is_observable(own) && !o.is_observable(readonly)) return is_on(own) || readonly
+  return o.expression((get) => is_on(get(own)) || get(readonly))
+}
+
+/** A boolean attribute's value is on: `true`, or `""` as HTML writes it (`readonly: ""`). */
+function is_on(value: unknown): boolean {
+  return value === "" || !!value
+}
+
+/** True when `show` is and `readonly` isn't: a part that changes the value. An observable only when one of them is. */
+function unless_readonly(show: o.RO<boolean>, readonly: o.RO<boolean>): o.RO<boolean> {
+  if (!o.is_observable(show) && !o.is_observable(readonly)) return show && !readonly
+  return o.expression((get) => get(show) && !get(readonly))
 }
 
 /**
  * A composite's own settings: its node options (`CommonNodeOptions`) over `defaults` -- the editor
- * attributes, with `packed` inherited from the value it was opened from.
+ * attributes, with `packed` and `readonly` inherited from the value it was opened from.
  */
 export function resolve_settings(options: CommonNodeOptions | undefined, defaults: EditorSettings): EditorSettings {
   return {
@@ -155,6 +178,7 @@ export function resolve_settings(options: CommonNodeOptions | undefined, default
     show_filter: options?.show_filter ?? defaults.show_filter,
     show_add: options?.show_add ?? defaults.show_add,
     show_menu: options?.show_menu ?? defaults.show_menu,
+    readonly: or_readonly(options?.readonly, defaults.readonly),
   }
 }
 
@@ -196,10 +220,10 @@ export function render_composite_chrome(props: CompositeToolbarProps): {
 
   const add = props.add
   // The "Add" button is the last thing on the header line (the shell places it); its full name is its tooltip.
-  // Built once, shown while `show_add` holds.
+  // Built once, shown while `show_add` holds and the value is editable.
   const add_button =
     add &&
-    o.tf(settings.show_add, (show) =>
+    o.tf(unless_readonly(settings.show_add, settings.readonly), (show) =>
       show ? (
         <button type="button" title={add.label} aria-label={add.label}>
           {$click(add.on_add)}

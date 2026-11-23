@@ -77,10 +77,10 @@ interface ColumnDescriptor {
   /** Removes the value from its parent (the header menu's Delete); absent on the root and when the parent doesn't allow it. */
   on_delete?: Removal
   presentation: "column" | "popup"
-  /** The settings this column starts from: the editor's attributes, with `packed` taken from the value that opened it. */
+  /** The settings this column starts from: the editor's attributes, with `packed` and `readonly` taken from the value that opened it. */
   inherited: EditorSettings
   /** The settings the shell itself reads for this column: its node's options over `inherited`, following both. */
-  settings: Pick<EditorSettings, "packed" | "show_title" | "show_menu">
+  settings: Pick<EditorSettings, "packed" | "show_title" | "show_menu" | "readonly">
   host?: HTMLElement
   /** Close a popup presentation for this stack entry, if open. */
   dismiss_popup?: () => void
@@ -89,7 +89,7 @@ interface ColumnDescriptor {
 /**
  * The editor-wide settings: every one is the default for the nodes of the schema, which replace it
  * for themselves with the option of the same name (`CommonNodeOptions`). Unlike the others, `packed`
- * also carries on to what a node opens. The settings, `prefer_popups` and `show_undo_redo` are
+ * also carries on to what a node opens, and so does `readonly`, which a node can add but not remove. The settings, `prefer_popups` and `show_undo_redo` are
  * `o.RO`: the editor follows an observable. `schema` and `undo` are read once, when the editor is built.
  */
 export interface ShellOptions extends Partial<EditorSettings> {
@@ -129,7 +129,8 @@ export class ObjectEditorShell<T = unknown> {
     o_model: o.Observable<T>,
     private readonly options: ShellOptions = {},
   ) {
-    this.o_root = untyped_root(o_model, options.schema ?? anything)
+    // Refuses writes while the editor is read-only: a widget that missed the setting still changes nothing.
+    this.o_root = untyped_root(o_model, options.schema ?? anything, options.readonly)
     this.o_breadcrumb = this.o_columns.tf((cols) => cols.slice(1).map((c) => c.title ?? ""))
     this.undo = new RootUndoRing(this.o_root, this.options.undo || {})
     this.defaults = {
@@ -138,6 +139,7 @@ export class ObjectEditorShell<T = unknown> {
       show_filter: this.options.show_filter ?? default_settings.show_filter,
       show_add: this.options.show_add ?? default_settings.show_add,
       show_menu: this.options.show_menu ?? default_settings.show_menu,
+      readonly: this.options.readonly ?? default_settings.readonly,
     }
 
     // The strip of columns: separate components, spaced at the section step, each
@@ -188,9 +190,10 @@ export class ObjectEditorShell<T = unknown> {
     ])
   }
 
-  /** Runs an undo/redo shortcut unless focus is in a text field, whose own undo the browser keeps. */
+  /** Runs an undo/redo shortcut unless focus is in a text field, whose own undo the browser keeps, or the root is read-only. */
   private shortcut(ev: KeyboardEvent, run: () => void) {
-    if (text_field_of(ev.target)) return
+    const root = this.o_columns.get()[0]
+    if (text_field_of(ev.target) || (root && o.get(root.settings.readonly))) return
     ev.preventDefault()
     run()
   }
@@ -207,9 +210,15 @@ export class ObjectEditorShell<T = unknown> {
     const o_factory = o(resolve_in_slot(factory, o_value.get()))
     // The node's own option over what the column inherits: each follows the factory (it changes with the
     // value's type) and the inherited setting, which may be an observable.
+    const oo_options = o_factory.tf((factory) => factory.options as CommonNodeOptions | undefined)
     const setting = (key: "packed" | "show_title" | "show_menu") =>
-      o.expression((get) => (get(o_factory).options as CommonNodeOptions | undefined)?.[key] ?? get(inherited[key]))
-    const settings = { packed: setting("packed"), show_title: setting("show_title"), show_menu: setting("show_menu") }
+      o.expression((get) => get(oo_options)?.[key] ?? get(inherited[key]))
+    const settings = {
+      packed: setting("packed"),
+      show_title: setting("show_title"),
+      show_menu: setting("show_menu"),
+      readonly: o.expression((get) => !!get(oo_options)?.readonly || get(inherited.readonly)),
+    }
     return { o_value, title, declared: factory, o_factory, presentation, inherited, settings, on_delete }
   }
 
@@ -257,9 +266,11 @@ export class ObjectEditorShell<T = unknown> {
     const idx = found === -1 ? 0 : found
     this.dismiss_from(idx)
     const kept = this.o_columns.get().slice(0, idx + 1)
-    // `packed` carries on from the column the value is opened from; the other settings restart from the editor's.
+    // `packed` and `readonly` carry on from the column the value is opened from; the other settings restart from the editor's.
     const opener = kept[idx]
-    const inherited = { ...this.defaults, packed: opener ? opener.settings.packed : this.defaults.packed }
+    const inherited = opener
+      ? { ...this.defaults, packed: opener.settings.packed, readonly: opener.settings.readonly }
+      : this.defaults
     const column = this.create_column(o_value, title, resolved, presentation, inherited, on_delete)
 
     if (presentation === "popup" && source instanceof Element) {
@@ -373,11 +384,11 @@ export class ObjectEditorShell<T = unknown> {
   /**
    * The column's header menu: its value's type change (what its slot accepts), the composite's
    * import/export add-ons, and Delete (removes the value from its parent, closing this column and
-   * those after it). Empty when the composite's schema hides the menu (`show_menu: false`).
+   * those after it). Empty when the composite's schema hides the menu (`show_menu: false`) or the column is read-only.
    */
   private header_menu(column: ColumnDescriptor, header: WidgetHeader | null, close: () => void): MenuSection[] {
     const current = column.o_factory.get()
-    if (!o.get(column.settings.show_menu)) return []
+    if (!o.get(column.settings.show_menu) || o.get(column.settings.readonly)) return []
     return menu_sections([
       type_change_item(
         "Value",
@@ -410,7 +421,7 @@ export class ObjectEditorShell<T = unknown> {
     is_root: boolean,
     watch: Decorator<HTMLElement>,
   ): HTMLElement {
-    const { packed, show_title, show_menu } = column.settings
+    const { packed, show_title, readonly } = column.settings
     // The widget gets the column's starting settings: it resolves its own node options over them.
     // The column's type decides its color: it is the tint of the whole column (frame, header line, toolbar,
     // seams, a table's header), as the theme's `class_as_tint` does. Observed from the value, so a type
@@ -421,7 +432,8 @@ export class ObjectEditorShell<T = unknown> {
     const menu = () => this.header_menu(column, oo_header.get(), close)
     // The `…` button shows when the menu has something; re-checked when the value's kind changes.
     const oo_has_menu = o.expression(
-      (get) => get(show_menu) && this.header_menu(column, get(oo_header), close).length > 0,
+      (get) =>
+        get(column.settings.show_menu) && !get(readonly) && this.header_menu(column, get(oo_header), close).length > 0,
     )
     const oo_label = o.expression((get) => {
       if (!get(show_title)) return ""
@@ -429,16 +441,15 @@ export class ObjectEditorShell<T = unknown> {
       const type_label = header ? get(header.o_label) : null
       return [column.title, type_label].filter((part) => part != null && part !== "").join(" · ")
     })
-    const o_undo_buttons = o.tf(
-      this.options.show_undo_redo ?? true,
-      (show) => is_root && this.options.undo !== false && show,
+    const oo_undo_buttons = o.expression(
+      (get) => is_root && this.options.undo !== false && (get(this.options.show_undo_redo) ?? true) && !get(readonly),
     )
     // The root's header line goes away when nothing is left on it (no label, menu, action, Add button, or
     // Undo/Redo to offer). Any other column keeps it for its ×.
     const oo_has_header = o.expression(
       (get) =>
         !is_root ||
-        (get(o_undo_buttons) && (get(this.undo.o_can_undo) || get(this.undo.o_can_redo))) ||
+        (get(oo_undo_buttons) && (get(this.undo.o_can_undo) || get(this.undo.o_can_redo))) ||
         get(oo_label) !== "" ||
         get(oo_has_menu) ||
         get(oo_header)?.actions != null ||
@@ -471,7 +482,7 @@ export class ObjectEditorShell<T = unknown> {
                 align={o.tf(packed, (packed) => (packed ? "center" : "baseline"))}
                 class={cls_header}
               >
-                {$editor_menu_when(show_menu, menu)}
+                {$editor_menu_when(column.settings, menu)}
                 {/* The title: the icon of the column's type, then the label; none when the title is hidden. */}
                 {oo_label.tf(
                   (label) =>
@@ -493,7 +504,7 @@ export class ObjectEditorShell<T = unknown> {
                 )}
                 {/* Undo and Redo, packed together, only when there is something to undo or redo. */}
                 {o
-                  .expression((get) => get(o_undo_buttons) && (get(this.undo.o_can_undo) || get(this.undo.o_can_redo)))
+                  .expression((get) => get(oo_undo_buttons) && (get(this.undo.o_can_undo) || get(this.undo.o_can_redo)))
                   .tf(
                     (any) =>
                       any && (
@@ -520,7 +531,7 @@ export class ObjectEditorShell<T = unknown> {
                       ),
                   )}
                 {o.tf(
-                  o_undo_buttons,
+                  oo_undo_buttons,
                   (undo_buttons) =>
                     !undo_buttons &&
                     !is_root && (

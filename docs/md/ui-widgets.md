@@ -35,7 +35,8 @@ const o_choice = o("a")
 
 | Prop | Type | Meaning |
 | ---- | ---- | ------- |
-| `model` | `o.Observable<T>` | Selected value |
+| `model` | `o.Observable<T>`, or with `multiple` `o.Observable<T[]>` / `o.Observable<Set<T>>` | Selected value, or values — see [Multiple values](#multiple-values) |
+| `multiple` | `true` | Several values instead of one |
 | `options` | `o.RO<Iterable<T2> \| Promise<Iterable<T2>>>` | Options, or a promise of them — see [Options from a server](#options-from-a-server) |
 | `convert_fn` | `(opt: T2) => T` | Map an option to the model's value type. Without it, the option is the value |
 | `label_fn` | `(opt: T2, query: string) => Renderable` | Option label (default: the option as text). `query` is what the user typed in completion mode (`""` otherwise), to highlight it yourself |
@@ -58,6 +59,17 @@ const o_choice = o("a")
 With `completion`, a click (or ArrowDown) turns the Select into a text input holding the current option's text, all selected, with the whole list open. Typing replaces the text and keeps the options whose `text_fn` contains it, ignoring case and accents; the first match becomes active, so Enter picks it. Up/Down move through the options while focus stays in the input. `Escape`, or leaving the input, drops what was typed and shows the selected option again; the model only changes when an option is picked. Alt+ArrowUp closes the list and keeps the typing.
 
 Options that are objects need a `text_fn`: with completion and no `text_fn`, `Select` throws when it's created.
+
+### Multiple values
+
+With `multiple`, the model holds several values: an array or a Set, in the order they were picked. The model is never `null`; each change replaces it with a new array, or a new Set if it holds one.
+
+```tsx
+const o_fields = o<string[]>([])
+<Select multiple model={o_fields} options={["name", "city", "zip"]} placeholder="Fields…" />
+```
+
+The button shows each value as a tag with a × that removes it. In the list, a pick adds or removes its value and the list stays open (`aria-multiselectable="true"`); `Escape`, Tab or a click outside closes it. With `completion`, the input starts empty and sits after the tags; a pick clears what was typed, the input stays open for the next one, and Backspace in the empty input removes the last value. With `convert_fn`, values that are not among the options are not shown.
 
 ```tsx
 <Select
@@ -99,6 +111,7 @@ const o_fetched = o<Promise<City[]>>(fetch_cities(""))
 | `week_starts_on` | `"monday"` … `"sunday"` |
 | `emphasis` | Emphasis of the buttons next to the text field ([Forms § Buttons and emphasis](./ui-forms.md#buttons-and-emphasis)): `"inverted"` filled with the tint color, `"tint"` outlined (default). The day buttons of the calendar mark the selected day with `aria-pressed` ([States and interaction § Selected state](./ui-states.md#selected-state)) |
 | `date_popup_default_date` | Date the popups open on while the model is empty (default: now) |
+| `readonly` | `o.RO<boolean>`: the date can be read, selected and copied, but not changed. The text field is read-only and the clear, time and date buttons go |
 
 The text field is edited one part (segment) at a time — day, month, year, hour, minute, second, AM/PM — as in a native date input. Clicking selects the part under the pointer; Left and Right select the previous or next part. Digits typed into a part replace its value and are collected until the part is full (2 digits, 4 for the year), then the next part is selected: typing `15` into the minutes gives `15`. A first digit that no second digit could follow is complete at once: `4` in a day gives `04`, `2` in a month gives `02`. A separator (`/`, `-`, `:`, a space…) ends the part being typed and selects the next one (`1/5/2026` gives January 5 in en-US); typed right after a part that completed on its own, it does nothing, so `2026-10-03` can be typed as written. Moving to another part starts a new value. In the AM/PM part, a letter that starts the localized AM or PM text sets it, in either case, then the next part is selected (`p` gives PM in en-US); where one letter starts both texts (`PG` / `PTG` in ms, `午前` / `午後` in ja), the letters are collected until only one text starts with them (`pt` gives PM). Up and Down step the part (minutes and seconds by `minute_step` / `second_step`), Backspace and Delete empty it. The model receives the date when the field loses focus, if the date is complete and valid; with `clearable`, an empty field sets it to `null`. Phone and tablet on-screen keyboards, which send their characters as text input rather than identifiable key presses, behave the same: each character goes through the rules above, and deleting empties the part as Backspace does. Without an AM/PM part, the field asks these keyboards for a number pad (`inputmode="numeric"`); with one, it keeps the default keyboard, whose letters set AM or PM.
 

@@ -42,7 +42,7 @@ import {
 // shouldn't force them as a side effect of importing one component.
 import { DateTimePicker, type DateTimePickerAttributesBase } from "elt/ui/date"
 import { $auto_grow } from "elt/ui/textarea"
-import type { SelectAttributes } from "elt/ui/select"
+import type { SelectSingleAttributes } from "elt/ui/select"
 import { $forward_attrs, skip_keys } from "./forward-attrs"
 import { ink_classes, type_style_of_kind, type_style_of_value } from "./type-style"
 import {
@@ -50,6 +50,7 @@ import {
   default_settings,
   type EditorSettings,
   type FilterState,
+  or_readonly,
   render_composite_chrome,
   resolve_settings,
   composite_preview_inner,
@@ -59,6 +60,7 @@ import {
   $editor_menu_when,
   delete_section,
   type MenuSection,
+  type MenuSettings,
   REMOVE,
   type Removal,
   removal,
@@ -297,20 +299,21 @@ function o_sticky_factory(o_child: o.ReadonlyObservable<unknown>, resolve: (valu
 
 /**
  * A child's cell: its widget, or the composite preview for a composite value (Layer 4). `slot` and
- * `on_delete` go to the column the preview opens.
+ * `on_delete` go to the column the preview opens; `settings` are the parent's, for a scalar's `readonly`.
  */
 function render_child_cell(
   o_child: o.Observable<unknown>,
   title: string,
   slot: Factory<unknown>,
   resolve: (value: unknown) => Factory<unknown>,
+  settings: EditorSettings,
   on_delete?: Removal,
 ): Renderable {
   return o_sticky_factory(o_child, resolve).tf((factory) => {
     if (factory == null) return null
     if (COMPOSITE_KINDS.has(factory.kind)) return render_composite_preview(o_child, title, factory, slot, on_delete)
-    if (NULLISH_KINDS.has(factory.kind)) return render_nullish_cell(o_child, title, factory, slot)
-    return factory.render(o_child).render()
+    if (NULLISH_KINDS.has(factory.kind)) return render_nullish_cell(o_child, title, factory, slot, settings)
+    return factory.render(o_child, settings).render()
   })
 }
 
@@ -319,16 +322,23 @@ const NULLISH_KINDS = new Set(["null", "undefined"])
 /**
  * A null or undefined cell: its literal as a button opening the type list straight away (the same list
  * as menu > "Change type…"), so the way out of "nothing" is visible. When the slot offers no other
- * type, there is nothing to open: the plain literal, as the factory renders it.
+ * type, or the value is read-only, there is nothing to open: the plain literal, as the factory renders it.
  */
 function render_nullish_cell(
   o_child: o.Observable<unknown>,
   title: string,
   factory: Factory<unknown>,
   slot: Factory<unknown>,
+  settings: EditorSettings,
 ): Renderable {
   const sections = type_change_sections(title, o_child, factory, slot_type_targets(slot, factory.type_change_extra()))
   if (!sections) return factory.render(o_child).render()
+  return o.tf(settings.readonly, (readonly) =>
+    readonly ? factory.render(o_child).render() : render_nullish_button(factory, sections),
+  )
+}
+
+function render_nullish_button(factory: Factory<unknown>, sections: MenuSection[]): Renderable {
   return (
     <button
       type="button"
@@ -347,9 +357,10 @@ function render_element_or_preview(
   o_child: o.Observable<unknown>,
   title: string,
   slot: Factory<unknown>,
+  settings: EditorSettings,
   on_delete?: Removal,
 ): Renderable {
-  return render_child_cell(o_child, title, slot, (value) => resolve_in_slot(slot, value), on_delete)
+  return render_child_cell(o_child, title, slot, (value) => resolve_in_slot(slot, value), settings, on_delete)
 }
 
 // Shared, immutable sentinel -- widgets with nothing to report reuse this
@@ -467,6 +478,7 @@ export type UndefinedOptions = NoOptions
  * Node-level config shared by every composite factory (Layer 5). The presentation options below
  * replace, for this node, the editor-wide attribute of the same name (`<ObjectEditor packed …>`);
  * `packed` also carries on to the columns and popups opened from this node, the others do not.
+ * `readonly` is the exception: it adds to the attribute rather than replacing it, and carries on.
  */
 export interface CommonNodeOptions {
   /** Replace default constructor/cardinality title, or false to hide. */
@@ -484,6 +496,11 @@ export interface CommonNodeOptions {
   show_add?: boolean
   /** The `…` button and menus (change type, import/export, delete). */
   show_menu?: boolean
+  /**
+   * This node and what it opens can't be changed (see `EditorSettings`). Only adds read-only: `false` doesn't
+   * undo the editor's `readonly`, nor that of the node it was opened from.
+   */
+  readonly?: boolean
   /** The import/export entries of the `…` menu. This node only; there is no editor-wide attribute. */
   show_import_export?: boolean
 }
@@ -575,7 +592,7 @@ export interface DatetimeOptions extends Omit<DateTimePickerAttributesBase, "mod
 }
 
 export interface SelectOptions<T, T2 = T>
-  extends Omit<SelectAttributes<T, T2>, "model" | "options" | "convert_fn" | "label_fn"> {
+  extends Omit<SelectSingleAttributes<T, T2>, "model" | "multiple" | "options" | "convert_fn" | "label_fn"> {
   options: T2[]
   convert_fn?: (opt: T2) => T
   label_fn?: (opt: T2) => Renderable
@@ -651,11 +668,12 @@ export class StringFactory extends Factory<StringOptions> {
     return ""
   }
 
-  render(o_value: o.Observable<unknown>): RenderableWidget {
+  render(o_value: o.Observable<unknown>, defaults: EditorSettings = default_settings): RenderableWidget {
     const o_str = o_value as o.Observable<string>
     const o_error = o(null as string | null)
     const skip = skip_keys("multiline")
-    const forwarded = $forward_attrs(this.options as Record<string, unknown>, skip)
+    const readonly = or_readonly(this.options.readonly, defaults.readonly)
+    const forwarded = $forward_attrs({ ...this.options, readonly }, skip)
     return {
       render: () =>
         this.options.multiline ? (
@@ -700,12 +718,13 @@ export class NumberFactory extends Factory<NumberOptions> {
     return 0
   }
 
-  render(o_value: o.Observable<unknown>): RenderableWidget {
+  render(o_value: o.Observable<unknown>, defaults: EditorSettings = default_settings): RenderableWidget {
     const o_num = o_value as o.Observable<number>
     const o_error = o(null as string | null)
     const allow_non_finite = !!this.options.allow_non_finite
     const skip = skip_keys("allow_non_finite")
-    const forwarded = $forward_attrs(this.options as Record<string, unknown>, skip)
+    const readonly = or_readonly(this.options.readonly, defaults.readonly)
+    const forwarded = $forward_attrs({ ...this.options, readonly }, skip)
     return {
       render: () => (
         <input type="number" class={ink_classes(type_style_of_kind(this.kind))}>
@@ -745,9 +764,15 @@ export class BooleanFactory extends Factory<BooleanOptions> {
     return false
   }
 
-  render(o_value: o.Observable<unknown>): RenderableWidget {
+  render(o_value: o.Observable<unknown>, defaults: EditorSettings = default_settings): RenderableWidget {
     const o_bool = o_value as o.Observable<boolean>
-    const attrs: Record<string, unknown> = { ...this.options }
+    // `readonly` does nothing on a checkbox: read-only, it is disabled.
+    const attrs: Record<string, unknown> = {
+      ...this.options,
+      disabled: or_readonly(this.options.disabled, defaults.readonly),
+      // The editor's read-only, not a disabled option of the schema's own.
+      "aria-readonly": o.tf(defaults.readonly, (ro) => (ro ? "true" : undefined)),
+    }
     if (attrs.role == null) attrs.role = "switch"
     const forwarded = $forward_attrs(attrs, skip_keys())
     return {
@@ -813,7 +838,7 @@ export class SelectFactory<T, T2 = T> extends Factory<SelectOptions<T, T2>> {
     return first !== undefined ? convert(first) : null
   }
 
-  render(o_value: o.Observable<unknown>): RenderableWidget {
+  render(o_value: o.Observable<unknown>, defaults: EditorSettings = default_settings): RenderableWidget {
     const opts = this.options
     const convert_fn = opts.convert_fn ?? ((opt: T2) => opt as unknown as T)
     const o_options = o(opts.options)
@@ -823,6 +848,7 @@ export class SelectFactory<T, T2 = T> extends Factory<SelectOptions<T, T2>> {
       render: () =>
         Select({
           ...rest,
+          disabled: or_readonly(rest.disabled, defaults.readonly),
           model: o_model,
           options: o_options,
           convert_fn,
@@ -867,11 +893,12 @@ export class DateFactory extends Factory<DatetimeOptions> {
     return this.options.nullable ? null : new Date()
   }
 
-  render(o_value: o.Observable<unknown>): RenderableWidget {
+  render(o_value: o.Observable<unknown>, defaults: EditorSettings = default_settings): RenderableWidget {
     const nullable = !!this.options.nullable
     const show_date = this.options.show_date ?? this.options.date ?? true
     const show_time = this.options.show_time ?? this.options.time ?? false
-    const { nullable: _n, date: _d, time: _t, ...picker_rest } = this.options
+    const { nullable: _n, date: _d, time: _t, ...options } = this.options
+    const picker_rest = { ...options, readonly: or_readonly(options.readonly, defaults.readonly) }
     const o_date = o_value as o.Observable<Date | null>
     return {
       render: () =>
@@ -1043,6 +1070,7 @@ export class ObjectFactory extends Factory<ObjectOptions> {
         key,
         slot_for_key(key, this.options),
         (value) => resolve_factory_for_key(key, value, this.options),
+        settings,
         on_delete,
       )
 
@@ -1077,7 +1105,7 @@ export class ObjectFactory extends Factory<ObjectOptions> {
           o_transient_ids,
           render_entry: (o_key) => (
             <e-grid-row>
-              {$editor_menu_when(settings.show_menu, () => {
+              {$editor_menu_when(settings, () => {
                 const key = o_key.get()
                 const o_child = safe_object_child(o_value, key)
                 return [
@@ -1100,8 +1128,8 @@ export class ObjectFactory extends Factory<ObjectOptions> {
             const { o_key, o_value: o_child } = row
             return (
               <e-grid-row>
-                {transient_menu(settings.show_menu, REMOVE.key, transient_rows, o_transient_ids, id)}
-                <input type="text" placeholder="key">
+                {transient_menu(settings, REMOVE.key, transient_rows, o_transient_ids, id)}
+                <input type="text" placeholder="key" readonly={o.tf(settings.readonly, (ro) => ro || undefined)}>
                   {$bind.string(o_key)}
                   {$on("change", () => try_commit_transient(id))}
                 </input>
@@ -1142,13 +1170,13 @@ function element_menu_section(title: string, o_child: o.Observable<unknown>, slo
 
 /** A row not committed yet: its menu only discards it. */
 function transient_menu<T>(
-  enabled: o.RO<boolean>,
+  settings: MenuSettings,
   label: string,
   rows: Map<string, T>,
   o_ids: o.Observable<string[]>,
   id: string,
 ) {
-  return $editor_menu_when(enabled, () => [delete_section(removal(label, () => discard_transient(rows, o_ids, id)))])
+  return $editor_menu_when(settings, () => [delete_section(removal(label, () => discard_transient(rows, o_ids, id)))])
 }
 
 /**
@@ -1270,13 +1298,19 @@ export class ArrayFactory extends Factory<ArrayOptions> {
           o_transient_ids,
           render_entry: (o_i) => (
             <e-grid-row>
-              {$editor_menu_when(settings.show_menu, () => [
+              {$editor_menu_when(settings, () => [
                 element_menu_section("Value", safe_array_index(o_value, o_i.get()), values_factory),
                 delete_section(delete_at(o_i.get())),
               ])}
               {render_label_cell(o_i.tf((i) => String(i)))}
               {o_i.tf((i) =>
-                render_element_or_preview(safe_array_index(o_value, i), String(i), values_factory, delete_at(i)),
+                render_element_or_preview(
+                  safe_array_index(o_value, i),
+                  String(i),
+                  values_factory,
+                  settings,
+                  delete_at(i),
+                ),
               )}
             </e-grid-row>
           ),
@@ -1285,10 +1319,10 @@ export class ArrayFactory extends Factory<ArrayOptions> {
             if (!row) return null
             return (
               <e-grid-row>
-                {transient_menu(settings.show_menu, REMOVE.row, transient_rows, o_transient_ids, id)}
+                {transient_menu(settings, REMOVE.row, transient_rows, o_transient_ids, id)}
                 {$commit_on_edit(() => try_commit_transient(id), row)}
                 {render_label_cell("+")}
-                {render_element_or_preview(row, "new", values_factory)}
+                {render_element_or_preview(row, "new", values_factory, settings)}
               </e-grid-row>
             )
           },
@@ -1379,7 +1413,7 @@ export class ArrayFactory extends Factory<ArrayOptions> {
           ),
           render_entry: (o_i) => (
             <e-grid-row>
-              {$editor_menu_when(settings.show_menu, (target) => {
+              {$editor_menu_when(settings, (target) => {
                 const i = o_i.get()
                 // The cell is the row's child holding the target; after the index cell, one per column.
                 const row = target?.closest("e-grid-row")
@@ -1394,7 +1428,12 @@ export class ArrayFactory extends Factory<ArrayOptions> {
               {Repeat(oo_columns, (o_col) =>
                 o_i.tf((i) =>
                   o_col.tf((col) =>
-                    render_element_or_preview(safe_table_cell(o_value, i, col), `${i}:${col}`, values_factory),
+                    render_element_or_preview(
+                      safe_table_cell(o_value, i, col),
+                      `${i}:${col}`,
+                      values_factory,
+                      settings,
+                    ),
                   ),
                 ),
               )}
@@ -1525,7 +1564,7 @@ export class SetFactory extends Factory<SetOptions> {
           o_transient_ids,
           render_entry: (o_member) => (
             <e-grid-row>
-              {$editor_menu_when(settings.show_menu, () => [
+              {$editor_menu_when(settings, () => [
                 element_menu_section("Value", safe_set_member(o_value, o_member), values_factory),
                 delete_section(delete_member(o_member.get())),
               ])}
@@ -1534,6 +1573,7 @@ export class SetFactory extends Factory<SetOptions> {
                 safe_set_member(o_value, o_member),
                 value_preview_text(o_member.get()),
                 values_factory,
+                settings,
                 delete_member(o_member.get()),
               )}
             </e-grid-row>
@@ -1543,9 +1583,9 @@ export class SetFactory extends Factory<SetOptions> {
             if (!row) return null
             return (
               <e-grid-row>
-                {transient_menu(settings.show_menu, REMOVE.row, transient_rows, o_transient_ids, id)}
+                {transient_menu(settings, REMOVE.row, transient_rows, o_transient_ids, id)}
                 {$commit_on_edit(() => try_commit_transient(id), row)}
-                {render_element_or_preview(row, "new", values_factory)}
+                {render_element_or_preview(row, "new", values_factory, settings)}
               </e-grid-row>
             )
           },
@@ -1646,17 +1686,23 @@ export class MapFactory extends Factory<MapOptions> {
           o_transient_ids,
           render_entry: (o_key) => (
             <e-grid-row>
-              {$editor_menu_when(settings.show_menu, () => [
+              {$editor_menu_when(settings, () => [
                 key_type_change ? element_menu_section("Key", safe_map_key(o_value, o_key), keys_factory) : null,
                 element_menu_section("Value", safe_map_value(o_value, o_key), values_factory),
                 delete_section(delete_entry(o_key.get())),
               ])}
               {/* Rendered once: renaming the entry re-keys this row, it must keep its inputs (and focus). */}
-              {render_element_or_preview(safe_map_key(o_value, o_key), value_preview_text(o_key.get()), keys_factory)}
+              {render_element_or_preview(
+                safe_map_key(o_value, o_key),
+                value_preview_text(o_key.get()),
+                keys_factory,
+                settings,
+              )}
               {render_element_or_preview(
                 safe_map_value(o_value, o_key),
                 value_preview_text(o_key.get()),
                 values_factory,
+                settings,
                 delete_entry(o_key.get()),
               )}
             </e-grid-row>
@@ -1666,10 +1712,10 @@ export class MapFactory extends Factory<MapOptions> {
             if (!row) return null
             return (
               <e-grid-row>
-                {transient_menu(settings.show_menu, REMOVE.pair, transient_rows, o_transient_ids, id)}
+                {transient_menu(settings, REMOVE.pair, transient_rows, o_transient_ids, id)}
                 {$commit_on_edit(() => try_commit_transient(id), row.o_key, row.o_val)}
-                {render_element_or_preview(row.o_key, "new key", keys_factory)}
-                {render_element_or_preview(row.o_val, "new", values_factory)}
+                {render_element_or_preview(row.o_key, "new key", keys_factory, settings)}
+                {render_element_or_preview(row.o_val, "new", values_factory, settings)}
               </e-grid-row>
             )
           },

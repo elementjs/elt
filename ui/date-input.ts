@@ -95,7 +95,8 @@ export class DateInputController {
   apply_model(m: Date | null) {
     const layout = this.ctx.get_layout()
     if (!layout) return
-    if (this.#editing) return
+    // Read-only, nothing is being typed: the field shows the model even while it has focus.
+    if (this.#editing && !this.input.readOnly) return
     if (m == null) {
       this.#write_text(format_unavailable(layout))
       return
@@ -106,7 +107,7 @@ export class DateInputController {
   /** Parse the input and write a complete value back to the model. */
   commit_to_model() {
     const layout = this.ctx.get_layout()
-    if (!layout) return
+    if (!layout || this.input.readOnly) return
     const text = this.input.value
     if (this.ctx.clearable && is_empty(layout, text)) {
       this.ctx.set_model(null)
@@ -181,7 +182,8 @@ export class DateInputController {
 
   #on_keydown(ev: KeyboardEvent) {
     const layout = this.ctx.get_layout()
-    if (!layout) return
+    // Read-only: the browser's own keys only (moving the caret, selecting, copying); the browser edits nothing.
+    if (!layout || this.input.readOnly) return
     const start = this.input.selectionStart ?? 0
     const seg = segment_at_caret(layout, start)
 
@@ -337,7 +339,8 @@ export class DateInputController {
    */
   #on_beforeinput(ev: InputEvent) {
     const layout = this.ctx.get_layout()
-    if (!layout) return
+    // Read-only: `beforeinput` still comes for typed text (seen in Chromium), and #type_char would apply it.
+    if (!layout || this.input.readOnly) return
     const type = ev.inputType
     if (type === "insertText" || type === "insertReplacementText") {
       ev.preventDefault()

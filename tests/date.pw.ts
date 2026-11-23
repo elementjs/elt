@@ -20,13 +20,16 @@ interface MountOpts {
   /** `"live"`: an observable, initially 1, exposed as `window.o_step`. */
   minute_step?: number | "live"
   emphasis?: "inverted" | "tint"
+  /** `"live"`: an observable, initially `true`, exposed as `window.o_readonly`. */
+  readonly?: "live"
 }
 
 type W = Window & {
-  o_model: { get(): Date | null }
+  o_model: { get(): Date | null; set(d: Date | null): void }
   o_clear: { set(v: boolean): void }
   o_step: { set(v: number): void }
   o_am_pm: { set(v: boolean): void }
+  o_readonly: { set(v: boolean): void }
 }
 
 async function mount(page: Page, opts: MountOpts) {
@@ -45,7 +48,10 @@ async function mount(page: Page, opts: MountOpts) {
     w.o_model = o_model
     w.o_clear = o_clear
     w.o_step = o_step
+    const o_readonly = o(true)
+    w.o_readonly = o_readonly
     const common = {
+      readonly: opts.readonly === "live" ? o_readonly : undefined,
       show_date: opts.show_date,
       show_time: opts.show_time,
       am_pm: opts.am_pm === "live" ? o_am_pm : opts.am_pm,
@@ -736,5 +742,44 @@ test.describe("inputmode: a number pad on phones when there is no AM/PM part", (
     expect((await input_state(page)).value).toBe("08:00 AM")
     await page.evaluate(() => (window as unknown as W).o_am_pm.set(false))
     await expect.poll(() => inputmode(page)).toBe("numeric")
+  })
+})
+
+test.describe("readonly", () => {
+  test("keys, a blur and the buttons change nothing while it holds; turned off, the picker edits again", async ({
+    page,
+  }) => {
+    await mount(page, {
+      lang: "en-GB",
+      model: [2026, 9, 3, 8, 0, 0],
+      show_time: true,
+      clearable: true,
+      readonly: "live",
+    })
+    const buttons = () => page.locator("#holder button").count()
+    const before = (await input_state(page)).value
+    expect(await buttons()).toBe(0)
+    await caret(page, 0)
+    await page.keyboard.type("15")
+    await page.keyboard.press("ArrowUp")
+    await page.keyboard.press("Backspace")
+    expect((await input_state(page)).value).toBe(before)
+    await blur(page)
+    expect(await model(page)).toEqual([2026, 9, 3, 8, 0, 0])
+
+    // An outside write shows, even while the field has focus.
+    await caret(page, 0)
+    await page.evaluate(() => (window as unknown as W).o_model.set(new Date(2026, 0, 2, 9, 30)))
+    expect((await input_state(page)).value).toBe("02/01/2026, 09:30")
+    await blur(page)
+    expect(await model(page)).toEqual([2026, 0, 2, 9, 30, 0])
+
+    await page.evaluate(() => (window as unknown as W).o_readonly.set(false))
+    // Clear, time and date.
+    expect(await buttons()).toBe(3)
+    await caret(page, 0)
+    await page.keyboard.type("15")
+    await blur(page)
+    expect(await model(page)).toEqual([2026, 0, 15, 9, 30, 0])
   })
 })

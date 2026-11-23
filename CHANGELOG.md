@@ -18,6 +18,9 @@ Everything since 3.1.0. To upgrade, follow [Migrating](./docs/md/migrating.md), 
 - **Observables**: `intercept()` shapes what is written, `o.tee()` gathers several outputs, `o.Out<T>` types what a component reports to its caller, `o.expression` drops the dependencies it stopped reading.
 - **App**: routes in the URL path (`mode: "path"`, with `base`, link interception and scrolling to the fragment), `show()` and `app.mount()`.
 - **Drag and drop**: `$dropzone` (files from the desktop, data from other applications or a `$draggable`; nested zones; files dropped outside any zone are refused instead of opened) and `$draggable` (data by type, effects, a file given to the desktop in Chromium).
+- `Select` takes `multiple`: several values in an array or a Set, shown as removable tags.
+- `DateTimePicker` takes `readonly`.
+- `ObjectEditor` takes `readonly`, and its composite schema nodes the option of the same name: the value is shown, and nothing in the editor changes it.
 - `node_remove_range`, `node_move_range`, `without_motion` and `motion_is_enabled` are public.
 - Biome plugins (`lint/`) for the rules elt code must follow, shipped with the package. `out-prefix.grit` checks every `o.Out<T>`: component attributes, decorator options and function parameters.
 
