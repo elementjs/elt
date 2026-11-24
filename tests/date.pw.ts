@@ -782,4 +782,32 @@ test.describe("readonly", () => {
     await blur(page)
     expect(await model(page)).toEqual([2026, 0, 15, 9, 30, 0])
   })
+
+  for (const plain of [false, true]) {
+    test(`readonly: true over ${plain ? "a plain date" : "a ReadonlyObservable"}: shown, and typing changes nothing`, async ({
+      page,
+    }) => {
+      await page.evaluate((plain) => {
+        const { o, node_append, UI } = window.__ELT__
+        const holder = document.createElement("div")
+        holder.id = "holder"
+        holder.lang = "en-GB"
+        node_append(document.body, holder)
+        const o_src = o(new Date(2026, 9, 3, 8, 0))
+        ;(window as unknown as W).o_model = o_src as unknown as W["o_model"]
+        const model = plain ? o_src.get() : o.expression((get) => get(o_src))
+        node_append(holder, UI.DateTimePicker({ model, readonly: true, show_time: true, clearable: true }))
+      }, plain)
+      expect((await input_state(page)).value).toBe("03/10/2026, 08:00")
+      expect(await page.locator("#holder button").count()).toBe(0)
+      await caret(page, 0)
+      await page.keyboard.type("15")
+      await blur(page)
+      expect((await input_state(page)).value).toBe("03/10/2026, 08:00")
+      if (plain) return
+      // The ReadonlyObservable's source changes: the picker follows.
+      await page.evaluate(() => (window as unknown as W).o_model.set(new Date(2026, 0, 2, 9, 30)))
+      expect((await input_state(page)).value).toBe("02/01/2026, 09:30")
+    })
+  }
 })

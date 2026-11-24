@@ -63,7 +63,17 @@ export interface DatePickerNotNullable extends DateTimePickerAttributesBase {
   clearable?: false
 }
 
-export type DatePickerAttrs = DatePickerNullable | DatePickerNotNullable
+/**
+ * Read-only for good: `readonly` is `true`, not an observable that could turn it off, so the model may be a plain
+ * value or a `ReadonlyObservable`. `clearable` is accepted, for attributes shared with an editable picker, and does nothing.
+ */
+export interface DatePickerReadonly extends DateTimePickerAttributesBase {
+  readonly: true
+  model: o.RO<Date | null>
+  clearable?: boolean | o.IReadonlyObservable<boolean>
+}
+
+export type DatePickerAttrs = DatePickerNullable | DatePickerNotNullable | DatePickerReadonly
 
 function picker_options(at: DatePickerAttrs) {
   return {
@@ -107,12 +117,16 @@ export function DateTimePicker(at: DatePickerAttrs) {
 
   const set_model = (d: Date | null) => {
     if (o.get(at.readonly)) return
-    if (d != null) at.model.set(d)
-    // `at.clearable` is only truthy in DatePickerNullable, so `at` narrows to it and set(null) type-checks
-    else if (at.clearable && o.get(clearable)) at.model.set(null)
+    // A model that can't be written only comes with `readonly: true`, which returned above.
+    const w = at as DatePickerNullable | DatePickerNotNullable
+    if (d != null) w.model.set(d)
+    // `w.clearable` is only truthy in DatePickerNullable, so `w` narrows to it and set(null) type-checks
+    else if (w.clearable && o.get(clearable)) w.model.set(null)
   }
 
-  const get_model = () => at.model.get()
+  // The model as read: one type for the three kinds of models, a plain date included.
+  const model: o.RO<Date | null> = at.model
+  const get_model = () => o.get(model)
 
   // Getters: the text input reads the props' current values on each use.
   const input_ctx = {
@@ -180,7 +194,7 @@ export function DateTimePicker(at: DatePickerAttrs) {
               const oo_in_month = o_cell.tf((c) => c.in_month)
               const oo_day_num = o_cell.tf((c) => c.date.getDate())
               const oo_selected_day = o.expression((get) => {
-                const current = get(at.model)
+                const current = get(model)
                 const cell = get(o_cell)
                 return same_day(cell.date, current)
               })
@@ -226,9 +240,9 @@ export function DateTimePicker(at: DatePickerAttrs) {
         {(input: HTMLInputElement) => {
           const ctrl = new DateInputController(input, input_ctx)
           input_ctrl = ctrl
-          ctrl.apply_model(at.model.get())
+          ctrl.apply_model(get_model())
         }}
-        {$observe(at.model, (val) => {
+        {$observe(model, (val) => {
           input_ctrl?.apply_model(val)
         })}
         {$observe(oo_layout, (layout, _, input: HTMLInputElement) => {
@@ -236,7 +250,7 @@ export function DateTimePicker(at: DatePickerAttrs) {
           // default keyboard, since its letters set AM or PM. No attribute before the locale is known.
           if (layout && !layout.segments.some((s) => s.kind === "dayPeriod")) input.setAttribute("inputmode", "numeric")
           else input.removeAttribute("inputmode")
-          input_ctrl?.apply_model(at.model.get())
+          input_ctrl?.apply_model(get_model())
         })}
       </input>
       {o.tf(

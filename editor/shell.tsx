@@ -107,6 +107,15 @@ export interface ShellOptions extends Partial<EditorSettings> {
   out_breadcrumb?: o.Out<string[]>
 }
 
+/**
+ * The options of an editor read-only for good: `readonly` is `true`, not an observable that could turn it
+ * off, so the model may be a plain value or a `ReadonlyObservable`. Nothing can be undone, so there is no history.
+ */
+export interface ReadonlyShellOptions extends Omit<ShellOptions, "readonly" | "undo"> {
+  readonly: true
+  undo?: false
+}
+
 function root_is_scalar(value: unknown): boolean {
   if (value === null || value === undefined) return true
   if (typeof value !== "object") return true
@@ -124,13 +133,18 @@ export class ObjectEditorShell<T = unknown> {
   private readonly defaults: EditorSettings
 
   private readonly o_root: o.Observable<unknown>
+  /** No history with `undo: false`, or when the editor is read-only for good. */
+  private readonly has_undo: boolean
 
+  constructor(model: o.RO<T>, options: ReadonlyShellOptions)
+  constructor(o_model: o.Observable<T>, options?: ShellOptions)
   constructor(
-    o_model: o.Observable<T>,
-    private readonly options: ShellOptions = {},
+    model: o.RO<T>,
+    private readonly options: ShellOptions | ReadonlyShellOptions = {},
   ) {
     // Refuses writes while the editor is read-only: a widget that missed the setting still changes nothing.
-    this.o_root = untyped_root(o_model, options.schema ?? anything, options.readonly)
+    this.o_root = untyped_root(model as o.Observable<T>, options.schema ?? anything, options.readonly)
+    this.has_undo = options.undo !== false && options.readonly !== true
     this.o_breadcrumb = this.o_columns.tf((cols) => cols.slice(1).map((c) => c.title ?? ""))
     this.undo = new RootUndoRing(this.o_root, this.options.undo || {})
     this.defaults = {
@@ -148,7 +162,7 @@ export class ObjectEditorShell<T = unknown> {
     // `packed border` child itself, and would take each column's own frame away.
     this.node = (
       <e-row scroll="x">
-        {this.options.undo !== false &&
+        {this.has_undo &&
           // The history follows the root while the editor is on screen. Immediate: the first call, now, seeds it with
           // the initial state, and a write made before the editor is mounted is still seen once it is.
           $observe(
@@ -160,7 +174,7 @@ export class ObjectEditorShell<T = unknown> {
           )}
         {this.options.out_breadcrumb &&
           $observe(this.o_breadcrumb, (titles) => this.options.out_breadcrumb?.set(titles), { immediate: true })}
-        {this.options.undo !== false &&
+        {this.has_undo &&
           $keymap({
             // Not in a text field: there, the browser undoes the typing, which is what the user means.
             "Mod+z": { callback: (_, __, ev) => this.shortcut(ev, () => this.undo.undo()), prevent_default: false },
@@ -442,7 +456,7 @@ export class ObjectEditorShell<T = unknown> {
       return [column.title, type_label].filter((part) => part != null && part !== "").join(" · ")
     })
     const oo_undo_buttons = o.expression(
-      (get) => is_root && this.options.undo !== false && (get(this.options.show_undo_redo) ?? true) && !get(readonly),
+      (get) => is_root && this.has_undo && (get(this.options.show_undo_redo) ?? true) && !get(readonly),
     )
     // The root's header line goes away when nothing is left on it (no label, menu, action, Add button, or
     // Undo/Redo to offer). Any other column keeps it for its ×.
@@ -573,11 +587,20 @@ export class ObjectEditorShell<T = unknown> {
   }
 }
 
-/** Attributes of the `<ObjectEditor>` component; the options are those of `ShellOptions`. */
-export interface ObjectEditorAttrs<T = unknown> extends ShellOptions, Attrs<HTMLElement> {
+/** Attributes of an `<ObjectEditor>` that can edit; the options are those of `ShellOptions`. */
+export interface ObjectEditorEditableAttrs<T = unknown> extends ShellOptions, Attrs<HTMLElement> {
   /** The edited value. Edits write back into it, and external writes to it show up in the editor. */
   model: o.Observable<T>
 }
+
+/** Attributes of an `<ObjectEditor readonly>`: the shown value may be a plain value or a `ReadonlyObservable`. */
+export interface ObjectEditorReadonlyAttrs<T = unknown> extends ReadonlyShellOptions, Attrs<HTMLElement> {
+  /** The shown value. External writes to it show up in the editor. */
+  model: o.RO<T>
+}
+
+/** `readonly` set to `true`, and only then, lets the model be read-only: an observable `readonly` may turn it off. */
+export type ObjectEditorAttrs<T = unknown> = ObjectEditorEditableAttrs<T> | ObjectEditorReadonlyAttrs<T>
 
 /**
  * The object editor: `<ObjectEditor model={o_value} schema={...} />`. Renders the strip of columns
@@ -586,5 +609,6 @@ export interface ObjectEditorAttrs<T = unknown> extends ShellOptions, Attrs<HTML
  */
 export function ObjectEditor<T>(attrs: ObjectEditorAttrs<T>): HTMLElement {
   const { model, ...options } = attrs
-  return new ObjectEditorShell(model, options).node
+  // Both overloads at once: `untyped_root` tells the two cases apart on `readonly` itself.
+  return new ObjectEditorShell(model as o.Observable<T>, options as ShellOptions).node
 }

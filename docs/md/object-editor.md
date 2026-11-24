@@ -16,12 +16,12 @@ section: UI Recipes
 
 | Attribute | Type | Does |
 | --------- | ---- | ---- |
-| `model` | `Observable<T>` | The edited value (required). Any observable works, whatever the type of its value: the editor handles it as `unknown`, and before a value is written back into the model the schema's `canHandle` must accept it (otherwise the write throws). Declare the model `o<unknown>(…)` when its value can change to something its type doesn't describe |
+| `model` | `Observable<T>` | The edited value (required). Any observable works, whatever the type of its value: the editor handles it as `unknown`, and before a value is written back into the model the schema's `canHandle` must accept it (otherwise the write throws). Declare the model `o<unknown>(…)` when its value can change to something its type doesn't describe. With `readonly` set to `true`, `o.RO<T>`: a `ReadonlyObservable` or a plain value works too ([Read-only](#read-only)) |
 | `schema` | a schema (`object(...)`, `array(...)`, `either(...)`, …) | What the value may hold. Without it, the editor works in unknown mode: any JSON-like value, with its type changeable |
 | `prefer_popups` | `o.RO<boolean>` | Open nested values in a popup instead of a new column to the right (a schema can still choose per value) |
 | `packed` | `o.RO<boolean>` (default `false`) | Draw each column as one framed group whose header line, toolbar and rows touch and share lines. Without it, a column has no frame: its rows are spaced by the usual elt/ui spacing. See [Packed or not](#packed-or-not) |
 | `show_title`, `show_filter`, `show_add`, `show_menu` | `o.RO<boolean>` (default `true`) | Which parts of a column appear. See [Showing and hiding parts](#showing-and-hiding-parts) |
-| `readonly` | `o.RO<boolean>` (default `false`) | Show the value without letting the editor change it. See [Read-only](#read-only) |
+| `readonly` | `o.RO<boolean>` (default `false`) | Show the value without letting the editor change it. `true`, not an observable, also lets the model be read-only and turns the history off. See [Read-only](#read-only) |
 | `show_undo_redo` | `o.RO<boolean>` (default `true`) | The *Undo*/*Redo* buttons of the root column's header line (icons, shown only when there is something to undo or redo) |
 | `out_breadcrumb` | `o.Out<string[]>` | Written with the titles of the opened columns after the root (`[]` when only the root is open), when the editor is built, then on every change while it is on screen. You create the observable and read it; the editor only writes it. See [Components § Reactive attributes](./components.md#reactive-attributes) |
 | `undo` | `{ depth?, import_undo_depth? } \| false` | Size of the *Undo*/*Redo* history. `false` turns the history off: no buttons, no shortcut |
@@ -57,7 +57,11 @@ A part that would be empty goes away: the toolbar without its filter, and the ro
 
 ## Read-only
 
-`readonly` shows the value without letting the editor change it; writes made to the model elsewhere still show up. While it holds:
+`readonly` shows the value without letting the editor change it; writes made to the model elsewhere still show up.
+
+`readonly` set to `true` (`<ObjectEditor readonly model={…} />`) is read-only for good: the model may then be a `ReadonlyObservable` (an `o.expression`, a `.tf()` without a revert) or a plain value, and the editor keeps no *Undo* history (`undo` can only be `false`). An observable `readonly`, or a variable typed `boolean`, may turn editing back on, so the model must be an `Observable`; TypeScript refuses a read-only model there.
+
+While `readonly` holds:
 
 - The fields can't be edited: text and number fields are read-only (their text can still be selected and copied), switches and selects are disabled, a date field is read-only and loses its buttons.
 - There is no *Add* button, no *Undo*/*Redo* button and no Ctrl+Z, and a `null` or `undefined` value is plain text instead of a button opening the type list.
@@ -69,7 +73,7 @@ A part that would be empty goes away: the toolbar without its filter, and the ro
 
 Switches and selects take the disabled look. Text, number and date fields keep their usual look: elt/ui draws no read-only state, so they look editable.
 
-The *Undo* history still records the writes made to the model elsewhere. For a viewer whose value is large and often replaced, also set `undo={false}`.
+With an observable `readonly`, the *Undo* history still records the writes made to the model elsewhere, for when editing comes back. For a viewer whose value is large and often replaced, set `readonly` to `true`, or also set `undo={false}`.
 
 ## Type colors and icons
 

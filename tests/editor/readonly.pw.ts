@@ -232,3 +232,66 @@ test("ObjectEditor's readonly attribute: the root refuses writes from a widget t
   })
   expect(result).toEqual({ refused: { a: 1 }, written: { a: 3 } })
 })
+
+test.describe("readonly for good: a model that can't be written", () => {
+  /** Mount `<ObjectEditor readonly>` on an `o.expression` of `window.o_src`, or on the plain value itself. */
+  async function mount_ro(page: Page, plain: boolean) {
+    await page.evaluate((plain) => {
+      const { o, node_append } = window.__ELT__
+      const E = window.__ELT__.Editor
+      const o_src = o<unknown>({ a: "x", sub: { b: 1 } })
+      ;(window as unknown as { o_src: typeof o_src }).o_src = o_src
+      const model = plain ? { a: "x", sub: { b: 1 } } : o.expression((get) => get(o_src))
+      const el = E.ObjectEditor({ model, readonly: true, packed: true })
+      el.id = "shell"
+      node_append(document.body, el)
+    }, plain)
+  }
+  const set_src = (page: Page, v: unknown) =>
+    page.evaluate((v) => (window as unknown as { o_src: { set(v: unknown): void } }).o_src.set(v), v)
+
+  for (const plain of [false, true]) {
+    test(`over ${plain ? "a plain value" : "a ReadonlyObservable"}: shown, and typing changes nothing`, async ({
+      page,
+    }) => {
+      await mount_ro(page, plain)
+      const input = row(page, "a").locator("input")
+      await expect(input).toHaveValue("x")
+      await input.click()
+      await page.keyboard.type("y")
+      await page.locator("#shell input[type=search]").click()
+      await expect(input).toHaveValue("x")
+    })
+  }
+
+  test("follows its source; no Undo button, and Ctrl+Z after an outside write brings nothing back", async ({
+    page,
+  }) => {
+    await mount_ro(page, false)
+    await set_src(page, { a: "outside", sub: { b: 2 } })
+    await expect(row(page, "a").locator("input")).toHaveValue("outside")
+    // Focus on a button inside the editor, not a text field, whose own undo the browser keeps.
+    await row(page, "sub").locator("button").focus()
+    await page.keyboard.press("ControlOrMeta+z")
+    await expect(row(page, "a").locator("input")).toHaveValue("outside")
+    expect(await count(page, '#shell button[aria-label="Undo"]')).toBe(0)
+  })
+
+  test("the root drops a write from a widget that ignores the setting", async ({ page }) => {
+    const result = await page.evaluate(() => {
+      const { o } = window.__ELT__
+      const { untyped_root, anything } = window.__ELT__.Editor
+      const o_src = o({ a: 1 })
+      const o_root = untyped_root(
+        o.expression((get) => get(o_src)),
+        anything,
+        true,
+      )
+      o_root.set({ a: 2 })
+      const after_write = o_root.get()
+      o_src.set({ a: 3 })
+      return { after_write, now: o_root.get() }
+    })
+    expect(result).toEqual({ after_write: { a: 1 }, now: { a: 3 } })
+  })
+})

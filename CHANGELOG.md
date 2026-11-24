@@ -19,8 +19,8 @@ Everything since 3.1.0. To upgrade, follow [Migrating](./docs/md/migrating.md), 
 - **App**: routes in the URL path (`mode: "path"`, with `base`, link interception and scrolling to the fragment), `show()` and `app.mount()`.
 - **Drag and drop**: `$dropzone` (files from the desktop, data from other applications or a `$draggable`; nested zones; files dropped outside any zone are refused instead of opened) and `$draggable` (data by type, effects, a file given to the desktop in Chromium).
 - `Select` takes `multiple`: several values in an array or a Set, shown as removable tags.
-- `DateTimePicker` takes `readonly`.
-- `ObjectEditor` takes `readonly`, and its composite schema nodes the option of the same name: the value is shown, and nothing in the editor changes it.
+- `DateTimePicker` takes `readonly`; set to `true`, its model may be a `ReadonlyObservable` or a plain date.
+- `ObjectEditor` takes `readonly`, and its composite schema nodes the option of the same name: the value is shown, and nothing in the editor changes it. Set to `true`, the model may be a `ReadonlyObservable` or a plain value, and there is no Undo history.
 - `node_remove_range`, `node_move_range`, `without_motion` and `motion_is_enabled` are public.
 - Biome plugins (`lint/`) for the rules elt code must follow, shipped with the package. `out-prefix.grit` checks every `o.Out<T>`: component attributes, decorator options and function parameters.
 

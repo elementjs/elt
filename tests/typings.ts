@@ -6,7 +6,8 @@ import type { Renderable } from "../src"
 import { o } from "../src/observable"
 import { tf_array_has, tf_equals, tf_map_has, tf_set_has } from "../src/observable/transformers"
 import type { ServiceHelper, ServiceHelperBase } from "../src/app/service"
-import type { ObjectEditorShell } from "../editor/shell"
+import type { ObjectEditorAttrs, ObjectEditorShell } from "../editor/shell"
+import type { DatePickerAttrs } from "../ui/date"
 
 var _: any
 
@@ -140,6 +141,46 @@ declare var __: any
   // @ts-expect-error a model of another type
   const other: Model = o("Ada")
   void [typed, other]
+}
+
+// A model that can't be written only with `readonly` set to `true`: an observable `readonly` may turn it off.
+{
+  const ro = _ as o.ReadonlyObservable<{ name: string }>
+  const flag = _ as o.Observable<boolean>
+  const bool = _ as boolean
+  const editors: ObjectEditorAttrs<{ name: string }>[] = [
+    { model: ro, readonly: true },
+    { model: { name: "Ada" }, readonly: true },
+    { model: o({ name: "Ada" }), readonly: flag },
+    // @ts-expect-error a read-only model without `readonly`
+    { model: ro },
+    // @ts-expect-error a read-only model with `readonly` false
+    { model: ro, readonly: false },
+    // @ts-expect-error a read-only model with an observable `readonly`
+    { model: ro, readonly: flag },
+    // @ts-expect-error a read-only model with a `readonly` only known as a boolean
+    { model: ro, readonly: bool },
+    // @ts-expect-error no history to configure when nothing can be undone
+    { model: ro, readonly: true, undo: { depth: 3 } },
+  ]
+  const o_date = _ as o.ReadonlyObservable<Date | null>
+  const pickers: DatePickerAttrs[] = [
+    { model: o_date, readonly: true },
+    { model: new Date(), readonly: true, clearable: true },
+    // @ts-expect-error a read-only model without `readonly`
+    { model: o_date },
+    // @ts-expect-error a read-only model with an observable `readonly`
+    { model: o_date, readonly: flag },
+  ]
+  type Shell = typeof ObjectEditorShell<{ name: string }>
+  const shells = [
+    (s: Shell) => new s(ro, { readonly: true }),
+    // @ts-expect-error a read-only model without options
+    (s: Shell) => new s(ro),
+    // @ts-expect-error a read-only model with an observable `readonly`
+    (s: Shell) => new s(ro, { readonly: flag }),
+  ]
+  void [editors, pickers, shells]
 }
 
 // The transformers take their value type from the observable they are given to, so a literal needs no
