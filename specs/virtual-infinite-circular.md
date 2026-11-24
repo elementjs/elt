@@ -56,8 +56,9 @@ Prepends (needed by `OnStartReached`): the window is index-based, so prepending 
 
 A ring shows `lst[mod(i, n)]` at absolute index `i`, and the same item may be rendered several times at once.
 
-- [ ] Overridable hooks in `Repeat.Repeater`, used by `updateChildren` and `resolve_view`: the item at an index (`item_at(lst, i)`), its key (`key_at(lst, i)`), the window's clamping (today `clamp_view` to `[0, length)`). `RepeatObservable` maps its absolute index to a data index for reads and writes (writing through `o_item`).
-- [ ] `just bench` before and after: these become method calls in plain `Repeat`'s hot loop, polymorphic across the class hierarchy. If plain `Repeat` regresses, come back to this decision (the alternative was a second copy of `updateChildren`).
+- [x] Overridable hooks in `Repeat.Repeater`, used by `updateChildren` and `resolve_view`: the item at an index (`item_at(lst, i)`), its key (`key_at(lst, i)`), the window's clamping (today `clamp_view` to `[0, length)`). `RepeatObservable` maps its absolute index to a data index for reads and writes (writing through `o_item`).
+- [x] `just bench` before and after: these become method calls in plain `Repeat`'s hot loop, polymorphic across the class hierarchy. If plain `Repeat` regresses, come back to this decision (the alternative was a second copy of `updateChildren`).
+- Landed as `clamp_view`, `item_at`, `data_index` and `render_index` on `Repeat.Repeater` (`key_at` came with section 3). `item_at` and `data_index` are public, since `RepeatObservable` calls them. Bench (`just bench`, the new `Repeat` cases in Chromium): no difference beyond run-to-run noise; to check again once `RepeatCircular` overrides them.
 
 ## 5. `RepeatCircular`
 

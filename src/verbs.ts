@@ -370,7 +370,8 @@ export namespace Repeat {
     }
 
     override getter(values: [o.ObservedType<Obs>, number]) {
-      return values[0]?.[values[1]]
+      const lst = values[0]
+      return (lst == null ? undefined : this.repeat.item_at(lst, values[1])) as ItemType<Obs>
     }
 
     override setter(
@@ -379,7 +380,7 @@ export namespace Repeat {
       current: [NonNullable<o.ObservedType<Obs>>, number],
     ) {
       const newlst = o.clone(current[0])
-      newlst[current[1]] = value
+      newlst[this.repeat.data_index(current[1], newlst.length)] = value
       return [newlst, o.NoValue] as [NonNullable<o.ObservedType<Obs>>, number | o.NoValue]
     }
   }
@@ -554,11 +555,37 @@ export namespace Repeat {
     protected before_reconcile(_override?: View) {}
 
     protected resolve_view(length: number, override?: View) {
-      if (override != null) return clamp_view(length, override.start, override.end)
+      if (override != null) return this.clamp_view(length, override.start, override.end)
       if (this.o_view_start == null || this.o_view_end == null) {
         return { start: 0, end: length }
       }
-      return clamp_view(length, o.get(this.o_view_start), o.get(this.o_view_end))
+      return this.clamp_view(length, o.get(this.o_view_start), o.get(this.o_view_end))
+    }
+
+    /*
+     * How indices map to the list's items. A row's index is its position in the Repeat's index space,
+     * which is the list's own indices here; a ring (RepeatCircular) overrides these to repeat the list
+     * endlessly, an index `i` standing for item `i mod length`.
+     */
+
+    /** The window `[start, end)` within the index space of a list of `length` items. */
+    protected clamp_view(length: number, start: number, end: number): View {
+      return clamp_view(length, start, end)
+    }
+
+    /** The item shown at index `i`. */
+    item_at(lst: NonNullable<o.ObservedType<Obs>>, i: number): ItemType<Obs> {
+      return lst[i]
+    }
+
+    /** The list index of the item shown at index `i`, in a list of `length` items. */
+    data_index(i: number, _length: number) {
+      return i
+    }
+
+    /** The index given to the render function and the separator, from the row's own index. */
+    protected render_index(o_index: o.Observable<number>): o.ReadonlyObservable<number> {
+      return o_index
     }
 
     /**
@@ -784,7 +811,8 @@ export namespace Repeat {
       node[sym_obs] = ob
       node_append(into, node, refchild)
 
-      const rendered = this.renderfn?.(ob as any, o_prop_obs)
+      const o_index = this.render_index(o_prop_obs)
+      const rendered = this.renderfn?.(ob as any, o_index)
       const sep_fn = this.separator
       node.updateRenderable(
         sep_fn == null
@@ -795,7 +823,7 @@ export namespace Repeat {
                 o_prop_obs.tf((i) => i > 0),
                 () => {
                   const sep = document.createElement("e-repeat-separator")
-                  node_append(sep, sep_fn(o_prop_obs))
+                  node_append(sep, sep_fn(o_index))
                   return sep
                 },
               ),

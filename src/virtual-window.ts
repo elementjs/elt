@@ -830,11 +830,6 @@ export abstract class VirtualWindow<
     return res
   }
 
-  /** The list's index of the row at index `i` of the index space. */
-  protected data_index(i: number) {
-    return i
-  }
-
   /**
    * The index of the row `px` pixels from the start of the visible area (its centre line, for a wheel),
    * null when no rendered row is there. One layout read: call it when scrolling stops, not on every
@@ -847,7 +842,7 @@ export abstract class VirtualWindow<
     for (let item = this.first_item(); item != null; item = this.next_item(item)) {
       const bounds = this.getBounds(item)
       if (this.boundsValid(bounds) && bounds.start <= line && line < bounds.end) {
-        return this.data_index(item[Repeat.sym_obs].o_prop.get())
+        return this.data_index(item[Repeat.sym_obs].o_prop.get(), this.length())
       }
     }
     return null
