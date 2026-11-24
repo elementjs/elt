@@ -485,9 +485,18 @@ export abstract class VirtualWindow<
     // biome-ignore lint/style/noNonNullAssertion: only called while connected, with a scroll area
     const area = this.scroll_area!
     if (delta === 0) return
+    const before = this.axis.scroll(area)
     this.axis.scroll_by(area, delta)
-    this.scroll_last = this.axis.scroll(area)
+    const after = this.axis.scroll(area)
+    this.scroll_last = after
     this.scroll_last_valid = true
+    // WebKit keeps the scroll position in whole pixels, where rows sit at fractions of one: the start
+    // padder makes up what the rounding left, while it shows. (A larger rest is the scroll stopped at
+    // an end, which nothing makes up.)
+    const rest = delta - (after - before)
+    if (rest !== 0 && Math.abs(rest) < 1 && this.has_before()) {
+      this.o_padding_start.set(Math.max(0, o.get(this.o_padding_start) - rest))
+    }
   }
 
   /** Render the window around index `n`, replacing whatever was rendered, without scrolling: the
