@@ -198,12 +198,22 @@ export function wrap(v: number, min: number, max: number): number {
   return min + ((((v - min) % span) + span) % span)
 }
 
+/** The minute and second steps allowed: the divisors of 60 that leave a column at least two values. */
+export const MINUTE_STEPS = [1, 2, 3, 4, 5, 6, 10, 12, 15, 20, 30]
+
+/** The hour steps allowed: the divisors of 12, so that both halves of the day hold the same hours. */
+export const HOUR_STEPS = [1, 2, 3, 4, 6, 12]
+
 /**
- * A minute or second step as given by the user: a whole number from 1 to 30. Above 30 a column of
- * 0–59 would hold fewer than two values.
+ * A step as given by the user, rounded down to the nearest allowed one (`MINUTE_STEPS` by default,
+ * or `HOUR_STEPS`): every column of the time picker is then a regular ring, its last value one step
+ * before its first.
  */
-export function normalize_step(step: number | undefined): number {
-  return Math.max(1, Math.min(30, Math.trunc(step ?? 1)))
+export function normalize_step(step: number | undefined, allowed = MINUTE_STEPS): number {
+  const wanted = Math.trunc(step ?? 1)
+  let best = 1
+  for (const s of allowed) if (s <= wanted) best = s
+  return best
 }
 
 /** Full mask with `-` in every segment — shown when there is no model value. */

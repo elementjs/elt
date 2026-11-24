@@ -6,6 +6,7 @@ import {
   clamp_segment,
   date_to_values,
   day_period_texts,
+  HOUR_STEPS,
   normalize_step,
   parse_segments,
   format_unavailable,
@@ -26,14 +27,32 @@ export interface DateInputControllerCtx {
   /** The date a time-only input puts its time on: the model, or the picker's default date when it is empty. */
   get_base: () => Date
   readonly clearable: boolean
+  readonly hour_step?: number
   readonly minute_step?: number
   readonly second_step?: number
 }
 
-/** A segment's value after one arrow step (`delta` is 1 or -1): minutes and seconds go around, the others stop at their bounds. */
-function bump_segment(kind: SegmentKind, cur: number, delta: number, ctx: DateInputControllerCtx): number {
+/**
+ * A segment's value after one arrow step (`delta` is 1 or -1): minutes and seconds go around, the others
+ * stop at their bounds. Hours step by `hour_step`, within the half of the day with an AM/PM part
+ * (`twelve_hours`), where 12 comes first.
+ */
+function bump_segment(
+  kind: SegmentKind,
+  cur: number,
+  delta: number,
+  ctx: DateInputControllerCtx,
+  twelve_hours: boolean,
+): number {
   if (kind === "minute") return wrap(cur + normalize_step(ctx.minute_step) * delta, 0, 59)
   if (kind === "second") return wrap(cur + normalize_step(ctx.second_step) * delta, 0, 59)
+  if (kind === "hour") {
+    const step = normalize_step(ctx.hour_step, HOUR_STEPS)
+    const span = twelve_hours ? 12 : 24
+    // 12 o'clock is the 0 of its half of the day; the last hour on the step's grid stops it.
+    const next = Math.max(0, Math.min(span - step, (twelve_hours ? cur % 12 : cur) + step * delta))
+    return twelve_hours ? next || 12 : next
+  }
   return clamp_segment(kind, cur + delta, { [kind]: cur + delta })
 }
 
@@ -217,7 +236,8 @@ export class DateInputController {
       const vals = parse_segments(layout, this.input.value)
       const cur = vals[seg.kind] ?? 0
       const delta = ev.key === "ArrowUp" ? 1 : -1
-      vals[seg.kind] = bump_segment(seg.kind, cur, delta, this.ctx)
+      const twelve_hours = layout.segments.some((s) => s.kind === "dayPeriod")
+      vals[seg.kind] = bump_segment(seg.kind, cur, delta, this.ctx, twelve_hours)
       for (const s of layout.segments) {
         const v = vals[s.kind]
         if (v != null) vals[s.kind] = clamp_segment(s.kind, v, vals)

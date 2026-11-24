@@ -5,6 +5,7 @@ import {
   calendar_month_cells,
   type WeekdayName,
   month_names,
+  HOUR_STEPS,
   normalize_step,
   resolve_locale,
   weekday_labels,
@@ -35,10 +36,15 @@ export interface DateTimePickerAttributesBase extends Attrs<HTMLElement> {
   /** if true, display 0-11 for hours and AM/PM instead of 0-23 */
   am_pm?: o.RO<boolean>
 
-  /** the step for the minute selector, 1 to 30. Default is 1. */
+  /** the step for the hour selector, a divisor of 12 (1, 2, 3, 4, 6 or 12; another value is rounded
+   * down to one). Default is 1. */
+  hour_step?: o.RO<number>
+
+  /** the step for the minute selector, a divisor of 60 up to 30 (1, 2, 3, 4, 5, 6, 10, 12, 15, 20 or 30;
+   * another value is rounded down to one). Default is 1. */
   minute_step?: o.RO<number>
 
-  /** the step for the second selector, 1 to 30. Default is 1. */
+  /** the step for the second selector, as `minute_step`. Default is 1. */
   second_step?: o.RO<number>
 
   /** if true, show the seconds selector */
@@ -81,8 +87,9 @@ function picker_options(at: DatePickerAttrs) {
     show_time: o.tf(at.show_time, (t) => t ?? false),
     am_pm: o.tf(at.am_pm, (a) => a ?? false),
     seconds: o.tf(at.seconds, (s) => s ?? false),
-    minute_step: o.tf(at.minute_step, normalize_step),
-    second_step: o.tf(at.second_step, normalize_step),
+    hour_step: o.tf(at.hour_step, (s) => normalize_step(s, HOUR_STEPS)),
+    minute_step: o.tf(at.minute_step, (s) => normalize_step(s)),
+    second_step: o.tf(at.second_step, (s) => normalize_step(s)),
   }
 }
 
@@ -135,6 +142,9 @@ export function DateTimePicker(at: DatePickerAttrs) {
     get_base: () => get_model() ?? default_popup_date(),
     get clearable() {
       return o.get(clearable)
+    },
+    get hour_step() {
+      return o.get(opts.hour_step)
     },
     get minute_step() {
       return o.get(opts.minute_step)
@@ -281,6 +291,7 @@ export function DateTimePicker(at: DatePickerAttrs) {
                         o_date={o_cur}
                         am_pm={o.get(opts.am_pm)}
                         seconds={o.get(opts.seconds)}
+                        hour_step={o.get(opts.hour_step)}
                         minute_step={o.get(opts.minute_step)}
                         second_step={o.get(opts.second_step)}
                         on_change={(d) => set_model(d)}

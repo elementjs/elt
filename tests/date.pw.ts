@@ -19,6 +19,7 @@ interface MountOpts {
   am_pm?: boolean | "live"
   /** `"live"`: an observable, initially 1, exposed as `window.o_step`. */
   minute_step?: number | "live"
+  hour_step?: number
   emphasis?: "inverted" | "tint"
   /** `"live"`: an observable, initially `true`, exposed as `window.o_readonly`. */
   readonly?: "live"
@@ -56,6 +57,7 @@ async function mount(page: Page, opts: MountOpts) {
       show_time: opts.show_time,
       am_pm: opts.am_pm === "live" ? o_am_pm : opts.am_pm,
       minute_step: opts.minute_step === "live" ? o_step : opts.minute_step,
+      hour_step: opts.hour_step,
       emphasis: opts.emphasis,
     }
     const picker =
@@ -199,6 +201,32 @@ test.describe("props read live by the text input", () => {
     expect((await input_state(page)).value).toBe("08:15")
   })
 
+  test("hour_step drives the arrow keys on the hours, stopping at the last hour of the grid", async ({ page }) => {
+    await mount(page, { lang: "en-GB", model: [2026, 9, 3, 8, 0, 0], show_date: false, show_time: true, hour_step: 6 })
+    await caret(page, 0)
+    await page.keyboard.press("ArrowUp")
+    expect((await input_state(page)).value).toBe("14:00")
+    await page.keyboard.press("ArrowUp")
+    await page.keyboard.press("ArrowUp")
+    expect((await input_state(page)).value).toBe("18:00")
+  })
+
+  test("12-hour time: hour_step counts 12 as the first hour of its half of the day", async ({ page }) => {
+    await mount(page, {
+      lang: "en-US",
+      model: [2026, 9, 3, 12, 0, 0],
+      show_date: false,
+      show_time: true,
+      am_pm: true,
+      hour_step: 3,
+    })
+    await caret(page, 0)
+    await page.keyboard.press("ArrowUp")
+    expect((await input_state(page)).value).toBe("03:00 PM")
+    await page.keyboard.press("ArrowDown")
+    expect((await input_state(page)).value).toBe("12:00 PM")
+  })
+
   test("a minute step above 30 is capped at 30", async ({ page }) => {
     await mount(page, {
       lang: "en-GB",
@@ -216,47 +244,88 @@ test.describe("props read live by the text input", () => {
 test.describe("time picker popup", () => {
   // css`` makes unique class names (`time-panel-<n>`).
   const PANEL = '[class^="time-panel-"]'
-  async function open(page: Page) {
-    await mount(page, { lang: "en-GB", model: [2026, 9, 3, 8, 30, 0], show_date: false, show_time: true })
+  const WHEEL = `${PANEL} [role="spinbutton"]`
+
+  async function open(page: Page, opts: Partial<MountOpts> = {}) {
+    await mount(page, { lang: "en-GB", model: [2026, 9, 3, 8, 30, 0], show_date: false, show_time: true, ...opts })
     await page.click('#holder button[title="Time"]')
-    await page.waitForSelector(PANEL)
-    // Mark the hour column: a rebuilt column would lose the mark.
-    await page.evaluate(() => {
-      ;(document.querySelector(`[class^="time-panel-"] > e-column`) as HTMLElement).dataset.mark = "hours"
-    })
+    await page.waitForSelector(WHEEL)
+    await settle(page)
   }
 
-  /** The hour column's three values (above, current, below) and whether it is still the first one built. */
-  function hours(page: Page) {
-    return page.evaluate(() => {
-      const col = document.querySelector(`[class^="time-panel-"] > e-column`) as HTMLElement
-      return {
-        same: col.dataset.mark === "hours",
-        texts: [...col.querySelectorAll("span")].map((s) => s.textContent),
-      }
-    })
+  /** Lets scrolling (smooth ones included) and the lists' passes finish. */
+  async function settle(page: Page) {
+    await page.waitForTimeout(400)
+    await page.evaluate(() => window.__ELT__.frames(3))
   }
 
-  test("step buttons change the value without rebuilding the column", async ({ page }) => {
+  /** What each wheel shows in its centre slot, and its selected row's text. */
+  function slots(page: Page) {
+    return page.evaluate((sel) => {
+      return [...document.querySelectorAll(sel)].map((w) => {
+        const r = w.getBoundingClientRect()
+        const at = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2)
+        return at?.closest('[role="option"]')?.textContent ?? null
+      })
+    }, WHEEL)
+  }
+
+  /** The values the column `n` renders, each once. */
+  function values(page: Page, n: number) {
+    return page.evaluate(
+      ([sel, n]) => {
+        const w = document.querySelectorAll(sel as string)[n as number]!
+        return [...new Set([...w.querySelectorAll('[role="option"]')].map((r) => r.textContent))].sort()
+      },
+      [WHEEL, n] as const,
+    )
+  }
+
+  test("opens with the model's time in the slots", async ({ page }) => {
     await open(page)
-    await page.click(`${PANEL} > e-column[data-mark="hours"] > button >> nth=0`)
-    expect(await hours(page)).toEqual({ same: true, texts: ["08", "07", "06"] })
-    expect(await model(page)).toEqual([2026, 9, 3, 7, 30, 0])
-    await page.click(`${PANEL} > e-column[data-mark="hours"] > button >> nth=1`)
-    await page.click(`${PANEL} > e-column[data-mark="hours"] > button >> nth=1`)
-    expect(await hours(page)).toEqual({ same: true, texts: ["10", "09", "08"] })
-    expect(await model(page)).toEqual([2026, 9, 3, 9, 30, 0])
+    expect(await slots(page)).toEqual(["08", "30"])
   })
 
-  test("each column is a spinbutton: one Tab stop, named, stepped by the keys", async ({ page }) => {
+  test("a scroll by the user that stops on a value picks it", async ({ page }) => {
     await open(page)
-    const col = `${PANEL} > e-column[data-mark="hours"]`
+    const box = (await page.locator(WHEEL).first().boundingBox())!
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
+    // Two rows down: two hours later. The wheel snaps to a row whatever the exact distance.
+    const row = await page.evaluate(
+      (sel) => document.querySelector(`${sel} [role="option"]`)!.getBoundingClientRect().height,
+      WHEEL,
+    )
+    await page.mouse.wheel(0, row * 2)
+    await settle(page)
+    expect(await model(page)).toEqual([2026, 9, 3, 10, 30, 0])
+    expect((await slots(page))[0]).toBe("10")
+  })
+
+  test("a click on a value picks it and brings it to the slot", async ({ page }) => {
+    await open(page)
+    await page.evaluate((sel) => {
+      const w = document.querySelector(sel)!
+      const r = w.getBoundingClientRect()
+      // The row right under the slot.
+      const below = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2 + r.height / 5)
+      ;(below as HTMLElement).click()
+    }, WHEEL)
+    await settle(page)
+    expect(await model(page)).toEqual([2026, 9, 3, 9, 30, 0])
+    expect((await slots(page))[0]).toBe("09")
+  })
+
+  test("each column is a spinbutton: one Tab stop, named, stepped by the keys, the wheel following", async ({
+    page,
+  }) => {
+    await open(page)
+    const col = `${WHEEL} >> nth=0`
     await page.focus(col)
     const state = () =>
       page.evaluate((sel) => {
         const c = document.querySelector(sel)!
         return ["role", "aria-label", "aria-valuenow", "aria-valuetext"].map((a) => c.getAttribute(a))
-      }, col)
+      }, WHEEL)
     expect(await state()).toEqual(["spinbutton", "Hours", "8", "08"])
     await page.keyboard.press("ArrowUp")
     expect(await model(page)).toEqual([2026, 9, 3, 9, 30, 0])
@@ -266,75 +335,65 @@ test.describe("time picker popup", () => {
     expect(await state()).toEqual(["spinbutton", "Hours", "23", "23"])
     await page.keyboard.press("Home")
     expect(await model(page)).toEqual([2026, 9, 3, 0, 30, 0])
-    // The step buttons are not Tab stops: Tab goes from one column to the next.
+    await settle(page)
+    expect((await slots(page))[0]).toBe("00")
+    // The rows are not Tab stops: Tab goes from one column to the next.
     await page.keyboard.press("Tab")
     expect(await page.evaluate(() => document.activeElement?.getAttribute("aria-label"))).toBe("Minutes")
   })
 
   test("End on a column with a step goes to the last value of the step, not to the maximum", async ({ page }) => {
-    await mount(page, {
-      lang: "en-GB",
-      model: [2026, 9, 3, 8, 30, 0],
-      show_date: false,
-      show_time: true,
-      minute_step: 15,
-    })
-    await page.click('#holder button[title="Time"]')
-    await page.waitForSelector(PANEL)
-    await page.focus(`${PANEL} > e-column >> nth=1`)
+    await open(page, { minute_step: 15 })
+    await page.focus(`${WHEEL} >> nth=1`)
     await page.keyboard.press("End")
     expect(await model(page)).toEqual([2026, 9, 3, 8, 45, 0])
   })
 
-  test("the wheel steps the value and is not scrolled by the page", async ({ page }) => {
-    await open(page)
-    const prevented = await page.evaluate(() => {
-      const col = document.querySelector(`[class^="time-panel-"] > e-column`) as HTMLElement
-      const down = new WheelEvent("wheel", { deltaY: 100, cancelable: true, bubbles: true })
-      col.dispatchEvent(down)
-      const up = new WheelEvent("wheel", { deltaY: -100, cancelable: true, bubbles: true })
-      col.dispatchEvent(up)
-      col.dispatchEvent(new WheelEvent("wheel", { deltaY: -100, cancelable: true, bubbles: true }))
-      return down.defaultPrevented && up.defaultPrevented
-    })
-    expect(prevented).toBe(true)
-    expect(await hours(page)).toEqual({ same: true, texts: ["10", "09", "08"] })
+  test("the columns go around: 23 is followed by 00, and 45 by 00 with a step of 15", async ({ page }) => {
+    await open(page, { model: [2026, 9, 3, 23, 45, 0], minute_step: 15 })
+    expect(await slots(page)).toEqual(["23", "45"])
+    await page.focus(`${WHEEL} >> nth=1`)
+    await page.keyboard.press("ArrowUp")
+    await page.focus(`${WHEEL} >> nth=0`)
+    await page.keyboard.press("ArrowUp")
+    await settle(page)
+    expect(await model(page)).toEqual([2026, 9, 3, 0, 0, 0])
+    expect(await slots(page)).toEqual(["00", "00"])
   })
 
-  test.describe("on a touch screen", () => {
-    // Touch events exist in every browser of a touch screen; desktop Firefox has them only with one, and
-    // desktop WebKit can't create a Touch at all.
-    test.use({ hasTouch: true })
-    test.skip(({ browserName }) => browserName === "webkit", "desktop WebKit has no Touch constructor")
-
-    test("a touch drag steps once per 22px, across several moves", async ({ page }) => {
-      await open(page)
-      await page.evaluate(() => {
-        const col = document.querySelector(`[class^="time-panel-"] > e-column`) as HTMLElement
-        const touch = (y: number) => new Touch({ identifier: 7, target: col, clientY: y })
-        const fire = (type: string, y: number) =>
-          col.dispatchEvent(
-            new TouchEvent(type, { changedTouches: [touch(y)], touches: [touch(y)], cancelable: true, bubbles: true }),
-          )
-        // Dragging up 44px: two steps up (later hours), split over moves that each are less than a step.
-        fire("touchstart", 200)
-        fire("touchmove", 185)
-        fire("touchmove", 170)
-        fire("touchmove", 156)
-        fire("touchend", 156)
-        // A move after the touch ended does nothing.
-        fire("touchmove", 100)
-      })
-      expect(await hours(page)).toEqual({ same: true, texts: ["11", "10", "09"] })
-      expect(await model(page)).toEqual([2026, 9, 3, 10, 30, 0])
-    })
+  test("hour_step: the hours of the grid, the same for both halves of the day in 12-hour mode", async ({ page }) => {
+    await open(page, { hour_step: 3 })
+    expect(await values(page, 0)).toEqual(["00", "03", "06", "09", "12", "15", "18", "21"])
+    await page.evaluate(() => document.querySelector("#holder")!.remove())
+    await open(page, { lang: "en-US", am_pm: true, hour_step: 3, model: [2026, 9, 3, 15, 30, 0] })
+    expect(await values(page, 0)).toEqual(["03", "06", "09", "12"])
+    expect((await slots(page))[0]).toBe("03")
+    // The PM hour stays PM.
+    await page.focus(`${WHEEL} >> nth=0`)
+    await page.keyboard.press("ArrowUp")
+    expect(await model(page)).toEqual([2026, 9, 3, 18, 30, 0])
   })
 
-  test("the hour column wraps around", async ({ page }) => {
-    await open(page)
-    for (let i = 0; i < 9; i++) await page.click(`${PANEL} > e-column[data-mark="hours"] > button >> nth=0`)
-    expect(await hours(page)).toEqual({ same: true, texts: ["00", "23", "22"] })
-    expect(await model(page)).toEqual([2026, 9, 3, 23, 30, 0])
+  test("a step that isn't a divisor is rounded down to one", async ({ page }) => {
+    await open(page, { minute_step: 7 })
+    expect(await values(page, 1)).toHaveLength(10)
+  })
+
+  test("a value off the step grid shows the nearest one, and opening changes nothing", async ({ page }) => {
+    await open(page, { model: [2026, 9, 3, 8, 7, 0], minute_step: 15 })
+    expect(await slots(page)).toEqual(["08", "00"])
+    expect(await model(page)).toEqual([2026, 9, 3, 8, 7, 0])
+  })
+
+  test("the AM/PM column doesn't go around", async ({ page }) => {
+    await open(page, { lang: "en-US", am_pm: true })
+    expect(await values(page, 2)).toEqual(["AM", "PM"])
+    const rows = await page.evaluate(
+      (sel) => document.querySelectorAll(sel)[2]!.querySelectorAll('[role="option"]').length,
+      WHEEL,
+    )
+    expect(rows).toBe(2)
+    expect((await slots(page))[2]).toBe("AM")
   })
 })
 
@@ -402,11 +461,11 @@ test.describe("faded text uses theme colors, not opacity", () => {
     expect(in_month).not.toBe(r.color)
   })
 
-  test("the time columns' neighbouring values are text.faded", async ({ page }) => {
+  test("the time columns' values off the slot are text.faded", async ({ page }) => {
     await mount(page, { lang: "en-GB", model: [2026, 9, 3, 8, 30, 0], show_date: false, show_time: true })
     await page.click('#holder button[title="Time"]')
-    await page.waitForSelector('[class^="scroll-adj-"]')
-    const r = await faded(page, '[class^="scroll-adj-"]', "text.faded")
+    await page.waitForSelector('[class^="time-row-"][aria-selected="false"]')
+    const r = await faded(page, '[class^="time-row-"][aria-selected="false"]', "text.faded")
     expect(r).toEqual({ color: r.ref, opacity: "1", ref: r.ref })
   })
 })

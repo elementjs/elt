@@ -19,6 +19,7 @@ Everything since 3.1.0. To upgrade, follow [Migrating](./docs/md/migrating.md), 
 - **App**: routes in the URL path (`mode: "path"`, with `base`, link interception and scrolling to the fragment), `show()` and `app.mount()`.
 - **Drag and drop**: `$dropzone` (files from the desktop, data from other applications or a `$draggable`; nested zones; files dropped outside any zone are refused instead of opened) and `$draggable` (data by type, effects, a file given to the desktop in Chromium).
 - `Select` takes `multiple`: several values in an array or a Set, shown as removable tags.
+- `DateTimePicker`'s time popup is a set of wheels (`ScrollColumn`, scrolled natively, a value picked where scrolling stops or by a click) instead of arrows, and it takes `hour_step`. Steps are divisors of 12 (hours) or 60 (minutes, seconds): another value is rounded down to one (a `minute_step` of 7 gives 6).
 - `DateTimePicker` takes `readonly`; set to `true`, its model may be a `ReadonlyObservable` or a plain date.
 - `ObjectEditor` takes `readonly`, and its composite schema nodes the option of the same name: the value is shown, and nothing in the editor changes it. Set to `true`, the model may be a `ReadonlyObservable` or a plain value, and there is no Undo history.
 - `RepeatCircular`: a virtual list without ends, its items repeating whichever way it is scrolled.
