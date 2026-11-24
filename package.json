@@ -1,6 +1,6 @@
 {
   "name": "elt",
-  "version": "4.0.0-rc.0",
+  "version": "4.0.0-rc.1",
   "repository": "https://github.com/elementjs/elt",
   "description": "A TypeScript library for building web applications without a virtual DOM: JSX returns real DOM nodes, kept up to date by observables.",
   "license": "MIT",
