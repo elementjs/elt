@@ -30,7 +30,8 @@
  *   while the user scrolls, but only near the list's start and only for a pinned row in view: the
  *   start padder's estimate falling short (rows rendered before the pinned row larger than the
  *   padder), and its leftover once the window reaches the list's start, where it hides. Without
- *   them, the view jumps by the estimate's error.
+ *   them, the view jumps by the estimate's error: kept on purpose, at the cost of a possible stop of
+ *   a fling on touch screens near the start.
  * - The start padder is measurement-driven (the real sizes of the rows it replaces, gaps and margins
  *   included, since it is the measured shift of the pinned row), not `index * estimate`. The end
  *   padder may stay estimate-only: it is after everything on screen.

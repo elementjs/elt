@@ -55,6 +55,8 @@ The library sets the ARIA; apps don't have to know it.
 
 ## 6. Before 4.0.0
 
+- [ ] Virtual lists on a real iOS device: the scroll writes of `RepeatVirtual` (a prepend, and the corrections near the list's start, which can happen during a fling) don't stop momentum scrolling, or do so acceptably; the time picker's wheels scroll and pick (`docs/md/verbs.md`, maintainer notes in `src/virtual-window.ts`).
+- [ ] Safari: whether it has `scrollend`. Without it, `RepeatCircular` and the time picker's wheels stand in a 150 ms timer after the last `scroll` event (tested in Chromium with `scrollend` removed).
 - [ ] Calendar: the full date picker grid pattern (`grid`/`gridcell`, `aria-selected`; arrows by day/week, PageUp/PageDown by month, Shift for the year, Home/End for the week).
 
 ## 7. Release
