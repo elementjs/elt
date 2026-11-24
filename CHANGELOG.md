@@ -38,4 +38,5 @@ Breaking; all in [Migrating](./docs/md/migrating.md):
 
 ### Fixed
 
+- `RepeatVirtual`'s `InitialPosition` and `setPosition` scroll to the row: they rendered the rows around it but left the scroll position where it was, and the list went back to the first row. Negative indices count from the end.
 - `setup_mutation_observer` disconnects a page's nodes when the page closes: on `pagehide` (Chrome blocks `unload`, and an `unload` listener kept the page out of the back/forward cache), not when the page goes into that cache, and from `<html>`, where it used to start from the doctype and disconnect nothing.

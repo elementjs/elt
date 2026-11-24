@@ -16,7 +16,9 @@
  *   handles jumps (one scroll farther than the viewport), which can carry a padder across the zone
  *   without it ever being inside.
  * - Keep the content stable through the **top padder**, never by writing `scrollTop` while the user
- *   scrolls.
+ *   scrolls. The list writes the scroll position only as one write outside any windowing pass, through
+ *   `scroll_by` (which tells `on_scroll` it was not the user's jump): an explicit jump
+ *   (`setPosition`, the initial position).
  * - The top padder is measurement-driven (the real heights of the rows it replaces, gaps and margins
  *   included, since it is the measured shift of the pinned row), not `index * estimate`. The bottom
  *   padder may stay estimate-only: it is below everything on screen.
@@ -233,9 +235,11 @@ export namespace RepeatVirtual {
       return this
     }
 
-    /** The index to show first when the list is connected (default 0). */
+    /** The row shown first, at the top of the visible area, when the list is connected or its rows
+     * appear (default 0). Negative counts from the end: -1 is the last row. */
     InitialPosition(index: number) {
       this.initial_position = index
+      this.explicit_position = true
       return this
     }
 
@@ -343,8 +347,85 @@ export namespace RepeatVirtual {
       return Math.ceil((this.scroll_area?.clientHeight ?? 0) / this.item_size + 10)
     }
 
-    /** Re-render the viewport around index `n`, replacing whatever was rendered */
+    /** The index `n` counted from the end when negative, within the list. */
+    protected resolve_index(n: number, count: number) {
+      return Math.max(0, Math.min(n < 0 ? count + n : n, count - 1))
+    }
+
+    /**
+     * Show row `n` (negative: counted from the end) at the top of the visible area, rendering the rows
+     * around it. Before the list is connected, or while it is empty, it sets the row shown first
+     * once there are rows.
+     */
     setPosition(n: number) {
+      this.explicit_position = true
+      this.jump_to(n)
+    }
+
+    /** Whether a position was asked for (`InitialPosition`, `setPosition`), not the default 0. */
+    protected explicit_position = false
+
+    /** {@link setPosition}, from the list itself (the initial position). */
+    protected jump_to(n: number) {
+      const count = o.get(this.obs)?.length ?? 0
+      if (this.scroll_area == null || count === 0) {
+        this.initial_position = n
+        if (this.scroll_area != null) this.reposition(0)
+        return
+      }
+      const target = this.resolve_index(n, count)
+      this.reposition(target)
+      // The first rows, never moved: the scroll area shows them as laid out, with what comes before
+      // the list (a sticky header).
+      if (n === 0 && !this.explicit_position) return
+      this.pending_target = target
+      // After the current transaction, if any, has written the rows and the padders, before the paint.
+      queueMicrotask(() => this.scroll_to_pending())
+    }
+
+    /** Index to bring to the top of the visible area once the scroll area has a size. */
+    protected pending_target: number | null = null
+
+    /**
+     * Scroll so that the row at {@link pending_target} is at the top of the visible area: one layout
+     * read, one scroll write. An explicit jump is not a user scroll, the one case where scrolling is
+     * written (see the maintainer notes). Waits for a scroll area with a size (hidden at connection).
+     */
+    protected scroll_to_pending() {
+      const area = this.scroll_area
+      const target = this.pending_target
+      if (area == null || target == null) return
+      const region = area.getBoundingClientRect()
+      if (region.height === 0) return
+      for (let item = this.first_item(); item != null; item = this.next_item(item)) {
+        if (item[Repeat.sym_obs].o_prop.get() !== target) continue
+        const bounds = this.getBounds(item)
+        if (!this.boundsValid(bounds)) return
+        this.pending_target = null
+        // `scroll-padding` is where the scroll area says what covers its start (a sticky header).
+        const padding = Number.parseFloat(getComputedStyle(area).scrollPaddingTop) || 0
+        this.scroll_by(bounds.top - region.top - area.clientTop - padding)
+        return
+      }
+      // Not rendered (the window moved since): the next pass retries.
+      this.eval()
+    }
+
+    /**
+     * Scroll by `delta` pixels. Every scroll the list writes goes through here: `on_scroll` would
+     * take it for a user's jump if it didn't know.
+     */
+    protected scroll_by(delta: number) {
+      // biome-ignore lint/style/noNonNullAssertion: only called while connected, with a scroll area
+      const area = this.scroll_area!
+      if (delta === 0) return
+      area.scrollTop += delta
+      this.scroll_last_top = area.scrollTop
+    }
+
+    /** Render the window around index `n`, replacing whatever was rendered, without scrolling: the
+     * scroll position stays the user's, the top padder is sized so the rows land around it. */
+    protected reposition(n: number) {
       const count = o.get(this.obs)?.length ?? 0
       if (count === 0 || this.scroll_area == null) {
         o.transaction(() => {
@@ -533,6 +614,10 @@ export namespace RepeatVirtual {
       if (region.height === 0) {
         return
       }
+      if (this.pending_target != null) {
+        this.scroll_to_pending()
+        return
+      }
       const content_top = this.content_top()
       const content_bottom = this.content_bottom(list_count)
       if (content_top == null || content_bottom == null) {
@@ -545,7 +630,7 @@ export namespace RepeatVirtual {
       if (content_bottom < region.top - threshold || content_top > region.bottom + threshold) {
         const idx = this.estimateIndexFromScroll()
         if (idx < this.pos_start || idx >= this.pos_end) {
-          this.setPosition(idx)
+          this.reposition(idx)
           return
         }
       }
@@ -728,8 +813,9 @@ export namespace RepeatVirtual {
       }
 
       this.eval()
+      // Nothing rendered yet (first rows, or rows again after an empty list): show the first row.
       if (this.pos_end === this.pos_start) {
-        this.setPosition(0)
+        this.jump_to(this.initial_position)
       }
     }
 
@@ -746,7 +832,7 @@ export namespace RepeatVirtual {
         const delta = st - prev_top
         if (Math.abs(delta) > this.jump_threshold()) {
           this.scroll_last_top = st
-          this.setPosition(this.estimateIndexFromScroll())
+          this.reposition(this.estimateIndexFromScroll())
           return
         }
       }
@@ -799,7 +885,7 @@ export namespace RepeatVirtual {
           rootMargin: `${this.threshold / 2}px 0px`,
         })
 
-        this.setPosition(this.initial_position)
+        this.jump_to(this.initial_position)
 
         // Added on each connection and removed on each disconnection: the area may change in between.
         area.addEventListener("scroll", this.on_scroll)
