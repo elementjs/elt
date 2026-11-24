@@ -17,13 +17,14 @@ Today neither scrolls: `setPosition` sets the window and the top padder but neve
 
 ## 2. A windowing base shared by `RepeatVirtual` and `RepeatCircular`, horizontal and right-to-left
 
-- [ ] Extract from `RepeatVirtual.Repeater` a base class holding what both verbs share: scroll area lookup, padders, the IntersectionObserver and ResizeObserver, measurement, anchoring through the start padder, the windowing pass. What differs between a list with true ends and a ring stays in the subclasses (sections 3 and 5). No mode flags.
-- [ ] An axis object, chosen once at connection, abstracts every direction-dependent read and write: `top`/`bottom` ↔ `left`/`right` of bounding rects, `scrollTop` ↔ `scrollLeft`, `clientHeight` ↔ `clientWidth`, `overflow-y` ↔ `overflow-x` in the scroll area lookup, the `rootMargin` sides, the padder's `height` ↔ `width` and `grid-column: 1 / -1` ↔ `grid-row: 1 / -1`. No branching inside per-row loops.
-- [ ] `.Horizontal()` option selects the horizontal axis (explicit: a scroll area that scrolls both ways makes detection ambiguous). The scroll area is then the nearest ancestor whose `overflow-x` scrolls.
-- [ ] Right-to-left (`direction: rtl` on the scroll area) in horizontal mode: the list's start is on the physical right, so start/end comparisons flip, and `scrollLeft` is 0 at the start and negative towards the end. Handled inside the axis object (sign flip), read at connection. elt is app-agnostic: supported even though no current app needs it.
-- [ ] `itemAt(px)` on the base: the index of the row at `px` from the start of the visible area. Reads layout once; meant to be called when scrolling stops (a wheel's centre line, section 6), not on every scroll frame (the maintainer notes: nothing is measured while the user scrolls within the margins).
-- [ ] Tests: the existing `tests/virtual.pw.ts` behaviors also pass horizontally (windowing, anchoring while rows change size, jumps), and in horizontal right-to-left; `itemAt` returns the row under a given offset.
-- [ ] Docs: `verbs.md#repeatvirtual-a-long-list` gets `.Horizontal()`, `itemAt`.
+- [x] Extract from `RepeatVirtual.Repeater` a base class holding what both verbs share: scroll area lookup, padders, the IntersectionObserver and ResizeObserver, measurement, anchoring through the start padder, the windowing pass. What differs between a list with true ends and a ring stays in the subclasses (sections 3 and 5). No mode flags.
+- [x] An axis object, chosen once at connection, abstracts every direction-dependent read and write: `top`/`bottom` ↔ `left`/`right` of bounding rects, `scrollTop` ↔ `scrollLeft`, `clientHeight` ↔ `clientWidth`, `overflow-y` ↔ `overflow-x` in the scroll area lookup, the `rootMargin` sides, the padder's `height` ↔ `width` and `grid-column: 1 / -1` ↔ `grid-row: 1 / -1`. No branching inside per-row loops.
+- [x] `.Horizontal()` option selects the horizontal axis (explicit: a scroll area that scrolls both ways makes detection ambiguous). The scroll area is then the nearest ancestor whose `overflow-x` scrolls.
+- [x] Right-to-left (`direction: rtl` on the scroll area) in horizontal mode: the list's start is on the physical right, so start/end comparisons flip, and `scrollLeft` is 0 at the start and negative towards the end. Handled inside the axis object (sign flip), read at connection. elt is app-agnostic: supported even though no current app needs it.
+- [x] `itemAt(px)` on the base: the index of the row at `px` from the start of the visible area. Reads layout once; meant to be called when scrolling stops (a wheel's centre line, section 6), not on every scroll frame (the maintainer notes: nothing is measured while the user scrolls within the margins).
+- [x] Tests: the existing `tests/virtual.pw.ts` behaviors also pass horizontally (windowing, anchoring while rows change size, jumps), and in horizontal right-to-left; `itemAt` returns the row under a given offset.
+- [x] Docs: `verbs.md#repeatvirtual-a-long-list` gets `.Horizontal()`, `itemAt`.
+- Landed as `VirtualWindow` in `src/virtual-window.ts` (not exported from `elt`; the maintainer notes moved there). Right-to-left is read from the `direction` of the rows' parent at connection. Horizontally outside a flex or grid container, the padders are `inline-block`.
 
 ## 3. `RepeatVirtual`: `.OnEndReached(fn)` / `.OnStartReached(fn)`, and prepends
 
