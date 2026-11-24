@@ -64,14 +64,15 @@ A ring shows `lst[mod(i, n)]` at absolute index `i`, and the same item may be re
 
 A separate verb on the base of section 2: a ring has no ends, so `PrefixBy`/`SuffixBy` and the end callbacks would mean nothing on it. Same requirements on rows as `RepeatVirtual`: any height, heights may change after render; any number of items; vertical or `.Horizontal()`.
 
-- [ ] Rows are keyed by absolute index (unique per occurrence). The render function receives the data index (`i mod n`) as its index.
-- [ ] The two padders are fixed runways of about 1,000,000 px each (below every browser's maximum element size), not estimates: a ring's scrollbar means nothing. When scrolling stops (`scrollend`, or a timer after the last `scroll` event where `scrollend` isn't supported — check Safari's support rather than trust memory), recentre: shift both padders and `scrollTop` by the same amount in one write, invisible, and never during momentum since a fling can't cross a runway.
-- [ ] Recentring keeps scroll snap alignment (section 6): the shift is exact, not estimated.
-- [ ] When the data changes, the anchor row keeps its item: its key still at the same data index → nothing moves; moved by exactly `d = new.length - old.length` (a pure prepend) → absolute indices shift to follow it; otherwise absolute indices stay and the content under the visible area changes. When `n` changes, `mod` remaps every row: the shift is computed so the anchor row keeps its item. No scan, as in section 3.
-- [ ] `InitialPosition(i)` / `setPosition(i)` take a data index (negative from the end); `setPosition` lands on the nearest occurrence.
-- [ ] An empty list shows `DisplayWhenEmpty`. `SeparateWith` puts a separator between every pair, the wrap seam included.
-- [ ] Tests: scrolls past the last item into the first and back; recentring while idle leaves the visible rows in place; rows changing height; `n` smaller than a screenful (the same item shown several times); data change keeps the anchor row; `setPosition` nearest occurrence; horizontal.
-- [ ] Docs: `verbs.md` gets a `RepeatCircular` section.
+- [x] Rows are keyed by absolute index (unique per occurrence). The render function receives the data index (`i mod n`) as its index.
+- [x] The two padders are fixed runways of about 1,000,000 px each (below every browser's maximum element size), not estimates: a ring's scrollbar means nothing. When scrolling stops (`scrollend`, or a timer after the last `scroll` event where `scrollend` isn't supported — check Safari's support rather than trust memory), recentre: shift both padders and `scrollTop` by the same amount in one write, invisible, and never during momentum since a fling can't cross a runway.
+- [x] Recentring keeps scroll snap alignment (section 6): the shift is exact, not estimated.
+- [x] When the data changes, the anchor row keeps its item: its key still at the same data index → nothing moves; moved by exactly `d = new.length - old.length` (a pure prepend) → absolute indices shift to follow it; otherwise absolute indices stay and the content under the visible area changes. When `n` changes, `mod` remaps every row: the shift is computed so the anchor row keeps its item. No scan, as in section 3.
+- [x] `InitialPosition(i)` / `setPosition(i)` take a data index (negative from the end); `setPosition` lands on the nearest occurrence.
+- [x] An empty list shows `DisplayWhenEmpty`. `SeparateWith` puts a separator between every pair, the wrap seam included.
+- [x] Tests: scrolls past the last item into the first and back; recentring while idle leaves the visible rows in place; rows changing height; `n` smaller than a screenful (the same item shown several times); data change keeps the anchor row; `setPosition` nearest occurrence; horizontal.
+- [x] Docs: `verbs.md` gets a `RepeatCircular` section.
+- Landed in `src/circular.ts`. `withKeyFunction` on a ring only identifies items across data changes (rows are keyed by index). Indices start around 2^40, so they stay positive. The initial position is always scrolled to (a ring has no first rows laid out before anything). A jump (a scroll farther than the visible area) moves the start padder by the estimated size of the rows it skipped. Recentring happens when the padder is more than a quarter of its runway off. Bench after it: no difference beyond noise.
 
 ## 6. Wheel time picker
 

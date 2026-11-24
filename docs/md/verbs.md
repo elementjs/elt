@@ -10,7 +10,7 @@ Verbs are UpperCased functions that render *dynamic structure* — content that 
 
 A verb renders its content as soon as it is built, while the tree around it is still offscreen, including when its observable is derived (`.tf`, `o.expression`) and nothing watches it yet. Mounting the tree puts that content on the page in one go without rendering it again; it only re-renders if a value it depends on changed in between. A transform that reads something other than observables (the DOM's layout, a global) therefore reads it when the tree is built, not when it is mounted. The same goes for an observable used directly as a child or an attribute.
 
-A verb object can be inserted more than once, for example when a `<>` holding it is shown again (see [Fragments](./components.md#fragments)). Each insertion renders it anew, from the current value of its observables. A verb without state of its own (`If`, `Switch`, `DisplayPromise`) renders independently at each place it is inserted. A verb that keeps state between renders (`Repeat`, `RepeatVirtual`, whose position `.setPosition()` drives) shows in one place at a time, like an element: inserted again, its previous rendering goes, and it renders at the new place.
+A verb object can be inserted more than once, for example when a `<>` holding it is shown again (see [Fragments](./components.md#fragments)). Each insertion renders it anew, from the current value of its observables. A verb without state of its own (`If`, `Switch`, `DisplayPromise`) renders independently at each place it is inserted. A verb that keeps state between renders (`Repeat`, `RepeatVirtual` and `RepeatCircular`, whose position `.setPosition()` drives) shows in one place at a time, like an element: inserted again, its previous rendering goes, and it renders at the new place.
 
 Everything below reads as complete documentation on its own; the "Try it" panels that follow some examples run the code for real, in this page, but they're a bonus on top of the prose and code, not a replacement for it.
 
@@ -228,6 +228,30 @@ An infinite grid is an `e-grid` with `RepeatVirtual` rows inside a scroll area, 
 - The scroll area draws the frame (`border` on it); the grid inside keeps only its lines. Don't `pad` the scroll area: sticky rows stick at its padding edge.
 - Keep the column widths independent of the cells' content (see above). A live example is in [Layout § Scroll areas and sticky elements](./ui-layout.md#scroll-areas-and-sticky-elements); grids themselves are in [Layout § Grids](./ui-layout.md#grids).
 
+## `RepeatCircular` — a list without ends
+
+`RepeatCircular(o_array, (o_item, o_index) => …)` renders its list as a ring: after the last item comes the first again, whichever way the user scrolls, as on a wheel of hours or minutes. Like `RepeatVirtual`, it only renders the rows near the visible part of its scroll area, with the same requirements and options (rows sized by their own content, their size may change after render; `.Horizontal()`, `.ItemSize()`, `.Threshold()`, `.itemAt()`).
+
+```tsx
+import { RepeatCircular } from "elt"
+
+const o_minutes = o(Array.from({ length: 60 }, (_, m) => m))
+
+<div style={{ height: "200px", overflowY: "auto" }}>
+  <e-column align="stretch">
+    {RepeatCircular(o_minutes, (o_m) => <div>{o_m.tf((m) => String(m).padStart(2, "0"))}</div>)
+      .InitialPosition(30)}
+  </e-column>
+</div>
+```
+
+- The same item is rendered as many times as it appears in the visible area and its margin: a list shorter than the visible area shows its items several times, in order. Each occurrence is a row of its own: rows are not identified by their item. `.withKeyFunction()` identifies items across changes of the list, to keep the visible rows on their items (below).
+- The index given to the render function, to `.SeparateWith()`, and returned by `.itemAt()` is the item's index in the list (from 0 to its length − 1), whichever turn of the ring the row is on.
+- `.InitialPosition(index)` and `.setPosition(index)` bring that item to the start of the visible area: its occurrence nearest to what is shown. Negative counts from the end. Without `.InitialPosition()`, the ring opens on item 0.
+- When the list changes, the row at the start of the visible area keeps its item when that item is still at the same index, or moved by as many indices as items were added before it (items prepended). Otherwise the visible rows show the items now at their indices.
+- There is no start and no end: `.PrefixBy()` and `.SuffixBy()` report an error. `.DisplayWhenEmpty()` shows while the list is empty.
+- The scrollbar means nothing: the rows are surrounded by two large padders (a million pixels each), so that a scroll never reaches an end. Once scrolling stops (`scrollend`, or 150 ms without a `scroll` event where the browser has no `scrollend`), the list brings them back to their size and the scroll position with them, in one write that doesn't move what is shown. Hide the scrollbar (`scrollbar-width: none` on the scroll area) when it shouldn't show.
+
 ## `show` — content that lives until a promise settles
 
 `If`, `Repeat` and `Switch` show what an observable says. Some content has no state to follow: a dialog, a popup or an alert exists from the moment code asks for it until an answer comes. `show(parent, render, before?)` puts what `render` returns in `parent` (before `before`, at the end by default) and removes it when the future it gives to `render` ends. It returns that future.
@@ -303,4 +327,4 @@ This matters if `display`'s closure depends on the *specific* truthy value rathe
 
 - [elt rules](./elt-rules.md#verbs) — the rules for verbs.
 - [Observables](./observables.md) — what verbs consume.
-- `src/verbs.ts` (`If`, `Switch`, `Repeat`, `DisplayPromise`) and `src/virtual.ts` (`RepeatVirtual`), `src/virtual-window.ts` (the windowing it shares with `RepeatCircular`, with the maintainer notes) — source of truth, with JSDoc.
+- `src/verbs.ts` (`If`, `Switch`, `Repeat`, `DisplayPromise`) and `src/virtual.ts` (`RepeatVirtual`), `src/circular.ts` (`RepeatCircular`), `src/virtual-window.ts` (the windowing it shares with `RepeatCircular`, with the maintainer notes) — source of truth, with JSDoc.
