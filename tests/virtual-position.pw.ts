@@ -93,4 +93,27 @@ test.describe("RepeatVirtual positioning", () => {
     })
     expect(Math.abs((offset ?? 0) - 40)).toBeLessThan(1)
   })
+
+  test("after a setPosition, rows refilled from empty show the first row as laid out, under a sticky header", async ({
+    page,
+  }) => {
+    const r = await page.evaluate(async () => {
+      const { frames } = window.__ELT__
+      const m = window.__vmount({ count: 200 })
+      const header = document.createElement("div")
+      header.style.cssText = "position: sticky; top: 0; height: 30px; background: white; z-index: 1"
+      m.area.prepend(header)
+      await frames(4)
+      m.instance.setPosition(120)
+      await frames(6)
+      m.o_lst.set([])
+      await frames(3)
+      m.o_lst.set(Array.from({ length: 200 }, (_, i) => `item-${i}`))
+      await frames(6)
+      const out = { scroll: m.scroll(), row0: m.offset_of("item-0") }
+      m.tear_down()
+      return out
+    })
+    expect(r).toEqual({ scroll: 0, row0: 30 })
+  })
 })

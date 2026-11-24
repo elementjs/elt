@@ -290,15 +290,37 @@ test.describe("time picker popup", () => {
     await open(page)
     const box = (await page.locator(WHEEL).first().boundingBox())!
     await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
-    // Two rows down: two hours later. The wheel snaps to a row whatever the exact distance.
+    // About two rows down. The wheel snaps to a row whatever the exact distance.
     const row = await page.evaluate(
       (sel) => document.querySelector(`${sel} [role="option"]`)!.getBoundingClientRect().height,
       WHEEL,
     )
     await page.mouse.wheel(0, row * 2)
     await settle(page)
-    expect(await model(page)).toEqual([2026, 9, 3, 10, 30, 0])
-    expect((await slots(page))[0]).toBe("10")
+    // Later hours (how far a wheel notch goes is the browser's): the one in the slot is the model's.
+    const [, , , hour] = (await model(page))!
+    expect(hour).toBeGreaterThan(8)
+    expect((await slots(page))[0]).toBe(String(hour).padStart(2, "0"))
+  })
+
+  test("where the browser has no scrollend, a scroll picks the value once scroll events stop", async ({ page }) => {
+    await page.evaluate(() => {
+      delete (Window.prototype as { onscrollend?: unknown }).onscrollend
+      delete (window as { onscrollend?: unknown }).onscrollend
+    })
+    await open(page)
+    expect(await page.evaluate(() => "onscrollend" in window)).toBe(false)
+    const box = (await page.locator(WHEEL).first().boundingBox())!
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
+    const row = await page.evaluate(
+      (sel) => document.querySelector(`${sel} [role="option"]`)!.getBoundingClientRect().height,
+      WHEEL,
+    )
+    await page.mouse.wheel(0, row * 2)
+    await settle(page)
+    const [, , , hour] = (await model(page))!
+    expect(hour).toBeGreaterThan(8)
+    expect((await slots(page))[0]).toBe(String(hour).padStart(2, "0"))
   })
 
   test("a click on a value picks it and brings it to the slot", async ({ page }) => {

@@ -4,7 +4,7 @@ import { o } from "./observable"
 
 import { If, Repeat } from "./verbs"
 
-import { type RepeatItem, VirtualWindow, type VirtualRenderFn } from "./virtual-window"
+import { VirtualWindow, type VirtualRenderFn } from "./virtual-window"
 
 /** Size of each padder of a ring: room to scroll that no fling exhausts before it stops (the list
  * recentres once scrolling stops), below every browser's largest element size. */
@@ -77,7 +77,7 @@ export namespace RepeatCircular {
     constructor(obs: O, renderfn?: VirtualRenderFn<O>) {
       super(obs, renderfn)
       // A ring has no first rows laid out before anything: its initial position is always scrolled to.
-      this.explicit_position = true
+      this.explicit_initial = true
     }
 
     /** Identify items by `fn(item)` rather than by the item itself, to keep the visible rows on their
@@ -238,10 +238,9 @@ export namespace RepeatCircular {
         return
       }
 
-      const area = this.scroll_area
-      const region = area == null ? null : this.region(area)
-      const pinned = region != null && region.size > 0 ? this.scanStart(-Infinity, region.start) : null
-      const anchor = pinned?.anchor ?? null
+      // The row at the visible area's start, read before anything is written, stays where it is.
+      this.pin_before_change(false)
+      const anchor = this.pending_pin?.anchor ?? null
       const at = anchor == null ? this.pos_start : anchor[Repeat.sym_obs].o_prop.get()
 
       const was = mod(at, old_len)
@@ -270,16 +269,6 @@ export namespace RepeatCircular {
       }
       this.updateChildren(new_lst, undefined, false)
       this.eval()
-
-      const anchor_start = pinned?.anchor_start
-      if (anchor != null && anchor_start != null) {
-        // After the current transaction has written the rows, before the paint.
-        queueMicrotask(() => this.keep_pinned(anchor, anchor_start))
-      }
-    }
-
-    protected keep_pinned(anchor: RepeatItem<O>, anchor_start: number) {
-      if (this.scroll_area != null && anchor.isConnected) this.preserveScrollAnchor(anchor, anchor_start)
     }
 
     protected override insert_extras(o_count: o.RO<number>) {

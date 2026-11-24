@@ -222,3 +222,63 @@ test("RepeatCircular: an empty list shows DisplayWhenEmpty, then its rows once f
   })
   expect(r).toEqual({ empty: "nothing", gone: true, first: "item-2" })
 })
+
+test("RepeatCircular: where the browser has no scrollend, it recentres once scroll events stop", async ({ page }) => {
+  const r = await page.evaluate(async () => {
+    const { frames } = window.__ELT__
+    // A browser without `scrollend` (Safari before it had it).
+    delete (Window.prototype as { onscrollend?: unknown }).onscrollend
+    delete (window as { onscrollend?: unknown }).onscrollend
+    const supported = "onscrollend" in window
+    const m = window.__vmount({ count: 50, circular: true })
+    await frames(6)
+    m.instance.o_padding_start.set(1_400_000)
+    m.instance.scroll_by(400_000)
+    await frames(2)
+    const before = m.first_visible()
+    m.area.dispatchEvent(new Event("scroll"))
+    await new Promise((res) => setTimeout(res, 300))
+    await frames(2)
+    const after = before == null ? null : m.offset_of(before.label)
+    const out = { supported, before, after, padder: m.instance.o_padding_start.get() }
+    m.tear_down()
+    return out
+  })
+  expect(r.supported).toBe(false)
+  expect(r.padder).toBe(1_000_000)
+  expect(Math.abs((r.after ?? 99) - (r.before?.offset ?? 0))).toBeLessThan(1)
+})
+
+test("RepeatCircular: writing through a row's item writes the list's item at its index, on any turn", async ({
+  page,
+}) => {
+  const r = await page.evaluate(async () => {
+    const { RepeatCircular, node_append, node_remove, o, frames } = window.__ELT__
+    const o_lst = o(["a", "b", "c"])
+    const items: { o_item: { set(v: string): void }; label: () => string }[] = []
+    const area = document.createElement("div")
+    area.style.cssText = "height: 100px; overflow-y: auto"
+    const content = document.createElement("div")
+    node_append(
+      content,
+      RepeatCircular(o_lst, (o_item) => {
+        const row = document.createElement("div")
+        row.style.height = "20px"
+        node_append(row, o_item)
+        items.push({ o_item, label: () => row.textContent ?? "" })
+        return row
+      }),
+    )
+    node_append(area, content)
+    node_append(document.body, area)
+    await frames(6)
+    // The last row made showing "b": a later turn of the ring than the first one.
+    const row = [...items].reverse().find((it) => it.label() === "b")!
+    row.o_item.set("B")
+    await frames(2)
+    const out = o_lst.get()
+    node_remove(area)
+    return out
+  })
+  expect(r).toEqual(["a", "B", "c"])
+})

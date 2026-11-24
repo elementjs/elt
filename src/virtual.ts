@@ -6,7 +6,7 @@ import { node_observe } from "./dom"
 
 import { If, Repeat } from "./verbs"
 
-import { type RepeatItem, VirtualWindow, type VirtualRenderFn } from "./virtual-window"
+import { VirtualWindow, type VirtualRenderFn } from "./virtual-window"
 
 /** One end's callback (`OnStartReached`, `OnEndReached`) and whether it may fire. */
 type EndReached = {
@@ -205,16 +205,8 @@ export namespace RepeatVirtual {
       this._last_view_start = -1
       this._last_view_end = -1
 
-      // The row pinned at the visible area's start, read before anything is written: it stays where
-      // it is through the change (see keep_pinned).
-      const area = this.scroll_area
       const old_len = old_lst === o.NoValue ? 0 : old_lst.length
       const rendered = this.pos_end > this.pos_start
-      let pinned: { anchor: RepeatItem<O> | null; anchor_start: number | null } | null = null
-      if (area != null && rendered && old_len > 0) {
-        const region = this.region(area)
-        if (region.size > 0) pinned = this.scanStart(-Infinity, region.start)
-      }
 
       // Rows prepended (and nothing else): the first rendered row's key moved by as many indices as
       // the list grew. The window follows its rows, and the start padder grows by an estimate of the
@@ -225,6 +217,8 @@ export namespace RepeatVirtual {
         first != null &&
         this.pos_start + added < new_lst.length &&
         this.key_at(new_lst, this.pos_start + added) === first[Repeat.sym_obs].key
+      // The row at the visible area's start, read before anything is written, stays where it is.
+      if (old_len > 0) this.pin_before_change(prepended)
       const start_before = this.pos_start
       if (prepended) {
         o.transaction(() => {
@@ -277,27 +271,6 @@ export namespace RepeatVirtual {
         this.jump_to(this.initial_position)
         return
       }
-
-      const anchor = pinned?.anchor
-      const anchor_start = pinned?.anchor_start
-      if (anchor != null && anchor_start != null) {
-        // After the current transaction has written the rows and the padders, before the paint.
-        queueMicrotask(() => this.keep_pinned(anchor, anchor_start, prepended))
-      }
-    }
-
-    /**
-     * Put the row pinned before a data change back where it was: through the start padder, or by
-     * scrolling when rows were prepended (one write, see the maintainer notes).
-     */
-    protected keep_pinned(anchor: RepeatItem<O>, anchor_start: number, scroll: boolean) {
-      if (this.scroll_area == null || !anchor.isConnected) return
-      if (!scroll || !this.in_view(anchor_start)) {
-        this.preserveScrollAnchor(anchor, anchor_start)
-        return
-      }
-      const now = this.getBounds(anchor).start
-      if (Number.isFinite(now)) this.scroll_by(now - anchor_start)
     }
 
     /** Prefix and suffix belong to the list's true start and end, not to the edges of the rendered

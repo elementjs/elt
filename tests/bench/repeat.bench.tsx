@@ -1,7 +1,7 @@
 // Benchmark of `Repeat`'s reconciliation (the diff of a new list against the rendered rows), in the
 // browser. Not a test: it prints the median time per operation of each case, like observable.bench.ts.
 // `just bench` runs it in Chromium (chromium.ts). Only compare runs made one after the other.
-import { node_append, node_remove, o, Repeat } from "../../src"
+import { node_append, node_remove, o, Repeat, RepeatCircular, RepeatVirtual } from "../../src"
 
 type Item = { id: number; label: string }
 
@@ -73,6 +73,21 @@ const cases: Case[] = [
     },
   },
 ]
+
+// Render and update a RepeatVirtual and a RepeatCircular first: they override the hooks `Repeat`'s
+// reconciliation calls (key_at, item_at…), whose call sites then see several classes, as in an app that
+// uses them. Timing plain `Repeat` alone would measure call sites that only ever saw one.
+{
+  const area = document.createElement("div")
+  area.style.cssText = "height: 200px; overflow-y: auto"
+  const o_lst = o(items(1000))
+  const row = (o_item: o.Observable<Item>) => <div style="height: 20px">{o_item.p("label")}</div>
+  node_append(area, RepeatVirtual(o_lst, row))
+  node_append(area, RepeatCircular(o_lst, row))
+  node_append(document.body, area)
+  for (let i = 0; i < 50; i++) o_lst.set(items(1000, i))
+  node_remove(area)
+}
 
 for (const keyed of [false, true]) {
   for (const c of cases) {

@@ -239,6 +239,55 @@ test.describe("rows added at the ends", () => {
     expect(r.worst).toBeLessThan(1)
   })
 
+  test("two changes of the list in a row (a prepend, then an edit) keep the visible rows in place", async ({
+    page,
+  }) => {
+    const r = await page.evaluate(async (labels_src) => {
+      const labels = new Function(`return ${labels_src}`)()
+      const { frames } = window.__ELT__
+      const m = window.__vmount({ count: 300, initial: 150 })
+      await frames(6)
+      await m.scroll_by(-37)
+      const before = m.first_visible()
+      m.o_lst.set([...labels("new", 0, 20), ...m.o_lst.get()])
+      const lst = m.o_lst.get().slice()
+      lst[300] = "edited-3"
+      m.o_lst.set(lst)
+      await frames(6)
+      const after = before == null ? null : m.offset_of(before.label)
+      m.tear_down()
+      return { before, after }
+    }, labels.toString())
+    expect(Math.abs((r.after ?? 99) - (r.before?.offset ?? 0))).toBeLessThan(1)
+  })
+
+  test("scrolling back to the first row after a jump into a list of varying rows ends on it, without a jump", async ({
+    page,
+  }) => {
+    const r = await page.evaluate(async () => {
+      const { frames } = window.__ELT__
+      const m = window.__vmount({ count: 1000, initial: 60 })
+      await frames(6)
+      let worst = 0
+      for (let i = 0; i < 400 && m.scroll() > 0; i++) {
+        const before = m.first_visible()
+        const s0 = m.scroll()
+        await m.scroll_by(-40, 40)
+        const moved = s0 - m.scroll()
+        const after = before == null ? null : m.offset_of(before.label)
+        // A scroll cut short by the top moves the rows by what it did scroll; a correction by the list
+        // (its estimate falling short) moves the scroll and the rows together, invisible.
+        if (before != null && after != null && moved > 0) worst = Math.max(worst, Math.abs(after - before.offset - 40))
+      }
+      const out = { worst, first: m.first_visible(), scroll: m.scroll() }
+      m.tear_down()
+      return out
+    })
+    expect(r.worst).toBeLessThan(1)
+    expect(r.first).toEqual({ label: "item-0", offset: 0 })
+    expect(r.scroll).toBe(0)
+  })
+
   test("rows appended while scrolled deep don't move the visible rows", async ({ page }) => {
     const r = await page.evaluate(async (labels_src) => {
       const labels = new Function(`return ${labels_src}`)()

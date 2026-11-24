@@ -21,14 +21,16 @@
  *   handles jumps (one scroll farther than the viewport), which can carry a padder across the zone
  *   without it ever being inside.
  * - Keep the content stable through the **start padder**, never by writing the scroll position while
- *   the user scrolls. The list writes the scroll position only as one write outside any windowing
- *   pass, through `scroll_by` (which tells `on_scroll` it was not the user's jump): an explicit jump
- *   (`setPosition`, the initial position), rows prepended to a `RepeatVirtual` (content grows before
- *   the pinned row, and the padder can't shrink below 0), the start padder's estimate falling short
- *   (rows rendered before the pinned row larger than the padder, or its drift once the window reaches
- *   the list's start, where it hides: both only near the start), a `RepeatCircular` recentring once
- *   scrolling has stopped. It is written once the padders are (after the transaction that changed
- *   the window: in a microtask when that transaction may still be running).
+ *   the user scrolls. The list writes the scroll position only through `scroll_by` (which tells
+ *   `on_scroll` it was not the user's jump), one write each time, once the padders are written (after
+ *   the transaction that changed the window: in a microtask when that transaction may still be
+ *   running). Outside any windowing pass: an explicit jump (`setPosition`, the initial position), rows
+ *   prepended to a `RepeatVirtual` (content grows before the pinned row, and the padder can't shrink
+ *   below 0), a `RepeatCircular` recentring once scrolling has stopped. Inside a pass, so possibly
+ *   while the user scrolls, but only near the list's start and only for a pinned row in view: the
+ *   start padder's estimate falling short (rows rendered before the pinned row larger than the
+ *   padder), and its leftover once the window reaches the list's start, where it hides. Without
+ *   them, the view jumps by the estimate's error.
  * - The start padder is measurement-driven (the real sizes of the rows it replaces, gaps and margins
  *   included, since it is the measured shift of the pinned row), not `index * estimate`. The end
  *   padder may stay estimate-only: it is after everything on screen.
@@ -244,8 +246,9 @@ export abstract class VirtualWindow<
   /** The index shown first when the list is connected */
   protected initial_position = 0
 
-  /** Whether a position was asked for (`InitialPosition`, `setPosition`), not the default 0. */
-  protected explicit_position = false
+  /** Whether the initial position was asked for (`InitialPosition`, or `setPosition` before there were
+   * rows), not the default 0. */
+  protected explicit_initial = false
 
   /** Index to bring to the start of the visible area once the scroll area has a size. */
   protected pending_target: number | null = null
@@ -311,7 +314,7 @@ export abstract class VirtualWindow<
    * appear (default 0). Negative counts from the end: -1 is the last row. */
   InitialPosition(index: number) {
     this.initial_position = index
-    this.explicit_position = true
+    this.explicit_initial = true
     return this
   }
 
@@ -420,22 +423,23 @@ export abstract class VirtualWindow<
    * once there are rows.
    */
   setPosition(n: number) {
-    this.explicit_position = true
-    this.jump_to(n)
+    this.jump_to(n, true)
   }
 
-  /** {@link setPosition}, from the list itself (the initial position). */
-  protected jump_to(n: number) {
+  /** {@link setPosition}, also from the list itself (the initial position): `explicit` unless it is the
+   * default first row. */
+  protected jump_to(n: number, explicit = this.explicit_initial) {
     const target = this.scroll_area == null ? null : this.target_of(n)
     if (target == null) {
       this.initial_position = n
+      this.explicit_initial ||= explicit
       if (this.scroll_area != null) this.reposition(0)
       return
     }
     this.reposition(target)
-    // The first rows, never moved: the scroll area shows them as laid out, with what comes before
-    // the list (a sticky header).
-    if (n === 0 && !this.explicit_position) return
+    // The default first row isn't scrolled to: the scroll area shows it as laid out, with what comes
+    // before the list (a sticky header).
+    if (n === 0 && !explicit) return
     this.pending_target = target
     // After the current transaction, if any, has written the rows and the padders, before the paint.
     queueMicrotask(() => this.scroll_to_pending())
@@ -912,6 +916,42 @@ export abstract class VirtualWindow<
     this._last_view_start = -1
     this._last_view_end = -1
     this.scroll_last_valid = false
+  }
+
+  /**
+   * The row pinned at the visible area's start before a change of the list, put back where it was once
+   * the change is written (in a microtask: the change may be inside a transaction). Several changes
+   * before then share it: the first reading is the one the user saw, and a later one would be taken
+   * from the layout the earlier change already moved. One layout read per batch of changes.
+   */
+  protected pending_pin: { anchor: RepeatItem<O>; start: number; scroll: boolean } | null = null
+
+  /** Pin the row at the visible area's start before a change of the list (see {@link pending_pin}).
+   * `scroll`: the change puts rows before it that the start padder can't stand for (a prepend). */
+  protected pin_before_change(scroll: boolean) {
+    const pin = this.pending_pin
+    if (pin != null) {
+      pin.scroll ||= scroll
+      return
+    }
+    const area = this.scroll_area
+    if (area == null || this.pos_end === this.pos_start) return
+    const region = this.region(area)
+    if (region.size === 0) return
+    const { anchor, anchor_start } = this.scanStart(-Infinity, region.start)
+    if (anchor == null || anchor_start == null) return
+    this.pending_pin = { anchor, start: anchor_start, scroll }
+    queueMicrotask(() => {
+      const pin = this.pending_pin
+      this.pending_pin = null
+      if (pin == null || this.scroll_area == null || !pin.anchor.isConnected) return
+      if (!pin.scroll || !this.in_view(pin.start)) {
+        this.preserveScrollAnchor(pin.anchor, pin.start)
+        return
+      }
+      const now = this.getBounds(pin.anchor).start
+      if (Number.isFinite(now)) this.scroll_by(now - pin.start)
+    })
   }
 
   /** Called once connected, the scroll area found, before the first position: a subclass's own setup. */
