@@ -17,11 +17,12 @@ export type VMountOpts = {
   threshold?: number
   /** The scroll area is \`display: none\` when the list connects. */
   hidden?: boolean
+  /** Called with the list before it is inserted, for its options (callbacks are made in the page). */
+  configure?: (instance: any) => void
 }
 
 export type VMount = {
   o_lst: { get: () => string[]; set: (v: string[]) => void }
-  // biome-ignore lint/suspicious/noExplicitAny: the list instance, untyped across the page boundary
   instance: any
   area: HTMLElement
   content: HTMLElement
@@ -87,6 +88,7 @@ export const VIRTUAL_MOUNT = `
     if (horizontal) instance = instance.Horizontal()
     if (opts.threshold != null) instance = instance.Threshold(opts.threshold)
     if (opts.initial != null) instance = instance.InitialPosition(opts.initial)
+    if (opts.configure) opts.configure(instance)
 
     node_append(content, instance)
     node_append(area, content)

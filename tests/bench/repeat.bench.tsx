@@ -66,7 +66,10 @@ const cases: Case[] = [
     ops: 50,
     setup: (o_lst) => {
       let n = 0
-      return () => o_lst.set(items(1000, (n += 1000)))
+      return () => {
+        n += 1000
+        o_lst.set(items(1000, n))
+      }
     },
   },
 ]

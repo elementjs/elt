@@ -32,20 +32,25 @@ Infinite scrolling: a feed loading pages as the user scrolls down, a chat or his
 
 The callbacks:
 
-- [ ] `.OnEndReached(fn: () => unknown)` / `.OnStartReached(fn: () => unknown)`, PascalCase like the other options.
-- [ ] "Reached" means the rendered window touches the true end: `pos_end === count` (`pos_start === 0` for the start). The window extends `Threshold` pixels beyond the visible area, so this fires about `Threshold` before the user sees the end. Not a pixel distance: at the end the bottom padder is hidden, nothing would run a pass to measure it.
-- [ ] Each side has its own guard. If `fn` returns a Promise, the side doesn't fire again until it settles. Once settled (or at once without a Promise), it is checked again on the next pass: the list grew and the window still touches the end (a page too short to fill the visible area) → fire again. The list did not grow → that side stays off (the source is exhausted, or failing: don't hammer it) until the list changes or the window leaves that end and touches it again.
-- [ ] At connection, an empty list fires the only callback set, or `OnEndReached` alone when both are set (the first page is loaded once). This happens outside `real_eval`, which returns early on an empty list.
-- [ ] A non-empty first window touching both ends (a short first page) fires both.
+- [x] `.OnEndReached(fn: () => unknown)` / `.OnStartReached(fn: () => unknown)`, PascalCase like the other options.
+- [x] "Reached" means the rendered window touches the true end: `pos_end === count` (`pos_start === 0` for the start). The window extends `Threshold` pixels beyond the visible area, so this fires about `Threshold` before the user sees the end. Not a pixel distance: at the end the bottom padder is hidden, nothing would run a pass to measure it.
+- [x] Each side has its own guard. If `fn` returns a Promise, the side doesn't fire again until it settles. Once settled (or at once without a Promise), it is checked again on the next pass: the list grew and the window still touches the end (a page too short to fill the visible area) → fire again. The list did not grow → that side stays off (the source is exhausted, or failing: don't hammer it) until the list changes or the window leaves that end and touches it again.
+- [x] At connection, an empty list fires the only callback set, or `OnEndReached` alone when both are set (the first page is loaded once). This happens outside `real_eval`, which returns early on an empty list.
+- [x] A non-empty first window touching both ends (a short first page) fires both.
 
 Prepends (needed by `OnStartReached`): the window is index-based, so prepending `d` items makes it show other items, and `overflow-anchor: none` keeps the browser from compensating.
 
-- [ ] In `updateChildrenPre`, **before** the existing append branch (when the window touches the end, `pos_end === old.length` is true and the append branch would take a prepend for an append): with `d = new.length - old.length > 0`, a pure prepend is detected when the first rendered row's key is now at `new_lst[pos_start + d]`. One key computation, no scan.
-- [ ] On a pure prepend: shift both window ends by `d` (the reconcile then finds every rendered row in the common head and only rewrites indices), read the pinned row's position, write `scrollTop` once by its measured shift, update `scroll_last_top`. A `scrollTop` write is unavoidable: content above the pinned row grows, the start padder can't take a negative shift, and at `pos_start === 0` there is no padder at all.
-- [ ] Anything else (a prepend and an append in one update, a reorder, a replacement) keeps today's behavior.
-- [ ] Check in WebKit (`just test-webkit`) that the write doesn't stop momentum scrolling, keeping in mind that this is not real iOS.
-- [ ] Tests: each side fires once when the window touches it; not again while its Promise is pending; again after a short page; not again after a page that added nothing, until the window leaves and comes back; the empty-list rules; a prepend while scrolled keeps the visible rows in place (rows of varying heights); a prepend at `pos_start === 0` too.
-- [ ] Docs: `verbs.md` gets an infinite scrolling example (a feed, and a chat opened with `InitialPosition(-1)` loading older items with `OnStartReached`).
+- [x] In `updateChildrenPre`, **before** the existing append branch (when the window touches the end, `pos_end === old.length` is true and the append branch would take a prepend for an append): with `d = new.length - old.length > 0`, a pure prepend is detected when the first rendered row's key is now at `new_lst[pos_start + d]`. One key computation, no scan.
+- [x] On a pure prepend: shift both window ends by `d` (the reconcile then finds every rendered row in the common head and only rewrites indices), read the pinned row's position, write `scrollTop` once by its measured shift, update `scroll_last_top`. A `scrollTop` write is unavoidable: content above the pinned row grows, the start padder can't take a negative shift, and at `pos_start === 0` there is no padder at all.
+- [x] Anything else (a prepend and an append in one update, a reorder, a replacement) keeps today's behavior.
+- [ ] Check in WebKit (`just test-webkit`) that the write doesn't stop momentum scrolling, keeping in mind that this is not real iOS. Not done: WebKit doesn't launch on the development machine, and `just test-webkit` fails in Docker because `node_modules` links point outside the mounted folder. The new tests pass in Chromium and Firefox.
+- [x] Tests: each side fires once when the window touches it; not again while its Promise is pending; again after a short page; not again after a page that added nothing, until the window leaves and comes back; the empty-list rules; a prepend while scrolled keeps the visible rows in place (rows of varying heights); a prepend at `pos_start === 0` too.
+- [x] Docs: `verbs.md` gets an infinite scrolling example (a feed, and a chat opened with `InitialPosition(-1)` loading older items with `OnStartReached`).
+- Landed with these additions, found while testing with rows of varying sizes:
+  - A side rendered more than 1.5 × `Threshold` past the visible area is trimmed back to the threshold even when nothing grows (the append branch grows the window by a screenful: without the trim, the window kept touching the end and `OnEndReached` loaded the whole source with nothing scrolled). Only for a list reaching into the zone, never down to an empty window.
+  - A data change no longer resets the measured start padder to `pos_start * estimate` (the visible rows jumped on every append when scrolled deep): the row pinned before the change is put back where it was, through the padder.
+  - The start padder's estimate falling short is made up by the scroll: rows rendered before the pinned row larger than the padder, and the padder's leftover once the window reaches the list's start, where it hides (the view jumped by the estimate's error, which prepends made visible). Only when the pinned row is in view: a list entirely out of view would otherwise move another list sharing its scroll area.
+  - On a prepend, the rendered rows' indices are shifted with the window before the reconciliation, which drops rows whose index is outside the window.
 
 ## 4. Index mapping hooks in the `Repeat` core
 

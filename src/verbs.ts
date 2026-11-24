@@ -647,11 +647,7 @@ export namespace Repeat {
       // Wanted keys, indexed relatively to view_start
       const count = view_end - view_start
       const keys: any[] = new Array(count)
-      for (let j = 0; j < count; j++) {
-        const i = view_start + j
-        const item = new_lst[i]
-        keys[j] = keyfn?.(item, i) ?? item ?? `--repeat-key-${i}`
-      }
+      for (let j = 0; j < count; j++) keys[j] = this.key_at(new_lst, view_start + j)
 
       // Items currently in the DOM, in order
       const list_end = this.__list.end
@@ -807,6 +803,12 @@ export namespace Repeat {
             ],
       )
       return node
+    }
+
+    /** The key of the item at index `i` of `lst`: what identifies its rows across updates. */
+    protected key_at(lst: NonNullable<o.ObservedType<Obs>>, i: number): any {
+      const item = lst[i]
+      return this.keyfn?.(item, i) ?? item ?? `--repeat-key-${i}`
     }
 
     withKeyFunction(fn: (item: NonNullable<ItemType<Obs>>) => any) {

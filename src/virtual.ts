@@ -2,9 +2,20 @@ import type { Renderable } from "./types"
 
 import { o } from "./observable"
 
+import { node_observe } from "./dom"
+
 import { If, Repeat } from "./verbs"
 
-import { VirtualWindow, type VirtualRenderFn } from "./virtual-window"
+import { type RepeatItem, VirtualWindow, type VirtualRenderFn } from "./virtual-window"
+
+/** One end's callback (`OnStartReached`, `OnEndReached`) and whether it may fire. */
+type EndReached = {
+  fn: (() => unknown) | null
+  /** The promise it returned has not settled. */
+  pending: boolean
+  /** The list's length when it last fired while the window touched that end; -1 once the window left. */
+  fired_at: number
+}
 
 /**
  * A {@link Repeat} that only renders the rows near the visible part of its scroll area: the nearest
@@ -66,6 +77,74 @@ export namespace RepeatVirtual {
   export class Repeater<O extends o.IReadonlyObservable<any[] | null | undefined>> extends VirtualWindow<O> {
     protected readonly verb_name = "RepeatVirtual"
 
+    protected start_reached: EndReached = { fn: null, pending: false, fired_at: -1 }
+    protected end_reached: EndReached = { fn: null, pending: false, fired_at: -1 }
+
+    /**
+     * Call `fn` when the rendered rows reach the list's last row (about `Threshold` pixels before the
+     * user sees it), to load more. If it returns a promise, it isn't called again before the promise
+     * settles. It is called again while the end is still reached once the list grew (a page too short
+     * to fill the visible area); after a call that added nothing, only once the rendered rows have left
+     * the end and come back, or the list has changed. On an empty list, it is called once connected.
+     */
+    OnEndReached(fn: () => unknown) {
+      this.end_reached.fn = fn
+      return this
+    }
+
+    /**
+     * {@link OnEndReached} for the list's first row, to load what comes before it. Rows prepended
+     * keep the visible rows in place. On an empty list, it is called once connected only when
+     * `OnEndReached` isn't set (the first page is loaded once).
+     */
+    OnStartReached(fn: () => unknown) {
+      this.start_reached.fn = fn
+      return this
+    }
+
+    /** Whether an end check is queued (see {@link check_ends}). */
+    protected ends_queued = false
+
+    /** Check both ends after the current transaction and its reconciliation: the window is settled
+     * then, and a callback writing the list doesn't run inside the list's own update. */
+    protected queue_check_ends() {
+      if (this.ends_queued) return
+      this.ends_queued = true
+      queueMicrotask(() => {
+        this.ends_queued = false
+        this.check_ends()
+      })
+    }
+
+    protected check_ends() {
+      if (this.scroll_area == null) return
+      const count = this.length()
+      const rendered = this.pos_end > this.pos_start
+      // An empty list "reaches" its end, and its start only when nothing loads at the end.
+      this.check_end(this.start_reached, count === 0 ? this.end_reached.fn == null : rendered && this.pos_start === 0)
+      this.check_end(this.end_reached, count === 0 || (rendered && this.pos_end === count))
+    }
+
+    protected check_end(side: EndReached, reached: boolean) {
+      if (side.fn == null) return
+      if (!reached) {
+        side.fired_at = -1
+        return
+      }
+      const count = this.length()
+      if (side.pending || side.fired_at === count) return
+      side.fired_at = count
+      const res = side.fn()
+      if (res instanceof Promise) {
+        side.pending = true
+        const settled = () => {
+          side.pending = false
+          this.queue_check_ends()
+        }
+        res.then(settled, settled)
+      }
+    }
+
     constructor(obs: O, renderfn?: VirtualRenderFn<O>) {
       super(obs, renderfn)
     }
@@ -126,19 +205,47 @@ export namespace RepeatVirtual {
       this._last_view_start = -1
       this._last_view_end = -1
 
-      // Items appended while the window reaches the list's end show right away rather than on the
-      // next frame (an "add" button expects to find its row): grow the window, by a screenful at
-      // most, so a large append doesn't render everything. The next eval trims what's off-screen.
-      if (
-        old_lst !== o.NoValue &&
-        new_lst.length > old_lst.length &&
-        this.pos_end > this.pos_start &&
-        this.pos_end === old_lst.length
-      ) {
+      // The row pinned at the visible area's start, read before anything is written: it stays where
+      // it is through the change (see keep_pinned).
+      const area = this.scroll_area
+      const old_len = old_lst === o.NoValue ? 0 : old_lst.length
+      const rendered = this.pos_end > this.pos_start
+      let pinned: { anchor: RepeatItem<O> | null; anchor_start: number | null } | null = null
+      if (area != null && rendered && old_len > 0) {
+        const region = this.region(area)
+        if (region.size > 0) pinned = this.scanStart(-Infinity, region.start)
+      }
+
+      // Rows prepended (and nothing else): the first rendered row's key moved by as many indices as
+      // the list grew. The window follows its rows, and the start padder grows by an estimate of the
+      // new rows, which the scroll then makes up for (the padder can't shrink below 0).
+      const added = new_lst.length - old_len
+      const first = added > 0 && rendered ? this.first_item() : null
+      const prepended =
+        first != null &&
+        this.pos_start + added < new_lst.length &&
+        this.key_at(new_lst, this.pos_start + added) === first[Repeat.sym_obs].key
+      const start_before = this.pos_start
+      if (prepended) {
+        o.transaction(() => {
+          this.o_pos_start.set(this.pos_start + added)
+          this.o_pos_end.set(this.pos_end + added)
+          // The rendered rows' indices move with them: the reconciliation drops rows whose index is
+          // outside the window.
+          for (let item = this.first_item(); item != null; item = this.next_item(item)) {
+            const o_index = item[Repeat.sym_obs].o_prop
+            o_index.set(o_index.get() + added)
+          }
+        })
+        this.o_padding_start.set(o.get(this.o_padding_start) + added * this.item_size)
+      } else if (added > 0 && rendered && this.pos_end === old_len) {
+        // Items appended while the window reaches the list's end show right away rather than on the
+        // next frame (an "add" button expects to find its row): grow the window, by a screenful at
+        // most, so a large append doesn't render everything. The next eval trims what's off-screen.
         this.o_pos_end.set(Math.min(new_lst.length, this.pos_end + this.screenful()))
       }
 
-      if (old_lst !== o.NoValue && old_lst.length > new_lst.length) {
+      if (old_len > new_lst.length) {
         const len = new_lst.length
         if (this.pos_end > len) {
           this.o_pos_end.set(len)
@@ -149,7 +256,12 @@ export namespace RepeatVirtual {
       }
 
       this.updateChildren(new_lst, undefined, this.is_update(old_lst))
-      this.update_padding(this.pos_start)
+      // The start padder keeps its measured size, unless the window's start moved (the list shrank
+      // under it) or reached the list's start.
+      if (!prepended && (this.pos_start !== start_before || this.pos_start === 0)) {
+        this.o_padding_start.set(this.pos_start * this.item_size)
+      }
+      this.update_padding_end()
 
       if (new_lst.length === 0) {
         o.transaction(() => {
@@ -163,12 +275,37 @@ export namespace RepeatVirtual {
       // Nothing rendered yet (first rows, or rows again after an empty list): show the first row.
       if (this.pos_end === this.pos_start) {
         this.jump_to(this.initial_position)
+        return
       }
+
+      const anchor = pinned?.anchor
+      const anchor_start = pinned?.anchor_start
+      if (anchor != null && anchor_start != null) {
+        // After the current transaction has written the rows and the padders, before the paint.
+        queueMicrotask(() => this.keep_pinned(anchor, anchor_start, prepended))
+      }
+    }
+
+    /**
+     * Put the row pinned before a data change back where it was: through the start padder, or by
+     * scrolling when rows were prepended (one write, see the maintainer notes).
+     */
+    protected keep_pinned(anchor: RepeatItem<O>, anchor_start: number, scroll: boolean) {
+      if (this.scroll_area == null || !anchor.isConnected) return
+      if (!scroll || !this.in_view(anchor_start)) {
+        this.preserveScrollAnchor(anchor, anchor_start)
+        return
+      }
+      const now = this.getBounds(anchor).start
+      if (Number.isFinite(now)) this.scroll_by(now - anchor_start)
     }
 
     /** Prefix and suffix belong to the list's true start and end, not to the edges of the rendered
      * window: they only show while the first (last) item is rendered. */
     protected override insert_extras(o_count: o.RO<number>) {
+      if (this.start_reached.fn != null || this.end_reached.fn != null) {
+        node_observe(this.__list, o.join(this.o_pos_start, this.o_pos_end, o_count), () => this.queue_check_ends())
+      }
       const prefix = this.prefix
       if (prefix != null) {
         this.__prefix.updateRenderable(

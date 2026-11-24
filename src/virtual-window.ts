@@ -24,8 +24,11 @@
  *   the user scrolls. The list writes the scroll position only as one write outside any windowing
  *   pass, through `scroll_by` (which tells `on_scroll` it was not the user's jump): an explicit jump
  *   (`setPosition`, the initial position), rows prepended to a `RepeatVirtual` (content grows before
- *   the pinned row, and the padder can't shrink below 0), a `RepeatCircular` recentring once scrolling
- *   has stopped.
+ *   the pinned row, and the padder can't shrink below 0), the start padder's estimate falling short
+ *   (rows rendered before the pinned row larger than the padder, or its drift once the window reaches
+ *   the list's start, where it hides: both only near the start), a `RepeatCircular` recentring once
+ *   scrolling has stopped. It is written once the padders are (after the transaction that changed
+ *   the window: in a microtask when that transaction may still be running).
  * - The start padder is measurement-driven (the real sizes of the rows it replaces, gaps and margins
  *   included, since it is the measured shift of the pinned row), not `index * estimate`. The end
  *   padder may stay estimate-only: it is after everything on screen.
@@ -548,9 +551,22 @@ export abstract class VirtualWindow<
       return
     }
     const shift = new_start - anchor_start_before
-    if (shift !== 0) {
-      this.o_padding_start.set(Math.max(0, o.get(this.o_padding_start) - shift))
-    }
+    if (shift === 0) return
+    const size = o.get(this.o_padding_start) - shift
+    this.o_padding_start.set(Math.max(0, size))
+    // The rows rendered before the anchor are larger than the padder had room for (its estimate was
+    // short): the scroll makes up the rest (see the maintainer notes).
+    if (size < 0 && this.in_view(anchor_start_before)) this.scroll_by(-size)
+  }
+
+  /**
+   * Whether a pinned row that started at `start` was in the visible area (it is the first row ending
+   * past the area's start). A scroll correction is only for a row the user sees: written for a list
+   * entirely out of view, it would move the content in view (another list in the same scroll area).
+   */
+  protected in_view(start: number) {
+    const area = this.scroll_area
+    return area != null && start < this.region(area).end
   }
 
   protected applyViewChange(
@@ -571,14 +587,17 @@ export abstract class VirtualWindow<
       this.o_pos_end.set(new_pos_end)
     })
 
-    if (anchor != null && anchor_start_before != null) {
-      this.preserveScrollAnchor(anchor, anchor_start_before)
-    }
-
-    // At the very start the padder must be exactly 0; snap away any drift the
-    // incremental measured corrections may have accumulated.
     if (new_pos_start === this.lower()) {
+      // At the very start the padder is hidden: the anchor's shift is the drift of the padder's
+      // estimate, which the scroll makes up for instead of the view jumping by as much (see the
+      // maintainer notes).
       this.o_padding_start.set(0)
+      if (anchor != null && anchor_start_before != null && this.in_view(anchor_start_before)) {
+        const now = this.getBounds(anchor).start
+        if (Number.isFinite(now) && Number.isFinite(anchor_start_before)) this.scroll_by(now - anchor_start_before)
+      }
+    } else if (anchor != null && anchor_start_before != null) {
+      this.preserveScrollAnchor(anchor, anchor_start_before)
     }
 
     return true
@@ -716,7 +735,17 @@ export abstract class VirtualWindow<
     // round differently). Not growing then would leave that padder inside, never reported again.
     const grow_start = this.has_before() && (start_inside || before < low)
     const grow_end = this.has_after() && (end_inside || after < low)
-    if (!grow_start && !grow_end) {
+    // The side opposite the one growing is the one the scroll moves away from: trim it back to the
+    // threshold in the same change. A side rendered far past the threshold is trimmed too, growing
+    // or not (rows appended at the end grow the window by a screenful): a window touching an end it
+    // is far from would report that end reached.
+    // Only for a list reaching into the zone: one wholly out of it (another list of the scroll area
+    // is in view) keeps its rows.
+    const high = threshold * 1.5
+    const in_zone = content_start < region.end + threshold && content_end > region.start - threshold
+    const trim_start = (grow_end && !grow_start) || (in_zone && !grow_start && before > high)
+    const trim_end = (grow_start && !grow_end) || (in_zone && !grow_end && after > high)
+    if (!grow_start && !grow_end && !trim_start && !trim_end) {
       return
     }
 
@@ -729,17 +758,16 @@ export abstract class VirtualWindow<
       new_end += Math.max(1, Math.ceil((threshold - after) / this.item_size))
     }
 
-    // The side opposite the one growing is the one the scroll moves away from: trim it back to the
-    // threshold in the same change.
-    const pinned = this.scanStart(grow_end && !grow_start ? region.start - threshold : -Infinity, region.start)
+    const pinned = this.scanStart(trim_start ? region.start - threshold : -Infinity, region.start)
     new_start += pinned.trim
-    if (grow_start && !grow_end) {
+    if (trim_end) {
       new_end -= this.countAfter(region.end + threshold)
     }
 
+    // Never an empty window: a list without rendered rows has nothing to measure, no pass would run.
     const upper = this.upper()
-    new_start = Math.max(this.lower(), Math.min(new_start, upper))
-    new_end = Math.max(new_start, Math.min(new_end, upper))
+    new_start = Math.max(this.lower(), Math.min(new_start, upper - 1))
+    new_end = Math.max(new_start + 1, Math.min(new_end, upper))
 
     if (this.debug >= 3 && (new_start !== this.pos_start || new_end !== this.pos_end)) {
       console.log(

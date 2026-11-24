@@ -21,6 +21,7 @@ Everything since 3.1.0. To upgrade, follow [Migrating](./docs/md/migrating.md), 
 - `Select` takes `multiple`: several values in an array or a Set, shown as removable tags.
 - `DateTimePicker` takes `readonly`; set to `true`, its model may be a `ReadonlyObservable` or a plain date.
 - `ObjectEditor` takes `readonly`, and its composite schema nodes the option of the same name: the value is shown, and nothing in the editor changes it. Set to `true`, the model may be a `ReadonlyObservable` or a plain value, and there is no Undo history.
+- `RepeatVirtual`: infinite scrolling with `.OnEndReached()` / `.OnStartReached()` (rows prepended keep the visible rows in place), horizontal lists with `.Horizontal()` (right-to-left too), and `.itemAt(px)`.
 - `node_remove_range`, `node_move_range`, `without_motion` and `motion_is_enabled` are public.
 - Biome plugins (`lint/`) for the rules elt code must follow, shipped with the package. `out-prefix.grit` checks every `o.Out<T>`: component attributes, decorator options and function parameters.
 

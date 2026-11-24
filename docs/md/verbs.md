@@ -169,6 +169,46 @@ import { RepeatVirtual } from "elt"
 - Options, chained before it renders: `.ItemSize(px)` (estimated row height, default 64; a close estimate makes the scrollbar accurate sooner), `.Threshold(px)` (how far beyond the visible area rows are kept rendered, default 500: when the rows rendered past one edge cover less than half of it, that side is refilled to it in one go, and rows farther than it on the other side are dropped), `.InitialPosition(index)` (the row shown first, at the top of the visible area, once the list is connected and has rows; negative counts from the end, `-1` opens on the last row). `.setPosition(index)` jumps to a row later on, with the same meaning of the index. Both leave the scroll area's `scroll-padding-top` uncovered (`scroll-padding-left`, or `-right` in right-to-left, horizontally): give the scroll area that `scroll-padding` when a sticky header covers its top.
 - `.itemAt(px)` gives the index of the row `px` pixels from the start of the visible area (`null` if no rendered row is there): which value sits on a wheel's centre line, for instance. It measures the rows: call it once scrolling has stopped (on `scrollend`), not on every `scroll` event.
 
+### Infinite scrolling
+
+`.OnEndReached(fn)` calls `fn` when the rendered rows reach the list's last row, about `Threshold` pixels before the user sees it: `fn` loads the next page and appends it to the list. `.OnStartReached(fn)` does the same at the first row, for what comes before it.
+
+```tsx
+const o_posts = o([] as Post[])
+let next: string | null = ""
+
+<e-column scroll style={{ height: "100%" }}>
+  {RepeatVirtual(o_posts, (o_post) => <PostCard post={o_post} />)
+    .withKeyFunction((p) => p.id)
+    .OnEndReached(async () => {
+      if (next == null) return // nothing more: the call adds nothing, so it isn't called again
+      const page = await api.posts(next)
+      next = page.next
+      o_posts.set([...o_posts.get(), ...page.items])
+    })}
+</e-column>
+```
+
+- When `fn` returns a promise, it isn't called again before the promise settles.
+- It is called again as long as the end is still reached once the list has grown: pages too short to fill the visible area load one after the other until it is filled, then stop.
+- A call after which the list has the same length (nothing more to load, or the request failed) turns that end off: it is called again only once the rendered rows have left the end and come back, or the list has changed. A source that is exhausted, or failing, isn't called in a loop.
+- On an empty list, `OnEndReached` is called once the list is connected, so the first page can come from it. `OnStartReached` is called then only when `OnEndReached` isn't set: the first page is loaded once.
+- Rows prepended to the list (and nothing else in the same change: no row appended or moved) keep the visible rows where they are: the list scrolls by the size of what came in before them.
+
+A chat opens on its newest message and loads older ones as the user scrolls up:
+
+```tsx
+RepeatVirtual(o_messages, (o_msg) => <Message msg={o_msg} />)
+  .withKeyFunction((m) => m.id)
+  .InitialPosition(-1)
+  .OnStartReached(async () => {
+    const older = await api.messages_before(o_messages.get()[0]?.id)
+    o_messages.set([...older, ...o_messages.get()])
+  })
+```
+
+Keeping the data bounded (dropping pages far from the visible rows) is up to the code that loads them: the list already renders only the rows near the visible area.
+
 ### Virtualizing a grid
 
 An infinite grid is an `e-grid` with `RepeatVirtual` rows inside a scroll area, with sticky rows around it:
